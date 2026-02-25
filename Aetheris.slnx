@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="aetheris.client/aetheris.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="Aetheris.Server/Aetheris.Server.csproj" />
+</Solution>

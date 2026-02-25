@@ -1,0 +1,6 @@
+@Aetheris.Server_HostAddress = http://localhost:5142
+
+GET {{Aetheris.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

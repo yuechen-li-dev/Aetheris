@@ -32,6 +32,12 @@ export interface BodyCreatedResponseDto {
     vertexCount: number;
 }
 
+export interface BodyTransformedResponseDto {
+    documentId: string;
+    bodyId: string;
+    appliedTranslation: Vector3Dto;
+}
+
 export interface Point3Dto {
     x: number;
     y: number;
@@ -164,6 +170,13 @@ export async function pickBody(documentId: string, bodyId: string, pickRequest: 
     return request<PickResponseDto>(`/api/v1/documents/${documentId}/bodies/${bodyId}/pick`, {
         method: 'POST',
         body: JSON.stringify(pickRequest),
+    });
+}
+
+export async function translateBody(documentId: string, bodyId: string, translation: Vector3Dto): Promise<BodyTransformedResponseDto> {
+    return request<BodyTransformedResponseDto>(`/api/v1/documents/${documentId}/bodies/${bodyId}/transform`, {
+        method: 'POST',
+        body: JSON.stringify({ translation }),
     });
 }
 

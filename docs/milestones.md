@@ -171,3 +171,11 @@
 - [x] Surface pick status, hit details (kind, IDs, t, point, normal), and diagnostics/no-hit feedback in the debug panel.
 - [x] Add minimal debug highlighting for nearest picked face/edge using tessellation topology IDs.
 - [x] Defer full selection UX/tooling architecture (multi-select, inspectors, manipulators, hover/tool systems) to M19+.
+
+## M19 — Basic Modeling UI v1 (Primitive + Transform)
+
+- [x] Extend the React frontend with explicit modeling controls: box primitive creation form, body list, active body selection, and numeric translation inputs.
+- [x] Keep backend as source of truth by refreshing document summary + tessellation after create/transform operations and surfacing deterministic status/diagnostics.
+- [x] Add minimal backend transform route (`POST /api/v1/documents/{documentId}/bodies/{bodyId}/transform`) with typed DTOs and M17 envelope semantics.
+- [x] Apply document-level body transforms to tessellation and picking responses so viewport updates and hit data stay in world space after translation.
+- [x] Preserve M18/M18.5 debug visibility (active body, body count, pick status/hits/diagnostics, tessellation counts) while deferring booleans UI, gizmos, undo/redo, feature tree, and persistence to later milestones.

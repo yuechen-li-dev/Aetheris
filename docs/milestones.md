@@ -27,3 +27,12 @@
 - [x] Add minimal affine `Transform3D` wrapper with point/vector/direction application, composition, and inverse behavior.
 - [x] Add minimal spatial substrate (`BoundingBox3D`, `Ray3D`) for later query/intersection work.
 - [x] Add focused unit tests for primitive math invariants and transform behavior.
+
+## M04 — Topology Entity IDs + Minimal B-rep Topology Graph Skeleton
+
+- [x] Add strongly typed topology IDs (`BodyId`, `ShellId`, `FaceId`, `LoopId`, `CoedgeId`, `EdgeId`, `VertexId`) for stable in-memory references.
+- [x] Add topology-only entity graph primitives (body/shell/face/loop/coedge/edge/vertex) with ID-based references and no geometry binding.
+- [x] Add a minimal topology model container and a small builder helper for readable test graph assembly.
+- [x] Add reference-integrity validator v0 (dangling references and local loop/coedge consistency only).
+- [x] Add unit tests, including a cube-like topology graph skeleton validation test.
+- [x] Explicitly defer geometry binding and manifold-level correctness checks to future milestones.

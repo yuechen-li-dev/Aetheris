@@ -82,7 +82,7 @@
 ## M10 — Programmatic Extrude Framework v1 (No Sketcher)
 
 - [x] Add a minimal programmatic profile model for extrusion input using local 2D planar coordinates (single outer closed loop, line segments only).
-- [x] M10 profile validation intentionally does not yet perform full polygon self-intersection rejection (deferred to a later milestone).
+- [x] M10 profile validation intentionally remains basic and not a full polygon-simplicity/self-intersection solver; some invalid polygons are rejected by existing degeneracy checks, but robust simple-polygon validation is deferred.
 - [x] Add an explicit extrusion API (`BrepExtrude.Create`) returning `KernelResult<BrepBody>` with strict validator-backed output checks.
 - [x] Support constant-depth linear extrusion along +normal of an explicit frame, producing top/bottom caps and planar side faces.
 - [x] Add focused unit tests for profile/extrude validation, topology and binding expectations, traversal safety, depth-direction convention, and winding behavior.

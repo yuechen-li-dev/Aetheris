@@ -113,7 +113,7 @@ public sealed class BrepExtrudeTests
     }
 
     [Fact]
-    public void Create_SelfIntersectingProfile_CurrentlyNotRejectedInM10()
+    public void Create_BowTieProfile_FailsValidation_CurrentBehavior()
     {
         var bowTie = PolylineProfile2D.Create(
         [
@@ -123,15 +123,7 @@ public sealed class BrepExtrudeTests
             new ProfilePoint2D(2d, 0d),
         ]);
 
-        Assert.True(bowTie.IsSuccess);
-
-        var frame = new ExtrudeFrame3D(
-            Point3D.Origin,
-            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
-            Direction3D.Create(new Vector3D(1d, 0d, 0d)));
-
-        var result = BrepExtrude.Create(bowTie.Value, frame, 1d);
-
-        Assert.True(result.IsSuccess);
+        Assert.False(bowTie.IsSuccess);
+        Assert.Contains(bowTie.Diagnostics, d => d.Code == KernelDiagnosticCode.InvalidArgument);
     }
 }

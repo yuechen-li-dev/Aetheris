@@ -17,24 +17,42 @@ export interface DocumentCreateResponseDto {
     volatile: boolean;
 }
 
+export interface BodyOccurrenceSummaryDto {
+    occurrenceId: string;
+    definitionId: string;
+    name: string | null;
+}
+
 export interface DocumentSummaryResponseDto {
     documentId: string;
     name: string | null;
     bodyCount: number;
     bodyIds: string[];
+    occurrenceCount: number;
+    occurrences: BodyOccurrenceSummaryDto[];
 }
 
 export interface BodyCreatedResponseDto {
     documentId: string;
     bodyId: string;
+    occurrenceId: string;
+    definitionId: string;
     faceCount: number;
     edgeCount: number;
     vertexCount: number;
 }
 
+export interface BodyOccurrenceCreatedResponseDto {
+    documentId: string;
+    occurrenceId: string;
+    definitionId: string;
+    name: string | null;
+}
+
 export interface BodyTransformedResponseDto {
     documentId: string;
     bodyId: string;
+    occurrenceId: string;
     appliedTranslation: Vector3Dto;
 }
 
@@ -99,6 +117,8 @@ export interface PickHitDto {
     faceId: number | null;
     edgeId: number | null;
     bodyId: number | null;
+    occurrenceId: string | null;
+    definitionId: string | null;
     sourcePatchIndex: number | null;
     sourcePrimitiveIndex: number | null;
 }
@@ -164,6 +184,13 @@ export async function createBox(documentId: string, width: number, height: numbe
     return request<BodyCreatedResponseDto>(`/api/v1/documents/${documentId}/bodies/primitives/box`, {
         method: 'POST',
         body: JSON.stringify({ width, height, depth }),
+    });
+}
+
+export async function createOccurrence(documentId: string, occurrenceId: string): Promise<BodyOccurrenceCreatedResponseDto> {
+    return request<BodyOccurrenceCreatedResponseDto>(`/api/v1/documents/${documentId}/bodies/${occurrenceId}/occurrences`, {
+        method: 'POST',
+        body: JSON.stringify({}),
     });
 }
 

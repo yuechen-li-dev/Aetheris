@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Brep.Picking;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Results;
 
@@ -116,21 +117,29 @@ END-ISO-10303-21;
 
     private static void AssertBodySubsetInvariants(BrepBody body)
     {
-        Assert.Equal(1, body.Topology.Bodies.Count());
-        Assert.Equal(1, body.Topology.Shells.Count());
-        Assert.Equal(6, body.Topology.Faces.Count());
-        Assert.Equal(6, body.Bindings.FaceBindings.Count);
-        Assert.Equal(12, body.Topology.Edges.Count());
-        Assert.Equal(12, body.Bindings.EdgeBindings.Count);
-        Assert.Equal(8, body.Topology.Vertices.Count());
+        var bodies = body.Topology.Bodies.ToArray();
+        var shells = body.Topology.Shells.ToArray();
+        var faces = body.Topology.Faces.ToArray();
+        var edges = body.Topology.Edges.ToArray();
+        var vertices = body.Topology.Vertices.ToArray();
+        var faceBindings = body.Bindings.FaceBindings.ToArray();
+        var edgeBindings = body.Bindings.EdgeBindings.ToArray();
 
-        foreach (var faceBinding in body.Bindings.FaceBindings.Values)
+        Assert.Single(bodies);
+        Assert.Single(shells);
+        Assert.Equal(6, faces.Length);
+        Assert.Equal(6, faceBindings.Length);
+        Assert.Equal(12, edges.Length);
+        Assert.Equal(12, edgeBindings.Length);
+        Assert.Equal(8, vertices.Length);
+
+        foreach (var faceBinding in faceBindings)
         {
             var surface = body.Geometry.GetSurface(faceBinding.SurfaceGeometryId);
             Assert.Equal(SurfaceGeometryKind.Plane, surface.Kind);
         }
 
-        foreach (var edgeBinding in body.Bindings.EdgeBindings.Values)
+        foreach (var edgeBinding in edgeBindings)
         {
             var curve = body.Geometry.GetCurve(edgeBinding.CurveGeometryId);
             Assert.Equal(CurveGeometryKind.Line3, curve.Kind);
@@ -147,7 +156,7 @@ END-ISO-10303-21;
         var pick = BrepPicker.Pick(body, tessellation.Value, ray, PickQueryOptions.Default with { NearestOnly = true });
 
         Assert.True(pick.IsSuccess);
-        Assert.Single(pick.Value.Where(hit => hit.EntityKind == SelectionEntityKind.Face));
+        Assert.Single(pick.Value, hit => hit.EntityKind == SelectionEntityKind.Face);
     }
 
     private static KernelResult<string> ImportThenExport(string stepText)

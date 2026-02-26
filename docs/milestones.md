@@ -36,3 +36,12 @@
 - [x] Add reference-integrity validator v0 (dangling references and local loop/coedge consistency only).
 - [x] Add unit tests, including a cube-like topology graph skeleton validation test.
 - [x] Explicitly defer geometry binding and manifold-level correctness checks to future milestones.
+
+
+## M05 — Analytic Geometry Primitives v1 (No Topology Binding)
+
+- [x] Add minimal analytic geometry parameter helpers for stable parameter-domain usage (`ParameterInterval`).
+- [x] Add exact analytic curve primitives (`Line3Curve`, `Circle3Curve`) with explicit parameterization conventions and evaluation APIs.
+- [x] Add exact analytic surface primitives (`PlaneSurface`, `CylinderSurface`, `SphereSurface`, `ConeSurface`) with constructor validation and documented parameter conventions.
+- [x] Add focused geometry unit tests that lock evaluation behavior/orientation conventions and invalid-construction guardrails.
+- [x] Explicitly defer topology-geometry binding to M06.

@@ -198,3 +198,12 @@
 - [x] Harden routine failure paths to remain diagnostic-first and no-throw for malformed/unsupported requests.
 - [x] Keep scope hardening-only: no new modeling capabilities or UI feature expansion.
 - [x] Defer known fragilities (general booleans beyond axis-aligned single-box results, broad trimmed-surface tessellation fidelity, and advanced pick acceleration/performance work).
+
+## M22 — AP242 Mapping Layer Skeleton + Export v1 (Subset Only)
+
+- [x] Add a focused AP242 export mapping layer in the kernel (`Aetheris.Kernel.Core.Step242`) with a deterministic text writer and a single export entry point.
+- [x] Keep AP242 as a mapped serialization layer: the kernel B-rep model remains authoritative and unchanged in-memory.
+- [x] Export a narrow, explicit subset: single-body/single-shell solids with planar faces, line edges, and loop-based topology (box primitive path).
+- [x] Return structured `NotImplemented` diagnostics for unsupported export cases (for example: periodic/loopless sphere face, non-planar surfaces, non-line edge curves, multi-body layouts).
+- [x] Add regression tests for successful box export structure, deterministic output stability, and unsupported-case no-throw diagnostics.
+- [x] Defer AP242 import work to M23 and broader schema/entity coverage to later milestones.

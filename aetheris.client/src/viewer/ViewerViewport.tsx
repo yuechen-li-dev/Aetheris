@@ -1,14 +1,18 @@
 import { Line, OrbitControls } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { useMemo } from 'react';
-import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial } from 'three';
+import { useThree } from '@react-three/fiber';
+import { useEffect, useMemo } from 'react';
+import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial, Raycaster, Vector2 } from 'three';
 import type { RenderSceneData } from './tessellationMapper';
 
 interface ViewerViewportProps {
     sceneData: RenderSceneData | null;
+    highlightedFaceId?: number | null;
+    highlightedEdgeId?: number | null;
+    onPickRay?: (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }) => void;
 }
 
-function FaceMesh({ positions, normals, indices }: { positions: Float32Array; normals: Float32Array; indices: Uint32Array }) {
+function FaceMesh({ positions, normals, indices, isHighlighted }: { positions: Float32Array; normals: Float32Array; indices: Uint32Array; isHighlighted: boolean }) {
     const geometry = useMemo(() => {
         const meshGeometry = new BufferGeometry();
         meshGeometry.setAttribute('position', new BufferAttribute(positions, 3));
@@ -18,12 +22,15 @@ function FaceMesh({ positions, normals, indices }: { positions: Float32Array; no
         return meshGeometry;
     }, [indices, normals, positions]);
 
-    const material = useMemo(() => new MeshStandardMaterial({ color: '#8db8ff', metalness: 0.1, roughness: 0.75, side: DoubleSide }), []);
+    const material = useMemo(
+        () => new MeshStandardMaterial({ color: isHighlighted ? '#f59e0b' : '#8db8ff', metalness: 0.1, roughness: 0.75, side: DoubleSide }),
+        [isHighlighted],
+    );
 
     return <mesh geometry={geometry} material={material} />;
 }
 
-function EdgeLine({ points }: { points: Float32Array }) {
+function EdgeLine({ points, isHighlighted }: { points: Float32Array; isHighlighted: boolean }) {
     const linePoints = useMemo(() => {
         const vertices: [number, number, number][] = [];
 
@@ -34,10 +41,51 @@ function EdgeLine({ points }: { points: Float32Array }) {
         return vertices;
     }, [points]);
 
-    return <Line points={linePoints} color="#111827" lineWidth={1} />;
+    return <Line points={linePoints} color={isHighlighted ? '#dc2626' : '#111827'} lineWidth={isHighlighted ? 3 : 1} />;
 }
 
-export function ViewerViewport({ sceneData }: ViewerViewportProps) {
+function PickRayCapture({ onPickRay }: { onPickRay?: ViewerViewportProps['onPickRay'] }) {
+    const { camera, gl } = useThree();
+
+    useEffect(() => {
+        if (!onPickRay) {
+            return;
+        }
+
+        const raycaster = new Raycaster();
+        const pointer = new Vector2();
+
+        const handleClick = (event: MouseEvent) => {
+            if (event.button !== 0) {
+                return;
+            }
+
+            const rect = gl.domElement.getBoundingClientRect();
+            pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(pointer, camera);
+            onPickRay(
+                {
+                    x: raycaster.ray.origin.x,
+                    y: raycaster.ray.origin.y,
+                    z: raycaster.ray.origin.z,
+                },
+                {
+                    x: raycaster.ray.direction.x,
+                    y: raycaster.ray.direction.y,
+                    z: raycaster.ray.direction.z,
+                },
+            );
+        };
+
+        gl.domElement.addEventListener('click', handleClick);
+        return () => gl.domElement.removeEventListener('click', handleClick);
+    }, [camera, gl.domElement, onPickRay]);
+
+    return null;
+}
+
+export function ViewerViewport({ sceneData, highlightedFaceId = null, highlightedEdgeId = null, onPickRay }: ViewerViewportProps) {
     return (
         <div className="viewport-shell">
             <Canvas camera={{ position: [4, 4, 4], fov: 50 }}>
@@ -52,14 +100,17 @@ export function ViewerViewport({ sceneData }: ViewerViewportProps) {
                         positions={face.positions}
                         normals={face.normals}
                         indices={face.indices}
+                        isHighlighted={highlightedFaceId === face.faceId}
                     />
                 ))}
                 {sceneData?.edges.map((edge) => (
                     <EdgeLine
                         key={`edge-${edge.edgeId}`}
                         points={edge.points}
+                        isHighlighted={highlightedEdgeId === edge.edgeId}
                     />
                 ))}
+                <PickRayCapture onPickRay={onPickRay} />
                 <OrbitControls makeDefault enablePan enableZoom />
             </Canvas>
         </div>

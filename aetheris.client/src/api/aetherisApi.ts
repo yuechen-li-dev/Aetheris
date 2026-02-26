@@ -62,6 +62,37 @@ export interface TessellationResponseDto {
     edgePolylines: EdgePolylineDto[];
 }
 
+export interface PickOptionsDto {
+    nearestOnly?: boolean;
+    includeBackfaces?: boolean;
+    edgeTolerance?: number;
+    sortTieTolerance?: number;
+    maxDistance?: number;
+}
+
+export interface PickRequestDto {
+    origin: Point3Dto;
+    direction: Vector3Dto;
+    tessellationOptions: null;
+    pickOptions: PickOptionsDto;
+}
+
+export interface PickHitDto {
+    t: number;
+    point: Point3Dto;
+    normal: Vector3Dto | null;
+    entityKind: 'Face' | 'Edge';
+    faceId: number | null;
+    edgeId: number | null;
+    bodyId: number | null;
+    sourcePatchIndex: number | null;
+    sourcePrimitiveIndex: number | null;
+}
+
+export interface PickResponseDto {
+    hits: PickHitDto[];
+}
+
 export class ApiError extends Error {
     public readonly diagnostics: DiagnosticDto[];
 
@@ -126,6 +157,13 @@ export async function tessellateBody(documentId: string, bodyId: string): Promis
     return request<TessellationResponseDto>(`/api/v1/documents/${documentId}/bodies/${bodyId}/tessellate`, {
         method: 'POST',
         body: JSON.stringify({ options: null }),
+    });
+}
+
+export async function pickBody(documentId: string, bodyId: string, pickRequest: PickRequestDto): Promise<PickResponseDto> {
+    return request<PickResponseDto>(`/api/v1/documents/${documentId}/bodies/${bodyId}/pick`, {
+        method: 'POST',
+        body: JSON.stringify(pickRequest),
     });
 }
 

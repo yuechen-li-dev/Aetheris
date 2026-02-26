@@ -163,3 +163,11 @@
 - [x] Add a simple debug/status panel showing document/body state, request status, and surfaced diagnostics.
 - [x] Keep scope intentionally narrow: viewer/debug shell + primitive creation integration only.
 - [x] Defer rich modeling workflows, selection UX, editing manipulators/gizmos, undo/redo, and persisted documents.
+
+## M18.5 — Viewer Picking Integration Debug Slice
+
+- [x] Extend the React viewer API client with typed `/api/v1/documents/{documentId}/bodies/{bodyId}/pick` support using the M17 response envelope.
+- [x] Add viewport click-to-ray mapping and nearest-only pick requests against the backend endpoint (backend semantics remain source of truth).
+- [x] Surface pick status, hit details (kind, IDs, t, point, normal), and diagnostics/no-hit feedback in the debug panel.
+- [x] Add minimal debug highlighting for nearest picked face/edge using tessellation topology IDs.
+- [x] Defer full selection UX/tooling architecture (multi-select, inspectors, manipulators, hover/tool systems) to M19+.

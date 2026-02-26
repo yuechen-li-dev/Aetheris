@@ -427,8 +427,9 @@ public static class BrepPicker
         while (index < byT.Count)
         {
             var groupEndExclusive = index + 1;
+            var groupStartT = byT[index].T;
             while (groupEndExclusive < byT.Count
-                && System.Math.Abs(byT[groupEndExclusive].T - byT[groupEndExclusive - 1].T) <= tieTolerance)
+                && System.Math.Abs(byT[groupEndExclusive].T - groupStartT) <= tieTolerance)
             {
                 groupEndExclusive++;
             }

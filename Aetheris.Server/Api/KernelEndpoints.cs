@@ -75,6 +75,11 @@ public static class KernelEndpoints
         documents.MapPost("/{documentId:guid}/operations/extrude", (Guid documentId, ExtrudeRequestDto request, KernelDocumentStore store) =>
             WithDocument(store, documentId, document =>
             {
+                if (request.Profile is null)
+                {
+                    return ApiMappings.BadRequestFromMessage("Profile must be provided.", "operations.extrude");
+                }
+
                 var profile = PolylineProfile2D.Create(request.Profile.Select(p => new ProfilePoint2D(p.X, p.Y)).ToArray());
                 if (!profile.IsSuccess)
                 {
@@ -98,6 +103,11 @@ public static class KernelEndpoints
         documents.MapPost("/{documentId:guid}/operations/revolve", (Guid documentId, RevolveRequestDto request, KernelDocumentStore store) =>
             WithDocument(store, documentId, document =>
             {
+                if (request.Profile is null)
+                {
+                    return ApiMappings.BadRequestFromMessage("Profile must be provided.", "operations.revolve");
+                }
+
                 if (!Direction3D.TryCreate(new Vector3D(request.AxisDirection.X, request.AxisDirection.Y, request.AxisDirection.Z), out var axisDirection))
                 {
                     return ApiMappings.BadRequestFromMessage("AxisDirection must be non-zero and finite.", "operations.revolve");
@@ -173,6 +183,11 @@ public static class KernelEndpoints
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/transform", (Guid documentId, Guid bodyId, TranslateBodyRequestDto request, KernelDocumentStore store) =>
             WithDocument(store, documentId, document =>
             {
+                if (request.Translation is null)
+                {
+                    return ApiMappings.BadRequestFromMessage("Translation must be provided.", "documents.body");
+                }
+
                 if (!document.ApplyBodyTranslation(bodyId, new Vector3D(request.Translation.X, request.Translation.Y, request.Translation.Z), out _))
                 {
                     return ApiMappings.NotFound($"Body '{bodyId}' was not found.", "documents.body");
@@ -202,6 +217,11 @@ public static class KernelEndpoints
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/pick", (Guid documentId, Guid bodyId, PickRequestDto request, KernelDocumentStore store) =>
             WithDocumentBody(store, documentId, bodyId, (document, body) =>
             {
+                if (request.Direction is null)
+                {
+                    return ApiMappings.BadRequestFromMessage("Direction must be provided.", "bodies.pick");
+                }
+
                 if (!Direction3D.TryCreate(new Vector3D(request.Direction.X, request.Direction.Y, request.Direction.Z), out var direction))
                 {
                     return ApiMappings.BadRequestFromMessage("Direction must be non-zero and finite.", "bodies.pick");

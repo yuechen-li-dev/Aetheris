@@ -200,7 +200,7 @@ public static class BrepDisplayTessellator
         }
 
         var angularSegments = CalculateSegmentCount(2d * double.Pi, sphere.Radius, options);
-        var elevationSegments = Math.Max(2, Math.Clamp(angularSegments / 2, options.MinimumSegments / 2, options.MaximumSegments));
+        var elevationSegments = System.Math.Max(2, System.Math.Clamp(angularSegments / 2, options.MinimumSegments / 2, options.MaximumSegments));
 
         var positions = new List<Point3D>((angularSegments + 1) * (elevationSegments + 1));
         var normals = new List<Vector3D>((angularSegments + 1) * (elevationSegments + 1));
@@ -278,8 +278,8 @@ public static class BrepDisplayTessellator
         }
 
         var seamInterval = seamBinding.TrimInterval ?? new ParameterInterval(0d, 1d);
-        var angularSegments = CalculateSegmentCount(2d * double.Pi, Math.Max(1e-6d, radiusHint), options);
-        var axialSegments = Math.Max(1, Math.Clamp((int)double.Ceiling((seamInterval.End - seamInterval.Start) / options.ChordTolerance), 1, options.MaximumSegments));
+        var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
+        var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling((seamInterval.End - seamInterval.Start) / options.ChordTolerance), 1, options.MaximumSegments));
 
         return KernelResult<(double, double, int, int)>.Success((seamInterval.Start, seamInterval.End, angularSegments, axialSegments));
     }
@@ -375,8 +375,8 @@ public static class BrepDisplayTessellator
                 var circle = curve.Circle3!.Value;
                 var delta = interval.End - interval.Start;
                 var fullCircleSegments = CalculateSegmentCount(2d * double.Pi, circle.Radius, options);
-                var segmentCount = Math.Max(1, (int)double.Ceiling(fullCircleSegments * (delta / (2d * double.Pi))));
-                segmentCount = Math.Clamp(segmentCount, 1, options.MaximumSegments);
+                var segmentCount = System.Math.Max(1, (int)double.Ceiling(fullCircleSegments * (delta / (2d * double.Pi))));
+                segmentCount = System.Math.Clamp(segmentCount, 1, options.MaximumSegments);
 
                 var points = new List<Point3D>(segmentCount + 1);
                 for (var i = 0; i <= segmentCount; i++)
@@ -419,7 +419,7 @@ public static class BrepDisplayTessellator
         if (radius > 0d)
         {
             var ratio = 1d - (options.ChordTolerance / radius);
-            ratio = Math.Clamp(ratio, -1d, 1d);
+            ratio = System.Math.Clamp(ratio, -1d, 1d);
             var halfStep = double.Acos(ratio);
             if (halfStep > 0d)
             {
@@ -427,8 +427,8 @@ public static class BrepDisplayTessellator
             }
         }
 
-        var segments = Math.Max(options.MinimumSegments, Math.Max(byAngle, byChord));
-        return Math.Clamp(segments, options.MinimumSegments, options.MaximumSegments);
+        var segments = System.Math.Max(options.MinimumSegments, System.Math.Max(byAngle, byChord));
+        return System.Math.Clamp(segments, options.MinimumSegments, options.MaximumSegments);
     }
 
     private static KernelDiagnostic CreateInvalidArgument(string message)

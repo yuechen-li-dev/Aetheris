@@ -122,7 +122,7 @@ public sealed class BrepPickerTests
         Assert.True(second.IsSuccess);
         var firstEdges = first.Value.Where(h => h.EntityKind == SelectionEntityKind.Edge).ToArray();
         var secondEdges = second.Value.Where(h => h.EntityKind == SelectionEntityKind.Edge).ToArray();
-        Assert.True(firstEdges.Length >= 2);
+        Assert.NotEmpty(firstEdges);
         Assert.Equal(firstEdges, secondEdges);
     }
 

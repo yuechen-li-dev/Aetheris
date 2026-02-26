@@ -41,7 +41,7 @@ public sealed class Step242ExporterTests
 
         var entityLines = first.Value
             .Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(line => line.StartsWith('#', StringComparison.Ordinal))
+            .Where(line => line.StartsWith("#", StringComparison.Ordinal))
             .Take(5)
             .ToArray();
 

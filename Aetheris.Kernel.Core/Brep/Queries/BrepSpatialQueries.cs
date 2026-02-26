@@ -21,7 +21,9 @@ public static class BrepSpatialQueries
         ToleranceContext? tolerance = null)
     {
         var context = tolerance ?? ToleranceContext.Default;
-        var queryOptions = options ?? new RayQueryOptions();
+        // RayQueryOptions is a value type; `new RayQueryOptions()` would produce CLR default values
+        // (IncludeBackfaces=false), so use the explicit query default profile for v1 semantics.
+        var queryOptions = options ?? RayQueryOptions.Default;
 
         if (!TryResolvePrimitive(body, out var primitive, out var diagnostic))
         {

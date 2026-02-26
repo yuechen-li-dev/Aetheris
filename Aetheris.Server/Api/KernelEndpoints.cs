@@ -230,9 +230,9 @@ public static class KernelEndpoints
         return new BodyCreatedResponseDto(
             document.Id,
             bodyId,
-            body.Topology.Faces.Count,
-            body.Topology.Edges.Count,
-            body.Topology.Vertices.Count);
+            body.Topology.Faces.Count(),
+            body.Topology.Edges.Count(),
+            body.Topology.Vertices.Count());
     }
 
     private static bool TryCreateFrame(Point3Dto originDto, Vector3Dto normalDto, Vector3Dto uAxisDto, out ExtrudeFrame3D frame, out IResult error)

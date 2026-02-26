@@ -14,17 +14,17 @@ public static class TopologyGraphValidator
 
         foreach (var body in model.Bodies)
         {
-            ValidateChildren(model, body.ShellIds, model.TryGetShell, $"Body {body.Id.Value}", diagnostics);
+            ValidateChildren(body.ShellIds, id => model.TryGetShell(id, out _), $"Body {body.Id.Value}", diagnostics);
         }
 
         foreach (var shell in model.Shells)
         {
-            ValidateChildren(model, shell.FaceIds, model.TryGetFace, $"Shell {shell.Id.Value}", diagnostics);
+            ValidateChildren(shell.FaceIds, id => model.TryGetFace(id, out _), $"Shell {shell.Id.Value}", diagnostics);
         }
 
         foreach (var face in model.Faces)
         {
-            ValidateChildren(model, face.LoopIds, model.TryGetLoop, $"Face {face.Id.Value}", diagnostics);
+            ValidateChildren(face.LoopIds, id => model.TryGetLoop(id, out _), $"Face {face.Id.Value}", diagnostics);
         }
 
         foreach (var loop in model.Loops)
@@ -34,7 +34,7 @@ public static class TopologyGraphValidator
                 diagnostics.Add(Error($"Loop {loop.Id.Value} does not reference any coedges."));
             }
 
-            ValidateChildren(model, loop.CoedgeIds, model.TryGetCoedge, $"Loop {loop.Id.Value}", diagnostics);
+            ValidateChildren(loop.CoedgeIds, id => model.TryGetCoedge(id, out _), $"Loop {loop.Id.Value}", diagnostics);
 
             foreach (var coedgeId in loop.CoedgeIds)
             {
@@ -99,14 +99,12 @@ public static class TopologyGraphValidator
             : KernelResult<bool>.Success(true, diagnostics);
     }
 
-    private static void ValidateChildren<TId, TEntity>(
-        TopologyModel model,
+    private static void ValidateChildren<TId>(
         IReadOnlyList<TId> childIds,
-        TryGet<TId, TEntity> tryGet,
+        Func<TId, bool> exists,
         string parent,
         ICollection<KernelDiagnostic> diagnostics)
         where TId : struct
-        where TEntity : class
     {
         var seen = new HashSet<TId>();
 
@@ -117,7 +115,7 @@ public static class TopologyGraphValidator
                 diagnostics.Add(Warning($"{parent} contains duplicate child reference {childId}."));
             }
 
-            if (!tryGet(model, childId, out _))
+            if (!exists(childId))
             {
                 diagnostics.Add(Error($"{parent} references missing child ID {childId}."));
             }
@@ -129,8 +127,4 @@ public static class TopologyGraphValidator
 
     private static KernelDiagnostic Warning(string message) =>
         new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning, message);
-
-    private delegate bool TryGet<TId, TEntity>(TopologyModel model, TId id, out TEntity? entity)
-        where TId : struct
-        where TEntity : class;
 }

@@ -66,15 +66,7 @@ public static class BrepPicker
         hits.AddRange(CollectFaceHits(tessellation.FacePatches, ray, effectiveOptions, context, bodyId));
         hits.AddRange(CollectEdgeHits(tessellation.EdgePolylines, ray, effectiveOptions, context, bodyId));
 
-        var ordered = hits
-            .OrderBy(hit => hit.T)
-            .ThenBy(hit => hit.EntityKind == SelectionEntityKind.Edge ? 0 : hit.EntityKind == SelectionEntityKind.Face ? 1 : 2)
-            .ThenBy(hit => hit.FaceId?.Value ?? int.MaxValue)
-            .ThenBy(hit => hit.EdgeId?.Value ?? int.MaxValue)
-            .ToList();
-
-        // Edge wins over face when T is effectively tied.
-        ordered.Sort((a, b) => CompareHits(a, b, effectiveOptions.SortTieTolerance));
+        var ordered = SortHits(hits, effectiveOptions.SortTieTolerance);
 
         if (effectiveOptions.NearestOnly)
         {
@@ -147,7 +139,7 @@ public static class BrepPicker
                     SourcePatchIndex: patchIndex,
                     SourcePrimitiveIndex: triangleIndex / 3);
 
-                if (bestPatchHit is null || CompareHits(hit, bestPatchHit, options.SortTieTolerance) < 0)
+                if (bestPatchHit is null || IsBetterCandidate(hit, bestPatchHit, options.SortTieTolerance))
                 {
                     bestPatchHit = hit;
                 }
@@ -211,7 +203,7 @@ public static class BrepPicker
                     SourcePatchIndex: polylineIndex,
                     SourcePrimitiveIndex: segmentIndex);
 
-                if (bestEdgeHit is null || CompareHits(hit, bestEdgeHit, options.SortTieTolerance) < 0)
+                if (bestEdgeHit is null || IsBetterCandidate(hit, bestEdgeHit, options.SortTieTolerance))
                 {
                     bestEdgeHit = hit;
                 }
@@ -381,33 +373,85 @@ public static class BrepPicker
         return true;
     }
 
-    private static int CompareHits(PickHit left, PickHit right, double tieTolerance)
+
+    private static bool IsBetterCandidate(PickHit candidate, PickHit current, double tieTolerance)
     {
-        if (System.Math.Abs(left.T - right.T) > tieTolerance)
+        if (candidate.T < current.T - tieTolerance)
         {
-            return left.T.CompareTo(right.T);
+            return true;
         }
 
-        var leftRank = EntityRank(left.EntityKind);
-        var rightRank = EntityRank(right.EntityKind);
-        if (leftRank != rightRank)
+        if (System.Math.Abs(candidate.T - current.T) > tieTolerance)
         {
-            return leftRank.CompareTo(rightRank);
+            return false;
         }
 
-        var faceCompare = (left.FaceId?.Value ?? int.MaxValue).CompareTo(right.FaceId?.Value ?? int.MaxValue);
-        if (faceCompare != 0)
+        if (EntityRank(candidate.EntityKind) != EntityRank(current.EntityKind))
         {
-            return faceCompare;
+            return EntityRank(candidate.EntityKind) < EntityRank(current.EntityKind);
         }
 
-        var edgeCompare = (left.EdgeId?.Value ?? int.MaxValue).CompareTo(right.EdgeId?.Value ?? int.MaxValue);
-        if (edgeCompare != 0)
+        var candidateFace = candidate.FaceId?.Value ?? int.MaxValue;
+        var currentFace = current.FaceId?.Value ?? int.MaxValue;
+        if (candidateFace != currentFace)
         {
-            return edgeCompare;
+            return candidateFace < currentFace;
         }
 
-        return (left.SourcePrimitiveIndex ?? int.MaxValue).CompareTo(right.SourcePrimitiveIndex ?? int.MaxValue);
+        var candidateEdge = candidate.EdgeId?.Value ?? int.MaxValue;
+        var currentEdge = current.EdgeId?.Value ?? int.MaxValue;
+        if (candidateEdge != currentEdge)
+        {
+            return candidateEdge < currentEdge;
+        }
+
+        return (candidate.SourcePrimitiveIndex ?? int.MaxValue) < (current.SourcePrimitiveIndex ?? int.MaxValue);
+    }
+
+    private static List<PickHit> SortHits(IEnumerable<PickHit> hits, double tieTolerance)
+    {
+        var byT = hits
+            .OrderBy(hit => hit.T)
+            .ThenBy(hit => hit.FaceId?.Value ?? int.MaxValue)
+            .ThenBy(hit => hit.EdgeId?.Value ?? int.MaxValue)
+            .ThenBy(hit => hit.SourcePrimitiveIndex ?? int.MaxValue)
+            .ToList();
+
+        if (byT.Count <= 1 || tieTolerance <= 0d)
+        {
+            return byT;
+        }
+
+        var result = new List<PickHit>(byT.Count);
+        var index = 0;
+        while (index < byT.Count)
+        {
+            var groupEndExclusive = index + 1;
+            while (groupEndExclusive < byT.Count
+                && System.Math.Abs(byT[groupEndExclusive].T - byT[groupEndExclusive - 1].T) <= tieTolerance)
+            {
+                groupEndExclusive++;
+            }
+
+            if (groupEndExclusive - index == 1)
+            {
+                result.Add(byT[index]);
+                index = groupEndExclusive;
+                continue;
+            }
+
+            var tieGroup = byT
+                .GetRange(index, groupEndExclusive - index)
+                .OrderBy(hit => EntityRank(hit.EntityKind))
+                .ThenBy(hit => hit.FaceId?.Value ?? int.MaxValue)
+                .ThenBy(hit => hit.EdgeId?.Value ?? int.MaxValue)
+                .ThenBy(hit => hit.SourcePrimitiveIndex ?? int.MaxValue);
+
+            result.AddRange(tieGroup);
+            index = groupEndExclusive;
+        }
+
+        return result;
     }
 
     private static int EntityRank(SelectionEntityKind kind)

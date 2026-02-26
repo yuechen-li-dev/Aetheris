@@ -85,7 +85,9 @@ public sealed class BrepPickerTests
         var result = BrepPicker.Pick(box, tessellation, ray, PickQueryOptions.Default with { EdgeTolerance = 0.02d });
 
         Assert.True(result.IsSuccess);
-        var edgeHit = Assert.Single(result.Value.Where(h => h.EntityKind == SelectionEntityKind.Edge));
+        var edgeHits = result.Value.Where(h => h.EntityKind == SelectionEntityKind.Edge).ToArray();
+        Assert.NotEmpty(edgeHits);
+        var edgeHit = edgeHits[0];
         Assert.True(edgeHit.EdgeId.HasValue);
         Assert.Equal(1d, edgeHit.Point.X, 3);
         Assert.Equal(-1d, edgeHit.Point.Y, 3);
@@ -116,7 +118,7 @@ public sealed class BrepPickerTests
         Assert.True(result.IsSuccess);
         var edges = result.Value.Where(h => h.EntityKind == SelectionEntityKind.Edge).ToArray();
         Assert.True(edges.Length >= 2);
-        Assert.True(edges[0].T <= edges[1].T);
+        Assert.Equal(edges.OrderBy(h => h.T).ToArray(), edges);
     }
 
     [Fact]

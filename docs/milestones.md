@@ -105,4 +105,14 @@
 - [x] Support tiny end-to-end identity shortcuts for same-instance `Union` and `Intersect`; outputs are validated in strict mode via `BrepBindingValidator` before success is returned.
 - [x] Return deterministic structured `NotImplemented` diagnostics for all non-supported M12 boolean requests, including same-instance `Subtract` (empty-body representation deferred).
 - [x] Add focused unit tests locking supported shortcuts, unsupported behavior, deterministic diagnostics, and no-throw behavior for routine unsupported cases.
-- [x] Explicitly defer general B-rep/B-rep intersection, fragment splitting/classification, and robust rebuild/healing to M13.
+- [x] Explicitly defer general B-rep/B-rep intersection, fragment splitting/classification, and robust rebuild/healing to later milestones.
+
+
+## M13 — Boolean Ops v1 (Real but Narrow, Axis-Aligned Box/Box Subset)
+
+- [x] Extend the staged boolean pipeline with real support for recognized axis-aligned box vs axis-aligned box inputs (from `BrepPrimitives.CreateBox(...)`).
+- [x] Support `Intersect` only for positive-volume overlap (single-box result); disjoint and touching-only contact return deterministic `NotImplemented` diagnostics because empty/non-solid results are not representable in M13.
+- [x] Support `Union` for containing cases and exact single-box outcomes only; disjoint unions and non-single-box unions (for example L-shaped overlap unions) return deterministic `NotImplemented`.
+- [x] Support `Subtract` for no-overlap passthrough, full-removal empty-result diagnostics, and exact single-box clip outcomes; non-single-box subtraction remains `NotImplemented`.
+- [x] Rebuild supported outputs via `BrepPrimitives.CreateBox(...)` plus placement translation and validate results with strict `BrepBindingValidator`.
+- [x] Explicitly defer rotated boxes, non-box primitives, multi-body/disjoint boolean outputs, arbitrary B-rep intersection/splitting, and general boolean robustness.

@@ -135,3 +135,12 @@
 - [x] Default backface handling is culling (`IncludeBackfaces = false`), with opt-in backface inclusion.
 - [x] Add focused unit tests for face hits/misses, edge tolerance behavior, face-vs-edge precedence, nearest-only determinism, and structured diagnostics for malformed input.
 - [x] Explicitly defer UI/backend integration, interaction tools, acceleration structures, and caching/performance optimizations.
+
+## M16 — ASP.NET Backend Kernel Host v1 (Local API)
+
+- [x] Add a minimal in-memory document store for local backend kernel sessions (volatile, process-lifetime only).
+- [x] Introduce explicit backend DTO contracts for document, modeling, tessellation, and picking endpoints without exposing raw kernel internals as API contracts.
+- [x] Expose local HTTP endpoints for document lifecycle, primitive creation (box/cylinder/sphere), extrude/revolve subset operations, narrow M13 boolean operations, display tessellation, and picking.
+- [x] Add deterministic kernel diagnostic-to-HTTP mapping with structured error payloads for invalid, unsupported, validation, and missing-resource paths.
+- [x] Add focused integration tests for core happy paths and deterministic error behavior.
+- [x] Defer frontend integration details and API versioning to M17+.

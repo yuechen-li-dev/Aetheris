@@ -5,7 +5,7 @@ public static class ToleranceMath
     public static bool AlmostEqual(double a, double b, double tolerance)
     {
         var validatedTolerance = ValidateTolerance(tolerance);
-        return Math.Abs(a - b) <= validatedTolerance;
+        return System.Math.Abs(a - b) <= validatedTolerance;
     }
 
     public static bool AlmostEqual(double a, double b, ToleranceContext context) => AlmostEqual(a, b, context.Linear);
@@ -13,7 +13,7 @@ public static class ToleranceMath
     public static bool AlmostZero(double value, double tolerance)
     {
         var validatedTolerance = ValidateTolerance(tolerance);
-        return Math.Abs(value) <= validatedTolerance;
+        return System.Math.Abs(value) <= validatedTolerance;
     }
 
     public static bool AlmostZero(double value, ToleranceContext context) => AlmostZero(value, context.Linear);

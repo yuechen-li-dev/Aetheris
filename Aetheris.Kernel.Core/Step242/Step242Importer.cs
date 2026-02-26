@@ -33,6 +33,7 @@ public static class Step242Importer
                     "Importer")
             ]);
         }
+        return MapSubset(parseResult.Value);
     }
 
     private static KernelResult<BrepBody> MapSubset(Step242ParsedDocument document)
@@ -41,6 +42,7 @@ public static class Step242Importer
             .Where(IsClearlyUnsupportedEntity)
             .OrderBy(e => e.Id)
             .FirstOrDefault();
+        var unsupportedEntity = document.Entities.FirstOrDefault(IsClearlyUnsupportedEntity);
         if (unsupportedEntity is not null)
         {
             return Failure($"Entity '{unsupportedEntity.Name}' is unsupported in M23 import subset.", $"Entity:{unsupportedEntity.Id}");
@@ -52,6 +54,8 @@ public static class Step242Importer
             .ToArray();
 
         if (brepCandidates.Length == 0)
+        var brepEntity = document.Entities.FirstOrDefault(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase));
+        if (brepEntity is null)
         {
             return Failure("Missing MANIFOLD_SOLID_BREP root entity.", "Importer");
         }
@@ -349,6 +353,12 @@ public static class Step242Importer
 
         geometry.AddCurve(curveGeometryId, CurveGeometry.FromLine(lineResult.Value));
         bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, curveGeometryId, new ParameterInterval(startParameterResult.Value, endParameterResult.Value)));
+        var startParameter = ComputeLineParameter(lineResult.Value, startVertexResult.Value.Point);
+        var endParameter = ComputeLineParameter(lineResult.Value, endVertexResult.Value.Point);
+        var curveGeometryId = new CurveGeometryId(nextCurveGeometryId++);
+
+        geometry.AddCurve(curveGeometryId, CurveGeometry.FromLine(lineResult.Value));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, curveGeometryId, new ParameterInterval(startParameter, endParameter)));
 
         return KernelResult<EdgeId>.Success(edgeId);
     }
@@ -399,6 +409,10 @@ public static class Step242Importer
         }
 
         return KernelResult<double>.Success(parameter);
+    private static double ComputeLineParameter(Line3Curve line, Point3D point)
+    {
+        var offset = point - line.Origin;
+        return offset.Dot(line.Direction.ToVector());
     }
 
     private static KernelResult<BrepBody> Failure(string message, string source) =>

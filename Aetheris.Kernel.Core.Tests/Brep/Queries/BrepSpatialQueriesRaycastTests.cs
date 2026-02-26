@@ -43,7 +43,8 @@ public sealed class BrepSpatialQueriesRaycastTests
     public void Cylinder_Raycast_ReturnsOrderedSideAndCapHits_WithoutSeamDuplicates()
     {
         var cylinder = BrepPrimitives.CreateCylinder(2d, 6d).Value;
-        var ray = new Ray3D(new Point3D(3d, 0d, 2.5d), Direction3D.Create(new Vector3D(-1d, 0d, 0.5d)));
+        // Choose a ray that hits the side first, then the top cap at a distinct t.
+        var ray = new Ray3D(new Point3D(3d, 0d, 2d), Direction3D.Create(new Vector3D(-1d, 0d, 0.5d)));
 
         var result = BrepSpatialQueries.Raycast(cylinder, ray);
 

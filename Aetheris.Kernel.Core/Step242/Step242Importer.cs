@@ -181,7 +181,7 @@ public static class Step242Importer
                         loopId,
                         coedgeIds[(i + 1) % coedgeIds.Count],
                         coedgeIds[(i + coedgeIds.Count - 1) % coedgeIds.Count],
-                        isReversed: !orientedSenseResult.Value));
+                        IsReversed: !orientedSenseResult.Value));
                 }
 
                 builder.AddLoop(new Loop(loopId, coedgeIds));

@@ -76,13 +76,13 @@ public sealed class BrepDisplayTessellatorTests
     [Fact]
     public void Tessellate_ExtrudeRectangle_Succeeds()
     {
-        var profile = new PolylineProfile2D(
+        var profile = PolylineProfile2D.Create(
         [
             new ProfilePoint2D(-1d, -0.5d),
             new ProfilePoint2D(1d, -0.5d),
             new ProfilePoint2D(1d, 0.5d),
             new ProfilePoint2D(-1d, 0.5d),
-        ]);
+        ]).Value;
 
         var extruded = BrepExtrude.Create(profile, DefaultFrame, 2d);
         var result = BrepDisplayTessellator.Tessellate(extruded.Value);
@@ -159,7 +159,7 @@ public sealed class BrepDisplayTessellatorTests
         var result = BrepDisplayTessellator.Tessellate(unsupported);
 
         Assert.False(result.IsSuccess);
-        var diagnostic = Assert.Single(result.Diagnostics.Where(d => d.Code == KernelDiagnosticCode.NotImplemented));
+        var diagnostic = Assert.Single(result.Diagnostics, d => d.Code == KernelDiagnosticCode.NotImplemented);
         Assert.Equal("Face 1 planar tessellation requires exactly one loop.", diagnostic.Message);
     }
 

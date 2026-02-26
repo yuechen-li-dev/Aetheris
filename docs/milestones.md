@@ -207,3 +207,13 @@
 - [x] Return structured `NotImplemented` diagnostics for unsupported export cases (for example: periodic/loopless sphere face, non-planar surfaces, non-line edge curves, multi-body layouts).
 - [x] Add regression tests for successful box export structure, deterministic output stability, and unsupported-case no-throw diagnostics.
 - [x] Defer AP242 import work to M23 and broader schema/entity coverage to later milestones.
+
+## M23 — AP242 Import v1 (Subset Only, Export-Roundtrip-Oriented)
+
+- [x] Add a subset-only AP242 import entry point (`Step242Importer.ImportBody(string)`) that returns `KernelResult<BrepBody>` and operates on STEP text (no file I/O).
+- [x] Add a minimal STEP text parser/AST for M22-compatible entity assignment syntax (`#n=ENTITY(...);`), references, strings, numbers, logicals, and lists.
+- [x] Decode and map the M22 export subset (line edges + planar faces with loop/shell topology) into kernel topology, geometry, and bindings.
+- [x] Run `BrepBindingValidator` as the final import acceptance gate; return structured diagnostics on parse/import/validation failures.
+- [x] Add importer-focused tests for success, M22 export→import round-trip (box subset), and malformed/unsupported no-throw behavior.
+- [x] Explicitly keep support narrow: arbitrary third-party STEP/AP242 files are expected to fail with diagnostics; broader schema/entity coverage is deferred.
+- [x] Defer import scope expansion and broader round-trip reliability hardening to M24.

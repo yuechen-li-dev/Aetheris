@@ -87,3 +87,13 @@
 - [x] Support constant-depth linear extrusion along +normal of an explicit frame, producing top/bottom caps and planar side faces.
 - [x] Add focused unit tests for profile/extrude validation, topology and binding expectations, traversal safety, depth-direction convention, and winding behavior.
 - [x] Explicitly defer sketching/constraints, holes/multi-loop profiles, arcs/splines, draft/thin features, booleans, and generalized feature history.
+
+## M11 — Programmatic Revolve Framework v1 (No Sketcher)
+
+- [x] Add a minimal programmatic revolve API (`BrepRevolve.Create`) returning `KernelResult<BrepBody>` with validator-backed outputs.
+- [x] Reuse M10 profile/frame primitives where practical (`ProfilePoint2D` + `ExtrudeFrame3D`) with an explicit world-space revolve axis (`RevolveAxis3D`).
+- [x] M11 supported subset is intentionally narrow: exactly one two-point line-segment profile with positive radii at both endpoints and full-turn (`2*pi`) angle only.
+- [x] Build closed solids for that subset with analytic side surfaces (`CylinderSurface` for constant radius, `ConeSurface` for varying radius) plus planar end caps.
+- [x] Seam strategy: periodic side faces use one explicit seam edge referenced twice in the side loop; cap boundaries are represented as closed circular edges.
+- [x] Add focused tests for validation/diagnostics, full-angle semantics, seam behavior, topology/geometry expectations, traversal safety, and strict binding validation.
+- [x] Explicitly defer partial revolve, axis-touching/axis-crossing profiles, generalized polyline/curve revolves, and self-intersection handling.

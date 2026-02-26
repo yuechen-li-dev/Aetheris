@@ -19,7 +19,7 @@ public static class BrepBodyQueries
     public static bool TryGetShellIds(this BrepBody body, BodyId bodyId, out IReadOnlyList<ShellId>? shellIds)
     {
         shellIds = null;
-        if (!body.Topology.TryGetBody(bodyId, out var topologyBody))
+        if (!body.Topology.TryGetBody(bodyId, out var topologyBody) || topologyBody is null)
         {
             return false;
         }
@@ -38,7 +38,7 @@ public static class BrepBodyQueries
     public static bool TryGetFaceIds(this BrepBody body, ShellId shellId, out IReadOnlyList<FaceId>? faceIds)
     {
         faceIds = null;
-        if (!body.Topology.TryGetShell(shellId, out var shell))
+        if (!body.Topology.TryGetShell(shellId, out var shell) || shell is null)
         {
             return false;
         }
@@ -57,7 +57,7 @@ public static class BrepBodyQueries
     public static bool TryGetLoopIds(this BrepBody body, FaceId faceId, out IReadOnlyList<LoopId>? loopIds)
     {
         loopIds = null;
-        if (!body.Topology.TryGetFace(faceId, out var face))
+        if (!body.Topology.TryGetFace(faceId, out var face) || face is null)
         {
             return false;
         }
@@ -76,7 +76,7 @@ public static class BrepBodyQueries
     public static bool TryGetCoedgeIds(this BrepBody body, LoopId loopId, out IReadOnlyList<CoedgeId>? coedgeIds)
     {
         coedgeIds = null;
-        if (!body.Topology.TryGetLoop(loopId, out var loop))
+        if (!body.Topology.TryGetLoop(loopId, out var loop) || loop is null)
         {
             return false;
         }
@@ -95,7 +95,7 @@ public static class BrepBodyQueries
     public static bool TryGetCoedgeEdgeId(this BrepBody body, CoedgeId coedgeId, out EdgeId edgeId)
     {
         edgeId = default;
-        if (!body.Topology.TryGetCoedge(coedgeId, out var coedge))
+        if (!body.Topology.TryGetCoedge(coedgeId, out var coedge) || coedge is null)
         {
             return false;
         }
@@ -116,7 +116,7 @@ public static class BrepBodyQueries
         startVertexId = default;
         endVertexId = default;
 
-        if (!body.Topology.TryGetEdge(edgeId, out var edge))
+        if (!body.Topology.TryGetEdge(edgeId, out var edge) || edge is null)
         {
             return false;
         }

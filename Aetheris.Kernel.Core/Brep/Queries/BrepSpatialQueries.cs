@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
@@ -422,6 +423,11 @@ public static class BrepSpatialQueries
     private static bool TryResolvePrimitive(BrepBody body, out PrimitiveDescriptor descriptor, out KernelDiagnostic diagnostic)
     {
         descriptor = default;
+        diagnostic = new KernelDiagnostic(
+            KernelDiagnosticCode.NotImplemented,
+            KernelDiagnosticSeverity.Error,
+            "Spatial query v1 only supports primitive Brep bodies from BrepPrimitives.CreateBox/CreateCylinder/CreateSphere.",
+            Source: nameof(BrepSpatialQueries));
         var bindings = body.Bindings.FaceBindings.ToArray();
 
         if (bindings.Length == 1)
@@ -430,7 +436,6 @@ public static class BrepSpatialQueries
             if (surface.Kind == SurfaceGeometryKind.Sphere && surface.Sphere is SphereSurface sphere)
             {
                 descriptor = PrimitiveDescriptor.ForSphere(bindings[0].FaceId, sphere.Center, sphere.Radius);
-                diagnostic = default;
                 return true;
             }
         }
@@ -470,7 +475,6 @@ public static class BrepSpatialQueries
                     cylinder.Radius,
                     minV,
                     maxV);
-                diagnostic = default;
                 return true;
             }
         }
@@ -555,17 +559,11 @@ public static class BrepSpatialQueries
                         yMaxFace,
                         zMinFace,
                         zMaxFace);
-                    diagnostic = default;
                     return true;
                 }
             }
         }
 
-        diagnostic = new KernelDiagnostic(
-            KernelDiagnosticCode.NotImplemented,
-            KernelDiagnosticSeverity.Error,
-            "Spatial query v1 only supports primitive Brep bodies from BrepPrimitives.CreateBox/CreateCylinder/CreateSphere.",
-            Source: nameof(BrepSpatialQueries));
         return false;
     }
 

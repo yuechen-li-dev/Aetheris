@@ -97,3 +97,12 @@
 - [x] Seam strategy: periodic side faces use one explicit seam edge referenced twice in the side loop; cap boundaries are represented as closed circular edges.
 - [x] Add focused tests for validation/diagnostics, full-angle semantics, seam behavior, topology/geometry expectations, traversal safety, and strict binding validation.
 - [x] Explicitly defer partial revolve, axis-touching/axis-crossing profiles, generalized polyline/curve revolves, and self-intersection handling.
+
+## M12 — Boolean Infrastructure v1 (Pipeline Scaffolding, Not Full Booleans)
+
+- [x] Add explicit boolean operation contracts (`BooleanOperation`, `BooleanRequest`) and a shared `BrepBoolean.Execute` entry point returning `KernelResult<BrepBody>`.
+- [x] Introduce staged boolean pipeline scaffolding (`ValidateInputs`, `AnalyzeInputs`, `ComputeIntersections`, `ClassifyFragments`, `RebuildResult`, `ValidateOutput`) plus minimal intermediate data types for stage handoff.
+- [x] Support tiny end-to-end identity shortcuts for same-instance `Union` and `Intersect`; outputs are validated in strict mode via `BrepBindingValidator` before success is returned.
+- [x] Return deterministic structured `NotImplemented` diagnostics for all non-supported M12 boolean requests, including same-instance `Subtract` (empty-body representation deferred).
+- [x] Add focused unit tests locking supported shortcuts, unsupported behavior, deterministic diagnostics, and no-throw behavior for routine unsupported cases.
+- [x] Explicitly defer general B-rep/B-rep intersection, fragment splitting/classification, and robust rebuild/healing to M13.

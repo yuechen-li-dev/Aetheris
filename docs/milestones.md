@@ -70,3 +70,11 @@
 - [x] Validate constructor outputs via `BrepBindingValidator` in strict completeness mode before returning success.
 - [x] Add focused unit tests for valid creation, invalid parameter diagnostics, expected topology/geometry binding types, and traversal safety.
 - [x] Document M08 simplifications: cylinder uses a single explicit seam edge on the side face; sphere uses a single closed periodic face with no boundary loops.
+
+## M09 — Spatial Queries v1 (Ray Hits + Point Classification)
+
+- [x] Add a minimal spatial query API over `BrepBody` for ray hits (`Raycast`) and point containment (`ClassifyPoint`).
+- [x] Add explicit query value/result types (`PointContainment`, `RayHit`, optional `RayQueryOptions`) under `Brep.Queries`.
+- [x] Support M08 primitive outputs (`CreateBox`, `CreateCylinder`, `CreateSphere`) with deterministic hit ordering and tolerance-aware boundary handling.
+- [x] Add focused unit tests for primitive hit/classification behavior, tangent handling, seam dedup behavior, and unsupported-body fallbacks.
+- [x] Explicitly defer arbitrary trimmed/general B-rep intersection and classification support.

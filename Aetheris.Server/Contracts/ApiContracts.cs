@@ -2,7 +2,7 @@ namespace Aetheris.Server.Contracts;
 
 public sealed record DiagnosticDto(string Code, string Severity, string Message, string? Source);
 
-public sealed record ErrorResponseDto(IReadOnlyList<DiagnosticDto> Diagnostics);
+public sealed record ApiResponseDto<T>(bool Success, T? Data, IReadOnlyList<DiagnosticDto> Diagnostics);
 
 public sealed record DocumentCreateRequestDto(string? Name);
 

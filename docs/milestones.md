@@ -144,3 +144,13 @@
 - [x] Add deterministic kernel diagnostic-to-HTTP mapping with structured error payloads for invalid, unsupported, validation, and missing-resource paths.
 - [x] Add focused integration tests for core happy paths and deterministic error behavior.
 - [x] Defer frontend integration details and API versioning to M17+.
+
+## M17 — Web Protocol Stabilization + Versioned Contracts v1
+
+- [x] Stabilize the canonical backend API surface under `/api/v1/documents/...` for frontend integration.
+- [x] Adopt a consistent HTTP response envelope for all routes: `success`, `data`, `diagnostics`.
+- [x] Normalize diagnostics payload shape (`code`, `severity`, `message`, `source`) for all errors, including not-found responses.
+- [x] Preserve M16 capability coverage (document summary/create, primitives, extrude/revolve/boolean, tessellate, pick) while standardizing protocol shape only.
+- [x] Keep temporary unversioned compatibility aliases under `/api/documents/...` during migration; v1 routes are canonical.
+- [x] Add integration tests that lock versioned route behavior, envelope shape, diagnostics determinism, and compatibility alias behavior.
+- [x] M18 frontend integration targets stable v1 contracts and envelope semantics.

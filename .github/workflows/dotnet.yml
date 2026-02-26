@@ -1,0 +1,33 @@
+name: dotnet
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore server
+        run: dotnet restore Aetheris.Server/Aetheris.Server.csproj
+
+      - name: Restore kernel tests
+        run: dotnet restore Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj
+
+      - name: Build server
+        run: dotnet build Aetheris.Server/Aetheris.Server.csproj --configuration Release --no-restore
+
+      - name: Build kernel tests
+        run: dotnet build Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --configuration Release --no-restore
+
+      - name: Test kernel
+        run: dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --configuration Release --no-build

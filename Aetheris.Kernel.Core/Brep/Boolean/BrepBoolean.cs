@@ -190,18 +190,18 @@ public static class BrepBoolean
                 return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: right, UnsupportedReason: null);
             }
 
-            if (intersections.OverlapBox is null)
-            {
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, UnsupportedReason: $"Boolean {operation}: disjoint box union is multi-body and not supported in M13.");
-            }
-
             var bounds = AxisAlignedBoxExtents.Bounding(left, right);
             if (AxisAlignedBoxExtents.UnionIsSingleBox(left, right, bounds, tolerance))
             {
                 return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: bounds, UnsupportedReason: null);
             }
 
-            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, UnsupportedReason: $"Boolean {operation}: overlapping box union is not a single box in M13 (for example L-shaped unions)." );
+            if (AxisAlignedBoxExtents.Intersection(left, right) is null)
+            {
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, UnsupportedReason: $"Boolean {operation}: disjoint box union is multi-body and not supported in M13.");
+            }
+
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, UnsupportedReason: $"Boolean {operation}: box union is not a single box in M13 (for example L-shaped unions)." );
         }
 
         if (!left.OverlapsWithPositiveVolume(right, tolerance))

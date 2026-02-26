@@ -15,7 +15,7 @@ public sealed class BrepPrimitivesTests
         var body = result.Value;
 
         Assert.Single(body.Topology.Bodies);
-        Assert.Equal(1, body.Topology.Shells.Count());
+        Assert.Single(body.Topology.Shells);
         Assert.Equal(6, body.Topology.Faces.Count());
         Assert.Equal(6, body.Topology.Loops.Count());
         Assert.Equal(24, body.Topology.Coedges.Count());
@@ -64,7 +64,7 @@ public sealed class BrepPrimitivesTests
         var body = result.Value;
 
         Assert.Single(body.Topology.Bodies);
-        Assert.Equal(1, body.Topology.Shells.Count());
+        Assert.Single(body.Topology.Shells);
         Assert.Equal(3, body.Topology.Faces.Count());
         Assert.Equal(3, body.Topology.Edges.Count());
 
@@ -117,8 +117,8 @@ public sealed class BrepPrimitivesTests
         var body = result.Value;
 
         Assert.Single(body.Topology.Bodies);
-        Assert.Equal(1, body.Topology.Shells.Count());
-        Assert.Equal(1, body.Topology.Faces.Count());
+        Assert.Single(body.Topology.Shells);
+        Assert.Single(body.Topology.Faces);
         Assert.Empty(body.Topology.Loops);
         Assert.Empty(body.Topology.Edges);
         Assert.Empty(body.Topology.Vertices);

@@ -32,7 +32,7 @@ public sealed class BrepRevolveTests
         var body = result.Value;
 
         Assert.Single(body.Topology.Bodies);
-        Assert.Equal(1, body.Topology.Shells.Count());
+        Assert.Single(body.Topology.Shells);
         Assert.Equal(3, body.Topology.Faces.Count());
         Assert.Equal(3, body.Topology.Loops.Count());
         Assert.Equal(6, body.Topology.Coedges.Count());

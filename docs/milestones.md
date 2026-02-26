@@ -189,3 +189,12 @@
 - [x] Adopt deterministic success semantics aligned with current backend behavior: keep original bodies and add a new boolean result body, refresh document summary, auto-select/tessellate the returned result body, and intentionally clear pick highlight/hits after success.
 - [x] Preserve failure stability: on unsupported/error responses the previous viewport/tessellation state is preserved while status/diagnostics update for observability.
 - [x] Defer boolean previews, feature history, undo/redo, gizmo-based selection, advanced naming/metadata workflows, and generalized boolean support beyond M13.
+
+## M21 — Hardening Pass 1 (Regression Corpus + Crash Resistance)
+
+- [x] Add a curated regression corpus for representative kernel/backend flows (primitives, extrude/revolve subsets, M13 boolean support boundaries, tessellation/picking contracts, and versioned envelope behavior).
+- [x] Introduce deterministic hardening fixtures for repeatable scenarios (canonical box-pair booleans, extrude/revolve profiles, and pick rays).
+- [x] Add bounded randomized stress checks with fixed seeds for stable areas (box construction, boolean classification behavior, and pick no-throw/order stability).
+- [x] Harden routine failure paths to remain diagnostic-first and no-throw for malformed/unsupported requests.
+- [x] Keep scope hardening-only: no new modeling capabilities or UI feature expansion.
+- [x] Defer known fragilities (general booleans beyond axis-aligned single-box results, broad trimmed-surface tessellation fidelity, and advanced pick acceleration/performance work).

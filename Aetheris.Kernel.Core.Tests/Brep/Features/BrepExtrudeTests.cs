@@ -23,7 +23,7 @@ public sealed class BrepExtrudeTests
         var body = result.Value;
 
         Assert.Single(body.Topology.Bodies);
-        Assert.Equal(1, body.Topology.Shells.Count());
+        Assert.Single(body.Topology.Shells);
         Assert.Equal(6, body.Topology.Faces.Count());
         Assert.Equal(6, body.Topology.Loops.Count());
         Assert.Equal(24, body.Topology.Coedges.Count());

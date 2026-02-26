@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using Aetheris.Server.Contracts;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -219,6 +220,67 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
             Assert.False(string.IsNullOrWhiteSpace(d.Message));
             Assert.False(string.IsNullOrWhiteSpace(d.Source));
         });
+    }
+
+    [Fact]
+    public async Task InvalidPrimitiveDimensions_ReturnStructuredBadRequestEnvelope()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/bodies/primitives/box",
+            new BoxCreateRequestDto(-1d, 2d, 3d));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponseDto<object>>();
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Null(payload.Data);
+        Assert.NotEmpty(payload.Diagnostics);
+        Assert.Contains(payload.Diagnostics, d => d.Code == "InvalidArgument");
+    }
+
+    [Fact]
+    public async Task Transform_UnknownBody_ReturnsNotFoundEnvelope()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var missingBodyId = Guid.NewGuid();
+
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/bodies/{missingBodyId}/transform",
+            new TranslateBodyRequestDto(new Vector3Dto(1d, 0d, 0d)));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponseDto<object>>();
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Null(payload.Data);
+        Assert.NotEmpty(payload.Diagnostics);
+    }
+
+    [Fact]
+    public async Task Extrude_NullProfilePayload_ReturnsStructuredBadRequestEnvelope()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var json = """
+                   {
+                     "profile": null,
+                     "origin": {"x":0,"y":0,"z":0},
+                     "normal": {"x":0,"y":0,"z":1},
+                     "uAxis": {"x":1,"y":0,"z":0},
+                     "depth": 1.0
+                   }
+                   """;
+
+        var response = await _client.PostAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/operations/extrude",
+            new StringContent(json, Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponseDto<object>>();
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Null(payload.Data);
+        Assert.Contains(payload.Diagnostics, d => d.Source == "operations.extrude");
     }
 
     private async Task<ApiResponseDto<DocumentCreateResponseDto>> CreateDocumentAsync(string routePrefix)

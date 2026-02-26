@@ -137,7 +137,14 @@ internal static class Step242SubsetDecoder
             return KernelResult<Line3Curve>.Failure(directionResult.Diagnostics);
         }
 
-        return KernelResult<Line3Curve>.Success(new Line3Curve(originResult.Value, directionResult.Value));
+        try
+        {
+            return KernelResult<Line3Curve>.Success(new Line3Curve(originResult.Value, directionResult.Value));
+        }
+        catch (Exception ex)
+        {
+            return Failure<Line3Curve>($"LINE decode failed: {ex.Message}", $"Entity:{lineEntity.Id}");
+        }
     }
 
     public static KernelResult<PlaneSurface> ReadPlaneSurface(Step242ParsedDocument document, Step242ParsedEntity planeEntity)
@@ -208,7 +215,14 @@ internal static class Step242SubsetDecoder
             return KernelResult<PlaneSurface>.Failure(refDirResult.Diagnostics);
         }
 
-        return KernelResult<PlaneSurface>.Success(new PlaneSurface(originResult.Value, normalResult.Value, refDirResult.Value));
+        try
+        {
+            return KernelResult<PlaneSurface>.Success(new PlaneSurface(originResult.Value, normalResult.Value, refDirResult.Value));
+        }
+        catch (Exception ex)
+        {
+            return Failure<PlaneSurface>($"PLANE decode failed: {ex.Message}", $"Entity:{planeEntity.Id}");
+        }
     }
 
     private static KernelResult<Point3D> ReadCartesianPoint(Step242ParsedEntity pointEntity, string context)
@@ -252,7 +266,13 @@ internal static class Step242SubsetDecoder
             return KernelResult<Direction3D>.Failure(pointResult.Diagnostics);
         }
 
-        return KernelResult<Direction3D>.Success(Direction3D.Create(pointResult.Value - Point3D.Origin));
+        var vector = pointResult.Value - Point3D.Origin;
+        if (!Direction3D.TryCreate(vector, out var direction))
+        {
+            return Failure<Direction3D>($"{context}: direction vector must be non-zero.", $"Entity:{directionEntity.Id}");
+        }
+
+        return KernelResult<Direction3D>.Success(direction);
     }
 
     private static KernelResult<double> ReadNumber(Step242Value value, string context, int entityId)

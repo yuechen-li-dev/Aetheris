@@ -19,22 +19,50 @@ public static class Step242Importer
             return KernelResult<BrepBody>.Failure(parseResult.Diagnostics);
         }
 
-        return MapSubset(parseResult.Value);
+        try
+        {
+            return MapSubset(parseResult.Value);
+        }
+        catch (Exception ex)
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.InternalError,
+                    KernelDiagnosticSeverity.Error,
+                    $"Unexpected import failure: {ex.Message}",
+                    "Importer")
+            ]);
+        }
     }
 
     private static KernelResult<BrepBody> MapSubset(Step242ParsedDocument document)
     {
-        var unsupportedEntity = document.Entities.FirstOrDefault(IsClearlyUnsupportedEntity);
+        var unsupportedEntity = document.Entities
+            .Where(IsClearlyUnsupportedEntity)
+            .OrderBy(e => e.Id)
+            .FirstOrDefault();
         if (unsupportedEntity is not null)
         {
             return Failure($"Entity '{unsupportedEntity.Name}' is unsupported in M23 import subset.", $"Entity:{unsupportedEntity.Id}");
         }
 
-        var brepEntity = document.Entities.FirstOrDefault(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase));
-        if (brepEntity is null)
+        var brepCandidates = document.Entities
+            .Where(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(e => e.Id)
+            .ToArray();
+
+        if (brepCandidates.Length == 0)
         {
             return Failure("Missing MANIFOLD_SOLID_BREP root entity.", "Importer");
         }
+
+        if (brepCandidates.Length > 1)
+        {
+            var ids = string.Join(",", brepCandidates.Select(e => $"#{e.Id}"));
+            return Failure($"Multiple MANIFOLD_SOLID_BREP roots are unsupported in M23 subset: {ids}.", "Importer");
+        }
+
+        var brepEntity = brepCandidates[0];
 
         var shellRefResult = Step242SubsetDecoder.ReadReference(brepEntity, 1, "MANIFOLD_SOLID_BREP shell");
         if (!shellRefResult.IsSuccess)
@@ -305,12 +333,22 @@ public static class Step242Importer
         var edgeId = builder.AddEdge(startVertexResult.Value.VertexId, endVertexResult.Value.VertexId);
         edgeMap.Add(edgeCurveEntity.Id, edgeId);
 
-        var startParameter = ComputeLineParameter(lineResult.Value, startVertexResult.Value.Point);
-        var endParameter = ComputeLineParameter(lineResult.Value, endVertexResult.Value.Point);
+        var startParameterResult = ComputeLineParameter(lineResult.Value, startVertexResult.Value.Point, edgeCurveEntity.Id, "start");
+        if (!startParameterResult.IsSuccess)
+        {
+            return KernelResult<EdgeId>.Failure(startParameterResult.Diagnostics);
+        }
+
+        var endParameterResult = ComputeLineParameter(lineResult.Value, endVertexResult.Value.Point, edgeCurveEntity.Id, "end");
+        if (!endParameterResult.IsSuccess)
+        {
+            return KernelResult<EdgeId>.Failure(endParameterResult.Diagnostics);
+        }
+
         var curveGeometryId = new CurveGeometryId(nextCurveGeometryId++);
 
         geometry.AddCurve(curveGeometryId, CurveGeometry.FromLine(lineResult.Value));
-        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, curveGeometryId, new ParameterInterval(startParameter, endParameter)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, curveGeometryId, new ParameterInterval(startParameterResult.Value, endParameterResult.Value)));
 
         return KernelResult<EdgeId>.Success(edgeId);
     }
@@ -345,10 +383,22 @@ public static class Step242Importer
             || string.Equals(entity.Name, "CONICAL_SURFACE", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static double ComputeLineParameter(Line3Curve line, Point3D point)
+    private static KernelResult<double> ComputeLineParameter(Line3Curve line, Point3D point, int edgeCurveEntityId, string endpoint)
     {
         var offset = point - line.Origin;
-        return offset.Dot(line.Direction.ToVector());
+        var parameter = offset.Dot(line.Direction.ToVector());
+        if (!double.IsFinite(parameter))
+        {
+            return KernelResult<double>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.NotImplemented,
+                    KernelDiagnosticSeverity.Error,
+                    $"EDGE_CURVE {endpoint} trim parameter is not finite.",
+                    $"Entity:{edgeCurveEntityId}")
+            ]);
+        }
+
+        return KernelResult<double>.Success(parameter);
     }
 
     private static KernelResult<BrepBody> Failure(string message, string source) =>

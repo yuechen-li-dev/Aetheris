@@ -54,3 +54,11 @@
 - [x] Add binding validator v0 for topology + binding reference integrity (not advanced geometric/manifold correctness).
 - [x] Add focused tests, including manual construction and validation of a simple box-like B-rep fixture.
 - [x] Explicitly defer full geometric consistency checks, trim-loop/p-curve support, and modeling operations.
+
+## M07 — B-rep Query/Traversal Helpers v1 (Read-Only)
+
+- [x] Add read-only traversal/query helpers over B-rep topology hierarchy (body/shell/face/loop/coedge/edge/vertex).
+- [x] Add explicit edge/face geometry-binding resolution helpers for curve/surface access.
+- [x] Add minimal convenience queries for common traversal needs with explicit duplicate-edge semantics.
+- [x] Add focused unit tests for happy-path traversal, duplicate behavior, and missing-reference handling.
+- [x] Explicitly defer modeling operations, tessellation, and advanced validation checks.

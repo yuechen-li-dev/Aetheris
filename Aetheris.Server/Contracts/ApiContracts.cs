@@ -8,9 +8,26 @@ public sealed record DocumentCreateRequestDto(string? Name);
 
 public sealed record DocumentCreateResponseDto(Guid DocumentId, string? Name, bool Volatile);
 
-public sealed record DocumentSummaryResponseDto(Guid DocumentId, string? Name, int BodyCount, IReadOnlyList<Guid> BodyIds);
+public sealed record BodyOccurrenceSummaryDto(Guid OccurrenceId, Guid DefinitionId, string? Name);
 
-public sealed record BodyCreatedResponseDto(Guid DocumentId, Guid BodyId, int FaceCount, int EdgeCount, int VertexCount);
+public sealed record DocumentSummaryResponseDto(
+    Guid DocumentId,
+    string? Name,
+    int BodyCount,
+    IReadOnlyList<Guid> BodyIds,
+    int OccurrenceCount,
+    IReadOnlyList<BodyOccurrenceSummaryDto> Occurrences);
+
+public sealed record BodyCreatedResponseDto(
+    Guid DocumentId,
+    Guid BodyId,
+    Guid OccurrenceId,
+    Guid DefinitionId,
+    int FaceCount,
+    int EdgeCount,
+    int VertexCount);
+
+public sealed record BodyOccurrenceCreatedResponseDto(Guid DocumentId, Guid OccurrenceId, Guid DefinitionId, string? Name);
 
 public sealed record Point3Dto(double X, double Y, double Z);
 
@@ -26,7 +43,7 @@ public sealed record SphereCreateRequestDto(double Radius);
 
 public sealed record TranslateBodyRequestDto(Vector3Dto Translation);
 
-public sealed record BodyTransformedResponseDto(Guid DocumentId, Guid BodyId, Vector3Dto AppliedTranslation);
+public sealed record BodyTransformedResponseDto(Guid DocumentId, Guid BodyId, Guid OccurrenceId, Vector3Dto AppliedTranslation);
 
 public sealed record ExtrudeRequestDto(
     IReadOnlyList<ProfilePoint2Dto> Profile,
@@ -68,5 +85,7 @@ public sealed record PickHitDto(
     int? FaceId,
     int? EdgeId,
     int? BodyId,
+    Guid? OccurrenceId,
+    Guid? DefinitionId,
     int? SourcePatchIndex,
     int? SourcePrimitiveIndex);

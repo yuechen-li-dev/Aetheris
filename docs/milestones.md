@@ -225,3 +225,14 @@
 - [x] Add tolerance-aware structural invariants for imported subset bodies (topology counts + line/plane geometry class checks) with tessellation and picking smoke assertions.
 - [x] Extend diagnostic-first reliability coverage for malformed/unsupported/broken-reference import paths with deterministic no-throw assertions.
 - [x] Keep AP242 support intentionally narrow (M22/M23 planar-face, line-edge subset only); broader AP242 entity coverage remains deferred.
+
+## M25 — Lightweight Document/Assembly Model v1 (Definitions + Occurrences)
+
+- [x] Refine backend in-memory document state to separate body definitions (shared geometry) from body occurrences (instance identity + placement).
+- [x] Keep existing `/bodies/{bodyId}` routes stable while explicitly treating `bodyId` as an occurrence identifier for transform/tessellate/pick operations.
+- [x] Add per-occurrence placement usage in tessellation and pick flows so world-space output reflects occurrence transforms.
+- [x] Extend document summary contracts with occurrence + definition IDs while preserving compatibility aliases (`bodyIds` = occurrence IDs).
+- [x] Add a lightweight occurrence reuse endpoint (`POST /api/v1/documents/{documentId}/bodies/{bodyId}/occurrences`) to instance an existing definition.
+- [x] Update minimal frontend debug/modeling UI to list/select occurrences and keep create/boolean/transform workflows functional under occurrence semantics.
+- [x] Add focused backend tests for definition/occurrence semantics, transform isolation, tessellation/picking placement behavior, and M17 envelope regression compatibility.
+- [x] Defer full assembly UX, mates/constraints/kinematics, BOM/PLM infrastructure, and broad AP242 assembly import/export.

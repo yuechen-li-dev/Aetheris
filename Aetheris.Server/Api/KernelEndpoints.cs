@@ -32,8 +32,20 @@ public static class KernelEndpoints
                 return ApiMappings.NotFound($"Document '{documentId}' was not found.", "documents.get");
             }
 
-            var bodyIds = document.SnapshotBodies().Keys.OrderBy(id => id).ToArray();
-            return ApiMappings.Ok(new DocumentSummaryResponseDto(document.Id, document.Name, bodyIds.Length, bodyIds));
+            var occurrences = document.SnapshotOccurrences();
+            var occurrenceIds = occurrences.Select(static o => o.OccurrenceId).OrderBy(static id => id).ToArray();
+            var occurrenceSummaries = occurrences
+                .OrderBy(static o => o.OccurrenceId)
+                .Select(static occurrence => new BodyOccurrenceSummaryDto(occurrence.OccurrenceId, occurrence.DefinitionId, occurrence.Name))
+                .ToArray();
+
+            return ApiMappings.Ok(new DocumentSummaryResponseDto(
+                document.Id,
+                document.Name,
+                occurrenceIds.Length,
+                occurrenceIds,
+                occurrenceSummaries.Length,
+                occurrenceSummaries));
         });
 
         documents.MapPost("/{documentId:guid}/bodies/primitives/box", (Guid documentId, BoxCreateRequestDto request, KernelDocumentStore store) =>
@@ -70,6 +82,17 @@ public static class KernelEndpoints
                 }
 
                 return ApiMappings.Ok(CreateBodyResponse(document, kernel.Value));
+            }));
+
+        documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/occurrences", (Guid documentId, Guid bodyId, KernelDocumentStore store) =>
+            WithDocument(store, documentId, document =>
+            {
+                if (!document.TryCreateOccurrence(bodyId, out var occurrence))
+                {
+                    return ApiMappings.NotFound($"Body occurrence '{bodyId}' was not found.", "documents.body");
+                }
+
+                return ApiMappings.Ok(new BodyOccurrenceCreatedResponseDto(document.Id, occurrence.OccurrenceId, occurrence.DefinitionId, occurrence.Name));
             }));
 
         documents.MapPost("/{documentId:guid}/operations/extrude", (Guid documentId, ExtrudeRequestDto request, KernelDocumentStore store) =>
@@ -131,13 +154,17 @@ public static class KernelEndpoints
                     return ApiMappings.BadRequestFromMessage(ex.Message, "operations.revolve");
                 }
 
-                var angle = request.AngleRadians <= 0d ? 2d * double.Pi : request.AngleRadians;
-                var kernel = BrepRevolve.Create(
-                    request.Profile.Select(p => new ProfilePoint2D(p.X, p.Y)).ToArray(),
-                    frame,
-                    new RevolveAxis3D(new Point3D(request.Origin.X, request.Origin.Y, request.Origin.Z), axisDirection.ToVector()),
-                    angle);
+                var angle = request.AngleRadians;
+                if (Math.Abs(angle) < 1e-12)
+                {
+                    angle = 2d * Math.PI;
+                }
 
+                var profileVertices = request.Profile.Select(p => new ProfilePoint2D(p.X, p.Y)).ToArray();
+                var axis = new RevolveAxis3D(
+                    new Point3D(request.Origin.X, request.Origin.Y, request.Origin.Z),
+                    new Vector3D(request.AxisDirection.X, request.AxisDirection.Y, request.AxisDirection.Z));
+                var kernel = BrepRevolve.Create(profileVertices, frame, axis, angle);
                 if (!kernel.IsSuccess)
                 {
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
@@ -193,11 +220,11 @@ public static class KernelEndpoints
                     return ApiMappings.NotFound($"Body '{bodyId}' was not found.", "documents.body");
                 }
 
-                return ApiMappings.Ok(new BodyTransformedResponseDto(documentId, bodyId, request.Translation));
+                return ApiMappings.Ok(new BodyTransformedResponseDto(documentId, bodyId, bodyId, request.Translation));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/tessellate", (Guid documentId, Guid bodyId, TessellateRequestDto? request, KernelDocumentStore store) =>
-            WithDocumentBody(store, documentId, bodyId, (document, body) =>
+            WithDocumentBody(store, documentId, bodyId, (document, occurrence, body) =>
             {
                 var options = ApiMappings.BuildTessellationOptions(request?.Options);
                 var kernel = BrepDisplayTessellator.Tessellate(body, options);
@@ -206,16 +233,11 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
                 }
 
-                if (document.TryGetBodyTransform(bodyId, out var transform))
-                {
-                    return ApiMappings.Ok(ApiMappings.ToTessellationResponse(kernel.Value, transform));
-                }
-
-                return ApiMappings.Ok(ApiMappings.ToTessellationResponse(kernel.Value));
+                return ApiMappings.Ok(ApiMappings.ToTessellationResponse(kernel.Value, occurrence.Placement));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/pick", (Guid documentId, Guid bodyId, PickRequestDto request, KernelDocumentStore store) =>
-            WithDocumentBody(store, documentId, bodyId, (document, body) =>
+            WithDocumentBody(store, documentId, bodyId, (document, occurrence, body) =>
             {
                 if (request.Direction is null)
                 {
@@ -228,7 +250,7 @@ public static class KernelEndpoints
                 }
 
                 var ray = new Ray3D(new Point3D(request.Origin.X, request.Origin.Y, request.Origin.Z), direction);
-                if (document.TryGetBodyTransform(bodyId, out var transform) && transform.TryInverse(out var inverse))
+                if (occurrence.Placement.TryInverse(out var inverse))
                 {
                     ray = new Ray3D(inverse.Apply(ray.Origin), inverse.Apply(ray.Direction));
                 }
@@ -244,12 +266,7 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
                 }
 
-                if (document.TryGetBodyTransform(bodyId, out transform))
-                {
-                    return ApiMappings.Ok(ApiMappings.ToPickResponse(kernel.Value, transform));
-                }
-
-                return ApiMappings.Ok(ApiMappings.ToPickResponse(kernel.Value));
+                return ApiMappings.Ok(ApiMappings.ToPickResponse(kernel.Value, occurrence.Placement, occurrence.OccurrenceId, occurrence.DefinitionId));
             }));
     }
 
@@ -263,23 +280,26 @@ public static class KernelEndpoints
         return operation(document);
     }
 
-    private static IResult WithDocumentBody(KernelDocumentStore store, Guid documentId, Guid bodyId, Func<DocumentSession, BrepBody, IResult> operation)
+    private static IResult WithDocumentBody(KernelDocumentStore store, Guid documentId, Guid bodyId, Func<DocumentSession, BodyOccurrence, BrepBody, IResult> operation)
         => WithDocument(store, documentId, document =>
         {
-            if (!document.TryGetBody(bodyId, out var body))
+            if (!document.TryGetOccurrence(bodyId, out var occurrence) || !document.TryGetBody(bodyId, out var body))
             {
                 return ApiMappings.NotFound($"Body '{bodyId}' was not found.", "documents.body");
             }
 
-            return operation(document, body);
+            return operation(document, occurrence, body);
         });
 
     private static BodyCreatedResponseDto CreateBodyResponse(DocumentSession document, BrepBody body)
     {
-        var bodyId = document.AddBody(body);
+        var occurrenceId = document.AddBody(body);
+        document.TryGetOccurrence(occurrenceId, out var occurrence);
         return new BodyCreatedResponseDto(
             document.Id,
-            bodyId,
+            occurrenceId,
+            occurrenceId,
+            occurrence.DefinitionId,
             body.Topology.Faces.Count(),
             body.Topology.Edges.Count(),
             body.Topology.Vertices.Count());

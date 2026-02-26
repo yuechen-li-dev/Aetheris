@@ -160,13 +160,11 @@ public static class KernelEndpoints
                     angle = 2d * Math.PI;
                 }
 
-                var profile = PolylineProfile2D.Create(request.Profile.Select(p => new ProfilePoint2D(p.X, p.Y)).ToArray());
-                if (!profile.IsSuccess)
-                {
-                    return ApiMappings.KernelFailure(profile.Diagnostics);
-                }
-
-                var kernel = BrepRevolve.Create(profile.Value, frame, angle);
+                var profileVertices = request.Profile.Select(p => new ProfilePoint2D(p.X, p.Y)).ToArray();
+                var axis = new RevolveAxis3D(
+                    new Point3D(request.Origin.X, request.Origin.Y, request.Origin.Z),
+                    new Vector3D(request.AxisDirection.X, request.AxisDirection.Y, request.AxisDirection.Z));
+                var kernel = BrepRevolve.Create(profileVertices, frame, axis, angle);
                 if (!kernel.IsSuccess)
                 {
                     return ApiMappings.KernelFailure(kernel.Diagnostics);

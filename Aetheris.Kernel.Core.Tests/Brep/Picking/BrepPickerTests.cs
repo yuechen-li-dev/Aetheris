@@ -19,7 +19,7 @@ public sealed class BrepPickerTests
         var result = BrepPicker.Pick(box, tessellation, ray);
 
         Assert.True(result.IsSuccess);
-        var firstFaceHit = Assert.Single(result.Value.Where(h => h.EntityKind == SelectionEntityKind.Face));
+        var firstFaceHit = Assert.Single(result.Value, h => h.EntityKind == SelectionEntityKind.Face);
         Assert.Equal(new FaceId(2), firstFaceHit.FaceId);
         Assert.Equal(2d, firstFaceHit.T, 8);
         Assert.Equal(0d, firstFaceHit.Point.X, 8);
@@ -71,8 +71,8 @@ public sealed class BrepPickerTests
 
         Assert.True(culled.IsSuccess);
         Assert.True(includeBackfaces.IsSuccess);
-        Assert.Empty(culled.Value.Where(h => h.EntityKind == SelectionEntityKind.Face));
-        Assert.NotEmpty(includeBackfaces.Value.Where(h => h.EntityKind == SelectionEntityKind.Face));
+        Assert.DoesNotContain(culled.Value, h => h.EntityKind == SelectionEntityKind.Face);
+        Assert.Contains(includeBackfaces.Value, h => h.EntityKind == SelectionEntityKind.Face);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class BrepPickerTests
         var result = BrepPicker.Pick(box, tessellation, ray, PickQueryOptions.Default with { EdgeTolerance = 0.005d });
 
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Value.Where(h => h.EntityKind == SelectionEntityKind.Edge));
+        Assert.DoesNotContain(result.Value, h => h.EntityKind == SelectionEntityKind.Edge);
     }
 
     [Fact]

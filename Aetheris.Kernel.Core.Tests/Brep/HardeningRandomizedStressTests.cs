@@ -70,7 +70,7 @@ public sealed class HardeningRandomizedStressTests
 
             if (!Direction3D.TryCreate(directionVector, out var direction))
             {
-                direction = Direction3D.XAxis;
+                direction = Direction3D.Create(new Vector3D(1d, 0d, 0d));
             }
 
             var ray = new Ray3D(origin, direction);

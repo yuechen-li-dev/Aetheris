@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, parseEnvelope, pickBody, translateBody } from '../api/aetherisApi';
+import { ApiError, executeBoolean, parseEnvelope, pickBody, translateBody } from '../api/aetherisApi';
 
 describe('parseEnvelope', () => {
     it('returns data when envelope success is true', async () => {
@@ -94,5 +94,60 @@ describe('translateBody', () => {
 
         expect(fetchMock).toHaveBeenCalledWith('/api/v1/documents/doc-1/bodies/body-1/transform', expect.objectContaining({ method: 'POST' }));
         expect(response.appliedTranslation.z).toBe(3);
+    });
+});
+
+describe('executeBoolean', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('posts boolean payload with v1 envelope handling', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            success: true,
+            data: {
+                documentId: 'doc-1',
+                bodyId: 'result-body-1',
+                faceCount: 6,
+                edgeCount: 12,
+                vertexCount: 8,
+            },
+            diagnostics: [],
+        }), { status: 200 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const response = await executeBoolean('doc-1', {
+            leftBodyId: 'body-a',
+            rightBodyId: 'body-b',
+            operation: 'union',
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith('/api/v1/documents/doc-1/operations/boolean', expect.objectContaining({ method: 'POST' }));
+        expect(response.bodyId).toBe('result-body-1');
+    });
+
+    it('surfaces unsupported diagnostics from envelope failures', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            success: false,
+            data: null,
+            diagnostics: [{
+                code: 'NotImplemented',
+                severity: 'Error',
+                message: 'Boolean operation not yet implemented for non-box input.',
+                source: 'operations.boolean',
+            }],
+        }), { status: 501 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(executeBoolean('doc-1', {
+            leftBodyId: 'body-a',
+            rightBodyId: 'body-b',
+            operation: 'intersect',
+        })).rejects.toEqual(new ApiError('Boolean operation not yet implemented for non-box input.', [{
+            code: 'NotImplemented',
+            severity: 'Error',
+            message: 'Boolean operation not yet implemented for non-box input.',
+            source: 'operations.boolean',
+        }]));
     });
 });

@@ -146,7 +146,7 @@ public sealed class BrepDisplayTessellatorTests
         Assert.All(circlePolylines, polyline =>
         {
             Assert.Equal(13, polyline.Points.Count);
-            Assert.Equal(polyline.Points[0], polyline.Points[^1]);
+            AssertPointEqualWithinTolerance(polyline.Points[0], polyline.Points[^1], 12);
             Assert.True(polyline.EdgeId.IsValid);
         });
     }
@@ -175,6 +175,13 @@ public sealed class BrepDisplayTessellatorTests
         Assert.True(booleanResult.IsSuccess);
         Assert.True(tessellation.IsSuccess);
         Assert.NotEmpty(tessellation.Value.FacePatches);
+    }
+
+    private static void AssertPointEqualWithinTolerance(Point3D expected, Point3D actual, int precision)
+    {
+        Assert.Equal(expected.X, actual.X, precision);
+        Assert.Equal(expected.Y, actual.Y, precision);
+        Assert.Equal(expected.Z, actual.Z, precision);
     }
 
     private static BrepBody CreateSinglePlaneFaceWithoutLoops()

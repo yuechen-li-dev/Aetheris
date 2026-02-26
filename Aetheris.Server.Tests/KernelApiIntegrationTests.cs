@@ -88,15 +88,22 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         var left = await CreateBoxAsync(document.Data!.DocumentId);
         var right = await CreateBoxAsync(document.Data.DocumentId);
 
+        var rightTranslateResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{right.Data!.OccurrenceId}/transform",
+            new TranslateBodyRequestDto(new Vector3Dto(1, 1, 0)));
+        rightTranslateResponse.EnsureSuccessStatusCode();
+
         var booleanResponse = await _client.PostAsJsonAsync(
             $"/api/v1/documents/{document.Data.DocumentId}/operations/boolean",
-            new BooleanRequestDto(left.Data!.OccurrenceId, right.Data!.OccurrenceId, "union"));
+            new BooleanRequestDto(left.Data!.OccurrenceId, right.Data.OccurrenceId, "union"));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, booleanResponse.StatusCode);
         var envelope = await booleanResponse.Content.ReadFromJsonAsync<ApiResponseDto<object>>();
         Assert.NotNull(envelope);
         Assert.False(envelope!.Success);
+        Assert.Null(envelope.Data);
         Assert.NotEmpty(envelope.Diagnostics);
+        Assert.Contains(envelope.Diagnostics, d => string.Equals(d.Code, "NotImplemented", StringComparison.Ordinal));
     }
 
     private async Task<ApiResponseDto<DocumentCreateResponseDto>> CreateDocumentAsync()

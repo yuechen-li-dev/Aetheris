@@ -111,9 +111,10 @@ END-ISO-10303-21;
 
         Assert.False(import.IsSuccess);
         var diagnostic = Assert.Single(import.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Importer", diagnostic.Source);
-        Assert.Contains("Multiple MANIFOLD_SOLID_BREP", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal(KernelDiagnosticCode.ValidationFailed, diagnostic.Code);
+        Assert.Equal(KernelDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("Step242Importer.ValidateRoots", diagnostic.Source);
+        Assert.Contains("multiple B-rep roots", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("#999", diagnostic.Message, StringComparison.Ordinal);
     }
 

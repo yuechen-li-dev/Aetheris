@@ -51,15 +51,10 @@ public static class Step242Importer
             .OrderBy(e => e.Id)
             .ToArray();
 
-        if (brepCandidates.Length == 0)
+        var rootValidationDiagnostic = ValidateRoots(brepCandidates);
+        if (rootValidationDiagnostic is not null)
         {
-            return Failure("Missing MANIFOLD_SOLID_BREP root entity.", "Importer");
-        }
-
-        if (brepCandidates.Length > 1)
-        {
-            var ids = string.Join(",", brepCandidates.Select(e => $"#{e.Id}"));
-            return Failure($"Multiple MANIFOLD_SOLID_BREP roots are unsupported in M23 subset: {ids}.", "Importer");
+            return KernelResult<BrepBody>.Failure([rootValidationDiagnostic]);
         }
 
         var brepEntity = brepCandidates[0];
@@ -403,4 +398,28 @@ public static class Step242Importer
 
     private static KernelResult<BrepBody> Failure(string message, string source) =>
         KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+
+    private static KernelDiagnostic? ValidateRoots(IReadOnlyList<Step242ParsedEntity> brepCandidates)
+    {
+        if (brepCandidates.Count == 1)
+        {
+            return null;
+        }
+
+        if (brepCandidates.Count == 0)
+        {
+            return new KernelDiagnostic(
+                KernelDiagnosticCode.ValidationFailed,
+                KernelDiagnosticSeverity.Error,
+                "Missing MANIFOLD_SOLID_BREP root entity.",
+                "Step242Importer.ValidateRoots");
+        }
+
+        var ids = string.Join(",", brepCandidates.Select(e => $"#{e.Id}"));
+        return new KernelDiagnostic(
+            KernelDiagnosticCode.ValidationFailed,
+            KernelDiagnosticSeverity.Error,
+            $"Validation failed: multiple B-rep roots (MANIFOLD_SOLID_BREP) are unsupported in M23 subset: {ids}.",
+            "Step242Importer.ValidateRoots");
+    }
 }

@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
 
@@ -20,17 +21,24 @@ public sealed record BooleanRequest(
 public sealed record BooleanAnalysis(
     BooleanOperation Operation,
     bool IsSameBodyInstance,
-    string? ShortcutReason);
+    string? ShortcutReason,
+    AxisAlignedBoxExtents? LeftBox,
+    AxisAlignedBoxExtents? RightBox,
+    string? UnsupportedReason);
 
 public sealed record BooleanIntersectionData(
     BooleanAnalysis Analysis,
     bool IsComputed,
-    int CandidatePairCount);
+    int CandidatePairCount,
+    AxisAlignedBoxExtents? OverlapBox,
+    bool IsTouchingOnly);
 
 public sealed record BooleanClassificationData(
     BooleanIntersectionData Intersections,
     bool IsComputed,
-    int FragmentCount);
+    int FragmentCount,
+    AxisAlignedBoxExtents? SingleBoxResult,
+    string? UnsupportedReason);
 
 public sealed record BooleanRebuildData(
     BooleanClassificationData Classification,
@@ -38,9 +46,8 @@ public sealed record BooleanRebuildData(
     IReadOnlyList<KernelDiagnostic> Diagnostics);
 
 /// <summary>
-/// M12 boolean pipeline scaffold.
-/// Only same-instance Union/Intersect shortcuts are supported in this milestone.
-/// All other requests return deterministic NotImplemented diagnostics.
+/// M13 boolean pipeline with narrow real support for axis-aligned box/box cases that resolve to a single box.
+/// Unsupported and non-solid cases return deterministic NotImplemented diagnostics.
 /// </summary>
 public static class BrepBoolean
 {
@@ -62,8 +69,8 @@ public static class BrepBoolean
         }
 
         var analysis = AnalyzeInputs(validation.Value);
-        var intersections = ComputeIntersections(analysis);
-        var classification = ClassifyFragments(intersections);
+        var intersections = ComputeIntersections(validation.Value, analysis);
+        var classification = ClassifyFragments(validation.Value, intersections);
         var rebuild = RebuildResult(validation.Value, classification);
         if (rebuild.Diagnostics.Any(d => d.Severity == KernelDiagnosticSeverity.Error))
         {
@@ -112,60 +119,200 @@ public static class BrepBoolean
             ? $"Boolean {request.Operation}: same-body shortcut candidate."
             : null;
 
-        return new BooleanAnalysis(request.Operation, isSameBodyInstance, shortcutReason);
+        var tolerance = request.Tolerance ?? ToleranceContext.Default;
+        var leftRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(request.Left, tolerance, out var leftBox, out _);
+        var rightRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(request.Right, tolerance, out var rightBox, out _);
+        var unsupportedReason = leftRecognized && rightRecognized
+            ? null
+            : $"Boolean {request.Operation}: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).";
+
+        return new BooleanAnalysis(request.Operation, isSameBodyInstance, shortcutReason, leftBox, rightBox, unsupportedReason);
     }
 
-    private static BooleanIntersectionData ComputeIntersections(BooleanAnalysis analysis)
+    private static BooleanIntersectionData ComputeIntersections(BooleanRequest request, BooleanAnalysis analysis)
     {
-        var candidatePairCount = analysis.IsSameBodyInstance ? 1 : 0;
-        return new BooleanIntersectionData(analysis, IsComputed: true, candidatePairCount);
+        if (analysis.LeftBox is null || analysis.RightBox is null)
+        {
+            return new BooleanIntersectionData(analysis, IsComputed: true, CandidatePairCount: 0, OverlapBox: null, IsTouchingOnly: false);
+        }
+
+        var overlap = AxisAlignedBoxExtents.Intersection(analysis.LeftBox.Value, analysis.RightBox.Value);
+        var tolerance = request.Tolerance ?? ToleranceContext.Default;
+        var isTouchingOnly = overlap is not null && !overlap.Value.HasPositiveVolume(tolerance);
+        var overlapBox = overlap is not null && overlap.Value.HasPositiveVolume(tolerance)
+            ? overlap
+            : null;
+
+        return new BooleanIntersectionData(analysis, IsComputed: true, CandidatePairCount: 1, overlapBox, isTouchingOnly);
     }
 
-    private static BooleanClassificationData ClassifyFragments(BooleanIntersectionData intersections)
+    private static BooleanClassificationData ClassifyFragments(BooleanRequest request, BooleanIntersectionData intersections)
     {
-        var fragmentCount = intersections.Analysis.IsSameBodyInstance ? 1 : 0;
-        return new BooleanClassificationData(intersections, IsComputed: true, fragmentCount);
+        if (intersections.Analysis.UnsupportedReason is not null)
+        {
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, UnsupportedReason: intersections.Analysis.UnsupportedReason);
+        }
+
+        var left = intersections.Analysis.LeftBox!.Value;
+        var right = intersections.Analysis.RightBox!.Value;
+        var tolerance = request.Tolerance ?? ToleranceContext.Default;
+        var operation = request.Operation;
+
+        if (operation == BooleanOperation.Intersect)
+        {
+            if (intersections.IsTouchingOnly)
+            {
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, UnsupportedReason: $"Boolean {operation}: touching-only intersection is non-solid and empty results are not representable in M13.");
+            }
+
+            if (intersections.OverlapBox is null)
+            {
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, UnsupportedReason: $"Boolean {operation}: empty intersection result is not representable in M13.");
+            }
+
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: intersections.OverlapBox, UnsupportedReason: null);
+        }
+
+        if (operation == BooleanOperation.Union)
+        {
+            if (left.ApproximatelyEquals(right, tolerance))
+            {
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: left, UnsupportedReason: null);
+            }
+
+            if (left.Contains(right, tolerance))
+            {
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: left, UnsupportedReason: null);
+            }
+
+            if (right.Contains(left, tolerance))
+            {
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: right, UnsupportedReason: null);
+            }
+
+            if (intersections.OverlapBox is null)
+            {
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, UnsupportedReason: $"Boolean {operation}: disjoint box union is multi-body and not supported in M13.");
+            }
+
+            var bounds = AxisAlignedBoxExtents.Bounding(left, right);
+            if (AxisAlignedBoxExtents.UnionIsSingleBox(left, right, bounds, tolerance))
+            {
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: bounds, UnsupportedReason: null);
+            }
+
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, UnsupportedReason: $"Boolean {operation}: overlapping box union is not a single box in M13 (for example L-shaped unions)." );
+        }
+
+        if (!left.OverlapsWithPositiveVolume(right, tolerance))
+        {
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: left, UnsupportedReason: null);
+        }
+
+        if (right.Contains(left, tolerance))
+        {
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, UnsupportedReason: $"Boolean {operation}: subtraction fully removes the left box and empty results are not representable in M13.");
+        }
+
+        if (TrySubtractToSingleBox(left, right, tolerance, out var singleBox))
+        {
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: singleBox, UnsupportedReason: null);
+        }
+
+        return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, UnsupportedReason: $"Boolean {operation}: box subtraction result is not representable as a single box in M13.");
     }
 
     private static BooleanRebuildData RebuildResult(BooleanRequest request, BooleanClassificationData classification)
     {
         var operation = request.Operation;
-        if (classification.Intersections.Analysis.IsSameBodyInstance)
+        if (classification.UnsupportedReason is not null)
         {
-            return operation switch
-            {
-                BooleanOperation.Union or BooleanOperation.Intersect => new BooleanRebuildData(
-                    classification,
-                    RebuiltBody: request.Left,
-                    Diagnostics: Array.Empty<KernelDiagnostic>()),
-                BooleanOperation.Subtract => new BooleanRebuildData(
-                    classification,
-                    RebuiltBody: null,
-                    Diagnostics:
-                    [
-                        CreateNotImplemented(
-                            $"Boolean {operation}: same-body subtraction requires an empty-body representation that is not available in M12.",
-                            source: "BrepBoolean.RebuildResult"),
-                    ]),
-                _ => new BooleanRebuildData(
-                    classification,
-                    RebuiltBody: null,
-                    Diagnostics:
-                    [
-                        CreateInternalError($"Boolean {operation}: unexpected operation.", source: "BrepBoolean.RebuildResult"),
-                    ]),
-            };
+            return new BooleanRebuildData(
+                classification,
+                RebuiltBody: null,
+                Diagnostics:
+                [
+                    CreateNotImplemented(classification.UnsupportedReason, source: "BrepBoolean.RebuildResult"),
+                ]);
         }
 
-        return new BooleanRebuildData(
-            classification,
-            RebuiltBody: null,
-            Diagnostics:
-            [
-                CreateNotImplemented(
-                    $"Boolean {operation}: general B-rep boolean intersection/rebuild is not implemented in M12.",
-                    source: "BrepBoolean.RebuildResult"),
-            ]);
+        if (classification.SingleBoxResult is null)
+        {
+            return new BooleanRebuildData(
+                classification,
+                RebuiltBody: null,
+                Diagnostics:
+                [
+                    CreateInternalError($"Boolean {operation}: classification omitted both result and unsupported reason.", source: "BrepBoolean.RebuildResult"),
+                ]);
+        }
+
+        var rebuilt = BrepBooleanBoxRecognition.CreateBoxFromExtents(classification.SingleBoxResult.Value);
+        return rebuilt.IsSuccess
+            ? new BooleanRebuildData(classification, rebuilt.Value, Array.Empty<KernelDiagnostic>())
+            : new BooleanRebuildData(classification, RebuiltBody: null, Diagnostics: rebuilt.Diagnostics);
+    }
+
+    private static bool TrySubtractToSingleBox(AxisAlignedBoxExtents left, AxisAlignedBoxExtents right, ToleranceContext tolerance, out AxisAlignedBoxExtents singleBox)
+    {
+        singleBox = default;
+        var overlap = AxisAlignedBoxExtents.Intersection(left, right);
+        if (overlap is null || !overlap.Value.HasPositiveVolume(tolerance))
+        {
+            return false;
+        }
+
+        var o = overlap.Value;
+
+        if (ToleranceMath.GreaterThanOrAlmostEqual(o.MinX, left.MinX, tolerance) && ToleranceMath.AlmostEqual(o.MaxX, left.MaxX, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinY, left.MinY, tolerance) && ToleranceMath.AlmostEqual(o.MaxY, left.MaxY, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinZ, left.MinZ, tolerance) && ToleranceMath.AlmostEqual(o.MaxZ, left.MaxZ, tolerance))
+        {
+            singleBox = new AxisAlignedBoxExtents(left.MinX, o.MinX, left.MinY, left.MaxY, left.MinZ, left.MaxZ);
+            return singleBox.HasPositiveVolume(tolerance);
+        }
+
+        if (ToleranceMath.LessThanOrAlmostEqual(o.MaxX, left.MaxX, tolerance) && ToleranceMath.AlmostEqual(o.MinX, left.MinX, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinY, left.MinY, tolerance) && ToleranceMath.AlmostEqual(o.MaxY, left.MaxY, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinZ, left.MinZ, tolerance) && ToleranceMath.AlmostEqual(o.MaxZ, left.MaxZ, tolerance))
+        {
+            singleBox = new AxisAlignedBoxExtents(o.MaxX, left.MaxX, left.MinY, left.MaxY, left.MinZ, left.MaxZ);
+            return singleBox.HasPositiveVolume(tolerance);
+        }
+
+        if (ToleranceMath.GreaterThanOrAlmostEqual(o.MinY, left.MinY, tolerance) && ToleranceMath.AlmostEqual(o.MaxY, left.MaxY, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinX, left.MinX, tolerance) && ToleranceMath.AlmostEqual(o.MaxX, left.MaxX, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinZ, left.MinZ, tolerance) && ToleranceMath.AlmostEqual(o.MaxZ, left.MaxZ, tolerance))
+        {
+            singleBox = new AxisAlignedBoxExtents(left.MinX, left.MaxX, left.MinY, o.MinY, left.MinZ, left.MaxZ);
+            return singleBox.HasPositiveVolume(tolerance);
+        }
+
+        if (ToleranceMath.LessThanOrAlmostEqual(o.MaxY, left.MaxY, tolerance) && ToleranceMath.AlmostEqual(o.MinY, left.MinY, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinX, left.MinX, tolerance) && ToleranceMath.AlmostEqual(o.MaxX, left.MaxX, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinZ, left.MinZ, tolerance) && ToleranceMath.AlmostEqual(o.MaxZ, left.MaxZ, tolerance))
+        {
+            singleBox = new AxisAlignedBoxExtents(left.MinX, left.MaxX, o.MaxY, left.MaxY, left.MinZ, left.MaxZ);
+            return singleBox.HasPositiveVolume(tolerance);
+        }
+
+        if (ToleranceMath.GreaterThanOrAlmostEqual(o.MinZ, left.MinZ, tolerance) && ToleranceMath.AlmostEqual(o.MaxZ, left.MaxZ, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinX, left.MinX, tolerance) && ToleranceMath.AlmostEqual(o.MaxX, left.MaxX, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinY, left.MinY, tolerance) && ToleranceMath.AlmostEqual(o.MaxY, left.MaxY, tolerance))
+        {
+            singleBox = new AxisAlignedBoxExtents(left.MinX, left.MaxX, left.MinY, left.MaxY, left.MinZ, o.MinZ);
+            return singleBox.HasPositiveVolume(tolerance);
+        }
+
+        if (ToleranceMath.LessThanOrAlmostEqual(o.MaxZ, left.MaxZ, tolerance) && ToleranceMath.AlmostEqual(o.MinZ, left.MinZ, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinX, left.MinX, tolerance) && ToleranceMath.AlmostEqual(o.MaxX, left.MaxX, tolerance) &&
+            ToleranceMath.AlmostEqual(o.MinY, left.MinY, tolerance) && ToleranceMath.AlmostEqual(o.MaxY, left.MaxY, tolerance))
+        {
+            singleBox = new AxisAlignedBoxExtents(left.MinX, left.MaxX, left.MinY, left.MaxY, o.MaxZ, left.MaxZ);
+            return singleBox.HasPositiveVolume(tolerance);
+        }
+
+        return false;
     }
 
     private static KernelResult<BrepBody> ValidateOutput(BrepBody body, IReadOnlyList<KernelDiagnostic> diagnostics)

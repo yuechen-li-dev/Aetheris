@@ -45,3 +45,12 @@
 - [x] Add exact analytic surface primitives (`PlaneSurface`, `CylinderSurface`, `SphereSurface`, `ConeSurface`) with constructor validation and documented parameter conventions.
 - [x] Add focused geometry unit tests that lock evaluation behavior/orientation conventions and invalid-construction guardrails.
 - [x] Explicitly defer topology-geometry binding to M06.
+
+## M06 — Topology–Geometry Binding v1 (Minimal B-rep Body Definition)
+
+- [x] Add strongly typed geometry IDs and a lightweight geometry store for reusable curve/surface definitions.
+- [x] Add explicit topology-to-geometry bindings (`EdgeId -> CurveGeometryId`, `FaceId -> SurfaceGeometryId`) with optional edge parameter intervals.
+- [x] Add a minimal aggregate B-rep body model that combines topology, geometry, and bindings.
+- [x] Add binding validator v0 for topology + binding reference integrity (not advanced geometric/manifold correctness).
+- [x] Add focused tests, including manual construction and validation of a simple box-like B-rep fixture.
+- [x] Explicitly defer full geometric consistency checks, trim-loop/p-curve support, and modeling operations.

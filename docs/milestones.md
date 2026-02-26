@@ -9,9 +9,10 @@
 
 ## M01 — Diagnostics and Result Model Baseline
 
-- [ ] Define kernel operation result envelope (success/failure + diagnostics).
-- [ ] Introduce shared diagnostic identifiers and deterministic formatting conventions.
-- [ ] Add tests for result model semantics.
+- [x] Define a kernel operation result envelope (`KernelResult<T>`) for success/failure with diagnostics.
+- [x] Introduce shared kernel diagnostic primitives (severity + stable codes + immutable payload).
+- [x] Enforce guardrails for success/failure diagnostic shape (no success errors, failure has at least one error).
+- [x] Add focused unit tests that lock result/diagnostic semantics.
 
 ## M02 — Tolerance and Numerics Primitives
 

@@ -13,12 +13,16 @@ public static class KernelEndpoints
 {
     public static void MapKernelApi(this WebApplication app)
     {
-        var documents = app.MapGroup("/api/documents");
+        MapDocumentRoutes(app.MapGroup("/api/v1/documents"));
+        MapDocumentRoutes(app.MapGroup("/api/documents"));
+    }
 
+    private static void MapDocumentRoutes(RouteGroupBuilder documents)
+    {
         documents.MapPost("", (DocumentCreateRequestDto? request, KernelDocumentStore store) =>
         {
             var created = store.Create(request?.Name);
-            return Results.Ok(new DocumentCreateResponseDto(created.Id, created.Name, Volatile: true));
+            return ApiMappings.Ok(new DocumentCreateResponseDto(created.Id, created.Name, Volatile: true));
         });
 
         documents.MapGet("/{documentId:guid}", (Guid documentId, KernelDocumentStore store) =>
@@ -29,7 +33,7 @@ public static class KernelEndpoints
             }
 
             var bodyIds = document.SnapshotBodies().Keys.OrderBy(id => id).ToArray();
-            return Results.Ok(new DocumentSummaryResponseDto(document.Id, document.Name, bodyIds.Length, bodyIds));
+            return ApiMappings.Ok(new DocumentSummaryResponseDto(document.Id, document.Name, bodyIds.Length, bodyIds));
         });
 
         documents.MapPost("/{documentId:guid}/bodies/primitives/box", (Guid documentId, BoxCreateRequestDto request, KernelDocumentStore store) =>
@@ -41,7 +45,7 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
                 }
 
-                return Results.Ok(CreateBodyResponse(document, kernel.Value));
+                return ApiMappings.Ok(CreateBodyResponse(document, kernel.Value));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/primitives/cylinder", (Guid documentId, CylinderCreateRequestDto request, KernelDocumentStore store) =>
@@ -53,7 +57,7 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
                 }
 
-                return Results.Ok(CreateBodyResponse(document, kernel.Value));
+                return ApiMappings.Ok(CreateBodyResponse(document, kernel.Value));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/primitives/sphere", (Guid documentId, SphereCreateRequestDto request, KernelDocumentStore store) =>
@@ -65,7 +69,7 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
                 }
 
-                return Results.Ok(CreateBodyResponse(document, kernel.Value));
+                return ApiMappings.Ok(CreateBodyResponse(document, kernel.Value));
             }));
 
         documents.MapPost("/{documentId:guid}/operations/extrude", (Guid documentId, ExtrudeRequestDto request, KernelDocumentStore store) =>
@@ -88,7 +92,7 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
                 }
 
-                return Results.Ok(CreateBodyResponse(document, kernel.Value));
+                return ApiMappings.Ok(CreateBodyResponse(document, kernel.Value));
             }));
 
         documents.MapPost("/{documentId:guid}/operations/revolve", (Guid documentId, RevolveRequestDto request, KernelDocumentStore store) =>
@@ -129,7 +133,7 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
                 }
 
-                return Results.Ok(CreateBodyResponse(document, kernel.Value));
+                return ApiMappings.Ok(CreateBodyResponse(document, kernel.Value));
             }));
 
         documents.MapPost("/{documentId:guid}/operations/boolean", (Guid documentId, BooleanRequestDto request, KernelDocumentStore store) =>
@@ -163,7 +167,7 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
                 }
 
-                return Results.Ok(CreateBodyResponse(document, kernel.Value));
+                return ApiMappings.Ok(CreateBodyResponse(document, kernel.Value));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/tessellate", (Guid documentId, Guid bodyId, TessellateRequestDto? request, KernelDocumentStore store) =>
@@ -176,7 +180,7 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
                 }
 
-                return Results.Ok(ApiMappings.ToTessellationResponse(kernel.Value));
+                return ApiMappings.Ok(ApiMappings.ToTessellationResponse(kernel.Value));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/pick", (Guid documentId, Guid bodyId, PickRequestDto request, KernelDocumentStore store) =>
@@ -199,7 +203,7 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
                 }
 
-                return Results.Ok(ApiMappings.ToPickResponse(kernel.Value));
+                return ApiMappings.Ok(ApiMappings.ToPickResponse(kernel.Value));
             }));
     }
 

@@ -10,11 +10,14 @@ namespace Aetheris.Server.Api;
 
 public static class ApiMappings
 {
+    public static IResult Ok<T>(T data)
+        => Results.Ok(new ApiResponseDto<T>(true, data, []));
+
     public static IResult KernelFailure(IReadOnlyList<KernelDiagnostic> diagnostics)
     {
         var mapped = diagnostics.Select(ToDiagnostic).ToArray();
         var statusCode = ResolveStatusCode(diagnostics);
-        return Results.Json(new ErrorResponseDto(mapped), statusCode: statusCode);
+        return Results.Json(new ApiResponseDto<object>(false, null, mapped), statusCode: statusCode);
     }
 
     public static DiagnosticDto ToDiagnostic(KernelDiagnostic diagnostic)
@@ -41,7 +44,7 @@ public static class ApiMappings
     public static IResult NotFound(string message, string source)
     {
         var diagnostic = new KernelDiagnostic(KernelDiagnosticCode.InvalidArgument, KernelDiagnosticSeverity.Error, message, source);
-        return Results.NotFound(new ErrorResponseDto([ToDiagnostic(diagnostic)]));
+        return Results.NotFound(new ApiResponseDto<object>(false, null, [ToDiagnostic(diagnostic)]));
     }
 
     public static Point3Dto ToPointDto(Point3D point) => new(point.X, point.Y, point.Z);
@@ -72,8 +75,8 @@ public static class ApiMappings
             h.SourcePatchIndex,
             h.SourcePrimitiveIndex)).ToArray());
 
-    public static BadRequest<ErrorResponseDto> BadRequestFromMessage(string message, string source)
-        => TypedResults.BadRequest(new ErrorResponseDto([new DiagnosticDto(
+    public static BadRequest<ApiResponseDto<object>> BadRequestFromMessage(string message, string source)
+        => TypedResults.BadRequest(new ApiResponseDto<object>(false, null, [new DiagnosticDto(
             KernelDiagnosticCode.InvalidArgument.ToString(),
             KernelDiagnosticSeverity.Error.ToString(),
             message,

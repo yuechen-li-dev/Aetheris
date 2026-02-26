@@ -13,5 +13,5 @@
 
 ## Kernel discipline
 
-- Do not introduce ad hoc epsilon constants; follow `docs/numerics-policy.md`.
+- Do not introduce ad hoc epsilon constants; use `ToleranceContext` + `ToleranceMath` and follow `docs/numerics-policy.md`.
 - Favor diagnostic/result-oriented kernel operations over exceptions for expected operation outcomes (future-facing rule).

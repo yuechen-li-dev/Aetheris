@@ -15,3 +15,4 @@ This package map is directional only and may evolve with milestone outcomes.
 
 - Boundaries are favored over deep abstraction in early milestones.
 - Kernel remains independent from UI and persistence concerns.
+- Kernel operations should return structured result/diagnostic envelopes for expected outcomes instead of throwing ad hoc exceptions.

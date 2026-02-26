@@ -78,3 +78,12 @@
 - [x] Support M08 primitive outputs (`CreateBox`, `CreateCylinder`, `CreateSphere`) with deterministic hit ordering and tolerance-aware boundary handling.
 - [x] Add focused unit tests for primitive hit/classification behavior, tangent handling, seam dedup behavior, and unsupported-body fallbacks.
 - [x] Explicitly defer arbitrary trimmed/general B-rep intersection and classification support.
+
+## M10 — Programmatic Extrude Framework v1 (No Sketcher)
+
+- [x] Add a minimal programmatic profile model for extrusion input using local 2D planar coordinates (single outer closed loop, line segments only).
+- [x] M10 profile validation intentionally does not yet perform full polygon self-intersection rejection (deferred to a later milestone).
+- [x] Add an explicit extrusion API (`BrepExtrude.Create`) returning `KernelResult<BrepBody>` with strict validator-backed output checks.
+- [x] Support constant-depth linear extrusion along +normal of an explicit frame, producing top/bottom caps and planar side faces.
+- [x] Add focused unit tests for profile/extrude validation, topology and binding expectations, traversal safety, depth-direction convention, and winding behavior.
+- [x] Explicitly defer sketching/constraints, holes/multi-loop profiles, arcs/splines, draft/thin features, booleans, and generalized feature history.

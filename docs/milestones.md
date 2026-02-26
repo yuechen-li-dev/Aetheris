@@ -62,3 +62,11 @@
 - [x] Add minimal convenience queries for common traversal needs with explicit duplicate-edge semantics.
 - [x] Add focused unit tests for happy-path traversal, duplicate behavior, and missing-reference handling.
 - [x] Explicitly defer modeling operations, tessellation, and advanced validation checks.
+
+## M08 — Primitive Solid Constructors v1 (Box / Cylinder / Sphere)
+
+- [x] Add an explicit primitive B-rep API (`BrepPrimitives`) with `CreateBox`, `CreateCylinder`, and `CreateSphere` constructors returning `KernelResult<BrepBody>`.
+- [x] Construct minimal topology + analytic geometry + bindings for axis-aligned box, closed right circular cylinder, and closed sphere representations.
+- [x] Validate constructor outputs via `BrepBindingValidator` in strict completeness mode before returning success.
+- [x] Add focused unit tests for valid creation, invalid parameter diagnostics, expected topology/geometry binding types, and traversal safety.
+- [x] Document M08 simplifications: cylinder uses a single explicit seam edge on the side face; sphere uses a single closed periodic face with no boundary loops.

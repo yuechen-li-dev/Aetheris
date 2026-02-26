@@ -125,3 +125,13 @@
 - [x] Support edge tessellation for `Line3Curve` (2-point polyline) and `Circle3Curve` (deterministic sampled closed polyline).
 - [x] Return structured `NotImplemented` diagnostics for unsupported trims/layouts; fail the full tessellation result on the first unsupported bound face/edge case.
 - [x] Explicitly defer general trimmed-surface tessellation (including arbitrary holes/multi-loop trims), NURBS/spline surfaces, volumetric/analysis meshing, and renderer/GPU integration.
+
+## M15 — Picking Data + Selection Query Contracts v1
+
+- [x] Add explicit picking/selection contracts under `Brep.Picking` (`SelectionEntityKind`, `PickHit`, `PickQueryOptions`) with topology references (`FaceId`, `EdgeId`, optional `BodyId`) and viewer-friendly hit payloads (`t`, point, optional normal).
+- [x] Add `BrepPicker.Pick(...)` entry points that work against display tessellation (either precomputed or generated on demand) and return `KernelResult<IReadOnlyList<PickHit>>`.
+- [x] Support tessellation-driven face picking (ray/triangle) and edge picking (ray/segment closest approach with tolerance), including deterministic hit sorting.
+- [x] Lock deterministic policy: sort by ascending `t`; when `|Δt| <= SortTieTolerance`, edge hits are ordered before face hits; `NearestOnly` returns the first hit from that deterministic ordering.
+- [x] Default backface handling is culling (`IncludeBackfaces = false`), with opt-in backface inclusion.
+- [x] Add focused unit tests for face hits/misses, edge tolerance behavior, face-vs-edge precedence, nearest-only determinism, and structured diagnostics for malformed input.
+- [x] Explicitly defer UI/backend integration, interaction tools, acceleration structures, and caching/performance optimizations.

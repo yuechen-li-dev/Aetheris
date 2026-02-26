@@ -51,20 +51,45 @@ public readonly record struct AxisAlignedBoxExtents(double MinX, double MaxX, do
 
     public static bool UnionIsSingleBox(AxisAlignedBoxExtents a, AxisAlignedBoxExtents b, AxisAlignedBoxExtents bounds, ToleranceContext tolerance)
     {
-        var xAligned = (ToleranceMath.AlmostEqual(a.MinX, bounds.MinX, tolerance) && ToleranceMath.AlmostEqual(a.MaxX, bounds.MaxX, tolerance)
-                       && ToleranceMath.AlmostEqual(b.MinX, bounds.MinX, tolerance) && ToleranceMath.AlmostEqual(b.MaxX, bounds.MaxX, tolerance));
-        var yAligned = (ToleranceMath.AlmostEqual(a.MinY, bounds.MinY, tolerance) && ToleranceMath.AlmostEqual(a.MaxY, bounds.MaxY, tolerance)
-                       && ToleranceMath.AlmostEqual(b.MinY, bounds.MinY, tolerance) && ToleranceMath.AlmostEqual(b.MaxY, bounds.MaxY, tolerance));
-        var zAligned = (ToleranceMath.AlmostEqual(a.MinZ, bounds.MinZ, tolerance) && ToleranceMath.AlmostEqual(a.MaxZ, bounds.MaxZ, tolerance)
-                       && ToleranceMath.AlmostEqual(b.MinZ, bounds.MinZ, tolerance) && ToleranceMath.AlmostEqual(b.MaxZ, bounds.MaxZ, tolerance));
+        var xAligned = ToleranceMath.AlmostEqual(a.MinX, bounds.MinX, tolerance)
+            && ToleranceMath.AlmostEqual(a.MaxX, bounds.MaxX, tolerance)
+            && ToleranceMath.AlmostEqual(b.MinX, bounds.MinX, tolerance)
+            && ToleranceMath.AlmostEqual(b.MaxX, bounds.MaxX, tolerance);
+        var yAligned = ToleranceMath.AlmostEqual(a.MinY, bounds.MinY, tolerance)
+            && ToleranceMath.AlmostEqual(a.MaxY, bounds.MaxY, tolerance)
+            && ToleranceMath.AlmostEqual(b.MinY, bounds.MinY, tolerance)
+            && ToleranceMath.AlmostEqual(b.MaxY, bounds.MaxY, tolerance);
+        var zAligned = ToleranceMath.AlmostEqual(a.MinZ, bounds.MinZ, tolerance)
+            && ToleranceMath.AlmostEqual(a.MaxZ, bounds.MaxZ, tolerance)
+            && ToleranceMath.AlmostEqual(b.MinZ, bounds.MinZ, tolerance)
+            && ToleranceMath.AlmostEqual(b.MaxZ, bounds.MaxZ, tolerance);
+
+        var alignedAxisCount = (xAligned ? 1 : 0) + (yAligned ? 1 : 0) + (zAligned ? 1 : 0);
+        if (alignedAxisCount < 2)
+        {
+            return false;
+        }
 
         var xTouchOrOverlap = System.Math.Min(a.MaxX, b.MaxX) >= System.Math.Max(a.MinX, b.MinX) - tolerance.Linear;
         var yTouchOrOverlap = System.Math.Min(a.MaxY, b.MaxY) >= System.Math.Max(a.MinY, b.MinY) - tolerance.Linear;
         var zTouchOrOverlap = System.Math.Min(a.MaxZ, b.MaxZ) >= System.Math.Max(a.MinZ, b.MinZ) - tolerance.Linear;
 
-        return (xAligned && yTouchOrOverlap && zTouchOrOverlap)
-               || (yAligned && xTouchOrOverlap && zTouchOrOverlap)
-               || (zAligned && xTouchOrOverlap && yTouchOrOverlap);
+        if (!xAligned && !xTouchOrOverlap)
+        {
+            return false;
+        }
+
+        if (!yAligned && !yTouchOrOverlap)
+        {
+            return false;
+        }
+
+        if (!zAligned && !zTouchOrOverlap)
+        {
+            return false;
+        }
+
+        return true;
     }
 }
 

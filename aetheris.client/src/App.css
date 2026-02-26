@@ -1,11 +1,71 @@
-﻿#root {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 2rem;
-    text-align: center;
+#root {
+  width: 100%;
+  min-height: 100vh;
 }
 
-th, td {
-    padding-left: 1rem;
-    padding-right: 1rem;
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  color: #e2e8f0;
+  background: #020617;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.toolbar h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.main-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+.viewport-shell {
+  min-height: calc(100vh - 64px);
+}
+
+.debug-panel {
+  border-left: 1px solid #1e293b;
+  padding: 1rem;
+  background: #0f172a;
+  overflow: auto;
+}
+
+.debug-panel h2,
+.debug-panel h3 {
+  margin-top: 0;
+}
+
+.debug-panel ul {
+  margin: 0;
+  padding-left: 1rem;
+  word-break: break-word;
+}
+
+button {
+  border-radius: 6px;
+  border: 1px solid #334155;
+  padding: 0.4rem 0.7rem;
+  color: #e2e8f0;
+  background: #1e293b;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

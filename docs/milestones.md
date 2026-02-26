@@ -154,3 +154,12 @@
 - [x] Keep temporary unversioned compatibility aliases under `/api/documents/...` during migration; v1 routes are canonical.
 - [x] Add integration tests that lock versioned route behavior, envelope shape, diagnostics determinism, and compatibility alias behavior.
 - [x] M18 frontend integration targets stable v1 contracts and envelope semantics.
+
+## M18 — React Viewer Shell v1 (Viewport + Scene Display)
+
+- [x] Add a minimal React viewer shell in `aetheris.client` that targets canonical `/api/v1/documents/...` routes.
+- [x] Add explicit TypeScript API contracts/envelope handling for document create/summary, box creation, and tessellation requests.
+- [x] Add a basic 3D viewport rendering tessellated face patches and edge polylines with orbit/zoom/pan camera controls.
+- [x] Add a simple debug/status panel showing document/body state, request status, and surfaced diagnostics.
+- [x] Keep scope intentionally narrow: viewer/debug shell + primitive creation integration only.
+- [x] Defer rich modeling workflows, selection UX, editing manipulators/gizmos, undo/redo, and persisted documents.

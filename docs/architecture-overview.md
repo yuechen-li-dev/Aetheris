@@ -4,7 +4,7 @@ This package map is directional only and may evolve with milestone outcomes.
 
 ## Proposed package map
 
-- `Aetheris.Kernel.Core` — shared kernel primitives, result/diagnostic contracts, and numeric policy entry points.
+- `Aetheris.Kernel.Core` — shared kernel primitives, result/diagnostic contracts, numeric policy entry points, and kernel-internal math/transform substrate (not a public CAD math API promise).
 - `Aetheris.Kernel.Modeling` — solid/B-rep modeling operations and topology-aware workflows.
 - `Aetheris.Kernel.Tessellation` — mesh generation derived from authoritative B-rep.
 - `Aetheris.Kernel.Step242` — AP242 mapping and translation at persistence/interchange boundaries.

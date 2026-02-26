@@ -19,3 +19,11 @@
 - [ ] Introduce centralized tolerance primitives and policy-backed defaults.
 - [ ] Add foundational numeric utility types required for later geometric operations.
 - [ ] Add focused tests that enforce tolerance policy behavior.
+
+
+## M03 — Core Math Primitives + Affine Transforms
+
+- [x] Add immutable 3D primitives (`Point3D`, `Vector3D`, `Direction3D`) with explicit semantics and normalization checks.
+- [x] Add minimal affine `Transform3D` wrapper with point/vector/direction application, composition, and inverse behavior.
+- [x] Add minimal spatial substrate (`BoundingBox3D`, `Ray3D`) for later query/intersection work.
+- [x] Add focused unit tests for primitive math invariants and transform behavior.

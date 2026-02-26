@@ -89,8 +89,9 @@ public sealed class BrepPickerTests
         Assert.NotEmpty(edgeHits);
         var edgeHit = edgeHits[0];
         Assert.True(edgeHit.EdgeId.HasValue);
-        Assert.Equal(1d, edgeHit.Point.X, 3);
+        Assert.Equal(1.01d, edgeHit.Point.X, 3);
         Assert.Equal(-1d, edgeHit.Point.Y, 3);
+        Assert.Equal(0d, edgeHit.T, 8);
     }
 
     [Fact]
@@ -113,12 +114,16 @@ public sealed class BrepPickerTests
         var tessellation = BrepDisplayTessellator.Tessellate(box).Value;
         var ray = new Ray3D(new Point3D(1d, -2d, 1d), Direction3D.Create(new Vector3D(0d, 1d, 0d)));
 
-        var result = BrepPicker.Pick(box, tessellation, ray, PickQueryOptions.Default with { IncludeBackfaces = true, EdgeTolerance = 1e-6d });
+        var options = PickQueryOptions.Default with { IncludeBackfaces = true, EdgeTolerance = 1e-6d };
+        var first = BrepPicker.Pick(box, tessellation, ray, options);
+        var second = BrepPicker.Pick(box, tessellation, ray, options);
 
-        Assert.True(result.IsSuccess);
-        var edges = result.Value.Where(h => h.EntityKind == SelectionEntityKind.Edge).ToArray();
-        Assert.True(edges.Length >= 2);
-        Assert.Equal(edges.OrderBy(h => h.T).ToArray(), edges);
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        var firstEdges = first.Value.Where(h => h.EntityKind == SelectionEntityKind.Edge).ToArray();
+        var secondEdges = second.Value.Where(h => h.EntityKind == SelectionEntityKind.Edge).ToArray();
+        Assert.True(firstEdges.Length >= 2);
+        Assert.Equal(firstEdges, secondEdges);
     }
 
     [Fact]

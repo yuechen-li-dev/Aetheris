@@ -14,6 +14,30 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         _client = factory.CreateClient();
     }
 
+    [Theory]
+    [InlineData("/api/v1/documents")]
+    [InlineData("/api/documents")]
+    public async Task CreateDocument_AndSummary_ReturnConsistentSuccessEnvelope(string routePrefix)
+    {
+        var createResponse = await _client.PostAsJsonAsync(routePrefix, new DocumentCreateRequestDto("test"));
+        createResponse.EnsureSuccessStatusCode();
+
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiResponseDto<DocumentCreateResponseDto>>();
+        Assert.NotNull(created);
+        Assert.True(created!.Success);
+        Assert.NotNull(created.Data);
+        Assert.Empty(created.Diagnostics);
+
+        var summaryResponse = await _client.GetAsync($"{routePrefix}/{created.Data!.DocumentId}");
+        summaryResponse.EnsureSuccessStatusCode();
+
+        var summary = await summaryResponse.Content.ReadFromJsonAsync<ApiResponseDto<DocumentSummaryResponseDto>>();
+        Assert.NotNull(summary);
+        Assert.True(summary!.Success);
+        Assert.NotNull(summary.Data);
+        Assert.Empty(summary.Diagnostics);
+    }
+
     [Fact]
     public async Task V1_CreateDocument_CreateBox_TessellateAndPick_ReturnsExpectedEnvelope()
     {
@@ -57,6 +81,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.NotNull(pick.Data);
         Assert.Single(pick.Data!.Hits);
         Assert.NotNull(pick.Data.Hits[0].Point);
+        Assert.Empty(pick.Diagnostics);
     }
 
     [Fact]
@@ -122,17 +147,35 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.NotEmpty(missingBody.Diagnostics);
     }
 
-    [Fact]
-    public async Task UnversionedRoute_CompatibilityAlias_StillWorks()
+    [Theory]
+    [InlineData("/api/v1/documents")]
+    [InlineData("/api/documents")]
+    public async Task InvalidPickDirection_ReturnsBadRequestWithDiagnosticEnvelope_OnV1AndAlias(string routePrefix)
     {
-        var response = await _client.PostAsJsonAsync("/api/documents", new DocumentCreateRequestDto("compat"));
-        response.EnsureSuccessStatusCode();
+        var document = await CreateDocumentAsync(routePrefix);
+        var box = await CreateBoxAsync(routePrefix, document.Data!.DocumentId, 1, 1, 1);
 
-        var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<DocumentCreateResponseDto>>();
+        var response = await _client.PostAsJsonAsync(
+            $"{routePrefix}/{document.Data.DocumentId}/bodies/{box.Data!.BodyId}/pick",
+            new PickRequestDto(
+                new Point3Dto(0, 0, 5),
+                new Vector3Dto(0, 0, 0),
+                TessellationOptions: null,
+                PickOptions: null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<object>>();
         Assert.NotNull(envelope);
-        Assert.True(envelope!.Success);
-        Assert.NotNull(envelope.Data);
-        Assert.Equal("compat", envelope.Data!.Name);
+        Assert.False(envelope!.Success);
+        Assert.Null(envelope.Data);
+        Assert.NotEmpty(envelope.Diagnostics);
+        Assert.All(envelope.Diagnostics, d =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(d.Code));
+            Assert.False(string.IsNullOrWhiteSpace(d.Severity));
+            Assert.False(string.IsNullOrWhiteSpace(d.Message));
+            Assert.False(string.IsNullOrWhiteSpace(d.Source));
+        });
     }
 
     private async Task<ApiResponseDto<DocumentCreateResponseDto>> CreateDocumentAsync(string routePrefix)

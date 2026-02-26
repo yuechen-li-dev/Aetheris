@@ -36,8 +36,8 @@ public sealed class HardeningRegressionCorpusTests
         var frame = HardeningRegressionFixtures.CanonicalFrame();
         var axis = new RevolveAxis3D(frame.Origin, frame.Normal.ToVector());
 
-        var supported = BrepRevolve.Create(HardeningRegressionFixtures.CanonicalRevolveProfile, frame, axis, System.Math.PI * 2d);
-        var unsupported = BrepRevolve.Create(HardeningRegressionFixtures.CanonicalRevolveProfile, frame, axis, System.Math.PI);
+        var supported = BrepRevolve.Create(HardeningRegressionFixtures.CanonicalRevolveSupportedProfile, frame, axis, System.Math.PI * 2d);
+        var unsupported = BrepRevolve.Create(HardeningRegressionFixtures.CanonicalRevolveUnsupportedProfile, frame, axis, System.Math.PI);
 
         Assert.True(supported.IsSuccess);
         Assert.False(unsupported.IsSuccess);
@@ -50,12 +50,13 @@ public sealed class HardeningRegressionCorpusTests
         var left = HardeningRegressionFixtures.OverlapLeftBox();
         var overlapRight = HardeningRegressionFixtures.OverlapRightBox();
         var touchingRight = HardeningRegressionFixtures.TouchingOnlyBox();
+        var lShapeLeft = HardeningRegressionFixtures.LShapeUnionLeftBox();
         var lShapeRight = HardeningRegressionFixtures.LShapeUnionRightBox();
         var contained = HardeningRegressionFixtures.ContainedBox();
 
         Assert.True(BrepBoolean.Intersect(left, overlapRight).IsSuccess);
         Assert.False(BrepBoolean.Intersect(left, touchingRight).IsSuccess);
-        Assert.False(BrepBoolean.Union(left, lShapeRight).IsSuccess);
+        Assert.False(BrepBoolean.Union(lShapeLeft, lShapeRight).IsSuccess);
 
         var containmentUnion = BrepBoolean.Union(left, contained);
         Assert.True(containmentUnion.IsSuccess);

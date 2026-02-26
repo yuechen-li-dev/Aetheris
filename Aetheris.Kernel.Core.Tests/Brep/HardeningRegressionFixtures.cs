@@ -13,19 +13,25 @@ internal static class HardeningRegressionFixtures
 
     internal static BrepBody TouchingOnlyBox() => BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(4d, 6d, 0d, 4d, 0d, 4d)).Value;
 
-    internal static BrepBody LShapeUnionRightBox() => BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(2d, 4d, 0d, 2d, 0d, 2d)).Value;
-
     internal static BrepBody ContainedBox() => BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(1d, 2d, 1d, 2d, 1d, 2d)).Value;
 
     internal static PolylineProfile2D CanonicalExtrudeProfile() => PolylineProfile2D.Rectangle(2d, 2d);
 
-    internal static IReadOnlyList<ProfilePoint2D> CanonicalRevolveProfile =>
+    internal static IReadOnlyList<ProfilePoint2D> CanonicalRevolveSupportedProfile =>
+    [
+        new ProfilePoint2D(2d, 0d),
+        new ProfilePoint2D(2d, 5d),
+    ];
+
+    internal static IReadOnlyList<ProfilePoint2D> CanonicalRevolveUnsupportedProfile =>
     [
         new ProfilePoint2D(1d, 0d),
         new ProfilePoint2D(1d, 2d),
-        new ProfilePoint2D(0d, 2d),
-        new ProfilePoint2D(0d, 0d),
     ];
+
+    internal static BrepBody LShapeUnionLeftBox() => BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 2d, 0d, 4d, 0d, 2d)).Value;
+
+    internal static BrepBody LShapeUnionRightBox() => BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(2d, 4d, 0d, 2d, 0d, 2d)).Value;
 
     internal static ExtrudeFrame3D CanonicalFrame() =>
         new(

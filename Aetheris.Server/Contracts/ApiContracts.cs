@@ -24,6 +24,10 @@ public sealed record CylinderCreateRequestDto(double Radius, double Height);
 
 public sealed record SphereCreateRequestDto(double Radius);
 
+public sealed record TranslateBodyRequestDto(Vector3Dto Translation);
+
+public sealed record BodyTransformedResponseDto(Guid DocumentId, Guid BodyId, Vector3Dto AppliedTranslation);
+
 public sealed record ExtrudeRequestDto(
     IReadOnlyList<ProfilePoint2Dto> Profile,
     Point3Dto Origin,

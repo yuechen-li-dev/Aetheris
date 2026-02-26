@@ -170,8 +170,19 @@ public static class KernelEndpoints
                 return ApiMappings.Ok(CreateBodyResponse(document, kernel.Value));
             }));
 
+        documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/transform", (Guid documentId, Guid bodyId, TranslateBodyRequestDto request, KernelDocumentStore store) =>
+            WithDocument(store, documentId, document =>
+            {
+                if (!document.ApplyBodyTranslation(bodyId, new Vector3D(request.Translation.X, request.Translation.Y, request.Translation.Z), out _))
+                {
+                    return ApiMappings.NotFound($"Body '{bodyId}' was not found.", "documents.body");
+                }
+
+                return ApiMappings.Ok(new BodyTransformedResponseDto(documentId, bodyId, request.Translation));
+            }));
+
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/tessellate", (Guid documentId, Guid bodyId, TessellateRequestDto? request, KernelDocumentStore store) =>
-            WithDocumentBody(store, documentId, bodyId, body =>
+            WithDocumentBody(store, documentId, bodyId, (document, body) =>
             {
                 var options = ApiMappings.BuildTessellationOptions(request?.Options);
                 var kernel = BrepDisplayTessellator.Tessellate(body, options);
@@ -180,11 +191,16 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
                 }
 
+                if (document.TryGetBodyTransform(bodyId, out var transform))
+                {
+                    return ApiMappings.Ok(ApiMappings.ToTessellationResponse(kernel.Value, transform));
+                }
+
                 return ApiMappings.Ok(ApiMappings.ToTessellationResponse(kernel.Value));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/pick", (Guid documentId, Guid bodyId, PickRequestDto request, KernelDocumentStore store) =>
-            WithDocumentBody(store, documentId, bodyId, body =>
+            WithDocumentBody(store, documentId, bodyId, (document, body) =>
             {
                 if (!Direction3D.TryCreate(new Vector3D(request.Direction.X, request.Direction.Y, request.Direction.Z), out var direction))
                 {
@@ -192,6 +208,11 @@ public static class KernelEndpoints
                 }
 
                 var ray = new Ray3D(new Point3D(request.Origin.X, request.Origin.Y, request.Origin.Z), direction);
+                if (document.TryGetBodyTransform(bodyId, out var transform) && transform.TryInverse(out var inverse))
+                {
+                    ray = new Ray3D(inverse.Apply(ray.Origin), inverse.Apply(ray.Direction));
+                }
+
                 var kernel = BrepPicker.Pick(
                     body,
                     ray,
@@ -201,6 +222,11 @@ public static class KernelEndpoints
                 if (!kernel.IsSuccess)
                 {
                     return ApiMappings.KernelFailure(kernel.Diagnostics);
+                }
+
+                if (document.TryGetBodyTransform(bodyId, out transform))
+                {
+                    return ApiMappings.Ok(ApiMappings.ToPickResponse(kernel.Value, transform));
                 }
 
                 return ApiMappings.Ok(ApiMappings.ToPickResponse(kernel.Value));
@@ -217,7 +243,7 @@ public static class KernelEndpoints
         return operation(document);
     }
 
-    private static IResult WithDocumentBody(KernelDocumentStore store, Guid documentId, Guid bodyId, Func<BrepBody, IResult> operation)
+    private static IResult WithDocumentBody(KernelDocumentStore store, Guid documentId, Guid bodyId, Func<DocumentSession, BrepBody, IResult> operation)
         => WithDocument(store, documentId, document =>
         {
             if (!document.TryGetBody(bodyId, out var body))
@@ -225,7 +251,7 @@ public static class KernelEndpoints
                 return ApiMappings.NotFound($"Body '{bodyId}' was not found.", "documents.body");
             }
 
-            return operation(body);
+            return operation(document, body);
         });
 
     private static BodyCreatedResponseDto CreateBodyResponse(DocumentSession document, BrepBody body)

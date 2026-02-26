@@ -52,22 +52,28 @@ public static class ApiMappings
     public static Vector3Dto ToVectorDto(Vector3D vector) => new(vector.X, vector.Y, vector.Z);
 
     public static TessellationResponseDto ToTessellationResponse(DisplayTessellationResult result)
+        => ToTessellationResponse(result, Transform3D.Identity);
+
+    public static TessellationResponseDto ToTessellationResponse(DisplayTessellationResult result, Transform3D transform)
         => new(
             result.FacePatches.Select(p => new FacePatchDto(
                 p.FaceId.Value,
-                p.Positions.Select(ToPointDto).ToArray(),
-                p.Normals.Select(ToVectorDto).ToArray(),
+                p.Positions.Select(position => ToPointDto(transform.Apply(position))).ToArray(),
+                p.Normals.Select(normal => ToVectorDto(transform.Apply(normal))).ToArray(),
                 p.TriangleIndices.ToArray())).ToArray(),
             result.EdgePolylines.Select(e => new EdgePolylineDto(
                 e.EdgeId.Value,
-                e.Points.Select(ToPointDto).ToArray(),
+                e.Points.Select(point => ToPointDto(transform.Apply(point))).ToArray(),
                 e.IsClosed)).ToArray());
 
     public static PickResponseDto ToPickResponse(IReadOnlyList<PickHit> hits)
+        => ToPickResponse(hits, Transform3D.Identity);
+
+    public static PickResponseDto ToPickResponse(IReadOnlyList<PickHit> hits, Transform3D transform)
         => new(hits.Select(h => new PickHitDto(
             h.T,
-            ToPointDto(h.Point),
-            h.Normal is null ? null : ToVectorDto(h.Normal.Value.ToVector()),
+            ToPointDto(transform.Apply(h.Point)),
+            h.Normal is null ? null : ToVectorDto(transform.Apply(h.Normal.Value.ToVector())),
             h.EntityKind.ToString(),
             h.FaceId?.Value,
             h.EdgeId?.Value,

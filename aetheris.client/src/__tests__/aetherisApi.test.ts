@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, parseEnvelope, pickBody } from '../api/aetherisApi';
+import { ApiError, parseEnvelope, pickBody, translateBody } from '../api/aetherisApi';
 
 describe('parseEnvelope', () => {
     it('returns data when envelope success is true', async () => {
@@ -70,5 +70,29 @@ describe('pickBody', () => {
         expect(fetchMock).toHaveBeenCalledWith('/api/v1/documents/doc-1/bodies/body-1/pick', expect.objectContaining({ method: 'POST' }));
         expect(response.hits[0].entityKind).toBe('Face');
         expect(response.hits[0].faceId).toBe(2);
+    });
+});
+
+describe('translateBody', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('posts translation payload with v1 envelope handling', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            success: true,
+            data: {
+                documentId: 'doc-1',
+                bodyId: 'body-1',
+                appliedTranslation: { x: 1, y: 2, z: 3 },
+            },
+            diagnostics: [],
+        }), { status: 200 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const response = await translateBody('doc-1', 'body-1', { x: 1, y: 2, z: 3 });
+
+        expect(fetchMock).toHaveBeenCalledWith('/api/v1/documents/doc-1/bodies/body-1/transform', expect.objectContaining({ method: 'POST' }));
+        expect(response.appliedTranslation.z).toBe(3);
     });
 });

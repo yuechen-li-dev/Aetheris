@@ -84,6 +84,49 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.Empty(pick.Diagnostics);
     }
 
+
+    [Fact]
+    public async Task BodyTranslation_UpdatesTessellationAndPickCoordinates()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var transformResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{box.Data!.BodyId}/transform",
+            new TranslateBodyRequestDto(new Vector3Dto(3, 0, 0)));
+        transformResponse.EnsureSuccessStatusCode();
+
+        var transformed = await transformResponse.Content.ReadFromJsonAsync<ApiResponseDto<BodyTransformedResponseDto>>();
+        Assert.NotNull(transformed);
+        Assert.True(transformed!.Success);
+        Assert.Equal(3d, transformed.Data!.AppliedTranslation.X);
+
+        var tessellationResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{box.Data.BodyId}/tessellate",
+            new TessellateRequestDto(null));
+        tessellationResponse.EnsureSuccessStatusCode();
+
+        var tessellation = await tessellationResponse.Content.ReadFromJsonAsync<ApiResponseDto<TessellationResponseDto>>();
+        Assert.NotNull(tessellation);
+        Assert.True(tessellation!.Success);
+        Assert.Contains(tessellation.Data!.FacePatches.SelectMany(static p => p.Positions), p => p.X > 3.9);
+
+        var pickResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{box.Data.BodyId}/pick",
+            new PickRequestDto(
+                new Point3Dto(3, 0, 5),
+                new Vector3Dto(0, 0, -1),
+                TessellationOptions: null,
+                PickOptions: new PickOptionsDto(NearestOnly: true, IncludeBackfaces: null, EdgeTolerance: null, SortTieTolerance: null, MaxDistance: null)));
+        pickResponse.EnsureSuccessStatusCode();
+
+        var pick = await pickResponse.Content.ReadFromJsonAsync<ApiResponseDto<PickResponseDto>>();
+        Assert.NotNull(pick);
+        Assert.True(pick!.Success);
+        Assert.Single(pick.Data!.Hits);
+        Assert.InRange(pick.Data.Hits[0].Point.X, 2d, 4d);
+    }
+
     [Fact]
     public async Task UnsupportedBoolean_OnV1_ReturnsUnprocessableEntityWithDiagnosticEnvelope()
     {

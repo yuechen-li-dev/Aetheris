@@ -4,10 +4,12 @@ import {
     ApiError,
     createBox,
     createDocument,
+    executeBoolean,
     getDocumentSummary,
     pickBody,
     tessellateBody,
     translateBody,
+    type BooleanOperation,
     type DiagnosticDto,
     type PickHitDto,
     type TessellationResponseDto,
@@ -16,6 +18,13 @@ import { ViewerViewport } from './viewer/ViewerViewport';
 import { mapTessellationToRenderData } from './viewer/tessellationMapper';
 
 type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
+type BooleanOperationUi = 'Union' | 'Subtract' | 'Intersect';
+
+const BOOLEAN_OP_TO_API: Record<BooleanOperationUi, BooleanOperation> = {
+    Union: 'union',
+    Subtract: 'subtract',
+    Intersect: 'intersect',
+};
 
 function App() {
     const [documentId, setDocumentId] = useState<string | null>(null);
@@ -35,6 +44,9 @@ function App() {
     const [tx, setTx] = useState('0');
     const [ty, setTy] = useState('0');
     const [tz, setTz] = useState('0');
+    const [booleanTargetBodyId, setBooleanTargetBodyId] = useState<string>('');
+    const [booleanToolBodyId, setBooleanToolBodyId] = useState<string>('');
+    const [booleanOperation, setBooleanOperation] = useState<BooleanOperationUi>('Union');
 
     const runAction = useCallback(async (actionName: string, action: () => Promise<void>) => {
         setStatus('loading');
@@ -85,6 +97,9 @@ function App() {
             setPickMessage('Click in the viewport to run nearest-hit pick.');
             setPickDiagnostics([]);
             setPickHits([]);
+            setBooleanTargetBodyId('');
+            setBooleanToolBodyId('');
+            setBooleanOperation('Union');
         });
     }, [runAction]);
 
@@ -165,6 +180,54 @@ function App() {
         });
     }, [activeBodyId, documentId, runAction]);
 
+    const handleUseActiveBodyAsTarget = useCallback(() => {
+        if (activeBodyId) {
+            setBooleanTargetBodyId(activeBodyId);
+        }
+    }, [activeBodyId]);
+
+    const handleUseActiveBodyAsTool = useCallback(() => {
+        if (activeBodyId) {
+            setBooleanToolBodyId(activeBodyId);
+        }
+    }, [activeBodyId]);
+
+    const handleExecuteBoolean = useCallback(async () => {
+        if (!documentId) {
+            return;
+        }
+
+        if (!booleanTargetBodyId || !booleanToolBodyId) {
+            setStatus('error');
+            setStatusMessage('Boolean operation requires both target and tool bodies.');
+            setDiagnostics([]);
+            return;
+        }
+
+        if (booleanTargetBodyId === booleanToolBodyId) {
+            setStatus('error');
+            setStatusMessage('Boolean target and tool must be different bodies.');
+            setDiagnostics([]);
+            return;
+        }
+
+        await runAction(`Boolean ${booleanOperation}`, async () => {
+            const result = await executeBoolean(documentId, {
+                leftBodyId: booleanTargetBodyId,
+                rightBodyId: booleanToolBodyId,
+                operation: BOOLEAN_OP_TO_API[booleanOperation],
+            });
+
+            await refreshSummaryAndActiveTessellation(result.bodyId);
+            setBooleanTargetBodyId(result.bodyId);
+            setPickStatus('idle');
+            setPickMessage(`Boolean ${booleanOperation} succeeded. Result body ${result.bodyId} is now active.`);
+            setPickDiagnostics([]);
+            setPickHits([]);
+            setStatusMessage(`Boolean ${booleanOperation} succeeded: target ${booleanTargetBodyId}, tool ${booleanToolBodyId}, result ${result.bodyId}.`);
+        });
+    }, [booleanOperation, booleanTargetBodyId, booleanToolBodyId, documentId, refreshSummaryAndActiveTessellation, runAction]);
+
     const handlePickRay = useCallback(async (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }) => {
         if (!documentId || !activeBodyId) {
             setPickStatus('error');
@@ -208,11 +271,18 @@ function App() {
     const nearestHit = pickHits[0] ?? null;
     const highlightedFaceId = nearestHit?.entityKind === 'Face' ? nearestHit.faceId : null;
     const highlightedEdgeId = nearestHit?.entityKind === 'Edge' ? nearestHit.edgeId : null;
+    const canExecuteBoolean = Boolean(
+        documentId
+        && bodyIds.length >= 2
+        && booleanTargetBodyId
+        && booleanToolBodyId
+        && booleanTargetBodyId !== booleanToolBodyId
+        && status !== 'loading');
 
     return (
         <div className="app-shell">
             <header className="toolbar">
-                <h1>Aetheris Basic Modeling UI (M19)</h1>
+                <h1>Aetheris Modeling UI (M20)</h1>
                 <div className="toolbar-actions">
                     <button type="button" onClick={() => void handleCreateDocument()} disabled={status === 'loading'}>
                         Create Document
@@ -269,6 +339,43 @@ function App() {
                             <label>Z <input type="number" value={tz} onChange={(event) => setTz(event.target.value)} /></label>
                         </div>
                         <button type="button" onClick={() => void handleApplyTranslation()} disabled={!activeBodyId || status === 'loading'}>Apply Translation</button>
+                    </section>
+
+                    <section>
+                        <h3>Boolean (Two-Body)</h3>
+                        <div className="form-grid boolean-grid">
+                            <label>
+                                Target Body
+                                <select value={booleanTargetBodyId} onChange={(event) => setBooleanTargetBodyId(event.target.value)}>
+                                    <option value="">Select target body</option>
+                                    {bodyIds.map((bodyId) => <option key={`target-${bodyId}`} value={bodyId}>{bodyId}</option>)}
+                                </select>
+                            </label>
+                            <label>
+                                Tool Body
+                                <select value={booleanToolBodyId} onChange={(event) => setBooleanToolBodyId(event.target.value)}>
+                                    <option value="">Select tool body</option>
+                                    {bodyIds.map((bodyId) => <option key={`tool-${bodyId}`} value={bodyId}>{bodyId}</option>)}
+                                </select>
+                            </label>
+                            <label>
+                                Operation
+                                <select value={booleanOperation} onChange={(event) => setBooleanOperation(event.target.value as BooleanOperationUi)}>
+                                    <option value="Union">Union</option>
+                                    <option value="Subtract">Subtract</option>
+                                    <option value="Intersect">Intersect</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div className="toolbar-actions boolean-actions">
+                            <button type="button" onClick={handleUseActiveBodyAsTarget} disabled={!activeBodyId || status === 'loading'}>Use Active as Target</button>
+                            <button type="button" onClick={handleUseActiveBodyAsTool} disabled={!activeBodyId || status === 'loading'}>Use Active as Tool</button>
+                        </div>
+                        <button type="button" onClick={() => void handleExecuteBoolean()} disabled={!canExecuteBoolean}>Execute Boolean</button>
+                        {bodyIds.length < 2 ? <p>Need at least 2 bodies to run a boolean.</p> : null}
+                        {booleanTargetBodyId && booleanToolBodyId && booleanTargetBodyId === booleanToolBodyId ? (
+                            <p>Target and tool must be different body IDs.</p>
+                        ) : null}
                     </section>
 
                     <h2>Debug / Status</h2>

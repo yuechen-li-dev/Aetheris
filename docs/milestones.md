@@ -179,3 +179,13 @@
 - [x] Add minimal backend transform route (`POST /api/v1/documents/{documentId}/bodies/{bodyId}/transform`) with typed DTOs and M17 envelope semantics.
 - [x] Apply document-level body transforms to tessellation and picking responses so viewport updates and hit data stay in world space after translation.
 - [x] Preserve M18/M18.5 debug visibility (active body, body count, pick status/hits/diagnostics, tessellation counts) while deferring booleans UI, gizmos, undo/redo, feature tree, and persistence to later milestones.
+
+
+## M20 — Boolean UI Workflow v1 (Two-Body Union/Subtract/Intersect)
+
+- [x] Add explicit React boolean controls for target body, tool body, operation (`Union`, `Subtract`, `Intersect`), and execute action in the modeling panel.
+- [x] Integrate `/api/v1/documents/{documentId}/operations/boolean` through typed client contracts and M17 envelope parsing (`parseEnvelope<T>` with deterministic `ApiError` diagnostics).
+- [x] Keep backend as source of truth for support limits: M13 narrow axis-aligned box/box subset is unchanged, and unsupported cases surface structured diagnostics (including `NotImplemented`) directly in the UI.
+- [x] Adopt deterministic success semantics aligned with current backend behavior: keep original bodies and add a new boolean result body, refresh document summary, auto-select/tessellate the returned result body, and intentionally clear pick highlight/hits after success.
+- [x] Preserve failure stability: on unsupported/error responses the previous viewport/tessellation state is preserved while status/diagnostics update for observability.
+- [x] Defer boolean previews, feature history, undo/redo, gizmo-based selection, advanced naming/metadata workflows, and generalized boolean support beyond M13.

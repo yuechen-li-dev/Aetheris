@@ -38,6 +38,14 @@ export interface BodyTransformedResponseDto {
     appliedTranslation: Vector3Dto;
 }
 
+export type BooleanOperation = 'union' | 'subtract' | 'intersect';
+
+export interface BooleanRequestDto {
+    leftBodyId: string;
+    rightBodyId: string;
+    operation: BooleanOperation;
+}
+
 export interface Point3Dto {
     x: number;
     y: number;
@@ -177,6 +185,13 @@ export async function translateBody(documentId: string, bodyId: string, translat
     return request<BodyTransformedResponseDto>(`/api/v1/documents/${documentId}/bodies/${bodyId}/transform`, {
         method: 'POST',
         body: JSON.stringify({ translation }),
+    });
+}
+
+export async function executeBoolean(documentId: string, requestDto: BooleanRequestDto): Promise<BodyCreatedResponseDto> {
+    return request<BodyCreatedResponseDto>(`/api/v1/documents/${documentId}/operations/boolean`, {
+        method: 'POST',
+        body: JSON.stringify(requestDto),
     });
 }
 

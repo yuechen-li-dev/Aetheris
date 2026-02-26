@@ -116,3 +116,12 @@
 - [x] Support `Subtract` for no-overlap passthrough, full-removal empty-result diagnostics, and exact single-box clip outcomes; non-single-box subtraction remains `NotImplemented`.
 - [x] Rebuild supported outputs via `BrepPrimitives.CreateBox(...)` plus placement translation and validate results with strict `BrepBindingValidator`.
 - [x] Explicitly defer rotated boxes, non-box primitives, multi-body/disjoint boolean outputs, arbitrary B-rep intersection/splitting, and general boolean robustness.
+
+## M14 — Display Tessellation Engine v1 (Not Simulation Meshing)
+
+- [x] Add display-focused tessellation DTOs and options (`DisplayTessellationResult`, face patches, edge polylines) with topology backreferences for picking/highlighting workflows.
+- [x] Add `BrepDisplayTessellator.Tessellate(...)` returning `KernelResult<DisplayTessellationResult>` and deterministic face/edge iteration by topology ID order.
+- [x] Support display tessellation for the current analytic subset: planar faces (single all-line loop or single circular loop), cylinder/cone side faces in the current seam-loop layout, and untrimmed sphere faces.
+- [x] Support edge tessellation for `Line3Curve` (2-point polyline) and `Circle3Curve` (deterministic sampled closed polyline).
+- [x] Return structured `NotImplemented` diagnostics for unsupported trims/layouts; fail the full tessellation result on the first unsupported bound face/edge case.
+- [x] Explicitly defer general trimmed-surface tessellation (including arbitrary holes/multi-loop trims), NURBS/spline surfaces, volumetric/analysis meshing, and renderer/GPU integration.

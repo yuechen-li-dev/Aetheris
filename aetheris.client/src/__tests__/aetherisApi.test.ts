@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, executeBoolean, parseEnvelope, pickBody, translateBody } from '../api/aetherisApi';
+import { ApiError, executeBoolean, exportDefinitionStep, importStep, parseEnvelope, pickBody, translateBody } from '../api/aetherisApi';
 
 describe('parseEnvelope', () => {
     it('returns data when envelope success is true', async () => {
@@ -151,6 +151,74 @@ describe('executeBoolean', () => {
             severity: 'Error',
             message: 'Boolean operation not yet implemented for non-box input.',
             source: 'operations.boolean',
+        }]));
+    });
+});
+
+
+describe('STEP API', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('parses exportDefinitionStep success envelope', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            success: true,
+            data: {
+                documentId: 'doc-1',
+                definitionId: 'def-1',
+                stepText: 'ISO-10303-21;\nDATA;\n#1=MANIFOLD_SOLID_BREP();',
+                diagnostics: [],
+            },
+            diagnostics: [],
+        }), { status: 200 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const stepText = await exportDefinitionStep('doc-1', 'def-1');
+
+        expect(fetchMock).toHaveBeenCalledWith('/api/v1/documents/doc-1/definitions/def-1/export/step', expect.objectContaining({ method: 'GET' }));
+        expect(stepText).toContain('ISO-10303-21');
+    });
+
+    it('parses importStep success envelope', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            success: true,
+            data: {
+                documentId: 'doc-1',
+                definitionId: 'def-2',
+                occurrenceId: 'occ-2',
+                name: 'Imported',
+                diagnostics: [],
+            },
+            diagnostics: [],
+        }), { status: 200 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const response = await importStep('doc-1', 'ISO-10303-21;', 'Imported');
+
+        expect(fetchMock).toHaveBeenCalledWith('/api/v1/documents/doc-1/import/step', expect.objectContaining({ method: 'POST' }));
+        expect(response.definitionId).toBe('def-2');
+        expect(response.occurrenceId).toBe('occ-2');
+    });
+
+    it('propagates importStep diagnostics on envelope failure', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            success: false,
+            data: null,
+            diagnostics: [{
+                code: 'ValidationFailed',
+                severity: 'Error',
+                message: 'Malformed STEP payload.',
+                source: 'step242.import',
+            }],
+        }), { status: 422 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(importStep('doc-1', 'MALFORMED')).rejects.toEqual(new ApiError('Malformed STEP payload.', [{
+            code: 'ValidationFailed',
+            severity: 'Error',
+            message: 'Malformed STEP payload.',
+            source: 'step242.import',
         }]));
     });
 });

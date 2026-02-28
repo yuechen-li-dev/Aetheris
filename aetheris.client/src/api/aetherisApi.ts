@@ -49,6 +49,21 @@ export interface BodyTransformedResponseDto {
     appliedTranslation: Vector3Dto;
 }
 
+export interface StepExportResponseDto {
+    documentId: string;
+    definitionId: string;
+    stepText: string;
+    diagnostics: DiagnosticDto[];
+}
+
+export interface StepImportResponseDto {
+    documentId: string;
+    definitionId: string;
+    occurrenceId: string;
+    name: string | null;
+    diagnostics: DiagnosticDto[];
+}
+
 export type BooleanOperation = 'union' | 'subtract' | 'intersect';
 
 export interface BooleanRequestDto {
@@ -204,6 +219,21 @@ export async function executeBoolean(documentId: string, requestDto: BooleanRequ
     return request<BodyCreatedResponseDto>(`/api/v1/documents/${documentId}/operations/boolean`, {
         method: 'POST',
         body: JSON.stringify(requestDto),
+    });
+}
+
+export async function exportDefinitionStep(documentId: string, definitionId: string): Promise<string> {
+    const response = await request<StepExportResponseDto>(`/api/v1/documents/${documentId}/definitions/${definitionId}/export/step`, {
+        method: 'GET',
+    });
+
+    return response.stepText;
+}
+
+export async function importStep(documentId: string, stepText: string, name?: string): Promise<StepImportResponseDto> {
+    return request<StepImportResponseDto>(`/api/v1/documents/${documentId}/import/step`, {
+        method: 'POST',
+        body: JSON.stringify({ stepText, name: name ?? null }),
     });
 }
 

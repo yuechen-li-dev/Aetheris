@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Brep.Picking;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Step242;
 using Aetheris.Server.Contracts;
 using Aetheris.Server.Documents;
 
@@ -213,6 +214,43 @@ public static class KernelEndpoints
                 }
 
                 return ApiMappings.Ok(new OccurrenceCreatedResponseDto(documentId, occurrence.OccurrenceId, occurrence.DefinitionId, occurrence.Name));
+            }));
+
+
+        documents.MapGet("/{documentId:guid}/definitions/{definitionId:guid}/export/step", (Guid documentId, Guid definitionId, KernelDocumentStore store) =>
+            WithDocument(store, documentId, document =>
+            {
+                if (!document.TryGetDefinition(definitionId, out var definitionBody))
+                {
+                    return ApiMappings.NotFound($"Definition '{definitionId}' was not found.", "documents.definitions.export.step");
+                }
+
+                var exportResult = Step242Exporter.ExportBody(definitionBody);
+                if (!exportResult.IsSuccess)
+                {
+                    return ApiMappings.KernelFailure(exportResult.Diagnostics);
+                }
+
+                return ApiMappings.Ok(new StepExportResponseDto(documentId, definitionId, exportResult.Value, []));
+            }));
+
+        documents.MapPost("/{documentId:guid}/import/step", (Guid documentId, StepImportRequestDto request, KernelDocumentStore store) =>
+            WithDocument(store, documentId, document =>
+            {
+                if (string.IsNullOrWhiteSpace(request.StepText))
+                {
+                    return ApiMappings.BadRequestFromMessage("StepText must be provided.", "documents.import.step");
+                }
+
+                var importResult = Step242Importer.ImportBody(request.StepText);
+                if (!importResult.IsSuccess)
+                {
+                    return ApiMappings.KernelFailure(importResult.Diagnostics);
+                }
+
+                var occurrenceName = string.IsNullOrWhiteSpace(request.Name) ? "Imported" : request.Name;
+                var imported = document.AddDefinitionAndOccurrence(importResult.Value, occurrenceName);
+                return ApiMappings.Ok(new StepImportResponseDto(documentId, imported.DefinitionId, imported.OccurrenceId, occurrenceName, []));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/transform", (Guid documentId, Guid bodyId, TranslateBodyRequestDto request, KernelDocumentStore store) =>

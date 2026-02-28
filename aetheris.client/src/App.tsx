@@ -6,7 +6,9 @@ import {
     createDocument,
     executeBoolean,
     exportDefinitionStep,
+    exportDocumentSnapshot,
     getDocumentSummary,
+    importDocumentSnapshot,
     importStep,
     pickBody,
     tessellateBody,
@@ -16,6 +18,7 @@ import {
     type BodyOccurrenceSummaryDto,
     type PickHitDto,
     type TessellationResponseDto,
+    type DocumentSnapshotDto,
 } from './api/aetherisApi';
 import { ViewerViewport } from './viewer/ViewerViewport';
 import { mapTessellationToRenderData } from './viewer/tessellationMapper';
@@ -54,6 +57,8 @@ function App() {
     const [stepExportText, setStepExportText] = useState('');
     const [stepImportText, setStepImportText] = useState('');
     const [stepImportName, setStepImportName] = useState('Imported');
+    const [snapshotExportText, setSnapshotExportText] = useState('');
+    const [snapshotImportText, setSnapshotImportText] = useState('');
 
     const runAction = useCallback(async (actionName: string, action: () => Promise<void>) => {
         setStatus('loading');
@@ -112,6 +117,8 @@ function App() {
             setStepExportText('');
             setStepImportText('');
             setStepImportName('Imported');
+            setSnapshotExportText('');
+            setSnapshotImportText('');
         });
     }, [runAction]);
 
@@ -229,6 +236,35 @@ function App() {
         });
     }, [documentId, refreshSummaryAndActiveTessellation, runAction, stepImportName, stepImportText]);
 
+    const handleExportSnapshot = useCallback(async () => {
+        if (!documentId) {
+            return;
+        }
+
+        await runAction('Export snapshot', async () => {
+            const snapshot = await exportDocumentSnapshot(documentId);
+            setSnapshotExportText(JSON.stringify(snapshot, null, 2));
+        });
+    }, [documentId, runAction]);
+
+    const handleImportSnapshot = useCallback(async () => {
+        if (!documentId || snapshotImportText.trim().length === 0) {
+            return;
+        }
+
+        await runAction('Import snapshot', async () => {
+            const parsed = JSON.parse(snapshotImportText) as DocumentSnapshotDto;
+            const result = await importDocumentSnapshot(documentId, parsed);
+            setSnapshotExportText('');
+            setStepExportText('');
+            await refreshSummaryAndActiveTessellation(parsed.occurrences?.[0]?.occurrenceId ?? undefined);
+            setPickStatus('idle');
+            setPickMessage(`Snapshot import applied (${result.definitionCount} definitions, ${result.occurrenceCount} occurrences).`);
+            setPickDiagnostics([]);
+            setPickHits([]);
+        });
+    }, [documentId, refreshSummaryAndActiveTessellation, runAction, snapshotImportText]);
+
     const handleUseActiveBodyAsTarget = useCallback(() => {
         if (activeBodyId) {
             setBooleanTargetBodyId(activeBodyId);
@@ -321,6 +357,7 @@ function App() {
     const highlightedFaceId = nearestHit?.entityKind === 'Face' ? nearestHit.faceId : null;
     const highlightedEdgeId = nearestHit?.entityKind === 'Edge' ? nearestHit.edgeId : null;
     const canImportStep = Boolean(documentId && stepImportText.trim().length > 0 && status !== 'loading');
+    const canImportSnapshot = Boolean(documentId && snapshotImportText.trim().length > 0 && status !== 'loading');
     const canExecuteBoolean = Boolean(
         documentId
         && bodyIds.length >= 2
@@ -433,6 +470,22 @@ function App() {
                         ) : null}
                     </section>
 
+
+                    <section>
+                        <h3>Snapshot</h3>
+                        <button type="button" onClick={() => void handleExportSnapshot()} disabled={!documentId || status === 'loading'}>
+                            Export Snapshot
+                        </button>
+                        <label className="textarea-label">
+                            Exported Snapshot JSON
+                            <textarea value={snapshotExportText} readOnly placeholder="Exported snapshot JSON will appear here." rows={7} />
+                        </label>
+                        <label className="textarea-label">
+                            Import Snapshot JSON
+                            <textarea value={snapshotImportText} onChange={(event) => setSnapshotImportText(event.target.value)} placeholder="Paste snapshot JSON here." rows={7} />
+                        </label>
+                        <button type="button" onClick={() => void handleImportSnapshot()} disabled={!canImportSnapshot}>Import Snapshot</button>
+                    </section>
 
                     <section>
                         <h3>STEP I/O</h3>

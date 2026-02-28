@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Aetheris.Server.Contracts;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -427,6 +428,112 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.NotNull(payload);
         Assert.False(payload!.Success);
         Assert.NotEmpty(payload.Diagnostics);
+    }
+
+    [Fact]
+    public async Task Snapshot_ExportImportRoundTrip_PreservesDocumentAndSupportsTessellationAndPick()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var transformResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{box.Data!.BodyId}/transform",
+            new TranslateBodyRequestDto(new Vector3Dto(4, -2, 1)));
+        transformResponse.EnsureSuccessStatusCode();
+
+        var exportResponse = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}/snapshot");
+        exportResponse.EnsureSuccessStatusCode();
+        var exported = await exportResponse.Content.ReadFromJsonAsync<ApiResponseDto<DocumentSnapshotDto>>();
+
+        Assert.NotNull(exported);
+        Assert.True(exported!.Success);
+        Assert.NotNull(exported.Data);
+        Assert.Single(exported.Data!.Definitions);
+        Assert.Single(exported.Data.Occurrences);
+
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/snapshot",
+            exported.Data);
+        importResponse.EnsureSuccessStatusCode();
+
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<DocumentSnapshotImportResultDto>>();
+        Assert.NotNull(imported);
+        Assert.True(imported!.Success);
+        Assert.Equal(1, imported.Data!.DefinitionCount);
+        Assert.Equal(1, imported.Data.OccurrenceCount);
+
+        var occurrenceId = exported.Data.Occurrences[0].OccurrenceId;
+        Assert.NotNull(occurrenceId);
+
+        var tessellationResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{occurrenceId}/tessellate",
+            new TessellateRequestDto(null));
+        tessellationResponse.EnsureSuccessStatusCode();
+        var tessellation = await tessellationResponse.Content.ReadFromJsonAsync<ApiResponseDto<TessellationResponseDto>>();
+
+        Assert.NotNull(tessellation);
+        Assert.True(tessellation!.Success);
+        Assert.NotEmpty(tessellation.Data!.FacePatches);
+
+        var pickResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{occurrenceId}/pick",
+            new PickRequestDto(
+                new Point3Dto(4, -2, 6),
+                new Vector3Dto(0, 0, -1),
+                TessellationOptions: null,
+                PickOptions: new PickOptionsDto(NearestOnly: true, IncludeBackfaces: null, EdgeTolerance: null, SortTieTolerance: null, MaxDistance: null)));
+        pickResponse.EnsureSuccessStatusCode();
+
+        var pick = await pickResponse.Content.ReadFromJsonAsync<ApiResponseDto<PickResponseDto>>();
+        Assert.NotNull(pick);
+        Assert.True(pick!.Success);
+        Assert.NotEmpty(pick.Data!.Hits);
+    }
+
+    [Fact]
+    public async Task Snapshot_ImportMalformedPayload_ReturnsBadRequestEnvelope()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/snapshot",
+            new DocumentSnapshotDto(
+                document.Data.DocumentId,
+                [new DocumentSnapshotDefinitionDto(Guid.NewGuid(), null)],
+                []));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponseDto<object>>();
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.NotEmpty(payload.Diagnostics);
+    }
+
+    [Fact]
+    public async Task Snapshot_ExportIsDeterministicWithoutMutation()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var transformResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{box.Data!.BodyId}/transform",
+            new TranslateBodyRequestDto(new Vector3Dto(2, 0, 0)));
+        transformResponse.EnsureSuccessStatusCode();
+
+        var responseA = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}/snapshot");
+        var responseB = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}/snapshot");
+        responseA.EnsureSuccessStatusCode();
+        responseB.EnsureSuccessStatusCode();
+
+        var payloadA = await responseA.Content.ReadFromJsonAsync<ApiResponseDto<DocumentSnapshotDto>>();
+        var payloadB = await responseB.Content.ReadFromJsonAsync<ApiResponseDto<DocumentSnapshotDto>>();
+
+        Assert.NotNull(payloadA);
+        Assert.NotNull(payloadB);
+
+        var jsonA = JsonSerializer.Serialize(payloadA);
+        var jsonB = JsonSerializer.Serialize(payloadB);
+        Assert.Equal(jsonA, jsonB);
     }
 
     [Fact]

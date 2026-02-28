@@ -246,3 +246,14 @@
 - [x] Add client API methods and explicit UI controls for button-driven STEP export/import text workflows, with imported occurrence auto-selection and tessellation refresh.
 - [x] Extend client envelope tests for STEP API success parsing and failure diagnostic propagation through `ApiError`.
 - [x] Defer AP242 assembly/product-structure mapping, multi-definition export, metadata completeness, and file-dialog UX to later milestones.
+
+
+## M27 — Document Snapshot Save/Load v1 (Canonical JSON, In-Memory)
+
+- [x] Add canonical snapshot endpoints for full document export/import using M17 envelope semantics (`GET/POST /api/v1/documents/{documentId}/snapshot`).
+- [x] Add snapshot DTOs for definitions (STEP text) and occurrences (identity + definition linkage + translation placement), plus typed import result counts.
+- [x] Ensure deterministic snapshot export ordering (definitions and occurrences sorted by GUID) and deterministic JSON stability across repeated exports without mutation.
+- [x] Implement import as explicit document reset + full restore using STEP definition import and occurrence recreation with provided IDs/placements, while returning diagnostics envelopes on malformed payloads.
+- [x] Extend backend integration tests for snapshot round-trip (including tessellation/pick smoke), malformed payload 400 envelope behavior, and deterministic export equality.
+- [x] Extend client API and tests for snapshot export/import success parsing and diagnostic propagation.
+- [x] Add explicit snapshot export/import JSON controls to the React UI (manual buttons + textareas, no auto-refresh).

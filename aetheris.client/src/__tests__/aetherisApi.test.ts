@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, executeBoolean, exportDefinitionStep, importStep, parseEnvelope, pickBody, translateBody } from '../api/aetherisApi';
+import { ApiError, executeBoolean, exportDefinitionStep, exportDocumentSnapshot, importDocumentSnapshot, importStep, parseEnvelope, pickBody, translateBody } from '../api/aetherisApi';
 
 describe('parseEnvelope', () => {
     it('returns data when envelope success is true', async () => {
@@ -219,6 +219,83 @@ describe('STEP API', () => {
             severity: 'Error',
             message: 'Malformed STEP payload.',
             source: 'step242.import',
+        }]));
+    });
+});
+
+
+describe('Document snapshot API', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('parses exportDocumentSnapshot success envelope', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            success: true,
+            data: {
+                documentId: 'doc-1',
+                definitions: [{ definitionId: 'def-1', stepText: 'ISO-10303-21;' }],
+                occurrences: [{
+                    occurrenceId: 'occ-1',
+                    definitionId: 'def-1',
+                    name: 'Box',
+                    placement: { tx: 1, ty: 2, tz: 3 },
+                }],
+            },
+            diagnostics: [],
+        }), { status: 200 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const snapshot = await exportDocumentSnapshot('doc-1');
+
+        expect(fetchMock).toHaveBeenCalledWith('/api/v1/documents/doc-1/snapshot', expect.objectContaining({ method: 'GET' }));
+        expect(snapshot.definitions[0].stepText).toContain('ISO-10303-21');
+    });
+
+    it('parses importDocumentSnapshot success envelope', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            success: true,
+            data: {
+                documentId: 'doc-1',
+                definitionCount: 1,
+                occurrenceCount: 1,
+            },
+            diagnostics: [],
+        }), { status: 200 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const response = await importDocumentSnapshot('doc-1', {
+            documentId: 'doc-1',
+            definitions: [{ definitionId: 'def-1', stepText: 'ISO-10303-21;' }],
+            occurrences: [{ occurrenceId: 'occ-1', definitionId: 'def-1', name: 'Box', placement: { tx: 0, ty: 0, tz: 0 } }],
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith('/api/v1/documents/doc-1/snapshot', expect.objectContaining({ method: 'POST' }));
+        expect(response.occurrenceCount).toBe(1);
+    });
+
+    it('propagates importDocumentSnapshot diagnostics on envelope failure', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            success: false,
+            data: null,
+            diagnostics: [{
+                code: 'InvalidArgument',
+                severity: 'Error',
+                message: 'Snapshot payload must be provided.',
+                source: 'documents.snapshot.import',
+            }],
+        }), { status: 400 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(importDocumentSnapshot('doc-1', {
+            documentId: 'doc-1',
+            definitions: [],
+            occurrences: [],
+        })).rejects.toEqual(new ApiError('Snapshot payload must be provided.', [{
+            code: 'InvalidArgument',
+            severity: 'Error',
+            message: 'Snapshot payload must be provided.',
+            source: 'documents.snapshot.import',
         }]));
     });
 });

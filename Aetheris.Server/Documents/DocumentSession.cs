@@ -47,6 +47,34 @@ public sealed class DocumentSession
         }
     }
 
+    public void Clear()
+    {
+        lock (_sync)
+        {
+            _definitions.Clear();
+            _occurrences.Clear();
+        }
+    }
+
+    public void ReplaceState(IReadOnlyDictionary<Guid, BrepBody> definitions, IReadOnlyList<BodyOccurrence> occurrences)
+    {
+        lock (_sync)
+        {
+            _definitions.Clear();
+            _occurrences.Clear();
+
+            foreach (var definition in definitions)
+            {
+                _definitions[definition.Key] = definition.Value;
+            }
+
+            foreach (var occurrence in occurrences)
+            {
+                _occurrences[occurrence.OccurrenceId] = occurrence;
+            }
+        }
+    }
+
     public bool TryGetOccurrence(Guid occurrenceId, out BodyOccurrence occurrence)
     {
         lock (_sync)

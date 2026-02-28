@@ -46,6 +46,19 @@ public sealed record StepImportRequestDto(string? StepText, string? Name);
 
 public sealed record StepImportResponseDto(Guid DocumentId, Guid DefinitionId, Guid OccurrenceId, string? Name, IReadOnlyList<DiagnosticDto> Diagnostics);
 
+public sealed record DocumentSnapshotDefinitionDto(Guid? DefinitionId, string? StepText);
+
+public sealed record PlacementDto(double Tx, double Ty, double Tz);
+
+public sealed record DocumentSnapshotOccurrenceDto(Guid? OccurrenceId, Guid? DefinitionId, string? Name, PlacementDto? Placement);
+
+public sealed record DocumentSnapshotDto(
+    Guid DocumentId,
+    IReadOnlyList<DocumentSnapshotDefinitionDto> Definitions,
+    IReadOnlyList<DocumentSnapshotOccurrenceDto> Occurrences);
+
+public sealed record DocumentSnapshotImportResultDto(Guid DocumentId, int DefinitionCount, int OccurrenceCount);
+
 public sealed record ExtrudeRequestDto(
     IReadOnlyList<ProfilePoint2Dto> Profile,
     Point3Dto Origin,

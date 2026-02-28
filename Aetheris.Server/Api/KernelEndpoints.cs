@@ -253,6 +253,121 @@ public static class KernelEndpoints
                 return ApiMappings.Ok(new StepImportResponseDto(documentId, imported.DefinitionId, imported.OccurrenceId, occurrenceName, []));
             }));
 
+        documents.MapGet("/{documentId:guid}/snapshot", (Guid documentId, KernelDocumentStore store) =>
+            WithDocument(store, documentId, document =>
+            {
+                var definitions = document
+                    .SnapshotDefinitions()
+                    .OrderBy(static entry => entry.Key)
+                    .ToArray();
+
+                var definitionDtos = new List<DocumentSnapshotDefinitionDto>(definitions.Length);
+                foreach (var definition in definitions)
+                {
+                    var exportResult = Step242Exporter.ExportBody(definition.Value);
+                    if (!exportResult.IsSuccess)
+                    {
+                        return ApiMappings.KernelFailure(exportResult.Diagnostics);
+                    }
+
+                    definitionDtos.Add(new DocumentSnapshotDefinitionDto(definition.Key, exportResult.Value));
+                }
+
+                var occurrenceDtos = document
+                    .SnapshotOccurrences()
+                    .Values
+                    .OrderBy(static occurrence => occurrence.OccurrenceId)
+                    .Select(static occurrence =>
+                    {
+                        var origin = occurrence.Placement.Apply(new Point3D(0d, 0d, 0d));
+                        return new DocumentSnapshotOccurrenceDto(
+                            occurrence.OccurrenceId,
+                            occurrence.DefinitionId,
+                            occurrence.Name,
+                            new PlacementDto(origin.X, origin.Y, origin.Z));
+                    })
+                    .ToArray();
+
+                return ApiMappings.Ok(new DocumentSnapshotDto(document.Id, definitionDtos, occurrenceDtos));
+            }));
+
+        documents.MapPost("/{documentId:guid}/snapshot", (Guid documentId, DocumentSnapshotDto? request, KernelDocumentStore store) =>
+            WithDocument(store, documentId, document =>
+            {
+                if (request is null)
+                {
+                    return ApiMappings.BadRequestFromMessage("Snapshot payload must be provided.", "documents.snapshot.import");
+                }
+
+                if (request.DocumentId != documentId)
+                {
+                    return ApiMappings.BadRequestFromMessage("Snapshot documentId must match route documentId.", "documents.snapshot.import");
+                }
+
+                if (request.Definitions is null || request.Occurrences is null)
+                {
+                    return ApiMappings.BadRequestFromMessage("Snapshot definitions and occurrences must be provided.", "documents.snapshot.import");
+                }
+
+                var definitionMap = new Dictionary<Guid, BrepBody>();
+                foreach (var definition in request.Definitions.OrderBy(static d => d.DefinitionId ?? Guid.Empty))
+                {
+                    var definitionId = definition.DefinitionId ?? Guid.NewGuid();
+                    if (string.IsNullOrWhiteSpace(definition.StepText))
+                    {
+                        return ApiMappings.BadRequestFromMessage($"Definition '{definitionId}' is missing stepText.", "documents.snapshot.import");
+                    }
+
+                    if (!definitionMap.TryAdd(definitionId, null!))
+                    {
+                        return ApiMappings.BadRequestFromMessage($"Duplicate definitionId '{definitionId}' in snapshot.", "documents.snapshot.import");
+                    }
+
+                    var importResult = Step242Importer.ImportBody(definition.StepText);
+                    if (!importResult.IsSuccess)
+                    {
+                        return ApiMappings.KernelFailure(importResult.Diagnostics);
+                    }
+
+                    definitionMap[definitionId] = importResult.Value;
+                }
+
+                var occurrences = new List<BodyOccurrence>(request.Occurrences.Count);
+                var occurrenceIds = new HashSet<Guid>();
+                foreach (var occurrence in request.Occurrences.OrderBy(static o => o.OccurrenceId ?? Guid.Empty))
+                {
+                    var occurrenceId = occurrence.OccurrenceId ?? Guid.NewGuid();
+                    if (!occurrenceIds.Add(occurrenceId))
+                    {
+                        return ApiMappings.BadRequestFromMessage($"Duplicate occurrenceId '{occurrenceId}' in snapshot.", "documents.snapshot.import");
+                    }
+
+                    if (occurrence.DefinitionId is null || !definitionMap.ContainsKey(occurrence.DefinitionId.Value))
+                    {
+                        return ApiMappings.BadRequestFromMessage($"Occurrence '{occurrenceId}' references unknown definitionId.", "documents.snapshot.import");
+                    }
+
+                    if (occurrence.Placement is null)
+                    {
+                        return ApiMappings.BadRequestFromMessage($"Occurrence '{occurrenceId}' is missing placement.", "documents.snapshot.import");
+                    }
+
+                    var placement = Transform3D.CreateTranslation(new Vector3D(
+                        occurrence.Placement.Tx,
+                        occurrence.Placement.Ty,
+                        occurrence.Placement.Tz));
+
+                    occurrences.Add(new BodyOccurrence(
+                        occurrenceId,
+                        occurrence.DefinitionId.Value,
+                        placement,
+                        occurrence.Name));
+                }
+
+                document.ReplaceState(definitionMap, occurrences);
+                return ApiMappings.Ok(new DocumentSnapshotImportResultDto(document.Id, definitionMap.Count, occurrences.Count));
+            }));
+
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/transform", (Guid documentId, Guid bodyId, TranslateBodyRequestDto request, KernelDocumentStore store) =>
             WithDocument(store, documentId, document =>
             {

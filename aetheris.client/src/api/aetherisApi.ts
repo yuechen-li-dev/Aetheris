@@ -64,6 +64,36 @@ export interface StepImportResponseDto {
     diagnostics: DiagnosticDto[];
 }
 
+export interface PlacementDto {
+    tx: number;
+    ty: number;
+    tz: number;
+}
+
+export interface DocumentSnapshotDefinitionDto {
+    definitionId: string | null;
+    stepText: string | null;
+}
+
+export interface DocumentSnapshotOccurrenceDto {
+    occurrenceId: string | null;
+    definitionId: string | null;
+    name: string | null;
+    placement: PlacementDto | null;
+}
+
+export interface DocumentSnapshotDto {
+    documentId: string;
+    definitions: DocumentSnapshotDefinitionDto[];
+    occurrences: DocumentSnapshotOccurrenceDto[];
+}
+
+export interface DocumentSnapshotImportResultDto {
+    documentId: string;
+    definitionCount: number;
+    occurrenceCount: number;
+}
+
 export type BooleanOperation = 'union' | 'subtract' | 'intersect';
 
 export interface BooleanRequestDto {
@@ -234,6 +264,19 @@ export async function importStep(documentId: string, stepText: string, name?: st
     return request<StepImportResponseDto>(`/api/v1/documents/${documentId}/import/step`, {
         method: 'POST',
         body: JSON.stringify({ stepText, name: name ?? null }),
+    });
+}
+
+export async function exportDocumentSnapshot(documentId: string): Promise<DocumentSnapshotDto> {
+    return request<DocumentSnapshotDto>(`/api/v1/documents/${documentId}/snapshot`, {
+        method: 'GET',
+    });
+}
+
+export async function importDocumentSnapshot(documentId: string, snapshot: DocumentSnapshotDto): Promise<DocumentSnapshotImportResultDto> {
+    return request<DocumentSnapshotImportResultDto>(`/api/v1/documents/${documentId}/snapshot`, {
+        method: 'POST',
+        body: JSON.stringify(snapshot),
     });
 }
 

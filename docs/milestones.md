@@ -217,3 +217,12 @@
 - [x] Add importer-focused tests for success, M22 export→import round-trip (box subset), and malformed/unsupported no-throw behavior.
 - [x] Explicitly keep support narrow: arbitrary third-party STEP/AP242 files are expected to fail with diagnostics; broader schema/entity coverage is deferred.
 - [x] Defer import scope expansion and broader round-trip reliability hardening to M24.
+
+
+## M24 — AP242 Round-Trip Reliability v1 (Subset Stability)
+
+- [x] Add subset-focused reliability coverage for repeated AP242 cycles (`export -> import -> export`) on the existing box-like planar/line topology scope.
+- [x] Lock an explicit round-trip equivalence strategy: topology count invariants + geometry kind invariants (line edges / planar faces) + tessellation/picking smoke checks.
+- [x] Confirm deterministic STEP text behavior for the supported subset: M22 canonical export is byte-stable from the first cycle and remains stable across subsequent cycles.
+- [x] Add a minimal generated golden/fixture corpus for supported subset and importer failure-path diagnostics (malformed input, unsupported entity, broken reference).
+- [x] Keep AP242 support scope intentionally narrow (single-body/single-shell solids with planar faces and line edges); broader entity/schema coverage remains deferred.

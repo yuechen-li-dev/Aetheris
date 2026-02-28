@@ -66,11 +66,12 @@ public static class ApiMappings
                 e.Points.Select(point => ToPointDto(transform.Apply(point))).ToArray(),
                 e.IsClosed)).ToArray());
 
-    public static PickResponseDto ToPickResponse(IReadOnlyList<PickHit> hits)
-        => ToPickResponse(hits, Transform3D.Identity);
+    public static PickResponseDto ToPickResponse(IReadOnlyList<PickHit> hits, Guid occurrenceId)
+        => ToPickResponse(hits, Transform3D.Identity, occurrenceId);
 
-    public static PickResponseDto ToPickResponse(IReadOnlyList<PickHit> hits, Transform3D transform)
+    public static PickResponseDto ToPickResponse(IReadOnlyList<PickHit> hits, Transform3D transform, Guid occurrenceId)
         => new(hits.Select(h => new PickHitDto(
+            occurrenceId,
             h.T,
             ToPointDto(transform.Apply(h.Point)),
             h.Normal is null ? null : ToVectorDto(transform.Apply(h.Normal.Value.ToVector())),

@@ -11,6 +11,7 @@ import {
     translateBody,
     type BooleanOperation,
     type DiagnosticDto,
+    type BodyOccurrenceSummaryDto,
     type PickHitDto,
     type TessellationResponseDto,
 } from './api/aetherisApi';
@@ -29,6 +30,7 @@ const BOOLEAN_OP_TO_API: Record<BooleanOperationUi, BooleanOperation> = {
 function App() {
     const [documentId, setDocumentId] = useState<string | null>(null);
     const [bodyIds, setBodyIds] = useState<string[]>([]);
+    const [occurrences, setOccurrences] = useState<BodyOccurrenceSummaryDto[]>([]);
     const [activeBodyId, setActiveBodyId] = useState<string | null>(null);
     const [tessellation, setTessellation] = useState<TessellationResponseDto | null>(null);
     const [status, setStatus] = useState<RequestStatus>('idle');
@@ -76,6 +78,7 @@ function App() {
         const selected = targetBodyId ?? (summary.bodyIds.includes(activeBodyId ?? '') ? activeBodyId : summary.bodyIds[0] ?? null);
 
         setBodyIds(summary.bodyIds);
+        setOccurrences(summary.occurrences ?? []);
         setActiveBodyId(selected ?? null);
 
         if (selected) {
@@ -92,6 +95,7 @@ function App() {
             setDocumentId(created.documentId);
             setBodyIds([]);
             setActiveBodyId(null);
+            setOccurrences([]);
             setTessellation(null);
             setPickStatus('idle');
             setPickMessage('Click in the viewport to run nearest-hit pick.');
@@ -163,7 +167,7 @@ function App() {
             await translateBody(documentId, activeBodyId, { x, y, z });
             await refreshSummaryAndActiveTessellation(activeBodyId);
             setPickStatus('idle');
-            setPickMessage('Body translated. Click in viewport to refresh nearest hit.');
+            setPickMessage('Occurrence translated. Click in viewport to refresh nearest hit.');
             setPickDiagnostics([]);
             setPickHits([]);
         });
@@ -199,14 +203,14 @@ function App() {
 
         if (!booleanTargetBodyId || !booleanToolBodyId) {
             setStatus('error');
-            setStatusMessage('Boolean operation requires both target and tool bodies.');
+            setStatusMessage('Boolean operation requires both target and tool occurrences.');
             setDiagnostics([]);
             return;
         }
 
         if (booleanTargetBodyId === booleanToolBodyId) {
             setStatus('error');
-            setStatusMessage('Boolean target and tool must be different bodies.');
+            setStatusMessage('Boolean target and tool must be different occurrences.');
             setDiagnostics([]);
             return;
         }
@@ -255,7 +259,7 @@ function App() {
             setPickHits(pickResponse.hits);
             setPickMessage(pickResponse.hits.length === 0
                 ? 'No hit for current click ray.'
-                : `Picked ${pickResponse.hits[0].entityKind} (nearest hit on active body).`);
+                : `Picked ${pickResponse.hits[0].entityKind} on occurrence ${pickResponse.hits[0].occurrenceId}.`);
         } catch (error) {
             const apiError = error instanceof ApiError
                 ? error
@@ -314,19 +318,24 @@ function App() {
 
                     <section>
                         <h3>Body List</h3>
-                        {bodyIds.length === 0 ? <p>No bodies in document.</p> : (
+                        {bodyIds.length === 0 ? <p>No occurrences in document.</p> : (
                             <ul>
-                                {bodyIds.map((bodyId) => (
-                                    <li key={bodyId}>
+                                {bodyIds.map((bodyId) => {
+                                    const occurrence = occurrences.find((item) => item.occurrenceId === bodyId);
+                                    const label = occurrence
+                                        ? `${bodyId} (def ${occurrence.definitionId.slice(0, 8)}, t=[${occurrence.translation.x.toFixed(2)}, ${occurrence.translation.y.toFixed(2)}, ${occurrence.translation.z.toFixed(2)}])`
+                                        : bodyId;
+
+                                    return <li key={bodyId}>
                                         <button
                                             type="button"
                                             className={bodyId === activeBodyId ? 'active-row' : ''}
                                             onClick={() => void handleSelectBody(bodyId)}
                                             disabled={status === 'loading'}>
-                                            {bodyId}
+                                            {label}
                                         </button>
-                                    </li>
-                                ))}
+                                    </li>;
+                                })}
                             </ul>
                         )}
                     </section>
@@ -382,8 +391,8 @@ function App() {
                     <p><strong>Request status:</strong> {status}</p>
                     <p><strong>Message:</strong> {statusMessage}</p>
                     <p><strong>Document ID:</strong> {documentId ?? 'None'}</p>
-                    <p><strong>Active body ID:</strong> {activeBodyId ?? 'None'}</p>
-                    <p><strong>Body count:</strong> {bodyIds.length}</p>
+                    <p><strong>Active occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
+                    <p><strong>Occurrence count:</strong> {bodyIds.length}</p>
                     <p><strong>Face patches:</strong> {tessellation?.facePatches.length ?? 0}</p>
                     <p><strong>Edge polylines:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
                     <h3>Pick Diagnostics (active body only)</h3>

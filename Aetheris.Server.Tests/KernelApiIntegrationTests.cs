@@ -283,6 +283,85 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.Contains(payload.Diagnostics, d => d.Source == "operations.extrude");
     }
 
+
+    [Fact]
+    public async Task DocumentSummary_ReportsOccurrenceAndDefinitionIds()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var summaryResponse = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}");
+        summaryResponse.EnsureSuccessStatusCode();
+        var summary = await summaryResponse.Content.ReadFromJsonAsync<ApiResponseDto<DocumentSummaryResponseDto>>();
+
+        Assert.NotNull(summary);
+        Assert.True(summary!.Success);
+        Assert.Single(summary.Data!.BodyIds);
+        Assert.Single(summary.Data.Occurrences);
+        Assert.Equal(1, summary.Data.DefinitionCount);
+        Assert.Equal(box.Data!.BodyId, summary.Data.Occurrences[0].OccurrenceId);
+        Assert.Equal(box.Data.DefinitionId, summary.Data.Occurrences[0].DefinitionId);
+    }
+
+    [Fact]
+    public async Task CreateOccurrence_ReusesDefinitionAndSupportsIndependentPlacement()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var duplicateResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/occurrences",
+            new CreateOccurrenceRequestDto(box.Data!.BodyId, DefinitionId: null, Name: "copy"));
+        duplicateResponse.EnsureSuccessStatusCode();
+
+        var duplicate = await duplicateResponse.Content.ReadFromJsonAsync<ApiResponseDto<OccurrenceCreatedResponseDto>>();
+        Assert.NotNull(duplicate);
+        Assert.True(duplicate!.Success);
+        Assert.Equal(box.Data.DefinitionId, duplicate.Data!.DefinitionId);
+
+        var transformResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{duplicate.Data.BodyId}/transform",
+            new TranslateBodyRequestDto(new Vector3Dto(10, 0, 0)));
+        transformResponse.EnsureSuccessStatusCode();
+
+        var originalTessellation = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{box.Data.BodyId}/tessellate",
+            new TessellateRequestDto(null));
+        var duplicateTessellation = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{duplicate.Data.BodyId}/tessellate",
+            new TessellateRequestDto(null));
+
+        var original = await originalTessellation.Content.ReadFromJsonAsync<ApiResponseDto<TessellationResponseDto>>();
+        var copied = await duplicateTessellation.Content.ReadFromJsonAsync<ApiResponseDto<TessellationResponseDto>>();
+
+        Assert.NotNull(original);
+        Assert.NotNull(copied);
+        var originalMaxX = original!.Data!.FacePatches.SelectMany(static patch => patch.Positions).Max(static p => p.X);
+        var copiedMaxX = copied!.Data!.FacePatches.SelectMany(static patch => patch.Positions).Max(static p => p.X);
+        Assert.True(copiedMaxX > originalMaxX + 8d);
+    }
+
+    [Fact]
+    public async Task PickResponse_ContainsOccurrenceIdentity()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var pickResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{box.Data!.BodyId}/pick",
+            new PickRequestDto(
+                new Point3Dto(0, 0, 5),
+                new Vector3Dto(0, 0, -1),
+                TessellationOptions: null,
+                PickOptions: new PickOptionsDto(NearestOnly: true, IncludeBackfaces: null, EdgeTolerance: null, SortTieTolerance: null, MaxDistance: null)));
+        pickResponse.EnsureSuccessStatusCode();
+
+        var pick = await pickResponse.Content.ReadFromJsonAsync<ApiResponseDto<PickResponseDto>>();
+        Assert.NotNull(pick);
+        Assert.True(pick!.Success);
+        Assert.Equal(box.Data.BodyId, pick.Data!.Hits[0].OccurrenceId);
+    }
+
     private async Task<ApiResponseDto<DocumentCreateResponseDto>> CreateDocumentAsync(string routePrefix)
     {
         var response = await _client.PostAsJsonAsync(routePrefix, new DocumentCreateRequestDto("test"));

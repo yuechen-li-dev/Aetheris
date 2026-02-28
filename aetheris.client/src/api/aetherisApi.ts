@@ -17,16 +17,26 @@ export interface DocumentCreateResponseDto {
     volatile: boolean;
 }
 
+export interface BodyOccurrenceSummaryDto {
+    occurrenceId: string;
+    definitionId: string;
+    name: string | null;
+    translation: Vector3Dto;
+}
+
 export interface DocumentSummaryResponseDto {
     documentId: string;
     name: string | null;
     bodyCount: number;
     bodyIds: string[];
+    definitionCount: number;
+    occurrences: BodyOccurrenceSummaryDto[];
 }
 
 export interface BodyCreatedResponseDto {
     documentId: string;
     bodyId: string;
+    definitionId: string;
     faceCount: number;
     edgeCount: number;
     vertexCount: number;
@@ -35,6 +45,7 @@ export interface BodyCreatedResponseDto {
 export interface BodyTransformedResponseDto {
     documentId: string;
     bodyId: string;
+    definitionId: string;
     appliedTranslation: Vector3Dto;
 }
 
@@ -92,6 +103,7 @@ export interface PickRequestDto {
 }
 
 export interface PickHitDto {
+    occurrenceId: string;
     t: number;
     point: Point3Dto;
     normal: Vector3Dto | null;

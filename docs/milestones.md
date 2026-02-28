@@ -226,3 +226,12 @@
 - [x] Confirm deterministic STEP text behavior for the supported subset: M22 canonical export is byte-stable from the first cycle and remains stable across subsequent cycles.
 - [x] Add a minimal generated golden/fixture corpus for supported subset and importer failure-path diagnostics (malformed input, unsupported entity, broken reference).
 - [x] Keep AP242 support scope intentionally narrow (single-body/single-shell solids with planar faces and line edges); broader entity/schema coverage remains deferred.
+
+## M25 — Assembly/Document Model v1 (Lightweight and AP242-Aligned)
+
+- [x] Split document state into body definitions (shared `BrepBody`) and body occurrences (instance identity + per-occurrence placement).
+- [x] Preserve existing route shapes while reinterpreting `bodyId` as occurrence identity for tessellation/picking/transform and document summary flows.
+- [x] Add lightweight occurrence creation (`POST /api/v1/documents/{documentId}/occurrences`) so multiple occurrences can reference one shared definition.
+- [x] Extend pick/document contracts minimally with occurrence identity and occurrence summaries while preserving M17 envelope behavior.
+- [x] Keep React modeling UI compatible by listing/selecting occurrences and surfacing occurrence definition/translation context.
+- [x] Add focused occurrence semantics + placement regression coverage; defer full assembly constraints, mates/kinematics, and broad AP242 assembly IO.

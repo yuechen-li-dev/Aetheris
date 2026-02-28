@@ -45,6 +45,7 @@ describe('pickBody', () => {
             success: true,
             data: {
                 hits: [{
+                    occurrenceId: 'occ-1',
                     t: 1.25,
                     point: { x: 0, y: 0, z: 1 },
                     normal: { x: 0, y: 0, z: 1 },
@@ -84,6 +85,7 @@ describe('translateBody', () => {
             data: {
                 documentId: 'doc-1',
                 bodyId: 'body-1',
+                definitionId: 'def-1',
                 appliedTranslation: { x: 1, y: 2, z: 3 },
             },
             diagnostics: [],
@@ -108,6 +110,7 @@ describe('executeBoolean', () => {
             data: {
                 documentId: 'doc-1',
                 bodyId: 'result-body-1',
+                definitionId: 'result-def-1',
                 faceCount: 6,
                 edgeCount: 12,
                 vertexCount: 8,

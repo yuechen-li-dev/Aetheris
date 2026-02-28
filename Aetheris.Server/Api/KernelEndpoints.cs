@@ -32,8 +32,22 @@ public static class KernelEndpoints
                 return ApiMappings.NotFound($"Document '{documentId}' was not found.", "documents.get");
             }
 
-            var bodyIds = document.SnapshotBodies().Keys.OrderBy(id => id).ToArray();
-            return ApiMappings.Ok(new DocumentSummaryResponseDto(document.Id, document.Name, bodyIds.Length, bodyIds));
+            var definitions = document.SnapshotDefinitions();
+            var occurrences = document.SnapshotOccurrences().Values.OrderBy(o => o.OccurrenceId).ToArray();
+            var bodyIds = occurrences.Select(o => o.OccurrenceId).ToArray();
+            var occurrenceSummaries = occurrences.Select(o =>
+            {
+                var origin = o.Placement.Apply(new Point3D(0d, 0d, 0d));
+                return new BodyOccurrenceSummaryDto(o.OccurrenceId, o.DefinitionId, o.Name, new Vector3Dto(origin.X, origin.Y, origin.Z));
+            }).ToArray();
+
+            return ApiMappings.Ok(new DocumentSummaryResponseDto(
+                document.Id,
+                document.Name,
+                bodyIds.Length,
+                bodyIds,
+                definitions.Count,
+                occurrenceSummaries));
         });
 
         documents.MapPost("/{documentId:guid}/bodies/primitives/box", (Guid documentId, BoxCreateRequestDto request, KernelDocumentStore store) =>
@@ -180,6 +194,27 @@ public static class KernelEndpoints
                 return ApiMappings.Ok(CreateBodyResponse(document, kernel.Value));
             }));
 
+        documents.MapPost("/{documentId:guid}/occurrences", (Guid documentId, CreateOccurrenceRequestDto request, KernelDocumentStore store) =>
+            WithDocument(store, documentId, document =>
+            {
+                if (request.SourceOccurrenceId is null && request.DefinitionId is null)
+                {
+                    return ApiMappings.BadRequestFromMessage("Either SourceOccurrenceId or DefinitionId must be provided.", "documents.occurrences");
+                }
+
+                BodyOccurrence occurrence;
+                var created = request.SourceOccurrenceId is Guid sourceOccurrenceId
+                    ? document.TryCreateOccurrenceFromOccurrence(sourceOccurrenceId, out occurrence, request.Name)
+                    : document.TryCreateOccurrence(request.DefinitionId!.Value, out occurrence, request.Name);
+
+                if (!created)
+                {
+                    return ApiMappings.NotFound("Referenced occurrence or definition was not found.", "documents.occurrences");
+                }
+
+                return ApiMappings.Ok(new OccurrenceCreatedResponseDto(documentId, occurrence.OccurrenceId, occurrence.DefinitionId, occurrence.Name));
+            }));
+
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/transform", (Guid documentId, Guid bodyId, TranslateBodyRequestDto request, KernelDocumentStore store) =>
             WithDocument(store, documentId, document =>
             {
@@ -193,11 +228,12 @@ public static class KernelEndpoints
                     return ApiMappings.NotFound($"Body '{bodyId}' was not found.", "documents.body");
                 }
 
-                return ApiMappings.Ok(new BodyTransformedResponseDto(documentId, bodyId, request.Translation));
+                document.TryGetOccurrence(bodyId, out var occurrence);
+                return ApiMappings.Ok(new BodyTransformedResponseDto(documentId, bodyId, occurrence.DefinitionId, request.Translation));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/tessellate", (Guid documentId, Guid bodyId, TessellateRequestDto? request, KernelDocumentStore store) =>
-            WithDocumentBody(store, documentId, bodyId, (document, body) =>
+            WithDocumentOccurrence(store, documentId, bodyId, (document, body) =>
             {
                 var options = ApiMappings.BuildTessellationOptions(request?.Options);
                 var kernel = BrepDisplayTessellator.Tessellate(body, options);
@@ -215,7 +251,7 @@ public static class KernelEndpoints
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/pick", (Guid documentId, Guid bodyId, PickRequestDto request, KernelDocumentStore store) =>
-            WithDocumentBody(store, documentId, bodyId, (document, body) =>
+            WithDocumentOccurrence(store, documentId, bodyId, (document, body) =>
             {
                 if (request.Direction is null)
                 {
@@ -246,10 +282,10 @@ public static class KernelEndpoints
 
                 if (document.TryGetBodyTransform(bodyId, out transform))
                 {
-                    return ApiMappings.Ok(ApiMappings.ToPickResponse(kernel.Value, transform));
+                    return ApiMappings.Ok(ApiMappings.ToPickResponse(kernel.Value, transform, bodyId));
                 }
 
-                return ApiMappings.Ok(ApiMappings.ToPickResponse(kernel.Value));
+                return ApiMappings.Ok(ApiMappings.ToPickResponse(kernel.Value, bodyId));
             }));
     }
 
@@ -263,7 +299,7 @@ public static class KernelEndpoints
         return operation(document);
     }
 
-    private static IResult WithDocumentBody(KernelDocumentStore store, Guid documentId, Guid bodyId, Func<DocumentSession, BrepBody, IResult> operation)
+    private static IResult WithDocumentOccurrence(KernelDocumentStore store, Guid documentId, Guid bodyId, Func<DocumentSession, BrepBody, IResult> operation)
         => WithDocument(store, documentId, document =>
         {
             if (!document.TryGetBody(bodyId, out var body))
@@ -276,10 +312,11 @@ public static class KernelEndpoints
 
     private static BodyCreatedResponseDto CreateBodyResponse(DocumentSession document, BrepBody body)
     {
-        var bodyId = document.AddBody(body);
+        var bodyIds = document.AddBody(body);
         return new BodyCreatedResponseDto(
             document.Id,
-            bodyId,
+            bodyIds.OccurrenceId,
+            bodyIds.DefinitionId,
             body.Topology.Faces.Count(),
             body.Topology.Edges.Count(),
             body.Topology.Vertices.Count());

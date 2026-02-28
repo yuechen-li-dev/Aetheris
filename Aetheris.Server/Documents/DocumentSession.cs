@@ -5,8 +5,8 @@ namespace Aetheris.Server.Documents;
 
 public sealed class DocumentSession
 {
-    private readonly Dictionary<Guid, BrepBody> _bodies = new();
-    private readonly Dictionary<Guid, Transform3D> _bodyTransforms = new();
+    private readonly Dictionary<Guid, BrepBody> _definitions = new();
+    private readonly Dictionary<Guid, BodyOccurrence> _occurrences = new();
     private readonly object _sync = new();
 
     public DocumentSession(Guid id, string? name = null)
@@ -19,54 +19,97 @@ public sealed class DocumentSession
 
     public string? Name { get; }
 
-    public IReadOnlyDictionary<Guid, BrepBody> SnapshotBodies()
+    public IReadOnlyDictionary<Guid, BrepBody> SnapshotDefinitions()
     {
         lock (_sync)
         {
-            return _bodies.ToDictionary(static kvp => kvp.Key, static kvp => kvp.Value);
+            return _definitions.ToDictionary(static kvp => kvp.Key, static kvp => kvp.Value);
         }
     }
 
-    public Guid AddBody(BrepBody body)
-    {
-        var bodyId = Guid.NewGuid();
-        lock (_sync)
-        {
-            _bodies[bodyId] = body;
-            _bodyTransforms[bodyId] = Transform3D.Identity;
-        }
-
-        return bodyId;
-    }
-
-    public bool TryGetBody(Guid bodyId, out BrepBody body)
+    public IReadOnlyDictionary<Guid, BodyOccurrence> SnapshotOccurrences()
     {
         lock (_sync)
         {
-            return _bodies.TryGetValue(bodyId, out body!);
+            return _occurrences.ToDictionary(static kvp => kvp.Key, static kvp => kvp.Value);
         }
     }
 
-    public bool ReplaceBody(Guid bodyId, BrepBody body)
+    public (Guid OccurrenceId, Guid DefinitionId) AddBody(BrepBody body, string? occurrenceName = null)
     {
         lock (_sync)
         {
-            if (!_bodies.ContainsKey(bodyId))
+            var definitionId = Guid.NewGuid();
+            var occurrenceId = Guid.NewGuid();
+            _definitions[definitionId] = body;
+            _occurrences[occurrenceId] = new BodyOccurrence(occurrenceId, definitionId, Transform3D.Identity, occurrenceName);
+            return (occurrenceId, definitionId);
+        }
+    }
+
+    public bool TryGetOccurrence(Guid occurrenceId, out BodyOccurrence occurrence)
+    {
+        lock (_sync)
+        {
+            return _occurrences.TryGetValue(occurrenceId, out occurrence);
+        }
+    }
+
+    public bool TryGetBody(Guid occurrenceId, out BrepBody body)
+    {
+        lock (_sync)
+        {
+            if (!_occurrences.TryGetValue(occurrenceId, out var occurrence))
             {
+                body = null!;
                 return false;
             }
 
-            _bodies[bodyId] = body;
+            return _definitions.TryGetValue(occurrence.DefinitionId, out body!);
+        }
+    }
+
+    public bool TryCreateOccurrence(Guid definitionId, out BodyOccurrence occurrence, string? name = null)
+    {
+        lock (_sync)
+        {
+            if (!_definitions.ContainsKey(definitionId))
+            {
+                occurrence = default;
+                return false;
+            }
+
+            var occurrenceId = Guid.NewGuid();
+            occurrence = new BodyOccurrence(occurrenceId, definitionId, Transform3D.Identity, name);
+            _occurrences[occurrenceId] = occurrence;
             return true;
         }
     }
 
-    public bool TryGetBodyTransform(Guid bodyId, out Transform3D transform)
+    public bool TryCreateOccurrenceFromOccurrence(Guid sourceOccurrenceId, out BodyOccurrence occurrence, string? name = null)
     {
         lock (_sync)
         {
-            if (_bodyTransforms.TryGetValue(bodyId, out transform))
+            if (!_occurrences.TryGetValue(sourceOccurrenceId, out var source))
             {
+                occurrence = default;
+                return false;
+            }
+
+            var occurrenceId = Guid.NewGuid();
+            occurrence = new BodyOccurrence(occurrenceId, source.DefinitionId, Transform3D.Identity, name);
+            _occurrences[occurrenceId] = occurrence;
+            return true;
+        }
+    }
+
+    public bool TryGetBodyTransform(Guid occurrenceId, out Transform3D transform)
+    {
+        lock (_sync)
+        {
+            if (_occurrences.TryGetValue(occurrenceId, out var occurrence))
+            {
+                transform = occurrence.Placement;
                 return true;
             }
 
@@ -75,21 +118,22 @@ public sealed class DocumentSession
         }
     }
 
-    public bool ApplyBodyTranslation(Guid bodyId, Vector3D translation, out Transform3D updatedTransform)
+    public bool ApplyBodyTranslation(Guid occurrenceId, Vector3D translation, out Transform3D updatedTransform)
     {
         lock (_sync)
         {
-            if (!_bodies.ContainsKey(bodyId))
+            if (!_occurrences.TryGetValue(occurrenceId, out var occurrence))
             {
                 updatedTransform = Transform3D.Identity;
                 return false;
             }
 
-            var current = _bodyTransforms.GetValueOrDefault(bodyId, Transform3D.Identity);
             var delta = Transform3D.CreateTranslation(translation);
-            updatedTransform = delta * current;
-            _bodyTransforms[bodyId] = updatedTransform;
+            updatedTransform = delta * occurrence.Placement;
+            _occurrences[occurrenceId] = occurrence with { Placement = updatedTransform };
             return true;
         }
     }
 }
+
+public readonly record struct BodyOccurrence(Guid OccurrenceId, Guid DefinitionId, Transform3D Placement, string? Name);

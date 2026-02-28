@@ -69,6 +69,14 @@ public sealed class DocumentSession
         }
     }
 
+    public bool TryGetDefinition(Guid definitionId, out BrepBody body)
+    {
+        lock (_sync)
+        {
+            return _definitions.TryGetValue(definitionId, out body!);
+        }
+    }
+
     public bool TryCreateOccurrence(Guid definitionId, out BodyOccurrence occurrence, string? name = null)
     {
         lock (_sync)
@@ -102,6 +110,9 @@ public sealed class DocumentSession
             return true;
         }
     }
+
+    public (Guid OccurrenceId, Guid DefinitionId) AddDefinitionAndOccurrence(BrepBody body, string? occurrenceName = null)
+        => AddBody(body, occurrenceName);
 
     public bool TryGetBodyTransform(Guid occurrenceId, out Transform3D transform)
     {

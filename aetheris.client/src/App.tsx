@@ -5,7 +5,9 @@ import {
     createBox,
     createDocument,
     executeBoolean,
+    exportDefinitionStep,
     getDocumentSummary,
+    importStep,
     pickBody,
     tessellateBody,
     translateBody,
@@ -49,6 +51,9 @@ function App() {
     const [booleanTargetBodyId, setBooleanTargetBodyId] = useState<string>('');
     const [booleanToolBodyId, setBooleanToolBodyId] = useState<string>('');
     const [booleanOperation, setBooleanOperation] = useState<BooleanOperationUi>('Union');
+    const [stepExportText, setStepExportText] = useState('');
+    const [stepImportText, setStepImportText] = useState('');
+    const [stepImportName, setStepImportName] = useState('Imported');
 
     const runAction = useCallback(async (actionName: string, action: () => Promise<void>) => {
         setStatus('loading');
@@ -104,6 +109,9 @@ function App() {
             setBooleanTargetBodyId('');
             setBooleanToolBodyId('');
             setBooleanOperation('Union');
+            setStepExportText('');
+            setStepImportText('');
+            setStepImportName('Imported');
         });
     }, [runAction]);
 
@@ -183,6 +191,43 @@ function App() {
             setTessellation(tessellated);
         });
     }, [activeBodyId, documentId, runAction]);
+
+
+    const handleExportActiveStep = useCallback(async () => {
+        if (!documentId || !activeBodyId) {
+            return;
+        }
+
+        const activeOccurrence = occurrences.find((item) => item.occurrenceId === activeBodyId);
+        if (!activeOccurrence) {
+            setStatus('error');
+            setStatusMessage('Active occurrence metadata is unavailable for STEP export.');
+            setDiagnostics([]);
+            return;
+        }
+
+        await runAction('Export active STEP', async () => {
+            const text = await exportDefinitionStep(documentId, activeOccurrence.definitionId);
+            setStepExportText(text);
+        });
+    }, [activeBodyId, documentId, occurrences, runAction]);
+
+    const handleImportStep = useCallback(async () => {
+        if (!documentId) {
+            return;
+        }
+
+        await runAction('Import STEP', async () => {
+            const imported = await importStep(documentId, stepImportText, stepImportName.trim().length === 0 ? undefined : stepImportName.trim());
+            setStepExportText('');
+            await refreshSummaryAndActiveTessellation(imported.occurrenceId);
+            setStepImportName(imported.name ?? 'Imported');
+            setPickStatus('idle');
+            setPickMessage(`Imported occurrence ${imported.occurrenceId} is now active.`);
+            setPickDiagnostics([]);
+            setPickHits([]);
+        });
+    }, [documentId, refreshSummaryAndActiveTessellation, runAction, stepImportName, stepImportText]);
 
     const handleUseActiveBodyAsTarget = useCallback(() => {
         if (activeBodyId) {
@@ -275,6 +320,7 @@ function App() {
     const nearestHit = pickHits[0] ?? null;
     const highlightedFaceId = nearestHit?.entityKind === 'Face' ? nearestHit.faceId : null;
     const highlightedEdgeId = nearestHit?.entityKind === 'Edge' ? nearestHit.edgeId : null;
+    const canImportStep = Boolean(documentId && stepImportText.trim().length > 0 && status !== 'loading');
     const canExecuteBoolean = Boolean(
         documentId
         && bodyIds.length >= 2
@@ -385,6 +431,27 @@ function App() {
                         {booleanTargetBodyId && booleanToolBodyId && booleanTargetBodyId === booleanToolBodyId ? (
                             <p>Target and tool must be different body IDs.</p>
                         ) : null}
+                    </section>
+
+
+                    <section>
+                        <h3>STEP I/O</h3>
+                        <button type="button" onClick={() => void handleExportActiveStep()} disabled={!activeBodyId || status === 'loading'}>
+                            Export Active (STEP)
+                        </button>
+                        <label className="textarea-label">
+                            Exported STEP
+                            <textarea value={stepExportText} readOnly placeholder="Exported STEP text will appear here." rows={7} />
+                        </label>
+                        <label className="textarea-label">
+                            Import STEP Text
+                            <textarea value={stepImportText} onChange={(event) => setStepImportText(event.target.value)} placeholder="Paste STEP text here." rows={7} />
+                        </label>
+                        <label>
+                            Imported Name
+                            <input type="text" value={stepImportName} onChange={(event) => setStepImportName(event.target.value)} />
+                        </label>
+                        <button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP</button>
                     </section>
 
                     <h2>Debug / Status</h2>

@@ -341,6 +341,94 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.True(copiedMaxX > originalMaxX + 8d);
     }
 
+
+    [Fact]
+    public async Task StepIo_ExportImportRoundTrip_TessellatesImportedOccurrence()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var exportResponse = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}/definitions/{box.Data!.DefinitionId}/export/step");
+        exportResponse.EnsureSuccessStatusCode();
+        var exported = await exportResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepExportResponseDto>>();
+
+        Assert.NotNull(exported);
+        Assert.True(exported!.Success);
+        Assert.NotNull(exported.Data);
+        Assert.Contains("ISO-10303-21", exported.Data!.StepText);
+        Assert.Contains("MANIFOLD_SOLID_BREP", exported.Data.StepText);
+
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/import/step",
+            new StepImportRequestDto(exported.Data.StepText, "Imported Box"));
+        importResponse.EnsureSuccessStatusCode();
+
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+        Assert.NotNull(imported);
+        Assert.True(imported!.Success);
+        Assert.NotNull(imported.Data);
+        Assert.NotEqual(box.Data.DefinitionId, imported.Data!.DefinitionId);
+        Assert.NotEqual(box.Data.BodyId, imported.Data.OccurrenceId);
+
+        var tessellationResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{imported.Data.OccurrenceId}/tessellate",
+            new TessellateRequestDto(null));
+        tessellationResponse.EnsureSuccessStatusCode();
+
+        var tessellation = await tessellationResponse.Content.ReadFromJsonAsync<ApiResponseDto<TessellationResponseDto>>();
+        Assert.NotNull(tessellation);
+        Assert.True(tessellation!.Success);
+        Assert.NotEmpty(tessellation.Data!.FacePatches);
+        Assert.NotEmpty(tessellation.Data.EdgePolylines);
+    }
+
+    [Fact]
+    public async Task StepImport_EmptyText_ReturnsBadRequestEnvelope()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto("", null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponseDto<object>>();
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.NotEmpty(payload.Diagnostics);
+        Assert.Contains(payload.Diagnostics, d => d.Code == "InvalidArgument");
+    }
+
+    [Fact]
+    public async Task StepExport_MissingDefinition_ReturnsNotFoundEnvelope()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+
+        var response = await _client.GetAsync($"/api/v1/documents/{document.Data!.DocumentId}/definitions/{Guid.NewGuid()}/export/step");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponseDto<object>>();
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.NotEmpty(payload.Diagnostics);
+    }
+
+    [Fact]
+    public async Task StepImport_MalformedPayload_ReturnsDiagnostics()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto("NOT_A_STEP_FILE", null));
+
+        Assert.Contains(response.StatusCode, new[] { HttpStatusCode.BadRequest, HttpStatusCode.UnprocessableEntity });
+        var payload = await response.Content.ReadFromJsonAsync<ApiResponseDto<object>>();
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.NotEmpty(payload.Diagnostics);
+    }
+
     [Fact]
     public async Task PickResponse_ContainsOccurrenceIdentity()
     {

@@ -235,3 +235,14 @@
 - [x] Extend pick/document contracts minimally with occurrence identity and occurrence summaries while preserving M17 envelope behavior.
 - [x] Keep React modeling UI compatible by listing/selecting occurrences and surfacing occurrence definition/translation context.
 - [x] Add focused occurrence semantics + placement regression coverage; defer full assembly constraints, mates/kinematics, and broad AP242 assembly IO.
+
+
+## M26 — STEP Document I/O Hooks v1 (In-Memory, Subset Only)
+
+- [x] Add canonical backend STEP I/O endpoints for definition export and document import using the existing AP242 subset (`/api/v1/documents/{documentId}/definitions/{definitionId}/export/step`, `/api/v1/documents/{documentId}/import/step`).
+- [x] Add minimal DTO contracts for STEP import/export request/response payloads, preserving M17 envelope and diagnostic mapping behavior.
+- [x] Wire STEP import to create a new definition and a new identity-placed occurrence in in-memory document sessions (no DB/filesystem persistence).
+- [x] Extend server integration coverage for export→import→tessellate success and required negative paths (empty payload, missing definition, malformed STEP diagnostics).
+- [x] Add client API methods and explicit UI controls for button-driven STEP export/import text workflows, with imported occurrence auto-selection and tessellation refresh.
+- [x] Extend client envelope tests for STEP API success parsing and failure diagnostic propagation through `ApiError`.
+- [x] Defer AP242 assembly/product-structure mapping, multi-definition export, metadata completeness, and file-dialog UX to later milestones.

@@ -48,8 +48,8 @@ public sealed class Step242OrientationSemanticsTests
         Assert.True(forward.Value.TryGetFaceSurfaceGeometry(forwardFace.Id, out var forwardSurface));
         Assert.True(reversed.Value.TryGetFaceSurfaceGeometry(reversedFace.Id, out var reversedSurface));
 
-        Assert.Equal(1d, forwardSurface!.Value.Plane!.Value.Normal.Z);
-        Assert.Equal(-1d, reversedSurface!.Value.Plane!.Value.Normal.Z);
+        Assert.Equal(1d, forwardSurface!.Plane!.Value.Normal.Z);
+        Assert.Equal(-1d, reversedSurface!.Plane!.Value.Normal.Z);
     }
 
     [Fact]

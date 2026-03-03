@@ -197,12 +197,15 @@ function App() {
     }, [activeBodyId, documentId, runAction]);
 
 
+    const activeOccurrence = useMemo(
+        () => occurrences.find((item) => item.occurrenceId === activeBodyId) ?? null,
+        [activeBodyId, occurrences]);
+
     const handleExportActiveStep = useCallback(async () => {
         if (!documentId || !activeBodyId) {
             return;
         }
 
-        const activeOccurrence = occurrences.find((item) => item.occurrenceId === activeBodyId);
         if (!activeOccurrence) {
             setStatus('error');
             setStatusMessage('Active occurrence metadata is unavailable for STEP export.');
@@ -215,7 +218,30 @@ function App() {
             setStepExportText(exported.stepText);
             setStepCanonicalHash(exported.canonicalHash);
         });
-    }, [activeBodyId, documentId, occurrences, runAction]);
+    }, [activeBodyId, activeOccurrence, documentId, runAction]);
+
+    const handleDownloadCanonicalStep = useCallback(async () => {
+        if (!documentId || !activeOccurrence) {
+            return;
+        }
+
+        await runAction('Download canonical STEP 242', async () => {
+            const exported = await exportDefinitionStep(documentId, activeOccurrence.definitionId);
+            const blob = new Blob([exported.stepText], { type: 'application/step; charset=utf-8' });
+            const objectUrl = URL.createObjectURL(blob);
+
+            try {
+                const anchor = document.createElement('a');
+                anchor.href = objectUrl;
+                anchor.download = `aetheris-${activeOccurrence.definitionId}.step`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+            } finally {
+                URL.revokeObjectURL(objectUrl);
+            }
+        });
+    }, [activeOccurrence, documentId, runAction]);
 
     const handleImportStep = useCallback(async () => {
         if (!documentId || !stepImportFile) {
@@ -471,6 +497,9 @@ function App() {
                         <h3>STEP I/O</h3>
                         <button type="button" onClick={() => void handleExportActiveStep()} disabled={!activeBodyId || status === 'loading'}>
                             Export Active (STEP)
+                        </button>
+                        <button type="button" onClick={() => void handleDownloadCanonicalStep()} disabled={!documentId || !activeOccurrence || status === 'loading'}>
+                            Download Canonical 242
                         </button>
                         <label className="textarea-label">
                             Exported STEP

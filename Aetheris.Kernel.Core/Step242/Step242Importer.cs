@@ -19,7 +19,20 @@ public static class Step242Importer
             return KernelResult<BrepBody>.Failure(parseResult.Diagnostics);
         }
 
-        return MapSubset(parseResult.Value);
+        try
+        {
+            return MapSubset(parseResult.Value);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.InvalidArgument,
+                    KernelDiagnosticSeverity.Error,
+                    $"Importer rejected parseable STEP input: {ex.Message}",
+                    "Importer.Guardrail")
+            ]);
+        }
     }
 
     private static KernelResult<BrepBody> MapSubset(Step242ParsedDocument document)
@@ -27,14 +40,24 @@ public static class Step242Importer
         var unsupportedEntity = document.Entities.FirstOrDefault(IsClearlyUnsupportedEntity);
         if (unsupportedEntity is not null)
         {
-            return Failure($"Entity '{unsupportedEntity.Name}' is unsupported in M23 import subset.", $"Entity:{unsupportedEntity.Id}");
+            return Failure($"Entity family '{unsupportedEntity.Name}' is unsupported in M23 import subset.", SourceFor(unsupportedEntity.Id, "Importer.EntityFamily"));
         }
 
-        var brepEntity = document.Entities.FirstOrDefault(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase));
-        if (brepEntity is null)
+        var manifoldSolidBreps = document.Entities
+            .Where(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (manifoldSolidBreps.Count == 0)
         {
-            return Failure("Missing MANIFOLD_SOLID_BREP root entity.", "Importer");
+            return Failure("Missing MANIFOLD_SOLID_BREP root entity.", "Importer.TopologyRoot");
         }
+
+        if (manifoldSolidBreps.Count > 1)
+        {
+            return Failure("Multiple MANIFOLD_SOLID_BREP roots are unsupported in M23 import subset.", "Importer.SingleSolid");
+        }
+
+        var brepEntity = manifoldSolidBreps[0];
 
         var shellRefResult = Step242SubsetDecoder.ReadReference(brepEntity, 1, "MANIFOLD_SOLID_BREP shell");
         if (!shellRefResult.IsSuccess)
@@ -274,7 +297,7 @@ public static class Step242Importer
         if (!sameSenseResult.Value)
         {
             return KernelResult<EdgeId>.Failure([
-                new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, "EDGE_CURVE with same_sense=.F. is unsupported in M23 subset.", $"Entity:{edgeCurveEntity.Id}")
+                new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, "EDGE_CURVE with same_sense=.F. is unsupported in M23 subset.", SourceFor(edgeCurveEntity.Id, "Importer.EdgeCurveSense"))
             ]);
         }
 
@@ -353,4 +376,6 @@ public static class Step242Importer
 
     private static KernelResult<BrepBody> Failure(string message, string source) =>
         KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+
+    private static string SourceFor(int _entityId, string stableSource) => stableSource;
 }

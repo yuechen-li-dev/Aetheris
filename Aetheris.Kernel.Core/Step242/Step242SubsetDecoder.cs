@@ -208,7 +208,14 @@ internal static class Step242SubsetDecoder
             return KernelResult<PlaneSurface>.Failure(refDirResult.Diagnostics);
         }
 
-        return KernelResult<PlaneSurface>.Success(new PlaneSurface(originResult.Value, normalResult.Value, refDirResult.Value));
+        try
+        {
+            return KernelResult<PlaneSurface>.Success(new PlaneSurface(originResult.Value, normalResult.Value, refDirResult.Value));
+        }
+        catch (ArgumentException)
+        {
+            return FailurePlane("Degenerate AXIS2_PLACEMENT_3D produced invalid plane basis.", SourceFor(planeEntity.Id, "Importer.Geometry.Plane"));
+        }
     }
 
     private static KernelResult<Point3D> ReadCartesianPoint(Step242ParsedEntity pointEntity, string context)
@@ -252,7 +259,14 @@ internal static class Step242SubsetDecoder
             return KernelResult<Direction3D>.Failure(pointResult.Diagnostics);
         }
 
-        return KernelResult<Direction3D>.Success(Direction3D.Create(pointResult.Value - Point3D.Origin));
+        try
+        {
+            return KernelResult<Direction3D>.Success(Direction3D.Create(pointResult.Value - Point3D.Origin));
+        }
+        catch (ArgumentException)
+        {
+            return FailureDirection("Degenerate direction vector is not supported.", SourceFor(directionEntity.Id, "Importer.Geometry.Direction"));
+        }
     }
 
     private static KernelResult<double> ReadNumber(Step242Value value, string context, int entityId)
@@ -279,6 +293,12 @@ internal static class Step242SubsetDecoder
     private static KernelResult<Point3D> FailurePoint(string message, string source) => Failure<Point3D>(message, source);
 
     private static KernelResult<double> FailureNumber(string message, string source) => Failure<double>(message, source);
+
+    private static KernelResult<Direction3D> FailureDirection(string message, string source) => Failure<Direction3D>(message, source);
+
+    private static KernelResult<PlaneSurface> FailurePlane(string message, string source) => Failure<PlaneSurface>(message, source);
+
+    private static string SourceFor(int _entityId, string stableSource) => stableSource;
 
     private static KernelResult<T> Failure<T>(string message, string source) =>
         KernelResult<T>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);

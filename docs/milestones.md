@@ -269,3 +269,12 @@
 - [x] Use deterministic file naming (`aetheris-{definitionId}.step`) with no timestamp/random suffixes.
 - [x] Keep backend canonical hash authoritative and visible in the inspector without extra state mutation during download.
 - [x] Add client tests covering export call wiring, downloaded Blob byte/text parity, deterministic filename behavior, canonical-hash stability, and `ApiError` propagation.
+
+## M30 — Viewer UI Refactor
+
+- [x] Promote **STEP 242 Viewer** as the default/authoritative v0 product surface with tab-local React state and no routing dependency.
+- [x] Move modeling/editing operations into a dedicated **Modeling Demo** tab clearly labeled **Experimental** and **Non-production**.
+- [x] Re-prioritize viewer information architecture around STEP import/export and read-only inspection (canonical hash, definition/occurrence IDs, face/edge/shell counts), with viewport presented as secondary.
+- [x] Remove Debug/Status from the primary viewer surface and keep diagnostics/debug detail in the Modeling Demo tab.
+- [x] Keep STEP import/export and canonical hash behavior functionally unchanged while restructuring only frontend layout/presentation.
+- [x] Add frontend tests for tab switching, viewer vs modeling control visibility, and canonical hash visibility in the Viewer tab.

@@ -72,6 +72,48 @@ describe('App STEP file upload flow', () => {
         cleanup();
     });
 
+    it('uses viewer tab as default and hides modeling controls until demo tab is selected', () => {
+        render(<App />);
+
+        expect(screen.getByRole('tab', { name: /STEP 242 Viewer/i }).getAttribute('aria-selected')).toBe('true');
+        expect(screen.queryByText('Create Box')).toBeNull();
+
+        fireEvent.click(screen.getByRole('tab', { name: /Modeling Demo/i }));
+
+        expect(screen.getByText('Modeling Demo (Non-production)')).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Create Box' })).toBeTruthy();
+    });
+
+    it('keeps canonical hash visible from viewer inspector', async () => {
+        apiMocks.importStep.mockResolvedValue({
+            documentId: 'doc-1',
+            definitionId: 'def-2',
+            occurrenceId: 'occ-2',
+            name: 'Imported',
+            diagnostics: [],
+        });
+        apiMocks.exportDefinitionStep.mockResolvedValue({
+            documentId: 'doc-1',
+            definitionId: 'def-2',
+            stepText: 'ISO-10303-21;',
+            canonicalHash: 'hash-123',
+            diagnostics: [],
+        });
+
+        render(<App />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Create Document' }));
+        await screen.findByText(/Create document complete/i);
+
+        const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
+        const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [file] } });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
+
+        await screen.findByText('hash-123');
+    });
+
     it('updates local file selection state when a file is chosen', async () => {
         render(<App />);
 
@@ -145,9 +187,12 @@ describe('App STEP file upload flow', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Create Document' }));
         await screen.findByText(/Create document complete/i);
+
+        fireEvent.click(screen.getByRole('tab', { name: /Modeling Demo/i }));
         fireEvent.click(screen.getByRole('button', { name: 'Create Box' }));
         await screen.findByText(/Create box complete/i);
 
+        fireEvent.click(screen.getByRole('tab', { name: /STEP 242 Viewer/i }));
         fireEvent.click(screen.getByRole('button', { name: 'Export Active (STEP)' }));
         await screen.findByText('hash-initial');
 
@@ -204,8 +249,10 @@ describe('App STEP file upload flow', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Create Document' }));
         await screen.findByText(/Create document complete/i);
+        fireEvent.click(screen.getByRole('tab', { name: /Modeling Demo/i }));
         fireEvent.click(screen.getByRole('button', { name: 'Create Box' }));
         await screen.findByText(/Create box complete/i);
+        fireEvent.click(screen.getByRole('tab', { name: /STEP 242 Viewer/i }));
 
         fireEvent.click(screen.getByRole('button', { name: 'Download Canonical 242' }));
 

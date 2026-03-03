@@ -262,3 +262,10 @@
 - [x] On successful import, auto-refresh summary, activate imported occurrence, tessellate it, and immediately refresh canonical hash via definition export.
 - [x] Add frontend safeguards for empty/oversized files and display diagnostics without silent error swallowing.
 - [x] Add frontend tests for file-selection state updates, import payload wiring, canonical-hash refresh trigger, and `ApiError` propagation.
+
+## M29 — Canonical STEP 242 Download (Frontend)
+
+- [x] Add a deterministic `Download Canonical 242` UI action that requests backend export for the active definition and downloads the returned STEP text without client-side mutation.
+- [x] Use deterministic file naming (`aetheris-{definitionId}.step`) with no timestamp/random suffixes.
+- [x] Keep backend canonical hash authoritative and visible in the inspector without extra state mutation during download.
+- [x] Add client tests covering export call wiring, downloaded Blob byte/text parity, deterministic filename behavior, canonical-hash stability, and `ApiError` propagation.

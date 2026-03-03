@@ -52,9 +52,11 @@ function App() {
     const [booleanToolBodyId, setBooleanToolBodyId] = useState<string>('');
     const [booleanOperation, setBooleanOperation] = useState<BooleanOperationUi>('Union');
     const [stepExportText, setStepExportText] = useState('');
-    const [stepImportText, setStepImportText] = useState('');
-    const [stepImportName, setStepImportName] = useState('Imported');
+    const [stepImportFile, setStepImportFile] = useState<File | null>(null);
     const [stepCanonicalHash, setStepCanonicalHash] = useState<string | null>(null);
+    const [stepImportSelectionMessage, setStepImportSelectionMessage] = useState('No file selected.');
+
+    const maxStepFileSizeBytes = 5 * 1024 * 1024;
 
     const runAction = useCallback(async (actionName: string, action: () => Promise<void>) => {
         setStatus('loading');
@@ -111,9 +113,9 @@ function App() {
             setBooleanToolBodyId('');
             setBooleanOperation('Union');
             setStepExportText('');
-            setStepImportText('');
-            setStepImportName('Imported');
+            setStepImportFile(null);
             setStepCanonicalHash(null);
+            setStepImportSelectionMessage('No file selected.');
         });
     }, [runAction]);
 
@@ -216,23 +218,49 @@ function App() {
     }, [activeBodyId, documentId, occurrences, runAction]);
 
     const handleImportStep = useCallback(async () => {
-        if (!documentId) {
+        if (!documentId || !stepImportFile) {
+            return;
+        }
+
+        if (stepImportFile.size <= 0) {
+            setStatus('error');
+            setStatusMessage('Selected STEP file is empty.');
+            setDiagnostics([]);
+            return;
+        }
+
+        if (stepImportFile.size > maxStepFileSizeBytes) {
+            setStatus('error');
+            setStatusMessage(`Selected STEP file is too large (${stepImportFile.size} bytes). Limit is ${maxStepFileSizeBytes} bytes.`);
+            setDiagnostics([]);
             return;
         }
 
         await runAction('Import STEP', async () => {
-            const imported = await importStep(documentId, stepImportText, stepImportName.trim().length === 0 ? undefined : stepImportName.trim());
+            const stepText = await stepImportFile.text();
+            if (stepText.trim().length === 0) {
+                throw new ApiError('Selected STEP file is empty.', []);
+            }
+
+            const imported = await importStep(documentId, stepText);
             setStepExportText('');
             await refreshSummaryAndActiveTessellation(imported.occurrenceId);
             const exported = await exportDefinitionStep(documentId, imported.definitionId);
             setStepCanonicalHash(exported.canonicalHash);
-            setStepImportName(imported.name ?? 'Imported');
             setPickStatus('idle');
             setPickMessage(`Imported occurrence ${imported.occurrenceId} is now active.`);
             setPickDiagnostics([]);
             setPickHits([]);
         });
-    }, [documentId, refreshSummaryAndActiveTessellation, runAction, stepImportName, stepImportText]);
+    }, [documentId, maxStepFileSizeBytes, refreshSummaryAndActiveTessellation, runAction, stepImportFile]);
+
+    const handleStepFileSelection = useCallback((fileList: FileList | null) => {
+        const selected = fileList?.[0] ?? null;
+        setStepImportFile(selected);
+        setStepImportSelectionMessage(selected
+            ? `Selected file: ${selected.name} (${selected.size} bytes)`
+            : 'No file selected.');
+    }, []);
 
     const handleUseActiveBodyAsTarget = useCallback(() => {
         if (activeBodyId) {
@@ -325,7 +353,7 @@ function App() {
     const nearestHit = pickHits[0] ?? null;
     const highlightedFaceId = nearestHit?.entityKind === 'Face' ? nearestHit.faceId : null;
     const highlightedEdgeId = nearestHit?.entityKind === 'Edge' ? nearestHit.edgeId : null;
-    const canImportStep = Boolean(documentId && stepImportText.trim().length > 0 && status !== 'loading');
+    const canImportStep = Boolean(documentId && stepImportFile && status !== 'loading');
     const canExecuteBoolean = Boolean(
         documentId
         && bodyIds.length >= 2
@@ -448,15 +476,16 @@ function App() {
                             Exported STEP
                             <textarea value={stepExportText} readOnly placeholder="Exported STEP text will appear here." rows={7} />
                         </label>
-                        <label className="textarea-label">
-                            Import STEP Text
-                            <textarea value={stepImportText} onChange={(event) => setStepImportText(event.target.value)} placeholder="Paste STEP text here." rows={7} />
-                        </label>
                         <label>
-                            Imported Name
-                            <input type="text" value={stepImportName} onChange={(event) => setStepImportName(event.target.value)} />
+                            STEP 242 File
+                            <input
+                                type="file"
+                                accept=".step,.stp,text/plain"
+                                onChange={(event) => handleStepFileSelection(event.target.files)}
+                            />
                         </label>
-                        <button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP</button>
+                        <p>{stepImportSelectionMessage}</p>
+                        <button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP 242</button>
                     </section>
 
                     <h2>Debug / Status</h2>

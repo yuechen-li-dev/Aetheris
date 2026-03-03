@@ -254,3 +254,11 @@
 - [x] Add server integration coverage for determinism across repeated exports, import→export stability, and geometry-sensitive hash changes.
 - [x] Update client STEP API parsing and inspector UI display to surface `canonicalHash` with copy-friendly monospace formatting.
 - [x] Extend client API tests to validate `canonicalHash` parsing and maintain `ApiError` propagation behavior.
+
+## M28 — STEP 242 File Upload Flow (Frontend)
+
+- [x] Replace manual STEP paste import emphasis with a single-file upload flow using `.step/.stp` file input.
+- [x] Reuse existing document import API path (`POST /api/v1/documents/{documentId}/import/step`) with backend-authoritative parsing and diagnostics.
+- [x] On successful import, auto-refresh summary, activate imported occurrence, tessellate it, and immediately refresh canonical hash via definition export.
+- [x] Add frontend safeguards for empty/oversized files and display diagnostics without silent error swallowing.
+- [x] Add frontend tests for file-selection state updates, import payload wiring, canonical-hash refresh trigger, and `ApiError` propagation.

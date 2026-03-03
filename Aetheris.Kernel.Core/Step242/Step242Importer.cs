@@ -132,6 +132,14 @@ public static class Step242Importer
                     return KernelResult<BrepBody>.Failure(loopRefResult.Diagnostics);
                 }
 
+                var boundOrientationResult = Step242SubsetDecoder.ReadBoolean(boundEntity, 2, "FACE_BOUND orientation");
+                if (!boundOrientationResult.IsSuccess)
+                {
+                    return KernelResult<BrepBody>.Failure(boundOrientationResult.Diagnostics);
+                }
+
+                var boundOrientation = boundOrientationResult.Value;
+
                 var loopEntityResult = document.TryGetEntity(loopRefResult.Value.TargetId, "EDGE_LOOP");
                 if (!loopEntityResult.IsSuccess)
                 {
@@ -192,10 +200,22 @@ public static class Step242Importer
                         return KernelResult<BrepBody>.Failure(edgeIdResult.Diagnostics);
                     }
 
+                    var edgeSameSenseResult = Step242SubsetDecoder.ReadBoolean(edgeCurveEntityResult.Value, 4, "EDGE_CURVE same_sense");
+                    if (!edgeSameSenseResult.IsSuccess)
+                    {
+                        return KernelResult<BrepBody>.Failure(edgeSameSenseResult.Diagnostics);
+                    }
+
                     var orientedSenseResult = Step242SubsetDecoder.ReadBoolean(orientedEdgeEntity, 4, "ORIENTED_EDGE orientation");
                     if (!orientedSenseResult.IsSuccess)
                     {
                         return KernelResult<BrepBody>.Failure(orientedSenseResult.Diagnostics);
+                    }
+
+                    var isReversed = orientedSenseResult.Value != edgeSameSenseResult.Value;
+                    if (!boundOrientation)
+                    {
+                        isReversed = !isReversed;
                     }
 
                     coedges.Add(new Coedge(
@@ -204,7 +224,7 @@ public static class Step242Importer
                         loopId,
                         coedgeIds[(i + 1) % coedgeIds.Count],
                         coedgeIds[(i + coedgeIds.Count - 1) % coedgeIds.Count],
-                        IsReversed: !orientedSenseResult.Value));
+                        IsReversed: isReversed));
                 }
 
                 builder.AddLoop(new Loop(loopId, coedgeIds));
@@ -232,8 +252,27 @@ public static class Step242Importer
                 return KernelResult<BrepBody>.Failure(planeResult.Diagnostics);
             }
 
+            var faceSameSenseResult = Step242SubsetDecoder.ReadBoolean(faceEntity, 2, "ADVANCED_FACE same_sense");
+            if (!faceSameSenseResult.IsSuccess)
+            {
+                return KernelResult<BrepBody>.Failure(faceSameSenseResult.Diagnostics);
+            }
+
+            var faceSurface = planeResult.Value;
+            if (!faceSameSenseResult.Value)
+            {
+                if (!Direction3D.TryCreate(-faceSurface.Normal.ToVector(), out var reversedNormal))
+                {
+                    return OrientationFailure<BrepBody>(
+                        "ADVANCED_FACE same_sense not supported for this face",
+                        SourceFor(faceEntity.Id, "Importer.Orientation.AdvancedFaceSense"));
+                }
+
+                faceSurface = new PlaneSurface(faceSurface.Origin, reversedNormal, faceSurface.UAxis);
+            }
+
             var surfaceGeometryId = new SurfaceGeometryId(nextSurfaceGeometryId++);
-            geometry.AddSurface(surfaceGeometryId, SurfaceGeometry.FromPlane(planeResult.Value));
+            geometry.AddSurface(surfaceGeometryId, SurfaceGeometry.FromPlane(faceSurface));
             bindings.AddFaceBinding(new FaceGeometryBinding(faceId, surfaceGeometryId));
         }
 
@@ -294,12 +333,7 @@ public static class Step242Importer
             return KernelResult<EdgeId>.Failure(sameSenseResult.Diagnostics);
         }
 
-        if (!sameSenseResult.Value)
-        {
-            return KernelResult<EdgeId>.Failure([
-                new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, "EDGE_CURVE with same_sense=.F. is unsupported in M23 subset.", SourceFor(edgeCurveEntity.Id, "Importer.EdgeCurveSense"))
-            ]);
-        }
+        var edgeSameSense = sameSenseResult.Value;
 
         var startVertexResult = EnsureVertex(document, startRefResult.Value.TargetId, builder, vertexMap);
         if (!startVertexResult.IsSuccess)
@@ -330,6 +364,19 @@ public static class Step242Importer
 
         var startParameter = ComputeLineParameter(lineResult.Value, startVertexResult.Value.Point);
         var endParameter = ComputeLineParameter(lineResult.Value, endVertexResult.Value.Point);
+
+        if (endParameter < startParameter)
+        {
+            if (!edgeSameSense)
+            {
+                return OrientationFailure<EdgeId>(
+                    "EDGE_CURVE same_sense semantics unsupported for this edge",
+                    SourceFor(edgeCurveEntity.Id, "Importer.Orientation.EdgeCurveSense"));
+            }
+
+            return FailureEdge("EDGE_CURVE line parameterization is opposite to vertex ordering.", SourceFor(edgeCurveEntity.Id, "Importer.Geometry.EdgeCurveParameters"));
+        }
+
         var curveGeometryId = new CurveGeometryId(nextCurveGeometryId++);
 
         geometry.AddCurve(curveGeometryId, CurveGeometry.FromLine(lineResult.Value));
@@ -376,6 +423,12 @@ public static class Step242Importer
 
     private static KernelResult<BrepBody> Failure(string message, string source) =>
         KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+
+    private static KernelResult<EdgeId> FailureEdge(string message, string source) =>
+        KernelResult<EdgeId>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+
+    private static KernelResult<T> OrientationFailure<T>(string message, string source) =>
+        KernelResult<T>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
 
     private static string SourceFor(int _entityId, string stableSource) => stableSource;
 }

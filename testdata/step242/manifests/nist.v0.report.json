@@ -1,0 +1,410 @@
+[
+  {
+    "fileId": "testdata_step242_nist_CTC_nist_ctc_01_asme1_ap242-e1",
+    "path": "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp",
+    "sizeBytes": 391739,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Expected identifier. (position 507)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_CTC_nist_ctc_02_asme1_ap242-e2",
+    "path": "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
+    "sizeBytes": 1958442,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Expected identifier. (position 3413)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_CTC_nist_ctc_03_asme1_ap242-e2",
+    "path": "testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp",
+    "sizeBytes": 667521,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Expected identifier. (position 2099)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_CTC_nist_ctc_04_asme1_ap242-e1",
+    "path": "testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp",
+    "sizeBytes": 1265846,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Expected identifier. (position 547)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_CTC_nist_ctc_05_asme1_ap242-e1",
+    "path": "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp",
+    "sizeBytes": 863826,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Unsupported value token \u0027N\u0027. (position 415)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_FTC_nist_ftc_06_asme1_ap242-e2",
+    "path": "testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp",
+    "sizeBytes": 1960222,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Expected identifier. (position 4921)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_FTC_nist_ftc_07_asme1_ap242-e2",
+    "path": "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp",
+    "sizeBytes": 1459346,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Expected identifier. (position 547)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e1-tg",
+    "path": "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e1-tg.stp",
+    "sizeBytes": 2120356,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Expected identifier. (position 1030)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e2",
+    "path": "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
+    "sizeBytes": 4658022,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Unsupported value token \u0027*\u0027. (position 438)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_FTC_nist_ftc_09_asme1_ap242-e1",
+    "path": "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp",
+    "sizeBytes": 6057450,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Expected identifier. (position 746)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_FTC_nist_ftc_10_asme1_ap242-e2",
+    "path": "testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp",
+    "sizeBytes": 1855829,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Expected identifier. (position 553)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_FTC_nist_ftc_11_asme1_ap242-e2",
+    "path": "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
+    "sizeBytes": 1920822,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Unsupported value token \u0027*\u0027. (position 498)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_STC_nist_stc_06_asme1_ap242-e3",
+    "path": "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
+    "sizeBytes": 993459,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Expected identifier. (position 414)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_STC_nist_stc_07_asme1_ap242-e3",
+    "path": "testdata/step242/nist/STC/nist_stc_07_asme1_ap242-e3.stp",
+    "sizeBytes": 1927905,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Unsupported value token \u0027P\u0027. (position 686)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_STC_nist_stc_08_asme1_ap242-e3",
+    "path": "testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp",
+    "sizeBytes": 2239112,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Unsupported value token \u0027S\u0027. (position 4808)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_STC_nist_stc_09_asme1_ap242-e3",
+    "path": "testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp",
+    "sizeBytes": 5237528,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Expected identifier. (position 734)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  },
+  {
+    "fileId": "testdata_step242_nist_STC_nist_stc_10_asme1_ap242-e2",
+    "path": "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
+    "sizeBytes": 4807322,
+    "status": "parseFail",
+    "firstFailureLayer": "parser",
+    "firstDiagnostic": {
+      "code": "InvalidArgument",
+      "source": "Parser.Lexer",
+      "messagePrefix": "Unsupported value token \u0027*\u0027. (position 1005)."
+    },
+    "diagnosticCount": 1,
+    "exceptionEscaped": false,
+    "topologyCounts": {
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
+    },
+    "tessellationCounts": {
+      "facePatches": 0,
+      "edgePolylines": 0
+    },
+    "canonicalSha256": null
+  }
+]

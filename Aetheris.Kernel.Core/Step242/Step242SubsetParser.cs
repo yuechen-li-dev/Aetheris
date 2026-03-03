@@ -48,7 +48,7 @@ internal static class Step242SubsetParser
 
         if (duplicateId is not null)
         {
-            return Failure($"Duplicate entity id #{duplicateId.Key} detected.", "Parser");
+            return Failure($"Duplicate entity id #{duplicateId.Key} detected.", "Parser.Semantics");
         }
 
         return KernelResult<Step242ParsedDocument>.Success(new Step242ParsedDocument(entities));
@@ -341,7 +341,7 @@ internal static class Step242SubsetParser
             _index++;
         }
 
-        private Step242ParseException Error(string message) => new($"{message} (position {_index}).", "Parser");
+        private Step242ParseException Error(string message) => new($"{message} (position {_index}).", "Parser.Lexer");
     }
 }
 

@@ -278,3 +278,12 @@
 - [x] Remove Debug/Status from the primary viewer surface and keep diagnostics/debug detail in the Modeling Demo tab.
 - [x] Keep STEP import/export and canonical hash behavior functionally unchanged while restructuring only frontend layout/presentation.
 - [x] Add frontend tests for tab switching, viewer vs modeling control visibility, and canonical hash visibility in the Viewer tab.
+
+## M31 — STEP242 v0 Audit Harness + Deterministic Diagnostics + No-Throw Guardrails
+
+- [x] Add deterministic NIST STEP242 audit harness coverage that scans `testdata/step242/nist/**/*.stp` in lexical path order and emits a stable report shape.
+- [x] Commit a deterministic expected report snapshot at `testdata/step242/manifests/nist.v0.report.json` and enforce byte-identical reruns in tests.
+- [x] Harden `Step242Importer.ImportBody` with no-throw guardrails for parseable input by converting mapper exceptions into deterministic diagnostics.
+- [x] Enforce strict single-solid contract (`MANIFOLD_SOLID_BREP` count must be exactly one) with deterministic diagnostics for missing/multiple roots.
+- [x] Normalize stable diagnostic buckets for parser/importer-topology/importer-geometry expected-fail reporting.
+- [x] Explicitly keep non-goals unchanged for M31: no new STEP geometry families, no assembly/product semantics, and no healing/repair support.

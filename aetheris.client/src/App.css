@@ -137,3 +137,9 @@ textarea {
   background: #020617;
   resize: vertical;
 }
+
+.mono-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  word-break: break-all;
+  user-select: all;
+}

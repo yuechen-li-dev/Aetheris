@@ -7,6 +7,8 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Server.Contracts;
 using Aetheris.Server.Documents;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Aetheris.Server.Api;
 
@@ -231,7 +233,9 @@ public static class KernelEndpoints
                     return ApiMappings.KernelFailure(exportResult.Diagnostics);
                 }
 
-                return ApiMappings.Ok(new StepExportResponseDto(documentId, definitionId, exportResult.Value, []));
+                var canonicalHash = ComputeCanonicalHash(exportResult.Value);
+
+                return ApiMappings.Ok(new StepExportResponseDto(documentId, definitionId, exportResult.Value, canonicalHash, []));
             }));
 
         documents.MapPost("/{documentId:guid}/import/step", (Guid documentId, StepImportRequestDto request, KernelDocumentStore store) =>
@@ -325,6 +329,13 @@ public static class KernelEndpoints
 
                 return ApiMappings.Ok(ApiMappings.ToPickResponse(kernel.Value, bodyId));
             }));
+    }
+
+    private static string ComputeCanonicalHash(string stepText)
+    {
+        var utf8Bytes = Encoding.UTF8.GetBytes(stepText);
+        var hash = SHA256.HashData(utf8Bytes);
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     private static IResult WithDocument(KernelDocumentStore store, Guid documentId, Func<DocumentSession, IResult> operation)

@@ -246,3 +246,11 @@
 - [x] Add client API methods and explicit UI controls for button-driven STEP export/import text workflows, with imported occurrence auto-selection and tessellation refresh.
 - [x] Extend client envelope tests for STEP API success parsing and failure diagnostic propagation through `ApiError`.
 - [x] Defer AP242 assembly/product-structure mapping, multi-definition export, metadata completeness, and file-dialog UX to later milestones.
+
+## M27 — Canonical STEP Hash Infrastructure
+
+- [x] Compute deterministic canonical SHA256 hashes in backend STEP export responses using UTF-8 bytes of the exporter output text.
+- [x] Extend STEP export API contracts to include a backend-authoritative `canonicalHash` field.
+- [x] Add server integration coverage for determinism across repeated exports, import→export stability, and geometry-sensitive hash changes.
+- [x] Update client STEP API parsing and inspector UI display to surface `canonicalHash` with copy-friendly monospace formatting.
+- [x] Extend client API tests to validate `canonicalHash` parsing and maintain `ApiError` propagation behavior.

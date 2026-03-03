@@ -357,6 +357,8 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.NotNull(exported.Data);
         Assert.Contains("ISO-10303-21", exported.Data!.StepText);
         Assert.Contains("MANIFOLD_SOLID_BREP", exported.Data.StepText);
+        Assert.False(string.IsNullOrWhiteSpace(exported.Data.CanonicalHash));
+        Assert.Equal(64, exported.Data.CanonicalHash.Length);
 
         var importResponse = await _client.PostAsJsonAsync(
             $"/api/v1/documents/{document.Data.DocumentId}/import/step",
@@ -380,6 +382,71 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.True(tessellation!.Success);
         Assert.NotEmpty(tessellation.Data!.FacePatches);
         Assert.NotEmpty(tessellation.Data.EdgePolylines);
+    }
+
+
+    [Fact]
+    public async Task StepExport_Twice_ReturnsDeterministicTextAndHash()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var firstResponse = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}/definitions/{box.Data!.DefinitionId}/export/step");
+        firstResponse.EnsureSuccessStatusCode();
+        var first = await firstResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepExportResponseDto>>();
+
+        var secondResponse = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}/definitions/{box.Data.DefinitionId}/export/step");
+        secondResponse.EnsureSuccessStatusCode();
+        var second = await secondResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepExportResponseDto>>();
+
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.Equal(first!.Data!.StepText, second!.Data!.StepText);
+        Assert.Equal(first.Data.CanonicalHash, second.Data.CanonicalHash);
+    }
+
+    [Fact]
+    public async Task StepExport_ImportThenExport_ProducesStableCanonicalHash()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var exportResponse = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}/definitions/{box.Data!.DefinitionId}/export/step");
+        exportResponse.EnsureSuccessStatusCode();
+        var exported = await exportResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepExportResponseDto>>();
+
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/import/step",
+            new StepImportRequestDto(exported!.Data!.StepText, "Imported Hash Test"));
+        importResponse.EnsureSuccessStatusCode();
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+
+        var importedExportResponse = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}/definitions/{imported!.Data!.DefinitionId}/export/step");
+        importedExportResponse.EnsureSuccessStatusCode();
+        var importedExport = await importedExportResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepExportResponseDto>>();
+
+        Assert.NotNull(importedExport);
+        Assert.Equal(exported.Data.CanonicalHash, importedExport!.Data!.CanonicalHash);
+    }
+
+    [Fact]
+    public async Task StepExport_HashChangesForDifferentGeometry()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var firstBox = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+        var secondBox = await CreateBoxAsync("/api/v1/documents", document.Data.DocumentId, 3, 2, 2);
+
+        var firstExportResponse = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}/definitions/{firstBox.Data!.DefinitionId}/export/step");
+        firstExportResponse.EnsureSuccessStatusCode();
+        var firstExport = await firstExportResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepExportResponseDto>>();
+
+        var secondExportResponse = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}/definitions/{secondBox.Data!.DefinitionId}/export/step");
+        secondExportResponse.EnsureSuccessStatusCode();
+        var secondExport = await secondExportResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepExportResponseDto>>();
+
+        Assert.NotNull(firstExport);
+        Assert.NotNull(secondExport);
+        Assert.NotEqual(firstExport!.Data!.CanonicalHash, secondExport!.Data!.CanonicalHash);
     }
 
     [Fact]

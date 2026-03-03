@@ -54,6 +54,7 @@ function App() {
     const [stepExportText, setStepExportText] = useState('');
     const [stepImportText, setStepImportText] = useState('');
     const [stepImportName, setStepImportName] = useState('Imported');
+    const [stepCanonicalHash, setStepCanonicalHash] = useState<string | null>(null);
 
     const runAction = useCallback(async (actionName: string, action: () => Promise<void>) => {
         setStatus('loading');
@@ -112,6 +113,7 @@ function App() {
             setStepExportText('');
             setStepImportText('');
             setStepImportName('Imported');
+            setStepCanonicalHash(null);
         });
     }, [runAction]);
 
@@ -207,8 +209,9 @@ function App() {
         }
 
         await runAction('Export active STEP', async () => {
-            const text = await exportDefinitionStep(documentId, activeOccurrence.definitionId);
-            setStepExportText(text);
+            const exported = await exportDefinitionStep(documentId, activeOccurrence.definitionId);
+            setStepExportText(exported.stepText);
+            setStepCanonicalHash(exported.canonicalHash);
         });
     }, [activeBodyId, documentId, occurrences, runAction]);
 
@@ -221,6 +224,8 @@ function App() {
             const imported = await importStep(documentId, stepImportText, stepImportName.trim().length === 0 ? undefined : stepImportName.trim());
             setStepExportText('');
             await refreshSummaryAndActiveTessellation(imported.occurrenceId);
+            const exported = await exportDefinitionStep(documentId, imported.definitionId);
+            setStepCanonicalHash(exported.canonicalHash);
             setStepImportName(imported.name ?? 'Imported');
             setPickStatus('idle');
             setPickMessage(`Imported occurrence ${imported.occurrenceId} is now active.`);
@@ -462,6 +467,7 @@ function App() {
                     <p><strong>Occurrence count:</strong> {bodyIds.length}</p>
                     <p><strong>Face patches:</strong> {tessellation?.facePatches.length ?? 0}</p>
                     <p><strong>Edge polylines:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
+                        <p><strong>Canonical SHA256:</strong> <code className="mono-value">{stepCanonicalHash ?? 'Not available'}</code></p>
                     <h3>Pick Diagnostics (active body only)</h3>
                     <p><strong>Pick status:</strong> {pickStatus}</p>
                     <p><strong>Pick message:</strong> {pickMessage}</p>

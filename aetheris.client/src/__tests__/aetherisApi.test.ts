@@ -168,16 +168,40 @@ describe('STEP API', () => {
                 documentId: 'doc-1',
                 definitionId: 'def-1',
                 stepText: 'ISO-10303-21;\nDATA;\n#1=MANIFOLD_SOLID_BREP();',
+                canonicalHash: 'abc123',
                 diagnostics: [],
             },
             diagnostics: [],
         }), { status: 200 }));
         vi.stubGlobal('fetch', fetchMock);
 
-        const stepText = await exportDefinitionStep('doc-1', 'def-1');
+        const exportResponse = await exportDefinitionStep('doc-1', 'def-1');
 
         expect(fetchMock).toHaveBeenCalledWith('/api/v1/documents/doc-1/definitions/def-1/export/step', expect.objectContaining({ method: 'GET' }));
-        expect(stepText).toContain('ISO-10303-21');
+        expect(exportResponse.stepText).toContain('ISO-10303-21');
+        expect(exportResponse.canonicalHash).toBe('abc123');
+    });
+
+
+    it('propagates exportDefinitionStep diagnostics on envelope failure', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            success: false,
+            data: null,
+            diagnostics: [{
+                code: 'ValidationFailed',
+                severity: 'Error',
+                message: 'Unable to export STEP payload.',
+                source: 'step242.export',
+            }],
+        }), { status: 422 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(exportDefinitionStep('doc-1', 'def-1')).rejects.toEqual(new ApiError('Unable to export STEP payload.', [{
+            code: 'ValidationFailed',
+            severity: 'Error',
+            message: 'Unable to export STEP payload.',
+            source: 'step242.export',
+        }]));
     });
 
     it('parses importStep success envelope', async () => {

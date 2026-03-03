@@ -53,6 +53,7 @@ export interface StepExportResponseDto {
     documentId: string;
     definitionId: string;
     stepText: string;
+    canonicalHash: string;
     diagnostics: DiagnosticDto[];
 }
 
@@ -222,12 +223,10 @@ export async function executeBoolean(documentId: string, requestDto: BooleanRequ
     });
 }
 
-export async function exportDefinitionStep(documentId: string, definitionId: string): Promise<string> {
-    const response = await request<StepExportResponseDto>(`/api/v1/documents/${documentId}/definitions/${definitionId}/export/step`, {
+export async function exportDefinitionStep(documentId: string, definitionId: string): Promise<StepExportResponseDto> {
+    return request<StepExportResponseDto>(`/api/v1/documents/${documentId}/definitions/${definitionId}/export/step`, {
         method: 'GET',
     });
-
-    return response.stepText;
 }
 
 export async function importStep(documentId: string, stepText: string, name?: string): Promise<StepImportResponseDto> {

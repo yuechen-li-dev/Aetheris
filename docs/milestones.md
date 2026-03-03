@@ -246,3 +246,35 @@
 - [x] Add client API methods and explicit UI controls for button-driven STEP export/import text workflows, with imported occurrence auto-selection and tessellation refresh.
 - [x] Extend client envelope tests for STEP API success parsing and failure diagnostic propagation through `ApiError`.
 - [x] Defer AP242 assembly/product-structure mapping, multi-definition export, metadata completeness, and file-dialog UX to later milestones.
+
+## M27 — Canonical STEP Hash Infrastructure
+
+- [x] Compute deterministic canonical SHA256 hashes in backend STEP export responses using UTF-8 bytes of the exporter output text.
+- [x] Extend STEP export API contracts to include a backend-authoritative `canonicalHash` field.
+- [x] Add server integration coverage for determinism across repeated exports, import→export stability, and geometry-sensitive hash changes.
+- [x] Update client STEP API parsing and inspector UI display to surface `canonicalHash` with copy-friendly monospace formatting.
+- [x] Extend client API tests to validate `canonicalHash` parsing and maintain `ApiError` propagation behavior.
+
+## M28 — STEP 242 File Upload Flow (Frontend)
+
+- [x] Replace manual STEP paste import emphasis with a single-file upload flow using `.step/.stp` file input.
+- [x] Reuse existing document import API path (`POST /api/v1/documents/{documentId}/import/step`) with backend-authoritative parsing and diagnostics.
+- [x] On successful import, auto-refresh summary, activate imported occurrence, tessellate it, and immediately refresh canonical hash via definition export.
+- [x] Add frontend safeguards for empty/oversized files and display diagnostics without silent error swallowing.
+- [x] Add frontend tests for file-selection state updates, import payload wiring, canonical-hash refresh trigger, and `ApiError` propagation.
+
+## M29 — Canonical STEP 242 Download (Frontend)
+
+- [x] Add a deterministic `Download Canonical 242` UI action that requests backend export for the active definition and downloads the returned STEP text without client-side mutation.
+- [x] Use deterministic file naming (`aetheris-{definitionId}.step`) with no timestamp/random suffixes.
+- [x] Keep backend canonical hash authoritative and visible in the inspector without extra state mutation during download.
+- [x] Add client tests covering export call wiring, downloaded Blob byte/text parity, deterministic filename behavior, canonical-hash stability, and `ApiError` propagation.
+
+## M30 — Viewer UI Refactor
+
+- [x] Promote **STEP 242 Viewer** as the default/authoritative v0 product surface with tab-local React state and no routing dependency.
+- [x] Move modeling/editing operations into a dedicated **Modeling Demo** tab clearly labeled **Experimental** and **Non-production**.
+- [x] Re-prioritize viewer information architecture around STEP import/export and read-only inspection (canonical hash, definition/occurrence IDs, face/edge/shell counts), with viewport presented as secondary.
+- [x] Remove Debug/Status from the primary viewer surface and keep diagnostics/debug detail in the Modeling Demo tab.
+- [x] Keep STEP import/export and canonical hash behavior functionally unchanged while restructuring only frontend layout/presentation.
+- [x] Add frontend tests for tab switching, viewer vs modeling control visibility, and canonical hash visibility in the Viewer tab.

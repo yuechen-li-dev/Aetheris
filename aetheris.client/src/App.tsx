@@ -12,8 +12,8 @@ import {
     tessellateBody,
     translateBody,
     type BooleanOperation,
-    type DiagnosticDto,
     type BodyOccurrenceSummaryDto,
+    type DiagnosticDto,
     type PickHitDto,
     type TessellationResponseDto,
 } from './api/aetherisApi';
@@ -22,6 +22,7 @@ import { mapTessellationToRenderData } from './viewer/tessellationMapper';
 
 type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
 type BooleanOperationUi = 'Union' | 'Subtract' | 'Intersect';
+type TopLevelTab = 'viewer' | 'modeling-demo';
 
 const BOOLEAN_OP_TO_API: Record<BooleanOperationUi, BooleanOperation> = {
     Union: 'union',
@@ -30,6 +31,7 @@ const BOOLEAN_OP_TO_API: Record<BooleanOperationUi, BooleanOperation> = {
 };
 
 function App() {
+    const [activeTab, setActiveTab] = useState<TopLevelTab>('viewer');
     const [documentId, setDocumentId] = useState<string | null>(null);
     const [bodyIds, setBodyIds] = useState<string[]>([]);
     const [occurrences, setOccurrences] = useState<BodyOccurrenceSummaryDto[]>([]);
@@ -52,8 +54,12 @@ function App() {
     const [booleanToolBodyId, setBooleanToolBodyId] = useState<string>('');
     const [booleanOperation, setBooleanOperation] = useState<BooleanOperationUi>('Union');
     const [stepExportText, setStepExportText] = useState('');
-    const [stepImportText, setStepImportText] = useState('');
-    const [stepImportName, setStepImportName] = useState('Imported');
+    const [stepImportFile, setStepImportFile] = useState<File | null>(null);
+    const [stepCanonicalHash, setStepCanonicalHash] = useState<string | null>(null);
+    const [stepImportSelectionMessage, setStepImportSelectionMessage] = useState('No file selected.');
+    const [copyHashMessage, setCopyHashMessage] = useState('');
+
+    const maxStepFileSizeBytes = 5 * 1024 * 1024;
 
     const runAction = useCallback(async (actionName: string, action: () => Promise<void>) => {
         setStatus('loading');
@@ -96,7 +102,7 @@ function App() {
 
     const handleCreateDocument = useCallback(async () => {
         await runAction('Create document', async () => {
-            const created = await createDocument('Basic Modeling UI M19');
+            const created = await createDocument('STEP 242 Viewer UI');
             setDocumentId(created.documentId);
             setBodyIds([]);
             setActiveBodyId(null);
@@ -110,8 +116,10 @@ function App() {
             setBooleanToolBodyId('');
             setBooleanOperation('Union');
             setStepExportText('');
-            setStepImportText('');
-            setStepImportName('Imported');
+            setStepImportFile(null);
+            setStepCanonicalHash(null);
+            setStepImportSelectionMessage('No file selected.');
+            setCopyHashMessage('');
         });
     }, [runAction]);
 
@@ -192,13 +200,15 @@ function App() {
         });
     }, [activeBodyId, documentId, runAction]);
 
+    const activeOccurrence = useMemo(
+        () => occurrences.find((item) => item.occurrenceId === activeBodyId) ?? null,
+        [activeBodyId, occurrences]);
 
     const handleExportActiveStep = useCallback(async () => {
         if (!documentId || !activeBodyId) {
             return;
         }
 
-        const activeOccurrence = occurrences.find((item) => item.occurrenceId === activeBodyId);
         if (!activeOccurrence) {
             setStatus('error');
             setStatusMessage('Active occurrence metadata is unavailable for STEP export.');
@@ -207,27 +217,94 @@ function App() {
         }
 
         await runAction('Export active STEP', async () => {
-            const text = await exportDefinitionStep(documentId, activeOccurrence.definitionId);
-            setStepExportText(text);
+            const exported = await exportDefinitionStep(documentId, activeOccurrence.definitionId);
+            setStepExportText(exported.stepText);
+            setStepCanonicalHash(exported.canonicalHash);
+            setCopyHashMessage('');
         });
-    }, [activeBodyId, documentId, occurrences, runAction]);
+    }, [activeBodyId, activeOccurrence, documentId, runAction]);
+
+    const handleDownloadCanonicalStep = useCallback(async () => {
+        if (!documentId || !activeOccurrence) {
+            return;
+        }
+
+        await runAction('Download canonical STEP 242', async () => {
+            const exported = await exportDefinitionStep(documentId, activeOccurrence.definitionId);
+            const blob = new Blob([exported.stepText], { type: 'application/step; charset=utf-8' });
+            const objectUrl = URL.createObjectURL(blob);
+
+            try {
+                const anchor = document.createElement('a');
+                anchor.href = objectUrl;
+                anchor.download = `aetheris-${activeOccurrence.definitionId}.step`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+            } finally {
+                URL.revokeObjectURL(objectUrl);
+            }
+        });
+    }, [activeOccurrence, documentId, runAction]);
+
+    const handleCopyCanonicalHash = useCallback(async () => {
+        if (!stepCanonicalHash) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(stepCanonicalHash);
+            setCopyHashMessage('Copied');
+        } catch {
+            setCopyHashMessage('Clipboard unavailable');
+        }
+    }, [stepCanonicalHash]);
 
     const handleImportStep = useCallback(async () => {
-        if (!documentId) {
+        if (!documentId || !stepImportFile) {
+            return;
+        }
+
+        if (stepImportFile.size <= 0) {
+            setStatus('error');
+            setStatusMessage('Selected STEP file is empty.');
+            setDiagnostics([]);
+            return;
+        }
+
+        if (stepImportFile.size > maxStepFileSizeBytes) {
+            setStatus('error');
+            setStatusMessage(`Selected STEP file is too large (${stepImportFile.size} bytes). Limit is ${maxStepFileSizeBytes} bytes.`);
+            setDiagnostics([]);
             return;
         }
 
         await runAction('Import STEP', async () => {
-            const imported = await importStep(documentId, stepImportText, stepImportName.trim().length === 0 ? undefined : stepImportName.trim());
+            const stepText = await stepImportFile.text();
+            if (stepText.trim().length === 0) {
+                throw new ApiError('Selected STEP file is empty.', []);
+            }
+
+            const imported = await importStep(documentId, stepText);
             setStepExportText('');
             await refreshSummaryAndActiveTessellation(imported.occurrenceId);
-            setStepImportName(imported.name ?? 'Imported');
+            const exported = await exportDefinitionStep(documentId, imported.definitionId);
+            setStepCanonicalHash(exported.canonicalHash);
             setPickStatus('idle');
             setPickMessage(`Imported occurrence ${imported.occurrenceId} is now active.`);
             setPickDiagnostics([]);
             setPickHits([]);
+            setCopyHashMessage('');
         });
-    }, [documentId, refreshSummaryAndActiveTessellation, runAction, stepImportName, stepImportText]);
+    }, [documentId, maxStepFileSizeBytes, refreshSummaryAndActiveTessellation, runAction, stepImportFile]);
+
+    const handleStepFileSelection = useCallback((fileList: FileList | null) => {
+        const selected = fileList?.[0] ?? null;
+        setStepImportFile(selected);
+        setStepImportSelectionMessage(selected
+            ? `Selected file: ${selected.name} (${selected.size} bytes)`
+            : 'No file selected.');
+    }, []);
 
     const handleUseActiveBodyAsTarget = useCallback(() => {
         if (activeBodyId) {
@@ -320,7 +397,7 @@ function App() {
     const nearestHit = pickHits[0] ?? null;
     const highlightedFaceId = nearestHit?.entityKind === 'Face' ? nearestHit.faceId : null;
     const highlightedEdgeId = nearestHit?.entityKind === 'Edge' ? nearestHit.edgeId : null;
-    const canImportStep = Boolean(documentId && stepImportText.trim().length > 0 && status !== 'loading');
+    const canImportStep = Boolean(documentId && stepImportFile && status !== 'loading');
     const canExecuteBoolean = Boolean(
         documentId
         && bodyIds.length >= 2
@@ -332,7 +409,7 @@ function App() {
     return (
         <div className="app-shell">
             <header className="toolbar">
-                <h1>Aetheris Modeling UI (M20)</h1>
+                <h1>STEP 242 Viewer</h1>
                 <div className="toolbar-actions">
                     <button type="button" onClick={() => void handleCreateDocument()} disabled={status === 'loading'}>
                         Create Document
@@ -343,160 +420,231 @@ function App() {
                 </div>
             </header>
 
-            <main className="main-grid">
-                <ViewerViewport
-                    sceneData={sceneData}
-                    highlightedFaceId={highlightedFaceId}
-                    highlightedEdgeId={highlightedEdgeId}
-                    onPickRay={(origin, direction) => void handlePickRay(origin, direction)}
-                />
-                <aside className="debug-panel">
-                    <h2>Modeling Controls</h2>
-                    <section>
-                        <h3>Create Box</h3>
-                        <div className="form-grid">
-                            <label>Width <input type="number" value={boxWidth} onChange={(event) => setBoxWidth(event.target.value)} /></label>
-                            <label>Height <input type="number" value={boxHeight} onChange={(event) => setBoxHeight(event.target.value)} /></label>
-                            <label>Depth <input type="number" value={boxDepth} onChange={(event) => setBoxDepth(event.target.value)} /></label>
-                        </div>
-                        <button type="button" onClick={() => void handleCreateBox()} disabled={!documentId || status === 'loading'}>Create Box</button>
+            <div className="top-tabs" role="tablist" aria-label="Top-level product surface">
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'viewer'}
+                    className={activeTab === 'viewer' ? 'tab-button active' : 'tab-button'}
+                    onClick={() => setActiveTab('viewer')}>
+                    STEP 242 Viewer
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'modeling-demo'}
+                    className={activeTab === 'modeling-demo' ? 'tab-button active' : 'tab-button'}
+                    onClick={() => setActiveTab('modeling-demo')}>
+                    Modeling Demo <span className="experimental-badge">Experimental</span>
+                </button>
+            </div>
+
+            {activeTab === 'viewer' ? (
+                <main className="viewer-grid">
+                    <aside className="product-panel">
+                        <section>
+                            <h2>STEP Import</h2>
+                            <label>
+                                STEP 242 File
+                                <input
+                                    type="file"
+                                    accept=".step,.stp,text/plain"
+                                    onChange={(event) => handleStepFileSelection(event.target.files)}
+                                />
+                            </label>
+                            <p>{stepImportSelectionMessage}</p>
+                            <button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP 242</button>
+                            <p><strong>Status:</strong> {statusMessage}</p>
+                            {diagnostics.length === 0 ? null : (
+                                <ul>
+                                    {diagnostics.map((diagnostic, index) => (
+                                        <li key={`${diagnostic.code}-${index}`}>
+                                            [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </section>
+
+                        <section>
+                            <h2>STEP Export</h2>
+                            <button type="button" onClick={() => void handleDownloadCanonicalStep()} disabled={!documentId || !activeOccurrence || status === 'loading'}>
+                                Download Canonical 242
+                            </button>
+                            <button type="button" onClick={() => void handleExportActiveStep()} disabled={!activeBodyId || status === 'loading'}>
+                                Export Active (STEP)
+                            </button>
+                            <details>
+                                <summary>Copy STEP text</summary>
+                                <label className="textarea-label">
+                                    Canonical STEP Text
+                                    <textarea value={stepExportText} readOnly placeholder="Exported STEP text will appear here." rows={7} />
+                                </label>
+                            </details>
+                        </section>
+
+                        <section className="audit-panel">
+                            <h2>Inspector</h2>
+                            <div className="inspector-row">
+                                <span>Canonical SHA256</span>
+                                <code className="mono-value">{stepCanonicalHash ?? 'Not available'}</code>
+                                <button type="button" onClick={() => void handleCopyCanonicalHash()} disabled={!stepCanonicalHash}>Copy</button>
+                            </div>
+                            {copyHashMessage ? <p>{copyHashMessage}</p> : null}
+                            <p><strong>Definition ID:</strong> {activeOccurrence?.definitionId ?? 'None'}</p>
+                            <p><strong>Occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
+                            <p><strong>Face count:</strong> {tessellation?.facePatches.length ?? 0}</p>
+                            <p><strong>Edge count:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
+                            <p><strong>Shell count:</strong> {activeBodyId ? 1 : 0}</p>
+                        </section>
+                    </aside>
+
+                    <section className="viewer-secondary">
+                        <h2>Viewport (secondary)</h2>
+                        <ViewerViewport
+                            sceneData={sceneData}
+                            highlightedFaceId={highlightedFaceId}
+                            highlightedEdgeId={highlightedEdgeId}
+                            onPickRay={(origin, direction) => void handlePickRay(origin, direction)}
+                        />
                     </section>
+                </main>
+            ) : (
+                <main className="main-grid">
+                    <ViewerViewport
+                        sceneData={sceneData}
+                        highlightedFaceId={highlightedFaceId}
+                        highlightedEdgeId={highlightedEdgeId}
+                        onPickRay={(origin, direction) => void handlePickRay(origin, direction)}
+                    />
+                    <aside className="debug-panel">
+                        <h2>Modeling Demo (Non-production)</h2>
+                        <p className="demo-notice">This is a demo environment. Not part of Viewer v0 contract.</p>
+                        <section>
+                            <h3>Create Box</h3>
+                            <div className="form-grid">
+                                <label>Width <input type="number" value={boxWidth} onChange={(event) => setBoxWidth(event.target.value)} /></label>
+                                <label>Height <input type="number" value={boxHeight} onChange={(event) => setBoxHeight(event.target.value)} /></label>
+                                <label>Depth <input type="number" value={boxDepth} onChange={(event) => setBoxDepth(event.target.value)} /></label>
+                            </div>
+                            <button type="button" onClick={() => void handleCreateBox()} disabled={!documentId || status === 'loading'}>Create Box</button>
+                        </section>
 
-                    <section>
-                        <h3>Body List</h3>
-                        {bodyIds.length === 0 ? <p>No occurrences in document.</p> : (
+                        <section>
+                            <h3>Body List</h3>
+                            {bodyIds.length === 0 ? <p>No occurrences in document.</p> : (
+                                <ul>
+                                    {bodyIds.map((bodyId) => {
+                                        const occurrence = occurrences.find((item) => item.occurrenceId === bodyId);
+                                        const label = occurrence
+                                            ? `${bodyId} (def ${occurrence.definitionId.slice(0, 8)}, t=[${occurrence.translation.x.toFixed(2)}, ${occurrence.translation.y.toFixed(2)}, ${occurrence.translation.z.toFixed(2)}])`
+                                            : bodyId;
+
+                                        return <li key={bodyId}>
+                                            <button
+                                                type="button"
+                                                className={bodyId === activeBodyId ? 'active-row' : ''}
+                                                onClick={() => void handleSelectBody(bodyId)}
+                                                disabled={status === 'loading'}>
+                                                {label}
+                                            </button>
+                                        </li>;
+                                    })}
+                                </ul>
+                            )}
+                        </section>
+
+                        <section>
+                            <h3>Translate Active Body</h3>
+                            <div className="form-grid">
+                                <label>X <input type="number" value={tx} onChange={(event) => setTx(event.target.value)} /></label>
+                                <label>Y <input type="number" value={ty} onChange={(event) => setTy(event.target.value)} /></label>
+                                <label>Z <input type="number" value={tz} onChange={(event) => setTz(event.target.value)} /></label>
+                            </div>
+                            <button type="button" onClick={() => void handleApplyTranslation()} disabled={!activeBodyId || status === 'loading'}>Apply Translation</button>
+                        </section>
+
+                        <section>
+                            <h3>Boolean (Two-Body)</h3>
+                            <div className="form-grid boolean-grid">
+                                <label>
+                                    Target Body
+                                    <select value={booleanTargetBodyId} onChange={(event) => setBooleanTargetBodyId(event.target.value)}>
+                                        <option value="">Select target body</option>
+                                        {bodyIds.map((bodyId) => <option key={`target-${bodyId}`} value={bodyId}>{bodyId}</option>)}
+                                    </select>
+                                </label>
+                                <label>
+                                    Tool Body
+                                    <select value={booleanToolBodyId} onChange={(event) => setBooleanToolBodyId(event.target.value)}>
+                                        <option value="">Select tool body</option>
+                                        {bodyIds.map((bodyId) => <option key={`tool-${bodyId}`} value={bodyId}>{bodyId}</option>)}
+                                    </select>
+                                </label>
+                                <label>
+                                    Operation
+                                    <select value={booleanOperation} onChange={(event) => setBooleanOperation(event.target.value as BooleanOperationUi)}>
+                                        <option value="Union">Union</option>
+                                        <option value="Subtract">Subtract</option>
+                                        <option value="Intersect">Intersect</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div className="toolbar-actions boolean-actions">
+                                <button type="button" onClick={handleUseActiveBodyAsTarget} disabled={!activeBodyId || status === 'loading'}>Use Active as Target</button>
+                                <button type="button" onClick={handleUseActiveBodyAsTool} disabled={!activeBodyId || status === 'loading'}>Use Active as Tool</button>
+                            </div>
+                            <button type="button" onClick={() => void handleExecuteBoolean()} disabled={!canExecuteBoolean}>Execute Boolean</button>
+                            {bodyIds.length < 2 ? <p>Need at least 2 bodies to run a boolean.</p> : null}
+                            {booleanTargetBodyId && booleanToolBodyId && booleanTargetBodyId === booleanToolBodyId ? (
+                                <p>Target and tool must be different body IDs.</p>
+                            ) : null}
+                        </section>
+
+                        <h2>Debug / Status</h2>
+                        <p><strong>Request status:</strong> {status}</p>
+                        <p><strong>Message:</strong> {statusMessage}</p>
+                        <p><strong>Document ID:</strong> {documentId ?? 'None'}</p>
+                        <p><strong>Active occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
+                        <p><strong>Occurrence count:</strong> {bodyIds.length}</p>
+                        <p><strong>Face patches:</strong> {tessellation?.facePatches.length ?? 0}</p>
+                        <p><strong>Edge polylines:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
+                        <h3>Pick Diagnostics (active body only)</h3>
+                        <p><strong>Pick status:</strong> {pickStatus}</p>
+                        <p><strong>Pick message:</strong> {pickMessage}</p>
+                        <p><strong>Pick hits:</strong> {pickHits.length}</p>
+                        {nearestHit ? (
                             <ul>
-                                {bodyIds.map((bodyId) => {
-                                    const occurrence = occurrences.find((item) => item.occurrenceId === bodyId);
-                                    const label = occurrence
-                                        ? `${bodyId} (def ${occurrence.definitionId.slice(0, 8)}, t=[${occurrence.translation.x.toFixed(2)}, ${occurrence.translation.y.toFixed(2)}, ${occurrence.translation.z.toFixed(2)}])`
-                                        : bodyId;
-
-                                    return <li key={bodyId}>
-                                        <button
-                                            type="button"
-                                            className={bodyId === activeBodyId ? 'active-row' : ''}
-                                            onClick={() => void handleSelectBody(bodyId)}
-                                            disabled={status === 'loading'}>
-                                            {label}
-                                        </button>
-                                    </li>;
-                                })}
+                                <li><strong>Kind:</strong> {nearestHit.entityKind}</li>
+                                <li><strong>Face ID:</strong> {nearestHit.faceId ?? 'n/a'}</li>
+                                <li><strong>Edge ID:</strong> {nearestHit.edgeId ?? 'n/a'}</li>
+                                <li><strong>t:</strong> {nearestHit.t.toFixed(5)}</li>
+                                <li><strong>Point:</strong> ({nearestHit.point.x.toFixed(5)}, {nearestHit.point.y.toFixed(5)}, {nearestHit.point.z.toFixed(5)})</li>
+                            </ul>
+                        ) : <p>No nearest hit to display.</p>}
+                        <h3>Pick Diagnostics</h3>
+                        {pickDiagnostics.length === 0 ? <p>None</p> : (
+                            <ul>
+                                {pickDiagnostics.map((diagnostic, index) => (
+                                    <li key={`pick-${diagnostic.code}-${index}`}>
+                                        [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
+                                    </li>
+                                ))}
                             </ul>
                         )}
-                    </section>
-
-                    <section>
-                        <h3>Translate Active Body</h3>
-                        <div className="form-grid">
-                            <label>X <input type="number" value={tx} onChange={(event) => setTx(event.target.value)} /></label>
-                            <label>Y <input type="number" value={ty} onChange={(event) => setTy(event.target.value)} /></label>
-                            <label>Z <input type="number" value={tz} onChange={(event) => setTz(event.target.value)} /></label>
-                        </div>
-                        <button type="button" onClick={() => void handleApplyTranslation()} disabled={!activeBodyId || status === 'loading'}>Apply Translation</button>
-                    </section>
-
-                    <section>
-                        <h3>Boolean (Two-Body)</h3>
-                        <div className="form-grid boolean-grid">
-                            <label>
-                                Target Body
-                                <select value={booleanTargetBodyId} onChange={(event) => setBooleanTargetBodyId(event.target.value)}>
-                                    <option value="">Select target body</option>
-                                    {bodyIds.map((bodyId) => <option key={`target-${bodyId}`} value={bodyId}>{bodyId}</option>)}
-                                </select>
-                            </label>
-                            <label>
-                                Tool Body
-                                <select value={booleanToolBodyId} onChange={(event) => setBooleanToolBodyId(event.target.value)}>
-                                    <option value="">Select tool body</option>
-                                    {bodyIds.map((bodyId) => <option key={`tool-${bodyId}`} value={bodyId}>{bodyId}</option>)}
-                                </select>
-                            </label>
-                            <label>
-                                Operation
-                                <select value={booleanOperation} onChange={(event) => setBooleanOperation(event.target.value as BooleanOperationUi)}>
-                                    <option value="Union">Union</option>
-                                    <option value="Subtract">Subtract</option>
-                                    <option value="Intersect">Intersect</option>
-                                </select>
-                            </label>
-                        </div>
-                        <div className="toolbar-actions boolean-actions">
-                            <button type="button" onClick={handleUseActiveBodyAsTarget} disabled={!activeBodyId || status === 'loading'}>Use Active as Target</button>
-                            <button type="button" onClick={handleUseActiveBodyAsTool} disabled={!activeBodyId || status === 'loading'}>Use Active as Tool</button>
-                        </div>
-                        <button type="button" onClick={() => void handleExecuteBoolean()} disabled={!canExecuteBoolean}>Execute Boolean</button>
-                        {bodyIds.length < 2 ? <p>Need at least 2 bodies to run a boolean.</p> : null}
-                        {booleanTargetBodyId && booleanToolBodyId && booleanTargetBodyId === booleanToolBodyId ? (
-                            <p>Target and tool must be different body IDs.</p>
-                        ) : null}
-                    </section>
-
-
-                    <section>
-                        <h3>STEP I/O</h3>
-                        <button type="button" onClick={() => void handleExportActiveStep()} disabled={!activeBodyId || status === 'loading'}>
-                            Export Active (STEP)
-                        </button>
-                        <label className="textarea-label">
-                            Exported STEP
-                            <textarea value={stepExportText} readOnly placeholder="Exported STEP text will appear here." rows={7} />
-                        </label>
-                        <label className="textarea-label">
-                            Import STEP Text
-                            <textarea value={stepImportText} onChange={(event) => setStepImportText(event.target.value)} placeholder="Paste STEP text here." rows={7} />
-                        </label>
-                        <label>
-                            Imported Name
-                            <input type="text" value={stepImportName} onChange={(event) => setStepImportName(event.target.value)} />
-                        </label>
-                        <button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP</button>
-                    </section>
-
-                    <h2>Debug / Status</h2>
-                    <p><strong>Request status:</strong> {status}</p>
-                    <p><strong>Message:</strong> {statusMessage}</p>
-                    <p><strong>Document ID:</strong> {documentId ?? 'None'}</p>
-                    <p><strong>Active occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
-                    <p><strong>Occurrence count:</strong> {bodyIds.length}</p>
-                    <p><strong>Face patches:</strong> {tessellation?.facePatches.length ?? 0}</p>
-                    <p><strong>Edge polylines:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
-                    <h3>Pick Diagnostics (active body only)</h3>
-                    <p><strong>Pick status:</strong> {pickStatus}</p>
-                    <p><strong>Pick message:</strong> {pickMessage}</p>
-                    <p><strong>Pick hits:</strong> {pickHits.length}</p>
-                    {nearestHit ? (
-                        <ul>
-                            <li><strong>Kind:</strong> {nearestHit.entityKind}</li>
-                            <li><strong>Face ID:</strong> {nearestHit.faceId ?? 'n/a'}</li>
-                            <li><strong>Edge ID:</strong> {nearestHit.edgeId ?? 'n/a'}</li>
-                            <li><strong>t:</strong> {nearestHit.t.toFixed(5)}</li>
-                            <li><strong>Point:</strong> ({nearestHit.point.x.toFixed(5)}, {nearestHit.point.y.toFixed(5)}, {nearestHit.point.z.toFixed(5)})</li>
-                        </ul>
-                    ) : <p>No nearest hit to display.</p>}
-                    <h3>Pick Diagnostics</h3>
-                    {pickDiagnostics.length === 0 ? <p>None</p> : (
-                        <ul>
-                            {pickDiagnostics.map((diagnostic, index) => (
-                                <li key={`pick-${diagnostic.code}-${index}`}>
-                                    [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                    <h3>Diagnostics</h3>
-                    {diagnostics.length === 0 ? <p>None</p> : (
-                        <ul>
-                            {diagnostics.map((diagnostic, index) => (
-                                <li key={`${diagnostic.code}-${index}`}>
-                                    [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </aside>
-            </main>
+                        <h3>Diagnostics</h3>
+                        {diagnostics.length === 0 ? <p>None</p> : (
+                            <ul>
+                                {diagnostics.map((diagnostic, index) => (
+                                    <li key={`${diagnostic.code}-${index}`}>
+                                        [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </aside>
+                </main>
+            )}
         </div>
     );
 }

@@ -40,7 +40,7 @@ public sealed record CreateOccurrenceRequestDto(Guid? SourceOccurrenceId, Guid? 
 
 public sealed record OccurrenceCreatedResponseDto(Guid DocumentId, Guid BodyId, Guid DefinitionId, string? Name);
 
-public sealed record StepExportResponseDto(Guid DocumentId, Guid DefinitionId, string StepText, IReadOnlyList<DiagnosticDto> Diagnostics);
+public sealed record StepExportResponseDto(Guid DocumentId, Guid DefinitionId, string StepText, string CanonicalHash, IReadOnlyList<DiagnosticDto> Diagnostics);
 
 public sealed record StepImportRequestDto(string? StepText, string? Name);
 

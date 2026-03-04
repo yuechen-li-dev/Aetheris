@@ -41,6 +41,10 @@ internal static class Step242SubsetParser
         {
             return Failure(ex.Message, ex.SourceTag);
         }
+        catch (Exception ex)
+        {
+            return Failure($"Unexpected parser failure: {ex.Message}", "Parser.Semantics");
+        }
 
         var duplicateId = entities
             .GroupBy(e => e.Id)
@@ -67,11 +71,54 @@ internal static class Step242SubsetParser
 
         public char Peek() => text[_index];
 
+        private bool TryPeekNext(out char c)
+        {
+            var next = _index + 1;
+            if (next < text.Length)
+            {
+                c = text[next];
+                return true;
+            }
+
+            c = default;
+            return false;
+        }
+
         public void SkipWhitespace()
         {
-            while (!End && char.IsWhiteSpace(text[_index]))
+            while (!End)
             {
-                _index++;
+                if (char.IsWhiteSpace(text[_index]))
+                {
+                    _index++;
+                    continue;
+                }
+
+                if (text[_index] == '/' && TryPeekNext(out var next) && next == '*')
+                {
+                    _index += 2;
+                    var terminated = false;
+                    while (!End)
+                    {
+                        if (text[_index] == '*' && TryPeekNext(out next) && next == '/')
+                        {
+                            _index += 2;
+                            terminated = true;
+                            break;
+                        }
+
+                        _index++;
+                    }
+
+                    if (!terminated)
+                    {
+                        throw Error("Unterminated comment block.");
+                    }
+
+                    continue;
+                }
+
+                break;
             }
         }
 
@@ -83,6 +130,7 @@ internal static class Step242SubsetParser
             Expect('=');
             SkipWhitespace();
             var name = ReadIdentifier();
+            name = name.ToUpperInvariant();
             SkipWhitespace();
             Expect('(');
             var args = ReadArgumentList();
@@ -93,14 +141,42 @@ internal static class Step242SubsetParser
 
         public void ReadToStatementTerminator()
         {
+            var depth = 0;
             while (!End)
             {
                 var c = text[_index++];
+                if (c == '\'')
+                {
+                    SkipStringLiteralBody();
+                    continue;
+                }
+
+                if (c == '/' && !End && Peek() == '*')
+                {
+                    _index++;
+                    SkipCommentBody();
+                    continue;
+                }
+
+                if (c == '(')
+                {
+                    depth++;
+                    continue;
+                }
+
+                if (c == ')' && depth > 0)
+                {
+                    depth--;
+                    continue;
+                }
+
                 if (c == ';')
                 {
                     return;
                 }
             }
+
+            throw Error("Unable to recover statement boundary before end of text.", "Parser.Semantics");
         }
 
         private List<Step242Value> ReadArgumentList()
@@ -154,8 +230,9 @@ internal static class Step242SubsetParser
                 '#' => ReadReference(),
                 '\'' => ReadString(),
                 '$' => ReadOmitted(),
+                '*' => ReadDerivedOmitted(),
                 '(' => ReadList(),
-                '.' => ReadEnumOrLogical(),
+                '.' => TryPeekNext(out var next) && char.IsDigit(next) ? ReadNumber() : ReadEnumOrLogical(),
                 '+' or '-' or >= '0' and <= '9' => ReadNumber(),
                 _ => throw Error($"Unsupported value token '{c}'.")
             };
@@ -195,6 +272,12 @@ internal static class Step242SubsetParser
         private Step242Value ReadOmitted()
         {
             Expect('$');
+            return Step242OmittedValue.Instance;
+        }
+
+        private Step242Value ReadDerivedOmitted()
+        {
+            Expect('*');
             return Step242OmittedValue.Instance;
         }
 
@@ -241,6 +324,8 @@ internal static class Step242SubsetParser
             var token = ReadIdentifier();
             Expect('.');
 
+            token = token.ToUpperInvariant();
+
             if (string.Equals(token, "T", StringComparison.OrdinalIgnoreCase))
             {
                 return new Step242BooleanValue(true);
@@ -262,18 +347,27 @@ internal static class Step242SubsetParser
                 _index++;
             }
 
+            var hasLeadingDigits = false;
             while (!End && char.IsDigit(Peek()))
             {
                 _index++;
+                hasLeadingDigits = true;
             }
 
+            var hasFractionDigits = false;
             if (!End && Peek() == '.')
             {
                 _index++;
                 while (!End && char.IsDigit(Peek()))
                 {
                     _index++;
+                    hasFractionDigits = true;
                 }
+            }
+
+            if (!hasLeadingDigits && !hasFractionDigits)
+            {
+                throw Error("Invalid numeric literal.");
             }
 
             if (!End && (Peek() == 'E' || Peek() == 'e'))
@@ -284,9 +378,16 @@ internal static class Step242SubsetParser
                     _index++;
                 }
 
+                var exponentDigits = 0;
                 while (!End && char.IsDigit(Peek()))
                 {
                     _index++;
+                    exponentDigits++;
+                }
+
+                if (exponentDigits == 0)
+                {
+                    throw Error("Invalid exponent in numeric literal.");
                 }
             }
 
@@ -341,7 +442,45 @@ internal static class Step242SubsetParser
             _index++;
         }
 
-        private Step242ParseException Error(string message) => new($"{message} (position {_index}).", "Parser.Lexer");
+        private void SkipStringLiteralBody()
+        {
+            while (!End)
+            {
+                var c = text[_index++];
+                if (c != '\'')
+                {
+                    continue;
+                }
+
+                if (!End && Peek() == '\'')
+                {
+                    _index++;
+                    continue;
+                }
+
+                return;
+            }
+
+            throw Error("Unterminated string literal.");
+        }
+
+        private void SkipCommentBody()
+        {
+            while (!End)
+            {
+                if (text[_index] == '*' && TryPeekNext(out var next) && next == '/')
+                {
+                    _index += 2;
+                    return;
+                }
+
+                _index++;
+            }
+
+            throw Error("Unterminated comment block.");
+        }
+
+        private Step242ParseException Error(string message, string sourceTag = "Parser.Lexer") => new($"{message} (position {_index}).", sourceTag);
     }
 }
 

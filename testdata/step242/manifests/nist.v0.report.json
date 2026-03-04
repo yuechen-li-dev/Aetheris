@@ -2,13 +2,13 @@
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_01_asme1_ap242-e1",
     "path": "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp",
-    "sizeBytes": 391739,
+    "sizeBytes": 396445,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Expected identifier. (position *)."
+      "messagePrefix": "Expected identifier. (position 518)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -26,13 +26,13 @@
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_02_asme1_ap242-e2",
     "path": "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
-    "sizeBytes": 1958442,
+    "sizeBytes": 1981342,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Expected identifier. (position *)."
+      "messagePrefix": "Expected identifier. (position 3466)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -50,13 +50,13 @@
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_03_asme1_ap242-e2",
     "path": "testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp",
-    "sizeBytes": 667521,
+    "sizeBytes": 673846,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Expected identifier. (position *)."
+      "messagePrefix": "Expected identifier. (position 2134)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -74,13 +74,13 @@
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_04_asme1_ap242-e1",
     "path": "testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp",
-    "sizeBytes": 1265846,
+    "sizeBytes": 1287291,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Expected identifier. (position *)."
+      "messagePrefix": "Expected identifier. (position 557)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -98,13 +98,13 @@
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_05_asme1_ap242-e1",
     "path": "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp",
-    "sizeBytes": 863826,
+    "sizeBytes": 878030,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Unsupported value token \u0027N\u0027. (position *)."
+      "messagePrefix": "Unsupported value token \u0027N\u0027. (position 423)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -122,13 +122,13 @@
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_06_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp",
-    "sizeBytes": 1960222,
+    "sizeBytes": 1971192,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Expected identifier. (position *)."
+      "messagePrefix": "Expected identifier. (position 4996)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -146,13 +146,13 @@
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_07_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp",
-    "sizeBytes": 1459346,
+    "sizeBytes": 1478375,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Expected identifier. (position *)."
+      "messagePrefix": "Expected identifier. (position 557)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -176,7 +176,7 @@
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Expected identifier. (position *)."
+      "messagePrefix": "Expected identifier. (position 1030)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -194,13 +194,13 @@
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
-    "sizeBytes": 4658022,
+    "sizeBytes": 4722264,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Unsupported value token \u0027*\u0027. (position *)."
+      "messagePrefix": "Unsupported value token \u0027*\u0027. (position 446)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -218,13 +218,13 @@
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_09_asme1_ap242-e1",
     "path": "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp",
-    "sizeBytes": 6057450,
+    "sizeBytes": 6109836,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Expected identifier. (position *)."
+      "messagePrefix": "Expected identifier. (position 760)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -242,13 +242,13 @@
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_10_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp",
-    "sizeBytes": 1855829,
+    "sizeBytes": 1879881,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Expected identifier. (position *)."
+      "messagePrefix": "Expected identifier. (position 563)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -266,13 +266,13 @@
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_11_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
-    "sizeBytes": 1920822,
+    "sizeBytes": 1946454,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Unsupported value token \u0027*\u0027. (position *)."
+      "messagePrefix": "Unsupported value token \u0027*\u0027. (position 507)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -290,13 +290,13 @@
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_06_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
-    "sizeBytes": 993459,
+    "sizeBytes": 1006401,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Expected identifier. (position *)."
+      "messagePrefix": "Expected identifier. (position 425)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -314,13 +314,13 @@
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_07_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_07_asme1_ap242-e3.stp",
-    "sizeBytes": 1927905,
+    "sizeBytes": 1945387,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Unsupported value token \u0027P\u0027. (position *)."
+      "messagePrefix": "Unsupported value token \u0027P\u0027. (position 696)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -338,13 +338,13 @@
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_08_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp",
-    "sizeBytes": 2239112,
+    "sizeBytes": 2251152,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Unsupported value token \u0027S\u0027. (position *)."
+      "messagePrefix": "Unsupported value token \u0027S\u0027. (position 4891)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -362,13 +362,13 @@
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_09_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp",
-    "sizeBytes": 5237528,
+    "sizeBytes": 5287678,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Expected identifier. (position *)."
+      "messagePrefix": "Expected identifier. (position 747)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -386,13 +386,13 @@
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_10_asme1_ap242-e2",
     "path": "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
-    "sizeBytes": 4807322,
+    "sizeBytes": 4875056,
     "status": "parseFail",
     "firstFailureLayer": "parser",
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Parser.Lexer",
-      "messagePrefix": "Unsupported value token \u0027*\u0027. (position *)."
+      "messagePrefix": "Unsupported value token \u0027*\u0027. (position 1034)."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

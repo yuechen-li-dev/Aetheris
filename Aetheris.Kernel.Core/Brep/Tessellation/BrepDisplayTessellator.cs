@@ -10,6 +10,8 @@ namespace Aetheris.Kernel.Core.Brep.Tessellation;
 
 public static class BrepDisplayTessellator
 {
+    private const double PlanarLoopChainEpsilon = 1e-9;
+
     public static KernelResult<DisplayTessellationResult> Tessellate(BrepBody body, DisplayTessellationOptions? options = null)
     {
         if (body is null)
@@ -82,18 +84,26 @@ public static class BrepDisplayTessellator
 
         if (coedges.All(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Line3))
         {
-            var polygonPoints = new List<Point3D>(coedges.Length);
-            foreach (var coedge in coedges)
+            var segmentResult = BuildPlanarSegments(body, coedges);
+            if (!segmentResult.IsSuccess)
             {
-                var endpoints = GetEdgeEndpoints(body, coedge.EdgeId, coedge.IsReversed);
-                if (!endpoints.IsSuccess)
-                {
-                    return KernelResult<DisplayFaceMeshPatch>.Failure(endpoints.Diagnostics);
-                }
-
-                polygonPoints.Add(endpoints.Value.Start);
+                return KernelResult<DisplayFaceMeshPatch>.Failure(segmentResult.Diagnostics);
             }
 
+            var mismatches = ValidateLoopEndpointChain(segmentResult.Value);
+            var orderedSegmentsResult = ChainPlanarSegments(segmentResult.Value, faceId, mismatches.Count);
+            if (!orderedSegmentsResult.IsSuccess)
+            {
+                return KernelResult<DisplayFaceMeshPatch>.Failure(orderedSegmentsResult.Diagnostics);
+            }
+
+            var polygonPointsResult = BuildPolygonPointsFromSegments(orderedSegmentsResult.Value, faceId);
+            if (!polygonPointsResult.IsSuccess)
+            {
+                return KernelResult<DisplayFaceMeshPatch>.Failure(polygonPointsResult.Diagnostics);
+            }
+
+            var polygonPoints = polygonPointsResult.Value;
             if (polygonPoints.Count < 3)
             {
                 return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop must contain at least three line coedges.")]);
@@ -348,6 +358,106 @@ public static class BrepDisplayTessellator
         return new DisplayFaceMeshPatch(faceId, polygonPoints.ToArray(), normals, indices);
     }
 
+    private static KernelResult<IReadOnlyList<PlanarSegment>> BuildPlanarSegments(BrepBody body, IReadOnlyList<Coedge> coedges)
+    {
+        var segments = new List<PlanarSegment>(coedges.Count);
+        foreach (var coedge in coedges)
+        {
+            var endpoints = GetEdgeEndpoints(body, coedge.EdgeId, coedge.IsReversed);
+            if (!endpoints.IsSuccess)
+            {
+                return KernelResult<IReadOnlyList<PlanarSegment>>.Failure(endpoints.Diagnostics);
+            }
+
+            segments.Add(new PlanarSegment(coedge, endpoints.Value.Start, endpoints.Value.End));
+        }
+
+        return KernelResult<IReadOnlyList<PlanarSegment>>.Success(segments);
+    }
+
+    private static IReadOnlyList<int> ValidateLoopEndpointChain(IReadOnlyList<PlanarSegment> segments)
+    {
+        var mismatches = new List<int>();
+        for (var i = 0; i < segments.Count; i++)
+        {
+            var next = (i + 1) % segments.Count;
+            if (!PointsNear(segments[i].End, segments[next].Start))
+            {
+                mismatches.Add(i);
+            }
+        }
+
+        return mismatches;
+    }
+
+    private static KernelResult<IReadOnlyList<PlanarSegment>> ChainPlanarSegments(
+        IReadOnlyList<PlanarSegment> segments,
+        FaceId faceId,
+        int preflightMismatchCount)
+    {
+        if (segments.Count == 0)
+        {
+            return KernelResult<IReadOnlyList<PlanarSegment>>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop must contain at least one coedge.")]);
+        }
+
+        var unused = segments
+            .OrderBy(s => s.Coedge.EdgeId.Value)
+            .ThenBy(s => s.Coedge.Id.Value)
+            .ToList();
+
+        var ordered = new List<PlanarSegment>(segments.Count) { unused[0] };
+        unused.RemoveAt(0);
+
+        while (unused.Count > 0)
+        {
+            var currentEnd = ordered[^1].End;
+            var next = unused
+                .Where(s => PointsNear(s.Start, currentEnd))
+                .OrderBy(s => s.Coedge.EdgeId.Value)
+                .ThenBy(s => s.Coedge.Id.Value)
+                .FirstOrDefault();
+
+            if (next is null)
+            {
+                return KernelResult<IReadOnlyList<PlanarSegment>>.Failure([
+                    CreateNotImplemented($"Face {faceId.Value} planar loop cannot be chained into a continuous cycle (mismatches:{preflightMismatchCount}).")]);
+            }
+
+            ordered.Add(next);
+            unused.Remove(next);
+        }
+
+        if (!PointsNear(ordered[^1].End, ordered[0].Start))
+        {
+            return KernelResult<IReadOnlyList<PlanarSegment>>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} planar loop does not close after deterministic chaining.")]);
+        }
+
+        return KernelResult<IReadOnlyList<PlanarSegment>>.Success(ordered);
+    }
+
+    private static KernelResult<IReadOnlyList<Point3D>> BuildPolygonPointsFromSegments(IReadOnlyList<PlanarSegment> segments, FaceId faceId)
+    {
+        var points = new List<Point3D>(segments.Count + 1)
+        {
+            segments[0].Start,
+        };
+
+        foreach (var segment in segments)
+        {
+            points.Add(segment.End);
+        }
+
+        if (!PointsNear(points[^1], points[0]))
+        {
+            return KernelResult<IReadOnlyList<Point3D>>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} planar chained loop failed closure validation.")]);
+        }
+
+        points.RemoveAt(points.Count - 1);
+        return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+    }
+
     private static KernelResult<DisplayEdgePolyline> TessellateEdge(BrepBody body, EdgeId edgeId, DisplayTessellationOptions options)
     {
         if (!body.TryGetEdgeCurveGeometry(edgeId, out var curve) || curve is null)
@@ -436,4 +546,9 @@ public static class BrepDisplayTessellator
 
     private static KernelDiagnostic CreateNotImplemented(string message)
         => new(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message);
+
+    private static bool PointsNear(Point3D a, Point3D b)
+        => (a - b).Length <= PlanarLoopChainEpsilon;
+
+    private sealed record PlanarSegment(Coedge Coedge, Point3D Start, Point3D End);
 }

@@ -74,6 +74,42 @@ public sealed class BrepDisplayTessellatorTests
     }
 
     [Fact]
+    public void Tessellate_BoxBody_PlanarPatches_AreTwoTrianglesOnFacePlane_AndNormalsFinite()
+    {
+        var box = BrepPrimitives.CreateBox(3d, 2d, 1d).Value;
+
+        var result = BrepDisplayTessellator.Tessellate(box);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(6, result.Value.FacePatches.Count);
+
+        foreach (var patch in result.Value.FacePatches)
+        {
+            Assert.Equal(6, patch.TriangleIndices.Count);
+
+            var surfaceResult = box.TryGetFaceSurfaceGeometry(patch.FaceId, out var surface);
+            Assert.True(surfaceResult);
+            Assert.NotNull(surface);
+            Assert.Equal(SurfaceGeometryKind.Plane, surface!.Kind);
+            var plane = surface.Plane!.Value;
+
+            Assert.All(patch.Normals, normal =>
+            {
+                Assert.False(double.IsNaN(normal.X));
+                Assert.False(double.IsNaN(normal.Y));
+                Assert.False(double.IsNaN(normal.Z));
+            });
+
+            foreach (var index in patch.TriangleIndices)
+            {
+                var point = patch.Positions[index];
+                var signedDistance = (point - plane.Origin).Dot(plane.Normal.ToVector());
+                Assert.True(System.Math.Abs(signedDistance) <= 1e-9);
+            }
+        }
+    }
+
+    [Fact]
     public void Tessellate_ExtrudeRectangle_Succeeds()
     {
         var profile = PolylineProfile2D.Create(
@@ -177,6 +213,38 @@ public sealed class BrepDisplayTessellatorTests
         Assert.NotEmpty(tessellation.Value.FacePatches);
     }
 
+    [Fact]
+    public void Tessellate_BoxFace_RemainsValidAfterFlippingLoopCoedgeReversalFlags()
+    {
+        var box = BrepPrimitives.CreateBox(2d, 2d, 2d).Value;
+        var sideFace = box.Topology.Faces
+            .Where(face => box.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+                           && surface is not null
+                           && surface.Kind == SurfaceGeometryKind.Plane
+                           && System.Math.Abs(surface.Plane!.Value.Normal.ToVector().Y + 1d) <= 1e-9)
+            .Select(face => face.Id)
+            .Single();
+
+        var flipped = CreateBodyWithFlippedLoopCoedgeReversalFlags(box, sideFace);
+
+        var result = BrepDisplayTessellator.Tessellate(flipped);
+
+        Assert.True(result.IsSuccess);
+        var patch = result.Value.FacePatches.Single(p => p.FaceId == sideFace);
+        Assert.Equal(6, patch.TriangleIndices.Count);
+
+        Assert.All(EnumerateTriangleAreas(patch), area => Assert.True(area > 1e-12));
+
+        Assert.True(flipped.TryGetFaceSurfaceGeometry(sideFace, out var surface));
+        var plane = surface!.Plane!.Value;
+        foreach (var index in patch.TriangleIndices)
+        {
+            var point = patch.Positions[index];
+            var signedDistance = (point - plane.Origin).Dot(plane.Normal.ToVector());
+            Assert.True(System.Math.Abs(signedDistance) <= 1e-9);
+        }
+    }
+
     private static void AssertPointEqualWithinTolerance(Point3D expected, Point3D actual, int precision)
     {
         Assert.Equal(expected.X, actual.X, precision);
@@ -203,5 +271,84 @@ public sealed class BrepDisplayTessellatorTests
         bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(1)));
 
         return new BrepBody(builder.Model, geometry, bindings);
+    }
+
+    private static IEnumerable<double> EnumerateTriangleAreas(DisplayFaceMeshPatch patch)
+    {
+        for (var i = 0; i < patch.TriangleIndices.Count; i += 3)
+        {
+            var p0 = patch.Positions[patch.TriangleIndices[i]];
+            var p1 = patch.Positions[patch.TriangleIndices[i + 1]];
+            var p2 = patch.Positions[patch.TriangleIndices[i + 2]];
+            yield return ((p1 - p0).Cross(p2 - p0)).Length * 0.5d;
+        }
+    }
+
+    private static BrepBody CreateBodyWithFlippedLoopCoedgeReversalFlags(BrepBody source, FaceId faceId)
+    {
+        var topology = new TopologyModel();
+
+        foreach (var vertex in source.Topology.Vertices.OrderBy(v => v.Id.Value))
+        {
+            topology.AddVertex(vertex);
+        }
+
+        foreach (var edge in source.Topology.Edges.OrderBy(e => e.Id.Value))
+        {
+            topology.AddEdge(edge);
+        }
+
+        var loopIdsToFlip = source.GetLoopIds(faceId).ToHashSet();
+        foreach (var coedge in source.Topology.Coedges.OrderBy(c => c.Id.Value))
+        {
+            var mutated = loopIdsToFlip.Contains(coedge.LoopId)
+                ? coedge with { IsReversed = !coedge.IsReversed }
+                : coedge;
+            topology.AddCoedge(mutated);
+        }
+
+        foreach (var loop in source.Topology.Loops.OrderBy(l => l.Id.Value))
+        {
+            topology.AddLoop(loop);
+        }
+
+        foreach (var face in source.Topology.Faces.OrderBy(f => f.Id.Value))
+        {
+            topology.AddFace(face);
+        }
+
+        foreach (var shell in source.Topology.Shells.OrderBy(s => s.Id.Value))
+        {
+            topology.AddShell(shell);
+        }
+
+        foreach (var body in source.Topology.Bodies.OrderBy(b => b.Id.Value))
+        {
+            topology.AddBody(body);
+        }
+
+        var geometry = new BrepGeometryStore();
+        foreach (var curve in source.Geometry.Curves)
+        {
+            geometry.AddCurve(curve.Key, curve.Value);
+        }
+
+        foreach (var surface in source.Geometry.Surfaces)
+        {
+            geometry.AddSurface(surface.Key, surface.Value);
+        }
+
+        var bindings = new BrepBindingModel();
+        foreach (var edgeBinding in source.Bindings.EdgeBindings.OrderBy(b => b.EdgeId.Value))
+        {
+            bindings.AddEdgeBinding(edgeBinding);
+        }
+
+        foreach (var faceBinding in source.Bindings.FaceBindings.OrderBy(b => b.FaceId.Value))
+        {
+            bindings.AddFaceBinding(faceBinding);
+        }
+
+        return new BrepBody(topology, geometry, bindings);
     }
 }

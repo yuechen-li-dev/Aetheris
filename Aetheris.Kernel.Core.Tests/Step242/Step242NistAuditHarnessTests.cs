@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Picking;
 using Aetheris.Kernel.Core.Brep.Tessellation;
@@ -17,6 +18,9 @@ public sealed class Step242NistAuditHarnessTests
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true
     };
+
+    private static readonly Regex PositionInParensRegex = new(@"\(position\s+\d+\)", RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex PositionTokenRegex = new(@"position\s+\d+", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     [Fact]
     public void NistCorpus_AuditReport_IsByteStableAcrossConsecutiveRuns_AndMatchesSnapshot()
@@ -139,7 +143,7 @@ public sealed class Step242NistAuditHarnessTests
                 canonicalSizeBytes,
                 Status: "importFail",
                 FirstFailureLayer: "importer-topology",
-                FirstDiagnostic: new Step242AuditDiagnostic("InvalidArgument", "Audit.Exception", Truncate(ex.Message)),
+                FirstDiagnostic: new Step242AuditDiagnostic("InvalidArgument", "Audit.Exception", StableMessagePrefix(ex.Message)),
                 DiagnosticCount: 1,
                 ExceptionEscaped: true,
                 TopologyCounts: Step242TopologyCounts.Zero,
@@ -217,13 +221,23 @@ public sealed class Step242NistAuditHarnessTests
 
     private static string StableMessagePrefix(string message)
     {
-        var idx = message.IndexOf(':');
+        var normalized = NormalizeForSnapshot(message);
+        var idx = normalized.IndexOf(':');
         if (idx > 0)
         {
-            return message[..idx];
+            return normalized[..idx].TrimEnd();
         }
 
-        return Truncate(message);
+        return Truncate(normalized.TrimEnd());
+    }
+
+    // Snapshot-only diagnostic normalization: normalize EOLs and mask volatile parser position values.
+    private static string NormalizeForSnapshot(string value)
+    {
+        var normalized = value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        normalized = PositionInParensRegex.Replace(normalized, "(position *)");
+        normalized = PositionTokenRegex.Replace(normalized, "position *");
+        return normalized;
     }
 
     private static string Truncate(string value)

@@ -11,6 +11,11 @@ namespace Aetheris.Kernel.Core.Step242;
 
 public static class Step242Importer
 {
+    private const double AreaEps = 1e-8d;
+    private const double PointOnSurfaceEps = 1e-5d;
+    private const double AngleUnwrapEps = 1e-8d;
+    private const double ContainmentEps = 1e-8d;
+
     public static KernelResult<BrepBody> ImportBody(string stepText)
     {
         var parseResult = Step242SubsetParser.Parse(stepText);
@@ -123,7 +128,19 @@ public static class Step242Importer
                 return Failure("ADVANCED_FACE without bounds is unsupported in M23 subset.", $"Entity:{faceEntity.Id}");
             }
 
-            var loopIds = new List<LoopId>(boundRefsResult.Value.Count);
+            var faceSameSenseResult = Step242SubsetDecoder.ReadBoolean(faceEntity, 2, "ADVANCED_FACE same_sense");
+            if (!faceSameSenseResult.IsSuccess)
+            {
+                return KernelResult<BrepBody>.Failure(faceSameSenseResult.Diagnostics);
+            }
+
+            var bindSurfaceResult = DecodeSurfaceGeometry(document, surfaceEntityResult.Value, faceSameSenseResult.Value, nextSurfaceGeometryId);
+            if (!bindSurfaceResult.IsSuccess)
+            {
+                return KernelResult<BrepBody>.Failure(bindSurfaceResult.Diagnostics);
+            }
+
+            var loopData = new List<LoopBuildData>(boundRefsResult.Value.Count);
             foreach (var boundRef in boundRefsResult.Value)
             {
                 var boundEntityResult = document.TryGetEntity(boundRef.TargetId);
@@ -177,6 +194,9 @@ public static class Step242Importer
                 {
                     coedgeIds.Add(builder.AllocateCoedgeId());
                 }
+
+                var loopCoedges = new List<Coedge>(orientedEdgeRefsResult.Value.Count);
+                var loopSamples = new List<Point3D>();
 
                 for (var i = 0; i < orientedEdgeRefsResult.Value.Count; i++)
                 {
@@ -232,33 +252,43 @@ public static class Step242Importer
                         isReversed = !isReversed;
                     }
 
-                    coedges.Add(new Coedge(
+                    var coedge = new Coedge(
                         coedgeIds[i],
                         edgeIdResult.Value,
                         loopId,
                         coedgeIds[(i + 1) % coedgeIds.Count],
                         coedgeIds[(i + coedgeIds.Count - 1) % coedgeIds.Count],
-                        IsReversed: isReversed));
+                        IsReversed: isReversed);
+
+                    loopCoedges.Add(coedge);
+                    var sampleResult = SampleCoedgePoints(bindings.GetEdgeBinding(edgeIdResult.Value), geometry, coedge.IsReversed);
+                    if (!sampleResult.IsSuccess)
+                    {
+                        return KernelResult<BrepBody>.Failure(sampleResult.Diagnostics);
+                    }
+
+                    AppendLoopSamples(loopSamples, sampleResult.Value);
                 }
 
                 builder.AddLoop(new Loop(loopId, coedgeIds));
-                loopIds.Add(loopId);
+                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples));
             }
 
-            var faceId = builder.AddFace(loopIds);
+            var classifyResult = ClassifyAndNormalizeFaceLoops(loopData, bindSurfaceResult.Value.SurfaceGeometry);
+            if (!classifyResult.IsSuccess)
+            {
+                return KernelResult<BrepBody>.Failure(classifyResult.Diagnostics);
+            }
+
+            foreach (var loop in classifyResult.Value)
+            {
+                coedges.AddRange(loop.Coedges);
+            }
+
+            var faceLoopIds = classifyResult.Value.Select(l => l.LoopId).ToList();
+
+            var faceId = builder.AddFace(faceLoopIds);
             faceIds.Add(faceId);
-
-            var faceSameSenseResult = Step242SubsetDecoder.ReadBoolean(faceEntity, 2, "ADVANCED_FACE same_sense");
-            if (!faceSameSenseResult.IsSuccess)
-            {
-                return KernelResult<BrepBody>.Failure(faceSameSenseResult.Diagnostics);
-            }
-
-            var bindSurfaceResult = DecodeSurfaceGeometry(document, surfaceEntityResult.Value, faceSameSenseResult.Value, nextSurfaceGeometryId);
-            if (!bindSurfaceResult.IsSuccess)
-            {
-                return KernelResult<BrepBody>.Failure(bindSurfaceResult.Diagnostics);
-            }
 
             var (surfaceGeometryId, surfaceGeometry) = bindSurfaceResult.Value;
             nextSurfaceGeometryId++;
@@ -583,6 +613,330 @@ public static class Step242Importer
         return offset.Dot(line.Direction.ToVector());
     }
 
+    private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeFaceLoops(
+        IReadOnlyList<LoopBuildData> loops,
+        SurfaceGeometry surface)
+    {
+        if (loops.Count <= 1)
+        {
+            return KernelResult<IReadOnlyList<LoopBuildData>>.Success(loops);
+        }
+
+        return surface.Kind switch
+        {
+            SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
+            SurfaceGeometryKind.Cylinder => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
+                "Cylinder multi-loop hole classification is not yet safely supported.",
+                "Importer.LoopRole.CylinderMappingFailed"),
+            SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
+                "Multi-loop hole classification is unsupported for this surface type.",
+                "Importer.LoopRole.UnsupportedSurfaceForHoles"),
+            _ => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
+                "Multi-loop hole classification is unsupported for this surface type.",
+                "Importer.LoopRole.UnsupportedSurfaceForHoles")
+        };
+    }
+
+    private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizePlanarLoops(
+        IReadOnlyList<LoopBuildData> loops,
+        PlaneSurface plane)
+    {
+        var infos = new List<PlanarLoopInfo>(loops.Count);
+        foreach (var loop in loops)
+        {
+            var projected = ProjectLoopToPlane(loop.Samples, plane);
+            var uniqueCount = CountUniquePoints(projected);
+            if (uniqueCount < 3)
+            {
+                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Loop projection is degenerate.", "Importer.LoopRole.DegenerateLoop");
+            }
+
+            var area = ComputeSignedArea(projected);
+            infos.Add(new PlanarLoopInfo(loop, projected, area));
+        }
+
+        var orderedByArea = infos
+            .OrderByDescending(info => double.Abs(info.SignedArea))
+            .ToList();
+
+        var outer = orderedByArea[0];
+        if (orderedByArea.Count > 1 && double.Abs(double.Abs(outer.SignedArea) - double.Abs(orderedByArea[1].SignedArea)) <= AreaEps)
+        {
+            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Unable to choose a unique outer loop.", "Importer.LoopRole.AmbiguousOuter");
+        }
+
+        foreach (var candidate in infos.Where(i => i.Loop.LoopId != outer.Loop.LoopId))
+        {
+            var testPointResult = ChooseContainmentPoint(candidate.ProjectedPoints);
+            if (!testPointResult.IsSuccess)
+            {
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Failure(testPointResult.Diagnostics);
+            }
+
+            if (!IsPointInPolygon(testPointResult.Value, outer.ProjectedPoints))
+            {
+                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Inner loop is not contained by outer loop.", "Importer.LoopRole.InnerNotContained");
+            }
+        }
+
+        var innerLoops = infos.Where(i => i.Loop.LoopId != outer.Loop.LoopId).ToList();
+        for (var i = 0; i < innerLoops.Count; i++)
+        {
+            for (var j = i + 1; j < innerLoops.Count; j++)
+            {
+                if (LoopsOverlap(innerLoops[i], innerLoops[j]))
+                {
+                    return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Inner loops overlap or are nested.", "Importer.LoopRole.InnerOverlap");
+                }
+            }
+        }
+
+        var normalizedOuter = NormalizeLoopWinding(outer.Loop, outer.SignedArea, shouldBePositive: true);
+        var normalizedInners = innerLoops
+            .OrderBy(i => i.Loop.LoopId.Value)
+            .Select(i => NormalizeLoopWinding(i.Loop, i.SignedArea, shouldBePositive: false))
+            .ToList();
+
+        var ordered = new List<LoopBuildData>(1 + normalizedInners.Count) { normalizedOuter };
+        ordered.AddRange(normalizedInners);
+        return KernelResult<IReadOnlyList<LoopBuildData>>.Success(ordered);
+    }
+
+    private static LoopBuildData NormalizeLoopWinding(LoopBuildData loop, double signedArea, bool shouldBePositive)
+    {
+        if (shouldBePositive ? signedArea >= 0d : signedArea <= 0d)
+        {
+            return loop;
+        }
+
+        var flippedCoedges = loop.Coedges
+            .Select(c => c with { IsReversed = !c.IsReversed })
+            .ToList();
+
+        return new LoopBuildData(loop.LoopId, flippedCoedges, loop.Samples);
+    }
+
+    private static bool LoopsOverlap(PlanarLoopInfo a, PlanarLoopInfo b)
+    {
+        var aPoint = ChooseContainmentPoint(a.ProjectedPoints);
+        var bPoint = ChooseContainmentPoint(b.ProjectedPoints);
+        if (!aPoint.IsSuccess || !bPoint.IsSuccess)
+        {
+            return true;
+        }
+
+        return IsPointInPolygon(aPoint.Value, b.ProjectedPoints) || IsPointInPolygon(bPoint.Value, a.ProjectedPoints);
+    }
+
+    private static KernelResult<UvPoint> ChooseContainmentPoint(IReadOnlyList<UvPoint> polygon)
+    {
+        if (polygon.Count < 4)
+        {
+            return LoopRoleFailure<UvPoint>("Unable to choose a containment sample point.", "Importer.LoopRole.DegenerateLoop");
+        }
+
+        var centroid = ComputePolygonCentroid(polygon);
+        if (!IsPointNearPolygonEdge(centroid, polygon) && IsPointInPolygon(centroid, polygon))
+        {
+            return KernelResult<UvPoint>.Success(centroid);
+        }
+
+        for (var i = 0; i < polygon.Count - 1; i++)
+        {
+            var start = polygon[i];
+            var end = polygon[i + 1];
+            var midpoint = new UvPoint((start.X + end.X) * 0.5d, (start.Y + end.Y) * 0.5d);
+            var towardCentroid = centroid - midpoint;
+            var candidate = midpoint + (towardCentroid * 0.125d);
+            if (!IsPointNearPolygonEdge(candidate, polygon) && IsPointInPolygon(candidate, polygon))
+            {
+                return KernelResult<UvPoint>.Success(candidate);
+            }
+        }
+
+        return LoopRoleFailure<UvPoint>("Unable to choose a containment sample point.", "Importer.LoopRole.DegenerateLoop");
+    }
+
+    private static UvPoint ComputePolygonCentroid(IReadOnlyList<UvPoint> polygon)
+    {
+        var sumX = 0d;
+        var sumY = 0d;
+        var count = 0;
+
+        for (var i = 0; i < polygon.Count - 1; i++)
+        {
+            sumX += polygon[i].X;
+            sumY += polygon[i].Y;
+            count++;
+        }
+
+        if (count == 0)
+        {
+            return new UvPoint(0d, 0d);
+        }
+
+        return new UvPoint(sumX / count, sumY / count);
+    }
+
+    private static bool IsPointNearPolygonEdge(UvPoint point, IReadOnlyList<UvPoint> polygon)
+    {
+        for (var i = 0; i < polygon.Count - 1; i++)
+        {
+            if (DistancePointToSegment(point, polygon[i], polygon[i + 1]) <= ContainmentEps)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static double DistancePointToSegment(UvPoint p, UvPoint a, UvPoint b)
+    {
+        var ab = b - a;
+        var ap = p - a;
+        var denom = ab.Dot(ab);
+        if (denom <= AreaEps)
+        {
+            return (p - a).Length;
+        }
+
+        var t = ap.Dot(ab) / denom;
+        if (t < 0d)
+        {
+            t = 0d;
+        }
+        else if (t > 1d)
+        {
+            t = 1d;
+        }
+        var closest = a + (ab * t);
+        return (p - closest).Length;
+    }
+
+    private static bool IsPointInPolygon(UvPoint point, IReadOnlyList<UvPoint> polygon)
+    {
+        var inside = false;
+        for (var i = 0; i < polygon.Count - 1; i++)
+        {
+            var a = polygon[i];
+            var b = polygon[i + 1];
+
+            if (DistancePointToSegment(point, a, b) <= ContainmentEps)
+            {
+                return true;
+            }
+
+            var intersects = ((a.Y > point.Y) != (b.Y > point.Y))
+                             && (point.X < ((b.X - a.X) * (point.Y - a.Y) / ((b.Y - a.Y) + AngleUnwrapEps)) + a.X);
+            if (intersects)
+            {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    private static int CountUniquePoints(IReadOnlyList<UvPoint> points)
+    {
+        var unique = new List<UvPoint>();
+        foreach (var point in points)
+        {
+            if (unique.Any(u => (u - point).Length <= ContainmentEps))
+            {
+                continue;
+            }
+
+            unique.Add(point);
+        }
+
+        return unique.Count;
+    }
+
+    private static List<UvPoint> ProjectLoopToPlane(IReadOnlyList<Point3D> samples, PlaneSurface plane)
+    {
+        var uv = new List<UvPoint>(samples.Count + 1);
+        foreach (var sample in samples)
+        {
+            var offset = sample - plane.Origin;
+            uv.Add(new UvPoint(offset.Dot(plane.UAxis.ToVector()), offset.Dot(plane.VAxis.ToVector())));
+        }
+
+        if (uv.Count > 0 && (uv[0] - uv[^1]).Length > ContainmentEps)
+        {
+            uv.Add(uv[0]);
+        }
+
+        return uv;
+    }
+
+    private static double ComputeSignedArea(IReadOnlyList<UvPoint> polygon)
+    {
+        var area = 0d;
+        for (var i = 0; i < polygon.Count - 1; i++)
+        {
+            var p0 = polygon[i];
+            var p1 = polygon[i + 1];
+            area += (p0.X * p1.Y) - (p1.X * p0.Y);
+        }
+
+        return 0.5d * area;
+    }
+
+    private static void AppendLoopSamples(ICollection<Point3D> loopSamples, IReadOnlyList<Point3D> edgeSamples)
+    {
+        foreach (var point in edgeSamples)
+        {
+            if (loopSamples.Count > 0)
+            {
+                var last = loopSamples.Last();
+                if ((last - point).Length <= PointOnSurfaceEps)
+                {
+                    continue;
+                }
+            }
+
+            loopSamples.Add(point);
+        }
+    }
+
+    private static KernelResult<IReadOnlyList<Point3D>> SampleCoedgePoints(EdgeGeometryBinding edgeBinding, BrepGeometryStore geometry, bool isReversed)
+    {
+        if (!geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve) || curve is null)
+        {
+            return LoopRoleFailure<IReadOnlyList<Point3D>>("Missing edge curve geometry for loop sampling.", "Importer.LoopRole.WindingConflict");
+        }
+
+        List<Point3D> points;
+        switch (curve.Kind)
+        {
+            case CurveGeometryKind.Line3:
+                var line = curve.Line3!.Value;
+                var lineRange = edgeBinding.TrimInterval ?? new ParameterInterval(0d, 1d);
+                points = [line.Evaluate(lineRange.Start), line.Evaluate(lineRange.End)];
+                break;
+            case CurveGeometryKind.Circle3:
+                var circle = curve.Circle3!.Value;
+                var trim = edgeBinding.TrimInterval ?? new ParameterInterval(0d, 2d * double.Pi);
+                var mid = trim.Start + ((trim.End - trim.Start) * 0.5d);
+                points = [circle.Evaluate(trim.Start), circle.Evaluate(mid), circle.Evaluate(trim.End)];
+                break;
+            default:
+                return LoopRoleFailure<IReadOnlyList<Point3D>>("Unsupported curve kind for loop sampling.", "Importer.LoopRole.WindingConflict");
+        }
+
+        if (isReversed)
+        {
+            points.Reverse();
+        }
+
+        return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+    }
+
+    private static KernelResult<T> LoopRoleFailure<T>(string message, string source) =>
+        KernelResult<T>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
+
     private static KernelResult<BrepBody> Failure(string message, string source) =>
         KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
 
@@ -605,4 +959,21 @@ public static class Step242Importer
         KernelResult<T>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
 
     private static string SourceFor(int _entityId, string stableSource) => stableSource;
+
+    private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples);
+
+    private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea);
+
+    private readonly record struct UvPoint(double X, double Y)
+    {
+        public static UvPoint operator +(UvPoint a, UvPoint b) => new(a.X + b.X, a.Y + b.Y);
+
+        public static UvPoint operator -(UvPoint a, UvPoint b) => new(a.X - b.X, a.Y - b.Y);
+
+        public static UvPoint operator *(UvPoint a, double s) => new(a.X * s, a.Y * s);
+
+        public double Dot(UvPoint other) => (X * other.X) + (Y * other.Y);
+
+        public double Length => double.Sqrt((X * X) + (Y * Y));
+    }
 }

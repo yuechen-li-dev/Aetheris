@@ -60,7 +60,7 @@ public sealed class Step242ImporterTests
     [Fact]
     public void ImportBody_UnsupportedEntityInParseableText_ReturnsNotImplementedDiagnostic()
     {
-        var unsupported = Step242FixtureCorpus.UnsupportedSphericalSurface;
+        var unsupported = Step242FixtureCorpus.UnsupportedToroidalSurface;
 
         var import = Step242Importer.ImportBody(unsupported);
 

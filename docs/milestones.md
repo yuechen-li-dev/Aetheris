@@ -287,3 +287,12 @@
 - [x] Enforce strict single-solid contract (`MANIFOLD_SOLID_BREP` count must be exactly one) with deterministic diagnostics for missing/multiple roots.
 - [x] Normalize stable diagnostic buckets for parser/importer-topology/importer-geometry expected-fail reporting.
 - [x] Explicitly keep non-goals unchanged for M31: no new STEP geometry families, no assembly/product semantics, and no healing/repair support.
+
+
+## M34 — Tier1 STEP Geometry Expansion (CIRCLE + Cylinder/Cone/Sphere Surfaces)
+
+- [x] Extend AP242 subset import decoding/mapping for `CIRCLE` edge curves with deterministic trim interval binding.
+- [x] Extend AP242 subset import surface decoding/mapping for `CYLINDRICAL_SURFACE`, `CONICAL_SURFACE`, and `SPHERICAL_SURFACE`.
+- [x] Preserve deterministic no-throw diagnostics for parseable failures with stable source buckets (`Importer.Geometry.Circle*`, `Importer.Geometry.Cylinder`, `Importer.Geometry.Cone`, `Importer.Geometry.Sphere`).
+- [x] Add focused Tier1 importer tests covering import/validate/tessellate/pick smoke and deterministic circle-trim failure behavior.
+- [x] Keep out-of-scope geometry families deterministic expected-fail (for example `TOROIDAL_SURFACE`, NURBS/spline families).

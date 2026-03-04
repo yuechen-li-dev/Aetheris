@@ -10,6 +10,8 @@ namespace Aetheris.Kernel.Core.Brep.Tessellation;
 
 public static class BrepDisplayTessellator
 {
+    private const double LoopEndpointTolerance = 1e-6d;
+
     public static KernelResult<DisplayTessellationResult> Tessellate(BrepBody body, DisplayTessellationOptions? options = null)
     {
         if (body is null)
@@ -82,24 +84,26 @@ public static class BrepDisplayTessellator
 
         if (coedges.All(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Line3))
         {
-            var polygonPoints = new List<Point3D>(coedges.Length);
-            foreach (var coedge in coedges)
+            var polygonPointsResult = BuildOrderedPlanarLoopPoints(body, coedges, faceId);
+            if (!polygonPointsResult.IsSuccess)
             {
-                var endpoints = GetEdgeEndpoints(body, coedge.EdgeId, coedge.IsReversed);
-                if (!endpoints.IsSuccess)
-                {
-                    return KernelResult<DisplayFaceMeshPatch>.Failure(endpoints.Diagnostics);
-                }
-
-                polygonPoints.Add(endpoints.Value.Start);
+                return KernelResult<DisplayFaceMeshPatch>.Failure(polygonPointsResult.Diagnostics);
             }
+
+            var polygonPoints = polygonPointsResult.Value;
 
             if (polygonPoints.Count < 3)
             {
                 return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop must contain at least three line coedges.")]);
             }
 
-            return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, polygonPoints, plane.Normal.ToVector()));
+            var indices = BuildPlanarTriangleIndices(polygonPoints, plane.Normal.ToVector());
+            if (indices is null)
+            {
+                return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop triangulation requires a convex polygon.")]);
+            }
+
+            return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, polygonPoints, plane.Normal.ToVector(), indices));
         }
 
         if (coedges.Length == 1 && body.GetEdgeCurve(coedges[0].EdgeId).Kind == CurveGeometryKind.Circle3)
@@ -334,9 +338,113 @@ public static class BrepDisplayTessellator
         return new DisplayFaceMeshPatch(faceId, positions, normals, indices);
     }
 
-    private static DisplayFaceMeshPatch CreatePlanarPatch(FaceId faceId, IReadOnlyList<Point3D> polygonPoints, Vector3D normal)
+    private static DisplayFaceMeshPatch CreatePlanarPatch(FaceId faceId, IReadOnlyList<Point3D> polygonPoints, Vector3D normal, IReadOnlyList<int> triangleIndices)
     {
         var normals = Enumerable.Repeat(normal, polygonPoints.Count).ToArray();
+        return new DisplayFaceMeshPatch(faceId, polygonPoints.ToArray(), normals, triangleIndices.ToArray());
+    }
+
+    private static KernelResult<IReadOnlyList<Point3D>> BuildOrderedPlanarLoopPoints(BrepBody body, IReadOnlyList<Coedge> coedges, FaceId faceId)
+    {
+        var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
+        if (!vertexPointsResult.IsSuccess)
+        {
+            return KernelResult<IReadOnlyList<Point3D>>.Failure(vertexPointsResult.Diagnostics);
+        }
+
+        var vertexPoints = vertexPointsResult.Value;
+        var orientedEndpoints = new List<(Point3D Start, Point3D End)>(coedges.Count);
+        foreach (var coedge in coedges)
+        {
+            var endpoints = GetEdgeEndpoints(body, coedge.EdgeId, coedge.IsReversed, vertexPoints);
+            if (!endpoints.IsSuccess)
+            {
+                return KernelResult<IReadOnlyList<Point3D>>.Failure(endpoints.Diagnostics);
+            }
+
+            orientedEndpoints.Add(endpoints.Value);
+        }
+
+        var orderedVertices = new List<Point3D>(coedges.Count);
+        var used = new bool[coedges.Count];
+        var currentIndex = 0;
+        used[currentIndex] = true;
+
+        var currentEdge = orientedEndpoints[currentIndex];
+        orderedVertices.Add(currentEdge.Start);
+        var currentEnd = currentEdge.End;
+
+        for (var step = 1; step < coedges.Count; step++)
+        {
+            var nextIndex = FindNextCoedgeIndex(orientedEndpoints, used, currentEnd, out var nextStart, out var nextEnd);
+            if (nextIndex < 0)
+            {
+                return KernelResult<IReadOnlyList<Point3D>>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop line coedges do not form a contiguous chain.")]);
+            }
+
+            used[nextIndex] = true;
+            if (!PointsAlmostEqual(orderedVertices[^1], nextStart))
+            {
+                orderedVertices.Add(nextStart);
+            }
+
+            currentEnd = nextEnd;
+        }
+
+        if (PointsAlmostEqual(orderedVertices[0], currentEnd))
+        {
+            return KernelResult<IReadOnlyList<Point3D>>.Success(orderedVertices);
+        }
+
+        return KernelResult<IReadOnlyList<Point3D>>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop line coedges did not close after chaining.")]);
+    }
+
+    private static int FindNextCoedgeIndex(
+        IReadOnlyList<(Point3D Start, Point3D End)> endpoints,
+        IReadOnlyList<bool> used,
+        Point3D currentEnd,
+        out Point3D nextStart,
+        out Point3D nextEnd)
+    {
+        var matchIndex = -1;
+        nextStart = default;
+        nextEnd = default;
+
+        for (var i = 0; i < endpoints.Count; i++)
+        {
+            if (used[i])
+            {
+                continue;
+            }
+
+            var (start, end) = endpoints[i];
+            if (PointsAlmostEqual(start, currentEnd))
+            {
+                matchIndex = i;
+                nextStart = start;
+                nextEnd = end;
+                break;
+            }
+
+            if (PointsAlmostEqual(end, currentEnd))
+            {
+                matchIndex = i;
+                nextStart = end;
+                nextEnd = start;
+                break;
+            }
+        }
+
+        return matchIndex;
+    }
+
+    private static IReadOnlyList<int>? BuildPlanarTriangleIndices(IReadOnlyList<Point3D> polygonPoints, Vector3D expectedNormal)
+    {
+        if (!IsConvexPolygon(polygonPoints, expectedNormal))
+        {
+            return null;
+        }
+
         var indices = new List<int>((polygonPoints.Count - 2) * 3);
         for (var i = 1; i < polygonPoints.Count - 1; i++)
         {
@@ -345,8 +453,55 @@ public static class BrepDisplayTessellator
             indices.Add(i + 1);
         }
 
-        return new DisplayFaceMeshPatch(faceId, polygonPoints.ToArray(), normals, indices);
+        if (indices.Count >= 3)
+        {
+            var firstNormal = (polygonPoints[indices[1]] - polygonPoints[indices[0]])
+                .Cross(polygonPoints[indices[2]] - polygonPoints[indices[0]]);
+            if (firstNormal.Dot(expectedNormal) < 0d)
+            {
+                for (var i = 0; i < indices.Count; i += 3)
+                {
+                    (indices[i + 1], indices[i + 2]) = (indices[i + 2], indices[i + 1]);
+                }
+            }
+        }
+
+        return indices;
     }
+
+    private static bool IsConvexPolygon(IReadOnlyList<Point3D> polygonPoints, Vector3D expectedNormal)
+    {
+        var referenceSign = 0;
+        for (var i = 0; i < polygonPoints.Count; i++)
+        {
+            var a = polygonPoints[i];
+            var b = polygonPoints[(i + 1) % polygonPoints.Count];
+            var c = polygonPoints[(i + 2) % polygonPoints.Count];
+            var cross = (b - a).Cross(c - b);
+            var dot = cross.Dot(expectedNormal);
+            if (double.Abs(dot) <= LoopEndpointTolerance)
+            {
+                continue;
+            }
+
+            var sign = dot > 0d ? 1 : -1;
+            if (referenceSign == 0)
+            {
+                referenceSign = sign;
+                continue;
+            }
+
+            if (referenceSign != sign)
+            {
+                return false;
+            }
+        }
+
+        return referenceSign != 0;
+    }
+
+    private static bool PointsAlmostEqual(Point3D left, Point3D right)
+        => (left - right).LengthSquared <= (LoopEndpointTolerance * LoopEndpointTolerance);
 
     private static KernelResult<DisplayEdgePolyline> TessellateEdge(BrepBody body, EdgeId edgeId, DisplayTessellationOptions options)
     {
@@ -392,22 +547,106 @@ public static class BrepDisplayTessellator
         }
     }
 
-    private static KernelResult<(Point3D Start, Point3D End)> GetEdgeEndpoints(BrepBody body, EdgeId edgeId, bool reversed)
+    private static KernelResult<Dictionary<VertexId, Point3D>> BuildLoopVertexPointLookup(BrepBody body, IReadOnlyList<Coedge> coedges, FaceId faceId)
+    {
+        var requiredVertexIds = new HashSet<VertexId>();
+        foreach (var coedge in coedges)
+        {
+            if (!body.TryGetEdgeVertices(coedge.EdgeId, out var startVertexId, out var endVertexId))
+            {
+                return KernelResult<Dictionary<VertexId, Point3D>>.Failure([CreateNotImplemented($"Face {faceId.Value} references missing edge topology for edge {coedge.EdgeId.Value}.")]);
+            }
+
+            requiredVertexIds.Add(startVertexId);
+            requiredVertexIds.Add(endVertexId);
+        }
+
+        var vertexPoints = new Dictionary<VertexId, Point3D>();
+        foreach (var vertexId in requiredVertexIds.OrderBy(v => v.Value))
+        {
+            var pointResult = GetVertexPoint(body, vertexId);
+            if (!pointResult.IsSuccess)
+            {
+                return KernelResult<Dictionary<VertexId, Point3D>>.Failure(pointResult.Diagnostics);
+            }
+
+            vertexPoints[vertexId] = pointResult.Value;
+        }
+
+        return KernelResult<Dictionary<VertexId, Point3D>>.Success(vertexPoints);
+    }
+
+    private static KernelResult<Point3D> GetVertexPoint(BrepBody body, VertexId vertexId)
+    {
+        foreach (var edge in body.Topology.Edges.OrderBy(e => e.Id.Value))
+        {
+            if (edge.StartVertexId != vertexId)
+            {
+                continue;
+            }
+
+            var edgePoint = EvaluateEdgeEndpoint(body, edge.Id, useStart: true);
+            if (edgePoint.IsSuccess)
+            {
+                return KernelResult<Point3D>.Success(edgePoint.Value);
+            }
+        }
+
+        foreach (var edge in body.Topology.Edges.OrderBy(e => e.Id.Value))
+        {
+            if (edge.EndVertexId != vertexId)
+            {
+                continue;
+            }
+
+            var edgePoint = EvaluateEdgeEndpoint(body, edge.Id, useStart: false);
+            if (edgePoint.IsSuccess)
+            {
+                return KernelResult<Point3D>.Success(edgePoint.Value);
+            }
+        }
+
+        return KernelResult<Point3D>.Failure([CreateNotImplemented($"Vertex {vertexId.Value} cannot be resolved to a geometric point for tessellation.")]);
+    }
+
+    private static KernelResult<Point3D> EvaluateEdgeEndpoint(BrepBody body, EdgeId edgeId, bool useStart)
+    {
+        if (!body.TryGetEdgeCurveGeometry(edgeId, out var curve) || curve is null || curve.Kind != CurveGeometryKind.Line3)
+        {
+            return KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} planar polygon tessellation requires line geometry.")]);
+        }
+
+        if (!body.Bindings.TryGetEdgeBinding(edgeId, out var binding))
+        {
+            return KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} is missing curve binding.")]);
+        }
+
+        var interval = binding.TrimInterval ?? new ParameterInterval(0d, 1d);
+        var parameter = useStart ? interval.Start : interval.End;
+        return KernelResult<Point3D>.Success(curve.Line3!.Value.Evaluate(parameter));
+    }
+
+    private static KernelResult<(Point3D Start, Point3D End)> GetEdgeEndpoints(
+        BrepBody body,
+        EdgeId edgeId,
+        bool reversed,
+        IReadOnlyDictionary<VertexId, Point3D> vertexPoints)
     {
         if (!body.TryGetEdgeCurveGeometry(edgeId, out var curve) || curve is null || curve.Kind != CurveGeometryKind.Line3)
         {
             return KernelResult<(Point3D, Point3D)>.Failure([CreateNotImplemented($"Edge {edgeId.Value} planar polygon tessellation requires line geometry.")]);
         }
 
-        if (!body.Bindings.TryGetEdgeBinding(edgeId, out var binding))
+        if (!body.TryGetEdgeVertices(edgeId, out var startVertexId, out var endVertexId))
         {
-            return KernelResult<(Point3D, Point3D)>.Failure([CreateNotImplemented($"Edge {edgeId.Value} is missing curve binding.")]);
+            return KernelResult<(Point3D, Point3D)>.Failure([CreateNotImplemented($"Edge {edgeId.Value} is missing topology endpoints.")]);
         }
 
-        var line = curve.Line3!.Value;
-        var interval = binding.TrimInterval ?? new ParameterInterval(0d, 1d);
-        var start = line.Evaluate(interval.Start);
-        var end = line.Evaluate(interval.End);
+        if (!vertexPoints.TryGetValue(startVertexId, out var start) || !vertexPoints.TryGetValue(endVertexId, out var end))
+        {
+            return KernelResult<(Point3D, Point3D)>.Failure([CreateNotImplemented($"Edge {edgeId.Value} references unresolved vertex points.")]);
+        }
+
         return KernelResult<(Point3D, Point3D)>.Success(reversed ? (end, start) : (start, end));
     }
 

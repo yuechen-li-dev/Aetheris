@@ -280,12 +280,12 @@ public static class Step242Importer
                 return KernelResult<BrepBody>.Failure(classifyResult.Diagnostics);
             }
 
-            foreach (var loop in classifyResult.Value.OrderedLoops)
+            foreach (var loop in classifyResult.Value)
             {
                 coedges.AddRange(loop.Coedges);
             }
 
-            var faceLoopIds = classifyResult.Value.OrderedLoops.Select(l => l.LoopId).ToList();
+            var faceLoopIds = classifyResult.Value.Select(l => l.LoopId).ToList();
 
             var faceId = builder.AddFace(faceLoopIds);
             faceIds.Add(faceId);
@@ -613,31 +613,31 @@ public static class Step242Importer
         return offset.Dot(line.Direction.ToVector());
     }
 
-    private static KernelResult<(IReadOnlyList<LoopBuildData> OrderedLoops)> ClassifyAndNormalizeFaceLoops(
+    private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeFaceLoops(
         IReadOnlyList<LoopBuildData> loops,
         SurfaceGeometry surface)
     {
         if (loops.Count <= 1)
         {
-            return KernelResult<(IReadOnlyList<LoopBuildData> OrderedLoops)>.Success((loops));
+            return KernelResult<IReadOnlyList<LoopBuildData>>.Success(loops);
         }
 
         return surface.Kind switch
         {
             SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
-            SurfaceGeometryKind.Cylinder => LoopRoleFailure<(IReadOnlyList<LoopBuildData> OrderedLoops)>(
+            SurfaceGeometryKind.Cylinder => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 "Cylinder multi-loop hole classification is not yet safely supported.",
                 "Importer.LoopRole.CylinderMappingFailed"),
-            SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere => LoopRoleFailure<(IReadOnlyList<LoopBuildData> OrderedLoops)>(
+            SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 "Multi-loop hole classification is unsupported for this surface type.",
                 "Importer.LoopRole.UnsupportedSurfaceForHoles"),
-            _ => LoopRoleFailure<(IReadOnlyList<LoopBuildData> OrderedLoops)>(
+            _ => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 "Multi-loop hole classification is unsupported for this surface type.",
                 "Importer.LoopRole.UnsupportedSurfaceForHoles")
         };
     }
 
-    private static KernelResult<(IReadOnlyList<LoopBuildData> OrderedLoops)> ClassifyAndNormalizePlanarLoops(
+    private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizePlanarLoops(
         IReadOnlyList<LoopBuildData> loops,
         PlaneSurface plane)
     {
@@ -648,7 +648,7 @@ public static class Step242Importer
             var uniqueCount = CountUniquePoints(projected);
             if (uniqueCount < 3)
             {
-                return LoopRoleFailure<(IReadOnlyList<LoopBuildData> OrderedLoops)>("Loop projection is degenerate.", "Importer.LoopRole.DegenerateLoop");
+                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Loop projection is degenerate.", "Importer.LoopRole.DegenerateLoop");
             }
 
             var area = ComputeSignedArea(projected);
@@ -662,7 +662,7 @@ public static class Step242Importer
         var outer = orderedByArea[0];
         if (orderedByArea.Count > 1 && double.Abs(double.Abs(outer.SignedArea) - double.Abs(orderedByArea[1].SignedArea)) <= AreaEps)
         {
-            return LoopRoleFailure<(IReadOnlyList<LoopBuildData> OrderedLoops)>("Unable to choose a unique outer loop.", "Importer.LoopRole.AmbiguousOuter");
+            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Unable to choose a unique outer loop.", "Importer.LoopRole.AmbiguousOuter");
         }
 
         foreach (var candidate in infos.Where(i => i.Loop.LoopId != outer.Loop.LoopId))
@@ -670,12 +670,12 @@ public static class Step242Importer
             var testPointResult = ChooseContainmentPoint(candidate.ProjectedPoints);
             if (!testPointResult.IsSuccess)
             {
-                return KernelResult<(IReadOnlyList<LoopBuildData> OrderedLoops)>.Failure(testPointResult.Diagnostics);
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Failure(testPointResult.Diagnostics);
             }
 
             if (!IsPointInPolygon(testPointResult.Value, outer.ProjectedPoints))
             {
-                return LoopRoleFailure<(IReadOnlyList<LoopBuildData> OrderedLoops)>("Inner loop is not contained by outer loop.", "Importer.LoopRole.InnerNotContained");
+                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Inner loop is not contained by outer loop.", "Importer.LoopRole.InnerNotContained");
             }
         }
 
@@ -686,7 +686,7 @@ public static class Step242Importer
             {
                 if (LoopsOverlap(innerLoops[i], innerLoops[j]))
                 {
-                    return LoopRoleFailure<(IReadOnlyList<LoopBuildData> OrderedLoops)>("Inner loops overlap or are nested.", "Importer.LoopRole.InnerOverlap");
+                    return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Inner loops overlap or are nested.", "Importer.LoopRole.InnerOverlap");
                 }
             }
         }
@@ -699,7 +699,7 @@ public static class Step242Importer
 
         var ordered = new List<LoopBuildData>(1 + normalizedInners.Count) { normalizedOuter };
         ordered.AddRange(normalizedInners);
-        return KernelResult<(IReadOnlyList<LoopBuildData> OrderedLoops)>.Success((ordered));
+        return KernelResult<IReadOnlyList<LoopBuildData>>.Success(ordered);
     }
 
     private static LoopBuildData NormalizeLoopWinding(LoopBuildData loop, double signedArea, bool shouldBePositive)
@@ -730,16 +730,52 @@ public static class Step242Importer
 
     private static KernelResult<UvPoint> ChooseContainmentPoint(IReadOnlyList<UvPoint> polygon)
     {
+        if (polygon.Count < 4)
+        {
+            return LoopRoleFailure<UvPoint>("Unable to choose a containment sample point.", "Importer.LoopRole.DegenerateLoop");
+        }
+
+        var centroid = ComputePolygonCentroid(polygon);
+        if (!IsPointNearPolygonEdge(centroid, polygon) && IsPointInPolygon(centroid, polygon))
+        {
+            return KernelResult<UvPoint>.Success(centroid);
+        }
+
         for (var i = 0; i < polygon.Count - 1; i++)
         {
-            var p = polygon[i];
-            if (!IsPointNearPolygonEdge(p, polygon))
+            var start = polygon[i];
+            var end = polygon[i + 1];
+            var midpoint = new UvPoint((start.X + end.X) * 0.5d, (start.Y + end.Y) * 0.5d);
+            var towardCentroid = centroid - midpoint;
+            var candidate = midpoint + (towardCentroid * 0.125d);
+            if (!IsPointNearPolygonEdge(candidate, polygon) && IsPointInPolygon(candidate, polygon))
             {
-                return KernelResult<UvPoint>.Success(p);
+                return KernelResult<UvPoint>.Success(candidate);
             }
         }
 
         return LoopRoleFailure<UvPoint>("Unable to choose a containment sample point.", "Importer.LoopRole.DegenerateLoop");
+    }
+
+    private static UvPoint ComputePolygonCentroid(IReadOnlyList<UvPoint> polygon)
+    {
+        var sumX = 0d;
+        var sumY = 0d;
+        var count = 0;
+
+        for (var i = 0; i < polygon.Count - 1; i++)
+        {
+            sumX += polygon[i].X;
+            sumY += polygon[i].Y;
+            count++;
+        }
+
+        if (count == 0)
+        {
+            return new UvPoint(0d, 0d);
+        }
+
+        return new UvPoint(sumX / count, sumY / count);
     }
 
     private static bool IsPointNearPolygonEdge(UvPoint point, IReadOnlyList<UvPoint> polygon)

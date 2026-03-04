@@ -1,0 +1,82 @@
+{
+  "version": "1",
+  "entries": [
+    {
+      "id": "gen_box_v0",
+      "path": "testdata/step242/generated/v0-required/gen_box_v0.step",
+      "group": "passRequired",
+      "notes": "Planar+line baseline",
+      "expectHashStableAfterCanonicalization": true
+    },
+    {
+      "id": "gen_cyl_v0",
+      "path": "testdata/step242/generated/v0-required/gen_cyl_v0.step",
+      "group": "deferred",
+      "notes": "Cylinder+circle edges (tracked in corpus, deferred from v0 pass gate until canonical export supports non-planar faces)"
+    },
+    {
+      "id": "gen_cone_v0",
+      "path": "testdata/step242/generated/v0-required/gen_cone_v0.step",
+      "group": "deferred",
+      "notes": "Cone+circle edges (tracked in corpus, deferred from v0 pass gate until canonical export supports non-planar faces)"
+    },
+    {
+      "id": "gen_sphere_v0",
+      "path": "testdata/step242/generated/v0-required/gen_sphere_v0.step",
+      "group": "deferred",
+      "notes": "Sphere faces fixture is tracked but not required for v0 gate while loopless export support remains deferred (tracked in corpus, deferred from v0 pass gate until canonical export supports non-planar faces)"
+    },
+    {
+      "id": "gen_hole_v0",
+      "path": "testdata/step242/generated/v0-required/gen_hole_v0.step",
+      "group": "deferred",
+      "notes": "Planar outer+inner loop hole (tracked and reported; deferred from pass gate until full pipeline supports multi-loop tessellation/export)"
+    },
+    {
+      "id": "exp_multi_brep",
+      "path": "testdata/step242/generated/v0-expectedfail/multi_brep.step",
+      "group": "expectedFail",
+      "expectedFirstDiagnostic": {
+        "code": "NotImplemented",
+        "source": "Importer.SingleSolid",
+        "messagePrefix": "Multiple MANIFOLD_SOLID_BREP roots are unsupported"
+      }
+    },
+    {
+      "id": "exp_toroidal_surface",
+      "path": "testdata/step242/generated/v0-expectedfail/toroidal_surface.step",
+      "group": "expectedFail",
+      "expectedFirstDiagnostic": {
+        "code": "NotImplemented",
+        "source": "Importer.EntityFamily",
+        "messagePrefix": "Entity family 'TOROIDAL_SURFACE' is unsupported"
+      }
+    },
+    {
+      "id": "exp_cylinder_hole_unsupported",
+      "path": "testdata/step242/generated/v0-expectedfail/cylinder_hole_unsupported.step",
+      "group": "expectedFail",
+      "expectedFirstDiagnostic": {
+        "code": "ValidationFailed",
+        "source": "Importer.LoopRole.CylinderMappingFailed",
+        "messagePrefix": "Cylinder multi-loop hole classification"
+      }
+    },
+    {
+      "id": "exp_parser_missing_paren",
+      "path": "testdata/step242/syntax-robustness/malformed_missing_paren.step",
+      "group": "expectedFail",
+      "expectedFirstDiagnostic": {
+        "code": "InvalidArgument",
+        "source": "Parser.Lexer",
+        "messagePrefix": "Expected ',' or ')' in argument list"
+      }
+    },
+    {
+      "id": "deferred_nist_ctc01",
+      "path": "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp",
+      "group": "deferred",
+      "notes": "Representative NIST deferred item retained in report output"
+    }
+  ]
+}

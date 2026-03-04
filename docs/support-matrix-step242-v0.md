@@ -1,0 +1,42 @@
+# STEP242 v0 Support Matrix
+
+Aetheris STEP242 v0 is intentionally narrow and deterministic.
+
+## Hard contracts
+
+- Single solid only: exactly one `MANIFOLD_SOLID_BREP` root is required.
+- Backend-authoritative flow: import -> render -> canonical export (+ SHA256).
+- Deterministic diagnostics: stable `(code, source, messagePrefix)` for expected fail cases.
+
+## Supported entity families (Tier1)
+
+| Category | Supported in v0 |
+|---|---|
+| Curves | `LINE`, `CIRCLE` |
+| Surfaces | `PLANE`, `CYLINDRICAL_SURFACE`, `CONICAL_SURFACE`, `SPHERICAL_SURFACE` |
+| Topology | `MANIFOLD_SOLID_BREP`, `CLOSED_SHELL`, `ADVANCED_FACE`, loops/coedges/edges/vertices subset required by kernel importer |
+
+## Hole policy
+
+- Planar multi-loop hole semantics are supported when loop-role classification is unambiguous and safe.
+- Curved-surface holes are deterministic fail in v0 (`Importer.LoopRole.*`).
+
+## Explicit non-goals for v0
+
+- Assemblies / occurrences import semantics.
+- PMI / MBD.
+- NURBS / B-spline / healing workflows.
+- Toroidal and other exotic analytic surface support.
+- Any modeling/editor feature expansion in the Viewer tab.
+
+## Corpus and CI gate
+
+- Manifest file: `testdata/step242/manifests/v0.corpus.json`.
+- Groups:
+  - `passRequired`: must pass Parse -> Import -> Validate -> Tessellate -> Pick -> Export -> SHA256.
+  - `expectedFail`: must match first diagnostic triplet exactly.
+  - `deferred`: reported, non-gating.
+- Determinism:
+  - lexical path ordering,
+  - LF-normalized report output,
+  - in-process double-run byte stability.

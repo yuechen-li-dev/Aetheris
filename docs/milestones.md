@@ -304,3 +304,12 @@
 - [x] Keep non-planar behavior deterministic: multi-loop conical/spherical faces fail with `Importer.LoopRole.UnsupportedSurfaceForHoles`; cylindrical multi-loop faces currently fail with `Importer.LoopRole.CylinderMappingFailed` until safe param-space mapping is implemented.
 - [x] Add focused STEP fixture coverage for planar-hole success and deterministic ambiguity/containment/unsupported failures.
 - [x] Preserve import determinism/no-throw behavior and avoid changes to exporter formatting or canonical hash semantics.
+
+## M36 — v0 Confidence Gate: Manifest-Driven Corpus + Published Support Matrix
+
+- [x] Add manifest-driven STEP242 corpus gate at `testdata/step242/manifests/v0.corpus.json` with explicit `passRequired`, `expectedFail`, and `deferred` groups.
+- [x] Refactor shared audit/gate execution into a reusable manifest runner with deterministic LF-normalized report output and two-run byte-stability checks.
+- [x] Add tiny generated v0-required fixtures under `testdata/step242/generated/v0-required/` for baseline planar, cylinder, cone, sphere (tracked/deferred), and planar-hole cases.
+- [x] Add expected-fail fixtures that lock deterministic first diagnostics for single-solid violations, unsupported entity family, curved-surface hole policy, and parser robustness.
+- [x] Publish v0 support/limitation documentation and workflow docs (`docs/support-matrix-step242-v0.md`, `docs/v0-workflow.md`).
+- [x] Keep scope bounded to harness/corpus/docs (no geometry feature expansion).

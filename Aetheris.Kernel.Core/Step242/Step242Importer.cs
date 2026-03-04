@@ -98,13 +98,27 @@ public static class Step242Importer
             }
 
             var faceEntity = faceEntityResult.Value;
+            var surfaceRefResult = Step242SubsetDecoder.ReadReference(faceEntity, 1, "ADVANCED_FACE surface");
+            if (!surfaceRefResult.IsSuccess)
+            {
+                return KernelResult<BrepBody>.Failure(surfaceRefResult.Diagnostics);
+            }
+
+            var surfaceEntityResult = document.TryGetEntity(surfaceRefResult.Value.TargetId);
+            if (!surfaceEntityResult.IsSuccess)
+            {
+                return KernelResult<BrepBody>.Failure(surfaceEntityResult.Diagnostics);
+            }
+
+            var isSphericalFace = string.Equals(surfaceEntityResult.Value.Name, "SPHERICAL_SURFACE", StringComparison.OrdinalIgnoreCase);
+
             var boundRefsResult = Step242SubsetDecoder.ReadReferenceList(faceEntity, 0, "ADVANCED_FACE bounds");
             if (!boundRefsResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(boundRefsResult.Diagnostics);
             }
 
-            if (boundRefsResult.Value.Count == 0)
+            if (boundRefsResult.Value.Count == 0 && !isSphericalFace)
             {
                 return Failure("ADVANCED_FACE without bounds is unsupported in M23 subset.", $"Entity:{faceEntity.Id}");
             }
@@ -234,45 +248,21 @@ public static class Step242Importer
             var faceId = builder.AddFace(loopIds);
             faceIds.Add(faceId);
 
-            var planeRefResult = Step242SubsetDecoder.ReadReference(faceEntity, 1, "ADVANCED_FACE surface");
-            if (!planeRefResult.IsSuccess)
-            {
-                return KernelResult<BrepBody>.Failure(planeRefResult.Diagnostics);
-            }
-
-            var planeEntityResult = document.TryGetEntity(planeRefResult.Value.TargetId, "PLANE");
-            if (!planeEntityResult.IsSuccess)
-            {
-                return KernelResult<BrepBody>.Failure(planeEntityResult.Diagnostics);
-            }
-
-            var planeResult = Step242SubsetDecoder.ReadPlaneSurface(document, planeEntityResult.Value);
-            if (!planeResult.IsSuccess)
-            {
-                return KernelResult<BrepBody>.Failure(planeResult.Diagnostics);
-            }
-
             var faceSameSenseResult = Step242SubsetDecoder.ReadBoolean(faceEntity, 2, "ADVANCED_FACE same_sense");
             if (!faceSameSenseResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(faceSameSenseResult.Diagnostics);
             }
 
-            var faceSurface = planeResult.Value;
-            if (!faceSameSenseResult.Value)
+            var bindSurfaceResult = DecodeSurfaceGeometry(document, surfaceEntityResult.Value, faceSameSenseResult.Value, nextSurfaceGeometryId);
+            if (!bindSurfaceResult.IsSuccess)
             {
-                if (!Direction3D.TryCreate(-faceSurface.Normal.ToVector(), out var reversedNormal))
-                {
-                    return OrientationFailure<BrepBody>(
-                        "ADVANCED_FACE same_sense not supported for this face",
-                        SourceFor(faceEntity.Id, "Importer.Orientation.AdvancedFaceSense"));
-                }
-
-                faceSurface = new PlaneSurface(faceSurface.Origin, reversedNormal, faceSurface.UAxis);
+                return KernelResult<BrepBody>.Failure(bindSurfaceResult.Diagnostics);
             }
 
-            var surfaceGeometryId = new SurfaceGeometryId(nextSurfaceGeometryId++);
-            geometry.AddSurface(surfaceGeometryId, SurfaceGeometry.FromPlane(faceSurface));
+            var (surfaceGeometryId, surfaceGeometry) = bindSurfaceResult.Value;
+            nextSurfaceGeometryId++;
+            geometry.AddSurface(surfaceGeometryId, surfaceGeometry);
             bindings.AddFaceBinding(new FaceGeometryBinding(faceId, surfaceGeometryId));
         }
 
@@ -347,40 +337,31 @@ public static class Step242Importer
             return KernelResult<EdgeId>.Failure(endVertexResult.Diagnostics);
         }
 
-        var lineEntityResult = document.TryGetEntity(lineRefResult.Value.TargetId, "LINE");
-        if (!lineEntityResult.IsSuccess)
+        var curveEntityResult = document.TryGetEntity(lineRefResult.Value.TargetId);
+        if (!curveEntityResult.IsSuccess)
         {
-            return KernelResult<EdgeId>.Failure(lineEntityResult.Diagnostics);
-        }
-
-        var lineResult = Step242SubsetDecoder.ReadLineCurve(document, lineEntityResult.Value);
-        if (!lineResult.IsSuccess)
-        {
-            return KernelResult<EdgeId>.Failure(lineResult.Diagnostics);
+            return KernelResult<EdgeId>.Failure(curveEntityResult.Diagnostics);
         }
 
         var edgeId = builder.AddEdge(startVertexResult.Value.VertexId, endVertexResult.Value.VertexId);
         edgeMap.Add(edgeCurveEntity.Id, edgeId);
 
-        var startParameter = ComputeLineParameter(lineResult.Value, startVertexResult.Value.Point);
-        var endParameter = ComputeLineParameter(lineResult.Value, endVertexResult.Value.Point);
-
-        if (endParameter < startParameter)
-        {
-            if (!edgeSameSense)
-            {
-                return OrientationFailure<EdgeId>(
-                    "EDGE_CURVE same_sense semantics unsupported for this edge",
-                    SourceFor(edgeCurveEntity.Id, "Importer.Orientation.EdgeCurveSense"));
-            }
-
-            return FailureEdge("EDGE_CURVE line parameterization is opposite to vertex ordering.", SourceFor(edgeCurveEntity.Id, "Importer.Geometry.EdgeCurveParameters"));
-        }
-
         var curveGeometryId = new CurveGeometryId(nextCurveGeometryId++);
 
-        geometry.AddCurve(curveGeometryId, CurveGeometry.FromLine(lineResult.Value));
-        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, curveGeometryId, new ParameterInterval(startParameter, endParameter)));
+        var bindCurveResult = DecodeCurveGeometry(
+            document,
+            curveEntityResult.Value,
+            startVertexResult.Value.Point,
+            endVertexResult.Value.Point,
+            edgeSameSense,
+            edgeCurveEntity.Id);
+        if (!bindCurveResult.IsSuccess)
+        {
+            return KernelResult<EdgeId>.Failure(bindCurveResult.Diagnostics);
+        }
+
+        geometry.AddCurve(curveGeometryId, bindCurveResult.Value.CurveGeometry);
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, curveGeometryId, bindCurveResult.Value.TrimInterval));
 
         return KernelResult<EdgeId>.Success(edgeId);
     }
@@ -409,10 +390,191 @@ public static class Step242Importer
 
     private static bool IsClearlyUnsupportedEntity(Step242ParsedEntity entity)
     {
-        return string.Equals(entity.Name, "SPHERICAL_SURFACE", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(entity.Name, "CIRCLE", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(entity.Name, "CYLINDRICAL_SURFACE", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(entity.Name, "CONICAL_SURFACE", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(entity.Name, "TOROIDAL_SURFACE", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)> DecodeCurveGeometry(
+        Step242ParsedDocument document,
+        Step242ParsedEntity curveEntity,
+        Point3D startPoint,
+        Point3D endPoint,
+        bool edgeSameSense,
+        int edgeCurveEntityId)
+    {
+        if (string.Equals(curveEntity.Name, "LINE", StringComparison.OrdinalIgnoreCase))
+        {
+            var lineResult = Step242SubsetDecoder.ReadLineCurve(document, curveEntity);
+            if (!lineResult.IsSuccess)
+            {
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(lineResult.Diagnostics);
+            }
+
+            var startParameter = ComputeLineParameter(lineResult.Value, startPoint);
+            var endParameter = ComputeLineParameter(lineResult.Value, endPoint);
+
+            if (endParameter < startParameter)
+            {
+                if (!edgeSameSense)
+                {
+                    return OrientationFailure<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>(
+                        "EDGE_CURVE same_sense semantics unsupported for this edge",
+                        SourceFor(edgeCurveEntityId, "Importer.Orientation.EdgeCurveSense"));
+                }
+
+                return FailureCurveBinding("EDGE_CURVE line parameterization is opposite to vertex ordering.", SourceFor(edgeCurveEntityId, "Importer.Geometry.EdgeCurveParameters"));
+            }
+
+            return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
+                CurveGeometry.FromLine(lineResult.Value),
+                new ParameterInterval(startParameter, endParameter)));
+        }
+
+        if (string.Equals(curveEntity.Name, "CIRCLE", StringComparison.OrdinalIgnoreCase))
+        {
+            var circleResult = Step242SubsetDecoder.ReadCircleCurve(document, curveEntity);
+            if (!circleResult.IsSuccess)
+            {
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(circleResult.Diagnostics);
+            }
+
+            var trimResult = ComputeCircleTrim(circleResult.Value, startPoint, endPoint);
+            if (!trimResult.IsSuccess)
+            {
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
+            }
+
+            return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
+                CurveGeometry.FromCircle(circleResult.Value),
+                trimResult.Value));
+        }
+
+        return FailureCurveBinding($"EDGE_CURVE geometry '{curveEntity.Name}' is unsupported.", SourceFor(curveEntity.Id, "Importer.EntityFamily"));
+    }
+
+    private static KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)> DecodeSurfaceGeometry(
+        Step242ParsedDocument document,
+        Step242ParsedEntity surfaceEntity,
+        bool faceSameSense,
+        int nextSurfaceGeometryId)
+    {
+        var geometryId = new SurfaceGeometryId(nextSurfaceGeometryId);
+
+        if (string.Equals(surfaceEntity.Name, "PLANE", StringComparison.OrdinalIgnoreCase))
+        {
+            var planeResult = Step242SubsetDecoder.ReadPlaneSurface(document, surfaceEntity);
+            if (!planeResult.IsSuccess)
+            {
+                return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(planeResult.Diagnostics);
+            }
+
+            var faceSurface = planeResult.Value;
+            if (!faceSameSense)
+            {
+                if (!Direction3D.TryCreate(-faceSurface.Normal.ToVector(), out var reversedNormal))
+                {
+                    return OrientationFailure<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>(
+                        "ADVANCED_FACE same_sense not supported for this face",
+                        SourceFor(surfaceEntity.Id, "Importer.Orientation.AdvancedFaceSense"));
+                }
+
+                faceSurface = new PlaneSurface(faceSurface.Origin, reversedNormal, faceSurface.UAxis);
+            }
+
+            return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromPlane(faceSurface)));
+        }
+
+        if (string.Equals(surfaceEntity.Name, "CYLINDRICAL_SURFACE", StringComparison.OrdinalIgnoreCase))
+        {
+            var cylinderResult = Step242SubsetDecoder.ReadCylindricalSurface(document, surfaceEntity);
+            if (!cylinderResult.IsSuccess)
+            {
+                return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(cylinderResult.Diagnostics);
+            }
+
+            return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromCylinder(cylinderResult.Value)));
+        }
+
+        if (string.Equals(surfaceEntity.Name, "SPHERICAL_SURFACE", StringComparison.OrdinalIgnoreCase))
+        {
+            var sphereResult = Step242SubsetDecoder.ReadSphericalSurface(document, surfaceEntity);
+            if (!sphereResult.IsSuccess)
+            {
+                return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(sphereResult.Diagnostics);
+            }
+
+            return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromSphere(sphereResult.Value)));
+        }
+
+        if (string.Equals(surfaceEntity.Name, "CONICAL_SURFACE", StringComparison.OrdinalIgnoreCase))
+        {
+            var coneResult = Step242SubsetDecoder.ReadConicalSurface(document, surfaceEntity);
+            if (!coneResult.IsSuccess)
+            {
+                return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(coneResult.Diagnostics);
+            }
+
+            return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromCone(coneResult.Value)));
+        }
+
+        return FailureSurfaceBinding($"ADVANCED_FACE surface '{surfaceEntity.Name}' is unsupported.", SourceFor(surfaceEntity.Id, "Importer.EntityFamily"));
+    }
+
+    private static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint)
+    {
+        const double tolerance = 1e-6d;
+        if ((startPoint - endPoint).Length <= tolerance)
+        {
+            return KernelResult<ParameterInterval>.Success(new ParameterInterval(0d, 2d * double.Pi));
+        }
+
+        var startAngleResult = ProjectPointToCircleAngle(circle, startPoint, tolerance);
+        if (!startAngleResult.IsSuccess)
+        {
+            return KernelResult<ParameterInterval>.Failure(startAngleResult.Diagnostics);
+        }
+
+        var endAngleResult = ProjectPointToCircleAngle(circle, endPoint, tolerance);
+        if (!endAngleResult.IsSuccess)
+        {
+            return KernelResult<ParameterInterval>.Failure(endAngleResult.Diagnostics);
+        }
+
+        var start = startAngleResult.Value;
+        var end = endAngleResult.Value;
+        if (end < start)
+        {
+            end += 2d * double.Pi;
+        }
+
+        if (end <= start)
+        {
+            return FailureCircleTrim("Unable to compute circle trim interval with a positive span.", "Importer.Geometry.CircleTrim");
+        }
+
+        return KernelResult<ParameterInterval>.Success(new ParameterInterval(start, end));
+    }
+
+    private static KernelResult<double> ProjectPointToCircleAngle(Circle3Curve circle, Point3D point, double tolerance)
+    {
+        var radial = point - circle.Center;
+        var normalComponent = radial.Dot(circle.Normal.ToVector());
+        var inPlane = radial - (circle.Normal.ToVector() * normalComponent);
+        var inPlaneLength = inPlane.Length;
+
+        if (double.Abs(normalComponent) > tolerance || double.Abs(inPlaneLength - circle.Radius) > tolerance)
+        {
+            return FailureCircleTrimAngle("Unable to compute circle trim from supplied vertices.", "Importer.Geometry.CircleTrim");
+        }
+
+        var x = inPlane.Dot(circle.XAxis.ToVector());
+        var y = inPlane.Dot(circle.YAxis.ToVector());
+        var angle = double.Atan2(y, x);
+        if (angle < 0d)
+        {
+            angle += 2d * double.Pi;
+        }
+
+        return KernelResult<double>.Success(angle);
     }
 
     private static double ComputeLineParameter(Line3Curve line, Point3D point)
@@ -426,6 +588,18 @@ public static class Step242Importer
 
     private static KernelResult<EdgeId> FailureEdge(string message, string source) =>
         KernelResult<EdgeId>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+
+    private static KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)> FailureCurveBinding(string message, string source) =>
+        KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+
+    private static KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)> FailureSurfaceBinding(string message, string source) =>
+        KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+
+    private static KernelResult<ParameterInterval> FailureCircleTrim(string message, string source) =>
+        KernelResult<ParameterInterval>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
+
+    private static KernelResult<double> FailureCircleTrimAngle(string message, string source) =>
+        KernelResult<double>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
 
     private static KernelResult<T> OrientationFailure<T>(string message, string source) =>
         KernelResult<T>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);

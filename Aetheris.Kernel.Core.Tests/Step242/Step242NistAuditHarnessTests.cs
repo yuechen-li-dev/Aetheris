@@ -70,42 +70,42 @@ public sealed class Step242NistAuditHarnessTests
     private static Step242NistAuditEntry RunOne(string relativePath)
     {
         var fullPath = Path.Combine(RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var info = new FileInfo(fullPath);
         var text = File.ReadAllText(fullPath, Encoding.UTF8);
+        var canonicalSizeBytes = ComputeCanonicalSizeBytes(text);
 
         try
         {
             var import = Step242Importer.ImportBody(text);
             if (!import.IsSuccess)
             {
-                return BuildFailureEntry(relativePath, info.Length, import.Diagnostics, DetermineImportFailureLayer(import.Diagnostics));
+                return BuildFailureEntry(relativePath, canonicalSizeBytes, import.Diagnostics, DetermineImportFailureLayer(import.Diagnostics));
             }
 
             var body = import.Value;
             var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
             if (!validation.IsSuccess)
             {
-                return BuildFailureEntry(relativePath, info.Length, validation.Diagnostics, "validator", body);
+                return BuildFailureEntry(relativePath, canonicalSizeBytes, validation.Diagnostics, "validator", body);
             }
 
             var tessellation = BrepDisplayTessellator.Tessellate(body);
             if (!tessellation.IsSuccess)
             {
-                return BuildFailureEntry(relativePath, info.Length, tessellation.Diagnostics, "tessellator", body);
+                return BuildFailureEntry(relativePath, canonicalSizeBytes, tessellation.Diagnostics, "tessellator", body);
             }
 
             var smokeRay = new Ray3D(new Point3D(0.25d, 0.25d, 250d), Direction3D.Create(new Vector3D(0d, 0d, -1d)));
             var pick = BrepPicker.Pick(body, tessellation.Value, smokeRay, PickQueryOptions.Default with { NearestOnly = true });
             if (!pick.IsSuccess)
             {
-                return BuildFailureEntry(relativePath, info.Length, pick.Diagnostics, "picker", body, tessellation.Value);
+                return BuildFailureEntry(relativePath, canonicalSizeBytes, pick.Diagnostics, "picker", body, tessellation.Value);
             }
 
             if (pick.Value.Count == 0)
             {
                 return BuildFailureEntry(
                     relativePath,
-                    info.Length,
+                    canonicalSizeBytes,
                     [new KernelDiagnostic(KernelDiagnosticCode.InvalidArgument, KernelDiagnosticSeverity.Error, "Picker smoke ray produced no hit.", "Audit.Picker")],
                     "picker",
                     body,
@@ -115,13 +115,13 @@ public sealed class Step242NistAuditHarnessTests
             var export = Step242Exporter.ExportBody(body);
             if (!export.IsSuccess)
             {
-                return BuildFailureEntry(relativePath, info.Length, export.Diagnostics, "exporter", body, tessellation.Value);
+                return BuildFailureEntry(relativePath, canonicalSizeBytes, export.Diagnostics, "exporter", body, tessellation.Value);
             }
 
             return new Step242NistAuditEntry(
                 FileId(relativePath),
                 relativePath,
-                (int)info.Length,
+                canonicalSizeBytes,
                 "success",
                 FirstFailureLayer: "",
                 FirstDiagnostic(import.Diagnostics),
@@ -136,7 +136,7 @@ public sealed class Step242NistAuditHarnessTests
             return new Step242NistAuditEntry(
                 FileId(relativePath),
                 relativePath,
-                (int)info.Length,
+                canonicalSizeBytes,
                 Status: "importFail",
                 FirstFailureLayer: "importer-topology",
                 FirstDiagnostic: new Step242AuditDiagnostic("InvalidArgument", "Audit.Exception", Truncate(ex.Message)),
@@ -239,6 +239,12 @@ public sealed class Step242NistAuditHarnessTests
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
+    private static int ComputeCanonicalSizeBytes(string text)
+    {
+        var normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+        return Encoding.UTF8.GetByteCount(normalized);
+    }
+
     private static string FileId(string relativePath)
     {
         var stem = Path.GetFileNameWithoutExtension(relativePath);
@@ -269,11 +275,33 @@ public sealed class Step242NistAuditHarnessTests
         {
             if (expected[i] != actual[i])
             {
-                return $"First difference at byte {i}: expected '{expected[i]}', actual '{actual[i]}'.";
+                return $"First difference at byte {i}: expected '{EscapeChar(expected[i])}', actual '{EscapeChar(actual[i])}'. Expected window: '{EscapeWindow(expected, i)}'. Actual window: '{EscapeWindow(actual, i)}'.";
             }
         }
 
         return $"Length differs: expected {expected.Length}, actual {actual.Length}.";
+    }
+
+    private static string EscapeWindow(string value, int index)
+    {
+        const int radius = 16;
+        var start = System.Math.Max(0, index - radius);
+        var length = System.Math.Min(value.Length - start, (radius * 2) + 1);
+        return EscapeText(value.Substring(start, length));
+    }
+
+    private static string EscapeText(string text)
+    {
+        return text
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\r", "\\r", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal)
+            .Replace("\t", "\\t", StringComparison.Ordinal);
+    }
+
+    private static string EscapeChar(char value)
+    {
+        return EscapeText(value.ToString());
     }
 
     private sealed record Step242NistAuditEntry(

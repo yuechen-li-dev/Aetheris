@@ -3,6 +3,12 @@
 ###############################################################################
 * text=auto
 
+# Keep Step242 corpus/snapshots line endings canonical for stable byte-based audits.
+testdata/step242/** text eol=lf
+testdata/step242/**/*.stp text eol=lf
+testdata/step242/**/*.step text eol=lf
+testdata/step242/**/*.json text eol=lf
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

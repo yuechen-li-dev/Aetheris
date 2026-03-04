@@ -296,3 +296,11 @@
 - [x] Preserve deterministic no-throw diagnostics for parseable failures with stable source buckets (`Importer.Geometry.Circle*`, `Importer.Geometry.Cylinder`, `Importer.Geometry.Cone`, `Importer.Geometry.Sphere`).
 - [x] Add focused Tier1 importer tests covering import/validate/tessellate/pick smoke and deterministic circle-trim failure behavior.
 - [x] Keep out-of-scope geometry families deterministic expected-fail (for example `TOROIDAL_SURFACE`, NURBS/spline families).
+
+## M35 — Multi-Loop Hole Rules + Validation Hardening (Tier1 Bounded)
+
+- [x] Add deterministic multi-loop role classification for planar faces: unique outer selection by projected area magnitude, containment checks for inners, overlap rejection, and winding normalization.
+- [x] Reject unsafe multi-loop hole scenarios with stable `ValidationFailed` diagnostics under `Importer.LoopRole.*` without silent acceptance.
+- [x] Keep non-planar behavior deterministic: multi-loop conical/spherical faces fail with `Importer.LoopRole.UnsupportedSurfaceForHoles`; cylindrical multi-loop faces currently fail with `Importer.LoopRole.CylinderMappingFailed` until safe param-space mapping is implemented.
+- [x] Add focused STEP fixture coverage for planar-hole success and deterministic ambiguity/containment/unsupported failures.
+- [x] Preserve import determinism/no-throw behavior and avoid changes to exporter formatting or canonical hash semantics.

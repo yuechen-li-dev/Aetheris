@@ -67,3 +67,7 @@ testdata/step242/**/*.json text eol=lf
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+*.json text eol=lf
+*.stp  text eol=lf
+*.step text eol=lf

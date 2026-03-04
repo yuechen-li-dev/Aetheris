@@ -25,18 +25,18 @@ public sealed class Step242NistAuditHarnessTests
     [Fact]
     public void NistCorpus_AuditReport_IsByteStableAcrossConsecutiveRuns_AndMatchesSnapshot()
     {
-        var first = BuildAuditReportJson();
-        var second = BuildAuditReportJson();
+        var first = NormalizeLf(BuildAuditReportJson());
+        var second = NormalizeLf(BuildAuditReportJson());
 
         Assert.Equal(first, second);
 
         var snapshotPath = Path.Combine(RepoRoot(), "testdata", "step242", "manifests", "nist.v0.report.json");
-        var expected = File.ReadAllText(snapshotPath, Encoding.UTF8);
+        var expected = NormalizeLf(File.ReadAllText(snapshotPath, Encoding.UTF8));
         if (!string.Equals(expected, first, StringComparison.Ordinal))
         {
             if (string.Equals(Environment.GetEnvironmentVariable("AETHERIS_UPDATE_STEP242_SNAPSHOT"), "1", StringComparison.Ordinal))
             {
-                File.WriteAllText(snapshotPath, first, new UTF8Encoding(false));
+                File.WriteAllText(snapshotPath, NormalizeLf(first), new UTF8Encoding(false));
                 return;
             }
 
@@ -68,7 +68,12 @@ public sealed class Step242NistAuditHarnessTests
             Assert.Matches("^[0-9a-f]{64}$", entry.CanonicalSha256!);
         }
 
-        return JsonSerializer.Serialize(entries, JsonOptions) + "\n";
+        return NormalizeLf(JsonSerializer.Serialize(entries, JsonOptions)) + "\n";
+    }
+
+    private static string NormalizeLf(string s)
+    {
+        return s.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
     }
 
     private static Step242NistAuditEntry RunOne(string relativePath)

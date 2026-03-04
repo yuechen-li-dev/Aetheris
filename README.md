@@ -31,3 +31,32 @@ dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --no-bu
 ```
 
 Kernel implementation milestones begin after M00.
+
+## Debug quickstart
+
+### Visual Studio (canonical)
+
+1. Open `Aetheris.slnx`.
+2. Set `Aetheris.Server` as the startup project.
+3. Press `F5`.
+
+Visual Studio launches the ASP.NET host and the Vite dev server automatically via SpaProxy, then opens the app root page. API traffic remains under `/api` and proxies to the backend automatically in development.
+
+### CLI (works everywhere, including VS Code terminals)
+
+Run in two terminals:
+
+```bash
+# Terminal 1
+cd Aetheris.Server
+dotnet watch run
+```
+
+```bash
+# Terminal 2
+cd aetheris.client
+npm run dev
+```
+
+Backend defaults to `https://localhost:7145` and the client dev server is pinned to `https://localhost:5173`.
+

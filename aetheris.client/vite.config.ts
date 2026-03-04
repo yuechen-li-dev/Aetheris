@@ -60,7 +60,8 @@ export default defineConfig(({ command }) => ({
                 secure: false,
             },
         },
-        port: parseInt(env.DEV_SERVER_PORT || '63354'),
+        port: 5173,
+        strictPort: true,
         https: ensureCertificates(),
     } : undefined,
 }));

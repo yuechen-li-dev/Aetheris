@@ -184,6 +184,45 @@ public sealed class Step242ImporterTests
         Assert.StartsWith("Inline ADVANCED_FACE.surface constructor 'CYLINDRICAL_SURFACE' has unsupported argument shape.", diagnostic.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Step242_AdvancedFace_Surface_AllowsInlineConicalSurfaceConstructor()
+    {
+        var text = LoadFixture("testdata/step242/syntax-robustness/advanced-face-inline-cone-valid.step");
+
+        var parseResult = Step242SubsetParser.Parse(text);
+        Assert.True(parseResult.IsSuccess);
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.DoesNotContain(import.Diagnostics, d => d.Source is not null && d.Source.StartsWith("Parser", StringComparison.Ordinal));
+        Assert.DoesNotContain(import.Diagnostics, d => string.Equals(d.Source, "Importer.StepSyntax.InlineEntity", StringComparison.Ordinal));
+
+        if (!import.IsSuccess)
+        {
+            Assert.NotEmpty(import.Diagnostics);
+            return;
+        }
+
+        Assert.Contains(import.Value.Geometry.Surfaces, s => s.Value.Kind == SurfaceGeometryKind.Cone);
+    }
+
+    [Fact]
+    public void Step242_AdvancedFace_Surface_RejectsInlineConicalSurface_MalformedArgs()
+    {
+        var text = LoadFixture("testdata/step242/syntax-robustness/advanced-face-inline-cone-malformed.step");
+
+        var parseResult = Step242SubsetParser.Parse(text);
+        Assert.True(parseResult.IsSuccess);
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.False(import.IsSuccess);
+        var diagnostic = Assert.Single(import.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Importer.StepSyntax.InlineEntity", diagnostic.Source);
+        Assert.StartsWith("Inline ADVANCED_FACE.surface constructor 'CONICAL_SURFACE' has unsupported argument shape.", diagnostic.Message, StringComparison.Ordinal);
+    }
+
     private static string LoadFixture(string relativePath)
     {
         var path = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));

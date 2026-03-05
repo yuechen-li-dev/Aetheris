@@ -10,7 +10,7 @@ Aetheris STEP242 v0 is intentionally narrow and deterministic.
 - Exporter line-edge consistency: for exported `EDGE_CURVE` instances backed by `LINE`, both referenced vertex points are guaranteed to lie on the exported line geometry within export tolerance.
 - STEP Part 21 complex entity-instance assignments are accepted for parser/decoder context use (for example `#5=(GEOMETRIC_REPRESENTATION_CONTEXT(...)...REPRESENTATION_CONTEXT(...));`).
 - STEP Part 21 typed parameter values are supported in value position with deterministic normalization (`IDENT(...)` parsed as uppercase identifier + argument list), including common nested wrappers such as `LENGTH_MEASURE(...)` and `LENGTH_MEASURE_WITH_UNIT(LENGTH_MEASURE(...),#...)`.
-- `ADVANCED_FACE.surface` accepts either a `#entity` reference or a limited inline surface constructor (`PLANE(...)` and `CYLINDRICAL_SURFACE(...)` in M47b).
+- `ADVANCED_FACE.surface` accepts either a `#entity` reference or a limited inline surface constructor (`PLANE(...)`, `CYLINDRICAL_SURFACE(...)`, and `CONICAL_SURFACE(...)` in M47c).
 
 ## Supported entity families (Tier1)
 
@@ -33,7 +33,7 @@ Aetheris STEP242 v0 is intentionally narrow and deterministic.
 - Toroidal and other exotic analytic surface support.
 - Any modeling/editor feature expansion in the Viewer tab.
 - Typed wrapper decoding is intentionally limited in v0: primitive readers currently unwrap single-argument typed values; wrappers with unexpected arity fail deterministically via `Importer.StepSyntax.TypedValue`.
-- Inline surface constructors are intentionally limited in v0: `ADVANCED_FACE.surface = PLANE(...)` and `ADVANCED_FACE.surface = CYLINDRICAL_SURFACE(...)` are accepted in M47b; other inline surface constructors fail deterministically via `Importer.StepSyntax.InlineEntity`.
+- Inline surface constructors are intentionally limited in v0: `ADVANCED_FACE.surface = PLANE(...)`, `CYLINDRICAL_SURFACE(...)`, and `CONICAL_SURFACE(...)` are accepted in M47c; other inline surface constructors fail deterministically via `Importer.StepSyntax.InlineEntity`.
 
 ## Corpus and CI gate
 

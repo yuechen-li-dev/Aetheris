@@ -189,11 +189,10 @@ public sealed class Step242ExporterTests
         var dx = point.X - projectedX;
         var dy = point.Y - projectedY;
         var dz = point.Z - projectedZ;
-        var distanceToLine = Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
+        var distanceToLine = double.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
 
-        var inRange = t >= -tolerance && t <= length + tolerance;
         var onLine = distanceToLine <= tolerance;
-        return (onLine && inRange, t, distanceToLine);
+        return (onLine, t, distanceToLine);
     }
 
     private static int ReadReference(string rhs, int occurrence)
@@ -219,9 +218,18 @@ public sealed class Step242ExporterTests
 
     private static (double X, double Y, double Z) ReadTriplet(string rhs)
     {
-        var start = rhs.LastIndexOf('(');
-        var end = rhs.LastIndexOf(')');
-        var parts = rhs[(start + 1)..end].Split(',', StringSplitOptions.TrimEntries);
+        var start = rhs.IndexOf("((", StringComparison.Ordinal);
+        if (start >= 0)
+        {
+            start += 2;
+        }
+        else
+        {
+            start = rhs.LastIndexOf('(') + 1;
+        }
+
+        var end = rhs.IndexOf(')', start);
+        var parts = rhs[start..end].Split(',', StringSplitOptions.TrimEntries);
         return (
             double.Parse(parts[0], CultureInfo.InvariantCulture),
             double.Parse(parts[1], CultureInfo.InvariantCulture),

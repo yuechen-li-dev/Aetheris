@@ -73,12 +73,18 @@ public static class BrepDisplayTessellator
     private static KernelResult<DisplayFaceMeshPatch> TessellatePlanarFace(BrepBody body, FaceId faceId, PlaneSurface plane, DisplayTessellationOptions options)
     {
         var loopIds = body.GetLoopIds(faceId);
-        if (loopIds.Count != 1)
+        if (loopIds.Count == 0)
         {
-            return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar tessellation requires exactly one loop.")]);
+            return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar tessellation requires at least one loop.")]);
         }
 
-        var coedges = body.GetCoedgeIds(loopIds[0])
+        var selectedLoopId = SelectPlanarPrimaryLoop(body, faceId, plane, loopIds);
+        var ignoredLoopCount = System.Math.Max(0, loopIds.Count - 1);
+        var successDiagnostics = ignoredLoopCount > 0
+            ? new[] { CreateValidationWarning($"Face {faceId.Value} planar tessellation ignored {ignoredLoopCount} inner loop(s).", "Viewer.Tessellation.PlanarHolesIgnored") }
+            : Array.Empty<KernelDiagnostic>();
+
+        var coedges = body.GetCoedgeIds(selectedLoopId)
             .Select(id => body.Topology.GetCoedge(id))
             .ToArray();
 
@@ -103,16 +109,76 @@ public static class BrepDisplayTessellator
                 return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop triangulation requires a convex polygon.")]);
             }
 
-            return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, polygonPoints, plane.Normal.ToVector(), indices));
+            return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, polygonPoints, plane.Normal.ToVector(), indices), successDiagnostics);
         }
 
         if (coedges.Length == 1 && body.GetEdgeCurve(coedges[0].EdgeId).Kind == CurveGeometryKind.Circle3)
         {
             var circlePatch = TessellatePlanarCircleFace(body, faceId, coedges[0], plane, options);
-            return circlePatch;
+            return circlePatch.IsSuccess
+                ? KernelResult<DisplayFaceMeshPatch>.Success(circlePatch.Value, successDiagnostics.Concat(circlePatch.Diagnostics))
+                : circlePatch;
         }
 
         return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar tessellation supports only all-line loops or a single circle loop.")]);
+    }
+
+    private static LoopId SelectPlanarPrimaryLoop(BrepBody body, FaceId faceId, PlaneSurface plane, IReadOnlyList<LoopId> loopIds)
+    {
+        if (loopIds.Count <= 1)
+        {
+            return loopIds[0];
+        }
+
+        var bestLoop = loopIds[0];
+        var bestArea = double.NegativeInfinity;
+
+        foreach (var loopId in loopIds)
+        {
+            var coedges = body.GetCoedgeIds(loopId)
+                .Select(id => body.Topology.GetCoedge(id))
+                .ToArray();
+
+            if (!coedges.All(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Line3))
+            {
+                continue;
+            }
+
+            var pointsResult = BuildOrderedPlanarLoopPoints(body, coedges, faceId);
+            if (!pointsResult.IsSuccess)
+            {
+                continue;
+            }
+
+            var area = double.Abs(ComputeSignedPlanarArea(pointsResult.Value, plane));
+            if (area > bestArea)
+            {
+                bestArea = area;
+                bestLoop = loopId;
+            }
+        }
+
+        return bestLoop;
+    }
+
+    private static double ComputeSignedPlanarArea(IReadOnlyList<Point3D> polygonPoints, PlaneSurface plane)
+    {
+        var uAxis = plane.UAxis.ToVector();
+        var vAxis = plane.VAxis.ToVector();
+        var area = 0d;
+
+        for (var i = 0; i < polygonPoints.Count; i++)
+        {
+            var current = polygonPoints[i] - plane.Origin;
+            var next = polygonPoints[(i + 1) % polygonPoints.Count] - plane.Origin;
+            var currentU = current.Dot(uAxis);
+            var currentV = current.Dot(vAxis);
+            var nextU = next.Dot(uAxis);
+            var nextV = next.Dot(vAxis);
+            area += (currentU * nextV) - (nextU * currentV);
+        }
+
+        return area * 0.5d;
     }
 
     private static KernelResult<DisplayFaceMeshPatch> TessellatePlanarCircleFace(BrepBody body, FaceId faceId, Coedge coedge, PlaneSurface plane, DisplayTessellationOptions options)
@@ -675,4 +741,7 @@ public static class BrepDisplayTessellator
 
     private static KernelDiagnostic CreateNotImplemented(string message)
         => new(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message);
+
+    private static KernelDiagnostic CreateValidationWarning(string message, string source)
+        => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning, message, source);
 }

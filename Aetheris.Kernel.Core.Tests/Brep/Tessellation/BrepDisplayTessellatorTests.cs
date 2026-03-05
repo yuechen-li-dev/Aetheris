@@ -160,7 +160,7 @@ public sealed class BrepDisplayTessellatorTests
 
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics, d => d.Code == KernelDiagnosticCode.NotImplemented);
-        Assert.Equal("Face 1 planar tessellation requires exactly one loop.", diagnostic.Message);
+        Assert.Equal("Face 1 planar tessellation requires at least one loop.", diagnostic.Message);
     }
 
     [Fact]

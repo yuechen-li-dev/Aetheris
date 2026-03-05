@@ -10,6 +10,7 @@ Aetheris STEP242 v0 is intentionally narrow and deterministic.
 - Exporter line-edge consistency: for exported `EDGE_CURVE` instances backed by `LINE`, both referenced vertex points are guaranteed to lie on the exported line geometry within export tolerance.
 - STEP Part 21 complex entity-instance assignments are accepted for parser/decoder context use (for example `#5=(GEOMETRIC_REPRESENTATION_CONTEXT(...)...REPRESENTATION_CONTEXT(...));`).
 - STEP Part 21 typed parameter values are supported in value position with deterministic normalization (`IDENT(...)` parsed as uppercase identifier + argument list), including common nested wrappers such as `LENGTH_MEASURE(...)` and `LENGTH_MEASURE_WITH_UNIT(LENGTH_MEASURE(...),#...)`.
+- `ADVANCED_FACE.surface` accepts either a `#entity` reference or a limited inline surface constructor (`PLANE`, `CYLINDRICAL_SURFACE`, `CONICAL_SURFACE`, `SPHERICAL_SURFACE`) when geometry arguments are otherwise in subset.
 
 ## Supported entity families (Tier1)
 

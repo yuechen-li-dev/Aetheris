@@ -8,6 +8,28 @@ namespace Aetheris.Kernel.Core.Step242;
 
 internal static class Step242SubsetDecoder
 {
+    internal readonly record struct EntityReferenceOrInlineConstructor
+    {
+        private EntityReferenceOrInlineConstructor(int? referenceId, string? inlineName, IReadOnlyList<Step242Value>? inlineArguments)
+        {
+            ReferenceId = referenceId;
+            InlineName = inlineName;
+            InlineArguments = inlineArguments;
+        }
+
+        public int? ReferenceId { get; }
+
+        public string? InlineName { get; }
+
+        public IReadOnlyList<Step242Value>? InlineArguments { get; }
+
+        public bool IsReference => ReferenceId.HasValue;
+
+        public static EntityReferenceOrInlineConstructor FromReference(int targetId) => new(targetId, null, null);
+
+        public static EntityReferenceOrInlineConstructor FromInlineConstructor(string name, IReadOnlyList<Step242Value> arguments) => new(null, name, arguments);
+    }
+
     public static Step242EntityConstructor? TryGetConstructor(Step242EntityInstance entityValue, string name)
     {
         if (entityValue is Step242SimpleEntityInstance simple)
@@ -46,6 +68,29 @@ internal static class Step242SubsetDecoder
         }
 
         return KernelResult<Step242EntityReference>.Success(reference);
+    }
+
+    public static KernelResult<EntityReferenceOrInlineConstructor> ReadEntityRefOrInlineConstructor(Step242ParsedEntity entity, int argumentIndex, string context)
+    {
+        if (argumentIndex < 0 || argumentIndex >= entity.Arguments.Count)
+        {
+            return Failure<EntityReferenceOrInlineConstructor>($"{context}: missing argument at index {argumentIndex}.", $"Entity:{entity.Id}");
+        }
+
+        var value = entity.Arguments[argumentIndex];
+        if (value is Step242EntityReference reference)
+        {
+            return KernelResult<EntityReferenceOrInlineConstructor>.Success(EntityReferenceOrInlineConstructor.FromReference(reference.TargetId));
+        }
+
+        if (value is Step242TypedValue typed)
+        {
+            return KernelResult<EntityReferenceOrInlineConstructor>.Success(EntityReferenceOrInlineConstructor.FromInlineConstructor(typed.Name, typed.Arguments));
+        }
+
+        return Failure<EntityReferenceOrInlineConstructor>(
+            $"{context}: expected entity reference or inline entity constructor.",
+            "Importer.StepSyntax.InlineEntity");
     }
 
     public static KernelResult<IReadOnlyList<Step242EntityReference>> ReadReferenceList(Step242ParsedEntity entity, int argumentIndex, string context)

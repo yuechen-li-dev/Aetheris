@@ -7,7 +7,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Entity:764",
+      "source": "Importer.StepSyntax.InlineEntity",
       "messagePrefix": "ADVANCED_FACE surface"
     },
     "diagnosticCount": 1,
@@ -31,7 +31,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Entity:2513",
+      "source": "Importer.StepSyntax.InlineEntity",
       "messagePrefix": "ADVANCED_FACE surface"
     },
     "diagnosticCount": 1,
@@ -55,7 +55,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Entity:1331",
+      "source": "Importer.StepSyntax.InlineEntity",
       "messagePrefix": "ADVANCED_FACE surface"
     },
     "diagnosticCount": 1,
@@ -223,7 +223,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Entity:82",
+      "source": "Importer.StepSyntax.InlineEntity",
       "messagePrefix": "ADVANCED_FACE surface"
     },
     "diagnosticCount": 1,
@@ -367,7 +367,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Entity:1096",
+      "source": "Importer.StepSyntax.InlineEntity",
       "messagePrefix": "ADVANCED_FACE surface"
     },
     "diagnosticCount": 1,

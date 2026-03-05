@@ -584,9 +584,10 @@ public static class Step242Importer
             return FailureInlineSurface<Step242ParsedEntity>("ADVANCED_FACE surface: inline constructor arguments are required.", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
         }
 
-        if (!string.Equals(surfaceName, "PLANE", StringComparison.Ordinal))
+        if (!string.Equals(surfaceName, "PLANE", StringComparison.Ordinal)
+            && !string.Equals(surfaceName, "CYLINDRICAL_SURFACE", StringComparison.Ordinal))
         {
-            return FailureInlineSurface<Step242ParsedEntity>($"ADVANCED_FACE surface: inline constructor '{surfaceName}' is unsupported in M47a (only PLANE is allowed).", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
+            return FailureInlineSurface<Step242ParsedEntity>($"ADVANCED_FACE surface: inline constructor '{surfaceName}' is not supported in this subset.", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
         }
 
         var normalizedArgumentsResult = NormalizeInlineSurfaceArguments(surfaceName, inlineArguments, faceEntityId);
@@ -628,6 +629,35 @@ public static class Step242Importer
             }
 
             return FailureInlineSurface<IReadOnlyList<Step242Value>>("ADVANCED_FACE surface: inline PLANE constructor expects PLANE(#axis2_placement_3d).", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
+        }
+
+        if (string.Equals(surfaceName, "CYLINDRICAL_SURFACE", StringComparison.Ordinal))
+        {
+            if (inlineArguments.Count == 2)
+            {
+                if (inlineArguments[0] is not Step242EntityReference || inlineArguments[1] is not Step242NumberValue)
+                {
+                    return FailureInlineSurface<IReadOnlyList<Step242Value>>("Inline ADVANCED_FACE.surface constructor 'CYLINDRICAL_SURFACE' has unsupported argument shape.", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
+                }
+
+                return KernelResult<IReadOnlyList<Step242Value>>.Success([
+                    Step242OmittedValue.Instance,
+                    inlineArguments[0],
+                    inlineArguments[1]
+                ]);
+            }
+
+            if (inlineArguments.Count == 3)
+            {
+                if (inlineArguments[0] is not Step242OmittedValue || inlineArguments[1] is not Step242EntityReference || inlineArguments[2] is not Step242NumberValue)
+                {
+                    return FailureInlineSurface<IReadOnlyList<Step242Value>>("Inline ADVANCED_FACE.surface constructor 'CYLINDRICAL_SURFACE' has unsupported argument shape.", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
+                }
+
+                return KernelResult<IReadOnlyList<Step242Value>>.Success(inlineArguments);
+            }
+
+            return FailureInlineSurface<IReadOnlyList<Step242Value>>("Inline ADVANCED_FACE.surface constructor 'CYLINDRICAL_SURFACE' has unsupported argument shape.", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
         }
 
         return KernelResult<IReadOnlyList<Step242Value>>.Success(inlineArguments);

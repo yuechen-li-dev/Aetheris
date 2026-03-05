@@ -2,6 +2,7 @@ using System.Text;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
@@ -145,9 +146,31 @@ public sealed class Step242ImporterTests
     }
 
     [Fact]
-    public void Step242_AdvancedFace_Surface_RejectsInlineNonPlaneSurface()
+    public void Step242_AdvancedFace_Surface_AllowsInlineCylindricalSurfaceConstructor()
     {
-        var text = LoadFixture("testdata/step242/syntax-robustness/advanced-face-inline-non-plane.step");
+        var text = LoadFixture("testdata/step242/syntax-robustness/advanced-face-inline-cylinder.step");
+
+        var parseResult = Step242SubsetParser.Parse(text);
+        Assert.True(parseResult.IsSuccess);
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.DoesNotContain(import.Diagnostics, d => d.Source is not null && d.Source.StartsWith("Parser", StringComparison.Ordinal));
+        Assert.DoesNotContain(import.Diagnostics, d => string.Equals(d.Source, "Importer.StepSyntax.InlineEntity", StringComparison.Ordinal));
+
+        if (!import.IsSuccess)
+        {
+            Assert.NotEmpty(import.Diagnostics);
+            return;
+        }
+
+        Assert.Contains(import.Value.Geometry.Surfaces, s => s.Value.Kind == SurfaceGeometryKind.Cylinder);
+    }
+
+    [Fact]
+    public void Step242_AdvancedFace_Surface_RejectsInlineCylinderMalformedArgs()
+    {
+        var text = LoadFixture("testdata/step242/syntax-robustness/advanced-face-inline-cylinder-malformed.step");
 
         var parseResult = Step242SubsetParser.Parse(text);
         Assert.True(parseResult.IsSuccess);
@@ -158,7 +181,7 @@ public sealed class Step242ImporterTests
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("Importer.StepSyntax.InlineEntity", diagnostic.Source);
-        Assert.Equal("ADVANCED_FACE surface: inline constructor 'CYLINDRICAL_SURFACE' is unsupported in M47a (only PLANE is allowed).", diagnostic.Message);
+        Assert.StartsWith("Inline ADVANCED_FACE.surface constructor 'CYLINDRICAL_SURFACE' has unsupported argument shape.", diagnostic.Message, StringComparison.Ordinal);
     }
 
     private static string LoadFixture(string relativePath)

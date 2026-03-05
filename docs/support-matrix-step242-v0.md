@@ -7,6 +7,7 @@ Aetheris STEP242 v0 is intentionally narrow and deterministic.
 - Single solid only: exactly one `MANIFOLD_SOLID_BREP` root is required.
 - Backend-authoritative flow: import -> render -> canonical export (+ SHA256).
 - Deterministic diagnostics: stable `(code, source, messagePrefix)` for expected fail cases.
+- Exporter line-edge consistency: for exported `EDGE_CURVE` instances backed by `LINE`, both referenced vertex points are guaranteed to lie on the exported line geometry within export tolerance.
 - STEP Part 21 complex entity-instance assignments are accepted for parser/decoder context use (for example `#5=(GEOMETRIC_REPRESENTATION_CONTEXT(...)...REPRESENTATION_CONTEXT(...));`).
 - STEP Part 21 typed parameter values are supported in value position with deterministic normalization (`IDENT(...)` parsed as uppercase identifier + argument list), including common nested wrappers such as `LENGTH_MEASURE(...)` and `LENGTH_MEASURE_WITH_UNIT(LENGTH_MEASURE(...),#...)`.
 

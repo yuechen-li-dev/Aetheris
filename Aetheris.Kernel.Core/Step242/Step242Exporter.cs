@@ -33,6 +33,7 @@ public static class Step242Exporter
 
         var vertexPointIds = new Dictionary<VertexId, string>();
         var cartesianPointIds = new Dictionary<VertexId, string>();
+        var vertexPoints = new Dictionary<VertexId, Point3D>();
 
         var edgeCurveIds = new Dictionary<EdgeId, string>();
         var orientedEdgeIds = new Dictionary<CoedgeId, string>();
@@ -74,7 +75,7 @@ public static class Step242Exporter
 
                     if (!edgeCurveIds.TryGetValue(coedge.EdgeId, out var edgeCurveId))
                     {
-                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, cartesianPointIds, vertexPointIds, lineIds);
+                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds);
                         if (!edgeResult.IsSuccess)
                         {
                             return KernelResult<string>.Failure(edgeResult.Diagnostics);
@@ -145,6 +146,7 @@ public static class Step242Exporter
         TopologyModel model,
         Step242TextWriter writer,
         EdgeId edgeId,
+        IDictionary<VertexId, Point3D> vertexPoints,
         IDictionary<VertexId, string> cartesianPointIds,
         IDictionary<VertexId, string> vertexPointIds,
         IDictionary<EdgeId, string> lineIds)
@@ -171,17 +173,44 @@ public static class Step242Exporter
             return Failure("Line edge must provide trim interval for vertex mapping.", $"Edge:{edgeId.Value}");
         }
 
-        var line = curve.Line3.Value;
-        var startPoint = line.Evaluate(edgeBinding.TrimInterval.Value.Start);
-        var endPoint = line.Evaluate(edgeBinding.TrimInterval.Value.End);
+        var startPointResult = ResolveVertexPoint(body, model, edge.StartVertexId, vertexPoints);
+        if (!startPointResult.IsSuccess)
+        {
+            return KernelResult<string>.Failure(startPointResult.Diagnostics);
+        }
 
-        var startVertexId = EnsureVertex(writer, edge.StartVertexId, startPoint, cartesianPointIds, vertexPointIds);
-        var endVertexId = EnsureVertex(writer, edge.EndVertexId, endPoint, cartesianPointIds, vertexPointIds);
+        var endPointResult = ResolveVertexPoint(body, model, edge.EndVertexId, vertexPoints);
+        if (!endPointResult.IsSuccess)
+        {
+            return KernelResult<string>.Failure(endPointResult.Diagnostics);
+        }
+
+        var startPoint = startPointResult.Value;
+        var endPoint = endPointResult.Value;
+
+        var startVertexId = EnsureVertex(writer, edge.StartVertexId, startPoint, vertexPoints, cartesianPointIds, vertexPointIds);
+        var endVertexId = EnsureVertex(writer, edge.EndVertexId, endPoint, vertexPoints, cartesianPointIds, vertexPointIds);
 
         if (!lineIds.TryGetValue(edgeId, out var lineId))
         {
-            var originId = writer.AddEntity("CARTESIAN_POINT", "$", PointList(line.Origin));
-            var direction = line.Direction.ToVector();
+            var edgeVector = endPoint - startPoint;
+            if (edgeVector.LengthSquared <= 1e-24d || !edgeVector.TryNormalize(out var endpointDirection))
+            {
+                return Failure("Edge endpoints resolve to a degenerate line direction.", $"Edge:{edgeId.Value}");
+            }
+
+            var direction = endpointDirection;
+            var curveDirection = curve.Line3.Value.Direction.ToVector();
+            if (curveDirection.TryNormalize(out var normalizedCurveDirection))
+            {
+                var alignment = double.Abs(normalizedCurveDirection.Dot(endpointDirection));
+                if (alignment >= 0.999999999999d)
+                {
+                    direction = normalizedCurveDirection;
+                }
+            }
+
+            var originId = writer.AddEntity("CARTESIAN_POINT", "$", PointList(startPoint));
             var directionId = writer.AddEntity("DIRECTION", "$", Step242TextWriter.List(Step242TextWriter.Number(direction.X), Step242TextWriter.Number(direction.Y), Step242TextWriter.Number(direction.Z)));
             var vectorId = writer.AddEntity("VECTOR", "$", Step242TextWriter.Ref(directionId), Step242TextWriter.Number(1d));
             lineId = writer.AddEntity("LINE", "$", Step242TextWriter.Ref(originId), Step242TextWriter.Ref(vectorId));
@@ -196,9 +225,26 @@ public static class Step242Exporter
         Step242TextWriter writer,
         VertexId vertexId,
         Point3D point,
+        IDictionary<VertexId, Point3D> vertexPoints,
         IDictionary<VertexId, string> cartesianPointIds,
         IDictionary<VertexId, string> vertexPointIds)
     {
+        const double tolerance = 1e-9;
+        if (vertexPoints.TryGetValue(vertexId, out var existingPoint))
+        {
+            var delta = existingPoint - point;
+            if (delta.LengthSquared > tolerance * tolerance)
+            {
+#if DEBUG
+                throw new InvalidOperationException($"Vertex {vertexId.Value} point inconsistency detected during STEP export.");
+#endif
+            }
+        }
+        else
+        {
+            vertexPoints[vertexId] = point;
+        }
+
         if (!cartesianPointIds.TryGetValue(vertexId, out var pointId))
         {
             pointId = writer.AddEntity("CARTESIAN_POINT", "$", PointList(point));
@@ -214,6 +260,147 @@ public static class Step242Exporter
         return vertexPointId;
     }
 
+    private static KernelResult<Point3D> ResolveVertexPoint(
+        BrepBody body,
+        TopologyModel model,
+        VertexId vertexId,
+        IDictionary<VertexId, Point3D> vertexPoints)
+    {
+        if (vertexPoints.TryGetValue(vertexId, out var resolved))
+        {
+            return KernelResult<Point3D>.Success(resolved);
+        }
+
+        var fromPlanes = ResolveVertexFromIncidentPlanes(body, model, vertexId);
+        if (fromPlanes.IsSuccess)
+        {
+            vertexPoints[vertexId] = fromPlanes.Value;
+            return fromPlanes;
+        }
+
+        foreach (var edge in model.Edges.OrderBy(e => e.Id.Value))
+        {
+            var useStart = false;
+            if (edge.StartVertexId == vertexId)
+            {
+                useStart = true;
+            }
+            else if (edge.EndVertexId != vertexId)
+            {
+                continue;
+            }
+
+            var pointResult = EvaluateEdgeEndpoint(body, edge.Id, useStart);
+            if (!pointResult.IsSuccess)
+            {
+                continue;
+            }
+
+            vertexPoints[vertexId] = pointResult.Value;
+            return KernelResult<Point3D>.Success(pointResult.Value);
+        }
+
+        return FailurePoint($"Vertex {vertexId.Value} cannot be resolved to a geometric point for STEP export.", $"Vertex:{vertexId.Value}");
+    }
+
+    private static KernelResult<Point3D> ResolveVertexFromIncidentPlanes(BrepBody body, TopologyModel model, VertexId vertexId)
+    {
+        var planes = new List<PlaneSurface>();
+        foreach (var face in model.Faces.OrderBy(f => f.Id.Value))
+        {
+            var touchesVertex = false;
+            foreach (var loopId in face.LoopIds)
+            {
+                var loop = model.GetLoop(loopId);
+                foreach (var coedgeId in loop.CoedgeIds)
+                {
+                    var coedge = model.GetCoedge(coedgeId);
+                    var edge = model.GetEdge(coedge.EdgeId);
+                    if (edge.StartVertexId == vertexId || edge.EndVertexId == vertexId)
+                    {
+                        touchesVertex = true;
+                        break;
+                    }
+                }
+
+                if (touchesVertex)
+                {
+                    break;
+                }
+            }
+
+            if (!touchesVertex || !body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding))
+            {
+                continue;
+            }
+
+            if (!body.Geometry.TryGetSurface(faceBinding.SurfaceGeometryId, out var surface) || surface?.Plane is null)
+            {
+                continue;
+            }
+
+            planes.Add(surface.Plane.Value);
+        }
+
+        for (var i = 0; i < planes.Count; i++)
+        {
+            for (var j = i + 1; j < planes.Count; j++)
+            {
+                for (var k = j + 1; k < planes.Count; k++)
+                {
+                    if (TryIntersectPlanes(planes[i], planes[j], planes[k], out var intersection))
+                    {
+                        return KernelResult<Point3D>.Success(intersection);
+                    }
+                }
+            }
+        }
+
+        return FailurePoint($"Vertex {vertexId.Value} cannot be resolved from incident face planes.", $"Vertex:{vertexId.Value}");
+    }
+
+    private static bool TryIntersectPlanes(PlaneSurface a, PlaneSurface b, PlaneSurface c, out Point3D point)
+    {
+        var n1 = a.Normal.ToVector();
+        var n2 = b.Normal.ToVector();
+        var n3 = c.Normal.ToVector();
+        var denominator = n1.Dot(n2.Cross(n3));
+        if (double.Abs(denominator) <= 1e-12d)
+        {
+            point = Point3D.Origin;
+            return false;
+        }
+
+        var d1 = n1.Dot(new Vector3D(a.Origin.X, a.Origin.Y, a.Origin.Z));
+        var d2 = n2.Dot(new Vector3D(b.Origin.X, b.Origin.Y, b.Origin.Z));
+        var d3 = n3.Dot(new Vector3D(c.Origin.X, c.Origin.Y, c.Origin.Z));
+
+        var numerator = (n2.Cross(n3) * d1) + (n3.Cross(n1) * d2) + (n1.Cross(n2) * d3);
+        point = new Point3D(numerator.X / denominator, numerator.Y / denominator, numerator.Z / denominator);
+        return double.IsFinite(point.X) && double.IsFinite(point.Y) && double.IsFinite(point.Z);
+    }
+
+    private static KernelResult<Point3D> EvaluateEdgeEndpoint(BrepBody body, EdgeId edgeId, bool useStart)
+    {
+        if (!body.Bindings.TryGetEdgeBinding(edgeId, out var edgeBinding))
+        {
+            return FailurePoint("Edge is missing curve binding.", $"Edge:{edgeId.Value}");
+        }
+
+        if (edgeBinding.TrimInterval is null)
+        {
+            return FailurePoint("Line edge must provide trim interval for vertex mapping.", $"Edge:{edgeId.Value}");
+        }
+
+        if (!body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve) || curve is null || curve.Kind != CurveGeometryKind.Line3 || curve.Line3 is null)
+        {
+            return FailurePoint("Line edge geometry was not found.", $"Curve:{edgeBinding.CurveGeometryId.Value}");
+        }
+
+        var parameter = useStart ? edgeBinding.TrimInterval.Value.Start : edgeBinding.TrimInterval.Value.End;
+        return KernelResult<Point3D>.Success(curve.Line3.Value.Evaluate(parameter));
+    }
+
     private static string PointList(Point3D point) => Step242TextWriter.List(
         Step242TextWriter.Number(point.X),
         Step242TextWriter.Number(point.Y),
@@ -221,6 +408,15 @@ public static class Step242Exporter
 
     private static KernelResult<string> Failure(string message, string source) =>
         KernelResult<string>.Failure([
+            new KernelDiagnostic(
+                KernelDiagnosticCode.NotImplemented,
+                KernelDiagnosticSeverity.Error,
+                message,
+                source)
+        ]);
+
+    private static KernelResult<Point3D> FailurePoint(string message, string source) =>
+        KernelResult<Point3D>.Failure([
             new KernelDiagnostic(
                 KernelDiagnosticCode.NotImplemented,
                 KernelDiagnosticSeverity.Error,

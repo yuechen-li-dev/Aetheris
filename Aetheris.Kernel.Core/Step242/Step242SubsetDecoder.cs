@@ -515,7 +515,13 @@ internal static class Step242SubsetDecoder
 
     private static KernelResult<double> ReadNumber(Step242Value value, string context, int entityId)
     {
-        if (value is not Step242NumberValue number)
+        var unwrappedValueResult = UnwrapTypedValue(value, context, "Importer.StepSyntax.TypedValue");
+        if (!unwrappedValueResult.IsSuccess)
+        {
+            return KernelResult<double>.Failure(unwrappedValueResult.Diagnostics);
+        }
+
+        if (unwrappedValueResult.Value is not Step242NumberValue number)
         {
             return FailureNumber($"{context}: expected numeric value.", $"Entity:{entityId}");
         }
@@ -530,7 +536,13 @@ internal static class Step242SubsetDecoder
 
     private static KernelResult<double> ReadNumberCode(Step242Value value, string context, string source)
     {
-        if (value is not Step242NumberValue number)
+        var unwrappedValueResult = UnwrapTypedValue(value, context, "Importer.StepSyntax.TypedValue");
+        if (!unwrappedValueResult.IsSuccess)
+        {
+            return KernelResult<double>.Failure(unwrappedValueResult.Diagnostics);
+        }
+
+        if (unwrappedValueResult.Value is not Step242NumberValue number)
         {
             return Failure<double>(KernelDiagnosticCode.InvalidArgument, $"{context}: expected numeric value.", source);
         }
@@ -541,6 +553,24 @@ internal static class Step242SubsetDecoder
         }
 
         return KernelResult<double>.Success(number.Value);
+    }
+
+    private static KernelResult<Step242Value> UnwrapTypedValue(Step242Value value, string context, string source)
+    {
+        if (value is not Step242TypedValue typed)
+        {
+            return KernelResult<Step242Value>.Success(value);
+        }
+
+        if (typed.Arguments.Count != 1)
+        {
+            return Failure<Step242Value>(
+                KernelDiagnosticCode.ValidationFailed,
+                $"{context}: typed value '{typed.Name}' requires exactly one argument.",
+                source);
+        }
+
+        return UnwrapTypedValue(typed.Arguments[0], context, source);
     }
 
     private static KernelResult<Step242EntityReference> FailureRef(string message, string source) => Failure<Step242EntityReference>(message, source);

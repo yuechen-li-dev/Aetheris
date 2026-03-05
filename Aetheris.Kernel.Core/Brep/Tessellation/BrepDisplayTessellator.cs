@@ -11,6 +11,8 @@ namespace Aetheris.Kernel.Core.Brep.Tessellation;
 public static class BrepDisplayTessellator
 {
     private const double LoopEndpointTolerance = 1e-6d;
+    private const string PlanarCurveFlatteningUnsupportedSource = "Viewer.Tessellation.PlanarCurveFlatteningUnsupported";
+    private const string PlanarCurveFlatteningFailedSource = "Viewer.Tessellation.PlanarCurveFlatteningFailed";
 
     public static KernelResult<DisplayTessellationResult> Tessellate(BrepBody body, DisplayTessellationOptions? options = null)
     {
@@ -88,46 +90,33 @@ public static class BrepDisplayTessellator
             .Select(id => body.Topology.GetCoedge(id))
             .ToArray();
 
-        if (coedges.All(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Line3))
+        var polygonPointsResult = BuildFlattenedPlanarLoopPoints(body, coedges, faceId, plane, options);
+        if (!polygonPointsResult.IsSuccess)
         {
-            var polygonPointsResult = BuildOrderedPlanarLoopPoints(body, coedges, faceId);
-            if (!polygonPointsResult.IsSuccess)
-            {
-                return KernelResult<DisplayFaceMeshPatch>.Failure(polygonPointsResult.Diagnostics);
-            }
-
-            var polygonPoints = polygonPointsResult.Value;
-
-            if (polygonPoints.Count < 3)
-            {
-                return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop must contain at least three line coedges.")]);
-            }
-
-            if (!PlanarPolygonTriangulator.TryTriangulate(polygonPoints, plane.Normal.ToVector(), out var indices, out var failure))
-            {
-                return failure switch
-                {
-                    PlanarPolygonTriangulationFailure.Degenerate => KernelResult<DisplayFaceMeshPatch>.Failure([
-                        CreateInvalidArgument($"Face {faceId.Value} planar loop is degenerate and cannot be triangulated.", "Viewer.Tessellation.PlanarPolygonDegenerate")]),
-                    PlanarPolygonTriangulationFailure.NonSimple => KernelResult<DisplayFaceMeshPatch>.Failure([
-                        CreateNotImplemented($"Face {faceId.Value} planar loop triangulation failed because the polygon is not simple.", "Viewer.Tessellation.PlanarNonConvexTriangulationFailed")]),
-                    _ => KernelResult<DisplayFaceMeshPatch>.Failure([
-                        CreateNotImplemented($"Face {faceId.Value} planar loop triangulation failed.", "Viewer.Tessellation.PlanarNonConvexTriangulationFailed")]),
-                };
-            }
-
-            return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, polygonPoints, plane.Normal.ToVector(), indices), successDiagnostics);
+            return KernelResult<DisplayFaceMeshPatch>.Failure(polygonPointsResult.Diagnostics);
         }
 
-        if (coedges.Length == 1 && body.GetEdgeCurve(coedges[0].EdgeId).Kind == CurveGeometryKind.Circle3)
+        var polygonPoints = polygonPointsResult.Value;
+
+        if (polygonPoints.Count < 3)
         {
-            var circlePatch = TessellatePlanarCircleFace(body, faceId, coedges[0], plane, options);
-            return circlePatch.IsSuccess
-                ? KernelResult<DisplayFaceMeshPatch>.Success(circlePatch.Value, successDiagnostics.Concat(circlePatch.Diagnostics))
-                : circlePatch;
+            return KernelResult<DisplayFaceMeshPatch>.Failure([CreateInvalidArgument($"Face {faceId.Value} planar loop flattening produced fewer than three unique points.", PlanarCurveFlatteningFailedSource)]);
         }
 
-        return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar tessellation supports only all-line loops or a single circle loop.")]);
+        if (!PlanarPolygonTriangulator.TryTriangulate(polygonPoints, plane.Normal.ToVector(), out var indices, out var failure))
+        {
+            return failure switch
+            {
+                PlanarPolygonTriangulationFailure.Degenerate => KernelResult<DisplayFaceMeshPatch>.Failure([
+                    CreateInvalidArgument($"Face {faceId.Value} planar loop is degenerate and cannot be triangulated.", "Viewer.Tessellation.PlanarPolygonDegenerate")]),
+                PlanarPolygonTriangulationFailure.NonSimple => KernelResult<DisplayFaceMeshPatch>.Failure([
+                    CreateNotImplemented($"Face {faceId.Value} planar loop triangulation failed because the polygon is not simple.", "Viewer.Tessellation.PlanarNonConvexTriangulationFailed")]),
+                _ => KernelResult<DisplayFaceMeshPatch>.Failure([
+                    CreateNotImplemented($"Face {faceId.Value} planar loop triangulation failed.", "Viewer.Tessellation.PlanarNonConvexTriangulationFailed")]),
+            };
+        }
+
+        return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, polygonPoints, plane.Normal.ToVector(), indices), successDiagnostics);
     }
 
     private static LoopId SelectPlanarPrimaryLoop(BrepBody body, FaceId faceId, PlaneSurface plane, IReadOnlyList<LoopId> loopIds)
@@ -146,12 +135,7 @@ public static class BrepDisplayTessellator
                 .Select(id => body.Topology.GetCoedge(id))
                 .ToArray();
 
-            if (!coedges.All(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Line3))
-            {
-                continue;
-            }
-
-            var pointsResult = BuildOrderedPlanarLoopPoints(body, coedges, faceId);
+            var pointsResult = BuildFlattenedPlanarLoopPoints(body, coedges, faceId, plane, DisplayTessellationOptions.Default);
             if (!pointsResult.IsSuccess)
             {
                 continue;
@@ -417,7 +401,12 @@ public static class BrepDisplayTessellator
         return new DisplayFaceMeshPatch(faceId, polygonPoints.ToArray(), normals, triangleIndices.ToArray());
     }
 
-    private static KernelResult<IReadOnlyList<Point3D>> BuildOrderedPlanarLoopPoints(BrepBody body, IReadOnlyList<Coedge> coedges, FaceId faceId)
+    private static KernelResult<IReadOnlyList<Point3D>> BuildFlattenedPlanarLoopPoints(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        FaceId faceId,
+        PlaneSurface plane,
+        DisplayTessellationOptions options)
     {
         var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
         if (!vertexPointsResult.IsSuccess)
@@ -438,38 +427,159 @@ public static class BrepDisplayTessellator
             orientedEndpoints.Add(endpoints.Value);
         }
 
-        var orderedVertices = new List<Point3D>(coedges.Count);
+        var orderedIndices = new List<int>(coedges.Count) { 0 };
         var used = new bool[coedges.Count];
-        var currentIndex = 0;
-        used[currentIndex] = true;
-
-        var currentEdge = orientedEndpoints[currentIndex];
-        orderedVertices.Add(currentEdge.Start);
-        var currentEnd = currentEdge.End;
+        used[0] = true;
+        var currentEnd = orientedEndpoints[0].End;
 
         for (var step = 1; step < coedges.Count; step++)
         {
-            var nextIndex = FindNextCoedgeIndex(orientedEndpoints, used, currentEnd, out var nextStart, out var nextEnd);
+            var nextIndex = FindNextCoedgeIndex(orientedEndpoints, used, currentEnd, out _, out var nextEnd);
             if (nextIndex < 0)
             {
-                return KernelResult<IReadOnlyList<Point3D>>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop line coedges do not form a contiguous chain.")]);
+                return KernelResult<IReadOnlyList<Point3D>>.Failure([CreateInvalidArgument($"Face {faceId.Value} planar loop coedges do not form a contiguous chain.", PlanarCurveFlatteningFailedSource)]);
             }
 
             used[nextIndex] = true;
-            if (!PointsAlmostEqual(orderedVertices[^1], nextStart))
-            {
-                orderedVertices.Add(nextStart);
-            }
-
+            orderedIndices.Add(nextIndex);
             currentEnd = nextEnd;
         }
 
-        if (PointsAlmostEqual(orderedVertices[0], currentEnd))
+        if (!PointsAlmostEqual(orientedEndpoints[orderedIndices[0]].Start, currentEnd))
         {
-            return KernelResult<IReadOnlyList<Point3D>>.Success(orderedVertices);
+            return KernelResult<IReadOnlyList<Point3D>>.Failure([CreateInvalidArgument($"Face {faceId.Value} planar loop coedges did not close after chaining.", PlanarCurveFlatteningFailedSource)]);
         }
 
-        return KernelResult<IReadOnlyList<Point3D>>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop line coedges did not close after chaining.")]);
+        var flattened = new List<Point3D>();
+        AppendUniquePoint(flattened, orientedEndpoints[orderedIndices[0]].Start);
+
+        foreach (var index in orderedIndices)
+        {
+            var coedge = coedges[index];
+            var (segmentStart, segmentEnd) = orientedEndpoints[index];
+            var curve = body.GetEdgeCurve(coedge.EdgeId);
+
+            switch (curve.Kind)
+            {
+                case CurveGeometryKind.Line3:
+                    AppendUniquePoint(flattened, segmentEnd);
+                    break;
+                case CurveGeometryKind.Circle3:
+                    var arcPointsResult = SampleCircleArc(body, coedge, curve.Circle3!.Value, segmentStart, segmentEnd, plane, faceId, options);
+                    if (!arcPointsResult.IsSuccess)
+                    {
+                        return KernelResult<IReadOnlyList<Point3D>>.Failure(arcPointsResult.Diagnostics);
+                    }
+
+                    foreach (var point in arcPointsResult.Value)
+                    {
+                        AppendUniquePoint(flattened, point);
+                    }
+
+                    break;
+                default:
+                    var curveKind = curve.UnsupportedKind ?? curve.Kind.ToString();
+                    return KernelResult<IReadOnlyList<Point3D>>.Failure([
+                        CreateNotImplemented($"Face {faceId.Value} planar curve flattening does not support curve kind '{curveKind}'.", PlanarCurveFlatteningUnsupportedSource)]);
+            }
+        }
+
+        if (flattened.Count > 1 && PointsAlmostEqual(flattened[0], flattened[^1]))
+        {
+            flattened.RemoveAt(flattened.Count - 1);
+        }
+
+        return KernelResult<IReadOnlyList<Point3D>>.Success(flattened);
+    }
+
+    private static KernelResult<IReadOnlyList<Point3D>> SampleCircleArc(
+        BrepBody body,
+        Coedge coedge,
+        Circle3Curve circle,
+        Point3D start,
+        Point3D end,
+        PlaneSurface plane,
+        FaceId faceId,
+        DisplayTessellationOptions options)
+    {
+        var deltaResult = ResolveArcDelta(body, coedge, circle, start, end, plane, faceId);
+        if (!deltaResult.IsSuccess)
+        {
+            return KernelResult<IReadOnlyList<Point3D>>.Failure(deltaResult.Diagnostics);
+        }
+
+        var (startAngle, delta) = deltaResult.Value;
+        var segmentCount = System.Math.Clamp(System.Math.Max(8, (int)double.Ceiling(double.Abs(delta) / (10d * (double.Pi / 180d)))), 8, System.Math.Min(256, options.MaximumSegments));
+        var points = new List<Point3D>(segmentCount);
+        for (var i = 1; i <= segmentCount; i++)
+        {
+            var t = (double)i / segmentCount;
+            points.Add(circle.Evaluate(startAngle + (delta * t)));
+        }
+
+        return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+    }
+
+    private static KernelResult<(double StartAngle, double Delta)> ResolveArcDelta(
+        BrepBody body,
+        Coedge coedge,
+        Circle3Curve circle,
+        Point3D start,
+        Point3D end,
+        PlaneSurface plane,
+        FaceId faceId)
+    {
+        var startAngle = AngleOnCircle(circle, start);
+        var endAngle = AngleOnCircle(circle, end);
+
+        if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding) && binding.TrimInterval is ParameterInterval trim)
+        {
+            var trimStart = coedge.IsReversed ? trim.End : trim.Start;
+            var trimEnd = coedge.IsReversed ? trim.Start : trim.End;
+            var trimDelta = trimEnd - trimStart;
+            if (double.IsFinite(trimDelta) && double.Abs(trimDelta) > 1e-9d)
+            {
+                return KernelResult<(double, double)>.Success((trimStart, trimDelta));
+            }
+        }
+
+        var delta = NormalizeToSignedPi(endAngle - startAngle);
+        if (double.Abs(delta) < 1e-9d)
+        {
+            return KernelResult<(double, double)>.Failure([
+                CreateInvalidArgument($"Face {faceId.Value} planar arc flattening detected a degenerate circle arc.", PlanarCurveFlatteningFailedSource)]);
+        }
+
+        var orientation = circle.Normal.ToVector().Dot(plane.Normal.ToVector());
+        if (orientation < 0d)
+        {
+            delta = -delta;
+        }
+
+        return KernelResult<(double, double)>.Success((startAngle, delta));
+    }
+
+    private static double AngleOnCircle(Circle3Curve circle, Point3D point)
+    {
+        var offset = point - circle.Center;
+        var x = offset.Dot(circle.XAxis.ToVector());
+        var y = offset.Dot(circle.YAxis.ToVector());
+        return double.Atan2(y, x);
+    }
+
+    private static double NormalizeToSignedPi(double angle)
+    {
+        while (angle <= -double.Pi)
+        {
+            angle += 2d * double.Pi;
+        }
+
+        while (angle > double.Pi)
+        {
+            angle -= 2d * double.Pi;
+        }
+
+        return angle;
     }
 
     private static int FindNextCoedgeIndex(
@@ -509,6 +619,20 @@ public static class BrepDisplayTessellator
         }
 
         return matchIndex;
+    }
+
+    private static void AppendUniquePoint(List<Point3D> points, Point3D point)
+    {
+        if (points.Count == 0)
+        {
+            points.Add(point);
+            return;
+        }
+
+        if (!PointsAlmostEqual(points[^1], point))
+        {
+            points.Add(point);
+        }
     }
 
     private static bool PointsAlmostEqual(Point3D left, Point3D right)
@@ -622,9 +746,9 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<Point3D> EvaluateEdgeEndpoint(BrepBody body, EdgeId edgeId, bool useStart)
     {
-        if (!body.TryGetEdgeCurveGeometry(edgeId, out var curve) || curve is null || curve.Kind != CurveGeometryKind.Line3)
+        if (!body.TryGetEdgeCurveGeometry(edgeId, out var curve) || curve is null)
         {
-            return KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} planar polygon tessellation requires line geometry.")]);
+            return KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} is missing bound curve geometry.")]);
         }
 
         if (!body.Bindings.TryGetEdgeBinding(edgeId, out var binding))
@@ -634,7 +758,12 @@ public static class BrepDisplayTessellator
 
         var interval = binding.TrimInterval ?? new ParameterInterval(0d, 1d);
         var parameter = useStart ? interval.Start : interval.End;
-        return KernelResult<Point3D>.Success(curve.Line3!.Value.Evaluate(parameter));
+        return curve.Kind switch
+        {
+            CurveGeometryKind.Line3 => KernelResult<Point3D>.Success(curve.Line3!.Value.Evaluate(parameter)),
+            CurveGeometryKind.Circle3 => KernelResult<Point3D>.Success(curve.Circle3!.Value.Evaluate(parameter)),
+            _ => KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} endpoint evaluation does not support curve kind '{curve.UnsupportedKind ?? curve.Kind.ToString()}'.", PlanarCurveFlatteningUnsupportedSource)]),
+        };
     }
 
     private static KernelResult<(Point3D Start, Point3D End)> GetEdgeEndpoints(
@@ -643,11 +772,6 @@ public static class BrepDisplayTessellator
         bool reversed,
         IReadOnlyDictionary<VertexId, Point3D> vertexPoints)
     {
-        if (!body.TryGetEdgeCurveGeometry(edgeId, out var curve) || curve is null || curve.Kind != CurveGeometryKind.Line3)
-        {
-            return KernelResult<(Point3D, Point3D)>.Failure([CreateNotImplemented($"Edge {edgeId.Value} planar polygon tessellation requires line geometry.")]);
-        }
-
         if (!body.TryGetEdgeVertices(edgeId, out var startVertexId, out var endVertexId))
         {
             return KernelResult<(Point3D, Point3D)>.Failure([CreateNotImplemented($"Edge {edgeId.Value} is missing topology endpoints.")]);

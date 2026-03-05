@@ -52,11 +52,11 @@
     "path": "testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp",
     "sizeBytes": 667521,
     "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "firstFailureLayer": "exporter",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "",
-      "messagePrefix": "Face 72 planar tessellation supports only all-line loops or a single circle loop."
+      "source": "Face:1",
+      "messagePrefix": "Unsupported surface kind \u0027Cylinder\u0027. M22 supports planar faces only."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -66,8 +66,8 @@
       "faces": 120
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 120,
+      "edgePolylines": 354
     },
     "canonicalSha256": null
   },

@@ -1,3 +1,4 @@
+using System.Text;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Diagnostics;
@@ -113,4 +114,40 @@ public sealed class Step242ImporterTests
         Assert.Equal("Importer.Geometry.Direction", diagnostic.Source);
         Assert.StartsWith("Degenerate direction vector", diagnostic.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Step242_AdvancedFace_Surface_AllowsInlinePlaneConstructor()
+    {
+        var text = LoadFixture("testdata/step242/syntax-robustness/advanced-face-inline-plane.step");
+
+        var parseResult = Step242SubsetParser.Parse(text);
+        Assert.True(parseResult.IsSuccess);
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.True(import.IsSuccess);
+        Assert.Single(import.Value.Topology.Faces);
+        Assert.DoesNotContain(import.Diagnostics, d => d.Message.Contains("ADVANCED_FACE surface: expected entity reference argument.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Step242_AdvancedFace_Surface_AllowsEntityRefPlaneConstructor()
+    {
+        var text = LoadFixture("testdata/step242/syntax-robustness/advanced-face-ref-plane.step");
+
+        var parseResult = Step242SubsetParser.Parse(text);
+        Assert.True(parseResult.IsSuccess);
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.True(import.IsSuccess);
+        Assert.Single(import.Value.Topology.Faces);
+    }
+
+    private static string LoadFixture(string relativePath)
+    {
+        var path = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        return File.ReadAllText(path, Encoding.UTF8);
+    }
+
 }

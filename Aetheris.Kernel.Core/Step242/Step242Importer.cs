@@ -103,19 +103,34 @@ public static class Step242Importer
             }
 
             var faceEntity = faceEntityResult.Value;
-            var surfaceRefResult = Step242SubsetDecoder.ReadReference(faceEntity, 1, "ADVANCED_FACE surface");
-            if (!surfaceRefResult.IsSuccess)
+            var surfaceResult = Step242SubsetDecoder.ReadEntityRefOrInlineConstructor(faceEntity, 1, "ADVANCED_FACE surface");
+            if (!surfaceResult.IsSuccess)
             {
-                return KernelResult<BrepBody>.Failure(surfaceRefResult.Diagnostics);
+                return KernelResult<BrepBody>.Failure(surfaceResult.Diagnostics);
             }
 
-            var surfaceEntityResult = document.TryGetEntity(surfaceRefResult.Value.TargetId);
-            if (!surfaceEntityResult.IsSuccess)
+            Step242ParsedEntity? surfaceEntity = null;
+            string surfaceName;
+            IReadOnlyList<Step242Value>? inlineSurfaceArguments = null;
+
+            if (surfaceResult.Value.IsReference)
             {
-                return KernelResult<BrepBody>.Failure(surfaceEntityResult.Diagnostics);
+                var surfaceEntityResult = document.TryGetEntity(surfaceResult.Value.ReferenceId!.Value);
+                if (!surfaceEntityResult.IsSuccess)
+                {
+                    return KernelResult<BrepBody>.Failure(surfaceEntityResult.Diagnostics);
+                }
+
+                surfaceEntity = surfaceEntityResult.Value;
+                surfaceName = surfaceEntityResult.Value.Name;
+            }
+            else
+            {
+                surfaceName = surfaceResult.Value.InlineName!;
+                inlineSurfaceArguments = surfaceResult.Value.InlineArguments;
             }
 
-            var isSphericalFace = string.Equals(surfaceEntityResult.Value.Name, "SPHERICAL_SURFACE", StringComparison.OrdinalIgnoreCase);
+            var isSphericalFace = string.Equals(surfaceName, "SPHERICAL_SURFACE", StringComparison.OrdinalIgnoreCase);
 
             var boundRefsResult = Step242SubsetDecoder.ReadReferenceList(faceEntity, 0, "ADVANCED_FACE bounds");
             if (!boundRefsResult.IsSuccess)
@@ -134,7 +149,7 @@ public static class Step242Importer
                 return KernelResult<BrepBody>.Failure(faceSameSenseResult.Diagnostics);
             }
 
-            var bindSurfaceResult = DecodeSurfaceGeometry(document, surfaceEntityResult.Value, faceSameSenseResult.Value, nextSurfaceGeometryId);
+            var bindSurfaceResult = DecodeSurfaceGeometry(document, surfaceEntity, surfaceName, inlineSurfaceArguments, faceSameSenseResult.Value, nextSurfaceGeometryId, faceEntity.Id);
             if (!bindSurfaceResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(bindSurfaceResult.Diagnostics);
@@ -483,15 +498,20 @@ public static class Step242Importer
 
     private static KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)> DecodeSurfaceGeometry(
         Step242ParsedDocument document,
-        Step242ParsedEntity surfaceEntity,
+        Step242ParsedEntity? surfaceEntity,
+        string surfaceName,
+        IReadOnlyList<Step242Value>? inlineSurfaceArguments,
         bool faceSameSense,
-        int nextSurfaceGeometryId)
+        int nextSurfaceGeometryId,
+        int faceEntityId)
     {
+        var normalizedName = surfaceName.ToUpperInvariant();
+        var surfaceToDecode = surfaceEntity ?? BuildInlineSurfaceEntity(faceEntityId, normalizedName, inlineSurfaceArguments);
         var geometryId = new SurfaceGeometryId(nextSurfaceGeometryId);
 
-        if (string.Equals(surfaceEntity.Name, "PLANE", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(normalizedName, "PLANE", StringComparison.Ordinal))
         {
-            var planeResult = Step242SubsetDecoder.ReadPlaneSurface(document, surfaceEntity);
+            var planeResult = Step242SubsetDecoder.ReadPlaneSurface(document, surfaceToDecode);
             if (!planeResult.IsSuccess)
             {
                 return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(planeResult.Diagnostics);
@@ -504,7 +524,7 @@ public static class Step242Importer
                 {
                     return OrientationFailure<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>(
                         "ADVANCED_FACE same_sense not supported for this face",
-                        SourceFor(surfaceEntity.Id, "Importer.Orientation.AdvancedFaceSense"));
+                        SourceFor(surfaceToDecode.Id, "Importer.Orientation.AdvancedFaceSense"));
                 }
 
                 faceSurface = new PlaneSurface(faceSurface.Origin, reversedNormal, faceSurface.UAxis);
@@ -513,9 +533,9 @@ public static class Step242Importer
             return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromPlane(faceSurface)));
         }
 
-        if (string.Equals(surfaceEntity.Name, "CYLINDRICAL_SURFACE", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(normalizedName, "CYLINDRICAL_SURFACE", StringComparison.Ordinal))
         {
-            var cylinderResult = Step242SubsetDecoder.ReadCylindricalSurface(document, surfaceEntity);
+            var cylinderResult = Step242SubsetDecoder.ReadCylindricalSurface(document, surfaceToDecode);
             if (!cylinderResult.IsSuccess)
             {
                 return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(cylinderResult.Diagnostics);
@@ -524,9 +544,9 @@ public static class Step242Importer
             return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromCylinder(cylinderResult.Value)));
         }
 
-        if (string.Equals(surfaceEntity.Name, "SPHERICAL_SURFACE", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(normalizedName, "SPHERICAL_SURFACE", StringComparison.Ordinal))
         {
-            var sphereResult = Step242SubsetDecoder.ReadSphericalSurface(document, surfaceEntity);
+            var sphereResult = Step242SubsetDecoder.ReadSphericalSurface(document, surfaceToDecode);
             if (!sphereResult.IsSuccess)
             {
                 return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(sphereResult.Diagnostics);
@@ -535,9 +555,9 @@ public static class Step242Importer
             return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromSphere(sphereResult.Value)));
         }
 
-        if (string.Equals(surfaceEntity.Name, "CONICAL_SURFACE", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(normalizedName, "CONICAL_SURFACE", StringComparison.Ordinal))
         {
-            var coneResult = Step242SubsetDecoder.ReadConicalSurface(document, surfaceEntity);
+            var coneResult = Step242SubsetDecoder.ReadConicalSurface(document, surfaceToDecode);
             if (!coneResult.IsSuccess)
             {
                 return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(coneResult.Diagnostics);
@@ -546,7 +566,43 @@ public static class Step242Importer
             return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromCone(coneResult.Value)));
         }
 
-        return FailureSurfaceBinding($"ADVANCED_FACE surface '{surfaceEntity.Name}' is unsupported.", SourceFor(surfaceEntity.Id, "Importer.EntityFamily"));
+        return FailureSurfaceBinding($"ADVANCED_FACE surface '{surfaceName}' is unsupported.", SourceFor(surfaceToDecode.Id, "Importer.EntityFamily"));
+    }
+
+    private static Step242ParsedEntity BuildInlineSurfaceEntity(int faceEntityId, string surfaceName, IReadOnlyList<Step242Value>? inlineArguments)
+    {
+        if (inlineArguments is null)
+        {
+            throw new InvalidOperationException("Inline surface constructor arguments are required for non-reference ADVANCED_FACE surface values.");
+        }
+
+        var normalizedArguments = NormalizeInlineSurfaceArguments(surfaceName, inlineArguments);
+        return new Step242ParsedEntity(
+            faceEntityId,
+            new Step242SimpleEntityInstance(new Step242EntityConstructor(surfaceName, normalizedArguments)));
+    }
+
+    private static IReadOnlyList<Step242Value> NormalizeInlineSurfaceArguments(string surfaceName, IReadOnlyList<Step242Value> inlineArguments)
+    {
+        if (string.Equals(surfaceName, "PLANE", StringComparison.Ordinal) && inlineArguments.Count == 1
+            || string.Equals(surfaceName, "CYLINDRICAL_SURFACE", StringComparison.Ordinal) && inlineArguments.Count == 2
+            || string.Equals(surfaceName, "SPHERICAL_SURFACE", StringComparison.Ordinal) && inlineArguments.Count == 2
+            || string.Equals(surfaceName, "CONICAL_SURFACE", StringComparison.Ordinal) && inlineArguments.Count == 3)
+        {
+            var normalizedArguments = new List<Step242Value>(inlineArguments.Count + 1)
+            {
+                Step242OmittedValue.Instance
+            };
+
+            for (var i = 0; i < inlineArguments.Count; i++)
+            {
+                normalizedArguments.Add(inlineArguments[i]);
+            }
+
+            return normalizedArguments;
+        }
+
+        return inlineArguments;
     }
 
     private static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint)

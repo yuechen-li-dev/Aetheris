@@ -465,7 +465,7 @@ public static class BrepDisplayTessellator
                     AppendUniquePoint(flattened, segmentEnd);
                     break;
                 case CurveGeometryKind.Circle3:
-                    var arcPointsResult = SampleCircleArc(body, coedge, curve.Circle3!.Value, segmentStart, segmentEnd, plane, faceId, options);
+                    var arcPointsResult = SampleCircleArc(body, coedge, curve.Circle3!.Value, segmentStart, segmentEnd, plane, faceId);
                     if (!arcPointsResult.IsSuccess)
                     {
                         return KernelResult<IReadOnlyList<Point3D>>.Failure(arcPointsResult.Diagnostics);
@@ -499,8 +499,7 @@ public static class BrepDisplayTessellator
         Point3D start,
         Point3D end,
         PlaneSurface plane,
-        FaceId faceId,
-        DisplayTessellationOptions options)
+        FaceId faceId)
     {
         var deltaResult = ResolveArcDelta(body, coedge, circle, start, end, plane, faceId);
         if (!deltaResult.IsSuccess)
@@ -509,12 +508,11 @@ public static class BrepDisplayTessellator
         }
 
         var (startAngle, delta) = deltaResult.Value;
-        var segmentCount = System.Math.Clamp(System.Math.Max(8, (int)double.Ceiling(double.Abs(delta) / (10d * (double.Pi / 180d)))), 8, System.Math.Min(256, options.MaximumSegments));
-        var points = new List<Point3D>(segmentCount);
-        for (var i = 1; i <= segmentCount; i++)
+        var samples = CurveSampler.SampleCircleArc(circle, startAngle, delta);
+        var points = new List<Point3D>(samples.Count - 1);
+        for (var i = 1; i < samples.Count; i++)
         {
-            var t = (double)i / segmentCount;
-            points.Add(circle.Evaluate(startAngle + (delta * t)));
+            points.Add(samples[i]);
         }
 
         return KernelResult<IReadOnlyList<Point3D>>.Success(points);
@@ -658,22 +656,13 @@ public static class BrepDisplayTessellator
                 var line = curve.Line3!.Value;
                 return KernelResult<DisplayEdgePolyline>.Success(new DisplayEdgePolyline(
                     edgeId,
-                    [line.Evaluate(interval.Start), line.Evaluate(interval.End)],
+                    CurveSampler.SampleLine(line, interval),
                     IsClosed: false));
 
             case CurveGeometryKind.Circle3:
                 var circle = curve.Circle3!.Value;
                 var delta = interval.End - interval.Start;
-                var fullCircleSegments = CalculateSegmentCount(2d * double.Pi, circle.Radius, options);
-                var segmentCount = System.Math.Max(1, (int)double.Ceiling(fullCircleSegments * (delta / (2d * double.Pi))));
-                segmentCount = System.Math.Clamp(segmentCount, 1, options.MaximumSegments);
-
-                var points = new List<Point3D>(segmentCount + 1);
-                for (var i = 0; i <= segmentCount; i++)
-                {
-                    var t = (double)i / segmentCount;
-                    points.Add(circle.Evaluate(interval.Start + (delta * t)));
-                }
+                var points = CurveSampler.SampleCircleArc(circle, interval.Start, delta);
 
                 return KernelResult<DisplayEdgePolyline>.Success(new DisplayEdgePolyline(edgeId, points, IsClosed: delta >= (2d * double.Pi)));
 

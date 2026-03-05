@@ -282,7 +282,7 @@ public sealed class Step242ImporterTests
     }
 
     [Fact]
-    public void Step242_Molex0430200200_Import_NoCircle3LineOnlyError()
+    public void Step242_0430200200_Import_NoCircle3LineOnlyError()
     {
         var text = LoadFixture("testdata/step242/tessellation-robustness/planar-rect-with-filleted-corners.step");
 

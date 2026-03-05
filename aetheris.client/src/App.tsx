@@ -17,6 +17,7 @@ import {
     type PickHitDto,
     type TessellationResponseDto,
 } from './api/aetherisApi';
+import { Button } from './components/ui/button';
 import { ViewerViewport } from './viewer/ViewerViewport';
 import { mapTessellationToRenderData } from './viewer/tessellationMapper';
 
@@ -411,32 +412,34 @@ function App() {
             <header className="toolbar">
                 <h1>STEP 242 Viewer</h1>
                 <div className="toolbar-actions">
-                    <button type="button" onClick={() => void handleCreateDocument()} disabled={status === 'loading'}>
+                    <Button type="button" variant="outline" onClick={() => void handleCreateDocument()} disabled={status === 'loading'}>
                         Create Document
-                    </button>
-                    <button type="button" onClick={() => void handleRefreshTessellation()} disabled={!activeBodyId || status === 'loading'}>
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => void handleRefreshTessellation()} disabled={!activeBodyId || status === 'loading'}>
                         Refresh Tessellation
-                    </button>
+                    </Button>
                 </div>
             </header>
 
             <div className="top-tabs" role="tablist" aria-label="Top-level product surface">
-                <button
+                <Button
                     type="button"
                     role="tab"
+                    variant={activeTab === 'viewer' ? 'default' : 'secondary'}
                     aria-selected={activeTab === 'viewer'}
                     className={activeTab === 'viewer' ? 'tab-button active' : 'tab-button'}
                     onClick={() => setActiveTab('viewer')}>
                     STEP 242 Viewer
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
                     role="tab"
+                    variant={activeTab === 'modeling-demo' ? 'default' : 'secondary'}
                     aria-selected={activeTab === 'modeling-demo'}
                     className={activeTab === 'modeling-demo' ? 'tab-button active' : 'tab-button'}
                     onClick={() => setActiveTab('modeling-demo')}>
                     Modeling Demo <span className="experimental-badge">Experimental</span>
-                </button>
+                </Button>
             </div>
 
             {activeTab === 'viewer' ? (
@@ -453,7 +456,7 @@ function App() {
                                 />
                             </label>
                             <p>{stepImportSelectionMessage}</p>
-                            <button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP 242</button>
+                            <Button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP 242</Button>
                             <p><strong>Status:</strong> {statusMessage}</p>
                             {diagnostics.length === 0 ? null : (
                                 <ul>
@@ -468,12 +471,12 @@ function App() {
 
                         <section>
                             <h2>STEP Export</h2>
-                            <button type="button" onClick={() => void handleDownloadCanonicalStep()} disabled={!documentId || !activeOccurrence || status === 'loading'}>
+                            <Button type="button" variant="outline" onClick={() => void handleDownloadCanonicalStep()} disabled={!documentId || !activeOccurrence || status === 'loading'}>
                                 Download Canonical 242
-                            </button>
-                            <button type="button" onClick={() => void handleExportActiveStep()} disabled={!activeBodyId || status === 'loading'}>
+                            </Button>
+                            <Button type="button" variant="outline" onClick={() => void handleExportActiveStep()} disabled={!activeBodyId || status === 'loading'}>
                                 Export Active (STEP)
-                            </button>
+                            </Button>
                             <details>
                                 <summary>Copy STEP text</summary>
                                 <label className="textarea-label">
@@ -488,7 +491,7 @@ function App() {
                             <div className="inspector-row">
                                 <span>Canonical SHA256</span>
                                 <code className="mono-value">{stepCanonicalHash ?? 'Not available'}</code>
-                                <button type="button" onClick={() => void handleCopyCanonicalHash()} disabled={!stepCanonicalHash}>Copy</button>
+                                <Button type="button" size="sm" variant="outline" onClick={() => void handleCopyCanonicalHash()} disabled={!stepCanonicalHash}>Copy</Button>
                             </div>
                             {copyHashMessage ? <p>{copyHashMessage}</p> : null}
                             <p><strong>Definition ID:</strong> {activeOccurrence?.definitionId ?? 'None'}</p>

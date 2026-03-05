@@ -7,105 +7,104 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  color: #0f172a;
-  background: #f1f5f9;
+  color: hsl(var(--foreground));
+  background: linear-gradient(180deg, #faf9f6 0%, #f5f3ed 100%);
 }
 
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.85rem 1.25rem;
-  border-bottom: 1px solid #cbd5e1;
-  background: #ffffff;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsla(var(--card), 0.92);
+  backdrop-filter: blur(4px);
 }
 
 .toolbar h1 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 520;
 }
 
 .toolbar-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.6rem;
 }
 
 .top-tabs {
   display: flex;
   gap: 0.6rem;
-  padding: 0.75rem 1.25rem;
-  border-bottom: 1px solid #dbe4f0;
-  background: #f8fafc;
+  padding: 0.85rem 1.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsla(var(--card), 0.76);
 }
 
 .tab-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: #e2e8f0;
-  border-color: #cbd5e1;
-  color: #0f172a;
+  letter-spacing: 0.03em;
 }
 
 .tab-button.active {
-  background: #2563eb;
-  color: #ffffff;
-  border-color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px hsla(var(--primary), 0.35);
 }
 
 .experimental-badge {
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   padding: 0.1rem 0.35rem;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.15);
+  border: 1px solid hsl(var(--border));
+  background: hsla(var(--muted), 0.8);
 }
 
 .viewer-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(340px, 440px) minmax(0, 1fr);
-  gap: 1rem;
-  padding: 1rem 1.25rem 1.25rem;
+  grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
+  gap: 1.2rem;
+  padding: 1.25rem 1.5rem 1.5rem;
 }
 
 .product-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.9rem;
 }
 
 .product-panel section {
-  border: 1px solid #dbe4f0;
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 0.85rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  border-radius: 14px;
+  padding: 1rem;
 }
 
-.product-panel h2 {
+.product-panel h2,
+.viewer-secondary h2 {
   margin-top: 0;
-  font-size: 1rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.92rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
 }
 
 .audit-panel {
-  background: #f8fafc;
+  background: linear-gradient(180deg, #fcfbf8, #f8f5ef);
 }
 
 .inspector-row {
   display: grid;
-  gap: 0.35rem;
-  margin-bottom: 0.4rem;
+  gap: 0.45rem;
+  margin-bottom: 0.5rem;
 }
 
 .viewer-secondary {
-  border: 1px solid #dbe4f0;
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 0.75rem;
-}
-
-.viewer-secondary h2 {
-  margin-top: 0;
-  font-size: 0.95rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  border-radius: 14px;
+  padding: 0.9rem;
+  box-shadow: 0 8px 20px -18px rgba(30, 20, 10, 0.55);
 }
 
 .main-grid {
@@ -167,26 +166,22 @@
   font-size: 0.8rem;
 }
 
-input {
-  border-radius: 4px;
+input,
+select,
+textarea {
+  border-radius: 8px;
   border: 1px solid #334155;
-  padding: 0.3rem 0.4rem;
+  padding: 0.44rem 0.52rem;
   color: #e2e8f0;
   background: #020617;
 }
 
-.product-panel input {
-  color: #0f172a;
-  background: #ffffff;
-  border-color: #cbd5e1;
-}
-
-select {
-  border-radius: 4px;
-  border: 1px solid #334155;
-  padding: 0.3rem 0.4rem;
-  color: #e2e8f0;
-  background: #020617;
+.product-panel input,
+.product-panel textarea,
+.product-panel select {
+  color: hsl(var(--foreground));
+  background: #fffdfa;
+  border-color: hsl(var(--input));
 }
 
 .boolean-grid {
@@ -195,21 +190,6 @@ select {
 
 .boolean-actions {
   margin-bottom: 0.5rem;
-}
-
-button {
-  border-radius: 6px;
-  border: 1px solid #334155;
-  padding: 0.4rem 0.7rem;
-  color: #e2e8f0;
-  background: #1e293b;
-}
-
-.product-panel button,
-.toolbar button {
-  color: #0f172a;
-  background: #e2e8f0;
-  border-color: #cbd5e1;
 }
 
 button.active-row {
@@ -233,18 +213,7 @@ button:disabled {
 
 textarea {
   width: 100%;
-  border-radius: 4px;
-  border: 1px solid #334155;
-  padding: 0.4rem;
-  color: #e2e8f0;
-  background: #020617;
   resize: vertical;
-}
-
-.product-panel textarea {
-  color: #0f172a;
-  background: #ffffff;
-  border-color: #cbd5e1;
 }
 
 .mono-value {

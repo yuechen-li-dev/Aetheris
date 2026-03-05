@@ -56,7 +56,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 61 planar loop triangulation requires a convex polygon."
+      "messagePrefix": "Face 72 planar tessellation supports only all-line loops or a single circle loop."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

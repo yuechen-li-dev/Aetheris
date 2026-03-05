@@ -103,10 +103,17 @@ public static class BrepDisplayTessellator
                 return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop must contain at least three line coedges.")]);
             }
 
-            var indices = BuildPlanarTriangleIndices(polygonPoints, plane.Normal.ToVector());
-            if (indices is null)
+            if (!PlanarPolygonTriangulator.TryTriangulate(polygonPoints, plane.Normal.ToVector(), out var indices, out var failure))
             {
-                return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar loop triangulation requires a convex polygon.")]);
+                return failure switch
+                {
+                    PlanarPolygonTriangulationFailure.Degenerate => KernelResult<DisplayFaceMeshPatch>.Failure([
+                        CreateInvalidArgument($"Face {faceId.Value} planar loop is degenerate and cannot be triangulated.", "Viewer.Tessellation.PlanarPolygonDegenerate")]),
+                    PlanarPolygonTriangulationFailure.NonSimple => KernelResult<DisplayFaceMeshPatch>.Failure([
+                        CreateNotImplemented($"Face {faceId.Value} planar loop triangulation failed because the polygon is not simple.", "Viewer.Tessellation.PlanarNonConvexTriangulationFailed")]),
+                    _ => KernelResult<DisplayFaceMeshPatch>.Failure([
+                        CreateNotImplemented($"Face {faceId.Value} planar loop triangulation failed.", "Viewer.Tessellation.PlanarNonConvexTriangulationFailed")]),
+                };
             }
 
             return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, polygonPoints, plane.Normal.ToVector(), indices), successDiagnostics);
@@ -504,68 +511,6 @@ public static class BrepDisplayTessellator
         return matchIndex;
     }
 
-    private static IReadOnlyList<int>? BuildPlanarTriangleIndices(IReadOnlyList<Point3D> polygonPoints, Vector3D expectedNormal)
-    {
-        if (!IsConvexPolygon(polygonPoints, expectedNormal))
-        {
-            return null;
-        }
-
-        var indices = new List<int>((polygonPoints.Count - 2) * 3);
-        for (var i = 1; i < polygonPoints.Count - 1; i++)
-        {
-            indices.Add(0);
-            indices.Add(i);
-            indices.Add(i + 1);
-        }
-
-        if (indices.Count >= 3)
-        {
-            var firstNormal = (polygonPoints[indices[1]] - polygonPoints[indices[0]])
-                .Cross(polygonPoints[indices[2]] - polygonPoints[indices[0]]);
-            if (firstNormal.Dot(expectedNormal) < 0d)
-            {
-                for (var i = 0; i < indices.Count; i += 3)
-                {
-                    (indices[i + 1], indices[i + 2]) = (indices[i + 2], indices[i + 1]);
-                }
-            }
-        }
-
-        return indices;
-    }
-
-    private static bool IsConvexPolygon(IReadOnlyList<Point3D> polygonPoints, Vector3D expectedNormal)
-    {
-        var referenceSign = 0;
-        for (var i = 0; i < polygonPoints.Count; i++)
-        {
-            var a = polygonPoints[i];
-            var b = polygonPoints[(i + 1) % polygonPoints.Count];
-            var c = polygonPoints[(i + 2) % polygonPoints.Count];
-            var cross = (b - a).Cross(c - b);
-            var dot = cross.Dot(expectedNormal);
-            if (double.Abs(dot) <= LoopEndpointTolerance)
-            {
-                continue;
-            }
-
-            var sign = dot > 0d ? 1 : -1;
-            if (referenceSign == 0)
-            {
-                referenceSign = sign;
-                continue;
-            }
-
-            if (referenceSign != sign)
-            {
-                return false;
-            }
-        }
-
-        return referenceSign != 0;
-    }
-
     private static bool PointsAlmostEqual(Point3D left, Point3D right)
         => (left - right).LengthSquared <= (LoopEndpointTolerance * LoopEndpointTolerance);
 
@@ -736,11 +681,11 @@ public static class BrepDisplayTessellator
         return System.Math.Clamp(segments, options.MinimumSegments, options.MaximumSegments);
     }
 
-    private static KernelDiagnostic CreateInvalidArgument(string message)
-        => new(KernelDiagnosticCode.InvalidArgument, KernelDiagnosticSeverity.Error, message);
+    private static KernelDiagnostic CreateInvalidArgument(string message, string? source = null)
+        => new(KernelDiagnosticCode.InvalidArgument, KernelDiagnosticSeverity.Error, message, source);
 
-    private static KernelDiagnostic CreateNotImplemented(string message)
-        => new(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message);
+    private static KernelDiagnostic CreateNotImplemented(string message, string? source = null)
+        => new(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source);
 
     private static KernelDiagnostic CreateValidationWarning(string message, string source)
         => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning, message, source);

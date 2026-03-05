@@ -77,6 +77,27 @@
       "path": "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp",
       "group": "deferred",
       "notes": "Representative NIST deferred item retained in report output"
+    },
+    {
+      "id": "benchmark_bahamut",
+      "path": "testdata/step242/benchmarks/BAHAMUT.step",
+      "group": "passRequired",
+      "notes": "benchmarkFixture:true; intendedStressors:orientation semantics + typed values + parser mixed-case/complex-context + planar multi-hole face",
+      "expectHashStableAfterCanonicalization": true
+    },
+    {
+      "id": "benchmark_ifrit",
+      "path": "testdata/step242/benchmarks/IFRIT.step",
+      "group": "passRequired",
+      "notes": "benchmarkFixture:true; intendedStressors:thin-feature scale mix + near-axis cylinder/cone parameters",
+      "expectHashStableAfterCanonicalization": true
+    },
+    {
+      "id": "benchmark_shiva",
+      "path": "testdata/step242/benchmarks/SHIVA.step",
+      "group": "passRequired",
+      "notes": "benchmarkFixture:true; intendedStressors:complex context assignment + typed measures + whitespace/comments/enum case",
+      "expectHashStableAfterCanonicalization": true
     }
   ]
 }

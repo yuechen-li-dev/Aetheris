@@ -7,6 +7,7 @@ Aetheris STEP242 v0 is intentionally narrow and deterministic.
 - Single solid only: exactly one `MANIFOLD_SOLID_BREP` root is required.
 - Backend-authoritative flow: import -> render -> canonical export (+ SHA256).
 - Deterministic diagnostics: stable `(code, source, messagePrefix)` for expected fail cases.
+- STEP Part 21 complex entity-instance assignments are accepted for parser/decoder context use (for example `#5=(GEOMETRIC_REPRESENTATION_CONTEXT(...)...REPRESENTATION_CONTEXT(...));`).
 
 ## Supported entity families (Tier1)
 

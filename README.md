@@ -1,6 +1,6 @@
 # Aetheris
 
-Aetheris is a server/web-first solid modeling kernel project with an ASP.NET backend and React TypeScript frontend.
+Aetheris is a server/web-first solid modeling project with an ASP.NET backend and React TypeScript frontend.
 
 ## Current status
 

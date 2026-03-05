@@ -116,6 +116,40 @@ public sealed class Step242ImporterTests
         Assert.StartsWith("Degenerate direction vector", diagnostic.Message, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void Step242_AdvancedFace_Bounds_SingleAggregate_ConsumesCorrectly()
+    {
+        var text = LoadFixture("testdata/step242/syntax-robustness/advanced-face-bounds-single-aggregate.step");
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.True(import.IsSuccess);
+        Assert.DoesNotContain(import.Diagnostics, d => d.Message.Contains("ADVANCED_FACE surface: expected entity reference or inline entity constructor.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Step242_AdvancedFace_Bounds_MultiAggregate_ConsumesCorrectly()
+    {
+        var text = LoadFixture("testdata/step242/syntax-robustness/advanced-face-bounds-multi-aggregate.step");
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.DoesNotContain(import.Diagnostics, d => d.Message.Contains("ADVANCED_FACE surface: expected entity reference or inline entity constructor.", StringComparison.Ordinal));
+        Assert.DoesNotContain(import.Diagnostics, d => string.Equals(d.Source, "Importer.StepSyntax.AdvancedFaceBounds", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Step242_FreeCAD_Repro_ImportsPastAdvancedFaceBounds()
+    {
+        var text = LoadFixture("testdata/step242/syntax-robustness/freecad-pad-repro.step");
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.True(import.IsSuccess);
+        Assert.DoesNotContain(import.Diagnostics, d => d.Message.Contains("ADVANCED_FACE surface", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Step242_AdvancedFace_Surface_AllowsInlinePlaneConstructor()
     {

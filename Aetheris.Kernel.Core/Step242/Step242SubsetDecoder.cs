@@ -119,6 +119,16 @@ internal static class Step242SubsetDecoder
         return KernelResult<IReadOnlyList<Step242EntityReference>>.Success(refs);
     }
 
+    public static KernelResult<IReadOnlyList<Step242EntityReference>> ReadAdvancedFaceBounds(Step242ParsedEntity entity, int argumentIndex, string context)
+    {
+        if (argumentIndex < 0 || argumentIndex >= entity.Arguments.Count)
+        {
+            return FailureList($"{context}: missing argument at index {argumentIndex}.", "Importer.StepSyntax.AdvancedFaceBounds");
+        }
+
+        return ReadAdvancedFaceBoundsValue(entity.Arguments[argumentIndex], context);
+    }
+
     public static KernelResult<bool> ReadBoolean(Step242ParsedEntity entity, int argumentIndex, string context)
     {
         if (argumentIndex < 0 || argumentIndex >= entity.Arguments.Count)
@@ -616,6 +626,34 @@ internal static class Step242SubsetDecoder
         }
 
         return UnwrapTypedValue(typed.Arguments[0], context, source);
+    }
+
+    private static KernelResult<IReadOnlyList<Step242EntityReference>> ReadAdvancedFaceBoundsValue(Step242Value value, string context)
+    {
+        const string source = "Importer.StepSyntax.AdvancedFaceBounds";
+
+        if (value is not Step242ListValue list)
+        {
+            return FailureList($"{context}: expected aggregate list of face bounds.", source);
+        }
+
+        if (list.Items.Count == 1 && list.Items[0] is Step242ListValue nested)
+        {
+            list = nested;
+        }
+
+        var refs = new List<Step242EntityReference>(list.Items.Count);
+        for (var i = 0; i < list.Items.Count; i++)
+        {
+            if (list.Items[i] is not Step242EntityReference reference)
+            {
+                return FailureList($"{context}: aggregate item {i} must be an entity reference (#id).", source);
+            }
+
+            refs.Add(reference);
+        }
+
+        return KernelResult<IReadOnlyList<Step242EntityReference>>.Success(refs);
     }
 
     private static KernelResult<Step242EntityReference> FailureRef(string message, string source) => Failure<Step242EntityReference>(message, source);

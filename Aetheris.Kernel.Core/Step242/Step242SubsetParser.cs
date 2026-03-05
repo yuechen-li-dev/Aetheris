@@ -58,10 +58,16 @@ internal static class Step242SubsetParser
         return KernelResult<Step242ParsedDocument>.Success(new Step242ParsedDocument(entities));
     }
 
-    private static KernelResult<Step242ParsedDocument> Failure(string message, string source) =>
-        KernelResult<Step242ParsedDocument>.Failure([
-            new KernelDiagnostic(KernelDiagnosticCode.InvalidArgument, KernelDiagnosticSeverity.Error, message, source)
+    private static KernelResult<Step242ParsedDocument> Failure(string message, string source)
+    {
+        var code = string.Equals(source, "Importer.StepSyntax.ComplexInstance", StringComparison.Ordinal)
+            ? KernelDiagnosticCode.ValidationFailed
+            : KernelDiagnosticCode.InvalidArgument;
+
+        return KernelResult<Step242ParsedDocument>.Failure([
+            new KernelDiagnostic(code, KernelDiagnosticSeverity.Error, message, source)
         ]);
+    }
 
     private sealed class Reader(string text)
     {
@@ -129,14 +135,67 @@ internal static class Step242SubsetParser
             SkipWhitespace();
             Expect('=');
             SkipWhitespace();
+            var instance = ReadEntityInstance();
+            SkipWhitespace();
+            Expect(';');
+            return new Step242ParsedEntity(id, instance);
+        }
+
+        private Step242EntityInstance ReadEntityInstance()
+        {
+            SkipWhitespace();
+            if (End)
+            {
+                throw Error("Unexpected end of text in entity instance.");
+            }
+
+            if (Peek() != '(')
+            {
+                return new Step242SimpleEntityInstance(ReadEntityConstructor());
+            }
+
+            const string complexSource = "Importer.StepSyntax.ComplexInstance";
+            Expect('(');
+
+            var constructors = new List<Step242EntityConstructor>();
+            while (true)
+            {
+                SkipWhitespace();
+                if (End)
+                {
+                    throw Error("Unexpected end of text in complex instance.", complexSource);
+                }
+
+                if (Peek() == ')')
+                {
+                    _index++;
+                    break;
+                }
+
+                if (!IsIdentifierStart(Peek()))
+                {
+                    throw Error("Invalid complex instance element.", complexSource);
+                }
+
+                constructors.Add(ReadEntityConstructor());
+            }
+
+            if (constructors.Count == 0)
+            {
+                throw Error("Complex instance must contain at least one entity.", complexSource);
+            }
+
+            return new Step242ComplexEntityInstance(constructors);
+        }
+
+        private Step242EntityConstructor ReadEntityConstructor()
+        {
             var name = ReadIdentifier();
             name = name.ToUpperInvariant();
             SkipWhitespace();
             Expect('(');
             var args = ReadArgumentList();
-            SkipWhitespace();
-            Expect(';');
-            return new Step242ParsedEntity(id, name, args);
+            return new Step242EntityConstructor(name, args);
         }
 
         public void ReadToStatementTerminator()
@@ -416,6 +475,8 @@ internal static class Step242SubsetParser
             return text[start.._index];
         }
 
+        private static bool IsIdentifierStart(char c) => char.IsLetter(c) || c == '_';
+
         private int ReadInteger()
         {
             var start = _index;
@@ -489,7 +550,12 @@ internal sealed class Step242ParseException(string message, string sourceTag) : 
     public string SourceTag { get; } = sourceTag;
 }
 
-internal sealed record Step242ParsedEntity(int Id, string Name, IReadOnlyList<Step242Value> Arguments);
+internal sealed record Step242ParsedEntity(int Id, Step242EntityInstance Instance)
+{
+    public string Name => Instance.PrimaryConstructor.Name;
+
+    public IReadOnlyList<Step242Value> Arguments => Instance.PrimaryConstructor.Arguments;
+}
 
 internal sealed class Step242ParsedDocument
 {
@@ -510,7 +576,7 @@ internal sealed class Step242ParsedDocument
             return Failure($"Missing referenced entity #{id}.", $"Entity:{id}");
         }
 
-        if (expectedName is not null && !string.Equals(entity.Name, expectedName, StringComparison.OrdinalIgnoreCase))
+        if (expectedName is not null && Step242SubsetDecoder.TryGetConstructor(entity.Instance, expectedName) is null)
         {
             return Failure($"Entity #{id} expected '{expectedName}' but found '{entity.Name}'.", $"Entity:{id}");
         }
@@ -525,6 +591,23 @@ internal sealed class Step242ParsedDocument
 }
 
 internal abstract record Step242Value;
+
+internal abstract record Step242EntityInstance
+{
+    public abstract Step242EntityConstructor PrimaryConstructor { get; }
+}
+
+internal sealed record Step242SimpleEntityInstance(Step242EntityConstructor Constructor) : Step242EntityInstance
+{
+    public override Step242EntityConstructor PrimaryConstructor => Constructor;
+}
+
+internal sealed record Step242ComplexEntityInstance(IReadOnlyList<Step242EntityConstructor> Constructors) : Step242EntityInstance
+{
+    public override Step242EntityConstructor PrimaryConstructor => Constructors[0];
+}
+
+internal sealed record Step242EntityConstructor(string Name, IReadOnlyList<Step242Value> Arguments);
 
 internal sealed record Step242EntityReference(int TargetId) : Step242Value;
 

@@ -8,6 +8,31 @@ namespace Aetheris.Kernel.Core.Step242;
 
 internal static class Step242SubsetDecoder
 {
+    public static Step242EntityConstructor? TryGetConstructor(Step242EntityInstance entityValue, string name)
+    {
+        if (entityValue is Step242SimpleEntityInstance simple)
+        {
+            return string.Equals(simple.Constructor.Name, name, StringComparison.Ordinal)
+                ? simple.Constructor
+                : null;
+        }
+
+        if (entityValue is not Step242ComplexEntityInstance complex)
+        {
+            return null;
+        }
+
+        for (var i = 0; i < complex.Constructors.Count; i++)
+        {
+            if (string.Equals(complex.Constructors[i].Name, name, StringComparison.Ordinal))
+            {
+                return complex.Constructors[i];
+            }
+        }
+
+        return null;
+    }
+
     public static KernelResult<Step242EntityReference> ReadReference(Step242ParsedEntity entity, int argumentIndex, string context)
     {
         if (argumentIndex < 0 || argumentIndex >= entity.Arguments.Count)

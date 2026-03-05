@@ -506,7 +506,15 @@ public static class Step242Importer
         int faceEntityId)
     {
         var normalizedName = surfaceName.ToUpperInvariant();
-        var surfaceToDecode = surfaceEntity ?? BuildInlineSurfaceEntity(faceEntityId, normalizedName, inlineSurfaceArguments);
+        var surfaceToDecodeResult = surfaceEntity is null
+            ? BuildInlineSurfaceEntity(faceEntityId, normalizedName, inlineSurfaceArguments)
+            : KernelResult<Step242ParsedEntity>.Success(surfaceEntity);
+        if (!surfaceToDecodeResult.IsSuccess)
+        {
+            return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(surfaceToDecodeResult.Diagnostics);
+        }
+
+        var surfaceToDecode = surfaceToDecodeResult.Value;
         var geometryId = new SurfaceGeometryId(nextSurfaceGeometryId);
 
         if (string.Equals(normalizedName, "PLANE", StringComparison.Ordinal))
@@ -569,41 +577,70 @@ public static class Step242Importer
         return FailureSurfaceBinding($"ADVANCED_FACE surface '{surfaceName}' is unsupported.", SourceFor(surfaceToDecode.Id, "Importer.EntityFamily"));
     }
 
-    private static Step242ParsedEntity BuildInlineSurfaceEntity(int faceEntityId, string surfaceName, IReadOnlyList<Step242Value>? inlineArguments)
+    private static KernelResult<Step242ParsedEntity> BuildInlineSurfaceEntity(int faceEntityId, string surfaceName, IReadOnlyList<Step242Value>? inlineArguments)
     {
         if (inlineArguments is null)
         {
-            throw new InvalidOperationException("Inline surface constructor arguments are required for non-reference ADVANCED_FACE surface values.");
+            return FailureInlineSurface<Step242ParsedEntity>("ADVANCED_FACE surface: inline constructor arguments are required.", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
         }
 
-        var normalizedArguments = NormalizeInlineSurfaceArguments(surfaceName, inlineArguments);
-        return new Step242ParsedEntity(
+        if (!string.Equals(surfaceName, "PLANE", StringComparison.Ordinal))
+        {
+            return FailureInlineSurface<Step242ParsedEntity>($"ADVANCED_FACE surface: inline constructor '{surfaceName}' is unsupported in M47a (only PLANE is allowed).", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
+        }
+
+        var normalizedArgumentsResult = NormalizeInlineSurfaceArguments(surfaceName, inlineArguments, faceEntityId);
+        if (!normalizedArgumentsResult.IsSuccess)
+        {
+            return KernelResult<Step242ParsedEntity>.Failure(normalizedArgumentsResult.Diagnostics);
+        }
+
+        return KernelResult<Step242ParsedEntity>.Success(new Step242ParsedEntity(
             faceEntityId,
-            new Step242SimpleEntityInstance(new Step242EntityConstructor(surfaceName, normalizedArguments)));
+            new Step242SimpleEntityInstance(new Step242EntityConstructor(surfaceName, normalizedArgumentsResult.Value))));
     }
 
-    private static IReadOnlyList<Step242Value> NormalizeInlineSurfaceArguments(string surfaceName, IReadOnlyList<Step242Value> inlineArguments)
+    private static KernelResult<IReadOnlyList<Step242Value>> NormalizeInlineSurfaceArguments(string surfaceName, IReadOnlyList<Step242Value> inlineArguments, int faceEntityId)
     {
-        if (string.Equals(surfaceName, "PLANE", StringComparison.Ordinal) && inlineArguments.Count == 1
-            || string.Equals(surfaceName, "CYLINDRICAL_SURFACE", StringComparison.Ordinal) && inlineArguments.Count == 2
-            || string.Equals(surfaceName, "SPHERICAL_SURFACE", StringComparison.Ordinal) && inlineArguments.Count == 2
-            || string.Equals(surfaceName, "CONICAL_SURFACE", StringComparison.Ordinal) && inlineArguments.Count == 3)
+        if (string.Equals(surfaceName, "PLANE", StringComparison.Ordinal))
         {
-            var normalizedArguments = new List<Step242Value>(inlineArguments.Count + 1)
+            if (inlineArguments.Count == 1)
             {
-                Step242OmittedValue.Instance
-            };
+                if (inlineArguments[0] is not Step242EntityReference)
+                {
+                    return FailureInlineSurface<IReadOnlyList<Step242Value>>("ADVANCED_FACE surface: inline PLANE constructor expects PLANE(#axis2_placement_3d).", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
+                }
 
-            for (var i = 0; i < inlineArguments.Count; i++)
-            {
-                normalizedArguments.Add(inlineArguments[i]);
+                return KernelResult<IReadOnlyList<Step242Value>>.Success([
+                    Step242OmittedValue.Instance,
+                    inlineArguments[0]
+                ]);
             }
 
-            return normalizedArguments;
+            if (inlineArguments.Count == 2)
+            {
+                if (inlineArguments[0] is not Step242OmittedValue || inlineArguments[1] is not Step242EntityReference)
+                {
+                    return FailureInlineSurface<IReadOnlyList<Step242Value>>("ADVANCED_FACE surface: inline PLANE constructor expects PLANE(#axis2_placement_3d).", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
+                }
+
+                return KernelResult<IReadOnlyList<Step242Value>>.Success(inlineArguments);
+            }
+
+            return FailureInlineSurface<IReadOnlyList<Step242Value>>("ADVANCED_FACE surface: inline PLANE constructor expects PLANE(#axis2_placement_3d).", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
         }
 
-        return inlineArguments;
+        return KernelResult<IReadOnlyList<Step242Value>>.Success(inlineArguments);
     }
+
+    private static KernelResult<T> FailureInlineSurface<T>(string message, string source)
+        => KernelResult<T>.Failure([
+            new KernelDiagnostic(
+                KernelDiagnosticCode.NotImplemented,
+                KernelDiagnosticSeverity.Error,
+                message,
+                source)
+        ]);
 
     private static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint)
     {

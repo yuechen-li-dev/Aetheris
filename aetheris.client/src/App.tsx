@@ -409,245 +409,252 @@ function App() {
 
     return (
         <div className="app-shell">
-            <header className="toolbar">
-                <h1>STEP 242 Viewer</h1>
-                <div className="toolbar-actions">
-                    <Button type="button" variant="outline" onClick={() => void handleCreateDocument()} disabled={status === 'loading'}>
-                        Create Document
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => void handleRefreshTessellation()} disabled={!activeBodyId || status === 'loading'}>
-                        Refresh Tessellation
-                    </Button>
+            <header className="top-bar">
+                <div className="top-bar__header-row">
+                    <div className="top-bar__title">STEP 242 VIEWER</div>
+                    <div className="top-bar__actions">
+                        <Button type="button" variant="outline" onClick={() => void handleCreateDocument()} disabled={status === 'loading'}>
+                            Create Document
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => void handleRefreshTessellation()} disabled={!activeBodyId || status === 'loading'}>
+                            Refresh Tessellation
+                        </Button>
+                    </div>
+                </div>
+                <div className="top-bar__tabs-row">
+                    <div className="top-bar__tabs" role="tablist" aria-label="Top-level product surface">
+                        <Button
+                            type="button"
+                            role="tab"
+                            variant={activeTab === 'viewer' ? 'default' : 'secondary'}
+                            aria-selected={activeTab === 'viewer'}
+                            className={activeTab === 'viewer' ? 'tab-button active' : 'tab-button'}
+                            onClick={() => setActiveTab('viewer')}>
+                            STEP 242 Viewer
+                        </Button>
+                        <Button
+                            type="button"
+                            role="tab"
+                            variant={activeTab === 'modeling-demo' ? 'default' : 'secondary'}
+                            aria-selected={activeTab === 'modeling-demo'}
+                            className={activeTab === 'modeling-demo' ? 'tab-button active' : 'tab-button'}
+                            onClick={() => setActiveTab('modeling-demo')}>
+                            <span>Modeling Demo</span> <span className="experimental-badge">(Experimental)</span>
+                        </Button>
+                    </div>
                 </div>
             </header>
 
-            <div className="top-tabs" role="tablist" aria-label="Top-level product surface">
-                <Button
-                    type="button"
-                    role="tab"
-                    variant={activeTab === 'viewer' ? 'default' : 'secondary'}
-                    aria-selected={activeTab === 'viewer'}
-                    className={activeTab === 'viewer' ? 'tab-button active' : 'tab-button'}
-                    onClick={() => setActiveTab('viewer')}>
-                    STEP 242 Viewer
-                </Button>
-                <Button
-                    type="button"
-                    role="tab"
-                    variant={activeTab === 'modeling-demo' ? 'default' : 'secondary'}
-                    aria-selected={activeTab === 'modeling-demo'}
-                    className={activeTab === 'modeling-demo' ? 'tab-button active' : 'tab-button'}
-                    onClick={() => setActiveTab('modeling-demo')}>
-                    Modeling Demo <span className="experimental-badge">Experimental</span>
-                </Button>
-            </div>
-
-            {activeTab === 'viewer' ? (
-                <main className="viewer-grid">
-                    <aside className="product-panel">
-                        <section>
-                            <h2>STEP Import</h2>
-                            <label>
-                                STEP 242 File
-                                <input
-                                    type="file"
-                                    accept=".step,.stp,text/plain"
-                                    onChange={(event) => handleStepFileSelection(event.target.files)}
-                                />
-                            </label>
-                            <p>{stepImportSelectionMessage}</p>
-                            <Button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP 242</Button>
-                            <p><strong>Status:</strong> {statusMessage}</p>
-                            {diagnostics.length === 0 ? null : (
-                                <ul>
-                                    {diagnostics.map((diagnostic, index) => (
-                                        <li key={`${diagnostic.code}-${index}`}>
-                                            [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </section>
-
-                        <section>
-                            <h2>STEP Export</h2>
-                            <Button type="button" variant="outline" onClick={() => void handleDownloadCanonicalStep()} disabled={!documentId || !activeOccurrence || status === 'loading'}>
-                                Download Canonical 242
-                            </Button>
-                            <Button type="button" variant="outline" onClick={() => void handleExportActiveStep()} disabled={!activeBodyId || status === 'loading'}>
-                                Export Active (STEP)
-                            </Button>
-                            <details>
-                                <summary>Copy STEP text</summary>
-                                <label className="textarea-label">
-                                    Canonical STEP Text
-                                    <textarea value={stepExportText} readOnly placeholder="Exported STEP text will appear here." rows={7} />
-                                </label>
-                            </details>
-                        </section>
-
-                        <section className="audit-panel">
-                            <h2>Inspector</h2>
-                            <div className="inspector-row">
-                                <span>Canonical SHA256</span>
-                                <code className="mono-value">{stepCanonicalHash ?? 'Not available'}</code>
-                                <Button type="button" size="sm" variant="outline" onClick={() => void handleCopyCanonicalHash()} disabled={!stepCanonicalHash}>Copy</Button>
-                            </div>
-                            {copyHashMessage ? <p>{copyHashMessage}</p> : null}
-                            <p><strong>Definition ID:</strong> {activeOccurrence?.definitionId ?? 'None'}</p>
-                            <p><strong>Occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
-                            <p><strong>Face count:</strong> {tessellation?.facePatches.length ?? 0}</p>
-                            <p><strong>Edge count:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
-                            <p><strong>Shell count:</strong> {activeBodyId ? 1 : 0}</p>
-                        </section>
-                    </aside>
-
-                    <section className="viewer-secondary">
-                        <h2>Viewport (secondary)</h2>
+            <main className="main-layout">
+                <section className="viewport-column">
+                    <div className="viewport-shell">
+                        <h2 className="section-title">Viewport (secondary)</h2>
                         <ViewerViewport
                             sceneData={sceneData}
                             highlightedFaceId={highlightedFaceId}
                             highlightedEdgeId={highlightedEdgeId}
                             onPickRay={(origin, direction) => void handlePickRay(origin, direction)}
                         />
-                    </section>
-                </main>
-            ) : (
-                <main className="main-grid">
-                    <ViewerViewport
-                        sceneData={sceneData}
-                        highlightedFaceId={highlightedFaceId}
-                        highlightedEdgeId={highlightedEdgeId}
-                        onPickRay={(origin, direction) => void handlePickRay(origin, direction)}
-                    />
-                    <aside className="debug-panel">
-                        <h2>Modeling Demo (Non-production)</h2>
-                        <p className="demo-notice">This is a demo environment. Not part of Viewer v0 contract.</p>
-                        <section>
-                            <h3>Create Box</h3>
-                            <div className="form-grid">
-                                <label>Width <input type="number" value={boxWidth} onChange={(event) => setBoxWidth(event.target.value)} /></label>
-                                <label>Height <input type="number" value={boxHeight} onChange={(event) => setBoxHeight(event.target.value)} /></label>
-                                <label>Depth <input type="number" value={boxDepth} onChange={(event) => setBoxDepth(event.target.value)} /></label>
-                            </div>
-                            <button type="button" onClick={() => void handleCreateBox()} disabled={!documentId || status === 'loading'}>Create Box</button>
-                        </section>
+                    </div>
+                </section>
 
-                        <section>
-                            <h3>Body List</h3>
-                            {bodyIds.length === 0 ? <p>No occurrences in document.</p> : (
-                                <ul>
-                                    {bodyIds.map((bodyId) => {
-                                        const occurrence = occurrences.find((item) => item.occurrenceId === bodyId);
-                                        const label = occurrence
-                                            ? `${bodyId} (def ${occurrence.definitionId.slice(0, 8)}, t=[${occurrence.translation.x.toFixed(2)}, ${occurrence.translation.y.toFixed(2)}, ${occurrence.translation.z.toFixed(2)}])`
-                                            : bodyId;
-
-                                        return <li key={bodyId}>
-                                            <button
-                                                type="button"
-                                                className={bodyId === activeBodyId ? 'active-row' : ''}
-                                                onClick={() => void handleSelectBody(bodyId)}
-                                                disabled={status === 'loading'}>
-                                                {label}
-                                            </button>
-                                        </li>;
-                                    })}
-                                </ul>
-                            )}
-                        </section>
-
-                        <section>
-                            <h3>Translate Active Body</h3>
-                            <div className="form-grid">
-                                <label>X <input type="number" value={tx} onChange={(event) => setTx(event.target.value)} /></label>
-                                <label>Y <input type="number" value={ty} onChange={(event) => setTy(event.target.value)} /></label>
-                                <label>Z <input type="number" value={tz} onChange={(event) => setTz(event.target.value)} /></label>
-                            </div>
-                            <button type="button" onClick={() => void handleApplyTranslation()} disabled={!activeBodyId || status === 'loading'}>Apply Translation</button>
-                        </section>
-
-                        <section>
-                            <h3>Boolean (Two-Body)</h3>
-                            <div className="form-grid boolean-grid">
+                <aside className="tool-rail">
+                    {activeTab === 'viewer' ? (
+                        <>
+                            <section className="tool-section">
+                                <h2 className="section-title">Step Import</h2>
                                 <label>
-                                    Target Body
-                                    <select value={booleanTargetBodyId} onChange={(event) => setBooleanTargetBodyId(event.target.value)}>
-                                        <option value="">Select target body</option>
-                                        {bodyIds.map((bodyId) => <option key={`target-${bodyId}`} value={bodyId}>{bodyId}</option>)}
-                                    </select>
+                                    STEP 242 File
+                                    <input
+                                        type="file"
+                                        accept=".step,.stp,text/plain"
+                                        onChange={(event) => handleStepFileSelection(event.target.files)}
+                                    />
                                 </label>
-                                <label>
-                                    Tool Body
-                                    <select value={booleanToolBodyId} onChange={(event) => setBooleanToolBodyId(event.target.value)}>
-                                        <option value="">Select tool body</option>
-                                        {bodyIds.map((bodyId) => <option key={`tool-${bodyId}`} value={bodyId}>{bodyId}</option>)}
-                                    </select>
-                                </label>
-                                <label>
-                                    Operation
-                                    <select value={booleanOperation} onChange={(event) => setBooleanOperation(event.target.value as BooleanOperationUi)}>
-                                        <option value="Union">Union</option>
-                                        <option value="Subtract">Subtract</option>
-                                        <option value="Intersect">Intersect</option>
-                                    </select>
-                                </label>
-                            </div>
-                            <div className="toolbar-actions boolean-actions">
-                                <button type="button" onClick={handleUseActiveBodyAsTarget} disabled={!activeBodyId || status === 'loading'}>Use Active as Target</button>
-                                <button type="button" onClick={handleUseActiveBodyAsTool} disabled={!activeBodyId || status === 'loading'}>Use Active as Tool</button>
-                            </div>
-                            <button type="button" onClick={() => void handleExecuteBoolean()} disabled={!canExecuteBoolean}>Execute Boolean</button>
-                            {bodyIds.length < 2 ? <p>Need at least 2 bodies to run a boolean.</p> : null}
-                            {booleanTargetBodyId && booleanToolBodyId && booleanTargetBodyId === booleanToolBodyId ? (
-                                <p>Target and tool must be different body IDs.</p>
-                            ) : null}
-                        </section>
+                                <p>{stepImportSelectionMessage}</p>
+                                <Button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP 242</Button>
+                                <p><strong>Status:</strong> {statusMessage}</p>
+                                {diagnostics.length === 0 ? null : (
+                                    <ul>
+                                        {diagnostics.map((diagnostic, index) => (
+                                            <li key={`${diagnostic.code}-${index}`}>
+                                                [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </section>
 
-                        <h2>Debug / Status</h2>
-                        <p><strong>Request status:</strong> {status}</p>
-                        <p><strong>Message:</strong> {statusMessage}</p>
-                        <p><strong>Document ID:</strong> {documentId ?? 'None'}</p>
-                        <p><strong>Active occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
-                        <p><strong>Occurrence count:</strong> {bodyIds.length}</p>
-                        <p><strong>Face patches:</strong> {tessellation?.facePatches.length ?? 0}</p>
-                        <p><strong>Edge polylines:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
-                        <h3>Pick Diagnostics (active body only)</h3>
-                        <p><strong>Pick status:</strong> {pickStatus}</p>
-                        <p><strong>Pick message:</strong> {pickMessage}</p>
-                        <p><strong>Pick hits:</strong> {pickHits.length}</p>
-                        {nearestHit ? (
-                            <ul>
-                                <li><strong>Kind:</strong> {nearestHit.entityKind}</li>
-                                <li><strong>Face ID:</strong> {nearestHit.faceId ?? 'n/a'}</li>
-                                <li><strong>Edge ID:</strong> {nearestHit.edgeId ?? 'n/a'}</li>
-                                <li><strong>t:</strong> {nearestHit.t.toFixed(5)}</li>
-                                <li><strong>Point:</strong> ({nearestHit.point.x.toFixed(5)}, {nearestHit.point.y.toFixed(5)}, {nearestHit.point.z.toFixed(5)})</li>
-                            </ul>
-                        ) : <p>No nearest hit to display.</p>}
-                        <h3>Pick Diagnostics</h3>
-                        {pickDiagnostics.length === 0 ? <p>None</p> : (
-                            <ul>
-                                {pickDiagnostics.map((diagnostic, index) => (
-                                    <li key={`pick-${diagnostic.code}-${index}`}>
-                                        [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                        <h3>Diagnostics</h3>
-                        {diagnostics.length === 0 ? <p>None</p> : (
-                            <ul>
-                                {diagnostics.map((diagnostic, index) => (
-                                    <li key={`${diagnostic.code}-${index}`}>
-                                        [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </aside>
-                </main>
-            )}
+                            <section className="tool-section">
+                                <h2 className="section-title">Step Export</h2>
+                                <div className="stack-row">
+                                    <Button type="button" variant="outline" onClick={() => void handleDownloadCanonicalStep()} disabled={!documentId || !activeOccurrence || status === 'loading'}>
+                                        Download Canonical 242
+                                    </Button>
+                                    <Button type="button" variant="outline" onClick={() => void handleExportActiveStep()} disabled={!activeBodyId || status === 'loading'}>
+                                        Export Active (STEP)
+                                    </Button>
+                                </div>
+                                <details>
+                                    <summary>Copy STEP text</summary>
+                                    <label className="textarea-label">
+                                        Canonical STEP Text
+                                        <textarea value={stepExportText} readOnly placeholder="Exported STEP text will appear here." rows={7} />
+                                    </label>
+                                </details>
+                            </section>
+
+                            <section className="tool-section audit-panel">
+                                <h2 className="section-title">Inspector</h2>
+                                <div className="inspector-row">
+                                    <span>Canonical SHA256</span>
+                                    <code className="mono-value">{stepCanonicalHash ?? 'Not available'}</code>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => void handleCopyCanonicalHash()} disabled={!stepCanonicalHash}>Copy</Button>
+                                </div>
+                                {copyHashMessage ? <p>{copyHashMessage}</p> : null}
+                                <p><strong>Definition ID:</strong> {activeOccurrence?.definitionId ?? 'None'}</p>
+                                <p><strong>Occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
+                                <p><strong>Face count:</strong> {tessellation?.facePatches.length ?? 0}</p>
+                                <p><strong>Edge count:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
+                                <p><strong>Shell count:</strong> {activeBodyId ? 1 : 0}</p>
+                            </section>
+                        </>
+                    ) : (
+                        <>
+                            <section className="tool-section">
+                                <h2 className="section-title">Modeling Demo Notice</h2>
+                                <p>Modeling Demo (Non-production)</p>
+                                <p className="demo-notice">This is a demo environment. Not part of Viewer v0 contract.</p>
+                            </section>
+
+                            <section className="tool-section">
+                                <h2 className="section-title">Create Box</h2>
+                                <div className="form-grid">
+                                    <label>Width <input type="number" value={boxWidth} onChange={(event) => setBoxWidth(event.target.value)} /></label>
+                                    <label>Height <input type="number" value={boxHeight} onChange={(event) => setBoxHeight(event.target.value)} /></label>
+                                    <label>Depth <input type="number" value={boxDepth} onChange={(event) => setBoxDepth(event.target.value)} /></label>
+                                </div>
+                                <button type="button" onClick={() => void handleCreateBox()} disabled={!documentId || status === 'loading'}>Create Box</button>
+                            </section>
+
+                            <section className="tool-section">
+                                <h2 className="section-title">Body List</h2>
+                                {bodyIds.length === 0 ? <p>No occurrences in document.</p> : (
+                                    <ul>
+                                        {bodyIds.map((bodyId) => {
+                                            const occurrence = occurrences.find((item) => item.occurrenceId === bodyId);
+                                            const label = occurrence
+                                                ? `${bodyId} (def ${occurrence.definitionId.slice(0, 8)}, t=[${occurrence.translation.x.toFixed(2)}, ${occurrence.translation.y.toFixed(2)}, ${occurrence.translation.z.toFixed(2)}])`
+                                                : bodyId;
+
+                                            return <li key={bodyId}>
+                                                <button
+                                                    type="button"
+                                                    className={bodyId === activeBodyId ? 'active-row' : ''}
+                                                    onClick={() => void handleSelectBody(bodyId)}
+                                                    disabled={status === 'loading'}>
+                                                    {label}
+                                                </button>
+                                            </li>;
+                                        })}
+                                    </ul>
+                                )}
+                            </section>
+
+                            <section className="tool-section">
+                                <h2 className="section-title">Translate Active Body</h2>
+                                <div className="form-grid">
+                                    <label>X <input type="number" value={tx} onChange={(event) => setTx(event.target.value)} /></label>
+                                    <label>Y <input type="number" value={ty} onChange={(event) => setTy(event.target.value)} /></label>
+                                    <label>Z <input type="number" value={tz} onChange={(event) => setTz(event.target.value)} /></label>
+                                </div>
+                                <button type="button" onClick={() => void handleApplyTranslation()} disabled={!activeBodyId || status === 'loading'}>Apply Translation</button>
+                            </section>
+
+                            <section className="tool-section">
+                                <h2 className="section-title">Boolean (Two-body)</h2>
+                                <div className="form-grid boolean-grid">
+                                    <label>
+                                        Target Body
+                                        <select value={booleanTargetBodyId} onChange={(event) => setBooleanTargetBodyId(event.target.value)}>
+                                            <option value="">Select target body</option>
+                                            {bodyIds.map((bodyId) => <option key={`target-${bodyId}`} value={bodyId}>{bodyId}</option>)}
+                                        </select>
+                                    </label>
+                                    <label>
+                                        Tool Body
+                                        <select value={booleanToolBodyId} onChange={(event) => setBooleanToolBodyId(event.target.value)}>
+                                            <option value="">Select tool body</option>
+                                            {bodyIds.map((bodyId) => <option key={`tool-${bodyId}`} value={bodyId}>{bodyId}</option>)}
+                                        </select>
+                                    </label>
+                                    <label>
+                                        Operation
+                                        <select value={booleanOperation} onChange={(event) => setBooleanOperation(event.target.value as BooleanOperationUi)}>
+                                            <option value="Union">Union</option>
+                                            <option value="Subtract">Subtract</option>
+                                            <option value="Intersect">Intersect</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div className="stack-row boolean-actions">
+                                    <button type="button" onClick={handleUseActiveBodyAsTarget} disabled={!activeBodyId || status === 'loading'}>Use Active as Target</button>
+                                    <button type="button" onClick={handleUseActiveBodyAsTool} disabled={!activeBodyId || status === 'loading'}>Use Active as Tool</button>
+                                </div>
+                                <button type="button" onClick={() => void handleExecuteBoolean()} disabled={!canExecuteBoolean}>Execute Boolean</button>
+                                {bodyIds.length < 2 ? <p>Need at least 2 bodies to run a boolean.</p> : null}
+                                {booleanTargetBodyId && booleanToolBodyId && booleanTargetBodyId === booleanToolBodyId ? (
+                                    <p>Target and tool must be different body IDs.</p>
+                                ) : null}
+                            </section>
+
+                            <section className="tool-section">
+                                <h2 className="section-title">Debug/Status</h2>
+                                <p><strong>Request status:</strong> {status}</p>
+                                <p><strong>Message:</strong> {statusMessage}</p>
+                                <p><strong>Document ID:</strong> {documentId ?? 'None'}</p>
+                                <p><strong>Active occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
+                                <p><strong>Occurrence count:</strong> {bodyIds.length}</p>
+                                <p><strong>Face patches:</strong> {tessellation?.facePatches.length ?? 0}</p>
+                                <p><strong>Edge polylines:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
+                                <h3 className="section-title section-title--sub">Pick Diagnostics (active body only)</h3>
+                                <p><strong>Pick status:</strong> {pickStatus}</p>
+                                <p><strong>Pick message:</strong> {pickMessage}</p>
+                                <p><strong>Pick hits:</strong> {pickHits.length}</p>
+                                {nearestHit ? (
+                                    <ul>
+                                        <li><strong>Kind:</strong> {nearestHit.entityKind}</li>
+                                        <li><strong>Face ID:</strong> {nearestHit.faceId ?? 'n/a'}</li>
+                                        <li><strong>Edge ID:</strong> {nearestHit.edgeId ?? 'n/a'}</li>
+                                        <li><strong>t:</strong> {nearestHit.t.toFixed(5)}</li>
+                                        <li><strong>Point:</strong> ({nearestHit.point.x.toFixed(5)}, {nearestHit.point.y.toFixed(5)}, {nearestHit.point.z.toFixed(5)})</li>
+                                    </ul>
+                                ) : <p>No nearest hit to display.</p>}
+                                <h3 className="section-title section-title--sub">Pick Diagnostics</h3>
+                                {pickDiagnostics.length === 0 ? <p>None</p> : (
+                                    <ul>
+                                        {pickDiagnostics.map((diagnostic, index) => (
+                                            <li key={`pick-${diagnostic.code}-${index}`}>
+                                                [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                                <h3 className="section-title section-title--sub">Diagnostics</h3>
+                                {diagnostics.length === 0 ? <p>None</p> : (
+                                    <ul>
+                                        {diagnostics.map((diagnostic, index) => (
+                                            <li key={`${diagnostic.code}-${index}`}>
+                                                [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </section>
+                        </>
+                    )}
+                </aside>
+            </main>
         </div>
     );
 }

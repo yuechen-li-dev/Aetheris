@@ -144,6 +144,23 @@ public sealed class Step242ImporterTests
         Assert.Single(import.Value.Topology.Faces);
     }
 
+    [Fact]
+    public void Step242_AdvancedFace_Surface_RejectsInlineNonPlaneSurface()
+    {
+        var text = LoadFixture("testdata/step242/syntax-robustness/advanced-face-inline-non-plane.step");
+
+        var parseResult = Step242SubsetParser.Parse(text);
+        Assert.True(parseResult.IsSuccess);
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.False(import.IsSuccess);
+        var diagnostic = Assert.Single(import.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Importer.StepSyntax.InlineEntity", diagnostic.Source);
+        Assert.Equal("ADVANCED_FACE surface: inline constructor 'CYLINDRICAL_SURFACE' is unsupported in M47a (only PLANE is allowed).", diagnostic.Message);
+    }
+
     private static string LoadFixture(string relativePath)
     {
         var path = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));

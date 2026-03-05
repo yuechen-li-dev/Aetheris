@@ -14,9 +14,22 @@
   --border: 30 14% 84%;
   --input: 30 16% 82%;
   --ring: 30 18% 30%;
-  --radius: 0.7rem;
 
-  font-family: 'Inter', 'Avenir Next', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ui-font-sans: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --ui-text: 0.875rem;
+  --ui-small: 0.8125rem;
+  --ui-title: 0.75rem;
+  --ui-weight-body: 400;
+  --ui-weight-emphasis: 600;
+  --ui-weight-title: 600;
+  --ui-title-tracking: 0.08em;
+
+  --ui-radius: 2px;
+  --ui-stroke: 1.5px;
+  --ui-divider: 1px;
+  --ui-focus-ring: 2px;
+
+  --radius: var(--ui-radius);
 }
 
 * {
@@ -29,4 +42,13 @@ body {
   min-height: 100vh;
   background: hsl(var(--background));
   color: hsl(var(--foreground));
+  font-family: var(--ui-font-sans);
+  font-size: var(--ui-text);
+  font-weight: var(--ui-weight-body);
+  line-height: 1.4;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
 }

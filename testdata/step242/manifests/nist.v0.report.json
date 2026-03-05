@@ -7,8 +7,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Importer.StepSyntax.InlineEntity",
-      "messagePrefix": "ADVANCED_FACE surface"
+      "source": "Importer.EntityFamily",
+      "messagePrefix": "EDGE_CURVE geometry \u0027B_SPLINE_CURVE_WITH_KNOTS\u0027 is unsupported."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -28,11 +28,11 @@
     "path": "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
     "sizeBytes": 1958442,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "importer-geometry",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Importer.StepSyntax.InlineEntity",
-      "messagePrefix": "ADVANCED_FACE surface"
+      "code": "InvalidArgument",
+      "source": "Importer.Geometry.Cone",
+      "messagePrefix": "CONICAL_SURFACE radius"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -52,18 +52,18 @@
     "path": "testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp",
     "sizeBytes": 667521,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Importer.StepSyntax.InlineEntity",
-      "messagePrefix": "ADVANCED_FACE surface"
+      "source": "",
+      "messagePrefix": "Face 61 planar loop triangulation requires a convex polygon."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 236,
+      "edges": 354,
+      "faces": 120
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -223,8 +223,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Importer.StepSyntax.InlineEntity",
-      "messagePrefix": "ADVANCED_FACE surface"
+      "source": "Importer.EntityFamily",
+      "messagePrefix": "EDGE_CURVE geometry \u0027B_SPLINE_CURVE_WITH_KNOTS\u0027 is unsupported."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -366,9 +366,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Importer.StepSyntax.InlineEntity",
-      "messagePrefix": "ADVANCED_FACE surface"
+      "code": "ValidationFailed",
+      "source": "Importer.LoopRole.DegenerateLoop",
+      "messagePrefix": "Loop projection is degenerate."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

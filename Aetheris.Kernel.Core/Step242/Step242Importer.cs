@@ -103,7 +103,12 @@ public static class Step242Importer
             }
 
             var faceEntity = faceEntityResult.Value;
-            var surfaceResult = Step242SubsetDecoder.ReadEntityRefOrInlineConstructor(faceEntity, 1, "ADVANCED_FACE surface");
+            var advancedFaceOffset = faceEntity.Arguments.Count >= 4
+                && (faceEntity.Arguments[0] is Step242StringValue || faceEntity.Arguments[0] is Step242OmittedValue)
+                ? 1
+                : 0;
+
+            var surfaceResult = Step242SubsetDecoder.ReadEntityRefOrInlineConstructor(faceEntity, advancedFaceOffset + 1, "ADVANCED_FACE surface");
             if (!surfaceResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(surfaceResult.Diagnostics);
@@ -132,7 +137,7 @@ public static class Step242Importer
 
             var isSphericalFace = string.Equals(surfaceName, "SPHERICAL_SURFACE", StringComparison.OrdinalIgnoreCase);
 
-            var boundRefsResult = Step242SubsetDecoder.ReadReferenceList(faceEntity, 0, "ADVANCED_FACE bounds");
+            var boundRefsResult = Step242SubsetDecoder.ReadAdvancedFaceBounds(faceEntity, advancedFaceOffset, "ADVANCED_FACE bounds");
             if (!boundRefsResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(boundRefsResult.Diagnostics);
@@ -143,7 +148,7 @@ public static class Step242Importer
                 return Failure("ADVANCED_FACE without bounds is unsupported in M23 subset.", $"Entity:{faceEntity.Id}");
             }
 
-            var faceSameSenseResult = Step242SubsetDecoder.ReadBoolean(faceEntity, 2, "ADVANCED_FACE same_sense");
+            var faceSameSenseResult = Step242SubsetDecoder.ReadBoolean(faceEntity, advancedFaceOffset + 2, "ADVANCED_FACE same_sense");
             if (!faceSameSenseResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(faceSameSenseResult.Diagnostics);

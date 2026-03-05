@@ -61,6 +61,7 @@ internal static class Step242SubsetParser
     private static KernelResult<Step242ParsedDocument> Failure(string message, string source)
     {
         var code = string.Equals(source, "Importer.StepSyntax.ComplexInstance", StringComparison.Ordinal)
+            || string.Equals(source, "Importer.StepSyntax.TypedValue", StringComparison.Ordinal)
             ? KernelDiagnosticCode.ValidationFailed
             : KernelDiagnosticCode.InvalidArgument;
 
@@ -238,7 +239,7 @@ internal static class Step242SubsetParser
             throw Error("Unable to recover statement boundary before end of text.", "Parser.Semantics");
         }
 
-        private List<Step242Value> ReadArgumentList()
+        private List<Step242Value> ReadArgumentList(string sourceTag = "Parser.Lexer")
         {
             var values = new List<Step242Value>();
             SkipWhitespace();
@@ -255,7 +256,7 @@ internal static class Step242SubsetParser
 
                 if (End)
                 {
-                    throw Error("Unexpected end of text in argument list.");
+                    throw Error("Unexpected end of text in argument list.", sourceTag);
                 }
 
                 var next = text[_index++];
@@ -266,7 +267,7 @@ internal static class Step242SubsetParser
 
                 if (next != ',')
                 {
-                    throw Error($"Expected ',' or ')' in argument list, found '{next}'.");
+                    throw Error($"Expected ',' or ')' in argument list, found '{next}'.", sourceTag);
                 }
 
                 SkipWhitespace();
@@ -293,8 +294,26 @@ internal static class Step242SubsetParser
                 '(' => ReadList(),
                 '.' => TryPeekNext(out var next) && char.IsDigit(next) ? ReadNumber() : ReadEnumOrLogical(),
                 '+' or '-' or >= '0' and <= '9' => ReadNumber(),
+                _ when IsIdentifierStart(c) => ReadTypedValue(),
                 _ => throw Error($"Unsupported value token '{c}'.")
             };
+        }
+
+        private Step242Value ReadTypedValue()
+        {
+            const string typedValueSource = "Importer.StepSyntax.TypedValue";
+            var name = ReadIdentifier();
+            name = name.ToUpperInvariant();
+
+            SkipWhitespace();
+            if (End || Peek() != '(')
+            {
+                throw Error("Typed parameter value must include parenthesized arguments.", typedValueSource);
+            }
+
+            Expect('(');
+            var args = ReadArgumentList(typedValueSource);
+            return new Step242TypedValue(name, args);
         }
 
         private Step242Value ReadReference()
@@ -620,6 +639,8 @@ internal sealed record Step242BooleanValue(bool Value) : Step242Value;
 internal sealed record Step242EnumValue(string Value) : Step242Value;
 
 internal sealed record Step242ListValue(IReadOnlyList<Step242Value> Items) : Step242Value;
+
+internal sealed record Step242TypedValue(string Name, IReadOnlyList<Step242Value> Arguments) : Step242Value;
 
 internal sealed record Step242OmittedValue : Step242Value
 {

@@ -8,6 +8,7 @@ Aetheris STEP242 v0 is intentionally narrow and deterministic.
 - Backend-authoritative flow: import -> render -> canonical export (+ SHA256).
 - Deterministic diagnostics: stable `(code, source, messagePrefix)` for expected fail cases.
 - STEP Part 21 complex entity-instance assignments are accepted for parser/decoder context use (for example `#5=(GEOMETRIC_REPRESENTATION_CONTEXT(...)...REPRESENTATION_CONTEXT(...));`).
+- STEP Part 21 typed parameter values are supported in value position with deterministic normalization (`IDENT(...)` parsed as uppercase identifier + argument list), including common nested wrappers such as `LENGTH_MEASURE(...)` and `LENGTH_MEASURE_WITH_UNIT(LENGTH_MEASURE(...),#...)`.
 
 ## Supported entity families (Tier1)
 
@@ -29,6 +30,7 @@ Aetheris STEP242 v0 is intentionally narrow and deterministic.
 - NURBS / B-spline / healing workflows.
 - Toroidal and other exotic analytic surface support.
 - Any modeling/editor feature expansion in the Viewer tab.
+- Typed wrapper decoding is intentionally limited in v0: primitive readers currently unwrap single-argument typed values; wrappers with unexpected arity fail deterministically via `Importer.StepSyntax.TypedValue`.
 
 ## Corpus and CI gate
 

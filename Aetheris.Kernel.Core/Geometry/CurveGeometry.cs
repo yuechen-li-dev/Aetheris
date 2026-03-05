@@ -6,6 +6,7 @@ public enum CurveGeometryKind
 {
     Line3,
     Circle3,
+    Unsupported,
 }
 
 /// <summary>
@@ -13,11 +14,12 @@ public enum CurveGeometryKind
 /// </summary>
 public sealed record CurveGeometry
 {
-    private CurveGeometry(CurveGeometryKind kind, Line3Curve? line3, Circle3Curve? circle3)
+    private CurveGeometry(CurveGeometryKind kind, Line3Curve? line3, Circle3Curve? circle3, string? unsupportedKind)
     {
         Kind = kind;
         Line3 = line3;
         Circle3 = circle3;
+        UnsupportedKind = unsupportedKind;
     }
 
     public CurveGeometryKind Kind { get; }
@@ -26,7 +28,11 @@ public sealed record CurveGeometry
 
     public Circle3Curve? Circle3 { get; }
 
-    public static CurveGeometry FromLine(Line3Curve line) => new(CurveGeometryKind.Line3, line, null);
+    public string? UnsupportedKind { get; }
 
-    public static CurveGeometry FromCircle(Circle3Curve circle) => new(CurveGeometryKind.Circle3, null, circle);
+    public static CurveGeometry FromLine(Line3Curve line) => new(CurveGeometryKind.Line3, line, null, null);
+
+    public static CurveGeometry FromCircle(Circle3Curve circle) => new(CurveGeometryKind.Circle3, null, circle, null);
+
+    public static CurveGeometry FromUnsupported(string kindName) => new(CurveGeometryKind.Unsupported, null, null, kindName);
 }

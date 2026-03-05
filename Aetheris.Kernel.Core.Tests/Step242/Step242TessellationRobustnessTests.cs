@@ -49,6 +49,44 @@ public sealed class Step242TessellationRobustnessTests
         Assert.DoesNotContain(tessellation.Diagnostics, d => d.Message.Contains("requires a convex polygon", StringComparison.Ordinal));
     }
 
+
+    [Fact]
+    public void Step242_Tessellate_PlanarFace_LinePlusArcLoop_Succeeds()
+    {
+        var text = LoadFixture("testdata/step242/tessellation-robustness/planar-rect-with-filleted-corners.step");
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.True(import.IsSuccess);
+
+        var tessellation = BrepDisplayTessellator.Tessellate(import.Value);
+
+        Assert.True(tessellation.IsSuccess);
+        Assert.DoesNotContain(tessellation.Diagnostics, d => d.Message.Contains("supports only all-line loops or a single circle loop", StringComparison.Ordinal));
+
+        var facePatch = Assert.Single(tessellation.Value.FacePatches);
+        Assert.NotEmpty(facePatch.TriangleIndices);
+    }
+
+    [Fact]
+    public void Step242_Tessellate_PlanarFace_UnsupportedCurve_FailsDeterministically()
+    {
+        var text = LoadFixture("testdata/step242/tessellation-robustness/planar-loop-unsupported-curve.step");
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.True(import.IsSuccess);
+
+        var tessellation = BrepDisplayTessellator.Tessellate(import.Value);
+
+        Assert.False(tessellation.IsSuccess);
+
+        var diagnostic = Assert.Single(tessellation.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Viewer.Tessellation.PlanarCurveFlatteningUnsupported", diagnostic.Source);
+        Assert.Contains("AETHERIS_PLANAR_UNSUPPORTED_CURVE", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void Step242_Tessellate_PlanarFace_DegenerateLoop_FailsDeterministically()
     {

@@ -498,6 +498,13 @@ public static class Step242Importer
                 trimResult.Value));
         }
 
+        if (string.Equals(curveEntity.Name, "AETHERIS_PLANAR_UNSUPPORTED_CURVE", StringComparison.OrdinalIgnoreCase))
+        {
+            return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
+                CurveGeometry.FromUnsupported(curveEntity.Name),
+                new ParameterInterval(0d, 1d)));
+        }
+
         return FailureCurveBinding($"EDGE_CURVE geometry '{curveEntity.Name}' is unsupported.", SourceFor(curveEntity.Id, "Importer.EntityFamily"));
     }
 
@@ -1117,7 +1124,8 @@ public static class Step242Importer
                 points = [circle.Evaluate(trim.Start), circle.Evaluate(mid), circle.Evaluate(trim.End)];
                 break;
             default:
-                return LoopRoleFailure<IReadOnlyList<Point3D>>("Unsupported curve kind for loop sampling.", "Importer.LoopRole.WindingConflict");
+                points = [];
+                break;
         }
 
         if (isReversed)

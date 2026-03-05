@@ -3,7 +3,11 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Brep;
 
-public readonly record struct EdgeGeometryBinding(EdgeId EdgeId, CurveGeometryId CurveGeometryId, ParameterInterval? TrimInterval = null);
+public readonly record struct EdgeGeometryBinding(
+    EdgeId EdgeId,
+    CurveGeometryId CurveGeometryId,
+    ParameterInterval? TrimInterval = null,
+    bool OrientedEdgeSense = true);
 
 public readonly record struct FaceGeometryBinding(FaceId FaceId, SurfaceGeometryId SurfaceGeometryId);
 

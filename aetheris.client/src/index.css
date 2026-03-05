@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -15,13 +17,13 @@
   --input: 30 16% 82%;
   --ring: 30 18% 30%;
 
-  --ui-font-sans: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --ui-font-sans: 'Inter', sans-serif;
   --ui-text: 0.875rem;
   --ui-small: 0.8125rem;
   --ui-title: 0.75rem;
   --ui-weight-body: 400;
-  --ui-weight-emphasis: 600;
-  --ui-weight-title: 600;
+  --ui-weight-emphasis: 500;
+  --ui-weight-title: 300;
   --ui-title-tracking: 0.08em;
 
   --ui-radius: 2px;
@@ -51,4 +53,8 @@ body {
 #root {
   width: 100%;
   min-height: 100vh;
+  font-family: var(--ui-font-sans);
+  font-size: var(--ui-text);
+  font-weight: var(--ui-weight-body);
+  line-height: 1.4;
 }

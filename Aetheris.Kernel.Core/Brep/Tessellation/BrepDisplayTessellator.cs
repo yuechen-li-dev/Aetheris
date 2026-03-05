@@ -13,6 +13,8 @@ public static class BrepDisplayTessellator
     private const double LoopEndpointTolerance = 1e-6d;
     private const string PlanarCurveFlatteningUnsupportedSource = "Viewer.Tessellation.PlanarCurveFlatteningUnsupported";
     private const string PlanarCurveFlatteningFailedSource = "Viewer.Tessellation.PlanarCurveFlatteningFailed";
+    private const string CircleTrimResolveFailedSource = "Viewer.Tessellation.CircleTrimResolveFailed";
+    private const string CircleTrimAmbiguousUsedShorterArcSource = "Viewer.Tessellation.CircleTrimAmbiguousUsedShorterArc";
 
     public static KernelResult<DisplayTessellationResult> Tessellate(BrepBody body, DisplayTessellationOptions? options = null)
     {
@@ -28,6 +30,8 @@ public static class BrepDisplayTessellator
             return KernelResult<DisplayTessellationResult>.Failure(optionDiagnostics);
         }
 
+        var accumulatedDiagnostics = new List<KernelDiagnostic>();
+
         var facePatches = new List<DisplayFaceMeshPatch>();
         foreach (var face in body.Topology.Faces.OrderBy(f => f.Id.Value))
         {
@@ -38,6 +42,7 @@ public static class BrepDisplayTessellator
             }
 
             facePatches.Add(faceResult.Value);
+            accumulatedDiagnostics.AddRange(faceResult.Diagnostics);
         }
 
         var edgePolylines = new List<DisplayEdgePolyline>();
@@ -50,9 +55,10 @@ public static class BrepDisplayTessellator
             }
 
             edgePolylines.Add(edgeResult.Value);
+            accumulatedDiagnostics.AddRange(edgeResult.Diagnostics);
         }
 
-        return KernelResult<DisplayTessellationResult>.Success(new DisplayTessellationResult(facePatches, edgePolylines));
+        return KernelResult<DisplayTessellationResult>.Success(new DisplayTessellationResult(facePatches, edgePolylines), accumulatedDiagnostics);
     }
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateFace(BrepBody body, FaceId faceId, DisplayTessellationOptions options)
@@ -661,10 +667,39 @@ public static class BrepDisplayTessellator
 
             case CurveGeometryKind.Circle3:
                 var circle = curve.Circle3!.Value;
-                var delta = interval.End - interval.Start;
-                var points = CurveSampler.SampleCircleArc(circle, interval.Start, delta);
+                var startPointResult = EvaluateEdgeEndpoint(body, edgeId, useStart: true);
+                if (!startPointResult.IsSuccess)
+                {
+                    return KernelResult<DisplayEdgePolyline>.Failure(startPointResult.Diagnostics);
+                }
 
-                return KernelResult<DisplayEdgePolyline>.Success(new DisplayEdgePolyline(edgeId, points, IsClosed: delta >= (2d * double.Pi)));
+                var endPointResult = EvaluateEdgeEndpoint(body, edgeId, useStart: false);
+                if (!endPointResult.IsSuccess)
+                {
+                    return KernelResult<DisplayEdgePolyline>.Failure(endPointResult.Diagnostics);
+                }
+
+                if (!CurveSampler.TrySampleTrimmedCircleArc(
+                        circle,
+                        startPointResult.Value,
+                        endPointResult.Value,
+                        binding.OrientedEdgeSense,
+                        out var points,
+                        out var isClosed,
+                        out var usedShorterArcFallback))
+                {
+                    return KernelResult<DisplayEdgePolyline>.Failure([
+                        CreateInvalidArgument($"Edge {edgeId.Value} failed to resolve circle trim from edge endpoints.", CircleTrimResolveFailedSource)]);
+                }
+
+                if (usedShorterArcFallback)
+                {
+                    return KernelResult<DisplayEdgePolyline>.Success(
+                        new DisplayEdgePolyline(edgeId, points, isClosed),
+                        [CreateValidationWarning($"Edge {edgeId.Value} circular trim was ambiguous; using shorter arc.", CircleTrimAmbiguousUsedShorterArcSource)]);
+                }
+
+                return KernelResult<DisplayEdgePolyline>.Success(new DisplayEdgePolyline(edgeId, points, isClosed));
 
             default:
                 return KernelResult<DisplayEdgePolyline>.Failure([CreateNotImplemented($"Edge {edgeId.Value} has unsupported curve kind '{curve.Kind}'.")]);

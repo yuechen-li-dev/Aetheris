@@ -298,6 +298,87 @@ public sealed class Step242ImporterTests
         Assert.DoesNotContain(tessellation.Diagnostics, d => d.Message.Contains("line edges only", StringComparison.OrdinalIgnoreCase));
     }
 
+
+    [Fact]
+    public void CircleTrim_ShortArc_DoesNotWrapFullCircle()
+    {
+        var circle = new Circle3Curve(Point3D.Origin, Direction3D.Create(new Vector3D(0d, 0d, 1d)), 1d, Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+        var start = circle.Evaluate(0d);
+        var end = circle.Evaluate(double.Pi / 6d);
+
+        var sampled = CurveSampler.TrySampleTrimmedCircleArc(circle, start, end, orientedEdgeSense: true, out var points, out _, out var shorterArcFallback);
+
+        Assert.True(sampled);
+        Assert.False(shorterArcFallback);
+        Assert.True(points.Count >= 3);
+
+        var angles = points
+            .Select(p => NormalizeToZeroTwoPi(double.Atan2(p.Y, p.X)))
+            .ToArray();
+
+        for (var i = 1; i < angles.Length; i++)
+        {
+            Assert.True(angles[i] + 1e-8d >= angles[i - 1]);
+        }
+
+        var span = angles[^1] - angles[0];
+        Assert.InRange(span, (double.Pi / 6d) - 0.05d, (double.Pi / 6d) + 0.05d);
+        Assert.True(span < double.Pi);
+    }
+
+    [Fact]
+    public void CircleTrim_ReversedSense_ReversesPointOrder()
+    {
+        var circle = new Circle3Curve(Point3D.Origin, Direction3D.Create(new Vector3D(0d, 0d, 1d)), 1d, Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+        var start = circle.Evaluate(0d);
+        var end = circle.Evaluate(double.Pi / 6d);
+
+        var forwardOk = CurveSampler.TrySampleTrimmedCircleArc(circle, start, end, orientedEdgeSense: true, out var forward, out _, out _);
+        var reverseOk = CurveSampler.TrySampleTrimmedCircleArc(circle, start, end, orientedEdgeSense: false, out var reversed, out _, out _);
+
+        Assert.True(forwardOk);
+        Assert.True(reverseOk);
+        Assert.True(((forward[0] - reversed[0]).Length) < 1e-9d);
+        Assert.True(forward[1].Y > 0d);
+        Assert.True(reversed[1].Y < 0d);
+    }
+
+    [Fact]
+    public void Step242_CircleTrimFixture_Tessellation_UsesShortArcsWithoutTrimDiagnostics()
+    {
+        var text = LoadFixture("testdata/step242/tessellation-robustness/planar-rect-with-filleted-corners.step");
+
+        var import = Step242Importer.ImportBody(text);
+        Assert.True(import.IsSuccess);
+
+        var tessellation = BrepDisplayTessellator.Tessellate(import.Value);
+        Assert.True(tessellation.IsSuccess);
+        Assert.DoesNotContain(tessellation.Diagnostics, d => string.Equals(d.Source, "Viewer.Tessellation.CircleTrimResolveFailed", StringComparison.Ordinal));
+
+        var circularEdges = import.Value.Topology.Edges
+            .Where(e => import.Value.TryGetEdgeCurveGeometry(e.Id, out var curve) && curve?.Kind == CurveGeometryKind.Circle3)
+            .ToArray();
+
+        Assert.NotEmpty(circularEdges);
+        foreach (var edge in circularEdges)
+        {
+            var polyline = Assert.Single(tessellation.Value.EdgePolylines, p => p.EdgeId == edge.Id);
+            Assert.True(polyline.Points.Count <= 20);
+        }
+    }
+
+    private static double NormalizeToZeroTwoPi(double angle)
+    {
+        var twoPi = 2d * double.Pi;
+        var normalized = angle % twoPi;
+        if (normalized < 0d)
+        {
+            normalized += twoPi;
+        }
+
+        return normalized;
+    }
+
     private static string LoadFixture(string relativePath)
     {
         var path = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));

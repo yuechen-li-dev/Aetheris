@@ -411,7 +411,7 @@ public static class Step242Importer
         }
 
         geometry.AddCurve(curveGeometryId, bindCurveResult.Value.CurveGeometry);
-        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, curveGeometryId, bindCurveResult.Value.TrimInterval));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, curveGeometryId, bindCurveResult.Value.TrimInterval, edgeSameSense));
 
         return KernelResult<EdgeId>.Success(edgeId);
     }

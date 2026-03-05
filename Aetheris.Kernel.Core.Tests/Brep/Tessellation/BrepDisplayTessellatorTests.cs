@@ -145,7 +145,7 @@ public sealed class BrepDisplayTessellatorTests
         Assert.Equal(2, circlePolylines.Length);
         Assert.All(circlePolylines, polyline =>
         {
-            Assert.Equal(13, polyline.Points.Count);
+            Assert.Equal(37, polyline.Points.Count);
             AssertPointEqualWithinTolerance(polyline.Points[0], polyline.Points[^1], 12);
             Assert.True(polyline.EdgeId.IsValid);
         });

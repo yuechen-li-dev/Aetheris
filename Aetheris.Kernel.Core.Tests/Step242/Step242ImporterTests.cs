@@ -3,6 +3,8 @@ using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
@@ -255,6 +257,45 @@ public sealed class Step242ImporterTests
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("Importer.StepSyntax.InlineEntity", diagnostic.Source);
         Assert.StartsWith("Inline ADVANCED_FACE.surface constructor 'CONICAL_SURFACE' has unsupported argument shape.", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void Step242_CurveSampler_Circle3_SamplesArcDeterministically()
+    {
+        var circle = new Circle3Curve(Point3D.Origin, Direction3D.Create(new Vector3D(0d, 0d, 1d)), 2d, Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+
+        var forward = CurveSampler.SampleCircleArc(circle, 0d, double.Pi / 2d);
+        var second = CurveSampler.SampleCircleArc(circle, 0d, double.Pi / 2d);
+        var reversed = CurveSampler.SampleCircleArc(circle, double.Pi / 2d, -double.Pi / 2d);
+
+        Assert.Equal(forward.Count, second.Count);
+        Assert.Equal(13, forward.Count);
+        Assert.True(((forward[0] - circle.Evaluate(0d)).LengthSquared) < 1e-12d);
+        Assert.True(((forward[^1] - circle.Evaluate(double.Pi / 2d)).LengthSquared) < 1e-12d);
+
+        for (var i = 0; i < forward.Count; i++)
+        {
+            Assert.True(((forward[i] - second[i]).LengthSquared) < 1e-12d);
+            Assert.True(((forward[i] - reversed[^(i + 1)]).LengthSquared) < 1e-12d);
+        }
+    }
+
+    [Fact]
+    public void Step242_Molex0430200200_Import_NoCircle3LineOnlyError()
+    {
+        var text = LoadFixture("testdata/step242/tessellation-robustness/planar-rect-with-filleted-corners.step");
+
+        var import = Step242Importer.ImportBody(text);
+        Assert.True(import.IsSuccess);
+
+        var tessellation = BrepDisplayTessellator.Tessellate(import.Value);
+        Assert.True(tessellation.IsSuccess);
+
+        Assert.DoesNotContain(import.Diagnostics, d => d.Message.Contains("Circle3", StringComparison.Ordinal));
+        Assert.DoesNotContain(import.Diagnostics, d => d.Message.Contains("line edges only", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(tessellation.Diagnostics, d => d.Message.Contains("Circle3", StringComparison.Ordinal));
+        Assert.DoesNotContain(tessellation.Diagnostics, d => d.Message.Contains("line edges only", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string LoadFixture(string relativePath)

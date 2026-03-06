@@ -306,7 +306,7 @@ public sealed class Step242ImporterTests
         var start = circle.Evaluate(0d);
         var end = circle.Evaluate(double.Pi / 6d);
 
-        var sampled = CurveSampler.TrySampleTrimmedCircleArc(circle, start, end, orientedEdgeSense: true, out var points, out _, out var shorterArcFallback);
+        var sampled = CurveSampler.TrySampleTrimmedCircleArc(circle, start, end, orientedEdgeSense: true, auditContext: null, out var points, out _, out var shorterArcFallback);
 
         Assert.True(sampled);
         Assert.False(shorterArcFallback);
@@ -333,8 +333,8 @@ public sealed class Step242ImporterTests
         var start = circle.Evaluate(0d);
         var end = circle.Evaluate(double.Pi / 6d);
 
-        var forwardOk = CurveSampler.TrySampleTrimmedCircleArc(circle, start, end, orientedEdgeSense: true, out var forward, out _, out _);
-        var reverseOk = CurveSampler.TrySampleTrimmedCircleArc(circle, start, end, orientedEdgeSense: false, out var reversed, out _, out _);
+        var forwardOk = CurveSampler.TrySampleTrimmedCircleArc(circle, start, end, orientedEdgeSense: true, auditContext: null, out var forward, out _, out _);
+        var reverseOk = CurveSampler.TrySampleTrimmedCircleArc(circle, start, end, orientedEdgeSense: false, auditContext: null, out var reversed, out _, out _);
 
         Assert.True(forwardOk);
         Assert.True(reverseOk);

@@ -96,7 +96,7 @@ public static class BrepDisplayTessellator
             .Select(id => body.Topology.GetCoedge(id))
             .ToArray();
 
-        var polygonPointsResult = BuildFlattenedPlanarLoopPoints(body, coedges, faceId, plane, options);
+        var polygonPointsResult = BuildFlattenedPlanarLoopPoints(body, coedges, faceId, selectedLoopId, plane, options);
         if (!polygonPointsResult.IsSuccess)
         {
             return KernelResult<DisplayFaceMeshPatch>.Failure(polygonPointsResult.Diagnostics);
@@ -141,7 +141,7 @@ public static class BrepDisplayTessellator
                 .Select(id => body.Topology.GetCoedge(id))
                 .ToArray();
 
-            var pointsResult = BuildFlattenedPlanarLoopPoints(body, coedges, faceId, plane, DisplayTessellationOptions.Default);
+            var pointsResult = BuildFlattenedPlanarLoopPoints(body, coedges, faceId, loopId, plane, DisplayTessellationOptions.Default);
             if (!pointsResult.IsSuccess)
             {
                 continue;
@@ -411,6 +411,7 @@ public static class BrepDisplayTessellator
         BrepBody body,
         IReadOnlyList<Coedge> coedges,
         FaceId faceId,
+        LoopId loopId,
         PlaneSurface plane,
         DisplayTessellationOptions options)
     {
@@ -459,8 +460,9 @@ public static class BrepDisplayTessellator
         var flattened = new List<Point3D>();
         AppendUniquePoint(flattened, orientedEndpoints[orderedIndices[0]].Start);
 
-        foreach (var index in orderedIndices)
+        for (var orderedIndex = 0; orderedIndex < orderedIndices.Count; orderedIndex++)
         {
+            var index = orderedIndices[orderedIndex];
             var coedge = coedges[index];
             var (segmentStart, segmentEnd) = orientedEndpoints[index];
             var curve = body.GetEdgeCurve(coedge.EdgeId);
@@ -471,7 +473,7 @@ public static class BrepDisplayTessellator
                     AppendUniquePoint(flattened, segmentEnd);
                     break;
                 case CurveGeometryKind.Circle3:
-                    var arcPointsResult = SampleCircleArc(body, coedge, curve.Circle3!.Value, segmentStart, segmentEnd, plane, faceId);
+                    var arcPointsResult = SampleCircleArc(body, coedge, curve.Circle3!.Value, segmentStart, segmentEnd, plane, faceId, loopId, orderedIndex);
                     if (!arcPointsResult.IsSuccess)
                     {
                         return KernelResult<IReadOnlyList<Point3D>>.Failure(arcPointsResult.Diagnostics);
@@ -505,9 +507,11 @@ public static class BrepDisplayTessellator
         Point3D start,
         Point3D end,
         PlaneSurface plane,
-        FaceId faceId)
+        FaceId faceId,
+        LoopId loopId,
+        int orientedEdgeIndex)
     {
-        var deltaResult = ResolveArcDelta(body, coedge, circle, start, end, plane, faceId);
+        var deltaResult = ResolveArcDelta(body, coedge, circle, start, end, plane, faceId, loopId, orientedEdgeIndex);
         if (!deltaResult.IsSuccess)
         {
             return KernelResult<IReadOnlyList<Point3D>>.Failure(deltaResult.Diagnostics);
@@ -531,7 +535,9 @@ public static class BrepDisplayTessellator
         Point3D start,
         Point3D end,
         PlaneSurface plane,
-        FaceId faceId)
+        FaceId faceId,
+        LoopId loopId,
+        int orientedEdgeIndex)
     {
         var startAngle = AngleOnCircle(circle, start);
         var endAngle = AngleOnCircle(circle, end);
@@ -667,6 +673,12 @@ public static class BrepDisplayTessellator
 
             case CurveGeometryKind.Circle3:
                 var circle = curve.Circle3!.Value;
+                var auditWriter = CircleEdgeTrimAuditWriter.Instance;
+                if (auditWriter.RegisterCircleEdgeEncountered())
+                {
+                    return KernelResult<DisplayEdgePolyline>.Failure([
+                        CreateInvalidArgument($"Circle edge audit stopped after {auditWriter.MaxCircleEdges} Circle3 edges.", "Viewer.Tessellation.CircleTrimAuditStop")]);
+                }
                 var startPointResult = EvaluateEdgeEndpoint(body, edgeId, useStart: true);
                 if (!startPointResult.IsSuccess)
                 {
@@ -684,6 +696,7 @@ public static class BrepDisplayTessellator
                         startPointResult.Value,
                         endPointResult.Value,
                         binding.OrientedEdgeSense,
+                        BuildCircleAuditContext(body, edgeId, coedgeId: null, faceId: null, loopId: null, loopIndex: null, orientedEdgeIndex: null),
                         out var points,
                         out var isClosed,
                         out var usedShorterArcFallback))
@@ -807,6 +820,76 @@ public static class BrepDisplayTessellator
         }
 
         return KernelResult<(Point3D, Point3D)>.Success(reversed ? (end, start) : (start, end));
+    }
+
+    private static CircleEdgeAuditContext BuildCircleAuditContext(
+        BrepBody body,
+        EdgeId edgeId,
+        CoedgeId? coedgeId,
+        FaceId? faceId,
+        LoopId? loopId,
+        int? loopIndex,
+        int? orientedEdgeIndex)
+    {
+        if (!body.Bindings.TryGetEdgeBinding(edgeId, out var binding))
+        {
+            return new CircleEdgeAuditContext(faceId?.Value, loopId?.Value, loopIndex, orientedEdgeIndex, edgeId.Value, coedgeId?.Value ?? 0, null, null, null, null, null, null);
+        }
+
+        Coedge? resolvedCoedge = null;
+        FaceId? resolvedFace = faceId;
+        LoopId? resolvedLoop = loopId;
+        var resolvedIndex = orientedEdgeIndex;
+
+        foreach (var candidateFace in body.Topology.Faces.OrderBy(f => f.Id.Value))
+        {
+            foreach (var candidateLoopId in body.GetLoopIds(candidateFace.Id))
+            {
+                var coedgeIds = body.GetCoedgeIds(candidateLoopId);
+                for (var i = 0; i < coedgeIds.Count; i++)
+                {
+                    var candidate = body.Topology.GetCoedge(coedgeIds[i]);
+                    if (candidate.EdgeId != edgeId)
+                    {
+                        continue;
+                    }
+
+                    resolvedCoedge = candidate;
+                    resolvedFace ??= candidateFace.Id;
+                    resolvedLoop ??= candidateLoopId;
+                    resolvedIndex ??= i;
+                    break;
+                }
+
+                if (resolvedCoedge is not null)
+                {
+                    break;
+                }
+            }
+
+            if (resolvedCoedge is not null)
+            {
+                break;
+            }
+        }
+
+        var hasVertices = body.TryGetEdgeVertices(edgeId, out var startVertexId, out var endVertexId);
+        var orientedEdgeOrientation = resolvedCoedge is null ? binding.OrientedEdgeSense : (binding.OrientedEdgeSense ^ resolvedCoedge.IsReversed);
+        var effectiveForward = CircleEdgeTrimAuditWriter.ComposeEffectiveForwardSense(orientedEdgeOrientation, binding.OrientedEdgeSense);
+
+        return new CircleEdgeAuditContext(
+            resolvedFace?.Value,
+            resolvedLoop?.Value,
+            loopIndex,
+            resolvedIndex,
+            edgeId.Value,
+            resolvedCoedge?.Id.Value ?? coedgeId?.Value ?? 0,
+            hasVertices && startVertexId.IsValid ? startVertexId.Value : null,
+            hasVertices && endVertexId.IsValid ? endVertexId.Value : null,
+            resolvedCoedge?.IsReversed,
+            binding.OrientedEdgeSense,
+            orientedEdgeOrientation,
+            effectiveForward);
     }
 
     private static int CalculateSegmentCount(double angleSpan, double radius, DisplayTessellationOptions options)

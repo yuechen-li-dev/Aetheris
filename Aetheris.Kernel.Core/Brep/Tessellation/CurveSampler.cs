@@ -31,6 +31,7 @@ internal static class CurveSampler
         Point3D startPoint,
         Point3D endPoint,
         bool orientedEdgeSense,
+        CircleEdgeAuditContext? auditContext,
         out IReadOnlyList<Point3D> points,
         out bool isClosed,
         out bool usedShorterArcFallback)
@@ -51,6 +52,32 @@ internal static class CurveSampler
         var endRadius = (endProjected - circle.Center).Length;
         if (double.Abs(startRadius - circle.Radius) > endpointTolerance || double.Abs(endRadius - circle.Radius) > endpointTolerance)
         {
+            var stopAfterFailureAudit = WriteAudit(
+                circle,
+                auditContext,
+                startPoint,
+                endPoint,
+                startProjected,
+                endProjected,
+                startRadius - circle.Radius,
+                endRadius - circle.Radius,
+                0d,
+                0d,
+                0d,
+                0d,
+                0d,
+                "Failed",
+                distinctEndpoints,
+                orientedEdgeSense,
+                Array.Empty<Point3D>(),
+                "Endpoint radius validation failed.");
+
+            if (stopAfterFailureAudit)
+            {
+                points = Array.Empty<Point3D>();
+                return false;
+            }
+
             points = Array.Empty<Point3D>();
             return false;
         }
@@ -99,8 +126,121 @@ internal static class CurveSampler
         var sampled = SampleCircleArc(circle, thetaStart, delta).ToArray();
         sampled[0] = startProjected;
         sampled[^1] = endProjected;
+
+        var stopAfterAudit = WriteAudit(
+            circle,
+            auditContext,
+            startPoint,
+            endPoint,
+            startProjected,
+            endProjected,
+            startRadius - circle.Radius,
+            endRadius - circle.Radius,
+            thetaStart,
+            thetaEnd,
+            NormalizeSigned(thetaEnd - thetaStart),
+            deltaForward,
+            deltaBackward,
+            delta,
+            !distinctEndpoints ? "LongArc" : (usedShorterArcFallback ? "AmbiguousShort" : (orientedEdgeSense ? "ShortArc" : "LongArc")),
+            distinctEndpoints,
+            orientedEdgeSense,
+            sampled,
+            null);
+
+        if (stopAfterAudit)
+        {
+            points = Array.Empty<Point3D>();
+            return false;
+        }
+
         points = sampled;
         return true;
+    }
+
+    private static bool WriteAudit(
+        Circle3Curve circle,
+        CircleEdgeAuditContext? context,
+        Point3D rawStart,
+        Point3D rawEnd,
+        Point3D projectedStart,
+        Point3D projectedEnd,
+        double startRadiusError,
+        double endRadiusError,
+        double startAngle,
+        double endAngle,
+        double rawDelta,
+        double deltaForward,
+        double deltaBackward,
+        double chosenDelta,
+        string chosenMode,
+        bool distinctEndpoints,
+        bool orientedEdgeSense,
+        IReadOnlyList<Point3D> sampled,
+        string? failureReason)
+    {
+        var writer = CircleEdgeTrimAuditWriter.Instance;
+        if (!writer.Enabled)
+        {
+            return false;
+        }
+
+        var effectiveForward = context?.ComputedEffectiveForward ?? orientedEdgeSense;
+        var record = new CircleEdgeTrimAudit(
+            context?.FaceId,
+            context?.LoopId,
+            context?.LoopIndex,
+            context?.OrientedEdgeIndex,
+            context?.EdgeId ?? 0,
+            context?.CoedgeId ?? 0,
+            context?.VertexStartId,
+            context?.VertexEndId,
+            "Circle3",
+            AuditPoint.From(circle.Center),
+            AuditPoint.From(circle.Normal.ToVector()),
+            circle.Radius,
+            AuditPoint.From(rawStart),
+            AuditPoint.From(rawEnd),
+            AuditPoint.From(projectedStart),
+            AuditPoint.From(projectedEnd),
+            startRadiusError,
+            endRadiusError,
+            AuditPoint.From(circle.XAxis.ToVector()),
+            AuditPoint.From(circle.YAxis.ToVector()),
+            startAngle,
+            endAngle,
+            rawDelta,
+            deltaForward,
+            deltaBackward,
+            chosenDelta,
+            chosenMode,
+            distinctEndpoints,
+            context?.EdgeCurveSameSense ?? orientedEdgeSense,
+            context?.OrientedEdgeOrientation ?? orientedEdgeSense,
+            effectiveForward,
+            sampled.Count,
+            sampled.Count > 0 ? AuditPoint.From(sampled[0]) : null,
+            sampled.Count > 0 ? AuditPoint.From(sampled[^1]) : null,
+            CircleEdgeTrimAuditWriter.IsSuspiciousDelta(chosenDelta),
+            failureReason);
+
+        return writer.Append(record);
+    }
+
+    private static double NormalizeSigned(double angle)
+    {
+        var twoPi = 2d * double.Pi;
+        var normalized = angle % twoPi;
+        if (normalized <= -double.Pi)
+        {
+            normalized += twoPi;
+        }
+        else if (normalized > double.Pi)
+        {
+            normalized -= twoPi;
+        }
+
+        return normalized;
     }
 
     private static Point3D ProjectPointToCirclePlane(Point3D center, Vector3D normal, Point3D point)

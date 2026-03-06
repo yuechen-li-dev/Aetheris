@@ -1,9 +1,9 @@
 import { Line, OrbitControls, Text } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2 } from 'three';
+import { BufferAttribute, BufferGeometry, Color, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2, Vector3 } from 'three';
 import type { RenderSceneData } from './tessellationMapper';
 import { selectLogarithmicGridScales } from './logarithmicGrid';
 
@@ -41,8 +41,103 @@ const VIEWPORT_THEME = {
     selectionEdgeWidth: 3,
 } as const;
 
+const GRID_CORNER_DEFINITIONS = [
+    { label: 'top-left', ndc: new Vector2(-1, 1), color: '#ef4444' },
+    { label: 'top-right', ndc: new Vector2(1, 1), color: '#22c55e' },
+    { label: 'bottom-left', ndc: new Vector2(-1, -1), color: '#3b82f6' },
+    { label: 'bottom-right', ndc: new Vector2(1, -1), color: '#f59e0b' },
+] as const;
+
+interface GridCornerDiagnostic {
+    label: string;
+    ndc: { x: number; y: number };
+    rayOrigin: Vector3;
+    rayDirection: Vector3;
+    hitPoint: Vector3 | null;
+    intersectsPlane: boolean;
+    color: string;
+}
+
+interface GridLayerEnvelope {
+    layer: string;
+    spacing: number;
+    weight: number;
+    xStart: number;
+    xEnd: number;
+    zStart: number;
+    zEnd: number;
+    xLineCount: number;
+    zLineCount: number;
+    firstVerticalLine: [[number, number, number], [number, number, number]] | null;
+    lastVerticalLine: [[number, number, number], [number, number, number]] | null;
+    firstHorizontalLine: [[number, number, number], [number, number, number]] | null;
+    lastHorizontalLine: [[number, number, number], [number, number, number]] | null;
+    skippedByWeight: boolean;
+}
+
+interface GridAuditSnapshot {
+    computedBounds: {
+        minX: number;
+        maxX: number;
+        minZ: number;
+        maxZ: number;
+        centerX: number;
+        centerZ: number;
+        spanX: number;
+        spanZ: number;
+    };
+    baseSpan: number;
+    margin: number;
+    worldSpan: number;
+    gridSelection: {
+        primarySpacing: number;
+        secondarySpacing: number;
+        primaryWeight: number;
+        secondaryWeight: number;
+    };
+    fallbackUsed: boolean;
+    fallbackReason: string | null;
+    fallbackOriginalBounds: {
+        minX: number;
+        maxX: number;
+        minZ: number;
+        maxZ: number;
+    } | null;
+    minimumSpanClampApplied: boolean;
+    layerEnvelopes: GridLayerEnvelope[];
+    transformSpace: {
+        gridGroupLocalSpace: string;
+        parentTransformAssumption: string;
+    };
+}
+
+function parseGridDebugFlag(): boolean {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    const debugParam = new URLSearchParams(window.location.search).get('gridDebug');
+    return debugParam === '1' || debugParam === 'true';
+}
+
+function intersectRayWithHorizontalPlane(rayOrigin: Vector3, rayDirection: Vector3, planeY: number): Vector3 | null {
+    const epsilon = 1e-6;
+    if (Math.abs(rayDirection.y) < epsilon) {
+        return null;
+    }
+
+    const t = (planeY - rayOrigin.y) / rayDirection.y;
+    if (!Number.isFinite(t) || t < 0) {
+        return null;
+    }
+
+    return rayOrigin.clone().addScaledVector(rayDirection, t);
+}
+
 function DraftingGrid() {
-    const { camera, size } = useThree();
+    const { camera } = useThree();
+    const gridDebugEnabled = useMemo(() => parseGridDebugFlag(), []);
+    const debugSnapshotLoggedRef = useRef(false);
     const [cameraSnapshot, setCameraSnapshot] = useState({ x: camera.position.x, z: camera.position.z, zoom: (camera as OrthographicCamera).zoom ?? 1 });
 
     useFrame(() => {
@@ -61,35 +156,128 @@ function DraftingGrid() {
         });
     });
 
-    const { minorLines, majorLines } = useMemo(() => {
+    const {
+        minorLines,
+        majorLines,
+        cornerDiagnostics,
+        bounds,
+        layerEnvelopes,
+        auditSnapshot,
+    } = useMemo(() => {
         const orthographicCamera = camera as OrthographicCamera;
-        const zoom = Math.max(orthographicCamera.zoom ?? 1, 0.0001);
-        const worldHeight = size.height / zoom;
-        const worldWidth = size.width / zoom;
-        const worldSpan = Math.max(worldWidth, worldHeight);
+        const cameraForward = orthographicCamera.getWorldDirection(new Vector3()).normalize();
+        const cornerRays = new Raycaster();
+
+        const diagnostics: GridCornerDiagnostic[] = GRID_CORNER_DEFINITIONS.map((cornerDefinition) => {
+            cornerRays.setFromCamera(cornerDefinition.ndc, orthographicCamera);
+            const rayOrigin = cornerRays.ray.origin.clone();
+            const rayDirection = cameraForward.clone();
+            const hitPoint = intersectRayWithHorizontalPlane(rayOrigin, rayDirection, VIEWPORT_THEME.gridYOffset);
+            return {
+                label: cornerDefinition.label,
+                ndc: { x: cornerDefinition.ndc.x, y: cornerDefinition.ndc.y },
+                rayOrigin,
+                rayDirection,
+                hitPoint,
+                intersectsPlane: hitPoint !== null,
+                color: cornerDefinition.color,
+            };
+        });
+
+        const hitPoints = diagnostics
+            .map((diagnostic) => diagnostic.hitPoint)
+            .filter((point): point is Vector3 => point !== null);
+
+        let minX: number;
+        let maxX: number;
+        let minZ: number;
+        let maxZ: number;
+
+        let fallbackUsed = false;
+        let fallbackReason: string | null = null;
+        let fallbackOriginalBounds: GridAuditSnapshot['fallbackOriginalBounds'] = null;
+
+        if (hitPoints.length === 4) {
+            minX = Math.min(...hitPoints.map((point) => point.x));
+            maxX = Math.max(...hitPoints.map((point) => point.x));
+            minZ = Math.min(...hitPoints.map((point) => point.z));
+            maxZ = Math.max(...hitPoints.map((point) => point.z));
+        } else {
+            fallbackUsed = true;
+            fallbackReason = `Expected 4 corner-plane hits but received ${hitPoints.length}.`;
+            if (hitPoints.length > 0) {
+                fallbackOriginalBounds = {
+                    minX: Math.min(...hitPoints.map((point) => point.x)),
+                    maxX: Math.max(...hitPoints.map((point) => point.x)),
+                    minZ: Math.min(...hitPoints.map((point) => point.z)),
+                    maxZ: Math.max(...hitPoints.map((point) => point.z)),
+                };
+            }
+            const fallbackExtent = Math.max(10 / Math.max(orthographicCamera.zoom ?? 1, 0.0001), 1);
+            minX = camera.position.x - fallbackExtent;
+            maxX = camera.position.x + fallbackExtent;
+            minZ = camera.position.z - fallbackExtent;
+            maxZ = camera.position.z + fallbackExtent;
+        }
+
+        const unclampedBaseSpan = Math.max(maxX - minX, maxZ - minZ);
+        const baseSpan = Math.max(unclampedBaseSpan, 1);
+        const minimumSpanClampApplied = baseSpan !== unclampedBaseSpan;
+        const margin = baseSpan * 0.2;
+        const expandedMinX = minX - margin;
+        const expandedMaxX = maxX + margin;
+        const expandedMinZ = minZ - margin;
+        const expandedMaxZ = maxZ + margin;
+        const worldSpan = Math.max(expandedMaxX - expandedMinX, expandedMaxZ - expandedMinZ);
         const gridSelection = selectLogarithmicGridScales(worldSpan, VIEWPORT_THEME.gridTargetCellCount);
-        const centerX = camera.position.x;
-        const centerZ = camera.position.z;
-        const extentX = worldWidth * VIEWPORT_THEME.gridExtentScale;
-        const extentZ = worldHeight * VIEWPORT_THEME.gridExtentScale;
 
         const minor: ReactNode[] = [];
         const major: ReactNode[] = [];
+        const envelopes: GridLayerEnvelope[] = [];
         const pushGridLayerLines = (spacing: number, weight: number, layerPrefix: string) => {
+            const layerEnvelope: GridLayerEnvelope = {
+                layer: layerPrefix,
+                spacing,
+                weight,
+                xStart: 0,
+                xEnd: 0,
+                zStart: 0,
+                zEnd: 0,
+                xLineCount: 0,
+                zLineCount: 0,
+                firstVerticalLine: null,
+                lastVerticalLine: null,
+                firstHorizontalLine: null,
+                lastHorizontalLine: null,
+                skippedByWeight: weight <= 0.001,
+            };
+
             if (weight <= 0.001) {
+                envelopes.push(layerEnvelope);
                 return;
             }
 
-            const xStart = Math.floor((centerX - extentX) / spacing);
-            const xEnd = Math.ceil((centerX + extentX) / spacing);
-            const zStart = Math.floor((centerZ - extentZ) / spacing);
-            const zEnd = Math.ceil((centerZ + extentZ) / spacing);
+            const xStart = Math.floor(expandedMinX / spacing);
+            const xEnd = Math.ceil(expandedMaxX / spacing);
+            const zStart = Math.floor(expandedMinZ / spacing);
+            const zEnd = Math.ceil(expandedMaxZ / spacing);
+
+            layerEnvelope.xStart = xStart;
+            layerEnvelope.xEnd = xEnd;
+            layerEnvelope.zStart = zStart;
+            layerEnvelope.zEnd = zEnd;
+            layerEnvelope.xLineCount = xEnd - xStart + 1;
+            layerEnvelope.zLineCount = zEnd - zStart + 1;
+            layerEnvelope.firstVerticalLine = [[xStart * spacing, VIEWPORT_THEME.gridYOffset, expandedMinZ], [xStart * spacing, VIEWPORT_THEME.gridYOffset, expandedMaxZ]];
+            layerEnvelope.lastVerticalLine = [[xEnd * spacing, VIEWPORT_THEME.gridYOffset, expandedMinZ], [xEnd * spacing, VIEWPORT_THEME.gridYOffset, expandedMaxZ]];
+            layerEnvelope.firstHorizontalLine = [[expandedMinX, VIEWPORT_THEME.gridYOffset, zStart * spacing], [expandedMaxX, VIEWPORT_THEME.gridYOffset, zStart * spacing]];
+            layerEnvelope.lastHorizontalLine = [[expandedMinX, VIEWPORT_THEME.gridYOffset, zEnd * spacing], [expandedMaxX, VIEWPORT_THEME.gridYOffset, zEnd * spacing]];
 
             for (let xIndex = xStart; xIndex <= xEnd; xIndex += 1) {
                 const x = xIndex * spacing;
                 const points: [[number, number, number], [number, number, number]] = [
-                    [x, VIEWPORT_THEME.gridYOffset, centerZ - extentZ],
-                    [x, VIEWPORT_THEME.gridYOffset, centerZ + extentZ],
+                    [x, VIEWPORT_THEME.gridYOffset, expandedMinZ],
+                    [x, VIEWPORT_THEME.gridYOffset, expandedMaxZ],
                 ];
                 const isMajor = xIndex % VIEWPORT_THEME.gridMajorStep === 0;
                 const target = isMajor ? major : minor;
@@ -121,8 +309,8 @@ function DraftingGrid() {
             for (let zIndex = zStart; zIndex <= zEnd; zIndex += 1) {
                 const z = zIndex * spacing;
                 const points: [[number, number, number], [number, number, number]] = [
-                    [centerX - extentX, VIEWPORT_THEME.gridYOffset, z],
-                    [centerX + extentX, VIEWPORT_THEME.gridYOffset, z],
+                    [expandedMinX, VIEWPORT_THEME.gridYOffset, z],
+                    [expandedMaxX, VIEWPORT_THEME.gridYOffset, z],
                 ];
                 const isMajor = zIndex % VIEWPORT_THEME.gridMajorStep === 0;
                 const target = isMajor ? major : minor;
@@ -150,18 +338,204 @@ function DraftingGrid() {
                     />,
                 );
             }
+
+            envelopes.push(layerEnvelope);
         };
 
         pushGridLayerLines(gridSelection.primarySpacing, gridSelection.primaryWeight, 'primary');
         pushGridLayerLines(gridSelection.secondarySpacing, gridSelection.secondaryWeight, 'secondary');
 
-        return { minorLines: minor, majorLines: major };
-    }, [cameraSnapshot, camera, size.height, size.width]);
+        return {
+            minorLines: minor,
+            majorLines: major,
+            cornerDiagnostics: diagnostics,
+            layerEnvelopes: envelopes,
+            auditSnapshot: {
+                computedBounds: {
+                    minX: expandedMinX,
+                    maxX: expandedMaxX,
+                    minZ: expandedMinZ,
+                    maxZ: expandedMaxZ,
+                    centerX: (expandedMinX + expandedMaxX) * 0.5,
+                    centerZ: (expandedMinZ + expandedMaxZ) * 0.5,
+                    spanX: expandedMaxX - expandedMinX,
+                    spanZ: expandedMaxZ - expandedMinZ,
+                },
+                baseSpan,
+                margin,
+                worldSpan,
+                gridSelection: {
+                    primarySpacing: gridSelection.primarySpacing,
+                    secondarySpacing: gridSelection.secondarySpacing,
+                    primaryWeight: gridSelection.primaryWeight,
+                    secondaryWeight: gridSelection.secondaryWeight,
+                },
+                fallbackUsed,
+                fallbackReason,
+                fallbackOriginalBounds,
+                minimumSpanClampApplied,
+                layerEnvelopes: envelopes,
+                transformSpace: {
+                    gridGroupLocalSpace: 'All DraftingGrid lines are authored in parent/world axes (x,z on y=gridYOffset).',
+                    parentTransformAssumption: 'DraftingGrid is mounted without transform; local coordinates match world-space viewer coordinates.',
+                },
+            },
+            bounds: {
+                minX: expandedMinX,
+                maxX: expandedMaxX,
+                minZ: expandedMinZ,
+                maxZ: expandedMaxZ,
+            },
+        };
+    }, [cameraSnapshot, camera]);
+
+    useEffect(() => {
+        if (!gridDebugEnabled || debugSnapshotLoggedRef.current) {
+            return;
+        }
+
+        debugSnapshotLoggedRef.current = true;
+        // eslint-disable-next-line no-console
+        console.table(cornerDiagnostics.map((diagnostic) => ({
+            corner: diagnostic.label,
+            ndcX: diagnostic.ndc.x,
+            ndcY: diagnostic.ndc.y,
+            originX: diagnostic.rayOrigin.x,
+            originY: diagnostic.rayOrigin.y,
+            originZ: diagnostic.rayOrigin.z,
+            directionX: diagnostic.rayDirection.x,
+            directionY: diagnostic.rayDirection.y,
+            directionZ: diagnostic.rayDirection.z,
+            hit: diagnostic.intersectsPlane,
+            hitX: diagnostic.hitPoint?.x ?? null,
+            hitY: diagnostic.hitPoint?.y ?? null,
+            hitZ: diagnostic.hitPoint?.z ?? null,
+        })));
+        // eslint-disable-next-line no-console
+        console.log('[grid-debug] generation-audit', {
+            bounds: auditSnapshot.computedBounds,
+            baseSpan: auditSnapshot.baseSpan,
+            margin: auditSnapshot.margin,
+            worldSpan: auditSnapshot.worldSpan,
+            selectedSpacing: auditSnapshot.gridSelection,
+            fallbackUsed: auditSnapshot.fallbackUsed,
+            fallbackReason: auditSnapshot.fallbackReason,
+            fallbackOriginalBounds: auditSnapshot.fallbackOriginalBounds,
+            minimumSpanClampApplied: auditSnapshot.minimumSpanClampApplied,
+            transformSpace: auditSnapshot.transformSpace,
+            layerEnvelopes: auditSnapshot.layerEnvelopes,
+        });
+        if (auditSnapshot.fallbackUsed) {
+            // eslint-disable-next-line no-console
+            console.warn('[grid-debug] fallback override engaged', {
+                reason: auditSnapshot.fallbackReason,
+                before: auditSnapshot.fallbackOriginalBounds,
+                after: auditSnapshot.computedBounds,
+            });
+        }
+    }, [auditSnapshot, cornerDiagnostics, gridDebugEnabled]);
+
+    const generationEnvelopeMarkers = useMemo(() => {
+        if (!gridDebugEnabled) {
+            return null;
+        }
+
+        return layerEnvelopes
+            .filter((layer) => !layer.skippedByWeight)
+            .flatMap((layer) => {
+                const color = layer.layer === 'primary' ? '#14b8a6' : '#f97316';
+                const lines = [
+                    { key: 'first-vertical', points: layer.firstVerticalLine },
+                    { key: 'last-vertical', points: layer.lastVerticalLine },
+                    { key: 'first-horizontal', points: layer.firstHorizontalLine },
+                    { key: 'last-horizontal', points: layer.lastHorizontalLine },
+                ] as const;
+
+                return lines
+                    .map((line) => {
+                        if (line.points === null) {
+                            return null;
+                        }
+
+                        return (
+                            <Line
+                                key={`grid-envelope-${layer.layer}-${line.key}`}
+                                points={[
+                                    [line.points[0][0], line.points[0][1] + 0.02, line.points[0][2]],
+                                    [line.points[1][0], line.points[1][1] + 0.02, line.points[1][2]],
+                                ]}
+                                color={color}
+                                lineWidth={4}
+                            />
+                        );
+                    });
+            });
+    }, [gridDebugEnabled, layerEnvelopes]);
+
+    const debugMarkers = useMemo(() => {
+        if (!gridDebugEnabled) {
+            return null;
+        }
+
+        return cornerDiagnostics
+            .filter((diagnostic) => diagnostic.hitPoint !== null)
+            .map((diagnostic) => {
+                const hit = diagnostic.hitPoint as Vector3;
+                const markerSize = 0.22;
+                return (
+                    <group key={`grid-corner-marker-${diagnostic.label}`}>
+                        <Line
+                            points={[[hit.x - markerSize, VIEWPORT_THEME.gridYOffset, hit.z], [hit.x + markerSize, VIEWPORT_THEME.gridYOffset, hit.z]]}
+                            color={diagnostic.color}
+                            lineWidth={3}
+                        />
+                        <Line
+                            points={[[hit.x, VIEWPORT_THEME.gridYOffset, hit.z - markerSize], [hit.x, VIEWPORT_THEME.gridYOffset, hit.z + markerSize]]}
+                            color={diagnostic.color}
+                            lineWidth={3}
+                        />
+                        <Text
+                            position={[hit.x, VIEWPORT_THEME.gridYOffset + 0.03, hit.z]}
+                            color={diagnostic.color}
+                            fontSize={0.15}
+                            anchorX="center"
+                            anchorY="bottom"
+                        >
+                            {diagnostic.label}
+                        </Text>
+                    </group>
+                );
+            });
+    }, [cornerDiagnostics, gridDebugEnabled]);
+
+    const debugBoundsOverlay = useMemo(() => {
+        if (!gridDebugEnabled) {
+            return null;
+        }
+
+        const outlineColor = new Color('#a855f7');
+        return (
+            <Line
+                points={[
+                    [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
+                    [bounds.maxX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
+                    [bounds.maxX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.maxZ],
+                    [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.maxZ],
+                    [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
+                ]}
+                color={outlineColor}
+                lineWidth={2.6}
+            />
+        );
+    }, [bounds.maxX, bounds.maxZ, bounds.minX, bounds.minZ, gridDebugEnabled]);
 
     return (
         <group>
             {minorLines}
             {majorLines}
+            {debugMarkers}
+            {debugBoundsOverlay}
+            {generationEnvelopeMarkers}
         </group>
     );
 }

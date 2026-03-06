@@ -2,6 +2,7 @@ import { Line, OrbitControls, Text } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial, Raycaster, Vector2 } from 'three';
 import type { RenderSceneData } from './tessellationMapper';
 
@@ -9,8 +10,22 @@ const VIEWPORT_THEME = {
     surfaceColor: '#969ba1',
     edgeColor: '#2e2e2e',
     edgeWidth: 1.35,
-    gridMinorColor: '#d9dee4',
-    gridMajorColor: '#c7cdd3',
+    gridMinorCoreColor: '#6b6a67',
+    gridMinorFadeColor: '#9a9894',
+    gridMajorCoreColor: '#555450',
+    gridMajorFadeColor: '#8a8782',
+    gridMinorCoreOpacity: 0.34,
+    gridMinorFadeOpacity: 0.2,
+    gridMajorCoreOpacity: 0.5,
+    gridMajorFadeOpacity: 0.28,
+    gridMinorCoreWidth: 0.7,
+    gridMinorFadeWidth: 2,
+    gridMajorCoreWidth: 1,
+    gridMajorFadeWidth: 2.8,
+    gridSize: 20,
+    gridDivisions: 20,
+    gridMajorStep: 5,
+    gridYOffset: 0.001,
     ambientIntensity: 0.12,
     directionalIntensity: 0.88,
     axisLength: 2,
@@ -24,6 +39,59 @@ const VIEWPORT_THEME = {
     selectionEdgeColor: '#f59e0b',
     selectionEdgeWidth: 3,
 } as const;
+
+function DraftingGrid() {
+    const half = VIEWPORT_THEME.gridSize / 2;
+    const step = VIEWPORT_THEME.gridSize / VIEWPORT_THEME.gridDivisions;
+    const majorStep = VIEWPORT_THEME.gridMajorStep;
+
+    const { minorLines, majorLines } = useMemo(() => {
+        const minor: ReactNode[] = [];
+        const major: ReactNode[] = [];
+
+        for (let division = 0; division <= VIEWPORT_THEME.gridDivisions; division += 1) {
+            const position = -half + division * step;
+            const linePoints: [[number, number, number], [number, number, number]][] = [
+                [[-half, VIEWPORT_THEME.gridYOffset, position], [half, VIEWPORT_THEME.gridYOffset, position]],
+                [[position, VIEWPORT_THEME.gridYOffset, -half], [position, VIEWPORT_THEME.gridYOffset, half]],
+            ];
+            const target = division % majorStep === 0 ? major : minor;
+
+            linePoints.forEach((points, index) => {
+                const linePrefix = division % majorStep === 0 ? 'major' : 'minor';
+                target.push(
+                    <Line
+                        key={`${linePrefix}-fade-${division}-${index}`}
+                        points={points}
+                        color={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
+                        transparent
+                        opacity={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity}
+                        lineWidth={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
+                    />,
+                );
+                target.push(
+                    <Line
+                        key={`${linePrefix}-core-${division}-${index}`}
+                        points={points}
+                        color={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
+                        transparent
+                        opacity={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity}
+                        lineWidth={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
+                    />,
+                );
+            });
+        }
+
+        return { minorLines: minor, majorLines: major };
+    }, [half, majorStep, step]);
+
+    return (
+        <group>
+            {minorLines}
+            {majorLines}
+        </group>
+    );
+}
 
 interface ViewerViewportProps {
     sceneData: RenderSceneData | null;
@@ -164,7 +232,7 @@ export function ViewerViewport({ sceneData, highlightedFaceId = null, highlighte
             <Canvas orthographic camera={{ position: [6, 6, 6], zoom: 90, near: 0.1, far: 1000 }} gl={{ alpha: true }}>
                 <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
                 <directionalLight position={[-5, 9, 6]} intensity={VIEWPORT_THEME.directionalIntensity} />
-                <gridHelper args={[20, 20, VIEWPORT_THEME.gridMajorColor, VIEWPORT_THEME.gridMinorColor]} />
+                <DraftingGrid />
                 <AxisGuide />
                 {sceneData?.faces.map((face) => (
                     <FaceMesh

@@ -45,18 +45,37 @@ const VIEWPORT_THEME = {
 
 function DraftingGrid() {
     const { camera, size } = useThree();
-    const [cameraSnapshot, setCameraSnapshot] = useState({ x: camera.position.x, z: camera.position.z, zoom: (camera as OrthographicCamera).zoom ?? 1 });
+    const [cameraSnapshot, setCameraSnapshot] = useState(() => ({
+        x: camera.position.x,
+        y: camera.position.y,
+        z: camera.position.z,
+        qx: camera.quaternion.x,
+        qy: camera.quaternion.y,
+        qz: camera.quaternion.z,
+        qw: camera.quaternion.w,
+        zoom: (camera as OrthographicCamera).zoom ?? 1,
+    }));
 
     useFrame(() => {
         const orthographicCamera = camera as OrthographicCamera;
         setCameraSnapshot((previousSnapshot) => {
             const nextSnapshot = {
                 x: camera.position.x,
+                y: camera.position.y,
                 z: camera.position.z,
+                qx: camera.quaternion.x,
+                qy: camera.quaternion.y,
+                qz: camera.quaternion.z,
+                qw: camera.quaternion.w,
                 zoom: orthographicCamera.zoom ?? 1,
             };
             const changed = Math.abs(nextSnapshot.x - previousSnapshot.x) > 0.01
+                || Math.abs(nextSnapshot.y - previousSnapshot.y) > 0.01
                 || Math.abs(nextSnapshot.z - previousSnapshot.z) > 0.01
+                || Math.abs(nextSnapshot.qx - previousSnapshot.qx) > 0.0001
+                || Math.abs(nextSnapshot.qy - previousSnapshot.qy) > 0.0001
+                || Math.abs(nextSnapshot.qz - previousSnapshot.qz) > 0.0001
+                || Math.abs(nextSnapshot.qw - previousSnapshot.qw) > 0.0001
                 || Math.abs(nextSnapshot.zoom - previousSnapshot.zoom) > 0.01;
 
             return changed ? nextSnapshot : previousSnapshot;

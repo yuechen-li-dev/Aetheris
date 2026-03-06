@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2 } from 'three';
+import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial, OrthographicCamera, Plane, Raycaster, Vector2, Vector3 } from 'three';
 import type { RenderSceneData } from './tessellationMapper';
 import { selectLogarithmicGridScales } from './logarithmicGrid';
 
@@ -26,6 +26,8 @@ const VIEWPORT_THEME = {
     gridMajorStep: 5,
     gridTargetCellCount: 14,
     gridExtentScale: 2.2,
+    gridCoverageMarginScale: 1.12,
+    gridMinimumCoverageSize: 16,
     gridYOffset: 0.001,
     ambientIntensity: 0.12,
     directionalIntensity: 0.88,
@@ -68,10 +70,38 @@ function DraftingGrid() {
         const worldWidth = size.width / zoom;
         const worldSpan = Math.max(worldWidth, worldHeight);
         const gridSelection = selectLogarithmicGridScales(worldSpan, VIEWPORT_THEME.gridTargetCellCount);
-        const centerX = camera.position.x;
-        const centerZ = camera.position.z;
-        const extentX = worldWidth * VIEWPORT_THEME.gridExtentScale;
-        const extentZ = worldHeight * VIEWPORT_THEME.gridExtentScale;
+        const gridPlane = new Plane(new Vector3(0, 1, 0), -VIEWPORT_THEME.gridYOffset);
+        const corners: readonly [number, number][] = [
+            [-1, -1],
+            [1, -1],
+            [1, 1],
+            [-1, 1],
+        ];
+        const raycaster = new Raycaster();
+        const hit = new Vector3();
+        const visiblePointsOnPlane: Vector3[] = [];
+
+        for (const [x, y] of corners) {
+            raycaster.setFromCamera(new Vector2(x, y), orthographicCamera);
+            if (raycaster.ray.intersectPlane(gridPlane, hit)) {
+                visiblePointsOnPlane.push(hit.clone());
+            }
+        }
+
+        const centerX = visiblePointsOnPlane.length > 0
+            ? visiblePointsOnPlane.reduce((sum, point) => sum + point.x, 0) / visiblePointsOnPlane.length
+            : camera.position.x;
+        const centerZ = visiblePointsOnPlane.length > 0
+            ? visiblePointsOnPlane.reduce((sum, point) => sum + point.z, 0) / visiblePointsOnPlane.length
+            : camera.position.z;
+
+        const fallbackExtent = Math.max(worldSpan * VIEWPORT_THEME.gridExtentScale, VIEWPORT_THEME.gridMinimumCoverageSize);
+        const minX = visiblePointsOnPlane.length > 0 ? Math.min(...visiblePointsOnPlane.map((point) => point.x)) : centerX - fallbackExtent;
+        const maxX = visiblePointsOnPlane.length > 0 ? Math.max(...visiblePointsOnPlane.map((point) => point.x)) : centerX + fallbackExtent;
+        const minZ = visiblePointsOnPlane.length > 0 ? Math.min(...visiblePointsOnPlane.map((point) => point.z)) : centerZ - fallbackExtent;
+        const maxZ = visiblePointsOnPlane.length > 0 ? Math.max(...visiblePointsOnPlane.map((point) => point.z)) : centerZ + fallbackExtent;
+        const extentX = Math.max((maxX - minX) * 0.5 * VIEWPORT_THEME.gridCoverageMarginScale, fallbackExtent);
+        const extentZ = Math.max((maxZ - minZ) * 0.5 * VIEWPORT_THEME.gridCoverageMarginScale, fallbackExtent);
 
         const minor: ReactNode[] = [];
         const major: ReactNode[] = [];

@@ -84,6 +84,14 @@ describe('App STEP file upload flow', () => {
         expect(screen.getByRole('button', { name: 'Create Box' })).toBeTruthy();
     });
 
+    it('auto-creates a workspace and shows connected/ready status on startup', async () => {
+        render(<App />);
+
+        await screen.findByText('Server: Connected');
+        await screen.findByText('Document: Ready');
+        expect(apiMocks.createDocument).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps canonical hash visible from viewer inspector', async () => {
         apiMocks.importStep.mockResolvedValue({
             documentId: 'doc-1',
@@ -101,9 +109,7 @@ describe('App STEP file upload flow', () => {
         });
 
         render(<App />);
-
-        fireEvent.click(screen.getByRole('button', { name: 'Create Document' }));
-        await screen.findByText(/Create document complete/i);
+        await screen.findByText('Document: Ready');
 
         const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
         const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
@@ -116,9 +122,7 @@ describe('App STEP file upload flow', () => {
 
     it('updates local file selection state when a file is chosen', async () => {
         render(<App />);
-
-        fireEvent.click(screen.getByRole('button', { name: 'Create Document' }));
-        await screen.findByText(/Create document complete/i);
+        await screen.findByText('Document: Ready');
 
         const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
         const file = new File(['ISO-10303-21;'], 'sample.step', { type: 'text/plain' });
@@ -144,9 +148,7 @@ describe('App STEP file upload flow', () => {
         });
 
         render(<App />);
-
-        fireEvent.click(screen.getByRole('button', { name: 'Create Document' }));
-        await screen.findByText(/Create document complete/i);
+        await screen.findByText('Document: Ready');
 
         const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
         const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
@@ -184,9 +186,7 @@ describe('App STEP file upload flow', () => {
             });
 
         render(<App />);
-
-        fireEvent.click(screen.getByRole('button', { name: 'Create Document' }));
-        await screen.findByText(/Create document complete/i);
+        await screen.findByText('Document: Ready');
 
         fireEvent.click(screen.getByRole('tab', { name: /Modeling Demo/i }));
         fireEvent.click(screen.getByRole('button', { name: 'Create Box' }));
@@ -223,9 +223,7 @@ describe('App STEP file upload flow', () => {
         }]));
 
         render(<App />);
-
-        fireEvent.click(screen.getByRole('button', { name: 'Create Document' }));
-        await screen.findByText(/Create document complete/i);
+        await screen.findByText('Document: Ready');
 
         const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
         const file = new File(['BAD'], 'bad.step', { type: 'text/plain' });
@@ -233,7 +231,7 @@ describe('App STEP file upload flow', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
 
-        await screen.findByText('Malformed STEP payload.');
+        await screen.findByText('Import error: Request failed.');
         await screen.findByText('[Error] ValidationFailed: Malformed STEP payload.');
     });
 
@@ -246,9 +244,7 @@ describe('App STEP file upload flow', () => {
         }]));
 
         render(<App />);
-
-        fireEvent.click(screen.getByRole('button', { name: 'Create Document' }));
-        await screen.findByText(/Create document complete/i);
+        await screen.findByText('Document: Ready');
         fireEvent.click(screen.getByRole('tab', { name: /Modeling Demo/i }));
         fireEvent.click(screen.getByRole('button', { name: 'Create Box' }));
         await screen.findByText(/Create box complete/i);
@@ -256,7 +252,54 @@ describe('App STEP file upload flow', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Download Canonical 242' }));
 
-        await screen.findByText('Export failed.');
         await screen.findByText('[Error] StepExportFailed: Export failed.');
+    });
+
+    it('keeps file selection while document is still preparing and enables import when ready', async () => {
+        let resolveCreate: (value: { documentId: string; name: string; volatile: boolean; }) => void = () => undefined;
+        apiMocks.createDocument.mockImplementationOnce(() => new Promise<{ documentId: string; name: string; volatile: boolean; }>((resolve) => {
+            resolveCreate = resolve;
+        }));
+
+        render(<App />);
+
+        const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
+        const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [file] } });
+
+        expect(screen.getByText('Selected file: part.stp (18 bytes)')).toBeTruthy();
+        expect((screen.getByRole('button', { name: 'Import STEP 242' }) as HTMLButtonElement).disabled).toBe(true);
+
+        resolveCreate({ documentId: 'doc-1', name: 'Test', volatile: true });
+        await screen.findByText('Document: Ready');
+
+        await waitFor(() => {
+            expect((screen.getByRole('button', { name: 'Import STEP 242' }) as HTMLButtonElement).disabled).toBe(false);
+        });
+    });
+
+    it('resets file selection and document-bound state when New Document is pressed', async () => {
+        render(<App />);
+        await screen.findByText('Document: Ready');
+
+        const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
+        const file = new File(['ISO-10303-21;'], 'sample.step', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [file] } });
+        expect(screen.getByText(/Selected file: sample.step \(\d+ bytes\)/)).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'New Document' }));
+
+        await screen.findByText('No file selected.');
+        expect(screen.getByText('Document: Ready')).toBeTruthy();
+        expect(screen.getByText('Ready. Select a file to import.')).toBeTruthy();
+        expect(apiMocks.createDocument).toHaveBeenCalledTimes(2);
+    });
+
+    it('disables import button unless server connected, document ready, and file selected', async () => {
+        apiMocks.createDocument.mockRejectedValueOnce(new ApiError('Server unavailable.', []));
+        render(<App />);
+
+        await screen.findByText('Server: Error');
+        expect((screen.getByRole('button', { name: 'Import STEP 242' }) as HTMLButtonElement).disabled).toBe(true);
     });
 });

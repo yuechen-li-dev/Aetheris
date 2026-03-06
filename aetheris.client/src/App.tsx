@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 import {
     ApiError,
@@ -24,6 +24,9 @@ import { mapTessellationToRenderData } from './viewer/tessellationMapper';
 type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
 type BooleanOperationUi = 'Union' | 'Subtract' | 'Intersect';
 type TopLevelTab = 'viewer' | 'modeling-demo';
+type ServerStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+type DocumentStatus = 'creating' | 'ready' | 'error';
+type ImportStatus = 'idle' | 'creating' | 'importing' | 'success' | 'error';
 
 const BOOLEAN_OP_TO_API: Record<BooleanOperationUi, BooleanOperation> = {
     Union: 'union',
@@ -40,6 +43,10 @@ function App() {
     const [tessellation, setTessellation] = useState<TessellationResponseDto | null>(null);
     const [status, setStatus] = useState<RequestStatus>('idle');
     const [statusMessage, setStatusMessage] = useState<string>('Ready. Create a document to begin.');
+    const [serverStatus, setServerStatus] = useState<ServerStatus>('connecting');
+    const [documentStatus, setDocumentStatus] = useState<DocumentStatus>('creating');
+    const [importStatus, setImportStatus] = useState<ImportStatus>('creating');
+    const [importStatusMessage, setImportStatusMessage] = useState('Preparing workspace…');
     const [diagnostics, setDiagnostics] = useState<DiagnosticDto[]>([]);
     const [pickStatus, setPickStatus] = useState<RequestStatus>('idle');
     const [pickMessage, setPickMessage] = useState<string>('Click in the viewport to run nearest-hit pick.');
@@ -59,8 +66,64 @@ function App() {
     const [stepCanonicalHash, setStepCanonicalHash] = useState<string | null>(null);
     const [stepImportSelectionMessage, setStepImportSelectionMessage] = useState('No file selected.');
     const [copyHashMessage, setCopyHashMessage] = useState('');
+    const [isImporting, setIsImporting] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
 
     const maxStepFileSizeBytes = 5 * 1024 * 1024;
+
+    const resetSessionState = useCallback(() => {
+        setBodyIds([]);
+        setActiveBodyId(null);
+        setOccurrences([]);
+        setTessellation(null);
+        setPickStatus('idle');
+        setPickMessage('Click in the viewport to run nearest-hit pick.');
+        setPickDiagnostics([]);
+        setPickHits([]);
+        setBooleanTargetBodyId('');
+        setBooleanToolBodyId('');
+        setBooleanOperation('Union');
+        setStepExportText('');
+        setStepImportFile(null);
+        setStepCanonicalHash(null);
+        setStepImportSelectionMessage('No file selected.');
+        setCopyHashMessage('');
+        setDiagnostics([]);
+        setImportStatusMessage('Preparing workspace…');
+    }, []);
+
+    const createFreshDocument = useCallback(async () => {
+        setServerStatus('connecting');
+        setDocumentStatus('creating');
+        setImportStatus('creating');
+        setImportStatusMessage('Preparing workspace…');
+        setStatus('loading');
+        setStatusMessage('Preparing workspace...');
+
+        try {
+            const created = await createDocument('STEP 242 Viewer UI');
+            setDocumentId(created.documentId);
+            setServerStatus('connected');
+            setDocumentStatus('ready');
+            setImportStatus('idle');
+            setImportStatusMessage('Ready. Select a file to import.');
+            setStatus('success');
+            setStatusMessage('Workspace ready.');
+        } catch (error) {
+            const apiError = error instanceof ApiError
+                ? error
+                : new ApiError((error as Error).message || 'Unexpected error.', []);
+            setDocumentId(null);
+            setServerStatus('error');
+            setDocumentStatus('error');
+            setImportStatus('error');
+            setImportStatusMessage(`Import error: ${apiError.message}`);
+            setStatus('error');
+            setStatusMessage(apiError.message);
+            setDiagnostics(apiError.diagnostics);
+        }
+    }, []);
 
     const runAction = useCallback(async (actionName: string, action: () => Promise<void>) => {
         setStatus('loading');
@@ -71,6 +134,7 @@ function App() {
             await action();
             setStatus('success');
             setStatusMessage(`${actionName} complete.`);
+            return true;
         } catch (error) {
             const apiError = error instanceof ApiError
                 ? error
@@ -78,6 +142,7 @@ function App() {
             setStatus('error');
             setStatusMessage(apiError.message);
             setDiagnostics(apiError.diagnostics);
+            return false;
         }
     }, []);
 
@@ -102,27 +167,15 @@ function App() {
     }, [activeBodyId, documentId]);
 
     const handleCreateDocument = useCallback(async () => {
-        await runAction('Create document', async () => {
-            const created = await createDocument('STEP 242 Viewer UI');
-            setDocumentId(created.documentId);
-            setBodyIds([]);
-            setActiveBodyId(null);
-            setOccurrences([]);
-            setTessellation(null);
-            setPickStatus('idle');
-            setPickMessage('Click in the viewport to run nearest-hit pick.');
-            setPickDiagnostics([]);
-            setPickHits([]);
-            setBooleanTargetBodyId('');
-            setBooleanToolBodyId('');
-            setBooleanOperation('Union');
-            setStepExportText('');
-            setStepImportFile(null);
-            setStepCanonicalHash(null);
-            setStepImportSelectionMessage('No file selected.');
-            setCopyHashMessage('');
-        });
-    }, [runAction]);
+        setIsResetting(true);
+        resetSessionState();
+        await createFreshDocument();
+        setIsResetting(false);
+    }, [createFreshDocument, resetSessionState]);
+
+    useEffect(() => {
+        void handleCreateDocument();
+    }, [handleCreateDocument]);
 
     const handleCreateBox = useCallback(async () => {
         if (!documentId) {
@@ -195,10 +248,12 @@ function App() {
             return;
         }
 
+        setIsRefreshing(true);
         await runAction('Refresh tessellation', async () => {
             const tessellated = await tessellateBody(documentId, activeBodyId);
             setTessellation(tessellated);
         });
+        setIsRefreshing(false);
     }, [activeBodyId, documentId, runAction]);
 
     const activeOccurrence = useMemo(
@@ -262,7 +317,7 @@ function App() {
     }, [stepCanonicalHash]);
 
     const handleImportStep = useCallback(async () => {
-        if (!documentId || !stepImportFile) {
+        if (!documentId || !stepImportFile || documentStatus !== 'ready' || serverStatus !== 'connected') {
             return;
         }
 
@@ -270,6 +325,8 @@ function App() {
             setStatus('error');
             setStatusMessage('Selected STEP file is empty.');
             setDiagnostics([]);
+            setImportStatus('error');
+            setImportStatusMessage('Import error: Selected STEP file is empty.');
             return;
         }
 
@@ -277,27 +334,39 @@ function App() {
             setStatus('error');
             setStatusMessage(`Selected STEP file is too large (${stepImportFile.size} bytes). Limit is ${maxStepFileSizeBytes} bytes.`);
             setDiagnostics([]);
+            setImportStatus('error');
+            setImportStatusMessage(`Import error: Selected STEP file is too large (${stepImportFile.size} bytes).`);
             return;
         }
 
-        await runAction('Import STEP', async () => {
-            const stepText = await stepImportFile.text();
-            if (stepText.trim().length === 0) {
-                throw new ApiError('Selected STEP file is empty.', []);
-            }
+        setImportStatus('importing');
+        setImportStatusMessage('Importing STEP…');
+        setIsImporting(true);
 
-            const imported = await importStep(documentId, stepText);
-            setStepExportText('');
-            await refreshSummaryAndActiveTessellation(imported.occurrenceId);
-            const exported = await exportDefinitionStep(documentId, imported.definitionId);
-            setStepCanonicalHash(exported.canonicalHash);
-            setPickStatus('idle');
-            setPickMessage(`Imported occurrence ${imported.occurrenceId} is now active.`);
-            setPickDiagnostics([]);
-            setPickHits([]);
-            setCopyHashMessage('');
-        });
-    }, [documentId, maxStepFileSizeBytes, refreshSummaryAndActiveTessellation, runAction, stepImportFile]);
+        try {
+            const didImport = await runAction('Import STEP', async () => {
+                const stepText = await stepImportFile.text();
+                if (stepText.trim().length === 0) {
+                    throw new ApiError('Selected STEP file is empty.', []);
+                }
+
+                const imported = await importStep(documentId, stepText);
+                setStepExportText('');
+                await refreshSummaryAndActiveTessellation(imported.occurrenceId);
+                const exported = await exportDefinitionStep(documentId, imported.definitionId);
+                setStepCanonicalHash(exported.canonicalHash);
+                setPickStatus('idle');
+                setPickMessage(`Imported occurrence ${imported.occurrenceId} is now active.`);
+                setPickDiagnostics([]);
+                setPickHits([]);
+                setCopyHashMessage('');
+            });
+            setImportStatus(didImport ? 'success' : 'error');
+            setImportStatusMessage(didImport ? 'Import complete.' : 'Import error: Request failed.');
+        } finally {
+            setIsImporting(false);
+        }
+    }, [documentId, documentStatus, maxStepFileSizeBytes, refreshSummaryAndActiveTessellation, runAction, serverStatus, stepImportFile]);
 
     const handleStepFileSelection = useCallback((fileList: FileList | null) => {
         const selected = fileList?.[0] ?? null;
@@ -398,7 +467,12 @@ function App() {
     const nearestHit = pickHits[0] ?? null;
     const highlightedFaceId = nearestHit?.entityKind === 'Face' ? nearestHit.faceId : null;
     const highlightedEdgeId = nearestHit?.entityKind === 'Edge' ? nearestHit.edgeId : null;
-    const canImportStep = Boolean(documentId && stepImportFile && status !== 'loading');
+    const canImportStep = Boolean(
+        serverStatus === 'connected'
+        && documentStatus === 'ready'
+        && stepImportFile
+        && !isImporting
+        && status !== 'loading');
     const canExecuteBoolean = Boolean(
         documentId
         && bodyIds.length >= 2
@@ -406,19 +480,41 @@ function App() {
         && booleanToolBodyId
         && booleanTargetBodyId !== booleanToolBodyId
         && status !== 'loading');
+    const serverStatusLabel: Record<ServerStatus, string> = {
+        connecting: 'Server: Connecting',
+        connected: 'Server: Connected',
+        disconnected: 'Server: Disconnected',
+        error: 'Server: Error',
+    };
+    const documentStatusLabel: Record<DocumentStatus, string> = {
+        creating: 'Document: Preparing',
+        ready: 'Document: Ready',
+        error: 'Document: Error',
+    };
+    const importStatusTone = importStatus === 'error' ? 'error' : (importStatus === 'success' ? 'success' : 'neutral');
 
     return (
         <div className="app-shell">
             <header className="top-bar">
                 <div className="top-bar__header-row">
                     <div className="top-bar__title">STEP 242 VIEWER</div>
-                    <div className="top-bar__actions">
-                        <Button type="button" variant="outline" onClick={() => void handleCreateDocument()} disabled={status === 'loading'}>
-                            Create Document
-                        </Button>
-                        <Button type="button" variant="outline" onClick={() => void handleRefreshTessellation()} disabled={!activeBodyId || status === 'loading'}>
-                            Refresh Tessellation
-                        </Button>
+                    <div className="top-bar__actions-block">
+                        <div className="top-bar__actions">
+                            <Button type="button" variant="outline" onClick={() => void handleCreateDocument()} disabled={status === 'loading'}>
+                                {isResetting ? 'Preparing…' : 'New Document'}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => void handleRefreshTessellation()}
+                                disabled={documentStatus !== 'ready' || !activeBodyId || status === 'loading' || isRefreshing}>
+                                Refresh Tessellation
+                            </Button>
+                        </div>
+                        <div className="status-row" role="status" aria-live="polite">
+                            <span className={`status-pill status-pill--${serverStatus}`}>{serverStatusLabel[serverStatus]}</span>
+                            <span className={`status-pill status-pill--${documentStatus}`}>{documentStatusLabel[documentStatus]}</span>
+                        </div>
                     </div>
                 </div>
                 <div className="top-bar__tabs-row">
@@ -448,7 +544,7 @@ function App() {
             <main className="main-layout">
                 <section className="viewport-column">
                     <div className="viewport-shell">
-                        <h2 className="section-title">Viewport (secondary)</h2>
+                        <h2 className="section-title">Viewport</h2>
                         <ViewerViewport
                             sceneData={sceneData}
                             highlightedFaceId={highlightedFaceId}
@@ -461,7 +557,7 @@ function App() {
                 <aside className="tool-rail">
                     {activeTab === 'viewer' ? (
                         <>
-                            <section className="tool-section">
+                            <section className="tool-section tool-section--import">
                                 <h2 className="section-title">Step Import</h2>
                                 <label>
                                     STEP 242 File
@@ -473,8 +569,27 @@ function App() {
                                 </label>
                                 <p>{stepImportSelectionMessage}</p>
                                 <Button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP 242</Button>
-                                <p><strong>Status:</strong> {statusMessage}</p>
-                                {diagnostics.length === 0 ? null : (
+                                <div className={`import-status-box import-status-box--${importStatusTone}`}>
+                                    <p className="import-status-box__label"><strong>Import Status</strong></p>
+                                    {importStatus === 'error' ? (
+                                        <>
+                                            <p className="import-status-box__summary">Import failed</p>
+                                            <p className="import-status-box__detail">{statusMessage}</p>
+                                            {diagnostics.length === 0 ? null : (
+                                                <ul className="import-status-box__details-list">
+                                                    {diagnostics.map((diagnostic, index) => (
+                                                        <li key={`${diagnostic.code}-${index}`}>
+                                                            [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <p>{importStatusMessage}</p>
+                                    )}
+                                </div>
+                                {importStatus === 'error' || diagnostics.length === 0 ? null : (
                                     <ul>
                                         {diagnostics.map((diagnostic, index) => (
                                             <li key={`${diagnostic.code}-${index}`}>

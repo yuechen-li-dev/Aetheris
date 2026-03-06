@@ -25,7 +25,7 @@
 
 .top-bar__header-row {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: var(--layout-space-2);
   padding: var(--layout-space-2) var(--layout-space-3);
@@ -34,6 +34,82 @@
 
 .top-bar__tabs-row {
   padding: var(--layout-space-1) var(--layout-space-3);
+}
+
+.top-bar__actions-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-self: end;
+  width: max-content;
+  gap: 2px;
+}
+
+.status-row {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0;
+}
+
+.status-pill {
+  border: var(--layout-border-weight) solid var(--layout-border-color);
+  border-radius: 0;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  background: hsla(var(--muted), 0.7);
+}
+
+.status-pill--connected,
+.status-pill--ready {
+  border-color: #6f8f8a;
+}
+
+.status-pill--error,
+.status-pill--disconnected {
+  border-color: #9e6767;
+}
+
+.import-status-box {
+  border: var(--layout-border-weight) solid var(--layout-border-color);
+  border-radius: 0;
+  background: hsla(var(--muted), 0.45);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.import-status-box p {
+  margin: 0;
+}
+
+.import-status-box__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.import-status-box__summary {
+  font-weight: var(--ui-weight-emphasis);
+}
+
+.import-status-box__detail {
+  overflow-wrap: anywhere;
+}
+
+.import-status-box__details-list {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.import-status-box--success {
+  border-color: #6f8f8a;
+}
+
+.import-status-box--error {
+  border-color: #9e6767;
 }
 
 .top-bar__title {
@@ -121,7 +197,7 @@
   padding: var(--layout-space-2);
   display: flex;
   flex-direction: column;
-  gap: var(--layout-space-1);
+  gap: 10px;
 }
 
 .section-title {
@@ -255,6 +331,14 @@ strong {
     justify-content: flex-start;
   }
 
+  .top-bar__actions-block {
+    align-items: flex-start;
+  }
+
+  .status-row {
+    padding: 0;
+  }
+
   .main-layout {
     grid-template-columns: 1fr;
   }
@@ -262,4 +346,20 @@ strong {
   .viewport-shell {
     min-height: 500px;
   }
+}
+
+.tool-section p {
+  margin: 0;
+}
+
+.tool-section--import label + p {
+  margin-top: 2px;
+}
+
+.tool-section--import .import-status-box {
+  margin-top: 4px;
+}
+
+.audit-panel p {
+  margin: 2px 0;
 }

@@ -182,6 +182,19 @@
   gap: var(--layout-space-2);
 }
 
+
+.viewport-canvas-frame {
+  flex: 1;
+  min-height: 0;
+  border-radius: calc(var(--layout-radius) - 2px);
+  overflow: hidden;
+  background: linear-gradient(180deg, #f2f4f7 0%, #dde2e8 100%);
+}
+
+.viewport-canvas-frame canvas {
+  display: block;
+}
+
 .tool-rail {
   padding: var(--layout-space-2);
   overflow: auto;

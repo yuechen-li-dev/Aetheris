@@ -5,6 +5,19 @@ import { useEffect, useMemo } from 'react';
 import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial, Raycaster, Vector2 } from 'three';
 import type { RenderSceneData } from './tessellationMapper';
 
+const VIEWPORT_THEME = {
+    surfaceColor: '#969ba1',
+    edgeColor: '#2e2e2e',
+    edgeWidth: 1.35,
+    gridMinorColor: '#d9dee4',
+    gridMajorColor: '#c7cdd3',
+    ambientIntensity: 0.25,
+    directionalIntensity: 0.75,
+    selectionFaceColor: '#f59e0b',
+    selectionEdgeColor: '#f59e0b',
+    selectionEdgeWidth: 3,
+} as const;
+
 interface ViewerViewportProps {
     sceneData: RenderSceneData | null;
     highlightedFaceId?: number | null;
@@ -23,7 +36,12 @@ function FaceMesh({ positions, normals, indices, isHighlighted }: { positions: F
     }, [indices, normals, positions]);
 
     const material = useMemo(
-        () => new MeshStandardMaterial({ color: isHighlighted ? '#f59e0b' : '#8db8ff', metalness: 0.1, roughness: 0.75, side: DoubleSide }),
+        () => new MeshStandardMaterial({
+            color: isHighlighted ? VIEWPORT_THEME.selectionFaceColor : VIEWPORT_THEME.surfaceColor,
+            metalness: 0,
+            roughness: 0.95,
+            side: DoubleSide,
+        }),
         [isHighlighted],
     );
 
@@ -41,7 +59,13 @@ function EdgeLine({ points, isHighlighted }: { points: Float32Array; isHighlight
         return vertices;
     }, [points]);
 
-    return <Line points={linePoints} color={isHighlighted ? '#dc2626' : '#111827'} lineWidth={isHighlighted ? 3 : 1} />;
+    return (
+        <Line
+            points={linePoints}
+            color={isHighlighted ? VIEWPORT_THEME.selectionEdgeColor : VIEWPORT_THEME.edgeColor}
+            lineWidth={isHighlighted ? VIEWPORT_THEME.selectionEdgeWidth : VIEWPORT_THEME.edgeWidth}
+        />
+    );
 }
 
 function PickRayCapture({ onPickRay }: { onPickRay?: ViewerViewportProps['onPickRay'] }) {
@@ -87,12 +111,11 @@ function PickRayCapture({ onPickRay }: { onPickRay?: ViewerViewportProps['onPick
 
 export function ViewerViewport({ sceneData, highlightedFaceId = null, highlightedEdgeId = null, onPickRay }: ViewerViewportProps) {
     return (
-        <div className="viewport-shell">
-            <Canvas camera={{ position: [4, 4, 4], fov: 50 }}>
-                <color attach="background" args={['#f8fafc']} />
-                <ambientLight intensity={0.5} />
-                <directionalLight position={[4, 8, 3]} intensity={1.2} />
-                <gridHelper args={[20, 20, '#cbd5e1', '#e2e8f0']} />
+        <div className="viewport-canvas-frame">
+            <Canvas orthographic camera={{ position: [6, 6, 6], zoom: 90, near: 0.1, far: 1000 }} gl={{ alpha: true }}>
+                <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
+                <directionalLight position={[-6, 9, 7]} intensity={VIEWPORT_THEME.directionalIntensity} />
+                <gridHelper args={[20, 20, VIEWPORT_THEME.gridMajorColor, VIEWPORT_THEME.gridMinorColor]} />
                 <axesHelper args={[2]} />
                 {sceneData?.faces.map((face) => (
                     <FaceMesh

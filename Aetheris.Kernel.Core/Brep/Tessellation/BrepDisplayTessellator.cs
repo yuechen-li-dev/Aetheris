@@ -15,6 +15,9 @@ public static class BrepDisplayTessellator
     private const string PlanarCurveFlatteningFailedSource = "Viewer.Tessellation.PlanarCurveFlatteningFailed";
     private const string CircleTrimResolveFailedSource = "Viewer.Tessellation.CircleTrimResolveFailed";
     private const string CircleTrimAmbiguousUsedShorterArcSource = "Viewer.Tessellation.CircleTrimAmbiguousUsedShorterArc";
+    private const string CylinderTrimUnsupportedSource = "Viewer.Tessellation.CylinderTrimUnsupported";
+    private const string CylinderTrimDegenerateSource = "Viewer.Tessellation.CylinderTrimDegenerate";
+    private const string CylinderTrimAmbiguousUsedShorterSpanSource = "Viewer.Tessellation.CylinderTrimAmbiguousUsedShorterSpan";
 
     public static KernelResult<DisplayTessellationResult> Tessellate(BrepBody body, DisplayTessellationOptions? options = null)
     {
@@ -224,20 +227,28 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateCylinderFace(BrepBody body, FaceId faceId, CylinderSurface cylinder, DisplayTessellationOptions options)
     {
-        var parameters = GetRevolvedFaceParameters(body, faceId, options, cylinder.Radius);
-        if (!parameters.IsSuccess)
+        var trimPatch = TryResolveCylinderTrimPatch(body, faceId, cylinder);
+        if (!trimPatch.IsSuccess)
         {
-            return KernelResult<DisplayFaceMeshPatch>.Failure(parameters.Diagnostics);
+            return KernelResult<DisplayFaceMeshPatch>.Failure(trimPatch.Diagnostics);
         }
 
-        return KernelResult<DisplayFaceMeshPatch>.Success(CreatePeriodicGridPatch(
+        var angularSpan = trimPatch.Value.UEnd - trimPatch.Value.UStart;
+        var axialSpan = trimPatch.Value.VEnd - trimPatch.Value.VStart;
+        var angularSegments = CalculateSegmentCount(angularSpan, System.Math.Max(1e-6d, cylinder.Radius), options);
+        var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling(axialSpan / options.ChordTolerance), 1, options.MaximumSegments));
+
+        return KernelResult<DisplayFaceMeshPatch>.Success(CreateBoundedGridPatch(
             faceId,
-            parameters.Value.AngularSegments,
-            parameters.Value.AxialSegments,
+            angularSegments,
+            axialSegments,
             (u, v) => cylinder.Evaluate(u, v),
             (u, _) => cylinder.Normal(u).ToVector(),
-            parameters.Value.VStart,
-            parameters.Value.VEnd));
+            trimPatch.Value.UStart,
+            trimPatch.Value.UEnd,
+            trimPatch.Value.VStart,
+            trimPatch.Value.VEnd),
+            trimPatch.Diagnostics);
     }
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateConeFace(BrepBody body, FaceId faceId, ConeSurface cone, DisplayTessellationOptions options)
@@ -399,6 +410,227 @@ public static class BrepDisplayTessellator
         }
 
         return new DisplayFaceMeshPatch(faceId, positions, normals, indices);
+    }
+
+    private static DisplayFaceMeshPatch CreateBoundedGridPatch(
+        FaceId faceId,
+        int angularSegments,
+        int axialSegments,
+        Func<double, double, Point3D> evaluate,
+        Func<double, double, Vector3D> evaluateNormal,
+        double uStart,
+        double uEnd,
+        double vStart,
+        double vEnd)
+    {
+        var positions = new List<Point3D>((angularSegments + 1) * (axialSegments + 1));
+        var normals = new List<Vector3D>((angularSegments + 1) * (axialSegments + 1));
+        var indices = new List<int>(angularSegments * axialSegments * 6);
+
+        for (var v = 0; v <= axialSegments; v++)
+        {
+            var tv = (double)v / axialSegments;
+            var vv = vStart + ((vEnd - vStart) * tv);
+
+            for (var u = 0; u <= angularSegments; u++)
+            {
+                var tu = (double)u / angularSegments;
+                var uu = uStart + ((uEnd - uStart) * tu);
+                positions.Add(evaluate(uu, vv));
+                normals.Add(evaluateNormal(uu, vv));
+            }
+        }
+
+        var rowWidth = angularSegments + 1;
+        for (var v = 0; v < axialSegments; v++)
+        {
+            for (var u = 0; u < angularSegments; u++)
+            {
+                var i0 = (v * rowWidth) + u;
+                var i1 = i0 + 1;
+                var i2 = i0 + rowWidth;
+                var i3 = i2 + 1;
+
+                indices.Add(i0);
+                indices.Add(i2);
+                indices.Add(i1);
+
+                indices.Add(i1);
+                indices.Add(i2);
+                indices.Add(i3);
+            }
+        }
+
+        return new DisplayFaceMeshPatch(faceId, positions, normals, indices);
+    }
+
+    private static KernelResult<(double UStart, double UEnd, double VStart, double VEnd)> TryResolveCylinderTrimPatch(
+        BrepBody body,
+        FaceId faceId,
+        CylinderSurface cylinder)
+    {
+        const double minSpan = 1e-8d;
+        var loopIds = body.GetLoopIds(faceId);
+        if (loopIds.Count != 1)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented($"Cylindrical face tessellation could not derive a bounded trim patch.", CylinderTrimUnsupportedSource)]);
+        }
+
+        var coedges = body.GetCoedgeIds(loopIds[0]).Select(id => body.Topology.GetCoedge(id)).ToArray();
+        if (coedges.Length < 3)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateInvalidArgument("Cylindrical face tessellation derived a degenerate trim patch.", CylinderTrimDegenerateSource)]);
+        }
+
+        foreach (var coedge in coedges)
+        {
+            var curveKind = body.GetEdgeCurve(coedge.EdgeId).Kind;
+            if (curveKind is not CurveGeometryKind.Line3 and not CurveGeometryKind.Circle3)
+            {
+                return KernelResult<(double, double, double, double)>.Failure([
+                    CreateNotImplemented("Cylindrical face tessellation could not derive a bounded trim patch.", CylinderTrimUnsupportedSource)]);
+            }
+        }
+
+        var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
+        if (!vertexPointsResult.IsSuccess)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented("Cylindrical face tessellation could not derive a bounded trim patch.", CylinderTrimUnsupportedSource)]);
+        }
+
+        var axis = cylinder.Axis.ToVector();
+        var xAxis = cylinder.XAxis.ToVector();
+        var yAxis = cylinder.YAxis.ToVector();
+
+        var allAngles = new List<double>();
+        var allAxials = new List<double>();
+
+        foreach (var coedge in coedges)
+        {
+            var endpoints = GetEdgeEndpoints(body, coedge.EdgeId, coedge.IsReversed, vertexPointsResult.Value);
+            if (!endpoints.IsSuccess)
+            {
+                return KernelResult<(double, double, double, double)>.Failure([
+                    CreateNotImplemented("Cylindrical face tessellation could not derive a bounded trim patch.", CylinderTrimUnsupportedSource)]);
+            }
+
+            var start = endpoints.Value.Start;
+            var end = endpoints.Value.End;
+            allAngles.Add(CylinderAngleOf(cylinder, start, xAxis, yAxis, axis));
+            allAngles.Add(CylinderAngleOf(cylinder, end, xAxis, yAxis, axis));
+            allAxials.Add((start - cylinder.Origin).Dot(axis));
+            allAxials.Add((end - cylinder.Origin).Dot(axis));
+
+            if (body.GetEdgeCurve(coedge.EdgeId).Kind != CurveGeometryKind.Circle3)
+            {
+                continue;
+            }
+
+            var edgePolyline = TessellateEdge(body, coedge.EdgeId, DisplayTessellationOptions.Default);
+            if (!edgePolyline.IsSuccess)
+            {
+                continue;
+            }
+
+            var edgePoints = coedge.IsReversed
+                ? edgePolyline.Value.Points.Reverse().ToArray()
+                : edgePolyline.Value.Points;
+
+            foreach (var point in edgePoints)
+            {
+                allAngles.Add(CylinderAngleOf(cylinder, point, xAxis, yAxis, axis));
+                allAxials.Add((point - cylinder.Origin).Dot(axis));
+            }
+        }
+
+        if (allAxials.Count == 0 || allAngles.Count == 0)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateInvalidArgument("Cylindrical face tessellation derived a degenerate trim patch.", CylinderTrimDegenerateSource)]);
+        }
+
+        var vStart = allAxials.Min();
+        var vEnd = allAxials.Max();
+        if ((vEnd - vStart) <= minSpan)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateInvalidArgument("Cylindrical face tessellation derived a degenerate trim patch.", CylinderTrimDegenerateSource)]);
+        }
+
+        var angularBounds = ResolveAngularBounds(allAngles);
+        if (!angularBounds.IsSuccess)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateInvalidArgument("Cylindrical face tessellation derived a degenerate trim patch.", CylinderTrimDegenerateSource)]);
+        }
+
+        if ((angularBounds.Value.Span) <= minSpan)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateInvalidArgument("Cylindrical face tessellation derived a degenerate trim patch.", CylinderTrimDegenerateSource)]);
+        }
+
+        var diagnostics = new List<KernelDiagnostic>();
+        if (angularBounds.Value.UsedAmbiguousShorterSpanResolution)
+        {
+            diagnostics.Add(CreateValidationWarning(
+                "Cylindrical face tessellation resolved ambiguous trim by choosing the shorter angular span.",
+                CylinderTrimAmbiguousUsedShorterSpanSource));
+        }
+
+        return KernelResult<(double, double, double, double)>.Success(
+            (angularBounds.Value.Start, angularBounds.Value.Start + angularBounds.Value.Span, vStart, vEnd),
+            diagnostics);
+    }
+
+    private static double CylinderAngleOf(CylinderSurface cylinder, Point3D point, Vector3D xAxis, Vector3D yAxis, Vector3D axis)
+    {
+        var offset = point - cylinder.Origin;
+        var axial = axis * offset.Dot(axis);
+        var radial = offset - axial;
+        return NormalizeToZeroTwoPi(double.Atan2(radial.Dot(yAxis), radial.Dot(xAxis)));
+    }
+
+    private static KernelResult<(double Start, double Span, bool UsedAmbiguousShorterSpanResolution)> ResolveAngularBounds(IReadOnlyList<double> rawAngles)
+    {
+        const double epsilon = 1e-8d;
+
+        var angles = rawAngles
+            .Select(NormalizeToZeroTwoPi)
+            .OrderBy(a => a)
+            .ToArray();
+
+        if (angles.Length == 0)
+        {
+            return KernelResult<(double, double, bool)>.Failure([CreateInvalidArgument("Cylindrical face tessellation derived a degenerate trim patch.", CylinderTrimDegenerateSource)]);
+        }
+
+        var largestGap = -1d;
+        var largestGapIndex = -1;
+        for (var i = 0; i < angles.Length; i++)
+        {
+            var current = angles[i];
+            var next = i == angles.Length - 1 ? angles[0] + (2d * double.Pi) : angles[i + 1];
+            var gap = next - current;
+            if (gap > largestGap + epsilon)
+            {
+                largestGap = gap;
+                largestGapIndex = i;
+            }
+        }
+
+        if (largestGapIndex < 0)
+        {
+            return KernelResult<(double, double, bool)>.Failure([CreateInvalidArgument("Cylindrical face tessellation derived a degenerate trim patch.", CylinderTrimDegenerateSource)]);
+        }
+
+        var usedAmbiguous = largestGap <= epsilon;
+        var start = angles[(largestGapIndex + 1) % angles.Length];
+        var span = (2d * double.Pi) - largestGap;
+        return KernelResult<(double, double, bool)>.Success((start, span, usedAmbiguous));
     }
 
     private static DisplayFaceMeshPatch CreatePlanarPatch(FaceId faceId, IReadOnlyList<Point3D> polygonPoints, Vector3D normal, IReadOnlyList<int> triangleIndices)
@@ -584,6 +816,18 @@ public static class BrepDisplayTessellator
         }
 
         return angle;
+    }
+
+    private static double NormalizeToZeroTwoPi(double angle)
+    {
+        var twoPi = 2d * double.Pi;
+        var normalized = angle % twoPi;
+        if (normalized < 0d)
+        {
+            normalized += twoPi;
+        }
+
+        return normalized;
     }
 
     private static int FindNextCoedgeIndex(

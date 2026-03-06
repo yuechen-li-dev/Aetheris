@@ -76,6 +76,12 @@ interface GridLayerEnvelope {
 }
 
 interface GridAuditSnapshot {
+    coverageMode: 'corner-intersection' | 'grazing-fallback';
+    cameraPlaneAlignment: number;
+    grazingThresholds: {
+        enterFallback: number;
+        exitFallback: number;
+    };
     computedBounds: {
         minX: number;
         maxX: number;
@@ -111,6 +117,10 @@ interface GridAuditSnapshot {
     };
 }
 
+const GRAZING_ALIGNMENT_ENTER_THRESHOLD = 0.075;
+const GRAZING_ALIGNMENT_EXIT_THRESHOLD = 0.11;
+const GRAZING_FALLBACK_SPAN_MULTIPLIER = 3.25;
+
 function parseGridDebugFlag(): boolean {
     if (typeof window === 'undefined') {
         return false;
@@ -137,20 +147,50 @@ function intersectRayWithHorizontalPlane(rayOrigin: Vector3, rayDirection: Vecto
 function DraftingGrid() {
     const { camera } = useThree();
     const gridDebugEnabled = useMemo(() => parseGridDebugFlag(), []);
-    const debugSnapshotLoggedRef = useRef(false);
-    const [cameraSnapshot, setCameraSnapshot] = useState({ x: camera.position.x, z: camera.position.z, zoom: (camera as OrthographicCamera).zoom ?? 1 });
+    const debugSnapshotLoggedRef = useRef<string | null>(null);
+    const [coverageMode, setCoverageMode] = useState<'corner-intersection' | 'grazing-fallback'>('corner-intersection');
+    const [cameraSnapshot, setCameraSnapshot] = useState(() => {
+        const orthographicCamera = camera as OrthographicCamera;
+        const forward = orthographicCamera.getWorldDirection(new Vector3()).normalize();
+        return {
+            x: camera.position.x,
+            y: camera.position.y,
+            z: camera.position.z,
+            zoom: orthographicCamera.zoom ?? 1,
+            forwardY: forward.y,
+        };
+    });
 
     useFrame(() => {
         const orthographicCamera = camera as OrthographicCamera;
+        const forward = orthographicCamera.getWorldDirection(new Vector3()).normalize();
+        const alignment = Math.abs(forward.y);
+
+        setCoverageMode((previousMode) => {
+            if (previousMode === 'corner-intersection' && alignment <= GRAZING_ALIGNMENT_ENTER_THRESHOLD) {
+                return 'grazing-fallback';
+            }
+
+            if (previousMode === 'grazing-fallback' && alignment >= GRAZING_ALIGNMENT_EXIT_THRESHOLD) {
+                return 'corner-intersection';
+            }
+
+            return previousMode;
+        });
+
         setCameraSnapshot((previousSnapshot) => {
             const nextSnapshot = {
                 x: camera.position.x,
+                y: camera.position.y,
                 z: camera.position.z,
                 zoom: orthographicCamera.zoom ?? 1,
+                forwardY: forward.y,
             };
             const changed = Math.abs(nextSnapshot.x - previousSnapshot.x) > 0.01
+                || Math.abs(nextSnapshot.y - previousSnapshot.y) > 0.01
                 || Math.abs(nextSnapshot.z - previousSnapshot.z) > 0.01
-                || Math.abs(nextSnapshot.zoom - previousSnapshot.zoom) > 0.01;
+                || Math.abs(nextSnapshot.zoom - previousSnapshot.zoom) > 0.01
+                || Math.abs(nextSnapshot.forwardY - previousSnapshot.forwardY) > 0.0025;
 
             return changed ? nextSnapshot : previousSnapshot;
         });
@@ -193,31 +233,49 @@ function DraftingGrid() {
         let minZ: number;
         let maxZ: number;
 
-        let fallbackUsed = false;
+        const cameraPlaneAlignment = Math.abs(cameraForward.y);
+        const unstableCornerIntersection = hitPoints.length !== 4;
+        const activeCoverageMode: 'corner-intersection' | 'grazing-fallback' = unstableCornerIntersection
+            ? 'grazing-fallback'
+            : coverageMode;
+
+        const fallbackUsed = activeCoverageMode === 'grazing-fallback';
         let fallbackReason: string | null = null;
         let fallbackOriginalBounds: GridAuditSnapshot['fallbackOriginalBounds'] = null;
 
-        if (hitPoints.length === 4) {
+        if (hitPoints.length > 0) {
+            fallbackOriginalBounds = {
+                minX: Math.min(...hitPoints.map((point) => point.x)),
+                maxX: Math.max(...hitPoints.map((point) => point.x)),
+                minZ: Math.min(...hitPoints.map((point) => point.z)),
+                maxZ: Math.max(...hitPoints.map((point) => point.z)),
+            };
+        }
+
+        if (!fallbackUsed && hitPoints.length === 4) {
             minX = Math.min(...hitPoints.map((point) => point.x));
             maxX = Math.max(...hitPoints.map((point) => point.x));
             minZ = Math.min(...hitPoints.map((point) => point.z));
             maxZ = Math.max(...hitPoints.map((point) => point.z));
         } else {
-            fallbackUsed = true;
-            fallbackReason = `Expected 4 corner-plane hits but received ${hitPoints.length}.`;
-            if (hitPoints.length > 0) {
-                fallbackOriginalBounds = {
-                    minX: Math.min(...hitPoints.map((point) => point.x)),
-                    maxX: Math.max(...hitPoints.map((point) => point.x)),
-                    minZ: Math.min(...hitPoints.map((point) => point.z)),
-                    maxZ: Math.max(...hitPoints.map((point) => point.z)),
-                };
+            const cameraHalfWidth = (orthographicCamera.right - orthographicCamera.left) / (2 * Math.max(orthographicCamera.zoom ?? 1, 0.0001));
+            const cameraHalfHeight = (orthographicCamera.top - orthographicCamera.bottom) / (2 * Math.max(orthographicCamera.zoom ?? 1, 0.0001));
+            const fallbackHalfSpan = Math.max(cameraHalfWidth, cameraHalfHeight, 1) * GRAZING_FALLBACK_SPAN_MULTIPLIER;
+            const fallbackCenterX = camera.position.x;
+            const fallbackCenterZ = camera.position.z;
+
+            minX = fallbackCenterX - fallbackHalfSpan;
+            maxX = fallbackCenterX + fallbackHalfSpan;
+            minZ = fallbackCenterZ - fallbackHalfSpan;
+            maxZ = fallbackCenterZ + fallbackHalfSpan;
+
+            if (cameraPlaneAlignment <= GRAZING_ALIGNMENT_ENTER_THRESHOLD) {
+                fallbackReason = `cameraForward·planeNormal=${cameraForward.y.toFixed(4)} (abs=${cameraPlaneAlignment.toFixed(4)}) <= enter threshold ${GRAZING_ALIGNMENT_ENTER_THRESHOLD}.`;
+            } else if (unstableCornerIntersection) {
+                fallbackReason = `Expected 4 corner-plane hits but received ${hitPoints.length}.`;
+            } else {
+                fallbackReason = `Maintaining grazing-angle fallback until abs(cameraForward·planeNormal) reaches ${GRAZING_ALIGNMENT_EXIT_THRESHOLD}.`;
             }
-            const fallbackExtent = Math.max(10 / Math.max(orthographicCamera.zoom ?? 1, 0.0001), 1);
-            minX = camera.position.x - fallbackExtent;
-            maxX = camera.position.x + fallbackExtent;
-            minZ = camera.position.z - fallbackExtent;
-            maxZ = camera.position.z + fallbackExtent;
         }
 
         const unclampedBaseSpan = Math.max(maxX - minX, maxZ - minZ);
@@ -351,6 +409,12 @@ function DraftingGrid() {
             cornerDiagnostics: diagnostics,
             layerEnvelopes: envelopes,
             auditSnapshot: {
+                coverageMode: activeCoverageMode,
+                cameraPlaneAlignment,
+                grazingThresholds: {
+                    enterFallback: GRAZING_ALIGNMENT_ENTER_THRESHOLD,
+                    exitFallback: GRAZING_ALIGNMENT_EXIT_THRESHOLD,
+                },
                 computedBounds: {
                     minX: expandedMinX,
                     maxX: expandedMaxX,
@@ -387,14 +451,18 @@ function DraftingGrid() {
                 maxZ: expandedMaxZ,
             },
         };
-    }, [cameraSnapshot, camera]);
+    }, [cameraSnapshot, camera, coverageMode]);
 
     useEffect(() => {
-        if (!gridDebugEnabled || debugSnapshotLoggedRef.current) {
+        if (!gridDebugEnabled) {
             return;
         }
 
-        debugSnapshotLoggedRef.current = true;
+        const debugSignature = `${auditSnapshot.coverageMode}:${auditSnapshot.cameraPlaneAlignment.toFixed(4)}:${auditSnapshot.computedBounds.minX.toFixed(2)}:${auditSnapshot.computedBounds.maxX.toFixed(2)}:${auditSnapshot.computedBounds.minZ.toFixed(2)}:${auditSnapshot.computedBounds.maxZ.toFixed(2)}`;
+        if (debugSnapshotLoggedRef.current === debugSignature) {
+            return;
+        }
+        debugSnapshotLoggedRef.current = debugSignature;
         // eslint-disable-next-line no-console
         console.table(cornerDiagnostics.map((diagnostic) => ({
             corner: diagnostic.label,
@@ -418,6 +486,9 @@ function DraftingGrid() {
             margin: auditSnapshot.margin,
             worldSpan: auditSnapshot.worldSpan,
             selectedSpacing: auditSnapshot.gridSelection,
+            coverageMode: auditSnapshot.coverageMode,
+            cameraPlaneAlignment: auditSnapshot.cameraPlaneAlignment,
+            grazingThresholds: auditSnapshot.grazingThresholds,
             fallbackUsed: auditSnapshot.fallbackUsed,
             fallbackReason: auditSnapshot.fallbackReason,
             fallbackOriginalBounds: auditSnapshot.fallbackOriginalBounds,
@@ -425,12 +496,20 @@ function DraftingGrid() {
             transformSpace: auditSnapshot.transformSpace,
             layerEnvelopes: auditSnapshot.layerEnvelopes,
         });
+        // eslint-disable-next-line no-console
+        console.info('[grid-debug] coverage-mode', {
+            mode: auditSnapshot.coverageMode,
+            alignmentAbsDot: auditSnapshot.cameraPlaneAlignment,
+            thresholds: auditSnapshot.grazingThresholds,
+        });
+
         if (auditSnapshot.fallbackUsed) {
             // eslint-disable-next-line no-console
             console.warn('[grid-debug] fallback override engaged', {
                 reason: auditSnapshot.fallbackReason,
                 before: auditSnapshot.fallbackOriginalBounds,
                 after: auditSnapshot.computedBounds,
+                mode: auditSnapshot.coverageMode,
             });
         }
     }, [auditSnapshot, cornerDiagnostics, gridDebugEnabled]);

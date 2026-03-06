@@ -7,7 +7,7 @@ export interface LogGridSelection {
     blend: number;
 }
 
-const MIN_SPACING = 1e-6;
+const MIN_SPACING = 1e-10;
 
 export function selectLogarithmicGridScales(worldSpan: number, targetCellCount = 14): LogGridSelection {
     const normalizedSpan = Math.max(worldSpan, MIN_SPACING);

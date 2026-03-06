@@ -28,6 +28,9 @@ const VIEWPORT_THEME = {
     gridExtentScale: 2.2,
     gridCoverageMarginScale: 1.12,
     gridMinimumCoverageSize: 16,
+    gridPositionDeltaThreshold: 0.01,
+    gridRotationDeltaThreshold: 0.0001,
+    gridZoomRelativeDeltaThreshold: 0.001,
     gridYOffset: 0.001,
     ambientIntensity: 0.12,
     directionalIntensity: 0.88,
@@ -69,14 +72,16 @@ function DraftingGrid() {
                 qw: camera.quaternion.w,
                 zoom: orthographicCamera.zoom ?? 1,
             };
-            const changed = Math.abs(nextSnapshot.x - previousSnapshot.x) > 0.01
-                || Math.abs(nextSnapshot.y - previousSnapshot.y) > 0.01
-                || Math.abs(nextSnapshot.z - previousSnapshot.z) > 0.01
-                || Math.abs(nextSnapshot.qx - previousSnapshot.qx) > 0.0001
-                || Math.abs(nextSnapshot.qy - previousSnapshot.qy) > 0.0001
-                || Math.abs(nextSnapshot.qz - previousSnapshot.qz) > 0.0001
-                || Math.abs(nextSnapshot.qw - previousSnapshot.qw) > 0.0001
-                || Math.abs(nextSnapshot.zoom - previousSnapshot.zoom) > 0.01;
+            const zoomDelta = Math.abs(nextSnapshot.zoom - previousSnapshot.zoom);
+            const normalizedZoom = Math.max(Math.abs(previousSnapshot.zoom), 1e-8);
+            const changed = Math.abs(nextSnapshot.x - previousSnapshot.x) > VIEWPORT_THEME.gridPositionDeltaThreshold
+                || Math.abs(nextSnapshot.y - previousSnapshot.y) > VIEWPORT_THEME.gridPositionDeltaThreshold
+                || Math.abs(nextSnapshot.z - previousSnapshot.z) > VIEWPORT_THEME.gridPositionDeltaThreshold
+                || Math.abs(nextSnapshot.qx - previousSnapshot.qx) > VIEWPORT_THEME.gridRotationDeltaThreshold
+                || Math.abs(nextSnapshot.qy - previousSnapshot.qy) > VIEWPORT_THEME.gridRotationDeltaThreshold
+                || Math.abs(nextSnapshot.qz - previousSnapshot.qz) > VIEWPORT_THEME.gridRotationDeltaThreshold
+                || Math.abs(nextSnapshot.qw - previousSnapshot.qw) > VIEWPORT_THEME.gridRotationDeltaThreshold
+                || (zoomDelta / normalizedZoom) > VIEWPORT_THEME.gridZoomRelativeDeltaThreshold;
 
             return changed ? nextSnapshot : previousSnapshot;
         });

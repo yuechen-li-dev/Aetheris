@@ -76,6 +76,7 @@ describe('App STEP file upload flow', () => {
         render(<App />);
 
         expect(screen.getByRole('tab', { name: /STEP 242 Viewer/i }).getAttribute('aria-selected')).toBe('true');
+        expect(screen.getByText('Viewport')).toBeTruthy();
         expect(screen.queryByText('Create Box')).toBeNull();
 
         fireEvent.click(screen.getByRole('tab', { name: /Modeling Demo/i }));
@@ -231,7 +232,8 @@ describe('App STEP file upload flow', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
 
-        await screen.findByText('Import error: Request failed.');
+        await screen.findByText('Import failed');
+        await screen.findByText('Malformed STEP payload.');
         await screen.findByText('[Error] ValidationFailed: Malformed STEP payload.');
     });
 

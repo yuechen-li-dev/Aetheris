@@ -498,22 +498,24 @@ function App() {
             <header className="top-bar">
                 <div className="top-bar__header-row">
                     <div className="top-bar__title">STEP 242 VIEWER</div>
-                    <div className="top-bar__actions">
-                        <Button type="button" variant="outline" onClick={() => void handleCreateDocument()} disabled={status === 'loading'}>
-                            {isResetting ? 'Preparing…' : 'New Document'}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => void handleRefreshTessellation()}
-                            disabled={documentStatus !== 'ready' || !activeBodyId || status === 'loading' || isRefreshing}>
-                            Refresh Tessellation
-                        </Button>
+                    <div className="top-bar__actions-block">
+                        <div className="top-bar__actions">
+                            <Button type="button" variant="outline" onClick={() => void handleCreateDocument()} disabled={status === 'loading'}>
+                                {isResetting ? 'Preparing…' : 'New Document'}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => void handleRefreshTessellation()}
+                                disabled={documentStatus !== 'ready' || !activeBodyId || status === 'loading' || isRefreshing}>
+                                Refresh Tessellation
+                            </Button>
+                        </div>
+                        <div className="status-row" role="status" aria-live="polite">
+                            <span className={`status-pill status-pill--${serverStatus}`}>{serverStatusLabel[serverStatus]}</span>
+                            <span className={`status-pill status-pill--${documentStatus}`}>{documentStatusLabel[documentStatus]}</span>
+                        </div>
                     </div>
-                </div>
-                <div className="status-row" role="status" aria-live="polite">
-                    <span className={`status-pill status-pill--${serverStatus}`}>{serverStatusLabel[serverStatus]}</span>
-                    <span className={`status-pill status-pill--${documentStatus}`}>{documentStatusLabel[documentStatus]}</span>
                 </div>
                 <div className="top-bar__tabs-row">
                     <div className="top-bar__tabs" role="tablist" aria-label="Top-level product surface">
@@ -542,7 +544,7 @@ function App() {
             <main className="main-layout">
                 <section className="viewport-column">
                     <div className="viewport-shell">
-                        <h2 className="section-title">Viewport (secondary)</h2>
+                        <h2 className="section-title">Viewport</h2>
                         <ViewerViewport
                             sceneData={sceneData}
                             highlightedFaceId={highlightedFaceId}
@@ -555,7 +557,7 @@ function App() {
                 <aside className="tool-rail">
                     {activeTab === 'viewer' ? (
                         <>
-                            <section className="tool-section">
+                            <section className="tool-section tool-section--import">
                                 <h2 className="section-title">Step Import</h2>
                                 <label>
                                     STEP 242 File
@@ -568,10 +570,26 @@ function App() {
                                 <p>{stepImportSelectionMessage}</p>
                                 <Button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP 242</Button>
                                 <div className={`import-status-box import-status-box--${importStatusTone}`}>
-                                    <p><strong>Import Status</strong></p>
-                                    <p>{importStatusMessage}</p>
+                                    <p className="import-status-box__label"><strong>Import Status</strong></p>
+                                    {importStatus === 'error' ? (
+                                        <>
+                                            <p className="import-status-box__summary">Import failed</p>
+                                            <p className="import-status-box__detail">{statusMessage}</p>
+                                            {diagnostics.length === 0 ? null : (
+                                                <ul className="import-status-box__details-list">
+                                                    {diagnostics.map((diagnostic, index) => (
+                                                        <li key={`${diagnostic.code}-${index}`}>
+                                                            [{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <p>{importStatusMessage}</p>
+                                    )}
                                 </div>
-                                {diagnostics.length === 0 ? null : (
+                                {importStatus === 'error' || diagnostics.length === 0 ? null : (
                                     <ul>
                                         {diagnostics.map((diagnostic, index) => (
                                             <li key={`${diagnostic.code}-${index}`}>

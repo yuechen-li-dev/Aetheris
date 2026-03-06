@@ -1,9 +1,9 @@
 import { Line, OrbitControls, Text } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2 } from 'three';
+import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2, Vector3 } from 'three';
 import type { RenderSceneData } from './tessellationMapper';
 import { selectLogarithmicGridScales } from './logarithmicGrid';
 
@@ -41,8 +41,46 @@ const VIEWPORT_THEME = {
     selectionEdgeWidth: 3,
 } as const;
 
+type GridDebugMode = 'normal' | 'fixed-single-layer' | 'no-stroke-style' | 'giant-procedural';
+
+interface GridDebugConfig {
+    enabled: boolean;
+    mode: GridDebugMode;
+    oneShotLog: boolean;
+}
+
+const GRID_DEBUG_DEFAULTS: GridDebugConfig = {
+    enabled: false,
+    mode: 'normal',
+    oneShotLog: true,
+};
+
+function getGridDebugConfig(): GridDebugConfig {
+    if (typeof window === 'undefined') {
+        return GRID_DEBUG_DEFAULTS;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const enabled = params.get('gridDebug') === '1';
+    const modeParam = params.get('gridDebugMode');
+    const mode = modeParam === 'fixed-single-layer'
+        || modeParam === 'no-stroke-style'
+        || modeParam === 'giant-procedural'
+        ? modeParam
+        : 'normal';
+    const oneShotLog = params.get('gridDebugLog') !== 'continuous';
+
+    return {
+        enabled,
+        mode,
+        oneShotLog,
+    };
+}
+
 function DraftingGrid() {
     const { camera, size } = useThree();
+    const gridDebug = useMemo(() => getGridDebugConfig(), []);
+    const didEmitDebugLog = useRef(false);
     const [cameraSnapshot, setCameraSnapshot] = useState({ x: camera.position.x, z: camera.position.z, zoom: (camera as OrthographicCamera).zoom ?? 1 });
 
     useFrame(() => {
@@ -61,21 +99,26 @@ function DraftingGrid() {
         });
     });
 
-    const { minorLines, majorLines } = useMemo(() => {
+    const { minorLines, majorLines, debugOverlay, debugSnapshot } = useMemo(() => {
         const orthographicCamera = camera as OrthographicCamera;
-        const zoom = Math.max(orthographicCamera.zoom ?? 1, 0.0001);
+        const zoom = Math.max(cameraSnapshot.zoom, 0.0001);
         const worldHeight = size.height / zoom;
         const worldWidth = size.width / zoom;
         const worldSpan = Math.max(worldWidth, worldHeight);
         const gridSelection = selectLogarithmicGridScales(worldSpan, VIEWPORT_THEME.gridTargetCellCount);
-        const centerX = camera.position.x;
-        const centerZ = camera.position.z;
-        const extentX = worldWidth * VIEWPORT_THEME.gridExtentScale;
-        const extentZ = worldHeight * VIEWPORT_THEME.gridExtentScale;
+        const centerX = cameraSnapshot.x;
+        const centerZ = cameraSnapshot.z;
+        const extentScale = gridDebug.mode === 'fixed-single-layer' ? 20 : VIEWPORT_THEME.gridExtentScale;
+        const extentX = worldWidth * extentScale;
+        const extentZ = worldHeight * extentScale;
+        const layerLineCounts = {
+            primary: { x: 0, z: 0 },
+            secondary: { x: 0, z: 0 },
+        };
 
         const minor: ReactNode[] = [];
         const major: ReactNode[] = [];
-        const pushGridLayerLines = (spacing: number, weight: number, layerPrefix: string) => {
+        const pushGridLayerLines = (spacing: number, weight: number, layerPrefix: 'primary' | 'secondary') => {
             if (weight <= 0.001) {
                 return;
             }
@@ -84,6 +127,9 @@ function DraftingGrid() {
             const xEnd = Math.ceil((centerX + extentX) / spacing);
             const zStart = Math.floor((centerZ - extentZ) / spacing);
             const zEnd = Math.ceil((centerZ + extentZ) / spacing);
+
+            layerLineCounts[layerPrefix].x = xEnd - xStart + 1;
+            layerLineCounts[layerPrefix].z = zEnd - zStart + 1;
 
             for (let xIndex = xStart; xIndex <= xEnd; xIndex += 1) {
                 const x = xIndex * spacing;
@@ -96,24 +142,28 @@ function DraftingGrid() {
                 const linePrefix = isMajor ? 'major' : 'minor';
                 const alphaWeight = Math.min(Math.max(weight, 0), 1);
 
-                target.push(
-                    <Line
-                        key={`${layerPrefix}-${linePrefix}-fade-x-${xIndex}`}
-                        points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
-                        transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
-                    />,
-                );
+                if (gridDebug.mode !== 'no-stroke-style') {
+                    target.push(
+                        <Line
+                            key={`${layerPrefix}-${linePrefix}-fade-x-${xIndex}`}
+                            points={points}
+                            color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
+                            transparent
+                            opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
+                            lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
+                        />,
+                    );
+                }
                 target.push(
                     <Line
                         key={`${layerPrefix}-${linePrefix}-core-x-${xIndex}`}
                         points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
+                        color={gridDebug.mode === 'no-stroke-style'
+                            ? (isMajor ? '#ff5f5f' : '#ffd166')
+                            : (isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor)}
                         transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
+                        opacity={gridDebug.mode === 'no-stroke-style' ? 0.85 : (isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
+                        lineWidth={gridDebug.mode === 'no-stroke-style' ? 1.2 : (isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth)}
                     />,
                 );
             }
@@ -129,39 +179,156 @@ function DraftingGrid() {
                 const linePrefix = isMajor ? 'major' : 'minor';
                 const alphaWeight = Math.min(Math.max(weight, 0), 1);
 
-                target.push(
-                    <Line
-                        key={`${layerPrefix}-${linePrefix}-fade-z-${zIndex}`}
-                        points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
-                        transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
-                    />,
-                );
+                if (gridDebug.mode !== 'no-stroke-style') {
+                    target.push(
+                        <Line
+                            key={`${layerPrefix}-${linePrefix}-fade-z-${zIndex}`}
+                            points={points}
+                            color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
+                            transparent
+                            opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
+                            lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
+                        />,
+                    );
+                }
                 target.push(
                     <Line
                         key={`${layerPrefix}-${linePrefix}-core-z-${zIndex}`}
                         points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
+                        color={gridDebug.mode === 'no-stroke-style'
+                            ? (isMajor ? '#ff5f5f' : '#ffd166')
+                            : (isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor)}
                         transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
+                        opacity={gridDebug.mode === 'no-stroke-style' ? 0.85 : (isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
+                        lineWidth={gridDebug.mode === 'no-stroke-style' ? 1.2 : (isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth)}
                     />,
                 );
             }
         };
 
-        pushGridLayerLines(gridSelection.primarySpacing, gridSelection.primaryWeight, 'primary');
-        pushGridLayerLines(gridSelection.secondarySpacing, gridSelection.secondaryWeight, 'secondary');
+        const fixedSingleLayer = gridDebug.mode === 'fixed-single-layer';
+        pushGridLayerLines(gridSelection.primarySpacing, fixedSingleLayer ? 1 : gridSelection.primaryWeight, 'primary');
+        pushGridLayerLines(gridSelection.secondarySpacing, fixedSingleLayer ? 0 : gridSelection.secondaryWeight, 'secondary');
 
-        return { minorLines: minor, majorLines: major };
-    }, [cameraSnapshot, camera, size.height, size.width]);
+        const frustumCorners: [number, number][] = [
+            [-1, -1],
+            [1, -1],
+            [1, 1],
+            [-1, 1],
+        ];
+
+        const planeHitPoints = frustumCorners.map(([x, y]) => {
+            const nearPoint = new Vector3(x, y, -1).unproject(orthographicCamera);
+            const farPoint = new Vector3(x, y, 1).unproject(orthographicCamera);
+            const direction = farPoint.clone().sub(nearPoint).normalize();
+            const yDelta = VIEWPORT_THEME.gridYOffset - nearPoint.y;
+            const denominator = direction.y;
+            const intersects = Math.abs(denominator) > 1e-8;
+            const t = intersects ? yDelta / denominator : Number.NaN;
+            const point = intersects && t >= 0
+                ? nearPoint.clone().add(direction.multiplyScalar(t))
+                : null;
+
+            return point;
+        });
+
+        const boundsCorners: [number, number, number][] = [
+            [centerX - extentX, VIEWPORT_THEME.gridYOffset, centerZ - extentZ],
+            [centerX + extentX, VIEWPORT_THEME.gridYOffset, centerZ - extentZ],
+            [centerX + extentX, VIEWPORT_THEME.gridYOffset, centerZ + extentZ],
+            [centerX - extentX, VIEWPORT_THEME.gridYOffset, centerZ + extentZ],
+            [centerX - extentX, VIEWPORT_THEME.gridYOffset, centerZ - extentZ],
+        ];
+
+        const debugOverlay = gridDebug.enabled
+            ? (
+                <group>
+                    <Line points={boundsCorners} color="#00e6ff" lineWidth={2.2} transparent opacity={0.95} />
+                    {planeHitPoints.map((point, index) => (
+                        point
+                            ? <mesh key={`grid-hit-${index}`} position={[point.x, VIEWPORT_THEME.gridYOffset + 0.001, point.z]}><sphereGeometry args={[0.06, 8, 8]} /><meshBasicMaterial color={['#ff2d95', '#14f1ff', '#ffb703', '#8aff80'][index]} /></mesh>
+                            : null
+                    ))}
+                </group>
+            )
+            : null;
+
+        const debugSnapshot = {
+            viewport: { width: size.width, height: size.height },
+            camera: {
+                position: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+                quaternion: {
+                    x: orthographicCamera.quaternion.x,
+                    y: orthographicCamera.quaternion.y,
+                    z: orthographicCamera.quaternion.z,
+                    w: orthographicCamera.quaternion.w,
+                },
+                zoom,
+                orthographicSize: {
+                    worldWidth,
+                    worldHeight,
+                },
+            },
+            frustumPlaneHits: planeHitPoints.map((point) => (point ? { x: point.x, y: point.y, z: point.z } : null)),
+            computedGridBounds: {
+                center: { x: centerX, z: centerZ },
+                extents: { x: extentX, z: extentZ },
+            },
+            selectedScales: {
+                primarySpacing: gridSelection.primarySpacing,
+                secondarySpacing: gridSelection.secondarySpacing,
+                primaryWeight: fixedSingleLayer ? 1 : gridSelection.primaryWeight,
+                secondaryWeight: fixedSingleLayer ? 0 : gridSelection.secondaryWeight,
+                exponent: gridSelection.exponent,
+                blend: fixedSingleLayer ? 0 : gridSelection.blend,
+            },
+            generatedLineCounts: {
+                primary: {
+                    x: layerLineCounts.primary.x,
+                    z: layerLineCounts.primary.z,
+                    total: layerLineCounts.primary.x + layerLineCounts.primary.z,
+                },
+                secondary: {
+                    x: layerLineCounts.secondary.x,
+                    z: layerLineCounts.secondary.z,
+                    total: layerLineCounts.secondary.x + layerLineCounts.secondary.z,
+                },
+            },
+            mode: gridDebug.mode,
+        };
+
+        return { minorLines: minor, majorLines: major, debugOverlay, debugSnapshot };
+    }, [cameraSnapshot, camera, gridDebug.enabled, gridDebug.mode, size.height, size.width]);
+
+    useEffect(() => {
+        if (!gridDebug.enabled) {
+            return;
+        }
+
+        if (gridDebug.oneShotLog && didEmitDebugLog.current) {
+            return;
+        }
+
+        console.info('[grid-debug-snapshot]', debugSnapshot);
+        if (gridDebug.oneShotLog) {
+            didEmitDebugLog.current = true;
+        }
+    }, [debugSnapshot, gridDebug.enabled, gridDebug.oneShotLog]);
+
+    if (gridDebug.enabled && gridDebug.mode === 'giant-procedural') {
+        return (
+            <group>
+                <gridHelper args={[100000, 2000, '#ff5f5f', '#ffe29a']} position={[0, VIEWPORT_THEME.gridYOffset, 0]} />
+                {debugOverlay}
+            </group>
+        );
+    }
 
     return (
         <group>
             {minorLines}
             {majorLines}
+            {debugOverlay}
         </group>
     );
 }

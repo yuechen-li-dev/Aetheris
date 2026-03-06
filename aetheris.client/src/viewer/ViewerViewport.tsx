@@ -58,6 +58,59 @@ interface GridCornerDiagnostic {
     color: string;
 }
 
+interface GridLayerEnvelope {
+    layer: string;
+    spacing: number;
+    weight: number;
+    xStart: number;
+    xEnd: number;
+    zStart: number;
+    zEnd: number;
+    xLineCount: number;
+    zLineCount: number;
+    firstVerticalLine: [[number, number, number], [number, number, number]] | null;
+    lastVerticalLine: [[number, number, number], [number, number, number]] | null;
+    firstHorizontalLine: [[number, number, number], [number, number, number]] | null;
+    lastHorizontalLine: [[number, number, number], [number, number, number]] | null;
+    skippedByWeight: boolean;
+}
+
+interface GridAuditSnapshot {
+    computedBounds: {
+        minX: number;
+        maxX: number;
+        minZ: number;
+        maxZ: number;
+        centerX: number;
+        centerZ: number;
+        spanX: number;
+        spanZ: number;
+    };
+    baseSpan: number;
+    margin: number;
+    worldSpan: number;
+    gridSelection: {
+        primarySpacing: number;
+        secondarySpacing: number;
+        primaryWeight: number;
+        secondaryWeight: number;
+    };
+    fallbackUsed: boolean;
+    fallbackReason: string | null;
+    fallbackOriginalBounds: {
+        minX: number;
+        maxX: number;
+        minZ: number;
+        maxZ: number;
+    } | null;
+    minimumSpanClampApplied: boolean;
+    layerEnvelopes: GridLayerEnvelope[];
+    transformSpace: {
+        gridGroupLocalSpace: string;
+        parentTransformAssumption: string;
+    };
+}
+
 function parseGridDebugFlag(): boolean {
     if (typeof window === 'undefined') {
         return false;
@@ -108,6 +161,8 @@ function DraftingGrid() {
         majorLines,
         cornerDiagnostics,
         bounds,
+        layerEnvelopes,
+        auditSnapshot,
     } = useMemo(() => {
         const orthographicCamera = camera as OrthographicCamera;
         const cameraForward = orthographicCamera.getWorldDirection(new Vector3()).normalize();
@@ -138,12 +193,26 @@ function DraftingGrid() {
         let minZ: number;
         let maxZ: number;
 
+        let fallbackUsed = false;
+        let fallbackReason: string | null = null;
+        let fallbackOriginalBounds: GridAuditSnapshot['fallbackOriginalBounds'] = null;
+
         if (hitPoints.length === 4) {
             minX = Math.min(...hitPoints.map((point) => point.x));
             maxX = Math.max(...hitPoints.map((point) => point.x));
             minZ = Math.min(...hitPoints.map((point) => point.z));
             maxZ = Math.max(...hitPoints.map((point) => point.z));
         } else {
+            fallbackUsed = true;
+            fallbackReason = `Expected 4 corner-plane hits but received ${hitPoints.length}.`;
+            if (hitPoints.length > 0) {
+                fallbackOriginalBounds = {
+                    minX: Math.min(...hitPoints.map((point) => point.x)),
+                    maxX: Math.max(...hitPoints.map((point) => point.x)),
+                    minZ: Math.min(...hitPoints.map((point) => point.z)),
+                    maxZ: Math.max(...hitPoints.map((point) => point.z)),
+                };
+            }
             const fallbackExtent = Math.max(10 / Math.max(orthographicCamera.zoom ?? 1, 0.0001), 1);
             minX = camera.position.x - fallbackExtent;
             maxX = camera.position.x + fallbackExtent;
@@ -151,7 +220,9 @@ function DraftingGrid() {
             maxZ = camera.position.z + fallbackExtent;
         }
 
-        const baseSpan = Math.max(maxX - minX, maxZ - minZ, 1);
+        const unclampedBaseSpan = Math.max(maxX - minX, maxZ - minZ);
+        const baseSpan = Math.max(unclampedBaseSpan, 1);
+        const minimumSpanClampApplied = baseSpan !== unclampedBaseSpan;
         const margin = baseSpan * 0.2;
         const expandedMinX = minX - margin;
         const expandedMaxX = maxX + margin;
@@ -162,8 +233,27 @@ function DraftingGrid() {
 
         const minor: ReactNode[] = [];
         const major: ReactNode[] = [];
+        const envelopes: GridLayerEnvelope[] = [];
         const pushGridLayerLines = (spacing: number, weight: number, layerPrefix: string) => {
+            const layerEnvelope: GridLayerEnvelope = {
+                layer: layerPrefix,
+                spacing,
+                weight,
+                xStart: 0,
+                xEnd: 0,
+                zStart: 0,
+                zEnd: 0,
+                xLineCount: 0,
+                zLineCount: 0,
+                firstVerticalLine: null,
+                lastVerticalLine: null,
+                firstHorizontalLine: null,
+                lastHorizontalLine: null,
+                skippedByWeight: weight <= 0.001,
+            };
+
             if (weight <= 0.001) {
+                envelopes.push(layerEnvelope);
                 return;
             }
 
@@ -171,6 +261,17 @@ function DraftingGrid() {
             const xEnd = Math.ceil(expandedMaxX / spacing);
             const zStart = Math.floor(expandedMinZ / spacing);
             const zEnd = Math.ceil(expandedMaxZ / spacing);
+
+            layerEnvelope.xStart = xStart;
+            layerEnvelope.xEnd = xEnd;
+            layerEnvelope.zStart = zStart;
+            layerEnvelope.zEnd = zEnd;
+            layerEnvelope.xLineCount = xEnd - xStart + 1;
+            layerEnvelope.zLineCount = zEnd - zStart + 1;
+            layerEnvelope.firstVerticalLine = [[xStart * spacing, VIEWPORT_THEME.gridYOffset, expandedMinZ], [xStart * spacing, VIEWPORT_THEME.gridYOffset, expandedMaxZ]];
+            layerEnvelope.lastVerticalLine = [[xEnd * spacing, VIEWPORT_THEME.gridYOffset, expandedMinZ], [xEnd * spacing, VIEWPORT_THEME.gridYOffset, expandedMaxZ]];
+            layerEnvelope.firstHorizontalLine = [[expandedMinX, VIEWPORT_THEME.gridYOffset, zStart * spacing], [expandedMaxX, VIEWPORT_THEME.gridYOffset, zStart * spacing]];
+            layerEnvelope.lastHorizontalLine = [[expandedMinX, VIEWPORT_THEME.gridYOffset, zEnd * spacing], [expandedMaxX, VIEWPORT_THEME.gridYOffset, zEnd * spacing]];
 
             for (let xIndex = xStart; xIndex <= xEnd; xIndex += 1) {
                 const x = xIndex * spacing;
@@ -237,6 +338,8 @@ function DraftingGrid() {
                     />,
                 );
             }
+
+            envelopes.push(layerEnvelope);
         };
 
         pushGridLayerLines(gridSelection.primarySpacing, gridSelection.primaryWeight, 'primary');
@@ -246,6 +349,37 @@ function DraftingGrid() {
             minorLines: minor,
             majorLines: major,
             cornerDiagnostics: diagnostics,
+            layerEnvelopes: envelopes,
+            auditSnapshot: {
+                computedBounds: {
+                    minX: expandedMinX,
+                    maxX: expandedMaxX,
+                    minZ: expandedMinZ,
+                    maxZ: expandedMaxZ,
+                    centerX: (expandedMinX + expandedMaxX) * 0.5,
+                    centerZ: (expandedMinZ + expandedMaxZ) * 0.5,
+                    spanX: expandedMaxX - expandedMinX,
+                    spanZ: expandedMaxZ - expandedMinZ,
+                },
+                baseSpan,
+                margin,
+                worldSpan,
+                gridSelection: {
+                    primarySpacing: gridSelection.primarySpacing,
+                    secondarySpacing: gridSelection.secondarySpacing,
+                    primaryWeight: gridSelection.primaryWeight,
+                    secondaryWeight: gridSelection.secondaryWeight,
+                },
+                fallbackUsed,
+                fallbackReason,
+                fallbackOriginalBounds,
+                minimumSpanClampApplied,
+                layerEnvelopes: envelopes,
+                transformSpace: {
+                    gridGroupLocalSpace: 'All DraftingGrid lines are authored in parent/world axes (x,z on y=gridYOffset).',
+                    parentTransformAssumption: 'DraftingGrid is mounted without transform; local coordinates match world-space viewer coordinates.',
+                },
+            },
             bounds: {
                 minX: expandedMinX,
                 maxX: expandedMaxX,
@@ -277,7 +411,66 @@ function DraftingGrid() {
             hitY: diagnostic.hitPoint?.y ?? null,
             hitZ: diagnostic.hitPoint?.z ?? null,
         })));
-    }, [cornerDiagnostics, gridDebugEnabled]);
+        // eslint-disable-next-line no-console
+        console.log('[grid-debug] generation-audit', {
+            bounds: auditSnapshot.computedBounds,
+            baseSpan: auditSnapshot.baseSpan,
+            margin: auditSnapshot.margin,
+            worldSpan: auditSnapshot.worldSpan,
+            selectedSpacing: auditSnapshot.gridSelection,
+            fallbackUsed: auditSnapshot.fallbackUsed,
+            fallbackReason: auditSnapshot.fallbackReason,
+            fallbackOriginalBounds: auditSnapshot.fallbackOriginalBounds,
+            minimumSpanClampApplied: auditSnapshot.minimumSpanClampApplied,
+            transformSpace: auditSnapshot.transformSpace,
+            layerEnvelopes: auditSnapshot.layerEnvelopes,
+        });
+        if (auditSnapshot.fallbackUsed) {
+            // eslint-disable-next-line no-console
+            console.warn('[grid-debug] fallback override engaged', {
+                reason: auditSnapshot.fallbackReason,
+                before: auditSnapshot.fallbackOriginalBounds,
+                after: auditSnapshot.computedBounds,
+            });
+        }
+    }, [auditSnapshot, cornerDiagnostics, gridDebugEnabled]);
+
+    const generationEnvelopeMarkers = useMemo(() => {
+        if (!gridDebugEnabled) {
+            return null;
+        }
+
+        return layerEnvelopes
+            .filter((layer) => !layer.skippedByWeight)
+            .flatMap((layer) => {
+                const color = layer.layer === 'primary' ? '#14b8a6' : '#f97316';
+                const lines = [
+                    { key: 'first-vertical', points: layer.firstVerticalLine },
+                    { key: 'last-vertical', points: layer.lastVerticalLine },
+                    { key: 'first-horizontal', points: layer.firstHorizontalLine },
+                    { key: 'last-horizontal', points: layer.lastHorizontalLine },
+                ] as const;
+
+                return lines
+                    .map((line) => {
+                        if (line.points === null) {
+                            return null;
+                        }
+
+                        return (
+                            <Line
+                                key={`grid-envelope-${layer.layer}-${line.key}`}
+                                points={[
+                                    [line.points[0][0], line.points[0][1] + 0.02, line.points[0][2]],
+                                    [line.points[1][0], line.points[1][1] + 0.02, line.points[1][2]],
+                                ]}
+                                color={color}
+                                lineWidth={4}
+                            />
+                        );
+                    });
+            });
+    }, [gridDebugEnabled, layerEnvelopes]);
 
     const debugMarkers = useMemo(() => {
         if (!gridDebugEnabled) {
@@ -342,6 +535,7 @@ function DraftingGrid() {
             {majorLines}
             {debugMarkers}
             {debugBoundsOverlay}
+            {generationEnvelopeMarkers}
         </group>
     );
 }

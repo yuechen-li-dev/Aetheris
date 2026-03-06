@@ -11,8 +11,8 @@ const VIEWPORT_THEME = {
     edgeWidth: 1.35,
     gridMinorColor: '#d9dee4',
     gridMajorColor: '#c7cdd3',
-    ambientIntensity: 0.25,
-    directionalIntensity: 0.75,
+    ambientIntensity: 0.18,
+    directionalIntensity: 0.82,
     selectionFaceColor: '#f59e0b',
     selectionEdgeColor: '#f59e0b',
     selectionEdgeWidth: 3,
@@ -110,6 +110,8 @@ function PickRayCapture({ onPickRay }: { onPickRay?: ViewerViewportProps['onPick
 }
 
 export function ViewerViewport({ sceneData, highlightedFaceId = null, highlightedEdgeId = null, onPickRay }: ViewerViewportProps) {
+    const hasInteractionEdgeHighlight = highlightedEdgeId !== null;
+
     return (
         <div className="viewport-canvas-frame">
             <Canvas orthographic camera={{ position: [6, 6, 6], zoom: 90, near: 0.1, far: 1000 }} gl={{ alpha: true }}>
@@ -126,13 +128,17 @@ export function ViewerViewport({ sceneData, highlightedFaceId = null, highlighte
                         isHighlighted={highlightedFaceId === face.faceId}
                     />
                 ))}
-                {sceneData?.edges.map((edge) => (
-                    <EdgeLine
-                        key={`edge-${edge.edgeId}`}
-                        points={edge.points}
-                        isHighlighted={highlightedEdgeId === edge.edgeId}
-                    />
-                ))}
+                {hasInteractionEdgeHighlight
+                    ? sceneData?.edges
+                        .filter((edge) => edge.edgeId === highlightedEdgeId)
+                        .map((edge) => (
+                            <EdgeLine
+                                key={`edge-${edge.edgeId}`}
+                                points={edge.points}
+                                isHighlighted
+                            />
+                        ))
+                    : null}
                 <PickRayCapture onPickRay={onPickRay} />
                 <OrbitControls makeDefault enablePan enableZoom />
             </Canvas>

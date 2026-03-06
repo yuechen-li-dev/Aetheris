@@ -130,6 +130,20 @@ function parseGridDebugFlag(): boolean {
     return debugParam === '1' || debugParam === 'true';
 }
 
+
+function parseGridDepthTestFlag(): boolean {
+    if (typeof window === 'undefined') {
+        return true;
+    }
+
+    const param = new URLSearchParams(window.location.search).get('gridDepthTest');
+    if (param === null) {
+        return true;
+    }
+
+    return !(param === '0' || param === 'false');
+}
+
 function intersectRayWithHorizontalPlane(rayOrigin: Vector3, rayDirection: Vector3, planeY: number): Vector3 | null {
     const epsilon = 1e-6;
     if (Math.abs(rayDirection.y) < epsilon) {
@@ -147,6 +161,7 @@ function intersectRayWithHorizontalPlane(rayOrigin: Vector3, rayDirection: Vecto
 function DraftingGrid() {
     const { camera } = useThree();
     const gridDebugEnabled = useMemo(() => parseGridDebugFlag(), []);
+    const gridDepthTestEnabled = useMemo(() => parseGridDepthTestFlag(), []);
     const debugSnapshotLoggedRef = useRef<string | null>(null);
     const [coverageMode, setCoverageMode] = useState<'corner-intersection' | 'grazing-fallback'>('corner-intersection');
     const [cameraSnapshot, setCameraSnapshot] = useState(() => {
@@ -160,6 +175,8 @@ function DraftingGrid() {
             forwardY: forward.y,
         };
     });
+
+    const gridLineRenderProps = useMemo(() => ({ depthTest: gridDepthTestEnabled }), [gridDepthTestEnabled]);
 
     useFrame(() => {
         const orthographicCamera = camera as OrthographicCamera;
@@ -350,6 +367,7 @@ function DraftingGrid() {
                         transparent
                         opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
                         lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
+                        {...gridLineRenderProps}
                     />,
                 );
                 target.push(
@@ -360,6 +378,7 @@ function DraftingGrid() {
                         transparent
                         opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
                         lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
+                        {...gridLineRenderProps}
                     />,
                 );
             }
@@ -383,6 +402,7 @@ function DraftingGrid() {
                         transparent
                         opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
                         lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
+                        {...gridLineRenderProps}
                     />,
                 );
                 target.push(
@@ -393,6 +413,7 @@ function DraftingGrid() {
                         transparent
                         opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
                         lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
+                        {...gridLineRenderProps}
                     />,
                 );
             }
@@ -451,7 +472,7 @@ function DraftingGrid() {
                 maxZ: expandedMaxZ,
             },
         };
-    }, [cameraSnapshot, camera, coverageMode]);
+    }, [cameraSnapshot, camera, coverageMode, gridLineRenderProps]);
 
     useEffect(() => {
         if (!gridDebugEnabled) {
@@ -486,6 +507,7 @@ function DraftingGrid() {
             margin: auditSnapshot.margin,
             worldSpan: auditSnapshot.worldSpan,
             selectedSpacing: auditSnapshot.gridSelection,
+            depthTestEnabled: gridDepthTestEnabled,
             coverageMode: auditSnapshot.coverageMode,
             cameraPlaneAlignment: auditSnapshot.cameraPlaneAlignment,
             grazingThresholds: auditSnapshot.grazingThresholds,
@@ -512,7 +534,7 @@ function DraftingGrid() {
                 mode: auditSnapshot.coverageMode,
             });
         }
-    }, [auditSnapshot, cornerDiagnostics, gridDebugEnabled]);
+    }, [auditSnapshot, cornerDiagnostics, gridDebugEnabled, gridDepthTestEnabled]);
 
     const generationEnvelopeMarkers = useMemo(() => {
         if (!gridDebugEnabled) {
@@ -545,11 +567,12 @@ function DraftingGrid() {
                                 ]}
                                 color={color}
                                 lineWidth={4}
+                                {...gridLineRenderProps}
                             />
                         );
                     });
             });
-    }, [gridDebugEnabled, layerEnvelopes]);
+    }, [gridDebugEnabled, layerEnvelopes, gridLineRenderProps]);
 
     const debugMarkers = useMemo(() => {
         if (!gridDebugEnabled) {
@@ -567,11 +590,13 @@ function DraftingGrid() {
                             points={[[hit.x - markerSize, VIEWPORT_THEME.gridYOffset, hit.z], [hit.x + markerSize, VIEWPORT_THEME.gridYOffset, hit.z]]}
                             color={diagnostic.color}
                             lineWidth={3}
+                            {...gridLineRenderProps}
                         />
                         <Line
                             points={[[hit.x, VIEWPORT_THEME.gridYOffset, hit.z - markerSize], [hit.x, VIEWPORT_THEME.gridYOffset, hit.z + markerSize]]}
                             color={diagnostic.color}
                             lineWidth={3}
+                            {...gridLineRenderProps}
                         />
                         <Text
                             position={[hit.x, VIEWPORT_THEME.gridYOffset + 0.03, hit.z]}
@@ -585,7 +610,7 @@ function DraftingGrid() {
                     </group>
                 );
             });
-    }, [cornerDiagnostics, gridDebugEnabled]);
+    }, [cornerDiagnostics, gridDebugEnabled, gridLineRenderProps]);
 
     const debugBoundsOverlay = useMemo(() => {
         if (!gridDebugEnabled) {
@@ -604,9 +629,10 @@ function DraftingGrid() {
                 ]}
                 color={outlineColor}
                 lineWidth={2.6}
+                {...gridLineRenderProps}
             />
         );
-    }, [bounds.maxX, bounds.maxZ, bounds.minX, bounds.minZ, gridDebugEnabled]);
+    }, [bounds.maxX, bounds.maxZ, bounds.minX, bounds.minZ, gridDebugEnabled, gridLineRenderProps]);
 
     return (
         <group>

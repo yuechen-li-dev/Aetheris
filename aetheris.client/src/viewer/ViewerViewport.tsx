@@ -1,10 +1,11 @@
 import { Line, OrbitControls, Text } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { useThree } from '@react-three/fiber';
-import { useEffect, useMemo } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial, Raycaster, Vector2 } from 'three';
+import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2 } from 'three';
 import type { RenderSceneData } from './tessellationMapper';
+import { selectLogarithmicGridScales } from './logarithmicGrid';
 
 const VIEWPORT_THEME = {
     surfaceColor: '#969ba1',
@@ -22,9 +23,9 @@ const VIEWPORT_THEME = {
     gridMinorFadeWidth: 2,
     gridMajorCoreWidth: 1,
     gridMajorFadeWidth: 2.8,
-    gridSize: 20,
-    gridDivisions: 20,
     gridMajorStep: 5,
+    gridTargetCellCount: 14,
+    gridExtentScale: 2.2,
     gridYOffset: 0.001,
     ambientIntensity: 0.12,
     directionalIntensity: 0.88,
@@ -41,49 +42,121 @@ const VIEWPORT_THEME = {
 } as const;
 
 function DraftingGrid() {
-    const half = VIEWPORT_THEME.gridSize / 2;
-    const step = VIEWPORT_THEME.gridSize / VIEWPORT_THEME.gridDivisions;
-    const majorStep = VIEWPORT_THEME.gridMajorStep;
+    const { camera, size } = useThree();
+    const [cameraSnapshot, setCameraSnapshot] = useState({ x: camera.position.x, z: camera.position.z, zoom: (camera as OrthographicCamera).zoom ?? 1 });
+
+    useFrame(() => {
+        const orthographicCamera = camera as OrthographicCamera;
+        setCameraSnapshot((previousSnapshot) => {
+            const nextSnapshot = {
+                x: camera.position.x,
+                z: camera.position.z,
+                zoom: orthographicCamera.zoom ?? 1,
+            };
+            const changed = Math.abs(nextSnapshot.x - previousSnapshot.x) > 0.01
+                || Math.abs(nextSnapshot.z - previousSnapshot.z) > 0.01
+                || Math.abs(nextSnapshot.zoom - previousSnapshot.zoom) > 0.01;
+
+            return changed ? nextSnapshot : previousSnapshot;
+        });
+    });
 
     const { minorLines, majorLines } = useMemo(() => {
+        const orthographicCamera = camera as OrthographicCamera;
+        const zoom = Math.max(orthographicCamera.zoom ?? 1, 0.0001);
+        const worldHeight = size.height / zoom;
+        const worldWidth = size.width / zoom;
+        const worldSpan = Math.max(worldWidth, worldHeight);
+        const gridSelection = selectLogarithmicGridScales(worldSpan, VIEWPORT_THEME.gridTargetCellCount);
+        const centerX = camera.position.x;
+        const centerZ = camera.position.z;
+        const extentX = worldWidth * VIEWPORT_THEME.gridExtentScale;
+        const extentZ = worldHeight * VIEWPORT_THEME.gridExtentScale;
+
         const minor: ReactNode[] = [];
         const major: ReactNode[] = [];
+        const pushGridLayerLines = (spacing: number, weight: number, layerPrefix: string) => {
+            if (weight <= 0.001) {
+                return;
+            }
 
-        for (let division = 0; division <= VIEWPORT_THEME.gridDivisions; division += 1) {
-            const position = -half + division * step;
-            const linePoints: [[number, number, number], [number, number, number]][] = [
-                [[-half, VIEWPORT_THEME.gridYOffset, position], [half, VIEWPORT_THEME.gridYOffset, position]],
-                [[position, VIEWPORT_THEME.gridYOffset, -half], [position, VIEWPORT_THEME.gridYOffset, half]],
-            ];
-            const target = division % majorStep === 0 ? major : minor;
+            const xStart = Math.floor((centerX - extentX) / spacing);
+            const xEnd = Math.ceil((centerX + extentX) / spacing);
+            const zStart = Math.floor((centerZ - extentZ) / spacing);
+            const zEnd = Math.ceil((centerZ + extentZ) / spacing);
 
-            linePoints.forEach((points, index) => {
-                const linePrefix = division % majorStep === 0 ? 'major' : 'minor';
+            for (let xIndex = xStart; xIndex <= xEnd; xIndex += 1) {
+                const x = xIndex * spacing;
+                const points: [[number, number, number], [number, number, number]] = [
+                    [x, VIEWPORT_THEME.gridYOffset, centerZ - extentZ],
+                    [x, VIEWPORT_THEME.gridYOffset, centerZ + extentZ],
+                ];
+                const isMajor = xIndex % VIEWPORT_THEME.gridMajorStep === 0;
+                const target = isMajor ? major : minor;
+                const linePrefix = isMajor ? 'major' : 'minor';
+                const alphaWeight = Math.min(Math.max(weight, 0), 1);
+
                 target.push(
                     <Line
-                        key={`${linePrefix}-fade-${division}-${index}`}
+                        key={`${layerPrefix}-${linePrefix}-fade-x-${xIndex}`}
                         points={points}
-                        color={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
+                        color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
                         transparent
-                        opacity={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity}
-                        lineWidth={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
+                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
+                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
                     />,
                 );
                 target.push(
                     <Line
-                        key={`${linePrefix}-core-${division}-${index}`}
+                        key={`${layerPrefix}-${linePrefix}-core-x-${xIndex}`}
                         points={points}
-                        color={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
+                        color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
                         transparent
-                        opacity={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity}
-                        lineWidth={division % majorStep === 0 ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
+                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
+                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
                     />,
                 );
-            });
-        }
+            }
+
+            for (let zIndex = zStart; zIndex <= zEnd; zIndex += 1) {
+                const z = zIndex * spacing;
+                const points: [[number, number, number], [number, number, number]] = [
+                    [centerX - extentX, VIEWPORT_THEME.gridYOffset, z],
+                    [centerX + extentX, VIEWPORT_THEME.gridYOffset, z],
+                ];
+                const isMajor = zIndex % VIEWPORT_THEME.gridMajorStep === 0;
+                const target = isMajor ? major : minor;
+                const linePrefix = isMajor ? 'major' : 'minor';
+                const alphaWeight = Math.min(Math.max(weight, 0), 1);
+
+                target.push(
+                    <Line
+                        key={`${layerPrefix}-${linePrefix}-fade-z-${zIndex}`}
+                        points={points}
+                        color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
+                        transparent
+                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
+                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
+                    />,
+                );
+                target.push(
+                    <Line
+                        key={`${layerPrefix}-${linePrefix}-core-z-${zIndex}`}
+                        points={points}
+                        color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
+                        transparent
+                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
+                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
+                    />,
+                );
+            }
+        };
+
+        pushGridLayerLines(gridSelection.primarySpacing, gridSelection.primaryWeight, 'primary');
+        pushGridLayerLines(gridSelection.secondarySpacing, gridSelection.secondaryWeight, 'secondary');
 
         return { minorLines: minor, majorLines: major };
-    }, [half, majorStep, step]);
+    }, [cameraSnapshot, camera, size.height, size.width]);
 
     return (
         <group>

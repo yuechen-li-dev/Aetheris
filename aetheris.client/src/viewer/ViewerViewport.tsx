@@ -109,7 +109,14 @@ interface GridAuditSnapshot {
         gridGroupLocalSpace: string;
         parentTransformAssumption: string;
     };
+    renderMode: GridDebugMode;
+    sketchFadeImplementation: {
+        axis: 'cross-width-only';
+        detail: string;
+    };
 }
+
+type GridDebugMode = 'sketch-grid' | 'plain-grid' | 'sketch-grid-exaggerated';
 
 function parseGridDebugFlag(): boolean {
     if (typeof window === 'undefined') {
@@ -118,6 +125,23 @@ function parseGridDebugFlag(): boolean {
 
     const debugParam = new URLSearchParams(window.location.search).get('gridDebug');
     return debugParam === '1' || debugParam === 'true';
+}
+
+function parseGridDebugMode(): GridDebugMode {
+    if (typeof window === 'undefined') {
+        return 'sketch-grid';
+    }
+
+    const modeParam = new URLSearchParams(window.location.search).get('gridDebugMode');
+    if (modeParam === 'plain-grid') {
+        return 'plain-grid';
+    }
+
+    if (modeParam === 'sketch-grid-exaggerated') {
+        return 'sketch-grid-exaggerated';
+    }
+
+    return 'sketch-grid';
 }
 
 function intersectRayWithHorizontalPlane(rayOrigin: Vector3, rayDirection: Vector3, planeY: number): Vector3 | null {
@@ -137,6 +161,7 @@ function intersectRayWithHorizontalPlane(rayOrigin: Vector3, rayDirection: Vecto
 function DraftingGrid() {
     const { camera } = useThree();
     const gridDebugEnabled = useMemo(() => parseGridDebugFlag(), []);
+    const gridDebugMode = useMemo(() => parseGridDebugMode(), []);
     const debugSnapshotLoggedRef = useRef(false);
     const [cameraSnapshot, setCameraSnapshot] = useState({ x: camera.position.x, z: camera.position.z, zoom: (camera as OrthographicCamera).zoom ?? 1 });
 
@@ -233,6 +258,45 @@ function DraftingGrid() {
 
         const minor: ReactNode[] = [];
         const major: ReactNode[] = [];
+        const buildGridLineLayers = (isMajor: boolean, alphaWeight: number) => {
+            const clampedAlphaWeight = Math.min(Math.max(alphaWeight, 0), 1);
+            const plainLayer = [{
+                variant: 'plain',
+                color: isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor,
+                opacity: clampedAlphaWeight,
+                lineWidth: isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth,
+            }] as const;
+
+            if (gridDebugMode === 'plain-grid') {
+                return plainLayer;
+            }
+
+            const fadeOpacity = gridDebugMode === 'sketch-grid-exaggerated'
+                ? 0.78
+                : (isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * clampedAlphaWeight;
+            const fadeWidth = gridDebugMode === 'sketch-grid-exaggerated'
+                ? (isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth) * 2.2
+                : isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth;
+
+            const coreOpacity = gridDebugMode === 'sketch-grid-exaggerated'
+                ? 0.32
+                : (isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * clampedAlphaWeight;
+
+            return [
+                {
+                    variant: 'fade',
+                    color: isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor,
+                    opacity: fadeOpacity,
+                    lineWidth: fadeWidth,
+                },
+                {
+                    variant: 'core',
+                    color: isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor,
+                    opacity: coreOpacity,
+                    lineWidth: isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth,
+                },
+            ] as const;
+        };
         const envelopes: GridLayerEnvelope[] = [];
         const pushGridLayerLines = (spacing: number, weight: number, layerPrefix: string) => {
             const layerEnvelope: GridLayerEnvelope = {
@@ -282,28 +346,19 @@ function DraftingGrid() {
                 const isMajor = xIndex % VIEWPORT_THEME.gridMajorStep === 0;
                 const target = isMajor ? major : minor;
                 const linePrefix = isMajor ? 'major' : 'minor';
-                const alphaWeight = Math.min(Math.max(weight, 0), 1);
 
-                target.push(
-                    <Line
-                        key={`${layerPrefix}-${linePrefix}-fade-x-${xIndex}`}
-                        points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
-                        transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
-                    />,
-                );
-                target.push(
-                    <Line
-                        key={`${layerPrefix}-${linePrefix}-core-x-${xIndex}`}
-                        points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
-                        transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
-                    />,
-                );
+                buildGridLineLayers(isMajor, weight).forEach((layer) => {
+                    target.push(
+                        <Line
+                            key={`${layerPrefix}-${linePrefix}-${layer.variant}-x-${xIndex}`}
+                            points={points}
+                            color={layer.color}
+                            transparent
+                            opacity={layer.opacity}
+                            lineWidth={layer.lineWidth}
+                        />,
+                    );
+                });
             }
 
             for (let zIndex = zStart; zIndex <= zEnd; zIndex += 1) {
@@ -315,28 +370,19 @@ function DraftingGrid() {
                 const isMajor = zIndex % VIEWPORT_THEME.gridMajorStep === 0;
                 const target = isMajor ? major : minor;
                 const linePrefix = isMajor ? 'major' : 'minor';
-                const alphaWeight = Math.min(Math.max(weight, 0), 1);
 
-                target.push(
-                    <Line
-                        key={`${layerPrefix}-${linePrefix}-fade-z-${zIndex}`}
-                        points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
-                        transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
-                    />,
-                );
-                target.push(
-                    <Line
-                        key={`${layerPrefix}-${linePrefix}-core-z-${zIndex}`}
-                        points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
-                        transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
-                    />,
-                );
+                buildGridLineLayers(isMajor, weight).forEach((layer) => {
+                    target.push(
+                        <Line
+                            key={`${layerPrefix}-${linePrefix}-${layer.variant}-z-${zIndex}`}
+                            points={points}
+                            color={layer.color}
+                            transparent
+                            opacity={layer.opacity}
+                            lineWidth={layer.lineWidth}
+                        />,
+                    );
+                });
             }
 
             envelopes.push(layerEnvelope);
@@ -379,6 +425,11 @@ function DraftingGrid() {
                     gridGroupLocalSpace: 'All DraftingGrid lines are authored in parent/world axes (x,z on y=gridYOffset).',
                     parentTransformAssumption: 'DraftingGrid is mounted without transform; local coordinates match world-space viewer coordinates.',
                 },
+                renderMode: gridDebugMode,
+                sketchFadeImplementation: {
+                    axis: 'cross-width-only',
+                    detail: 'Sketch mode renders each infinite-grid segment as two coincident Line layers (wide low-alpha halo + narrow core) with no endpoint, segment-UV, world-distance, or clip-space fade.',
+                },
             },
             bounds: {
                 minX: expandedMinX,
@@ -387,7 +438,7 @@ function DraftingGrid() {
                 maxZ: expandedMaxZ,
             },
         };
-    }, [cameraSnapshot, camera]);
+    }, [cameraSnapshot, camera, gridDebugMode]);
 
     useEffect(() => {
         if (!gridDebugEnabled || debugSnapshotLoggedRef.current) {
@@ -423,6 +474,8 @@ function DraftingGrid() {
             fallbackOriginalBounds: auditSnapshot.fallbackOriginalBounds,
             minimumSpanClampApplied: auditSnapshot.minimumSpanClampApplied,
             transformSpace: auditSnapshot.transformSpace,
+            renderMode: auditSnapshot.renderMode,
+            sketchFadeImplementation: auditSnapshot.sketchFadeImplementation,
             layerEnvelopes: auditSnapshot.layerEnvelopes,
         });
         if (auditSnapshot.fallbackUsed) {

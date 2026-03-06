@@ -1,4 +1,4 @@
-import { Line, OrbitControls } from '@react-three/drei';
+import { Line, OrbitControls, Text } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
@@ -11,8 +11,15 @@ const VIEWPORT_THEME = {
     edgeWidth: 1.35,
     gridMinorColor: '#d9dee4',
     gridMajorColor: '#c7cdd3',
-    ambientIntensity: 0.18,
-    directionalIntensity: 0.82,
+    ambientIntensity: 0.12,
+    directionalIntensity: 0.88,
+    axisLength: 2,
+    axisLineWidth: 1,
+    axisXColor: '#3f6f8f',
+    axisYColor: '#4d7a4d',
+    axisZColor: '#8c6a2c',
+    axisLabelColor: '#4a4a4a',
+    axisLabelSize: 0.16,
     selectionFaceColor: '#f59e0b',
     selectionEdgeColor: '#f59e0b',
     selectionEdgeWidth: 3,
@@ -46,6 +53,46 @@ function FaceMesh({ positions, normals, indices, isHighlighted }: { positions: F
     );
 
     return <mesh geometry={geometry} material={material} />;
+}
+
+function AxisGuide() {
+    const axisEnd = VIEWPORT_THEME.axisLength;
+    const labelOffset = 0.14;
+
+    return (
+        <group>
+            <Line points={[[0, 0, 0], [axisEnd, 0, 0]]} color={VIEWPORT_THEME.axisXColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
+            <Line points={[[0, 0, 0], [0, axisEnd, 0]]} color={VIEWPORT_THEME.axisYColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
+            <Line points={[[0, 0, 0], [0, 0, axisEnd]]} color={VIEWPORT_THEME.axisZColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
+            <Text
+                position={[axisEnd + labelOffset, 0, 0]}
+                fontSize={VIEWPORT_THEME.axisLabelSize}
+                color={VIEWPORT_THEME.axisLabelColor}
+                anchorX="left"
+                anchorY="middle"
+            >
+                X
+            </Text>
+            <Text
+                position={[0, axisEnd + labelOffset, 0]}
+                fontSize={VIEWPORT_THEME.axisLabelSize}
+                color={VIEWPORT_THEME.axisLabelColor}
+                anchorX="center"
+                anchorY="bottom"
+            >
+                Y
+            </Text>
+            <Text
+                position={[0, 0, axisEnd + labelOffset]}
+                fontSize={VIEWPORT_THEME.axisLabelSize}
+                color={VIEWPORT_THEME.axisLabelColor}
+                anchorX="center"
+                anchorY="middle"
+            >
+                Z
+            </Text>
+        </group>
+    );
 }
 
 function EdgeLine({ points, isHighlighted }: { points: Float32Array; isHighlighted: boolean }) {
@@ -116,9 +163,9 @@ export function ViewerViewport({ sceneData, highlightedFaceId = null, highlighte
         <div className="viewport-canvas-frame">
             <Canvas orthographic camera={{ position: [6, 6, 6], zoom: 90, near: 0.1, far: 1000 }} gl={{ alpha: true }}>
                 <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
-                <directionalLight position={[-6, 9, 7]} intensity={VIEWPORT_THEME.directionalIntensity} />
+                <directionalLight position={[-5, 9, 6]} intensity={VIEWPORT_THEME.directionalIntensity} />
                 <gridHelper args={[20, 20, VIEWPORT_THEME.gridMajorColor, VIEWPORT_THEME.gridMinorColor]} />
-                <axesHelper args={[2]} />
+                <AxisGuide />
                 {sceneData?.faces.map((face) => (
                     <FaceMesh
                         key={`face-${face.faceId}`}

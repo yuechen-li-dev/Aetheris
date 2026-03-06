@@ -188,7 +188,7 @@
   min-height: 0;
   border-radius: calc(var(--layout-radius) - 2px);
   overflow: hidden;
-  background: linear-gradient(180deg, #f3f4f6 0%, #e4e7eb 100%);
+  background: linear-gradient(180deg, #f2f4f7 0%, #dde2e8 100%);
 }
 
 .viewport-canvas-frame canvas {

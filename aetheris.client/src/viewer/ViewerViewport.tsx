@@ -6,13 +6,13 @@ import { BufferAttribute, BufferGeometry, DoubleSide, MeshStandardMaterial, Rayc
 import type { RenderSceneData } from './tessellationMapper';
 
 const VIEWPORT_THEME = {
-    surfaceColor: '#8f9499',
-    edgeColor: '#3a3a3a',
-    edgeWidth: 1.25,
-    gridMinorColor: '#cfd4d9',
-    gridMajorColor: '#bcc2c8',
-    ambientIntensity: 0.35,
-    directionalIntensity: 0.65,
+    surfaceColor: '#969ba1',
+    edgeColor: '#2e2e2e',
+    edgeWidth: 1.35,
+    gridMinorColor: '#d9dee4',
+    gridMajorColor: '#c7cdd3',
+    ambientIntensity: 0.25,
+    directionalIntensity: 0.75,
     selectionFaceColor: '#f59e0b',
     selectionEdgeColor: '#f59e0b',
     selectionEdgeWidth: 3,
@@ -112,9 +112,9 @@ function PickRayCapture({ onPickRay }: { onPickRay?: ViewerViewportProps['onPick
 export function ViewerViewport({ sceneData, highlightedFaceId = null, highlightedEdgeId = null, onPickRay }: ViewerViewportProps) {
     return (
         <div className="viewport-canvas-frame">
-            <Canvas camera={{ position: [4, 4, 4], fov: 50 }} gl={{ alpha: true }}>
+            <Canvas orthographic camera={{ position: [6, 6, 6], zoom: 90, near: 0.1, far: 1000 }} gl={{ alpha: true }}>
                 <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
-                <directionalLight position={[4, 8, 3]} intensity={VIEWPORT_THEME.directionalIntensity} />
+                <directionalLight position={[-6, 9, 7]} intensity={VIEWPORT_THEME.directionalIntensity} />
                 <gridHelper args={[20, 20, VIEWPORT_THEME.gridMajorColor, VIEWPORT_THEME.gridMinorColor]} />
                 <axesHelper args={[2]} />
                 {sceneData?.faces.map((face) => (

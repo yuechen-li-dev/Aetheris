@@ -388,10 +388,6 @@ strong {
   margin: 0;
 }
 
-.tool-section--import label + p {
-  margin-top: 2px;
-}
-
 .tool-section--import .import-status-box {
   margin-top: 4px;
 }
@@ -411,8 +407,8 @@ strong {
   min-height: 74px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  text-align: center;
+  justify-content: flex-start;
+  text-align: left;
   cursor: pointer;
   padding: 10px 12px;
   transition: border-color 120ms ease, background-color 120ms ease;
@@ -433,7 +429,29 @@ strong {
   outline: none;
 }
 
-.step-import-validation {
-  color: #7f4a4a;
-  font-size: 0.78rem;
+.step-dropzone__content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+}
+
+.step-dropzone__primary {
+  margin: 0;
+  font-size: 0.83rem;
+  color: hsl(var(--foreground));
+  font-weight: var(--ui-weight-emphasis);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-dropzone__meta {
+  margin: 0;
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  color: hsl(var(--muted-foreground));
 }

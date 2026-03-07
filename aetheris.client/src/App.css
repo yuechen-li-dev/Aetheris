@@ -113,12 +113,32 @@
   border-color: #9e6767;
 }
 
-.top-bar__title {
+.top-bar__wordmark {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
   margin: 0;
-  font-size: 0.95rem;
-  letter-spacing: 0.1em;
+  line-height: 1.05;
+  gap: 1px;
+}
+
+.top-bar__wordmark-primary,
+.top-bar__wordmark-secondary {
+  display: block;
   text-transform: uppercase;
-  font-weight: var(--ui-weight-title);
+}
+
+.top-bar__wordmark-primary {
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  font-weight: 700;
+}
+
+.top-bar__wordmark-secondary {
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.24em;
 }
 
 .top-bar__tabs,

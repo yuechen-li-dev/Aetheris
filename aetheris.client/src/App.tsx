@@ -64,9 +64,8 @@ function App() {
     const [booleanOperation, setBooleanOperation] = useState<BooleanOperationUi>('Union');
     const [stepExportText, setStepExportText] = useState('');
     const [stepImportFile, setStepImportFile] = useState<File | null>(null);
+    const [stepDropzoneResetToken, setStepDropzoneResetToken] = useState(0);
     const [stepCanonicalHash, setStepCanonicalHash] = useState<string | null>(null);
-    const [stepImportSelectionMessage, setStepImportSelectionMessage] = useState('No file selected.');
-    const [stepImportValidationMessage, setStepImportValidationMessage] = useState<string | null>(null);
     const [copyHashMessage, setCopyHashMessage] = useState('');
     const [isImporting, setIsImporting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -88,9 +87,8 @@ function App() {
         setBooleanOperation('Union');
         setStepExportText('');
         setStepImportFile(null);
+        setStepDropzoneResetToken((value) => value + 1);
         setStepCanonicalHash(null);
-        setStepImportSelectionMessage('No file selected.');
-        setStepImportValidationMessage(null);
         setCopyHashMessage('');
         setDiagnostics([]);
         setImportStatusMessage('Preparing workspace…');
@@ -373,14 +371,10 @@ function App() {
 
     const handleStepFileAccepted = useCallback((selected: File) => {
         setStepImportFile(selected);
-        setStepImportSelectionMessage(`Selected file: ${selected.name} (${selected.size} bytes)`);
-        setStepImportValidationMessage(null);
     }, []);
 
-    const handleStepFileValidationError = useCallback((message: string) => {
+    const handleStepFileValidationError = useCallback((_message: string) => {
         setStepImportFile(null);
-        setStepImportSelectionMessage('No file selected.');
-        setStepImportValidationMessage(message);
     }, []);
 
     const handleUseActiveBodyAsTarget = useCallback(() => {
@@ -570,11 +564,10 @@ function App() {
                             <section className="tool-section tool-section--import">
                                 <h2 className="section-title">Step Import</h2>
                                 <StepImportDropzone
+                                    resetToken={stepDropzoneResetToken}
                                     onFileAccepted={handleStepFileAccepted}
                                     onValidationError={handleStepFileValidationError}
                                 />
-                                {stepImportValidationMessage ? <p className="step-import-validation">{stepImportValidationMessage}</p> : null}
-                                <p>{stepImportSelectionMessage}</p>
                                 <Button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP 242</Button>
                                 <div className={`import-status-box import-status-box--${importStatusTone}`}>
                                     <p className="import-status-box__label"><strong>Import Status</strong></p>

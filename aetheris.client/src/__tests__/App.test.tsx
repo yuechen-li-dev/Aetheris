@@ -115,6 +115,7 @@ describe('App STEP file upload flow', () => {
         const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
         const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
+        await screen.findByText('part.stp');
 
         fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
 
@@ -126,10 +127,14 @@ describe('App STEP file upload flow', () => {
         await screen.findByText('Document: Ready');
 
         const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
-        const file = new File(['ISO-10303-21;'], 'sample.step', { type: 'text/plain' });
+        const file = new File([
+            "ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));\nENDSEC;",
+        ], 'sample.step', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
 
-        expect(screen.getByText('Selected file: sample.step (13 bytes)')).toBeTruthy();
+        await screen.findByText('sample.step');
+        expect(screen.getByText('Detected schema: AP242')).toBeTruthy();
+        expect(screen.getByText('Compatibility: Supported')).toBeTruthy();
     });
 
 
@@ -141,8 +146,8 @@ describe('App STEP file upload flow', () => {
         const file = new File(['hello'], 'notes.txt', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
 
+        await screen.findByText('File selection needs attention');
         expect(screen.getByText('Unsupported file type. Please select a .step or .stp file.')).toBeTruthy();
-        expect(screen.getByText('No file selected.')).toBeTruthy();
         expect((screen.getByRole('button', { name: 'Import STEP 242' }) as HTMLButtonElement).disabled).toBe(true);
     });
 
@@ -150,7 +155,7 @@ describe('App STEP file upload flow', () => {
         render(<App />);
         await screen.findByText('Document: Ready');
 
-        const dropzone = screen.getByRole('button', { name: 'Drop STEP file here or click to browse' });
+        const dropzone = screen.getByTestId('step-import-dropzone');
         const file = new File(['ISO-10303-21;'], 'dragged.stp', { type: 'text/plain' });
         fireEvent.drop(dropzone, {
             dataTransfer: {
@@ -158,7 +163,43 @@ describe('App STEP file upload flow', () => {
             },
         });
 
-        expect(screen.getByText('Selected file: dragged.stp (13 bytes)')).toBeTruthy();
+        await screen.findByText('dragged.stp');
+    });
+
+    it('maps AP214/AP203 schemas to Experimental compatibility', async () => {
+        render(<App />);
+        await screen.findByText('Document: Ready');
+
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
+        const ap214 = new File([
+            "ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('AUTOMOTIVE_DESIGN_CC2'));\nENDSEC;",
+        ], 'ap214.step', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [ap214] } });
+
+        await screen.findByText('Detected schema: AP214');
+        expect(screen.getByText('Compatibility: Experimental')).toBeTruthy();
+
+        const ap203 = new File([
+            "ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('CONFIG_CONTROL_DESIGN'));\nENDSEC;",
+        ], 'ap203.step', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [ap203] } });
+
+        await screen.findByText('Detected schema: AP203');
+        expect(screen.getByText('Compatibility: Experimental')).toBeTruthy();
+    });
+
+    it('falls back to unknown schema when FILE_SCHEMA is unrecognized', async () => {
+        render(<App />);
+        await screen.findByText('Document: Ready');
+
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
+        const unknown = new File([
+            "ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('SOME_CUSTOM_SCHEMA'));\nENDSEC;",
+        ], 'unknown.step', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [unknown] } });
+
+        await screen.findByText('Detected schema: Unknown');
+        expect(screen.getByText('Compatibility: Not verified')).toBeTruthy();
     });
 
     it('calls importStep with file contents and refreshes canonical hash', async () => {
@@ -183,6 +224,7 @@ describe('App STEP file upload flow', () => {
         const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
         const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
+        await screen.findByText('part.stp');
 
         fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
 
@@ -258,6 +300,7 @@ describe('App STEP file upload flow', () => {
         const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
         const file = new File(['BAD'], 'bad.step', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
+        await screen.findByText('bad.step');
 
         fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
 
@@ -298,7 +341,7 @@ describe('App STEP file upload flow', () => {
         const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
 
-        expect(screen.getByText('Selected file: part.stp (18 bytes)')).toBeTruthy();
+        await screen.findByText('part.stp');
         expect((screen.getByRole('button', { name: 'Import STEP 242' }) as HTMLButtonElement).disabled).toBe(true);
 
         resolveCreate({ documentId: 'doc-1', name: 'Test', volatile: true });
@@ -316,11 +359,11 @@ describe('App STEP file upload flow', () => {
         const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
         const file = new File(['ISO-10303-21;'], 'sample.step', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
-        expect(screen.getByText(/Selected file: sample.step \(\d+ bytes\)/)).toBeTruthy();
+        await screen.findByText('sample.step');
 
         fireEvent.click(screen.getByRole('button', { name: 'New Document' }));
 
-        await screen.findByText('No file selected.');
+        await screen.findByText('Drop STEP file here or click to browse');
         expect(screen.getByText('Document: Ready')).toBeTruthy();
         expect(screen.getByText('Ready. Select a file to import.')).toBeTruthy();
         expect(apiMocks.createDocument).toHaveBeenCalledTimes(2);

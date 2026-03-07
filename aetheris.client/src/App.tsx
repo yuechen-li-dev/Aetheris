@@ -497,7 +497,10 @@ function App() {
         <div className="app-shell">
             <header className="top-bar">
                 <div className="top-bar__header-row">
-                    <div className="top-bar__title">STEP 242 VIEWER</div>
+                    <div className="top-bar__wordmark" aria-label="AETHERIS CADMATA">
+                        <span className="top-bar__wordmark-primary">AETHERIS</span>
+                        <span className="top-bar__wordmark-secondary">CADMATA</span>
+                    </div>
                     <div className="top-bar__actions-block">
                         <div className="top-bar__actions">
                             <Button type="button" variant="outline" onClick={() => void handleCreateDocument()} disabled={status === 'loading'}>

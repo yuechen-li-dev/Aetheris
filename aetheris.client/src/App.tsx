@@ -499,7 +499,11 @@ function App() {
                 <div className="top-bar__header-row">
                     <div className="top-bar__wordmark" aria-label="AETHERIS CADMATA">
                         <span className="top-bar__wordmark-primary">AETHERIS</span>
-                        <span className="top-bar__wordmark-secondary">CADMATA</span>
+                        <span className="top-bar__wordmark-secondary" aria-hidden="true">
+                            {'CADMATA'.split('').map((character, index) => (
+                                <span key={`${character}-${index}`}>{character}</span>
+                            ))}
+                        </span>
                     </div>
                     <div className="top-bar__actions-block">
                         <div className="top-bar__actions">

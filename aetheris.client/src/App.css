@@ -119,8 +119,8 @@
   align-items: flex-start;
   justify-content: center;
   width: max-content;
-  margin: 0;
-  line-height: 0.98;
+  margin: 1px 0;
+  line-height: 0.94;
   gap: 0;
 }
 
@@ -131,15 +131,15 @@
 }
 
 .top-bar__wordmark-primary {
-  font-size: 1.06rem;
-  letter-spacing: 0.02em;
-  font-weight: 800;
+  font-size: 1.12rem;
+  letter-spacing: 0.018em;
+  font-weight: 850;
 }
 
 .top-bar__wordmark-secondary {
-  font-size: 0.82rem;
-  font-weight: 400;
-  letter-spacing: 0.09em;
+  font-size: 0.9rem;
+  font-weight: 420;
+  letter-spacing: 0.06em;
 }
 
 .top-bar__tabs,

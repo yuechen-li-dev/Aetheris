@@ -453,6 +453,8 @@ interface ViewerViewportProps {
   sceneData: RenderSceneData | null;
   highlightedFaceId?: number | null;
   highlightedEdgeId?: number | null;
+  showGrid?: boolean;
+  showAxisGuide?: boolean;
   onPickRay?: (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }) => void;
 }
 
@@ -580,7 +582,14 @@ function PickRayCapture({ onPickRay }: { onPickRay?: ViewerViewportProps['onPick
   return null;
 }
 
-export function ViewerViewport({ sceneData, highlightedFaceId = null, highlightedEdgeId = null, onPickRay }: ViewerViewportProps) {
+export function ViewerViewport({
+  sceneData,
+  highlightedFaceId = null,
+  highlightedEdgeId = null,
+  showGrid = true,
+  showAxisGuide = true,
+  onPickRay,
+}: ViewerViewportProps) {
   const hasInteractionEdgeHighlight = highlightedEdgeId !== null;
 
   return (
@@ -589,8 +598,8 @@ export function ViewerViewport({ sceneData, highlightedFaceId = null, highlighte
         {/*Negative near value is indeed correct in order to show negative value on grid. Documentation is wrong.*/}
         <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
         <directionalLight position={[-5, 9, 6]} intensity={VIEWPORT_THEME.directionalIntensity} />
-        <DraftingGrid />
-        <AxisGuide />
+        {showGrid ? <DraftingGrid /> : null}
+        {showAxisGuide ? <AxisGuide /> : null}
         {sceneData?.faces.map((face) => (
           <FaceMesh
             key={`face-${face.faceId}`}

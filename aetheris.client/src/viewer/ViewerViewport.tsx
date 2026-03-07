@@ -8,702 +8,774 @@ import type { RenderSceneData } from './tessellationMapper';
 import { selectLogarithmicGridScales } from './logarithmicGrid';
 
 const VIEWPORT_THEME = {
-    surfaceColor: '#969ba1',
-    edgeColor: '#2e2e2e',
-    edgeWidth: 1.35,
-    gridMinorCoreColor: '#6b6a67',
-    gridMinorFadeColor: '#9a9894',
-    gridMajorCoreColor: '#555450',
-    gridMajorFadeColor: '#8a8782',
-    gridMinorCoreOpacity: 0.34,
-    gridMinorFadeOpacity: 0.2,
-    gridMajorCoreOpacity: 0.5,
-    gridMajorFadeOpacity: 0.28,
-    gridMinorCoreWidth: 0.7,
-    gridMinorFadeWidth: 2,
-    gridMajorCoreWidth: 1,
-    gridMajorFadeWidth: 2.8,
-    gridMajorStep: 5,
-    gridTargetCellCount: 14,
-    gridExtentScale: 2.2,
-    gridYOffset: 0.001,
-    ambientIntensity: 0.12,
-    directionalIntensity: 0.88,
-    axisLength: 2,
-    axisLineWidth: 1,
-    axisXColor: '#3f6f8f',
-    axisYColor: '#4d7a4d',
-    axisZColor: '#8c6a2c',
-    axisLabelColor: '#4a4a4a',
-    axisLabelSize: 0.16,
-    selectionFaceColor: '#f59e0b',
-    selectionEdgeColor: '#f59e0b',
-    selectionEdgeWidth: 3,
+  surfaceColor: '#969ba1',
+  edgeColor: '#2e2e2e',
+  edgeWidth: 1.35,
+  gridMinorCoreColor: '#6b6a67',
+  gridMinorFadeColor: '#9a9894',
+  gridMajorCoreColor: '#555450',
+  gridMajorFadeColor: '#8a8782',
+  gridMinorCoreOpacity: 0.34,
+  gridMinorFadeOpacity: 0.2,
+  gridMajorCoreOpacity: 0.5,
+  gridMajorFadeOpacity: 0.28,
+  gridMinorCoreWidth: 0.7,
+  gridMinorFadeWidth: 2,
+  gridMajorCoreWidth: 1,
+  gridMajorFadeWidth: 2.8,
+  gridMajorStep: 5,
+  gridTargetCellCount: 14,
+  gridExtentScale: 2.2,
+  gridYOffset: 0.001,
+  ambientIntensity: 0.12,
+  directionalIntensity: 0.88,
+  axisLength: 2,
+  axisLineWidth: 1,
+  axisXColor: '#3f6f8f',
+  axisYColor: '#4d7a4d',
+  axisZColor: '#8c6a2c',
+  axisLabelColor: '#4a4a4a',
+  axisLabelSize: 0.16,
+  selectionFaceColor: '#f59e0b',
+  selectionEdgeColor: '#f59e0b',
+  selectionEdgeWidth: 3,
 } as const;
 
 const GRID_CORNER_DEFINITIONS = [
-    { label: 'top-left', ndc: new Vector2(-1, 1), color: '#ef4444' },
-    { label: 'top-right', ndc: new Vector2(1, 1), color: '#22c55e' },
-    { label: 'bottom-left', ndc: new Vector2(-1, -1), color: '#3b82f6' },
-    { label: 'bottom-right', ndc: new Vector2(1, -1), color: '#f59e0b' },
+  { label: 'top-left', ndc: new Vector2(-1, 1), color: '#ef4444' },
+  { label: 'top-right', ndc: new Vector2(1, 1), color: '#22c55e' },
+  { label: 'bottom-left', ndc: new Vector2(-1, -1), color: '#3b82f6' },
+  { label: 'bottom-right', ndc: new Vector2(1, -1), color: '#f59e0b' },
 ] as const;
 
 interface GridCornerDiagnostic {
-    label: string;
-    ndc: { x: number; y: number };
-    rayOrigin: Vector3;
-    rayDirection: Vector3;
-    hitPoint: Vector3 | null;
-    intersectsPlane: boolean;
-    color: string;
+  label: string;
+  ndc: { x: number; y: number };
+  rayOrigin: Vector3;
+  rayDirection: Vector3;
+  hitPoint: Vector3 | null;
+  intersectsPlane: boolean;
+  color: string;
 }
 
 interface GridLayerEnvelope {
-    layer: string;
-    spacing: number;
-    weight: number;
-    xStart: number;
-    xEnd: number;
-    zStart: number;
-    zEnd: number;
-    xLineCount: number;
-    zLineCount: number;
-    firstVerticalLine: [[number, number, number], [number, number, number]] | null;
-    lastVerticalLine: [[number, number, number], [number, number, number]] | null;
-    firstHorizontalLine: [[number, number, number], [number, number, number]] | null;
-    lastHorizontalLine: [[number, number, number], [number, number, number]] | null;
-    skippedByWeight: boolean;
+  layer: string;
+  spacing: number;
+  weight: number;
+  xStart: number;
+  xEnd: number;
+  zStart: number;
+  zEnd: number;
+  xLineCount: number;
+  zLineCount: number;
+  firstVerticalLine: [[number, number, number], [number, number, number]] | null;
+  lastVerticalLine: [[number, number, number], [number, number, number]] | null;
+  firstHorizontalLine: [[number, number, number], [number, number, number]] | null;
+  lastHorizontalLine: [[number, number, number], [number, number, number]] | null;
+  skippedByWeight: boolean;
 }
 
 interface GridAuditSnapshot {
-    computedBounds: {
-        minX: number;
-        maxX: number;
-        minZ: number;
-        maxZ: number;
-        centerX: number;
-        centerZ: number;
-        spanX: number;
-        spanZ: number;
-    };
-    baseSpan: number;
-    margin: number;
-    worldSpan: number;
-    gridSelection: {
-        primarySpacing: number;
-        secondarySpacing: number;
-        primaryWeight: number;
-        secondaryWeight: number;
-    };
-    fallbackUsed: boolean;
-    fallbackReason: string | null;
-    fallbackOriginalBounds: {
-        minX: number;
-        maxX: number;
-        minZ: number;
-        maxZ: number;
-    } | null;
-    minimumSpanClampApplied: boolean;
-    layerEnvelopes: GridLayerEnvelope[];
-    transformSpace: {
-        gridGroupLocalSpace: string;
-        parentTransformAssumption: string;
-    };
+  computedBounds: {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+    centerX: number;
+    centerZ: number;
+    spanX: number;
+    spanZ: number;
+  };
+  baseSpan: number;
+  margin: number;
+  worldSpan: number;
+  gridSelection: {
+    primarySpacing: number;
+    secondarySpacing: number;
+    primaryWeight: number;
+    secondaryWeight: number;
+  };
+  fallbackUsed: boolean;
+  fallbackReason: string | null;
+  fallbackOriginalBounds: {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+  } | null;
+  minimumSpanClampApplied: boolean;
+  layerEnvelopes: GridLayerEnvelope[];
+  transformSpace: {
+    gridGroupLocalSpace: string;
+    parentTransformAssumption: string;
+  };
 }
 
 function parseGridDebugFlag(): boolean {
-    if (typeof window === 'undefined') {
-        return false;
-    }
+  if (typeof window === 'undefined') {
+    return false;
+  }
 
-    const debugParam = new URLSearchParams(window.location.search).get('gridDebug');
-    return debugParam === '1' || debugParam === 'true';
+  const debugParam = new URLSearchParams(window.location.search).get('gridDebug');
+  return debugParam === '1' || debugParam === 'true';
 }
 
 function intersectRayWithHorizontalPlane(rayOrigin: Vector3, rayDirection: Vector3, planeY: number): Vector3 | null {
-    const epsilon = 1e-6;
-    if (Math.abs(rayDirection.y) < epsilon) {
-        return null;
-    }
+  const epsilon = 1e-6;
+  if (Math.abs(rayDirection.y) < epsilon) {
+    return null;
+  }
 
-    const t = (planeY - rayOrigin.y) / rayDirection.y;
-    if (!Number.isFinite(t) || t < 0) {
-        return null;
-    }
+  const t = (planeY - rayOrigin.y) / rayDirection.y;
+  if (!Number.isFinite(t)) {
+    return null;
+  }
 
-    return rayOrigin.clone().addScaledVector(rayDirection, t);
+  return rayOrigin.clone().addScaledVector(rayDirection, t);
+}
+
+function computeOrthographicFrustumCornerHits(
+  orthographicCamera: OrthographicCamera,
+  planeY: number,
+): { label: string; ndc: { x: number; y: number }; rayOrigin: Vector3; rayDirection: Vector3; hitPoint: Vector3 | null; intersectsPlane: boolean; color: string }[] {
+  const zoom = Math.max(orthographicCamera.zoom ?? 1, 0.0001);
+  const halfW = (orthographicCamera.right - orthographicCamera.left) / (2 * zoom);
+  const halfH = (orthographicCamera.top - orthographicCamera.bottom) / (2 * zoom);
+
+  const right = new Vector3();
+  const up = new Vector3();
+  const forward = new Vector3();
+  orthographicCamera.updateMatrixWorld(false);
+  orthographicCamera.matrixWorld.extractBasis(right, up, forward);
+  const rayDir = forward.clone().negate().normalize();
+
+  // eslint-disable-next-line no-console
+  console.log('%c[GRID DIAG] camera internals', 'color: cyan; font-weight: bold', {
+    zoom,
+    halfW,
+    halfH,
+    left: orthographicCamera.left,
+    right_frustum: orthographicCamera.right,
+    top: orthographicCamera.top,
+    bottom: orthographicCamera.bottom,
+    position: orthographicCamera.position.toArray(),
+    basisRight: right.toArray(),
+    basisUp: up.toArray(),
+    basisForward: forward.toArray(),
+    rayDir: rayDir.toArray(),
+    planeY,
+  });
+
+  return GRID_CORNER_DEFINITIONS.map((def) => {
+    const rayOrigin = orthographicCamera.position.clone()
+      .addScaledVector(right, def.ndc.x * halfW)
+      .addScaledVector(up, def.ndc.y * halfH);
+
+    const hitPoint = intersectRayWithHorizontalPlane(rayOrigin, rayDir, planeY);
+
+    // eslint-disable-next-line no-console
+    console.log(`%c[GRID DIAG] corner ${def.label}`, 'color: orange', {
+      ndc: [def.ndc.x, def.ndc.y],
+      rayOrigin: rayOrigin.toArray(),
+      rayDir: rayDir.toArray(),
+      t: Math.abs(rayDir.y) > 1e-6 ? (planeY - rayOrigin.y) / rayDir.y : 'PARALLEL',
+      hitPoint: hitPoint?.toArray() ?? 'MISSED',
+    });
+
+    return {
+      label: def.label,
+      ndc: { x: def.ndc.x, y: def.ndc.y },
+      rayOrigin,
+      rayDirection: rayDir.clone(),
+      hitPoint,
+      intersectsPlane: hitPoint !== null,
+      color: def.color,
+    };
+  });
 }
 
 function DraftingGrid() {
-    const { camera } = useThree();
-    const gridDebugEnabled = useMemo(() => parseGridDebugFlag(), []);
-    const debugSnapshotLoggedRef = useRef(false);
-    const [cameraSnapshot, setCameraSnapshot] = useState({ x: camera.position.x, z: camera.position.z, zoom: (camera as OrthographicCamera).zoom ?? 1 });
+  const { camera } = useThree();
+  const gridDebugEnabled = useMemo(() => parseGridDebugFlag(), []);
+  const debugSnapshotLoggedRef = useRef(false);
+  const [cameraSnapshot, setCameraSnapshot] = useState({
+    x: camera.position.x,
+    z: camera.position.z,
+    zoom: (camera as OrthographicCamera).zoom ?? 1,
+  });
 
-    useFrame(() => {
-        const orthographicCamera = camera as OrthographicCamera;
-        setCameraSnapshot((previousSnapshot) => {
-            const nextSnapshot = {
-                x: camera.position.x,
-                z: camera.position.z,
-                zoom: orthographicCamera.zoom ?? 1,
-            };
-            const changed = Math.abs(nextSnapshot.x - previousSnapshot.x) > 0.01
-                || Math.abs(nextSnapshot.z - previousSnapshot.z) > 0.01
-                || Math.abs(nextSnapshot.zoom - previousSnapshot.zoom) > 0.01;
+  useFrame(() => {
+    const orthographicCamera = camera as OrthographicCamera;
+    setCameraSnapshot((previousSnapshot) => {
+      const nextSnapshot = {
+        x: camera.position.x,
+        z: camera.position.z,
+        zoom: orthographicCamera.zoom ?? 1,
+      };
+      const changed = Math.abs(nextSnapshot.x - previousSnapshot.x) > 0.01
+        || Math.abs(nextSnapshot.z - previousSnapshot.z) > 0.01
+        || Math.abs(nextSnapshot.zoom - previousSnapshot.zoom) / previousSnapshot.zoom > 0.001;
 
-            return changed ? nextSnapshot : previousSnapshot;
-        });
+      return changed ? nextSnapshot : previousSnapshot;
+    });
+  });
+
+  const {
+    minorLines,
+    majorLines,
+    cornerDiagnostics,
+    bounds,
+    layerEnvelopes,
+    auditSnapshot,
+  } = useMemo(() => {
+    const orthographicCamera = camera as OrthographicCamera;
+
+    // Use frustum-based corner projection instead of raycaster
+    const diagnostics: GridCornerDiagnostic[] = computeOrthographicFrustumCornerHits(
+      orthographicCamera,
+      VIEWPORT_THEME.gridYOffset,
+    );
+
+    const hitPoints = diagnostics
+      .map((diagnostic) => diagnostic.hitPoint)
+      .filter((point): point is Vector3 => point !== null);
+
+    let minX: number;
+    let maxX: number;
+    let minZ: number;
+    let maxZ: number;
+
+    let fallbackUsed = false;
+    let fallbackReason: string | null = null;
+    let fallbackOriginalBounds: GridAuditSnapshot['fallbackOriginalBounds'] = null;
+
+    if (hitPoints.length === 4) {
+      minX = Math.min(...hitPoints.map((point) => point.x));
+      maxX = Math.max(...hitPoints.map((point) => point.x));
+      minZ = Math.min(...hitPoints.map((point) => point.z));
+      maxZ = Math.max(...hitPoints.map((point) => point.z));
+    } else {
+      fallbackUsed = true;
+      fallbackReason = `Expected 4 corner-plane hits but received ${hitPoints.length}.`;
+      if (hitPoints.length > 0) {
+        fallbackOriginalBounds = {
+          minX: Math.min(...hitPoints.map((point) => point.x)),
+          maxX: Math.max(...hitPoints.map((point) => point.x)),
+          minZ: Math.min(...hitPoints.map((point) => point.z)),
+          maxZ: Math.max(...hitPoints.map((point) => point.z)),
+        };
+      }
+
+      const fallbackExtent = Math.max(10 / Math.max(orthographicCamera.zoom ?? 1, 0.0001), 1);
+      minX = camera.position.x - fallbackExtent;
+      maxX = camera.position.x + fallbackExtent;
+      minZ = camera.position.z - fallbackExtent;
+      maxZ = camera.position.z + fallbackExtent;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log('%c[GRID DIAG] bounds resolved', 'color: lime; font-weight: bold', {
+      hitCount: hitPoints.length,
+      fallbackUsed,
+      fallbackReason,
+      minX, maxX, minZ, maxZ,
+      spanX: maxX - minX,
+      spanZ: maxZ - minZ,
     });
 
-    const {
-        minorLines,
-        majorLines,
-        cornerDiagnostics,
-        bounds,
-        layerEnvelopes,
-        auditSnapshot,
-    } = useMemo(() => {
-        const orthographicCamera = camera as OrthographicCamera;
-        const cameraForward = orthographicCamera.getWorldDirection(new Vector3()).normalize();
-        const cornerRays = new Raycaster();
+    const unclampedBaseSpan = Math.max(maxX - minX, maxZ - minZ);
+    const baseSpan = Math.max(unclampedBaseSpan, 1);
+    const minimumSpanClampApplied = baseSpan !== unclampedBaseSpan;
+    const margin = baseSpan * 0.2;
+    const expandedMinX = minX - margin;
+    const expandedMaxX = maxX + margin;
+    const expandedMinZ = minZ - margin;
+    const expandedMaxZ = maxZ + margin;
+    const worldSpan = Math.max(expandedMaxX - expandedMinX, expandedMaxZ - expandedMinZ);
+    const gridSelection = selectLogarithmicGridScales(worldSpan, VIEWPORT_THEME.gridTargetCellCount);
 
-        const diagnostics: GridCornerDiagnostic[] = GRID_CORNER_DEFINITIONS.map((cornerDefinition) => {
-            cornerRays.setFromCamera(cornerDefinition.ndc, orthographicCamera);
-            const rayOrigin = cornerRays.ray.origin.clone();
-            const rayDirection = cameraForward.clone();
-            const hitPoint = intersectRayWithHorizontalPlane(rayOrigin, rayDirection, VIEWPORT_THEME.gridYOffset);
-            return {
-                label: cornerDefinition.label,
-                ndc: { x: cornerDefinition.ndc.x, y: cornerDefinition.ndc.y },
-                rayOrigin,
-                rayDirection,
-                hitPoint,
-                intersectsPlane: hitPoint !== null,
-                color: cornerDefinition.color,
-            };
-        });
+    const minor: ReactNode[] = [];
+    const major: ReactNode[] = [];
+    const envelopes: GridLayerEnvelope[] = [];
+    const pushGridLayerLines = (spacing: number, weight: number, layerPrefix: string, gridY: number = VIEWPORT_THEME.gridYOffset) => {
+      const layerEnvelope: GridLayerEnvelope = {
+        layer: layerPrefix,
+        spacing,
+        weight,
+        xStart: 0,
+        xEnd: 0,
+        zStart: 0,
+        zEnd: 0,
+        xLineCount: 0,
+        zLineCount: 0,
+        firstVerticalLine: null,
+        lastVerticalLine: null,
+        firstHorizontalLine: null,
+        lastHorizontalLine: null,
+        skippedByWeight: weight <= 0.001,
+      };
 
-        const hitPoints = diagnostics
-            .map((diagnostic) => diagnostic.hitPoint)
-            .filter((point): point is Vector3 => point !== null);
+      if (weight <= 0.001) {
+        envelopes.push(layerEnvelope);
+        return;
+      }
 
-        let minX: number;
-        let maxX: number;
-        let minZ: number;
-        let maxZ: number;
+      const xStart = Math.floor(expandedMinX / spacing);
+      const xEnd = Math.ceil(expandedMaxX / spacing);
+      const zStart = Math.floor(expandedMinZ / spacing);
+      const zEnd = Math.ceil(expandedMaxZ / spacing);
 
-        let fallbackUsed = false;
-        let fallbackReason: string | null = null;
-        let fallbackOriginalBounds: GridAuditSnapshot['fallbackOriginalBounds'] = null;
+      layerEnvelope.xStart = xStart;
+      layerEnvelope.xEnd = xEnd;
+      layerEnvelope.zStart = zStart;
+      layerEnvelope.zEnd = zEnd;
+      layerEnvelope.xLineCount = xEnd - xStart + 1;
+      layerEnvelope.zLineCount = zEnd - zStart + 1;
+      // Each line extends 3x the worldSpan from center so shallow-angle views never see the endpoints.
+      const centerX = (expandedMinX + expandedMaxX) * 0.5;
+      const centerZ = (expandedMinZ + expandedMaxZ) * 0.5;
+      const lineReach = worldSpan * 3;
 
-        if (hitPoints.length === 4) {
-            minX = Math.min(...hitPoints.map((point) => point.x));
-            maxX = Math.max(...hitPoints.map((point) => point.x));
-            minZ = Math.min(...hitPoints.map((point) => point.z));
-            maxZ = Math.max(...hitPoints.map((point) => point.z));
-        } else {
-            fallbackUsed = true;
-            fallbackReason = `Expected 4 corner-plane hits but received ${hitPoints.length}.`;
-            if (hitPoints.length > 0) {
-                fallbackOriginalBounds = {
-                    minX: Math.min(...hitPoints.map((point) => point.x)),
-                    maxX: Math.max(...hitPoints.map((point) => point.x)),
-                    minZ: Math.min(...hitPoints.map((point) => point.z)),
-                    maxZ: Math.max(...hitPoints.map((point) => point.z)),
-                };
-            }
-            const fallbackExtent = Math.max(10 / Math.max(orthographicCamera.zoom ?? 1, 0.0001), 1);
-            minX = camera.position.x - fallbackExtent;
-            maxX = camera.position.x + fallbackExtent;
-            minZ = camera.position.z - fallbackExtent;
-            maxZ = camera.position.z + fallbackExtent;
-        }
+      layerEnvelope.firstVerticalLine = [[xStart * spacing, gridY, centerZ - lineReach], [xStart * spacing, gridY, centerZ + lineReach]];
+      layerEnvelope.lastVerticalLine = [[xEnd * spacing, gridY, centerZ - lineReach], [xEnd * spacing, gridY, centerZ + lineReach]];
+      layerEnvelope.firstHorizontalLine = [[centerX - lineReach, gridY, zStart * spacing], [centerX + lineReach, gridY, zStart * spacing]];
+      layerEnvelope.lastHorizontalLine = [[centerX - lineReach, gridY, zEnd * spacing], [centerX + lineReach, gridY, zEnd * spacing]];
 
-        const unclampedBaseSpan = Math.max(maxX - minX, maxZ - minZ);
-        const baseSpan = Math.max(unclampedBaseSpan, 1);
-        const minimumSpanClampApplied = baseSpan !== unclampedBaseSpan;
-        const margin = baseSpan * 0.2;
-        const expandedMinX = minX - margin;
-        const expandedMaxX = maxX + margin;
-        const expandedMinZ = minZ - margin;
-        const expandedMaxZ = maxZ + margin;
-        const worldSpan = Math.max(expandedMaxX - expandedMinX, expandedMaxZ - expandedMinZ);
-        const gridSelection = selectLogarithmicGridScales(worldSpan, VIEWPORT_THEME.gridTargetCellCount);
+      for (let xIndex = xStart; xIndex <= xEnd; xIndex += 1) {
+        const x = xIndex * spacing;
+        const points: [[number, number, number], [number, number, number]] = [
+          [x, gridY, centerZ - lineReach],
+          [x, gridY, centerZ + lineReach],
+        ];
+        const isMajor = xIndex % VIEWPORT_THEME.gridMajorStep === 0;
+        const target = isMajor ? major : minor;
+        const linePrefix = isMajor ? 'major' : 'minor';
+        const alphaWeight = Math.min(Math.max(weight, 0), 1);
 
-        const minor: ReactNode[] = [];
-        const major: ReactNode[] = [];
-        const envelopes: GridLayerEnvelope[] = [];
-        const pushGridLayerLines = (spacing: number, weight: number, layerPrefix: string) => {
-            const layerEnvelope: GridLayerEnvelope = {
-                layer: layerPrefix,
-                spacing,
-                weight,
-                xStart: 0,
-                xEnd: 0,
-                zStart: 0,
-                zEnd: 0,
-                xLineCount: 0,
-                zLineCount: 0,
-                firstVerticalLine: null,
-                lastVerticalLine: null,
-                firstHorizontalLine: null,
-                lastHorizontalLine: null,
-                skippedByWeight: weight <= 0.001,
-            };
-
-            if (weight <= 0.001) {
-                envelopes.push(layerEnvelope);
-                return;
-            }
-
-            const xStart = Math.floor(expandedMinX / spacing);
-            const xEnd = Math.ceil(expandedMaxX / spacing);
-            const zStart = Math.floor(expandedMinZ / spacing);
-            const zEnd = Math.ceil(expandedMaxZ / spacing);
-
-            layerEnvelope.xStart = xStart;
-            layerEnvelope.xEnd = xEnd;
-            layerEnvelope.zStart = zStart;
-            layerEnvelope.zEnd = zEnd;
-            layerEnvelope.xLineCount = xEnd - xStart + 1;
-            layerEnvelope.zLineCount = zEnd - zStart + 1;
-            layerEnvelope.firstVerticalLine = [[xStart * spacing, VIEWPORT_THEME.gridYOffset, expandedMinZ], [xStart * spacing, VIEWPORT_THEME.gridYOffset, expandedMaxZ]];
-            layerEnvelope.lastVerticalLine = [[xEnd * spacing, VIEWPORT_THEME.gridYOffset, expandedMinZ], [xEnd * spacing, VIEWPORT_THEME.gridYOffset, expandedMaxZ]];
-            layerEnvelope.firstHorizontalLine = [[expandedMinX, VIEWPORT_THEME.gridYOffset, zStart * spacing], [expandedMaxX, VIEWPORT_THEME.gridYOffset, zStart * spacing]];
-            layerEnvelope.lastHorizontalLine = [[expandedMinX, VIEWPORT_THEME.gridYOffset, zEnd * spacing], [expandedMaxX, VIEWPORT_THEME.gridYOffset, zEnd * spacing]];
-
-            for (let xIndex = xStart; xIndex <= xEnd; xIndex += 1) {
-                const x = xIndex * spacing;
-                const points: [[number, number, number], [number, number, number]] = [
-                    [x, VIEWPORT_THEME.gridYOffset, expandedMinZ],
-                    [x, VIEWPORT_THEME.gridYOffset, expandedMaxZ],
-                ];
-                const isMajor = xIndex % VIEWPORT_THEME.gridMajorStep === 0;
-                const target = isMajor ? major : minor;
-                const linePrefix = isMajor ? 'major' : 'minor';
-                const alphaWeight = Math.min(Math.max(weight, 0), 1);
-
-                target.push(
-                    <Line
-                        key={`${layerPrefix}-${linePrefix}-fade-x-${xIndex}`}
-                        points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
-                        transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
-                    />,
-                );
-                target.push(
-                    <Line
-                        key={`${layerPrefix}-${linePrefix}-core-x-${xIndex}`}
-                        points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
-                        transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
-                    />,
-                );
-            }
-
-            for (let zIndex = zStart; zIndex <= zEnd; zIndex += 1) {
-                const z = zIndex * spacing;
-                const points: [[number, number, number], [number, number, number]] = [
-                    [expandedMinX, VIEWPORT_THEME.gridYOffset, z],
-                    [expandedMaxX, VIEWPORT_THEME.gridYOffset, z],
-                ];
-                const isMajor = zIndex % VIEWPORT_THEME.gridMajorStep === 0;
-                const target = isMajor ? major : minor;
-                const linePrefix = isMajor ? 'major' : 'minor';
-                const alphaWeight = Math.min(Math.max(weight, 0), 1);
-
-                target.push(
-                    <Line
-                        key={`${layerPrefix}-${linePrefix}-fade-z-${zIndex}`}
-                        points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
-                        transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
-                    />,
-                );
-                target.push(
-                    <Line
-                        key={`${layerPrefix}-${linePrefix}-core-z-${zIndex}`}
-                        points={points}
-                        color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
-                        transparent
-                        opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
-                        lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
-                    />,
-                );
-            }
-
-            envelopes.push(layerEnvelope);
-        };
-
-        pushGridLayerLines(gridSelection.primarySpacing, gridSelection.primaryWeight, 'primary');
-        pushGridLayerLines(gridSelection.secondarySpacing, gridSelection.secondaryWeight, 'secondary');
-
-        return {
-            minorLines: minor,
-            majorLines: major,
-            cornerDiagnostics: diagnostics,
-            layerEnvelopes: envelopes,
-            auditSnapshot: {
-                computedBounds: {
-                    minX: expandedMinX,
-                    maxX: expandedMaxX,
-                    minZ: expandedMinZ,
-                    maxZ: expandedMaxZ,
-                    centerX: (expandedMinX + expandedMaxX) * 0.5,
-                    centerZ: (expandedMinZ + expandedMaxZ) * 0.5,
-                    spanX: expandedMaxX - expandedMinX,
-                    spanZ: expandedMaxZ - expandedMinZ,
-                },
-                baseSpan,
-                margin,
-                worldSpan,
-                gridSelection: {
-                    primarySpacing: gridSelection.primarySpacing,
-                    secondarySpacing: gridSelection.secondarySpacing,
-                    primaryWeight: gridSelection.primaryWeight,
-                    secondaryWeight: gridSelection.secondaryWeight,
-                },
-                fallbackUsed,
-                fallbackReason,
-                fallbackOriginalBounds,
-                minimumSpanClampApplied,
-                layerEnvelopes: envelopes,
-                transformSpace: {
-                    gridGroupLocalSpace: 'All DraftingGrid lines are authored in parent/world axes (x,z on y=gridYOffset).',
-                    parentTransformAssumption: 'DraftingGrid is mounted without transform; local coordinates match world-space viewer coordinates.',
-                },
-            },
-            bounds: {
-                minX: expandedMinX,
-                maxX: expandedMaxX,
-                minZ: expandedMinZ,
-                maxZ: expandedMaxZ,
-            },
-        };
-    }, [cameraSnapshot, camera]);
-
-    useEffect(() => {
-        if (!gridDebugEnabled || debugSnapshotLoggedRef.current) {
-            return;
-        }
-
-        debugSnapshotLoggedRef.current = true;
-        // eslint-disable-next-line no-console
-        console.table(cornerDiagnostics.map((diagnostic) => ({
-            corner: diagnostic.label,
-            ndcX: diagnostic.ndc.x,
-            ndcY: diagnostic.ndc.y,
-            originX: diagnostic.rayOrigin.x,
-            originY: diagnostic.rayOrigin.y,
-            originZ: diagnostic.rayOrigin.z,
-            directionX: diagnostic.rayDirection.x,
-            directionY: diagnostic.rayDirection.y,
-            directionZ: diagnostic.rayDirection.z,
-            hit: diagnostic.intersectsPlane,
-            hitX: diagnostic.hitPoint?.x ?? null,
-            hitY: diagnostic.hitPoint?.y ?? null,
-            hitZ: diagnostic.hitPoint?.z ?? null,
-        })));
-        // eslint-disable-next-line no-console
-        console.log('[grid-debug] generation-audit', {
-            bounds: auditSnapshot.computedBounds,
-            baseSpan: auditSnapshot.baseSpan,
-            margin: auditSnapshot.margin,
-            worldSpan: auditSnapshot.worldSpan,
-            selectedSpacing: auditSnapshot.gridSelection,
-            fallbackUsed: auditSnapshot.fallbackUsed,
-            fallbackReason: auditSnapshot.fallbackReason,
-            fallbackOriginalBounds: auditSnapshot.fallbackOriginalBounds,
-            minimumSpanClampApplied: auditSnapshot.minimumSpanClampApplied,
-            transformSpace: auditSnapshot.transformSpace,
-            layerEnvelopes: auditSnapshot.layerEnvelopes,
-        });
-        if (auditSnapshot.fallbackUsed) {
-            // eslint-disable-next-line no-console
-            console.warn('[grid-debug] fallback override engaged', {
-                reason: auditSnapshot.fallbackReason,
-                before: auditSnapshot.fallbackOriginalBounds,
-                after: auditSnapshot.computedBounds,
-            });
-        }
-    }, [auditSnapshot, cornerDiagnostics, gridDebugEnabled]);
-
-    const generationEnvelopeMarkers = useMemo(() => {
-        if (!gridDebugEnabled) {
-            return null;
-        }
-
-        return layerEnvelopes
-            .filter((layer) => !layer.skippedByWeight)
-            .flatMap((layer) => {
-                const color = layer.layer === 'primary' ? '#14b8a6' : '#f97316';
-                const lines = [
-                    { key: 'first-vertical', points: layer.firstVerticalLine },
-                    { key: 'last-vertical', points: layer.lastVerticalLine },
-                    { key: 'first-horizontal', points: layer.firstHorizontalLine },
-                    { key: 'last-horizontal', points: layer.lastHorizontalLine },
-                ] as const;
-
-                return lines
-                    .map((line) => {
-                        if (line.points === null) {
-                            return null;
-                        }
-
-                        return (
-                            <Line
-                                key={`grid-envelope-${layer.layer}-${line.key}`}
-                                points={[
-                                    [line.points[0][0], line.points[0][1] + 0.02, line.points[0][2]],
-                                    [line.points[1][0], line.points[1][1] + 0.02, line.points[1][2]],
-                                ]}
-                                color={color}
-                                lineWidth={4}
-                            />
-                        );
-                    });
-            });
-    }, [gridDebugEnabled, layerEnvelopes]);
-
-    const debugMarkers = useMemo(() => {
-        if (!gridDebugEnabled) {
-            return null;
-        }
-
-        return cornerDiagnostics
-            .filter((diagnostic) => diagnostic.hitPoint !== null)
-            .map((diagnostic) => {
-                const hit = diagnostic.hitPoint as Vector3;
-                const markerSize = 0.22;
-                return (
-                    <group key={`grid-corner-marker-${diagnostic.label}`}>
-                        <Line
-                            points={[[hit.x - markerSize, VIEWPORT_THEME.gridYOffset, hit.z], [hit.x + markerSize, VIEWPORT_THEME.gridYOffset, hit.z]]}
-                            color={diagnostic.color}
-                            lineWidth={3}
-                        />
-                        <Line
-                            points={[[hit.x, VIEWPORT_THEME.gridYOffset, hit.z - markerSize], [hit.x, VIEWPORT_THEME.gridYOffset, hit.z + markerSize]]}
-                            color={diagnostic.color}
-                            lineWidth={3}
-                        />
-                        <Text
-                            position={[hit.x, VIEWPORT_THEME.gridYOffset + 0.03, hit.z]}
-                            color={diagnostic.color}
-                            fontSize={0.15}
-                            anchorX="center"
-                            anchorY="bottom"
-                        >
-                            {diagnostic.label}
-                        </Text>
-                    </group>
-                );
-            });
-    }, [cornerDiagnostics, gridDebugEnabled]);
-
-    const debugBoundsOverlay = useMemo(() => {
-        if (!gridDebugEnabled) {
-            return null;
-        }
-
-        const outlineColor = new Color('#a855f7');
-        return (
-            <Line
-                points={[
-                    [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
-                    [bounds.maxX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
-                    [bounds.maxX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.maxZ],
-                    [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.maxZ],
-                    [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
-                ]}
-                color={outlineColor}
-                lineWidth={2.6}
-            />
+        target.push(
+          <Line
+            key={`${layerPrefix}-${linePrefix}-fade-x-${xIndex}-y${gridY}`}
+            points={points}
+            color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
+            transparent
+            opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
+            lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
+          />,
         );
-    }, [bounds.maxX, bounds.maxZ, bounds.minX, bounds.minZ, gridDebugEnabled]);
+        target.push(
+          <Line
+            key={`${layerPrefix}-${linePrefix}-core-x-${xIndex}-y${gridY}`}
+            points={points}
+            color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
+            transparent
+            opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
+            lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
+          />,
+        );
+      }
 
+      for (let zIndex = zStart; zIndex <= zEnd; zIndex += 1) {
+        const z = zIndex * spacing;
+        const points: [[number, number, number], [number, number, number]] = [
+          [centerX - lineReach, gridY, z],
+          [centerX + lineReach, gridY, z],
+        ];
+        const isMajor = zIndex % VIEWPORT_THEME.gridMajorStep === 0;
+        const target = isMajor ? major : minor;
+        const linePrefix = isMajor ? 'major' : 'minor';
+        const alphaWeight = Math.min(Math.max(weight, 0), 1);
+
+        target.push(
+          <Line
+            key={`${layerPrefix}-${linePrefix}-fade-z-${zIndex}-y${gridY}`}
+            points={points}
+            color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
+            transparent
+            opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
+            lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
+          />,
+        );
+        target.push(
+          <Line
+            key={`${layerPrefix}-${linePrefix}-core-z-${zIndex}-y${gridY}`}
+            points={points}
+            color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
+            transparent
+            opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
+            lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
+          />,
+        );
+      }
+
+      envelopes.push(layerEnvelope);
+    };
+
+    // Render grid on both sides of Y=0 so it's visible from any camera angle
+    pushGridLayerLines(gridSelection.primarySpacing, gridSelection.primaryWeight, 'primary', VIEWPORT_THEME.gridYOffset);
+    pushGridLayerLines(gridSelection.secondarySpacing, gridSelection.secondaryWeight, 'secondary', VIEWPORT_THEME.gridYOffset);
+    pushGridLayerLines(gridSelection.primarySpacing, gridSelection.primaryWeight, 'primary', -VIEWPORT_THEME.gridYOffset);
+    pushGridLayerLines(gridSelection.secondarySpacing, gridSelection.secondaryWeight, 'secondary', -VIEWPORT_THEME.gridYOffset);
+
+    return {
+      minorLines: minor,
+      majorLines: major,
+      cornerDiagnostics: diagnostics,
+      layerEnvelopes: envelopes,
+      auditSnapshot: {
+        computedBounds: {
+          minX: expandedMinX,
+          maxX: expandedMaxX,
+          minZ: expandedMinZ,
+          maxZ: expandedMaxZ,
+          centerX: (expandedMinX + expandedMaxX) * 0.5,
+          centerZ: (expandedMinZ + expandedMaxZ) * 0.5,
+          spanX: expandedMaxX - expandedMinX,
+          spanZ: expandedMaxZ - expandedMinZ,
+        },
+        baseSpan,
+        margin,
+        worldSpan,
+        gridSelection: {
+          primarySpacing: gridSelection.primarySpacing,
+          secondarySpacing: gridSelection.secondarySpacing,
+          primaryWeight: gridSelection.primaryWeight,
+          secondaryWeight: gridSelection.secondaryWeight,
+        },
+        fallbackUsed,
+        fallbackReason,
+        fallbackOriginalBounds,
+        minimumSpanClampApplied,
+        layerEnvelopes: envelopes,
+        transformSpace: {
+          gridGroupLocalSpace: 'All DraftingGrid lines are authored in parent/world axes (x,z on y=gridYOffset).',
+          parentTransformAssumption: 'DraftingGrid is mounted without transform; local coordinates match world-space viewer coordinates.',
+        },
+      },
+      bounds: {
+        minX: expandedMinX,
+        maxX: expandedMaxX,
+        minZ: expandedMinZ,
+        maxZ: expandedMaxZ,
+      },
+    };
+  }, [cameraSnapshot, camera]);
+
+  useEffect(() => {
+    if (!gridDebugEnabled || debugSnapshotLoggedRef.current) {
+      return;
+    }
+
+    debugSnapshotLoggedRef.current = true;
+    // eslint-disable-next-line no-console
+    console.table(cornerDiagnostics.map((diagnostic) => ({
+      corner: diagnostic.label,
+      ndcX: diagnostic.ndc.x,
+      ndcY: diagnostic.ndc.y,
+      originX: diagnostic.rayOrigin.x,
+      originY: diagnostic.rayOrigin.y,
+      originZ: diagnostic.rayOrigin.z,
+      directionX: diagnostic.rayDirection.x,
+      directionY: diagnostic.rayDirection.y,
+      directionZ: diagnostic.rayDirection.z,
+      hit: diagnostic.intersectsPlane,
+      hitX: diagnostic.hitPoint?.x ?? null,
+      hitY: diagnostic.hitPoint?.y ?? null,
+      hitZ: diagnostic.hitPoint?.z ?? null,
+    })));
+    // eslint-disable-next-line no-console
+    console.log('[grid-debug] generation-audit', {
+      bounds: auditSnapshot.computedBounds,
+      baseSpan: auditSnapshot.baseSpan,
+      margin: auditSnapshot.margin,
+      worldSpan: auditSnapshot.worldSpan,
+      selectedSpacing: auditSnapshot.gridSelection,
+      fallbackUsed: auditSnapshot.fallbackUsed,
+      fallbackReason: auditSnapshot.fallbackReason,
+      fallbackOriginalBounds: auditSnapshot.fallbackOriginalBounds,
+      minimumSpanClampApplied: auditSnapshot.minimumSpanClampApplied,
+      transformSpace: auditSnapshot.transformSpace,
+      layerEnvelopes: auditSnapshot.layerEnvelopes,
+    });
+    if (auditSnapshot.fallbackUsed) {
+      // eslint-disable-next-line no-console
+      console.warn('[grid-debug] fallback override engaged', {
+        reason: auditSnapshot.fallbackReason,
+        before: auditSnapshot.fallbackOriginalBounds,
+        after: auditSnapshot.computedBounds,
+      });
+    }
+  }, [auditSnapshot, cornerDiagnostics, gridDebugEnabled]);
+
+  const generationEnvelopeMarkers = useMemo(() => {
+    if (!gridDebugEnabled) {
+      return null;
+    }
+
+    return layerEnvelopes
+      .filter((layer) => !layer.skippedByWeight)
+      .flatMap((layer) => {
+        const color = layer.layer === 'primary' ? '#14b8a6' : '#f97316';
+        const lines = [
+          { key: 'first-vertical', points: layer.firstVerticalLine },
+          { key: 'last-vertical', points: layer.lastVerticalLine },
+          { key: 'first-horizontal', points: layer.firstHorizontalLine },
+          { key: 'last-horizontal', points: layer.lastHorizontalLine },
+        ] as const;
+
+        return lines
+          .map((line) => {
+            if (line.points === null) {
+              return null;
+            }
+
+            return (
+              <Line
+                key={`grid-envelope-${layer.layer}-${line.key}`}
+                points={[
+                  [line.points[0][0], line.points[0][1] + 0.02, line.points[0][2]],
+                  [line.points[1][0], line.points[1][1] + 0.02, line.points[1][2]],
+                ]}
+                color={color}
+                lineWidth={4}
+              />
+            );
+          });
+      });
+  }, [gridDebugEnabled, layerEnvelopes]);
+
+  const debugMarkers = useMemo(() => {
+    if (!gridDebugEnabled) {
+      return null;
+    }
+
+    return cornerDiagnostics
+      .filter((diagnostic) => diagnostic.hitPoint !== null)
+      .map((diagnostic) => {
+        const hit = diagnostic.hitPoint as Vector3;
+        const markerSize = 0.22;
+        return (
+          <group key={`grid-corner-marker-${diagnostic.label}`}>
+            <Line
+              points={[[hit.x - markerSize, VIEWPORT_THEME.gridYOffset, hit.z], [hit.x + markerSize, VIEWPORT_THEME.gridYOffset, hit.z]]}
+              color={diagnostic.color}
+              lineWidth={3}
+            />
+            <Line
+              points={[[hit.x, VIEWPORT_THEME.gridYOffset, hit.z - markerSize], [hit.x, VIEWPORT_THEME.gridYOffset, hit.z + markerSize]]}
+              color={diagnostic.color}
+              lineWidth={3}
+            />
+            <Text
+              position={[hit.x, VIEWPORT_THEME.gridYOffset + 0.03, hit.z]}
+              color={diagnostic.color}
+              fontSize={0.15}
+              anchorX="center"
+              anchorY="bottom"
+            >
+              {diagnostic.label}
+            </Text>
+          </group>
+        );
+      });
+  }, [cornerDiagnostics, gridDebugEnabled]);
+
+  const debugBoundsOverlay = useMemo(() => {
+    if (!gridDebugEnabled) {
+      return null;
+    }
+
+    const outlineColor = new Color('#a855f7');
     return (
-        <group>
-            {minorLines}
-            {majorLines}
-            {debugMarkers}
-            {debugBoundsOverlay}
-            {generationEnvelopeMarkers}
-        </group>
+      <Line
+        points={[
+          [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
+          [bounds.maxX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
+          [bounds.maxX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.maxZ],
+          [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.maxZ],
+          [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
+        ]}
+        color={outlineColor}
+        lineWidth={2.6}
+      />
     );
+  }, [bounds.maxX, bounds.maxZ, bounds.minX, bounds.minZ, gridDebugEnabled]);
+
+  return (
+    <group>
+      {minorLines}
+      {majorLines}
+      {debugMarkers}
+      {debugBoundsOverlay}
+      {generationEnvelopeMarkers}
+    </group>
+  );
 }
 
 interface ViewerViewportProps {
-    sceneData: RenderSceneData | null;
-    highlightedFaceId?: number | null;
-    highlightedEdgeId?: number | null;
-    onPickRay?: (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }) => void;
+  sceneData: RenderSceneData | null;
+  highlightedFaceId?: number | null;
+  highlightedEdgeId?: number | null;
+  onPickRay?: (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }) => void;
 }
 
 function FaceMesh({ positions, normals, indices, isHighlighted }: { positions: Float32Array; normals: Float32Array; indices: Uint32Array; isHighlighted: boolean }) {
-    const geometry = useMemo(() => {
-        const meshGeometry = new BufferGeometry();
-        meshGeometry.setAttribute('position', new BufferAttribute(positions, 3));
-        meshGeometry.setAttribute('normal', new BufferAttribute(normals, 3));
-        meshGeometry.setIndex(new BufferAttribute(indices, 1));
-        meshGeometry.computeBoundingSphere();
-        return meshGeometry;
-    }, [indices, normals, positions]);
+  const geometry = useMemo(() => {
+    const meshGeometry = new BufferGeometry();
+    meshGeometry.setAttribute('position', new BufferAttribute(positions, 3));
+    meshGeometry.setAttribute('normal', new BufferAttribute(normals, 3));
+    meshGeometry.setIndex(new BufferAttribute(indices, 1));
+    meshGeometry.computeBoundingSphere();
+    return meshGeometry;
+  }, [indices, normals, positions]);
 
-    const material = useMemo(
-        () => new MeshStandardMaterial({
-            color: isHighlighted ? VIEWPORT_THEME.selectionFaceColor : VIEWPORT_THEME.surfaceColor,
-            metalness: 0,
-            roughness: 0.95,
-            side: DoubleSide,
-        }),
-        [isHighlighted],
-    );
+  const material = useMemo(
+    () => new MeshStandardMaterial({
+      color: isHighlighted ? VIEWPORT_THEME.selectionFaceColor : VIEWPORT_THEME.surfaceColor,
+      metalness: 0,
+      roughness: 0.95,
+      side: DoubleSide,
+    }),
+    [isHighlighted],
+  );
 
-    return <mesh geometry={geometry} material={material} />;
+  return <mesh geometry={geometry} material={material} />;
 }
 
 function AxisGuide() {
-    const axisEnd = VIEWPORT_THEME.axisLength;
-    const labelOffset = 0.14;
+  const axisEnd = VIEWPORT_THEME.axisLength;
+  const labelOffset = 0.14;
 
-    return (
-        <group>
-            <Line points={[[0, 0, 0], [axisEnd, 0, 0]]} color={VIEWPORT_THEME.axisXColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
-            <Line points={[[0, 0, 0], [0, axisEnd, 0]]} color={VIEWPORT_THEME.axisYColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
-            <Line points={[[0, 0, 0], [0, 0, axisEnd]]} color={VIEWPORT_THEME.axisZColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
-            <Text
-                position={[axisEnd + labelOffset, 0, 0]}
-                fontSize={VIEWPORT_THEME.axisLabelSize}
-                color={VIEWPORT_THEME.axisLabelColor}
-                anchorX="left"
-                anchorY="middle"
-            >
-                X
-            </Text>
-            <Text
-                position={[0, axisEnd + labelOffset, 0]}
-                fontSize={VIEWPORT_THEME.axisLabelSize}
-                color={VIEWPORT_THEME.axisLabelColor}
-                anchorX="center"
-                anchorY="bottom"
-            >
-                Y
-            </Text>
-            <Text
-                position={[0, 0, axisEnd + labelOffset]}
-                fontSize={VIEWPORT_THEME.axisLabelSize}
-                color={VIEWPORT_THEME.axisLabelColor}
-                anchorX="center"
-                anchorY="middle"
-            >
-                Z
-            </Text>
-        </group>
-    );
+  return (
+    <group>
+      <Line points={[[0, 0, 0], [axisEnd, 0, 0]]} color={VIEWPORT_THEME.axisXColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
+      <Line points={[[0, 0, 0], [0, axisEnd, 0]]} color={VIEWPORT_THEME.axisYColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
+      <Line points={[[0, 0, 0], [0, 0, axisEnd]]} color={VIEWPORT_THEME.axisZColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
+      <Text
+        position={[axisEnd + labelOffset, 0, 0]}
+        fontSize={VIEWPORT_THEME.axisLabelSize}
+        color={VIEWPORT_THEME.axisLabelColor}
+        anchorX="left"
+        anchorY="middle"
+      >
+        X
+      </Text>
+      <Text
+        position={[0, axisEnd + labelOffset, 0]}
+        fontSize={VIEWPORT_THEME.axisLabelSize}
+        color={VIEWPORT_THEME.axisLabelColor}
+        anchorX="center"
+        anchorY="bottom"
+      >
+        Y
+      </Text>
+      <Text
+        position={[0, 0, axisEnd + labelOffset]}
+        fontSize={VIEWPORT_THEME.axisLabelSize}
+        color={VIEWPORT_THEME.axisLabelColor}
+        anchorX="center"
+        anchorY="middle"
+      >
+        Z
+      </Text>
+    </group>
+  );
 }
 
 function EdgeLine({ points, isHighlighted }: { points: Float32Array; isHighlighted: boolean }) {
-    const linePoints = useMemo(() => {
-        const vertices: [number, number, number][] = [];
+  const linePoints = useMemo(() => {
+    const vertices: [number, number, number][] = [];
 
-        for (let i = 0; i < points.length; i += 3) {
-            vertices.push([points[i], points[i + 1], points[i + 2]]);
-        }
+    for (let i = 0; i < points.length; i += 3) {
+      vertices.push([points[i], points[i + 1], points[i + 2]]);
+    }
 
-        return vertices;
-    }, [points]);
+    return vertices;
+  }, [points]);
 
-    return (
-        <Line
-            points={linePoints}
-            color={isHighlighted ? VIEWPORT_THEME.selectionEdgeColor : VIEWPORT_THEME.edgeColor}
-            lineWidth={isHighlighted ? VIEWPORT_THEME.selectionEdgeWidth : VIEWPORT_THEME.edgeWidth}
-        />
-    );
+  return (
+    <Line
+      points={linePoints}
+      color={isHighlighted ? VIEWPORT_THEME.selectionEdgeColor : VIEWPORT_THEME.edgeColor}
+      lineWidth={isHighlighted ? VIEWPORT_THEME.selectionEdgeWidth : VIEWPORT_THEME.edgeWidth}
+    />
+  );
 }
 
 function PickRayCapture({ onPickRay }: { onPickRay?: ViewerViewportProps['onPickRay'] }) {
-    const { camera, gl } = useThree();
+  const { camera, gl } = useThree();
 
-    useEffect(() => {
-        if (!onPickRay) {
-            return;
-        }
+  useEffect(() => {
+    if (!onPickRay) {
+      return;
+    }
 
-        const raycaster = new Raycaster();
-        const pointer = new Vector2();
+    const raycaster = new Raycaster();
+    const pointer = new Vector2();
 
-        const handleClick = (event: MouseEvent) => {
-            if (event.button !== 0) {
-                return;
-            }
+    const handleClick = (event: MouseEvent) => {
+      if (event.button !== 0) {
+        return;
+      }
 
-            const rect = gl.domElement.getBoundingClientRect();
-            pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            raycaster.setFromCamera(pointer, camera);
-            onPickRay(
-                {
-                    x: raycaster.ray.origin.x,
-                    y: raycaster.ray.origin.y,
-                    z: raycaster.ray.origin.z,
-                },
-                {
-                    x: raycaster.ray.direction.x,
-                    y: raycaster.ray.direction.y,
-                    z: raycaster.ray.direction.z,
-                },
-            );
-        };
+      const rect = gl.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      onPickRay(
+        {
+          x: raycaster.ray.origin.x,
+          y: raycaster.ray.origin.y,
+          z: raycaster.ray.origin.z,
+        },
+        {
+          x: raycaster.ray.direction.x,
+          y: raycaster.ray.direction.y,
+          z: raycaster.ray.direction.z,
+        },
+      );
+    };
 
-        gl.domElement.addEventListener('click', handleClick);
-        return () => gl.domElement.removeEventListener('click', handleClick);
-    }, [camera, gl.domElement, onPickRay]);
+    gl.domElement.addEventListener('click', handleClick);
+    return () => gl.domElement.removeEventListener('click', handleClick);
+  }, [camera, gl.domElement, onPickRay]);
 
-    return null;
+  return null;
 }
 
 export function ViewerViewport({ sceneData, highlightedFaceId = null, highlightedEdgeId = null, onPickRay }: ViewerViewportProps) {
-    const hasInteractionEdgeHighlight = highlightedEdgeId !== null;
+  const hasInteractionEdgeHighlight = highlightedEdgeId !== null;
 
-    return (
-        <div className="viewport-canvas-frame">
-            <Canvas orthographic camera={{ position: [6, 6, 6], zoom: 90, near: 0.1, far: 1000 }} gl={{ alpha: true }}>
-                <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
-                <directionalLight position={[-5, 9, 6]} intensity={VIEWPORT_THEME.directionalIntensity} />
-                <DraftingGrid />
-                <AxisGuide />
-                {sceneData?.faces.map((face) => (
-                    <FaceMesh
-                        key={`face-${face.faceId}`}
-                        positions={face.positions}
-                        normals={face.normals}
-                        indices={face.indices}
-                        isHighlighted={highlightedFaceId === face.faceId}
-                    />
-                ))}
-                {hasInteractionEdgeHighlight
-                    ? sceneData?.edges
-                        .filter((edge) => edge.edgeId === highlightedEdgeId)
-                        .map((edge) => (
-                            <EdgeLine
-                                key={`edge-${edge.edgeId}`}
-                                points={edge.points}
-                                isHighlighted
-                            />
-                        ))
-                    : null}
-                <PickRayCapture onPickRay={onPickRay} />
-                <OrbitControls makeDefault enablePan enableZoom />
-            </Canvas>
-        </div>
-    );
+  return (
+    <div className="viewport-canvas-frame">
+      <Canvas orthographic camera={{ position: [6, 6, 6], zoom: 90, near: -100, far: 100 }} gl={{ alpha: true }}>
+      {/*Negative near value is indeed correct in order to show negative value on grid. Documentation is wrong.*/}
+        <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
+        <directionalLight position={[-5, 9, 6]} intensity={VIEWPORT_THEME.directionalIntensity} />
+        <DraftingGrid />
+        <AxisGuide />
+        {sceneData?.faces.map((face) => (
+          <FaceMesh
+            key={`face-${face.faceId}`}
+            positions={face.positions}
+            normals={face.normals}
+            indices={face.indices}
+            isHighlighted={highlightedFaceId === face.faceId}
+          />
+        ))}
+        {hasInteractionEdgeHighlight
+          ? sceneData?.edges
+            .filter((edge) => edge.edgeId === highlightedEdgeId)
+            .map((edge) => (
+              <EdgeLine
+                key={`edge-${edge.edgeId}`}
+                points={edge.points}
+                isHighlighted
+              />
+            ))
+          : null}
+        <PickRayCapture onPickRay={onPickRay} />
+        <OrbitControls makeDefault enablePan enableZoom />
+      </Canvas>
+    </div>
+  );
 }

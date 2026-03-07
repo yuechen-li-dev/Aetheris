@@ -16,11 +16,13 @@
 .top-bar {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 30;
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  padding: var(--layout-space-1) var(--layout-space-3);
   border-bottom: var(--layout-border-weight) solid var(--layout-border-color);
-  background: hsla(var(--card), 0.95);
+  background: hsl(var(--card));
 }
 
 .top-bar__header-row {
@@ -28,12 +30,11 @@
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: var(--layout-space-2);
-  padding: var(--layout-space-2) var(--layout-space-3);
-  border-bottom: var(--layout-border-weight) solid var(--layout-border-color);
+  padding: var(--layout-space-1) 0;
 }
 
 .top-bar__tabs-row {
-  padding: var(--layout-space-1) var(--layout-space-3);
+  padding: 0;
 }
 
 .top-bar__actions-block {
@@ -159,7 +160,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--layout-rail-width);
   gap: var(--layout-space-2);
-  padding: var(--layout-space-2) var(--layout-space-3);
+  padding: var(--layout-space-1) var(--layout-space-3) var(--layout-space-2);
 }
 
 .viewport-column {
@@ -170,6 +171,7 @@
 .tool-rail {
   height: 100%;
   border: var(--layout-border-weight) solid var(--layout-border-color);
+  border-top: 0;
   border-radius: var(--layout-radius);
   background: hsl(var(--card));
 }

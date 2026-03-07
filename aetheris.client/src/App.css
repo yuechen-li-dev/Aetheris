@@ -113,12 +113,33 @@
   border-color: #9e6767;
 }
 
-.top-bar__title {
-  margin: 0;
-  font-size: 0.95rem;
-  letter-spacing: 0.1em;
+.top-bar__wordmark {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  width: max-content;
+  margin: 1px 0;
+  line-height: 0.92;
+  gap: 0;
+}
+
+.top-bar__wordmark-primary,
+.top-bar__wordmark-secondary {
+  display: block;
   text-transform: uppercase;
-  font-weight: var(--ui-weight-title);
+}
+
+.top-bar__wordmark-primary {
+  font-size: 1.1rem;
+  letter-spacing: 0.014em;
+  font-weight: 600;
+}
+
+.top-bar__wordmark-secondary {
+  font-size: 1.02rem;
+  font-weight: 300;
+  letter-spacing: 0.03em;
 }
 
 .top-bar__tabs,

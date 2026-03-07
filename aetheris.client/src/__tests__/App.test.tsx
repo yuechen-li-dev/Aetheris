@@ -112,7 +112,7 @@ describe('App STEP file upload flow', () => {
         render(<App />);
         await screen.findByText('Document: Ready');
 
-        const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
         const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
 
@@ -125,11 +125,40 @@ describe('App STEP file upload flow', () => {
         render(<App />);
         await screen.findByText('Document: Ready');
 
-        const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
         const file = new File(['ISO-10303-21;'], 'sample.step', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
 
         expect(screen.getByText('Selected file: sample.step (13 bytes)')).toBeTruthy();
+    });
+
+
+    it('shows inline validation when non-STEP file is selected', async () => {
+        render(<App />);
+        await screen.findByText('Document: Ready');
+
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
+        const file = new File(['hello'], 'notes.txt', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [file] } });
+
+        expect(screen.getByText('Unsupported file type. Please select a .step or .stp file.')).toBeTruthy();
+        expect(screen.getByText('No file selected.')).toBeTruthy();
+        expect((screen.getByRole('button', { name: 'Import STEP 242' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('accepts drag-and-drop STEP files', async () => {
+        render(<App />);
+        await screen.findByText('Document: Ready');
+
+        const dropzone = screen.getByRole('button', { name: 'Drop STEP file here or click to browse' });
+        const file = new File(['ISO-10303-21;'], 'dragged.stp', { type: 'text/plain' });
+        fireEvent.drop(dropzone, {
+            dataTransfer: {
+                files: [file],
+            },
+        });
+
+        expect(screen.getByText('Selected file: dragged.stp (13 bytes)')).toBeTruthy();
     });
 
     it('calls importStep with file contents and refreshes canonical hash', async () => {
@@ -151,7 +180,7 @@ describe('App STEP file upload flow', () => {
         render(<App />);
         await screen.findByText('Document: Ready');
 
-        const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
         const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
 
@@ -226,7 +255,7 @@ describe('App STEP file upload flow', () => {
         render(<App />);
         await screen.findByText('Document: Ready');
 
-        const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
         const file = new File(['BAD'], 'bad.step', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
 
@@ -265,7 +294,7 @@ describe('App STEP file upload flow', () => {
 
         render(<App />);
 
-        const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
         const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
 
@@ -284,7 +313,7 @@ describe('App STEP file upload flow', () => {
         render(<App />);
         await screen.findByText('Document: Ready');
 
-        const fileInput = screen.getByLabelText('STEP 242 File') as HTMLInputElement;
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
         const file = new File(['ISO-10303-21;'], 'sample.step', { type: 'text/plain' });
         fireEvent.change(fileInput, { target: { files: [file] } });
         expect(screen.getByText(/Selected file: sample.step \(\d+ bytes\)/)).toBeTruthy();

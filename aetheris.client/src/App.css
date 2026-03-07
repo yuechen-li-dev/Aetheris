@@ -399,3 +399,41 @@ strong {
 .audit-panel p {
   margin: 2px 0;
 }
+
+.step-dropzone__input {
+  display: none;
+}
+
+.step-dropzone {
+  border: var(--layout-border-weight) dashed hsl(var(--border));
+  border-radius: var(--layout-radius);
+  background: hsla(var(--muted), 0.3);
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  padding: 10px 12px;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.step-dropzone p {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  color: hsl(var(--muted-foreground));
+}
+
+.step-dropzone:hover,
+.step-dropzone:focus-visible,
+.step-dropzone--active {
+  border-color: #6f8f8a;
+  background: hsla(var(--muted), 0.5);
+  outline: none;
+}
+
+.step-import-validation {
+  color: #7f4a4a;
+  font-size: 0.78rem;
+}

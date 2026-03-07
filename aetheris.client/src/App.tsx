@@ -17,6 +17,7 @@ import {
     type PickHitDto,
     type TessellationResponseDto,
 } from './api/aetherisApi';
+import { StepImportDropzone } from './components/StepImportDropzone';
 import { Button } from './components/ui/button';
 import { ViewerViewport } from './viewer/ViewerViewport';
 import { mapTessellationToRenderData } from './viewer/tessellationMapper';
@@ -65,6 +66,7 @@ function App() {
     const [stepImportFile, setStepImportFile] = useState<File | null>(null);
     const [stepCanonicalHash, setStepCanonicalHash] = useState<string | null>(null);
     const [stepImportSelectionMessage, setStepImportSelectionMessage] = useState('No file selected.');
+    const [stepImportValidationMessage, setStepImportValidationMessage] = useState<string | null>(null);
     const [copyHashMessage, setCopyHashMessage] = useState('');
     const [isImporting, setIsImporting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -88,6 +90,7 @@ function App() {
         setStepImportFile(null);
         setStepCanonicalHash(null);
         setStepImportSelectionMessage('No file selected.');
+        setStepImportValidationMessage(null);
         setCopyHashMessage('');
         setDiagnostics([]);
         setImportStatusMessage('Preparing workspace…');
@@ -368,12 +371,16 @@ function App() {
         }
     }, [documentId, documentStatus, maxStepFileSizeBytes, refreshSummaryAndActiveTessellation, runAction, serverStatus, stepImportFile]);
 
-    const handleStepFileSelection = useCallback((fileList: FileList | null) => {
-        const selected = fileList?.[0] ?? null;
+    const handleStepFileAccepted = useCallback((selected: File) => {
         setStepImportFile(selected);
-        setStepImportSelectionMessage(selected
-            ? `Selected file: ${selected.name} (${selected.size} bytes)`
-            : 'No file selected.');
+        setStepImportSelectionMessage(`Selected file: ${selected.name} (${selected.size} bytes)`);
+        setStepImportValidationMessage(null);
+    }, []);
+
+    const handleStepFileValidationError = useCallback((message: string) => {
+        setStepImportFile(null);
+        setStepImportSelectionMessage('No file selected.');
+        setStepImportValidationMessage(message);
     }, []);
 
     const handleUseActiveBodyAsTarget = useCallback(() => {
@@ -562,14 +569,11 @@ function App() {
                         <>
                             <section className="tool-section tool-section--import">
                                 <h2 className="section-title">Step Import</h2>
-                                <label>
-                                    STEP 242 File
-                                    <input
-                                        type="file"
-                                        accept=".step,.stp,text/plain"
-                                        onChange={(event) => handleStepFileSelection(event.target.files)}
-                                    />
-                                </label>
+                                <StepImportDropzone
+                                    onFileAccepted={handleStepFileAccepted}
+                                    onValidationError={handleStepFileValidationError}
+                                />
+                                {stepImportValidationMessage ? <p className="step-import-validation">{stepImportValidationMessage}</p> : null}
                                 <p>{stepImportSelectionMessage}</p>
                                 <Button type="button" onClick={() => void handleImportStep()} disabled={!canImportStep}>Import STEP 242</Button>
                                 <div className={`import-status-box import-status-box--${importStatusTone}`}>

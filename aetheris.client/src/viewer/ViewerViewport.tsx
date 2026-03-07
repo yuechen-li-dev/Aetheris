@@ -1,7 +1,7 @@
 import { Line, OrbitControls, Text } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2, Vector3 } from 'three';
 import type { RenderSceneData } from './tessellationMapper';
@@ -75,41 +75,6 @@ interface GridLayerEnvelope {
   skippedByWeight: boolean;
 }
 
-interface GridAuditSnapshot {
-  computedBounds: {
-    minX: number;
-    maxX: number;
-    minZ: number;
-    maxZ: number;
-    centerX: number;
-    centerZ: number;
-    spanX: number;
-    spanZ: number;
-  };
-  baseSpan: number;
-  margin: number;
-  worldSpan: number;
-  gridSelection: {
-    primarySpacing: number;
-    secondarySpacing: number;
-    primaryWeight: number;
-    secondaryWeight: number;
-  };
-  fallbackUsed: boolean;
-  fallbackReason: string | null;
-  fallbackOriginalBounds: {
-    minX: number;
-    maxX: number;
-    minZ: number;
-    maxZ: number;
-  } | null;
-  minimumSpanClampApplied: boolean;
-  layerEnvelopes: GridLayerEnvelope[];
-  transformSpace: {
-    gridGroupLocalSpace: string;
-    parentTransformAssumption: string;
-  };
-}
 
 function parseGridDebugFlag(): boolean {
   if (typeof window === 'undefined') {
@@ -149,22 +114,6 @@ function computeOrthographicFrustumCornerHits(
   orthographicCamera.matrixWorld.extractBasis(right, up, forward);
   const rayDir = forward.clone().negate().normalize();
 
-  // eslint-disable-next-line no-console
-  console.log('%c[GRID DIAG] camera internals', 'color: cyan; font-weight: bold', {
-    zoom,
-    halfW,
-    halfH,
-    left: orthographicCamera.left,
-    right_frustum: orthographicCamera.right,
-    top: orthographicCamera.top,
-    bottom: orthographicCamera.bottom,
-    position: orthographicCamera.position.toArray(),
-    basisRight: right.toArray(),
-    basisUp: up.toArray(),
-    basisForward: forward.toArray(),
-    rayDir: rayDir.toArray(),
-    planeY,
-  });
 
   return GRID_CORNER_DEFINITIONS.map((def) => {
     const rayOrigin = orthographicCamera.position.clone()
@@ -173,14 +122,6 @@ function computeOrthographicFrustumCornerHits(
 
     const hitPoint = intersectRayWithHorizontalPlane(rayOrigin, rayDir, planeY);
 
-    // eslint-disable-next-line no-console
-    console.log(`%c[GRID DIAG] corner ${def.label}`, 'color: orange', {
-      ndc: [def.ndc.x, def.ndc.y],
-      rayOrigin: rayOrigin.toArray(),
-      rayDir: rayDir.toArray(),
-      t: Math.abs(rayDir.y) > 1e-6 ? (planeY - rayOrigin.y) / rayDir.y : 'PARALLEL',
-      hitPoint: hitPoint?.toArray() ?? 'MISSED',
-    });
 
     return {
       label: def.label,
@@ -197,7 +138,6 @@ function computeOrthographicFrustumCornerHits(
 function DraftingGrid() {
   const { camera } = useThree();
   const gridDebugEnabled = useMemo(() => parseGridDebugFlag(), []);
-  const debugSnapshotLoggedRef = useRef(false);
   const [cameraSnapshot, setCameraSnapshot] = useState({
     x: camera.position.x,
     z: camera.position.z,
@@ -226,7 +166,6 @@ function DraftingGrid() {
     cornerDiagnostics,
     bounds,
     layerEnvelopes,
-    auditSnapshot,
   } = useMemo(() => {
     const orthographicCamera = camera as OrthographicCamera;
 
@@ -245,27 +184,12 @@ function DraftingGrid() {
     let minZ: number;
     let maxZ: number;
 
-    let fallbackUsed = false;
-    let fallbackReason: string | null = null;
-    let fallbackOriginalBounds: GridAuditSnapshot['fallbackOriginalBounds'] = null;
-
     if (hitPoints.length === 4) {
       minX = Math.min(...hitPoints.map((point) => point.x));
       maxX = Math.max(...hitPoints.map((point) => point.x));
       minZ = Math.min(...hitPoints.map((point) => point.z));
       maxZ = Math.max(...hitPoints.map((point) => point.z));
     } else {
-      fallbackUsed = true;
-      fallbackReason = `Expected 4 corner-plane hits but received ${hitPoints.length}.`;
-      if (hitPoints.length > 0) {
-        fallbackOriginalBounds = {
-          minX: Math.min(...hitPoints.map((point) => point.x)),
-          maxX: Math.max(...hitPoints.map((point) => point.x)),
-          minZ: Math.min(...hitPoints.map((point) => point.z)),
-          maxZ: Math.max(...hitPoints.map((point) => point.z)),
-        };
-      }
-
       const fallbackExtent = Math.max(10 / Math.max(orthographicCamera.zoom ?? 1, 0.0001), 1);
       minX = camera.position.x - fallbackExtent;
       maxX = camera.position.x + fallbackExtent;
@@ -273,19 +197,8 @@ function DraftingGrid() {
       maxZ = camera.position.z + fallbackExtent;
     }
 
-    // eslint-disable-next-line no-console
-    console.log('%c[GRID DIAG] bounds resolved', 'color: lime; font-weight: bold', {
-      hitCount: hitPoints.length,
-      fallbackUsed,
-      fallbackReason,
-      minX, maxX, minZ, maxZ,
-      spanX: maxX - minX,
-      spanZ: maxZ - minZ,
-    });
-
     const unclampedBaseSpan = Math.max(maxX - minX, maxZ - minZ);
     const baseSpan = Math.max(unclampedBaseSpan, 1);
-    const minimumSpanClampApplied = baseSpan !== unclampedBaseSpan;
     const margin = baseSpan * 0.2;
     const expandedMinX = minX - margin;
     const expandedMaxX = maxX + margin;
@@ -421,36 +334,6 @@ function DraftingGrid() {
       majorLines: major,
       cornerDiagnostics: diagnostics,
       layerEnvelopes: envelopes,
-      auditSnapshot: {
-        computedBounds: {
-          minX: expandedMinX,
-          maxX: expandedMaxX,
-          minZ: expandedMinZ,
-          maxZ: expandedMaxZ,
-          centerX: (expandedMinX + expandedMaxX) * 0.5,
-          centerZ: (expandedMinZ + expandedMaxZ) * 0.5,
-          spanX: expandedMaxX - expandedMinX,
-          spanZ: expandedMaxZ - expandedMinZ,
-        },
-        baseSpan,
-        margin,
-        worldSpan,
-        gridSelection: {
-          primarySpacing: gridSelection.primarySpacing,
-          secondarySpacing: gridSelection.secondarySpacing,
-          primaryWeight: gridSelection.primaryWeight,
-          secondaryWeight: gridSelection.secondaryWeight,
-        },
-        fallbackUsed,
-        fallbackReason,
-        fallbackOriginalBounds,
-        minimumSpanClampApplied,
-        layerEnvelopes: envelopes,
-        transformSpace: {
-          gridGroupLocalSpace: 'All DraftingGrid lines are authored in parent/world axes (x,z on y=gridYOffset).',
-          parentTransformAssumption: 'DraftingGrid is mounted without transform; local coordinates match world-space viewer coordinates.',
-        },
-      },
       bounds: {
         minX: expandedMinX,
         maxX: expandedMaxX,
@@ -460,51 +343,6 @@ function DraftingGrid() {
     };
   }, [cameraSnapshot, camera]);
 
-  useEffect(() => {
-    if (!gridDebugEnabled || debugSnapshotLoggedRef.current) {
-      return;
-    }
-
-    debugSnapshotLoggedRef.current = true;
-    // eslint-disable-next-line no-console
-    console.table(cornerDiagnostics.map((diagnostic) => ({
-      corner: diagnostic.label,
-      ndcX: diagnostic.ndc.x,
-      ndcY: diagnostic.ndc.y,
-      originX: diagnostic.rayOrigin.x,
-      originY: diagnostic.rayOrigin.y,
-      originZ: diagnostic.rayOrigin.z,
-      directionX: diagnostic.rayDirection.x,
-      directionY: diagnostic.rayDirection.y,
-      directionZ: diagnostic.rayDirection.z,
-      hit: diagnostic.intersectsPlane,
-      hitX: diagnostic.hitPoint?.x ?? null,
-      hitY: diagnostic.hitPoint?.y ?? null,
-      hitZ: diagnostic.hitPoint?.z ?? null,
-    })));
-    // eslint-disable-next-line no-console
-    console.log('[grid-debug] generation-audit', {
-      bounds: auditSnapshot.computedBounds,
-      baseSpan: auditSnapshot.baseSpan,
-      margin: auditSnapshot.margin,
-      worldSpan: auditSnapshot.worldSpan,
-      selectedSpacing: auditSnapshot.gridSelection,
-      fallbackUsed: auditSnapshot.fallbackUsed,
-      fallbackReason: auditSnapshot.fallbackReason,
-      fallbackOriginalBounds: auditSnapshot.fallbackOriginalBounds,
-      minimumSpanClampApplied: auditSnapshot.minimumSpanClampApplied,
-      transformSpace: auditSnapshot.transformSpace,
-      layerEnvelopes: auditSnapshot.layerEnvelopes,
-    });
-    if (auditSnapshot.fallbackUsed) {
-      // eslint-disable-next-line no-console
-      console.warn('[grid-debug] fallback override engaged', {
-        reason: auditSnapshot.fallbackReason,
-        before: auditSnapshot.fallbackOriginalBounds,
-        after: auditSnapshot.computedBounds,
-      });
-    }
-  }, [auditSnapshot, cornerDiagnostics, gridDebugEnabled]);
 
   const generationEnvelopeMarkers = useMemo(() => {
     if (!gridDebugEnabled) {
@@ -748,7 +586,7 @@ export function ViewerViewport({ sceneData, highlightedFaceId = null, highlighte
   return (
     <div className="viewport-canvas-frame">
       <Canvas orthographic camera={{ position: [6, 6, 6], zoom: 90, near: -100, far: 100 }} gl={{ alpha: true }}>
-      {/*Negative near value is indeed correct in order to show negative value on grid. Documentation is wrong.*/}
+        {/*Negative near value is indeed correct in order to show negative value on grid. Documentation is wrong.*/}
         <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
         <directionalLight position={[-5, 9, 6]} intensity={VIEWPORT_THEME.directionalIntensity} />
         <DraftingGrid />

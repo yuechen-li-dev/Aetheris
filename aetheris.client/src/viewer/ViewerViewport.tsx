@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { BufferAttribute, BufferGeometry, Color, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2, Vector3 } from 'three';
+import { Box3, BufferAttribute, BufferGeometry, Color, DoubleSide, Euler, Group, MeshStandardMaterial, Object3D, OrthographicCamera, Quaternion, Raycaster, Vector2, Vector3 } from 'three';
 import type { RenderSceneData } from './tessellationMapper';
 import { selectLogarithmicGridScales } from './logarithmicGrid';
 
@@ -114,9 +114,76 @@ interface GridAuditSnapshot {
         axis: 'cross-width-only';
         detail: string;
     };
+    generatedLineCounts: {
+        minor: number;
+        major: number;
+        total: number;
+    };
 }
 
 type GridDebugMode = 'sketch-grid' | 'plain-grid' | 'sketch-grid-exaggerated';
+
+
+interface GridSceneObjectAudit {
+    uuid: string;
+    name: string;
+    kind: string;
+    type: string;
+    childCount: number;
+    visible: boolean;
+    worldPosition: { x: number; y: number; z: number };
+    worldScale: { x: number; y: number; z: number };
+    worldEulerDeg: { x: number; y: number; z: number };
+    worldBounds: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } } | null;
+}
+
+function toRoundedVector(vector: Vector3): { x: number; y: number; z: number } {
+    return {
+        x: Number(vector.x.toFixed(6)),
+        y: Number(vector.y.toFixed(6)),
+        z: Number(vector.z.toFixed(6)),
+    };
+}
+
+function auditGridSceneObject(object: Object3D): GridSceneObjectAudit {
+    object.updateWorldMatrix(true, false);
+    const worldPosition = new Vector3();
+    const worldScale = new Vector3();
+    const worldQuaternion = object.getWorldQuaternion(new Quaternion());
+    const worldEuler = new Euler().setFromQuaternion(worldQuaternion, 'XYZ');
+    object.getWorldPosition(worldPosition);
+    object.getWorldScale(worldScale);
+
+    const bounds = new Box3().setFromObject(object);
+    const hasFiniteBounds = Number.isFinite(bounds.min.x)
+        && Number.isFinite(bounds.min.y)
+        && Number.isFinite(bounds.min.z)
+        && Number.isFinite(bounds.max.x)
+        && Number.isFinite(bounds.max.y)
+        && Number.isFinite(bounds.max.z);
+
+    return {
+        uuid: object.uuid,
+        name: object.name || '(unnamed)',
+        kind: String(object.userData.gridNodeKind ?? 'unclassified'),
+        type: object.type,
+        childCount: object.children.length,
+        visible: object.visible,
+        worldPosition: toRoundedVector(worldPosition),
+        worldScale: toRoundedVector(worldScale),
+        worldEulerDeg: {
+            x: Number((worldEuler.x * 180 / Math.PI).toFixed(3)),
+            y: Number((worldEuler.y * 180 / Math.PI).toFixed(3)),
+            z: Number((worldEuler.z * 180 / Math.PI).toFixed(3)),
+        },
+        worldBounds: hasFiniteBounds
+            ? {
+                min: toRoundedVector(bounds.min),
+                max: toRoundedVector(bounds.max),
+            }
+            : null,
+    };
+}
 
 function parseGridDebugFlag(): boolean {
     if (typeof window === 'undefined') {
@@ -159,10 +226,12 @@ function intersectRayWithHorizontalPlane(rayOrigin: Vector3, rayDirection: Vecto
 }
 
 function DraftingGrid() {
-    const { camera } = useThree();
+    const { camera, scene } = useThree();
     const gridDebugEnabled = useMemo(() => parseGridDebugFlag(), []);
     const gridDebugMode = useMemo(() => parseGridDebugMode(), []);
     const debugSnapshotLoggedRef = useRef(false);
+    const gridSceneAuditLoggedRef = useRef(false);
+    const gridGroupRef = useRef<Group>(null);
     const [cameraSnapshot, setCameraSnapshot] = useState({ x: camera.position.x, z: camera.position.z, zoom: (camera as OrthographicCamera).zoom ?? 1 });
 
     useFrame(() => {
@@ -356,6 +425,13 @@ function DraftingGrid() {
                             transparent
                             opacity={layer.opacity}
                             lineWidth={layer.lineWidth}
+                            userData={{
+                                gridNodeKind: 'generated-line',
+                                gridAxis: 'x',
+                                gridLayer: layerPrefix,
+                                gridClass: linePrefix,
+                                gridVariant: layer.variant,
+                            }}
                         />,
                     );
                 });
@@ -380,6 +456,13 @@ function DraftingGrid() {
                             transparent
                             opacity={layer.opacity}
                             lineWidth={layer.lineWidth}
+                            userData={{
+                                gridNodeKind: 'generated-line',
+                                gridAxis: 'z',
+                                gridLayer: layerPrefix,
+                                gridClass: linePrefix,
+                                gridVariant: layer.variant,
+                            }}
                         />,
                     );
                 });
@@ -430,6 +513,11 @@ function DraftingGrid() {
                     axis: 'cross-width-only',
                     detail: 'Sketch mode renders each infinite-grid segment as two coincident Line layers (wide low-alpha halo + narrow core) with no endpoint, segment-UV, world-distance, or clip-space fade.',
                 },
+                generatedLineCounts: {
+                    minor: minor.length,
+                    major: major.length,
+                    total: minor.length + major.length,
+                },
             },
             bounds: {
                 minX: expandedMinX,
@@ -439,6 +527,13 @@ function DraftingGrid() {
             },
         };
     }, [cameraSnapshot, camera, gridDebugMode]);
+
+
+
+    useEffect(() => {
+        gridSceneAuditLoggedRef.current = false;
+    }, [cameraSnapshot, gridDebugMode]);
+
 
     useEffect(() => {
         if (!gridDebugEnabled || debugSnapshotLoggedRef.current) {
@@ -519,6 +614,7 @@ function DraftingGrid() {
                                 ]}
                                 color={color}
                                 lineWidth={4}
+                                userData={{ gridNodeKind: 'generation-envelope', gridLayer: layer.layer, gridEdge: line.key }}
                             />
                         );
                     });
@@ -541,11 +637,13 @@ function DraftingGrid() {
                             points={[[hit.x - markerSize, VIEWPORT_THEME.gridYOffset, hit.z], [hit.x + markerSize, VIEWPORT_THEME.gridYOffset, hit.z]]}
                             color={diagnostic.color}
                             lineWidth={3}
+                            userData={{ gridNodeKind: 'corner-marker', markerCorner: diagnostic.label, markerAxis: 'x' }}
                         />
                         <Line
                             points={[[hit.x, VIEWPORT_THEME.gridYOffset, hit.z - markerSize], [hit.x, VIEWPORT_THEME.gridYOffset, hit.z + markerSize]]}
                             color={diagnostic.color}
                             lineWidth={3}
+                            userData={{ gridNodeKind: 'corner-marker', markerCorner: diagnostic.label, markerAxis: 'z' }}
                         />
                         <Text
                             position={[hit.x, VIEWPORT_THEME.gridYOffset + 0.03, hit.z]}
@@ -560,6 +658,47 @@ function DraftingGrid() {
                 );
             });
     }, [cornerDiagnostics, gridDebugEnabled]);
+
+
+
+    useEffect(() => {
+        if (!gridDebugEnabled || gridSceneAuditLoggedRef.current) {
+            return;
+        }
+
+        if (!gridGroupRef.current) {
+            return;
+        }
+
+        gridSceneAuditLoggedRef.current = true;
+        scene.updateMatrixWorld(true);
+
+        const gridObjects: Object3D[] = [];
+        scene.traverse((object) => {
+            if (object.userData.gridNodeKind) {
+                gridObjects.push(object);
+            }
+        });
+
+        const rootObjects = gridObjects.filter((object) => object.userData.gridNodeKind === 'grid-root');
+        const renderedGeneratedLineCount = gridObjects.filter((object) => object.userData.gridNodeKind === 'generated-line').length;
+        const expectedGeneratedLineCount = auditSnapshot.generatedLineCounts.total;
+        const generationObjectMatchesRenderedObject = rootObjects.length === 1
+            && rootObjects[0].uuid === gridGroupRef.current.uuid
+            && renderedGeneratedLineCount === expectedGeneratedLineCount;
+
+        // eslint-disable-next-line no-console
+        console.log('[grid-debug] scene-graph-audit', {
+            generationRootUuid: gridGroupRef.current.uuid,
+            renderedRootUuids: rootObjects.map((object) => object.uuid),
+            renderedRootCount: rootObjects.length,
+            expectedGeneratedLineCount,
+            renderedGeneratedLineCount,
+            generationObjectMatchesRenderedObject,
+            staleOrDuplicateGridRootDetected: rootObjects.length !== 1,
+            renderedGridObjects: gridObjects.map((object) => auditGridSceneObject(object)),
+        });
+    }, [auditSnapshot.generatedLineCounts.total, gridDebugEnabled, scene]);
 
     const debugBoundsOverlay = useMemo(() => {
         if (!gridDebugEnabled) {
@@ -578,17 +717,30 @@ function DraftingGrid() {
                 ]}
                 color={outlineColor}
                 lineWidth={2.6}
+                userData={{ gridNodeKind: 'debug-bounds' }}
             />
         );
     }, [bounds.maxX, bounds.maxZ, bounds.minX, bounds.minZ, gridDebugEnabled]);
 
     return (
-        <group>
-            {minorLines}
-            {majorLines}
-            {debugMarkers}
+        <group
+            ref={gridGroupRef}
+            name="DraftingGridRoot"
+            userData={{ gridNodeKind: 'grid-root', renderMode: gridDebugMode }}
+        >
+            <group name="DraftingGridMinorLines" userData={{ gridNodeKind: 'generated-line-container', gridClass: 'minor' }}>
+                {minorLines}
+            </group>
+            <group name="DraftingGridMajorLines" userData={{ gridNodeKind: 'generated-line-container', gridClass: 'major' }}>
+                {majorLines}
+            </group>
+            <group name="DraftingGridCornerMarkers" userData={{ gridNodeKind: 'corner-marker-container' }}>
+                {debugMarkers}
+            </group>
             {debugBoundsOverlay}
-            {generationEnvelopeMarkers}
+            <group name="DraftingGridGenerationEnvelope" userData={{ gridNodeKind: 'generation-envelope-container' }}>
+                {generationEnvelopeMarkers}
+            </group>
         </group>
     );
 }

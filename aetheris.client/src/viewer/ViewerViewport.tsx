@@ -211,6 +211,16 @@ function parseGridDebugMode(): GridDebugMode {
     return 'sketch-grid';
 }
 
+
+function parseGridForceNoCullingFlag(): boolean {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    const value = new URLSearchParams(window.location.search).get('gridForceNoCulling');
+    return value === '1' || value === 'true';
+}
+
 function intersectRayWithHorizontalPlane(rayOrigin: Vector3, rayDirection: Vector3, planeY: number): Vector3 | null {
     const epsilon = 1e-6;
     if (Math.abs(rayDirection.y) < epsilon) {
@@ -229,6 +239,7 @@ function DraftingGrid() {
     const { camera, scene } = useThree();
     const gridDebugEnabled = useMemo(() => parseGridDebugFlag(), []);
     const gridDebugMode = useMemo(() => parseGridDebugMode(), []);
+    const gridForceNoCulling = useMemo(() => parseGridForceNoCullingFlag(), []);
     const debugSnapshotLoggedRef = useRef(false);
     const gridSceneAuditLoggedRef = useRef(false);
     const gridGroupRef = useRef<Group>(null);
@@ -431,6 +442,14 @@ function DraftingGrid() {
                                 gridLayer: layerPrefix,
                                 gridClass: linePrefix,
                                 gridVariant: layer.variant,
+                                expectedBounds: {
+                                    minX: points[0][0],
+                                    maxX: points[1][0],
+                                    minY: points[0][1],
+                                    maxY: points[1][1],
+                                    minZ: Math.min(points[0][2], points[1][2]),
+                                    maxZ: Math.max(points[0][2], points[1][2]),
+                                },
                             }}
                         />,
                     );
@@ -462,6 +481,14 @@ function DraftingGrid() {
                                 gridLayer: layerPrefix,
                                 gridClass: linePrefix,
                                 gridVariant: layer.variant,
+                                expectedBounds: {
+                                    minX: Math.min(points[0][0], points[1][0]),
+                                    maxX: Math.max(points[0][0], points[1][0]),
+                                    minY: points[0][1],
+                                    maxY: points[1][1],
+                                    minZ: points[0][2],
+                                    maxZ: points[1][2],
+                                },
                             }}
                         />,
                     );
@@ -570,6 +597,7 @@ function DraftingGrid() {
             minimumSpanClampApplied: auditSnapshot.minimumSpanClampApplied,
             transformSpace: auditSnapshot.transformSpace,
             renderMode: auditSnapshot.renderMode,
+            gridForceNoCulling,
             sketchFadeImplementation: auditSnapshot.sketchFadeImplementation,
             layerEnvelopes: auditSnapshot.layerEnvelopes,
         });
@@ -581,7 +609,7 @@ function DraftingGrid() {
                 after: auditSnapshot.computedBounds,
             });
         }
-    }, [auditSnapshot, cornerDiagnostics, gridDebugEnabled]);
+    }, [auditSnapshot, cornerDiagnostics, gridDebugEnabled, gridForceNoCulling]);
 
     const generationEnvelopeMarkers = useMemo(() => {
         if (!gridDebugEnabled) {
@@ -651,6 +679,7 @@ function DraftingGrid() {
                             fontSize={0.15}
                             anchorX="center"
                             anchorY="bottom"
+                            userData={{ gridNodeKind: 'corner-label', markerCorner: diagnostic.label }}
                         >
                             {diagnostic.label}
                         </Text>
@@ -660,6 +689,109 @@ function DraftingGrid() {
     }, [cornerDiagnostics, gridDebugEnabled]);
 
 
+
+
+
+    useEffect(() => {
+        if (!gridDebugEnabled || !gridGroupRef.current) {
+            return;
+        }
+
+        const gridNodes: Object3D[] = [];
+        gridGroupRef.current.traverse((object) => {
+            if (object.userData.gridNodeKind) {
+                gridNodes.push(object);
+            }
+        });
+
+        const noCullingApplied = gridForceNoCulling;
+        let cullingDisabledCount = 0;
+        let geometryObjectCount = 0;
+        let missingBoundingBoxBefore = 0;
+        let missingBoundingSphereBefore = 0;
+        let missingBoundingBoxAfter = 0;
+        let missingBoundingSphereAfter = 0;
+        let nonFiniteBoundingBoxAfter = 0;
+        let nonFiniteBoundingSphereAfter = 0;
+
+        gridNodes.forEach((node) => {
+            if (noCullingApplied && 'frustumCulled' in node) {
+                (node as Object3D & { frustumCulled?: boolean }).frustumCulled = false;
+                cullingDisabledCount += 1;
+            }
+
+            const candidate = node as Object3D & { geometry?: {
+                boundingBox?: Box3 | null;
+                boundingSphere?: { center: Vector3; radius: number } | null;
+                computeBoundingBox?: () => void;
+                computeBoundingSphere?: () => void;
+            } };
+
+            if (!candidate.geometry) {
+                return;
+            }
+
+            geometryObjectCount += 1;
+
+            if (!candidate.geometry.boundingBox) {
+                missingBoundingBoxBefore += 1;
+            }
+            if (!candidate.geometry.boundingSphere) {
+                missingBoundingSphereBefore += 1;
+            }
+
+            candidate.geometry.computeBoundingBox?.();
+            candidate.geometry.computeBoundingSphere?.();
+
+            const boundingBox = candidate.geometry.boundingBox ?? null;
+            const boundingSphere = candidate.geometry.boundingSphere ?? null;
+
+            if (!boundingBox) {
+                missingBoundingBoxAfter += 1;
+            } else {
+                const min = boundingBox.min;
+                const max = boundingBox.max;
+                const finite = Number.isFinite(min.x)
+                    && Number.isFinite(min.y)
+                    && Number.isFinite(min.z)
+                    && Number.isFinite(max.x)
+                    && Number.isFinite(max.y)
+                    && Number.isFinite(max.z);
+                if (!finite) {
+                    nonFiniteBoundingBoxAfter += 1;
+                }
+            }
+
+            if (!boundingSphere) {
+                missingBoundingSphereAfter += 1;
+            } else {
+                const finite = Number.isFinite(boundingSphere.center.x)
+                    && Number.isFinite(boundingSphere.center.y)
+                    && Number.isFinite(boundingSphere.center.z)
+                    && Number.isFinite(boundingSphere.radius);
+                if (!finite) {
+                    nonFiniteBoundingSphereAfter += 1;
+                }
+            }
+        });
+
+        // eslint-disable-next-line no-console
+        console.log('[grid-debug] culling-bounds-audit', {
+            gridForceNoCulling,
+            noCullingApplied,
+            taggedGridNodeCount: gridNodes.length,
+            cullingDisabledCount,
+            geometryObjectCount,
+            missingBoundingBoxBefore,
+            missingBoundingSphereBefore,
+            missingBoundingBoxAfter,
+            missingBoundingSphereAfter,
+            nonFiniteBoundingBoxAfter,
+            nonFiniteBoundingSphereAfter,
+            boundsRecomputeApplied: true,
+            note: 'Set ?gridDebug=1&gridForceNoCulling=1 to force all tagged grid nodes frustumCulled=false for diagnosis.',
+        });
+    }, [auditSnapshot.generatedLineCounts.total, gridDebugEnabled, gridForceNoCulling, gridDebugMode]);
 
     useEffect(() => {
         if (!gridDebugEnabled || gridSceneAuditLoggedRef.current) {
@@ -726,7 +858,7 @@ function DraftingGrid() {
         <group
             ref={gridGroupRef}
             name="DraftingGridRoot"
-            userData={{ gridNodeKind: 'grid-root', renderMode: gridDebugMode }}
+            userData={{ gridNodeKind: 'grid-root', renderMode: gridDebugMode, gridForceNoCulling }}
         >
             <group name="DraftingGridMinorLines" userData={{ gridNodeKind: 'generated-line-container', gridClass: 'minor' }}>
                 {minorLines}

@@ -120,7 +120,7 @@
   justify-content: center;
   width: max-content;
   margin: 1px 0;
-  line-height: 0.94;
+  line-height: 0.92;
   gap: 0;
 }
 
@@ -131,15 +131,15 @@
 }
 
 .top-bar__wordmark-primary {
-  font-size: 1.12rem;
-  letter-spacing: 0.018em;
-  font-weight: 850;
+  font-size: 1.1rem;
+  letter-spacing: 0.014em;
+  font-weight: 600;
 }
 
 .top-bar__wordmark-secondary {
-  font-size: 0.9rem;
-  font-weight: 420;
-  letter-spacing: 0.06em;
+  font-size: 0.97rem;
+  font-weight: 300;
+  letter-spacing: 0.03em;
 }
 
 .top-bar__tabs,

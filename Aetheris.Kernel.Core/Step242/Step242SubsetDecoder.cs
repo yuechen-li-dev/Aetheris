@@ -353,6 +353,75 @@ internal static class Step242SubsetDecoder
         }
     }
 
+
+    public static KernelResult<BSpline3Curve> ReadBSplineCurveWithKnots(Step242ParsedDocument document, Step242ParsedEntity splineEntity)
+    {
+        var degreeResult = ReadIntArgument(splineEntity, 1, "B_SPLINE_CURVE_WITH_KNOTS degree", "Importer.Geometry.BSplineCurve");
+        if (!degreeResult.IsSuccess)
+        {
+            return KernelResult<BSpline3Curve>.Failure(degreeResult.Diagnostics);
+        }
+
+        var controlPointsResult = ReadCartesianPointReferenceList(document, splineEntity, 2, "B_SPLINE_CURVE_WITH_KNOTS control_points_list");
+        if (!controlPointsResult.IsSuccess)
+        {
+            return KernelResult<BSpline3Curve>.Failure(controlPointsResult.Diagnostics);
+        }
+
+        var curveFormResult = ReadEnumArgument(splineEntity, 3, "B_SPLINE_CURVE_WITH_KNOTS curve_form", "Importer.Geometry.BSplineCurve");
+        if (!curveFormResult.IsSuccess)
+        {
+            return KernelResult<BSpline3Curve>.Failure(curveFormResult.Diagnostics);
+        }
+
+        var closedCurveResult = ReadBoolean(splineEntity, 4, "B_SPLINE_CURVE_WITH_KNOTS closed_curve");
+        if (!closedCurveResult.IsSuccess)
+        {
+            return KernelResult<BSpline3Curve>.Failure(closedCurveResult.Diagnostics);
+        }
+
+        var selfIntersectResult = ReadBoolean(splineEntity, 5, "B_SPLINE_CURVE_WITH_KNOTS self_intersect");
+        if (!selfIntersectResult.IsSuccess)
+        {
+            return KernelResult<BSpline3Curve>.Failure(selfIntersectResult.Diagnostics);
+        }
+
+        var multiplicitiesResult = ReadIntegerListArgument(splineEntity, 6, "B_SPLINE_CURVE_WITH_KNOTS knot_multiplicities", "Importer.Geometry.BSplineCurve");
+        if (!multiplicitiesResult.IsSuccess)
+        {
+            return KernelResult<BSpline3Curve>.Failure(multiplicitiesResult.Diagnostics);
+        }
+
+        var knotValuesResult = ReadNumberListArgument(splineEntity, 7, "B_SPLINE_CURVE_WITH_KNOTS knots", "Importer.Geometry.BSplineCurve");
+        if (!knotValuesResult.IsSuccess)
+        {
+            return KernelResult<BSpline3Curve>.Failure(knotValuesResult.Diagnostics);
+        }
+
+        var knotSpecResult = ReadEnumArgument(splineEntity, 8, "B_SPLINE_CURVE_WITH_KNOTS knot_spec", "Importer.Geometry.BSplineCurve");
+        if (!knotSpecResult.IsSuccess)
+        {
+            return KernelResult<BSpline3Curve>.Failure(knotSpecResult.Diagnostics);
+        }
+
+        try
+        {
+            return KernelResult<BSpline3Curve>.Success(new BSpline3Curve(
+                degreeResult.Value,
+                controlPointsResult.Value,
+                multiplicitiesResult.Value,
+                knotValuesResult.Value,
+                curveFormResult.Value,
+                closedCurveResult.Value,
+                selfIntersectResult.Value,
+                knotSpecResult.Value));
+        }
+        catch (ArgumentException ex)
+        {
+            return FailureBSplineCurve(ex.Message, "Importer.Geometry.BSplineCurve");
+        }
+    }
+
     public static KernelResult<CylinderSurface> ReadCylindricalSurface(Step242ParsedDocument document, Step242ParsedEntity cylinderEntity)
     {
         var placementResult = ReadAxis2Placement3D(document, cylinderEntity, 1, "CYLINDRICAL_SURFACE position", "Importer.Geometry.Cylinder");
@@ -641,6 +710,155 @@ internal static class Step242SubsetDecoder
         return KernelResult<double>.Success(number.Value);
     }
 
+    private static KernelResult<IReadOnlyList<Point3D>> ReadCartesianPointReferenceList(
+        Step242ParsedDocument document,
+        Step242ParsedEntity ownerEntity,
+        int argumentIndex,
+        string context)
+    {
+        if (argumentIndex < 0 || argumentIndex >= ownerEntity.Arguments.Count)
+        {
+            return Failure<IReadOnlyList<Point3D>>(KernelDiagnosticCode.InvalidArgument, $"{context}: missing argument at index {argumentIndex}.", "Importer.Geometry.BSplineCurve");
+        }
+
+        if (ownerEntity.Arguments[argumentIndex] is not Step242ListValue list)
+        {
+            return Failure<IReadOnlyList<Point3D>>(KernelDiagnosticCode.InvalidArgument, $"{context}: expected aggregate list of CARTESIAN_POINT references.", "Importer.Geometry.BSplineCurve");
+        }
+
+        var points = new List<Point3D>(list.Items.Count);
+        for (var i = 0; i < list.Items.Count; i++)
+        {
+            if (list.Items[i] is not Step242EntityReference pointReference)
+            {
+                return Failure<IReadOnlyList<Point3D>>(KernelDiagnosticCode.InvalidArgument, $"{context}: item {i} must be an entity reference (#id).", "Importer.Geometry.BSplineCurve");
+            }
+
+            var pointEntityResult = document.TryGetEntity(pointReference.TargetId, "CARTESIAN_POINT");
+            if (!pointEntityResult.IsSuccess)
+            {
+                return KernelResult<IReadOnlyList<Point3D>>.Failure(pointEntityResult.Diagnostics);
+            }
+
+            var pointResult = ReadCartesianPoint(pointEntityResult.Value, context);
+            if (!pointResult.IsSuccess)
+            {
+                return KernelResult<IReadOnlyList<Point3D>>.Failure(pointResult.Diagnostics);
+            }
+
+            points.Add(pointResult.Value);
+        }
+
+        return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+    }
+
+    private static KernelResult<IReadOnlyList<int>> ReadIntegerListArgument(
+        Step242ParsedEntity entity,
+        int argumentIndex,
+        string context,
+        string source)
+    {
+        var numbersResult = ReadNumberListArgument(entity, argumentIndex, context, source);
+        if (!numbersResult.IsSuccess)
+        {
+            return KernelResult<IReadOnlyList<int>>.Failure(numbersResult.Diagnostics);
+        }
+
+        var ints = new List<int>(numbersResult.Value.Count);
+        for (var i = 0; i < numbersResult.Value.Count; i++)
+        {
+            var number = numbersResult.Value[i];
+            var rounded = System.Math.Round(number);
+            if (double.Abs(number - rounded) > 1e-9d)
+            {
+                return Failure<IReadOnlyList<int>>(KernelDiagnosticCode.InvalidArgument, $"{context}: item {i} must be an integer value.", source);
+            }
+
+            if (rounded < int.MinValue || rounded > int.MaxValue)
+            {
+                return Failure<IReadOnlyList<int>>(KernelDiagnosticCode.InvalidArgument, $"{context}: item {i} is outside integer range.", source);
+            }
+
+            ints.Add((int)rounded);
+        }
+
+        return KernelResult<IReadOnlyList<int>>.Success(ints);
+    }
+
+    private static KernelResult<IReadOnlyList<double>> ReadNumberListArgument(
+        Step242ParsedEntity entity,
+        int argumentIndex,
+        string context,
+        string source)
+    {
+        if (argumentIndex < 0 || argumentIndex >= entity.Arguments.Count)
+        {
+            return Failure<IReadOnlyList<double>>(KernelDiagnosticCode.InvalidArgument, $"{context}: missing argument at index {argumentIndex}.", source);
+        }
+
+        if (entity.Arguments[argumentIndex] is not Step242ListValue list)
+        {
+            return Failure<IReadOnlyList<double>>(KernelDiagnosticCode.InvalidArgument, $"{context}: expected aggregate list.", source);
+        }
+
+        var values = new List<double>(list.Items.Count);
+        for (var i = 0; i < list.Items.Count; i++)
+        {
+            var valueResult = ReadNumberCode(list.Items[i], context, source);
+            if (!valueResult.IsSuccess)
+            {
+                return KernelResult<IReadOnlyList<double>>.Failure(valueResult.Diagnostics);
+            }
+
+            values.Add(valueResult.Value);
+        }
+
+        return KernelResult<IReadOnlyList<double>>.Success(values);
+    }
+
+    private static KernelResult<string> ReadEnumArgument(Step242ParsedEntity entity, int argumentIndex, string context, string source)
+    {
+        if (argumentIndex < 0 || argumentIndex >= entity.Arguments.Count)
+        {
+            return Failure<string>(KernelDiagnosticCode.InvalidArgument, $"{context}: missing argument at index {argumentIndex}.", source);
+        }
+
+        var unwrappedResult = UnwrapTypedValue(entity.Arguments[argumentIndex], context, source);
+        if (!unwrappedResult.IsSuccess)
+        {
+            return KernelResult<string>.Failure(unwrappedResult.Diagnostics);
+        }
+
+        if (unwrappedResult.Value is not Step242EnumValue enumValue)
+        {
+            return Failure<string>(KernelDiagnosticCode.InvalidArgument, $"{context}: expected enumeration value.", source);
+        }
+
+        return KernelResult<string>.Success(enumValue.Value);
+    }
+
+    private static KernelResult<int> ReadIntArgument(Step242ParsedEntity entity, int argumentIndex, string context, string source)
+    {
+        var valueResult = ReadNumberArgument(entity, argumentIndex, context, source);
+        if (!valueResult.IsSuccess)
+        {
+            return KernelResult<int>.Failure(valueResult.Diagnostics);
+        }
+
+        var rounded = System.Math.Round(valueResult.Value);
+        if (double.Abs(valueResult.Value - rounded) > 1e-9d)
+        {
+            return Failure<int>(KernelDiagnosticCode.InvalidArgument, $"{context}: expected integer value.", source);
+        }
+
+        if (rounded < int.MinValue || rounded > int.MaxValue)
+        {
+            return Failure<int>(KernelDiagnosticCode.InvalidArgument, $"{context}: value is outside integer range.", source);
+        }
+
+        return KernelResult<int>.Success((int)rounded);
+    }
+
     private static KernelResult<Step242Value> UnwrapTypedValue(Step242Value value, string context, string source)
     {
         if (value is not Step242TypedValue typed)
@@ -702,6 +920,8 @@ internal static class Step242SubsetDecoder
     private static KernelResult<PlaneSurface> FailurePlane(string message, string source) => Failure<PlaneSurface>(message, source);
 
     private static KernelResult<Circle3Curve> FailureCircle(string message, string source) => Failure<Circle3Curve>(KernelDiagnosticCode.InvalidArgument, message, source);
+
+    private static KernelResult<BSpline3Curve> FailureBSplineCurve(string message, string source) => Failure<BSpline3Curve>(KernelDiagnosticCode.InvalidArgument, message, source);
 
     private static KernelResult<CylinderSurface> FailureCylinder(string message, string source) => Failure<CylinderSurface>(KernelDiagnosticCode.InvalidArgument, message, source);
 

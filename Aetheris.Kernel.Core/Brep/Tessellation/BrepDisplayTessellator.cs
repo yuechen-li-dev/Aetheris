@@ -1133,6 +1133,13 @@ public static class BrepDisplayTessellator
 
                 return KernelResult<DisplayEdgePolyline>.Success(new DisplayEdgePolyline(edgeId, points, isClosed));
 
+            case CurveGeometryKind.BSpline3:
+                var spline = curve.BSpline3!.Value;
+                return KernelResult<DisplayEdgePolyline>.Success(new DisplayEdgePolyline(
+                    edgeId,
+                    CurveSampler.SampleBSpline(spline, interval),
+                    IsClosed: false));
+
             default:
                 return KernelResult<DisplayEdgePolyline>.Failure([CreateNotImplemented($"Edge {edgeId.Value} has unsupported curve kind '{curve.Kind}'.")]);
         }
@@ -1218,6 +1225,7 @@ public static class BrepDisplayTessellator
         {
             CurveGeometryKind.Line3 => KernelResult<Point3D>.Success(curve.Line3!.Value.Evaluate(parameter)),
             CurveGeometryKind.Circle3 => KernelResult<Point3D>.Success(curve.Circle3!.Value.Evaluate(parameter)),
+            CurveGeometryKind.BSpline3 => KernelResult<Point3D>.Success(curve.BSpline3!.Value.Evaluate(parameter)),
             _ => KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} endpoint evaluation does not support curve kind '{curve.UnsupportedKind ?? curve.Kind.ToString()}'.", PlanarCurveFlatteningUnsupportedSource)]),
         };
     }

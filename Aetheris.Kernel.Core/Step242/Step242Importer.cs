@@ -516,6 +516,19 @@ public static class Step242Importer
                 trimResult.Value));
         }
 
+        if (string.Equals(curveEntity.Name, "B_SPLINE_CURVE_WITH_KNOTS", StringComparison.OrdinalIgnoreCase))
+        {
+            var splineResult = Step242SubsetDecoder.ReadBSplineCurveWithKnots(document, curveEntity);
+            if (!splineResult.IsSuccess)
+            {
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(splineResult.Diagnostics);
+            }
+
+            return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
+                CurveGeometry.FromBSpline(splineResult.Value),
+                new ParameterInterval(splineResult.Value.DomainStart, splineResult.Value.DomainEnd)));
+        }
+
         if (string.Equals(curveEntity.Name, "AETHERIS_PLANAR_UNSUPPORTED_CURVE", StringComparison.OrdinalIgnoreCase))
         {
             return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
@@ -1187,6 +1200,12 @@ public static class Step242Importer
                 var trim = edgeBinding.TrimInterval ?? new ParameterInterval(0d, 2d * double.Pi);
                 var mid = trim.Start + ((trim.End - trim.Start) * 0.5d);
                 points = [circle.Evaluate(trim.Start), circle.Evaluate(mid), circle.Evaluate(trim.End)];
+                break;
+            case CurveGeometryKind.BSpline3:
+                var spline = curve.BSpline3!.Value;
+                var splineTrim = edgeBinding.TrimInterval ?? new ParameterInterval(spline.DomainStart, spline.DomainEnd);
+                var splineMid = splineTrim.Start + ((splineTrim.End - splineTrim.Start) * 0.5d);
+                points = [spline.Evaluate(splineTrim.Start), spline.Evaluate(splineMid), spline.Evaluate(splineTrim.End)];
                 break;
             default:
                 points = [];

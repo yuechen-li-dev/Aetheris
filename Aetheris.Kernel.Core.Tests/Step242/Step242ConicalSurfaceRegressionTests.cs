@@ -31,7 +31,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
     }
 
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "tessellator", "Viewer.Tessellation.CylinderTrimUnsupported", "Cylindrical face tessellation could not derive a bounded trim patch.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "tessellator", "Viewer.Tessellation.CurvedTopologyUnsupported", "Face 57 curved tessellation expected mirrored line uses for this cone/revolved topology. Observed")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "importer-geometry", "Importer.Geometry.CircleTrim", "Unable to compute circle trim from supplied vertices.")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "importer-topology", "Importer.LoopRole.InnerCrossesOuterAfterNormalization", "Inner loop could not be normalized")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "tessellator", "", "Face 2 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]

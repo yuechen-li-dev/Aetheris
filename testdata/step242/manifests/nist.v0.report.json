@@ -7,8 +7,8 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Viewer.Tessellation.CylinderTrimUnsupported",
-      "messagePrefix": "Cylindrical face tessellation could not derive a bounded trim patch."
+      "source": "Viewer.Tessellation.CurvedTopologyUnsupported",
+      "messagePrefix": "Face 57 curved tessellation expected mirrored line uses for this cone/revolved topology. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -102,9 +102,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.CylinderMappingFailed",
-      "messagePrefix": "Cylinder multi-loop hole classification is not yet safely supported."
+      "code": "NotImplemented",
+      "source": "Entity:1234",
+      "messagePrefix": "FACE_BOUND loop type \u0027VERTEX_LOOP\u0027 is unsupported for non-spherical faces in M23 import subset."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -199,8 +199,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.CylinderMappingFailed",
-      "messagePrefix": "Cylinder multi-loop hole classification is not yet safely supported."
+      "source": "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection",
+      "messagePrefix": "Cylinder loop normalization failed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

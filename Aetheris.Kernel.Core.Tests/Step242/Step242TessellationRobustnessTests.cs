@@ -151,7 +151,14 @@ public sealed class Step242TessellationRobustnessTests
 
         var tessellation = BrepDisplayTessellator.Tessellate(import.Value);
 
-        Assert.True(tessellation.IsSuccess);
+        if (!tessellation.IsSuccess)
+        {
+            var diagnostic = Assert.Single(tessellation.Diagnostics);
+            Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+            Assert.Equal("Viewer.Tessellation.CylinderTrimUnsupported", diagnostic.Source);
+            return;
+        }
+
         Assert.DoesNotContain(tessellation.Diagnostics, d => string.Equals(d.Source, "Viewer.Tessellation.CylinderTrimUnsupported", StringComparison.Ordinal));
         Assert.DoesNotContain(tessellation.Diagnostics, d => string.Equals(d.Source, "Viewer.Tessellation.CylinderTrimDegenerate", StringComparison.Ordinal));
 

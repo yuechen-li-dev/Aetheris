@@ -127,8 +127,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Importer.EntityFamily",
-      "messagePrefix": "EDGE_CURVE geometry \u0027BOUNDED_CURVE\u0027 is unsupported."
+      "source": "Entity:3133",
+      "messagePrefix": "B_SPLINE_CURVE_WITH_KNOTS self_intersect"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

@@ -60,6 +60,66 @@ public sealed class Step242BSplineEdgeTests
         Assert.True(samplesA.SequenceEqual(samplesB));
     }
 
+
+    [Fact]
+    public void Step242_BoundedCurveComplexBspline_AsEdgeCurve_ImportsAndSamplesDeterministically()
+    {
+        var text = LoadFixture("testdata/step242/handcrafted/edge-trimming/block-full-round.step");
+
+        var first = Step242Importer.ImportBody(text);
+        var second = Step242Importer.ImportBody(text);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+
+        var firstBsplines = first.Value.Geometry.Curves
+            .Where(c => c.Value.Kind == CurveGeometryKind.BSpline3)
+            .Select(c => c.Value.BSpline3!.Value)
+            .OrderBy(c => c.Degree)
+            .ThenBy(c => c.ControlPoints.Count)
+            .ToArray();
+        var secondBsplines = second.Value.Geometry.Curves
+            .Where(c => c.Value.Kind == CurveGeometryKind.BSpline3)
+            .Select(c => c.Value.BSpline3!.Value)
+            .OrderBy(c => c.Degree)
+            .ThenBy(c => c.ControlPoints.Count)
+            .ToArray();
+
+        Assert.Equal(firstBsplines.Length, secondBsplines.Length);
+        Assert.NotEmpty(firstBsplines);
+
+        var sampleParameters = new[] { 0d, 0.25d, 0.5d, 0.75d, 1d };
+        for (var i = 0; i < firstBsplines.Length; i++)
+        {
+            var a = firstBsplines[i];
+            var b = secondBsplines[i];
+            var samplesA = sampleParameters.Select(a.Evaluate).ToArray();
+            var samplesB = sampleParameters.Select(b.Evaluate).ToArray();
+            Assert.True(samplesA.SequenceEqual(samplesB));
+        }
+    }
+
+    [Fact]
+    public void Step242_NistFtc06_AdvancesPastBoundedCurveBlocker_Deterministically()
+    {
+        const string relativePath = "testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp";
+        var entry = new Step242CorpusManifestEntry(
+            Id: Path.GetFileNameWithoutExtension(relativePath),
+            Path: relativePath,
+            Group: "nist-bounded-curve-regression",
+            Notes: "regression",
+            ExpectedFirstDiagnostic: null,
+            ExpectHashStableAfterCanonicalization: null,
+            ExpectTopologyCounts: null,
+            ExpectGeometryKinds: null);
+
+        var first = Step242CorpusManifestRunner.RunOne(entry);
+        var second = Step242CorpusManifestRunner.RunOne(entry);
+
+        Assert.NotEqual("EDGE_CURVE geometry 'BOUNDED_CURVE' is unsupported.", first.FirstDiagnostic.MessagePrefix);
+        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
+        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
+    }
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
@@ -80,5 +140,11 @@ public sealed class Step242BSplineEdgeTests
         var report = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.NotEqual("EDGE_CURVE geometry 'B_SPLINE_CURVE_WITH_KNOTS' is unsupported.", report.FirstDiagnostic.MessagePrefix);
+    }
+
+    private static string LoadFixture(string relativePath)
+    {
+        var path = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        return File.ReadAllText(path);
     }
 }

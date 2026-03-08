@@ -102,9 +102,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
-      "messagePrefix": "Inner loop could not be normalized"
+      "code": "NotImplemented",
+      "source": "Entity:1234",
+      "messagePrefix": "FACE_BOUND loop type \u0027VERTEX_LOOP\u0027 is unsupported for non-spherical faces in M23 import subset."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -271,8 +271,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
-      "messagePrefix": "Inner loop could not be normalized"
+      "source": "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection",
+      "messagePrefix": "Cylinder loop normalization failed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -391,7 +391,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
+      "source": "Importer.LoopRole.InnerDisjointAfterNormalization",
       "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,

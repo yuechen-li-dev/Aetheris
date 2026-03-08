@@ -37,14 +37,15 @@ public sealed class Step242HoleSemanticsTests
     }
 
     [Fact]
-    public void ImportBody_MultiLoopPlanarInnerOutside_ReturnsInnerNotContainedValidationFailure()
+    public void ImportBody_MultiLoopPlanarInnerOutside_ReturnsInnerDisjointAfterNormalizationValidationFailure()
     {
         var import = Step242Importer.ImportBody(Step242FixtureCorpus.PlanarFaceInnerOutsideOuter);
 
         Assert.False(import.IsSuccess);
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.ValidationFailed, diagnostic.Code);
-        Assert.Equal("Importer.LoopRole.InnerNotContained", diagnostic.Source);
+        Assert.Equal("Importer.LoopRole.InnerDisjointAfterNormalization", diagnostic.Source);
+        Assert.StartsWith("Inner loop could not be normalized: disjoint.", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

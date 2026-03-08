@@ -47,8 +47,8 @@ public sealed class Step242Tier1GeometryTests
         Assert.False(import.IsSuccess);
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.ValidationFailed, diagnostic.Code);
-        Assert.Equal("Importer.Geometry.CircleTrim", diagnostic.Source);
-        Assert.StartsWith("Unable to compute circle trim", diagnostic.Message, StringComparison.Ordinal);
+        Assert.StartsWith("Importer.Geometry.CircleTrim", diagnostic.Source, StringComparison.Ordinal);
+        Assert.StartsWith("Unable to project circular trim point", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

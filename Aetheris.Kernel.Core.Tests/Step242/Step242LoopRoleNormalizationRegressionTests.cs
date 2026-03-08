@@ -72,6 +72,65 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         Assert.Contains(first, s => s.AdaptivePointCount > s.LegacyPointCount);
     }
 
+
+    [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
+    public void Step242_PlanarLoopRole_AuditDiagnostics_ReportProjectionAndContainmentEvidence(string relativePath)
+    {
+        var first = CapturePlanarAudit(relativePath);
+        var second = CapturePlanarAudit(relativePath);
+
+        Assert.NotEmpty(first);
+        Assert.Equal(first, second);
+
+        Assert.All(first, diagnostic =>
+        {
+            Assert.NotEqual(0, diagnostic.FaceEntityId);
+            Assert.NotEqual(0d, System.Math.Sqrt((diagnostic.PlaneNormalX * diagnostic.PlaneNormalX) + (diagnostic.PlaneNormalY * diagnostic.PlaneNormalY) + (diagnostic.PlaneNormalZ * diagnostic.PlaneNormalZ)));
+            Assert.NotEqual(0d, System.Math.Sqrt((diagnostic.PlaneUAxisX * diagnostic.PlaneUAxisX) + (diagnostic.PlaneUAxisY * diagnostic.PlaneUAxisY) + (diagnostic.PlaneUAxisZ * diagnostic.PlaneUAxisZ)));
+            Assert.NotEqual(0d, System.Math.Sqrt((diagnostic.PlaneVAxisX * diagnostic.PlaneVAxisX) + (diagnostic.PlaneVAxisY * diagnostic.PlaneVAxisY) + (diagnostic.PlaneVAxisZ * diagnostic.PlaneVAxisZ)));
+            Assert.True(diagnostic.VertexCount >= 3);
+            Assert.True(diagnostic.IntersectionCount >= 0);
+        });
+    }
+
+
+    [Fact]
+    public void Step242_PlanarLoopRole_AuditDiagnostics_TargetedProbe_ReportsRuntimeVerdict()
+    {
+        var targets = new[]
+        {
+            "testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp",
+            "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp",
+            "testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp"
+        };
+
+        foreach (var relativePath in targets)
+        {
+            var entry = new Step242CorpusManifestEntry(
+                Id: Path.GetFileNameWithoutExtension(relativePath),
+                Path: relativePath,
+                Group: "nist-loop-role-probe",
+                Notes: "probe",
+                ExpectedFirstDiagnostic: null,
+                ExpectHashStableAfterCanonicalization: null,
+                ExpectTopologyCounts: null,
+                ExpectGeometryKinds: null);
+
+            var report = Step242CorpusManifestRunner.RunOne(entry);
+            var diagnostics = CapturePlanarAudit(relativePath);
+            var analyticAccepted = diagnostics.Count(d => d.AnalyticCircularContainmentAccepted);
+            var analyticVsPolygonMismatch = diagnostics.Count(d => d.AnalyticCircularContainmentAccepted && !d.PolygonContainmentAccepted);
+            var circularPairs = diagnostics.Count(d => d.OuterIsCircular && d.InnerIsCircular);
+
+            Console.WriteLine($"M78bProbe|file={relativePath}|firstLayer={report.FirstFailureLayer}|firstSource={report.FirstDiagnostic.Source}|firstMessage={report.FirstDiagnostic.MessagePrefix}|pairs={diagnostics.Count}|circularPairs={circularPairs}|analyticAccepted={analyticAccepted}|analyticPolygonMismatch={analyticVsPolygonMismatch}");
+
+            Assert.NotEmpty(diagnostics);
+        }
+    }
+
     private static IReadOnlyList<Step242Importer.LoopRoleCircularSamplingDiagnostic> CaptureCircularSampling(string relativePath)
     {
         var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
@@ -82,4 +141,16 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         Step242Importer.ImportBody(text);
         return diagnostics;
     }
+
+    private static IReadOnlyList<Step242Importer.PlanarLoopRoleAuditDiagnostic> CapturePlanarAudit(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var diagnostics = new List<Step242Importer.PlanarLoopRoleAuditDiagnostic>();
+
+        using var captureScope = Step242Importer.CapturePlanarLoopRoleAuditDiagnostics(diagnostics);
+        Step242Importer.ImportBody(text);
+        return diagnostics;
+    }
+
 }

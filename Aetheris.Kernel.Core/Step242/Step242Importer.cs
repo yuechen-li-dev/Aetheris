@@ -17,12 +17,20 @@ public static class Step242Importer
     private const double AngleUnwrapEps = 1e-8d;
     private const double ContainmentEps = 1e-8d;
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<PlanarLoopRoleAuditDiagnostic>?> PlanarLoopRoleAuditDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
         var previous = CircularSamplingDiagnosticsSink.Value;
         CircularSamplingDiagnosticsSink.Value = sink;
         return new CircularSamplingDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CapturePlanarLoopRoleAuditDiagnostics(ICollection<PlanarLoopRoleAuditDiagnostic> sink)
+    {
+        var previous = PlanarLoopRoleAuditDiagnosticsSink.Value;
+        PlanarLoopRoleAuditDiagnosticsSink.Value = sink;
+        return new PlanarLoopRoleAuditDiagnosticsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -333,7 +341,7 @@ public static class Step242Importer
                 loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples));
             }
 
-            var classifyResult = ClassifyAndNormalizeFaceLoops(loopData, bindSurfaceResult.Value.SurfaceGeometry);
+            var classifyResult = ClassifyAndNormalizeFaceLoops(loopData, bindSurfaceResult.Value.SurfaceGeometry, faceEntity.Id);
             if (!classifyResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(classifyResult.Diagnostics);
@@ -1026,7 +1034,8 @@ public static class Step242Importer
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeFaceLoops(
         IReadOnlyList<LoopBuildData> loops,
-        SurfaceGeometry surface)
+        SurfaceGeometry surface,
+        int faceEntityId)
     {
         if (loops.Count <= 1)
         {
@@ -1035,7 +1044,7 @@ public static class Step242Importer
 
         return surface.Kind switch
         {
-            SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
+            SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value, faceEntityId),
             SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(loops, surface.Cylinder!.Value),
             SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 "Multi-loop hole classification is unsupported for this surface type.",
@@ -1048,7 +1057,8 @@ public static class Step242Importer
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizePlanarLoops(
         IReadOnlyList<LoopBuildData> loops,
-        PlaneSurface plane)
+        PlaneSurface plane,
+        int faceEntityId)
     {
         var infos = new List<PlanarLoopInfo>(loops.Count);
         foreach (var loop in loops)
@@ -1106,15 +1116,60 @@ public static class Step242Importer
 
         var containedInners = new List<PlanarLoopInfo>();
 
+        var outerCircular = TryClassifyCircularLoop(outer.Info.ProjectedPoints, containmentTolerance, out var outerCircleProfile);
         foreach (var candidate in infosWithSamples.Where(i => i.Info.Loop.LoopId != outer.Info.Loop.LoopId))
         {
             var containment = EvaluateContainment(candidate.Info.ProjectedPoints, outer.Info.ProjectedPoints, containmentTolerance);
             var intersectionCount = CountPolygonIntersections(candidate.Info.ProjectedPoints, outer.Info.ProjectedPoints, containmentTolerance);
             var intersectsOuter = intersectionCount > 0;
+
+            var innerCircular = TryClassifyCircularLoop(candidate.Info.ProjectedPoints, containmentTolerance, out var innerCircleProfile);
+            var centerDistance = (innerCircleProfile.Center - outerCircleProfile.Center).Length;
+            var analyticTolerance = double.Max(containmentTolerance * 8d, double.Max(outerCircleProfile.RadialDeviation, innerCircleProfile.RadialDeviation) * 2d);
+            var analyticallyContainedCircularAnnulus = outerCircular
+                && innerCircular
+                && innerCircleProfile.Radius < outerCircleProfile.Radius
+                && centerDistance + innerCircleProfile.Radius <= outerCircleProfile.Radius + analyticTolerance;
+
+            ReportPlanarLoopRoleAuditDiagnostic(new PlanarLoopRoleAuditDiagnostic(
+                FaceEntityId: faceEntityId,
+                OuterLoopId: outer.Info.Loop.LoopId.Value,
+                InnerLoopId: candidate.Info.Loop.LoopId.Value,
+                PlaneNormalX: plane.Normal.X,
+                PlaneNormalY: plane.Normal.Y,
+                PlaneNormalZ: plane.Normal.Z,
+                PlaneUAxisX: plane.UAxis.X,
+                PlaneUAxisY: plane.UAxis.Y,
+                PlaneUAxisZ: plane.UAxis.Z,
+                PlaneVAxisX: plane.VAxis.X,
+                PlaneVAxisY: plane.VAxis.Y,
+                PlaneVAxisZ: plane.VAxis.Z,
+                OuterIsCircular: outerCircular,
+                InnerIsCircular: innerCircular,
+                OuterCenterU: outerCircleProfile.Center.X,
+                OuterCenterV: outerCircleProfile.Center.Y,
+                OuterRadius: outerCircleProfile.Radius,
+                InnerCenterU: innerCircleProfile.Center.X,
+                InnerCenterV: innerCircleProfile.Center.Y,
+                InnerRadius: innerCircleProfile.Radius,
+                CenterDistance: centerDistance,
+                ProjectedOuterSampleU: outer.Info.ProjectedPoints[0].X,
+                ProjectedOuterSampleV: outer.Info.ProjectedPoints[0].Y,
+                ProjectedInnerSampleU: candidate.Info.ProjectedPoints[0].X,
+                ProjectedInnerSampleV: candidate.Info.ProjectedPoints[0].Y,
+                OutsideVertices: containment.OutsideCount,
+                VertexCount: containment.VertexCount,
+                IntersectionCount: intersectionCount,
+                MinDistanceToOuter: containment.MinDistanceToOuter,
+                PolygonContainmentAccepted: (!intersectsOuter && containment.OutsideCount == 0)
+                    || (intersectsOuter && containment.OutsideCount == 0 && containment.MinDistanceToOuter > (containmentTolerance * 8d)),
+                AnalyticCircularContainmentAccepted: analyticallyContainedCircularAnnulus));
+
             if ((!intersectsOuter && containment.OutsideCount == 0)
                 || (intersectsOuter
                     && containment.OutsideCount == 0
-                    && containment.MinDistanceToOuter > (containmentTolerance * 8d)))
+                    && containment.MinDistanceToOuter > (containmentTolerance * 8d))
+                || analyticallyContainedCircularAnnulus)
             {
                 containedInners.Add(candidate.Info);
                 continue;
@@ -1789,9 +1844,62 @@ public static class Step242Importer
         return points;
     }
 
+    private static bool TryClassifyCircularLoop(IReadOnlyList<UvPoint> polygon, double containmentTolerance, out CircularLoopProfile profile)
+    {
+        profile = default;
+        if (polygon.Count < 5)
+        {
+            return false;
+        }
+
+        var count = polygon.Count - 1;
+        var sumX = 0d;
+        var sumY = 0d;
+        for (var i = 0; i < count; i++)
+        {
+            sumX += polygon[i].X;
+            sumY += polygon[i].Y;
+        }
+
+        var center = new UvPoint(sumX / count, sumY / count);
+        var radius = 0d;
+        var radialDeviation = 0d;
+        for (var i = 0; i < count; i++)
+        {
+            radius += (polygon[i] - center).Length;
+        }
+
+        radius /= count;
+        if (radius <= containmentTolerance)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < count; i++)
+        {
+            var deviation = double.Abs((polygon[i] - center).Length - radius);
+            radialDeviation = double.Max(radialDeviation, deviation);
+        }
+
+        var maxAllowedDeviation = double.Max(containmentTolerance * 12d, radius * 1e-3d);
+        if (radialDeviation > maxAllowedDeviation)
+        {
+            return false;
+        }
+
+        profile = new CircularLoopProfile(center, radius, radialDeviation);
+        return true;
+    }
+
     private static void ReportCircularSamplingDiagnostic(LoopRoleCircularSamplingDiagnostic diagnostic)
     {
         var sink = CircularSamplingDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
+    private static void ReportPlanarLoopRoleAuditDiagnostic(PlanarLoopRoleAuditDiagnostic diagnostic)
+    {
+        var sink = PlanarLoopRoleAuditDiagnosticsSink.Value;
         sink?.Add(diagnostic);
     }
 
@@ -1807,11 +1915,52 @@ public static class Step242Importer
         int LegacyPointCount,
         int AdaptivePointCount);
 
+    public sealed record PlanarLoopRoleAuditDiagnostic(
+        int FaceEntityId,
+        int OuterLoopId,
+        int InnerLoopId,
+        double PlaneNormalX,
+        double PlaneNormalY,
+        double PlaneNormalZ,
+        double PlaneUAxisX,
+        double PlaneUAxisY,
+        double PlaneUAxisZ,
+        double PlaneVAxisX,
+        double PlaneVAxisY,
+        double PlaneVAxisZ,
+        bool OuterIsCircular,
+        bool InnerIsCircular,
+        double OuterCenterU,
+        double OuterCenterV,
+        double OuterRadius,
+        double InnerCenterU,
+        double InnerCenterV,
+        double InnerRadius,
+        double CenterDistance,
+        double ProjectedOuterSampleU,
+        double ProjectedOuterSampleV,
+        double ProjectedInnerSampleU,
+        double ProjectedInnerSampleV,
+        int OutsideVertices,
+        int VertexCount,
+        int IntersectionCount,
+        double MinDistanceToOuter,
+        bool PolygonContainmentAccepted,
+        bool AnalyticCircularContainmentAccepted);
+
     private sealed class CircularSamplingDiagnosticsScope(ICollection<LoopRoleCircularSamplingDiagnostic>? previous) : IDisposable
     {
         public void Dispose()
         {
             CircularSamplingDiagnosticsSink.Value = previous;
+        }
+    }
+
+    private sealed class PlanarLoopRoleAuditDiagnosticsScope(ICollection<PlanarLoopRoleAuditDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            PlanarLoopRoleAuditDiagnosticsSink.Value = previous;
         }
     }
 
@@ -1854,6 +2003,8 @@ public static class Step242Importer
     private sealed record ContainmentEvaluation(int OutsideCount, int VertexCount, double MinDistanceToOuter);
 
     private sealed record ContainmentFailure(string Message, string Source);
+
+    private readonly record struct CircularLoopProfile(UvPoint Center, double Radius, double RadialDeviation);
 
     private readonly record struct UvPoint(double X, double Y)
     {

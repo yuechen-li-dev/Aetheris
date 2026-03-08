@@ -469,9 +469,10 @@ public static class Step242Importer
         bool edgeSameSense,
         int edgeCurveEntityId)
     {
-        if (string.Equals(curveEntity.Name, "LINE", StringComparison.OrdinalIgnoreCase))
+        var lineConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "LINE");
+        if (lineConstructor is not null)
         {
-            var lineResult = Step242SubsetDecoder.ReadLineCurve(document, curveEntity);
+            var lineResult = Step242SubsetDecoder.ReadLineCurve(document, WithConstructor(curveEntity, lineConstructor));
             if (!lineResult.IsSuccess)
             {
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(lineResult.Diagnostics);
@@ -497,9 +498,10 @@ public static class Step242Importer
                 new ParameterInterval(startParameter, endParameter)));
         }
 
-        if (string.Equals(curveEntity.Name, "CIRCLE", StringComparison.OrdinalIgnoreCase))
+        var circleConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "CIRCLE");
+        if (circleConstructor is not null)
         {
-            var circleResult = Step242SubsetDecoder.ReadCircleCurve(document, curveEntity);
+            var circleResult = Step242SubsetDecoder.ReadCircleCurve(document, WithConstructor(curveEntity, circleConstructor));
             if (!circleResult.IsSuccess)
             {
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(circleResult.Diagnostics);
@@ -516,9 +518,10 @@ public static class Step242Importer
                 trimResult.Value));
         }
 
-        if (string.Equals(curveEntity.Name, "B_SPLINE_CURVE_WITH_KNOTS", StringComparison.OrdinalIgnoreCase))
+        var splineEntity = ResolveBSplineCurveEntity(curveEntity);
+        if (splineEntity is not null)
         {
-            var splineResult = Step242SubsetDecoder.ReadBSplineCurveWithKnots(document, curveEntity);
+            var splineResult = Step242SubsetDecoder.ReadBSplineCurveWithKnots(document, splineEntity);
             if (!splineResult.IsSuccess)
             {
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(splineResult.Diagnostics);
@@ -538,6 +541,45 @@ public static class Step242Importer
 
         return FailureCurveBinding($"EDGE_CURVE geometry '{curveEntity.Name}' is unsupported.", SourceFor(curveEntity.Id, "Importer.EntityFamily"));
     }
+
+    private static Step242ParsedEntity? ResolveBSplineCurveEntity(Step242ParsedEntity curveEntity)
+    {
+        var splineWithKnotsConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "B_SPLINE_CURVE_WITH_KNOTS");
+        if (splineWithKnotsConstructor is null)
+        {
+            return null;
+        }
+
+        if (splineWithKnotsConstructor.Arguments.Count >= 9)
+        {
+            return WithConstructor(curveEntity, splineWithKnotsConstructor);
+        }
+
+        var splineConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "B_SPLINE_CURVE");
+        if (splineConstructor is null || splineConstructor.Arguments.Count < 5 || splineWithKnotsConstructor.Arguments.Count < 3)
+        {
+            return null;
+        }
+
+        var normalizedArguments = new List<Step242Value>(9)
+        {
+            Step242OmittedValue.Instance,
+            splineConstructor.Arguments[0],
+            splineConstructor.Arguments[1],
+            splineConstructor.Arguments[2],
+            splineConstructor.Arguments[3],
+            splineConstructor.Arguments[4],
+            splineWithKnotsConstructor.Arguments[0],
+            splineWithKnotsConstructor.Arguments[1],
+            splineWithKnotsConstructor.Arguments[2]
+        };
+
+        var normalizedConstructor = new Step242EntityConstructor("B_SPLINE_CURVE_WITH_KNOTS", normalizedArguments);
+        return WithConstructor(curveEntity, normalizedConstructor);
+    }
+
+    private static Step242ParsedEntity WithConstructor(Step242ParsedEntity entity, Step242EntityConstructor constructor) =>
+        new(entity.Id, new Step242SimpleEntityInstance(constructor));
 
     private static KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)> DecodeSurfaceGeometry(
         Step242ParsedDocument document,

@@ -54,8 +54,8 @@
       "group": "expectedFail",
       "expectedFirstDiagnostic": {
         "code": "ValidationFailed",
-        "source": "Importer.LoopRole.CylinderMappingFailed",
-        "messagePrefix": "Cylinder multi-loop hole classification"
+        "source": "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection",
+        "messagePrefix": "Cylinder loop normalization failed"
       }
     },
     {

@@ -483,14 +483,14 @@ public static class Step242Importer
 
             if (endParameter < startParameter)
             {
-                if (!edgeSameSense)
+                if (edgeSameSense)
                 {
-                    return OrientationFailure<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>(
-                        "EDGE_CURVE same_sense semantics unsupported for this edge",
-                        SourceFor(edgeCurveEntityId, "Importer.Orientation.EdgeCurveSense"));
+                    return FailureCurveBinding("EDGE_CURVE line parameterization is opposite to vertex ordering.", SourceFor(edgeCurveEntityId, "Importer.Geometry.EdgeCurveParameters"));
                 }
 
-                return FailureCurveBinding("EDGE_CURVE line parameterization is opposite to vertex ordering.", SourceFor(edgeCurveEntityId, "Importer.Geometry.EdgeCurveParameters"));
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
+                    CurveGeometry.FromLine(lineResult.Value),
+                    new ParameterInterval(endParameter, startParameter)));
             }
 
             return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((

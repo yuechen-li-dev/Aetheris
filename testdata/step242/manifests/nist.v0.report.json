@@ -7,8 +7,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Importer.EntityFamily",
-      "messagePrefix": "EDGE_CURVE geometry \u0027B_SPLINE_CURVE_WITH_KNOTS\u0027 is unsupported."
+      "source": "Entity:648",
+      "messagePrefix": "B_SPLINE_CURVE_WITH_KNOTS self_intersect"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -151,8 +151,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Importer.EntityFamily",
-      "messagePrefix": "EDGE_CURVE geometry \u0027B_SPLINE_CURVE_WITH_KNOTS\u0027 is unsupported."
+      "source": "Entity:646",
+      "messagePrefix": "B_SPLINE_CURVE_WITH_KNOTS self_intersect"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -220,18 +220,18 @@
     "path": "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp",
     "sizeBytes": 6057450,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Importer.EntityFamily",
-      "messagePrefix": "EDGE_CURVE geometry \u0027B_SPLINE_CURVE_WITH_KNOTS\u0027 is unsupported."
+      "source": "",
+      "messagePrefix": "Face 73 curved tessellation does not support this torus/revolved boundary topology yet. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 300,
+      "edges": 454,
+      "faces": 158
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -270,9 +270,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Importer.EntityFamily",
-      "messagePrefix": "EDGE_CURVE geometry \u0027B_SPLINE_CURVE_WITH_KNOTS\u0027 is unsupported."
+      "code": "ValidationFailed",
+      "source": "Importer.Orientation.EdgeCurveSense",
+      "messagePrefix": "EDGE_CURVE same_sense semantics unsupported for this edge"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

@@ -4,11 +4,11 @@
     "path": "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp",
     "sizeBytes": 391739,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "importer-geometry",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Entity:648",
-      "messagePrefix": "B_SPLINE_CURVE_WITH_KNOTS self_intersect"
+      "code": "InvalidArgument",
+      "source": "Importer.Geometry.Cone",
+      "messagePrefix": "CONICAL_SURFACE radius"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -124,11 +124,11 @@
     "path": "testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp",
     "sizeBytes": 1960222,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "importer-geometry",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Entity:3133",
-      "messagePrefix": "B_SPLINE_CURVE_WITH_KNOTS self_intersect"
+      "code": "InvalidArgument",
+      "source": "Importer.Geometry.Cone",
+      "messagePrefix": "CONICAL_SURFACE radius"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -150,9 +150,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Entity:646",
-      "messagePrefix": "B_SPLINE_CURVE_WITH_KNOTS self_intersect"
+      "code": "ValidationFailed",
+      "source": "Importer.LoopRole.InnerNotContained",
+      "messagePrefix": "Inner loop is not contained by outer loop."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

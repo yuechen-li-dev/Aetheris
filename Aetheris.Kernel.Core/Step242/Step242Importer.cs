@@ -185,10 +185,39 @@ public static class Step242Importer
 
                 var boundOrientation = boundOrientationResult.Value;
 
-                var loopEntityResult = document.TryGetEntity(loopRefResult.Value.TargetId, "EDGE_LOOP");
+                var loopEntityResult = document.TryGetEntity(loopRefResult.Value.TargetId);
                 if (!loopEntityResult.IsSuccess)
                 {
                     return KernelResult<BrepBody>.Failure(loopEntityResult.Diagnostics);
+                }
+
+                if (string.Equals(loopEntityResult.Value.Name, "VERTEX_LOOP", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!isSphericalFace)
+                    {
+                        return Failure("FACE_BOUND loop type 'VERTEX_LOOP' is unsupported for non-spherical faces in M23 import subset.", $"Entity:{loopEntityResult.Value.Id}");
+                    }
+
+                    var vertexLoopRefResult = Step242SubsetDecoder.ReadReference(loopEntityResult.Value, 1, "VERTEX_LOOP vertex");
+                    if (!vertexLoopRefResult.IsSuccess)
+                    {
+                        return KernelResult<BrepBody>.Failure(vertexLoopRefResult.Diagnostics);
+                    }
+
+                    var vertexPointResult = Step242SubsetDecoder.ReadVertexPoint(document, vertexLoopRefResult.Value.TargetId);
+                    if (!vertexPointResult.IsSuccess)
+                    {
+                        return KernelResult<BrepBody>.Failure(vertexPointResult.Diagnostics);
+                    }
+
+                    // Singular spherical bounds can be represented with VERTEX_LOOP. They do not map
+                    // to edge/coedge topology in the current subset, so they are treated as degenerate trims.
+                    continue;
+                }
+
+                if (!string.Equals(loopEntityResult.Value.Name, "EDGE_LOOP", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Failure($"FACE_BOUND loop type '{loopEntityResult.Value.Name}' is unsupported in M23 import subset.", $"Entity:{loopEntityResult.Value.Id}");
                 }
 
                 var orientedEdgeRefsResult = Step242SubsetDecoder.ReadReferenceList(loopEntityResult.Value, 1, "EDGE_LOOP coedges");

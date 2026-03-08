@@ -498,6 +498,30 @@ public sealed class Step242ImporterTests
             Assert.True((seamStart - seamEnd).Length <= 1e-8d);
         }
 
+        var cylinderSurface = import.Value.GetFaceSurface(cylinderFace.Id).Cylinder!.Value;
+        var axis = cylinderSurface.Axis.ToVector();
+        var sideAxials = patch.Positions
+            .Select(point => (point - cylinderSurface.Origin).Dot(axis))
+            .ToArray();
+        var sideVMin = sideAxials.Min();
+        var sideVMax = sideAxials.Max();
+
+        var capPlanes = import.Value.Topology.Faces
+            .Where(face => face.Id != cylinderFace.Id)
+            .Select(face => import.Value.GetFaceSurface(face.Id))
+            .Where(surface => surface.Kind == SurfaceGeometryKind.Plane)
+            .Select(surface => surface.Plane!.Value)
+            .ToArray();
+        Assert.Equal(2, capPlanes.Length);
+
+        var capAxials = capPlanes
+            .Select(plane => (plane.Origin - cylinderSurface.Origin).Dot(axis))
+            .OrderBy(v => v)
+            .ToArray();
+
+        Assert.True(double.Abs(capAxials[0] - sideVMin) <= 1e-8d);
+        Assert.True(double.Abs(capAxials[1] - sideVMax) <= 1e-8d);
+
         Assert.All(patch.TriangleIndices, index => Assert.InRange(index, 0, patch.Positions.Count - 1));
 
         for (var i = 0; i < patch.TriangleIndices.Count; i += 3)

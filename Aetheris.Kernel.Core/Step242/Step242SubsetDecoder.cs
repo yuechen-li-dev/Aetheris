@@ -298,6 +298,37 @@ internal static class Step242SubsetDecoder
         }
     }
 
+
+    public static KernelResult<TorusSurface> ReadToroidalSurface(Step242ParsedDocument document, Step242ParsedEntity torusEntity)
+    {
+        var placementResult = ReadAxis2Placement3D(document, torusEntity, 1, "TOROIDAL_SURFACE position", "Importer.Geometry.Torus");
+        if (!placementResult.IsSuccess)
+        {
+            return KernelResult<TorusSurface>.Failure(placementResult.Diagnostics);
+        }
+
+        var majorRadiusResult = ReadPositiveNumber(torusEntity, 2, "TOROIDAL_SURFACE major_radius", "Importer.Geometry.Torus");
+        if (!majorRadiusResult.IsSuccess)
+        {
+            return KernelResult<TorusSurface>.Failure(majorRadiusResult.Diagnostics);
+        }
+
+        var minorRadiusResult = ReadPositiveNumber(torusEntity, 3, "TOROIDAL_SURFACE minor_radius", "Importer.Geometry.Torus");
+        if (!minorRadiusResult.IsSuccess)
+        {
+            return KernelResult<TorusSurface>.Failure(minorRadiusResult.Diagnostics);
+        }
+
+        try
+        {
+            return KernelResult<TorusSurface>.Success(new TorusSurface(placementResult.Value.Origin, placementResult.Value.Axis, majorRadiusResult.Value, minorRadiusResult.Value, placementResult.Value.ReferenceAxis));
+        }
+        catch (ArgumentException)
+        {
+            return FailureTorus("Invalid TOROIDAL_SURFACE placement produced degenerate frame.", "Importer.Geometry.Torus");
+        }
+    }
+
     public static KernelResult<Circle3Curve> ReadCircleCurve(Step242ParsedDocument document, Step242ParsedEntity circleEntity)
     {
         var placementResult = ReadAxis2Placement3D(document, circleEntity, 1, "CIRCLE position", "Importer.Geometry.Circle");
@@ -675,6 +706,8 @@ internal static class Step242SubsetDecoder
     private static KernelResult<CylinderSurface> FailureCylinder(string message, string source) => Failure<CylinderSurface>(KernelDiagnosticCode.InvalidArgument, message, source);
 
     private static KernelResult<SphereSurface> FailureSphere(string message, string source) => Failure<SphereSurface>(KernelDiagnosticCode.InvalidArgument, message, source);
+
+    private static KernelResult<TorusSurface> FailureTorus(string message, string source) => Failure<TorusSurface>(KernelDiagnosticCode.InvalidArgument, message, source);
 
     private static KernelResult<ConeSurface> FailureCone(string message, string source) => Failure<ConeSurface>(KernelDiagnosticCode.InvalidArgument, message, source);
 

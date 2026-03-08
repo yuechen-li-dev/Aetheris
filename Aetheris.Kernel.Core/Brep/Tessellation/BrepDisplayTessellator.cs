@@ -77,6 +77,7 @@ public static class BrepDisplayTessellator
             SurfaceGeometryKind.Cylinder => TessellateCylinderFace(body, faceId, surface.Cylinder!.Value, options),
             SurfaceGeometryKind.Cone => TessellateConeFace(body, faceId, surface.Cone!.Value, options),
             SurfaceGeometryKind.Sphere => TessellateSphereFace(body, faceId, surface.Sphere!.Value, options),
+            SurfaceGeometryKind.Torus => TessellateTorusFace(body, faceId, surface.Torus!.Value, options),
             _ => KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} has unsupported surface kind '{surface.Kind}'.")]),
         };
     }
@@ -319,6 +320,25 @@ public static class BrepDisplayTessellator
         }
 
         return KernelResult<DisplayFaceMeshPatch>.Success(new DisplayFaceMeshPatch(faceId, positions, normals, indices));
+    }
+
+
+    private static KernelResult<DisplayFaceMeshPatch> TessellateTorusFace(BrepBody body, FaceId faceId, TorusSurface torus, DisplayTessellationOptions options)
+    {
+        var parameters = GetRevolvedFaceParameters(body, faceId, options, radiusHint: torus.MajorRadius + torus.MinorRadius);
+        if (!parameters.IsSuccess)
+        {
+            return KernelResult<DisplayFaceMeshPatch>.Failure(parameters.Diagnostics);
+        }
+
+        return KernelResult<DisplayFaceMeshPatch>.Success(CreatePeriodicGridPatch(
+            faceId,
+            parameters.Value.AngularSegments,
+            parameters.Value.AxialSegments,
+            (u, v) => torus.Evaluate(u, v),
+            (u, v) => torus.Normal(u, v).ToVector(),
+            parameters.Value.VStart,
+            parameters.Value.VEnd));
     }
 
     private static KernelResult<(double VStart, double VEnd, int AngularSegments, int AxialSegments)> GetRevolvedFaceParameters(

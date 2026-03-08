@@ -254,7 +254,14 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateConeFace(BrepBody body, FaceId faceId, ConeSurface cone, DisplayTessellationOptions options)
     {
-        var parameters = GetRevolvedFaceParameters(body, faceId, options, radiusHint: 1d, allowThreeCoedgeConeTopology: true);
+        var axis = cone.Axis.ToVector();
+        var parameters = GetRevolvedFaceParameters(
+            body,
+            faceId,
+            options,
+            radiusHint: 1d,
+            allowThreeCoedgeConeTopology: true,
+            axialParameterFromPoint: point => (point - cone.Apex).Dot(axis));
         if (!parameters.IsSuccess)
         {
             return KernelResult<DisplayFaceMeshPatch>.Failure(parameters.Diagnostics);
@@ -346,7 +353,8 @@ public static class BrepDisplayTessellator
         FaceId faceId,
         DisplayTessellationOptions options,
         double radiusHint,
-        bool allowThreeCoedgeConeTopology)
+        bool allowThreeCoedgeConeTopology,
+        Func<Point3D, double>? axialParameterFromPoint = null)
     {
         var loopIds = body.GetLoopIds(faceId);
         if (loopIds.Count != 1)
@@ -389,9 +397,43 @@ public static class BrepDisplayTessellator
             }
 
             var lineTrimInterval = lineTrimBinding.TrimInterval ?? new ParameterInterval(0d, 1d);
+            var lineTrimStart = lineTrimInterval.Start;
+            var lineTrimEnd = lineTrimInterval.End;
+
+            if (axialParameterFromPoint is not null)
+            {
+                var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
+                if (!vertexPointsResult.IsSuccess)
+                {
+                    return KernelResult<(double, double, int, int)>.Failure(vertexPointsResult.Diagnostics);
+                }
+
+                var projected = vertexPointsResult.Value.Values
+                    .Select(axialParameterFromPoint)
+                    .Where(double.IsFinite)
+                    .ToArray();
+
+                if (projected.Length != 0)
+                {
+                    var projectedMin = projected.Min();
+                    var projectedMax = projected.Max();
+                    if (lineTrimEnd >= lineTrimStart)
+                    {
+                        lineTrimStart = projectedMin;
+                        lineTrimEnd = projectedMax;
+                    }
+                    else
+                    {
+                        lineTrimStart = projectedMax;
+                        lineTrimEnd = projectedMin;
+                    }
+                }
+            }
+
             var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
-            var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling((lineTrimInterval.End - lineTrimInterval.Start) / options.ChordTolerance), 1, options.MaximumSegments));
-            return KernelResult<(double, double, int, int)>.Success((lineTrimInterval.Start, lineTrimInterval.End, angularSegments, axialSegments));
+            var axialSpan = double.Abs(lineTrimEnd - lineTrimStart);
+            var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling(axialSpan / options.ChordTolerance), 1, options.MaximumSegments));
+            return KernelResult<(double, double, int, int)>.Success((lineTrimStart, lineTrimEnd, angularSegments, axialSegments));
         }
 
         if (coedges.Length != 4)

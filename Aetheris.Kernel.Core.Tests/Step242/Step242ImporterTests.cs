@@ -479,6 +479,17 @@ public sealed class Step242ImporterTests
             return surface!.Kind == SurfaceGeometryKind.Cone;
         });
 
+        var baseFace = Assert.Single(import.Value.Topology.Faces, face =>
+        {
+            Assert.True(import.Value.Bindings.TryGetFaceBinding(face.Id, out var binding));
+            Assert.True(import.Value.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var surface));
+            return surface!.Kind == SurfaceGeometryKind.Plane;
+        });
+
+        Assert.True(import.Value.Bindings.TryGetFaceBinding(baseFace.Id, out var baseFaceBinding));
+        Assert.True(import.Value.Geometry.TryGetSurface(baseFaceBinding.SurfaceGeometryId, out var baseFaceSurface));
+        var basePlane = baseFaceSurface!.Plane!.Value;
+
         var loopIds = import.Value.GetLoopIds(coneFace.Id);
         var loopId = Assert.Single(loopIds);
         var coedges = import.Value.GetCoedgeIds(loopId)
@@ -520,6 +531,17 @@ public sealed class Step242ImporterTests
         Assert.True(patchA.Positions.SequenceEqual(patchB.Positions));
         Assert.True(patchA.Normals.SequenceEqual(patchB.Normals));
         Assert.True(patchA.TriangleIndices.SequenceEqual(patchB.TriangleIndices));
+
+        var baseNormal = basePlane.Normal.ToVector();
+        var signedDistances = patchA.Positions
+            .Select(point => (point - basePlane.Origin).Dot(baseNormal))
+            .ToArray();
+
+        var minDistance = signedDistances.Min();
+        var maxDistance = signedDistances.Max();
+
+        Assert.True(minDistance >= -1e-8d || maxDistance <= 1e-8d);
+        Assert.True(signedDistances.Count(distance => double.Abs(distance) <= 1e-8d) >= 8);
     }
 
     [Fact]

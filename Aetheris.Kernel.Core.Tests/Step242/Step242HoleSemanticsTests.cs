@@ -69,6 +69,27 @@ public sealed class Step242HoleSemanticsTests
     }
 
     [Fact]
+    public void ImportBody_ManyPlanarSingleEdgeCircularHoles_WithImplausibleTaggedOuter_PromotesByRadiusWithAudit()
+    {
+        var diagnostics = new List<Step242Importer.LoopRoleOuterAuditDiagnostic>();
+        using var captureScope = Step242Importer.CaptureLoopRoleOuterAuditDiagnostics(diagnostics);
+
+        var import = Step242Importer.ImportBody(Step242FixtureCorpus.PlanarFaceTwoCircularLoopsWrongOuterTag);
+
+        Assert.True(import.IsSuccess);
+        Assert.Contains(import.Diagnostics, d => d.Source == "Importer.LoopRole.OuterLoopPromotedByRadius");
+
+        var audit = Assert.Single(diagnostics);
+        Assert.Equal(3, audit.FaceEntityId);
+        Assert.Equal(1, audit.TaggedOuterLoopId);
+        Assert.Equal(2, audit.SelectedOuterLoopId);
+        Assert.True(audit.TaggedOuterGeometricallyImplausible);
+        Assert.True(audit.OuterPromotionTriggered);
+        Assert.Equal(2, audit.Loops.Count);
+        Assert.All(audit.Loops, loop => Assert.True(loop.IsCircular));
+    }
+
+    [Fact]
     public void ImportBody_MultiLoopSphericalFace_ReturnsUnsupportedSurfaceForHolesValidationFailure()
     {
         var import = Step242Importer.ImportBody(Step242FixtureCorpus.SphericalFaceWithTwoLoops);

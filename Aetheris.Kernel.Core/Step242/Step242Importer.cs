@@ -17,12 +17,20 @@ public static class Step242Importer
     private const double AngleUnwrapEps = 1e-8d;
     private const double ContainmentEps = 1e-8d;
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<LoopRoleOuterAuditDiagnostic>?> LoopRoleOuterAuditDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
         var previous = CircularSamplingDiagnosticsSink.Value;
         CircularSamplingDiagnosticsSink.Value = sink;
         return new CircularSamplingDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CaptureLoopRoleOuterAuditDiagnostics(ICollection<LoopRoleOuterAuditDiagnostic> sink)
+    {
+        var previous = LoopRoleOuterAuditDiagnosticsSink.Value;
+        LoopRoleOuterAuditDiagnosticsSink.Value = sink;
+        return new LoopRoleOuterAuditDiagnosticsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -51,6 +59,7 @@ public static class Step242Importer
 
     private static KernelResult<BrepBody> MapSubset(Step242ParsedDocument document)
     {
+        var importerDiagnostics = new List<KernelDiagnostic>();
         var manifoldSolidBreps = document.Entities
             .Where(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase))
             .ToList();
@@ -330,14 +339,16 @@ public static class Step242Importer
                 }
 
                 builder.AddLoop(new Loop(loopId, coedgeIds));
-                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples));
+                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, IsTaggedFaceOuterBound: string.Equals(boundEntity.Name, "FACE_OUTER_BOUND", StringComparison.OrdinalIgnoreCase)));
             }
 
-            var classifyResult = ClassifyAndNormalizeFaceLoops(loopData, bindSurfaceResult.Value.SurfaceGeometry);
+            var classifyResult = ClassifyAndNormalizeFaceLoops(loopData, bindSurfaceResult.Value.SurfaceGeometry, faceEntity.Id);
             if (!classifyResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(classifyResult.Diagnostics);
             }
+
+            importerDiagnostics.AddRange(classifyResult.Diagnostics);
 
             foreach (var loop in classifyResult.Value)
             {
@@ -370,7 +381,7 @@ public static class Step242Importer
             return KernelResult<BrepBody>.Failure(validation.Diagnostics);
         }
 
-        return KernelResult<BrepBody>.Success(body, validation.Diagnostics);
+        return KernelResult<BrepBody>.Success(body, importerDiagnostics.Concat(validation.Diagnostics));
     }
 
     private static KernelResult<EdgeId> EnsureEdge(
@@ -1026,7 +1037,8 @@ public static class Step242Importer
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeFaceLoops(
         IReadOnlyList<LoopBuildData> loops,
-        SurfaceGeometry surface)
+        SurfaceGeometry surface,
+        int faceEntityId)
     {
         if (loops.Count <= 1)
         {
@@ -1035,7 +1047,7 @@ public static class Step242Importer
 
         return surface.Kind switch
         {
-            SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
+            SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value, faceEntityId),
             SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(loops, surface.Cylinder!.Value),
             SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 "Multi-loop hole classification is unsupported for this surface type.",
@@ -1048,7 +1060,8 @@ public static class Step242Importer
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizePlanarLoops(
         IReadOnlyList<LoopBuildData> loops,
-        PlaneSurface plane)
+        PlaneSurface plane,
+        int faceEntityId)
     {
         var infos = new List<PlanarLoopInfo>(loops.Count);
         foreach (var loop in loops)
@@ -1096,13 +1109,75 @@ public static class Step242Importer
             .ThenBy(c => c.Info.Loop.LoopId.Value)
             .ToList();
 
-        var outer = orderedByContainmentThenArea[0];
-        if (orderedByContainmentThenArea.Count > 1
+        var loopMetrics = infos
+            .Select(info => BuildLoopMetric(info))
+            .ToDictionary(metric => metric.LoopId);
+
+        var taggedOuter = infos.FirstOrDefault(i => i.Loop.IsTaggedFaceOuterBound);
+        var taggedOuterLoopId = taggedOuter?.Loop.LoopId;
+        var taggedOuterImplausible = false;
+        var promotionApplied = false;
+        PlanarLoopOuterCandidate outer;
+        var warningDiagnostics = new List<KernelDiagnostic>();
+
+        if (taggedOuter is not null
+            && loopMetrics.Count == infos.Count
+            && loopMetrics.Values.All(metric => metric.IsCircular)
+            && IsCircularTaggedOuterImplausible(taggedOuter.Loop.LoopId, loopMetrics))
+        {
+            taggedOuterImplausible = true;
+            var promotedOuterLoopId = TryChooseLargestPlausibleCircularOuterLoop(loopMetrics);
+            if (promotedOuterLoopId.HasValue)
+            {
+                outer = orderedByContainmentThenArea.First(c => c.Info.Loop.LoopId == promotedOuterLoopId.Value);
+                promotionApplied = outer.Info.Loop.LoopId != taggedOuter.Loop.LoopId;
+                if (promotionApplied)
+                {
+                    warningDiagnostics.Add(new KernelDiagnostic(
+                        KernelDiagnosticCode.ValidationFailed,
+                        KernelDiagnosticSeverity.Warning,
+                        $"Promoted planar circular outer loop by radius for face #{faceEntityId}: tagged outer loop {taggedOuter.Loop.LoopId.Value} was geometrically implausible; selected loop {outer.Info.Loop.LoopId.Value}.",
+                        "Importer.LoopRole.OuterLoopPromotedByRadius"));
+                }
+            }
+            else
+            {
+                outer = orderedByContainmentThenArea[0];
+            }
+        }
+        else
+        {
+            outer = orderedByContainmentThenArea[0];
+        }
+
+        if (!promotionApplied && orderedByContainmentThenArea.Count > 1
             && outer.ContainmentCount == orderedByContainmentThenArea[1].ContainmentCount
             && double.Abs(double.Abs(outer.Info.SignedArea) - double.Abs(orderedByContainmentThenArea[1].Info.SignedArea)) <= areaTolerance)
         {
             return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Unable to choose a unique outer loop.", "Importer.LoopRole.AmbiguousOuter");
         }
+
+        ReportOuterLoopAuditDiagnostic(new LoopRoleOuterAuditDiagnostic(
+            FaceEntityId: faceEntityId,
+            TaggedOuterLoopId: taggedOuterLoopId?.Value,
+            SelectedOuterLoopId: outer.Info.Loop.LoopId.Value,
+            TaggedOuterGeometricallyImplausible: taggedOuterImplausible,
+            OuterPromotionTriggered: promotionApplied,
+            Loops: infos
+                .OrderBy(i => i.Loop.LoopId.Value)
+                .Select(i =>
+                {
+                    var metric = loopMetrics[i.Loop.LoopId];
+                    return new LoopRoleOuterAuditLoopMetric(
+                        LoopId: i.Loop.LoopId.Value,
+                        IsTaggedFaceOuterBound: i.Loop.IsTaggedFaceOuterBound,
+                        IsCircular: metric.IsCircular,
+                        CircularCenterU: metric.CircleCenter?.X,
+                        CircularCenterV: metric.CircleCenter?.Y,
+                        CircularRadius: metric.CircleRadius,
+                        BoundingRadius: metric.BoundingRadius);
+                })
+                .ToArray()));
 
         var containedInners = new List<PlanarLoopInfo>();
 
@@ -1151,7 +1226,94 @@ public static class Step242Importer
 
         var ordered = new List<LoopBuildData>(1 + normalizedInners.Count) { normalizedOuter };
         ordered.AddRange(normalizedInners);
-        return KernelResult<IReadOnlyList<LoopBuildData>>.Success(ordered);
+        return KernelResult<IReadOnlyList<LoopBuildData>>.Success(ordered, warningDiagnostics);
+    }
+
+    private static LoopRoleMetric BuildLoopMetric(PlanarLoopInfo loop)
+    {
+        var uniquePoints = UniqueClosedLoopPoints(loop.ProjectedPoints);
+        var centroid = ComputePolygonCentroid(loop.ProjectedPoints);
+        var boundingRadius = uniquePoints.Count == 0
+            ? 0d
+            : uniquePoints.Max(p => Distance(p, centroid));
+
+        if (uniquePoints.Count < 3)
+        {
+            return new LoopRoleMetric(loop.Loop.LoopId, IsCircular: false, null, null, boundingRadius);
+        }
+
+        var center = new UvPoint(uniquePoints.Average(p => p.X), uniquePoints.Average(p => p.Y));
+        var radii = uniquePoints.Select(p => Distance(p, center)).ToArray();
+        var radius = radii.Average();
+        var maxResidual = radii.Max(r => double.Abs(r - radius));
+        var circularTolerance = double.Max(1e-5d, boundingRadius * 1e-3d);
+        var isCircular = radius > ContainmentEps && maxResidual <= circularTolerance;
+
+        return new LoopRoleMetric(loop.Loop.LoopId, isCircular, isCircular ? center : null, isCircular ? radius : null, boundingRadius);
+    }
+
+    private static bool IsCircularTaggedOuterImplausible(LoopId taggedOuterLoopId, IReadOnlyDictionary<LoopId, LoopRoleMetric> metrics)
+    {
+        var taggedOuter = metrics[taggedOuterLoopId];
+        if (!taggedOuter.IsCircular || taggedOuter.CircleCenter is null || !taggedOuter.CircleRadius.HasValue)
+        {
+            return false;
+        }
+
+        var enclosingTolerance = double.Max(1e-5d, taggedOuter.CircleRadius.Value * 1e-3d);
+        return metrics.Values.Any(candidate => candidate.LoopId != taggedOuterLoopId
+            && candidate.IsCircular
+            && candidate.CircleCenter is not null
+            && candidate.CircleRadius.HasValue
+            && Distance(taggedOuter.CircleCenter.Value, candidate.CircleCenter.Value) + candidate.CircleRadius.Value > taggedOuter.CircleRadius.Value + enclosingTolerance);
+    }
+
+    private static LoopId? TryChooseLargestPlausibleCircularOuterLoop(IReadOnlyDictionary<LoopId, LoopRoleMetric> metrics)
+    {
+        var circular = metrics.Values
+            .Where(m => m.IsCircular && m.CircleCenter is not null && m.CircleRadius.HasValue)
+            .OrderByDescending(m => m.CircleRadius!.Value)
+            .ThenBy(m => m.LoopId.Value)
+            .ToList();
+
+        foreach (var candidate in circular)
+        {
+            var candidateRadius = candidate.CircleRadius!.Value;
+            var tolerance = double.Max(1e-5d, candidateRadius * 1e-3d);
+            var enclosesAll = circular
+                .Where(other => other.LoopId != candidate.LoopId)
+                .All(other => Distance(candidate.CircleCenter!.Value, other.CircleCenter!.Value) + other.CircleRadius!.Value <= candidateRadius + tolerance);
+
+            if (enclosesAll)
+            {
+                return candidate.LoopId;
+            }
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<UvPoint> UniqueClosedLoopPoints(IReadOnlyList<UvPoint> points)
+    {
+        if (points.Count <= 1)
+        {
+            return points;
+        }
+
+        var withoutClosure = points;
+        if (Distance(points[0], points[^1]) <= ContainmentEps)
+        {
+            withoutClosure = points.Take(points.Count - 1).ToArray();
+        }
+
+        return withoutClosure;
+    }
+
+    private static double Distance(UvPoint a, UvPoint b)
+    {
+        var du = a.X - b.X;
+        var dv = a.Y - b.Y;
+        return double.Sqrt((du * du) + (dv * dv));
     }
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeCylindricalLoops(
@@ -1242,7 +1404,7 @@ public static class Step242Importer
             .Select(c => c with { IsReversed = !c.IsReversed })
             .ToList();
 
-        return new LoopBuildData(loop.LoopId, flippedCoedges, loop.Samples);
+        return new LoopBuildData(loop.LoopId, flippedCoedges, loop.Samples, loop.IsTaggedFaceOuterBound);
     }
 
     private static bool LoopsOverlap(PlanarLoopInfo a, PlanarLoopInfo b, double containmentTolerance)
@@ -1795,6 +1957,12 @@ public static class Step242Importer
         sink?.Add(diagnostic);
     }
 
+    private static void ReportOuterLoopAuditDiagnostic(LoopRoleOuterAuditDiagnostic diagnostic)
+    {
+        var sink = LoopRoleOuterAuditDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
     public sealed record LoopRoleCircularSamplingDiagnostic(
         int FaceEntityId,
         int LoopId,
@@ -1807,11 +1975,44 @@ public static class Step242Importer
         int LegacyPointCount,
         int AdaptivePointCount);
 
+    public sealed record LoopRoleOuterAuditDiagnostic(
+        int FaceEntityId,
+        int? TaggedOuterLoopId,
+        int SelectedOuterLoopId,
+        bool TaggedOuterGeometricallyImplausible,
+        bool OuterPromotionTriggered,
+        IReadOnlyList<LoopRoleOuterAuditLoopMetric> Loops);
+
+    public sealed record LoopRoleOuterAuditLoopMetric(
+        int LoopId,
+        bool IsTaggedFaceOuterBound,
+        bool IsCircular,
+        double? CircularCenterU,
+        double? CircularCenterV,
+        double? CircularRadius,
+        double BoundingRadius);
+
     private sealed class CircularSamplingDiagnosticsScope(ICollection<LoopRoleCircularSamplingDiagnostic>? previous) : IDisposable
     {
         public void Dispose()
         {
             CircularSamplingDiagnosticsSink.Value = previous;
+        }
+    }
+
+    private sealed class LoopRoleOuterAuditDiagnosticsScope(ICollection<LoopRoleOuterAuditDiagnostic>? previous) : IDisposable
+    {
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            LoopRoleOuterAuditDiagnosticsSink.Value = previous;
+            _disposed = true;
         }
     }
 
@@ -1841,7 +2042,9 @@ public static class Step242Importer
 
     private static string SourceFor(int _entityId, string stableSource) => stableSource;
 
-    private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples);
+    private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples, bool IsTaggedFaceOuterBound);
+
+    private sealed record LoopRoleMetric(LoopId LoopId, bool IsCircular, UvPoint? CircleCenter, double? CircleRadius, double BoundingRadius);
 
     private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea);
 

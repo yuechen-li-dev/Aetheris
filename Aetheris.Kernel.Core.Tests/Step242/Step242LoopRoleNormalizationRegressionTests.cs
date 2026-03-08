@@ -82,4 +82,39 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         Step242Importer.ImportBody(text);
         return diagnostics;
     }
+
+    [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
+    public void Step242_TargetPlanarCircularLoopRole_AuditAndPromotion_IsDeterministic(string relativePath)
+    {
+        var first = CaptureOuterLoopAudit(relativePath);
+        var second = CaptureOuterLoopAudit(relativePath);
+
+        Assert.Equal(first.Count, second.Count);
+        Assert.NotEmpty(first);
+        for (var i = 0; i < first.Count; i++)
+        {
+            Assert.Equal(first[i].FaceEntityId, second[i].FaceEntityId);
+            Assert.Equal(first[i].TaggedOuterLoopId, second[i].TaggedOuterLoopId);
+            Assert.Equal(first[i].SelectedOuterLoopId, second[i].SelectedOuterLoopId);
+            Assert.Equal(first[i].TaggedOuterGeometricallyImplausible, second[i].TaggedOuterGeometricallyImplausible);
+            Assert.Equal(first[i].OuterPromotionTriggered, second[i].OuterPromotionTriggered);
+            Assert.Equal(first[i].Loops.Count, second[i].Loops.Count);
+            Assert.True(first[i].SelectedOuterLoopId > 0);
+            Assert.NotEmpty(first[i].Loops);
+        }
+    }
+
+    private static IReadOnlyList<Step242Importer.LoopRoleOuterAuditDiagnostic> CaptureOuterLoopAudit(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var diagnostics = new List<Step242Importer.LoopRoleOuterAuditDiagnostic>();
+
+        using var captureScope = Step242Importer.CaptureLoopRoleOuterAuditDiagnostics(diagnostics);
+        Step242Importer.ImportBody(text);
+        return diagnostics;
+    }
 }

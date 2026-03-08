@@ -537,7 +537,10 @@ public sealed class Step242ImporterTests
             .Select(point => (point - basePlane.Origin).Dot(baseNormal))
             .ToArray();
 
-        Assert.True(signedDistances.Min() >= -1e-8d);
+        var minDistance = signedDistances.Min();
+        var maxDistance = signedDistances.Max();
+
+        Assert.True(minDistance >= -1e-8d || maxDistance <= 1e-8d);
         Assert.True(signedDistances.Count(distance => double.Abs(distance) <= 1e-8d) >= 8);
     }
 

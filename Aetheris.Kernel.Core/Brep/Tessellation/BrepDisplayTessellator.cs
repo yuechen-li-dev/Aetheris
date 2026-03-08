@@ -244,7 +244,8 @@ public static class BrepDisplayTessellator
                 faceId,
                 options,
                 radiusHint: cylinder.Radius,
-                allowThreeCoedgeConeTopology: false);
+                allowThreeCoedgeConeTopology: false,
+                axialParameterFromPoint: point => (point - cylinder.Origin).Dot(cylinder.Axis.ToVector()));
             if (periodicParameters.IsSuccess)
             {
                 return KernelResult<DisplayFaceMeshPatch>.Success(CreatePeriodicGridPatch(
@@ -400,10 +401,43 @@ public static class BrepDisplayTessellator
             }
 
             var seamInterval = seamBinding.TrimInterval ?? new ParameterInterval(0d, 1d);
-            var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
-            var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling((seamInterval.End - seamInterval.Start) / options.ChordTolerance), 1, options.MaximumSegments));
+            var seamStart = seamInterval.Start;
+            var seamEnd = seamInterval.End;
 
-            return KernelResult<(double, double, int, int)>.Success((seamInterval.Start, seamInterval.End, angularSegments, axialSegments));
+            if (axialParameterFromPoint is not null)
+            {
+                var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
+                if (!vertexPointsResult.IsSuccess)
+                {
+                    return KernelResult<(double, double, int, int)>.Failure(vertexPointsResult.Diagnostics);
+                }
+
+                var projected = vertexPointsResult.Value.Values
+                    .Select(axialParameterFromPoint)
+                    .Where(double.IsFinite)
+                    .ToArray();
+
+                if (projected.Length != 0)
+                {
+                    var projectedMin = projected.Min();
+                    var projectedMax = projected.Max();
+                    if (seamEnd >= seamStart)
+                    {
+                        seamStart = projectedMin;
+                        seamEnd = projectedMax;
+                    }
+                    else
+                    {
+                        seamStart = projectedMax;
+                        seamEnd = projectedMin;
+                    }
+                }
+            }
+
+            var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
+            var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling(double.Abs(seamEnd - seamStart) / options.ChordTolerance), 1, options.MaximumSegments));
+
+            return KernelResult<(double, double, int, int)>.Success((seamStart, seamEnd, angularSegments, axialSegments));
         }
 
         if (allowThreeCoedgeConeTopology && coedges.Length == 3 && lineCoedges.Length == 2 && circleCoedges.Length == 1)

@@ -359,27 +359,73 @@ public static class BrepDisplayTessellator
 
         if (coedges.Length != 4)
         {
-            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation supports the M11 seam loop layout with four coedges.")]);
+            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation supports four-coedge torus/revolved loop layouts. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
         }
 
         var lineCoedges = coedges.Where(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Line3).ToArray();
         var circleCoedges = coedges.Where(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Circle3).ToArray();
-
-        if (lineCoedges.Length != 2 || circleCoedges.Length != 2)
+        if (lineCoedges.Length == 2 && circleCoedges.Length == 2)
         {
-            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation requires two line seam uses and two circular trim uses.")]);
+            if (!body.Bindings.TryGetEdgeBinding(lineCoedges[0].EdgeId, out var seamBinding))
+            {
+                return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} seam edge is missing curve trim binding.")]);
+            }
+
+            var seamInterval = seamBinding.TrimInterval ?? new ParameterInterval(0d, 1d);
+            var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
+            var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling((seamInterval.End - seamInterval.Start) / options.ChordTolerance), 1, options.MaximumSegments));
+
+            return KernelResult<(double, double, int, int)>.Success((seamInterval.Start, seamInterval.End, angularSegments, axialSegments));
         }
 
-        if (!body.Bindings.TryGetEdgeBinding(lineCoedges[0].EdgeId, out var seamBinding))
+        var uniqueEdgeIds = coedges
+            .Select(c => c.EdgeId)
+            .Distinct()
+            .ToArray();
+        var allEdgeCurvesAreCircles = uniqueEdgeIds
+            .Select(id => body.GetEdgeCurve(id).Kind)
+            .All(kind => kind == CurveGeometryKind.Circle3);
+
+        if (lineCoedges.Length == 0 && circleCoedges.Length == 4 && uniqueEdgeIds.Length == 2 && allEdgeCurvesAreCircles)
         {
-            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} seam edge is missing curve trim binding.")]);
+            var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
+            var axialSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
+            return KernelResult<(double, double, int, int)>.Success((0d, 2d * double.Pi, angularSegments, axialSegments));
         }
 
-        var seamInterval = seamBinding.TrimInterval ?? new ParameterInterval(0d, 1d);
-        var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
-        var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling((seamInterval.End - seamInterval.Start) / options.ChordTolerance), 1, options.MaximumSegments));
+        return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation does not support this torus/revolved boundary topology yet. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
+    }
 
-        return KernelResult<(double, double, int, int)>.Success((seamInterval.Start, seamInterval.End, angularSegments, axialSegments));
+    private static string DescribeRevolvedLoopTopology(BrepBody body, IReadOnlyList<Coedge> coedges)
+    {
+        var lineUseCount = 0;
+        var circleUseCount = 0;
+        var seamUseCount = 0;
+
+        foreach (var coedge in coedges)
+        {
+            var curve = body.GetEdgeCurve(coedge.EdgeId);
+            if (curve.Kind == CurveGeometryKind.Line3)
+            {
+                lineUseCount++;
+            }
+            else if (curve.Kind == CurveGeometryKind.Circle3)
+            {
+                circleUseCount++;
+            }
+
+            var edge = body.Topology.GetEdge(coedge.EdgeId);
+            if (edge.StartVertexId == edge.EndVertexId)
+            {
+                seamUseCount++;
+            }
+        }
+
+        var edgeFamilies = coedges
+            .Select(c => $"{c.EdgeId.Value}:{body.GetEdgeCurve(c.EdgeId).Kind}")
+            .ToArray();
+
+        return $"loops=1 coedges={coedges.Count} lineUses={lineUseCount} circleUses={circleUseCount} seamEdgeUses={seamUseCount} edgeFamilies=[{string.Join(", ", edgeFamilies)}]";
     }
 
     private static DisplayFaceMeshPatch CreatePeriodicGridPatch(

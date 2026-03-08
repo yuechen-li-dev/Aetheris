@@ -463,6 +463,65 @@ public sealed class Step242ImporterTests
         Assert.True(patchA.TriangleIndices.SequenceEqual(patchB.TriangleIndices));
     }
 
+
+    [Fact]
+    public void Step242_HandcraftedConeFixture_UsesThreeCoedgeSeamTopology_AndTessellates()
+    {
+        var text = LoadFixture("testdata/step242/handcrafted/baseline/cone.step");
+
+        var import = Step242Importer.ImportBody(text);
+        Assert.True(import.IsSuccess);
+
+        var coneFace = Assert.Single(import.Value.Topology.Faces, face =>
+        {
+            Assert.True(import.Value.Bindings.TryGetFaceBinding(face.Id, out var binding));
+            Assert.True(import.Value.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var surface));
+            return surface!.Kind == SurfaceGeometryKind.Cone;
+        });
+
+        var loopIds = import.Value.GetLoopIds(coneFace.Id);
+        var loopId = Assert.Single(loopIds);
+        var coedges = import.Value.GetCoedgeIds(loopId)
+            .Select(id => import.Value.Topology.GetCoedge(id))
+            .ToArray();
+
+        Assert.Equal(3, coedges.Length);
+        Assert.Equal(2, coedges.Count(coedge => import.Value.GetEdgeCurve(coedge.EdgeId).Kind == CurveGeometryKind.Line3));
+        Assert.Equal(1, coedges.Count(coedge => import.Value.GetEdgeCurve(coedge.EdgeId).Kind == CurveGeometryKind.Circle3));
+
+        var seamUseCount = coedges.Count(coedge =>
+        {
+            var edge = import.Value.Topology.GetEdge(coedge.EdgeId);
+            return edge.StartVertexId == edge.EndVertexId;
+        });
+        Assert.Equal(1, seamUseCount);
+
+        var lineEdgeIds = coedges
+            .Where(coedge => import.Value.GetEdgeCurve(coedge.EdgeId).Kind == CurveGeometryKind.Line3)
+            .Select(coedge => coedge.EdgeId)
+            .Distinct()
+            .ToArray();
+        Assert.Single(lineEdgeIds);
+
+        var tessellationA = BrepDisplayTessellator.Tessellate(import.Value);
+        Assert.True(tessellationA.IsSuccess);
+        Assert.DoesNotContain(tessellationA.Diagnostics,
+            d => d.Message.Contains("four-coedge torus/revolved loop layouts", StringComparison.OrdinalIgnoreCase));
+
+        var tessellationB = BrepDisplayTessellator.Tessellate(import.Value);
+        Assert.True(tessellationB.IsSuccess);
+
+        var patchA = Assert.Single(tessellationA.Value.FacePatches, p => p.FaceId == coneFace.Id);
+        var patchB = Assert.Single(tessellationB.Value.FacePatches, p => p.FaceId == coneFace.Id);
+
+        Assert.Equal(patchA.Positions.Count, patchB.Positions.Count);
+        Assert.Equal(patchA.Normals.Count, patchB.Normals.Count);
+        Assert.Equal(patchA.TriangleIndices.Count, patchB.TriangleIndices.Count);
+        Assert.True(patchA.Positions.SequenceEqual(patchB.Positions));
+        Assert.True(patchA.Normals.SequenceEqual(patchB.Normals));
+        Assert.True(patchA.TriangleIndices.SequenceEqual(patchB.TriangleIndices));
+    }
+
     [Fact]
     public void Step242_NistFile_WithToroidalSurface_AdvancesPastToroidalBlocker()
     {

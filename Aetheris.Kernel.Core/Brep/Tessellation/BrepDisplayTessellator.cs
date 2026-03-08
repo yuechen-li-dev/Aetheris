@@ -254,7 +254,7 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateConeFace(BrepBody body, FaceId faceId, ConeSurface cone, DisplayTessellationOptions options)
     {
-        var parameters = GetRevolvedFaceParameters(body, faceId, options, radiusHint: 1d);
+        var parameters = GetRevolvedFaceParameters(body, faceId, options, radiusHint: 1d, allowThreeCoedgeConeTopology: true);
         if (!parameters.IsSuccess)
         {
             return KernelResult<DisplayFaceMeshPatch>.Failure(parameters.Diagnostics);
@@ -325,7 +325,7 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateTorusFace(BrepBody body, FaceId faceId, TorusSurface torus, DisplayTessellationOptions options)
     {
-        var parameters = GetRevolvedFaceParameters(body, faceId, options, radiusHint: torus.MajorRadius + torus.MinorRadius);
+        var parameters = GetRevolvedFaceParameters(body, faceId, options, radiusHint: torus.MajorRadius + torus.MinorRadius, allowThreeCoedgeConeTopology: false);
         if (!parameters.IsSuccess)
         {
             return KernelResult<DisplayFaceMeshPatch>.Failure(parameters.Diagnostics);
@@ -345,7 +345,8 @@ public static class BrepDisplayTessellator
         BrepBody body,
         FaceId faceId,
         DisplayTessellationOptions options,
-        double radiusHint)
+        double radiusHint,
+        bool allowThreeCoedgeConeTopology)
     {
         var loopIds = body.GetLoopIds(faceId);
         if (loopIds.Count != 1)
@@ -357,14 +358,10 @@ public static class BrepDisplayTessellator
             .Select(id => body.Topology.GetCoedge(id))
             .ToArray();
 
-        if (coedges.Length != 4)
-        {
-            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation supports four-coedge torus/revolved loop layouts. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
-        }
-
         var lineCoedges = coedges.Where(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Line3).ToArray();
         var circleCoedges = coedges.Where(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Circle3).ToArray();
-        if (lineCoedges.Length == 2 && circleCoedges.Length == 2)
+
+        if (coedges.Length == 4 && lineCoedges.Length == 2 && circleCoedges.Length == 2)
         {
             if (!body.Bindings.TryGetEdgeBinding(lineCoedges[0].EdgeId, out var seamBinding))
             {
@@ -376,6 +373,32 @@ public static class BrepDisplayTessellator
             var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling((seamInterval.End - seamInterval.Start) / options.ChordTolerance), 1, options.MaximumSegments));
 
             return KernelResult<(double, double, int, int)>.Success((seamInterval.Start, seamInterval.End, angularSegments, axialSegments));
+        }
+
+        if (allowThreeCoedgeConeTopology && coedges.Length == 3 && lineCoedges.Length == 2 && circleCoedges.Length == 1)
+        {
+            var lineEdgeIds = lineCoedges.Select(c => c.EdgeId).Distinct().ToArray();
+            if (lineEdgeIds.Length != 1)
+            {
+                return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation expected mirrored line uses for this cone/revolved topology. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
+            }
+
+            if (!body.Bindings.TryGetEdgeBinding(lineEdgeIds[0], out var lineTrimBinding))
+            {
+                return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} line trim edge is missing curve trim binding.")]);
+            }
+
+            var lineTrimInterval = lineTrimBinding.TrimInterval ?? new ParameterInterval(0d, 1d);
+            var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
+            var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling((lineTrimInterval.End - lineTrimInterval.Start) / options.ChordTolerance), 1, options.MaximumSegments));
+            return KernelResult<(double, double, int, int)>.Success((lineTrimInterval.Start, lineTrimInterval.End, angularSegments, axialSegments));
+        }
+
+        if (coedges.Length != 4)
+        {
+            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented(allowThreeCoedgeConeTopology
+                ? $"Face {faceId.Value} curved tessellation supports four-coedge torus/revolved loop layouts and the three-coedge cone loop emitted by the handcrafted fixture. Observed: {DescribeRevolvedLoopTopology(body, coedges)}"
+                : $"Face {faceId.Value} curved tessellation supports four-coedge torus/revolved loop layouts. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
         }
 
         var uniqueEdgeIds = coedges

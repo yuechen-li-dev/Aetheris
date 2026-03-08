@@ -464,6 +464,82 @@ public sealed class Step242ImporterTests
     }
 
 
+
+    [Fact]
+    public void Step242_HandcraftedCylinderFixture_TessellatesSideAsPeriodicClosedGrid()
+    {
+        var text = LoadFixture("testdata/step242/handcrafted/baseline/cylinder.step");
+
+        var import = Step242Importer.ImportBody(text);
+        Assert.True(import.IsSuccess);
+
+        var options = DisplayTessellationOptions.Create(double.Pi / 6d, 10d, minimumSegments: 12, maximumSegments: 12).Value;
+        var tessellation = BrepDisplayTessellator.Tessellate(import.Value, options);
+        Assert.True(tessellation.IsSuccess);
+
+        var cylinderFace = Assert.Single(import.Value.Topology.Faces, face =>
+        {
+            Assert.True(import.Value.Bindings.TryGetFaceBinding(face.Id, out var binding));
+            Assert.True(import.Value.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var surface));
+            return surface!.Kind == SurfaceGeometryKind.Cylinder;
+        });
+
+        var patch = Assert.Single(tessellation.Value.FacePatches, p => p.FaceId == cylinderFace.Id);
+        Assert.Equal(26, patch.Positions.Count);
+        Assert.Equal(26, patch.Normals.Count);
+        Assert.Equal(72, patch.TriangleIndices.Count);
+
+        const int rowWidth = 13;
+        const int axialRows = 2;
+        for (var row = 0; row < axialRows; row++)
+        {
+            var seamStart = patch.Positions[row * rowWidth];
+            var seamEnd = patch.Positions[(row * rowWidth) + (rowWidth - 1)];
+            Assert.True((seamStart - seamEnd).Length <= 1e-8d);
+        }
+
+        Assert.All(patch.TriangleIndices, index => Assert.InRange(index, 0, patch.Positions.Count - 1));
+
+        for (var i = 0; i < patch.TriangleIndices.Count; i += 3)
+        {
+            var p0 = patch.Positions[patch.TriangleIndices[i]];
+            var p1 = patch.Positions[patch.TriangleIndices[i + 1]];
+            var p2 = patch.Positions[patch.TriangleIndices[i + 2]];
+            var area2 = (p1 - p0).Cross(p2 - p0).Length;
+            Assert.True(area2 > 1e-9d);
+        }
+    }
+
+    [Fact]
+    public void Step242_HandcraftedCylinderFixture_Tessellation_IsDeterministic()
+    {
+        var text = LoadFixture("testdata/step242/handcrafted/baseline/cylinder.step");
+
+        var import = Step242Importer.ImportBody(text);
+        Assert.True(import.IsSuccess);
+
+        var options = DisplayTessellationOptions.Create(double.Pi / 6d, 10d, minimumSegments: 12, maximumSegments: 12).Value;
+        var tessellationA = BrepDisplayTessellator.Tessellate(import.Value, options);
+        var tessellationB = BrepDisplayTessellator.Tessellate(import.Value, options);
+
+        Assert.True(tessellationA.IsSuccess);
+        Assert.True(tessellationB.IsSuccess);
+
+        var cylinderFace = Assert.Single(import.Value.Topology.Faces, face =>
+        {
+            Assert.True(import.Value.Bindings.TryGetFaceBinding(face.Id, out var binding));
+            Assert.True(import.Value.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var surface));
+            return surface!.Kind == SurfaceGeometryKind.Cylinder;
+        });
+
+        var patchA = Assert.Single(tessellationA.Value.FacePatches, p => p.FaceId == cylinderFace.Id);
+        var patchB = Assert.Single(tessellationB.Value.FacePatches, p => p.FaceId == cylinderFace.Id);
+
+        Assert.True(patchA.Positions.SequenceEqual(patchB.Positions));
+        Assert.True(patchA.Normals.SequenceEqual(patchB.Normals));
+        Assert.True(patchA.TriangleIndices.SequenceEqual(patchB.TriangleIndices));
+    }
+
     [Fact]
     public void Step242_HandcraftedConeFixture_UsesThreeCoedgeSeamTopology_AndTessellates()
     {

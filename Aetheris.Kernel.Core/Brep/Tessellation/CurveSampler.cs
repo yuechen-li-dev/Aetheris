@@ -26,6 +26,25 @@ internal static class CurveSampler
         return points;
     }
 
+
+    public static IReadOnlyList<Point3D> SampleBSpline(BSpline3Curve spline, ParameterInterval interval)
+    {
+        var minSegments = 8;
+        var maxSegments = 128;
+        var controlDriven = spline.ControlPoints.Count * 2;
+        var segmentCount = System.Math.Clamp(controlDriven, minSegments, maxSegments);
+
+        var points = new List<Point3D>(segmentCount + 1);
+        var span = interval.End - interval.Start;
+        for (var i = 0; i <= segmentCount; i++)
+        {
+            var t = (double)i / segmentCount;
+            points.Add(spline.Evaluate(interval.Start + (span * t)));
+        }
+
+        return points;
+    }
+
     public static bool TrySampleTrimmedCircleArc(
         Circle3Curve circle,
         Point3D startPoint,

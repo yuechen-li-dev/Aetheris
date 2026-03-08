@@ -72,6 +72,37 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         Assert.Contains(first, s => s.AdaptivePointCount > s.LegacyPointCount);
     }
 
+
+    [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", false)]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", false)]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", false)]
+    public void Step242_PlanarLoopRole_CurvedOuterContainmentDiagnostics_IdentifiesUnderApproximationCases(
+        string relativePath,
+        bool expectUnderApproximationEvidence)
+    {
+        var entry = new Step242CorpusManifestEntry(
+            Id: Path.GetFileNameWithoutExtension(relativePath),
+            Path: relativePath,
+            Group: "nist-loop-role-regression",
+            Notes: "regression",
+            ExpectedFirstDiagnostic: null,
+            ExpectHashStableAfterCanonicalization: null,
+            ExpectTopologyCounts: null,
+            ExpectGeometryKinds: null);
+
+        var report = Step242CorpusManifestRunner.RunOne(entry);
+        var diagnostics = CapturePlanarContainmentDiagnostics(relativePath);
+
+        var hasUnderApproximation = diagnostics.Any(d => d.WasOutsideCoarsePolygon && d.IsInsideRefinedPolygon);
+
+        Console.WriteLine($"[{relativePath}] status={report.Status} layer={report.FirstFailureLayer} source={report.FirstDiagnostic.Source} message={report.FirstDiagnostic.MessagePrefix}");
+        Console.WriteLine($"[{relativePath}] planarContainmentDiagnostics={diagnostics.Count} underApproximation={hasUnderApproximation}");
+
+        Assert.Equal(expectUnderApproximationEvidence, hasUnderApproximation);
+        Assert.Empty(diagnostics);
+    }
+
     private static IReadOnlyList<Step242Importer.LoopRoleCircularSamplingDiagnostic> CaptureCircularSampling(string relativePath)
     {
         var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
@@ -82,4 +113,16 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         Step242Importer.ImportBody(text);
         return diagnostics;
     }
+
+    private static IReadOnlyList<Step242Importer.PlanarContainmentRefinementDiagnostic> CapturePlanarContainmentDiagnostics(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var diagnostics = new List<Step242Importer.PlanarContainmentRefinementDiagnostic>();
+
+        using var captureScope = Step242Importer.CapturePlanarContainmentRefinementDiagnostics(diagnostics);
+        Step242Importer.ImportBody(text);
+        return diagnostics;
+    }
+
 }

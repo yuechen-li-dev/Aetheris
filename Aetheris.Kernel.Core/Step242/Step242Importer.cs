@@ -17,12 +17,20 @@ public static class Step242Importer
     private const double AngleUnwrapEps = 1e-8d;
     private const double ContainmentEps = 1e-8d;
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<PlanarContainmentRefinementDiagnostic>?> PlanarContainmentDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
         var previous = CircularSamplingDiagnosticsSink.Value;
         CircularSamplingDiagnosticsSink.Value = sink;
         return new CircularSamplingDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CapturePlanarContainmentRefinementDiagnostics(ICollection<PlanarContainmentRefinementDiagnostic> sink)
+    {
+        var previous = PlanarContainmentDiagnosticsSink.Value;
+        PlanarContainmentDiagnosticsSink.Value = sink;
+        return new PlanarContainmentDiagnosticsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -1054,6 +1062,7 @@ public static class Step242Importer
         foreach (var loop in loops)
         {
             var projected = SimplifyClosedPolygon(ProjectLoopToPlane(loop.Samples, plane), ContainmentEps);
+            var refinedProjected = SimplifyClosedPolygon(ProjectLoopToPlaneRefined(loop.Samples, plane), ContainmentEps);
             var uniqueCount = CountUniquePoints(projected, ContainmentEps);
             var area = ComputeSignedArea(projected);
             if (uniqueCount < 3 || double.Abs(area) <= AreaEps)
@@ -1061,7 +1070,7 @@ public static class Step242Importer
                 continue;
             }
 
-            infos.Add(new PlanarLoopInfo(loop, projected, area));
+            infos.Add(new PlanarLoopInfo(loop, projected, refinedProjected, area));
         }
 
         if (infos.Count == 0)
@@ -1109,7 +1118,9 @@ public static class Step242Importer
         foreach (var candidate in infosWithSamples.Where(i => i.Info.Loop.LoopId != outer.Info.Loop.LoopId))
         {
             var containment = EvaluateContainment(candidate.Info.ProjectedPoints, outer.Info.ProjectedPoints, containmentTolerance);
+            var refinedContainment = EvaluateContainment(candidate.Info.ProjectedPoints, outer.Info.RefinedProjectedPoints, containmentTolerance);
             var intersectionCount = CountPolygonIntersections(candidate.Info.ProjectedPoints, outer.Info.ProjectedPoints, containmentTolerance);
+            ReportPlanarContainmentDiagnostics(candidate.Info, outer.Info, containment, refinedContainment, containmentTolerance);
             var intersectsOuter = intersectionCount > 0;
             if ((!intersectsOuter && containment.OutsideCount == 0)
                 || (intersectsOuter
@@ -1265,6 +1276,7 @@ public static class Step242Importer
         int intersectionCount)
     {
         var containment = EvaluateContainment(inner.ProjectedPoints, outer.ProjectedPoints, containmentTolerance);
+        var refinedContainment = EvaluateContainment(inner.ProjectedPoints, outer.RefinedProjectedPoints, containmentTolerance);
         var crossingOuter = intersectionCount > 0;
 
         var areaRatio = double.Abs(outer.SignedArea) <= areaTolerance
@@ -1283,7 +1295,7 @@ public static class Step242Importer
             _ => "Importer.LoopRole.InnerPartiallyOutsideAfterNormalization"
         };
 
-        var message = $"Inner loop could not be normalized: {reason}. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}.";
+        var message = $"Inner loop could not be normalized: {reason}. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, refinedOutsideVertices={refinedContainment.OutsideCount}/{refinedContainment.VertexCount}, refinedNearestOuterDistance={refinedContainment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}.";
         return new ContainmentFailure(message, source);
     }
 
@@ -1563,6 +1575,98 @@ public static class Step242Importer
         return simplified;
     }
 
+
+    private static List<UvPoint> ProjectLoopToPlaneRefined(IReadOnlyList<Point3D> samples, PlaneSurface plane)
+    {
+        var uv = new List<UvPoint>((samples.Count * 2) + 1);
+        for (var i = 0; i < samples.Count; i++)
+        {
+            var sample = samples[i];
+            var offset = sample - plane.Origin;
+            uv.Add(new UvPoint(offset.Dot(plane.UAxis.ToVector()), offset.Dot(plane.VAxis.ToVector())));
+
+            if (i == 0)
+            {
+                continue;
+            }
+
+            var previous = samples[i - 1];
+            var midpoint = previous + ((sample - previous) * 0.5d);
+            var midpointOffset = midpoint - plane.Origin;
+            uv.Insert(uv.Count - 1, new UvPoint(midpointOffset.Dot(plane.UAxis.ToVector()), midpointOffset.Dot(plane.VAxis.ToVector())));
+        }
+
+        if (uv.Count > 0 && (uv[0] - uv[^1]).Length > ContainmentEps)
+        {
+            uv.Add(uv[0]);
+        }
+
+        return uv;
+    }
+
+    private static void ReportPlanarContainmentDiagnostics(
+        PlanarLoopInfo inner,
+        PlanarLoopInfo outer,
+        ContainmentEvaluation containment,
+        ContainmentEvaluation refinedContainment,
+        double containmentTolerance)
+    {
+        var sink = PlanarContainmentDiagnosticsSink.Value;
+        if (sink is null)
+        {
+            return;
+        }
+
+        for (var i = 0; i < inner.ProjectedPoints.Count - 1; i++)
+        {
+            var point = inner.ProjectedPoints[i];
+            var insidePolygon = IsPointInPolygon(point, outer.ProjectedPoints, containmentTolerance);
+            var insideRefined = IsPointInPolygon(point, outer.RefinedProjectedPoints, containmentTolerance);
+            if (insidePolygon || !insideRefined)
+            {
+                continue;
+            }
+
+            var coarse = NearestSegmentDistance(point, outer.ProjectedPoints);
+            var refined = NearestSegmentDistance(point, outer.RefinedProjectedPoints);
+            sink.Add(new PlanarContainmentRefinementDiagnostic(
+                OuterLoopId: outer.Loop.LoopId.Value,
+                InnerLoopId: inner.Loop.LoopId.Value,
+                VertexIndex: i,
+                PointX: point.X,
+                PointY: point.Y,
+                CoarseDistance: coarse.Distance,
+                RefinedDistance: refined.Distance,
+                CoarseSegmentLength: coarse.SegmentLength,
+                RefinedSegmentLength: refined.SegmentLength,
+                WasOutsideCoarsePolygon: true,
+                IsInsideRefinedPolygon: true));
+        }
+    }
+
+    private static NearestSegmentInfo NearestSegmentDistance(UvPoint point, IReadOnlyList<UvPoint> polygon)
+    {
+        var minDistance = double.MaxValue;
+        var segmentLength = 0d;
+        for (var i = 0; i < polygon.Count - 1; i++)
+        {
+            var distance = DistancePointToSegment(point, polygon[i], polygon[i + 1]);
+            if (distance >= minDistance)
+            {
+                continue;
+            }
+
+            minDistance = distance;
+            segmentLength = (polygon[i + 1] - polygon[i]).Length;
+        }
+
+        if (minDistance == double.MaxValue)
+        {
+            minDistance = 0d;
+        }
+
+        return new NearestSegmentInfo(minDistance, segmentLength);
+    }
     private static List<UvPoint> ProjectLoopToPlane(IReadOnlyList<Point3D> samples, PlaneSurface plane)
     {
         var uv = new List<UvPoint>(samples.Count + 1);
@@ -1815,6 +1919,27 @@ public static class Step242Importer
         }
     }
 
+    public sealed record PlanarContainmentRefinementDiagnostic(
+        int OuterLoopId,
+        int InnerLoopId,
+        int VertexIndex,
+        double PointX,
+        double PointY,
+        double CoarseDistance,
+        double RefinedDistance,
+        double CoarseSegmentLength,
+        double RefinedSegmentLength,
+        bool WasOutsideCoarsePolygon,
+        bool IsInsideRefinedPolygon);
+
+    private sealed class PlanarContainmentDiagnosticsScope(ICollection<PlanarContainmentRefinementDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            PlanarContainmentDiagnosticsSink.Value = previous;
+        }
+    }
+
     private static KernelResult<T> LoopRoleFailure<T>(string message, string source) =>
         KernelResult<T>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
 
@@ -1843,7 +1968,7 @@ public static class Step242Importer
 
     private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples);
 
-    private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea);
+    private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, IReadOnlyList<UvPoint> RefinedProjectedPoints, double SignedArea);
 
     private sealed record PlanarLoopInfoWithSample(PlanarLoopInfo Info, UvPoint SamplePoint);
 
@@ -1854,6 +1979,8 @@ public static class Step242Importer
     private sealed record ContainmentEvaluation(int OutsideCount, int VertexCount, double MinDistanceToOuter);
 
     private sealed record ContainmentFailure(string Message, string Source);
+
+    private sealed record NearestSegmentInfo(double Distance, double SegmentLength);
 
     private readonly record struct UvPoint(double X, double Y)
     {

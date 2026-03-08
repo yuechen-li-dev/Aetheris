@@ -383,6 +383,57 @@ public sealed class Step242ImporterTests
     }
 
     [Fact]
+    public void Step242_HandcraftedToroidFixture_UsesCircularSeamTopology_AndTessellates()
+    {
+        var text = LoadFixture("testdata/step242/handcrafted/baseline/toroid.step");
+
+        var import = Step242Importer.ImportBody(text);
+        Assert.True(import.IsSuccess);
+
+        var torusFace = Assert.Single(import.Value.Topology.Faces, face =>
+        {
+            Assert.True(import.Value.Bindings.TryGetFaceBinding(face.Id, out var binding));
+            Assert.True(import.Value.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var surface));
+            return surface!.Kind == SurfaceGeometryKind.Torus;
+        });
+
+        var loopIds = import.Value.GetLoopIds(torusFace.Id);
+        var loopId = Assert.Single(loopIds);
+        var coedges = import.Value.GetCoedgeIds(loopId)
+            .Select(id => import.Value.Topology.GetCoedge(id))
+            .ToArray();
+
+        Assert.Equal(4, coedges.Length);
+        Assert.All(coedges, coedge => Assert.Equal(CurveGeometryKind.Circle3, import.Value.GetEdgeCurve(coedge.EdgeId).Kind));
+
+        var seamUseCount = coedges.Count(coedge =>
+        {
+            var edge = import.Value.Topology.GetEdge(coedge.EdgeId);
+            return edge.StartVertexId == edge.EndVertexId;
+        });
+        Assert.Equal(4, seamUseCount);
+        Assert.Equal(2, coedges.Select(c => c.EdgeId).Distinct().Count());
+
+        var tessellationA = BrepDisplayTessellator.Tessellate(import.Value);
+        Assert.True(tessellationA.IsSuccess);
+        Assert.DoesNotContain(tessellationA.Diagnostics,
+            d => d.Message.Contains("two line seam uses and two circular trim uses", StringComparison.OrdinalIgnoreCase));
+
+        var tessellationB = BrepDisplayTessellator.Tessellate(import.Value);
+        Assert.True(tessellationB.IsSuccess);
+
+        var patchA = Assert.Single(tessellationA.Value.FacePatches, p => p.FaceId == torusFace.Id);
+        var patchB = Assert.Single(tessellationB.Value.FacePatches, p => p.FaceId == torusFace.Id);
+
+        Assert.Equal(patchA.Positions.Count, patchB.Positions.Count);
+        Assert.Equal(patchA.Normals.Count, patchB.Normals.Count);
+        Assert.Equal(patchA.TriangleIndices.Count, patchB.TriangleIndices.Count);
+        Assert.True(patchA.Positions.SequenceEqual(patchB.Positions));
+        Assert.True(patchA.Normals.SequenceEqual(patchB.Normals));
+        Assert.True(patchA.TriangleIndices.SequenceEqual(patchB.TriangleIndices));
+    }
+
+    [Fact]
     public void Step242_NistFile_WithToroidalSurface_AdvancesPastToroidalBlocker()
     {
         var text = LoadFixture("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp");

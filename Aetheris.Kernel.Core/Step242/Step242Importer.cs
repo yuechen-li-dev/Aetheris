@@ -936,6 +936,10 @@ public static class Step242Importer
     private static double ComputeCircleTrimTolerance(Circle3Curve circle, Point3D startPoint, Point3D endPoint)
     {
         const double baseTolerance = 1e-6d;
+        // Circle-trim projection tolerance is intentionally bounded and geometry-scale-aware:
+        // - lower-bounded by baseTolerance to avoid denorm/zero-scale instability,
+        // - scaled by local circle/endpoint size to absorb exporter drift observed in AP242 corpus files,
+        // - scoped to circle-trim recovery only (not a global tolerance loosening knob).
         const double scaleFactor = 5e-4d;
         var startRadius = (startPoint - circle.Center).Length;
         var endRadius = (endPoint - circle.Center).Length;

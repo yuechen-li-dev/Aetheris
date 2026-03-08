@@ -946,9 +946,7 @@ public static class Step242Importer
         return surface.Kind switch
         {
             SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
-            SurfaceGeometryKind.Cylinder => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
-                "Cylinder multi-loop hole classification is not yet safely supported.",
-                "Importer.LoopRole.CylinderMappingFailed"),
+            SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(loops, surface.Cylinder!.Value),
             SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 "Multi-loop hole classification is unsupported for this surface type.",
                 "Importer.LoopRole.UnsupportedSurfaceForHoles"),
@@ -1050,6 +1048,83 @@ public static class Step242Importer
 
         var normalizedOuter = NormalizeLoopWinding(outer.Info.Loop, outer.Info.SignedArea, shouldBePositive: true);
         var normalizedInners = innerLoops
+            .OrderByDescending(i => double.Abs(i.SignedArea))
+            .ThenBy(i => i.Loop.LoopId.Value)
+            .Select(i => NormalizeLoopWinding(i.Loop, i.SignedArea, shouldBePositive: false))
+            .ToList();
+
+        var ordered = new List<LoopBuildData>(1 + normalizedInners.Count) { normalizedOuter };
+        ordered.AddRange(normalizedInners);
+        return KernelResult<IReadOnlyList<LoopBuildData>>.Success(ordered);
+    }
+
+    private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeCylindricalLoops(
+        IReadOnlyList<LoopBuildData> loops,
+        CylinderSurface cylinder)
+    {
+        const string nonNormalizableSource = "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection";
+        const string ambiguousOuterSource = "Importer.LoopRole.CylinderAmbiguousOuter";
+        const string containmentSource = "Importer.LoopRole.CylinderInnerContainmentFailed";
+
+        var infos = new List<CylindricalLoopInfo>(loops.Count);
+        var maxUniqueCount = 0;
+        var maxAbsArea = 0d;
+        foreach (var loop in loops)
+        {
+            var projected = ProjectLoopToCylinder(loop.Samples, cylinder);
+            var uniqueCount = CountUniquePoints(projected, ContainmentEps);
+            var area = ComputeSignedArea(projected);
+            maxUniqueCount = System.Math.Max(maxUniqueCount, uniqueCount);
+            maxAbsArea = System.Math.Max(maxAbsArea, double.Abs(area));
+            if (uniqueCount < 3 || double.Abs(area) <= AreaEps)
+            {
+                continue;
+            }
+
+            infos.Add(new CylindricalLoopInfo(loop, projected, area, ComputePolygonCentroid(projected)));
+        }
+
+        if (infos.Count == 0)
+        {
+            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>($"Cylinder loop normalization failed: all {loops.Count} loop(s) projected degenerate (maxUnique={maxUniqueCount}, maxAbsArea={maxAbsArea:E6}).", nonNormalizableSource);
+        }
+
+        var orderedByArea = infos
+            .OrderByDescending(i => double.Abs(i.SignedArea))
+            .ThenBy(i => i.Loop.LoopId.Value)
+            .ToArray();
+
+        var outer = orderedByArea[0];
+        if (orderedByArea.Length > 1)
+        {
+            var areaTolerance = ComputeAreaTolerance(orderedByArea.SelectMany(i => i.ProjectedPoints));
+            if (double.Abs(double.Abs(outer.SignedArea) - double.Abs(orderedByArea[1].SignedArea)) <= areaTolerance)
+            {
+                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Unable to choose a unique cylindrical outer loop.", ambiguousOuterSource);
+            }
+        }
+
+        var containmentTolerance = ComputeContainmentTolerance(outer.ProjectedPoints);
+        var containedInners = new List<CylindricalLoopInfo>();
+        foreach (var candidate in infos.Where(i => i.Loop.LoopId != outer.Loop.LoopId))
+        {
+            var alignedCandidate = AlignPolygonToReference(candidate.ProjectedPoints, candidate.Centroid.X, outer.Centroid.X);
+            var sampleResult = ChooseContainmentPoint(alignedCandidate, containmentTolerance);
+            if (!sampleResult.IsSuccess)
+            {
+                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Unable to classify cylindrical inner loop containment.", containmentSource);
+            }
+
+            if (!IsPointInPolygon(sampleResult.Value, outer.ProjectedPoints, containmentTolerance))
+            {
+                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>($"Cylindrical inner loop {candidate.Loop.LoopId.Value} could not be normalized inside selected outer loop {outer.Loop.LoopId.Value}.", containmentSource);
+            }
+
+            containedInners.Add(candidate with { ProjectedPoints = alignedCandidate, Centroid = ComputePolygonCentroid(alignedCandidate) });
+        }
+
+        var normalizedOuter = NormalizeLoopWinding(outer.Loop, outer.SignedArea, shouldBePositive: true);
+        var normalizedInners = containedInners
             .OrderByDescending(i => double.Abs(i.SignedArea))
             .ThenBy(i => i.Loop.LoopId.Value)
             .Select(i => NormalizeLoopWinding(i.Loop, i.SignedArea, shouldBePositive: false))
@@ -1331,6 +1406,72 @@ public static class Step242Importer
         return uv;
     }
 
+    private static List<UvPoint> ProjectLoopToCylinder(IReadOnlyList<Point3D> samples, CylinderSurface cylinder)
+    {
+        var axis = cylinder.Axis.ToVector();
+        var xAxis = cylinder.XAxis.ToVector();
+        var yAxis = cylinder.YAxis.ToVector();
+
+        var uv = new List<UvPoint>(samples.Count + 1);
+        double? previous = null;
+        var revolutions = 0d;
+        foreach (var sample in samples)
+        {
+            var offset = sample - cylinder.Origin;
+            var axial = offset.Dot(axis);
+            var radial = offset - (axis * axial);
+            var angle = NormalizeToZeroTwoPi(double.Atan2(radial.Dot(yAxis), radial.Dot(xAxis)));
+            if (previous.HasValue)
+            {
+                var delta = angle - previous.Value;
+                if (delta > double.Pi)
+                {
+                    revolutions -= 2d * double.Pi;
+                }
+                else if (delta < -double.Pi)
+                {
+                    revolutions += 2d * double.Pi;
+                }
+            }
+
+            uv.Add(new UvPoint(angle + revolutions, axial));
+            previous = angle;
+        }
+
+        if (uv.Count > 0 && (uv[0] - uv[^1]).Length > ContainmentEps)
+        {
+            uv.Add(uv[0]);
+        }
+
+        return uv;
+    }
+
+    private static IReadOnlyList<UvPoint> AlignPolygonToReference(IReadOnlyList<UvPoint> polygon, double currentX, double referenceX)
+    {
+        var twoPi = 2d * double.Pi;
+        var delta = referenceX - currentX;
+        var turns = double.Round(delta / twoPi);
+        var shift = turns * twoPi;
+        if (double.Abs(shift) <= AngleUnwrapEps)
+        {
+            return polygon;
+        }
+
+        return polygon.Select(p => new UvPoint(p.X + shift, p.Y)).ToArray();
+    }
+
+    private static double NormalizeToZeroTwoPi(double angle)
+    {
+        var twoPi = 2d * double.Pi;
+        var normalized = angle % twoPi;
+        if (normalized < 0d)
+        {
+            normalized += twoPi;
+        }
+
+        return normalized;
+    }
+
     private static double ComputeSignedArea(IReadOnlyList<UvPoint> polygon)
     {
         var area = 0d;
@@ -1357,7 +1498,7 @@ public static class Step242Importer
         var minY = array.Min(p => p.Y);
         var maxY = array.Max(p => p.Y);
         var diagonal = double.Sqrt(((maxX - minX) * (maxX - minX)) + ((maxY - minY) * (maxY - minY)));
-        return double.Max(ContainmentEps, diagonal * 1e-6d);
+        return System.Math.Max(ContainmentEps, diagonal * 1e-6d);
     }
 
     private static double ComputeAreaTolerance(IEnumerable<UvPoint> points)
@@ -1373,7 +1514,7 @@ public static class Step242Importer
         var minY = array.Min(p => p.Y);
         var maxY = array.Max(p => p.Y);
         var extentArea = (maxX - minX) * (maxY - minY);
-        return double.Max(AreaEps, extentArea * 1e-8d);
+        return System.Math.Max(AreaEps, extentArea * 1e-8d);
     }
 
     private static void AppendLoopSamples(ICollection<Point3D> loopSamples, IReadOnlyList<Point3D> edgeSamples)
@@ -1466,6 +1607,8 @@ public static class Step242Importer
     private sealed record PlanarLoopInfoWithSample(PlanarLoopInfo Info, UvPoint SamplePoint);
 
     private sealed record PlanarLoopOuterCandidate(PlanarLoopInfo Info, UvPoint SamplePoint, int ContainmentCount);
+
+    private sealed record CylindricalLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea, UvPoint Centroid);
 
     private sealed record ContainmentEvaluation(int OutsideCount, int VertexCount, double MinDistanceToOuter);
 

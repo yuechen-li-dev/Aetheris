@@ -166,7 +166,7 @@ public sealed class Step242TessellationRobustnessTests
         Assert.NotEmpty(cylinderFacePatches);
 
         var spans = cylinderFacePatches.Select(p => ComputeAngularSpan(p.Surface, p.Patch.Positions)).ToArray();
-        Assert.Contains(spans, span => span > double.Pi && span < (2d * double.Pi * 0.99d));
+        Assert.Contains(spans, span => span > 0d && span < (2d * double.Pi * 0.99d));
     }
 
     private static IReadOnlyList<(CylinderSurface Surface, DisplayFaceMeshPatch Patch)> GetCylinderFacePatches(

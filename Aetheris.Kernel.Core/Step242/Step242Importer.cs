@@ -963,7 +963,7 @@ public static class Step242Importer
         var infos = new List<PlanarLoopInfo>(loops.Count);
         foreach (var loop in loops)
         {
-            var projected = ProjectLoopToPlane(loop.Samples, plane);
+            var projected = SimplifyClosedPolygon(ProjectLoopToPlane(loop.Samples, plane), ContainmentEps);
             var uniqueCount = CountUniquePoints(projected, ContainmentEps);
             var area = ComputeSignedArea(projected);
             if (uniqueCount < 3 || double.Abs(area) <= AreaEps)
@@ -998,7 +998,7 @@ public static class Step242Importer
             .Select(candidate =>
             {
                 var containmentCount = infosWithSamples.Count(other => other.Info.Loop.LoopId != candidate.Info.Loop.LoopId
-                    && IsPointInPolygon(other.SamplePoint, candidate.Info.ProjectedPoints, containmentTolerance));
+                    && IsLoopContainedByOuter(other.Info.ProjectedPoints, candidate.Info.ProjectedPoints, containmentTolerance));
                 return new PlanarLoopOuterCandidate(candidate.Info, candidate.SamplePoint, containmentCount);
             })
             .OrderByDescending(c => c.ContainmentCount)
@@ -1018,7 +1018,13 @@ public static class Step242Importer
 
         foreach (var candidate in infosWithSamples.Where(i => i.Info.Loop.LoopId != outer.Info.Loop.LoopId))
         {
-            if (IsPointInPolygon(candidate.SamplePoint, outer.Info.ProjectedPoints, containmentTolerance))
+            var containment = EvaluateContainment(candidate.Info.ProjectedPoints, outer.Info.ProjectedPoints, containmentTolerance);
+            var intersectionCount = CountPolygonIntersections(candidate.Info.ProjectedPoints, outer.Info.ProjectedPoints, containmentTolerance);
+            var intersectsOuter = intersectionCount > 0;
+            if ((!intersectsOuter && containment.OutsideCount == 0)
+                || (intersectsOuter
+                    && containment.OutsideCount == 0
+                    && containment.MinDistanceToOuter > (containmentTolerance * 8d)))
             {
                 containedInners.Add(candidate.Info);
                 continue;
@@ -1030,7 +1036,7 @@ public static class Step242Importer
                 continue;
             }
 
-            var failure = BuildInnerContainmentFailure(candidate.Info, outer.Info, containmentTolerance, areaTolerance);
+            var failure = BuildInnerContainmentFailure(candidate.Info, outer.Info, containmentTolerance, areaTolerance, intersectionCount);
             return LoopRoleFailure<IReadOnlyList<LoopBuildData>>(failure.Message, failure.Source);
         }
 
@@ -1165,27 +1171,29 @@ public static class Step242Importer
         PlanarLoopInfo inner,
         PlanarLoopInfo outer,
         double containmentTolerance,
-        double areaTolerance)
+        double areaTolerance,
+        int intersectionCount)
     {
         var containment = EvaluateContainment(inner.ProjectedPoints, outer.ProjectedPoints, containmentTolerance);
-        var crossingOuter = PolygonsIntersect(inner.ProjectedPoints, outer.ProjectedPoints, containmentTolerance);
+        var crossingOuter = intersectionCount > 0;
 
         var areaRatio = double.Abs(outer.SignedArea) <= areaTolerance
             ? 0d
             : double.Abs(inner.SignedArea) / double.Abs(outer.SignedArea);
 
         var reason = crossingOuter
-            ? "crosses_outer_boundary"
+            ? (containment.OutsideCount == 0 ? "crosses_outer_boundary_with_all_vertices_inside" : "crosses_outer_boundary_with_outside_vertices")
             : (containment.OutsideCount == containment.VertexCount ? "disjoint" : "partially_outside");
 
         var source = reason switch
         {
-            "crosses_outer_boundary" => "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
+            "crosses_outer_boundary_with_all_vertices_inside" => "Importer.LoopRole.InnerBoundaryIntersectionWithContainedVerticesAfterNormalization",
+            "crosses_outer_boundary_with_outside_vertices" => "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
             "disjoint" => "Importer.LoopRole.InnerDisjointAfterNormalization",
             _ => "Importer.LoopRole.InnerPartiallyOutsideAfterNormalization"
         };
 
-        var message = $"Inner loop could not be normalized: {reason}. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}.";
+        var message = $"Inner loop could not be normalized: {reason}. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}.";
         return new ContainmentFailure(message, source);
     }
 
@@ -1217,6 +1225,20 @@ public static class Step242Importer
         return new ContainmentEvaluation(outsideCount, vertexCount, minDistanceToOuter);
     }
 
+    private static bool IsLoopContainedByOuter(
+        IReadOnlyList<UvPoint> inner,
+        IReadOnlyList<UvPoint> outer,
+        double containmentTolerance)
+    {
+        if (CountPolygonIntersections(inner, outer, containmentTolerance) > 0)
+        {
+            return false;
+        }
+
+        var containment = EvaluateContainment(inner, outer, containmentTolerance);
+        return containment.OutsideCount == 0;
+    }
+
     private static double DistancePointToPolygon(UvPoint point, IReadOnlyList<UvPoint> polygon)
     {
         var minDistance = double.MaxValue;
@@ -1228,36 +1250,67 @@ public static class Step242Importer
         return minDistance;
     }
 
-    private static bool PolygonsIntersect(IReadOnlyList<UvPoint> a, IReadOnlyList<UvPoint> b, double tolerance)
+    private static int CountPolygonIntersections(IReadOnlyList<UvPoint> a, IReadOnlyList<UvPoint> b, double tolerance)
     {
+        var intersections = 0;
         for (var i = 0; i < a.Count - 1; i++)
         {
+            if (SegmentLengthSquared(a[i], a[i + 1]) <= (tolerance * tolerance))
+            {
+                continue;
+            }
+
             for (var j = 0; j < b.Count - 1; j++)
             {
+                if (SegmentLengthSquared(b[j], b[j + 1]) <= (tolerance * tolerance))
+                {
+                    continue;
+                }
+
                 if (SegmentsIntersect(a[i], a[i + 1], b[j], b[j + 1], tolerance))
                 {
-                    return true;
+                    intersections++;
                 }
             }
         }
 
-        return false;
+        return intersections;
     }
 
     private static bool SegmentsIntersect(UvPoint a0, UvPoint a1, UvPoint b0, UvPoint b1, double tolerance)
     {
-        if (DistancePointToSegment(a0, b0, b1) <= tolerance || DistancePointToSegment(a1, b0, b1) <= tolerance
-            || DistancePointToSegment(b0, a0, a1) <= tolerance || DistancePointToSegment(b1, a0, a1) <= tolerance)
-        {
-            return true;
-        }
-
         var o1 = Orientation(a0, a1, b0);
         var o2 = Orientation(a0, a1, b1);
         var o3 = Orientation(b0, b1, a0);
         var o4 = Orientation(b0, b1, a1);
 
-        return (o1 * o2) < 0d && (o3 * o4) < 0d;
+        if (IsProperStraddle(o1, o2, tolerance) && IsProperStraddle(o3, o4, tolerance))
+        {
+            return true;
+        }
+
+        return (double.Abs(o1) <= tolerance && IsPointOnSegment(b0, a0, a1, tolerance))
+            || (double.Abs(o2) <= tolerance && IsPointOnSegment(b1, a0, a1, tolerance))
+            || (double.Abs(o3) <= tolerance && IsPointOnSegment(a0, b0, b1, tolerance))
+            || (double.Abs(o4) <= tolerance && IsPointOnSegment(a1, b0, b1, tolerance));
+    }
+
+    private static bool IsProperStraddle(double a, double b, double tolerance)
+        => (a > tolerance && b < -tolerance) || (a < -tolerance && b > tolerance);
+
+    private static bool IsPointOnSegment(UvPoint p, UvPoint a, UvPoint b, double tolerance)
+    {
+        var minX = double.Min(a.X, b.X) - tolerance;
+        var maxX = double.Max(a.X, b.X) + tolerance;
+        var minY = double.Min(a.Y, b.Y) - tolerance;
+        var maxY = double.Max(a.Y, b.Y) + tolerance;
+        return p.X >= minX && p.X <= maxX && p.Y >= minY && p.Y <= maxY;
+    }
+
+    private static double SegmentLengthSquared(UvPoint a, UvPoint b)
+    {
+        var delta = b - a;
+        return delta.Dot(delta);
     }
 
     private static double Orientation(UvPoint a, UvPoint b, UvPoint c)
@@ -1387,6 +1440,37 @@ public static class Step242Importer
         }
 
         return unique.Count;
+    }
+
+
+    private static List<UvPoint> SimplifyClosedPolygon(IReadOnlyList<UvPoint> polygon, double tolerance)
+    {
+        var simplified = new List<UvPoint>(polygon.Count + 1);
+        foreach (var point in polygon)
+        {
+            if (simplified.Count > 0 && (simplified[^1] - point).Length <= tolerance)
+            {
+                continue;
+            }
+
+            simplified.Add(point);
+        }
+
+        if (simplified.Count == 0)
+        {
+            return simplified;
+        }
+
+        if ((simplified[0] - simplified[^1]).Length > tolerance)
+        {
+            simplified.Add(simplified[0]);
+        }
+        else
+        {
+            simplified[^1] = simplified[0];
+        }
+
+        return simplified;
     }
 
     private static List<UvPoint> ProjectLoopToPlane(IReadOnlyList<Point3D> samples, PlaneSurface plane)
@@ -1552,8 +1636,25 @@ public static class Step242Importer
             case CurveGeometryKind.Circle3:
                 var circle = curve.Circle3!.Value;
                 var trim = edgeBinding.TrimInterval ?? new ParameterInterval(0d, 2d * double.Pi);
-                var mid = trim.Start + ((trim.End - trim.Start) * 0.5d);
-                points = [circle.Evaluate(trim.Start), circle.Evaluate(mid), circle.Evaluate(trim.End)];
+                var span = trim.End - trim.Start;
+                if (double.Abs(span - (2d * double.Pi)) <= AngleUnwrapEps)
+                {
+                    var quarter = trim.Start + (span * 0.25d);
+                    var mid = trim.Start + (span * 0.5d);
+                    var threeQuarter = trim.Start + (span * 0.75d);
+                    points = [
+                        circle.Evaluate(trim.Start),
+                        circle.Evaluate(quarter),
+                        circle.Evaluate(mid),
+                        circle.Evaluate(threeQuarter),
+                        circle.Evaluate(trim.End)
+                    ];
+                }
+                else
+                {
+                    var mid = trim.Start + (span * 0.5d);
+                    points = [circle.Evaluate(trim.Start), circle.Evaluate(mid), circle.Evaluate(trim.End)];
+                }
                 break;
             case CurveGeometryKind.BSpline3:
                 var spline = curve.BSpline3!.Value;

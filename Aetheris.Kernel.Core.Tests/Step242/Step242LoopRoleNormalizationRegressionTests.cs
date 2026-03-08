@@ -50,6 +50,26 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
 
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
+    public void Step242_PlanarLoopRole_AuditTargets_DoNotShowBoundingBoxFalseRejects(string relativePath)
+    {
+        var diagnostics = CapturePlanarContainmentAudit(relativePath);
+
+        Assert.NotEmpty(diagnostics);
+        Assert.Contains(diagnostics, d => d.OutsideVertexCount > 0 || d.IntersectionCount > 0);
+        Assert.All(diagnostics, d => Assert.Equal(0, d.FalseFastRejectCount));
+        Assert.All(diagnostics.SelectMany(d => d.VertexDiagnostics), v =>
+        {
+            if (v.BoundingBoxRejectsButPolygonContains)
+            {
+                Assert.True(v.PolygonContains);
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
@@ -79,6 +99,17 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         var diagnostics = new List<Step242Importer.LoopRoleCircularSamplingDiagnostic>();
 
         using var captureScope = Step242Importer.CaptureLoopRoleCircularSamplingDiagnostics(diagnostics);
+        Step242Importer.ImportBody(text);
+        return diagnostics;
+    }
+
+    private static IReadOnlyList<Step242Importer.PlanarContainmentAuditDiagnostic> CapturePlanarContainmentAudit(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var diagnostics = new List<Step242Importer.PlanarContainmentAuditDiagnostic>();
+
+        using var captureScope = Step242Importer.CapturePlanarContainmentAuditDiagnostics(diagnostics);
         Step242Importer.ImportBody(text);
         return diagnostics;
     }

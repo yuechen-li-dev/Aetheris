@@ -17,12 +17,20 @@ public static class Step242Importer
     private const double AngleUnwrapEps = 1e-8d;
     private const double ContainmentEps = 1e-8d;
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<PlanarContainmentAuditDiagnostic>?> PlanarContainmentAuditDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
         var previous = CircularSamplingDiagnosticsSink.Value;
         CircularSamplingDiagnosticsSink.Value = sink;
         return new CircularSamplingDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CapturePlanarContainmentAuditDiagnostics(ICollection<PlanarContainmentAuditDiagnostic> sink)
+    {
+        var previous = PlanarContainmentAuditDiagnosticsSink.Value;
+        PlanarContainmentAuditDiagnosticsSink.Value = sink;
+        return new PlanarContainmentAuditDiagnosticsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -333,7 +341,7 @@ public static class Step242Importer
                 loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples));
             }
 
-            var classifyResult = ClassifyAndNormalizeFaceLoops(loopData, bindSurfaceResult.Value.SurfaceGeometry);
+            var classifyResult = ClassifyAndNormalizeFaceLoops(loopData, bindSurfaceResult.Value.SurfaceGeometry, faceEntity.Id);
             if (!classifyResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(classifyResult.Diagnostics);
@@ -1026,7 +1034,8 @@ public static class Step242Importer
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeFaceLoops(
         IReadOnlyList<LoopBuildData> loops,
-        SurfaceGeometry surface)
+        SurfaceGeometry surface,
+        int faceEntityId)
     {
         if (loops.Count <= 1)
         {
@@ -1035,7 +1044,7 @@ public static class Step242Importer
 
         return surface.Kind switch
         {
-            SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
+            SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value, faceEntityId),
             SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(loops, surface.Cylinder!.Value),
             SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 "Multi-loop hole classification is unsupported for this surface type.",
@@ -1048,7 +1057,8 @@ public static class Step242Importer
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizePlanarLoops(
         IReadOnlyList<LoopBuildData> loops,
-        PlaneSurface plane)
+        PlaneSurface plane,
+        int faceEntityId)
     {
         var infos = new List<PlanarLoopInfo>(loops.Count);
         foreach (var loop in loops)
@@ -1105,11 +1115,20 @@ public static class Step242Importer
         }
 
         var containedInners = new List<PlanarLoopInfo>();
+        var outerBounds = ComputeUvBounds(outer.Info.ProjectedPoints);
 
         foreach (var candidate in infosWithSamples.Where(i => i.Info.Loop.LoopId != outer.Info.Loop.LoopId))
         {
             var containment = EvaluateContainment(candidate.Info.ProjectedPoints, outer.Info.ProjectedPoints, containmentTolerance);
             var intersectionCount = CountPolygonIntersections(candidate.Info.ProjectedPoints, outer.Info.ProjectedPoints, containmentTolerance);
+            ReportPlanarContainmentAuditDiagnostic(BuildPlanarContainmentAuditDiagnostic(
+                faceEntityId,
+                candidate.Info,
+                outer.Info,
+                outerBounds,
+                containmentTolerance,
+                containment,
+                intersectionCount));
             var intersectsOuter = intersectionCount > 0;
             if ((!intersectsOuter && containment.OutsideCount == 0)
                 || (intersectsOuter
@@ -1516,6 +1535,69 @@ public static class Step242Importer
         return inside;
     }
 
+    private static PlanarContainmentAuditDiagnostic BuildPlanarContainmentAuditDiagnostic(
+        int faceEntityId,
+        PlanarLoopInfo inner,
+        PlanarLoopInfo outer,
+        UvBounds outerBounds,
+        double containmentTolerance,
+        ContainmentEvaluation containment,
+        int intersectionCount)
+    {
+        var vertices = new List<PlanarContainmentAuditVertex>(inner.ProjectedPoints.Count > 0 ? inner.ProjectedPoints.Count - 1 : 0);
+        for (var i = 0; i < inner.ProjectedPoints.Count - 1; i++)
+        {
+            var vertex = inner.ProjectedPoints[i];
+            var bboxReject = !outerBounds.Contains(vertex, containmentTolerance);
+            var polygonAccept = IsPointInPolygon(vertex, outer.ProjectedPoints, containmentTolerance);
+            vertices.Add(new PlanarContainmentAuditVertex(i, vertex.X, vertex.Y, bboxReject && polygonAccept, polygonAccept));
+        }
+
+        var falseFastRejectCount = vertices.Count(v => v.BoundingBoxRejectsButPolygonContains);
+
+        return new PlanarContainmentAuditDiagnostic(
+            FaceEntityId: faceEntityId,
+            OuterLoopId: outer.Loop.LoopId.Value,
+            InnerLoopId: inner.Loop.LoopId.Value,
+            OuterMinU: outerBounds.MinU,
+            OuterMaxU: outerBounds.MaxU,
+            OuterMinV: outerBounds.MinV,
+            OuterMaxV: outerBounds.MaxV,
+            OutsideVertexCount: containment.OutsideCount,
+            VertexCount: containment.VertexCount,
+            IntersectionCount: intersectionCount,
+            FalseFastRejectCount: falseFastRejectCount,
+            VertexDiagnostics: vertices);
+    }
+
+    private static UvBounds ComputeUvBounds(IReadOnlyList<UvPoint> polygon)
+    {
+        if (polygon.Count == 0)
+        {
+            return new UvBounds(0d, 0d, 0d, 0d);
+        }
+
+        var minU = double.PositiveInfinity;
+        var maxU = double.NegativeInfinity;
+        var minV = double.PositiveInfinity;
+        var maxV = double.NegativeInfinity;
+        for (var i = 0; i < polygon.Count - 1; i++)
+        {
+            var point = polygon[i];
+            minU = double.Min(minU, point.X);
+            maxU = double.Max(maxU, point.X);
+            minV = double.Min(minV, point.Y);
+            maxV = double.Max(maxV, point.Y);
+        }
+
+        if (double.IsInfinity(minU) || double.IsInfinity(maxU) || double.IsInfinity(minV) || double.IsInfinity(maxV))
+        {
+            return new UvBounds(0d, 0d, 0d, 0d);
+        }
+
+        return new UvBounds(minU, maxU, minV, maxV);
+    }
+
     private static int CountUniquePoints(IReadOnlyList<UvPoint> points, double tolerance)
     {
         var unique = new List<UvPoint>();
@@ -1795,6 +1877,12 @@ public static class Step242Importer
         sink?.Add(diagnostic);
     }
 
+    private static void ReportPlanarContainmentAuditDiagnostic(PlanarContainmentAuditDiagnostic diagnostic)
+    {
+        var sink = PlanarContainmentAuditDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
     public sealed record LoopRoleCircularSamplingDiagnostic(
         int FaceEntityId,
         int LoopId,
@@ -1807,11 +1895,40 @@ public static class Step242Importer
         int LegacyPointCount,
         int AdaptivePointCount);
 
+    public sealed record PlanarContainmentAuditDiagnostic(
+        int FaceEntityId,
+        int OuterLoopId,
+        int InnerLoopId,
+        double OuterMinU,
+        double OuterMaxU,
+        double OuterMinV,
+        double OuterMaxV,
+        int OutsideVertexCount,
+        int VertexCount,
+        int IntersectionCount,
+        int FalseFastRejectCount,
+        IReadOnlyList<PlanarContainmentAuditVertex> VertexDiagnostics);
+
+    public sealed record PlanarContainmentAuditVertex(
+        int VertexIndex,
+        double U,
+        double V,
+        bool BoundingBoxRejectsButPolygonContains,
+        bool PolygonContains);
+
     private sealed class CircularSamplingDiagnosticsScope(ICollection<LoopRoleCircularSamplingDiagnostic>? previous) : IDisposable
     {
         public void Dispose()
         {
             CircularSamplingDiagnosticsSink.Value = previous;
+        }
+    }
+
+    private sealed class PlanarContainmentAuditDiagnosticsScope(ICollection<PlanarContainmentAuditDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            PlanarContainmentAuditDiagnosticsSink.Value = previous;
         }
     }
 
@@ -1854,6 +1971,15 @@ public static class Step242Importer
     private sealed record ContainmentEvaluation(int OutsideCount, int VertexCount, double MinDistanceToOuter);
 
     private sealed record ContainmentFailure(string Message, string Source);
+
+    private readonly record struct UvBounds(double MinU, double MaxU, double MinV, double MaxV)
+    {
+        public bool Contains(UvPoint point, double tolerance)
+            => point.X >= MinU - tolerance
+               && point.X <= MaxU + tolerance
+               && point.Y >= MinV - tolerance
+               && point.Y <= MaxV + tolerance;
+    }
 
     private readonly record struct UvPoint(double X, double Y)
     {

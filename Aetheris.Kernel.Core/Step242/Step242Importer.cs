@@ -872,7 +872,7 @@ public static class Step242Importer
 
     private static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint)
     {
-        const double tolerance = 1e-6d;
+        var tolerance = ComputeCircleTrimTolerance(circle, startPoint, endPoint);
         if ((startPoint - endPoint).Length <= tolerance)
         {
             return KernelResult<ParameterInterval>.Success(new ParameterInterval(0d, 2d * double.Pi));
@@ -890,19 +890,13 @@ public static class Step242Importer
             return KernelResult<ParameterInterval>.Failure(endAngleResult.Diagnostics);
         }
 
-        var start = startAngleResult.Value;
-        var end = endAngleResult.Value;
-        if (end < start)
+        var intervalResult = CanonicalizeCircleTrimInterval(startAngleResult.Value, endAngleResult.Value, tolerance);
+        if (!intervalResult.IsSuccess)
         {
-            end += 2d * double.Pi;
+            return KernelResult<ParameterInterval>.Failure(intervalResult.Diagnostics);
         }
 
-        if (end <= start)
-        {
-            return FailureCircleTrim("Unable to compute circle trim interval with a positive span.", "Importer.Geometry.CircleTrim");
-        }
-
-        return KernelResult<ParameterInterval>.Success(new ParameterInterval(start, end));
+        return KernelResult<ParameterInterval>.Success(intervalResult.Value);
     }
 
     private static KernelResult<double> ProjectPointToCircleAngle(Circle3Curve circle, Point3D point, double tolerance)
@@ -912,13 +906,24 @@ public static class Step242Importer
         var inPlane = radial - (circle.Normal.ToVector() * normalComponent);
         var inPlaneLength = inPlane.Length;
 
-        if (double.Abs(normalComponent) > tolerance || double.Abs(inPlaneLength - circle.Radius) > tolerance)
+        if (double.Abs(normalComponent) > tolerance)
         {
-            return FailureCircleTrimAngle("Unable to compute circle trim from supplied vertices.", "Importer.Geometry.CircleTrim");
+            return FailureCircleTrimAngle($"Unable to project circular trim point: off-circle plane deviation {double.Abs(normalComponent):G17} exceeds tolerance {tolerance:G17}.", "Importer.Geometry.CircleTrim.OffPlane");
         }
 
-        var x = inPlane.Dot(circle.XAxis.ToVector());
-        var y = inPlane.Dot(circle.YAxis.ToVector());
+        if (double.Abs(inPlaneLength - circle.Radius) > tolerance)
+        {
+            return FailureCircleTrimAngle($"Unable to project circular trim point: radial deviation {double.Abs(inPlaneLength - circle.Radius):G17} exceeds tolerance {tolerance:G17}.", "Importer.Geometry.CircleTrim.OffRadius");
+        }
+
+        if (inPlaneLength <= tolerance)
+        {
+            return FailureCircleTrimAngle("Unable to project circular trim point: projected in-plane radius is degenerate.", "Importer.Geometry.CircleTrim.DegeneratePoint");
+        }
+
+        var projected = inPlane * (circle.Radius / inPlaneLength);
+        var x = projected.Dot(circle.XAxis.ToVector());
+        var y = projected.Dot(circle.YAxis.ToVector());
         var angle = double.Atan2(y, x);
         if (angle < 0d)
         {
@@ -926,6 +931,71 @@ public static class Step242Importer
         }
 
         return KernelResult<double>.Success(angle);
+    }
+
+    private static double ComputeCircleTrimTolerance(Circle3Curve circle, Point3D startPoint, Point3D endPoint)
+    {
+        const double baseTolerance = 1e-6d;
+        const double scaleFactor = 5e-4d;
+        var startRadius = (startPoint - circle.Center).Length;
+        var endRadius = (endPoint - circle.Center).Length;
+        var scale = double.Max(1d, double.Max(circle.Radius, double.Max(startRadius, endRadius)));
+        return double.Max(baseTolerance, scale * scaleFactor);
+    }
+
+    private static KernelResult<ParameterInterval> CanonicalizeCircleTrimInterval(double startAngle, double endAngle, double tolerance)
+    {
+        var start = NormalizeAngle(startAngle);
+        var end = NormalizeAngle(endAngle);
+        var span = NormalizePositiveAngle(end - start);
+        var angleTolerance = tolerance;
+
+        if (span <= angleTolerance)
+        {
+            return KernelResult<ParameterInterval>.Success(new ParameterInterval(0d, 2d * double.Pi));
+        }
+
+        if (span >= (2d * double.Pi) - angleTolerance)
+        {
+            return KernelResult<ParameterInterval>.Success(new ParameterInterval(0d, 2d * double.Pi));
+        }
+
+        var normalizedEnd = start + span;
+        if (normalizedEnd <= start)
+        {
+            return FailureCircleTrim("Unable to compute circle trim interval with a positive span after canonicalization.", "Importer.Geometry.CircleTrim.Interval");
+        }
+
+        return KernelResult<ParameterInterval>.Success(new ParameterInterval(start, normalizedEnd));
+    }
+
+    private static double NormalizeAngle(double angle)
+    {
+        var period = 2d * double.Pi;
+        var normalized = angle % period;
+        if (normalized < 0d)
+        {
+            normalized += period;
+        }
+
+        if (normalized >= period)
+        {
+            normalized -= period;
+        }
+
+        return normalized;
+    }
+
+    private static double NormalizePositiveAngle(double angle)
+    {
+        var period = 2d * double.Pi;
+        var normalized = angle % period;
+        if (normalized < 0d)
+        {
+            normalized += period;
+        }
+
+        return normalized;
     }
 
     private static double ComputeLineParameter(Line3Curve line, Point3D point)

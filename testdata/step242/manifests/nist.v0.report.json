@@ -28,11 +28,11 @@
     "path": "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
     "sizeBytes": 1958442,
     "status": "importFail",
-    "firstFailureLayer": "importer-geometry",
+    "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.Geometry.CircleTrim",
-      "messagePrefix": "Unable to compute circle trim from supplied vertices."
+      "code": "NotImplemented",
+      "source": "Importer.EntityFamily",
+      "messagePrefix": "ADVANCED_FACE surface \u0027B_SPLINE_SURFACE_WITH_KNOTS\u0027 is unsupported."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -388,11 +388,11 @@
     "path": "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
     "sizeBytes": 4807322,
     "status": "importFail",
-    "firstFailureLayer": "importer-geometry",
+    "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.Geometry.CircleTrim",
-      "messagePrefix": "Unable to compute circle trim from supplied vertices."
+      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
+      "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

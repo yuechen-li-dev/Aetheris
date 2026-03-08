@@ -32,7 +32,6 @@ public sealed class Step242ConicalSurfaceRegressionTests
 
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "tessellator", "Viewer.Tessellation.CurvedTopologyUnsupported", "Face 57 curved tessellation expected mirrored line uses for this cone/revolved topology. Observed")]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "importer-geometry", "Importer.Geometry.CircleTrim", "Unable to compute circle trim from supplied vertices.")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "importer-topology", "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization", "Inner loop could not be normalized")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "tessellator", "", "Face 2 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     public void Step242_NistConicalTargets_AdvancePastConicalRadius_AndReportDeterministicNextBlocker(
@@ -55,6 +54,45 @@ public sealed class Step242ConicalSurfaceRegressionTests
         var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.DoesNotContain("CONICAL_SURFACE radius", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.Equal(expectedLayer, first.FirstFailureLayer);
+        Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
+        Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+
+        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
+        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
+        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
+    }
+
+    [Theory]
+    [InlineData(
+        "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
+        "importer-topology",
+        "Importer.EntityFamily",
+        "ADVANCED_FACE surface 'B_SPLINE_SURFACE_WITH_KNOTS' is unsupported.")]
+    [InlineData(
+        "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
+        "importer-topology",
+        "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
+        "Inner loop could not be normalized")]
+    public void Step242_NistTargets_AdvancePastCircleTrim_AndKeepDeterministicNextBlocker(
+        string relativePath,
+        string expectedLayer,
+        string expectedSource,
+        string expectedMessagePrefix)
+    {
+        var entry = new Step242CorpusManifestEntry(
+            Id: Path.GetFileNameWithoutExtension(relativePath),
+            Path: relativePath,
+            Group: "nist-circle-trim-regression",
+            Notes: "regression",
+            ExpectedFirstDiagnostic: null,
+            ExpectHashStableAfterCanonicalization: null,
+            ExpectTopologyCounts: null,
+            ExpectGeometryKinds: null);
+
+        var first = Step242CorpusManifestRunner.RunOne(entry);
+        var second = Step242CorpusManifestRunner.RunOne(entry);
+
         Assert.Equal(expectedLayer, first.FirstFailureLayer);
         Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
         Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);

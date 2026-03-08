@@ -102,9 +102,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Entity:1234",
-      "messagePrefix": "FACE_BOUND loop type \u0027VERTEX_LOOP\u0027 is unsupported for non-spherical faces in M23 import subset."
+      "code": "ValidationFailed",
+      "source": "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
+      "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -150,9 +150,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Importer.EntityFamily",
-      "messagePrefix": "ADVANCED_FACE surface \u0027B_SPLINE_SURFACE_WITH_KNOTS\u0027 is unsupported."
+      "code": "ValidationFailed",
+      "source": "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
+      "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -271,7 +271,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerDisjointAfterNormalization",
+      "source": "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
       "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,
@@ -364,18 +364,18 @@
     "path": "testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp",
     "sizeBytes": 5237528,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
+      "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Loop 51 references missing child ID CoedgeId { Value = 219, IsValid = True }."
+      "messagePrefix": "Face 31 curved tessellation supports four-coedge torus/revolved loop layouts and the three-coedge cone loop emitted by the handcrafted fixture. Observed"
     },
-    "diagnosticCount": 29,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 271,
+      "edges": 392,
+      "faces": 125
     },
     "tessellationCounts": {
       "facePatches": 0,

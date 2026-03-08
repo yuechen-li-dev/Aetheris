@@ -48,6 +48,26 @@ public sealed class Step242HoleSemanticsTests
         Assert.StartsWith("Inner loop could not be normalized: disjoint.", diagnostic.Message, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ImportBody_ManyPlanarSingleEdgeCircularHoles_ClassifiesDeterministically()
+    {
+        var first = Step242Importer.ImportBody(Step242FixtureCorpus.PlanarFaceManyCircularSingleEdgeHolesScrambledBounds);
+        var second = Step242Importer.ImportBody(Step242FixtureCorpus.PlanarFaceManyCircularSingleEdgeHolesScrambledBounds);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+
+        var firstFace = Assert.Single(first.Value.Topology.Faces);
+        var secondFace = Assert.Single(second.Value.Topology.Faces);
+
+        Assert.Equal(4, firstFace.LoopIds.Count);
+        Assert.Equal(firstFace.LoopIds.Select(l => l.Value), secondFace.LoopIds.Select(l => l.Value));
+
+        Assert.Equal(4, firstFace.LoopIds[0].Value);
+        Assert.All(firstFace.LoopIds.Skip(1), loopId => Assert.True(loopId.Value is >= 1 and <= 3));
+    }
+
     [Fact]
     public void ImportBody_MultiLoopSphericalFace_ReturnsUnsupportedSurfaceForHolesValidationFailure()
     {

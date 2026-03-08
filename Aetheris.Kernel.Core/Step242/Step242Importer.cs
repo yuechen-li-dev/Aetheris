@@ -998,7 +998,7 @@ public static class Step242Importer
             .Select(candidate =>
             {
                 var containmentCount = infosWithSamples.Count(other => other.Info.Loop.LoopId != candidate.Info.Loop.LoopId
-                    && IsPointInPolygon(other.SamplePoint, candidate.Info.ProjectedPoints, containmentTolerance));
+                    && IsLoopContainedByOuter(other.Info.ProjectedPoints, candidate.Info.ProjectedPoints, containmentTolerance));
                 return new PlanarLoopOuterCandidate(candidate.Info, candidate.SamplePoint, containmentCount);
             })
             .OrderByDescending(c => c.ContainmentCount)
@@ -1018,7 +1018,9 @@ public static class Step242Importer
 
         foreach (var candidate in infosWithSamples.Where(i => i.Info.Loop.LoopId != outer.Info.Loop.LoopId))
         {
-            if (IsPointInPolygon(candidate.SamplePoint, outer.Info.ProjectedPoints, containmentTolerance))
+            var containment = EvaluateContainment(candidate.Info.ProjectedPoints, outer.Info.ProjectedPoints, containmentTolerance);
+            var intersectsOuter = PolygonsIntersect(candidate.Info.ProjectedPoints, outer.Info.ProjectedPoints, containmentTolerance);
+            if (!intersectsOuter && containment.OutsideCount == 0)
             {
                 containedInners.Add(candidate.Info);
                 continue;
@@ -1215,6 +1217,20 @@ public static class Step242Importer
         }
 
         return new ContainmentEvaluation(outsideCount, vertexCount, minDistanceToOuter);
+    }
+
+    private static bool IsLoopContainedByOuter(
+        IReadOnlyList<UvPoint> inner,
+        IReadOnlyList<UvPoint> outer,
+        double containmentTolerance)
+    {
+        if (PolygonsIntersect(inner, outer, containmentTolerance))
+        {
+            return false;
+        }
+
+        var containment = EvaluateContainment(inner, outer, containmentTolerance);
+        return containment.OutsideCount == 0;
     }
 
     private static double DistancePointToPolygon(UvPoint point, IReadOnlyList<UvPoint> polygon)
@@ -1552,8 +1568,25 @@ public static class Step242Importer
             case CurveGeometryKind.Circle3:
                 var circle = curve.Circle3!.Value;
                 var trim = edgeBinding.TrimInterval ?? new ParameterInterval(0d, 2d * double.Pi);
-                var mid = trim.Start + ((trim.End - trim.Start) * 0.5d);
-                points = [circle.Evaluate(trim.Start), circle.Evaluate(mid), circle.Evaluate(trim.End)];
+                var span = trim.End - trim.Start;
+                if (double.Abs(span - (2d * double.Pi)) <= AngleUnwrapEps)
+                {
+                    var quarter = trim.Start + (span * 0.25d);
+                    var mid = trim.Start + (span * 0.5d);
+                    var threeQuarter = trim.Start + (span * 0.75d);
+                    points = [
+                        circle.Evaluate(trim.Start),
+                        circle.Evaluate(quarter),
+                        circle.Evaluate(mid),
+                        circle.Evaluate(threeQuarter),
+                        circle.Evaluate(trim.End)
+                    ];
+                }
+                else
+                {
+                    var mid = trim.Start + (span * 0.5d);
+                    points = [circle.Evaluate(trim.Start), circle.Evaluate(mid), circle.Evaluate(trim.End)];
+                }
                 break;
             case CurveGeometryKind.BSpline3:
                 var spline = curve.BSpline3!.Value;

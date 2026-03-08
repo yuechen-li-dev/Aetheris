@@ -199,8 +199,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.Orientation.EdgeCurveSense",
-      "messagePrefix": "EDGE_CURVE same_sense semantics unsupported for this edge"
+      "source": "Importer.LoopRole.CylinderMappingFailed",
+      "messagePrefix": "Cylinder multi-loop hole classification is not yet safely supported."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -271,8 +271,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.Orientation.EdgeCurveSense",
-      "messagePrefix": "EDGE_CURVE same_sense semantics unsupported for this edge"
+      "source": "Importer.LoopRole.InnerDisjointAfterNormalization",
+      "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

@@ -501,7 +501,7 @@ internal static class Step242SubsetDecoder
             return KernelResult<ConeSurface>.Failure(placementResult.Diagnostics);
         }
 
-        var radiusResult = ReadPositiveNumber(coneEntity, 2, "CONICAL_SURFACE radius", "Importer.Geometry.Cone");
+        var radiusResult = ReadNonNegativeNumber(coneEntity, 2, "CONICAL_SURFACE radius", "Importer.Geometry.Cone");
         if (!radiusResult.IsSuccess)
         {
             return KernelResult<ConeSurface>.Failure(radiusResult.Diagnostics);
@@ -513,22 +513,47 @@ internal static class Step242SubsetDecoder
             return KernelResult<ConeSurface>.Failure(semiAngleResult.Diagnostics);
         }
 
-        if (semiAngleResult.Value <= 0d || semiAngleResult.Value >= (double.Pi / 2d))
+        var normalizedSemiAngleResult = NormalizeConicalSemiAngle(semiAngleResult.Value);
+        if (!normalizedSemiAngleResult.IsSuccess)
         {
-            return FailureCone("CONICAL_SURFACE semi-angle must be in the range (0, pi/2).", "Importer.Geometry.Cone");
+            return KernelResult<ConeSurface>.Failure(normalizedSemiAngleResult.Diagnostics);
         }
 
-        var offset = placementResult.Value.Axis.ToVector() * (radiusResult.Value / double.Tan(semiAngleResult.Value));
+        var normalizedSemiAngle = normalizedSemiAngleResult.Value;
+        var offset = placementResult.Value.Axis.ToVector() * (radiusResult.Value / double.Tan(normalizedSemiAngle));
         var apex = placementResult.Value.Origin - offset;
 
         try
         {
-            return KernelResult<ConeSurface>.Success(new ConeSurface(apex, placementResult.Value.Axis, semiAngleResult.Value, placementResult.Value.ReferenceAxis));
+            return KernelResult<ConeSurface>.Success(new ConeSurface(apex, placementResult.Value.Axis, normalizedSemiAngle, placementResult.Value.ReferenceAxis));
         }
         catch (ArgumentException)
         {
             return FailureCone("Invalid CONICAL_SURFACE placement produced degenerate frame.", "Importer.Geometry.Cone");
         }
+    }
+
+    private static KernelResult<double> NormalizeConicalSemiAngle(double rawSemiAngle)
+    {
+        if (!double.IsFinite(rawSemiAngle) || rawSemiAngle <= 0d)
+        {
+            return FailureNumberCode("CONICAL_SURFACE semi-angle must be greater than zero.", "Importer.Geometry.Cone");
+        }
+
+        if (rawSemiAngle < (double.Pi / 2d))
+        {
+            return KernelResult<double>.Success(rawSemiAngle);
+        }
+
+        if (rawSemiAngle < 90d)
+        {
+            // Compatibility heuristic: observed NIST/AP242 corpus inputs contain degree-form cone semi-angle values
+            // (for example near 59). This normalization is intentionally limited and is not a claim that AP242
+            // generically encodes CONICAL_SURFACE semi-angle in degrees.
+            return KernelResult<double>.Success(rawSemiAngle * (double.Pi / 180d));
+        }
+
+        return FailureNumberCode("CONICAL_SURFACE semi-angle must be in the range (0, pi/2) or (0, 90) degrees.", "Importer.Geometry.Cone");
     }
 
     private static KernelResult<(Point3D Origin, Direction3D Axis, Direction3D ReferenceAxis)> ReadAxis2Placement3D(
@@ -635,6 +660,22 @@ internal static class Step242SubsetDecoder
         if (numberResult.Value <= 0d)
         {
             return FailureNumberCode($"{context}: value must be greater than zero.", source);
+        }
+
+        return numberResult;
+    }
+
+    private static KernelResult<double> ReadNonNegativeNumber(Step242ParsedEntity entity, int argumentIndex, string context, string source)
+    {
+        var numberResult = ReadNumberArgument(entity, argumentIndex, context, source);
+        if (!numberResult.IsSuccess)
+        {
+            return numberResult;
+        }
+
+        if (numberResult.Value < 0d)
+        {
+            return FailureNumberCode($"{context}: value must be greater than or equal to zero.", source);
         }
 
         return numberResult;

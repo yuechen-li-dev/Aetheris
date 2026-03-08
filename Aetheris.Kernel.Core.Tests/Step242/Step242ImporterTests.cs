@@ -651,9 +651,14 @@ public sealed class Step242ImporterTests
 
         var import = Step242Importer.ImportBody(text);
 
-        Assert.False(import.IsSuccess);
-        Assert.NotEmpty(import.Diagnostics);
-        var first = import.Diagnostics[0];
+        Assert.True(import.IsSuccess);
+        Assert.DoesNotContain(import.Diagnostics,
+            d => d.Message.Contains("TOROIDAL_SURFACE", StringComparison.OrdinalIgnoreCase));
+
+        var tessellation = BrepDisplayTessellator.Tessellate(import.Value);
+        Assert.False(tessellation.IsSuccess);
+        Assert.NotEmpty(tessellation.Diagnostics);
+        var first = tessellation.Diagnostics[0];
         Assert.DoesNotContain("TOROIDAL_SURFACE", first.Message, StringComparison.OrdinalIgnoreCase);
     }
 

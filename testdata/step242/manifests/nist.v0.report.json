@@ -4,18 +4,18 @@
     "path": "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp",
     "sizeBytes": 391739,
     "status": "importFail",
-    "firstFailureLayer": "importer-geometry",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "InvalidArgument",
-      "source": "Importer.Geometry.Cone",
-      "messagePrefix": "CONICAL_SURFACE radius"
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.CylinderTrimUnsupported",
+      "messagePrefix": "Cylindrical face tessellation could not derive a bounded trim patch."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 206,
+      "edges": 318,
+      "faces": 117
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -30,9 +30,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-geometry",
     "firstDiagnostic": {
-      "code": "InvalidArgument",
-      "source": "Importer.Geometry.Cone",
-      "messagePrefix": "CONICAL_SURFACE radius"
+      "code": "ValidationFailed",
+      "source": "Importer.Geometry.CircleTrim",
+      "messagePrefix": "Unable to compute circle trim from supplied vertices."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -76,11 +76,11 @@
     "path": "testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp",
     "sizeBytes": 1265846,
     "status": "importFail",
-    "firstFailureLayer": "importer-geometry",
+    "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "InvalidArgument",
-      "source": "Importer.Geometry.Cone",
-      "messagePrefix": "CONICAL_SURFACE radius"
+      "code": "ValidationFailed",
+      "source": "Importer.LoopRole.InnerNotContained",
+      "messagePrefix": "Inner loop is not contained by outer loop."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -124,18 +124,18 @@
     "path": "testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp",
     "sizeBytes": 1960222,
     "status": "importFail",
-    "firstFailureLayer": "importer-geometry",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "InvalidArgument",
-      "source": "Importer.Geometry.Cone",
-      "messagePrefix": "CONICAL_SURFACE radius"
+      "code": "NotImplemented",
+      "source": "",
+      "messagePrefix": "Face 2 curved tessellation does not support this torus/revolved boundary topology yet. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 310,
+      "edges": 476,
+      "faces": 187
     },
     "tessellationCounts": {
       "facePatches": 0,

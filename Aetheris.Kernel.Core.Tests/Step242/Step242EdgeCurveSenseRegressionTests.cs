@@ -6,7 +6,7 @@ public sealed class Step242EdgeCurveSenseRegressionTests
 {
     [Theory]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp", "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection", "Cylinder loop normalization failed")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp", "Importer.LoopRole.InnerCrossesOuterAfterNormalization", "Inner loop could not be normalized")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp", "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization", "Inner loop could not be normalized")]
     public void Step242_NistEdgeCurveSenseTargets_AdvanceToNextBlocker_Deterministically(
         string relativePath,
         string expectedSource,

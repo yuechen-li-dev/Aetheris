@@ -79,7 +79,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
+      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
       "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,
@@ -103,7 +103,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
+      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
       "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,
@@ -151,7 +151,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
+      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
       "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,
@@ -247,7 +247,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
+      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
       "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,
@@ -271,7 +271,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
+      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
       "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,

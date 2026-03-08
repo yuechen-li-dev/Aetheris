@@ -72,6 +72,57 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         Assert.Contains(first, s => s.AdaptivePointCount > s.LegacyPointCount);
     }
 
+    [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", true)]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", true)]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", false)]
+    public void Step242_PlanarLoopRole_AppliesFaceBoundOrientationToEffectiveWinding(string relativePath, bool expectOrientationDiagnostics)
+    {
+        var first = CapturePlanarOrientation(relativePath);
+        var second = CapturePlanarOrientation(relativePath);
+        Console.WriteLine($"{relativePath} => orientationDiagnostics={first.Count}, signFlipCount={first.Count(d => d.RawSignedArea * d.EffectiveSignedArea < 0d)}");
+
+        Assert.Equal(first, second);
+
+        if (!expectOrientationDiagnostics)
+        {
+            Assert.Empty(first);
+            return;
+        }
+
+        Assert.NotEmpty(first);
+        Assert.Contains(first, d => d.RawSignedArea * d.EffectiveSignedArea < 0d);
+
+        var outers = first.Where(d => d.LoopId == d.SelectedOuterLoopId).ToArray();
+        Assert.NotEmpty(outers);
+        Assert.All(outers, outer => Assert.Equal("CCW", outer.FinalNormalizedWinding));
+
+        Assert.All(first.Where(d => d.LoopId != d.SelectedOuterLoopId), inner => Assert.Equal("CW", inner.FinalNormalizedWinding));
+    }
+
+    [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
+    public void Step242_PlanarLoopRole_TargetRuntimeVerdict_ReportsCurrentFirstBlocker(string relativePath)
+    {
+        var entry = new Step242CorpusManifestEntry(
+            Id: Path.GetFileNameWithoutExtension(relativePath),
+            Path: relativePath,
+            Group: "nist-loop-role-regression",
+            Notes: "runtime-verdict",
+            ExpectedFirstDiagnostic: null,
+            ExpectHashStableAfterCanonicalization: null,
+            ExpectTopologyCounts: null,
+            ExpectGeometryKinds: null);
+
+        var result = Step242CorpusManifestRunner.RunOne(entry);
+        Console.WriteLine($"{relativePath} => layer={result.FirstFailureLayer}, source={result.FirstDiagnostic.Source}, message={result.FirstDiagnostic.MessagePrefix}");
+
+        Assert.Equal("importer-topology", result.FirstFailureLayer);
+        Assert.Equal("Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization", result.FirstDiagnostic.Source);
+    }
+
     private static IReadOnlyList<Step242Importer.LoopRoleCircularSamplingDiagnostic> CaptureCircularSampling(string relativePath)
     {
         var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
@@ -79,6 +130,17 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         var diagnostics = new List<Step242Importer.LoopRoleCircularSamplingDiagnostic>();
 
         using var captureScope = Step242Importer.CaptureLoopRoleCircularSamplingDiagnostics(diagnostics);
+        Step242Importer.ImportBody(text);
+        return diagnostics;
+    }
+
+    private static IReadOnlyList<Step242Importer.PlanarLoopRoleOrientationDiagnostic> CapturePlanarOrientation(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var diagnostics = new List<Step242Importer.PlanarLoopRoleOrientationDiagnostic>();
+
+        using var captureScope = Step242Importer.CapturePlanarLoopRoleOrientationDiagnostics(diagnostics);
         Step242Importer.ImportBody(text);
         return diagnostics;
     }

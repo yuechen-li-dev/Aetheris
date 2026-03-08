@@ -17,12 +17,20 @@ public static class Step242Importer
     private const double AngleUnwrapEps = 1e-8d;
     private const double ContainmentEps = 1e-8d;
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<PlanarLoopRoleOrientationDiagnostic>?> PlanarLoopRoleDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
         var previous = CircularSamplingDiagnosticsSink.Value;
         CircularSamplingDiagnosticsSink.Value = sink;
         return new CircularSamplingDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CapturePlanarLoopRoleOrientationDiagnostics(ICollection<PlanarLoopRoleOrientationDiagnostic> sink)
+    {
+        var previous = PlanarLoopRoleDiagnosticsSink.Value;
+        PlanarLoopRoleDiagnosticsSink.Value = sink;
+        return new PlanarLoopRoleDiagnosticsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -173,8 +181,9 @@ public static class Step242Importer
                 }
 
                 var boundEntity = boundEntityResult.Value;
+                var isFaceOuterBound = string.Equals(boundEntity.Name, "FACE_OUTER_BOUND", StringComparison.OrdinalIgnoreCase);
                 var isFaceBound = string.Equals(boundEntity.Name, "FACE_BOUND", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(boundEntity.Name, "FACE_OUTER_BOUND", StringComparison.OrdinalIgnoreCase);
+                    || isFaceOuterBound;
                 if (!isFaceBound)
                 {
                     return Failure($"Entity '{boundEntity.Name}' is unsupported in M23 import subset.", $"Entity:{boundEntity.Id}");
@@ -330,7 +339,7 @@ public static class Step242Importer
                 }
 
                 builder.AddLoop(new Loop(loopId, coedgeIds));
-                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples));
+                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, faceEntity.Id, boundEntity.Id, isFaceOuterBound, boundOrientation));
             }
 
             var classifyResult = ClassifyAndNormalizeFaceLoops(loopData, bindSurfaceResult.Value.SurfaceGeometry);
@@ -1053,15 +1062,17 @@ public static class Step242Importer
         var infos = new List<PlanarLoopInfo>(loops.Count);
         foreach (var loop in loops)
         {
-            var projected = SimplifyClosedPolygon(ProjectLoopToPlane(loop.Samples, plane), ContainmentEps);
-            var uniqueCount = CountUniquePoints(projected, ContainmentEps);
-            var area = ComputeSignedArea(projected);
-            if (uniqueCount < 3 || double.Abs(area) <= AreaEps)
+            var rawProjected = SimplifyClosedPolygon(ProjectLoopToPlane(loop.Samples, plane), ContainmentEps);
+            var rawUniqueCount = CountUniquePoints(rawProjected, ContainmentEps);
+            var rawArea = ComputeSignedArea(rawProjected);
+            if (rawUniqueCount < 3 || double.Abs(rawArea) <= AreaEps)
             {
                 continue;
             }
 
-            infos.Add(new PlanarLoopInfo(loop, projected, area));
+            var effectiveProjected = loop.BoundOrientation ? rawProjected : ReverseClosedPolygon(rawProjected);
+            var effectiveArea = ComputeSignedArea(effectiveProjected);
+            infos.Add(new PlanarLoopInfo(loop, effectiveProjected, rawArea, effectiveArea));
         }
 
         if (infos.Count == 0)
@@ -1092,14 +1103,14 @@ public static class Step242Importer
                 return new PlanarLoopOuterCandidate(candidate.Info, candidate.SamplePoint, containmentCount);
             })
             .OrderByDescending(c => c.ContainmentCount)
-            .ThenByDescending(c => double.Abs(c.Info.SignedArea))
+            .ThenByDescending(c => double.Abs(c.Info.EffectiveSignedArea))
             .ThenBy(c => c.Info.Loop.LoopId.Value)
             .ToList();
 
         var outer = orderedByContainmentThenArea[0];
         if (orderedByContainmentThenArea.Count > 1
             && outer.ContainmentCount == orderedByContainmentThenArea[1].ContainmentCount
-            && double.Abs(double.Abs(outer.Info.SignedArea) - double.Abs(orderedByContainmentThenArea[1].Info.SignedArea)) <= areaTolerance)
+            && double.Abs(double.Abs(outer.Info.EffectiveSignedArea) - double.Abs(orderedByContainmentThenArea[1].Info.EffectiveSignedArea)) <= areaTolerance)
         {
             return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Unable to choose a unique outer loop.", "Importer.LoopRole.AmbiguousOuter");
         }
@@ -1120,7 +1131,7 @@ public static class Step242Importer
                 continue;
             }
 
-            if (double.Abs(candidate.Info.SignedArea) <= areaTolerance * 4d
+            if (double.Abs(candidate.Info.EffectiveSignedArea) <= areaTolerance * 4d
                 || IsPointNearPolygonEdge(candidate.SamplePoint, outer.Info.ProjectedPoints, containmentTolerance * 4d))
             {
                 continue;
@@ -1142,12 +1153,14 @@ public static class Step242Importer
             }
         }
 
-        var normalizedOuter = NormalizeLoopWinding(outer.Info.Loop, outer.Info.SignedArea, shouldBePositive: true);
+        var normalizedOuter = NormalizeLoopWinding(outer.Info.Loop, outer.Info.EffectiveSignedArea, shouldBePositive: true);
         var normalizedInners = innerLoops
-            .OrderByDescending(i => double.Abs(i.SignedArea))
+            .OrderByDescending(i => double.Abs(i.EffectiveSignedArea))
             .ThenBy(i => i.Loop.LoopId.Value)
-            .Select(i => NormalizeLoopWinding(i.Loop, i.SignedArea, shouldBePositive: false))
+            .Select(i => NormalizeLoopWinding(i.Loop, i.EffectiveSignedArea, shouldBePositive: false))
             .ToList();
+
+        ReportPlanarLoopRoleDiagnostics(outer.Info, normalizedOuter, normalizedInners, innerLoops);
 
         var ordered = new List<LoopBuildData>(1 + normalizedInners.Count) { normalizedOuter };
         ordered.AddRange(normalizedInners);
@@ -1242,7 +1255,62 @@ public static class Step242Importer
             .Select(c => c with { IsReversed = !c.IsReversed })
             .ToList();
 
-        return new LoopBuildData(loop.LoopId, flippedCoedges, loop.Samples);
+        return new LoopBuildData(loop.LoopId, flippedCoedges, loop.Samples, loop.FaceEntityId, loop.BoundEntityId, loop.IsFaceOuterBound, loop.BoundOrientation);
+    }
+
+    private static IReadOnlyList<UvPoint> ReverseClosedPolygon(IReadOnlyList<UvPoint> polygon)
+    {
+        if (polygon.Count <= 1)
+        {
+            return polygon;
+        }
+
+        var core = polygon.Take(polygon.Count - 1).Reverse().ToList();
+        core.Add(core[0]);
+        return core;
+    }
+
+    private static void ReportPlanarLoopRoleDiagnostics(
+        PlanarLoopInfo outer,
+        LoopBuildData normalizedOuter,
+        IReadOnlyList<LoopBuildData> normalizedInners,
+        IReadOnlyList<PlanarLoopInfo> containedInners)
+    {
+        var sink = PlanarLoopRoleDiagnosticsSink.Value;
+        if (sink is null)
+        {
+            return;
+        }
+
+        sink.Add(CreatePlanarLoopRoleDiagnostic(outer, selectedOuterLoopId: outer.Loop.LoopId.Value, normalizedOuter));
+
+        foreach (var inner in containedInners.OrderBy(i => i.Loop.LoopId.Value))
+        {
+            var normalized = normalizedInners.Single(n => n.LoopId == inner.Loop.LoopId);
+            sink.Add(CreatePlanarLoopRoleDiagnostic(inner, selectedOuterLoopId: outer.Loop.LoopId.Value, normalized));
+        }
+    }
+
+    private static PlanarLoopRoleOrientationDiagnostic CreatePlanarLoopRoleDiagnostic(
+        PlanarLoopInfo info,
+        int selectedOuterLoopId,
+        LoopBuildData normalizedLoop)
+    {
+        var wasFlipped = info.Loop.Coedges.Count == normalizedLoop.Coedges.Count
+            && info.Loop.Coedges.Zip(normalizedLoop.Coedges, (before, after) => before.IsReversed != after.IsReversed).All(v => v);
+        var finalSignedArea = wasFlipped ? -info.EffectiveSignedArea : info.EffectiveSignedArea;
+        var finalWinding = finalSignedArea >= 0d ? "CCW" : "CW";
+        return new PlanarLoopRoleOrientationDiagnostic(
+            FaceEntityId: info.Loop.FaceEntityId,
+            BoundEntityId: info.Loop.BoundEntityId,
+            IsFaceOuterBound: info.Loop.IsFaceOuterBound,
+            BoundOrientation: info.Loop.BoundOrientation,
+            LoopId: info.Loop.LoopId.Value,
+            RawSignedArea: info.RawSignedArea,
+            EffectiveSignedArea: info.EffectiveSignedArea,
+            SelectedOuterLoopId: selectedOuterLoopId,
+            FinalNormalizedSignedArea: finalSignedArea,
+            FinalNormalizedWinding: finalWinding);
     }
 
     private static bool LoopsOverlap(PlanarLoopInfo a, PlanarLoopInfo b, double containmentTolerance)
@@ -1267,9 +1335,9 @@ public static class Step242Importer
         var containment = EvaluateContainment(inner.ProjectedPoints, outer.ProjectedPoints, containmentTolerance);
         var crossingOuter = intersectionCount > 0;
 
-        var areaRatio = double.Abs(outer.SignedArea) <= areaTolerance
+        var areaRatio = double.Abs(outer.EffectiveSignedArea) <= areaTolerance
             ? 0d
-            : double.Abs(inner.SignedArea) / double.Abs(outer.SignedArea);
+            : double.Abs(inner.EffectiveSignedArea) / double.Abs(outer.EffectiveSignedArea);
 
         var reason = crossingOuter
             ? (containment.OutsideCount == 0 ? "crosses_outer_boundary_with_all_vertices_inside" : "crosses_outer_boundary_with_outside_vertices")
@@ -1815,6 +1883,26 @@ public static class Step242Importer
         }
     }
 
+    public sealed record PlanarLoopRoleOrientationDiagnostic(
+        int FaceEntityId,
+        int BoundEntityId,
+        bool IsFaceOuterBound,
+        bool BoundOrientation,
+        int LoopId,
+        double RawSignedArea,
+        double EffectiveSignedArea,
+        int SelectedOuterLoopId,
+        double FinalNormalizedSignedArea,
+        string FinalNormalizedWinding);
+
+    private sealed class PlanarLoopRoleDiagnosticsScope(ICollection<PlanarLoopRoleOrientationDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            PlanarLoopRoleDiagnosticsSink.Value = previous;
+        }
+    }
+
     private static KernelResult<T> LoopRoleFailure<T>(string message, string source) =>
         KernelResult<T>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
 
@@ -1841,9 +1929,16 @@ public static class Step242Importer
 
     private static string SourceFor(int _entityId, string stableSource) => stableSource;
 
-    private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples);
+    private sealed record LoopBuildData(
+        LoopId LoopId,
+        IReadOnlyList<Coedge> Coedges,
+        IReadOnlyList<Point3D> Samples,
+        int FaceEntityId,
+        int BoundEntityId,
+        bool IsFaceOuterBound,
+        bool BoundOrientation);
 
-    private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea);
+    private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double RawSignedArea, double EffectiveSignedArea);
 
     private sealed record PlanarLoopInfoWithSample(PlanarLoopInfo Info, UvPoint SamplePoint);
 

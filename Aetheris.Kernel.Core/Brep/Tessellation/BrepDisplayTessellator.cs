@@ -236,6 +236,29 @@ public static class BrepDisplayTessellator
 
         var angularSpan = trimPatch.Value.UEnd - trimPatch.Value.UStart;
         var axialSpan = trimPatch.Value.VEnd - trimPatch.Value.VStart;
+        var nearFullPeriodicSpan = (2d * double.Pi) - 0.25d;
+        if (angularSpan >= nearFullPeriodicSpan)
+        {
+            var periodicParameters = GetRevolvedFaceParameters(
+                body,
+                faceId,
+                options,
+                radiusHint: cylinder.Radius,
+                allowThreeCoedgeConeTopology: false);
+            if (periodicParameters.IsSuccess)
+            {
+                return KernelResult<DisplayFaceMeshPatch>.Success(CreatePeriodicGridPatch(
+                    faceId,
+                    periodicParameters.Value.AngularSegments,
+                    periodicParameters.Value.AxialSegments,
+                    (u, v) => cylinder.Evaluate(u, v),
+                    (u, _) => cylinder.Normal(u).ToVector(),
+                    periodicParameters.Value.VStart,
+                    periodicParameters.Value.VEnd),
+                    periodicParameters.Diagnostics);
+            }
+        }
+
         var angularSegments = CalculateSegmentCount(angularSpan, System.Math.Max(1e-6d, cylinder.Radius), options);
         var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling(axialSpan / options.ChordTolerance), 1, options.MaximumSegments));
 

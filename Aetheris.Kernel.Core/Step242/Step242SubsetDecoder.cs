@@ -144,6 +144,29 @@ internal static class Step242SubsetDecoder
         return KernelResult<bool>.Success(value.Value);
     }
 
+    public static KernelResult<bool?> ReadLogical(Step242ParsedEntity entity, int argumentIndex, string context)
+    {
+        if (argumentIndex < 0 || argumentIndex >= entity.Arguments.Count)
+        {
+            return Failure<bool?>($"{context}: missing argument at index {argumentIndex}.", $"Entity:{entity.Id}");
+        }
+
+        if (entity.Arguments[argumentIndex] is Step242BooleanValue boolValue)
+        {
+            return KernelResult<bool?>.Success(boolValue.Value);
+        }
+
+        if (entity.Arguments[argumentIndex] is Step242EnumValue enumValue
+            && IsUnknownLogicalToken(enumValue.Value))
+        {
+            return KernelResult<bool?>.Success(null);
+        }
+
+        return Failure<bool?>(
+            $"{context}: expected logical (.T. / .F. / .U.).",
+            $"Entity:{entity.Id}");
+    }
+
     public static KernelResult<Point3D> ReadVertexPoint(Step242ParsedDocument document, int vertexPointEntityId)
     {
         var vertexPointEntityResult = document.TryGetEntity(vertexPointEntityId, "VERTEX_POINT");
@@ -380,7 +403,7 @@ internal static class Step242SubsetDecoder
             return KernelResult<BSpline3Curve>.Failure(closedCurveResult.Diagnostics);
         }
 
-        var selfIntersectResult = ReadBoolean(splineEntity, 5, "B_SPLINE_CURVE_WITH_KNOTS self_intersect");
+        var selfIntersectResult = ReadLogical(splineEntity, 5, "B_SPLINE_CURVE_WITH_KNOTS self_intersect");
         if (!selfIntersectResult.IsSuccess)
         {
             return KernelResult<BSpline3Curve>.Failure(selfIntersectResult.Diagnostics);
@@ -413,7 +436,7 @@ internal static class Step242SubsetDecoder
                 knotValuesResult.Value,
                 curveFormResult.Value,
                 closedCurveResult.Value,
-                selfIntersectResult.Value,
+                selfIntersectResult.Value ?? false,
                 knotSpecResult.Value));
         }
         catch (ArgumentException ex)
@@ -935,6 +958,11 @@ internal static class Step242SubsetDecoder
         => Failure<(Point3D Origin, Direction3D Axis, Direction3D ReferenceAxis)>(KernelDiagnosticCode.InvalidArgument, message, source);
 
     private static KernelResult<double> FailureNumberCode(string message, string source) => Failure<double>(KernelDiagnosticCode.InvalidArgument, message, source);
+
+    private static bool IsUnknownLogicalToken(string token)
+        => string.Equals(token, "U", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "UNKNOWN", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "UNSET", StringComparison.OrdinalIgnoreCase);
 
     private static string SourceFor(int _entityId, string stableSource) => stableSource;
 

@@ -99,14 +99,15 @@ public sealed class Step242BSplineEdgeTests
         }
     }
 
+
     [Fact]
-    public void Step242_NistFtc06_AdvancesPastBoundedCurveBlocker_Deterministically()
+    public void Step242_NistFtc06_StaysPastBoundedCurveAndSelfIntersectBlockers_Deterministically()
     {
         const string relativePath = "testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp";
         var entry = new Step242CorpusManifestEntry(
             Id: Path.GetFileNameWithoutExtension(relativePath),
             Path: relativePath,
-            Group: "nist-bounded-curve-regression",
+            Group: "nist-bspline-regression",
             Notes: "regression",
             ExpectedFirstDiagnostic: null,
             ExpectHashStableAfterCanonicalization: null,
@@ -116,16 +117,18 @@ public sealed class Step242BSplineEdgeTests
         var first = Step242CorpusManifestRunner.RunOne(entry);
         var second = Step242CorpusManifestRunner.RunOne(entry);
 
-        Assert.NotEqual("EDGE_CURVE geometry 'BOUNDED_CURVE' is unsupported.", first.FirstDiagnostic.MessagePrefix);
+        Assert.DoesNotContain("EDGE_CURVE geometry 'BOUNDED_CURVE' is unsupported.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.DoesNotContain("B_SPLINE_CURVE_WITH_KNOTS self_intersect", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
     }
+
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp")]
-    public void Step242_NistTargets_AdvancePastBsplineEdgeUnsupportedBlocker(string relativePath)
+    public void Step242_NistTargets_AdvancePastBsplineSelfIntersectBlocker_Deterministically(string relativePath)
     {
         var entry = new Step242CorpusManifestEntry(
             Id: Path.GetFileNameWithoutExtension(relativePath),
@@ -137,9 +140,13 @@ public sealed class Step242BSplineEdgeTests
             ExpectTopologyCounts: null,
             ExpectGeometryKinds: null);
 
-        var report = Step242CorpusManifestRunner.RunOne(entry);
+        var first = Step242CorpusManifestRunner.RunOne(entry);
+        var second = Step242CorpusManifestRunner.RunOne(entry);
 
-        Assert.NotEqual("EDGE_CURVE geometry 'B_SPLINE_CURVE_WITH_KNOTS' is unsupported.", report.FirstDiagnostic.MessagePrefix);
+        Assert.DoesNotContain("B_SPLINE_CURVE_WITH_KNOTS self_intersect", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
+        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
+        Assert.False(string.IsNullOrWhiteSpace(first.FirstDiagnostic.MessagePrefix));
     }
 
     private static string LoadFixture(string relativePath)

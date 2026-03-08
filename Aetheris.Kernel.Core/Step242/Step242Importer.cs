@@ -6,6 +6,7 @@ using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
+using System.Threading;
 
 namespace Aetheris.Kernel.Core.Step242;
 
@@ -15,6 +16,14 @@ public static class Step242Importer
     private const double PointOnSurfaceEps = 1e-5d;
     private const double AngleUnwrapEps = 1e-8d;
     private const double ContainmentEps = 1e-8d;
+    private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
+
+    public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
+    {
+        var previous = CircularSamplingDiagnosticsSink.Value;
+        CircularSamplingDiagnosticsSink.Value = sink;
+        return new CircularSamplingDiagnosticsScope(previous);
+    }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
     {
@@ -304,7 +313,14 @@ public static class Step242Importer
                         IsReversed: isReversed);
 
                     loopCoedges.Add(coedge);
-                    var sampleResult = SampleCoedgePoints(bindings.GetEdgeBinding(edgeIdResult.Value), geometry, coedge.IsReversed);
+                    var sampleResult = SampleCoedgePoints(
+                        bindings.GetEdgeBinding(edgeIdResult.Value),
+                        geometry,
+                        coedge.IsReversed,
+                        faceEntity.Id,
+                        loopId.Value,
+                        coedge.Id.Value,
+                        edgeIdResult.Value.Value);
                     if (!sampleResult.IsSuccess)
                     {
                         return KernelResult<BrepBody>.Failure(sampleResult.Diagnostics);
@@ -1692,7 +1708,14 @@ public static class Step242Importer
         }
     }
 
-    private static KernelResult<IReadOnlyList<Point3D>> SampleCoedgePoints(EdgeGeometryBinding edgeBinding, BrepGeometryStore geometry, bool isReversed)
+    private static KernelResult<IReadOnlyList<Point3D>> SampleCoedgePoints(
+        EdgeGeometryBinding edgeBinding,
+        BrepGeometryStore geometry,
+        bool isReversed,
+        int faceEntityId,
+        int loopId,
+        int coedgeId,
+        int edgeId)
     {
         if (!geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve) || curve is null)
         {
@@ -1711,24 +1734,21 @@ public static class Step242Importer
                 var circle = curve.Circle3!.Value;
                 var trim = edgeBinding.TrimInterval ?? new ParameterInterval(0d, 2d * double.Pi);
                 var span = trim.End - trim.Start;
-                if (double.Abs(span - (2d * double.Pi)) <= AngleUnwrapEps)
-                {
-                    var quarter = trim.Start + (span * 0.25d);
-                    var mid = trim.Start + (span * 0.5d);
-                    var threeQuarter = trim.Start + (span * 0.75d);
-                    points = [
-                        circle.Evaluate(trim.Start),
-                        circle.Evaluate(quarter),
-                        circle.Evaluate(mid),
-                        circle.Evaluate(threeQuarter),
-                        circle.Evaluate(trim.End)
-                    ];
-                }
-                else
-                {
-                    var mid = trim.Start + (span * 0.5d);
-                    points = [circle.Evaluate(trim.Start), circle.Evaluate(mid), circle.Evaluate(trim.End)];
-                }
+                var isFullCircle = double.Abs(span - (2d * double.Pi)) <= AngleUnwrapEps;
+                var legacyPointCount = isFullCircle ? 5 : 3;
+                var segmentCount = ComputeAdaptiveCircleSegmentCount(span);
+                points = SampleCircularTrim(circle, trim, segmentCount);
+                ReportCircularSamplingDiagnostic(new LoopRoleCircularSamplingDiagnostic(
+                    FaceEntityId: faceEntityId,
+                    LoopId: loopId,
+                    CoedgeId: coedgeId,
+                    EdgeId: edgeId,
+                    TrimStart: trim.Start,
+                    TrimEnd: trim.End,
+                    TrimSpan: span,
+                    IsFullCircle: isFullCircle,
+                    LegacyPointCount: legacyPointCount,
+                    AdaptivePointCount: points.Count));
                 break;
             case CurveGeometryKind.BSpline3:
                 var spline = curve.BSpline3!.Value;
@@ -1747,6 +1767,52 @@ public static class Step242Importer
         }
 
         return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+    }
+
+    private static int ComputeAdaptiveCircleSegmentCount(double span)
+    {
+        const double maxSegmentAngle = double.Pi / 4d;
+        var normalizedSpan = double.Abs(span);
+        var segmentCount = (int)double.Ceiling(normalizedSpan / maxSegmentAngle);
+        return System.Math.Max(2, segmentCount);
+    }
+
+    private static List<Point3D> SampleCircularTrim(Circle3Curve circle, ParameterInterval trim, int segmentCount)
+    {
+        var points = new List<Point3D>(segmentCount + 1);
+        var step = (trim.End - trim.Start) / segmentCount;
+        for (var i = 0; i <= segmentCount; i++)
+        {
+            points.Add(circle.Evaluate(trim.Start + (step * i)));
+        }
+
+        return points;
+    }
+
+    private static void ReportCircularSamplingDiagnostic(LoopRoleCircularSamplingDiagnostic diagnostic)
+    {
+        var sink = CircularSamplingDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
+    public sealed record LoopRoleCircularSamplingDiagnostic(
+        int FaceEntityId,
+        int LoopId,
+        int CoedgeId,
+        int EdgeId,
+        double TrimStart,
+        double TrimEnd,
+        double TrimSpan,
+        bool IsFullCircle,
+        int LegacyPointCount,
+        int AdaptivePointCount);
+
+    private sealed class CircularSamplingDiagnosticsScope(ICollection<LoopRoleCircularSamplingDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            CircularSamplingDiagnosticsSink.Value = previous;
+        }
     }
 
     private static KernelResult<T> LoopRoleFailure<T>(string message, string source) =>

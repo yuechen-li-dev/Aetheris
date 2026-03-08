@@ -77,6 +77,8 @@ describe('App STEP file upload flow', () => {
 
         expect(screen.getByRole('tab', { name: /STEP 242 Viewer/i }).getAttribute('aria-selected')).toBe('true');
         expect(screen.getByText('Viewport')).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'GRID' }).getAttribute('aria-pressed')).toBe('true');
+        expect(screen.getByRole('button', { name: 'COORD' }).getAttribute('aria-pressed')).toBe('true');
         expect(screen.queryByText('Create Box')).toBeNull();
 
         fireEvent.click(screen.getByRole('tab', { name: /Modeling Demo/i }));

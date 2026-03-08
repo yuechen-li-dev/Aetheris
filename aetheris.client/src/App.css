@@ -201,15 +201,87 @@
   min-height: calc(100vh - 140px);
   padding: var(--layout-space-2);
   display: flex;
-  flex-direction: column;
-  gap: var(--layout-space-2);
 }
 
-
-.viewport-canvas-frame {
+.viewport-frame-outline {
   flex: 1;
   min-height: 0;
-  border-radius: calc(var(--layout-radius) - 2px);
+  border: 1px solid #c7bfb1;
+  padding: 1px;
+  background: #c7bfb1;
+}
+
+.viewport-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #2f2a27;
+}
+
+.viewport-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--layout-space-2);
+  padding: 9px 11px;
+  border-bottom: 1px solid #453f3a;
+  background: #2f2a27;
+}
+
+.viewport-header__title {
+  color: #d9d0c3;
+}
+
+.viewport-segmented {
+  display: inline-flex;
+  border: 1px solid #746a5f;
+  background: #3a342f;
+}
+
+.viewport-segmented__button {
+  min-height: 26px;
+  border: 0;
+  border-right: 1px solid #746a5f;
+  border-radius: 0;
+  padding: 0 10px;
+  background: transparent;
+  color: #cfc4b4;
+  font-size: 0.68rem;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: var(--ui-weight-title);
+}
+
+.viewport-segmented__button:last-child {
+  border-right: 0;
+}
+
+.viewport-segmented__button.is-active {
+  background: #cbc1b2;
+  color: #332d29;
+}
+
+.viewport-segmented__button:hover {
+  background: #4a433d;
+}
+
+.viewport-segmented__button.is-active:hover {
+  background: #cbc1b2;
+}
+
+.viewport-canvas-outline {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid #c7bfb1;
+  padding: 1px;
+  background: #c7bfb1;
+}
+
+.viewport-canvas-frame {
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   background: linear-gradient(180deg, #f2f4f7 0%, #dde2e8 100%);
 }

@@ -382,6 +382,36 @@ public sealed class Step242ImporterTests
         Assert.NotEmpty(tessellation.Value.FacePatches);
     }
 
+
+    [Fact]
+    public void Step242_HandcraftedSphereFixture_AcceptsVertexLoopFaceBound_AndImports()
+    {
+        var text = LoadFixture("testdata/step242/handcrafted/baseline/sphere.step");
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.True(import.IsSuccess);
+        Assert.Single(import.Value.Topology.Faces);
+        var face = Assert.Single(import.Value.Topology.Faces);
+        Assert.Empty(import.Value.GetLoopIds(face.Id));
+    }
+
+    [Fact]
+    public void Step242_HandcraftedSphereFixture_AdvancesPastVertexLoopBlocker_AndTessellates()
+    {
+        var text = LoadFixture("testdata/step242/handcrafted/baseline/sphere.step");
+
+        var import = Step242Importer.ImportBody(text);
+        Assert.True(import.IsSuccess);
+
+        var tessellation = BrepDisplayTessellator.Tessellate(import.Value);
+
+        Assert.True(tessellation.IsSuccess);
+        Assert.DoesNotContain(tessellation.Diagnostics,
+            d => d.Message.Contains("expected 'EDGE_LOOP' but found 'VERTEX_LOOP'", StringComparison.Ordinal));
+        Assert.NotEmpty(tessellation.Value.FacePatches);
+    }
+
     [Fact]
     public void Step242_HandcraftedToroidFixture_UsesCircularSeamTopology_AndTessellates()
     {

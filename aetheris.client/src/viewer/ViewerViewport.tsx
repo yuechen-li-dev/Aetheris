@@ -594,7 +594,7 @@ export function ViewerViewport({
 
   return (
     <div className="viewport-canvas-frame">
-      <Canvas orthographic camera={{ position: [6, 6, 6], zoom: 90, near: -100, far: 100 }} gl={{ alpha: true }}>
+      <Canvas orthographic camera={{ position: [6, 6, 6], zoom: 90, near: -10000, far: 10000 }} gl={{ alpha: true }}>
         {/*Negative near value is indeed correct in order to show negative value on grid. Documentation is wrong.*/}
         <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
         <directionalLight position={[-5, 9, 6]} intensity={VIEWPORT_THEME.directionalIntensity} />

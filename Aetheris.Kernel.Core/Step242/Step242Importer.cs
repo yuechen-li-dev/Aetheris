@@ -42,12 +42,6 @@ public static class Step242Importer
 
     private static KernelResult<BrepBody> MapSubset(Step242ParsedDocument document)
     {
-        var unsupportedEntity = document.Entities.FirstOrDefault(IsClearlyUnsupportedEntity);
-        if (unsupportedEntity is not null)
-        {
-            return Failure($"Entity family '{unsupportedEntity.Name}' is unsupported in M23 import subset.", SourceFor(unsupportedEntity.Id, "Importer.EntityFamily"));
-        }
-
         var manifoldSolidBreps = document.Entities
             .Where(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase))
             .ToList();
@@ -438,11 +432,6 @@ public static class Step242Importer
         return KernelResult<(VertexId VertexId, Point3D Point)>.Success(vertex);
     }
 
-    private static bool IsClearlyUnsupportedEntity(Step242ParsedEntity entity)
-    {
-        return string.Equals(entity.Name, "TOROIDAL_SURFACE", StringComparison.OrdinalIgnoreCase);
-    }
-
     private static KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)> DecodeCurveGeometry(
         Step242ParsedDocument document,
         Step242ParsedEntity curveEntity,
@@ -586,6 +575,17 @@ public static class Step242Importer
             return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromCone(coneResult.Value)));
         }
 
+        if (string.Equals(normalizedName, "TOROIDAL_SURFACE", StringComparison.Ordinal))
+        {
+            var torusResult = Step242SubsetDecoder.ReadToroidalSurface(document, surfaceToDecode);
+            if (!torusResult.IsSuccess)
+            {
+                return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(torusResult.Diagnostics);
+            }
+
+            return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromTorus(torusResult.Value)));
+        }
+
         return FailureSurfaceBinding($"ADVANCED_FACE surface '{surfaceName}' is unsupported.", SourceFor(surfaceToDecode.Id, "Importer.EntityFamily"));
     }
 
@@ -599,7 +599,8 @@ public static class Step242Importer
         if (!string.Equals(surfaceName, "PLANE", StringComparison.Ordinal)
             && !string.Equals(surfaceName, "CYLINDRICAL_SURFACE", StringComparison.Ordinal)
             && !string.Equals(surfaceName, "CONICAL_SURFACE", StringComparison.Ordinal)
-            && !string.Equals(surfaceName, "SPHERICAL_SURFACE", StringComparison.Ordinal))
+            && !string.Equals(surfaceName, "SPHERICAL_SURFACE", StringComparison.Ordinal)
+            && !string.Equals(surfaceName, "TOROIDAL_SURFACE", StringComparison.Ordinal))
         {
             return FailureInlineSurface<Step242ParsedEntity>($"ADVANCED_FACE surface: inline constructor '{surfaceName}' is not supported in this subset.", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
         }
@@ -736,6 +737,41 @@ public static class Step242Importer
             }
 
             return FailureInlineSurface<IReadOnlyList<Step242Value>>("Inline ADVANCED_FACE.surface constructor 'SPHERICAL_SURFACE' has unsupported argument shape.", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
+        }
+
+        if (string.Equals(surfaceName, "TOROIDAL_SURFACE", StringComparison.Ordinal))
+        {
+            if (inlineArguments.Count == 3)
+            {
+                if (inlineArguments[0] is not Step242EntityReference
+                    || inlineArguments[1] is not Step242NumberValue
+                    || inlineArguments[2] is not Step242NumberValue)
+                {
+                    return FailureInlineSurface<IReadOnlyList<Step242Value>>("Inline ADVANCED_FACE.surface constructor 'TOROIDAL_SURFACE' has unsupported argument shape.", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
+                }
+
+                return KernelResult<IReadOnlyList<Step242Value>>.Success([
+                    Step242OmittedValue.Instance,
+                    inlineArguments[0],
+                    inlineArguments[1],
+                    inlineArguments[2]
+                ]);
+            }
+
+            if (inlineArguments.Count == 4)
+            {
+                if (inlineArguments[0] is not Step242OmittedValue
+                    || inlineArguments[1] is not Step242EntityReference
+                    || inlineArguments[2] is not Step242NumberValue
+                    || inlineArguments[3] is not Step242NumberValue)
+                {
+                    return FailureInlineSurface<IReadOnlyList<Step242Value>>("Inline ADVANCED_FACE.surface constructor 'TOROIDAL_SURFACE' has unsupported argument shape.", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
+                }
+
+                return KernelResult<IReadOnlyList<Step242Value>>.Success(inlineArguments);
+            }
+
+            return FailureInlineSurface<IReadOnlyList<Step242Value>>("Inline ADVANCED_FACE.surface constructor 'TOROIDAL_SURFACE' has unsupported argument shape.", SourceFor(faceEntityId, "Importer.StepSyntax.InlineEntity"));
         }
 
         return KernelResult<IReadOnlyList<Step242Value>>.Success(inlineArguments);

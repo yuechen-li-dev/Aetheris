@@ -62,18 +62,18 @@ public sealed class Step242ImporterTests
     }
 
     [Fact]
-    public void ImportBody_UnsupportedEntityInParseableText_ReturnsNotImplementedDiagnostic()
+    public void ImportBody_ToroidalSurfaceEntity_IsNoLongerRejectedAsUnsupportedFamily()
     {
-        var unsupported = Step242FixtureCorpus.UnsupportedToroidalSurface;
+        var toroidalOnly = Step242FixtureCorpus.UnsupportedToroidalSurface;
 
-        var import = Step242Importer.ImportBody(unsupported);
+        var import = Step242Importer.ImportBody(toroidalOnly);
 
         Assert.False(import.IsSuccess);
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal(KernelDiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Equal("Importer.EntityFamily", diagnostic.Source);
-        Assert.Contains("unsupported", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Importer.TopologyRoot", diagnostic.Source);
+        Assert.DoesNotContain("TOROIDAL_SURFACE", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -365,6 +365,34 @@ public sealed class Step242ImporterTests
             var polyline = Assert.Single(tessellation.Value.EdgePolylines, p => p.EdgeId == edge.Id);
             Assert.True(polyline.Points.Count <= 20);
         }
+    }
+
+
+    [Fact]
+    public void Step242_ToroidalFixture_ImportsAndTessellates()
+    {
+        var text = LoadFixture("testdata/step242/generated/v0-required/toroid.step");
+
+        var import = Step242Importer.ImportBody(text);
+        Assert.True(import.IsSuccess);
+        Assert.Contains(import.Value.Geometry.Surfaces, s => s.Value.Kind == SurfaceGeometryKind.Torus);
+
+        var tessellation = BrepDisplayTessellator.Tessellate(import.Value);
+        Assert.True(tessellation.IsSuccess);
+        Assert.NotEmpty(tessellation.Value.FacePatches);
+    }
+
+    [Fact]
+    public void Step242_NistFile_WithToroidalSurface_AdvancesPastToroidalBlocker()
+    {
+        var text = LoadFixture("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp");
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.False(import.IsSuccess);
+        Assert.NotEmpty(import.Diagnostics);
+        var first = import.Diagnostics[0];
+        Assert.DoesNotContain("TOROIDAL_SURFACE", first.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static double NormalizeToZeroTwoPi(double angle)

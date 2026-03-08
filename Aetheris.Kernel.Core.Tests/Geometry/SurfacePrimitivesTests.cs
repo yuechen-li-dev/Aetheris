@@ -121,6 +121,42 @@ public sealed class SurfacePrimitivesTests
         Assert.True(normal.X > 0);
     }
 
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 0)]
+    [InlineData(double.NaN, 1)]
+    [InlineData(1, double.PositiveInfinity)]
+    public void Torus_InvalidRadii_Throws(double majorRadius, double minorRadius)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new TorusSurface(Point3D.Origin, Direction3D.Create(new Vector3D(0, 0, 1)), majorRadius, minorRadius, Direction3D.Create(new Vector3D(1, 0, 0))));
+    }
+
+    [Fact]
+    public void Torus_EvaluateAndNormal_AreCorrect()
+    {
+        var torus = new TorusSurface(
+            center: Point3D.Origin,
+            axis: Direction3D.Create(new Vector3D(0, 0, 1)),
+            majorRadius: 3,
+            minorRadius: 1,
+            referenceAxis: Direction3D.Create(new Vector3D(1, 0, 0)));
+
+        AssertPoint(torus.Evaluate(0, 0), new Point3D(4, 0, 0));
+        AssertPoint(torus.Evaluate(double.Pi / 2d, 0), new Point3D(0, 4, 0));
+        AssertPoint(torus.Evaluate(0, double.Pi / 2d), new Point3D(3, 0, 1));
+
+        var point = torus.Evaluate(1.1, -0.7);
+        var xy = new Vector3D(point.X, point.Y, 0);
+        Assert.True(xy.TryNormalize(out var majorDir));
+        var ringCenter = Point3D.Origin + (majorDir * torus.MajorRadius);
+        Assert.True(ToleranceMath.AlmostEqual((point - ringCenter).Length, torus.MinorRadius, ToleranceContext.Default));
+
+        var normal = torus.Normal(1.1, -0.7).ToVector();
+        Assert.True(ToleranceMath.AlmostEqual(normal.Length, 1, ToleranceContext.Default));
+    }
+
     private static void AssertPoint(Point3D actual, Point3D expected) => AssertVector(actual - expected, Vector3D.Zero);
 
     private static void AssertVector(Vector3D actual, Vector3D expected)

@@ -79,8 +79,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerNotContained",
-      "messagePrefix": "Inner loop is not contained by outer loop."
+      "source": "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
+      "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -103,8 +103,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.DegenerateLoop",
-      "messagePrefix": "Loop projection is degenerate."
+      "source": "Importer.LoopRole.CylinderMappingFailed",
+      "messagePrefix": "Cylinder multi-loop hole classification is not yet safely supported."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -150,9 +150,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerNotContained",
-      "messagePrefix": "Inner loop is not contained by outer loop."
+      "code": "NotImplemented",
+      "source": "Importer.EntityFamily",
+      "messagePrefix": "ADVANCED_FACE surface \u0027B_SPLINE_SURFACE_WITH_KNOTS\u0027 is unsupported."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -247,8 +247,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerNotContained",
-      "messagePrefix": "Inner loop is not contained by outer loop."
+      "source": "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
+      "messagePrefix": "Inner loop could not be normalized"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -294,9 +294,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.DegenerateLoop",
-      "messagePrefix": "Loop projection is degenerate."
+      "code": "NotImplemented",
+      "source": "Importer.EntityFamily",
+      "messagePrefix": "EDGE_CURVE geometry \u0027ELLIPSE\u0027 is unsupported."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -367,10 +367,10 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.DegenerateLoop",
-      "messagePrefix": "Loop projection is degenerate."
+      "source": "",
+      "messagePrefix": "Loop 51 references missing child ID CoedgeId { Value = 219, IsValid = True }."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 29,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 0,

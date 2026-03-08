@@ -966,55 +966,92 @@ public static class Step242Importer
         foreach (var loop in loops)
         {
             var projected = ProjectLoopToPlane(loop.Samples, plane);
-            var uniqueCount = CountUniquePoints(projected);
-            if (uniqueCount < 3)
+            var uniqueCount = CountUniquePoints(projected, ContainmentEps);
+            var area = ComputeSignedArea(projected);
+            if (uniqueCount < 3 || double.Abs(area) <= AreaEps)
             {
-                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Loop projection is degenerate.", "Importer.LoopRole.DegenerateLoop");
+                continue;
             }
 
-            var area = ComputeSignedArea(projected);
             infos.Add(new PlanarLoopInfo(loop, projected, area));
         }
 
-        var orderedByArea = infos
-            .OrderByDescending(info => double.Abs(info.SignedArea))
-            .ToList();
-
-        var outer = orderedByArea[0];
-        if (orderedByArea.Count > 1 && double.Abs(double.Abs(outer.SignedArea) - double.Abs(orderedByArea[1].SignedArea)) <= AreaEps)
+        if (infos.Count == 0)
         {
-            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Unable to choose a unique outer loop.", "Importer.LoopRole.AmbiguousOuter");
+            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Loop projection is degenerate and no non-degenerate boundary remained.", "Importer.LoopRole.DegenerateLoop");
         }
 
-        foreach (var candidate in infos.Where(i => i.Loop.LoopId != outer.Loop.LoopId))
+        var containmentTolerance = ComputeContainmentTolerance(infos.SelectMany(i => i.ProjectedPoints));
+        var areaTolerance = ComputeAreaTolerance(infos.SelectMany(i => i.ProjectedPoints));
+
+        var infosWithSamples = new List<PlanarLoopInfoWithSample>(infos.Count);
+        foreach (var info in infos)
         {
-            var testPointResult = ChooseContainmentPoint(candidate.ProjectedPoints);
+            var testPointResult = ChooseContainmentPoint(info.ProjectedPoints, containmentTolerance);
             if (!testPointResult.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<LoopBuildData>>.Failure(testPointResult.Diagnostics);
             }
 
-            if (!IsPointInPolygon(testPointResult.Value, outer.ProjectedPoints))
-            {
-                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Inner loop is not contained by outer loop.", "Importer.LoopRole.InnerNotContained");
-            }
+            infosWithSamples.Add(new PlanarLoopInfoWithSample(info, testPointResult.Value));
         }
 
-        var innerLoops = infos.Where(i => i.Loop.LoopId != outer.Loop.LoopId).ToList();
+        var orderedByContainmentThenArea = infosWithSamples
+            .Select(candidate =>
+            {
+                var containmentCount = infosWithSamples.Count(other => other.Info.Loop.LoopId != candidate.Info.Loop.LoopId
+                    && IsPointInPolygon(other.SamplePoint, candidate.Info.ProjectedPoints, containmentTolerance));
+                return new PlanarLoopOuterCandidate(candidate.Info, candidate.SamplePoint, containmentCount);
+            })
+            .OrderByDescending(c => c.ContainmentCount)
+            .ThenByDescending(c => double.Abs(c.Info.SignedArea))
+            .ThenBy(c => c.Info.Loop.LoopId.Value)
+            .ToList();
+
+        var outer = orderedByContainmentThenArea[0];
+        if (orderedByContainmentThenArea.Count > 1
+            && outer.ContainmentCount == orderedByContainmentThenArea[1].ContainmentCount
+            && double.Abs(double.Abs(outer.Info.SignedArea) - double.Abs(orderedByContainmentThenArea[1].Info.SignedArea)) <= areaTolerance)
+        {
+            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Unable to choose a unique outer loop.", "Importer.LoopRole.AmbiguousOuter");
+        }
+
+        var containedInners = new List<PlanarLoopInfo>();
+
+        foreach (var candidate in infosWithSamples.Where(i => i.Info.Loop.LoopId != outer.Info.Loop.LoopId))
+        {
+            if (IsPointInPolygon(candidate.SamplePoint, outer.Info.ProjectedPoints, containmentTolerance))
+            {
+                containedInners.Add(candidate.Info);
+                continue;
+            }
+
+            if (double.Abs(candidate.Info.SignedArea) <= areaTolerance * 4d
+                || IsPointNearPolygonEdge(candidate.SamplePoint, outer.Info.ProjectedPoints, containmentTolerance * 4d))
+            {
+                continue;
+            }
+
+            var failure = BuildInnerContainmentFailure(candidate.Info, outer.Info, containmentTolerance, areaTolerance);
+            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>(failure.Message, failure.Source);
+        }
+
+        var innerLoops = containedInners;
         for (var i = 0; i < innerLoops.Count; i++)
         {
             for (var j = i + 1; j < innerLoops.Count; j++)
             {
-                if (LoopsOverlap(innerLoops[i], innerLoops[j]))
+                if (LoopsOverlap(innerLoops[i], innerLoops[j], containmentTolerance))
                 {
                     return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Inner loops overlap or are nested.", "Importer.LoopRole.InnerOverlap");
                 }
             }
         }
 
-        var normalizedOuter = NormalizeLoopWinding(outer.Loop, outer.SignedArea, shouldBePositive: true);
+        var normalizedOuter = NormalizeLoopWinding(outer.Info.Loop, outer.Info.SignedArea, shouldBePositive: true);
         var normalizedInners = innerLoops
-            .OrderBy(i => i.Loop.LoopId.Value)
+            .OrderByDescending(i => double.Abs(i.SignedArea))
+            .ThenBy(i => i.Loop.LoopId.Value)
             .Select(i => NormalizeLoopWinding(i.Loop, i.SignedArea, shouldBePositive: false))
             .ToList();
 
@@ -1037,19 +1074,121 @@ public static class Step242Importer
         return new LoopBuildData(loop.LoopId, flippedCoedges, loop.Samples);
     }
 
-    private static bool LoopsOverlap(PlanarLoopInfo a, PlanarLoopInfo b)
+    private static bool LoopsOverlap(PlanarLoopInfo a, PlanarLoopInfo b, double containmentTolerance)
     {
-        var aPoint = ChooseContainmentPoint(a.ProjectedPoints);
-        var bPoint = ChooseContainmentPoint(b.ProjectedPoints);
+        var aPoint = ChooseContainmentPoint(a.ProjectedPoints, containmentTolerance);
+        var bPoint = ChooseContainmentPoint(b.ProjectedPoints, containmentTolerance);
         if (!aPoint.IsSuccess || !bPoint.IsSuccess)
         {
             return true;
         }
 
-        return IsPointInPolygon(aPoint.Value, b.ProjectedPoints) || IsPointInPolygon(bPoint.Value, a.ProjectedPoints);
+        return IsPointInPolygon(aPoint.Value, b.ProjectedPoints, containmentTolerance) || IsPointInPolygon(bPoint.Value, a.ProjectedPoints, containmentTolerance);
     }
 
-    private static KernelResult<UvPoint> ChooseContainmentPoint(IReadOnlyList<UvPoint> polygon)
+    private static ContainmentFailure BuildInnerContainmentFailure(
+        PlanarLoopInfo inner,
+        PlanarLoopInfo outer,
+        double containmentTolerance,
+        double areaTolerance)
+    {
+        var containment = EvaluateContainment(inner.ProjectedPoints, outer.ProjectedPoints, containmentTolerance);
+        var crossingOuter = PolygonsIntersect(inner.ProjectedPoints, outer.ProjectedPoints, containmentTolerance);
+
+        var areaRatio = double.Abs(outer.SignedArea) <= areaTolerance
+            ? 0d
+            : double.Abs(inner.SignedArea) / double.Abs(outer.SignedArea);
+
+        var reason = crossingOuter
+            ? "crosses_outer_boundary"
+            : (containment.OutsideCount == containment.VertexCount ? "disjoint" : "partially_outside");
+
+        var source = reason switch
+        {
+            "crosses_outer_boundary" => "Importer.LoopRole.InnerCrossesOuterAfterNormalization",
+            "disjoint" => "Importer.LoopRole.InnerDisjointAfterNormalization",
+            _ => "Importer.LoopRole.InnerPartiallyOutsideAfterNormalization"
+        };
+
+        var message = $"Inner loop could not be normalized: {reason}. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}.";
+        return new ContainmentFailure(message, source);
+    }
+
+    private static ContainmentEvaluation EvaluateContainment(
+        IReadOnlyList<UvPoint> inner,
+        IReadOnlyList<UvPoint> outer,
+        double containmentTolerance)
+    {
+        var outsideCount = 0;
+        var vertexCount = 0;
+        var minDistanceToOuter = double.MaxValue;
+
+        for (var i = 0; i < inner.Count - 1; i++)
+        {
+            var point = inner[i];
+            vertexCount++;
+            minDistanceToOuter = double.Min(minDistanceToOuter, DistancePointToPolygon(point, outer));
+            if (!IsPointInPolygon(point, outer, containmentTolerance))
+            {
+                outsideCount++;
+            }
+        }
+
+        if (double.IsPositiveInfinity(minDistanceToOuter) || minDistanceToOuter == double.MaxValue)
+        {
+            minDistanceToOuter = 0d;
+        }
+
+        return new ContainmentEvaluation(outsideCount, vertexCount, minDistanceToOuter);
+    }
+
+    private static double DistancePointToPolygon(UvPoint point, IReadOnlyList<UvPoint> polygon)
+    {
+        var minDistance = double.MaxValue;
+        for (var i = 0; i < polygon.Count - 1; i++)
+        {
+            minDistance = double.Min(minDistance, DistancePointToSegment(point, polygon[i], polygon[i + 1]));
+        }
+
+        return minDistance;
+    }
+
+    private static bool PolygonsIntersect(IReadOnlyList<UvPoint> a, IReadOnlyList<UvPoint> b, double tolerance)
+    {
+        for (var i = 0; i < a.Count - 1; i++)
+        {
+            for (var j = 0; j < b.Count - 1; j++)
+            {
+                if (SegmentsIntersect(a[i], a[i + 1], b[j], b[j + 1], tolerance))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool SegmentsIntersect(UvPoint a0, UvPoint a1, UvPoint b0, UvPoint b1, double tolerance)
+    {
+        if (DistancePointToSegment(a0, b0, b1) <= tolerance || DistancePointToSegment(a1, b0, b1) <= tolerance
+            || DistancePointToSegment(b0, a0, a1) <= tolerance || DistancePointToSegment(b1, a0, a1) <= tolerance)
+        {
+            return true;
+        }
+
+        var o1 = Orientation(a0, a1, b0);
+        var o2 = Orientation(a0, a1, b1);
+        var o3 = Orientation(b0, b1, a0);
+        var o4 = Orientation(b0, b1, a1);
+
+        return (o1 * o2) < 0d && (o3 * o4) < 0d;
+    }
+
+    private static double Orientation(UvPoint a, UvPoint b, UvPoint c)
+        => ((b.X - a.X) * (c.Y - a.Y)) - ((b.Y - a.Y) * (c.X - a.X));
+
+    private static KernelResult<UvPoint> ChooseContainmentPoint(IReadOnlyList<UvPoint> polygon, double containmentTolerance)
     {
         if (polygon.Count < 4)
         {
@@ -1057,7 +1196,7 @@ public static class Step242Importer
         }
 
         var centroid = ComputePolygonCentroid(polygon);
-        if (!IsPointNearPolygonEdge(centroid, polygon) && IsPointInPolygon(centroid, polygon))
+        if (!IsPointNearPolygonEdge(centroid, polygon, containmentTolerance) && IsPointInPolygon(centroid, polygon, containmentTolerance))
         {
             return KernelResult<UvPoint>.Success(centroid);
         }
@@ -1069,7 +1208,7 @@ public static class Step242Importer
             var midpoint = new UvPoint((start.X + end.X) * 0.5d, (start.Y + end.Y) * 0.5d);
             var towardCentroid = centroid - midpoint;
             var candidate = midpoint + (towardCentroid * 0.125d);
-            if (!IsPointNearPolygonEdge(candidate, polygon) && IsPointInPolygon(candidate, polygon))
+            if (!IsPointNearPolygonEdge(candidate, polygon, containmentTolerance) && IsPointInPolygon(candidate, polygon, containmentTolerance))
             {
                 return KernelResult<UvPoint>.Success(candidate);
             }
@@ -1099,11 +1238,11 @@ public static class Step242Importer
         return new UvPoint(sumX / count, sumY / count);
     }
 
-    private static bool IsPointNearPolygonEdge(UvPoint point, IReadOnlyList<UvPoint> polygon)
+    private static bool IsPointNearPolygonEdge(UvPoint point, IReadOnlyList<UvPoint> polygon, double containmentTolerance)
     {
         for (var i = 0; i < polygon.Count - 1; i++)
         {
-            if (DistancePointToSegment(point, polygon[i], polygon[i + 1]) <= ContainmentEps)
+            if (DistancePointToSegment(point, polygon[i], polygon[i + 1]) <= containmentTolerance)
             {
                 return true;
             }
@@ -1135,7 +1274,7 @@ public static class Step242Importer
         return (p - closest).Length;
     }
 
-    private static bool IsPointInPolygon(UvPoint point, IReadOnlyList<UvPoint> polygon)
+    private static bool IsPointInPolygon(UvPoint point, IReadOnlyList<UvPoint> polygon, double containmentTolerance)
     {
         var inside = false;
         for (var i = 0; i < polygon.Count - 1; i++)
@@ -1143,7 +1282,7 @@ public static class Step242Importer
             var a = polygon[i];
             var b = polygon[i + 1];
 
-            if (DistancePointToSegment(point, a, b) <= ContainmentEps)
+            if (DistancePointToSegment(point, a, b) <= containmentTolerance)
             {
                 return true;
             }
@@ -1159,12 +1298,12 @@ public static class Step242Importer
         return inside;
     }
 
-    private static int CountUniquePoints(IReadOnlyList<UvPoint> points)
+    private static int CountUniquePoints(IReadOnlyList<UvPoint> points, double tolerance)
     {
         var unique = new List<UvPoint>();
         foreach (var point in points)
         {
-            if (unique.Any(u => (u - point).Length <= ContainmentEps))
+            if (unique.Any(u => (u - point).Length <= tolerance))
             {
                 continue;
             }
@@ -1203,6 +1342,38 @@ public static class Step242Importer
         }
 
         return 0.5d * area;
+    }
+
+    private static double ComputeContainmentTolerance(IEnumerable<UvPoint> points)
+    {
+        var array = points.ToArray();
+        if (array.Length == 0)
+        {
+            return ContainmentEps;
+        }
+
+        var minX = array.Min(p => p.X);
+        var maxX = array.Max(p => p.X);
+        var minY = array.Min(p => p.Y);
+        var maxY = array.Max(p => p.Y);
+        var diagonal = double.Sqrt(((maxX - minX) * (maxX - minX)) + ((maxY - minY) * (maxY - minY)));
+        return double.Max(ContainmentEps, diagonal * 1e-6d);
+    }
+
+    private static double ComputeAreaTolerance(IEnumerable<UvPoint> points)
+    {
+        var array = points.ToArray();
+        if (array.Length == 0)
+        {
+            return AreaEps;
+        }
+
+        var minX = array.Min(p => p.X);
+        var maxX = array.Max(p => p.X);
+        var minY = array.Min(p => p.Y);
+        var maxY = array.Max(p => p.Y);
+        var extentArea = (maxX - minX) * (maxY - minY);
+        return double.Max(AreaEps, extentArea * 1e-8d);
     }
 
     private static void AppendLoopSamples(ICollection<Point3D> loopSamples, IReadOnlyList<Point3D> edgeSamples)
@@ -1291,6 +1462,14 @@ public static class Step242Importer
     private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples);
 
     private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea);
+
+    private sealed record PlanarLoopInfoWithSample(PlanarLoopInfo Info, UvPoint SamplePoint);
+
+    private sealed record PlanarLoopOuterCandidate(PlanarLoopInfo Info, UvPoint SamplePoint, int ContainmentCount);
+
+    private sealed record ContainmentEvaluation(int OutsideCount, int VertexCount, double MinDistanceToOuter);
+
+    private sealed record ContainmentFailure(string Message, string Source);
 
     private readonly record struct UvPoint(double X, double Y)
     {

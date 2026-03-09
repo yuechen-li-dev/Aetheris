@@ -31,8 +31,8 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Viewer.Tessellation.PlanarCurveFlatteningUnsupported",
-      "messagePrefix": "Face 3 planar curve flattening does not support curve kind \u0027BSpline3\u0027."
+      "source": "",
+      "messagePrefix": "Face 47 sphere tessellation supports only untrimmed sphere faces with zero loops."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

@@ -932,6 +932,19 @@ public static class BrepDisplayTessellator
                     }
 
                     break;
+                case CurveGeometryKind.BSpline3:
+                    var splinePointsResult = SamplePlanarBSpline(body, coedge, curve.BSpline3!.Value, segmentStart, segmentEnd);
+                    if (!splinePointsResult.IsSuccess)
+                    {
+                        return KernelResult<IReadOnlyList<Point3D>>.Failure(splinePointsResult.Diagnostics);
+                    }
+
+                    foreach (var point in splinePointsResult.Value)
+                    {
+                        AppendUniquePoint(flattened, point);
+                    }
+
+                    break;
                 default:
                     var curveKind = curve.UnsupportedKind ?? curve.Kind.ToString();
                     return KernelResult<IReadOnlyList<Point3D>>.Failure([
@@ -968,6 +981,49 @@ public static class BrepDisplayTessellator
         for (var i = 1; i < samples.Count; i++)
         {
             points.Add(samples[i]);
+        }
+
+        return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+    }
+
+    private static KernelResult<IReadOnlyList<Point3D>> SamplePlanarBSpline(
+        BrepBody body,
+        Coedge coedge,
+        BSpline3Curve spline,
+        Point3D start,
+        Point3D end)
+    {
+        var interval = new ParameterInterval(spline.DomainStart, spline.DomainEnd);
+        var reverseSampleOrder = false;
+        if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding) && binding.TrimInterval is ParameterInterval trim)
+        {
+            interval = trim;
+            reverseSampleOrder = coedge.IsReversed;
+        }
+        else
+        {
+            reverseSampleOrder = coedge.IsReversed;
+        }
+
+        var sampled = CurveSampler.SampleBSpline(spline, interval).ToArray();
+        if (reverseSampleOrder)
+        {
+            Array.Reverse(sampled);
+        }
+
+        if (sampled.Length < 2)
+        {
+            return KernelResult<IReadOnlyList<Point3D>>.Failure([
+                CreateInvalidArgument($"Edge {coedge.EdgeId.Value} planar BSpline flattening produced an invalid sample set.", PlanarCurveFlatteningFailedSource)]);
+        }
+
+        sampled[0] = start;
+        sampled[^1] = end;
+
+        var points = new List<Point3D>(sampled.Length - 1);
+        for (var i = 1; i < sampled.Length; i++)
+        {
+            points.Add(sampled[i]);
         }
 
         return KernelResult<IReadOnlyList<Point3D>>.Success(points);

@@ -42,10 +42,10 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
     }
 
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "tessellator", "Viewer.Tessellation.PlanarCurveFlatteningUnsupported", "Face 3 planar curve flattening does not support curve kind 'BSpline3'.")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "", "", "")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "", "", "")]
-    public void Step242_NistTargets_FirstBlockerIsExplicitAfterBSplineSurfaceProgression(string relativePath, string expectedLayer, string expectedSource, string expectedMessagePrefix)
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
+    public void Step242_NistTargets_FirstBlockerIsExplicitAfterBSplineSurfaceProgression(string relativePath)
     {
         var entry = new Step242CorpusManifestEntry(
             Id: Path.GetFileNameWithoutExtension(relativePath),
@@ -58,21 +58,12 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
             ExpectGeometryKinds: null);
 
         var run = Step242CorpusManifestRunner.RunOne(entry);
-        if (!string.IsNullOrEmpty(expectedLayer))
-        {
-            Assert.Equal(expectedLayer, run.FirstFailureLayer);
-        }
-
-        if (!string.IsNullOrEmpty(expectedSource))
-        {
-            Assert.Equal(expectedSource, run.FirstDiagnostic.Source);
-        }
-
-        if (!string.IsNullOrEmpty(expectedMessagePrefix))
-        {
-            Assert.StartsWith(expectedMessagePrefix, run.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
-        }
-
         Assert.False(string.IsNullOrWhiteSpace(run.FirstDiagnostic.MessagePrefix));
+        if (string.Equals(relativePath, "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", StringComparison.Ordinal))
+        {
+            Assert.Equal("tessellator", run.FirstFailureLayer);
+            Assert.Equal(string.Empty, run.FirstDiagnostic.Source);
+            Assert.StartsWith("Face 47 sphere tessellation supports only untrimmed sphere faces with zero loops.", run.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        }
     }
 }

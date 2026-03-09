@@ -32,7 +32,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
 
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "exporter", "Face:1", "Unsupported surface kind 'Cylinder'. M22 supports planar faces only.")]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "tessellator", "Viewer.Tessellation.PlanarCurveFlatteningUnsupported", "Face 3 planar curve flattening does not support curve kind 'BSpline3'.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "tessellator", "", "Face 47 sphere tessellation supports only untrimmed sphere faces with zero loops.")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "tessellator", "", "Face 1 curved tessellation supports repeated cone/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "tessellator", "", "Face 2 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp", "tessellator", "", "Face 73 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
@@ -71,6 +71,12 @@ public sealed class Step242ConicalSurfaceRegressionTests
             Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         }
 
+        if (string.Equals(relativePath, "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", StringComparison.Ordinal))
+        {
+            Assert.NotEqual("Viewer.Tessellation.PlanarCurveFlatteningUnsupported", first.FirstDiagnostic.Source);
+            Assert.DoesNotContain("planar curve flattening does not support curve kind 'BSpline3'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        }
+
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
@@ -81,8 +87,8 @@ public sealed class Step242ConicalSurfaceRegressionTests
     [InlineData(
         "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
         "tessellator",
-        "Viewer.Tessellation.PlanarCurveFlatteningUnsupported",
-        "Face 3 planar curve flattening does not support curve kind 'BSpline3'.")]
+        "",
+        "Face 47 sphere tessellation supports only untrimmed sphere faces with zero loops.")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
         "importer-topology",
@@ -116,6 +122,12 @@ public sealed class Step242ConicalSurfaceRegressionTests
         if (!string.IsNullOrEmpty(expectedMessagePrefix))
         {
             Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        }
+
+        if (string.Equals(relativePath, "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", StringComparison.Ordinal))
+        {
+            Assert.NotEqual("Viewer.Tessellation.PlanarCurveFlatteningUnsupported", first.FirstDiagnostic.Source);
+            Assert.DoesNotContain("planar curve flattening does not support curve kind 'BSpline3'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         }
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);

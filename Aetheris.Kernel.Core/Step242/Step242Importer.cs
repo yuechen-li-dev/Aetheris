@@ -19,6 +19,7 @@ public static class Step242Importer
     private const double ContainmentEps = 1e-8d;
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleCoedgeGapDiagnostic>?> CoedgeGapDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<CoedgeAssemblyForensicRecord>?> CoedgeAssemblyForensicsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
@@ -32,6 +33,13 @@ public static class Step242Importer
         var previous = CoedgeGapDiagnosticsSink.Value;
         CoedgeGapDiagnosticsSink.Value = sink;
         return new CoedgeGapDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CaptureCoedgeAssemblyForensics(ICollection<CoedgeAssemblyForensicRecord> sink)
+    {
+        var previous = CoedgeAssemblyForensicsSink.Value;
+        CoedgeAssemblyForensicsSink.Value = sink;
+        return new CoedgeAssemblyForensicsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -258,6 +266,7 @@ public static class Step242Importer
 
                 var loopCoedges = new List<Coedge>(orientedEdgeRefsResult.Value.Count);
                 var loopSamples = new List<Point3D>();
+                var loopForensics = new List<CoedgeAssemblyForensicBuilder>(orientedEdgeRefsResult.Value.Count);
                 var hasDisconnectedCoedgeGap = false;
 
                 for (var i = 0; i < orientedEdgeRefsResult.Value.Count; i++)
@@ -269,6 +278,7 @@ public static class Step242Importer
                     }
 
                     var orientedEdgeEntity = orientedEdgeEntityResult.Value;
+                    var orientedEdgeId = orientedEdgeEntity.Id;
                     var edgeCurveRefResult = Step242SubsetDecoder.ReadReference(orientedEdgeEntity, 3, "ORIENTED_EDGE edge element");
                     if (!edgeCurveRefResult.IsSuccess)
                     {
@@ -323,6 +333,19 @@ public static class Step242Importer
                         IsReversed: isReversed);
 
                     loopCoedges.Add(coedge);
+
+                    var edgeStartVertexRefResult = Step242SubsetDecoder.ReadReference(edgeCurveEntityResult.Value, 1, "EDGE_CURVE edge_start");
+                    if (!edgeStartVertexRefResult.IsSuccess)
+                    {
+                        return KernelResult<BrepBody>.Failure(edgeStartVertexRefResult.Diagnostics);
+                    }
+
+                    var edgeEndVertexRefResult = Step242SubsetDecoder.ReadReference(edgeCurveEntityResult.Value, 2, "EDGE_CURVE edge_end");
+                    if (!edgeEndVertexRefResult.IsSuccess)
+                    {
+                        return KernelResult<BrepBody>.Failure(edgeEndVertexRefResult.Diagnostics);
+                    }
+
                     var sampleResult = SampleCoedgePoints(
                         bindings.GetEdgeBinding(edgeIdResult.Value),
                         geometry,
@@ -335,6 +358,31 @@ public static class Step242Importer
                     {
                         return KernelResult<BrepBody>.Failure(sampleResult.Diagnostics);
                     }
+
+                    var startPoint = sampleResult.Value[0];
+                    var endPoint = sampleResult.Value[^1];
+                    var effectiveStartVertexEntityId = isReversed ? edgeEndVertexRefResult.Value.TargetId : edgeStartVertexRefResult.Value.TargetId;
+                    var effectiveEndVertexEntityId = isReversed ? edgeStartVertexRefResult.Value.TargetId : edgeEndVertexRefResult.Value.TargetId;
+                    var edgeBinding = bindings.GetEdgeBinding(edgeIdResult.Value);
+                    var curveKind = geometry.GetCurve(edgeBinding.CurveGeometryId).Kind;
+                    loopForensics.Add(new CoedgeAssemblyForensicBuilder(
+                        FaceEntityId: faceEntity.Id,
+                        LoopId: loopId.Value,
+                        CoedgeId: coedge.Id.Value,
+                        EdgeId: edgeIdResult.Value.Value,
+                        OrientedEdgeEntityId: orientedEdgeId,
+                        EdgeCurveEntityId: edgeCurveEntityResult.Value.Id,
+                        EdgeCurveSameSense: edgeSameSenseResult.Value,
+                        OrientedEdgeOrientation: orientedSenseResult.Value,
+                        FaceBoundOrientation: boundOrientation,
+                        IsReversed: isReversed,
+                        CurveKind: curveKind,
+                        RawEdgeStartVertexEntityId: edgeStartVertexRefResult.Value.TargetId,
+                        RawEdgeEndVertexEntityId: edgeEndVertexRefResult.Value.TargetId,
+                        EffectiveStartVertexEntityId: effectiveStartVertexEntityId,
+                        EffectiveEndVertexEntityId: effectiveEndVertexEntityId,
+                        EvaluatedStartPoint: startPoint,
+                        EvaluatedEndPoint: endPoint));
 
                     var boundaryClassification = AppendLoopSamples(
                         loopSamples,
@@ -373,6 +421,8 @@ public static class Step242Importer
                 {
                     hasDisconnectedCoedgeGap = true;
                 }
+
+                ReportCoedgeAssemblyForensics(loopForensics, bindSurfaceResult.Value.SurfaceGeometry);
 
                 builder.AddLoop(new Loop(loopId, coedgeIds));
                 loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap));
@@ -1892,6 +1942,50 @@ public static class Step242Importer
         sink?.Add(diagnostic);
     }
 
+    private static void ReportCoedgeAssemblyForensics(
+        IReadOnlyList<CoedgeAssemblyForensicBuilder> loopForensics,
+        SurfaceGeometry surfaceGeometry)
+    {
+        var sink = CoedgeAssemblyForensicsSink.Value;
+        if (sink is null || loopForensics.Count == 0)
+        {
+            return;
+        }
+
+        for (var i = 0; i < loopForensics.Count; i++)
+        {
+            var current = loopForensics[i];
+            var previous = loopForensics[(i + loopForensics.Count - 1) % loopForensics.Count];
+            var next = loopForensics[(i + 1) % loopForensics.Count];
+
+            var previousGap = ClassifyCoedgeGap(previous.EvaluatedEndPoint, current.EvaluatedStartPoint, surfaceGeometry);
+            var nextGap = ClassifyCoedgeGap(current.EvaluatedEndPoint, next.EvaluatedStartPoint, surfaceGeometry);
+
+            sink.Add(new CoedgeAssemblyForensicRecord(
+                current.FaceEntityId,
+                current.LoopId,
+                current.CoedgeId,
+                current.EdgeId,
+                current.OrientedEdgeEntityId,
+                current.EdgeCurveEntityId,
+                current.CurveKind,
+                current.RawEdgeStartVertexEntityId,
+                current.RawEdgeEndVertexEntityId,
+                current.EffectiveStartVertexEntityId,
+                current.EffectiveEndVertexEntityId,
+                current.EvaluatedStartPoint,
+                current.EvaluatedEndPoint,
+                previousGap.Gap3d,
+                previousGap.Gap2d,
+                nextGap.Gap3d,
+                nextGap.Gap2d,
+                current.EdgeCurveSameSense,
+                current.OrientedEdgeOrientation,
+                current.FaceBoundOrientation,
+                current.IsReversed));
+        }
+    }
+
     private static (double Gap3d, double Gap2d, LoopCoedgeGapClassification Classification) ClassifyCoedgeGap(
         Point3D previousEnd,
         Point3D nextStart,
@@ -1960,6 +2054,29 @@ public static class Step242Importer
         bool WithinContainmentEps,
         bool WouldCreateGhostSegmentWithoutNormalization);
 
+    public sealed record CoedgeAssemblyForensicRecord(
+        int FaceEntityId,
+        int LoopId,
+        int CoedgeId,
+        int EdgeId,
+        int OrientedEdgeEntityId,
+        int EdgeCurveEntityId,
+        CurveGeometryKind CurveKind,
+        int RawEdgeStartVertexEntityId,
+        int RawEdgeEndVertexEntityId,
+        int EffectiveStartVertexEntityId,
+        int EffectiveEndVertexEntityId,
+        Point3D EvaluatedStartPoint,
+        Point3D EvaluatedEndPoint,
+        double GapToPrevious3d,
+        double GapToPrevious2d,
+        double GapToNext3d,
+        double GapToNext2d,
+        bool EdgeCurveSameSense,
+        bool OrientedEdgeOrientation,
+        bool FaceBoundOrientation,
+        bool IsReversed);
+
     public enum LoopCoedgeGapClassification
     {
         Negligible,
@@ -1980,6 +2097,14 @@ public static class Step242Importer
         public void Dispose()
         {
             CoedgeGapDiagnosticsSink.Value = previous;
+        }
+    }
+
+    private sealed class CoedgeAssemblyForensicsScope(ICollection<CoedgeAssemblyForensicRecord>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            CoedgeAssemblyForensicsSink.Value = previous;
         }
     }
 
@@ -2018,6 +2143,25 @@ public static class Step242Importer
     private sealed record PlanarLoopOuterCandidate(PlanarLoopInfo Info, UvPoint SamplePoint, int ContainmentCount);
 
     private sealed record CylindricalLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea, UvPoint Centroid);
+
+    private sealed record CoedgeAssemblyForensicBuilder(
+        int FaceEntityId,
+        int LoopId,
+        int CoedgeId,
+        int EdgeId,
+        int OrientedEdgeEntityId,
+        int EdgeCurveEntityId,
+        bool EdgeCurveSameSense,
+        bool OrientedEdgeOrientation,
+        bool FaceBoundOrientation,
+        bool IsReversed,
+        CurveGeometryKind CurveKind,
+        int RawEdgeStartVertexEntityId,
+        int RawEdgeEndVertexEntityId,
+        int EffectiveStartVertexEntityId,
+        int EffectiveEndVertexEntityId,
+        Point3D EvaluatedStartPoint,
+        Point3D EvaluatedEndPoint);
 
     private sealed record ContainmentEvaluation(int OutsideCount, int VertexCount, double MinDistanceToOuter);
 

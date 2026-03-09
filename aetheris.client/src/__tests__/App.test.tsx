@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from '../App';
 import { ApiError } from '../api/aetherisApi';
+import { STEP_UPLOAD_LIMIT_BYTES } from '../config/stepUpload';
 
 const apiMocks = vi.hoisted(() => ({
     createDocument: vi.fn(),
@@ -151,6 +152,35 @@ describe('App STEP file upload flow', () => {
         await screen.findByText('File selection needs attention');
         expect(screen.getByText('Unsupported file type. Please select a .step or .stp file.')).toBeTruthy();
         expect((screen.getByRole('button', { name: 'Import STEP 242' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+
+    it('accepts STEP files above the previous 5 MB threshold when under the configured limit', async () => {
+        render(<App />);
+        await screen.findByText('Document: Ready');
+
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
+        const file = new File(['ISO-10303-21;'], 'stc_09_like.stp', { type: 'text/plain' });
+        Object.defineProperty(file, 'size', { value: 6 * 1024 * 1024 });
+
+        fireEvent.change(fileInput, { target: { files: [file] } });
+
+        await screen.findByText('stc_09_like.stp');
+        expect(screen.queryByText('File selection needs attention')).toBeNull();
+    });
+
+    it('rejects STEP files above the configured limit with explicit size details', async () => {
+        render(<App />);
+        await screen.findByText('Document: Ready');
+
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
+        const file = new File(['ISO-10303-21;'], 'too-large.step', { type: 'text/plain' });
+        Object.defineProperty(file, 'size', { value: STEP_UPLOAD_LIMIT_BYTES + 1024 });
+
+        fireEvent.change(fileInput, { target: { files: [file] } });
+
+        await screen.findByText('File selection needs attention');
+        await screen.findByText(/Selected STEP file is too large \(250\.00 MB\)\. Limit is 250 MB\./i);
     });
 
     it('accepts drag-and-drop STEP files', async () => {

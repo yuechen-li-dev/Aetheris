@@ -21,6 +21,7 @@ import { StepImportDropzone } from './components/StepImportDropzone';
 import { Button } from './components/ui/button';
 import { ViewerViewport } from './viewer/ViewerViewport';
 import { mapTessellationToRenderData } from './viewer/tessellationMapper';
+import { STEP_UPLOAD_LIMIT_BYTES, STEP_UPLOAD_LIMIT_MB, formatMegabytes } from './config/stepUpload';
 
 type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
 type BooleanOperationUi = 'Union' | 'Subtract' | 'Intersect';
@@ -72,8 +73,6 @@ function App() {
     const [isResetting, setIsResetting] = useState(false);
     const [isGridVisible, setIsGridVisible] = useState(true);
     const [isCoordVisible, setIsCoordVisible] = useState(true);
-
-    const maxStepFileSizeBytes = 5 * 1024 * 1024;
 
     const resetSessionState = useCallback(() => {
         setBodyIds([]);
@@ -333,12 +332,13 @@ function App() {
             return;
         }
 
-        if (stepImportFile.size > maxStepFileSizeBytes) {
+        if (stepImportFile.size > STEP_UPLOAD_LIMIT_BYTES) {
+            const limitMessage = `Selected STEP file is too large (${formatMegabytes(stepImportFile.size)}). Limit is ${STEP_UPLOAD_LIMIT_MB} MB.`;
             setStatus('error');
-            setStatusMessage(`Selected STEP file is too large (${stepImportFile.size} bytes). Limit is ${maxStepFileSizeBytes} bytes.`);
+            setStatusMessage(limitMessage);
             setDiagnostics([]);
             setImportStatus('error');
-            setImportStatusMessage(`Import error: Selected STEP file is too large (${stepImportFile.size} bytes).`);
+            setImportStatusMessage(`Import error: ${limitMessage}`);
             return;
         }
 
@@ -369,7 +369,7 @@ function App() {
         } finally {
             setIsImporting(false);
         }
-    }, [documentId, documentStatus, maxStepFileSizeBytes, refreshSummaryAndActiveTessellation, runAction, serverStatus, stepImportFile]);
+    }, [documentId, documentStatus, refreshSummaryAndActiveTessellation, runAction, serverStatus, stepImportFile]);
 
     const handleStepFileAccepted = useCallback((selected: File) => {
         setStepImportFile(selected);

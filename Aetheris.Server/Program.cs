@@ -1,8 +1,20 @@
 using Aetheris.Server.Api;
+using Aetheris.Server.Configuration;
 using Aetheris.Server.Documents;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var stepUploadOptions = builder.Configuration
+    .GetSection(StepUploadOptions.SectionName)
+    .Get<StepUploadOptions>()
+    ?? new StepUploadOptions();
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = stepUploadOptions.MaxUploadSizeBytes;
+});
+
+builder.Services.AddSingleton(stepUploadOptions);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<KernelDocumentStore>();

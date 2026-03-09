@@ -79,8 +79,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
-      "messagePrefix": "Inner loop could not be normalized"
+      "source": "Importer.LoopRole.DisconnectedCoedges",
+      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=261, outerLoopId=259,"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -151,8 +151,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
-      "messagePrefix": "Inner loop could not be normalized"
+      "source": "Importer.LoopRole.DisconnectedCoedges",
+      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=24, outerLoopId=25, o"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -247,8 +247,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
-      "messagePrefix": "Inner loop could not be normalized"
+      "source": "Importer.LoopRole.DisconnectedCoedges",
+      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=5, outerLoopId=6, out"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

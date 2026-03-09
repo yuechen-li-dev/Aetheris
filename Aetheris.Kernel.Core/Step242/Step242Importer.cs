@@ -14,15 +14,24 @@ public static class Step242Importer
 {
     private const double AreaEps = 1e-8d;
     private const double PointOnSurfaceEps = 1e-5d;
+    private const double TinyCoedgeGapSnapEps = 2.5e-5d;
     private const double AngleUnwrapEps = 1e-8d;
     private const double ContainmentEps = 1e-8d;
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<LoopRoleCoedgeGapDiagnostic>?> CoedgeGapDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
         var previous = CircularSamplingDiagnosticsSink.Value;
         CircularSamplingDiagnosticsSink.Value = sink;
         return new CircularSamplingDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CaptureLoopRoleCoedgeGapDiagnostics(ICollection<LoopRoleCoedgeGapDiagnostic> sink)
+    {
+        var previous = CoedgeGapDiagnosticsSink.Value;
+        CoedgeGapDiagnosticsSink.Value = sink;
+        return new CoedgeGapDiagnosticsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -249,6 +258,7 @@ public static class Step242Importer
 
                 var loopCoedges = new List<Coedge>(orientedEdgeRefsResult.Value.Count);
                 var loopSamples = new List<Point3D>();
+                var hasDisconnectedCoedgeGap = false;
 
                 for (var i = 0; i < orientedEdgeRefsResult.Value.Count; i++)
                 {
@@ -326,11 +336,46 @@ public static class Step242Importer
                         return KernelResult<BrepBody>.Failure(sampleResult.Diagnostics);
                     }
 
-                    AppendLoopSamples(loopSamples, sampleResult.Value);
+                    var boundaryClassification = AppendLoopSamples(
+                        loopSamples,
+                        sampleResult.Value,
+                        bindSurfaceResult.Value.SurfaceGeometry,
+                        faceEntity.Id,
+                        loopId.Value,
+                        coedge.Id.Value,
+                        loopCoedges.Count > 1 ? loopCoedges[^2].Id.Value : (int?)null);
+                    if (boundaryClassification == LoopCoedgeGapClassification.Disconnected)
+                    {
+                        hasDisconnectedCoedgeGap = true;
+                    }
+                }
+
+                var closingGap = ClassifyCoedgeGap(loopSamples[^1], loopSamples[0], bindSurfaceResult.Value.SurfaceGeometry);
+                ReportCoedgeGapDiagnostic(new LoopRoleCoedgeGapDiagnostic(
+                    FaceEntityId: faceEntity.Id,
+                    LoopId: loopId.Value,
+                    PreviousCoedgeId: loopCoedges[^1].Id.Value,
+                    NextCoedgeId: loopCoedges[0].Id.Value,
+                    Gap3d: closingGap.Gap3d,
+                    Gap2d: closingGap.Gap2d,
+                    PreviousEdgeGeometryKind: DescribeCurveKind(bindings.GetEdgeBinding(loopCoedges[^1].EdgeId), geometry),
+                    NextEdgeGeometryKind: DescribeCurveKind(bindings.GetEdgeBinding(loopCoedges[0].EdgeId), geometry),
+                    Classification: closingGap.Classification,
+                    WithinPointOnSurfaceEps: closingGap.Gap3d <= PointOnSurfaceEps,
+                    WithinContainmentEps: closingGap.Gap3d <= ContainmentEps,
+                    WouldCreateGhostSegmentWithoutNormalization: closingGap.Gap3d > PointOnSurfaceEps));
+
+                if (closingGap.Classification == LoopCoedgeGapClassification.TinyNormalizable)
+                {
+                    loopSamples[0] = loopSamples[^1];
+                }
+                else if (closingGap.Classification == LoopCoedgeGapClassification.Disconnected)
+                {
+                    hasDisconnectedCoedgeGap = true;
                 }
 
                 builder.AddLoop(new Loop(loopId, coedgeIds));
-                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples));
+                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap));
             }
 
             var classifyResult = ClassifyAndNormalizeFaceLoops(loopData, bindSurfaceResult.Value.SurfaceGeometry);
@@ -1126,7 +1171,7 @@ public static class Step242Importer
                 continue;
             }
 
-            var failure = BuildInnerContainmentFailure(candidate.Info, outer.Info, containmentTolerance, areaTolerance, intersectionCount);
+            var failure = BuildInnerContainmentFailure(candidate.Info, outer.Info, containmentTolerance, areaTolerance, intersectionCount, candidate.Info.Loop.HasDisconnectedCoedgeGap || outer.Info.Loop.HasDisconnectedCoedgeGap);
             return LoopRoleFailure<IReadOnlyList<LoopBuildData>>(failure.Message, failure.Source);
         }
 
@@ -1242,7 +1287,7 @@ public static class Step242Importer
             .Select(c => c with { IsReversed = !c.IsReversed })
             .ToList();
 
-        return new LoopBuildData(loop.LoopId, flippedCoedges, loop.Samples);
+        return new LoopBuildData(loop.LoopId, flippedCoedges, loop.Samples, loop.HasDisconnectedCoedgeGap);
     }
 
     private static bool LoopsOverlap(PlanarLoopInfo a, PlanarLoopInfo b, double containmentTolerance)
@@ -1262,7 +1307,8 @@ public static class Step242Importer
         PlanarLoopInfo outer,
         double containmentTolerance,
         double areaTolerance,
-        int intersectionCount)
+        int intersectionCount,
+        bool hasDisconnectedCoedges)
     {
         var containment = EvaluateContainment(inner.ProjectedPoints, outer.ProjectedPoints, containmentTolerance);
         var crossingOuter = intersectionCount > 0;
@@ -1278,12 +1324,15 @@ public static class Step242Importer
         var source = reason switch
         {
             "crosses_outer_boundary_with_all_vertices_inside" => "Importer.LoopRole.InnerBoundaryIntersectionWithContainedVerticesAfterNormalization",
+            "crosses_outer_boundary_with_outside_vertices" when hasDisconnectedCoedges => "Importer.LoopRole.DisconnectedCoedges",
             "crosses_outer_boundary_with_outside_vertices" => "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization",
             "disjoint" => "Importer.LoopRole.InnerDisjointAfterNormalization",
             _ => "Importer.LoopRole.InnerPartiallyOutsideAfterNormalization"
         };
 
-        var message = $"Inner loop could not be normalized: {reason}. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}.";
+        var message = source == "Importer.LoopRole.DisconnectedCoedges"
+            ? $"Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}."
+            : $"Inner loop could not be normalized: {reason}. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}.";
         return new ContainmentFailure(message, source);
     }
 
@@ -1691,13 +1740,53 @@ public static class Step242Importer
         return System.Math.Max(AreaEps, extentArea * 1e-8d);
     }
 
-    private static void AppendLoopSamples(ICollection<Point3D> loopSamples, IReadOnlyList<Point3D> edgeSamples)
+    private static void AppendLoopSamples(IList<Point3D> loopSamples, IReadOnlyList<Point3D> edgeSamples)
     {
-        foreach (var point in edgeSamples)
+        _ = AppendLoopSamples(loopSamples, edgeSamples, null, -1, -1, -1, null);
+    }
+
+    private static LoopCoedgeGapClassification AppendLoopSamples(
+        IList<Point3D> loopSamples,
+        IReadOnlyList<Point3D> edgeSamples,
+        SurfaceGeometry? surface,
+        int faceEntityId,
+        int loopId,
+        int coedgeId,
+        int? previousCoedgeId)
+    {
+        var normalizedEdgeSamples = edgeSamples.ToList();
+        var boundaryClassification = LoopCoedgeGapClassification.Negligible;
+        if (loopSamples.Count > 0 && normalizedEdgeSamples.Count > 0)
+        {
+            var previousPoint = loopSamples[^1];
+            var currentPoint = normalizedEdgeSamples[0];
+            var gap = ClassifyCoedgeGap(previousPoint, currentPoint, surface);
+            boundaryClassification = gap.Classification;
+            ReportCoedgeGapDiagnostic(new LoopRoleCoedgeGapDiagnostic(
+                FaceEntityId: faceEntityId,
+                LoopId: loopId,
+                PreviousCoedgeId: previousCoedgeId,
+                NextCoedgeId: coedgeId,
+                Gap3d: gap.Gap3d,
+                Gap2d: gap.Gap2d,
+                PreviousEdgeGeometryKind: null,
+                NextEdgeGeometryKind: null,
+                Classification: gap.Classification,
+                WithinPointOnSurfaceEps: gap.Gap3d <= PointOnSurfaceEps,
+                WithinContainmentEps: gap.Gap3d <= ContainmentEps,
+                WouldCreateGhostSegmentWithoutNormalization: gap.Gap3d > PointOnSurfaceEps));
+
+            if (gap.Classification == LoopCoedgeGapClassification.TinyNormalizable)
+            {
+                normalizedEdgeSamples[0] = previousPoint;
+            }
+        }
+
+        foreach (var point in normalizedEdgeSamples)
         {
             if (loopSamples.Count > 0)
             {
-                var last = loopSamples.Last();
+                var last = loopSamples[^1];
                 if ((last - point).Length <= PointOnSurfaceEps)
                 {
                     continue;
@@ -1706,6 +1795,8 @@ public static class Step242Importer
 
             loopSamples.Add(point);
         }
+
+        return boundaryClassification;
     }
 
     private static KernelResult<IReadOnlyList<Point3D>> SampleCoedgePoints(
@@ -1795,6 +1886,54 @@ public static class Step242Importer
         sink?.Add(diagnostic);
     }
 
+    private static void ReportCoedgeGapDiagnostic(LoopRoleCoedgeGapDiagnostic diagnostic)
+    {
+        var sink = CoedgeGapDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
+    private static (double Gap3d, double Gap2d, LoopCoedgeGapClassification Classification) ClassifyCoedgeGap(
+        Point3D previousEnd,
+        Point3D nextStart,
+        SurfaceGeometry? surface)
+    {
+        var gap3d = (previousEnd - nextStart).Length;
+        var gap2d = gap3d;
+        if (surface is not null)
+        {
+            gap2d = surface.Kind switch
+            {
+                SurfaceGeometryKind.Plane => ComputePlanarGap(previousEnd, nextStart, surface.Plane!.Value),
+                _ => gap3d
+            };
+        }
+
+        var classification = gap3d <= PointOnSurfaceEps
+            ? LoopCoedgeGapClassification.Negligible
+            : gap3d <= TinyCoedgeGapSnapEps
+                ? LoopCoedgeGapClassification.TinyNormalizable
+                : LoopCoedgeGapClassification.Disconnected;
+        return (gap3d, gap2d, classification);
+    }
+
+    private static double ComputePlanarGap(Point3D a, Point3D b, PlaneSurface plane)
+    {
+        var delta = b - a;
+        var du = delta.Dot(plane.UAxis.ToVector());
+        var dv = delta.Dot(plane.VAxis.ToVector());
+        return double.Sqrt((du * du) + (dv * dv));
+    }
+
+    private static string? DescribeCurveKind(EdgeGeometryBinding edgeBinding, BrepGeometryStore geometry)
+    {
+        if (!geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve) || curve is null)
+        {
+            return null;
+        }
+
+        return curve.Kind.ToString();
+    }
+
     public sealed record LoopRoleCircularSamplingDiagnostic(
         int FaceEntityId,
         int LoopId,
@@ -1807,11 +1946,40 @@ public static class Step242Importer
         int LegacyPointCount,
         int AdaptivePointCount);
 
+    public sealed record LoopRoleCoedgeGapDiagnostic(
+        int FaceEntityId,
+        int LoopId,
+        int? PreviousCoedgeId,
+        int? NextCoedgeId,
+        double Gap3d,
+        double Gap2d,
+        string? PreviousEdgeGeometryKind,
+        string? NextEdgeGeometryKind,
+        LoopCoedgeGapClassification Classification,
+        bool WithinPointOnSurfaceEps,
+        bool WithinContainmentEps,
+        bool WouldCreateGhostSegmentWithoutNormalization);
+
+    public enum LoopCoedgeGapClassification
+    {
+        Negligible,
+        TinyNormalizable,
+        Disconnected
+    }
+
     private sealed class CircularSamplingDiagnosticsScope(ICollection<LoopRoleCircularSamplingDiagnostic>? previous) : IDisposable
     {
         public void Dispose()
         {
             CircularSamplingDiagnosticsSink.Value = previous;
+        }
+    }
+
+    private sealed class CoedgeGapDiagnosticsScope(ICollection<LoopRoleCoedgeGapDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            CoedgeGapDiagnosticsSink.Value = previous;
         }
     }
 
@@ -1841,7 +2009,7 @@ public static class Step242Importer
 
     private static string SourceFor(int _entityId, string stableSource) => stableSource;
 
-    private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples);
+    private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples, bool HasDisconnectedCoedgeGap = false);
 
     private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea);
 

@@ -32,7 +32,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
 
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "tessellator", "Viewer.Tessellation.CurvedTopologyUnsupported", "Face 57 curved tessellation expected mirrored line uses for this cone/revolved topology. Observed")]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "importer-topology", "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization", "Inner loop could not be normalized")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "importer-topology", "Importer.LoopRole.DisconnectedCoedges", "Planar loop contains disconnected consecutive coedges")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "tessellator", "", "Face 2 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     public void Step242_NistConicalTargets_AdvancePastConicalRadius_AndReportDeterministicNextBlocker(
         string relativePath,

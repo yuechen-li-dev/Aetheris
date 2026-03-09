@@ -26,7 +26,13 @@ public sealed class Step242EdgeCurveSenseRegressionTests
 
         Assert.NotEqual("Importer.Orientation.EdgeCurveSense", first.FirstDiagnostic.Source);
         Assert.NotEqual("Importer.LoopRole.CylinderNonNormalizableDegenerateProjection", first.FirstDiagnostic.Source);
+        Assert.NotEqual("Importer.LoopRole.UnsupportedSurfaceForHoles", first.FirstDiagnostic.Source);
         Assert.False(string.IsNullOrWhiteSpace(first.FirstDiagnostic.MessagePrefix));
+
+        if (string.Equals(relativePath, "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", StringComparison.Ordinal))
+        {
+            Assert.StartsWith("Importer.LoopRole.UnsupportedSurfaceForHoles.", first.FirstDiagnostic.Source, StringComparison.Ordinal);
+        }
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);

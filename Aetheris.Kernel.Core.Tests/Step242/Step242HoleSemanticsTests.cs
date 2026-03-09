@@ -76,7 +76,7 @@ public sealed class Step242HoleSemanticsTests
         Assert.False(import.IsSuccess);
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.ValidationFailed, diagnostic.Code);
-        Assert.Equal("Importer.LoopRole.UnsupportedSurfaceForHoles", diagnostic.Source);
+        Assert.Equal("Importer.LoopRole.UnsupportedSurfaceForHoles.Sphere", diagnostic.Source);
     }
 
     [Fact]

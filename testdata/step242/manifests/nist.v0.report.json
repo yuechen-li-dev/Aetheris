@@ -271,8 +271,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.UnsupportedSurfaceForHoles",
-      "messagePrefix": "Multi-loop hole classification is unsupported for this surface type."
+      "source": "Importer.LoopRole.TorusDegenerateProjection",
+      "messagePrefix": "Toroidal loop normalization failed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -295,8 +295,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.UnsupportedSurfaceForHoles",
-      "messagePrefix": "Multi-loop hole classification is unsupported for this surface type."
+      "source": "Importer.LoopRole.UnsupportedSurfaceForHoles.Cone",
+      "messagePrefix": "Multi-loop hole classification is unsupported for surface type \u0027Cone\u0027."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

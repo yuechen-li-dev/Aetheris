@@ -14,6 +14,13 @@ internal sealed class Step242TextWriter
         return id;
     }
 
+    public string AddRawEntity(string entityInstance)
+    {
+        var id = $"#{_entities.Count + 1}";
+        _entities.Add($"{id}={entityInstance};");
+        return id;
+    }
+
     public string Build(string applicationName)
     {
         var sb = new StringBuilder();

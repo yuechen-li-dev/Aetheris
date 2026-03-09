@@ -5,10 +5,10 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242ConicalSurfaceRegressionTests
 {
     [Fact]
-    public void Step242_ConicalSurfaceDecoder_AcceptsZeroRadiusWithDegreeSemiAngle()
+    public void Step242_ConicalSurfaceDecoder_AcceptsZeroRadiusWithRadianSemiAngle()
     {
         const string text = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n"
-            + "#10=CONICAL_SURFACE('',#20,0.,59.);\n"
+            + "#10=CONICAL_SURFACE('',#20,0.,1.029744258676654);\n"
             + "#20=AXIS2_PLACEMENT_3D('',#21,#22,#23);\n"
             + "#21=CARTESIAN_POINT('',(1.,2.,3.));\n"
             + "#22=DIRECTION('',(0.,0.,1.));\n"
@@ -27,7 +27,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
         Assert.Equal(1d, cone.Value.Apex.X, 9);
         Assert.Equal(2d, cone.Value.Apex.Y, 9);
         Assert.Equal(3d, cone.Value.Apex.Z, 9);
-        Assert.Equal(59d * (double.Pi / 180d), cone.Value.SemiAngleRadians, 12);
+        Assert.Equal(1.029744258676654d, cone.Value.SemiAngleRadians, 12);
     }
 
     [Theory]
@@ -146,4 +146,46 @@ public sealed class Step242ConicalSurfaceRegressionTests
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 
+
+    [Fact]
+    public void Step242_ConicalSurfaceImport_DegreeContextFromGlobalUnits_NormalizesToRadians()
+    {
+        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_01_asme1_ap242-e1.stp");
+        var source = File.ReadAllText(fixturePath);
+
+        var import = Step242Importer.ImportBody(source);
+        Assert.True(import.IsSuccess);
+
+        var cones = import.Value.Geometry.Surfaces
+            .Select(surface => surface.Value)
+            .Where(surface => surface.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone)
+            .Select(surface => surface.Cone)
+            .Where(cone => cone.HasValue)
+            .Select(cone => cone!.Value.SemiAngleRadians)
+            .ToArray();
+
+        Assert.NotEmpty(cones);
+        Assert.Contains(cones, angle => double.Abs(angle - 1.02974425867665d) <= 1e-6d);
+    }
+
+    [Fact]
+    public void Step242_ConicalSurfaceImport_RadianContextFromGlobalUnits_RemainsRadians()
+    {
+        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "STC", "nist_stc_09_asme1_ap242-e3.stp");
+        var source = File.ReadAllText(fixturePath);
+
+        var import = Step242Importer.ImportBody(source);
+        Assert.True(import.IsSuccess);
+
+        var cones = import.Value.Geometry.Surfaces
+            .Select(surface => surface.Value)
+            .Where(surface => surface.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone)
+            .Select(surface => surface.Cone)
+            .Where(cone => cone.HasValue)
+            .Select(cone => cone!.Value.SemiAngleRadians)
+            .ToArray();
+
+        Assert.NotEmpty(cones);
+        Assert.Contains(cones, angle => double.Abs(angle - 0.7853981634d) <= 1e-6d);
+    }
 }

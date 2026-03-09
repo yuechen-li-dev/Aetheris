@@ -584,9 +584,12 @@ internal sealed class Step242ParsedDocument
     {
         Entities = entities;
         _entitiesById = entities.ToDictionary(e => e.Id);
+        PlaneAngleToRadiansScale = ResolvePlaneAngleToRadiansScale();
     }
 
     public IReadOnlyList<Step242ParsedEntity> Entities { get; }
+
+    public double PlaneAngleToRadiansScale { get; }
 
     public KernelResult<Step242ParsedEntity> TryGetEntity(int id, string? expectedName = null)
     {
@@ -607,6 +610,89 @@ internal sealed class Step242ParsedDocument
         KernelResult<Step242ParsedEntity>.Failure([
             new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)
         ]);
+
+    private double ResolvePlaneAngleToRadiansScale()
+    {
+        foreach (var entity in Entities)
+        {
+            var unitContext = Step242SubsetDecoder.TryGetConstructor(entity.Instance, "GLOBAL_UNIT_ASSIGNED_CONTEXT");
+            if (unitContext is null || unitContext.Arguments.Count == 0 || unitContext.Arguments[0] is not Step242ListValue unitList)
+            {
+                continue;
+            }
+
+            foreach (var unitValue in unitList.Items)
+            {
+                if (unitValue is not Step242EntityReference unitRef)
+                {
+                    continue;
+                }
+
+                if (TryResolvePlaneAngleUnitScale(unitRef.TargetId, new HashSet<int>(), out var scale))
+                {
+                    return scale;
+                }
+            }
+        }
+
+        return 1d;
+    }
+
+    private bool TryResolvePlaneAngleUnitScale(int unitEntityId, HashSet<int> visited, out double scale)
+    {
+        scale = default;
+        if (!visited.Add(unitEntityId) || !_entitiesById.TryGetValue(unitEntityId, out var unitEntity))
+        {
+            return false;
+        }
+
+        if (Step242SubsetDecoder.TryGetConstructor(unitEntity.Instance, "PLANE_ANGLE_UNIT") is null)
+        {
+            return false;
+        }
+
+        var siUnit = Step242SubsetDecoder.TryGetConstructor(unitEntity.Instance, "SI_UNIT");
+        if (siUnit is not null
+            && siUnit.Arguments.Count >= 2
+            && siUnit.Arguments[1] is Step242EnumValue siName
+            && string.Equals(siName.Value, "RADIAN", StringComparison.Ordinal))
+        {
+            scale = 1d;
+            return true;
+        }
+
+        var conversionBasedUnit = Step242SubsetDecoder.TryGetConstructor(unitEntity.Instance, "CONVERSION_BASED_UNIT");
+        if (conversionBasedUnit is null
+            || conversionBasedUnit.Arguments.Count < 2
+            || conversionBasedUnit.Arguments[1] is not Step242EntityReference conversionRef
+            || !_entitiesById.TryGetValue(conversionRef.TargetId, out var conversionEntity))
+        {
+            return false;
+        }
+
+        var conversionConstructor = conversionEntity.Instance.PrimaryConstructor;
+        if (conversionConstructor.Arguments.Count < 2)
+        {
+            return false;
+        }
+
+        if (conversionConstructor.Arguments[0] is not Step242TypedValue typedMeasure
+            || !string.Equals(typedMeasure.Name, "PLANE_ANGLE_MEASURE", StringComparison.Ordinal)
+            || typedMeasure.Arguments.Count != 1
+            || typedMeasure.Arguments[0] is not Step242NumberValue baseMagnitude
+            || conversionConstructor.Arguments[1] is not Step242EntityReference baseUnitRef)
+        {
+            return false;
+        }
+
+        if (!TryResolvePlaneAngleUnitScale(baseUnitRef.TargetId, visited, out var baseScale))
+        {
+            return false;
+        }
+
+        scale = baseMagnitude.Value * baseScale;
+        return true;
+    }
 }
 
 internal abstract record Step242Value;

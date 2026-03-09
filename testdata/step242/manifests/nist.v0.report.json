@@ -32,7 +32,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "Importer.EntityFamily",
-      "messagePrefix": "ADVANCED_FACE surface \u0027B_SPLINE_SURFACE_WITH_KNOTS\u0027 is unsupported."
+      "messagePrefix": "EDGE_CURVE geometry \u0027ELLIPSE\u0027 is unsupported."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -148,18 +148,18 @@
     "path": "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp",
     "sizeBytes": 1459346,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Importer.EntityFamily",
-      "messagePrefix": "ADVANCED_FACE surface \u0027B_SPLINE_SURFACE_WITH_KNOTS\u0027 is unsupported."
+      "source": "",
+      "messagePrefix": "Face 14 sphere tessellation supports only untrimmed sphere faces with zero loops."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 582,
+      "edges": 865,
+      "faces": 304
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -244,18 +244,18 @@
     "path": "testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp",
     "sizeBytes": 1855829,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Importer.EntityFamily",
-      "messagePrefix": "ADVANCED_FACE surface \u0027B_SPLINE_SURFACE_WITH_KNOTS\u0027 is unsupported."
+      "source": "",
+      "messagePrefix": "Face 14 curved tessellation supports four-coedge torus/revolved loop layouts. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 560,
+      "edges": 799,
+      "faces": 264
     },
     "tessellationCounts": {
       "facePatches": 0,

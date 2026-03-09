@@ -5,10 +5,10 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242LoopRoleNormalizationRegressionTests
 {
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization", "Inner loop could not be normalized")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "Importer.LoopRole.DisconnectedCoedges", "Planar loop contains disconnected consecutive coedges")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp", "Entity:1234", "FACE_BOUND loop type 'VERTEX_LOOP' is unsupported")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization", "Inner loop could not be normalized")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Importer.LoopRole.InnerBoundaryIntersectionWithOutsideVerticesAfterNormalization", "Inner loop could not be normalized")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Importer.LoopRole.DisconnectedCoedges", "Planar loop contains disconnected consecutive coedges")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Importer.LoopRole.DisconnectedCoedges", "Planar loop contains disconnected consecutive coedges")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp", "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection", "Cylinder loop normalization failed")]
     [InlineData("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", null, null)]
     [InlineData("testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp", null, null)]
@@ -48,6 +48,22 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 
+
+    [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
+    public void Step242_PlanarLoopRole_CoedgeGapDiagnostics_AreDeterministic(string relativePath)
+    {
+        var first = CaptureCoedgeGaps(relativePath);
+        var second = CaptureCoedgeGaps(relativePath);
+
+        Assert.NotEmpty(first);
+        Assert.Equal(first, second);
+        Assert.Contains(first, d => d.WouldCreateGhostSegmentWithoutNormalization);
+        Assert.Contains(first, d => d.Classification == Step242Importer.LoopCoedgeGapClassification.Disconnected);
+    }
+
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp")]
@@ -70,6 +86,18 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         });
 
         Assert.Contains(first, s => s.AdaptivePointCount > s.LegacyPointCount);
+    }
+
+
+    private static IReadOnlyList<Step242Importer.LoopRoleCoedgeGapDiagnostic> CaptureCoedgeGaps(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var diagnostics = new List<Step242Importer.LoopRoleCoedgeGapDiagnostic>();
+
+        using var captureScope = Step242Importer.CaptureLoopRoleCoedgeGapDiagnostics(diagnostics);
+        Step242Importer.ImportBody(text);
+        return diagnostics;
     }
 
     private static IReadOnlyList<Step242Importer.LoopRoleCircularSamplingDiagnostic> CaptureCircularSampling(string relativePath)

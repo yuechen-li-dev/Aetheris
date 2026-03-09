@@ -32,7 +32,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 47 sphere tessellation supports only untrimmed sphere faces with zero loops."
+      "messagePrefix": "Face 74 has unsupported surface kind \u0027BSplineSurfaceWithKnots\u0027."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -152,7 +152,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 14 sphere tessellation supports only untrimmed sphere faces with zero loops."
+      "messagePrefix": "Face 20 curved tessellation supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -344,7 +344,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 46 sphere tessellation supports only untrimmed sphere faces with zero loops."
+      "messagePrefix": "Face 62 curved tessellation does not support this torus/revolved boundary topology yet. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

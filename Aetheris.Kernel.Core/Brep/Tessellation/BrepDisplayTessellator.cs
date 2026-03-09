@@ -304,54 +304,27 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateSphereFace(BrepBody body, FaceId faceId, SphereSurface sphere, DisplayTessellationOptions options)
     {
-        var loopIds = body.GetLoopIds(faceId);
-        if (loopIds.Count != 0)
+        var trimPatchResult = TryResolveSphereTrimPatch(body, faceId, sphere);
+        if (!trimPatchResult.IsSuccess)
         {
-            return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} sphere tessellation supports only untrimmed sphere faces with zero loops.")]);
+            return KernelResult<DisplayFaceMeshPatch>.Failure(trimPatchResult.Diagnostics);
         }
 
-        var angularSegments = CalculateSegmentCount(2d * double.Pi, sphere.Radius, options);
+        var trimPatch = trimPatchResult.Value;
+        var angularSegments = CalculateSegmentCount(trimPatch.USpan, sphere.Radius, options);
         var elevationSegments = System.Math.Max(2, System.Math.Clamp(angularSegments / 2, options.MinimumSegments / 2, options.MaximumSegments));
 
-        var positions = new List<Point3D>((angularSegments + 1) * (elevationSegments + 1));
-        var normals = new List<Vector3D>((angularSegments + 1) * (elevationSegments + 1));
-        var indices = new List<int>(angularSegments * elevationSegments * 6);
-
-        for (var v = 0; v <= elevationSegments; v++)
-        {
-            var t = (double)v / elevationSegments;
-            var elevation = (-double.Pi / 2d) + (t * double.Pi);
-
-            for (var u = 0; u <= angularSegments; u++)
-            {
-                var s = (double)u / angularSegments;
-                var azimuth = s * 2d * double.Pi;
-                positions.Add(sphere.Evaluate(azimuth, elevation));
-                normals.Add(sphere.Normal(azimuth, elevation).ToVector());
-            }
-        }
-
-        var rowWidth = angularSegments + 1;
-        for (var v = 0; v < elevationSegments; v++)
-        {
-            for (var u = 0; u < angularSegments; u++)
-            {
-                var i0 = (v * rowWidth) + u;
-                var i1 = i0 + 1;
-                var i2 = i0 + rowWidth;
-                var i3 = i2 + 1;
-
-                indices.Add(i0);
-                indices.Add(i2);
-                indices.Add(i1);
-
-                indices.Add(i1);
-                indices.Add(i2);
-                indices.Add(i3);
-            }
-        }
-
-        return KernelResult<DisplayFaceMeshPatch>.Success(new DisplayFaceMeshPatch(faceId, positions, normals, indices));
+        return KernelResult<DisplayFaceMeshPatch>.Success(CreateBoundedGridPatch(
+            faceId,
+            angularSegments,
+            elevationSegments,
+            (u, v) => sphere.Evaluate(u, v),
+            (u, v) => sphere.Normal(u, v).ToVector(),
+            trimPatch.UStart,
+            trimPatch.UStart + trimPatch.USpan,
+            trimPatch.VStart,
+            trimPatch.VEnd),
+            trimPatchResult.Diagnostics);
     }
 
 
@@ -687,6 +660,104 @@ public static class BrepDisplayTessellator
         }
 
         return new DisplayFaceMeshPatch(faceId, positions, normals, indices);
+    }
+
+    private static KernelResult<(double UStart, double USpan, double VStart, double VEnd)> TryResolveSphereTrimPatch(
+        BrepBody body,
+        FaceId faceId,
+        SphereSurface sphere)
+    {
+        const double minAngularSpan = 1e-6d;
+        const double minElevationSpan = 1e-6d;
+
+        var loopIds = body.GetLoopIds(faceId);
+        if (loopIds.Count == 0)
+        {
+            return KernelResult<(double, double, double, double)>.Success((0d, 2d * double.Pi, -double.Pi / 2d, double.Pi / 2d));
+        }
+
+        if (loopIds.Count != 1)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} sphere tessellation currently supports exactly one trim loop. Observed {loopIds.Count} loops.")]);
+        }
+
+        var coedges = body.GetCoedgeIds(loopIds[0]).Select(id => body.Topology.GetCoedge(id)).ToArray();
+        if (coedges.Length < 3)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} spherical trim loop must contain at least three coedges. Observed {coedges.Length}.")]);
+        }
+
+        var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
+        if (!vertexPointsResult.IsSuccess)
+        {
+            return KernelResult<(double, double, double, double)>.Failure(vertexPointsResult.Diagnostics);
+        }
+
+        var allAzimuths = new List<double>();
+        var allElevations = new List<double>();
+
+        foreach (var coedge in coedges)
+        {
+            var curve = body.GetEdgeCurve(coedge.EdgeId);
+            if (curve.Kind != CurveGeometryKind.Circle3
+                && curve.Kind != CurveGeometryKind.BSpline3
+                && curve.Kind != CurveGeometryKind.Ellipse3
+                && curve.Kind != CurveGeometryKind.Line3)
+            {
+                return KernelResult<(double, double, double, double)>.Failure([
+                    CreateNotImplemented($"Face {faceId.Value} spherical trim tessellation supports only line/circle/ellipse/bspline loop edges in this milestone. Observed curve kind '{curve.UnsupportedKind ?? curve.Kind.ToString()}'.")]);
+            }
+
+            var endpoints = GetEdgeEndpoints(body, coedge.EdgeId, coedge.IsReversed, vertexPointsResult.Value);
+            if (!endpoints.IsSuccess)
+            {
+                return KernelResult<(double, double, double, double)>.Failure(endpoints.Diagnostics);
+            }
+
+            AppendSphereUv(allAzimuths, allElevations, sphere, endpoints.Value.Start);
+            AppendSphereUv(allAzimuths, allElevations, sphere, endpoints.Value.End);
+
+            var edgePolyline = TessellateEdge(body, coedge.EdgeId, options: DisplayTessellationOptions.Default);
+            if (edgePolyline.IsSuccess)
+            {
+                var edgePoints = coedge.IsReversed
+                    ? edgePolyline.Value.Points.Reverse().ToArray()
+                    : edgePolyline.Value.Points;
+
+                foreach (var point in edgePoints)
+                {
+                    AppendSphereUv(allAzimuths, allElevations, sphere, point);
+                }
+            }
+        }
+
+        if (allAzimuths.Count == 0 || allElevations.Count == 0)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} spherical trim tessellation could not derive loop parameter samples.")]);
+        }
+
+        var angularBounds = ResolveAngularBounds(allAzimuths);
+        if (!angularBounds.IsSuccess || angularBounds.Value.Span <= minAngularSpan)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} spherical trim tessellation derived a degenerate azimuth span.")]);
+        }
+
+        var vStart = allElevations.Min();
+        var vEnd = allElevations.Max();
+        if ((vEnd - vStart) <= minElevationSpan)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} spherical trim tessellation derived a degenerate elevation span.")]);
+        }
+
+        vStart = System.Math.Clamp(vStart, -double.Pi / 2d, double.Pi / 2d);
+        vEnd = System.Math.Clamp(vEnd, -double.Pi / 2d, double.Pi / 2d);
+
+        return KernelResult<(double, double, double, double)>.Success((angularBounds.Value.Start, angularBounds.Value.Span, vStart, vEnd));
     }
 
     private static KernelResult<(double UStart, double UEnd, double VStart, double VEnd)> TryResolveCylinderTrimPatch(
@@ -1101,6 +1172,23 @@ public static class BrepDisplayTessellator
         }
 
         return normalized;
+    }
+
+    private static void AppendSphereUv(List<double> azimuths, List<double> elevations, SphereSurface sphere, Point3D point)
+    {
+        var fromCenter = point - sphere.Center;
+        var radial = fromCenter.Length;
+        if (!double.IsFinite(radial) || radial <= 1e-9d)
+        {
+            return;
+        }
+
+        var normalized = fromCenter / radial;
+        var x = normalized.Dot(sphere.XAxis.ToVector());
+        var y = normalized.Dot(sphere.YAxis.ToVector());
+        var z = normalized.Dot(sphere.Axis.ToVector());
+        azimuths.Add(double.Atan2(y, x));
+        elevations.Add(System.Math.Asin(System.Math.Clamp(z, -1d, 1d)));
     }
 
     private static int FindNextCoedgeIndex(

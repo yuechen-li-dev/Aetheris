@@ -42,7 +42,7 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
     }
 
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "tessellator", "Viewer.Tessellation.CurvedTopologyUnsupported", "Face 1 curved tessellation expected mirrored")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "tessellator", "Viewer.Tessellation.PlanarCurveFlatteningUnsupported", "Face 3 planar curve flattening does not support curve kind 'BSpline3'.")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "", "", "")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "", "", "")]
     public void Step242_NistTargets_FirstBlockerIsExplicitAfterBSplineSurfaceProgression(string relativePath, string expectedLayer, string expectedSource, string expectedMessagePrefix)

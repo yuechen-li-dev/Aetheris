@@ -163,11 +163,13 @@ def verify_file(
 ) -> Dict:
     ents = parse_entities(step_path)
 
+    # Pass 2: build topology tables that do not depend on ORIENTED_EDGE direction.
     points: Dict[int, Tuple[float, float, float]] = {}
     vertex_to_point: Dict[int, int] = {}
     edge_curve_vertices: Dict[int, Tuple[int, int]] = {}
-    oriented_edge_effective: Dict[int, Tuple[int, int]] = {}
     edge_loops: Dict[int, List[int]] = {}
+    bounds: Dict[int, Tuple[str, int]] = {}
+    advanced_faces: Dict[int, List[int]] = {}
 
     for eid, e in ents.items():
         if e.name == "CARTESIAN_POINT":
@@ -186,42 +188,44 @@ def verify_file(
             v2 = parse_single_ref(args[2])
             if v1 is not None and v2 is not None:
                 edge_curve_vertices[eid] = (v1, v2)
-        elif e.name == "ORIENTED_EDGE" and len(args) >= 5:
-            edge_elem = parse_single_ref(args[3])
-            orient = parse_bool(args[4])
-            if edge_elem is None or orient is None:
-                continue
-            ec = edge_curve_vertices.get(edge_elem)
-            if ec is None:
-                continue
-            oriented_edge_effective[eid] = ec if orient else (ec[1], ec[0])
         elif e.name == "EDGE_LOOP" and len(args) >= 2:
             edge_loops[eid] = parse_ref_list(args[1])
+        elif e.name in ("FACE_OUTER_BOUND", "FACE_BOUND") and len(args) >= 2:
+            loop_id = parse_single_ref(args[1])
+            if loop_id is not None:
+                bounds[eid] = (e.name, loop_id)
+        elif e.name == "ADVANCED_FACE" and len(args) >= 2:
+            advanced_faces[eid] = parse_ref_list(args[1])
+
+    # Pass 3: resolve ORIENTED_EDGE from fully-built EDGE_CURVE table (order-independent).
+    oriented_edge_effective: Dict[int, Tuple[int, int]] = {}
+    for eid, e in ents.items():
+        if e.name != "ORIENTED_EDGE":
+            continue
+        args = split_top_level_args(e.args_raw)
+        if len(args) < 5:
+            continue
+        edge_elem = parse_single_ref(args[3])
+        orient = parse_bool(args[4])
+        if edge_elem is None or orient is None:
+            continue
+        ec = edge_curve_vertices.get(edge_elem)
+        if ec is None:
+            continue
+        oriented_edge_effective[eid] = ec if orient else (ec[1], ec[0])
 
     # Build face -> bounds via ADVANCED_FACE args[1]
     loop_reports = []
 
-    for face_id, e in ents.items():
-        if e.name != "ADVANCED_FACE":
-            continue
+    for face_id, bound_ids in advanced_faces.items():
         if face_filter and face_id not in face_filter:
             continue
 
-        fargs = split_top_level_args(e.args_raw)
-        if len(fargs) < 2:
-            continue
-        bound_ids = parse_ref_list(fargs[1])
-
         for bound_id in bound_ids:
-            b = ents.get(bound_id)
-            if b is None or b.name not in ("FACE_OUTER_BOUND", "FACE_BOUND"):
+            bound = bounds.get(bound_id)
+            if bound is None:
                 continue
-            bargs = split_top_level_args(b.args_raw)
-            if len(bargs) < 2:
-                continue
-            loop_id = parse_single_ref(bargs[1])
-            if loop_id is None:
-                continue
+            bound_type, loop_id = bound
             oe_ids = edge_loops.get(loop_id, [])
             joins = []
             max_gap = 0.0
@@ -261,6 +265,8 @@ def verify_file(
                             "to_oriented_edge": nxt_oe,
                             "from_effective_end_vertex": v_end,
                             "to_effective_start_vertex": v_next,
+                            "from_effective_end_point": p_end if cur and nxt else None,
+                            "to_effective_start_point": p_next if cur and nxt else None,
                             "gap": gap,
                             "classification": classification,
                         }
@@ -271,7 +277,7 @@ def verify_file(
                     "file": str(step_path),
                     "face_id": face_id,
                     "bound_id": bound_id,
-                    "bound_type": b.name,
+                    "bound_type": bound_type,
                     "loop_id": loop_id,
                     "oriented_edges": oe_ids,
                     "max_gap": max_gap,
@@ -291,6 +297,12 @@ def fmt_gap(g: Optional[float]) -> str:
     return "NA" if g is None else f"{g:.9f}"
 
 
+def fmt_point(p: Optional[Tuple[float, float, float]]) -> str:
+    if p is None:
+        return "NA"
+    return f"({p[0]:.9f}, {p[1]:.9f}, {p[2]:.9f})"
+
+
 def print_report(result: Dict) -> None:
     print(f"FILE: {result['file']}")
     if not result["loop_reports"]:
@@ -306,6 +318,8 @@ def print_report(result: Dict) -> None:
                 "JOIN: "
                 f"OE#{j['from_oriented_edge']}.end(v#{j['from_effective_end_vertex']}) -> "
                 f"OE#{j['to_oriented_edge']}.start(v#{j['to_effective_start_vertex']}) "
+                f"end_pt = {fmt_point(j['from_effective_end_point'])} "
+                f"next_start_pt = {fmt_point(j['to_effective_start_point'])} "
                 f"gap = {fmt_gap(j['gap'])} "
                 f"[{j['classification']}]"
             )

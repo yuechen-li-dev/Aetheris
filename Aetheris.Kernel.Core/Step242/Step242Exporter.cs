@@ -39,6 +39,7 @@ public static class Step242Exporter
         var orientedEdgeIds = new Dictionary<CoedgeId, string>();
         var lineIds = new Dictionary<EdgeId, string>();
         var circleIds = new Dictionary<EdgeId, string>();
+        var bsplineIds = new Dictionary<EdgeId, string>();
 
         var faceIds = new List<string>();
 
@@ -77,7 +78,7 @@ public static class Step242Exporter
 
                     if (!edgeCurveIds.TryGetValue(coedge.EdgeId, out var edgeCurveId))
                     {
-                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds);
+                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds);
                         if (!edgeResult.IsSuccess)
                         {
                             return KernelResult<string>.Failure(edgeResult.Diagnostics);
@@ -193,7 +194,8 @@ public static class Step242Exporter
         IDictionary<VertexId, string> cartesianPointIds,
         IDictionary<VertexId, string> vertexPointIds,
         IDictionary<EdgeId, string> lineIds,
-        IDictionary<EdgeId, string> circleIds)
+        IDictionary<EdgeId, string> circleIds,
+        IDictionary<EdgeId, string> bsplineIds)
     {
         var edge = model.GetEdge(edgeId);
 
@@ -207,7 +209,9 @@ public static class Step242Exporter
             return Failure("Edge curve geometry was not found.", $"Curve:{edgeBinding.CurveGeometryId.Value}");
         }
 
-        if (curve.Kind != CurveGeometryKind.Line3 && curve.Kind != CurveGeometryKind.Circle3)
+        if (curve.Kind != CurveGeometryKind.Line3
+            && curve.Kind != CurveGeometryKind.Circle3
+            && curve.Kind != CurveGeometryKind.BSpline3)
         {
             return Failure($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}");
         }
@@ -276,6 +280,35 @@ public static class Step242Exporter
             }
 
             geometryCurveId = circleId;
+        }
+        else if (curve.Kind == CurveGeometryKind.BSpline3 && curve.BSpline3 is BSpline3Curve spline)
+        {
+            if (!bsplineIds.TryGetValue(edgeId, out var bsplineId))
+            {
+                var controlPointIds = spline.ControlPoints
+                    .Select(point => writer.AddEntity("CARTESIAN_POINT", "$", PointList(point)))
+                    .Select(Step242TextWriter.Ref)
+                    .ToArray();
+
+                var multiplicities = spline.KnotMultiplicities.Select(multiplicity => multiplicity.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+                var knotValues = spline.KnotValues.Select(Step242TextWriter.Number).ToArray();
+
+                bsplineId = writer.AddEntity(
+                    "B_SPLINE_CURVE_WITH_KNOTS",
+                    "$",
+                    spline.Degree.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    Step242TextWriter.List(controlPointIds),
+                    Step242TextWriter.Enum(spline.CurveForm),
+                    Step242TextWriter.BooleanLogical(spline.ClosedCurve),
+                    Step242TextWriter.BooleanLogical(spline.SelfIntersect),
+                    Step242TextWriter.List(multiplicities),
+                    Step242TextWriter.List(knotValues),
+                    Step242TextWriter.Enum(spline.KnotSpec));
+
+                bsplineIds[edgeId] = bsplineId;
+            }
+
+            geometryCurveId = bsplineId;
         }
         else
         {
@@ -467,6 +500,7 @@ public static class Step242Exporter
         {
             CurveGeometryKind.Line3 when curve.Line3 is Line3Curve line => KernelResult<Point3D>.Success(line.Evaluate(parameter)),
             CurveGeometryKind.Circle3 when curve.Circle3 is Circle3Curve circle => KernelResult<Point3D>.Success(circle.Evaluate(parameter)),
+            CurveGeometryKind.BSpline3 when curve.BSpline3 is BSpline3Curve spline => KernelResult<Point3D>.Success(spline.Evaluate(parameter)),
             _ => FailurePoint($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}")
         };
     }

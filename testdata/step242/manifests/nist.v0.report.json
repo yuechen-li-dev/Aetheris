@@ -3,14 +3,14 @@
     "fileId": "testdata_step242_nist_CTC_nist_ctc_01_asme1_ap242-e1",
     "path": "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp",
     "sizeBytes": 391739,
-    "status": "importFail",
-    "firstFailureLayer": "exporter",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Edge:87",
-      "messagePrefix": "Unsupported curve kind \u0027BSpline3\u0027."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 206,
@@ -21,7 +21,7 @@
       "facePatches": 117,
       "edgePolylines": 318
     },
-    "canonicalSha256": null
+    "canonicalSha256": "d59cee502868c202cb6b657b7f413ced62b55e5bc0c6677e178ad11b160ddf4d"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_02_asme1_ap242-e2",
@@ -31,8 +31,8 @@
     "firstFailureLayer": "exporter",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Edge:5",
-      "messagePrefix": "Unsupported curve kind \u0027BSpline3\u0027."
+      "source": "Face:47",
+      "messagePrefix": "Unsupported surface kind \u0027Sphere\u0027."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

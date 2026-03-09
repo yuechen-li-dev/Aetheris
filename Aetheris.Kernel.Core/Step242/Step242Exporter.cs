@@ -154,7 +154,8 @@ public static class Step242Exporter
     private static string BuildCone(Step242TextWriter writer, ConeSurface cone)
     {
         var axisPlacementId = BuildAxisPlacement(writer, cone.Apex, cone.Axis, BuildPerpendicularReferenceAxis(cone.Axis));
-        return writer.AddEntity("CONICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(0d), Step242TextWriter.Number(cone.SemiAngleRadians));
+        var semiAngleDegrees = cone.SemiAngleRadians * (180d / double.Pi);
+        return writer.AddEntity("CONICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(0d), Step242TextWriter.Number(semiAngleDegrees));
     }
 
     private static KernelResult<string> BuildSurface(Step242TextWriter writer, SurfaceGeometry surface, FaceId faceId)

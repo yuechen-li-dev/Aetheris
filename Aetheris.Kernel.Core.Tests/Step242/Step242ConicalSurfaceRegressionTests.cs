@@ -31,10 +31,14 @@ public sealed class Step242ConicalSurfaceRegressionTests
     }
 
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "tessellator", "Viewer.Tessellation.CurvedTopologyUnsupported", "Face 57 curved tessellation expected mirrored line uses for this cone/revolved topology. Observed")]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "tessellator", "", "Face 1 curved tessellation supports four-coedge torus/revolved loop layouts and the three-coedge cone loop emitted by the handcrafted fixture. Observed")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "exporter", "Face:1", "Unsupported surface kind 'Cylinder'. M22 supports planar faces only.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "tessellator", "Viewer.Tessellation.PlanarCurveFlatteningUnsupported", "Face 3 planar curve flattening does not support curve kind 'BSpline3'.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "tessellator", "", "Face 1 curved tessellation supports repeated cone/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "tessellator", "", "Face 2 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
-    public void Step242_NistConicalTargets_AdvancePastConicalRadius_AndReportDeterministicNextBlocker(
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp", "tessellator", "", "Face 73 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "tessellator", "", "Face 14 curved tessellation supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed")]
+    [InlineData("testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp", "exporter", "Edge:1", "Unsupported curve kind 'Circle3'. M22 supports line edges only.")]
+    public void Step242_NistCurvedRevolvedTargets_AdvancePastOldTopologyFamily_AndReportDeterministicNextBlocker(
         string relativePath,
         string expectedLayer,
         string expectedSource,
@@ -54,6 +58,8 @@ public sealed class Step242ConicalSurfaceRegressionTests
         var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.DoesNotContain("CONICAL_SURFACE radius", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.DoesNotContain("expected mirrored line uses for this cone/revolved topology", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.DoesNotContain("supports four-coedge torus/revolved loop layouts", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.Equal(expectedLayer, first.FirstFailureLayer);
         if (!string.IsNullOrEmpty(expectedSource))
         {
@@ -68,14 +74,15 @@ public sealed class Step242ConicalSurfaceRegressionTests
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
+        Assert.False(string.IsNullOrWhiteSpace(first.FirstDiagnostic.MessagePrefix));
     }
 
     [Theory]
     [InlineData(
         "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
         "tessellator",
-        "Viewer.Tessellation.CurvedTopologyUnsupported",
-        "Face 1 curved tessellation expected mirrored")]
+        "Viewer.Tessellation.PlanarCurveFlatteningUnsupported",
+        "Face 3 planar curve flattening does not support curve kind 'BSpline3'.")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
         "importer-topology",

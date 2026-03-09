@@ -4,11 +4,11 @@
     "path": "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp",
     "sizeBytes": 391739,
     "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "firstFailureLayer": "exporter",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Viewer.Tessellation.CurvedTopologyUnsupported",
-      "messagePrefix": "Face 57 curved tessellation expected mirrored line uses for this cone/revolved topology. Observed"
+      "source": "Face:1",
+      "messagePrefix": "Unsupported surface kind \u0027Cylinder\u0027. M22 supports planar faces only."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -18,8 +18,8 @@
       "faces": 117
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 117,
+      "edgePolylines": 318
     },
     "canonicalSha256": null
   },
@@ -31,8 +31,8 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Viewer.Tessellation.CurvedTopologyUnsupported",
-      "messagePrefix": "Face 1 curved tessellation expected mirrored line uses for this cone/revolved topology. Observed"
+      "source": "Viewer.Tessellation.PlanarCurveFlatteningUnsupported",
+      "messagePrefix": "Face 3 planar curve flattening does not support curve kind \u0027BSpline3\u0027."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -80,7 +80,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 1 curved tessellation supports four-coedge torus/revolved loop layouts and the three-coedge cone loop emitted by the handcrafted fixture. Observed"
+      "messagePrefix": "Face 1 curved tessellation supports repeated cone/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -248,7 +248,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 14 curved tessellation supports four-coedge torus/revolved loop layouts. Observed"
+      "messagePrefix": "Face 14 curved tessellation supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -364,11 +364,11 @@
     "path": "testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp",
     "sizeBytes": 5237528,
     "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "firstFailureLayer": "exporter",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "",
-      "messagePrefix": "Face 31 curved tessellation supports four-coedge torus/revolved loop layouts and the three-coedge cone loop emitted by the handcrafted fixture. Observed"
+      "source": "Edge:1",
+      "messagePrefix": "Unsupported curve kind \u0027Circle3\u0027. M22 supports line edges only."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -378,8 +378,8 @@
       "faces": 125
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 125,
+      "edgePolylines": 392
     },
     "canonicalSha256": null
   },

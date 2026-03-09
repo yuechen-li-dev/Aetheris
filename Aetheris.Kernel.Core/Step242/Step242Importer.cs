@@ -1216,12 +1216,16 @@ public static class Step242Importer
         {
             SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
             SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(faceEntityId, loops, surface.Cylinder!.Value),
-            SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
-                "Multi-loop hole classification is unsupported for this surface type.",
-                "Importer.LoopRole.UnsupportedSurfaceForHoles"),
+            SurfaceGeometryKind.Torus => ClassifyAndNormalizeToroidalLoops(loops, surface.Torus!.Value),
+            SurfaceGeometryKind.Cone => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
+                "Multi-loop hole classification is unsupported for surface type 'Cone'.",
+                "Importer.LoopRole.UnsupportedSurfaceForHoles.Cone"),
+            SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
+                "Multi-loop hole classification is unsupported for surface type 'Sphere'.",
+                "Importer.LoopRole.UnsupportedSurfaceForHoles.Sphere"),
             _ => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
-                "Multi-loop hole classification is unsupported for this surface type.",
-                "Importer.LoopRole.UnsupportedSurfaceForHoles")
+                $"Multi-loop hole classification is unsupported for surface type '{surface.Kind}'.",
+                $"Importer.LoopRole.UnsupportedSurfaceForHoles.{surface.Kind}")
         };
     }
 
@@ -1441,6 +1445,80 @@ public static class Step242Importer
             if (!IsPointInPolygon(sampleResult.Value, outer.ProjectedPoints, containmentTolerance))
             {
                 return LoopRoleFailure<IReadOnlyList<LoopBuildData>>($"Cylindrical inner loop {candidate.Loop.LoopId.Value} could not be normalized inside selected outer loop {outer.Loop.LoopId.Value}.", containmentSource);
+            }
+
+            containedInners.Add(candidate with { ProjectedPoints = alignedCandidate, Centroid = ComputePolygonCentroid(alignedCandidate) });
+        }
+
+        var normalizedOuter = NormalizeLoopWinding(outer.Loop, outer.SignedArea, shouldBePositive: true);
+        var normalizedInners = containedInners
+            .OrderByDescending(i => double.Abs(i.SignedArea))
+            .ThenBy(i => i.Loop.LoopId.Value)
+            .Select(i => NormalizeLoopWinding(i.Loop, i.SignedArea, shouldBePositive: false))
+            .ToList();
+
+        var ordered = new List<LoopBuildData>(1 + normalizedInners.Count) { normalizedOuter };
+        ordered.AddRange(normalizedInners);
+        return KernelResult<IReadOnlyList<LoopBuildData>>.Success(ordered);
+    }
+
+    private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeToroidalLoops(
+        IReadOnlyList<LoopBuildData> loops,
+        TorusSurface torus)
+    {
+        const string degenerateSource = "Importer.LoopRole.TorusDegenerateProjection";
+        const string ambiguousOuterSource = "Importer.LoopRole.TorusAmbiguousOuter";
+        const string containmentSource = "Importer.LoopRole.TorusInnerContainmentFailed";
+
+        var infos = new List<CylindricalLoopInfo>(loops.Count);
+        foreach (var loop in loops)
+        {
+            var projected = SimplifyClosedPolygon(ProjectLoopToTorus(loop.Samples, torus), ContainmentEps);
+            var uniqueCount = CountUniquePoints(projected, ContainmentEps);
+            var area = ComputeSignedArea(projected);
+            if (uniqueCount < 3 || double.Abs(area) <= AreaEps)
+            {
+                continue;
+            }
+
+            infos.Add(new CylindricalLoopInfo(loop, projected, area, ComputePolygonCentroid(projected)));
+        }
+
+        if (infos.Count == 0)
+        {
+            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Toroidal loop normalization failed: all loop projections were degenerate.", degenerateSource);
+        }
+
+        var orderedByArea = infos
+            .OrderByDescending(i => double.Abs(i.SignedArea))
+            .ThenBy(i => i.Loop.LoopId.Value)
+            .ToArray();
+
+        var outer = orderedByArea[0];
+        if (orderedByArea.Length > 1)
+        {
+            var areaTolerance = ComputeAreaTolerance(orderedByArea.SelectMany(i => i.ProjectedPoints));
+            if (double.Abs(double.Abs(outer.SignedArea) - double.Abs(orderedByArea[1].SignedArea)) <= areaTolerance)
+            {
+                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Unable to choose a unique toroidal outer loop.", ambiguousOuterSource);
+            }
+        }
+
+        var containmentTolerance = ComputeContainmentTolerance(outer.ProjectedPoints);
+        var containedInners = new List<CylindricalLoopInfo>();
+        foreach (var candidate in infos.Where(i => i.Loop.LoopId != outer.Loop.LoopId))
+        {
+            var alignedCandidate = AlignPolygonToReference(candidate.ProjectedPoints, candidate.Centroid.X, outer.Centroid.X);
+            alignedCandidate = AlignPolygonToReferenceY(alignedCandidate, candidate.Centroid.Y, outer.Centroid.Y);
+            var sampleResult = ChooseContainmentPoint(alignedCandidate, containmentTolerance);
+            if (!sampleResult.IsSuccess)
+            {
+                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Unable to classify toroidal inner loop containment.", containmentSource);
+            }
+
+            if (!IsPointInPolygon(sampleResult.Value, outer.ProjectedPoints, containmentTolerance))
+            {
+                return LoopRoleFailure<IReadOnlyList<LoopBuildData>>($"Toroidal inner loop {candidate.Loop.LoopId.Value} could not be normalized inside selected outer loop {outer.Loop.LoopId.Value}.", containmentSource);
             }
 
             containedInners.Add(candidate with { ProjectedPoints = alignedCandidate, Centroid = ComputePolygonCentroid(alignedCandidate) });
@@ -1851,6 +1929,65 @@ public static class Step242Importer
         return uv;
     }
 
+    private static List<UvPoint> ProjectLoopToTorus(IReadOnlyList<Point3D> samples, TorusSurface torus)
+    {
+        var axis = torus.Axis.ToVector();
+        var xAxis = torus.XAxis.ToVector();
+        var yAxis = torus.YAxis.ToVector();
+
+        var uv = new List<UvPoint>(samples.Count + 1);
+        double? previousU = null;
+        var uRevolutions = 0d;
+        double? previousV = null;
+        var vRevolutions = 0d;
+        foreach (var sample in samples)
+        {
+            var offset = sample - torus.Center;
+            var axial = offset.Dot(axis);
+            var inPlane = offset - (axis * axial);
+            var radial = inPlane.Length;
+
+            var u = NormalizeToZeroTwoPi(double.Atan2(inPlane.Dot(yAxis), inPlane.Dot(xAxis)));
+            if (previousU.HasValue)
+            {
+                var deltaU = u - previousU.Value;
+                if (deltaU > double.Pi)
+                {
+                    uRevolutions -= 2d * double.Pi;
+                }
+                else if (deltaU < -double.Pi)
+                {
+                    uRevolutions += 2d * double.Pi;
+                }
+            }
+
+            var v = NormalizeToZeroTwoPi(double.Atan2(axial, radial - torus.MajorRadius));
+            if (previousV.HasValue)
+            {
+                var deltaV = v - previousV.Value;
+                if (deltaV > double.Pi)
+                {
+                    vRevolutions -= 2d * double.Pi;
+                }
+                else if (deltaV < -double.Pi)
+                {
+                    vRevolutions += 2d * double.Pi;
+                }
+            }
+
+            uv.Add(new UvPoint(u + uRevolutions, v + vRevolutions));
+            previousU = u;
+            previousV = v;
+        }
+
+        if (uv.Count > 0 && (uv[0] - uv[^1]).Length > ContainmentEps)
+        {
+            uv.Add(uv[0]);
+        }
+
+        return uv;
+    }
+
     private static CylinderProjectionAnalysis AnalyzeCylindricalProjection(int uniqueCount, double signedArea, IReadOnlyList<UvPoint> projected)
     {
         if (projected.Count == 0)
@@ -1927,6 +2064,20 @@ public static class Step242Importer
         }
 
         return polygon.Select(p => new UvPoint(p.X + shift, p.Y)).ToArray();
+    }
+
+    private static IReadOnlyList<UvPoint> AlignPolygonToReferenceY(IReadOnlyList<UvPoint> polygon, double currentY, double referenceY)
+    {
+        var twoPi = 2d * double.Pi;
+        var delta = referenceY - currentY;
+        var turns = double.Round(delta / twoPi);
+        var shift = turns * twoPi;
+        if (double.Abs(shift) <= AngleUnwrapEps)
+        {
+            return polygon;
+        }
+
+        return polygon.Select(p => new UvPoint(p.X, p.Y + shift)).ToArray();
     }
 
     private static double NormalizeToZeroTwoPi(double angle)

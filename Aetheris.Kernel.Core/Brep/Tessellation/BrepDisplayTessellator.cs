@@ -19,6 +19,7 @@ public static class BrepDisplayTessellator
     private const string CylinderTrimDegenerateSource = "Viewer.Tessellation.CylinderTrimDegenerate";
     private const string CylinderTrimAmbiguousUsedShorterSpanSource = "Viewer.Tessellation.CylinderTrimAmbiguousUsedShorterSpan";
     private const string CurvedTopologyUnsupportedSource = "Viewer.Tessellation.CurvedTopologyUnsupported";
+    private const string BSplineSurfaceTrimUnsupportedSource = "Viewer.Tessellation.BSplineSurfaceTrimUnsupported";
 
     public static KernelResult<DisplayTessellationResult> Tessellate(BrepBody body, DisplayTessellationOptions? options = null)
     {
@@ -79,6 +80,7 @@ public static class BrepDisplayTessellator
             SurfaceGeometryKind.Cone => TessellateConeFace(body, faceId, surface.Cone!.Value, options),
             SurfaceGeometryKind.Sphere => TessellateSphereFace(body, faceId, surface.Sphere!.Value, options),
             SurfaceGeometryKind.Torus => TessellateTorusFace(body, faceId, surface.Torus!.Value, options),
+            SurfaceGeometryKind.BSplineSurfaceWithKnots => TessellateBSplineSurfaceFace(body, faceId, surface.BSplineSurfaceWithKnots!, options),
             _ => KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} has unsupported surface kind '{surface.Kind}'.")]),
         };
     }
@@ -300,6 +302,221 @@ public static class BrepDisplayTessellator
             (u, _) => cone.Normal(u).ToVector(),
             parameters.Value.VStart,
             parameters.Value.VEnd));
+    }
+
+
+    private static KernelResult<DisplayFaceMeshPatch> TessellateBSplineSurfaceFace(BrepBody body, FaceId faceId, BSplineSurfaceWithKnots surface, DisplayTessellationOptions options)
+    {
+        var loopIds = body.GetLoopIds(faceId);
+        if (loopIds.Count > 1)
+        {
+            return KernelResult<DisplayFaceMeshPatch>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} BSpline surface tessellation currently supports zero or one trim loop. Observed {loopIds.Count} loops.", BSplineSurfaceTrimUnsupportedSource)]);
+        }
+
+        var uStart = surface.DomainStartU;
+        var uEnd = surface.DomainEndU;
+        var vStart = surface.DomainStartV;
+        var vEnd = surface.DomainEndV;
+
+        if (loopIds.Count == 1)
+        {
+            var trimPatch = TryResolveBSplineTrimPatch(body, faceId, surface, loopIds[0]);
+            if (!trimPatch.IsSuccess)
+            {
+                return KernelResult<DisplayFaceMeshPatch>.Failure(trimPatch.Diagnostics);
+            }
+
+            uStart = trimPatch.Value.UStart;
+            uEnd = trimPatch.Value.UEnd;
+            vStart = trimPatch.Value.VStart;
+            vEnd = trimPatch.Value.VEnd;
+        }
+
+        var uSpan = uEnd - uStart;
+        var vSpan = vEnd - vStart;
+        var uSegments = System.Math.Max(options.MinimumSegments, System.Math.Clamp((int)double.Ceiling(double.Abs(uSpan) / options.AngularToleranceRadians), options.MinimumSegments, options.MaximumSegments));
+        var vSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling(double.Abs(vSpan) / options.ChordTolerance), 1, options.MaximumSegments));
+
+        return KernelResult<DisplayFaceMeshPatch>.Success(CreateBoundedGridPatch(
+            faceId,
+            uSegments,
+            vSegments,
+            (u, v) => surface.Evaluate(u, v),
+            (u, v) => EvaluateBSplineNormal(surface, u, v),
+            uStart,
+            uEnd,
+            vStart,
+            vEnd));
+    }
+
+    private static KernelResult<(double UStart, double UEnd, double VStart, double VEnd)> TryResolveBSplineTrimPatch(
+        BrepBody body,
+        FaceId faceId,
+        BSplineSurfaceWithKnots surface,
+        LoopId loopId)
+    {
+        const double minSpan = 1e-8d;
+
+        var coedges = body.GetCoedgeIds(loopId).Select(id => body.Topology.GetCoedge(id)).ToArray();
+        if (coedges.Length < 3)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} BSpline trim loop must contain at least three coedges. Observed {coedges.Length}.", BSplineSurfaceTrimUnsupportedSource)]);
+        }
+
+        var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
+        if (!vertexPointsResult.IsSuccess)
+        {
+            return KernelResult<(double, double, double, double)>.Failure(vertexPointsResult.Diagnostics);
+        }
+
+        var samples = new List<Point3D>();
+        foreach (var coedge in coedges)
+        {
+            var endpoints = GetEdgeEndpoints(body, coedge.EdgeId, coedge.IsReversed, vertexPointsResult.Value);
+            if (!endpoints.IsSuccess)
+            {
+                return KernelResult<(double, double, double, double)>.Failure(endpoints.Diagnostics);
+            }
+
+            samples.Add(endpoints.Value.Start);
+            samples.Add(endpoints.Value.End);
+
+            var edgePolyline = TessellateEdge(body, coedge.EdgeId, DisplayTessellationOptions.Default);
+            if (!edgePolyline.IsSuccess)
+            {
+                continue;
+            }
+
+            var edgePoints = coedge.IsReversed
+                ? edgePolyline.Value.Points.Reverse().ToArray()
+                : edgePolyline.Value.Points;
+            samples.AddRange(edgePoints);
+        }
+
+        if (samples.Count == 0)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} BSpline trim tessellation could not derive loop samples.", BSplineSurfaceTrimUnsupportedSource)]);
+        }
+
+        var uvSamples = samples
+            .Select(point => TryProjectPointToBSplineUv(surface, point))
+            .Where(result => result.HasValue)
+            .Select(result => result!.Value)
+            .ToArray();
+
+        if (uvSamples.Length == 0)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} BSpline trim tessellation could not project loop samples into the BSpline parametric domain.", BSplineSurfaceTrimUnsupportedSource)]);
+        }
+
+        var uStart = System.Math.Max(surface.DomainStartU, uvSamples.Min(s => s.U));
+        var uEnd = System.Math.Min(surface.DomainEndU, uvSamples.Max(s => s.U));
+        var vStart = System.Math.Max(surface.DomainStartV, uvSamples.Min(s => s.V));
+        var vEnd = System.Math.Min(surface.DomainEndV, uvSamples.Max(s => s.V));
+
+        if ((uEnd - uStart) <= minSpan || (vEnd - vStart) <= minSpan)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} BSpline trim tessellation derived a degenerate UV span.", BSplineSurfaceTrimUnsupportedSource)]);
+        }
+
+        return KernelResult<(double, double, double, double)>.Success((uStart, uEnd, vStart, vEnd));
+    }
+
+    private static (double U, double V)? TryProjectPointToBSplineUv(BSplineSurfaceWithKnots surface, Point3D point)
+    {
+        var uStart = surface.DomainStartU;
+        var uEnd = surface.DomainEndU;
+        var vStart = surface.DomainStartV;
+        var vEnd = surface.DomainEndV;
+
+        const int coarseSegments = 6;
+        var bestU = uStart;
+        var bestV = vStart;
+        var bestDistanceSquared = double.PositiveInfinity;
+
+        for (var iu = 0; iu <= coarseSegments; iu++)
+        {
+            var tu = (double)iu / coarseSegments;
+            var u = uStart + ((uEnd - uStart) * tu);
+            for (var iv = 0; iv <= coarseSegments; iv++)
+            {
+                var tv = (double)iv / coarseSegments;
+                var v = vStart + ((vEnd - vStart) * tv);
+                var sample = surface.Evaluate(u, v);
+                var delta = sample - point;
+                var distanceSquared = delta.Dot(delta);
+                if (distanceSquared < bestDistanceSquared)
+                {
+                    bestDistanceSquared = distanceSquared;
+                    bestU = u;
+                    bestV = v;
+                }
+            }
+        }
+
+        var uStep = (uEnd - uStart) / coarseSegments;
+        var vStep = (vEnd - vStart) / coarseSegments;
+
+        for (var iteration = 0; iteration < 3; iteration++)
+        {
+            var nextUStep = uStep * 0.5d;
+            var nextVStep = vStep * 0.5d;
+            var localBestU = bestU;
+            var localBestV = bestV;
+            var localBestDistance = bestDistanceSquared;
+
+            for (var du = -1; du <= 1; du++)
+            {
+                var u = System.Math.Clamp(bestU + (du * uStep), uStart, uEnd);
+                for (var dv = -1; dv <= 1; dv++)
+                {
+                    var v = System.Math.Clamp(bestV + (dv * vStep), vStart, vEnd);
+                    var sample = surface.Evaluate(u, v);
+                    var delta = sample - point;
+                    var distanceSquared = delta.Dot(delta);
+                    if (distanceSquared < localBestDistance)
+                    {
+                        localBestDistance = distanceSquared;
+                        localBestU = u;
+                        localBestV = v;
+                    }
+                }
+            }
+
+            bestU = localBestU;
+            bestV = localBestV;
+            bestDistanceSquared = localBestDistance;
+            uStep = nextUStep;
+            vStep = nextVStep;
+        }
+
+        return (bestU, bestV);
+    }
+
+    private static Vector3D EvaluateBSplineNormal(BSplineSurfaceWithKnots surface, double u, double v)
+    {
+        var du = System.Math.Max((surface.DomainEndU - surface.DomainStartU) * 1e-4d, 1e-6d);
+        var dv = System.Math.Max((surface.DomainEndV - surface.DomainStartV) * 1e-4d, 1e-6d);
+
+        var uMinus = System.Math.Clamp(u - du, surface.DomainStartU, surface.DomainEndU);
+        var uPlus = System.Math.Clamp(u + du, surface.DomainStartU, surface.DomainEndU);
+        var vMinus = System.Math.Clamp(v - dv, surface.DomainStartV, surface.DomainEndV);
+        var vPlus = System.Math.Clamp(v + dv, surface.DomainStartV, surface.DomainEndV);
+
+        var tangentU = surface.Evaluate(uPlus, v) - surface.Evaluate(uMinus, v);
+        var tangentV = surface.Evaluate(u, vPlus) - surface.Evaluate(u, vMinus);
+        var normal = tangentU.Cross(tangentV);
+        if (!normal.TryNormalize(out var normalized))
+        {
+            return new Vector3D(0d, 0d, 1d);
+        }
+
+        return normalized;
     }
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateSphereFace(BrepBody body, FaceId faceId, SphereSurface sphere, DisplayTessellationOptions options)

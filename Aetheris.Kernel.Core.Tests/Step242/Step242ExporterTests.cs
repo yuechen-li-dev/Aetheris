@@ -81,7 +81,7 @@ END-ISO-10303-21;";
     }
 
     [Fact]
-    public void ExportBody_ImportedConicalFace_EmitsConicalSurface()
+    public void ExportBody_ImportedConicalFace_EmitsConicalSurfaceWithCanonicalRadianSemiAngle()
     {
         const string conicalFace = @"ISO-10303-21;
 HEADER;
@@ -131,11 +131,11 @@ END-ISO-10303-21;";
 
         var semiAngles = ExtractConicalSurfaceSemiAngles(export.Value);
         var semiAngle = Assert.Single(semiAngles);
-        Assert.Equal(45d, semiAngle, 9);
+        Assert.Equal(double.Pi / 4d, semiAngle, 9);
     }
 
     [Fact]
-    public void ExportBody_Ctc01RoundTrip_ConicalSurfaceSemiAngle_StaysInExpectedDegreeConvention()
+    public void ExportBody_Ctc01RoundTrip_ConicalSurfaceSemiAngle_IsCanonicalRadiansConvention()
     {
         var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_01_asme1_ap242-e1.stp");
         var source = File.ReadAllText(fixturePath);
@@ -154,8 +154,22 @@ END-ISO-10303-21;";
 
         for (var i = 0; i < sourceSemiAngles.Count; i++)
         {
-            Assert.Equal(sourceSemiAngles[i], exportedSemiAngles[i], 9);
+            Assert.Equal(sourceSemiAngles[i] * (double.Pi / 180d), exportedSemiAngles[i], 9);
         }
+    }
+
+
+    [Fact]
+    public void ExportBody_EmitsCanonicalRadianPlaneAngleUnitContext()
+    {
+        var boxResult = BrepPrimitives.CreateBox(4d, 6d, 8d);
+        Assert.True(boxResult.IsSuccess);
+
+        var export = Step242Exporter.ExportBody(boxResult.Value);
+        Assert.True(export.IsSuccess);
+
+        Assert.Contains("PLANE_ANGLE_UNIT()SI_UNIT($,.RADIAN.)", export.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("CONVERSION_BASED_UNIT('DEGREE'", export.Value, StringComparison.Ordinal);
     }
 
     [Fact]

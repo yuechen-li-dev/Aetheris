@@ -126,7 +126,10 @@ public static class Step242Exporter
         var definitionContextId = writer.AddEntity("PRODUCT_DEFINITION_CONTEXT", Step242TextWriter.String("design"), Step242TextWriter.Ref(appContextId), Step242TextWriter.String("design"));
         var definitionId = writer.AddEntity("PRODUCT_DEFINITION", Step242TextWriter.String(""), Step242TextWriter.String(""), Step242TextWriter.Ref(formationId), Step242TextWriter.Ref(definitionContextId));
         var shapeId = writer.AddEntity("PRODUCT_DEFINITION_SHAPE", Step242TextWriter.String(""), Step242TextWriter.String(""), Step242TextWriter.Ref(definitionId));
-        var repContextId = writer.AddEntity("GEOMETRIC_REPRESENTATION_CONTEXT", "3");
+        var lengthUnitId = writer.AddRawEntity("(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.))");
+        var planeAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)PLANE_ANGLE_UNIT()SI_UNIT($,.RADIAN.))");
+        var solidAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)SI_UNIT($,.STERADIAN.)SOLID_ANGLE_UNIT())");
+        var repContextId = writer.AddRawEntity($"(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNIT_ASSIGNED_CONTEXT(({lengthUnitId},{planeAngleUnitId},{solidAngleUnitId}))REPRESENTATION_CONTEXT('3','3D'))");
         var shapeRepresentationId = writer.AddEntity("SHAPE_REPRESENTATION", Step242TextWriter.String(options.ProductName), Step242TextWriter.List(brepId), Step242TextWriter.Ref(repContextId));
         writer.AddEntity("SHAPE_DEFINITION_REPRESENTATION", Step242TextWriter.Ref(shapeId), Step242TextWriter.Ref(shapeRepresentationId));
 
@@ -154,8 +157,7 @@ public static class Step242Exporter
     private static string BuildCone(Step242TextWriter writer, ConeSurface cone)
     {
         var axisPlacementId = BuildAxisPlacement(writer, cone.Apex, cone.Axis, BuildPerpendicularReferenceAxis(cone.Axis));
-        var semiAngleDegrees = cone.SemiAngleRadians * (180d / double.Pi);
-        return writer.AddEntity("CONICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(0d), Step242TextWriter.Number(semiAngleDegrees));
+        return writer.AddEntity("CONICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(0d), Step242TextWriter.Number(cone.SemiAngleRadians));
     }
 
     private static KernelResult<string> BuildSurface(Step242TextWriter writer, SurfaceGeometry surface, FaceId faceId)

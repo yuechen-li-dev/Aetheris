@@ -651,7 +651,7 @@ internal static class Step242SubsetDecoder
             return KernelResult<ConeSurface>.Failure(semiAngleResult.Diagnostics);
         }
 
-        var normalizedSemiAngleResult = NormalizeConicalSemiAngle(semiAngleResult.Value);
+        var normalizedSemiAngleResult = NormalizeConicalSemiAngle(document, semiAngleResult.Value);
         if (!normalizedSemiAngleResult.IsSuccess)
         {
             return KernelResult<ConeSurface>.Failure(normalizedSemiAngleResult.Diagnostics);
@@ -671,27 +671,20 @@ internal static class Step242SubsetDecoder
         }
     }
 
-    private static KernelResult<double> NormalizeConicalSemiAngle(double rawSemiAngle)
+    private static KernelResult<double> NormalizeConicalSemiAngle(Step242ParsedDocument document, double rawSemiAngle)
     {
         if (!double.IsFinite(rawSemiAngle) || rawSemiAngle <= 0d)
         {
             return FailureNumberCode("CONICAL_SURFACE semi-angle must be greater than zero.", "Importer.Geometry.Cone");
         }
 
-        if (rawSemiAngle < (double.Pi / 2d))
+        var normalized = rawSemiAngle * document.PlaneAngleToRadiansScale;
+        if (!double.IsFinite(normalized) || normalized <= 0d || normalized >= (double.Pi / 2d))
         {
-            return KernelResult<double>.Success(rawSemiAngle);
+            return FailureNumberCode("CONICAL_SURFACE semi-angle must be in the range (0, pi/2) radians after applying plane angle unit context.", "Importer.Geometry.Cone");
         }
 
-        if (rawSemiAngle < 90d)
-        {
-            // Compatibility heuristic: observed NIST/AP242 corpus inputs contain degree-form cone semi-angle values
-            // (for example near 59). This normalization is intentionally limited and is not a claim that AP242
-            // generically encodes CONICAL_SURFACE semi-angle in degrees.
-            return KernelResult<double>.Success(rawSemiAngle * (double.Pi / 180d));
-        }
-
-        return FailureNumberCode("CONICAL_SURFACE semi-angle must be in the range (0, pi/2) or (0, 90) degrees.", "Importer.Geometry.Cone");
+        return KernelResult<double>.Success(normalized);
     }
 
     private static KernelResult<(Point3D Origin, Direction3D Axis, Direction3D ReferenceAxis)> ReadAxis2Placement3D(

@@ -1481,6 +1481,7 @@ public static class Step242Importer
         const string degenerateMajorSpanSource = "Importer.LoopRole.TorusDegenerateMajorSpan";
         const string degenerateMinorSpanSource = "Importer.LoopRole.TorusDegenerateMinorSpan";
         const string repeatedSeamSource = "Importer.LoopRole.TorusRepeatedSeamProjectionCollapse";
+        const string repeatedMajorMinorSeamSource = "Importer.LoopRole.TorusRepeatedMajorMinorSeamProjectionCollapse";
         const string majorSeamUnwrapSource = "Importer.LoopRole.TorusMajorSeamUnwrapFailure";
         const string minorSeamUnwrapSource = "Importer.LoopRole.TorusMinorSeamUnwrapFailure";
 
@@ -1495,7 +1496,7 @@ public static class Step242Importer
             var areaRaw = ComputeSignedArea(projectedRaw);
             var analysisRaw = AnalyzeToroidalProjection(uniqueCountRaw, areaRaw, projectedRaw);
 
-            var projected = SimplifyClosedPolygon(projectedRaw, ContainmentEps);
+            var projected = DeduplicateToroidalSeamSamples(SimplifyClosedPolygon(projectedRaw, ContainmentEps));
             var uniqueCount = CountUniquePoints(projected, ContainmentEps);
             var area = ComputeSignedArea(projected);
             var analysis = AnalyzeToroidalProjection(uniqueCount, area, projected);
@@ -1507,7 +1508,7 @@ public static class Step242Importer
                 var recovered = TryRecoverToroidalProjectionFromCyclicUnwrap(loop.Samples, torus);
                 if (recovered is not null)
                 {
-                    projected = SimplifyClosedPolygon(recovered.Value.Projected, ContainmentEps);
+                    projected = DeduplicateToroidalSeamSamples(SimplifyClosedPolygon(recovered.Value.Projected, ContainmentEps));
                     uniqueCount = recovered.Value.UniquePointCount;
                     area = recovered.Value.SignedArea;
                     analysis = recovered.Value.Analysis;
@@ -1559,6 +1560,7 @@ public static class Step242Importer
             {
                 TorusProjectionDegeneracy.DegenerateMajorSpan => degenerateMajorSpanSource,
                 TorusProjectionDegeneracy.DegenerateMinorSpan => degenerateMinorSpanSource,
+                TorusProjectionDegeneracy.RepeatedSeamProjectionCollapse when primary.Analysis.RepeatedMajorSeamPointCount > 0 && primary.Analysis.RepeatedMinorSeamPointCount > 0 => repeatedMajorMinorSeamSource,
                 TorusProjectionDegeneracy.RepeatedSeamProjectionCollapse => repeatedSeamSource,
                 TorusProjectionDegeneracy.MajorPeriodSeamUnwrapFailure => majorSeamUnwrapSource,
                 TorusProjectionDegeneracy.MinorPeriodSeamUnwrapFailure => minorSeamUnwrapSource,
@@ -2089,7 +2091,7 @@ public static class Step242Importer
                 rotated[i] = loopBody[(i + start) % bodyCount];
             }
 
-            var projected = ProjectLoopToTorus(rotated, torus);
+            var projected = DeduplicateToroidalSeamSamples(SimplifyClosedPolygon(ProjectLoopToTorus(rotated, torus), ContainmentEps));
             var unique = CountUniquePoints(projected, ContainmentEps);
             var area = ComputeSignedArea(projected);
             var analysis = AnalyzeToroidalProjection(unique, area, projected);
@@ -2103,6 +2105,62 @@ public static class Step242Importer
         }
 
         return best;
+    }
+
+    private static List<UvPoint> DeduplicateToroidalSeamSamples(IReadOnlyList<UvPoint> projected)
+    {
+        if (projected.Count <= 1)
+        {
+            return projected.ToList();
+        }
+
+        var deduplicated = new List<UvPoint>(projected.Count);
+        deduplicated.Add(projected[0]);
+
+        for (var i = 1; i < projected.Count; i++)
+        {
+            var current = projected[i];
+            var previous = deduplicated[^1];
+            if (IsRepeatedToroidalSeamSample(previous, current))
+            {
+                continue;
+            }
+
+            deduplicated.Add(current);
+        }
+
+        if (deduplicated.Count > 1 && IsRepeatedToroidalSeamSample(deduplicated[^1], deduplicated[0]))
+        {
+            deduplicated.RemoveAt(deduplicated.Count - 1);
+        }
+
+        if (deduplicated.Count > 0 && (deduplicated[0] - deduplicated[^1]).Length > ContainmentEps)
+        {
+            deduplicated.Add(deduplicated[0]);
+        }
+
+        return deduplicated;
+    }
+
+    private static bool IsRepeatedToroidalSeamSample(UvPoint a, UvPoint b)
+    {
+        if ((a - b).Length <= ContainmentEps)
+        {
+            return true;
+        }
+
+        var aU = NormalizeToZeroTwoPi(a.X);
+        var bU = NormalizeToZeroTwoPi(b.X);
+        var aV = NormalizeToZeroTwoPi(a.Y);
+        var bV = NormalizeToZeroTwoPi(b.Y);
+        var nearMajorSeam = (aU <= 1e-6d || aU >= (2d * double.Pi) - 1e-6d) && (bU <= 1e-6d || bU >= (2d * double.Pi) - 1e-6d);
+        if (nearMajorSeam && double.Abs(a.Y - b.Y) <= ContainmentEps)
+        {
+            return true;
+        }
+
+        var nearMinorSeam = (aV <= 1e-6d || aV >= (2d * double.Pi) - 1e-6d) && (bV <= 1e-6d || bV >= (2d * double.Pi) - 1e-6d);
+        return nearMinorSeam && double.Abs(a.X - b.X) <= ContainmentEps;
     }
 
     private static CylinderProjectionAnalysis AnalyzeCylindricalProjection(int uniqueCount, double signedArea, IReadOnlyList<UvPoint> projected)

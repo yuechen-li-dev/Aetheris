@@ -76,8 +76,11 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         Assert.NotEmpty(first);
         Assert.Equal(first, second);
         Assert.Contains(first, d => !string.Equals(d.InitialDegeneracy, "None", StringComparison.Ordinal));
-        Assert.Contains(first, d => string.Equals(d.Degeneracy, "RepeatedSeamProjectionCollapse", StringComparison.Ordinal));
-        Assert.Contains(first, d => d.MajorSpan >= (2d * System.Math.PI) - 1e-3d && d.MinorSpan <= 1e-8d);
+        Assert.Contains(first, d => string.Equals(d.InitialDegeneracy, "RepeatedSeamProjectionCollapse", StringComparison.Ordinal));
+        Assert.Contains(first, d => string.Equals(d.Degeneracy, "DegenerateMinorSpan", StringComparison.Ordinal));
+        Assert.Contains(first, d => d.MajorSeamCrossings > 0 && d.MinorSeamCrossings == 0);
+        Assert.Contains(first, d => d.RepeatedMajorSeamPointCount == 0 && d.RepeatedMinorSeamPointCount == 0);
+        Assert.Contains(first, d => d.MajorSpan >= 5.4d && d.MinorSpan <= 1e-8d);
     }
 
     [Theory]

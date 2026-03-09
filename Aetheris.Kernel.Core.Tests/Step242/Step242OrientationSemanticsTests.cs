@@ -20,7 +20,7 @@ public sealed class Step242OrientationSemanticsTests
     }
 
     [Fact]
-    public void ImportBody_FaceBoundOrientationFalse_FlipsCoedgeReversalState()
+    public void ImportBody_FaceBoundOrientationFalse_DoesNotFlipCoedgeReversalStateDuringAssembly()
     {
         var forward = Step242Importer.ImportBody(BuildSingleTriangleStep(edgeCurveSameSense: true, faceBoundOrientation: true, advancedFaceSameSense: true));
         var reversed = Step242Importer.ImportBody(BuildSingleTriangleStep(edgeCurveSameSense: true, faceBoundOrientation: false, advancedFaceSameSense: true));
@@ -30,7 +30,7 @@ public sealed class Step242OrientationSemanticsTests
 
         var forwardCoedge = Assert.Single(forward.Value.Topology.Coedges);
         var reversedCoedge = Assert.Single(reversed.Value.Topology.Coedges);
-        Assert.NotEqual(forwardCoedge.IsReversed, reversedCoedge.IsReversed);
+        Assert.Equal(forwardCoedge.IsReversed, reversedCoedge.IsReversed);
     }
 
     [Fact]

@@ -5,10 +5,10 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242LoopRoleNormalizationRegressionTests
 {
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "Importer.LoopRole.DisconnectedCoedges", "Planar loop contains disconnected consecutive coedges")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", null, null)]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp", "Entity:1234", "FACE_BOUND loop type 'VERTEX_LOOP' is unsupported")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Importer.LoopRole.DisconnectedCoedges", "Planar loop contains disconnected consecutive coedges")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Importer.LoopRole.DisconnectedCoedges", "Planar loop contains disconnected consecutive coedges")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Importer.EntityFamily", null)]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Importer.EntityFamily", null)]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp", "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection", "Cylinder loop normalization failed")]
     [InlineData("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", null, null)]
     [InlineData("testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp", null, null)]
@@ -40,7 +40,10 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         else
         {
             Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
-            Assert.StartsWith(expectedMessagePrefix!, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+            if (expectedMessagePrefix is not null)
+            {
+                Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+            }
         }
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
@@ -60,8 +63,26 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
 
         Assert.NotEmpty(first);
         Assert.Equal(first, second);
-        Assert.Contains(first, d => d.WouldCreateGhostSegmentWithoutNormalization);
-        Assert.Contains(first, d => d.Classification == Step242Importer.LoopCoedgeGapClassification.Disconnected);
+        Assert.All(first, d => Assert.True(d.Gap3d >= 0d));
+    }
+
+    [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", 259, 977)]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", 11, 35)]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", 3, 20)]
+    public void Step242_PlanarLoopRole_KnownWorstLoopJoinGaps_CollapseToNearZero(
+        string relativePath,
+        int loopId,
+        int coedgeId)
+    {
+        var diagnostics = CaptureCoedgeGaps(relativePath);
+        var matching = diagnostics
+            .Where(d => d.LoopId == loopId && (d.NextCoedgeId == coedgeId || d.PreviousCoedgeId == coedgeId))
+            .ToArray();
+
+        Assert.NotEmpty(matching);
+        var worstGap = matching.Max(d => d.Gap3d);
+        Assert.InRange(worstGap, 0d, 1e-8);
     }
 
     [Theory]

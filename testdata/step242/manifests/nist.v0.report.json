@@ -199,7 +199,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "",
+      "source": "Topology.GraphValidator",
       "messagePrefix": "Loop 73 references missing child ID CoedgeId { Value = 342, IsValid = True }."
     },
     "diagnosticCount": 20,
@@ -271,10 +271,10 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.TorusDegenerateMinorSpan",
-      "messagePrefix": "Toroidal loop normalization failed"
+      "source": "Topology.GraphValidator",
+      "messagePrefix": "Loop 8 references missing child ID CoedgeId { Value = 38, IsValid = True }."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 6,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 0,

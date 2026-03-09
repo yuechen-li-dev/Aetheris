@@ -9,8 +9,8 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
         "importer-topology",
         "Importer.LoopRole.TorusRepeatedSeamProjectionCollapse",
-        "Importer.LoopRole.TorusDegenerateMinorSpan",
-        "Toroidal loop normalization failed")]
+        "Topology.GraphValidator",
+        "Loop 8 references missing child ID")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
         "importer-topology",

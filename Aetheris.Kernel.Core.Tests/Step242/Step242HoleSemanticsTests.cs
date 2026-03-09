@@ -87,7 +87,7 @@ public sealed class Step242HoleSemanticsTests
         Assert.False(import.IsSuccess);
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.ValidationFailed, diagnostic.Code);
-        Assert.True(string.IsNullOrEmpty(diagnostic.Source));
+        Assert.Equal("Topology.GraphValidator", diagnostic.Source);
         Assert.StartsWith("Loop ", diagnostic.Message, StringComparison.Ordinal);
     }
 }

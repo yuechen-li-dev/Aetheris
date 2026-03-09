@@ -54,7 +54,7 @@
       "group": "expectedFail",
       "expectedFirstDiagnostic": {
         "code": "ValidationFailed",
-        "source": "",
+        "source": "Topology.GraphValidator",
         "messagePrefix": "Loop "
       }
     },

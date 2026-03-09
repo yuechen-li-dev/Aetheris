@@ -19,6 +19,7 @@ public static class Step242Importer
     private const double ContainmentEps = 1e-8d;
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleCoedgeGapDiagnostic>?> CoedgeGapDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<LoopRoleCylinderProjectionDiagnostic>?> CylinderProjectionDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
@@ -32,6 +33,13 @@ public static class Step242Importer
         var previous = CoedgeGapDiagnosticsSink.Value;
         CoedgeGapDiagnosticsSink.Value = sink;
         return new CoedgeGapDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CaptureLoopRoleCylinderProjectionDiagnostics(ICollection<LoopRoleCylinderProjectionDiagnostic> sink)
+    {
+        var previous = CylinderProjectionDiagnosticsSink.Value;
+        CylinderProjectionDiagnosticsSink.Value = sink;
+        return new CylinderProjectionDiagnosticsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -374,7 +382,7 @@ public static class Step242Importer
                 loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap));
             }
 
-            var classifyResult = ClassifyAndNormalizeFaceLoops(loopData, bindSurfaceResult.Value.SurfaceGeometry);
+            var classifyResult = ClassifyAndNormalizeFaceLoops(faceEntity.Id, loopData, bindSurfaceResult.Value.SurfaceGeometry);
             if (!classifyResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(classifyResult.Diagnostics);
@@ -1195,6 +1203,7 @@ public static class Step242Importer
     }
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeFaceLoops(
+        int faceEntityId,
         IReadOnlyList<LoopBuildData> loops,
         SurfaceGeometry surface)
     {
@@ -1206,7 +1215,7 @@ public static class Step242Importer
         return surface.Kind switch
         {
             SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
-            SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(loops, surface.Cylinder!.Value),
+            SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(faceEntityId, loops, surface.Cylinder!.Value),
             SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 "Multi-loop hole classification is unsupported for this surface type.",
                 "Importer.LoopRole.UnsupportedSurfaceForHoles"),
@@ -1325,6 +1334,7 @@ public static class Step242Importer
     }
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeCylindricalLoops(
+        int faceEntityId,
         IReadOnlyList<LoopBuildData> loops,
         CylinderSurface cylinder)
     {
@@ -1340,8 +1350,22 @@ public static class Step242Importer
             var projected = ProjectLoopToCylinder(loop.Samples, cylinder);
             var uniqueCount = CountUniquePoints(projected, ContainmentEps);
             var area = ComputeSignedArea(projected);
+            var analysis = AnalyzeCylindricalProjection(uniqueCount, area, projected);
             maxUniqueCount = System.Math.Max(maxUniqueCount, uniqueCount);
             maxAbsArea = System.Math.Max(maxAbsArea, double.Abs(area));
+
+            ReportCylinderProjectionDiagnostic(new LoopRoleCylinderProjectionDiagnostic(
+                FaceEntityId: faceEntityId,
+                LoopId: loop.LoopId.Value,
+                PointCount: projected.Count,
+                UniquePointCount: uniqueCount,
+                SignedArea: area,
+                AngularSpan: analysis.AngularSpan,
+                AxialSpan: analysis.AxialSpan,
+                SeamCrossings: analysis.SeamCrossings,
+                RepeatedSeamPointCount: analysis.RepeatedSeamPointCount,
+                Degeneracy: analysis.Degeneracy.ToString()));
+
             if (uniqueCount < 3 || double.Abs(area) <= AreaEps)
             {
                 continue;
@@ -1352,7 +1376,40 @@ public static class Step242Importer
 
         if (infos.Count == 0)
         {
-            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>($"Cylinder loop normalization failed: all {loops.Count} loop(s) projected degenerate (maxUnique={maxUniqueCount}, maxAbsArea={maxAbsArea:E6}).", nonNormalizableSource);
+            var degenerate = loops
+                .Select(loop =>
+                {
+                    var projected = ProjectLoopToCylinder(loop.Samples, cylinder);
+                    var uniqueCount = CountUniquePoints(projected, ContainmentEps);
+                    var area = ComputeSignedArea(projected);
+                    return (Loop: loop, Analysis: AnalyzeCylindricalProjection(uniqueCount, area, projected));
+                })
+                .OrderBy(d => d.Loop.LoopId.Value)
+                .ToArray();
+
+            if (degenerate.All(d => d.Analysis.Degeneracy == CylinderProjectionDegeneracy.FullRevolutionConstantAxial))
+            {
+                var canonical = degenerate
+                    .OrderBy(d => d.Loop.LoopId.Value)
+                    .Select(d => d.Loop)
+                    .First();
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Success([canonical]);
+            }
+
+            var primary = degenerate
+                .OrderByDescending(d => (int)d.Analysis.Degeneracy)
+                .ThenBy(d => d.Loop.LoopId.Value)
+                .FirstOrDefault();
+
+            var explicitSource = primary.Analysis.Degeneracy switch
+            {
+                CylinderProjectionDegeneracy.DegenerateAngularSpan => "Importer.LoopRole.CylinderDegenerateAngularSpan",
+                CylinderProjectionDegeneracy.DegenerateAxialSpan => "Importer.LoopRole.CylinderDegenerateAxialSpan",
+                CylinderProjectionDegeneracy.RepeatedSeamProjectionCollapse => "Importer.LoopRole.CylinderRepeatedSeamProjectionCollapse",
+                _ => nonNormalizableSource
+            };
+
+            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>($"Cylinder loop normalization failed: all {loops.Count} loop(s) projected degenerate (maxUnique={maxUniqueCount}, maxAbsArea={maxAbsArea:E6}, faceId={faceEntityId}, primaryLoopId={primary.Loop.LoopId.Value}, primaryDegeneracy={primary.Analysis.Degeneracy}).", explicitSource);
         }
 
         var orderedByArea = infos
@@ -1794,6 +1851,70 @@ public static class Step242Importer
         return uv;
     }
 
+    private static CylinderProjectionAnalysis AnalyzeCylindricalProjection(int uniqueCount, double signedArea, IReadOnlyList<UvPoint> projected)
+    {
+        if (projected.Count == 0)
+        {
+            return new CylinderProjectionAnalysis(0d, 0d, 0, 0, CylinderProjectionDegeneracy.InsufficientUniquePoints);
+        }
+
+        var minX = projected.Min(p => p.X);
+        var maxX = projected.Max(p => p.X);
+        var minY = projected.Min(p => p.Y);
+        var maxY = projected.Max(p => p.Y);
+        var angularSpan = maxX - minX;
+        var axialSpan = maxY - minY;
+        var seamCrossings = 0;
+        var repeatedSeamPointCount = 0;
+        for (var i = 1; i < projected.Count; i++)
+        {
+            var delta = projected[i].X - projected[i - 1].X;
+            if (double.Abs(delta) > double.Pi)
+            {
+                seamCrossings++;
+            }
+
+            var a = NormalizeToZeroTwoPi(projected[i - 1].X);
+            var b = NormalizeToZeroTwoPi(projected[i].X);
+            var nearSeam = (a <= 1e-6d || a >= (2d * double.Pi) - 1e-6d) && (b <= 1e-6d || b >= (2d * double.Pi) - 1e-6d);
+            if (nearSeam && double.Abs(projected[i].Y - projected[i - 1].Y) <= ContainmentEps)
+            {
+                repeatedSeamPointCount++;
+            }
+        }
+
+        var degeneracy = CylinderProjectionDegeneracy.None;
+        if (uniqueCount < 3)
+        {
+            degeneracy = CylinderProjectionDegeneracy.InsufficientUniquePoints;
+        }
+        else if (double.Abs(signedArea) <= AreaEps)
+        {
+            if (axialSpan <= ContainmentEps && angularSpan >= (2d * double.Pi) - 1e-3d)
+            {
+                degeneracy = CylinderProjectionDegeneracy.FullRevolutionConstantAxial;
+            }
+            else if (repeatedSeamPointCount > 0)
+            {
+                degeneracy = CylinderProjectionDegeneracy.RepeatedSeamProjectionCollapse;
+            }
+            else if (angularSpan <= 1e-6d)
+            {
+                degeneracy = CylinderProjectionDegeneracy.DegenerateAngularSpan;
+            }
+            else if (axialSpan <= ContainmentEps)
+            {
+                degeneracy = CylinderProjectionDegeneracy.DegenerateAxialSpan;
+            }
+            else
+            {
+                degeneracy = CylinderProjectionDegeneracy.NearZeroArea;
+            }
+        }
+
+        return new CylinderProjectionAnalysis(angularSpan, axialSpan, seamCrossings, repeatedSeamPointCount, degeneracy);
+    }
+
     private static IReadOnlyList<UvPoint> AlignPolygonToReference(IReadOnlyList<UvPoint> polygon, double currentX, double referenceX)
     {
         var twoPi = 2d * double.Pi;
@@ -2036,6 +2157,12 @@ public static class Step242Importer
         sink?.Add(diagnostic);
     }
 
+    private static void ReportCylinderProjectionDiagnostic(LoopRoleCylinderProjectionDiagnostic diagnostic)
+    {
+        var sink = CylinderProjectionDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
     private static (double Gap3d, double Gap2d, LoopCoedgeGapClassification Classification) ClassifyCoedgeGap(
         Point3D previousEnd,
         Point3D nextStart,
@@ -2111,6 +2238,36 @@ public static class Step242Importer
         Disconnected
     }
 
+    public sealed record LoopRoleCylinderProjectionDiagnostic(
+        int FaceEntityId,
+        int LoopId,
+        int PointCount,
+        int UniquePointCount,
+        double SignedArea,
+        double AngularSpan,
+        double AxialSpan,
+        int SeamCrossings,
+        int RepeatedSeamPointCount,
+        string Degeneracy);
+
+    private enum CylinderProjectionDegeneracy
+    {
+        None = 0,
+        InsufficientUniquePoints = 1,
+        NearZeroArea = 2,
+        FullRevolutionConstantAxial = 3,
+        DegenerateAngularSpan = 4,
+        DegenerateAxialSpan = 5,
+        RepeatedSeamProjectionCollapse = 6
+    }
+
+    private sealed record CylinderProjectionAnalysis(
+        double AngularSpan,
+        double AxialSpan,
+        int SeamCrossings,
+        int RepeatedSeamPointCount,
+        CylinderProjectionDegeneracy Degeneracy);
+
     private sealed class CircularSamplingDiagnosticsScope(ICollection<LoopRoleCircularSamplingDiagnostic>? previous) : IDisposable
     {
         public void Dispose()
@@ -2124,6 +2281,14 @@ public static class Step242Importer
         public void Dispose()
         {
             CoedgeGapDiagnosticsSink.Value = previous;
+        }
+    }
+
+    private sealed class CylinderProjectionDiagnosticsScope(ICollection<LoopRoleCylinderProjectionDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            CylinderProjectionDiagnosticsSink.Value = previous;
         }
     }
 

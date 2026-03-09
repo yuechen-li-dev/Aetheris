@@ -201,7 +201,7 @@ public static class Step242Importer
                     return KernelResult<BrepBody>.Failure(boundOrientationResult.Diagnostics);
                 }
 
-                var boundOrientation = boundOrientationResult.Value;
+                _ = boundOrientationResult.Value;
 
                 var loopEntityResult = document.TryGetEntity(loopRefResult.Value.TargetId);
                 if (!loopEntityResult.IsSuccess)
@@ -309,10 +309,6 @@ public static class Step242Importer
                     }
 
                     var isReversed = orientedSenseResult.Value != edgeSameSenseResult.Value;
-                    if (!boundOrientation)
-                    {
-                        isReversed = !isReversed;
-                    }
 
                     var coedge = new Coedge(
                         coedgeIds[i],

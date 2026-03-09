@@ -76,18 +76,18 @@
     "path": "testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp",
     "sizeBytes": 1265846,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.DisconnectedCoedges",
-      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=261, outerLoopId=259,"
+      "code": "NotImplemented",
+      "source": "",
+      "messagePrefix": "Face 1 curved tessellation supports four-coedge torus/revolved loop layouts and the three-coedge cone loop emitted by the handcrafted fixture. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 662,
+      "edges": 1108,
+      "faces": 483
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -150,9 +150,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.DisconnectedCoedges",
-      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=24, outerLoopId=25, o"
+      "code": "NotImplemented",
+      "source": "Importer.EntityFamily",
+      "messagePrefix": "ADVANCED_FACE surface \u0027B_SPLINE_SURFACE_WITH_KNOTS\u0027 is unsupported."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -246,9 +246,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.DisconnectedCoedges",
-      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=5, outerLoopId=6, out"
+      "code": "NotImplemented",
+      "source": "Importer.EntityFamily",
+      "messagePrefix": "ADVANCED_FACE surface \u0027B_SPLINE_SURFACE_WITH_KNOTS\u0027 is unsupported."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

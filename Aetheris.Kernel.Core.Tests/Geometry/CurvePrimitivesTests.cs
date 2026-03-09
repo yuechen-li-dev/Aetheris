@@ -67,6 +67,37 @@ public sealed class CurvePrimitivesTests
         Assert.True(ToleranceMath.AlmostEqual(distance, circle.Radius, ToleranceContext.Default));
     }
 
+
+    [Fact]
+    public void Ellipse_Evaluate_KnownAnglesAndOrientation()
+    {
+        var ellipse = new Ellipse3Curve(
+            center: Point3D.Origin,
+            normal: Direction3D.Create(new Vector3D(0, 0, 1)),
+            majorRadius: 4,
+            minorRadius: 2,
+            referenceAxis: Direction3D.Create(new Vector3D(1, 0, 0)));
+
+        AssertPoint(ellipse.Evaluate(0d), new Point3D(4, 0, 0));
+        AssertPoint(ellipse.Evaluate(double.Pi / 2d), new Point3D(0, 2, 0));
+        AssertPoint(ellipse.Evaluate(double.Pi), new Point3D(-4, 0, 0));
+
+        var cross = ellipse.XAxis.ToVector().Cross(ellipse.YAxis.ToVector());
+        AssertVector(cross, ellipse.Normal.ToVector());
+    }
+
+    [Fact]
+    public void Ellipse_InvalidMinorMajorRelationship_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Ellipse3Curve(
+                center: Point3D.Origin,
+                normal: Direction3D.Create(new Vector3D(0, 0, 1)),
+                majorRadius: 2,
+                minorRadius: 3,
+                referenceAxis: Direction3D.Create(new Vector3D(1, 0, 0))));
+    }
+
     private static void AssertPoint(Point3D actual, Point3D expected)
     {
         AssertVector(actual - expected, Vector3D.Zero);

@@ -377,6 +377,43 @@ internal static class Step242SubsetDecoder
     }
 
 
+
+
+    public static KernelResult<Ellipse3Curve> ReadEllipseCurve(Step242ParsedDocument document, Step242ParsedEntity ellipseEntity)
+    {
+        var placementResult = ReadAxis2Placement3D(document, ellipseEntity, 1, "ELLIPSE position", "Importer.Geometry.Ellipse");
+        if (!placementResult.IsSuccess)
+        {
+            return KernelResult<Ellipse3Curve>.Failure(placementResult.Diagnostics);
+        }
+
+        var majorRadiusResult = ReadPositiveNumber(ellipseEntity, 2, "ELLIPSE semi_axis_1", "Importer.Geometry.Ellipse");
+        if (!majorRadiusResult.IsSuccess)
+        {
+            return KernelResult<Ellipse3Curve>.Failure(majorRadiusResult.Diagnostics);
+        }
+
+        var minorRadiusResult = ReadPositiveNumber(ellipseEntity, 3, "ELLIPSE semi_axis_2", "Importer.Geometry.Ellipse");
+        if (!minorRadiusResult.IsSuccess)
+        {
+            return KernelResult<Ellipse3Curve>.Failure(minorRadiusResult.Diagnostics);
+        }
+
+        if (minorRadiusResult.Value > majorRadiusResult.Value)
+        {
+            return FailureEllipse("ELLIPSE requires semi_axis_2 <= semi_axis_1 in M85 subset.", "Importer.Geometry.Ellipse");
+        }
+
+        try
+        {
+            return KernelResult<Ellipse3Curve>.Success(new Ellipse3Curve(placementResult.Value.Origin, placementResult.Value.Axis, majorRadiusResult.Value, minorRadiusResult.Value, placementResult.Value.ReferenceAxis));
+        }
+        catch (ArgumentException)
+        {
+            return FailureEllipse("Invalid ELLIPSE placement produced degenerate frame.", "Importer.Geometry.Ellipse");
+        }
+    }
+
     public static KernelResult<BSpline3Curve> ReadBSplineCurveWithKnots(Step242ParsedDocument document, Step242ParsedEntity splineEntity)
     {
         var degreeResult = ReadIntArgument(splineEntity, 1, "B_SPLINE_CURVE_WITH_KNOTS degree", "Importer.Geometry.BSplineCurve");
@@ -1139,6 +1176,8 @@ internal static class Step242SubsetDecoder
     private static KernelResult<PlaneSurface> FailurePlane(string message, string source) => Failure<PlaneSurface>(message, source);
 
     private static KernelResult<Circle3Curve> FailureCircle(string message, string source) => Failure<Circle3Curve>(KernelDiagnosticCode.InvalidArgument, message, source);
+
+    private static KernelResult<Ellipse3Curve> FailureEllipse(string message, string source) => Failure<Ellipse3Curve>(KernelDiagnosticCode.InvalidArgument, message, source);
 
     private static KernelResult<BSpline3Curve> FailureBSplineCurve(string message, string source) => Failure<BSpline3Curve>(KernelDiagnosticCode.InvalidArgument, message, source);
 

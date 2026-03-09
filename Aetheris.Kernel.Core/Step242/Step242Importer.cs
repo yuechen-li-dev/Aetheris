@@ -575,6 +575,26 @@ public static class Step242Importer
                 trimResult.Value));
         }
 
+        var ellipseConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "ELLIPSE");
+        if (ellipseConstructor is not null)
+        {
+            var ellipseResult = Step242SubsetDecoder.ReadEllipseCurve(document, WithConstructor(curveEntity, ellipseConstructor));
+            if (!ellipseResult.IsSuccess)
+            {
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(ellipseResult.Diagnostics);
+            }
+
+            var trimResult = ComputeEllipseTrim(ellipseResult.Value, startPoint, endPoint);
+            if (!trimResult.IsSuccess)
+            {
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
+            }
+
+            return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
+                CurveGeometry.FromEllipse(ellipseResult.Value),
+                trimResult.Value));
+        }
+
         var splineEntity = ResolveBSplineCurveEntity(curveEntity);
         if (splineEntity is not null)
         {
@@ -979,6 +999,62 @@ public static class Step242Importer
                 message,
                 source)
         ]);
+
+    private static KernelResult<ParameterInterval> ComputeEllipseTrim(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint)
+    {
+        var tolerance = ComputeEllipseTrimTolerance(ellipse, startPoint, endPoint);
+
+        var startAngleResult = ProjectPointToEllipseAngle(ellipse, startPoint, tolerance);
+        if (!startAngleResult.IsSuccess)
+        {
+            return KernelResult<ParameterInterval>.Failure(startAngleResult.Diagnostics);
+        }
+
+        var endAngleResult = ProjectPointToEllipseAngle(ellipse, endPoint, tolerance);
+        if (!endAngleResult.IsSuccess)
+        {
+            return KernelResult<ParameterInterval>.Failure(endAngleResult.Diagnostics);
+        }
+
+        var intervalResult = CanonicalizeCircleTrimInterval(startAngleResult.Value, endAngleResult.Value, tolerance);
+        if (!intervalResult.IsSuccess)
+        {
+            return FailureEllipseTrim(intervalResult.Diagnostics[0].Message, intervalResult.Diagnostics[0].Source);
+        }
+
+        return intervalResult;
+    }
+
+    private static KernelResult<double> ProjectPointToEllipseAngle(Ellipse3Curve ellipse, Point3D point, double tolerance)
+    {
+        var centerToPoint = point - ellipse.Center;
+        var normal = ellipse.Normal.ToVector();
+        var normalComponent = centerToPoint.Dot(normal);
+        if (double.Abs(normalComponent) > tolerance)
+        {
+            return FailureEllipseTrimAngle($"Unable to project elliptical trim point: off-ellipse plane deviation {double.Abs(normalComponent):G17} exceeds tolerance {tolerance:G17}.", "Importer.Geometry.EllipseTrim.OffPlane");
+        }
+
+        var inPlane = centerToPoint - (normal * normalComponent);
+        var majorComponent = inPlane.Dot(ellipse.XAxis.ToVector());
+        var minorComponent = inPlane.Dot(ellipse.YAxis.ToVector());
+
+        var normalizedMajor = majorComponent / ellipse.MajorRadius;
+        var normalizedMinor = minorComponent / ellipse.MinorRadius;
+        var radialError = double.Abs((normalizedMajor * normalizedMajor) + (normalizedMinor * normalizedMinor) - 1d);
+        if (radialError > System.Math.Max(1e-8d, tolerance / System.Math.Max(1d, ellipse.MajorRadius)))
+        {
+            return FailureEllipseTrimAngle($"Unable to project elliptical trim point: normalized radial deviation {radialError:G17} exceeds tolerance.", "Importer.Geometry.EllipseTrim.OffRadius");
+        }
+
+        return KernelResult<double>.Success(double.Atan2(normalizedMinor, normalizedMajor));
+    }
+
+    private static double ComputeEllipseTrimTolerance(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint)
+    {
+        var scale = System.Math.Max(ellipse.MajorRadius, System.Math.Max((startPoint - ellipse.Center).Length, (endPoint - ellipse.Center).Length));
+        return System.Math.Max(1e-6d, scale * 1e-8d);
+    }
 
     private static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint)
     {
@@ -1890,6 +1966,13 @@ public static class Step242Importer
                     LegacyPointCount: legacyPointCount,
                     AdaptivePointCount: points.Count));
                 break;
+            case CurveGeometryKind.Ellipse3:
+                var ellipse = curve.Ellipse3!.Value;
+                var ellipseTrim = edgeBinding.TrimInterval ?? new ParameterInterval(0d, 2d * double.Pi);
+                var ellipseSpan = ellipseTrim.End - ellipseTrim.Start;
+                var ellipseSegmentCount = ComputeAdaptiveCircleSegmentCount(ellipseSpan);
+                points = SampleEllipticalTrim(ellipse, ellipseTrim, ellipseSegmentCount);
+                break;
             case CurveGeometryKind.BSpline3:
                 var spline = curve.BSpline3!.Value;
                 var splineTrim = edgeBinding.TrimInterval ?? new ParameterInterval(spline.DomainStart, spline.DomainEnd);
@@ -1924,6 +2007,18 @@ public static class Step242Importer
         for (var i = 0; i <= segmentCount; i++)
         {
             points.Add(circle.Evaluate(trim.Start + (step * i)));
+        }
+
+        return points;
+    }
+
+    private static List<Point3D> SampleEllipticalTrim(Ellipse3Curve ellipse, ParameterInterval trim, int segmentCount)
+    {
+        var points = new List<Point3D>(segmentCount + 1);
+        var step = (trim.End - trim.Start) / segmentCount;
+        for (var i = 0; i <= segmentCount; i++)
+        {
+            points.Add(ellipse.Evaluate(trim.Start + (step * i)));
         }
 
         return points;
@@ -2051,6 +2146,12 @@ public static class Step242Importer
         KernelResult<ParameterInterval>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
 
     private static KernelResult<double> FailureCircleTrimAngle(string message, string source) =>
+        KernelResult<double>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
+
+    private static KernelResult<ParameterInterval> FailureEllipseTrim(string message, string source) =>
+        KernelResult<ParameterInterval>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
+
+    private static KernelResult<double> FailureEllipseTrimAngle(string message, string source) =>
         KernelResult<double>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
 
     private static KernelResult<T> OrientationFailure<T>(string message, string source) =>

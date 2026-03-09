@@ -160,6 +160,12 @@ public static class Step242Exporter
         return writer.AddEntity("CONICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(0d), Step242TextWriter.Number(cone.SemiAngleRadians));
     }
 
+    private static string BuildSphere(Step242TextWriter writer, SphereSurface sphere)
+    {
+        var axisPlacementId = BuildAxisPlacement(writer, sphere.Center, sphere.Axis, sphere.XAxis);
+        return writer.AddEntity("SPHERICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(sphere.Radius));
+    }
+
     private static KernelResult<string> BuildSurface(Step242TextWriter writer, SurfaceGeometry surface, FaceId faceId)
     {
         return surface.Kind switch
@@ -167,6 +173,7 @@ public static class Step242Exporter
             SurfaceGeometryKind.Plane when surface.Plane is PlaneSurface plane => KernelResult<string>.Success(BuildPlane(writer, plane)),
             SurfaceGeometryKind.Cylinder when surface.Cylinder is CylinderSurface cylinder => KernelResult<string>.Success(BuildCylinder(writer, cylinder)),
             SurfaceGeometryKind.Cone when surface.Cone is ConeSurface cone => KernelResult<string>.Success(BuildCone(writer, cone)),
+            SurfaceGeometryKind.Sphere when surface.Sphere is SphereSurface sphere => KernelResult<string>.Success(BuildSphere(writer, sphere)),
             _ => Failure($"Unsupported surface kind '{surface.Kind}'.", $"Face:{faceId.Value}")
         };
     }

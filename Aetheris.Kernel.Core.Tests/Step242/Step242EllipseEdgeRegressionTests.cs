@@ -6,7 +6,7 @@ public sealed class Step242EllipseEdgeRegressionTests
 {
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "exporter", "Face:47", "Unsupported surface kind 'Sphere'.")]
-    [InlineData("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", "importer-topology", "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection", "Cylinder loop normalization failed")]
+    [InlineData("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", "importer-topology", "Importer.LoopRole.UnsupportedSurfaceForHoles", "Multi-loop hole classification is unsupported for this surface type.")]
     public void Step242_NistEllipseTargets_AdvancePastUnsupportedEllipse_AndRemainDeterministic(string relativePath, string expectedLayer, string expectedSource, string expectedMessagePrefix)
     {
         var entry = new Step242CorpusManifestEntry(

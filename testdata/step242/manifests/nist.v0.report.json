@@ -199,10 +199,10 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection",
-      "messagePrefix": "Cylinder loop normalization failed"
+      "source": "",
+      "messagePrefix": "Loop 73 references missing child ID CoedgeId { Value = 342, IsValid = True }."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 20,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 0,
@@ -271,8 +271,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection",
-      "messagePrefix": "Cylinder loop normalization failed"
+      "source": "Importer.LoopRole.UnsupportedSurfaceForHoles",
+      "messagePrefix": "Multi-loop hole classification is unsupported for this surface type."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -295,8 +295,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection",
-      "messagePrefix": "Cylinder loop normalization failed"
+      "source": "Importer.LoopRole.UnsupportedSurfaceForHoles",
+      "messagePrefix": "Multi-loop hole classification is unsupported for this surface type."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

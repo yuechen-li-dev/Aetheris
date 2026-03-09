@@ -87,6 +87,7 @@ public sealed class Step242HoleSemanticsTests
         Assert.False(import.IsSuccess);
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.ValidationFailed, diagnostic.Code);
-        Assert.Equal("Importer.LoopRole.CylinderNonNormalizableDegenerateProjection", diagnostic.Source);
+        Assert.True(string.IsNullOrEmpty(diagnostic.Source));
+        Assert.StartsWith("Loop ", diagnostic.Message, StringComparison.Ordinal);
     }
 }

@@ -9,7 +9,7 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
     [InlineData("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp", "Entity:1234", "FACE_BOUND loop type 'VERTEX_LOOP' is unsupported")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", null, null)]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", null, null)]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp", "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection", "Cylinder loop normalization failed")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp", null, null)]
     [InlineData("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", null, null)]
     [InlineData("testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp", null, null)]
     public void Step242_NistLoopRoleTargets_ProgressDeterministically_WithExplicitNormalizedBoundaries(
@@ -36,6 +36,7 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
             Assert.DoesNotContain("Inner loop is not contained by outer loop.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
             Assert.DoesNotContain("Importer.LoopRole.DegenerateLoop", first.FirstDiagnostic.Source, StringComparison.Ordinal);
             Assert.DoesNotContain("Importer.LoopRole.InnerNotContained", first.FirstDiagnostic.Source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Importer.LoopRole.CylinderNonNormalizableDegenerateProjection", first.FirstDiagnostic.Source, StringComparison.Ordinal);
         }
         else
         {
@@ -51,6 +52,19 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 
+    [Theory]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp")]
+    [InlineData("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp")]
+    public void Step242_CylinderLoopRole_ProjectionDiagnostics_AreDeterministic_AndExplicit(string relativePath)
+    {
+        var first = CaptureCylinderProjectionDiagnostics(relativePath);
+        var second = CaptureCylinderProjectionDiagnostics(relativePath);
+
+        Assert.NotEmpty(first);
+        Assert.Equal(first, second);
+        Assert.Contains(first, d => !string.Equals(d.Degeneracy, "None", StringComparison.Ordinal));
+    }
 
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
@@ -128,6 +142,17 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         var diagnostics = new List<Step242Importer.LoopRoleCircularSamplingDiagnostic>();
 
         using var captureScope = Step242Importer.CaptureLoopRoleCircularSamplingDiagnostics(diagnostics);
+        Step242Importer.ImportBody(text);
+        return diagnostics;
+    }
+
+    private static IReadOnlyList<Step242Importer.LoopRoleCylinderProjectionDiagnostic> CaptureCylinderProjectionDiagnostics(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var diagnostics = new List<Step242Importer.LoopRoleCylinderProjectionDiagnostic>();
+
+        using var captureScope = Step242Importer.CaptureLoopRoleCylinderProjectionDiagnostics(diagnostics);
         Step242Importer.ImportBody(text);
         return diagnostics;
     }

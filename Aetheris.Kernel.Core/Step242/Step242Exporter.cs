@@ -38,6 +38,7 @@ public static class Step242Exporter
         var edgeCurveIds = new Dictionary<EdgeId, string>();
         var orientedEdgeIds = new Dictionary<CoedgeId, string>();
         var lineIds = new Dictionary<EdgeId, string>();
+        var circleIds = new Dictionary<EdgeId, string>();
 
         var faceIds = new List<string>();
 
@@ -58,9 +59,10 @@ public static class Step242Exporter
                 return Failure("Face surface geometry was not found.", $"Surface:{faceBinding.SurfaceGeometryId.Value}");
             }
 
-            if (surface.Kind != SurfaceGeometryKind.Plane || surface.Plane is null)
+            var surfaceIdResult = BuildSurface(writer, surface, face.Id);
+            if (!surfaceIdResult.IsSuccess)
             {
-                return Failure($"Unsupported surface kind '{surface.Kind}'. M22 supports planar faces only.", $"Face:{face.Id.Value}");
+                return KernelResult<string>.Failure(surfaceIdResult.Diagnostics);
             }
 
             var loopBoundIds = new List<string>();
@@ -75,7 +77,7 @@ public static class Step242Exporter
 
                     if (!edgeCurveIds.TryGetValue(coedge.EdgeId, out var edgeCurveId))
                     {
-                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds);
+                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds);
                         if (!edgeResult.IsSuccess)
                         {
                             return KernelResult<string>.Failure(edgeResult.Diagnostics);
@@ -103,11 +105,10 @@ public static class Step242Exporter
                 loopBoundIds.Add(boundId);
             }
 
-            var planeId = BuildPlane(writer, surface.Plane.Value);
             var advancedFaceId = writer.AddEntity(
                 "ADVANCED_FACE",
                 Step242TextWriter.List(loopBoundIds.ToArray()),
-                Step242TextWriter.Ref(planeId),
+                Step242TextWriter.Ref(surfaceIdResult.Value),
                 Step242TextWriter.BooleanLogical(true));
 
             faceIds.Add(advancedFaceId);
@@ -141,6 +142,47 @@ public static class Step242Exporter
         return writer.AddEntity("PLANE", "$", Step242TextWriter.Ref(axisPlacementId));
     }
 
+
+    private static string BuildCylinder(Step242TextWriter writer, CylinderSurface cylinder)
+    {
+        var axisPlacementId = BuildAxisPlacement(writer, cylinder.Origin, cylinder.Axis, cylinder.XAxis);
+        return writer.AddEntity("CYLINDRICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(cylinder.Radius));
+    }
+
+    private static string BuildCone(Step242TextWriter writer, ConeSurface cone)
+    {
+        var axisPlacementId = BuildAxisPlacement(writer, cone.Apex, cone.Axis, BuildPerpendicularReferenceAxis(cone.Axis));
+        return writer.AddEntity("CONICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(0d), Step242TextWriter.Number(cone.SemiAngleRadians));
+    }
+
+    private static KernelResult<string> BuildSurface(Step242TextWriter writer, SurfaceGeometry surface, FaceId faceId)
+    {
+        return surface.Kind switch
+        {
+            SurfaceGeometryKind.Plane when surface.Plane is PlaneSurface plane => KernelResult<string>.Success(BuildPlane(writer, plane)),
+            SurfaceGeometryKind.Cylinder when surface.Cylinder is CylinderSurface cylinder => KernelResult<string>.Success(BuildCylinder(writer, cylinder)),
+            SurfaceGeometryKind.Cone when surface.Cone is ConeSurface cone => KernelResult<string>.Success(BuildCone(writer, cone)),
+            _ => Failure($"Unsupported surface kind '{surface.Kind}'.", $"Face:{faceId.Value}")
+        };
+    }
+
+    private static string BuildAxisPlacement(Step242TextWriter writer, Point3D origin, Direction3D axis, Direction3D referenceAxis)
+    {
+        var originId = writer.AddEntity("CARTESIAN_POINT", "$", PointList(origin));
+        var axisVector = axis.ToVector();
+        var axisId = writer.AddEntity("DIRECTION", "$", Step242TextWriter.List(Step242TextWriter.Number(axisVector.X), Step242TextWriter.Number(axisVector.Y), Step242TextWriter.Number(axisVector.Z)));
+        var referenceVector = referenceAxis.ToVector();
+        var referenceId = writer.AddEntity("DIRECTION", "$", Step242TextWriter.List(Step242TextWriter.Number(referenceVector.X), Step242TextWriter.Number(referenceVector.Y), Step242TextWriter.Number(referenceVector.Z)));
+        return writer.AddEntity("AXIS2_PLACEMENT_3D", "$", Step242TextWriter.Ref(originId), Step242TextWriter.Ref(axisId), Step242TextWriter.Ref(referenceId));
+    }
+
+    private static Direction3D BuildPerpendicularReferenceAxis(Direction3D axis)
+    {
+        var axisVector = axis.ToVector();
+        var reference = double.Abs(axisVector.Dot(new Vector3D(1d, 0d, 0d))) <= 0.9d ? new Vector3D(1d, 0d, 0d) : new Vector3D(0d, 1d, 0d);
+        var projected = reference - (axisVector * reference.Dot(axisVector));
+        return Direction3D.Create(projected);
+    }
     private static KernelResult<string> BuildEdgeCurve(
         BrepBody body,
         TopologyModel model,
@@ -149,7 +191,8 @@ public static class Step242Exporter
         IDictionary<VertexId, Point3D> vertexPoints,
         IDictionary<VertexId, string> cartesianPointIds,
         IDictionary<VertexId, string> vertexPointIds,
-        IDictionary<EdgeId, string> lineIds)
+        IDictionary<EdgeId, string> lineIds,
+        IDictionary<EdgeId, string> circleIds)
     {
         var edge = model.GetEdge(edgeId);
 
@@ -163,14 +206,14 @@ public static class Step242Exporter
             return Failure("Edge curve geometry was not found.", $"Curve:{edgeBinding.CurveGeometryId.Value}");
         }
 
-        if (curve.Kind != CurveGeometryKind.Line3 || curve.Line3 is null)
+        if (curve.Kind != CurveGeometryKind.Line3 && curve.Kind != CurveGeometryKind.Circle3)
         {
-            return Failure($"Unsupported curve kind '{curve.Kind}'. M22 supports line edges only.", $"Edge:{edgeId.Value}");
+            return Failure($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}");
         }
 
         if (edgeBinding.TrimInterval is null)
         {
-            return Failure("Line edge must provide trim interval for vertex mapping.", $"Edge:{edgeId.Value}");
+            return Failure("Edge must provide trim interval for vertex mapping.", $"Edge:{edgeId.Value}");
         }
 
         var startPointResult = ResolveVertexPoint(body, model, edge.StartVertexId, vertexPoints);
@@ -191,33 +234,54 @@ public static class Step242Exporter
         var startVertexId = EnsureVertex(writer, edge.StartVertexId, startPoint, vertexPoints, cartesianPointIds, vertexPointIds);
         var endVertexId = EnsureVertex(writer, edge.EndVertexId, endPoint, vertexPoints, cartesianPointIds, vertexPointIds);
 
-        if (!lineIds.TryGetValue(edgeId, out var lineId))
+        string geometryCurveId;
+        if (curve.Kind == CurveGeometryKind.Line3 && curve.Line3 is Line3Curve line)
         {
-            var edgeVector = endPoint - startPoint;
-            if (edgeVector.LengthSquared <= 1e-24d || !edgeVector.TryNormalize(out var endpointDirection))
+            if (!lineIds.TryGetValue(edgeId, out var lineId))
             {
-                return Failure("Edge endpoints resolve to a degenerate line direction.", $"Edge:{edgeId.Value}");
-            }
-
-            var direction = endpointDirection;
-            var curveDirection = curve.Line3.Value.Direction.ToVector();
-            if (curveDirection.TryNormalize(out var normalizedCurveDirection))
-            {
-                var alignment = double.Abs(normalizedCurveDirection.Dot(endpointDirection));
-                if (alignment >= 0.999999999999d)
+                var edgeVector = endPoint - startPoint;
+                if (edgeVector.LengthSquared <= 1e-24d || !edgeVector.TryNormalize(out var endpointDirection))
                 {
-                    direction = normalizedCurveDirection;
+                    return Failure("Edge endpoints resolve to a degenerate line direction.", $"Edge:{edgeId.Value}");
                 }
+
+                var direction = endpointDirection;
+                var curveDirection = line.Direction.ToVector();
+                if (curveDirection.TryNormalize(out var normalizedCurveDirection))
+                {
+                    var alignment = double.Abs(normalizedCurveDirection.Dot(endpointDirection));
+                    if (alignment >= 0.999999999999d)
+                    {
+                        direction = normalizedCurveDirection;
+                    }
+                }
+
+                var originId = writer.AddEntity("CARTESIAN_POINT", "$", PointList(startPoint));
+                var directionId = writer.AddEntity("DIRECTION", "$", Step242TextWriter.List(Step242TextWriter.Number(direction.X), Step242TextWriter.Number(direction.Y), Step242TextWriter.Number(direction.Z)));
+                var vectorId = writer.AddEntity("VECTOR", "$", Step242TextWriter.Ref(directionId), Step242TextWriter.Number(1d));
+                lineId = writer.AddEntity("LINE", "$", Step242TextWriter.Ref(originId), Step242TextWriter.Ref(vectorId));
+                lineIds[edgeId] = lineId;
             }
 
-            var originId = writer.AddEntity("CARTESIAN_POINT", "$", PointList(startPoint));
-            var directionId = writer.AddEntity("DIRECTION", "$", Step242TextWriter.List(Step242TextWriter.Number(direction.X), Step242TextWriter.Number(direction.Y), Step242TextWriter.Number(direction.Z)));
-            var vectorId = writer.AddEntity("VECTOR", "$", Step242TextWriter.Ref(directionId), Step242TextWriter.Number(1d));
-            lineId = writer.AddEntity("LINE", "$", Step242TextWriter.Ref(originId), Step242TextWriter.Ref(vectorId));
-            lineIds[edgeId] = lineId;
+            geometryCurveId = lineId;
+        }
+        else if (curve.Kind == CurveGeometryKind.Circle3 && curve.Circle3 is Circle3Curve circle)
+        {
+            if (!circleIds.TryGetValue(edgeId, out var circleId))
+            {
+                var axisPlacementId = BuildAxisPlacement(writer, circle.Center, circle.Normal, circle.XAxis);
+                circleId = writer.AddEntity("CIRCLE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(circle.Radius));
+                circleIds[edgeId] = circleId;
+            }
+
+            geometryCurveId = circleId;
+        }
+        else
+        {
+            return Failure($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}");
         }
 
-        var edgeCurveId = writer.AddEntity("EDGE_CURVE", "$", Step242TextWriter.Ref(startVertexId), Step242TextWriter.Ref(endVertexId), Step242TextWriter.Ref(lineId), Step242TextWriter.BooleanLogical(true));
+        var edgeCurveId = writer.AddEntity("EDGE_CURVE", "$", Step242TextWriter.Ref(startVertexId), Step242TextWriter.Ref(endVertexId), Step242TextWriter.Ref(geometryCurveId), Step242TextWriter.BooleanLogical(true));
         return KernelResult<string>.Success(edgeCurveId);
     }
 
@@ -389,16 +453,21 @@ public static class Step242Exporter
 
         if (edgeBinding.TrimInterval is null)
         {
-            return FailurePoint("Line edge must provide trim interval for vertex mapping.", $"Edge:{edgeId.Value}");
+            return FailurePoint("Edge must provide trim interval for vertex mapping.", $"Edge:{edgeId.Value}");
         }
 
-        if (!body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve) || curve is null || curve.Kind != CurveGeometryKind.Line3 || curve.Line3 is null)
+        if (!body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve) || curve is null)
         {
-            return FailurePoint("Line edge geometry was not found.", $"Curve:{edgeBinding.CurveGeometryId.Value}");
+            return FailurePoint("Edge curve geometry was not found.", $"Curve:{edgeBinding.CurveGeometryId.Value}");
         }
 
         var parameter = useStart ? edgeBinding.TrimInterval.Value.Start : edgeBinding.TrimInterval.Value.End;
-        return KernelResult<Point3D>.Success(curve.Line3.Value.Evaluate(parameter));
+        return curve.Kind switch
+        {
+            CurveGeometryKind.Line3 when curve.Line3 is Line3Curve line => KernelResult<Point3D>.Success(line.Evaluate(parameter)),
+            CurveGeometryKind.Circle3 when curve.Circle3 is Circle3Curve circle => KernelResult<Point3D>.Success(circle.Evaluate(parameter)),
+            _ => FailurePoint($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}")
+        };
     }
 
     private static string PointList(Point3D point) => Step242TextWriter.List(

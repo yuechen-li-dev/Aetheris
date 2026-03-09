@@ -394,111 +394,20 @@ public static class BrepDisplayTessellator
         var lineCoedges = coedges.Where(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Line3).ToArray();
         var circleCoedges = coedges.Where(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Circle3).ToArray();
 
-        if (coedges.Length == 4 && lineCoedges.Length == 2 && circleCoedges.Length == 2)
+        if (TryResolveFourUseMixedRevolvedLoop(body, coedges, lineCoedges, circleCoedges, axialParameterFromPoint, faceId, out var mixedRevolvedParameters, out var mixedRevolvedDiagnostics))
         {
-            if (!body.Bindings.TryGetEdgeBinding(lineCoedges[0].EdgeId, out var seamBinding))
-            {
-                return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} seam edge is missing curve trim binding.")]);
-            }
-
-            var seamInterval = seamBinding.TrimInterval ?? new ParameterInterval(0d, 1d);
-            var seamStart = seamInterval.Start;
-            var seamEnd = seamInterval.End;
-
-            if (axialParameterFromPoint is not null)
-            {
-                var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
-                if (!vertexPointsResult.IsSuccess)
-                {
-                    return KernelResult<(double, double, int, int)>.Failure(vertexPointsResult.Diagnostics);
-                }
-
-                var projected = vertexPointsResult.Value.Values
-                    .Select(axialParameterFromPoint)
-                    .Where(double.IsFinite)
-                    .ToArray();
-
-                if (projected.Length != 0)
-                {
-                    var projectedMin = projected.Min();
-                    var projectedMax = projected.Max();
-                    if (seamEnd >= seamStart)
-                    {
-                        seamStart = projectedMin;
-                        seamEnd = projectedMax;
-                    }
-                    else
-                    {
-                        seamStart = projectedMax;
-                        seamEnd = projectedMin;
-                    }
-                }
-            }
-
-            var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
-            var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling(double.Abs(seamEnd - seamStart) / options.ChordTolerance), 1, options.MaximumSegments));
-
-            return KernelResult<(double, double, int, int)>.Success((seamStart, seamEnd, angularSegments, axialSegments));
+            return KernelResult<(double, double, int, int)>.Success((
+                mixedRevolvedParameters.VStart,
+                mixedRevolvedParameters.VEnd,
+                CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options),
+                CalculateAxialSegments(mixedRevolvedParameters.VStart, mixedRevolvedParameters.VEnd, options)), mixedRevolvedDiagnostics);
         }
 
-        if (allowThreeCoedgeConeTopology && coedges.Length == 3 && lineCoedges.Length == 2 && circleCoedges.Length == 1)
+        if (allowThreeCoedgeConeTopology && TryResolveConeRevolvedLoop(body, coedges, lineCoedges, circleCoedges, axialParameterFromPoint, faceId, out var coneRevolvedParameters, out var coneRevolvedDiagnostics))
         {
-            var lineEdgeIds = lineCoedges.Select(c => c.EdgeId).Distinct().ToArray();
-            if (lineEdgeIds.Length != 1)
-            {
-                return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation expected mirrored line uses for this cone/revolved topology. Observed: {DescribeRevolvedLoopTopology(body, coedges)}", CurvedTopologyUnsupportedSource)]);
-            }
-
-            if (!body.Bindings.TryGetEdgeBinding(lineEdgeIds[0], out var lineTrimBinding))
-            {
-                return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} line trim edge is missing curve trim binding.")]);
-            }
-
-            var lineTrimInterval = lineTrimBinding.TrimInterval ?? new ParameterInterval(0d, 1d);
-            var lineTrimStart = lineTrimInterval.Start;
-            var lineTrimEnd = lineTrimInterval.End;
-
-            if (axialParameterFromPoint is not null)
-            {
-                var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
-                if (!vertexPointsResult.IsSuccess)
-                {
-                    return KernelResult<(double, double, int, int)>.Failure(vertexPointsResult.Diagnostics);
-                }
-
-                var projected = vertexPointsResult.Value.Values
-                    .Select(axialParameterFromPoint)
-                    .Where(double.IsFinite)
-                    .ToArray();
-
-                if (projected.Length != 0)
-                {
-                    var projectedMin = projected.Min();
-                    var projectedMax = projected.Max();
-                    if (lineTrimEnd >= lineTrimStart)
-                    {
-                        lineTrimStart = projectedMin;
-                        lineTrimEnd = projectedMax;
-                    }
-                    else
-                    {
-                        lineTrimStart = projectedMax;
-                        lineTrimEnd = projectedMin;
-                    }
-                }
-            }
-
             var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
-            var axialSpan = double.Abs(lineTrimEnd - lineTrimStart);
-            var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling(axialSpan / options.ChordTolerance), 1, options.MaximumSegments));
-            return KernelResult<(double, double, int, int)>.Success((lineTrimStart, lineTrimEnd, angularSegments, axialSegments));
-        }
-
-        if (coedges.Length != 4)
-        {
-            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented(allowThreeCoedgeConeTopology
-                ? $"Face {faceId.Value} curved tessellation supports four-coedge torus/revolved loop layouts and the three-coedge cone loop emitted by the handcrafted fixture. Observed: {DescribeRevolvedLoopTopology(body, coedges)}"
-                : $"Face {faceId.Value} curved tessellation supports four-coedge torus/revolved loop layouts. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
+            var axialSegments = CalculateAxialSegments(coneRevolvedParameters.VStart, coneRevolvedParameters.VEnd, options);
+            return KernelResult<(double, double, int, int)>.Success((coneRevolvedParameters.VStart, coneRevolvedParameters.VEnd, angularSegments, axialSegments), coneRevolvedDiagnostics);
         }
 
         var uniqueEdgeIds = coedges
@@ -509,14 +418,141 @@ public static class BrepDisplayTessellator
             .Select(id => body.GetEdgeCurve(id).Kind)
             .All(kind => kind == CurveGeometryKind.Circle3);
 
-        if (lineCoedges.Length == 0 && circleCoedges.Length == 4 && uniqueEdgeIds.Length == 2 && allEdgeCurvesAreCircles)
+        if (lineCoedges.Length == 0 && circleCoedges.Length >= 4 && uniqueEdgeIds.Length == 2 && allEdgeCurvesAreCircles)
         {
             var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
             var axialSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
             return KernelResult<(double, double, int, int)>.Success((0d, 2d * double.Pi, angularSegments, axialSegments));
         }
 
+        if (coedges.Length != 4)
+        {
+            var topologyFamily = allowThreeCoedgeConeTopology ? "cone/revolved" : "torus/revolved";
+            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented(allowThreeCoedgeConeTopology
+                ? $"Face {faceId.Value} curved tessellation supports repeated {topologyFamily} families with mixed line/circle loops; this topology family is still unsupported. Observed: {DescribeRevolvedLoopTopology(body, coedges)}"
+                : $"Face {faceId.Value} curved tessellation supports repeated {topologyFamily} families with mixed line/circle loops; this topology family is still unsupported. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
+        }
+
         return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation does not support this torus/revolved boundary topology yet. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
+    }
+
+    private static bool TryResolveFourUseMixedRevolvedLoop(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<Coedge> lineCoedges,
+        IReadOnlyList<Coedge> circleCoedges,
+        Func<Point3D, double>? axialParameterFromPoint,
+        FaceId faceId,
+        out (double VStart, double VEnd) parameters,
+        out IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        parameters = default;
+        diagnostics = [];
+        if (coedges.Count != 4 || lineCoedges.Count != 2 || circleCoedges.Count != 2)
+        {
+            return false;
+        }
+
+        var result = TryResolveAxialBoundsFromLines(body, coedges, lineCoedges.Select(c => c.EdgeId).Distinct().ToArray(), axialParameterFromPoint, faceId);
+        if (!result.IsSuccess)
+        {
+            diagnostics = result.Diagnostics;
+            return false;
+        }
+
+        parameters = result.Value;
+        diagnostics = result.Diagnostics;
+        return true;
+    }
+
+    private static bool TryResolveConeRevolvedLoop(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<Coedge> lineCoedges,
+        IReadOnlyList<Coedge> circleCoedges,
+        Func<Point3D, double>? axialParameterFromPoint,
+        FaceId faceId,
+        out (double VStart, double VEnd) parameters,
+        out IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        parameters = default;
+        diagnostics = [];
+        if (coedges.Count < 3 || lineCoedges.Count < 2 || circleCoedges.Count < 1)
+        {
+            return false;
+        }
+
+        var lineEdgeIds = lineCoedges.Select(c => c.EdgeId).Distinct().ToArray();
+        var result = TryResolveAxialBoundsFromLines(body, coedges, lineEdgeIds, axialParameterFromPoint, faceId);
+        if (!result.IsSuccess)
+        {
+            diagnostics = result.Diagnostics;
+            return false;
+        }
+
+        parameters = result.Value;
+        diagnostics = result.Diagnostics;
+        return true;
+    }
+
+    private static KernelResult<(double VStart, double VEnd)> TryResolveAxialBoundsFromLines(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<EdgeId> lineEdgeIds,
+        Func<Point3D, double>? axialParameterFromPoint,
+        FaceId faceId)
+    {
+        if (lineEdgeIds.Count == 0)
+        {
+            return KernelResult<(double VStart, double VEnd)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation expected line trim edges for revolved topology. Observed: {DescribeRevolvedLoopTopology(body, coedges)}", CurvedTopologyUnsupportedSource)]);
+        }
+
+        var intervals = new List<ParameterInterval>(lineEdgeIds.Count);
+        foreach (var lineEdgeId in lineEdgeIds)
+        {
+            if (!body.Bindings.TryGetEdgeBinding(lineEdgeId, out var lineTrimBinding))
+            {
+                return KernelResult<(double VStart, double VEnd)>.Failure([CreateNotImplemented($"Face {faceId.Value} line trim edge is missing curve trim binding.")]);
+            }
+
+            intervals.Add(lineTrimBinding.TrimInterval ?? new ParameterInterval(0d, 1d));
+        }
+
+        var vMin = intervals.Min(i => System.Math.Min(i.Start, i.End));
+        var vMax = intervals.Max(i => System.Math.Max(i.Start, i.End));
+        var increasing = intervals[0].End >= intervals[0].Start;
+        var vStart = increasing ? vMin : vMax;
+        var vEnd = increasing ? vMax : vMin;
+
+        if (axialParameterFromPoint is not null)
+        {
+            var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
+            if (!vertexPointsResult.IsSuccess)
+            {
+                return KernelResult<(double VStart, double VEnd)>.Failure(vertexPointsResult.Diagnostics);
+            }
+
+            var projected = vertexPointsResult.Value.Values
+                .Select(axialParameterFromPoint)
+                .Where(double.IsFinite)
+                .ToArray();
+
+            if (projected.Length != 0)
+            {
+                var projectedMin = projected.Min();
+                var projectedMax = projected.Max();
+                vStart = increasing ? projectedMin : projectedMax;
+                vEnd = increasing ? projectedMax : projectedMin;
+            }
+        }
+
+        return KernelResult<(double VStart, double VEnd)>.Success((vStart, vEnd));
+    }
+
+    private static int CalculateAxialSegments(double vStart, double vEnd, DisplayTessellationOptions options)
+    {
+        var axialSpan = double.Abs(vEnd - vStart);
+        return System.Math.Max(1, System.Math.Clamp((int)double.Ceiling(axialSpan / options.ChordTolerance), 1, options.MaximumSegments));
     }
 
     private static string DescribeRevolvedLoopTopology(BrepBody body, IReadOnlyList<Coedge> coedges)

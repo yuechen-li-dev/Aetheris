@@ -271,7 +271,7 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.TorusRepeatedSeamProjectionCollapse",
+      "source": "Importer.LoopRole.TorusDegenerateMinorSpan",
       "messagePrefix": "Toroidal loop normalization failed"
     },
     "diagnosticCount": 1,

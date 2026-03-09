@@ -19,6 +19,7 @@ public static class Step242Importer
     private const double ContainmentEps = 1e-8d;
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleCoedgeGapDiagnostic>?> CoedgeGapDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<LoopEndpointReconstructionDiagnostic>?> EndpointReconstructionDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
@@ -32,6 +33,13 @@ public static class Step242Importer
         var previous = CoedgeGapDiagnosticsSink.Value;
         CoedgeGapDiagnosticsSink.Value = sink;
         return new CoedgeGapDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CaptureLoopEndpointReconstructionDiagnostics(ICollection<LoopEndpointReconstructionDiagnostic> sink)
+    {
+        var previous = EndpointReconstructionDiagnosticsSink.Value;
+        EndpointReconstructionDiagnosticsSink.Value = sink;
+        return new EndpointReconstructionDiagnosticsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -258,6 +266,7 @@ public static class Step242Importer
 
                 var loopCoedges = new List<Coedge>(orientedEdgeRefsResult.Value.Count);
                 var loopSamples = new List<Point3D>();
+                var loopEndpointDiagnostics = new List<LoopEndpointReconstructionDiagnosticBuilder>(orientedEdgeRefsResult.Value.Count);
                 var hasDisconnectedCoedgeGap = false;
 
                 for (var i = 0; i < orientedEdgeRefsResult.Value.Count; i++)
@@ -323,6 +332,31 @@ public static class Step242Importer
                         IsReversed: isReversed);
 
                     loopCoedges.Add(coedge);
+
+                    var edgeStartRefResult = Step242SubsetDecoder.ReadReference(edgeCurveEntityResult.Value, 1, "EDGE_CURVE start");
+                    if (!edgeStartRefResult.IsSuccess)
+                    {
+                        return KernelResult<BrepBody>.Failure(edgeStartRefResult.Diagnostics);
+                    }
+
+                    var edgeEndRefResult = Step242SubsetDecoder.ReadReference(edgeCurveEntityResult.Value, 2, "EDGE_CURVE end");
+                    if (!edgeEndRefResult.IsSuccess)
+                    {
+                        return KernelResult<BrepBody>.Failure(edgeEndRefResult.Diagnostics);
+                    }
+
+                    var rawEdgeStartVertexResult = Step242SubsetDecoder.ReadVertexPoint(document, edgeStartRefResult.Value.TargetId);
+                    if (!rawEdgeStartVertexResult.IsSuccess)
+                    {
+                        return KernelResult<BrepBody>.Failure(rawEdgeStartVertexResult.Diagnostics);
+                    }
+
+                    var rawEdgeEndVertexResult = Step242SubsetDecoder.ReadVertexPoint(document, edgeEndRefResult.Value.TargetId);
+                    if (!rawEdgeEndVertexResult.IsSuccess)
+                    {
+                        return KernelResult<BrepBody>.Failure(rawEdgeEndVertexResult.Diagnostics);
+                    }
+
                     var sampleResult = SampleCoedgePoints(
                         bindings.GetEdgeBinding(edgeIdResult.Value),
                         geometry,
@@ -335,6 +369,31 @@ public static class Step242Importer
                     {
                         return KernelResult<BrepBody>.Failure(sampleResult.Diagnostics);
                     }
+
+                    var sampledStart = sampleResult.Value[0];
+                    var sampledEnd = sampleResult.Value[^1];
+                    var coedgeRawStart = coedge.IsReversed ? rawEdgeEndVertexResult.Value : rawEdgeStartVertexResult.Value;
+                    var coedgeRawEnd = coedge.IsReversed ? rawEdgeStartVertexResult.Value : rawEdgeEndVertexResult.Value;
+
+                    loopEndpointDiagnostics.Add(new LoopEndpointReconstructionDiagnosticBuilder(
+                        faceEntity.Id,
+                        loopId.Value,
+                        coedge.Id.Value,
+                        edgeIdResult.Value.Value,
+                        orientedEdgeEntity.Id,
+                        edgeCurveEntityResult.Value.Id,
+                        DescribeCurveKind(bindings.GetEdgeBinding(edgeIdResult.Value), geometry),
+                        rawEdgeStartVertexResult.Value,
+                        rawEdgeEndVertexResult.Value,
+                        coedgeRawStart,
+                        coedgeRawEnd,
+                        sampledStart,
+                        sampledEnd,
+                        (coedgeRawStart - sampledStart).Length,
+                        (coedgeRawEnd - sampledEnd).Length,
+                        edgeSameSenseResult.Value,
+                        orientedSenseResult.Value,
+                        boundOrientation));
 
                     var boundaryClassification = AppendLoopSamples(
                         loopSamples,
@@ -372,6 +431,17 @@ public static class Step242Importer
                 else if (closingGap.Classification == LoopCoedgeGapClassification.Disconnected)
                 {
                     hasDisconnectedCoedgeGap = true;
+                }
+
+                for (var i = 0; i < loopEndpointDiagnostics.Count; i++)
+                {
+                    var previousIndex = (i + loopEndpointDiagnostics.Count - 1) % loopEndpointDiagnostics.Count;
+                    var previous = loopEndpointDiagnostics[previousIndex];
+                    var current = loopEndpointDiagnostics[i];
+                    ReportEndpointReconstructionDiagnostic(current.Build(
+                        previous.CoedgeId,
+                        (previous.RawCoedgeEnd - current.RawCoedgeStart).Length,
+                        (previous.EvaluatedCoedgeEnd - current.EvaluatedCoedgeStart).Length));
                 }
 
                 builder.AddLoop(new Loop(loopId, coedgeIds));
@@ -1892,6 +1962,12 @@ public static class Step242Importer
         sink?.Add(diagnostic);
     }
 
+    private static void ReportEndpointReconstructionDiagnostic(LoopEndpointReconstructionDiagnostic diagnostic)
+    {
+        var sink = EndpointReconstructionDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
     private static (double Gap3d, double Gap2d, LoopCoedgeGapClassification Classification) ClassifyCoedgeGap(
         Point3D previousEnd,
         Point3D nextStart,
@@ -1960,6 +2036,29 @@ public static class Step242Importer
         bool WithinContainmentEps,
         bool WouldCreateGhostSegmentWithoutNormalization);
 
+    public sealed record LoopEndpointReconstructionDiagnostic(
+        int FaceEntityId,
+        int LoopId,
+        int CoedgeId,
+        int EdgeId,
+        int OrientedEdgeEntityId,
+        int EdgeCurveEntityId,
+        string? CurveKind,
+        Point3D RawEdgeStartVertex,
+        Point3D RawEdgeEndVertex,
+        Point3D RawCoedgeStart,
+        Point3D RawCoedgeEnd,
+        Point3D EvaluatedCoedgeStart,
+        Point3D EvaluatedCoedgeEnd,
+        double StartReconstructionError,
+        double EndReconstructionError,
+        int PreviousCoedgeId,
+        double RawJoinGapFromPrevious,
+        double EvaluatedJoinGapFromPrevious,
+        bool EdgeCurveSameSense,
+        bool OrientedEdgeOrientation,
+        bool FaceBoundOrientation);
+
     public enum LoopCoedgeGapClassification
     {
         Negligible,
@@ -1981,6 +2080,62 @@ public static class Step242Importer
         {
             CoedgeGapDiagnosticsSink.Value = previous;
         }
+    }
+
+    private sealed class EndpointReconstructionDiagnosticsScope(ICollection<LoopEndpointReconstructionDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            EndpointReconstructionDiagnosticsSink.Value = previous;
+        }
+    }
+
+    private sealed record LoopEndpointReconstructionDiagnosticBuilder(
+        int FaceEntityId,
+        int LoopId,
+        int CoedgeId,
+        int EdgeId,
+        int OrientedEdgeEntityId,
+        int EdgeCurveEntityId,
+        string? CurveKind,
+        Point3D RawEdgeStartVertex,
+        Point3D RawEdgeEndVertex,
+        Point3D RawCoedgeStart,
+        Point3D RawCoedgeEnd,
+        Point3D EvaluatedCoedgeStart,
+        Point3D EvaluatedCoedgeEnd,
+        double StartReconstructionError,
+        double EndReconstructionError,
+        bool EdgeCurveSameSense,
+        bool OrientedEdgeOrientation,
+        bool FaceBoundOrientation)
+    {
+        public LoopEndpointReconstructionDiagnostic Build(
+            int previousCoedgeId,
+            double rawJoinGapFromPrevious,
+            double evaluatedJoinGapFromPrevious)
+            => new(
+                FaceEntityId,
+                LoopId,
+                CoedgeId,
+                EdgeId,
+                OrientedEdgeEntityId,
+                EdgeCurveEntityId,
+                CurveKind,
+                RawEdgeStartVertex,
+                RawEdgeEndVertex,
+                RawCoedgeStart,
+                RawCoedgeEnd,
+                EvaluatedCoedgeStart,
+                EvaluatedCoedgeEnd,
+                StartReconstructionError,
+                EndReconstructionError,
+                previousCoedgeId,
+                rawJoinGapFromPrevious,
+                evaluatedJoinGapFromPrevious,
+                EdgeCurveSameSense,
+                OrientedEdgeOrientation,
+                FaceBoundOrientation);
     }
 
     private static KernelResult<T> LoopRoleFailure<T>(string message, string source) =>

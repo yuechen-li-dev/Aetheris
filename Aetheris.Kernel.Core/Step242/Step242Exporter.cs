@@ -101,12 +101,13 @@ public static class Step242Exporter
 
                 var edgeLoopId = writer.AddEntity("EDGE_LOOP", "$", Step242TextWriter.List(oriented.ToArray()));
                 var boundEntity = loopBoundIds.Count == 0 ? "FACE_OUTER_BOUND" : "FACE_BOUND";
-                var boundId = writer.AddEntity(boundEntity, "$", Step242TextWriter.Ref(edgeLoopId), Step242TextWriter.BooleanLogical(true));
+                var boundId = writer.AddEntity(boundEntity, Step242TextWriter.String(string.Empty), Step242TextWriter.Ref(edgeLoopId), Step242TextWriter.BooleanLogical(true));
                 loopBoundIds.Add(boundId);
             }
 
             var advancedFaceId = writer.AddEntity(
                 "ADVANCED_FACE",
+                Step242TextWriter.String(string.Empty),
                 Step242TextWriter.List(loopBoundIds.ToArray()),
                 Step242TextWriter.Ref(surfaceIdResult.Value),
                 Step242TextWriter.BooleanLogical(true));

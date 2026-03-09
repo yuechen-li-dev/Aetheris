@@ -141,6 +141,56 @@ END-ISO-10303-21;";
         Assert.Contains("CIRCLE", export.Value, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ExportBody_PlanarFaceWithHole_AdvancedFaceReferencesAllEmittedBounds()
+    {
+        var import = Step242Importer.ImportBody(Step242FixtureCorpus.PlanarFaceWithRectangularHole);
+        Assert.True(import.IsSuccess);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+
+        var entityMap = ParseEntityMap(export.Value);
+        var boundIds = entityMap
+            .Where(kvp => kvp.Value.StartsWith("FACE_OUTER_BOUND('',", StringComparison.Ordinal) || kvp.Value.StartsWith("FACE_BOUND('',", StringComparison.Ordinal))
+            .Select(kvp => kvp.Key)
+            .OrderBy(id => id)
+            .ToArray();
+
+        Assert.Equal(2, boundIds.Length);
+
+        var advancedFace = Assert.Single(entityMap, kvp => kvp.Value.StartsWith("ADVANCED_FACE('',(", StringComparison.Ordinal));
+        var referencedBoundIds = ParseFirstReferenceList(advancedFace.Value).OrderBy(id => id).ToArray();
+
+        Assert.Equal(boundIds, referencedBoundIds);
+    }
+
+    [Fact]
+    public void ExportBody_Ctc03RoundTrip_DoesNotOrphanInnerFaceBounds()
+    {
+        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_03_asme1_ap242-e2.stp");
+        var source = File.ReadAllText(fixturePath);
+
+        var import = Step242Importer.ImportBody(source);
+        Assert.True(import.IsSuccess);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+
+        var entityMap = ParseEntityMap(export.Value);
+        var emittedFaceBounds = entityMap.Where(kvp => kvp.Value.StartsWith("FACE_BOUND('',", StringComparison.Ordinal)).Select(kvp => kvp.Key).ToHashSet();
+        Assert.NotEmpty(emittedFaceBounds);
+
+        var referencedFaceBounds = entityMap
+            .Where(kvp => kvp.Value.StartsWith("ADVANCED_FACE('',(", StringComparison.Ordinal))
+            .SelectMany(kvp => ParseFirstReferenceList(kvp.Value))
+            .Where(id => emittedFaceBounds.Contains(id))
+            .ToHashSet();
+
+        Assert.Equal(emittedFaceBounds.Count, referencedFaceBounds.Count);
+    }
+
     [Fact]
     public void ExportBody_BoxBody_IsDeterministicForSameInput()
     {
@@ -212,6 +262,57 @@ END-ISO-10303-21;";
                 endCheck.IsOnLine,
                 $"EDGE_CURVE #{edge.EdgeCurveId} end vertex #{edge.EndVertexId} is not on LINE #{edge.CurveId}. t={endCheck.T}, len={line.Length}, distance={endCheck.DistanceToLine}, point={FormatPoint(end)}, origin={FormatPoint(line.Origin)}, dir={FormatPoint(direction)}");
         }
+    }
+
+    private static Dictionary<int, string> ParseEntityMap(string stepText)
+    {
+        var entities = new Dictionary<int, string>();
+        foreach (var rawLine in stepText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!rawLine.StartsWith("#", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var equals = rawLine.IndexOf('=');
+            if (equals <= 1 || !int.TryParse(rawLine.AsSpan(1, equals - 1), out var entityId))
+            {
+                continue;
+            }
+
+            entities[entityId] = rawLine[(equals + 1)..];
+        }
+
+        return entities;
+    }
+
+    private static IReadOnlyList<int> ParseFirstReferenceList(string entityRhs)
+    {
+        var firstOpen = entityRhs.IndexOf('(');
+        if (firstOpen < 0)
+        {
+            return [];
+        }
+
+        var listOpen = entityRhs.IndexOf('(', firstOpen + 1);
+        if (listOpen < 0)
+        {
+            return [];
+        }
+
+        var listClose = entityRhs.IndexOf(')', listOpen + 1);
+        if (listClose < 0)
+        {
+            return [];
+        }
+
+        var values = entityRhs[(listOpen + 1)..listClose]
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => token.StartsWith("#", StringComparison.Ordinal) && int.TryParse(token.AsSpan(1), out var id) ? id : -1)
+            .Where(id => id > 0)
+            .ToArray();
+
+        return values;
     }
 
     private static StepEntityRecords ParseStepEntities(string stepText)

@@ -68,7 +68,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
         "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
         "importer-topology",
         "Importer.EntityFamily",
-        "ADVANCED_FACE surface 'B_SPLINE_SURFACE_WITH_KNOTS' is unsupported.")]
+        "EDGE_CURVE geometry 'ELLIPSE' is unsupported.")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
         "importer-topology",

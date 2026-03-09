@@ -727,7 +727,60 @@ public static class Step242Importer
             return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromTorus(torusResult.Value)));
         }
 
+        var bSplineSurfaceEntity = ResolveBSplineSurfaceEntity(surfaceToDecode);
+        if (bSplineSurfaceEntity is not null)
+        {
+            var surfaceResult = Step242SubsetDecoder.ReadBSplineSurfaceWithKnots(document, bSplineSurfaceEntity);
+            if (!surfaceResult.IsSuccess)
+            {
+                return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(surfaceResult.Diagnostics);
+            }
+
+            return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((
+                geometryId,
+                SurfaceGeometry.FromBSplineSurfaceWithKnots(surfaceResult.Value)));
+        }
+
         return FailureSurfaceBinding($"ADVANCED_FACE surface '{surfaceName}' is unsupported.", SourceFor(surfaceToDecode.Id, "Importer.EntityFamily"));
+    }
+
+    private static Step242ParsedEntity? ResolveBSplineSurfaceEntity(Step242ParsedEntity surfaceEntity)
+    {
+        var splineWithKnots = Step242SubsetDecoder.TryGetConstructor(surfaceEntity.Instance, "B_SPLINE_SURFACE_WITH_KNOTS");
+        if (splineWithKnots is null)
+        {
+            return null;
+        }
+
+        if (splineWithKnots.Arguments.Count >= 13)
+        {
+            return WithConstructor(surfaceEntity, splineWithKnots);
+        }
+
+        var splineSurface = Step242SubsetDecoder.TryGetConstructor(surfaceEntity.Instance, "B_SPLINE_SURFACE");
+        if (splineSurface is null || splineSurface.Arguments.Count < 7 || splineWithKnots.Arguments.Count < 5)
+        {
+            return null;
+        }
+
+        var normalized = new List<Step242Value>(13)
+        {
+            Step242OmittedValue.Instance,
+            splineSurface.Arguments[0],
+            splineSurface.Arguments[1],
+            splineSurface.Arguments[2],
+            splineSurface.Arguments[3],
+            splineSurface.Arguments[4],
+            splineSurface.Arguments[5],
+            splineSurface.Arguments[6],
+            splineWithKnots.Arguments[0],
+            splineWithKnots.Arguments[1],
+            splineWithKnots.Arguments[2],
+            splineWithKnots.Arguments[3],
+            splineWithKnots.Arguments[4]
+        };
+
+        return WithConstructor(surfaceEntity, new Step242EntityConstructor("B_SPLINE_SURFACE_WITH_KNOTS", normalized));
     }
 
     private static KernelResult<Step242ParsedEntity> BuildInlineSurfaceEntity(int faceEntityId, string surfaceName, IReadOnlyList<Step242Value>? inlineArguments)

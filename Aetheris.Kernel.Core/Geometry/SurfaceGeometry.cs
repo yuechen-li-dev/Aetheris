@@ -9,6 +9,7 @@ public enum SurfaceGeometryKind
     Cone,
     Sphere,
     Torus,
+    BSplineSurfaceWithKnots,
 }
 
 /// <summary>
@@ -22,7 +23,8 @@ public sealed record SurfaceGeometry
         CylinderSurface? cylinder,
         ConeSurface? cone,
         SphereSurface? sphere,
-        TorusSurface? torus)
+        TorusSurface? torus,
+        BSplineSurfaceWithKnots? bSplineSurfaceWithKnots)
     {
         Kind = kind;
         Plane = plane;
@@ -30,6 +32,7 @@ public sealed record SurfaceGeometry
         Cone = cone;
         Sphere = sphere;
         Torus = torus;
+        BSplineSurfaceWithKnots = bSplineSurfaceWithKnots;
     }
 
     public SurfaceGeometryKind Kind { get; }
@@ -44,13 +47,17 @@ public sealed record SurfaceGeometry
 
     public TorusSurface? Torus { get; }
 
-    public static SurfaceGeometry FromPlane(PlaneSurface plane) => new(SurfaceGeometryKind.Plane, plane, null, null, null, null);
+    public BSplineSurfaceWithKnots? BSplineSurfaceWithKnots { get; }
 
-    public static SurfaceGeometry FromCylinder(CylinderSurface cylinder) => new(SurfaceGeometryKind.Cylinder, null, cylinder, null, null, null);
+    public static SurfaceGeometry FromPlane(PlaneSurface plane) => new(SurfaceGeometryKind.Plane, plane, null, null, null, null, null);
 
-    public static SurfaceGeometry FromCone(ConeSurface cone) => new(SurfaceGeometryKind.Cone, null, null, cone, null, null);
+    public static SurfaceGeometry FromCylinder(CylinderSurface cylinder) => new(SurfaceGeometryKind.Cylinder, null, cylinder, null, null, null, null);
 
-    public static SurfaceGeometry FromSphere(SphereSurface sphere) => new(SurfaceGeometryKind.Sphere, null, null, null, sphere, null);
+    public static SurfaceGeometry FromCone(ConeSurface cone) => new(SurfaceGeometryKind.Cone, null, null, cone, null, null, null);
 
-    public static SurfaceGeometry FromTorus(TorusSurface torus) => new(SurfaceGeometryKind.Torus, null, null, null, null, torus);
+    public static SurfaceGeometry FromSphere(SphereSurface sphere) => new(SurfaceGeometryKind.Sphere, null, null, null, sphere, null, null);
+
+    public static SurfaceGeometry FromTorus(TorusSurface torus) => new(SurfaceGeometryKind.Torus, null, null, null, null, torus, null);
+
+    public static SurfaceGeometry FromBSplineSurfaceWithKnots(BSplineSurfaceWithKnots surface) => new(SurfaceGeometryKind.BSplineSurfaceWithKnots, null, null, null, null, null, surface);
 }

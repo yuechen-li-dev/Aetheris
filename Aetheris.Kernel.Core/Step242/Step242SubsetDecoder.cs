@@ -445,6 +445,107 @@ internal static class Step242SubsetDecoder
         }
     }
 
+    public static KernelResult<BSplineSurfaceWithKnots> ReadBSplineSurfaceWithKnots(Step242ParsedDocument document, Step242ParsedEntity splineEntity)
+    {
+        var degreeUResult = ReadIntArgument(splineEntity, 1, "B_SPLINE_SURFACE_WITH_KNOTS degree_u", "Importer.Geometry.BSplineSurface");
+        if (!degreeUResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(degreeUResult.Diagnostics);
+        }
+
+        var degreeVResult = ReadIntArgument(splineEntity, 2, "B_SPLINE_SURFACE_WITH_KNOTS degree_v", "Importer.Geometry.BSplineSurface");
+        if (!degreeVResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(degreeVResult.Diagnostics);
+        }
+
+        var controlPointsResult = ReadCartesianPointReferenceNet(
+            document,
+            splineEntity,
+            3,
+            "B_SPLINE_SURFACE_WITH_KNOTS control_points_list",
+            "Importer.Geometry.BSplineSurface");
+        if (!controlPointsResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(controlPointsResult.Diagnostics);
+        }
+
+        var surfaceFormResult = ReadEnumArgument(splineEntity, 4, "B_SPLINE_SURFACE_WITH_KNOTS surface_form", "Importer.Geometry.BSplineSurface");
+        if (!surfaceFormResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(surfaceFormResult.Diagnostics);
+        }
+
+        var uClosedResult = ReadLogical(splineEntity, 5, "B_SPLINE_SURFACE_WITH_KNOTS u_closed");
+        if (!uClosedResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(uClosedResult.Diagnostics);
+        }
+
+        var vClosedResult = ReadLogical(splineEntity, 6, "B_SPLINE_SURFACE_WITH_KNOTS v_closed");
+        if (!vClosedResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(vClosedResult.Diagnostics);
+        }
+
+        var selfIntersectResult = ReadLogical(splineEntity, 7, "B_SPLINE_SURFACE_WITH_KNOTS self_intersect");
+        if (!selfIntersectResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(selfIntersectResult.Diagnostics);
+        }
+
+        var multiplicitiesUResult = ReadIntegerListArgument(splineEntity, 8, "B_SPLINE_SURFACE_WITH_KNOTS u_multiplicities", "Importer.Geometry.BSplineSurface");
+        if (!multiplicitiesUResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(multiplicitiesUResult.Diagnostics);
+        }
+
+        var multiplicitiesVResult = ReadIntegerListArgument(splineEntity, 9, "B_SPLINE_SURFACE_WITH_KNOTS v_multiplicities", "Importer.Geometry.BSplineSurface");
+        if (!multiplicitiesVResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(multiplicitiesVResult.Diagnostics);
+        }
+
+        var knotsUResult = ReadNumberListArgument(splineEntity, 10, "B_SPLINE_SURFACE_WITH_KNOTS u_knots", "Importer.Geometry.BSplineSurface");
+        if (!knotsUResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(knotsUResult.Diagnostics);
+        }
+
+        var knotsVResult = ReadNumberListArgument(splineEntity, 11, "B_SPLINE_SURFACE_WITH_KNOTS v_knots", "Importer.Geometry.BSplineSurface");
+        if (!knotsVResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(knotsVResult.Diagnostics);
+        }
+
+        var knotSpecResult = ReadEnumArgument(splineEntity, 12, "B_SPLINE_SURFACE_WITH_KNOTS knot_spec", "Importer.Geometry.BSplineSurface");
+        if (!knotSpecResult.IsSuccess)
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Failure(knotSpecResult.Diagnostics);
+        }
+
+        try
+        {
+            return KernelResult<BSplineSurfaceWithKnots>.Success(new BSplineSurfaceWithKnots(
+                degreeUResult.Value,
+                degreeVResult.Value,
+                controlPointsResult.Value,
+                surfaceFormResult.Value,
+                uClosedResult.Value ?? false,
+                vClosedResult.Value ?? false,
+                selfIntersectResult.Value ?? false,
+                multiplicitiesUResult.Value,
+                multiplicitiesVResult.Value,
+                knotsUResult.Value,
+                knotsVResult.Value,
+                knotSpecResult.Value));
+        }
+        catch (ArgumentException ex)
+        {
+            return Failure<BSplineSurfaceWithKnots>(KernelDiagnosticCode.InvalidArgument, ex.Message, "Importer.Geometry.BSplineSurface");
+        }
+    }
+
     public static KernelResult<CylinderSurface> ReadCylindricalSurface(Step242ParsedDocument document, Step242ParsedEntity cylinderEntity)
     {
         var placementResult = ReadAxis2Placement3D(document, cylinderEntity, 1, "CYLINDRICAL_SURFACE position", "Importer.Geometry.Cylinder");
@@ -814,6 +915,60 @@ internal static class Step242SubsetDecoder
         }
 
         return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+    }
+
+    private static KernelResult<IReadOnlyList<IReadOnlyList<Point3D>>> ReadCartesianPointReferenceNet(
+        Step242ParsedDocument document,
+        Step242ParsedEntity ownerEntity,
+        int argumentIndex,
+        string context,
+        string source)
+    {
+        if (argumentIndex < 0 || argumentIndex >= ownerEntity.Arguments.Count)
+        {
+            return Failure<IReadOnlyList<IReadOnlyList<Point3D>>>(KernelDiagnosticCode.InvalidArgument, $"{context}: missing argument at index {argumentIndex}.", source);
+        }
+
+        if (ownerEntity.Arguments[argumentIndex] is not Step242ListValue rows)
+        {
+            return Failure<IReadOnlyList<IReadOnlyList<Point3D>>>(KernelDiagnosticCode.InvalidArgument, $"{context}: expected aggregate list of control-point rows.", source);
+        }
+
+        var net = new List<IReadOnlyList<Point3D>>(rows.Items.Count);
+        for (var rowIndex = 0; rowIndex < rows.Items.Count; rowIndex++)
+        {
+            if (rows.Items[rowIndex] is not Step242ListValue row)
+            {
+                return Failure<IReadOnlyList<IReadOnlyList<Point3D>>>(KernelDiagnosticCode.InvalidArgument, $"{context}: row {rowIndex} must be a list of CARTESIAN_POINT references.", source);
+            }
+
+            var points = new List<Point3D>(row.Items.Count);
+            for (var colIndex = 0; colIndex < row.Items.Count; colIndex++)
+            {
+                if (row.Items[colIndex] is not Step242EntityReference pointReference)
+                {
+                    return Failure<IReadOnlyList<IReadOnlyList<Point3D>>>(KernelDiagnosticCode.InvalidArgument, $"{context}: row {rowIndex}, column {colIndex} must be an entity reference (#id).", source);
+                }
+
+                var pointEntityResult = document.TryGetEntity(pointReference.TargetId, "CARTESIAN_POINT");
+                if (!pointEntityResult.IsSuccess)
+                {
+                    return KernelResult<IReadOnlyList<IReadOnlyList<Point3D>>>.Failure(pointEntityResult.Diagnostics);
+                }
+
+                var pointResult = ReadCartesianPoint(pointEntityResult.Value, context);
+                if (!pointResult.IsSuccess)
+                {
+                    return KernelResult<IReadOnlyList<IReadOnlyList<Point3D>>>.Failure(pointResult.Diagnostics);
+                }
+
+                points.Add(pointResult.Value);
+            }
+
+            net.Add(points);
+        }
+
+        return KernelResult<IReadOnlyList<IReadOnlyList<Point3D>>>.Success(net);
     }
 
     private static KernelResult<IReadOnlyList<int>> ReadIntegerListArgument(

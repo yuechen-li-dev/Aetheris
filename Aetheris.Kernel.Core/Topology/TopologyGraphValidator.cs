@@ -123,8 +123,8 @@ public static class TopologyGraphValidator
     }
 
     private static KernelDiagnostic Error(string message) =>
-        new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message);
+        new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, "Topology.GraphValidator");
 
     private static KernelDiagnostic Warning(string message) =>
-        new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning, message);
+        new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning, message, "Topology.GraphValidator");
 }

@@ -81,6 +81,33 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         Assert.Contains(first, d => d.MajorSeamCrossings > 0 && d.MinorSeamCrossings == 0);
         Assert.Contains(first, d => d.RepeatedMajorSeamPointCount == 0 && d.RepeatedMinorSeamPointCount == 0);
         Assert.Contains(first, d => d.MajorSpan >= 5.4d && d.MinorSpan <= 1e-8d);
+        Assert.Contains(first, d => d.FullMajorSpanNearConstantMinorCandidate);
+    }
+
+
+    [Fact]
+    public void Step242_NistFtc11_TorusMajorRingDegeneracy_AdvancesPastMinorSpanBlocker_Deterministically()
+    {
+        const string relativePath = "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp";
+        var entry = new Step242CorpusManifestEntry(
+            Id: Path.GetFileNameWithoutExtension(relativePath),
+            Path: relativePath,
+            Group: "nist-loop-role-regression",
+            Notes: "torus major-ring progression",
+            ExpectedFirstDiagnostic: null,
+            ExpectHashStableAfterCanonicalization: null,
+            ExpectTopologyCounts: null,
+            ExpectGeometryKinds: null);
+
+        var first = Step242CorpusManifestRunner.RunOne(entry);
+        var second = Step242CorpusManifestRunner.RunOne(entry);
+
+        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
+        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
+        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
+
+        Assert.NotEqual("Importer.LoopRole.TorusDegenerateMinorSpan", first.FirstDiagnostic.Source);
+        Assert.DoesNotContain("TorusDegenerateMinorSpan", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
     }
 
     [Theory]

@@ -1515,6 +1515,8 @@ public static class Step242Importer
                 }
             }
 
+            var majorRingCandidate = IsToroidalFullMajorRevolutionConstantMinor(analysis);
+
             ReportTorusProjectionDiagnostic(new LoopRoleTorusProjectionDiagnostic(
                 FaceEntityId: faceEntityId,
                 LoopId: loop.LoopId.Value,
@@ -1529,7 +1531,8 @@ public static class Step242Importer
                 RepeatedMinorSeamPointCount: analysis.RepeatedMinorSeamPointCount,
                 Degeneracy: analysis.Degeneracy.ToString(),
                 InitialDegeneracy: analysisRaw.Degeneracy.ToString(),
-                InitialSignedArea: areaRaw));
+                InitialSignedArea: areaRaw,
+                FullMajorSpanNearConstantMinorCandidate: majorRingCandidate));
 
             if (uniqueCount < 3 || double.Abs(area) <= AreaEps)
             {
@@ -2229,11 +2232,17 @@ public static class Step242Importer
 
     private static bool IsToroidalFullMajorRevolutionConstantMinor(TorusProjectionAnalysis analysis)
     {
-        var almostFullMajorTurn = analysis.MajorSpan >= (2d * double.Pi) - 1e-3d;
-        var nearConstantMinor = analysis.MinorSpan <= ContainmentEps;
+        var almostFullMajorTurn = analysis.MajorSpan >= (2d * double.Pi) - 1e-3d
+            || analysis.MajorSeamCrossings > 0;
+        var nearConstantMinor = analysis.MinorSpan <= 1e-6d;
+        var supportedDegeneracy = analysis.Degeneracy == TorusProjectionDegeneracy.RepeatedSeamProjectionCollapse
+            || analysis.Degeneracy == TorusProjectionDegeneracy.DegenerateMinorSpan;
+
+        // Major-ring/band boundaries are non-contractible loops that can project as near-zero-area
+        // traces in toroidal UV despite being valid topological boundaries on the surface.
         return almostFullMajorTurn
             && nearConstantMinor
-            && analysis.Degeneracy == TorusProjectionDegeneracy.RepeatedSeamProjectionCollapse;
+            && supportedDegeneracy;
     }
 
     private static TorusProjectionAnalysis AnalyzeToroidalProjection(int uniqueCount, double signedArea, IReadOnlyList<UvPoint> projected)
@@ -2697,7 +2706,8 @@ public static class Step242Importer
         int RepeatedMinorSeamPointCount,
         string Degeneracy,
         string InitialDegeneracy,
-        double InitialSignedArea);
+        double InitialSignedArea,
+        bool FullMajorSpanNearConstantMinorCandidate);
 
     private enum CylinderProjectionDegeneracy
     {

@@ -8,7 +8,7 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
     [InlineData(
         "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
         "importer-topology",
-        "Importer.LoopRole.TorusDegenerateProjection",
+        "Importer.LoopRole.TorusRepeatedSeamProjectionCollapse",
         "Toroidal loop normalization failed")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
@@ -38,6 +38,7 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
         Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.NotEqual("Importer.LoopRole.UnsupportedSurfaceForHoles", first.FirstDiagnostic.Source);
+        Assert.NotEqual("Importer.LoopRole.TorusDegenerateProjection", first.FirstDiagnostic.Source);
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);

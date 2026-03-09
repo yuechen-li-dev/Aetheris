@@ -20,6 +20,7 @@ public static class Step242Importer
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleCoedgeGapDiagnostic>?> CoedgeGapDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleCylinderProjectionDiagnostic>?> CylinderProjectionDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<LoopRoleTorusProjectionDiagnostic>?> TorusProjectionDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
@@ -40,6 +41,13 @@ public static class Step242Importer
         var previous = CylinderProjectionDiagnosticsSink.Value;
         CylinderProjectionDiagnosticsSink.Value = sink;
         return new CylinderProjectionDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CaptureLoopRoleTorusProjectionDiagnostics(ICollection<LoopRoleTorusProjectionDiagnostic> sink)
+    {
+        var previous = TorusProjectionDiagnosticsSink.Value;
+        TorusProjectionDiagnosticsSink.Value = sink;
+        return new TorusProjectionDiagnosticsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -1216,7 +1224,7 @@ public static class Step242Importer
         {
             SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
             SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(faceEntityId, loops, surface.Cylinder!.Value),
-            SurfaceGeometryKind.Torus => ClassifyAndNormalizeToroidalLoops(loops, surface.Torus!.Value),
+            SurfaceGeometryKind.Torus => ClassifyAndNormalizeToroidalLoops(faceEntityId, loops, surface.Torus!.Value),
             SurfaceGeometryKind.Cone => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 "Multi-loop hole classification is unsupported for surface type 'Cone'.",
                 "Importer.LoopRole.UnsupportedSurfaceForHoles.Cone"),
@@ -1463,21 +1471,68 @@ public static class Step242Importer
     }
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeToroidalLoops(
+        int faceEntityId,
         IReadOnlyList<LoopBuildData> loops,
         TorusSurface torus)
     {
         const string degenerateSource = "Importer.LoopRole.TorusDegenerateProjection";
         const string ambiguousOuterSource = "Importer.LoopRole.TorusAmbiguousOuter";
         const string containmentSource = "Importer.LoopRole.TorusInnerContainmentFailed";
+        const string degenerateMajorSpanSource = "Importer.LoopRole.TorusDegenerateMajorSpan";
+        const string degenerateMinorSpanSource = "Importer.LoopRole.TorusDegenerateMinorSpan";
+        const string repeatedSeamSource = "Importer.LoopRole.TorusRepeatedSeamProjectionCollapse";
+        const string majorSeamUnwrapSource = "Importer.LoopRole.TorusMajorSeamUnwrapFailure";
+        const string minorSeamUnwrapSource = "Importer.LoopRole.TorusMinorSeamUnwrapFailure";
 
         var infos = new List<CylindricalLoopInfo>(loops.Count);
+        var maxUniqueCount = 0;
+        var maxAbsArea = 0d;
+        var degenerateAnalyses = new List<(LoopBuildData Loop, TorusProjectionAnalysis Analysis)>();
         foreach (var loop in loops)
         {
-            var projected = SimplifyClosedPolygon(ProjectLoopToTorus(loop.Samples, torus), ContainmentEps);
+            var projectedRaw = ProjectLoopToTorus(loop.Samples, torus);
+            var uniqueCountRaw = CountUniquePoints(projectedRaw, ContainmentEps);
+            var areaRaw = ComputeSignedArea(projectedRaw);
+            var analysisRaw = AnalyzeToroidalProjection(uniqueCountRaw, areaRaw, projectedRaw);
+
+            var projected = SimplifyClosedPolygon(projectedRaw, ContainmentEps);
             var uniqueCount = CountUniquePoints(projected, ContainmentEps);
             var area = ComputeSignedArea(projected);
+            var analysis = AnalyzeToroidalProjection(uniqueCount, area, projected);
+            maxUniqueCount = System.Math.Max(maxUniqueCount, uniqueCount);
+            maxAbsArea = System.Math.Max(maxAbsArea, double.Abs(area));
+
+            if (analysis.Degeneracy != TorusProjectionDegeneracy.None)
+            {
+                var recovered = TryRecoverToroidalProjectionFromCyclicUnwrap(loop.Samples, torus);
+                if (recovered is not null)
+                {
+                    projected = SimplifyClosedPolygon(recovered.Value.Projected, ContainmentEps);
+                    uniqueCount = recovered.Value.UniquePointCount;
+                    area = recovered.Value.SignedArea;
+                    analysis = recovered.Value.Analysis;
+                }
+            }
+
+            ReportTorusProjectionDiagnostic(new LoopRoleTorusProjectionDiagnostic(
+                FaceEntityId: faceEntityId,
+                LoopId: loop.LoopId.Value,
+                PointCount: projected.Count,
+                UniquePointCount: uniqueCount,
+                SignedArea: area,
+                MajorSpan: analysis.MajorSpan,
+                MinorSpan: analysis.MinorSpan,
+                MajorSeamCrossings: analysis.MajorSeamCrossings,
+                MinorSeamCrossings: analysis.MinorSeamCrossings,
+                RepeatedMajorSeamPointCount: analysis.RepeatedMajorSeamPointCount,
+                RepeatedMinorSeamPointCount: analysis.RepeatedMinorSeamPointCount,
+                Degeneracy: analysis.Degeneracy.ToString(),
+                InitialDegeneracy: analysisRaw.Degeneracy.ToString(),
+                InitialSignedArea: areaRaw));
+
             if (uniqueCount < 3 || double.Abs(area) <= AreaEps)
             {
+                degenerateAnalyses.Add((loop, analysis));
                 continue;
             }
 
@@ -1486,7 +1541,31 @@ public static class Step242Importer
 
         if (infos.Count == 0)
         {
-            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>("Toroidal loop normalization failed: all loop projections were degenerate.", degenerateSource);
+            if (degenerateAnalyses.Count > 0 && degenerateAnalyses.All(d => IsToroidalFullMajorRevolutionConstantMinor(d.Analysis)))
+            {
+                var canonical = degenerateAnalyses
+                    .OrderBy(d => d.Loop.LoopId.Value)
+                    .Select(d => d.Loop)
+                    .First();
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Success([canonical]);
+            }
+
+            var primary = degenerateAnalyses
+                .OrderByDescending(d => (int)d.Analysis.Degeneracy)
+                .ThenBy(d => d.Loop.LoopId.Value)
+                .FirstOrDefault();
+
+            var explicitSource = primary.Analysis.Degeneracy switch
+            {
+                TorusProjectionDegeneracy.DegenerateMajorSpan => degenerateMajorSpanSource,
+                TorusProjectionDegeneracy.DegenerateMinorSpan => degenerateMinorSpanSource,
+                TorusProjectionDegeneracy.RepeatedSeamProjectionCollapse => repeatedSeamSource,
+                TorusProjectionDegeneracy.MajorPeriodSeamUnwrapFailure => majorSeamUnwrapSource,
+                TorusProjectionDegeneracy.MinorPeriodSeamUnwrapFailure => minorSeamUnwrapSource,
+                _ => degenerateSource
+            };
+
+            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>($"Toroidal loop normalization failed: all {loops.Count} loop(s) projected degenerate (maxUnique={maxUniqueCount}, maxAbsArea={maxAbsArea:E6}, faceId={faceEntityId}, primaryLoopId={primary.Loop.LoopId.Value}, primaryDegeneracy={primary.Analysis.Degeneracy}).", explicitSource);
         }
 
         var orderedByArea = infos
@@ -1988,6 +2067,44 @@ public static class Step242Importer
         return uv;
     }
 
+    private static (IReadOnlyList<UvPoint> Projected, int UniquePointCount, double SignedArea, TorusProjectionAnalysis Analysis)? TryRecoverToroidalProjectionFromCyclicUnwrap(
+        IReadOnlyList<Point3D> samples,
+        TorusSurface torus)
+    {
+        if (samples.Count < 4)
+        {
+            return null;
+        }
+
+        var best = default((IReadOnlyList<UvPoint> Projected, int UniquePointCount, double SignedArea, TorusProjectionAnalysis Analysis)?);
+        var bestScore = double.NegativeInfinity;
+        var bodyCount = samples.Count - 1;
+        var loopBody = samples.Take(bodyCount).ToArray();
+
+        for (var start = 0; start < bodyCount; start++)
+        {
+            var rotated = new Point3D[bodyCount];
+            for (var i = 0; i < bodyCount; i++)
+            {
+                rotated[i] = loopBody[(i + start) % bodyCount];
+            }
+
+            var projected = ProjectLoopToTorus(rotated, torus);
+            var unique = CountUniquePoints(projected, ContainmentEps);
+            var area = ComputeSignedArea(projected);
+            var analysis = AnalyzeToroidalProjection(unique, area, projected);
+
+            var score = unique * 1_000_000d + double.Abs(area);
+            if (analysis.Degeneracy == TorusProjectionDegeneracy.None && score > bestScore)
+            {
+                best = (projected, unique, area, analysis);
+                bestScore = score;
+            }
+        }
+
+        return best;
+    }
+
     private static CylinderProjectionAnalysis AnalyzeCylindricalProjection(int uniqueCount, double signedArea, IReadOnlyList<UvPoint> projected)
     {
         if (projected.Count == 0)
@@ -2050,6 +2167,107 @@ public static class Step242Importer
         }
 
         return new CylinderProjectionAnalysis(angularSpan, axialSpan, seamCrossings, repeatedSeamPointCount, degeneracy);
+    }
+
+    private static bool IsToroidalFullMajorRevolutionConstantMinor(TorusProjectionAnalysis analysis)
+    {
+        var almostFullMajorTurn = analysis.MajorSpan >= (2d * double.Pi) - 1e-3d;
+        var nearConstantMinor = analysis.MinorSpan <= ContainmentEps;
+        return almostFullMajorTurn
+            && nearConstantMinor
+            && analysis.Degeneracy == TorusProjectionDegeneracy.RepeatedSeamProjectionCollapse;
+    }
+
+    private static TorusProjectionAnalysis AnalyzeToroidalProjection(int uniqueCount, double signedArea, IReadOnlyList<UvPoint> projected)
+    {
+        if (projected.Count == 0)
+        {
+            return new TorusProjectionAnalysis(0d, 0d, 0, 0, 0, 0, TorusProjectionDegeneracy.InsufficientUniquePoints);
+        }
+
+        var minU = projected.Min(p => p.X);
+        var maxU = projected.Max(p => p.X);
+        var minV = projected.Min(p => p.Y);
+        var maxV = projected.Max(p => p.Y);
+        var majorSpan = maxU - minU;
+        var minorSpan = maxV - minV;
+        var majorSeamCrossings = 0;
+        var minorSeamCrossings = 0;
+        var repeatedMajorSeamPointCount = 0;
+        var repeatedMinorSeamPointCount = 0;
+
+        for (var i = 1; i < projected.Count; i++)
+        {
+            var deltaU = projected[i].X - projected[i - 1].X;
+            var deltaV = projected[i].Y - projected[i - 1].Y;
+            if (double.Abs(deltaU) > double.Pi)
+            {
+                majorSeamCrossings++;
+            }
+
+            if (double.Abs(deltaV) > double.Pi)
+            {
+                minorSeamCrossings++;
+            }
+
+            var aU = NormalizeToZeroTwoPi(projected[i - 1].X);
+            var bU = NormalizeToZeroTwoPi(projected[i].X);
+            var nearMajorSeam = (aU <= 1e-6d || aU >= (2d * double.Pi) - 1e-6d) && (bU <= 1e-6d || bU >= (2d * double.Pi) - 1e-6d);
+            if (nearMajorSeam && double.Abs(projected[i].Y - projected[i - 1].Y) <= ContainmentEps)
+            {
+                repeatedMajorSeamPointCount++;
+            }
+
+            var aV = NormalizeToZeroTwoPi(projected[i - 1].Y);
+            var bV = NormalizeToZeroTwoPi(projected[i].Y);
+            var nearMinorSeam = (aV <= 1e-6d || aV >= (2d * double.Pi) - 1e-6d) && (bV <= 1e-6d || bV >= (2d * double.Pi) - 1e-6d);
+            if (nearMinorSeam && double.Abs(projected[i].X - projected[i - 1].X) <= ContainmentEps)
+            {
+                repeatedMinorSeamPointCount++;
+            }
+        }
+
+        var degeneracy = TorusProjectionDegeneracy.None;
+        if (uniqueCount < 3)
+        {
+            degeneracy = TorusProjectionDegeneracy.InsufficientUniquePoints;
+        }
+        else if (double.Abs(signedArea) <= AreaEps)
+        {
+            if ((repeatedMajorSeamPointCount + repeatedMinorSeamPointCount) > 0)
+            {
+                degeneracy = TorusProjectionDegeneracy.RepeatedSeamProjectionCollapse;
+            }
+            else if (majorSpan <= 1e-6d)
+            {
+                degeneracy = TorusProjectionDegeneracy.DegenerateMajorSpan;
+            }
+            else if (minorSpan <= 1e-6d)
+            {
+                degeneracy = TorusProjectionDegeneracy.DegenerateMinorSpan;
+            }
+            else if (majorSeamCrossings > 0 && minorSeamCrossings == 0)
+            {
+                degeneracy = TorusProjectionDegeneracy.MajorPeriodSeamUnwrapFailure;
+            }
+            else if (minorSeamCrossings > 0 && majorSeamCrossings == 0)
+            {
+                degeneracy = TorusProjectionDegeneracy.MinorPeriodSeamUnwrapFailure;
+            }
+            else
+            {
+                degeneracy = TorusProjectionDegeneracy.NearZeroArea;
+            }
+        }
+
+        return new TorusProjectionAnalysis(
+            majorSpan,
+            minorSpan,
+            majorSeamCrossings,
+            minorSeamCrossings,
+            repeatedMajorSeamPointCount,
+            repeatedMinorSeamPointCount,
+            degeneracy);
     }
 
     private static IReadOnlyList<UvPoint> AlignPolygonToReference(IReadOnlyList<UvPoint> polygon, double currentX, double referenceX)
@@ -2314,6 +2532,12 @@ public static class Step242Importer
         sink?.Add(diagnostic);
     }
 
+    private static void ReportTorusProjectionDiagnostic(LoopRoleTorusProjectionDiagnostic diagnostic)
+    {
+        var sink = TorusProjectionDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
     private static (double Gap3d, double Gap2d, LoopCoedgeGapClassification Classification) ClassifyCoedgeGap(
         Point3D previousEnd,
         Point3D nextStart,
@@ -2401,6 +2625,22 @@ public static class Step242Importer
         int RepeatedSeamPointCount,
         string Degeneracy);
 
+    public sealed record LoopRoleTorusProjectionDiagnostic(
+        int FaceEntityId,
+        int LoopId,
+        int PointCount,
+        int UniquePointCount,
+        double SignedArea,
+        double MajorSpan,
+        double MinorSpan,
+        int MajorSeamCrossings,
+        int MinorSeamCrossings,
+        int RepeatedMajorSeamPointCount,
+        int RepeatedMinorSeamPointCount,
+        string Degeneracy,
+        string InitialDegeneracy,
+        double InitialSignedArea);
+
     private enum CylinderProjectionDegeneracy
     {
         None = 0,
@@ -2418,6 +2658,27 @@ public static class Step242Importer
         int SeamCrossings,
         int RepeatedSeamPointCount,
         CylinderProjectionDegeneracy Degeneracy);
+
+    private enum TorusProjectionDegeneracy
+    {
+        None = 0,
+        InsufficientUniquePoints = 1,
+        NearZeroArea = 2,
+        DegenerateMajorSpan = 3,
+        DegenerateMinorSpan = 4,
+        RepeatedSeamProjectionCollapse = 5,
+        MajorPeriodSeamUnwrapFailure = 6,
+        MinorPeriodSeamUnwrapFailure = 7
+    }
+
+    private sealed record TorusProjectionAnalysis(
+        double MajorSpan,
+        double MinorSpan,
+        int MajorSeamCrossings,
+        int MinorSeamCrossings,
+        int RepeatedMajorSeamPointCount,
+        int RepeatedMinorSeamPointCount,
+        TorusProjectionDegeneracy Degeneracy);
 
     private sealed class CircularSamplingDiagnosticsScope(ICollection<LoopRoleCircularSamplingDiagnostic>? previous) : IDisposable
     {
@@ -2440,6 +2701,14 @@ public static class Step242Importer
         public void Dispose()
         {
             CylinderProjectionDiagnosticsSink.Value = previous;
+        }
+    }
+
+    private sealed class TorusProjectionDiagnosticsScope(ICollection<LoopRoleTorusProjectionDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            TorusProjectionDiagnosticsSink.Value = previous;
         }
     }
 

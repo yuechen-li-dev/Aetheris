@@ -67,6 +67,20 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
     }
 
     [Theory]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp")]
+    public void Step242_TorusLoopRole_ProjectionDiagnostics_AreDeterministic_AndExplicit(string relativePath)
+    {
+        var first = CaptureTorusProjectionDiagnostics(relativePath);
+        var second = CaptureTorusProjectionDiagnostics(relativePath);
+
+        Assert.NotEmpty(first);
+        Assert.Equal(first, second);
+        Assert.Contains(first, d => !string.Equals(d.InitialDegeneracy, "None", StringComparison.Ordinal));
+        Assert.Contains(first, d => string.Equals(d.Degeneracy, "RepeatedSeamProjectionCollapse", StringComparison.Ordinal));
+        Assert.Contains(first, d => d.MajorSpan >= (2d * System.Math.PI) - 1e-3d && d.MinorSpan <= 1e-8d);
+    }
+
+    [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
@@ -153,6 +167,17 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         var diagnostics = new List<Step242Importer.LoopRoleCylinderProjectionDiagnostic>();
 
         using var captureScope = Step242Importer.CaptureLoopRoleCylinderProjectionDiagnostics(diagnostics);
+        Step242Importer.ImportBody(text);
+        return diagnostics;
+    }
+
+    private static IReadOnlyList<Step242Importer.LoopRoleTorusProjectionDiagnostic> CaptureTorusProjectionDiagnostics(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var diagnostics = new List<Step242Importer.LoopRoleTorusProjectionDiagnostic>();
+
+        using var captureScope = Step242Importer.CaptureLoopRoleTorusProjectionDiagnostics(diagnostics);
         Step242Importer.ImportBody(text);
         return diagnostics;
     }

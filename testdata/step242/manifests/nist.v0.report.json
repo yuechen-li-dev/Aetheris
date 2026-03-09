@@ -196,18 +196,18 @@
     "path": "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
     "sizeBytes": 4658022,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Topology.GraphValidator",
-      "messagePrefix": "Loop 73 references missing child ID CoedgeId { Value = 342, IsValid = True }."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 4 planar loop triangulation failed because the polygon is not simple."
     },
-    "diagnosticCount": 20,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 396,
+      "edges": 616,
+      "faces": 247
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -268,18 +268,18 @@
     "path": "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
     "sizeBytes": 1920822,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Topology.GraphValidator",
-      "messagePrefix": "Loop 8 references missing child ID CoedgeId { Value = 38, IsValid = True }."
+      "code": "InvalidArgument",
+      "source": "Viewer.Tessellation.CylinderTrimDegenerate",
+      "messagePrefix": "Cylindrical face tessellation derived a degenerate trim patch."
     },
-    "diagnosticCount": 6,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 72,
+      "edges": 104,
+      "faces": 42
     },
     "tessellationCounts": {
       "facePatches": 0,

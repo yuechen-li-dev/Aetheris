@@ -386,7 +386,6 @@ public static class Step242Importer
                     hasDisconnectedCoedgeGap = true;
                 }
 
-                builder.AddLoop(new Loop(loopId, coedgeIds));
                 loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap));
             }
 
@@ -398,6 +397,7 @@ public static class Step242Importer
 
             foreach (var loop in classifyResult.Value)
             {
+                builder.AddLoop(new Loop(loop.LoopId, loop.Coedges.Select(c => c.Id).ToList()));
                 coedges.AddRange(loop.Coedges);
             }
 

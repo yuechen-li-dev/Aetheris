@@ -53,9 +53,9 @@
       "path": "testdata/step242/generated/v0-expectedfail/cylinder_hole_unsupported.step",
       "group": "expectedFail",
       "expectedFirstDiagnostic": {
-        "code": "ValidationFailed",
-        "source": "Topology.GraphValidator",
-        "messagePrefix": "Loop "
+        "code": "InvalidArgument",
+        "source": "Viewer.Tessellation.CylinderTrimDegenerate",
+        "messagePrefix": "Cylindrical face tessellation derived a degenerate trim patch."
       }
     },
     {

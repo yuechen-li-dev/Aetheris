@@ -80,14 +80,22 @@ public sealed class Step242HoleSemanticsTests
     }
 
     [Fact]
-    public void ImportBody_MultiLoopCylindricalFace_ReturnsDeterministicCylinderMappingFailure()
+    public void ImportBody_MultiLoopCylindricalFace_Imports_ThenFailsDeterministicallyAtCylinderTrimDegenerateTessellation()
     {
         var import = Step242Importer.ImportBody(Step242FixtureCorpus.CylindricalFaceWithTwoLoops);
 
-        Assert.False(import.IsSuccess);
-        var diagnostic = Assert.Single(import.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.ValidationFailed, diagnostic.Code);
-        Assert.Equal("Topology.GraphValidator", diagnostic.Source);
-        Assert.StartsWith("Loop ", diagnostic.Message, StringComparison.Ordinal);
+        Assert.True(import.IsSuccess);
+        Assert.Empty(import.Diagnostics);
+
+        var body = import.Value;
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        Assert.True(validation.IsSuccess);
+
+        var tessellation = BrepDisplayTessellator.Tessellate(body);
+        Assert.False(tessellation.IsSuccess);
+        var diagnostic = Assert.Single(tessellation.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.InvalidArgument, diagnostic.Code);
+        Assert.Equal("Viewer.Tessellation.CylinderTrimDegenerate", diagnostic.Source);
+        Assert.StartsWith("Cylindrical face tessellation derived a degenerate trim patch.", diagnostic.Message, StringComparison.Ordinal);
     }
 }

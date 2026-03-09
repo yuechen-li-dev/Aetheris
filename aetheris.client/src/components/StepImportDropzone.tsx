@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { z } from 'zod';
+import { STEP_UPLOAD_LIMIT_BYTES, STEP_UPLOAD_LIMIT_MB, formatMegabytes } from '../config/stepUpload';
 
 type StepSchemaFamily = 'AP203' | 'AP214' | 'AP242' | 'Unknown';
 type StepCompatibility = 'Supported' | 'Experimental' | 'Not verified';
@@ -46,6 +47,13 @@ const stepFileSelectionSchema = z
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 message: 'File is empty.',
+            });
+        }
+
+        if (file.size > STEP_UPLOAD_LIMIT_BYTES) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Selected STEP file is too large (${formatMegabytes(file.size)}). Limit is ${STEP_UPLOAD_LIMIT_MB} MB.`,
             });
         }
     });

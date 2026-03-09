@@ -16,13 +16,30 @@ public static class Step242Importer
     private const double PointOnSurfaceEps = 1e-5d;
     private const double AngleUnwrapEps = 1e-8d;
     private const double ContainmentEps = 1e-8d;
+    private const double LoopSampleGapAuditThreshold = 1e-3d;
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<LoopRoleBsplineSamplingDiagnostic>?> BsplineSamplingDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<LoopRoleCoedgeGapDiagnostic>?> CoedgeGapDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
         var previous = CircularSamplingDiagnosticsSink.Value;
         CircularSamplingDiagnosticsSink.Value = sink;
         return new CircularSamplingDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CaptureLoopRoleBsplineSamplingDiagnostics(ICollection<LoopRoleBsplineSamplingDiagnostic> sink)
+    {
+        var previous = BsplineSamplingDiagnosticsSink.Value;
+        BsplineSamplingDiagnosticsSink.Value = sink;
+        return new BsplineSamplingDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CaptureLoopRoleCoedgeGapDiagnostics(ICollection<LoopRoleCoedgeGapDiagnostic> sink)
+    {
+        var previous = CoedgeGapDiagnosticsSink.Value;
+        CoedgeGapDiagnosticsSink.Value = sink;
+        return new CoedgeGapDiagnosticsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -326,7 +343,13 @@ public static class Step242Importer
                         return KernelResult<BrepBody>.Failure(sampleResult.Diagnostics);
                     }
 
-                    AppendLoopSamples(loopSamples, sampleResult.Value);
+                    AppendLoopSamples(
+                        loopSamples,
+                        sampleResult.Value,
+                        faceEntity.Id,
+                        loopId.Value,
+                        coedge.Id.Value,
+                        edgeIdResult.Value.Value);
                 }
 
                 builder.AddLoop(new Loop(loopId, coedgeIds));
@@ -1691,8 +1714,31 @@ public static class Step242Importer
         return System.Math.Max(AreaEps, extentArea * 1e-8d);
     }
 
-    private static void AppendLoopSamples(ICollection<Point3D> loopSamples, IReadOnlyList<Point3D> edgeSamples)
+    private static void AppendLoopSamples(
+        ICollection<Point3D> loopSamples,
+        IReadOnlyList<Point3D> edgeSamples,
+        int faceEntityId,
+        int loopId,
+        int coedgeId,
+        int edgeId)
     {
+        if (loopSamples.Count > 0 && edgeSamples.Count > 0)
+        {
+            var previousEndpoint = loopSamples.Last();
+            var currentStart = edgeSamples[0];
+            var gap = (previousEndpoint - currentStart).Length;
+            if (gap > LoopSampleGapAuditThreshold)
+            {
+                ReportCoedgeGapDiagnostic(new LoopRoleCoedgeGapDiagnostic(
+                    FaceEntityId: faceEntityId,
+                    LoopId: loopId,
+                    CoedgeId: coedgeId,
+                    EdgeId: edgeId,
+                    GapLength: gap,
+                    Threshold: LoopSampleGapAuditThreshold));
+            }
+        }
+
         foreach (var point in edgeSamples)
         {
             if (loopSamples.Count > 0)
@@ -1753,8 +1799,19 @@ public static class Step242Importer
             case CurveGeometryKind.BSpline3:
                 var spline = curve.BSpline3!.Value;
                 var splineTrim = edgeBinding.TrimInterval ?? new ParameterInterval(spline.DomainStart, spline.DomainEnd);
-                var splineMid = splineTrim.Start + ((splineTrim.End - splineTrim.Start) * 0.5d);
-                points = [spline.Evaluate(splineTrim.Start), spline.Evaluate(splineMid), spline.Evaluate(splineTrim.End)];
+                var splineSpan = splineTrim.End - splineTrim.Start;
+                var sampleCount = ComputeAdaptiveBsplineSampleCount(splineSpan);
+                points = SampleBsplineTrim(spline, splineTrim, sampleCount);
+                ReportBsplineSamplingDiagnostic(new LoopRoleBsplineSamplingDiagnostic(
+                    FaceEntityId: faceEntityId,
+                    LoopId: loopId,
+                    CoedgeId: coedgeId,
+                    EdgeId: edgeId,
+                    TrimStart: splineTrim.Start,
+                    TrimEnd: splineTrim.End,
+                    TrimSpan: splineSpan,
+                    LegacyPointCount: 3,
+                    AdaptivePointCount: points.Count));
                 break;
             default:
                 points = [];
@@ -1789,9 +1846,47 @@ public static class Step242Importer
         return points;
     }
 
+    private static int ComputeAdaptiveBsplineSampleCount(double span)
+    {
+        var normalizedSpan = double.Abs(span);
+        var baseCount = 16;
+        var spanDrivenCount = (int)double.Ceiling(normalizedSpan * 8d) + 1;
+        return System.Math.Max(baseCount, spanDrivenCount);
+    }
+
+    private static List<Point3D> SampleBsplineTrim(BSpline3Curve spline, ParameterInterval trim, int sampleCount)
+    {
+        var points = new List<Point3D>(sampleCount);
+        if (sampleCount <= 1)
+        {
+            points.Add(spline.Evaluate(trim.Start));
+            return points;
+        }
+
+        var step = (trim.End - trim.Start) / (sampleCount - 1);
+        for (var i = 0; i < sampleCount; i++)
+        {
+            points.Add(spline.Evaluate(trim.Start + (step * i)));
+        }
+
+        return points;
+    }
+
     private static void ReportCircularSamplingDiagnostic(LoopRoleCircularSamplingDiagnostic diagnostic)
     {
         var sink = CircularSamplingDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
+    private static void ReportBsplineSamplingDiagnostic(LoopRoleBsplineSamplingDiagnostic diagnostic)
+    {
+        var sink = BsplineSamplingDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
+    private static void ReportCoedgeGapDiagnostic(LoopRoleCoedgeGapDiagnostic diagnostic)
+    {
+        var sink = CoedgeGapDiagnosticsSink.Value;
         sink?.Add(diagnostic);
     }
 
@@ -1807,11 +1902,46 @@ public static class Step242Importer
         int LegacyPointCount,
         int AdaptivePointCount);
 
+    public sealed record LoopRoleBsplineSamplingDiagnostic(
+        int FaceEntityId,
+        int LoopId,
+        int CoedgeId,
+        int EdgeId,
+        double TrimStart,
+        double TrimEnd,
+        double TrimSpan,
+        int LegacyPointCount,
+        int AdaptivePointCount);
+
+    public sealed record LoopRoleCoedgeGapDiagnostic(
+        int FaceEntityId,
+        int LoopId,
+        int CoedgeId,
+        int EdgeId,
+        double GapLength,
+        double Threshold);
+
     private sealed class CircularSamplingDiagnosticsScope(ICollection<LoopRoleCircularSamplingDiagnostic>? previous) : IDisposable
     {
         public void Dispose()
         {
             CircularSamplingDiagnosticsSink.Value = previous;
+        }
+    }
+
+    private sealed class BsplineSamplingDiagnosticsScope(ICollection<LoopRoleBsplineSamplingDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            BsplineSamplingDiagnosticsSink.Value = previous;
+        }
+    }
+
+    private sealed class CoedgeGapDiagnosticsScope(ICollection<LoopRoleCoedgeGapDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            CoedgeGapDiagnosticsSink.Value = previous;
         }
     }
 

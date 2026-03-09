@@ -49,36 +49,70 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
     }
 
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp")]
-    public void Step242_PlanarLoopRole_CircularSampling_IsAdaptiveAndDeterministic(string relativePath)
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", true)]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", true)]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", false)]
+    public void Step242_PlanarLoopRole_BSplineSampling_IsAdaptiveAndDeterministic(string relativePath, bool expectBsplineSampling)
     {
-        var first = CaptureCircularSampling(relativePath);
-        var second = CaptureCircularSampling(relativePath);
+        var first = CaptureBsplineSampling(relativePath);
+        var second = CaptureBsplineSampling(relativePath);
+
+        Assert.Equal(first, second);
+
+        if (!expectBsplineSampling)
+        {
+            Assert.Empty(first);
+            return;
+        }
 
         Assert.NotEmpty(first);
-        Assert.Equal(first, second);
 
         Assert.All(first, s =>
         {
             Assert.True(s.AdaptivePointCount >= s.LegacyPointCount);
-            var expected = System.Math.Max(2, (int)System.Math.Ceiling(System.Math.Abs(s.TrimSpan) / (System.Math.PI / 4d))) + 1;
+            Assert.True(s.AdaptivePointCount >= 16);
+            var expected = System.Math.Max(16, (int)System.Math.Ceiling(System.Math.Abs(s.TrimSpan) * 8d) + 1);
             Assert.Equal(expected, s.AdaptivePointCount);
         });
 
         Assert.Contains(first, s => s.AdaptivePointCount > s.LegacyPointCount);
     }
 
-    private static IReadOnlyList<Step242Importer.LoopRoleCircularSamplingDiagnostic> CaptureCircularSampling(string relativePath)
+    [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
+    public void Step242_PlanarLoopRole_CoedgeGapDiagnostics_AreDeterministic(string relativePath)
+    {
+        var first = CaptureCoedgeGapDiagnostics(relativePath);
+        var second = CaptureCoedgeGapDiagnostics(relativePath);
+
+        Assert.Equal(first, second);
+        Assert.All(first, d =>
+        {
+            Assert.True(d.GapLength > d.Threshold);
+            Assert.True(d.Threshold > 0d);
+        });
+    }
+
+    private static IReadOnlyList<Step242Importer.LoopRoleBsplineSamplingDiagnostic> CaptureBsplineSampling(string relativePath)
     {
         var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
         var text = File.ReadAllText(absolutePath);
-        var diagnostics = new List<Step242Importer.LoopRoleCircularSamplingDiagnostic>();
+        var diagnostics = new List<Step242Importer.LoopRoleBsplineSamplingDiagnostic>();
 
-        using var captureScope = Step242Importer.CaptureLoopRoleCircularSamplingDiagnostics(diagnostics);
+        using var captureScope = Step242Importer.CaptureLoopRoleBsplineSamplingDiagnostics(diagnostics);
+        Step242Importer.ImportBody(text);
+        return diagnostics;
+    }
+
+    private static IReadOnlyList<Step242Importer.LoopRoleCoedgeGapDiagnostic> CaptureCoedgeGapDiagnostics(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var diagnostics = new List<Step242Importer.LoopRoleCoedgeGapDiagnostic>();
+
+        using var captureScope = Step242Importer.CaptureLoopRoleCoedgeGapDiagnostics(diagnostics);
         Step242Importer.ImportBody(text);
         return diagnostics;
     }

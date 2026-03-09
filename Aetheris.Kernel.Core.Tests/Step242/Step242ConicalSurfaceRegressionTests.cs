@@ -55,8 +55,15 @@ public sealed class Step242ConicalSurfaceRegressionTests
 
         Assert.DoesNotContain("CONICAL_SURFACE radius", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.Equal(expectedLayer, first.FirstFailureLayer);
-        Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
-        Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        if (!string.IsNullOrEmpty(expectedSource))
+        {
+            Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
+        }
+
+        if (!string.IsNullOrEmpty(expectedMessagePrefix))
+        {
+            Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        }
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
@@ -66,9 +73,9 @@ public sealed class Step242ConicalSurfaceRegressionTests
     [Theory]
     [InlineData(
         "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
-        "importer-topology",
-        "Importer.EntityFamily",
-        "EDGE_CURVE geometry 'ELLIPSE' is unsupported.")]
+        "tessellator",
+        "Viewer.Tessellation.CurvedTopologyUnsupported",
+        "Face 1 curved tessellation expected mirrored")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
         "importer-topology",
@@ -94,8 +101,15 @@ public sealed class Step242ConicalSurfaceRegressionTests
         var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.Equal(expectedLayer, first.FirstFailureLayer);
-        Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
-        Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        if (!string.IsNullOrEmpty(expectedSource))
+        {
+            Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
+        }
+
+        if (!string.IsNullOrEmpty(expectedMessagePrefix))
+        {
+            Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        }
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);

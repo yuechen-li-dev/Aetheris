@@ -261,6 +261,32 @@ public sealed class Step242ImporterTests
 
 
     [Fact]
+    public void Step242_SubsetDecoder_ReadEllipseCurve_DecodesPlacementAndRadii()
+    {
+        const string text = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n"
+            + "#10=ELLIPSE('',#20,6.,4.);\n"
+            + "#20=AXIS2_PLACEMENT_3D('',#21,#22,#23);\n"
+            + "#21=CARTESIAN_POINT('',(1.,2.,3.));\n"
+            + "#22=DIRECTION('',(0.,0.,1.));\n"
+            + "#23=DIRECTION('',(1.,0.,0.));\n"
+            + "ENDSEC;\nEND-ISO-10303-21;";
+
+        var parse = Step242SubsetParser.Parse(text);
+        Assert.True(parse.IsSuccess);
+
+        var ellipseEntityResult = parse.Value.TryGetEntity(10, "ELLIPSE");
+        Assert.True(ellipseEntityResult.IsSuccess);
+
+        var ellipse = Step242SubsetDecoder.ReadEllipseCurve(parse.Value, ellipseEntityResult.Value);
+        Assert.True(ellipse.IsSuccess);
+
+        Assert.Equal(6d, ellipse.Value.MajorRadius, 9);
+        Assert.Equal(4d, ellipse.Value.MinorRadius, 9);
+        Assert.True(((ellipse.Value.Evaluate(0d) - new Point3D(7d, 2d, 3d)).LengthSquared) < 1e-12d);
+        Assert.True(((ellipse.Value.Evaluate(double.Pi / 2d) - new Point3D(1d, 6d, 3d)).LengthSquared) < 1e-12d);
+    }
+
+    [Fact]
     public void Step242_CurveSampler_Circle3_SamplesArcDeterministically()
     {
         var circle = new Circle3Curve(Point3D.Origin, Direction3D.Create(new Vector3D(0d, 0d, 1d)), 2d, Direction3D.Create(new Vector3D(1d, 0d, 0d)));

@@ -28,18 +28,18 @@
     "path": "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
     "sizeBytes": 1958442,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Importer.EntityFamily",
-      "messagePrefix": "EDGE_CURVE geometry \u0027ELLIPSE\u0027 is unsupported."
+      "source": "Viewer.Tessellation.CurvedTopologyUnsupported",
+      "messagePrefix": "Face 1 curved tessellation expected mirrored line uses for this cone/revolved topology. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 870,
+      "edges": 1410,
+      "faces": 635
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -294,9 +294,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Importer.EntityFamily",
-      "messagePrefix": "EDGE_CURVE geometry \u0027ELLIPSE\u0027 is unsupported."
+      "code": "ValidationFailed",
+      "source": "Importer.LoopRole.CylinderNonNormalizableDegenerateProjection",
+      "messagePrefix": "Cylinder loop normalization failed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

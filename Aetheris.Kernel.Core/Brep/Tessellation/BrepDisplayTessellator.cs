@@ -1133,6 +1133,14 @@ public static class BrepDisplayTessellator
                     CurveSampler.SampleBSpline(spline, interval),
                     IsClosed: false));
 
+            case CurveGeometryKind.Ellipse3:
+                var ellipse = curve.Ellipse3!.Value;
+                var segments = ComputeEllipseSegmentCount(interval.Start, interval.End);
+                return KernelResult<DisplayEdgePolyline>.Success(new DisplayEdgePolyline(
+                    edgeId,
+                    SampleEllipseCurve(ellipse, interval, segments),
+                    IsClosed: false));
+
             default:
                 return KernelResult<DisplayEdgePolyline>.Failure([CreateNotImplemented($"Edge {edgeId.Value} has unsupported curve kind '{curve.Kind}'.")]);
         }
@@ -1219,6 +1227,7 @@ public static class BrepDisplayTessellator
             CurveGeometryKind.Line3 => KernelResult<Point3D>.Success(curve.Line3!.Value.Evaluate(parameter)),
             CurveGeometryKind.Circle3 => KernelResult<Point3D>.Success(curve.Circle3!.Value.Evaluate(parameter)),
             CurveGeometryKind.BSpline3 => KernelResult<Point3D>.Success(curve.BSpline3!.Value.Evaluate(parameter)),
+            CurveGeometryKind.Ellipse3 => KernelResult<Point3D>.Success(curve.Ellipse3!.Value.Evaluate(parameter)),
             _ => KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} endpoint evaluation does not support curve kind '{curve.UnsupportedKind ?? curve.Kind.ToString()}'.", PlanarCurveFlatteningUnsupportedSource)]),
         };
     }
@@ -1240,6 +1249,26 @@ public static class BrepDisplayTessellator
         }
 
         return KernelResult<(Point3D, Point3D)>.Success(reversed ? (end, start) : (start, end));
+    }
+
+    private static IReadOnlyList<Point3D> SampleEllipseCurve(Ellipse3Curve ellipse, ParameterInterval trim, int segmentCount)
+    {
+        var points = new List<Point3D>(segmentCount + 1);
+        var step = (trim.End - trim.Start) / segmentCount;
+        for (var i = 0; i <= segmentCount; i++)
+        {
+            points.Add(ellipse.Evaluate(trim.Start + (step * i)));
+        }
+
+        return points;
+    }
+
+    private static int ComputeEllipseSegmentCount(double start, double end)
+    {
+        const double maxSegmentAngle = double.Pi / 4d;
+        var span = double.Abs(end - start);
+        var segmentCount = (int)double.Ceiling(span / maxSegmentAngle);
+        return System.Math.Max(2, segmentCount);
     }
 
     private static int CalculateSegmentCount(double angleSpan, double radius, DisplayTessellationOptions options)

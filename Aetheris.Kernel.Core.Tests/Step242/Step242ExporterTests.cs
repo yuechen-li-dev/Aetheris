@@ -128,6 +128,34 @@ END-ISO-10303-21;";
         var export = Step242Exporter.ExportBody(import.Value);
         Assert.True(export.IsSuccess);
         Assert.Contains("CONICAL_SURFACE", export.Value, StringComparison.Ordinal);
+
+        var semiAngles = ExtractConicalSurfaceSemiAngles(export.Value);
+        var semiAngle = Assert.Single(semiAngles);
+        Assert.Equal(45d, semiAngle, 9);
+    }
+
+    [Fact]
+    public void ExportBody_Ctc01RoundTrip_ConicalSurfaceSemiAngle_StaysInExpectedDegreeConvention()
+    {
+        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_01_asme1_ap242-e1.stp");
+        var source = File.ReadAllText(fixturePath);
+
+        var import = Step242Importer.ImportBody(source);
+        Assert.True(import.IsSuccess);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+
+        var sourceSemiAngles = ExtractConicalSurfaceSemiAngles(source);
+        var exportedSemiAngles = ExtractConicalSurfaceSemiAngles(export.Value);
+
+        Assert.Equal(sourceSemiAngles.Count, exportedSemiAngles.Count);
+        Assert.NotEmpty(exportedSemiAngles);
+
+        for (var i = 0; i < sourceSemiAngles.Count; i++)
+        {
+            Assert.Equal(sourceSemiAngles[i], exportedSemiAngles[i], 9);
+        }
     }
 
     [Fact]
@@ -264,6 +292,35 @@ END-ISO-10303-21;";
         }
     }
 
+
+    private static IReadOnlyList<double> ExtractConicalSurfaceSemiAngles(string stepText)
+    {
+        var semiAngles = new List<double>();
+        foreach (var rawLine in stepText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!rawLine.Contains("CONICAL_SURFACE", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var open = rawLine.IndexOf('(');
+            var close = rawLine.LastIndexOf(')');
+            if (open < 0 || close <= open)
+            {
+                continue;
+            }
+
+            var args = rawLine[(open + 1)..close].Split(',', StringSplitOptions.TrimEntries);
+            if (args.Length < 4)
+            {
+                continue;
+            }
+
+            semiAngles.Add(double.Parse(args[3], CultureInfo.InvariantCulture));
+        }
+
+        return semiAngles;
+    }
     private static Dictionary<int, string> ParseEntityMap(string stepText)
     {
         var entities = new Dictionary<int, string>();

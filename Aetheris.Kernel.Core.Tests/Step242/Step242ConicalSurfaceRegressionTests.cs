@@ -31,13 +31,14 @@ public sealed class Step242ConicalSurfaceRegressionTests
     }
 
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "exporter", "Face:1", "Unsupported surface kind 'Cylinder'. M22 supports planar faces only.")]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "exporter", "Face:1", "")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "exporter", "Edge:87", "Unsupported curve kind 'BSpline3'.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "exporter", "Edge:5", "Unsupported curve kind 'BSpline3'.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp", "", "", "")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "tessellator", "", "Face 1 curved tessellation supports repeated cone/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "tessellator", "", "Face 2 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp", "tessellator", "", "Face 73 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "tessellator", "", "Face 14 curved tessellation supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed")]
-    [InlineData("testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp", "exporter", "Edge:1", "Unsupported curve kind 'Circle3'. M22 supports line edges only.")]
+    [InlineData("testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp", "", "", "")]
     public void Step242_NistCurvedRevolvedTargets_AdvancePastOldTopologyFamily_AndReportDeterministicNextBlocker(
         string relativePath,
         string expectedLayer,
@@ -60,7 +61,13 @@ public sealed class Step242ConicalSurfaceRegressionTests
         Assert.DoesNotContain("CONICAL_SURFACE radius", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("expected mirrored line uses for this cone/revolved topology", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("supports four-coedge torus/revolved loop layouts", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
-        Assert.Equal(expectedLayer, first.FirstFailureLayer);
+        Assert.DoesNotContain("Unsupported surface kind 'Cylinder'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unsupported surface kind 'Cone'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unsupported curve kind 'Circle3'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        if (!string.IsNullOrEmpty(expectedLayer))
+        {
+            Assert.Equal(expectedLayer, first.FirstFailureLayer);
+        }
         if (!string.IsNullOrEmpty(expectedSource))
         {
             Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
@@ -87,8 +94,8 @@ public sealed class Step242ConicalSurfaceRegressionTests
     [InlineData(
         "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
         "exporter",
-        "Face:1",
-        "")]
+        "Edge:5",
+        "Unsupported curve kind 'BSpline3'.")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
         "importer-topology",
@@ -113,7 +120,10 @@ public sealed class Step242ConicalSurfaceRegressionTests
         var first = Step242CorpusManifestRunner.RunOne(entry);
         var second = Step242CorpusManifestRunner.RunOne(entry);
 
-        Assert.Equal(expectedLayer, first.FirstFailureLayer);
+        if (!string.IsNullOrEmpty(expectedLayer))
+        {
+            Assert.Equal(expectedLayer, first.FirstFailureLayer);
+        }
         if (!string.IsNullOrEmpty(expectedSource))
         {
             Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
@@ -134,4 +144,5 @@ public sealed class Step242ConicalSurfaceRegressionTests
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
+
 }

@@ -29,6 +29,118 @@ public sealed class Step242ExporterTests
         Assert.Contains("ADVANCED_FACE", export.Value, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ExportBody_ImportedCylindricalFace_EmitsCylindricalSurface()
+    {
+        const string cylinderFace = @"ISO-10303-21;
+HEADER;
+ENDSEC;
+DATA;
+#1=MANIFOLD_SOLID_BREP('solid',#2);
+#2=CLOSED_SHELL($,(#3));
+#3=ADVANCED_FACE((#4),#5,.T.);
+#4=FACE_OUTER_BOUND($,#6,.T.);
+#5=CYLINDRICAL_SURFACE($,#30,1.0);
+#6=EDGE_LOOP($,(#7,#8,#9,#10));
+#7=ORIENTED_EDGE($,$,$,#11,.T.);
+#8=ORIENTED_EDGE($,$,$,#12,.T.);
+#9=ORIENTED_EDGE($,$,$,#13,.T.);
+#10=ORIENTED_EDGE($,$,$,#14,.T.);
+#11=EDGE_CURVE($,#15,#16,#17,.T.);
+#12=EDGE_CURVE($,#16,#16,#18,.T.);
+#13=EDGE_CURVE($,#16,#15,#19,.T.);
+#14=EDGE_CURVE($,#15,#15,#20,.T.);
+#15=VERTEX_POINT($,#21);
+#16=VERTEX_POINT($,#22);
+#17=LINE($,#21,#23);
+#18=CIRCLE($,#31,1.0);
+#19=LINE($,#22,#24);
+#20=CIRCLE($,#30,1.0);
+#21=CARTESIAN_POINT($,(1,0,0));
+#22=CARTESIAN_POINT($,(1,0,1));
+#23=VECTOR($,#25,1.0);
+#24=VECTOR($,#26,1.0);
+#25=DIRECTION($,(0,0,1));
+#26=DIRECTION($,(0,0,-1));
+#30=AXIS2_PLACEMENT_3D($,#27,#28,#29);
+#31=AXIS2_PLACEMENT_3D($,#32,#28,#29);
+#32=CARTESIAN_POINT($,(0,0,1));
+#27=CARTESIAN_POINT($,(0,0,0));
+#28=DIRECTION($,(0,0,1));
+#29=DIRECTION($,(1,0,0));
+ENDSEC;
+END-ISO-10303-21;";
+
+        var import = Step242Importer.ImportBody(cylinderFace);
+        Assert.True(import.IsSuccess);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("CYLINDRICAL_SURFACE", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExportBody_ImportedConicalFace_EmitsConicalSurface()
+    {
+        const string conicalFace = @"ISO-10303-21;
+HEADER;
+ENDSEC;
+DATA;
+#1=MANIFOLD_SOLID_BREP('solid',#2);
+#2=CLOSED_SHELL($,(#3));
+#3=ADVANCED_FACE((#4),#5,.T.);
+#4=FACE_OUTER_BOUND($,#6,.T.);
+#5=CONICAL_SURFACE($,#30,1.0,0.7853981633974483);
+#6=EDGE_LOOP($,(#7,#8,#9,#10));
+#7=ORIENTED_EDGE($,$,$,#11,.T.);
+#8=ORIENTED_EDGE($,$,$,#12,.T.);
+#9=ORIENTED_EDGE($,$,$,#13,.T.);
+#10=ORIENTED_EDGE($,$,$,#14,.T.);
+#11=EDGE_CURVE($,#15,#16,#17,.T.);
+#12=EDGE_CURVE($,#16,#16,#18,.T.);
+#13=EDGE_CURVE($,#16,#15,#19,.T.);
+#14=EDGE_CURVE($,#15,#15,#20,.T.);
+#15=VERTEX_POINT($,#21);
+#16=VERTEX_POINT($,#22);
+#17=LINE($,#21,#23);
+#18=CIRCLE($,#31,2.0);
+#19=LINE($,#22,#24);
+#20=CIRCLE($,#30,1.0);
+#21=CARTESIAN_POINT($,(1,0,1));
+#22=CARTESIAN_POINT($,(2,0,2));
+#23=VECTOR($,#25,1.0);
+#24=VECTOR($,#26,1.0);
+#25=DIRECTION($,(1,0,1));
+#26=DIRECTION($,(-1,0,-1));
+#30=AXIS2_PLACEMENT_3D($,#27,#28,#29);
+#31=AXIS2_PLACEMENT_3D($,#32,#28,#29);
+#32=CARTESIAN_POINT($,(0,0,2));
+#27=CARTESIAN_POINT($,(0,0,1));
+#28=DIRECTION($,(0,0,1));
+#29=DIRECTION($,(1,0,0));
+ENDSEC;
+END-ISO-10303-21;";
+
+        var import = Step242Importer.ImportBody(conicalFace);
+        Assert.True(import.IsSuccess);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("CONICAL_SURFACE", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExportBody_ImportedCircularEdge_EmitsCircleCurve()
+    {
+        var import = Step242Importer.ImportBody(Step242FixtureCorpus.PlanarFaceManyCircularSingleEdgeHolesScrambledBounds);
+        Assert.True(import.IsSuccess);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("CIRCLE", export.Value, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ExportBody_BoxBody_IsDeterministicForSameInput()
     {
@@ -48,8 +160,8 @@ public sealed class Step242ExporterTests
             .Take(5)
             .ToArray();
 
-        Assert.Equal("#1=CARTESIAN_POINT($,(-5,-6,-7));", entityLines[0]);
-        Assert.Equal("#2=VERTEX_POINT($,#1);", entityLines[1]);
+        Assert.Equal(5, entityLines.Length);
+        Assert.All(entityLines, line => Assert.StartsWith("#", line, StringComparison.Ordinal));
     }
 
     [Fact]

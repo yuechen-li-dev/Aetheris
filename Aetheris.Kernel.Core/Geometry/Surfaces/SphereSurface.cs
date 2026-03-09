@@ -46,6 +46,10 @@ public readonly record struct SphereSurface
 
     public double Radius { get; }
 
+    public Direction3D XAxis => _xAxis;
+
+    public Direction3D YAxis => _yAxis;
+
     public Point3D Evaluate(double u, double v)
     {
         var cosV = double.Cos(v);

@@ -63,7 +63,39 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
         {
             Assert.Equal("tessellator", run.FirstFailureLayer);
             Assert.Equal(string.Empty, run.FirstDiagnostic.Source);
-            Assert.StartsWith("Face 47 sphere tessellation supports only untrimmed sphere faces with zero loops.", run.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+            Assert.DoesNotContain("sphere tessellation supports only untrimmed sphere faces with zero loops.", run.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         }
+    }
+
+    [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "tessellator", "", "Face 74 has unsupported surface kind 'BSplineSurfaceWithKnots'.")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "tessellator", "", "Face 20 curved tessellation supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed")]
+    [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "tessellator", "", "Face 62 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
+    public void Step242_TrimmedSphereTargets_AdvancePastOldUntrimmedSphereBlocker_AndRemainDeterministic(
+        string relativePath,
+        string expectedLayer,
+        string expectedSource,
+        string expectedMessagePrefix)
+    {
+        var entry = new Step242CorpusManifestEntry(
+            Id: Path.GetFileNameWithoutExtension(relativePath),
+            Path: relativePath,
+            Group: "nist-sphere-trim-regression",
+            Notes: "regression",
+            ExpectedFirstDiagnostic: null,
+            ExpectHashStableAfterCanonicalization: null,
+            ExpectTopologyCounts: null,
+            ExpectGeometryKinds: null);
+
+        var first = Step242CorpusManifestRunner.RunOne(entry);
+        var second = Step242CorpusManifestRunner.RunOne(entry);
+
+        Assert.DoesNotContain("sphere tessellation supports only untrimmed sphere faces with zero loops.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.Equal(expectedLayer, first.FirstFailureLayer);
+        Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
+        Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
+        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
+        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 }

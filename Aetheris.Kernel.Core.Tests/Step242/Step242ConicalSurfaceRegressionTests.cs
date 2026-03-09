@@ -32,7 +32,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
 
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "exporter", "Face:1", "Unsupported surface kind 'Cylinder'. M22 supports planar faces only.")]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "tessellator", "", "Face 47 sphere tessellation supports only untrimmed sphere faces with zero loops.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "tessellator", "", "")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "tessellator", "", "Face 1 curved tessellation supports repeated cone/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "tessellator", "", "Face 2 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp", "tessellator", "", "Face 73 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
@@ -88,7 +88,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
         "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
         "tessellator",
         "",
-        "Face 47 sphere tessellation supports only untrimmed sphere faces with zero loops.")]
+        "")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
         "importer-topology",

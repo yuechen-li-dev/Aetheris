@@ -31,8 +31,8 @@
     "firstFailureLayer": "exporter",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Face:47",
-      "messagePrefix": "Unsupported surface kind \u0027Sphere\u0027."
+      "source": "Face:74",
+      "messagePrefix": "Unsupported surface kind \u0027BSplineSurfaceWithKnots\u0027."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

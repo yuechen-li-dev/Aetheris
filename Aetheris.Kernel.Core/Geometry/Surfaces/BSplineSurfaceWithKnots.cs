@@ -91,6 +91,50 @@ public sealed record BSplineSurfaceWithKnots
     public IReadOnlyList<double> FullKnotsV { get; }
     public string KnotSpec { get; }
 
+    public double DomainStartU => FullKnotsU[DegreeU];
+
+    public double DomainEndU => FullKnotsU[FullKnotsU.Count - DegreeU - 1];
+
+    public double DomainStartV => FullKnotsV[DegreeV];
+
+    public double DomainEndV => FullKnotsV[FullKnotsV.Count - DegreeV - 1];
+
+    public Point3D Evaluate(double u, double v)
+    {
+        if (!double.IsFinite(u) || !double.IsFinite(v))
+        {
+            throw new ArgumentOutOfRangeException(nameof(u), "Parameters must be finite.");
+        }
+
+        var uClamped = ClampToDomain(u, DomainStartU, DomainEndU);
+        var vClamped = ClampToDomain(v, DomainStartV, DomainEndV);
+
+        if (double.Abs(uClamped - DomainEndU) <= 1e-12d && double.Abs(vClamped - DomainEndV) <= 1e-12d)
+        {
+            return ControlPoints[^1][^1];
+        }
+
+        var rowPoints = new Point3D[ControlPoints.Count];
+        for (var i = 0; i < ControlPoints.Count; i++)
+        {
+            rowPoints[i] = EvaluateCurve(
+                ControlPoints[i],
+                DegreeV,
+                FullKnotsV,
+                DomainStartV,
+                DomainEndV,
+                vClamped);
+        }
+
+        return EvaluateCurve(
+            rowPoints,
+            DegreeU,
+            FullKnotsU,
+            DomainStartU,
+            DomainEndU,
+            uClamped);
+    }
+
     private static IReadOnlyList<double> ExpandKnots(IReadOnlyList<int> multiplicities, IReadOnlyList<double> values)
     {
         if (multiplicities is null || values is null || multiplicities.Count == 0 || multiplicities.Count != values.Count)
@@ -124,5 +168,91 @@ public sealed record BSplineSurfaceWithKnots
                 throw new ArgumentException($"Expanded {dimension} knot vector must be non-decreasing.");
             }
         }
+    }
+
+    private static Point3D EvaluateCurve(
+        IReadOnlyList<Point3D> controlPoints,
+        int degree,
+        IReadOnlyList<double> fullKnots,
+        double domainStart,
+        double domainEnd,
+        double parameter)
+    {
+        var u = ClampToDomain(parameter, domainStart, domainEnd);
+        if (double.Abs(u - domainEnd) <= 1e-12d)
+        {
+            return controlPoints[^1];
+        }
+
+        var span = FindSpan(controlPoints.Count, degree, fullKnots, u);
+        var d = new Point3D[degree + 1];
+        for (var j = 0; j <= degree; j++)
+        {
+            d[j] = controlPoints[span - degree + j];
+        }
+
+        for (var r = 1; r <= degree; r++)
+        {
+            for (var j = degree; j >= r; j--)
+            {
+                var leftKnot = fullKnots[span - degree + j];
+                var rightKnot = fullKnots[span + 1 + j - r];
+                var denominator = rightKnot - leftKnot;
+                var alpha = double.Abs(denominator) <= 1e-15d ? 0d : (u - leftKnot) / denominator;
+                d[j] = Lerp(d[j - 1], d[j], alpha);
+            }
+        }
+
+        return d[degree];
+    }
+
+    private static int FindSpan(int controlPointCount, int degree, IReadOnlyList<double> fullKnots, double parameter)
+    {
+        var n = controlPointCount - 1;
+        if (parameter >= fullKnots[n + 1])
+        {
+            return n;
+        }
+
+        var low = degree;
+        var high = n + 1;
+        var mid = (low + high) / 2;
+        while (parameter < fullKnots[mid] || parameter >= fullKnots[mid + 1])
+        {
+            if (parameter < fullKnots[mid])
+            {
+                high = mid;
+            }
+            else
+            {
+                low = mid;
+            }
+
+            mid = (low + high) / 2;
+        }
+
+        return mid;
+    }
+
+    private static double ClampToDomain(double parameter, double start, double end)
+    {
+        if (parameter <= start)
+        {
+            return start;
+        }
+
+        if (parameter >= end)
+        {
+            return end;
+        }
+
+        return parameter;
+    }
+
+    private static Point3D Lerp(Point3D left, Point3D right, double alpha)
+    {
+        var clamped = System.Math.Clamp(alpha, 0d, 1d);
+        var delta = right - left;
+        return left + (delta * clamped);
     }
 }

@@ -61,14 +61,13 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
         Assert.False(string.IsNullOrWhiteSpace(run.FirstDiagnostic.MessagePrefix));
         if (string.Equals(relativePath, "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", StringComparison.Ordinal))
         {
-            Assert.Equal("tessellator", run.FirstFailureLayer);
-            Assert.Equal(string.Empty, run.FirstDiagnostic.Source);
+            Assert.Equal("exporter", run.FirstFailureLayer);
             Assert.DoesNotContain("sphere tessellation supports only untrimmed sphere faces with zero loops.", run.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         }
     }
 
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "tessellator", "", "Face 74 has unsupported surface kind 'BSplineSurfaceWithKnots'.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "exporter", "Face:1", "")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "tessellator", "", "Face 20 curved tessellation supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed")]
     [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "tessellator", "", "Face 62 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     public void Step242_TrimmedSphereTargets_AdvancePastOldUntrimmedSphereBlocker_AndRemainDeterministic(
@@ -93,7 +92,15 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
         Assert.DoesNotContain("sphere tessellation supports only untrimmed sphere faces with zero loops.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.Equal(expectedLayer, first.FirstFailureLayer);
         Assert.Equal(expectedSource, first.FirstDiagnostic.Source);
-        Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        if (!string.IsNullOrEmpty(expectedMessagePrefix))
+        {
+            Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        }
+
+        if (string.Equals(relativePath, "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", StringComparison.Ordinal))
+        {
+            Assert.DoesNotContain("unsupported surface kind 'BSplineSurfaceWithKnots'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        }
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);

@@ -75,14 +75,14 @@
     "fileId": "testdata_step242_nist_CTC_nist_ctc_04_asme1_ap242-e1",
     "path": "testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp",
     "sizeBytes": 1265846,
-    "status": "importFail",
-    "firstFailureLayer": "exporter",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Face:252",
-      "messagePrefix": "Unsupported surface kind \u0027Torus\u0027."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 664,
@@ -93,7 +93,7 @@
       "facePatches": 484,
       "edgePolylines": 1110
     },
-    "canonicalSha256": null
+    "canonicalSha256": "3103da3bc3e8ad82026a4cd1debfea1ac2978ced50fb4a722ec82d732b1882ae"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_05_asme1_ap242-e1",
@@ -339,14 +339,14 @@
     "fileId": "testdata_step242_nist_STC_nist_stc_08_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp",
     "sizeBytes": 2239112,
-    "status": "importFail",
-    "firstFailureLayer": "exporter",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Face:62",
-      "messagePrefix": "Unsupported surface kind \u0027Torus\u0027."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 446,
@@ -357,7 +357,7 @@
       "facePatches": 271,
       "edgePolylines": 709
     },
-    "canonicalSha256": null
+    "canonicalSha256": "df51040864fadab2d106c45a9610a20edc5944f518c90be82e0e7c734457ae35"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_09_asme1_ap242-e3",

@@ -80,6 +80,42 @@ END-ISO-10303-21;";
         Assert.Contains("CYLINDRICAL_SURFACE", export.Value, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ExportBody_ImportedToroidalFace_EmitsToroidalSurface()
+    {
+        const string toroidalFace = @"ISO-10303-21;
+HEADER;
+ENDSEC;
+DATA;
+#1=MANIFOLD_SOLID_BREP('solid',#2);
+#2=CLOSED_SHELL($,(#3));
+#3=ADVANCED_FACE((#4),#5,.T.);
+#4=FACE_OUTER_BOUND($,#6,.T.);
+#5=TOROIDAL_SURFACE($,#30,5.0,1.0);
+#6=EDGE_LOOP($,(#7,#8));
+#7=ORIENTED_EDGE($,$,$,#9,.T.);
+#8=ORIENTED_EDGE($,$,$,#10,.F.);
+#9=EDGE_CURVE($,#11,#11,#12,.T.);
+#10=EDGE_CURVE($,#11,#11,#12,.T.);
+#11=VERTEX_POINT($,#13);
+#12=CIRCLE($,#30,4.0);
+#13=CARTESIAN_POINT($,(4,0,0));
+#30=AXIS2_PLACEMENT_3D($,#31,#32,#33);
+#31=CARTESIAN_POINT($,(0,0,0));
+#32=DIRECTION($,(0,0,1));
+#33=DIRECTION($,(1,0,0));
+ENDSEC;
+END-ISO-10303-21;";
+
+        var import = Step242Importer.ImportBody(toroidalFace);
+        Assert.True(import.IsSuccess);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("TOROIDAL_SURFACE", export.Value, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ExportBody_ImportedConicalFace_EmitsConicalSurfaceWithCanonicalRadianSemiAngle()
     {

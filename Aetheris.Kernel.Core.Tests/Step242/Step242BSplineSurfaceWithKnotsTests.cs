@@ -14,6 +14,46 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
 
         Assert.True(import.IsSuccess);
         Assert.Contains(import.Value.Geometry.Surfaces, s => s.Value.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("B_SPLINE_SURFACE_WITH_KNOTS(", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Step242_NistCtc02_BSplineSurfaces_ObservedAsNonRationalWithExpectedDegreeFamilies()
+    {
+        var path = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_02_asme1_ap242-e2.stp");
+        var import = Step242Importer.ImportBody(File.ReadAllText(path));
+        Assert.True(import.IsSuccess);
+
+        var splineSurfaces = import.Value.Geometry.Surfaces
+            .Select(surface => surface.Value)
+            .Where(surface => surface.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots)
+            .Select(surface => surface.BSplineSurfaceWithKnots)
+            .Where(surface => surface is not null)
+            .Select(surface => surface!)
+            .ToArray();
+
+        Assert.NotEmpty(splineSurfaces);
+        Assert.All(splineSurfaces, surface =>
+        {
+            Assert.True(surface.ControlPoints.Count >= surface.DegreeU + 1);
+            Assert.True(surface.ControlPoints[0].Count >= surface.DegreeV + 1);
+            Assert.Equal(surface.KnotMultiplicitiesU.Count, surface.KnotValuesU.Count);
+            Assert.Equal(surface.KnotMultiplicitiesV.Count, surface.KnotValuesV.Count);
+        });
+
+        var degreePairs = splineSurfaces
+            .Select(surface => (surface.DegreeU, surface.DegreeV))
+            .Distinct()
+            .OrderBy(pair => pair.DegreeU)
+            .ThenBy(pair => pair.DegreeV)
+            .ToArray();
+
+        Assert.Contains((1, 3), degreePairs);
+        Assert.Contains((3, 1), degreePairs);
+        Assert.Contains((3, 3), degreePairs);
     }
 
     [Theory]
@@ -67,7 +107,7 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
     }
 
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "exporter", "Face:74", "Unsupported surface kind 'BSplineSurfaceWithKnots'.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "exporter", "Edge:1090", "Unsupported curve kind 'Ellipse3'.")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "tessellator", "", "Face 20 curved tessellation supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed")]
     [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "tessellator", "", "Face 62 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     public void Step242_TrimmedSphereTargets_AdvancePastOldUntrimmedSphereBlocker_AndRemainDeterministic(

@@ -158,6 +158,54 @@ END-ISO-10303-21;";
         }
     }
 
+    [Fact]
+    public void ExportBody_Ctc02RoundTrip_ShallowCones_PreserveApexCoordinates()
+    {
+        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_02_asme1_ap242-e2.stp");
+        var source = File.ReadAllText(fixturePath);
+
+        var import = Step242Importer.ImportBody(source);
+        Assert.True(import.IsSuccess);
+
+        var expectedShallowCones = import.Value.Geometry.Surfaces
+            .Select(surface => surface.Value)
+            .Where(surface => surface.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone && surface.Cone.HasValue)
+            .Select(surface => surface.Cone!.Value)
+            .Where(cone => cone.SemiAngleRadians < 0.1d)
+            .Select(cone => cone.Apex)
+            .OrderBy(point => point.X)
+            .ThenBy(point => point.Y)
+            .ThenBy(point => point.Z)
+            .ToArray();
+
+        Assert.Equal(10, expectedShallowCones.Length);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+
+        var roundTrip = Step242Importer.ImportBody(export.Value);
+        Assert.True(roundTrip.IsSuccess);
+
+        var actualShallowCones = roundTrip.Value.Geometry.Surfaces
+            .Select(surface => surface.Value)
+            .Where(surface => surface.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone && surface.Cone.HasValue)
+            .Select(surface => surface.Cone!.Value)
+            .Where(cone => cone.SemiAngleRadians < 0.1d)
+            .Select(cone => cone.Apex)
+            .OrderBy(point => point.X)
+            .ThenBy(point => point.Y)
+            .ThenBy(point => point.Z)
+            .ToArray();
+
+        Assert.Equal(expectedShallowCones.Length, actualShallowCones.Length);
+        for (var i = 0; i < expectedShallowCones.Length; i++)
+        {
+            Assert.Equal(expectedShallowCones[i].X, actualShallowCones[i].X, 6);
+            Assert.Equal(expectedShallowCones[i].Y, actualShallowCones[i].Y, 6);
+            Assert.Equal(expectedShallowCones[i].Z, actualShallowCones[i].Z, 6);
+        }
+    }
+
 
     [Fact]
     public void ExportBody_EmitsCanonicalRadianPlaneAngleUnitContext()

@@ -27,14 +27,14 @@
     "fileId": "testdata_step242_nist_CTC_nist_ctc_02_asme1_ap242-e2",
     "path": "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
     "sizeBytes": 1958442,
-    "status": "importFail",
-    "firstFailureLayer": "exporter",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Edge:1090",
-      "messagePrefix": "Unsupported curve kind \u0027Ellipse3\u0027."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 870,
@@ -45,7 +45,7 @@
       "facePatches": 635,
       "edgePolylines": 1410
     },
-    "canonicalSha256": null
+    "canonicalSha256": "9e32a60debe271c1785ba8fcbbdb368169658d4f1afccc2cdb506321acdf5fdd"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_03_asme1_ap242-e2",

@@ -32,7 +32,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
 
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "", "Audit.None", "No diagnostics.")]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "exporter", "Edge:1090", "Unsupported curve kind 'Ellipse3'.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp", "", "", "")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "tessellator", "", "Face 1 curved tessellation supports repeated cone/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "tessellator", "", "Face 2 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
@@ -65,6 +65,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
         Assert.DoesNotContain("Unsupported surface kind 'Cone'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("Unsupported curve kind 'Circle3'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("Unsupported curve kind 'BSpline3'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unsupported curve kind 'Ellipse3'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         if (!string.IsNullOrEmpty(expectedLayer))
         {
             Assert.Equal(expectedLayer, first.FirstFailureLayer);
@@ -81,6 +82,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
 
         if (string.Equals(relativePath, "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", StringComparison.Ordinal))
         {
+            Assert.DoesNotContain("Unsupported curve kind 'Ellipse3'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
             Assert.NotEqual("Viewer.Tessellation.PlanarCurveFlatteningUnsupported", first.FirstDiagnostic.Source);
             Assert.DoesNotContain("planar curve flattening does not support curve kind 'BSpline3'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
             Assert.DoesNotContain("Unsupported surface kind 'Sphere'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
@@ -95,9 +97,9 @@ public sealed class Step242ConicalSurfaceRegressionTests
     [Theory]
     [InlineData(
         "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
-        "exporter",
-        "Edge:1090",
-        "Unsupported curve kind 'Ellipse3'.")]
+        "",
+        "Audit.None",
+        "No diagnostics.")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
         "importer-topology",
@@ -138,6 +140,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
 
         if (string.Equals(relativePath, "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", StringComparison.Ordinal))
         {
+            Assert.DoesNotContain("Unsupported curve kind 'Ellipse3'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
             Assert.NotEqual("Viewer.Tessellation.PlanarCurveFlatteningUnsupported", first.FirstDiagnostic.Source);
             Assert.DoesNotContain("planar curve flattening does not support curve kind 'BSpline3'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
             Assert.DoesNotContain("Unsupported surface kind 'Sphere'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);

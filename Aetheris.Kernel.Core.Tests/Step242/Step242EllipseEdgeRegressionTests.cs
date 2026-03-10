@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242EllipseEdgeRegressionTests
 {
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "exporter", "Edge:1090", "Unsupported curve kind 'Ellipse3'.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "", "Audit.None", "No diagnostics.")]
     public void Step242_NistEllipseTargets_AdvancePastUnsupportedEllipse_AndRemainDeterministic(string relativePath, string expectedLayer, string expectedSource, string expectedMessagePrefix)
     {
         var entry = new Step242CorpusManifestEntry(
@@ -22,6 +22,7 @@ public sealed class Step242EllipseEdgeRegressionTests
         var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.DoesNotContain("EDGE_CURVE geometry 'ELLIPSE' is unsupported.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unsupported curve kind 'Ellipse3'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         if (!string.IsNullOrEmpty(expectedLayer))
         {
             Assert.Equal(expectedLayer, first.FirstFailureLayer);

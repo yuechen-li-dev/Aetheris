@@ -171,25 +171,25 @@
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e1-tg",
     "path": "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e1-tg.stp",
     "sizeBytes": 2120356,
-    "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Importer.TopologyRoot",
-      "messagePrefix": "Missing MANIFOLD_SOLID_BREP root entity."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 10083,
+      "edges": 10083,
+      "faces": 3361
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 3361,
+      "edgePolylines": 10083
     },
-    "canonicalSha256": null
+    "canonicalSha256": "02272208c101eede63651658006f4b483dbabe4d7148654a12dc9e01f8509b19"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e2",

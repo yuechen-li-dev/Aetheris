@@ -40,6 +40,7 @@ public static class Step242Exporter
         var lineIds = new Dictionary<EdgeId, string>();
         var circleIds = new Dictionary<EdgeId, string>();
         var bsplineIds = new Dictionary<EdgeId, string>();
+        var ellipseIds = new Dictionary<EdgeId, string>();
 
         var faceIds = new List<string>();
 
@@ -78,7 +79,7 @@ public static class Step242Exporter
 
                     if (!edgeCurveIds.TryGetValue(coedge.EdgeId, out var edgeCurveId))
                     {
-                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds);
+                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds, ellipseIds);
                         if (!edgeResult.IsSuccess)
                         {
                             return KernelResult<string>.Failure(edgeResult.Diagnostics);
@@ -245,7 +246,8 @@ public static class Step242Exporter
         IDictionary<VertexId, string> vertexPointIds,
         IDictionary<EdgeId, string> lineIds,
         IDictionary<EdgeId, string> circleIds,
-        IDictionary<EdgeId, string> bsplineIds)
+        IDictionary<EdgeId, string> bsplineIds,
+        IDictionary<EdgeId, string> ellipseIds)
     {
         var edge = model.GetEdge(edgeId);
 
@@ -261,7 +263,8 @@ public static class Step242Exporter
 
         if (curve.Kind != CurveGeometryKind.Line3
             && curve.Kind != CurveGeometryKind.Circle3
-            && curve.Kind != CurveGeometryKind.BSpline3)
+            && curve.Kind != CurveGeometryKind.BSpline3
+            && curve.Kind != CurveGeometryKind.Ellipse3)
         {
             return Failure($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}");
         }
@@ -359,6 +362,17 @@ public static class Step242Exporter
             }
 
             geometryCurveId = bsplineId;
+        }
+        else if (curve.Kind == CurveGeometryKind.Ellipse3 && curve.Ellipse3 is Ellipse3Curve ellipse)
+        {
+            if (!ellipseIds.TryGetValue(edgeId, out var ellipseId))
+            {
+                var axisPlacementId = BuildAxisPlacement(writer, ellipse.Center, ellipse.Normal, ellipse.XAxis);
+                ellipseId = writer.AddEntity("ELLIPSE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(ellipse.MajorRadius), Step242TextWriter.Number(ellipse.MinorRadius));
+                ellipseIds[edgeId] = ellipseId;
+            }
+
+            geometryCurveId = ellipseId;
         }
         else
         {
@@ -551,6 +565,7 @@ public static class Step242Exporter
             CurveGeometryKind.Line3 when curve.Line3 is Line3Curve line => KernelResult<Point3D>.Success(line.Evaluate(parameter)),
             CurveGeometryKind.Circle3 when curve.Circle3 is Circle3Curve circle => KernelResult<Point3D>.Success(circle.Evaluate(parameter)),
             CurveGeometryKind.BSpline3 when curve.BSpline3 is BSpline3Curve spline => KernelResult<Point3D>.Success(spline.Evaluate(parameter)),
+            CurveGeometryKind.Ellipse3 when curve.Ellipse3 is Ellipse3Curve ellipse => KernelResult<Point3D>.Success(ellipse.Evaluate(parameter)),
             _ => FailurePoint($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}")
         };
     }

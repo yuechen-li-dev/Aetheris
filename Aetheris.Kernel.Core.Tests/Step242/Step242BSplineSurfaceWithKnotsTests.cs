@@ -101,13 +101,13 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
         Assert.False(string.IsNullOrWhiteSpace(run.FirstDiagnostic.MessagePrefix));
         if (string.Equals(relativePath, "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", StringComparison.Ordinal))
         {
-            Assert.Equal("exporter", run.FirstFailureLayer);
+            Assert.DoesNotContain("Unsupported curve kind 'Ellipse3'.", run.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
             Assert.DoesNotContain("sphere tessellation supports only untrimmed sphere faces with zero loops.", run.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         }
     }
 
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "exporter", "Edge:1090", "Unsupported curve kind 'Ellipse3'.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "tessellator", "", "Face 20 curved tessellation supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed")]
     [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "tessellator", "", "Face 62 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     public void Step242_TrimmedSphereTargets_AdvancePastOldUntrimmedSphereBlocker_AndRemainDeterministic(
@@ -147,6 +147,7 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
 
         if (string.Equals(relativePath, "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", StringComparison.Ordinal))
         {
+            Assert.DoesNotContain("Unsupported curve kind 'Ellipse3'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
             Assert.DoesNotContain("unsupported surface kind 'BSplineSurfaceWithKnots'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
             Assert.DoesNotContain("Unsupported surface kind 'Sphere'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         }

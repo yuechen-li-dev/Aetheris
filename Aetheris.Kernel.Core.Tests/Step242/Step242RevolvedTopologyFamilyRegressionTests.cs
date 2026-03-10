@@ -5,8 +5,8 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242RevolvedTopologyFamilyRegressionTests
 {
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "Face 284 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'other (coedges=4, uniqueEdges=4)'. Observed")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily 'other (coedges=4, uniqueEdges=4)'. Observed")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "Face 327 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'circle-only non-seam loop'. Observed")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily 'four-coedge mixed line/bspline revolved loop'. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Face 67 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'other (coedges=5, uniqueEdges=5)'. Observed")]
     public void Step242_RepeatedCurvedRevolvedTargets_AdvanceWithExplicitDeterministicNextBlocker(
         string relativePath,
@@ -58,7 +58,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
 
         Assert.DoesNotContain("unsupported subfamily 'six-coedge bspline-only revolved loop'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
-        Assert.StartsWith("Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily 'other (coedges=4, uniqueEdges=4)'. Observed", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.StartsWith("Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily 'four-coedge mixed line/bspline revolved loop'. Observed", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
     }
 
     [Theory]

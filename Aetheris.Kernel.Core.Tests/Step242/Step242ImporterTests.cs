@@ -105,6 +105,38 @@ public sealed class Step242ImporterTests
     }
 
     [Fact]
+    public void ImportBody_TessellatedSolidWithComplexTriangulatedFace_ImportsWithoutManifoldSolidBrep()
+    {
+        const string tessellated = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n#1=TESSELLATED_SOLID('part',(#2));\n#2=TESSELLATED_SHELL('shell',(#3));\n#3=COMPLEX_TRIANGULATED_FACE('',#10,3,((0,0,1)),#20,(1,2,3),((1,2,3)),());\n#10=COORDINATES_LIST('',3,((0,0,0),(1,0,0),(0,1,0)));\n#20=PLANE('',#30);\n#30=AXIS2_PLACEMENT_3D('',#31,#32,#33);\n#31=CARTESIAN_POINT('',(0,0,0));\n#32=DIRECTION('',(0,0,1));\n#33=DIRECTION('',(1,0,0));\nENDSEC;\nEND-ISO-10303-21;";
+
+        var import = Step242Importer.ImportBody(tessellated);
+
+        Assert.True(import.IsSuccess);
+        Assert.Single(import.Value.Topology.Faces);
+        Assert.DoesNotContain(import.Diagnostics, d => string.Equals(d.Source, "Importer.TopologyRoot", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NistFtc08Tg_TessellatedVariant_ImportsDeterministically()
+    {
+        var text = LoadFixture("testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e1-tg.stp");
+
+        var first = Step242Importer.ImportBody(text);
+        var second = Step242Importer.ImportBody(text);
+
+        Assert.True(first.IsSuccess, string.Join(" | ", first.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+        Assert.True(second.IsSuccess, string.Join(" | ", second.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+
+        Assert.Equal(first.Value.Topology.Vertices.Count(), second.Value.Topology.Vertices.Count());
+        Assert.Equal(first.Value.Topology.Edges.Count(), second.Value.Topology.Edges.Count());
+        Assert.Equal(first.Value.Topology.Faces.Count(), second.Value.Topology.Faces.Count());
+
+        var tessellation = BrepDisplayTessellator.Tessellate(first.Value);
+        Assert.True(tessellation.IsSuccess);
+        Assert.NotEmpty(tessellation.Value.FacePatches);
+    }
+
+    [Fact]
     public void ImportBody_DegenerateDirection_ReturnsDiagnosticWithoutThrowing()
     {
         const string degenerateDirection = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n#1=MANIFOLD_SOLID_BREP('solid',#2);\n#2=CLOSED_SHELL($,(#3));\n#3=ADVANCED_FACE((#4),#5,.T.);\n#4=FACE_OUTER_BOUND($,#6,.T.);\n#5=PLANE($,#20);\n#6=EDGE_LOOP($,(#7));\n#7=ORIENTED_EDGE($,$,$,#8,.T.);\n#8=EDGE_CURVE($,#9,#10,#11,.T.);\n#9=VERTEX_POINT($,#12);\n#10=VERTEX_POINT($,#13);\n#11=LINE($,#12,#14);\n#12=CARTESIAN_POINT($,(0,0,0));\n#13=CARTESIAN_POINT($,(1,0,0));\n#14=VECTOR($,#15,1.0);\n#15=DIRECTION($,(1,0,0));\n#20=AXIS2_PLACEMENT_3D($,#12,#21,#22);\n#21=DIRECTION($,(0,0,0));\n#22=DIRECTION($,(1,0,0));\nENDSEC;\nEND-ISO-10303-21;";

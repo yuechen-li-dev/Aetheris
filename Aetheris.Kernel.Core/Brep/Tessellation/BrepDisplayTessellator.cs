@@ -619,6 +619,13 @@ public static class BrepDisplayTessellator
             return KernelResult<(double, double, int, int)>.Success((threeCoedgeBsplineParameters.VStart, threeCoedgeBsplineParameters.VEnd, angularSegments, axialSegments), threeCoedgeBsplineDiagnostics);
         }
 
+        if (allowThreeCoedgeConeTopology && TryResolveThreeCoedgeMixedCircleBsplineConeLoop(body, coedges, circleCoedges, bSplineCoedges, axialParameterFromPoint, faceId, out var threeCoedgeMixedCircleBsplineParameters, out var threeCoedgeMixedCircleBsplineDiagnostics))
+        {
+            var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
+            var axialSegments = CalculateAxialSegments(threeCoedgeMixedCircleBsplineParameters.VStart, threeCoedgeMixedCircleBsplineParameters.VEnd, options);
+            return KernelResult<(double, double, int, int)>.Success((threeCoedgeMixedCircleBsplineParameters.VStart, threeCoedgeMixedCircleBsplineParameters.VEnd, angularSegments, axialSegments), threeCoedgeMixedCircleBsplineDiagnostics);
+        }
+
         if (allowThreeCoedgeConeTopology && TryResolveConeRevolvedLoop(body, coedges, lineCoedges, circleCoedges, axialParameterFromPoint, faceId, out var coneRevolvedParameters, out var coneRevolvedDiagnostics))
         {
             var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
@@ -764,6 +771,44 @@ public static class BrepDisplayTessellator
 
         var lineEdgeIds = lineCoedges.Select(c => c.EdgeId).Distinct().ToArray();
         var result = TryResolveAxialBoundsFromLines(body, coedges, lineEdgeIds, axialParameterFromPoint, faceId);
+        if (!result.IsSuccess)
+        {
+            diagnostics = result.Diagnostics;
+            return false;
+        }
+
+        parameters = result.Value;
+        diagnostics = result.Diagnostics;
+        return true;
+    }
+
+    private static bool TryResolveThreeCoedgeMixedCircleBsplineConeLoop(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<Coedge> circleCoedges,
+        IReadOnlyList<Coedge> bSplineCoedges,
+        Func<Point3D, double>? axialParameterFromPoint,
+        FaceId faceId,
+        out (double VStart, double VEnd) parameters,
+        out IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        parameters = default;
+        diagnostics = [];
+        if (coedges.Count != 3 || circleCoedges.Count != 1 || bSplineCoedges.Count != 2 || axialParameterFromPoint is null)
+        {
+            return false;
+        }
+
+        var uniqueEdgeCount = coedges
+            .Select(c => c.EdgeId)
+            .Distinct()
+            .Count();
+        if (uniqueEdgeCount != 3)
+        {
+            return false;
+        }
+
+        var result = TryResolveAxialBoundsFromProjectedLoopVertices(body, coedges, axialParameterFromPoint, faceId);
         if (!result.IsSuccess)
         {
             diagnostics = result.Diagnostics;
@@ -986,6 +1031,11 @@ public static class BrepDisplayTessellator
         if (bSplineCoedges.Count == 3 && coedges.Count == 3 && uniqueEdgeIds.Length == 3)
         {
             return "three-coedge cone/revolved bspline loop";
+        }
+
+        if (circleCoedges.Count == 1 && bSplineCoedges.Count == 2 && coedges.Count == 3 && uniqueEdgeIds.Length == 3)
+        {
+            return "three-coedge cone/revolved mixed circle/bspline loop";
         }
 
         if (lineCoedges.Count == 2 && circleCoedges.Count == 2 && coedges.Count == 4)

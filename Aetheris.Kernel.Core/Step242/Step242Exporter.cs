@@ -433,11 +433,15 @@ public static class Step242Exporter
             return KernelResult<Point3D>.Success(resolved);
         }
 
-        var fromPlanes = ResolveVertexFromIncidentPlanes(body, model, vertexId);
-        if (fromPlanes.IsSuccess)
+        var preferEdgeEndpoint = VertexTouchesNonPlanarFace(body, model, vertexId);
+        if (!preferEdgeEndpoint)
         {
-            vertexPoints[vertexId] = fromPlanes.Value;
-            return fromPlanes;
+            var fromPlanes = ResolveVertexFromIncidentPlanes(body, model, vertexId);
+            if (fromPlanes.IsSuccess)
+            {
+                vertexPoints[vertexId] = fromPlanes.Value;
+                return fromPlanes;
+            }
         }
 
         foreach (var edge in model.Edges.OrderBy(e => e.Id.Value))
@@ -463,6 +467,50 @@ public static class Step242Exporter
         }
 
         return FailurePoint($"Vertex {vertexId.Value} cannot be resolved to a geometric point for STEP export.", $"Vertex:{vertexId.Value}");
+    }
+
+    private static bool VertexTouchesNonPlanarFace(BrepBody body, TopologyModel model, VertexId vertexId)
+    {
+        foreach (var face in model.Faces.OrderBy(f => f.Id.Value))
+        {
+            var touchesVertex = false;
+            foreach (var loopId in face.LoopIds)
+            {
+                var loop = model.GetLoop(loopId);
+                foreach (var coedgeId in loop.CoedgeIds)
+                {
+                    var coedge = model.GetCoedge(coedgeId);
+                    var edge = model.GetEdge(coedge.EdgeId);
+                    if (edge.StartVertexId == vertexId || edge.EndVertexId == vertexId)
+                    {
+                        touchesVertex = true;
+                        break;
+                    }
+                }
+
+                if (touchesVertex)
+                {
+                    break;
+                }
+            }
+
+            if (!touchesVertex || !body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding))
+            {
+                continue;
+            }
+
+            if (!body.Geometry.TryGetSurface(faceBinding.SurfaceGeometryId, out var surface) || surface is null)
+            {
+                continue;
+            }
+
+            if (surface.Kind != SurfaceGeometryKind.Plane)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static KernelResult<Point3D> ResolveVertexFromIncidentPlanes(BrepBody body, TopologyModel model, VertexId vertexId)

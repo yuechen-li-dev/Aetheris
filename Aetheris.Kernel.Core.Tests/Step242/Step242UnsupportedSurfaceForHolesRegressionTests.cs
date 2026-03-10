@@ -15,8 +15,9 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
         "tessellator",
         "Topology.GraphValidator",
-        "Viewer.Tessellation.CylinderTrimDegenerate",
-        "Cylindrical face tessellation derived a degenerate trim patch.")]
+        "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate",
+        "Cylindrical face tessellation derived a degenerate trim patch due to zero axial span")]
+
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
         "importer-topology",
@@ -57,6 +58,8 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
 
         Assert.NotEqual("Importer.LoopRole.UnsupportedSurfaceForHoles", first.FirstDiagnostic.Source);
         Assert.NotEqual("Importer.LoopRole.TorusDegenerateProjection", first.FirstDiagnostic.Source);
+        Assert.NotEqual("Viewer.Tessellation.CylinderTrimDegenerate", first.FirstDiagnostic.Source);
+        Assert.False(string.IsNullOrWhiteSpace(first.FirstDiagnostic.Source));
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);

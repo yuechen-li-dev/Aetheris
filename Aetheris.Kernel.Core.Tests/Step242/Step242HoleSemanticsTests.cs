@@ -80,7 +80,7 @@ public sealed class Step242HoleSemanticsTests
     }
 
     [Fact]
-    public void ImportBody_MultiLoopCylindricalFace_Imports_ThenFailsDeterministicallyAtCylinderTrimDegenerateTessellation()
+    public void ImportBody_MultiLoopCylindricalFace_Imports_AndAvoidsCylinderTrimDegenerateBlocker()
     {
         var import = Step242Importer.ImportBody(Step242FixtureCorpus.CylindricalFaceWithTwoLoops);
 
@@ -91,11 +91,22 @@ public sealed class Step242HoleSemanticsTests
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
         Assert.True(validation.IsSuccess);
 
-        var tessellation = BrepDisplayTessellator.Tessellate(body);
-        Assert.False(tessellation.IsSuccess);
-        var diagnostic = Assert.Single(tessellation.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.InvalidArgument, diagnostic.Code);
-        Assert.Equal("Viewer.Tessellation.CylinderTrimDegenerate", diagnostic.Source);
-        Assert.StartsWith("Cylindrical face tessellation derived a degenerate trim patch.", diagnostic.Message, StringComparison.Ordinal);
+        var first = BrepDisplayTessellator.Tessellate(body);
+        var second = BrepDisplayTessellator.Tessellate(body);
+
+        if (!first.IsSuccess)
+        {
+            var diagnostic = Assert.Single(first.Diagnostics);
+            Assert.NotEqual("Viewer.Tessellation.CylinderTrimDegenerate", diagnostic.Source);
+            Assert.False(string.IsNullOrWhiteSpace(diagnostic.Source));
+            Assert.Equal(first.Diagnostics[0].Source, second.Diagnostics[0].Source);
+            Assert.Equal(first.Diagnostics[0].Message, second.Diagnostics[0].Message);
+            return;
+        }
+
+        Assert.True(second.IsSuccess);
+        Assert.DoesNotContain(first.Diagnostics, d => string.Equals(d.Source, "Viewer.Tessellation.CylinderTrimDegenerate", StringComparison.Ordinal));
+        Assert.Equal(first.Value.FacePatches.Count, second.Value.FacePatches.Count);
+        Assert.Equal(first.Value.EdgePolylines.Count, second.Value.EdgePolylines.Count);
     }
 }

@@ -271,8 +271,8 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "InvalidArgument",
-      "source": "Viewer.Tessellation.CylinderTrimDegenerate",
-      "messagePrefix": "Cylindrical face tessellation derived a degenerate trim patch."
+      "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate",
+      "messagePrefix": "Cylindrical face tessellation derived a degenerate trim patch due to zero axial span (face=3, loops=1, radius=31.5, axis=(0,0,-1), details=[loop 7"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

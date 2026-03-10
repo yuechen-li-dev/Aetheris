@@ -17,6 +17,8 @@ public static class BrepDisplayTessellator
     private const string CircleTrimAmbiguousUsedShorterArcSource = "Viewer.Tessellation.CircleTrimAmbiguousUsedShorterArc";
     private const string CylinderTrimUnsupportedSource = "Viewer.Tessellation.CylinderTrimUnsupported";
     private const string CylinderTrimDegenerateSource = "Viewer.Tessellation.CylinderTrimDegenerate";
+    private const string CylinderTrimAxialSpanDegenerateSource = "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate";
+    private const string CylinderTrimAngularSpanDegenerateSource = "Viewer.Tessellation.CylinderTrimAngularSpanDegenerate";
     private const string CylinderTrimAmbiguousUsedShorterSpanSource = "Viewer.Tessellation.CylinderTrimAmbiguousUsedShorterSpan";
     private const string CurvedTopologyUnsupportedSource = "Viewer.Tessellation.CurvedTopologyUnsupported";
     private const string BSplineSurfaceTrimUnsupportedSource = "Viewer.Tessellation.BSplineSurfaceTrimUnsupported";
@@ -994,29 +996,37 @@ public static class BrepDisplayTessellator
         var yAxis = cylinder.YAxis.ToVector();
 
         (double UStart, double USpan, double VStart, double VEnd, bool UsedAmbiguousShorterSpanResolution)? best = null;
+        var allFaceAngles = new List<double>();
+        var allFaceAxials = new List<double>();
+        var loopSummaries = new List<string>();
+        var observedNonDegenerateAngular = false;
+        var observedNonDegenerateAxial = false;
 
         foreach (var loopId in loopIds)
         {
             var coedges = body.GetCoedgeIds(loopId).Select(id => body.Topology.GetCoedge(id)).ToArray();
-            if (coedges.Length < 3)
+            if (coedges.Length == 0)
             {
+                loopSummaries.Add($"loop {loopId.Value}: rejected, coedges={coedges.Length}");
                 continue;
             }
 
             var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
             if (!vertexPointsResult.IsSuccess)
             {
+                loopSummaries.Add($"loop {loopId.Value}: rejected, endpoints=unresolved");
                 continue;
             }
 
             var allAngles = new List<double>();
             var allAxials = new List<double>();
+            var endpointsResolved = true;
             foreach (var coedge in coedges)
             {
                 var endpoints = GetEdgeEndpoints(body, coedge.EdgeId, coedge.IsReversed, vertexPointsResult.Value);
                 if (!endpoints.IsSuccess)
                 {
-                    allAngles.Clear();
+                    endpointsResolved = false;
                     break;
                 }
 
@@ -1044,25 +1054,35 @@ public static class BrepDisplayTessellator
                 }
             }
 
-            if (allAxials.Count == 0 || allAngles.Count == 0)
+            if (!endpointsResolved || allAxials.Count == 0 || allAngles.Count == 0)
             {
+                loopSummaries.Add($"loop {loopId.Value}: rejected, sampleCollapse=true");
                 continue;
             }
+
+            allFaceAngles.AddRange(allAngles);
+            allFaceAxials.AddRange(allAxials);
 
             var vStart = allAxials.Min();
             var vEnd = allAxials.Max();
-            if ((vEnd - vStart) <= minSpan)
-            {
-                continue;
-            }
+            var vSpan = vEnd - vStart;
 
             var angularBounds = ResolveAngularBounds(allAngles);
-            if (!angularBounds.IsSuccess || angularBounds.Value.Span <= minSpan)
+            var hasAngular = angularBounds.IsSuccess && angularBounds.Value.Span > minSpan;
+            var hasAxial = vSpan > minSpan;
+            var usesSingleCoedgeFullWrap = !hasAngular && hasAxial && coedges.Length == 1;
+            observedNonDegenerateAngular |= hasAngular;
+            observedNonDegenerateAxial |= hasAxial;
+            loopSummaries.Add($"loop {loopId.Value}: coedges={coedges.Length}, uSpan={(hasAngular ? angularBounds.Value.Span : 0d):G17}, vSpan={vSpan:G17}, fullWrap={usesSingleCoedgeFullWrap}, usable={(hasAngular && hasAxial) || usesSingleCoedgeFullWrap}");
+
+            if ((!hasAngular || !hasAxial) && !usesSingleCoedgeFullWrap)
             {
                 continue;
             }
 
-            var candidate = (UStart: angularBounds.Value.Start, USpan: angularBounds.Value.Span, VStart: vStart, VEnd: vEnd, angularBounds.Value.UsedAmbiguousShorterSpanResolution);
+            var candidate = usesSingleCoedgeFullWrap
+                ? (UStart: NormalizeToZeroTwoPi(allAngles[0]), USpan: 2d * double.Pi, VStart: vStart, VEnd: vEnd, UsedAmbiguousShorterSpanResolution: false)
+                : (UStart: angularBounds.Value.Start, USpan: angularBounds.Value.Span, VStart: vStart, VEnd: vEnd, angularBounds.Value.UsedAmbiguousShorterSpanResolution);
             var candidateScore = candidate.USpan * (candidate.VEnd - candidate.VStart);
             var bestScore = best.HasValue ? best.Value.USpan * (best.Value.VEnd - best.Value.VStart) : double.NegativeInfinity;
             if (!best.HasValue || candidateScore > bestScore)
@@ -1071,10 +1091,31 @@ public static class BrepDisplayTessellator
             }
         }
 
+        if (!best.HasValue && allFaceAngles.Count > 0 && allFaceAxials.Count > 0)
+        {
+            var faceAngular = ResolveAngularBounds(allFaceAngles);
+            var faceVStart = allFaceAxials.Min();
+            var faceVEnd = allFaceAxials.Max();
+            var faceVSpan = faceVEnd - faceVStart;
+            if (faceAngular.IsSuccess && faceAngular.Value.Span > minSpan && faceVSpan > minSpan)
+            {
+                best = (faceAngular.Value.Start, faceAngular.Value.Span, faceVStart, faceVEnd, faceAngular.Value.UsedAmbiguousShorterSpanResolution);
+                loopSummaries.Add($"face aggregate: fallback used, uSpan={faceAngular.Value.Span:G17}, vSpan={faceVSpan:G17}");
+            }
+        }
+
         if (!best.HasValue)
         {
+            var summary = string.Join("; ", loopSummaries);
+            var details = $"face={faceId.Value}, loops={loopIds.Count}, radius={cylinder.Radius:G17}, axis=({axis.X:G17},{axis.Y:G17},{axis.Z:G17}), details=[{summary}]";
+            var (message, source) = observedNonDegenerateAngular && !observedNonDegenerateAxial
+                ? ($"Cylindrical face tessellation derived a degenerate trim patch due to zero axial span ({details}).", CylinderTrimAxialSpanDegenerateSource)
+                : (!observedNonDegenerateAngular && observedNonDegenerateAxial
+                    ? ($"Cylindrical face tessellation derived a degenerate trim patch due to zero angular span ({details}).", CylinderTrimAngularSpanDegenerateSource)
+                    : ($"Cylindrical face tessellation derived a degenerate trim patch ({details}).", CylinderTrimDegenerateSource));
+
             return KernelResult<(double, double, double, double)>.Failure([
-                CreateInvalidArgument("Cylindrical face tessellation derived a degenerate trim patch.", CylinderTrimDegenerateSource)]);
+                CreateInvalidArgument(message, source)]);
         }
 
         var diagnostics = new List<KernelDiagnostic>();

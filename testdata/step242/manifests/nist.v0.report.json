@@ -272,7 +272,7 @@
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate",
-      "messagePrefix": "Face 3 cylindrical trim loop 7 has 1 coedges, angular span 6.2831853071795862, axial span 0, loop count 1; classified as full-wrap ring-like boundary with collapsed axial span and treated as degenerate."
+      "messagePrefix": "Face 3 cylindrical trim loop 7 has 1 coedges, angular span 6.1086523819801535, axial span 0, loop count 1; classified as"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

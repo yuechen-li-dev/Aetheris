@@ -80,7 +80,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 1 curved tessellation supports repeated cone/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed"
+      "messagePrefix": "Face 1 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily \u0027other (coedges=3, uniqueEdges=3)\u0027. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -152,7 +152,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 20 curved tessellation supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed"
+      "messagePrefix": "Face 41 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily \u0027other (coedges=3, uniqueEdges=3)\u0027. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -248,7 +248,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 14 curved tessellation supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported. Observed"
+      "messagePrefix": "Face 25 curved tessellation does not support this torus/revolved boundary topology yet. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

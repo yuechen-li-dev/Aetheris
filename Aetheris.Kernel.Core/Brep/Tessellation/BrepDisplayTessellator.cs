@@ -547,7 +547,7 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateTorusFace(BrepBody body, FaceId faceId, TorusSurface torus, DisplayTessellationOptions options)
     {
-        var parameters = GetRevolvedFaceParameters(body, faceId, options, radiusHint: torus.MajorRadius + torus.MinorRadius, allowThreeCoedgeConeTopology: false);
+        var parameters = GetRevolvedFaceParameters(body, faceId, options, radiusHint: torus.MajorRadius + torus.MinorRadius, allowThreeCoedgeConeTopology: false, axialParameterFromPoint: point => TorusMinorAngleOf(torus, point));
         if (!parameters.IsSuccess)
         {
             return KernelResult<DisplayFaceMeshPatch>.Failure(parameters.Diagnostics);
@@ -583,6 +583,7 @@ public static class BrepDisplayTessellator
 
         var lineCoedges = coedges.Where(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Line3).ToArray();
         var circleCoedges = coedges.Where(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Circle3).ToArray();
+        var bSplineCoedges = coedges.Where(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.BSpline3).ToArray();
 
         if (TryResolveFourUseMixedRevolvedLoop(body, coedges, lineCoedges, circleCoedges, axialParameterFromPoint, faceId, out var mixedRevolvedParameters, out var mixedRevolvedDiagnostics))
         {
@@ -591,6 +592,24 @@ public static class BrepDisplayTessellator
                 mixedRevolvedParameters.VEnd,
                 CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options),
                 CalculateAxialSegments(mixedRevolvedParameters.VStart, mixedRevolvedParameters.VEnd, options)), mixedRevolvedDiagnostics);
+        }
+
+        if (TryResolveRepeatedCircleBsplineRevolvedLoop(body, coedges, circleCoedges, bSplineCoedges, axialParameterFromPoint, faceId, out var repeatedCircleBsplineParameters, out var repeatedCircleBsplineDiagnostics))
+        {
+            return KernelResult<(double, double, int, int)>.Success((
+                repeatedCircleBsplineParameters.VStart,
+                repeatedCircleBsplineParameters.VEnd,
+                CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options),
+                CalculateAxialSegments(repeatedCircleBsplineParameters.VStart, repeatedCircleBsplineParameters.VEnd, options)), repeatedCircleBsplineDiagnostics);
+        }
+
+        if (TryResolveRepeatedMixedRevolvedLoop(body, coedges, lineCoedges, circleCoedges, axialParameterFromPoint, faceId, out var repeatedMixedParameters, out var repeatedMixedDiagnostics))
+        {
+            return KernelResult<(double, double, int, int)>.Success((
+                repeatedMixedParameters.VStart,
+                repeatedMixedParameters.VEnd,
+                CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options),
+                CalculateAxialSegments(repeatedMixedParameters.VStart, repeatedMixedParameters.VEnd, options)), repeatedMixedDiagnostics);
         }
 
         if (allowThreeCoedgeConeTopology && TryResolveConeRevolvedLoop(body, coedges, lineCoedges, circleCoedges, axialParameterFromPoint, faceId, out var coneRevolvedParameters, out var coneRevolvedDiagnostics))
@@ -618,12 +637,76 @@ public static class BrepDisplayTessellator
         if (coedges.Length != 4)
         {
             var topologyFamily = allowThreeCoedgeConeTopology ? "cone/revolved" : "torus/revolved";
-            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented(allowThreeCoedgeConeTopology
-                ? $"Face {faceId.Value} curved tessellation supports repeated {topologyFamily} families with mixed line/circle loops; this topology family is still unsupported. Observed: {DescribeRevolvedLoopTopology(body, coedges)}"
-                : $"Face {faceId.Value} curved tessellation supports repeated {topologyFamily} families with mixed line/circle loops; this topology family is still unsupported. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
+            var observedFamily = ClassifyRevolvedTopologyFamily(body, coedges, lineCoedges, circleCoedges, bSplineCoedges);
+            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation supports selected repeated {topologyFamily} boundary subfamilies; unsupported subfamily '{observedFamily}'. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
         }
 
         return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation does not support this torus/revolved boundary topology yet. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
+    }
+
+
+    private static bool TryResolveRepeatedCircleBsplineRevolvedLoop(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<Coedge> circleCoedges,
+        IReadOnlyList<Coedge> bSplineCoedges,
+        Func<Point3D, double>? axialParameterFromPoint,
+        FaceId faceId,
+        out (double VStart, double VEnd) parameters,
+        out IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        parameters = default;
+        diagnostics = [];
+        if (coedges.Count < 5 || circleCoedges.Count < 2 || bSplineCoedges.Count < 1 || axialParameterFromPoint is null)
+        {
+            return false;
+        }
+
+        var result = TryResolveAxialBoundsFromProjectedLoopVertices(body, coedges, axialParameterFromPoint, faceId);
+        if (!result.IsSuccess)
+        {
+            diagnostics = result.Diagnostics;
+            return false;
+        }
+
+        parameters = result.Value;
+        diagnostics = result.Diagnostics;
+        return true;
+    }
+
+    private static bool TryResolveRepeatedMixedRevolvedLoop(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<Coedge> lineCoedges,
+        IReadOnlyList<Coedge> circleCoedges,
+        Func<Point3D, double>? axialParameterFromPoint,
+        FaceId faceId,
+        out (double VStart, double VEnd) parameters,
+        out IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        parameters = default;
+        diagnostics = [];
+        if (coedges.Count < 5 || lineCoedges.Count < 2 || circleCoedges.Count < 2)
+        {
+            return false;
+        }
+
+        var lineEdgeIds = lineCoedges.Select(c => c.EdgeId).Distinct().ToArray();
+        if (lineEdgeIds.Length == 0)
+        {
+            return false;
+        }
+
+        var result = TryResolveAxialBoundsFromLines(body, coedges, lineEdgeIds, axialParameterFromPoint, faceId);
+        if (!result.IsSuccess)
+        {
+            diagnostics = result.Diagnostics;
+            return false;
+        }
+
+        parameters = result.Value;
+        diagnostics = result.Diagnostics;
+        return true;
     }
 
     private static bool TryResolveFourUseMixedRevolvedLoop(
@@ -739,6 +822,41 @@ public static class BrepDisplayTessellator
         return KernelResult<(double VStart, double VEnd)>.Success((vStart, vEnd));
     }
 
+
+    private static KernelResult<(double VStart, double VEnd)> TryResolveAxialBoundsFromProjectedLoopVertices(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        Func<Point3D, double> axialParameterFromPoint,
+        FaceId faceId)
+    {
+        var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
+        if (!vertexPointsResult.IsSuccess)
+        {
+            return KernelResult<(double VStart, double VEnd)>.Failure(vertexPointsResult.Diagnostics);
+        }
+
+        var projected = vertexPointsResult.Value.Values
+            .Select(axialParameterFromPoint)
+            .Where(double.IsFinite)
+            .ToArray();
+
+        if (projected.Length < 2)
+        {
+            return KernelResult<(double VStart, double VEnd)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} curved tessellation could not derive axial bounds from projected loop vertices. Observed: {DescribeRevolvedLoopTopology(body, coedges)}", CurvedTopologyUnsupportedSource)]);
+        }
+
+        var vStart = projected.Min();
+        var vEnd = projected.Max();
+        if (double.Abs(vEnd - vStart) <= 1e-9d)
+        {
+            return KernelResult<(double VStart, double VEnd)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} curved tessellation derived a degenerate projected axial span. Observed: {DescribeRevolvedLoopTopology(body, coedges)}", CurvedTopologyUnsupportedSource)]);
+        }
+
+        return KernelResult<(double VStart, double VEnd)>.Success((vStart, vEnd));
+    }
+
     private static int CalculateAxialSegments(double vStart, double vEnd, DisplayTessellationOptions options)
     {
         var axialSpan = double.Abs(vEnd - vStart);
@@ -749,6 +867,8 @@ public static class BrepDisplayTessellator
     {
         var lineUseCount = 0;
         var circleUseCount = 0;
+        var ellipseUseCount = 0;
+        var bSplineUseCount = 0;
         var seamUseCount = 0;
 
         foreach (var coedge in coedges)
@@ -762,6 +882,14 @@ public static class BrepDisplayTessellator
             {
                 circleUseCount++;
             }
+            else if (curve.Kind == CurveGeometryKind.Ellipse3)
+            {
+                ellipseUseCount++;
+            }
+            else if (curve.Kind == CurveGeometryKind.BSpline3)
+            {
+                bSplineUseCount++;
+            }
 
             var edge = body.Topology.GetEdge(coedge.EdgeId);
             if (edge.StartVertexId == edge.EndVertexId)
@@ -774,7 +902,49 @@ public static class BrepDisplayTessellator
             .Select(c => $"{c.EdgeId.Value}:{body.GetEdgeCurve(c.EdgeId).Kind}")
             .ToArray();
 
-        return $"loops=1 coedges={coedges.Count} lineUses={lineUseCount} circleUses={circleUseCount} seamEdgeUses={seamUseCount} edgeFamilies=[{string.Join(", ", edgeFamilies)}]";
+        return $"loops=1 coedges={coedges.Count} lineUses={lineUseCount} circleUses={circleUseCount} ellipseUses={ellipseUseCount} bSplineUses={bSplineUseCount} seamEdgeUses={seamUseCount} edgeFamilies=[{string.Join(", ", edgeFamilies)}]";
+    }
+
+    private static string ClassifyRevolvedTopologyFamily(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<Coedge> lineCoedges,
+        IReadOnlyList<Coedge> circleCoedges,
+        IReadOnlyList<Coedge> bSplineCoedges)
+    {
+        var uniqueEdgeIds = coedges.Select(c => c.EdgeId).Distinct().ToArray();
+        var seamUses = coedges.Count(c =>
+        {
+            var edge = body.Topology.GetEdge(c.EdgeId);
+            return edge.StartVertexId == edge.EndVertexId;
+        });
+
+        if (lineCoedges.Count == 0 && circleCoedges.Count == coedges.Count)
+        {
+            return seamUses > 0 ? "circle-only seam reused loop" : "circle-only non-seam loop";
+        }
+
+        if (lineCoedges.Count >= 2 && circleCoedges.Count >= 2 && coedges.Count >= 5)
+        {
+            return "repeated mixed line/circle revolved loop";
+        }
+
+        if (lineCoedges.Count == 0 && circleCoedges.Count >= 2 && bSplineCoedges.Count >= 1 && coedges.Count >= 5)
+        {
+            return "repeated mixed circle/bspline revolved loop";
+        }
+
+        if (lineCoedges.Count >= 2 && circleCoedges.Count >= 1 && coedges.Count == 3)
+        {
+            return "three-coedge cone/revolved loop";
+        }
+
+        if (lineCoedges.Count == 2 && circleCoedges.Count == 2 && coedges.Count == 4)
+        {
+            return "four-coedge mixed line/circle loop";
+        }
+
+        return $"other (coedges={coedges.Count}, uniqueEdges={uniqueEdgeIds.Length})";
     }
 
     private static DisplayFaceMeshPatch CreatePeriodicGridPatch(
@@ -1406,6 +1576,20 @@ public static class BrepDisplayTessellator
         }
 
         return angle;
+    }
+
+
+    private static double TorusMinorAngleOf(TorusSurface torus, Point3D point)
+    {
+        var offset = point - torus.Center;
+        var x = offset.Dot(torus.XAxis.ToVector());
+        var y = offset.Dot(torus.YAxis.ToVector());
+        var u = NormalizeToZeroTwoPi(double.Atan2(y, x));
+
+        var majorDirection = (torus.XAxis.ToVector() * double.Cos(u)) + (torus.YAxis.ToVector() * double.Sin(u));
+        var radialFromMajorCircle = offset.Dot(majorDirection) - torus.MajorRadius;
+        var axial = offset.Dot(torus.Axis.ToVector());
+        return NormalizeToZeroTwoPi(double.Atan2(axial, radialFromMajorCircle));
     }
 
     private static double NormalizeToZeroTwoPi(double angle)

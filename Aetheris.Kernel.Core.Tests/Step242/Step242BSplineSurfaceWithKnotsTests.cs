@@ -109,7 +109,7 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "tessellator", "", "Face ")]
-    [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "exporter", "", "Unsupported surface kind 'Torus'.")]
+    [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "", "Audit.None", "No diagnostics.")]
     public void Step242_TrimmedSphereTargets_AdvancePastOldUntrimmedSphereBlocker_AndRemainDeterministic(
         string relativePath,
         string expectedLayer,

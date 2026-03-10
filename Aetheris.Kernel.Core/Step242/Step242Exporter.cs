@@ -167,6 +167,12 @@ public static class Step242Exporter
         return writer.AddEntity("SPHERICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(sphere.Radius));
     }
 
+    private static string BuildTorus(Step242TextWriter writer, TorusSurface torus)
+    {
+        var axisPlacementId = BuildAxisPlacement(writer, torus.Center, torus.Axis, torus.XAxis);
+        return writer.AddEntity("TOROIDAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(torus.MajorRadius), Step242TextWriter.Number(torus.MinorRadius));
+    }
+
     private static string BuildBSplineSurfaceWithKnots(Step242TextWriter writer, BSplineSurfaceWithKnots surface)
     {
         var controlPointRows = surface.ControlPoints
@@ -214,6 +220,7 @@ public static class Step242Exporter
             SurfaceGeometryKind.Cylinder when surface.Cylinder is CylinderSurface cylinder => KernelResult<string>.Success(BuildCylinder(writer, cylinder)),
             SurfaceGeometryKind.Cone when surface.Cone is ConeSurface cone => KernelResult<string>.Success(BuildCone(writer, cone)),
             SurfaceGeometryKind.Sphere when surface.Sphere is SphereSurface sphere => KernelResult<string>.Success(BuildSphere(writer, sphere)),
+            SurfaceGeometryKind.Torus when surface.Torus is TorusSurface torus => KernelResult<string>.Success(BuildTorus(writer, torus)),
             SurfaceGeometryKind.BSplineSurfaceWithKnots when surface.BSplineSurfaceWithKnots is BSplineSurfaceWithKnots bSplineSurface => KernelResult<string>.Success(BuildBSplineSurfaceWithKnots(writer, bSplineSurface)),
             _ => Failure($"Unsupported surface kind '{surface.Kind}'.", $"Face:{faceId.Value}")
         };

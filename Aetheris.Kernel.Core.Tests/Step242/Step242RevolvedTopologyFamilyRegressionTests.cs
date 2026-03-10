@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242RevolvedTopologyFamilyRegressionTests
 {
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "Unsupported surface kind 'Torus'.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "No diagnostics.")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily 'four-coedge mixed line/bspline revolved loop'. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Face 67 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'other (coedges=5, uniqueEdges=5)'. Observed")]
     public void Step242_RepeatedCurvedRevolvedTargets_AdvanceWithExplicitDeterministicNextBlocker(
@@ -64,7 +64,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
 
     [Theory]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "Face 12 spherical trim loop must contain at least three coedges. Observed")]
-    [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "Unsupported surface kind 'Torus'.")]
+    [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "No diagnostics.")]
     public void Step242_RevolvedTopologyFamilyBlockers_StayDeterministic_AndRemainExplicit(string relativePath, string expectedMessagePrefix)
     {
         var entry = new Step242CorpusManifestEntry(

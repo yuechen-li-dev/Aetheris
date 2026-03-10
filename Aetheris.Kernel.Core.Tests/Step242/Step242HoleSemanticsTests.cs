@@ -80,7 +80,7 @@ public sealed class Step242HoleSemanticsTests
     }
 
     [Fact]
-    public void ImportBody_MultiLoopCylindricalFace_Imports_ThenFailsDeterministicallyAtCylinderTrimDegenerateTessellation()
+    public void ImportBody_MultiLoopCylindricalFace_Imports_ThenFailsDeterministicallyAtCylinderTrimAxialSpanDegenerateTessellation()
     {
         var import = Step242Importer.ImportBody(Step242FixtureCorpus.CylindricalFaceWithTwoLoops);
 
@@ -95,7 +95,7 @@ public sealed class Step242HoleSemanticsTests
         Assert.False(tessellation.IsSuccess);
         var diagnostic = Assert.Single(tessellation.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.InvalidArgument, diagnostic.Code);
-        Assert.Equal("Viewer.Tessellation.CylinderTrimDegenerate", diagnostic.Source);
-        Assert.StartsWith("Cylindrical face tessellation derived a degenerate trim patch.", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal("Viewer.Tessellation.CylinderTrimAxialSpanDegenerate", diagnostic.Source);
+        Assert.Contains("collapsed axial span", diagnostic.Message, StringComparison.Ordinal);
     }
 }

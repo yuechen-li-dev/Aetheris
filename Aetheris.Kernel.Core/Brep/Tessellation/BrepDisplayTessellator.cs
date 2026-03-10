@@ -603,6 +603,15 @@ public static class BrepDisplayTessellator
                 CalculateAxialSegments(circleBsplineParameters.VStart, circleBsplineParameters.VEnd, options)), circleBsplineDiagnostics);
         }
 
+        if (TryResolveFourUseBsplineOnlyRevolvedLoop(body, coedges, bSplineCoedges, axialParameterFromPoint, faceId, out var bsplineOnlyParameters, out var bsplineOnlyDiagnostics))
+        {
+            return KernelResult<(double, double, int, int)>.Success((
+                bsplineOnlyParameters.VStart,
+                bsplineOnlyParameters.VEnd,
+                CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options),
+                CalculateAxialSegments(bsplineOnlyParameters.VStart, bsplineOnlyParameters.VEnd, options)), bsplineOnlyDiagnostics);
+        }
+
         if (TryResolveRepeatedCircleBsplineRevolvedLoop(body, coedges, circleCoedges, bSplineCoedges, axialParameterFromPoint, faceId, out var repeatedCircleBsplineParameters, out var repeatedCircleBsplineDiagnostics))
         {
             return KernelResult<(double, double, int, int)>.Success((
@@ -769,6 +778,43 @@ public static class BrepDisplayTessellator
         parameters = default;
         diagnostics = [];
         if (coedges.Count != 4 || circleCoedges.Count != 2 || bSplineCoedges.Count != 2 || axialParameterFromPoint is null)
+        {
+            return false;
+        }
+
+        var result = TryResolveAxialBoundsFromProjectedLoopVertices(body, coedges, axialParameterFromPoint, faceId);
+        if (!result.IsSuccess)
+        {
+            diagnostics = result.Diagnostics;
+            return false;
+        }
+
+        parameters = result.Value;
+        diagnostics = result.Diagnostics;
+        return true;
+    }
+
+    private static bool TryResolveFourUseBsplineOnlyRevolvedLoop(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<Coedge> bSplineCoedges,
+        Func<Point3D, double>? axialParameterFromPoint,
+        FaceId faceId,
+        out (double VStart, double VEnd) parameters,
+        out IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        parameters = default;
+        diagnostics = [];
+        if (coedges.Count != 4 || bSplineCoedges.Count != 4 || axialParameterFromPoint is null)
+        {
+            return false;
+        }
+
+        var uniqueEdgeCount = coedges
+            .Select(c => c.EdgeId)
+            .Distinct()
+            .Count();
+        if (uniqueEdgeCount != 4)
         {
             return false;
         }

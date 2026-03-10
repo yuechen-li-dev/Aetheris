@@ -281,14 +281,13 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateConeFace(BrepBody body, FaceId faceId, ConeSurface cone, DisplayTessellationOptions options)
     {
-        var axis = cone.Axis.ToVector();
         var parameters = GetRevolvedFaceParameters(
             body,
             faceId,
             options,
             radiusHint: 1d,
             allowThreeCoedgeConeTopology: true,
-            axialParameterFromPoint: point => (point - cone.Apex).Dot(axis));
+            axialParameterFromPoint: cone.AxialParameterFromPoint);
         if (!parameters.IsSuccess)
         {
             return KernelResult<DisplayFaceMeshPatch>.Failure(parameters.Diagnostics);

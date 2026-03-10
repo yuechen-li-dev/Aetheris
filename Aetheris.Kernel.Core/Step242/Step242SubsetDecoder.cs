@@ -245,75 +245,15 @@ internal static class Step242SubsetDecoder
 
     public static KernelResult<PlaneSurface> ReadPlaneSurface(Step242ParsedDocument document, Step242ParsedEntity planeEntity)
     {
-        var placementRefResult = ReadReference(planeEntity, 1, "PLANE position");
-        if (!placementRefResult.IsSuccess)
+        var placementResult = ReadAxis2Placement3D(document, planeEntity, 1, "PLANE position", SourceFor(planeEntity.Id, "Importer.Geometry.Plane"));
+        if (!placementResult.IsSuccess)
         {
-            return KernelResult<PlaneSurface>.Failure(placementRefResult.Diagnostics);
-        }
-
-        var placementEntityResult = document.TryGetEntity(placementRefResult.Value.TargetId, "AXIS2_PLACEMENT_3D");
-        if (!placementEntityResult.IsSuccess)
-        {
-            return KernelResult<PlaneSurface>.Failure(placementEntityResult.Diagnostics);
-        }
-
-        var originRefResult = ReadReference(placementEntityResult.Value, 1, "AXIS2_PLACEMENT_3D origin");
-        if (!originRefResult.IsSuccess)
-        {
-            return KernelResult<PlaneSurface>.Failure(originRefResult.Diagnostics);
-        }
-
-        var originEntityResult = document.TryGetEntity(originRefResult.Value.TargetId, "CARTESIAN_POINT");
-        if (!originEntityResult.IsSuccess)
-        {
-            return KernelResult<PlaneSurface>.Failure(originEntityResult.Diagnostics);
-        }
-
-        var originResult = ReadCartesianPoint(originEntityResult.Value, "AXIS2_PLACEMENT_3D origin");
-        if (!originResult.IsSuccess)
-        {
-            return KernelResult<PlaneSurface>.Failure(originResult.Diagnostics);
-        }
-
-        var normalRefResult = ReadReference(placementEntityResult.Value, 2, "AXIS2_PLACEMENT_3D axis");
-        if (!normalRefResult.IsSuccess)
-        {
-            return KernelResult<PlaneSurface>.Failure(normalRefResult.Diagnostics);
-        }
-
-        var normalEntityResult = document.TryGetEntity(normalRefResult.Value.TargetId, "DIRECTION");
-        if (!normalEntityResult.IsSuccess)
-        {
-            return KernelResult<PlaneSurface>.Failure(normalEntityResult.Diagnostics);
-        }
-
-        var normalResult = ReadDirection(normalEntityResult.Value, "AXIS2_PLACEMENT_3D axis");
-        if (!normalResult.IsSuccess)
-        {
-            return KernelResult<PlaneSurface>.Failure(normalResult.Diagnostics);
-        }
-
-        var refDirRefResult = ReadReference(placementEntityResult.Value, 3, "AXIS2_PLACEMENT_3D ref direction");
-        if (!refDirRefResult.IsSuccess)
-        {
-            return KernelResult<PlaneSurface>.Failure(refDirRefResult.Diagnostics);
-        }
-
-        var refDirEntityResult = document.TryGetEntity(refDirRefResult.Value.TargetId, "DIRECTION");
-        if (!refDirEntityResult.IsSuccess)
-        {
-            return KernelResult<PlaneSurface>.Failure(refDirEntityResult.Diagnostics);
-        }
-
-        var refDirResult = ReadDirection(refDirEntityResult.Value, "AXIS2_PLACEMENT_3D ref direction");
-        if (!refDirResult.IsSuccess)
-        {
-            return KernelResult<PlaneSurface>.Failure(refDirResult.Diagnostics);
+            return KernelResult<PlaneSurface>.Failure(placementResult.Diagnostics);
         }
 
         try
         {
-            return KernelResult<PlaneSurface>.Success(new PlaneSurface(originResult.Value, normalResult.Value, refDirResult.Value));
+            return KernelResult<PlaneSurface>.Success(new PlaneSurface(placementResult.Value.Origin, placementResult.Value.Axis, placementResult.Value.ReferenceAxis));
         }
         catch (ArgumentException)
         {
@@ -658,12 +598,9 @@ internal static class Step242SubsetDecoder
         }
 
         var normalizedSemiAngle = normalizedSemiAngleResult.Value;
-        var offset = placementResult.Value.Axis.ToVector() * (radiusResult.Value / double.Tan(normalizedSemiAngle));
-        var apex = placementResult.Value.Origin - offset;
-
         try
         {
-            return KernelResult<ConeSurface>.Success(new ConeSurface(apex, placementResult.Value.Axis, normalizedSemiAngle, placementResult.Value.ReferenceAxis));
+            return KernelResult<ConeSurface>.Success(new ConeSurface(placementResult.Value.Origin, placementResult.Value.Axis, radiusResult.Value, normalizedSemiAngle, placementResult.Value.ReferenceAxis));
         }
         catch (ArgumentException)
         {
@@ -726,37 +663,13 @@ internal static class Step242SubsetDecoder
             return KernelResult<(Point3D, Direction3D, Direction3D)>.Failure(originResult.Diagnostics);
         }
 
-        var axisRefResult = ReadReference(placementEntity, 2, "AXIS2_PLACEMENT_3D axis");
-        if (!axisRefResult.IsSuccess)
-        {
-            return KernelResult<(Point3D, Direction3D, Direction3D)>.Failure(axisRefResult.Diagnostics);
-        }
-
-        var axisEntityResult = document.TryGetEntity(axisRefResult.Value.TargetId, "DIRECTION");
-        if (!axisEntityResult.IsSuccess)
-        {
-            return KernelResult<(Point3D, Direction3D, Direction3D)>.Failure(axisEntityResult.Diagnostics);
-        }
-
-        var axisResult = ReadDirection(axisEntityResult.Value, "AXIS2_PLACEMENT_3D axis");
+        var axisResult = ReadPlacementDirection(document, placementEntity, 2, "AXIS2_PLACEMENT_3D axis", new Vector3D(0d, 0d, 1d));
         if (!axisResult.IsSuccess)
         {
             return KernelResult<(Point3D, Direction3D, Direction3D)>.Failure(axisResult.Diagnostics);
         }
 
-        var refDirRefResult = ReadReference(placementEntity, 3, "AXIS2_PLACEMENT_3D ref direction");
-        if (!refDirRefResult.IsSuccess)
-        {
-            return KernelResult<(Point3D, Direction3D, Direction3D)>.Failure(refDirRefResult.Diagnostics);
-        }
-
-        var refDirEntityResult = document.TryGetEntity(refDirRefResult.Value.TargetId, "DIRECTION");
-        if (!refDirEntityResult.IsSuccess)
-        {
-            return KernelResult<(Point3D, Direction3D, Direction3D)>.Failure(refDirEntityResult.Diagnostics);
-        }
-
-        var refDirResult = ReadDirection(refDirEntityResult.Value, "AXIS2_PLACEMENT_3D ref direction");
+        var refDirResult = ReadPlacementDirection(document, placementEntity, 3, "AXIS2_PLACEMENT_3D ref direction", new Vector3D(1d, 0d, 0d));
         if (!refDirResult.IsSuccess)
         {
             return KernelResult<(Point3D, Direction3D, Direction3D)>.Failure(refDirResult.Diagnostics);
@@ -768,6 +681,32 @@ internal static class Step242SubsetDecoder
         }
 
         return KernelResult<(Point3D, Direction3D, Direction3D)>.Success((originResult.Value, axisResult.Value, refDirResult.Value));
+    }
+
+    private static KernelResult<Direction3D> ReadPlacementDirection(Step242ParsedDocument document, Step242ParsedEntity placementEntity, int argumentIndex, string context, Vector3D defaultDirection)
+    {
+        if (argumentIndex < 0 || argumentIndex >= placementEntity.Arguments.Count)
+        {
+            return FailureDirection($"{context}: missing argument at index {argumentIndex}.", $"Entity:{placementEntity.Id}");
+        }
+
+        if (placementEntity.Arguments[argumentIndex] is Step242OmittedValue)
+        {
+            return KernelResult<Direction3D>.Success(Direction3D.Create(defaultDirection));
+        }
+
+        if (placementEntity.Arguments[argumentIndex] is not Step242EntityReference reference)
+        {
+            return FailureDirection($"{context}: expected entity reference argument.", $"Entity:{placementEntity.Id}");
+        }
+
+        var directionEntityResult = document.TryGetEntity(reference.TargetId, "DIRECTION");
+        if (!directionEntityResult.IsSuccess)
+        {
+            return KernelResult<Direction3D>.Failure(directionEntityResult.Diagnostics);
+        }
+
+        return ReadDirection(directionEntityResult.Value, context);
     }
 
     private static KernelResult<double> ReadNumberArgument(Step242ParsedEntity entity, int argumentIndex, string context, string source)

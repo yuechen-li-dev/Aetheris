@@ -102,9 +102,9 @@
     "status": "importFail",
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Entity:1234",
-      "messagePrefix": "FACE_BOUND loop type \u0027VERTEX_LOOP\u0027 is unsupported for non-spherical faces in M23 import subset."
+      "code": "ValidationFailed",
+      "source": "Importer.LoopRole.UnsupportedSurfaceForHoles.Cone",
+      "messagePrefix": "Multi-loop hole classification is unsupported for surface type \u0027Cone\u0027."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

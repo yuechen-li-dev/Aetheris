@@ -1,0 +1,101 @@
+using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Results;
+
+namespace Aetheris.Kernel.Core.Import;
+
+public interface ISourceConnector
+{
+    string Name { get; }
+
+    bool CanOpen(ImportRequest request);
+
+    KernelResult<IParsedSourceDocument> Parse(ImportRequest request);
+}
+
+public interface IParsedSourceDocument
+{
+    string SourceFamily { get; }
+}
+
+public interface IImportLane
+{
+    string Name { get; }
+
+    ImportLaneKind Kind { get; }
+
+    bool CanImport(IParsedSourceDocument document, ImportPolicy policy);
+
+    KernelResult<BrepBody> Import(IParsedSourceDocument document, ImportPolicy policy);
+}
+
+public sealed class ImportOrchestrator
+{
+    private readonly IReadOnlyList<ISourceConnector> _connectors;
+    private readonly IReadOnlyList<IImportLane> _lanes;
+
+    public ImportOrchestrator(IReadOnlyList<ISourceConnector> connectors, IReadOnlyList<IImportLane> lanes)
+    {
+        _connectors = connectors;
+        _lanes = lanes;
+    }
+
+    public static ImportOrchestrator CreateDefault()
+    {
+        var stepConnector = new Step242.StepSourceConnector();
+        return new ImportOrchestrator(
+            connectors: [stepConnector],
+            lanes:
+            [
+                new Step242.Step242ExactBRepImportLane(),
+                new Step242.Step242TessellatedImportLane()
+            ]);
+    }
+
+    public ImportResult Import(ImportRequest request)
+    {
+        var policy = request.Policy ?? new ImportPolicy();
+        var connector = _connectors.FirstOrDefault(c => c.CanOpen(request));
+        if (connector is null)
+        {
+            return ImportResult.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.NotImplemented,
+                    KernelDiagnosticSeverity.Error,
+                    "No source connector recognized this import request.",
+                    "Import.Orchestrator.ConnectorSelection")
+            ]);
+        }
+
+        var parseResult = connector.Parse(request);
+        if (!parseResult.IsSuccess)
+        {
+            return ImportResult.Failure(parseResult.Diagnostics);
+        }
+
+        var lane = SelectLane(parseResult.Value, policy);
+        if (lane is null)
+        {
+            return ImportResult.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.NotImplemented,
+                    KernelDiagnosticSeverity.Error,
+                    $"No import lane can process source family '{parseResult.Value.SourceFamily}' with preference '{policy.PreferredLane}'.",
+                    "Import.Orchestrator.LaneSelection")
+            ]);
+        }
+
+        var bodyResult = lane.Import(parseResult.Value, policy);
+        return new ImportResult(bodyResult, connector.Name, lane.Kind, parseResult.Value.SourceFamily);
+    }
+
+    private IImportLane? SelectLane(IParsedSourceDocument document, ImportPolicy policy)
+    {
+        if (policy.PreferredLane != ImportLaneKind.Auto)
+        {
+            return _lanes.FirstOrDefault(l => l.Kind == policy.PreferredLane && l.CanImport(document, policy));
+        }
+
+        return _lanes.FirstOrDefault(l => l.CanImport(document, policy));
+    }
+}

@@ -80,7 +80,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 284 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily \u0027other (coedges=4, uniqueEdges=4)\u0027. Observed"
+      "messagePrefix": "Face 327 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily \u0027circle-only non-seam loop\u0027. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -152,7 +152,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily \u0027other (coedges=4, uniqueEdges=4)\u0027. Observed"
+      "messagePrefix": "Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily \u0027four-coedge mixed line/bspline revolved loop\u0027. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

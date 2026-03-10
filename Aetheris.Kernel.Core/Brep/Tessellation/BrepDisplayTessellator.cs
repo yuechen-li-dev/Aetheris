@@ -594,6 +594,15 @@ public static class BrepDisplayTessellator
                 CalculateAxialSegments(mixedRevolvedParameters.VStart, mixedRevolvedParameters.VEnd, options)), mixedRevolvedDiagnostics);
         }
 
+        if (TryResolveFourUseCircleBsplineRevolvedLoop(body, coedges, circleCoedges, bSplineCoedges, axialParameterFromPoint, faceId, out var circleBsplineParameters, out var circleBsplineDiagnostics))
+        {
+            return KernelResult<(double, double, int, int)>.Success((
+                circleBsplineParameters.VStart,
+                circleBsplineParameters.VEnd,
+                CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options),
+                CalculateAxialSegments(circleBsplineParameters.VStart, circleBsplineParameters.VEnd, options)), circleBsplineDiagnostics);
+        }
+
         if (TryResolveRepeatedCircleBsplineRevolvedLoop(body, coedges, circleCoedges, bSplineCoedges, axialParameterFromPoint, faceId, out var repeatedCircleBsplineParameters, out var repeatedCircleBsplineDiagnostics))
         {
             return KernelResult<(double, double, int, int)>.Success((
@@ -648,14 +657,9 @@ public static class BrepDisplayTessellator
             return KernelResult<(double, double, int, int)>.Success((0d, 2d * double.Pi, angularSegments, axialSegments));
         }
 
-        if (coedges.Length != 4)
-        {
-            var topologyFamily = allowThreeCoedgeConeTopology ? "cone/revolved" : "torus/revolved";
-            var observedFamily = ClassifyRevolvedTopologyFamily(body, coedges, lineCoedges, circleCoedges, bSplineCoedges);
-            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation supports selected repeated {topologyFamily} boundary subfamilies; unsupported subfamily '{observedFamily}'. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
-        }
-
-        return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation does not support this torus/revolved boundary topology yet. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
+        var topologyFamily = allowThreeCoedgeConeTopology ? "cone/revolved" : "torus/revolved";
+        var observedFamily = ClassifyRevolvedTopologyFamily(body, coedges, lineCoedges, circleCoedges, bSplineCoedges);
+        return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation supports selected repeated {topologyFamily} boundary subfamilies; unsupported subfamily '{observedFamily}'. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
     }
 
 
@@ -741,6 +745,35 @@ public static class BrepDisplayTessellator
         }
 
         var result = TryResolveAxialBoundsFromLines(body, coedges, lineCoedges.Select(c => c.EdgeId).Distinct().ToArray(), axialParameterFromPoint, faceId);
+        if (!result.IsSuccess)
+        {
+            diagnostics = result.Diagnostics;
+            return false;
+        }
+
+        parameters = result.Value;
+        diagnostics = result.Diagnostics;
+        return true;
+    }
+
+    private static bool TryResolveFourUseCircleBsplineRevolvedLoop(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<Coedge> circleCoedges,
+        IReadOnlyList<Coedge> bSplineCoedges,
+        Func<Point3D, double>? axialParameterFromPoint,
+        FaceId faceId,
+        out (double VStart, double VEnd) parameters,
+        out IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        parameters = default;
+        diagnostics = [];
+        if (coedges.Count != 4 || circleCoedges.Count != 2 || bSplineCoedges.Count != 2 || axialParameterFromPoint is null)
+        {
+            return false;
+        }
+
+        var result = TryResolveAxialBoundsFromProjectedLoopVertices(body, coedges, axialParameterFromPoint, faceId);
         if (!result.IsSuccess)
         {
             diagnostics = result.Diagnostics;
@@ -1041,6 +1074,16 @@ public static class BrepDisplayTessellator
         if (lineCoedges.Count == 2 && circleCoedges.Count == 2 && coedges.Count == 4)
         {
             return "four-coedge mixed line/circle loop";
+        }
+
+        if (lineCoedges.Count == 0 && circleCoedges.Count == 2 && bSplineCoedges.Count == 2 && coedges.Count == 4)
+        {
+            return "four-coedge mixed circle/bspline loop";
+        }
+
+        if (lineCoedges.Count == 0 && circleCoedges.Count == 0 && bSplineCoedges.Count == 4 && coedges.Count == 4)
+        {
+            return "four-coedge bspline-only revolved loop";
         }
 
         return $"other (coedges={coedges.Count}, uniqueEdges={uniqueEdgeIds.Length})";

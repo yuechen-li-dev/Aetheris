@@ -81,7 +81,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
     [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp", "", "", "")]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "tessellator", "", "Face 1 curved tessellation")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "tessellator", "", "Face 174 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "tessellator", "", "Face 2 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp", "tessellator", "", "Face 73 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "tessellator", "", "Face ")]
@@ -108,6 +108,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
         Assert.DoesNotContain("CONICAL_SURFACE radius", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("expected mirrored line uses for this cone/revolved topology", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("supports four-coedge torus/revolved loop layouts", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.DoesNotContain("unsupported subfamily 'other (coedges=3, uniqueEdges=3)'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("Unsupported surface kind 'Cylinder'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("Unsupported surface kind 'Cone'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("Unsupported curve kind 'Circle3'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);

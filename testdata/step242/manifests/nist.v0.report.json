@@ -37,15 +37,15 @@
     "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 870,
-      "edges": 1410,
-      "faces": 635
+      "vertices": 876,
+      "edges": 1416,
+      "faces": 637
     },
     "tessellationCounts": {
-      "facePatches": 635,
-      "edgePolylines": 1410
+      "facePatches": 637,
+      "edgePolylines": 1416
     },
-    "canonicalSha256": "9e32a60debe271c1785ba8fcbbdb368169658d4f1afccc2cdb506321acdf5fdd"
+    "canonicalSha256": "efd1912af5ebab27726a3c22f2215a762e8a7cf2f8106e2f16f97bc879fbb623"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_03_asme1_ap242-e2",
@@ -85,9 +85,9 @@
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 662,
-      "edges": 1108,
-      "faces": 483
+      "vertices": 664,
+      "edges": 1110,
+      "faces": 484
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -157,9 +157,9 @@
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 582,
-      "edges": 865,
-      "faces": 304
+      "vertices": 588,
+      "edges": 871,
+      "faces": 306
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -229,9 +229,9 @@
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 300,
-      "edges": 454,
-      "faces": 158
+      "vertices": 304,
+      "edges": 458,
+      "faces": 159
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -253,9 +253,9 @@
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 560,
-      "edges": 799,
-      "faces": 264
+      "vertices": 572,
+      "edges": 813,
+      "faces": 268
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -349,9 +349,9 @@
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 442,
-      "edges": 705,
-      "faces": 270
+      "vertices": 446,
+      "edges": 709,
+      "faces": 271
     },
     "tessellationCounts": {
       "facePatches": 0,

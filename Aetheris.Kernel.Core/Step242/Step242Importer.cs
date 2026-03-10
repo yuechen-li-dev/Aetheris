@@ -110,6 +110,9 @@ public static class Step242Importer
             return KernelResult<BrepBody>.Failure(faceRefsResult.Diagnostics);
         }
 
+        var faceEntityIds = faceRefsResult.Value.Select(r => r.TargetId).ToList();
+        AppendSupportedOrphanPlanarFaces(document, faceEntityIds);
+
         var builder = new TopologyBuilder();
         var geometry = new BrepGeometryStore();
         var bindings = new BrepBindingModel();
@@ -122,9 +125,9 @@ public static class Step242Importer
         var nextSurfaceGeometryId = 1;
         var faceIds = new List<FaceId>();
 
-        foreach (var faceRef in faceRefsResult.Value)
+        foreach (var faceEntityId in faceEntityIds)
         {
-            var faceEntityResult = document.TryGetEntity(faceRef.TargetId, "ADVANCED_FACE");
+            var faceEntityResult = document.TryGetEntity(faceEntityId, "ADVANCED_FACE");
             if (!faceEntityResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(faceEntityResult.Diagnostics);
@@ -428,6 +431,90 @@ public static class Step242Importer
         }
 
         return KernelResult<BrepBody>.Success(body, validation.Diagnostics);
+    }
+
+    private static void AppendSupportedOrphanPlanarFaces(Step242ParsedDocument document, IList<int> faceEntityIds)
+    {
+        var known = new HashSet<int>(faceEntityIds);
+
+        foreach (var entity in document.Entities)
+        {
+            if (!string.Equals(entity.Name, "ADVANCED_FACE", StringComparison.OrdinalIgnoreCase) || known.Contains(entity.Id))
+            {
+                continue;
+            }
+
+            var advancedFaceOffset = entity.Arguments.Count >= 4
+                && (entity.Arguments[0] is Step242StringValue || entity.Arguments[0] is Step242OmittedValue)
+                ? 1
+                : 0;
+
+            var surfaceResult = Step242SubsetDecoder.ReadEntityRefOrInlineConstructor(entity, advancedFaceOffset + 1, "ADVANCED_FACE surface");
+            if (!surfaceResult.IsSuccess)
+            {
+                continue;
+            }
+
+            string surfaceName;
+            if (surfaceResult.Value.IsReference)
+            {
+                var surfaceEntityResult = document.TryGetEntity(surfaceResult.Value.ReferenceId!.Value);
+                if (!surfaceEntityResult.IsSuccess)
+                {
+                    continue;
+                }
+
+                surfaceName = surfaceEntityResult.Value.Name;
+            }
+            else
+            {
+                surfaceName = surfaceResult.Value.InlineName ?? string.Empty;
+            }
+
+            if (!string.Equals(surfaceName, "PLANE", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var boundRefsResult = Step242SubsetDecoder.ReadAdvancedFaceBounds(entity, advancedFaceOffset, "ADVANCED_FACE bounds");
+            if (!boundRefsResult.IsSuccess || boundRefsResult.Value.Count == 0)
+            {
+                continue;
+            }
+
+            var allEdgeLoops = true;
+            foreach (var boundRef in boundRefsResult.Value)
+            {
+                var boundEntityResult = document.TryGetEntity(boundRef.TargetId);
+                if (!boundEntityResult.IsSuccess)
+                {
+                    allEdgeLoops = false;
+                    break;
+                }
+
+                var loopRefResult = Step242SubsetDecoder.ReadReference(boundEntityResult.Value, 1, "FACE_BOUND loop");
+                if (!loopRefResult.IsSuccess)
+                {
+                    allEdgeLoops = false;
+                    break;
+                }
+
+                var loopEntityResult = document.TryGetEntity(loopRefResult.Value.TargetId);
+                if (!loopEntityResult.IsSuccess || !string.Equals(loopEntityResult.Value.Name, "EDGE_LOOP", StringComparison.OrdinalIgnoreCase))
+                {
+                    allEdgeLoops = false;
+                    break;
+                }
+            }
+
+            if (!allEdgeLoops)
+            {
+                continue;
+            }
+
+            faceEntityIds.Add(entity.Id);
+            known.Add(entity.Id);
+        }
     }
 
     private static KernelResult<EdgeId> EnsureEdge(

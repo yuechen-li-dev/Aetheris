@@ -206,6 +206,28 @@ END-ISO-10303-21;";
         }
     }
 
+    [Fact]
+    public void ExportBody_Ctc02RoundTrip_PreservesPlanarFaceWithCircularBoundaryNearExpectedCenter()
+    {
+        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_02_asme1_ap242-e2.stp");
+        var source = File.ReadAllText(fixturePath);
+
+        var import = Step242Importer.ImportBody(source);
+        Assert.True(import.IsSuccess);
+
+        var sourceFace = FindPlanarFaceWithCircle(import.Value, new Aetheris.Kernel.Core.Math.Point3D(0d, 812d, -140d), 42.5d);
+        Assert.True(sourceFace.HasValue);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+
+        var roundTrip = Step242Importer.ImportBody(export.Value);
+        Assert.True(roundTrip.IsSuccess);
+
+        var roundTripFace = FindPlanarFaceWithCircle(roundTrip.Value, new Aetheris.Kernel.Core.Math.Point3D(0d, 812d, -140d), 42.5d);
+        Assert.True(roundTripFace.HasValue);
+    }
+
 
     [Fact]
     public void ExportBody_EmitsCanonicalRadianPlaneAngleUnitContext()
@@ -576,6 +598,66 @@ END-ISO-10303-21;";
     }
 
     private static string FormatPoint((double X, double Y, double Z) p) => $"({p.X}, {p.Y}, {p.Z})";
+
+    private static Aetheris.Kernel.Core.Topology.FaceId? FindPlanarFaceWithCircle(BrepBody body, Aetheris.Kernel.Core.Math.Point3D expectedCenter, double expectedRadius)
+    {
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding))
+            {
+                continue;
+            }
+
+            if (!body.Geometry.TryGetSurface(faceBinding.SurfaceGeometryId, out var surface)
+                || surface is null
+                || surface.Kind != Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane)
+            {
+                continue;
+            }
+
+            foreach (var loopId in face.LoopIds)
+            {
+                var loop = body.Topology.GetLoop(loopId);
+                foreach (var coedgeId in loop.CoedgeIds)
+                {
+                    var coedge = body.Topology.GetCoedge(coedgeId);
+                    if (!body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var edgeBinding))
+                    {
+                        continue;
+                    }
+
+                    if (!body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve)
+                        || curve is null
+                        || curve.Kind != Aetheris.Kernel.Core.Geometry.CurveGeometryKind.Circle3
+                        || !curve.Circle3.HasValue)
+                    {
+                        continue;
+                    }
+
+                    var circle = curve.Circle3.Value;
+                    if (double.Abs(circle.Radius - expectedRadius) > 1e-3)
+                    {
+                        continue;
+                    }
+
+                    if (Distance(circle.Center, expectedCenter) <= 1e-3)
+                    {
+                        return face.Id;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static double Distance(Aetheris.Kernel.Core.Math.Point3D a, Aetheris.Kernel.Core.Math.Point3D b)
+    {
+        var dx = a.X - b.X;
+        var dy = a.Y - b.Y;
+        var dz = a.Z - b.Z;
+        return double.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
+    }
 
     private sealed record StepEntityRecords(
         IReadOnlyDictionary<int, (double X, double Y, double Z)> Points,

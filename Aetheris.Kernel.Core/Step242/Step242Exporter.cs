@@ -157,8 +157,8 @@ public static class Step242Exporter
 
     private static string BuildCone(Step242TextWriter writer, ConeSurface cone)
     {
-        var axisPlacementId = BuildAxisPlacement(writer, cone.Apex, cone.Axis, BuildPerpendicularReferenceAxis(cone.Axis));
-        return writer.AddEntity("CONICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(0d), Step242TextWriter.Number(cone.SemiAngleRadians));
+        var axisPlacementId = BuildAxisPlacement(writer, cone.PlacementOrigin, cone.Axis, cone.ReferenceAxis);
+        return writer.AddEntity("CONICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(cone.PlacementRadius), Step242TextWriter.Number(cone.SemiAngleRadians));
     }
 
     private static string BuildSphere(Step242TextWriter writer, SphereSurface sphere)
@@ -229,13 +229,6 @@ public static class Step242Exporter
         return writer.AddEntity("AXIS2_PLACEMENT_3D", "$", Step242TextWriter.Ref(originId), Step242TextWriter.Ref(axisId), Step242TextWriter.Ref(referenceId));
     }
 
-    private static Direction3D BuildPerpendicularReferenceAxis(Direction3D axis)
-    {
-        var axisVector = axis.ToVector();
-        var reference = double.Abs(axisVector.Dot(new Vector3D(1d, 0d, 0d))) <= 0.9d ? new Vector3D(1d, 0d, 0d) : new Vector3D(0d, 1d, 0d);
-        var projected = reference - (axisVector * reference.Dot(axisVector));
-        return Direction3D.Create(projected);
-    }
     private static KernelResult<string> BuildEdgeCurve(
         BrepBody body,
         TopologyModel model,

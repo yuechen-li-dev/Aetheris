@@ -21,7 +21,7 @@
       "facePatches": 117,
       "edgePolylines": 318
     },
-    "canonicalSha256": "d7bada38e05be8d0ecec27932949efa6f106dc2a9769c07faa68bb6727355292"
+    "canonicalSha256": "dc035a418ef98d85aa31f20cfd1582cc5ad3c44159a8018a1b70b87344abcd1f"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_02_asme1_ap242-e2",
@@ -45,7 +45,7 @@
       "facePatches": 637,
       "edgePolylines": 1416
     },
-    "canonicalSha256": "efd1912af5ebab27726a3c22f2215a762e8a7cf2f8106e2f16f97bc879fbb623"
+    "canonicalSha256": "d49fd736ad41ba423a0ee40e73f99edeed13ff93dec4985e14c9bd59382e612e"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_03_asme1_ap242-e2",
@@ -316,11 +316,11 @@
     "path": "testdata/step242/nist/STC/nist_stc_07_asme1_ap242-e3.stp",
     "sizeBytes": 1927905,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "importer-geometry",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Entity:227",
-      "messagePrefix": "AXIS2_PLACEMENT_3D ref direction"
+      "code": "InvalidArgument",
+      "source": "Importer.Geometry.Circle",
+      "messagePrefix": "AXIS2_PLACEMENT_3D axis and ref direction must not be parallel."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -381,7 +381,7 @@
       "facePatches": 125,
       "edgePolylines": 392
     },
-    "canonicalSha256": "015c71f17898c4bddc773bb5590dfc339b705ac055026440c047f3a42849a85b"
+    "canonicalSha256": "8ac9846765fabbae05bab97ca0e540e10f58cddf4b1d5daf052fcbb7263c71a5"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_10_asme1_ap242-e2",

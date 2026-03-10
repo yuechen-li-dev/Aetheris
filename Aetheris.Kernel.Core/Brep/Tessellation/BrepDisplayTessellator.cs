@@ -621,6 +621,15 @@ public static class BrepDisplayTessellator
                 CalculateAxialSegments(repeatedCircleBsplineParameters.VStart, repeatedCircleBsplineParameters.VEnd, options)), repeatedCircleBsplineDiagnostics);
         }
 
+        if (TryResolveSixCoedgeSingleCircleFiveBsplineRevolvedLoop(body, coedges, circleCoedges, bSplineCoedges, axialParameterFromPoint, faceId, out var sixCoedgeSingleCircleParameters, out var sixCoedgeSingleCircleDiagnostics))
+        {
+            return KernelResult<(double, double, int, int)>.Success((
+                sixCoedgeSingleCircleParameters.VStart,
+                sixCoedgeSingleCircleParameters.VEnd,
+                CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options),
+                CalculateAxialSegments(sixCoedgeSingleCircleParameters.VStart, sixCoedgeSingleCircleParameters.VEnd, options)), sixCoedgeSingleCircleDiagnostics);
+        }
+
         if (TryResolveRepeatedMixedRevolvedLoop(body, coedges, lineCoedges, circleCoedges, axialParameterFromPoint, faceId, out var repeatedMixedParameters, out var repeatedMixedDiagnostics))
         {
             return KernelResult<(double, double, int, int)>.Success((
@@ -725,6 +734,36 @@ public static class BrepDisplayTessellator
         }
 
         var result = TryResolveAxialBoundsFromLines(body, coedges, lineEdgeIds, axialParameterFromPoint, faceId);
+        if (!result.IsSuccess)
+        {
+            diagnostics = result.Diagnostics;
+            return false;
+        }
+
+        parameters = result.Value;
+        diagnostics = result.Diagnostics;
+        return true;
+    }
+
+    private static bool TryResolveSixCoedgeSingleCircleFiveBsplineRevolvedLoop(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<Coedge> circleCoedges,
+        IReadOnlyList<Coedge> bSplineCoedges,
+        Func<Point3D, double>? axialParameterFromPoint,
+        FaceId faceId,
+        out (double VStart, double VEnd) parameters,
+        out IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        parameters = default;
+        diagnostics = [];
+        var uniqueEdgeCount = coedges.Select(c => c.EdgeId).Distinct().Count();
+        if (coedges.Count != 6 || uniqueEdgeCount != 6 || circleCoedges.Count != 1 || bSplineCoedges.Count != 5 || axialParameterFromPoint is null)
+        {
+            return false;
+        }
+
+        var result = TryResolveAxialBoundsFromProjectedLoopVertices(body, coedges, axialParameterFromPoint, faceId);
         if (!result.IsSuccess)
         {
             diagnostics = result.Diagnostics;
@@ -1102,6 +1141,11 @@ public static class BrepDisplayTessellator
             return "repeated mixed circle/bspline revolved loop";
         }
 
+        if (lineCoedges.Count == 0 && circleCoedges.Count == 1 && bSplineCoedges.Count == 5 && coedges.Count == 6 && uniqueEdgeIds.Length == 6)
+        {
+            return "six-coedge single-circle/five-bspline revolved loop";
+        }
+
         if (lineCoedges.Count >= 2 && circleCoedges.Count >= 1 && coedges.Count == 3)
         {
             return "three-coedge cone/revolved loop";
@@ -1127,9 +1171,19 @@ public static class BrepDisplayTessellator
             return "four-coedge mixed circle/bspline loop";
         }
 
+        if (lineCoedges.Count == 0 && circleCoedges.Count == 1 && bSplineCoedges.Count == 3 && coedges.Count == 4 && uniqueEdgeIds.Length == 4)
+        {
+            return "four-coedge single-circle/three-bspline revolved loop";
+        }
+
         if (lineCoedges.Count == 0 && circleCoedges.Count == 0 && bSplineCoedges.Count == 4 && coedges.Count == 4)
         {
             return "four-coedge bspline-only revolved loop";
+        }
+
+        if (lineCoedges.Count == 0 && circleCoedges.Count == 0 && bSplineCoedges.Count == 6 && coedges.Count == 6 && uniqueEdgeIds.Length == 6)
+        {
+            return "six-coedge bspline-only revolved loop";
         }
 
         return $"other (coedges={coedges.Count}, uniqueEdges={uniqueEdgeIds.Length})";

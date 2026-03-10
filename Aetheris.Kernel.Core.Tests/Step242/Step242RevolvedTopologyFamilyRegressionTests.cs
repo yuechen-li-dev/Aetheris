@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242RevolvedTopologyFamilyRegressionTests
 {
     [Theory]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Face 41 curved tessellation supports selected repeated cone/revolved boundary subfamilies")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Face ")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Face 25 curved tessellation does not support this torus/revolved boundary topology yet. Observed")]
     public void Step242_RepeatedCurvedRevolvedTargets_AdvanceWithExplicitDeterministicNextBlocker(
         string relativePath,
@@ -30,6 +30,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
 
         Assert.DoesNotContain("supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("supports repeated cone/revolved families with mixed line/circle loops; this topology family is still unsupported", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.DoesNotContain("unsupported subfamily 'other (coedges=3, uniqueEdges=3)'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
     }
 

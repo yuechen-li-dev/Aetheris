@@ -6,7 +6,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
 {
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "Face 284 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'other (coedges=4, uniqueEdges=4)'. Observed")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Face 74 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'six-coedge bspline-only revolved loop'. Observed")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily 'other (coedges=4, uniqueEdges=4)'. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Face 67 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'other (coedges=5, uniqueEdges=5)'. Observed")]
     public void Step242_RepeatedCurvedRevolvedTargets_AdvanceWithExplicitDeterministicNextBlocker(
         string relativePath,
@@ -34,6 +34,31 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
         Assert.DoesNotContain("unsupported subfamily 'other (coedges=3, uniqueEdges=3)'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("unsupported subfamily 'four-coedge bspline-only revolved loop'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.StartsWith(expectedMessagePrefix, first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Step242_Ftc07_SixCoedgeBsplineOnlyRevolvedLoop_AdvancesDeterministically_ToExplicitConeBlocker()
+    {
+        const string relativePath = "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp";
+        var entry = new Step242CorpusManifestEntry(
+            Id: Path.GetFileNameWithoutExtension(relativePath),
+            Path: relativePath,
+            Group: "nist-revolved-family-regression",
+            Notes: "six-coedge bspline-only revolved loop progression",
+            ExpectedFirstDiagnostic: null,
+            ExpectHashStableAfterCanonicalization: null,
+            ExpectTopologyCounts: null,
+            ExpectGeometryKinds: null);
+
+        var first = Step242CorpusManifestRunner.RunOne(entry);
+        var second = Step242CorpusManifestRunner.RunOne(entry);
+
+        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
+        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
+        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
+
+        Assert.DoesNotContain("unsupported subfamily 'six-coedge bspline-only revolved loop'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.StartsWith("Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily 'other (coedges=4, uniqueEdges=4)'. Observed", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
     }
 
     [Theory]

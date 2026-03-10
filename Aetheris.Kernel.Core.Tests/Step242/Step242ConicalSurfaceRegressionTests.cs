@@ -305,11 +305,87 @@ public sealed class Step242ConicalSurfaceRegressionTests
         var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.DoesNotContain("AXIS2_PLACEMENT_3D ref direction: expected entity reference argument.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
-        Assert.Equal("importer-geometry", first.FirstFailureLayer);
-        Assert.Equal("Importer.Geometry.Circle", first.FirstDiagnostic.Source);
-        Assert.Equal("AXIS2_PLACEMENT_3D axis and ref direction must not be parallel.", first.FirstDiagnostic.MessagePrefix);
+        Assert.NotEqual("AXIS2_PLACEMENT_3D axis and ref direction must not be parallel.", first.FirstDiagnostic.MessagePrefix);
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
+    }
+
+    [Fact]
+    public void Step242_Axis2Placement3D_DefaultedRefDirectionParallelToAxis_UsesDeterministicPerpendicularFallback()
+    {
+        const string text = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n"
+            + "#1=MANIFOLD_SOLID_BREP('solid',#2);\n"
+            + "#2=CLOSED_SHELL($,(#3));\n"
+            + "#3=ADVANCED_FACE((#4),#5,.T.);\n"
+            + "#4=FACE_OUTER_BOUND($,#6,.T.);\n"
+            + "#5=PLANE($,#30);\n"
+            + "#6=EDGE_LOOP($,(#7));\n"
+            + "#7=ORIENTED_EDGE($,$,$,#8,.T.);\n"
+            + "#8=EDGE_CURVE($,#9,#9,#10,.T.);\n"
+            + "#9=VERTEX_POINT($,#11);\n"
+            + "#10=CIRCLE($,#31,1.0);\n"
+            + "#11=CARTESIAN_POINT($,(1,0,0));\n"
+            + "#30=AXIS2_PLACEMENT_3D($,#12,#13,#14);\n"
+            + "#31=AXIS2_PLACEMENT_3D($,#12,#15,$);\n"
+            + "#12=CARTESIAN_POINT($,(0,0,0));\n"
+            + "#13=DIRECTION($,(0,0,1));\n"
+            + "#14=DIRECTION($,(1,0,0));\n"
+            + "#15=DIRECTION($,(1,0,0));\n"
+            + "ENDSEC;\nEND-ISO-10303-21;";
+
+        var first = Step242Importer.ImportBody(text);
+        var second = Step242Importer.ImportBody(text);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+
+        var firstCircle = first.Value.Geometry.Curves
+            .Select(curve => curve.Value)
+            .Single(curve => curve.Kind == Aetheris.Kernel.Core.Geometry.CurveGeometryKind.Circle3)
+            .Circle3!.Value;
+
+        var secondCircle = second.Value.Geometry.Curves
+            .Select(curve => curve.Value)
+            .Single(curve => curve.Kind == Aetheris.Kernel.Core.Geometry.CurveGeometryKind.Circle3)
+            .Circle3!.Value;
+
+        Assert.True(double.Abs(firstCircle.Normal.ToVector().Dot(firstCircle.XAxis.ToVector())) < 1e-12d);
+        Assert.True(double.Abs(secondCircle.Normal.ToVector().Dot(secondCircle.XAxis.ToVector())) < 1e-12d);
+        Assert.Equal(firstCircle.XAxis.ToVector().X, secondCircle.XAxis.ToVector().X, 12);
+        Assert.Equal(firstCircle.XAxis.ToVector().Y, secondCircle.XAxis.ToVector().Y, 12);
+        Assert.Equal(firstCircle.XAxis.ToVector().Z, secondCircle.XAxis.ToVector().Z, 12);
+    }
+
+    [Fact]
+    public void Step242_Axis2Placement3D_ExplicitParallelAxisAndRefDirection_RemainsInvalid()
+    {
+        const string text = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n"
+            + "#1=MANIFOLD_SOLID_BREP('solid',#2);\n"
+            + "#2=CLOSED_SHELL($,(#3));\n"
+            + "#3=ADVANCED_FACE((#4),#5,.T.);\n"
+            + "#4=FACE_OUTER_BOUND($,#6,.T.);\n"
+            + "#5=PLANE($,#30);\n"
+            + "#6=EDGE_LOOP($,(#7));\n"
+            + "#7=ORIENTED_EDGE($,$,$,#8,.T.);\n"
+            + "#8=EDGE_CURVE($,#9,#9,#10,.T.);\n"
+            + "#9=VERTEX_POINT($,#11);\n"
+            + "#10=CIRCLE($,#31,1.0);\n"
+            + "#11=CARTESIAN_POINT($,(1,0,0));\n"
+            + "#30=AXIS2_PLACEMENT_3D($,#12,#13,#14);\n"
+            + "#31=AXIS2_PLACEMENT_3D($,#12,#15,#16);\n"
+            + "#12=CARTESIAN_POINT($,(0,0,0));\n"
+            + "#13=DIRECTION($,(0,0,1));\n"
+            + "#14=DIRECTION($,(1,0,0));\n"
+            + "#15=DIRECTION($,(1,0,0));\n"
+            + "#16=DIRECTION($,(1,0,0));\n"
+            + "ENDSEC;\nEND-ISO-10303-21;";
+
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.False(import.IsSuccess);
+        var diagnostic = Assert.Single(import.Diagnostics);
+        Assert.Equal("Importer.Geometry.Circle", diagnostic.Source);
+        Assert.Equal("AXIS2_PLACEMENT_3D axis and ref direction must not be parallel.", diagnostic.Message);
     }
 }

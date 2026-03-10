@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242EllipseEdgeRegressionTests
 {
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "exporter", "Face:74", "Unsupported surface kind 'BSplineSurfaceWithKnots'.")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "exporter", "Edge:1090", "Unsupported curve kind 'Ellipse3'.")]
     public void Step242_NistEllipseTargets_AdvancePastUnsupportedEllipse_AndRemainDeterministic(string relativePath, string expectedLayer, string expectedSource, string expectedMessagePrefix)
     {
         var entry = new Step242CorpusManifestEntry(

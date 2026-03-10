@@ -166,6 +166,45 @@ public static class Step242Exporter
         return writer.AddEntity("SPHERICAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(sphere.Radius));
     }
 
+    private static string BuildBSplineSurfaceWithKnots(Step242TextWriter writer, BSplineSurfaceWithKnots surface)
+    {
+        var controlPointRows = surface.ControlPoints
+            .Select(row =>
+            {
+                var rowPointIds = row
+                    .Select(point => writer.AddEntity("CARTESIAN_POINT", "$", PointList(point)))
+                    .Select(Step242TextWriter.Ref)
+                    .ToArray();
+                return Step242TextWriter.List(rowPointIds);
+            })
+            .ToArray();
+
+        var multiplicitiesU = surface.KnotMultiplicitiesU
+            .Select(multiplicity => multiplicity.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            .ToArray();
+        var multiplicitiesV = surface.KnotMultiplicitiesV
+            .Select(multiplicity => multiplicity.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            .ToArray();
+        var knotValuesU = surface.KnotValuesU.Select(Step242TextWriter.Number).ToArray();
+        var knotValuesV = surface.KnotValuesV.Select(Step242TextWriter.Number).ToArray();
+
+        return writer.AddEntity(
+            "B_SPLINE_SURFACE_WITH_KNOTS",
+            "$",
+            surface.DegreeU.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            surface.DegreeV.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            Step242TextWriter.List(controlPointRows),
+            Step242TextWriter.Enum(surface.SurfaceForm),
+            Step242TextWriter.BooleanLogical(surface.UClosed),
+            Step242TextWriter.BooleanLogical(surface.VClosed),
+            Step242TextWriter.BooleanLogical(surface.SelfIntersect),
+            Step242TextWriter.List(multiplicitiesU),
+            Step242TextWriter.List(multiplicitiesV),
+            Step242TextWriter.List(knotValuesU),
+            Step242TextWriter.List(knotValuesV),
+            Step242TextWriter.Enum(surface.KnotSpec));
+    }
+
     private static KernelResult<string> BuildSurface(Step242TextWriter writer, SurfaceGeometry surface, FaceId faceId)
     {
         return surface.Kind switch
@@ -174,6 +213,7 @@ public static class Step242Exporter
             SurfaceGeometryKind.Cylinder when surface.Cylinder is CylinderSurface cylinder => KernelResult<string>.Success(BuildCylinder(writer, cylinder)),
             SurfaceGeometryKind.Cone when surface.Cone is ConeSurface cone => KernelResult<string>.Success(BuildCone(writer, cone)),
             SurfaceGeometryKind.Sphere when surface.Sphere is SphereSurface sphere => KernelResult<string>.Success(BuildSphere(writer, sphere)),
+            SurfaceGeometryKind.BSplineSurfaceWithKnots when surface.BSplineSurfaceWithKnots is BSplineSurfaceWithKnots bSplineSurface => KernelResult<string>.Success(BuildBSplineSurfaceWithKnots(writer, bSplineSurface)),
             _ => Failure($"Unsupported surface kind '{surface.Kind}'.", $"Face:{faceId.Value}")
         };
     }

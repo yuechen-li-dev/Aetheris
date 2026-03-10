@@ -316,11 +316,11 @@
     "path": "testdata/step242/nist/STC/nist_stc_07_asme1_ap242-e3.stp",
     "sizeBytes": 1927905,
     "status": "importFail",
-    "firstFailureLayer": "importer-geometry",
+    "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "InvalidArgument",
-      "source": "Importer.Geometry.Circle",
-      "messagePrefix": "AXIS2_PLACEMENT_3D axis and ref direction must not be parallel."
+      "code": "ValidationFailed",
+      "source": "Importer.LoopRole.DisconnectedCoedges",
+      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=252, outerLoopId=251,"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

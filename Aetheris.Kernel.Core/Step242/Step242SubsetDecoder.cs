@@ -675,38 +675,83 @@ internal static class Step242SubsetDecoder
             return KernelResult<(Point3D, Direction3D, Direction3D)>.Failure(refDirResult.Diagnostics);
         }
 
-        if (double.Abs(axisResult.Value.ToVector().Dot(refDirResult.Value.ToVector())) >= 1d - 1e-12d)
+        var axis = axisResult.Value.Direction;
+        var referenceAxis = refDirResult.Value.Direction;
+        if (double.Abs(axis.ToVector().Dot(referenceAxis.ToVector())) >= 1d - 1e-12d)
         {
-            return FailureAxisPlacement("AXIS2_PLACEMENT_3D axis and ref direction must not be parallel.", geometrySource);
+            if (refDirResult.Value.IsDefaulted)
+            {
+                var fallbackResult = BuildDeterministicPerpendicularDirection(axis, "AXIS2_PLACEMENT_3D ref direction", geometrySource);
+                if (!fallbackResult.IsSuccess)
+                {
+                    return KernelResult<(Point3D, Direction3D, Direction3D)>.Failure(fallbackResult.Diagnostics);
+                }
+
+                referenceAxis = fallbackResult.Value;
+            }
+            else
+            {
+                return FailureAxisPlacement("AXIS2_PLACEMENT_3D axis and ref direction must not be parallel.", geometrySource);
+            }
         }
 
-        return KernelResult<(Point3D, Direction3D, Direction3D)>.Success((originResult.Value, axisResult.Value, refDirResult.Value));
+        return KernelResult<(Point3D, Direction3D, Direction3D)>.Success((originResult.Value, axis, referenceAxis));
     }
 
-    private static KernelResult<Direction3D> ReadPlacementDirection(Step242ParsedDocument document, Step242ParsedEntity placementEntity, int argumentIndex, string context, Vector3D defaultDirection)
+    private static KernelResult<PlacementDirectionReadResult> ReadPlacementDirection(Step242ParsedDocument document, Step242ParsedEntity placementEntity, int argumentIndex, string context, Vector3D defaultDirection)
     {
         if (argumentIndex < 0 || argumentIndex >= placementEntity.Arguments.Count)
         {
-            return FailureDirection($"{context}: missing argument at index {argumentIndex}.", $"Entity:{placementEntity.Id}");
+            return FailurePlacementDirection($"{context}: missing argument at index {argumentIndex}.", $"Entity:{placementEntity.Id}");
         }
 
         if (placementEntity.Arguments[argumentIndex] is Step242OmittedValue)
         {
-            return KernelResult<Direction3D>.Success(Direction3D.Create(defaultDirection));
+            return KernelResult<PlacementDirectionReadResult>.Success(new PlacementDirectionReadResult(Direction3D.Create(defaultDirection), IsDefaulted: true));
         }
 
         if (placementEntity.Arguments[argumentIndex] is not Step242EntityReference reference)
         {
-            return FailureDirection($"{context}: expected entity reference argument.", $"Entity:{placementEntity.Id}");
+            return FailurePlacementDirection($"{context}: expected entity reference argument.", $"Entity:{placementEntity.Id}");
         }
 
         var directionEntityResult = document.TryGetEntity(reference.TargetId, "DIRECTION");
         if (!directionEntityResult.IsSuccess)
         {
-            return KernelResult<Direction3D>.Failure(directionEntityResult.Diagnostics);
+            return KernelResult<PlacementDirectionReadResult>.Failure(directionEntityResult.Diagnostics);
         }
 
-        return ReadDirection(directionEntityResult.Value, context);
+        var directionResult = ReadDirection(directionEntityResult.Value, context);
+        if (!directionResult.IsSuccess)
+        {
+            return KernelResult<PlacementDirectionReadResult>.Failure(directionResult.Diagnostics);
+        }
+
+        return KernelResult<PlacementDirectionReadResult>.Success(new PlacementDirectionReadResult(directionResult.Value, IsDefaulted: false));
+    }
+
+    private static KernelResult<Direction3D> BuildDeterministicPerpendicularDirection(Direction3D axis, string context, string source)
+    {
+        var axisVector = axis.ToVector();
+        var candidateSeeds = new[]
+        {
+            new Vector3D(1d, 0d, 0d),
+            new Vector3D(0d, 1d, 0d),
+            new Vector3D(0d, 0d, 1d)
+        }
+            .OrderBy(seed => double.Abs(seed.Dot(axisVector)))
+            .ToArray();
+
+        foreach (var seed in candidateSeeds)
+        {
+            var projected = seed - (axisVector * seed.Dot(axisVector));
+            if (Direction3D.TryCreate(projected, out var direction))
+            {
+                return KernelResult<Direction3D>.Success(direction);
+            }
+        }
+
+        return FailureDirection($"{context}: unable to build a deterministic perpendicular direction from placement axis.", source);
     }
 
     private static KernelResult<double> ReadNumberArgument(Step242ParsedEntity entity, int argumentIndex, string context, string source)
@@ -1105,6 +1150,8 @@ internal static class Step242SubsetDecoder
 
     private static KernelResult<Direction3D> FailureDirection(string message, string source) => Failure<Direction3D>(message, source);
 
+    private static KernelResult<PlacementDirectionReadResult> FailurePlacementDirection(string message, string source) => Failure<PlacementDirectionReadResult>(message, source);
+
     private static KernelResult<PlaneSurface> FailurePlane(string message, string source) => Failure<PlaneSurface>(message, source);
 
     private static KernelResult<Circle3Curve> FailureCircle(string message, string source) => Failure<Circle3Curve>(KernelDiagnosticCode.InvalidArgument, message, source);
@@ -1138,4 +1185,6 @@ internal static class Step242SubsetDecoder
 
     private static KernelResult<T> Failure<T>(KernelDiagnosticCode code, string message, string source) =>
         KernelResult<T>.Failure([new KernelDiagnostic(code, KernelDiagnosticSeverity.Error, message, source)]);
+
+    private readonly record struct PlacementDirectionReadResult(Direction3D Direction, bool IsDefaulted);
 }

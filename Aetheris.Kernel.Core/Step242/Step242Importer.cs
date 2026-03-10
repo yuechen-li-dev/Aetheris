@@ -167,6 +167,7 @@ public static class Step242Importer
             }
 
             var isSphericalFace = string.Equals(surfaceName, "SPHERICAL_SURFACE", StringComparison.OrdinalIgnoreCase);
+            var isConicalFace = string.Equals(surfaceName, "CONICAL_SURFACE", StringComparison.OrdinalIgnoreCase);
 
             var boundRefsResult = Step242SubsetDecoder.ReadAdvancedFaceBounds(faceEntity, advancedFaceOffset, "ADVANCED_FACE bounds");
             if (!boundRefsResult.IsSuccess)
@@ -230,11 +231,6 @@ public static class Step242Importer
 
                 if (string.Equals(loopEntityResult.Value.Name, "VERTEX_LOOP", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!isSphericalFace)
-                    {
-                        return Failure("FACE_BOUND loop type 'VERTEX_LOOP' is unsupported for non-spherical faces in M23 import subset.", $"Entity:{loopEntityResult.Value.Id}");
-                    }
-
                     var vertexLoopRefResult = Step242SubsetDecoder.ReadReference(loopEntityResult.Value, 1, "VERTEX_LOOP vertex");
                     if (!vertexLoopRefResult.IsSuccess)
                     {
@@ -247,9 +243,23 @@ public static class Step242Importer
                         return KernelResult<BrepBody>.Failure(vertexPointResult.Diagnostics);
                     }
 
-                    // Singular spherical bounds can be represented with VERTEX_LOOP. They do not map
-                    // to edge/coedge topology in the current subset, so they are treated as degenerate trims.
-                    continue;
+                    if (isSphericalFace)
+                    {
+                        // Singular spherical bounds can be represented with VERTEX_LOOP. They do not map
+                        // to edge/coedge topology in the current subset, so they are treated as degenerate trims.
+                        continue;
+                    }
+
+                    if (isConicalFace
+                        && bindSurfaceResult.Value.SurfaceGeometry.Cone is ConeSurface cone
+                        && (vertexPointResult.Value - cone.Apex).Length <= PointOnSurfaceEps)
+                    {
+                        // Narrow non-spherical support: singular conical apex trims represented as VERTEX_LOOP.
+                        // These are topologically degenerate and intentionally omitted from edge/coedge topology.
+                        continue;
+                    }
+
+                    return Failure("FACE_BOUND loop type 'VERTEX_LOOP' is unsupported for this face in M23 import subset.", $"Entity:{loopEntityResult.Value.Id}");
                 }
 
                 if (!string.Equals(loopEntityResult.Value.Name, "EDGE_LOOP", StringComparison.OrdinalIgnoreCase))

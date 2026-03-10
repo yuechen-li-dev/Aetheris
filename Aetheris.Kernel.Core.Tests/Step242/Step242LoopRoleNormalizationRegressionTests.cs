@@ -6,7 +6,7 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
 {
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", null, null)]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp", "Entity:1234", "FACE_BOUND loop type 'VERTEX_LOOP' is unsupported")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp", null, null)]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", null, null)]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", null, null)]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp", null, null)]

@@ -5,9 +5,9 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242RevolvedTopologyFamilyRegressionTests
 {
     [Theory]
-    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "Face 252 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'four-coedge single-circle/three-bspline revolved loop'. Observed")]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "Face 284 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'other (coedges=4, uniqueEdges=4)'. Observed")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Face 74 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'six-coedge bspline-only revolved loop'. Observed")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Face 52 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'four-coedge single-circle/three-bspline revolved loop'. Observed")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Face 67 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'other (coedges=5, uniqueEdges=5)'. Observed")]
     public void Step242_RepeatedCurvedRevolvedTargets_AdvanceWithExplicitDeterministicNextBlocker(
         string relativePath,
         string expectedMessagePrefix)

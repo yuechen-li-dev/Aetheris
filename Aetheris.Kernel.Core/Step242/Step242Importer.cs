@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
+using Aetheris.Kernel.Core.Import;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
@@ -52,15 +53,33 @@ public static class Step242Importer
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
     {
-        var parseResult = Step242SubsetParser.Parse(stepText);
-        if (!parseResult.IsSuccess)
-        {
-            return KernelResult<BrepBody>.Failure(parseResult.Diagnostics);
-        }
+        var orchestrator = ImportOrchestrator.CreateDefault();
+        var result = orchestrator.Import(new ImportRequest(stepText));
+        return result.BodyResult;
+    }
 
+    internal static bool HasTessellatedSolid(Step242ParsedDocument document)
+    {
+        return document.Entities.Any(e => string.Equals(e.Name, "TESSELLATED_SOLID", StringComparison.OrdinalIgnoreCase));
+    }
+
+    internal static KernelResult<BrepBody> ImportParsedDocumentForLane(Step242ParsedDocument document, ImportLaneKind laneKind)
+    {
         try
         {
-            return MapSubset(parseResult.Value);
+            return laneKind switch
+            {
+                ImportLaneKind.Auto => ImportAuto(document),
+                ImportLaneKind.ExactBRep => MapSubsetExact(document),
+                ImportLaneKind.Tessellated => ImportTessellated(document),
+                _ => KernelResult<BrepBody>.Failure([
+                    new KernelDiagnostic(
+                        KernelDiagnosticCode.InvalidArgument,
+                        KernelDiagnosticSeverity.Error,
+                        $"STEP/AP242 importer does not support lane '{laneKind}'.",
+                        "Importer.Lane.Unsupported")
+                ])
+            };
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
@@ -74,7 +93,7 @@ public static class Step242Importer
         }
     }
 
-    private static KernelResult<BrepBody> MapSubset(Step242ParsedDocument document)
+    private static KernelResult<BrepBody> ImportAuto(Step242ParsedDocument document)
     {
         var tessellatedSolidResult = TryImportTessellatedSolid(document);
         if (tessellatedSolidResult is not null)
@@ -82,6 +101,22 @@ public static class Step242Importer
             return tessellatedSolidResult;
         }
 
+        return MapSubsetExact(document);
+    }
+
+    private static KernelResult<BrepBody> ImportTessellated(Step242ParsedDocument document)
+    {
+        var tessellatedSolidResult = TryImportTessellatedSolid(document);
+        if (tessellatedSolidResult is not null)
+        {
+            return tessellatedSolidResult;
+        }
+
+        return Failure("Requested tessellated import lane, but no TESSELLATED_SOLID root was found.", "Importer.TessellatedSolid.MissingRoot");
+    }
+
+    private static KernelResult<BrepBody> MapSubsetExact(Step242ParsedDocument document)
+    {
         var manifoldSolidBreps = document.Entities
             .Where(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase))
             .ToList();

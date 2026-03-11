@@ -291,14 +291,14 @@
     "fileId": "testdata_step242_nist_STC_nist_stc_06_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
     "sizeBytes": 993459,
-    "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "",
-      "messagePrefix": "Face 33 spherical trim loop must contain at least three coedges. Observed 1."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 225,
@@ -306,10 +306,10 @@
       "faces": 144
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 144,
+      "edgePolylines": 310
     },
-    "canonicalSha256": null
+    "canonicalSha256": "39ade16e0c609e93a20286c72754214d49931a2d5d73b8664ce8732e97792d65"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_07_asme1_ap242-e3",

@@ -31,9 +31,9 @@ public sealed class Step242EdgeCurveSenseRegressionTests
 
         if (string.Equals(relativePath, "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", StringComparison.Ordinal))
         {
-            Assert.Equal("tessellator", first.FirstFailureLayer);
-            Assert.Equal(string.Empty, first.FirstDiagnostic.Source);
-            Assert.StartsWith("Face 33 spherical trim loop must contain at least three coedges. Observed 1.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+            Assert.Equal(string.Empty, first.FirstFailureLayer);
+            Assert.Equal("Audit.None", first.FirstDiagnostic.Source);
+            Assert.Equal("No diagnostics.", first.FirstDiagnostic.MessagePrefix);
         }
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);

@@ -27,10 +27,10 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
 
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
-        "tessellator",
-        "Importer.LoopRole.UnsupportedSurfaceForHoles",
         "",
-        "Face 33 spherical trim loop must contain at least three coedges. Observed 1.")]
+        "Importer.LoopRole.UnsupportedSurfaceForHoles",
+        "Audit.None",
+        "No diagnostics.")]
 
     public void Step242_NistTargets_AdvancePastGenericUnsupportedSurfaceForHoles_Deterministically(
         string relativePath,

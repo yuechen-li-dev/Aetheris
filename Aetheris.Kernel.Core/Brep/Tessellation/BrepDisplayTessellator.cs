@@ -25,6 +25,8 @@ public static class BrepDisplayTessellator
     private const string CylinderTrimAmbiguousUsedShorterSpanSource = "Viewer.Tessellation.CylinderTrimAmbiguousUsedShorterSpan";
     private const string CurvedTopologyUnsupportedSource = "Viewer.Tessellation.CurvedTopologyUnsupported";
     private const string BSplineSurfaceTrimUnsupportedSource = "Viewer.Tessellation.BSplineSurfaceTrimUnsupported";
+    private const string SphereTrimSingleCoedgeLatitudeCapSource = "Viewer.Tessellation.SphereTrim.SingleCoedgeLatitudeCap";
+    private const string SphereTrimSingleCoedgeUnsupportedSource = "Viewer.Tessellation.SphereTrim.SingleCoedgeUnsupported";
 
     public static KernelResult<DisplayTessellationResult> Tessellate(BrepBody body, DisplayTessellationOptions? options = null)
     {
@@ -1734,6 +1736,17 @@ public static class BrepDisplayTessellator
         }
 
         var coedges = body.GetCoedgeIds(loopIds[0]).Select(id => body.Topology.GetCoedge(id)).ToArray();
+        if (coedges.Length == 1)
+        {
+            var singleCoedgeResolution = TryResolveSingleCoedgeSphereTrimPatch(body, faceId, sphere, coedges[0]);
+            if (singleCoedgeResolution.IsSuccess)
+            {
+                return singleCoedgeResolution;
+            }
+
+            return KernelResult<(double, double, double, double)>.Failure(singleCoedgeResolution.Diagnostics);
+        }
+
         if (coedges.Length < 3)
         {
             return KernelResult<(double, double, double, double)>.Failure([
@@ -1809,6 +1822,101 @@ public static class BrepDisplayTessellator
         vEnd = System.Math.Clamp(vEnd, -double.Pi / 2d, double.Pi / 2d);
 
         return KernelResult<(double, double, double, double)>.Success((angularBounds.Value.Start, angularBounds.Value.Span, vStart, vEnd));
+    }
+
+    private static KernelResult<(double UStart, double USpan, double VStart, double VEnd)> TryResolveSingleCoedgeSphereTrimPatch(
+        BrepBody body,
+        FaceId faceId,
+        SphereSurface sphere,
+        Coedge coedge)
+    {
+        const double fullWrapTolerance = 1e-3d;
+        const double axisAlignmentTolerance = 1e-4d;
+        const double axisOffsetTolerance = 1e-4d;
+        const double circleRadiusTolerance = 1e-4d;
+        const double minElevationSpan = 1e-6d;
+
+        var curve = body.GetEdgeCurve(coedge.EdgeId);
+        if (curve.Kind != CurveGeometryKind.Circle3)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented(
+                    $"Face {faceId.Value} spherical single-coedge trim supports only closed full-circle latitude loops. Observed curve kind '{curve.UnsupportedKind ?? curve.Kind.ToString()}'.",
+                    SphereTrimSingleCoedgeUnsupportedSource)]);
+        }
+
+        if (!body.TryGetEdgeVertices(coedge.EdgeId, out var startVertexId, out var endVertexId) || startVertexId != endVertexId)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented(
+                    $"Face {faceId.Value} spherical single-coedge trim expected a closed edge use. Observed edge {coedge.EdgeId.Value} with distinct vertices {startVertexId.Value}->{endVertexId.Value}.",
+                    SphereTrimSingleCoedgeUnsupportedSource)]);
+        }
+
+        if (!body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var edgeBinding)
+            || edgeBinding.TrimInterval is not ParameterInterval trimInterval
+            || !double.IsFinite(trimInterval.Start)
+            || !double.IsFinite(trimInterval.End)
+            || double.Abs((trimInterval.End - trimInterval.Start) - (2d * double.Pi)) > fullWrapTolerance)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented(
+                    $"Face {faceId.Value} spherical single-coedge trim expected a full-circle edge trim interval. Observed trim [{edgeBinding.TrimInterval?.Start:R}, {edgeBinding.TrimInterval?.End:R}].",
+                    SphereTrimSingleCoedgeUnsupportedSource)]);
+        }
+
+        var circle = curve.Circle3!.Value;
+        var axisDot = circle.Normal.ToVector().Dot(sphere.Axis.ToVector());
+        if (double.Abs(double.Abs(axisDot) - 1d) > axisAlignmentTolerance)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented(
+                    $"Face {faceId.Value} spherical single-coedge trim classified as unsupported subfamily (edge={coedge.EdgeId.Value}, axisAlignment={axisDot:R}); expected circle normal parallel to sphere axis.",
+                    SphereTrimSingleCoedgeUnsupportedSource)]);
+        }
+
+        var centerOffset = circle.Center - sphere.Center;
+        var axialDistance = centerOffset.Dot(sphere.Axis.ToVector());
+        var radialOffsetVector = centerOffset - (sphere.Axis.ToVector() * axialDistance);
+        var radialOffset = radialOffsetVector.Length;
+        if (radialOffset > (sphere.Radius * axisOffsetTolerance))
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented(
+                    $"Face {faceId.Value} spherical single-coedge trim classified as unsupported subfamily (edge={coedge.EdgeId.Value}, circle-center-axis-offset={radialOffset:R}); expected latitude circle centered on sphere axis.",
+                    SphereTrimSingleCoedgeUnsupportedSource)]);
+        }
+
+        var latitude = double.Asin(System.Math.Clamp(axialDistance / sphere.Radius, -1d, 1d));
+        var expectedCircleRadius = sphere.Radius * double.Cos(latitude);
+        var circleRadiusDelta = double.Abs(circle.Radius - expectedCircleRadius);
+        if (circleRadiusDelta > (sphere.Radius * circleRadiusTolerance))
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented(
+                    $"Face {faceId.Value} spherical single-coedge trim classified as unsupported subfamily (edge={coedge.EdgeId.Value}, circleRadius={circle.Radius:R}, expectedLatitudeRadius={expectedCircleRadius:R}); expected latitude circle.",
+                    SphereTrimSingleCoedgeUnsupportedSource)]);
+        }
+
+        var positivePoleDistance = double.Abs((double.Pi / 2d) - latitude);
+        var negativePoleDistance = double.Abs((-double.Pi / 2d) - latitude);
+        var pole = positivePoleDistance <= negativePoleDistance ? (double.Pi / 2d) : (-double.Pi / 2d);
+
+        var vStart = System.Math.Min(latitude, pole);
+        var vEnd = System.Math.Max(latitude, pole);
+        if ((vEnd - vStart) <= minElevationSpan)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented(
+                    $"Face {faceId.Value} spherical single-coedge trim collapsed at a pole (latitude {latitude:R}).",
+                    SphereTrimSingleCoedgeUnsupportedSource)]);
+        }
+
+        return KernelResult<(double, double, double, double)>.Success(
+            (0d, 2d * double.Pi, vStart, vEnd),
+            [CreateValidationWarning(
+                $"Face {faceId.Value} spherical single-coedge trim classified as closed full-wrap constant-latitude cap (edge {coedge.EdgeId.Value}, latitude {latitude:R}, pole {(pole > 0d ? "+pi/2" : "-pi/2")}).",
+                SphereTrimSingleCoedgeLatitudeCapSource)]);
     }
 
     private static KernelResult<(double UStart, double UEnd, double VStart, double VEnd)> TryResolveCylinderTrimPatch(

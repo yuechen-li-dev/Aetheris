@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Brep;
@@ -8,11 +9,23 @@ namespace Aetheris.Kernel.Core.Brep;
 /// </summary>
 public sealed class BrepBody
 {
+    private readonly IReadOnlyDictionary<VertexId, Point3D> _vertexPoints;
+
     public BrepBody(TopologyModel topology, BrepGeometryStore geometry, BrepBindingModel bindings)
+        : this(topology, geometry, bindings, vertexPoints: null)
+    {
+    }
+
+    public BrepBody(
+        TopologyModel topology,
+        BrepGeometryStore geometry,
+        BrepBindingModel bindings,
+        IReadOnlyDictionary<VertexId, Point3D>? vertexPoints)
     {
         Topology = topology;
         Geometry = geometry;
         Bindings = bindings;
+        _vertexPoints = vertexPoints ?? new Dictionary<VertexId, Point3D>();
     }
 
     public TopologyModel Topology { get; }
@@ -20,6 +33,8 @@ public sealed class BrepBody
     public BrepGeometryStore Geometry { get; }
 
     public BrepBindingModel Bindings { get; }
+
+    public bool TryGetVertexPoint(VertexId vertexId, out Point3D point) => _vertexPoints.TryGetValue(vertexId, out point);
 
     public bool TryGetEdgeCurveGeometry(EdgeId edgeId, out CurveGeometry? curve)
     {

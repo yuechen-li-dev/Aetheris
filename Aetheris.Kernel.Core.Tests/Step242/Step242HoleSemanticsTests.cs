@@ -95,7 +95,7 @@ public sealed class Step242HoleSemanticsTests
         Assert.False(tessellation.IsSuccess);
         var diagnostic = Assert.Single(tessellation.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.InvalidArgument, diagnostic.Code);
-        Assert.Equal("Viewer.Tessellation.CylinderTrimAxialSpanDegenerate", diagnostic.Source);
+        Assert.Equal("Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap", diagnostic.Source);
         Assert.Contains("collapsed axial span", diagnostic.Message, StringComparison.Ordinal);
     }
 }

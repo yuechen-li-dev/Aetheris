@@ -70,21 +70,19 @@ public static class Step242Importer
 
     internal static KernelResult<BrepBody> ImportExactBrepCore(Step242ParsedDocument document)
     {
-        var manifoldSolidBreps = document.Entities
-            .Where(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        if (manifoldSolidBreps.Count == 0)
+        var brepEntityResult = Step242ImportSharedUtilities.RequireSingleEntityByName(
+            document,
+            entityName: "MANIFOLD_SOLID_BREP",
+            missingMessage: "Missing MANIFOLD_SOLID_BREP root entity.",
+            missingSource: "Importer.TopologyRoot",
+            multipleMessage: "Multiple MANIFOLD_SOLID_BREP roots are unsupported in M23 import subset.",
+            multipleSource: "Importer.SingleSolid");
+        if (!brepEntityResult.IsSuccess)
         {
-            return Failure("Missing MANIFOLD_SOLID_BREP root entity.", "Importer.TopologyRoot");
+            return KernelResult<BrepBody>.Failure(brepEntityResult.Diagnostics);
         }
 
-        if (manifoldSolidBreps.Count > 1)
-        {
-            return Failure("Multiple MANIFOLD_SOLID_BREP roots are unsupported in M23 import subset.", "Importer.SingleSolid");
-        }
-
-        var brepEntity = manifoldSolidBreps[0];
+        var brepEntity = brepEntityResult.Value;
 
         var shellRefResult = Step242SubsetDecoder.ReadReference(brepEntity, 1, "MANIFOLD_SOLID_BREP shell");
         if (!shellRefResult.IsSuccess)
@@ -2875,28 +2873,28 @@ public static class Step242Importer
         KernelResult<T>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
 
     private static KernelResult<BrepBody> Failure(string message, string source) =>
-        KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>(message, source);
 
     private static KernelResult<EdgeId> FailureEdge(string message, string source) =>
-        KernelResult<EdgeId>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.NotImplementedFailure<EdgeId>(message, source);
 
     private static KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)> FailureCurveBinding(string message, string source) =>
-        KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.NotImplementedFailure<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>(message, source);
 
     private static KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)> FailureSurfaceBinding(string message, string source) =>
-        KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.NotImplementedFailure<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>(message, source);
 
     private static KernelResult<ParameterInterval> FailureCircleTrim(string message, string source) =>
-        KernelResult<ParameterInterval>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.ValidationFailure<ParameterInterval>(message, source);
 
     private static KernelResult<double> FailureCircleTrimAngle(string message, string source) =>
-        KernelResult<double>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.ValidationFailure<double>(message, source);
 
     private static KernelResult<ParameterInterval> FailureEllipseTrim(string message, string source) =>
-        KernelResult<ParameterInterval>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.ValidationFailure<ParameterInterval>(message, source);
 
     private static KernelResult<double> FailureEllipseTrimAngle(string message, string source) =>
-        KernelResult<double>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.ValidationFailure<double>(message, source);
 
     private static KernelResult<T> OrientationFailure<T>(string message, string source) =>
         KernelResult<T>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);

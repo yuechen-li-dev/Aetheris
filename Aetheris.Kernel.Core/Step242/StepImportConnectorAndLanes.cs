@@ -63,20 +63,7 @@ internal sealed class Step242ExactBRepImportLane : IImportLane
 
     internal static KernelResult<BrepBody> ImportExactBrep(Step242ParsedDocument document)
     {
-        try
-        {
-            return Step242Importer.ImportExactBrepCore(document);
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
-        {
-            return KernelResult<BrepBody>.Failure([
-                new KernelDiagnostic(
-                    KernelDiagnosticCode.InvalidArgument,
-                    KernelDiagnosticSeverity.Error,
-                    $"Importer rejected parseable STEP input: {ex.Message}",
-                    "Importer.Guardrail")
-            ]);
-        }
+        return Step242ImportSharedUtilities.ExecuteWithGuardrail(() => Step242Importer.ImportExactBrepCore(document));
     }
 }
 
@@ -105,20 +92,7 @@ internal sealed class Step242TessellatedImportLane : IImportLane
 
     internal static KernelResult<BrepBody> ImportFromParsedDocument(Step242ParsedDocument document)
     {
-        try
-        {
-            return ImportTessellated(document);
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
-        {
-            return KernelResult<BrepBody>.Failure([
-                new KernelDiagnostic(
-                    KernelDiagnosticCode.InvalidArgument,
-                    KernelDiagnosticSeverity.Error,
-                    $"Importer rejected parseable STEP input: {ex.Message}",
-                    "Importer.Guardrail")
-            ]);
-        }
+        return Step242ImportSharedUtilities.ExecuteWithGuardrail(() => ImportTessellated(document));
     }
 
     internal static bool HasTessellatedRoot(Step242ParsedDocument document)
@@ -128,31 +102,24 @@ internal sealed class Step242TessellatedImportLane : IImportLane
 
     private static KernelResult<BrepBody> ImportTessellated(Step242ParsedDocument document)
     {
-        var tessellatedSolidResult = TryImportTessellatedSolid(document);
-        if (tessellatedSolidResult is not null)
-        {
-            return tessellatedSolidResult;
-        }
-
-        return Failure("Requested tessellated import lane, but no TESSELLATED_SOLID root was found.", "Importer.TessellatedSolid.MissingRoot");
+        return TryImportTessellatedSolid(document);
     }
 
-    private static KernelResult<BrepBody>? TryImportTessellatedSolid(Step242ParsedDocument document)
+    private static KernelResult<BrepBody> TryImportTessellatedSolid(Step242ParsedDocument document)
     {
-        var tessellatedSolids = document.Entities
-            .Where(e => string.Equals(e.Name, "TESSELLATED_SOLID", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-        if (tessellatedSolids.Count == 0)
+        var tessellatedSolidResult = Step242ImportSharedUtilities.RequireSingleEntityByName(
+            document,
+            entityName: "TESSELLATED_SOLID",
+            missingMessage: "Requested tessellated import lane, but no TESSELLATED_SOLID root was found.",
+            missingSource: "Importer.TessellatedSolid.MissingRoot",
+            multipleMessage: "Multiple TESSELLATED_SOLID roots are unsupported in M118 tessellated import subset.",
+            multipleSource: "Importer.TessellatedSolid.SingleRoot");
+        if (!tessellatedSolidResult.IsSuccess)
         {
-            return null;
+            return KernelResult<BrepBody>.Failure(tessellatedSolidResult.Diagnostics);
         }
 
-        if (tessellatedSolids.Count > 1)
-        {
-            return Failure("Multiple TESSELLATED_SOLID roots are unsupported in M118 tessellated import subset.", "Importer.TessellatedSolid.SingleRoot");
-        }
-
-        var shellRefsResult = Step242SubsetDecoder.ReadReferenceList(tessellatedSolids[0], 1, "TESSELLATED_SOLID shells");
+        var shellRefsResult = Step242SubsetDecoder.ReadReferenceList(tessellatedSolidResult.Value, 1, "TESSELLATED_SOLID shells");
         if (!shellRefsResult.IsSuccess)
         {
             return KernelResult<BrepBody>.Failure(shellRefsResult.Diagnostics);
@@ -474,17 +441,17 @@ internal sealed class Step242TessellatedImportLane : IImportLane
     }
 
     private static KernelResult<BrepBody> Failure(string message, string source) =>
-        KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>(message, source);
 
     private static KernelResult<IReadOnlyList<(Point3D A, Point3D B, Point3D C)>> FailureTessellatedFaceTriangles(string message, string source) =>
-        KernelResult<IReadOnlyList<(Point3D A, Point3D B, Point3D C)>>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.NotImplementedFailure<IReadOnlyList<(Point3D A, Point3D B, Point3D C)>>(message, source);
 
     private static KernelResult<IReadOnlyList<Point3D>> FailureTessellatedFacePoints(string message, string source) =>
-        KernelResult<IReadOnlyList<Point3D>>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.NotImplementedFailure<IReadOnlyList<Point3D>>(message, source);
 
     private static KernelResult<IReadOnlyList<int>> FailureIntegerList(string message, string source) =>
-        KernelResult<IReadOnlyList<int>>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.NotImplementedFailure<IReadOnlyList<int>>(message, source);
 
     private static KernelResult<IReadOnlyList<IReadOnlyList<int>>> FailureIntegerListList(string message, string source) =>
-        KernelResult<IReadOnlyList<IReadOnlyList<int>>>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source)]);
+        Step242ImportSharedUtilities.NotImplementedFailure<IReadOnlyList<IReadOnlyList<int>>>(message, source);
 }

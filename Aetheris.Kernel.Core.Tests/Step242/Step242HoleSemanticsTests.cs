@@ -91,11 +91,14 @@ public sealed class Step242HoleSemanticsTests
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
         Assert.True(validation.IsSuccess);
 
+        var cylindricalFace = Assert.Single(body.Topology.Faces);
+        Assert.Equal(2, cylindricalFace.LoopIds.Count);
+
         var tessellation = BrepDisplayTessellator.Tessellate(body);
         Assert.False(tessellation.IsSuccess);
         var diagnostic = Assert.Single(tessellation.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.InvalidArgument, diagnostic.Code);
-        Assert.Equal("Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap", diagnostic.Source);
-        Assert.Contains("collapsed axial span", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal("Viewer.Tessellation.CylinderTrimDegenerate", diagnostic.Source);
+        Assert.Contains("degenerate trim patch", diagnostic.Message, StringComparison.Ordinal);
     }
 }

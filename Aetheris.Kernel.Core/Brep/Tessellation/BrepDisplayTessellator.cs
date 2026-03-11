@@ -2413,7 +2413,7 @@ public static class BrepDisplayTessellator
         var orientedEndpoints = new List<(Point3D Start, Point3D End)>(coedges.Count);
         foreach (var coedge in coedges)
         {
-            var endpoints = GetEdgeEndpoints(body, coedge.EdgeId, coedge.IsReversed, vertexPoints);
+            var endpoints = GetTopologicalEdgeEndpoints(body, coedge.EdgeId, vertexPoints);
             if (!endpoints.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<Point3D>>.Failure(endpoints.Diagnostics);
@@ -3008,6 +3008,16 @@ public static class BrepDisplayTessellator
         }
 
         return KernelResult<(Point3D, Point3D)>.Success(reversed ? (end, start) : (start, end));
+    }
+
+    private static KernelResult<(Point3D Start, Point3D End)> GetTopologicalEdgeEndpoints(
+        BrepBody body,
+        EdgeId edgeId,
+        IReadOnlyDictionary<VertexId, Point3D> vertexPoints)
+    {
+        // Planar loop chaining must use pure topology direction (EDGE_CURVE start/end),
+        // independent of coedge/trim orientation semantics that can mix in geometry sense.
+        return GetEdgeEndpoints(body, edgeId, reversed: false, vertexPoints);
     }
 
     private static IReadOnlyList<Point3D> SampleEllipseCurve(Ellipse3Curve ellipse, ParameterInterval trim, int segmentCount)

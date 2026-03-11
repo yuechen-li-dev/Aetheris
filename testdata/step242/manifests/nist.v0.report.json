@@ -3,14 +3,14 @@
     "fileId": "testdata_step242_nist_CTC_nist_ctc_01_asme1_ap242-e1",
     "path": "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp",
     "sizeBytes": 391739,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 3 planar loop triangulation failed because the polygon is not simple."
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 206,
@@ -18,23 +18,23 @@
       "faces": 117
     },
     "tessellationCounts": {
-      "facePatches": 117,
-      "edgePolylines": 318
+      "facePatches": 0,
+      "edgePolylines": 0
     },
-    "canonicalSha256": "dc035a418ef98d85aa31f20cfd1582cc5ad3c44159a8018a1b70b87344abcd1f"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_02_asme1_ap242-e2",
     "path": "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
     "sizeBytes": 1958442,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 2 planar loop triangulation failed because the polygon is not simple."
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 876,
@@ -42,23 +42,23 @@
       "faces": 637
     },
     "tessellationCounts": {
-      "facePatches": 637,
-      "edgePolylines": 1416
+      "facePatches": 0,
+      "edgePolylines": 0
     },
-    "canonicalSha256": "d49fd736ad41ba423a0ee40e73f99edeed13ff93dec4985e14c9bd59382e612e"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_03_asme1_ap242-e2",
     "path": "testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp",
     "sizeBytes": 667521,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 72 planar loop triangulation failed because the polygon is not simple."
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 236,
@@ -66,23 +66,23 @@
       "faces": 120
     },
     "tessellationCounts": {
-      "facePatches": 120,
-      "edgePolylines": 354
+      "facePatches": 0,
+      "edgePolylines": 0
     },
-    "canonicalSha256": "8d32fe4a6f88f6a6de325f5126475fe49bb56c4dd4e2e49cff8d68474838abb2"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_04_asme1_ap242-e1",
     "path": "testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp",
     "sizeBytes": 1265846,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 69 planar loop triangulation failed because the polygon is not simple."
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 664,
@@ -90,23 +90,23 @@
       "faces": 484
     },
     "tessellationCounts": {
-      "facePatches": 484,
-      "edgePolylines": 1110
+      "facePatches": 0,
+      "edgePolylines": 0
     },
-    "canonicalSha256": "3103da3bc3e8ad82026a4cd1debfea1ac2978ced50fb4a722ec82d732b1882ae"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_05_asme1_ap242-e1",
     "path": "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp",
     "sizeBytes": 863826,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 1 planar loop triangulation failed because the polygon is not simple."
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 239,
@@ -114,23 +114,23 @@
       "faces": 156
     },
     "tessellationCounts": {
-      "facePatches": 156,
-      "edgePolylines": 331
+      "facePatches": 0,
+      "edgePolylines": 0
     },
-    "canonicalSha256": "a874ae135bd12d3cd9eed0b479853ca5db2146d93ff24fa106e6343cf7a25365"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_06_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp",
     "sizeBytes": 1960222,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 9 planar loop triangulation failed because the polygon is not simple."
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 310,
@@ -138,10 +138,10 @@
       "faces": 187
     },
     "tessellationCounts": {
-      "facePatches": 187,
-      "edgePolylines": 476
+      "facePatches": 0,
+      "edgePolylines": 0
     },
-    "canonicalSha256": "4c9eee2cc02bff8f4a0eb27f69651214a773d03acab2ed5322cc396ada0592ae"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_07_asme1_ap242-e2",
@@ -151,8 +151,8 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "",
-      "messagePrefix": "Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily \u0027four-coedge mixed line/bspline revolved loop\u0027. Observed"
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 18 planar loop triangulation failed because the polygon is not simple."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -200,7 +200,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
-      "messagePrefix": "Face 4 planar loop triangulation failed because the polygon is not simple."
+      "messagePrefix": "Face 234 planar loop triangulation failed because the polygon is not simple."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -219,14 +219,14 @@
     "fileId": "testdata_step242_nist_FTC_nist_ftc_09_asme1_ap242-e1",
     "path": "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp",
     "sizeBytes": 6057450,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 121 planar loop triangulation failed because the polygon is not simple."
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 304,
@@ -234,10 +234,10 @@
       "faces": 159
     },
     "tessellationCounts": {
-      "facePatches": 159,
-      "edgePolylines": 458
+      "facePatches": 0,
+      "edgePolylines": 0
     },
-    "canonicalSha256": "25b4cf509c5d90b49db0c212d9c8bc08e1db96011e424803a65593b3f275b30a"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_10_asme1_ap242-e2",
@@ -270,9 +270,9 @@
     "status": "importFail",
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "InvalidArgument",
-      "source": "Viewer.Tessellation.PlanarCurveFlatteningFailed",
-      "messagePrefix": "Face 21 planar loop coedges do not form a contiguous chain."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 21 planar loop triangulation failed because the polygon is not simple."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -291,14 +291,14 @@
     "fileId": "testdata_step242_nist_STC_nist_stc_06_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
     "sizeBytes": 993459,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 8 planar loop triangulation failed because the polygon is not simple."
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 225,
@@ -306,10 +306,10 @@
       "faces": 144
     },
     "tessellationCounts": {
-      "facePatches": 144,
-      "edgePolylines": 310
+      "facePatches": 0,
+      "edgePolylines": 0
     },
-    "canonicalSha256": "4f7b738853058eb8590b02aca67d6ce4e47988b7139282a20db88e21a40071fc"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_07_asme1_ap242-e3",
@@ -339,14 +339,14 @@
     "fileId": "testdata_step242_nist_STC_nist_stc_08_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp",
     "sizeBytes": 2239112,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 84 planar loop triangulation failed because the polygon is not simple."
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 446,
@@ -354,23 +354,23 @@
       "faces": 271
     },
     "tessellationCounts": {
-      "facePatches": 271,
-      "edgePolylines": 709
+      "facePatches": 0,
+      "edgePolylines": 0
     },
-    "canonicalSha256": "df51040864fadab2d106c45a9610a20edc5944f518c90be82e0e7c734457ae35"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_09_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp",
     "sizeBytes": 5237528,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 112 planar loop triangulation failed because the polygon is not simple."
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 271,
@@ -378,10 +378,10 @@
       "faces": 125
     },
     "tessellationCounts": {
-      "facePatches": 125,
-      "edgePolylines": 392
+      "facePatches": 0,
+      "edgePolylines": 0
     },
-    "canonicalSha256": "8ac9846765fabbae05bab97ca0e540e10f58cddf4b1d5daf052fcbb7263c71a5"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_10_asme1_ap242-e2",

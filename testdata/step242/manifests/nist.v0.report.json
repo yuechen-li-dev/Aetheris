@@ -123,14 +123,14 @@
     "fileId": "testdata_step242_nist_FTC_nist_ftc_06_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp",
     "sizeBytes": 1960222,
-    "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Viewer.Tessellation.SphereTrim.TwoCoedgeUnsupported",
-      "messagePrefix": "Face 12 spherical two-coedge trim classified as unsupported subfamily (requires bi-arc circles; observed edge kinds \u0027BSp"
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 310,
@@ -138,10 +138,10 @@
       "faces": 187
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 187,
+      "edgePolylines": 476
     },
-    "canonicalSha256": null
+    "canonicalSha256": "4c9eee2cc02bff8f4a0eb27f69651214a773d03acab2ed5322cc396ada0592ae"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_07_asme1_ap242-e2",

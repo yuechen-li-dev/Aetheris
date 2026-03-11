@@ -28,6 +28,7 @@ public static class BrepDisplayTessellator
     private const string SphereTrimSingleCoedgeLatitudeCapSource = "Viewer.Tessellation.SphereTrim.SingleCoedgeLatitudeCap";
     private const string SphereTrimSingleCoedgeUnsupportedSource = "Viewer.Tessellation.SphereTrim.SingleCoedgeUnsupported";
     private const string SphereTrimTwoCoedgeBiArcLuneSource = "Viewer.Tessellation.SphereTrim.TwoCoedgeBiArcLune";
+    private const string SphereTrimTwoCoedgeBsplineBiArcSurrogateSource = "Viewer.Tessellation.SphereTrim.TwoCoedgeBsplineBiArcSurrogate";
     private const string SphereTrimTwoCoedgeUnsupportedSource = "Viewer.Tessellation.SphereTrim.TwoCoedgeUnsupported";
 
     public static KernelResult<DisplayTessellationResult> Tessellate(BrepBody body, DisplayTessellationOptions? options = null)
@@ -1780,11 +1781,13 @@ public static class BrepDisplayTessellator
 
         var firstCurve = body.GetEdgeCurve(coedges[0].EdgeId);
         var secondCurve = body.GetEdgeCurve(coedges[1].EdgeId);
-        if (firstCurve.Kind != CurveGeometryKind.Circle3 || secondCurve.Kind != CurveGeometryKind.Circle3)
+        var isBiArcCircleLune = firstCurve.Kind == CurveGeometryKind.Circle3 && secondCurve.Kind == CurveGeometryKind.Circle3;
+        var isBsplineBiArcSurrogate = firstCurve.Kind == CurveGeometryKind.BSpline3 && secondCurve.Kind == CurveGeometryKind.BSpline3;
+        if (!isBiArcCircleLune && !isBsplineBiArcSurrogate)
         {
             return KernelResult<(double, double, double, double)>.Failure([
                 CreateNotImplemented(
-                    $"Face {faceId.Value} spherical two-coedge trim classified as unsupported subfamily (requires bi-arc circles; observed edge kinds '{firstCurve.UnsupportedKind ?? firstCurve.Kind.ToString()}' and '{secondCurve.UnsupportedKind ?? secondCurve.Kind.ToString()}').",
+                    $"Face {faceId.Value} spherical two-coedge trim classified as unsupported subfamily (requires bi-arc circle pair or bspline bi-arc surrogate pair; observed edge kinds '{firstCurve.UnsupportedKind ?? firstCurve.Kind.ToString()}' and '{secondCurve.UnsupportedKind ?? secondCurve.Kind.ToString()}').",
                     SphereTrimTwoCoedgeUnsupportedSource)]);
         }
 
@@ -1812,11 +1815,20 @@ public static class BrepDisplayTessellator
             return generalResolution;
         }
 
+        if (isBiArcCircleLune)
+        {
+            return KernelResult<(double, double, double, double)>.Success(
+                generalResolution.Value,
+                [CreateValidationWarning(
+                    $"Face {faceId.Value} spherical two-coedge trim classified as bi-arc circle lune with two shared vertices (edges {coedges[0].EdgeId.Value}/{coedges[1].EdgeId.Value}).",
+                    SphereTrimTwoCoedgeBiArcLuneSource)]);
+        }
+
         return KernelResult<(double, double, double, double)>.Success(
             generalResolution.Value,
             [CreateValidationWarning(
-                $"Face {faceId.Value} spherical two-coedge trim classified as bi-arc circle lune with two shared vertices (edges {coedges[0].EdgeId.Value}/{coedges[1].EdgeId.Value}).",
-                SphereTrimTwoCoedgeBiArcLuneSource)]);
+                $"Face {faceId.Value} spherical two-coedge trim classified as bspline bi-arc surrogate pair with two shared vertices (edges {coedges[0].EdgeId.Value}/{coedges[1].EdgeId.Value}).",
+                SphereTrimTwoCoedgeBsplineBiArcSurrogateSource)]);
     }
 
     private static KernelResult<(double UStart, double USpan, double VStart, double VEnd)> TryResolveGeneralSphereTrimPatch(

@@ -82,7 +82,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
     [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp", "", "", "")]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "", "Audit.None", "No diagnostics.")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "tessellator", "", "Face 12 spherical two-coedge trim classified as unsupported subfamily (requires bi-arc circles; observed edge kinds 'BSp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "tessellator", "", "Face ")]
     [InlineData("testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp", "", "", "")]

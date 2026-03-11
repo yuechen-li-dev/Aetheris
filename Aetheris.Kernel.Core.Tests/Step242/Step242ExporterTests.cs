@@ -291,6 +291,34 @@ END-ISO-10303-21;";
 
 
     [Fact]
+    public void ExportBody_CylindricalFaceWithTwoLoops_PreservesInnerFaceBoundTopology()
+    {
+        var import = Step242Importer.ImportBody(Step242FixtureCorpus.CylindricalFaceWithTwoLoops);
+        Assert.True(import.IsSuccess);
+
+        var face = Assert.Single(import.Value.Topology.Faces);
+        Assert.Equal(2, face.LoopIds.Count);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+
+        var entityMap = ParseEntityMap(export.Value);
+        var boundIds = entityMap
+            .Where(kvp => kvp.Value.StartsWith("FACE_OUTER_BOUND('',", StringComparison.Ordinal) || kvp.Value.StartsWith("FACE_BOUND('',", StringComparison.Ordinal))
+            .Select(kvp => kvp.Key)
+            .OrderBy(id => id)
+            .ToArray();
+
+        Assert.Equal(2, boundIds.Length);
+
+        var advancedFace = Assert.Single(entityMap, kvp => kvp.Value.StartsWith("ADVANCED_FACE('',(", StringComparison.Ordinal));
+        var referencedBoundIds = ParseFirstReferenceList(advancedFace.Value).OrderBy(id => id).ToArray();
+
+        Assert.Equal(boundIds, referencedBoundIds);
+    }
+
+
+    [Fact]
     public void ExportBody_PlanarFaceWithHole_AdvancedFaceReferencesAllEmittedBounds()
     {
         var import = Step242Importer.ImportBody(Step242FixtureCorpus.PlanarFaceWithRectangularHole);

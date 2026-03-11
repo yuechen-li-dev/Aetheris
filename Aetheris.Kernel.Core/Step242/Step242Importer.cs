@@ -1491,8 +1491,8 @@ public static class Step242Importer
                 var canonical = degenerate
                     .OrderBy(d => d.Loop.LoopId.Value)
                     .Select(d => d.Loop)
-                    .First();
-                return KernelResult<IReadOnlyList<LoopBuildData>>.Success([canonical]);
+                    .ToArray();
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Success(canonical);
             }
 
             var primary = degenerate

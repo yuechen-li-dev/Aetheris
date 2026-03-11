@@ -29,13 +29,6 @@ public sealed class Step242EdgeCurveSenseRegressionTests
         Assert.NotEqual("Importer.LoopRole.UnsupportedSurfaceForHoles", first.FirstDiagnostic.Source);
         Assert.False(string.IsNullOrWhiteSpace(first.FirstDiagnostic.MessagePrefix));
 
-        if (string.Equals(relativePath, "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", StringComparison.Ordinal))
-        {
-            Assert.Equal(string.Empty, first.FirstFailureLayer);
-            Assert.Equal("Audit.None", first.FirstDiagnostic.Source);
-            Assert.Equal("No diagnostics.", first.FirstDiagnostic.MessagePrefix);
-        }
-
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);

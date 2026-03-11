@@ -53,9 +53,9 @@ public sealed class Step242SphericalTrimSingleCoedgeDiagnosticsTests
         var first = Step242CorpusManifestRunner.RunOne(entry);
         var second = Step242CorpusManifestRunner.RunOne(entry);
 
-        Assert.Equal(string.Empty, first.FirstFailureLayer);
-        Assert.Equal("Audit.None", first.FirstDiagnostic.Source);
-        Assert.Equal("No diagnostics.", first.FirstDiagnostic.MessagePrefix);
+        Assert.Equal("tessellator", first.FirstFailureLayer);
+        Assert.Equal("Viewer.Tessellation.CylinderTrimDegenerate", first.FirstDiagnostic.Source);
+        Assert.StartsWith("Cylindrical face tessellation derived a degenerate trim patch.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);

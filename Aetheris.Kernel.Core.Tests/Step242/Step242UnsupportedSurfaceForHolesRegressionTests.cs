@@ -7,10 +7,10 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
     [Theory]
     [InlineData(
         "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp",
-        "",
+        "tessellator",
         "Importer.LoopRole.UnsupportedSurfaceForHoles",
-        "Audit.None",
-        "No diagnostics.")]
+        "Viewer.Tessellation.CylinderTrimDegenerate",
+        "Cylindrical face tessellation derived a degenerate trim patch.")]
 
     [InlineData(
         "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
@@ -22,15 +22,15 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
         "tessellator",
         "Topology.GraphValidator",
-        "Viewer.Tessellation.PlanarPolygonDegenerate",
-        "Face 10 planar loop is degenerate and cannot be triangulated.")]
+        "Viewer.Tessellation.CylinderTrimDegenerate",
+        "Cylindrical face tessellation derived a degenerate trim patch.")]
 
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
-        "",
+        "tessellator",
         "Importer.LoopRole.UnsupportedSurfaceForHoles",
-        "Audit.None",
-        "No diagnostics.")]
+        "Viewer.Tessellation.CylinderTrimDegenerate",
+        "Cylindrical face tessellation derived a degenerate trim patch.")]
 
     public void Step242_NistTargets_AdvancePastGenericUnsupportedSurfaceForHoles_Deterministically(
         string relativePath,

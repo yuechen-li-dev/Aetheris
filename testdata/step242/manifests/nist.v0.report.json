@@ -99,14 +99,14 @@
     "fileId": "testdata_step242_nist_CTC_nist_ctc_05_asme1_ap242-e1",
     "path": "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp",
     "sizeBytes": 863826,
-    "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "InvalidArgument",
-      "source": "Viewer.Tessellation.CylinderTrimDegenerate",
-      "messagePrefix": "Cylindrical face tessellation derived a degenerate trim patch."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 239,
@@ -114,10 +114,10 @@
       "faces": 156
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 156,
+      "edgePolylines": 331
     },
-    "canonicalSha256": null
+    "canonicalSha256": "a874ae135bd12d3cd9eed0b479853ca5db2146d93ff24fa106e6343cf7a25365"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_06_asme1_ap242-e2",
@@ -271,8 +271,8 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "InvalidArgument",
-      "source": "Viewer.Tessellation.CylinderTrimDegenerate",
-      "messagePrefix": "Cylindrical face tessellation derived a degenerate trim patch."
+      "source": "Viewer.Tessellation.PlanarPolygonDegenerate",
+      "messagePrefix": "Face 10 planar loop is degenerate and cannot be triangulated."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -291,14 +291,14 @@
     "fileId": "testdata_step242_nist_STC_nist_stc_06_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
     "sizeBytes": 993459,
-    "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "InvalidArgument",
-      "source": "Viewer.Tessellation.CylinderTrimDegenerate",
-      "messagePrefix": "Cylindrical face tessellation derived a degenerate trim patch."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 225,
@@ -306,10 +306,10 @@
       "faces": 144
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 144,
+      "edgePolylines": 310
     },
-    "canonicalSha256": null
+    "canonicalSha256": "4f7b738853058eb8590b02aca67d6ce4e47988b7139282a20db88e21a40071fc"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_07_asme1_ap242-e3",

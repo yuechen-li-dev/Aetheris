@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
@@ -111,6 +112,21 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
     }
 
     [Theory]
+    [InlineData("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp")]
+    public void Step242_PeriodicDegenerateNormalization_PreservesSharedClosedEdgeFaceUses_Deterministically(string relativePath)
+    {
+        var first = ImportFromCorpus(relativePath);
+        var second = ImportFromCorpus(relativePath);
+
+        var firstSignature = BuildSharedClosedEdgeUseSignature(first);
+        var secondSignature = BuildSharedClosedEdgeUseSignature(second);
+
+        Assert.NotEmpty(firstSignature);
+        Assert.Equal(firstSignature, secondSignature);
+    }
+
+    [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
@@ -177,6 +193,45 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         using var captureScope = Step242Importer.CaptureLoopRoleCoedgeGapDiagnostics(diagnostics);
         Step242Importer.ImportBody(text);
         return diagnostics;
+    }
+
+    private static global::Aetheris.Kernel.Core.Brep.BrepBody ImportFromCorpus(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var import = Step242Importer.ImportBody(text);
+        Assert.True(import.IsSuccess);
+        return import.Value;
+    }
+
+    private static IReadOnlyList<string> BuildSharedClosedEdgeUseSignature(global::Aetheris.Kernel.Core.Brep.BrepBody body)
+    {
+        var faceUsesByEdge = new Dictionary<int, HashSet<int>>();
+        foreach (var face in body.Topology.Faces)
+        {
+            foreach (var loopId in face.LoopIds)
+            {
+                foreach (var coedgeId in body.GetCoedgeIds(loopId))
+                {
+                    var coedge = body.Topology.GetCoedge(coedgeId);
+                    if (!faceUsesByEdge.TryGetValue(coedge.EdgeId.Value, out var faceUses))
+                    {
+                        faceUses = [];
+                        faceUsesByEdge.Add(coedge.EdgeId.Value, faceUses);
+                    }
+
+                    faceUses.Add(face.Id.Value);
+                }
+            }
+        }
+
+        return faceUsesByEdge
+            .Where(kvp => kvp.Value.Count == 2)
+            .Select(kvp => (Edge: body.Topology.GetEdge(new global::Aetheris.Kernel.Core.Topology.EdgeId(kvp.Key)), Faces: kvp.Value.OrderBy(v => v).ToArray()))
+            .Where(item => item.Edge.StartVertexId == item.Edge.EndVertexId)
+            .Select(item => $"edge:{item.Edge.Id.Value}:faces:{item.Faces[0]}-{item.Faces[1]}")
+            .OrderBy(v => v, StringComparer.Ordinal)
+            .ToArray();
     }
 
     private static IReadOnlyList<Step242Importer.LoopRoleCircularSamplingDiagnostic> CaptureCircularSampling(string relativePath)

@@ -9,8 +9,8 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp",
         "tessellator",
         "Importer.LoopRole.UnsupportedSurfaceForHoles",
-        "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap",
-        "Face 38 cylindrical trim loop 73 has 1 coedges, angular span")]
+        "",
+        "Face 91 curved tessellation requires exactly one loop.")]
     [InlineData(
         "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
         "tessellator",
@@ -21,14 +21,14 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
         "tessellator",
         "Topology.GraphValidator",
-        "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap",
-        "Face 3 cylindrical trim loop 7 has 1 coedges, angular span")]
+        "",
+        "Face 4 curved tessellation requires exactly one loop.")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
         "tessellator",
         "Importer.LoopRole.UnsupportedSurfaceForHoles",
         "",
-        "Face 33 spherical trim loop must contain at least three coedges. Observed 1.")]
+        "Face 30 curved tessellation requires exactly one loop.")]
     public void Step242_NistTargets_AdvancePastGenericUnsupportedSurfaceForHoles_Deterministically(
         string relativePath,
         string expectedLayer,

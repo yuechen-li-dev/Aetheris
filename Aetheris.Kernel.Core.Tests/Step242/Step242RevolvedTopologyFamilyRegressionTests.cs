@@ -85,7 +85,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
 
         Assert.DoesNotContain("unsupported subfamily 'circle-only seam reused loop'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
-        Assert.StartsWith("Face 38 cylindrical trim loop 73 has 1 coedges, angular span", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.StartsWith("Face 91 curved tessellation requires exactly one loop.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
     }
 
     [Theory]

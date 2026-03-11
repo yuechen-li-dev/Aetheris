@@ -1577,12 +1577,12 @@ public static class Step242Importer
 
         if (degenerate.All(d => d.Analysis.Degeneracy == ConeProjectionDegeneracy.FullRevolutionConstantAxial))
         {
-            var canonical = degenerate
+            var preservedUses = degenerate
                 .OrderByDescending(d => d.Analysis.AxialMean)
                 .ThenBy(d => d.Loop.LoopId.Value)
                 .Select(d => d.Loop)
-                .First();
-            return KernelResult<IReadOnlyList<LoopBuildData>>.Success([canonical]);
+                .ToArray();
+            return KernelResult<IReadOnlyList<LoopBuildData>>.Success(preservedUses);
         }
 
         var primary = degenerate
@@ -1680,11 +1680,11 @@ public static class Step242Importer
         {
             if (degenerateAnalyses.Count > 0 && degenerateAnalyses.All(d => IsToroidalFullMajorRevolutionConstantMinor(d.Analysis)))
             {
-                var canonical = degenerateAnalyses
+                var preservedUses = degenerateAnalyses
                     .OrderBy(d => d.Loop.LoopId.Value)
                     .Select(d => d.Loop)
-                    .First();
-                return KernelResult<IReadOnlyList<LoopBuildData>>.Success([canonical]);
+                    .ToArray();
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Success(preservedUses);
             }
 
             var primary = degenerateAnalyses

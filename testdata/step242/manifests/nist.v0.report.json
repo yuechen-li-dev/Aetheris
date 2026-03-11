@@ -294,9 +294,9 @@
     "status": "importFail",
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Viewer.Tessellation.PlanarCurveFlatteningUnsupported",
-      "messagePrefix": "Face 18 planar curve flattening does not support curve kind \u0027Ellipse3\u0027."
+      "code": "InvalidArgument",
+      "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate",
+      "messagePrefix": "Face 29 cylindrical trim loop 54 has 1 coedges, angular span 6.1086523819801535, axial span 0, loop count 1; classified "
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

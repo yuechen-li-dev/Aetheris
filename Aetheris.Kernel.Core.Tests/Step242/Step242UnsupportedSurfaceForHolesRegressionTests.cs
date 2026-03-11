@@ -27,8 +27,8 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
         "tessellator",
         "Importer.LoopRole.UnsupportedSurfaceForHoles",
-        "Viewer.Tessellation.PlanarCurveFlatteningUnsupported",
-        "Face 18 planar curve flattening does not support curve kind 'Ellipse3'.")]
+        "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate",
+        "Face 29 cylindrical trim loop 54 has 1 coedges, angular span")]
     public void Step242_NistTargets_AdvancePastGenericUnsupportedSurfaceForHoles_Deterministically(
         string relativePath,
         string expectedLayer,

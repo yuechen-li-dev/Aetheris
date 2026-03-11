@@ -32,7 +32,7 @@ public sealed class Step242EdgeCurveSenseRegressionTests
         if (string.Equals(relativePath, "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", StringComparison.Ordinal))
         {
             Assert.Equal("tessellator", first.FirstFailureLayer);
-            Assert.Equal("Viewer.Tessellation.PlanarCurveFlatteningUnsupported", first.FirstDiagnostic.Source);
+            Assert.Equal("Viewer.Tessellation.CylinderTrimAxialSpanDegenerate", first.FirstDiagnostic.Source);
         }
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);

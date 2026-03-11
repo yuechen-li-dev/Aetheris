@@ -1894,6 +1894,19 @@ public static class BrepDisplayTessellator
                     }
 
                     break;
+                case CurveGeometryKind.Ellipse3:
+                    var ellipsePointsResult = SamplePlanarEllipse(body, coedge, curve.Ellipse3!.Value, segmentStart, segmentEnd, plane, faceId);
+                    if (!ellipsePointsResult.IsSuccess)
+                    {
+                        return KernelResult<IReadOnlyList<Point3D>>.Failure(ellipsePointsResult.Diagnostics);
+                    }
+
+                    foreach (var point in ellipsePointsResult.Value)
+                    {
+                        AppendUniquePoint(flattened, point);
+                    }
+
+                    break;
                 default:
                     var curveKind = curve.UnsupportedKind ?? curve.Kind.ToString();
                     return KernelResult<IReadOnlyList<Point3D>>.Failure([
@@ -1978,6 +1991,80 @@ public static class BrepDisplayTessellator
         return KernelResult<IReadOnlyList<Point3D>>.Success(points);
     }
 
+    private static KernelResult<IReadOnlyList<Point3D>> SamplePlanarEllipse(
+        BrepBody body,
+        Coedge coedge,
+        Ellipse3Curve ellipse,
+        Point3D start,
+        Point3D end,
+        PlaneSurface plane,
+        FaceId faceId)
+    {
+        const double planeContainmentTolerance = 1e-7d;
+        var normalAlignment = double.Abs(ellipse.Normal.ToVector().Dot(plane.Normal.ToVector()));
+        var centerOffset = double.Abs((ellipse.Center - plane.Origin).Dot(plane.Normal.ToVector()));
+
+        if (normalAlignment < 1d - 1e-7d || centerOffset > planeContainmentTolerance)
+        {
+            return KernelResult<IReadOnlyList<Point3D>>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} edge {coedge.EdgeId.Value} planar ellipse flattening requires the ellipse plane to match the face plane.", PlanarCurveFlatteningUnsupportedSource)]);
+        }
+
+        var trimResult = ResolvePlanarEllipseTrim(body, coedge, ellipse, start, end, plane, faceId);
+        if (!trimResult.IsSuccess)
+        {
+            return KernelResult<IReadOnlyList<Point3D>>.Failure(trimResult.Diagnostics);
+        }
+
+        var trim = trimResult.Value;
+        var segmentCount = ComputeEllipseSegmentCount(trim.Start, trim.End);
+        var sampled = SampleEllipseCurve(ellipse, trim, segmentCount).ToArray();
+        sampled[0] = start;
+        sampled[^1] = end;
+
+        var points = new List<Point3D>(sampled.Length - 1);
+        for (var i = 1; i < sampled.Length; i++)
+        {
+            points.Add(sampled[i]);
+        }
+
+        return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+    }
+
+    private static KernelResult<ParameterInterval> ResolvePlanarEllipseTrim(
+        BrepBody body,
+        Coedge coedge,
+        Ellipse3Curve ellipse,
+        Point3D start,
+        Point3D end,
+        PlaneSurface plane,
+        FaceId faceId)
+    {
+        if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding) && binding.TrimInterval is ParameterInterval trim)
+        {
+            return KernelResult<ParameterInterval>.Success(coedge.IsReversed
+                ? new ParameterInterval(trim.End, trim.Start)
+                : trim);
+        }
+
+        var startAngle = AngleOnEllipse(ellipse, start);
+        var endAngle = AngleOnEllipse(ellipse, end);
+        var delta = NormalizeToSignedPi(endAngle - startAngle);
+        if (double.Abs(delta) < 1e-9d)
+        {
+            return KernelResult<ParameterInterval>.Failure([
+                CreateInvalidArgument($"Face {faceId.Value} planar ellipse flattening detected a degenerate ellipse trim.", PlanarCurveFlatteningFailedSource)]);
+        }
+
+        var orientation = ellipse.Normal.ToVector().Dot(plane.Normal.ToVector());
+        if (orientation < 0d)
+        {
+            delta = -delta;
+        }
+
+        return KernelResult<ParameterInterval>.Success(new ParameterInterval(startAngle, startAngle + delta));
+    }
+
     private static KernelResult<(double StartAngle, double Delta)> ResolveArcDelta(
         BrepBody body,
         Coedge coedge,
@@ -2022,6 +2109,14 @@ public static class BrepDisplayTessellator
         var offset = point - circle.Center;
         var x = offset.Dot(circle.XAxis.ToVector());
         var y = offset.Dot(circle.YAxis.ToVector());
+        return double.Atan2(y, x);
+    }
+
+    private static double AngleOnEllipse(Ellipse3Curve ellipse, Point3D point)
+    {
+        var offset = point - ellipse.Center;
+        var x = offset.Dot(ellipse.XAxis.ToVector()) / ellipse.MajorRadius;
+        var y = offset.Dot(ellipse.YAxis.ToVector()) / ellipse.MinorRadius;
         return double.Atan2(y, x);
     }
 

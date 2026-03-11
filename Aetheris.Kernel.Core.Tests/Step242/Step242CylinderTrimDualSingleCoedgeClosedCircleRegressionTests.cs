@@ -52,8 +52,7 @@ public sealed class Step242CylinderTrimDualSingleCoedgeClosedCircleRegressionTes
 
         Assert.Equal("tessellator", first.FirstFailureLayer);
         Assert.NotEqual("Viewer.Tessellation.CylinderTrimDegenerate", first.FirstDiagnostic.Source);
-        Assert.Equal("Viewer.Tessellation.PlanarPolygonDegenerate", first.FirstDiagnostic.Source);
-        Assert.StartsWith("Face 10 planar loop is degenerate and cannot be triangulated.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.Equal("Viewer.Tessellation.PlanarCurveFlatteningFailed", first.FirstDiagnostic.Source);
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);

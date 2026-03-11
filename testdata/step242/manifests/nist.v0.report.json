@@ -271,8 +271,8 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "InvalidArgument",
-      "source": "Viewer.Tessellation.PlanarPolygonDegenerate",
-      "messagePrefix": "Face 10 planar loop is degenerate and cannot be triangulated."
+      "source": "Viewer.Tessellation.PlanarCurveFlatteningFailed",
+      "messagePrefix": "Face 21 planar loop coedges do not form a contiguous chain."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

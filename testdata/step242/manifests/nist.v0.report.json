@@ -103,7 +103,7 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "InvalidArgument",
-      "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate",
+      "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap",
       "messagePrefix": "Face 31 cylindrical trim loop 62 has 1 coedges, angular span 6.108652381980155, axial span 0, loop count 1; classified a"
     },
     "diagnosticCount": 1,
@@ -271,7 +271,7 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "InvalidArgument",
-      "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate",
+      "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap",
       "messagePrefix": "Face 3 cylindrical trim loop 7 has 1 coedges, angular span 6.1086523819801535, axial span 0, loop count 1; classified as"
     },
     "diagnosticCount": 1,
@@ -295,7 +295,7 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "InvalidArgument",
-      "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate",
+      "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap",
       "messagePrefix": "Face 29 cylindrical trim loop 54 has 1 coedges, angular span 6.1086523819801535, axial span 0, loop count 1; classified "
     },
     "diagnosticCount": 1,

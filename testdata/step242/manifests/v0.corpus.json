@@ -54,7 +54,7 @@
       "group": "expectedFail",
       "expectedFirstDiagnostic": {
         "code": "InvalidArgument",
-        "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate",
+        "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap",
         "messagePrefix": "Face 1 cylindrical trim loop 1 has 1 coedges, angular span"
       }
     },

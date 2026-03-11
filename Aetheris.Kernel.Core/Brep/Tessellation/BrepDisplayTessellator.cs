@@ -18,6 +18,9 @@ public static class BrepDisplayTessellator
     private const string CylinderTrimUnsupportedSource = "Viewer.Tessellation.CylinderTrimUnsupported";
     private const string CylinderTrimDegenerateSource = "Viewer.Tessellation.CylinderTrimDegenerate";
     private const string CylinderTrimAxialSpanDegenerateSource = "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate";
+    private const string CylinderTrimAxialSpanDegenerateSingleCoedgeNearFullWrapSource = "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap";
+    private const string CylinderTrimAxialSpanDegenerateSingleCoedgeSource = "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedge";
+    private const string CylinderTrimAxialSpanDegenerateMultiCoedgeSource = "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.MultiCoedge";
     private const string CylinderTrimAmbiguousUsedShorterSpanSource = "Viewer.Tessellation.CylinderTrimAmbiguousUsedShorterSpan";
     private const string CurvedTopologyUnsupportedSource = "Viewer.Tessellation.CurvedTopologyUnsupported";
     private const string BSplineSurfaceTrimUnsupportedSource = "Viewer.Tessellation.BSplineSurfaceTrimUnsupported";
@@ -1691,7 +1694,7 @@ public static class BrepDisplayTessellator
         var yAxis = cylinder.YAxis.ToVector();
 
         (double UStart, double USpan, double VStart, double VEnd, bool UsedAmbiguousShorterSpanResolution)? best = null;
-        (LoopId LoopId, int CoedgeCount, double AngularSpan, double AxialSpan, bool IsNearFullWrap, bool AngularResolved)? bestAxialSpanDegenerate = null;
+        (LoopId LoopId, int CoedgeCount, double AngularSpan, double AxialSpan, bool IsNearFullWrap, bool AngularResolved, bool IsSingleCoedgeClosed)? bestAxialSpanDegenerate = null;
 
         foreach (var loopId in loopIds)
         {
@@ -1751,13 +1754,20 @@ public static class BrepDisplayTessellator
 
             if (axialSpan <= minSpan)
             {
+                var isSingleCoedgeClosed = false;
+                if (coedges.Length == 1 && body.TryGetEdgeVertices(coedges[0].EdgeId, out var edgeStart, out var edgeEnd))
+                {
+                    isSingleCoedgeClosed = edgeStart == edgeEnd;
+                }
+
                 var degenerateCandidate = (
                     LoopId: loopId,
                     CoedgeCount: coedges.Length,
                     AngularSpan: angularSpan,
                     AxialSpan: axialSpan,
                     IsNearFullWrap: angularBounds.IsSuccess && angularBounds.Value.Span >= nearFullWrapThreshold,
-                    AngularResolved: angularBounds.IsSuccess && angularBounds.Value.Span > minSpan);
+                    AngularResolved: angularBounds.IsSuccess && angularBounds.Value.Span > minSpan,
+                    IsSingleCoedgeClosed: isSingleCoedgeClosed);
                 if (!bestAxialSpanDegenerate.HasValue ||
                     degenerateCandidate.AngularSpan > bestAxialSpanDegenerate.Value.AngularSpan ||
                     (System.Math.Abs(degenerateCandidate.AngularSpan - bestAxialSpanDegenerate.Value.AngularSpan) <= minSpan &&
@@ -1787,15 +1797,30 @@ public static class BrepDisplayTessellator
         {
             if (bestAxialSpanDegenerate.HasValue && loopIds.Count == 1)
             {
+                var isSingleCoedge = bestAxialSpanDegenerate.Value.CoedgeCount == 1;
                 var classification = bestAxialSpanDegenerate.Value.IsNearFullWrap
-                    ? "full-wrap ring-like boundary with collapsed axial span"
+                    ? isSingleCoedge
+                        ? bestAxialSpanDegenerate.Value.IsSingleCoedgeClosed
+                            ? "single-coedge closed ring-like near-full-wrap boundary with collapsed axial span"
+                            : "single-coedge near-full-wrap boundary with collapsed axial span"
+                        : "multi-coedge ring-like near-full-wrap boundary with collapsed axial span"
                     : bestAxialSpanDegenerate.Value.AngularResolved
-                        ? "trimmed cylindrical loop with collapsed axial span"
+                        ? isSingleCoedge
+                            ? "single-coedge trimmed cylindrical loop with collapsed axial span"
+                            : "multi-coedge trimmed cylindrical loop with collapsed axial span"
                         : "axial-span-collapsed loop without resolvable angular extent";
+
+                var diagnosticSource = bestAxialSpanDegenerate.Value.IsNearFullWrap
+                    ? isSingleCoedge
+                        ? CylinderTrimAxialSpanDegenerateSingleCoedgeNearFullWrapSource
+                        : CylinderTrimAxialSpanDegenerateMultiCoedgeSource
+                    : isSingleCoedge
+                        ? CylinderTrimAxialSpanDegenerateSingleCoedgeSource
+                        : CylinderTrimAxialSpanDegenerateMultiCoedgeSource;
                 return KernelResult<(double, double, double, double)>.Failure([
                     CreateInvalidArgument(
                         $"Face {faceId.Value} cylindrical trim loop {bestAxialSpanDegenerate.Value.LoopId.Value} has {bestAxialSpanDegenerate.Value.CoedgeCount} coedges, angular span {bestAxialSpanDegenerate.Value.AngularSpan:R}, axial span {bestAxialSpanDegenerate.Value.AxialSpan:R}, loop count {loopIds.Count}; classified as {classification} and treated as degenerate.",
-                        CylinderTrimAxialSpanDegenerateSource)]);
+                        diagnosticSource)]);
             }
 
             return KernelResult<(double, double, double, double)>.Failure([

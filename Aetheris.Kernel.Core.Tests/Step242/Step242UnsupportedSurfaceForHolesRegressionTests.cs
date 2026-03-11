@@ -9,8 +9,8 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp",
         "tessellator",
         "Importer.LoopRole.UnsupportedSurfaceForHoles",
-        null,
-        "Face 30 curved tessellation supports selected repeated cone/revolved boundary subfamilies")]
+        "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate",
+        "Face 31 cylindrical trim loop 62 has 1 coedges, angular span")]
     [InlineData(
         "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
         "tessellator",

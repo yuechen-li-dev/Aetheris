@@ -102,9 +102,9 @@
     "status": "importFail",
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "",
-      "messagePrefix": "Face 30 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily \u0027circle-only seam reused loop\u0027. Observed"
+      "code": "InvalidArgument",
+      "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate",
+      "messagePrefix": "Face 31 cylindrical trim loop 62 has 1 coedges, angular span 6.108652381980155, axial span 0, loop count 1; classified a"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

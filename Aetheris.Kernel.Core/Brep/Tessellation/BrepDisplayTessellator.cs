@@ -687,6 +687,13 @@ public static class BrepDisplayTessellator
             return KernelResult<(double, double, int, int)>.Success((coneRevolvedParameters.VStart, coneRevolvedParameters.VEnd, angularSegments, axialSegments), coneRevolvedDiagnostics);
         }
 
+        if (allowThreeCoedgeConeTopology && TryResolveSingleCoedgeCircleSeamReusedConeLoop(body, coedges, lineCoedges, circleCoedges, axialParameterFromPoint, faceId, out var singleCoedgeCircleSeamReusedConeParameters, out var singleCoedgeCircleSeamReusedConeDiagnostics))
+        {
+            var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
+            var axialSegments = CalculateAxialSegments(singleCoedgeCircleSeamReusedConeParameters.VStart, singleCoedgeCircleSeamReusedConeParameters.VEnd, options);
+            return KernelResult<(double, double, int, int)>.Success((singleCoedgeCircleSeamReusedConeParameters.VStart, singleCoedgeCircleSeamReusedConeParameters.VEnd, angularSegments, axialSegments), singleCoedgeCircleSeamReusedConeDiagnostics);
+        }
+
         if (TryResolveFourUseCircleOnlyNonSeamRevolvedLoop(body, coedges, lineCoedges, circleCoedges, axialParameterFromPoint, faceId, out var fourUseCircleOnlyNonSeamParameters, out var fourUseCircleOnlyNonSeamDiagnostics))
         {
             var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
@@ -794,6 +801,57 @@ public static class BrepDisplayTessellator
 
         parameters = result.Value;
         diagnostics = result.Diagnostics;
+        return true;
+    }
+
+    private static bool TryResolveSingleCoedgeCircleSeamReusedConeLoop(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<Coedge> lineCoedges,
+        IReadOnlyList<Coedge> circleCoedges,
+        Func<Point3D, double>? axialParameterFromPoint,
+        FaceId faceId,
+        out (double VStart, double VEnd) parameters,
+        out IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        parameters = default;
+        diagnostics = [];
+
+        if (axialParameterFromPoint is null || coedges.Count != 1 || lineCoedges.Count != 0 || circleCoedges.Count != 1)
+        {
+            return false;
+        }
+
+        var coedge = coedges[0];
+        var edge = body.Topology.GetEdge(coedge.EdgeId);
+        if (edge.StartVertexId != edge.EndVertexId)
+        {
+            return false;
+        }
+
+        if (body.GetEdgeCurve(coedge.EdgeId).Kind != CurveGeometryKind.Circle3)
+        {
+            return false;
+        }
+
+        var vertexPoint = GetVertexPoint(body, edge.StartVertexId);
+        if (!vertexPoint.IsSuccess)
+        {
+            diagnostics = vertexPoint.Diagnostics;
+            return false;
+        }
+
+        var trimV = axialParameterFromPoint(vertexPoint.Value);
+        if (!double.IsFinite(trimV) || trimV <= 1e-8d)
+        {
+            diagnostics =
+            [
+                CreateNotImplemented($"Face {faceId.Value} curved tessellation could not derive finite non-degenerate axial bounds for single-coedge seam-reused circle cone topology. Observed: {DescribeRevolvedLoopTopology(body, coedges)}", CurvedTopologyUnsupportedSource)
+            ];
+            return false;
+        }
+
+        parameters = (0d, trimV);
         return true;
     }
 
@@ -1328,6 +1386,11 @@ public static class BrepDisplayTessellator
 
         if (lineCoedges.Count == 0 && circleCoedges.Count == coedges.Count)
         {
+            if (coedges.Count == 1 && uniqueEdgeIds.Length == 1 && seamUses == 1)
+            {
+                return "single-coedge circle-only seam-reused revolved loop";
+            }
+
             if (coedges.Count == 4 && uniqueEdgeIds.Length == 4 && seamUses == 0)
             {
                 return "four-coedge circle-only non-seam revolved loop";

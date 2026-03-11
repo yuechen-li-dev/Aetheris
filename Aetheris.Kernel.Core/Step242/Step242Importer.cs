@@ -1314,9 +1314,7 @@ public static class Step242Importer
             SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
             SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(faceEntityId, loops, surface.Cylinder!.Value),
             SurfaceGeometryKind.Torus => ClassifyAndNormalizeToroidalLoops(faceEntityId, loops, surface.Torus!.Value),
-            SurfaceGeometryKind.Cone => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
-                "Multi-loop hole classification is unsupported for surface type 'Cone'.",
-                "Importer.LoopRole.UnsupportedSurfaceForHoles.Cone"),
+            SurfaceGeometryKind.Cone => ClassifyAndNormalizeConicalLoops(faceEntityId, loops, surface.Cone!.Value),
             SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 "Multi-loop hole classification is unsupported for surface type 'Sphere'.",
                 "Importer.LoopRole.UnsupportedSurfaceForHoles.Sphere"),
@@ -1557,6 +1555,52 @@ public static class Step242Importer
         var ordered = new List<LoopBuildData>(1 + normalizedInners.Count) { normalizedOuter };
         ordered.AddRange(normalizedInners);
         return KernelResult<IReadOnlyList<LoopBuildData>>.Success(ordered);
+    }
+
+    private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeConicalLoops(
+        int faceEntityId,
+        IReadOnlyList<LoopBuildData> loops,
+        ConeSurface cone)
+    {
+        const string nonNormalizableSource = "Importer.LoopRole.ConeNonNormalizableDegenerateProjection";
+
+        var degenerate = loops
+            .Select(loop =>
+            {
+                var projected = ProjectLoopToCone(loop.Samples, cone);
+                var uniqueCount = CountUniquePoints(projected, ContainmentEps);
+                var area = ComputeSignedArea(projected);
+                return (Loop: loop, Analysis: AnalyzeConicalProjection(uniqueCount, area, projected));
+            })
+            .OrderBy(d => d.Loop.LoopId.Value)
+            .ToArray();
+
+        if (degenerate.All(d => d.Analysis.Degeneracy == ConeProjectionDegeneracy.FullRevolutionConstantAxial))
+        {
+            var canonical = degenerate
+                .OrderByDescending(d => d.Analysis.AxialMean)
+                .ThenBy(d => d.Loop.LoopId.Value)
+                .Select(d => d.Loop)
+                .First();
+            return KernelResult<IReadOnlyList<LoopBuildData>>.Success([canonical]);
+        }
+
+        var primary = degenerate
+            .OrderByDescending(d => (int)d.Analysis.Degeneracy)
+            .ThenBy(d => d.Loop.LoopId.Value)
+            .First();
+
+        var explicitSource = primary.Analysis.Degeneracy switch
+        {
+            ConeProjectionDegeneracy.DegenerateAngularSpan => "Importer.LoopRole.ConeDegenerateAngularSpan",
+            ConeProjectionDegeneracy.DegenerateAxialSpan => "Importer.LoopRole.ConeDegenerateAxialSpan",
+            ConeProjectionDegeneracy.RepeatedSeamProjectionCollapse => "Importer.LoopRole.ConeRepeatedSeamProjectionCollapse",
+            _ => nonNormalizableSource
+        };
+
+        return LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
+            $"Cone loop normalization failed: faceId={faceEntityId}, apex=({cone.Apex.X:G17},{cone.Apex.Y:G17},{cone.Apex.Z:G17}), placementRadius={cone.PlacementRadius:G17}, semiAngle={cone.SemiAngleRadians:G17}, loopCount={loops.Count}, primaryLoopId={primary.Loop.LoopId.Value}, primaryDegeneracy={primary.Analysis.Degeneracy}.",
+            explicitSource);
     }
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeToroidalLoops(
@@ -2161,6 +2205,48 @@ public static class Step242Importer
         return uv;
     }
 
+    private static List<UvPoint> ProjectLoopToCone(IReadOnlyList<Point3D> samples, ConeSurface cone)
+    {
+        var axis = cone.Axis.ToVector();
+        var reference = cone.ReferenceAxis.ToVector();
+        var projectedReference = reference - (axis * reference.Dot(axis));
+        var xAxis = Direction3D.Create(projectedReference).ToVector();
+        var yAxis = Direction3D.Create(axis.Cross(xAxis)).ToVector();
+
+        var uv = new List<UvPoint>(samples.Count + 1);
+        double? previous = null;
+        var revolutions = 0d;
+        foreach (var sample in samples)
+        {
+            var offset = sample - cone.Apex;
+            var axial = offset.Dot(axis);
+            var radial = offset - (axis * axial);
+            var angle = NormalizeToZeroTwoPi(double.Atan2(radial.Dot(yAxis), radial.Dot(xAxis)));
+            if (previous.HasValue)
+            {
+                var delta = angle - previous.Value;
+                if (delta > double.Pi)
+                {
+                    revolutions -= 2d * double.Pi;
+                }
+                else if (delta < -double.Pi)
+                {
+                    revolutions += 2d * double.Pi;
+                }
+            }
+
+            uv.Add(new UvPoint(angle + revolutions, axial));
+            previous = angle;
+        }
+
+        if (uv.Count > 0 && (uv[0] - uv[^1]).Length > ContainmentEps)
+        {
+            uv.Add(uv[0]);
+        }
+
+        return uv;
+    }
+
     private static (IReadOnlyList<UvPoint> Projected, int UniquePointCount, double SignedArea, TorusProjectionAnalysis Analysis)? TryRecoverToroidalProjectionFromCyclicUnwrap(
         IReadOnlyList<Point3D> samples,
         TorusSurface torus)
@@ -2424,6 +2510,72 @@ public static class Step242Importer
             repeatedMajorSeamPointCount,
             repeatedMinorSeamPointCount,
             degeneracy);
+    }
+
+    private static ConeProjectionAnalysis AnalyzeConicalProjection(int uniqueCount, double signedArea, IReadOnlyList<UvPoint> projected)
+    {
+        if (projected.Count == 0)
+        {
+            return new ConeProjectionAnalysis(0d, 0d, 0, 0, 0d, ConeProjectionDegeneracy.InsufficientUniquePoints);
+        }
+
+        var minU = projected.Min(p => p.X);
+        var maxU = projected.Max(p => p.X);
+        var minV = projected.Min(p => p.Y);
+        var maxV = projected.Max(p => p.Y);
+        var angularSpan = maxU - minU;
+        var axialSpan = maxV - minV;
+        var seamCrossings = 0;
+        var repeatedSeamPointCount = 0;
+        var axialMean = projected.Average(p => p.Y);
+
+        for (var i = 1; i < projected.Count; i++)
+        {
+            var delta = projected[i].X - projected[i - 1].X;
+            if (double.Abs(delta) > double.Pi)
+            {
+                seamCrossings++;
+            }
+
+            var a = NormalizeToZeroTwoPi(projected[i - 1].X);
+            var b = NormalizeToZeroTwoPi(projected[i].X);
+            var nearSeam = (a <= 1e-6d || a >= (2d * double.Pi) - 1e-6d) && (b <= 1e-6d || b >= (2d * double.Pi) - 1e-6d);
+            if (nearSeam && double.Abs(projected[i].Y - projected[i - 1].Y) <= ContainmentEps)
+            {
+                repeatedSeamPointCount++;
+            }
+        }
+
+        var degeneracy = ConeProjectionDegeneracy.None;
+        if (uniqueCount < 3)
+        {
+            degeneracy = ConeProjectionDegeneracy.InsufficientUniquePoints;
+        }
+        else if (double.Abs(signedArea) <= AreaEps)
+        {
+            if (axialSpan <= ContainmentEps && angularSpan >= (2d * double.Pi) - 1e-3d)
+            {
+                degeneracy = ConeProjectionDegeneracy.FullRevolutionConstantAxial;
+            }
+            else if (repeatedSeamPointCount > 0)
+            {
+                degeneracy = ConeProjectionDegeneracy.RepeatedSeamProjectionCollapse;
+            }
+            else if (angularSpan <= 1e-6d)
+            {
+                degeneracy = ConeProjectionDegeneracy.DegenerateAngularSpan;
+            }
+            else if (axialSpan <= ContainmentEps)
+            {
+                degeneracy = ConeProjectionDegeneracy.DegenerateAxialSpan;
+            }
+            else
+            {
+                degeneracy = ConeProjectionDegeneracy.NearZeroArea;
+            }
+        }
+
+        return new ConeProjectionAnalysis(angularSpan, axialSpan, seamCrossings, repeatedSeamPointCount, axialMean, degeneracy);
     }
 
     private static IReadOnlyList<UvPoint> AlignPolygonToReference(IReadOnlyList<UvPoint> polygon, double currentX, double referenceX)
@@ -2836,6 +2988,25 @@ public static class Step242Importer
         int RepeatedMajorSeamPointCount,
         int RepeatedMinorSeamPointCount,
         TorusProjectionDegeneracy Degeneracy);
+
+    private enum ConeProjectionDegeneracy
+    {
+        None = 0,
+        InsufficientUniquePoints = 1,
+        NearZeroArea = 2,
+        FullRevolutionConstantAxial = 3,
+        DegenerateAngularSpan = 4,
+        DegenerateAxialSpan = 5,
+        RepeatedSeamProjectionCollapse = 6
+    }
+
+    private sealed record ConeProjectionAnalysis(
+        double AngularSpan,
+        double AxialSpan,
+        int SeamCrossings,
+        int RepeatedSeamPointCount,
+        double AxialMean,
+        ConeProjectionDegeneracy Degeneracy);
 
     private sealed class CircularSamplingDiagnosticsScope(ICollection<LoopRoleCircularSamplingDiagnostic>? previous) : IDisposable
     {

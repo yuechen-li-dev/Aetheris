@@ -100,18 +100,18 @@
     "path": "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp",
     "sizeBytes": 863826,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.UnsupportedSurfaceForHoles.Cone",
-      "messagePrefix": "Multi-loop hole classification is unsupported for surface type \u0027Cone\u0027."
+      "code": "NotImplemented",
+      "source": "",
+      "messagePrefix": "Face 30 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily \u0027circle-only seam reused loop\u0027. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 239,
+      "edges": 331,
+      "faces": 156
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -292,18 +292,18 @@
     "path": "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
     "sizeBytes": 993459,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.UnsupportedSurfaceForHoles.Cone",
-      "messagePrefix": "Multi-loop hole classification is unsupported for surface type \u0027Cone\u0027."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarCurveFlatteningUnsupported",
+      "messagePrefix": "Face 18 planar curve flattening does not support curve kind \u0027Ellipse3\u0027."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 225,
+      "edges": 310,
+      "faces": 144
     },
     "tessellationCounts": {
       "facePatches": 0,

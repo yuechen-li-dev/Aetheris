@@ -6,6 +6,12 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
 {
     [Theory]
     [InlineData(
+        "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp",
+        "tessellator",
+        "Importer.LoopRole.UnsupportedSurfaceForHoles",
+        null,
+        "Face 30 curved tessellation supports selected repeated cone/revolved boundary subfamilies")]
+    [InlineData(
         "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
         "tessellator",
         "Topology.GraphValidator",
@@ -19,10 +25,10 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         "Face 3 cylindrical trim loop 7 has 1 coedges, angular span")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
-        "importer-topology",
+        "tessellator",
         "Importer.LoopRole.UnsupportedSurfaceForHoles",
-        "Importer.LoopRole.UnsupportedSurfaceForHoles.Cone",
-        "Multi-loop hole classification is unsupported for surface type 'Cone'.")]
+        "Viewer.Tessellation.PlanarCurveFlatteningUnsupported",
+        "Face 18 planar curve flattening does not support curve kind 'Ellipse3'.")]
     public void Step242_NistTargets_AdvancePastGenericUnsupportedSurfaceForHoles_Deterministically(
         string relativePath,
         string expectedLayer,

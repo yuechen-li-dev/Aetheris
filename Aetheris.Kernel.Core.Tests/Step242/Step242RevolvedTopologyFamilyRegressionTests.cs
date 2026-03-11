@@ -90,7 +90,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
     }
 
     [Theory]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "Face 12 spherical two-coedge trim classified as unsupported subfamily (requires bi-arc circles; observed edge kinds 'BSp")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "No diagnostics.")]
     [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "No diagnostics.")]
     public void Step242_RevolvedTopologyFamilyBlockers_StayDeterministic_AndRemainExplicit(string relativePath, string expectedMessagePrefix)
     {

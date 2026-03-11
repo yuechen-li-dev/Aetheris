@@ -714,10 +714,9 @@ public sealed class Step242ImporterTests
             d => d.Message.Contains("TOROIDAL_SURFACE", StringComparison.OrdinalIgnoreCase));
 
         var tessellation = BrepDisplayTessellator.Tessellate(import.Value);
-        Assert.False(tessellation.IsSuccess);
-        Assert.NotEmpty(tessellation.Diagnostics);
-        var first = tessellation.Diagnostics[0];
-        Assert.DoesNotContain("TOROIDAL_SURFACE", first.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(tessellation.IsSuccess);
+        Assert.DoesNotContain(tessellation.Diagnostics,
+            d => d.Message.Contains("TOROIDAL_SURFACE", StringComparison.OrdinalIgnoreCase));
     }
 
     private static double NormalizeToZeroTwoPi(double angle)

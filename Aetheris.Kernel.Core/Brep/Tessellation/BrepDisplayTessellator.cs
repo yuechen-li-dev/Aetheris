@@ -21,6 +21,7 @@ public static class BrepDisplayTessellator
     private const string CylinderTrimAxialSpanDegenerateSingleCoedgeNearFullWrapSource = "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap";
     private const string CylinderTrimAxialSpanDegenerateSingleCoedgeSource = "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedge";
     private const string CylinderTrimAxialSpanDegenerateMultiCoedgeSource = "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.MultiCoedge";
+    private const string CylinderTrimAxialSpanDegenerateSingleCoedgeNearFullWrapBridgeSource = "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrapBridge";
     private const string CylinderTrimAmbiguousUsedShorterSpanSource = "Viewer.Tessellation.CylinderTrimAmbiguousUsedShorterSpan";
     private const string CurvedTopologyUnsupportedSource = "Viewer.Tessellation.CurvedTopologyUnsupported";
     private const string BSplineSurfaceTrimUnsupportedSource = "Viewer.Tessellation.BSplineSurfaceTrimUnsupported";
@@ -1682,6 +1683,8 @@ public static class BrepDisplayTessellator
     {
         const double minSpan = 1e-8d;
         const double nearFullWrapThreshold = 2d * double.Pi * 0.95d;
+        const double bridgeSeamGapMin = 8d * (double.Pi / 180d);
+        const double bridgeSeamGapMax = 12d * (double.Pi / 180d);
         var loopIds = body.GetLoopIds(faceId);
         if (loopIds.Count == 0)
         {
@@ -1694,7 +1697,7 @@ public static class BrepDisplayTessellator
         var yAxis = cylinder.YAxis.ToVector();
 
         (double UStart, double USpan, double VStart, double VEnd, bool UsedAmbiguousShorterSpanResolution)? best = null;
-        (LoopId LoopId, int CoedgeCount, double AngularSpan, double AxialSpan, bool IsNearFullWrap, bool AngularResolved, bool IsSingleCoedgeClosed)? bestAxialSpanDegenerate = null;
+        (LoopId LoopId, int CoedgeCount, double AngularStart, double AngularSpan, double AxialSpan, bool IsNearFullWrap, bool AngularResolved, bool IsSingleCoedgeClosed, double VStart, bool HasBridgeTwin, SurfaceGeometryKind? TwinSurfaceKind)? bestAxialSpanDegenerate = null;
 
         foreach (var loopId in loopIds)
         {
@@ -1755,19 +1758,26 @@ public static class BrepDisplayTessellator
             if (axialSpan <= minSpan)
             {
                 var isSingleCoedgeClosed = false;
+                var hasBridgeTwin = false;
+                SurfaceGeometryKind? twinSurfaceKind = null;
                 if (coedges.Length == 1 && body.TryGetEdgeVertices(coedges[0].EdgeId, out var edgeStart, out var edgeEnd))
                 {
                     isSingleCoedgeClosed = edgeStart == edgeEnd;
+                    hasBridgeTwin = TryResolveBridgeTwinSurfaceKind(body, faceId, coedges[0].EdgeId, out twinSurfaceKind);
                 }
 
                 var degenerateCandidate = (
                     LoopId: loopId,
                     CoedgeCount: coedges.Length,
+                    AngularStart: angularBounds.IsSuccess ? angularBounds.Value.Start : 0d,
                     AngularSpan: angularSpan,
                     AxialSpan: axialSpan,
                     IsNearFullWrap: angularBounds.IsSuccess && angularBounds.Value.Span >= nearFullWrapThreshold,
                     AngularResolved: angularBounds.IsSuccess && angularBounds.Value.Span > minSpan,
-                    IsSingleCoedgeClosed: isSingleCoedgeClosed);
+                    IsSingleCoedgeClosed: isSingleCoedgeClosed,
+                    VStart: vStart,
+                    HasBridgeTwin: hasBridgeTwin,
+                    TwinSurfaceKind: twinSurfaceKind);
                 if (!bestAxialSpanDegenerate.HasValue ||
                     degenerateCandidate.AngularSpan > bestAxialSpanDegenerate.Value.AngularSpan ||
                     (System.Math.Abs(degenerateCandidate.AngularSpan - bestAxialSpanDegenerate.Value.AngularSpan) <= minSpan &&
@@ -1798,6 +1808,31 @@ public static class BrepDisplayTessellator
             if (bestAxialSpanDegenerate.HasValue && loopIds.Count == 1)
             {
                 var isSingleCoedge = bestAxialSpanDegenerate.Value.CoedgeCount == 1;
+                var seamGap = (2d * double.Pi) - bestAxialSpanDegenerate.Value.AngularSpan;
+                var isBridgeFamily =
+                    isSingleCoedge
+                    && bestAxialSpanDegenerate.Value.IsNearFullWrap
+                    && bestAxialSpanDegenerate.Value.AngularResolved
+                    && bestAxialSpanDegenerate.Value.AxialSpan <= minSpan
+                    && bestAxialSpanDegenerate.Value.IsSingleCoedgeClosed
+                    && seamGap >= bridgeSeamGapMin
+                    && seamGap <= bridgeSeamGapMax
+                    && bestAxialSpanDegenerate.Value.HasBridgeTwin
+                    && bestAxialSpanDegenerate.Value.TwinSurfaceKind is SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cone or SurfaceGeometryKind.Torus;
+
+                if (isBridgeFamily)
+                {
+                    return KernelResult<(double, double, double, double)>.Success(
+                        (
+                            bestAxialSpanDegenerate.Value.AngularStart,
+                            bestAxialSpanDegenerate.Value.AngularStart + bestAxialSpanDegenerate.Value.AngularSpan,
+                            bestAxialSpanDegenerate.Value.VStart,
+                            bestAxialSpanDegenerate.Value.VStart),
+                        [CreateValidationWarning(
+                            $"Face {faceId.Value} cylindrical trim treated as zero-width bridge limit (loop {bestAxialSpanDegenerate.Value.LoopId.Value}, seam gap {seamGap * (180d / double.Pi):F3} deg, twin {bestAxialSpanDegenerate.Value.TwinSurfaceKind}).",
+                            CylinderTrimAxialSpanDegenerateSingleCoedgeNearFullWrapBridgeSource)]);
+                }
+
                 var classification = bestAxialSpanDegenerate.Value.IsNearFullWrap
                     ? isSingleCoedge
                         ? bestAxialSpanDegenerate.Value.IsSingleCoedgeClosed
@@ -1838,6 +1873,49 @@ public static class BrepDisplayTessellator
         return KernelResult<(double, double, double, double)>.Success(
             (best.Value.UStart, best.Value.UStart + best.Value.USpan, best.Value.VStart, best.Value.VEnd),
             diagnostics);
+    }
+
+    private static bool TryResolveBridgeTwinSurfaceKind(BrepBody body, FaceId sourceFaceId, EdgeId edgeId, out SurfaceGeometryKind? twinSurfaceKind)
+    {
+        twinSurfaceKind = null;
+        var uses = new HashSet<FaceId>();
+
+        foreach (var face in body.Topology.Faces)
+        {
+            foreach (var loopId in face.LoopIds)
+            {
+                var coedgeIds = body.GetCoedgeIds(loopId);
+                foreach (var coedgeId in coedgeIds)
+                {
+                    var coedge = body.Topology.GetCoedge(coedgeId);
+                    if (coedge.EdgeId == edgeId)
+                    {
+                        uses.Add(face.Id);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (uses.Count != 2)
+        {
+            return false;
+        }
+
+        var useArray = uses.ToArray();
+        var twinFaceId = useArray[0] == sourceFaceId ? useArray[1] : useArray[0];
+        if (twinFaceId == sourceFaceId)
+        {
+            return false;
+        }
+
+        if (!body.TryGetFaceSurfaceGeometry(twinFaceId, out var twinSurface) || twinSurface is null)
+        {
+            return false;
+        }
+
+        twinSurfaceKind = twinSurface.Kind;
+        return true;
     }
 
     private static double CylinderAngleOf(CylinderSurface cylinder, Point3D point, Vector3D xAxis, Vector3D yAxis, Vector3D axis)

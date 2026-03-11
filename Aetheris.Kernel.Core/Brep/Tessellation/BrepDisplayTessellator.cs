@@ -27,6 +27,8 @@ public static class BrepDisplayTessellator
     private const string BSplineSurfaceTrimUnsupportedSource = "Viewer.Tessellation.BSplineSurfaceTrimUnsupported";
     private const string SphereTrimSingleCoedgeLatitudeCapSource = "Viewer.Tessellation.SphereTrim.SingleCoedgeLatitudeCap";
     private const string SphereTrimSingleCoedgeUnsupportedSource = "Viewer.Tessellation.SphereTrim.SingleCoedgeUnsupported";
+    private const string SphereTrimTwoCoedgeBiArcLuneSource = "Viewer.Tessellation.SphereTrim.TwoCoedgeBiArcLune";
+    private const string SphereTrimTwoCoedgeUnsupportedSource = "Viewer.Tessellation.SphereTrim.TwoCoedgeUnsupported";
 
     public static KernelResult<DisplayTessellationResult> Tessellate(BrepBody body, DisplayTessellationOptions? options = null)
     {
@@ -1720,9 +1722,6 @@ public static class BrepDisplayTessellator
         FaceId faceId,
         SphereSurface sphere)
     {
-        const double minAngularSpan = 1e-6d;
-        const double minElevationSpan = 1e-6d;
-
         var loopIds = body.GetLoopIds(faceId);
         if (loopIds.Count == 0)
         {
@@ -1747,11 +1746,87 @@ public static class BrepDisplayTessellator
             return KernelResult<(double, double, double, double)>.Failure(singleCoedgeResolution.Diagnostics);
         }
 
+        if (coedges.Length == 2)
+        {
+            var twoCoedgeResolution = TryResolveTwoCoedgeSphereTrimPatch(body, faceId, sphere, coedges);
+            if (twoCoedgeResolution.IsSuccess)
+            {
+                return twoCoedgeResolution;
+            }
+
+            return KernelResult<(double, double, double, double)>.Failure(twoCoedgeResolution.Diagnostics);
+        }
+
         if (coedges.Length < 3)
         {
             return KernelResult<(double, double, double, double)>.Failure([
                 CreateNotImplemented($"Face {faceId.Value} spherical trim loop must contain at least three coedges. Observed {coedges.Length}.")]);
         }
+
+        return TryResolveGeneralSphereTrimPatch(body, faceId, sphere, coedges);
+    }
+
+    private static KernelResult<(double UStart, double USpan, double VStart, double VEnd)> TryResolveTwoCoedgeSphereTrimPatch(
+        BrepBody body,
+        FaceId faceId,
+        SphereSurface sphere,
+        IReadOnlyList<Coedge> coedges)
+    {
+        if (coedges.Count != 2)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} spherical two-coedge trim resolver expected exactly two coedges. Observed {coedges.Count}.", SphereTrimTwoCoedgeUnsupportedSource)]);
+        }
+
+        var firstCurve = body.GetEdgeCurve(coedges[0].EdgeId);
+        var secondCurve = body.GetEdgeCurve(coedges[1].EdgeId);
+        if (firstCurve.Kind != CurveGeometryKind.Circle3 || secondCurve.Kind != CurveGeometryKind.Circle3)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented(
+                    $"Face {faceId.Value} spherical two-coedge trim classified as unsupported subfamily (requires bi-arc circles; observed edge kinds '{firstCurve.UnsupportedKind ?? firstCurve.Kind.ToString()}' and '{secondCurve.UnsupportedKind ?? secondCurve.Kind.ToString()}').",
+                    SphereTrimTwoCoedgeUnsupportedSource)]);
+        }
+
+        if (!body.TryGetEdgeVertices(coedges[0].EdgeId, out var firstStartVertexId, out var firstEndVertexId)
+            || !body.TryGetEdgeVertices(coedges[1].EdgeId, out var secondStartVertexId, out var secondEndVertexId))
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented(
+                    $"Face {faceId.Value} spherical two-coedge trim classified as unsupported subfamily (missing edge vertex topology).",
+                    SphereTrimTwoCoedgeUnsupportedSource)]);
+        }
+
+        var uniqueVertexIds = new HashSet<VertexId> { firstStartVertexId, firstEndVertexId, secondStartVertexId, secondEndVertexId };
+        if (uniqueVertexIds.Count != 2)
+        {
+            return KernelResult<(double, double, double, double)>.Failure([
+                CreateNotImplemented(
+                    $"Face {faceId.Value} spherical two-coedge trim classified as unsupported subfamily (expected two shared vertices; observed {uniqueVertexIds.Count}).",
+                    SphereTrimTwoCoedgeUnsupportedSource)]);
+        }
+
+        var generalResolution = TryResolveGeneralSphereTrimPatch(body, faceId, sphere, coedges);
+        if (!generalResolution.IsSuccess)
+        {
+            return generalResolution;
+        }
+
+        return KernelResult<(double, double, double, double)>.Success(
+            generalResolution.Value,
+            [CreateValidationWarning(
+                $"Face {faceId.Value} spherical two-coedge trim classified as bi-arc circle lune with two shared vertices (edges {coedges[0].EdgeId.Value}/{coedges[1].EdgeId.Value}).",
+                SphereTrimTwoCoedgeBiArcLuneSource)]);
+    }
+
+    private static KernelResult<(double UStart, double USpan, double VStart, double VEnd)> TryResolveGeneralSphereTrimPatch(
+        BrepBody body,
+        FaceId faceId,
+        SphereSurface sphere,
+        IReadOnlyList<Coedge> coedges)
+    {
+        const double minAngularSpan = 1e-6d;
+        const double minElevationSpan = 1e-6d;
 
         var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
         if (!vertexPointsResult.IsSuccess)

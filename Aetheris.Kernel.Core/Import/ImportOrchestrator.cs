@@ -86,7 +86,19 @@ public sealed class ImportOrchestrator
         }
 
         var bodyResult = lane.Import(parseResult.Value, policy);
-        return new ImportResult(bodyResult, connector.Name, lane.Kind, parseResult.Value.SourceFamily);
+        return new ImportResult(bodyResult, connector.Name, lane.Kind, ResolveRepresentationTruth(lane.Kind), parseResult.Value.SourceFamily);
+    }
+
+    private static ImportRepresentationTruthKind ResolveRepresentationTruth(ImportLaneKind laneKind)
+    {
+        return laneKind switch
+        {
+            ImportLaneKind.ExactBRep => ImportRepresentationTruthKind.ExactBRep,
+            ImportLaneKind.Tessellated => ImportRepresentationTruthKind.TessellatedOrFaceted,
+            ImportLaneKind.Approximation => ImportRepresentationTruthKind.Approximation,
+            ImportLaneKind.Compatibility => ImportRepresentationTruthKind.CompatibilityAdjusted,
+            _ => ImportRepresentationTruthKind.Unknown
+        };
     }
 
     private IImportLane? SelectLane(IParsedSourceDocument document, ImportPolicy policy)

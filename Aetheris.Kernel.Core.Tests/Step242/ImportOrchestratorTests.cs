@@ -18,8 +18,10 @@ public sealed class ImportOrchestratorTests
         Assert.True(second.BodyResult.IsSuccess, string.Join(" | ", second.BodyResult.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
         Assert.Equal("step-ap242-connector", first.Connector);
         Assert.Equal(ImportLaneKind.ExactBRep, first.Lane);
+        Assert.Equal(ImportRepresentationTruthKind.ExactBRep, first.RepresentationTruth);
         Assert.Equal(first.Connector, second.Connector);
         Assert.Equal(first.Lane, second.Lane);
+        Assert.Equal(first.RepresentationTruth, second.RepresentationTruth);
     }
 
     [Fact]
@@ -35,11 +37,11 @@ public sealed class ImportOrchestratorTests
         Assert.True(second.BodyResult.IsSuccess, string.Join(" | ", second.BodyResult.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
         Assert.Equal("step-ap242-connector", first.Connector);
         Assert.Equal(ImportLaneKind.Tessellated, first.Lane);
+        Assert.Equal(ImportRepresentationTruthKind.TessellatedOrFaceted, first.RepresentationTruth);
         Assert.Equal(first.Connector, second.Connector);
         Assert.Equal(first.Lane, second.Lane);
+        Assert.Equal(first.RepresentationTruth, second.RepresentationTruth);
     }
-
-
 
     [Fact]
     public void TessellatedLane_ImportsTgRootViaExtractedLaneOwner_Deterministically()

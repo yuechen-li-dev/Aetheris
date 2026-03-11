@@ -270,9 +270,9 @@
     "status": "importFail",
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "InvalidArgument",
-      "source": "Viewer.Tessellation.PlanarCurveFlatteningFailed",
-      "messagePrefix": "Face 21 planar loop coedges do not form a contiguous chain."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 21 planar loop triangulation failed because the polygon is not simple."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

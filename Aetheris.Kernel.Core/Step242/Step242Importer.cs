@@ -425,7 +425,7 @@ public static class Step242Importer
         var shellId = builder.AddShell(faceIds);
         builder.AddBody([shellId]);
 
-        var body = new BrepBody(builder.Model, geometry, bindings);
+        var body = new BrepBody(builder.Model, geometry, bindings, vertexMap.Values.ToDictionary(entry => entry.VertexId, entry => entry.Point));
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
         if (!validation.IsSuccess)
         {

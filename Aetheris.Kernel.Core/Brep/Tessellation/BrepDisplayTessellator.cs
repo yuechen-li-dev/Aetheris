@@ -2935,6 +2935,11 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<Point3D> GetVertexPoint(BrepBody body, VertexId vertexId)
     {
+        if (body.TryGetVertexPoint(vertexId, out var point))
+        {
+            return KernelResult<Point3D>.Success(point);
+        }
+
         foreach (var edge in body.Topology.Edges.OrderBy(e => e.Id.Value))
         {
             if (edge.StartVertexId != vertexId)
@@ -2942,7 +2947,7 @@ public static class BrepDisplayTessellator
                 continue;
             }
 
-            var edgePoint = EvaluateEdgeEndpoint(body, edge.Id, useStart: true);
+            var edgePoint = EvaluateEdgeEndpointFromTopologyTrim(body, edge.Id, useStart: true);
             if (edgePoint.IsSuccess)
             {
                 return KernelResult<Point3D>.Success(edgePoint.Value);
@@ -2956,7 +2961,7 @@ public static class BrepDisplayTessellator
                 continue;
             }
 
-            var edgePoint = EvaluateEdgeEndpoint(body, edge.Id, useStart: false);
+            var edgePoint = EvaluateEdgeEndpointFromTopologyTrim(body, edge.Id, useStart: false);
             if (edgePoint.IsSuccess)
             {
                 return KernelResult<Point3D>.Success(edgePoint.Value);
@@ -2964,6 +2969,30 @@ public static class BrepDisplayTessellator
         }
 
         return KernelResult<Point3D>.Failure([CreateNotImplemented($"Vertex {vertexId.Value} cannot be resolved to a geometric point for tessellation.")]);
+    }
+
+    private static KernelResult<Point3D> EvaluateEdgeEndpointFromTopologyTrim(BrepBody body, EdgeId edgeId, bool useStart)
+    {
+        if (!body.TryGetEdgeCurveGeometry(edgeId, out var curve) || curve is null)
+        {
+            return KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} is missing bound curve geometry.")]);
+        }
+
+        if (!body.Bindings.TryGetEdgeBinding(edgeId, out var binding))
+        {
+            return KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} is missing curve binding.")]);
+        }
+
+        var interval = binding.TrimInterval ?? new ParameterInterval(0d, 1d);
+        var parameter = useStart ? interval.Start : interval.End;
+        return curve.Kind switch
+        {
+            CurveGeometryKind.Line3 => KernelResult<Point3D>.Success(curve.Line3!.Value.Evaluate(parameter)),
+            CurveGeometryKind.Circle3 => KernelResult<Point3D>.Success(curve.Circle3!.Value.Evaluate(parameter)),
+            CurveGeometryKind.BSpline3 => KernelResult<Point3D>.Success(curve.BSpline3!.Value.Evaluate(parameter)),
+            CurveGeometryKind.Ellipse3 => KernelResult<Point3D>.Success(curve.Ellipse3!.Value.Evaluate(parameter)),
+            _ => KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} endpoint evaluation does not support curve kind '{curve.UnsupportedKind ?? curve.Kind.ToString()}'.", PlanarCurveFlatteningUnsupportedSource)]),
+        };
     }
 
     private static KernelResult<Point3D> EvaluateEdgeEndpoint(BrepBody body, EdgeId edgeId, bool useStart)

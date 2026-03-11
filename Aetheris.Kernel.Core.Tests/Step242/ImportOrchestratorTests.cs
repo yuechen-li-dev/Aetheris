@@ -40,6 +40,27 @@ public sealed class ImportOrchestratorTests
     }
 
 
+
+    [Fact]
+    public void TessellatedLane_ImportsTgRootViaExtractedLaneOwner_Deterministically()
+    {
+        var parse = Step242SubsetParser.Parse(LoadFixture("testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e1-tg.stp"));
+        Assert.True(parse.IsSuccess);
+
+        var lane = new Step242TessellatedImportLane();
+        var document = new StepParsedSourceDocument(parse.Value);
+
+        var first = lane.Import(document, new ImportPolicy(ImportLaneKind.Tessellated));
+        var second = lane.Import(document, new ImportPolicy(ImportLaneKind.Tessellated));
+
+        Assert.True(first.IsSuccess, string.Join(" | ", first.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+        Assert.True(second.IsSuccess, string.Join(" | ", second.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+
+        Assert.Equal(first.Value.Topology.Faces.Count(), second.Value.Topology.Faces.Count());
+        Assert.Equal(first.Value.Topology.Edges.Count(), second.Value.Topology.Edges.Count());
+        Assert.All(first.Value.Geometry.Surfaces, surface => Assert.Equal(Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane, surface.Value.Kind));
+    }
+
     [Fact]
     public void ExactLane_ImportsExactRootViaExtractedLaneOwner()
     {

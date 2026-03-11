@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Import;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
@@ -36,6 +37,22 @@ public sealed class ImportOrchestratorTests
         Assert.Equal(ImportLaneKind.Tessellated, first.Lane);
         Assert.Equal(first.Connector, second.Connector);
         Assert.Equal(first.Lane, second.Lane);
+    }
+
+
+    [Fact]
+    public void ExactLane_ImportsExactRootViaExtractedLaneOwner()
+    {
+        var parse = Step242SubsetParser.Parse(Step242FixtureCorpus.CanonicalBoxGolden);
+        Assert.True(parse.IsSuccess);
+
+        var lane = new Step242ExactBRepImportLane();
+        var document = new StepParsedSourceDocument(parse.Value);
+
+        var import = lane.Import(document, new ImportPolicy(ImportLaneKind.ExactBRep));
+
+        Assert.True(import.IsSuccess, string.Join(" | ", import.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+        Assert.Equal(6, import.Value.Topology.Faces.Count());
     }
 
     private static string LoadFixture(string relativePath)

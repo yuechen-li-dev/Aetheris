@@ -70,7 +70,7 @@ public static class Step242Importer
             return laneKind switch
             {
                 ImportLaneKind.Auto => ImportAuto(document),
-                ImportLaneKind.ExactBRep => MapSubsetExact(document),
+                ImportLaneKind.ExactBRep => Step242ExactBRepImportLane.ImportExactBrep(document),
                 ImportLaneKind.Tessellated => ImportTessellated(document),
                 _ => KernelResult<BrepBody>.Failure([
                     new KernelDiagnostic(
@@ -101,7 +101,7 @@ public static class Step242Importer
             return tessellatedSolidResult;
         }
 
-        return MapSubsetExact(document);
+        return Step242ExactBRepImportLane.ImportExactBrep(document);
     }
 
     private static KernelResult<BrepBody> ImportTessellated(Step242ParsedDocument document)
@@ -115,7 +115,7 @@ public static class Step242Importer
         return Failure("Requested tessellated import lane, but no TESSELLATED_SOLID root was found.", "Importer.TessellatedSolid.MissingRoot");
     }
 
-    private static KernelResult<BrepBody> MapSubsetExact(Step242ParsedDocument document)
+    internal static KernelResult<BrepBody> ImportExactBrepCore(Step242ParsedDocument document)
     {
         var manifoldSolidBreps = document.Entities
             .Where(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase))

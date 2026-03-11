@@ -16,6 +16,8 @@ internal static class PlanarPolygonTriangulator
     public static bool TryTriangulate(
         IReadOnlyList<Point3D> polygonPoints,
         Vector3D planeNormal,
+        Vector3D? planeUAxis,
+        Vector3D? planeVAxis,
         out IReadOnlyList<int> indices,
         out PlanarPolygonTriangulationFailure? failure)
     {
@@ -34,7 +36,7 @@ internal static class PlanarPolygonTriangulator
             return false;
         }
 
-        var projected = ProjectToStablePlane(polygonPoints, normal);
+        var projected = ProjectToPlane(polygonPoints, normal, planeUAxis, planeVAxis);
         if (!ValidatePolygon(projected))
         {
             failure = PlanarPolygonTriangulationFailure.Degenerate;
@@ -130,8 +132,19 @@ internal static class PlanarPolygonTriangulator
         return true;
     }
 
-    private static List<Point2> ProjectToStablePlane(IReadOnlyList<Point3D> polygonPoints, Vector3D normal)
+    private static List<Point2> ProjectToPlane(
+        IReadOnlyList<Point3D> polygonPoints,
+        Vector3D normal,
+        Vector3D? planeUAxis,
+        Vector3D? planeVAxis)
     {
+        if (planeUAxis is { } providedU && planeVAxis is { } providedV
+            && providedU.TryNormalize(out var normalizedU)
+            && providedV.TryNormalize(out var normalizedV))
+        {
+            return ProjectToAxes(polygonPoints, normalizedU, normalizedV);
+        }
+
         var referenceAxis = double.Abs(normal.Z) < 0.9d
             ? new Vector3D(0d, 0d, 1d)
             : new Vector3D(1d, 0d, 0d);
@@ -146,8 +159,12 @@ internal static class PlanarPolygonTriangulator
 
         var vAxis = normal.Cross(uAxis);
         vAxis.TryNormalize(out vAxis);
-        var origin = polygonPoints[0];
+        return ProjectToAxes(polygonPoints, uAxis, vAxis);
+    }
 
+    private static List<Point2> ProjectToAxes(IReadOnlyList<Point3D> polygonPoints, Vector3D uAxis, Vector3D vAxis)
+    {
+        var origin = polygonPoints[0];
         return polygonPoints
             .Select(point =>
             {

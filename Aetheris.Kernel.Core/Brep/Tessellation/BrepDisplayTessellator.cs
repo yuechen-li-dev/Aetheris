@@ -127,7 +127,13 @@ public static class BrepDisplayTessellator
             return KernelResult<DisplayFaceMeshPatch>.Failure([CreateInvalidArgument($"Face {faceId.Value} planar loop flattening produced fewer than three unique points.", PlanarCurveFlatteningFailedSource)]);
         }
 
-        if (!PlanarPolygonTriangulator.TryTriangulate(polygonPoints, plane.Normal.ToVector(), out var indices, out var failure))
+        if (!PlanarPolygonTriangulator.TryTriangulate(
+            polygonPoints,
+            plane.Normal.ToVector(),
+            plane.UAxis.ToVector(),
+            plane.VAxis.ToVector(),
+            out var indices,
+            out var failure))
         {
             return failure switch
             {

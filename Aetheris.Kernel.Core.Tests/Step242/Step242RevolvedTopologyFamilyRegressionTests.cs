@@ -62,6 +62,32 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
         Assert.StartsWith("Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily 'four-coedge mixed line/bspline revolved loop'. Observed", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void Step242_Ctc05_CircleOnlySeamReusedSingleCoedgeConeLoop_AdvancesDeterministically_ToExplicitNextBlocker()
+    {
+        const string relativePath = "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp";
+        var entry = new Step242CorpusManifestEntry(
+            Id: Path.GetFileNameWithoutExtension(relativePath),
+            Path: relativePath,
+            Group: "nist-revolved-family-regression",
+            Notes: "single-coedge circle-only seam-reused cone/revolved progression",
+            ExpectedFirstDiagnostic: null,
+            ExpectHashStableAfterCanonicalization: null,
+            ExpectTopologyCounts: null,
+            ExpectGeometryKinds: null);
+
+        var first = Step242CorpusManifestRunner.RunOne(entry);
+        var second = Step242CorpusManifestRunner.RunOne(entry);
+
+        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
+        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
+        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
+
+        Assert.DoesNotContain("unsupported subfamily 'circle-only seam reused loop'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.StartsWith("Face 31 cylindrical trim loop 62 has 1 coedges, angular span", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "Face 12 spherical trim loop must contain at least three coedges. Observed")]
     [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "No diagnostics.")]

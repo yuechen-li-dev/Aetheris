@@ -99,14 +99,14 @@
     "fileId": "testdata_step242_nist_CTC_nist_ctc_05_asme1_ap242-e1",
     "path": "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp",
     "sizeBytes": 863826,
-    "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "",
-      "messagePrefix": "Face 91 curved tessellation requires exactly one loop."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 239,
@@ -114,10 +114,10 @@
       "faces": 156
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 156,
+      "edgePolylines": 331
     },
-    "canonicalSha256": null
+    "canonicalSha256": "159ea2f5a3996f954b26e7a1a5d6c0c63d1a0df16d33124f6ee49f5176836547"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_06_asme1_ap242-e2",
@@ -270,9 +270,9 @@
     "status": "importFail",
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "",
-      "messagePrefix": "Face 4 curved tessellation requires exactly one loop."
+      "code": "InvalidArgument",
+      "source": "Viewer.Tessellation.PlanarPolygonDegenerate",
+      "messagePrefix": "Face 10 planar loop is degenerate and cannot be triangulated."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -296,7 +296,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "",
-      "messagePrefix": "Face 30 curved tessellation requires exactly one loop."
+      "messagePrefix": "Face 33 spherical trim loop must contain at least three coedges. Observed 1."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

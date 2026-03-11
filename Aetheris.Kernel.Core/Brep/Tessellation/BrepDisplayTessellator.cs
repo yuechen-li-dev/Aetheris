@@ -575,15 +575,13 @@ public static class BrepDisplayTessellator
         bool allowThreeCoedgeConeTopology,
         Func<Point3D, double>? axialParameterFromPoint = null)
     {
-        var loopIds = body.GetLoopIds(faceId);
-        if (loopIds.Count != 1)
+        var coedgesResult = TryGetSupportedRevolvedCoedges(body, faceId);
+        if (!coedgesResult.IsSuccess)
         {
-            return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation requires exactly one loop.")]);
+            return KernelResult<(double, double, int, int)>.Failure(coedgesResult.Diagnostics);
         }
 
-        var coedges = body.GetCoedgeIds(loopIds[0])
-            .Select(id => body.Topology.GetCoedge(id))
-            .ToArray();
+        var coedges = coedgesResult.Value;
 
         var lineCoedges = coedges.Where(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Line3).ToArray();
         var circleCoedges = coedges.Where(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Circle3).ToArray();
@@ -661,6 +659,15 @@ public static class BrepDisplayTessellator
                 CalculateAxialSegments(sixUseBsplineOnlyParameters.VStart, sixUseBsplineOnlyParameters.VEnd, options)), sixUseBsplineOnlyDiagnostics);
         }
 
+        if (TryResolveDualSeamCircleRevolvedLoop(body, coedges, lineCoedges, circleCoedges, axialParameterFromPoint, faceId, out var dualSeamCircleParameters, out var dualSeamCircleDiagnostics))
+        {
+            return KernelResult<(double, double, int, int)>.Success((
+                dualSeamCircleParameters.VStart,
+                dualSeamCircleParameters.VEnd,
+                CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options),
+                CalculateAxialSegments(dualSeamCircleParameters.VStart, dualSeamCircleParameters.VEnd, options)), dualSeamCircleDiagnostics);
+        }
+
         if (TryResolveRepeatedMixedRevolvedLoop(body, coedges, lineCoedges, circleCoedges, axialParameterFromPoint, faceId, out var repeatedMixedParameters, out var repeatedMixedDiagnostics))
         {
             return KernelResult<(double, double, int, int)>.Success((
@@ -723,6 +730,66 @@ public static class BrepDisplayTessellator
         var topologyFamily = allowThreeCoedgeConeTopology ? "cone/revolved" : "torus/revolved";
         var observedFamily = ClassifyRevolvedTopologyFamily(body, coedges, lineCoedges, circleCoedges, bSplineCoedges);
         return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation supports selected repeated {topologyFamily} boundary subfamilies; unsupported subfamily '{observedFamily}'. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);
+    }
+
+    private static KernelResult<IReadOnlyList<Coedge>> TryGetSupportedRevolvedCoedges(BrepBody body, FaceId faceId)
+    {
+        var loopIds = body.GetLoopIds(faceId);
+        if (loopIds.Count == 1)
+        {
+            var singleLoopCoedges = body.GetCoedgeIds(loopIds[0])
+                .Select(id => body.Topology.GetCoedge(id))
+                .ToArray();
+            return KernelResult<IReadOnlyList<Coedge>>.Success(singleLoopCoedges);
+        }
+
+        if (TryResolvePreservedPeriodicDualSeamCircleLoopFamily(body, loopIds, out var preservedFamilyCoedges))
+        {
+            return KernelResult<IReadOnlyList<Coedge>>.Success(preservedFamilyCoedges);
+        }
+
+        return KernelResult<IReadOnlyList<Coedge>>.Failure([
+            CreateNotImplemented($"Face {faceId.Value} curved tessellation supports exactly one loop or the preserved periodic dual single-coedge seam-circle loop family. Observed: {DescribeRevolvedFaceTopology(body, loopIds)}", CurvedTopologyUnsupportedSource)
+        ]);
+    }
+
+    private static bool TryResolvePreservedPeriodicDualSeamCircleLoopFamily(
+        BrepBody body,
+        IReadOnlyList<LoopId> loopIds,
+        out IReadOnlyList<Coedge> coedges)
+    {
+        coedges = [];
+        if (loopIds.Count != 2)
+        {
+            return false;
+        }
+
+        var resolved = new List<Coedge>(2);
+        foreach (var loopId in loopIds)
+        {
+            var coedgeIds = body.GetCoedgeIds(loopId);
+            if (coedgeIds.Count != 1)
+            {
+                return false;
+            }
+
+            var coedge = body.Topology.GetCoedge(coedgeIds[0]);
+            if (body.GetEdgeCurve(coedge.EdgeId).Kind != CurveGeometryKind.Circle3)
+            {
+                return false;
+            }
+
+            var edge = body.Topology.GetEdge(coedge.EdgeId);
+            if (edge.StartVertexId != edge.EndVertexId)
+            {
+                return false;
+            }
+
+            resolved.Add(coedge);
+        }
+
+        coedges = resolved;
+        return true;
     }
 
 
@@ -792,6 +859,48 @@ public static class BrepDisplayTessellator
             .Select(id => body.GetEdgeCurve(id).Kind)
             .All(kind => kind == CurveGeometryKind.Circle3);
         if (!allEdgeCurvesAreCircles)
+        {
+            return false;
+        }
+
+        var result = TryResolveAxialBoundsFromProjectedLoopVertices(body, coedges, axialParameterFromPoint, faceId);
+        if (!result.IsSuccess)
+        {
+            diagnostics = result.Diagnostics;
+            return false;
+        }
+
+        parameters = result.Value;
+        diagnostics = result.Diagnostics;
+        return true;
+    }
+
+
+    private static bool TryResolveDualSeamCircleRevolvedLoop(
+        BrepBody body,
+        IReadOnlyList<Coedge> coedges,
+        IReadOnlyList<Coedge> lineCoedges,
+        IReadOnlyList<Coedge> circleCoedges,
+        Func<Point3D, double>? axialParameterFromPoint,
+        FaceId faceId,
+        out (double VStart, double VEnd) parameters,
+        out IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        parameters = default;
+        diagnostics = [];
+
+        if (axialParameterFromPoint is null || coedges.Count != 2 || lineCoedges.Count != 0 || circleCoedges.Count != 2)
+        {
+            return false;
+        }
+
+        var seamUses = coedges.Count(c =>
+        {
+            var edge = body.Topology.GetEdge(c.EdgeId);
+            return edge.StartVertexId == edge.EndVertexId;
+        });
+
+        if (seamUses != 2 || coedges.Select(c => c.EdgeId).Distinct().Count() != 2)
         {
             return false;
         }
@@ -1332,7 +1441,7 @@ public static class BrepDisplayTessellator
         return System.Math.Max(1, System.Math.Clamp((int)double.Ceiling(axialSpan / options.ChordTolerance), 1, options.MaximumSegments));
     }
 
-    private static string DescribeRevolvedLoopTopology(BrepBody body, IReadOnlyList<Coedge> coedges)
+    private static string DescribeRevolvedLoopTopology(BrepBody body, IReadOnlyList<Coedge> coedges, int loopCount = 1)
     {
         var lineUseCount = 0;
         var circleUseCount = 0;
@@ -1371,7 +1480,33 @@ public static class BrepDisplayTessellator
             .Select(c => $"{c.EdgeId.Value}:{body.GetEdgeCurve(c.EdgeId).Kind}")
             .ToArray();
 
-        return $"loops=1 coedges={coedges.Count} lineUses={lineUseCount} circleUses={circleUseCount} ellipseUses={ellipseUseCount} bSplineUses={bSplineUseCount} seamEdgeUses={seamUseCount} edgeFamilies=[{string.Join(", ", edgeFamilies)}]";
+        return $"loops={loopCount} coedges={coedges.Count} lineUses={lineUseCount} circleUses={circleUseCount} ellipseUses={ellipseUseCount} bSplineUses={bSplineUseCount} seamEdgeUses={seamUseCount} edgeFamilies=[{string.Join(", ", edgeFamilies)}]";
+    }
+
+    private static string DescribeRevolvedFaceTopology(BrepBody body, IReadOnlyList<LoopId> loopIds)
+    {
+        var loopDescriptions = new List<string>(loopIds.Count);
+        var aggregateCoedges = new List<Coedge>();
+
+        foreach (var loopId in loopIds)
+        {
+            var coedges = body.GetCoedgeIds(loopId)
+                .Select(id => body.Topology.GetCoedge(id))
+                .ToArray();
+            aggregateCoedges.AddRange(coedges);
+
+            var uniqueEdges = coedges.Select(c => c.EdgeId).Distinct().Count();
+            var circleUses = coedges.Count(c => body.GetEdgeCurve(c.EdgeId).Kind == CurveGeometryKind.Circle3);
+            var seamUses = coedges.Count(c =>
+            {
+                var edge = body.Topology.GetEdge(c.EdgeId);
+                return edge.StartVertexId == edge.EndVertexId;
+            });
+
+            loopDescriptions.Add($"{loopId.Value}:coedges={coedges.Length}:uniqueEdges={uniqueEdges}:circleUses={circleUses}:seamUses={seamUses}");
+        }
+
+        return $"{DescribeRevolvedLoopTopology(body, aggregateCoedges, loopIds.Count)} loopFamilies=[{string.Join(", ", loopDescriptions)}]";
     }
 
     private static string ClassifyRevolvedTopologyFamily(

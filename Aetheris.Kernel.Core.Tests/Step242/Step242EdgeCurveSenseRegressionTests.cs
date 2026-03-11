@@ -33,7 +33,7 @@ public sealed class Step242EdgeCurveSenseRegressionTests
         {
             Assert.Equal("tessellator", first.FirstFailureLayer);
             Assert.Equal(string.Empty, first.FirstDiagnostic.Source);
-            Assert.StartsWith("Face 30 curved tessellation requires exactly one loop.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+            Assert.StartsWith("Face 33 spherical trim loop must contain at least three coedges. Observed 1.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         }
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);

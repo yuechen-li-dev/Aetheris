@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Import;
 using Aetheris.Kernel.Core.Results;
 
@@ -52,7 +53,25 @@ internal sealed class Step242ExactBRepImportLane : IImportLane
     public KernelResult<BrepBody> Import(IParsedSourceDocument document, ImportPolicy policy)
     {
         var stepDocument = (StepParsedSourceDocument)document;
-        return Step242Importer.ImportParsedDocumentForLane(stepDocument.Document, Kind);
+        return ImportExactBrep(stepDocument.Document);
+    }
+
+    internal static KernelResult<BrepBody> ImportExactBrep(Step242ParsedDocument document)
+    {
+        try
+        {
+            return Step242Importer.ImportExactBrepCore(document);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.InvalidArgument,
+                    KernelDiagnosticSeverity.Error,
+                    $"Importer rejected parseable STEP input: {ex.Message}",
+                    "Importer.Guardrail")
+            ]);
+        }
     }
 }
 

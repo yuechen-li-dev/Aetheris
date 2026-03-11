@@ -104,7 +104,7 @@
     "firstDiagnostic": {
       "code": "InvalidArgument",
       "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap",
-      "messagePrefix": "Face 31 cylindrical trim loop 62 has 1 coedges, angular span 6.108652381980155, axial span 0, loop count 1; classified a"
+      "messagePrefix": "Face 38 cylindrical trim loop 73 has 1 coedges, angular span 6.1086523819801535, axial span 0, loop count 1; classified "
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -294,9 +294,9 @@
     "status": "importFail",
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "InvalidArgument",
-      "source": "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrap",
-      "messagePrefix": "Face 29 cylindrical trim loop 54 has 1 coedges, angular span 6.1086523819801535, axial span 0, loop count 1; classified "
+      "code": "NotImplemented",
+      "source": "",
+      "messagePrefix": "Face 33 spherical trim loop must contain at least three coedges. Observed 1."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

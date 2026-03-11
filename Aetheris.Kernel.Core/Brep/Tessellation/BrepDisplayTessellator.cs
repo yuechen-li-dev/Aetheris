@@ -23,6 +23,7 @@ public static class BrepDisplayTessellator
     private const string CylinderTrimAxialSpanDegenerateMultiCoedgeSource = "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.MultiCoedge";
     private const string CylinderTrimAxialSpanDegenerateSingleCoedgeNearFullWrapBridgeSource = "Viewer.Tessellation.CylinderTrimAxialSpanDegenerate.SingleCoedgeNearFullWrapBridge";
     private const string CylinderTrimAmbiguousUsedShorterSpanSource = "Viewer.Tessellation.CylinderTrimAmbiguousUsedShorterSpan";
+    private const string CylinderTrimDualSingleCoedgeClosedCircleSource = "Viewer.Tessellation.CylinderTrim.DualSingleCoedgeClosedCircle";
     private const string CurvedTopologyUnsupportedSource = "Viewer.Tessellation.CurvedTopologyUnsupported";
     private const string BSplineSurfaceTrimUnsupportedSource = "Viewer.Tessellation.BSplineSurfaceTrimUnsupported";
     private const string SphereTrimSingleCoedgeLatitudeCapSource = "Viewer.Tessellation.SphereTrim.SingleCoedgeLatitudeCap";
@@ -2135,6 +2136,12 @@ public static class BrepDisplayTessellator
 
         if (!best.HasValue)
         {
+            var dualCirclePatch = TryResolveDualSingleCoedgeClosedCircleCylinderTrimPatch(body, faceId, cylinder, loopIds, axis, minSpan);
+            if (dualCirclePatch.IsSuccess)
+            {
+                return dualCirclePatch;
+            }
+
             if (bestAxialSpanDegenerate.HasValue && loopIds.Count == 1)
             {
                 var isSingleCoedge = bestAxialSpanDegenerate.Value.CoedgeCount == 1;
@@ -2203,6 +2210,94 @@ public static class BrepDisplayTessellator
         return KernelResult<(double, double, double, double)>.Success(
             (best.Value.UStart, best.Value.UStart + best.Value.USpan, best.Value.VStart, best.Value.VEnd),
             diagnostics);
+    }
+
+    private static KernelResult<(double UStart, double UEnd, double VStart, double VEnd)> TryResolveDualSingleCoedgeClosedCircleCylinderTrimPatch(
+        BrepBody body,
+        FaceId faceId,
+        CylinderSurface cylinder,
+        IReadOnlyList<LoopId> loopIds,
+        Vector3D axis,
+        double minSpan)
+    {
+        const double fullWrapTolerance = 1e-3d;
+        const double axisAlignmentTolerance = 1e-4d;
+        const double centerAxisOffsetTolerance = 1e-4d;
+        const double radiusTolerance = 1e-4d;
+
+        if (loopIds.Count != 2)
+        {
+            return KernelResult<(double, double, double, double)>.Failure(Array.Empty<KernelDiagnostic>());
+        }
+
+        var loops = new List<(LoopId LoopId, EdgeId EdgeId, double AxialCenter)>();
+        foreach (var loopId in loopIds)
+        {
+            var coedgeIds = body.GetCoedgeIds(loopId);
+            if (coedgeIds.Count != 1)
+            {
+                return KernelResult<(double, double, double, double)>.Failure(Array.Empty<KernelDiagnostic>());
+            }
+
+            var coedge = body.Topology.GetCoedge(coedgeIds[0]);
+            var curve = body.GetEdgeCurve(coedge.EdgeId);
+            if (curve.Kind != CurveGeometryKind.Circle3)
+            {
+                return KernelResult<(double, double, double, double)>.Failure(Array.Empty<KernelDiagnostic>());
+            }
+
+            if (!body.TryGetEdgeVertices(coedge.EdgeId, out var startVertexId, out var endVertexId) || startVertexId != endVertexId)
+            {
+                return KernelResult<(double, double, double, double)>.Failure(Array.Empty<KernelDiagnostic>());
+            }
+
+            if (!body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var edgeBinding)
+                || edgeBinding.TrimInterval is not ParameterInterval trimInterval
+                || !double.IsFinite(trimInterval.Start)
+                || !double.IsFinite(trimInterval.End)
+                || double.Abs((trimInterval.End - trimInterval.Start) - (2d * double.Pi)) > fullWrapTolerance)
+            {
+                return KernelResult<(double, double, double, double)>.Failure(Array.Empty<KernelDiagnostic>());
+            }
+
+            var circle = curve.Circle3!.Value;
+            var axisDot = circle.Normal.ToVector().Dot(cylinder.Axis.ToVector());
+            if (double.Abs(double.Abs(axisDot) - 1d) > axisAlignmentTolerance)
+            {
+                return KernelResult<(double, double, double, double)>.Failure(Array.Empty<KernelDiagnostic>());
+            }
+
+            var centerOffset = circle.Center - cylinder.Origin;
+            var axialCenter = centerOffset.Dot(axis);
+            var radialOffset = (centerOffset - (axis * axialCenter)).Length;
+            if (radialOffset > (cylinder.Radius * centerAxisOffsetTolerance))
+            {
+                return KernelResult<(double, double, double, double)>.Failure(Array.Empty<KernelDiagnostic>());
+            }
+
+            if (double.Abs(circle.Radius - cylinder.Radius) > (cylinder.Radius * radiusTolerance))
+            {
+                return KernelResult<(double, double, double, double)>.Failure(Array.Empty<KernelDiagnostic>());
+            }
+
+            loops.Add((loopId, coedge.EdgeId, axialCenter));
+        }
+
+        var first = loops[0];
+        var second = loops[1];
+        var vStart = System.Math.Min(first.AxialCenter, second.AxialCenter);
+        var vEnd = System.Math.Max(first.AxialCenter, second.AxialCenter);
+        var axialSpan = vEnd - vStart;
+        if (axialSpan <= minSpan)
+        {
+            return KernelResult<(double, double, double, double)>.Failure(Array.Empty<KernelDiagnostic>());
+        }
+
+        return KernelResult<(double, double, double, double)>.Success(
+            (0d, 2d * double.Pi, vStart, vEnd),
+            [CreateValidationWarning(
+                $"Face {faceId.Value} cylindrical trim classified as dual single-coedge closed-circle loops with zero per-loop axial span and center axial separation {axialSpan:R} (loops {first.LoopId.Value}/{second.LoopId.Value}, edges {first.EdgeId.Value}/{second.EdgeId.Value}).",
+                CylinderTrimDualSingleCoedgeClosedCircleSource)]);
     }
 
     private static bool TryResolveBridgeTwinSurfaceKind(BrepBody body, FaceId sourceFaceId, EdgeId edgeId, out SurfaceGeometryKind? twinSurfaceKind)

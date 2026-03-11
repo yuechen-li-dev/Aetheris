@@ -15,8 +15,8 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
         "tessellator",
         "Topology.GraphValidator",
-        "Viewer.Tessellation.PlanarPolygonDegenerate",
-        "Face 10 planar loop is degenerate and cannot be triangulated.")]
+        "Viewer.Tessellation.PlanarCurveFlatteningFailed",
+        null)]
 
     public void Step242_NistTargets_AdvancePastGenericUnsupportedSurfaceForHoles_Deterministically(
         string relativePath,

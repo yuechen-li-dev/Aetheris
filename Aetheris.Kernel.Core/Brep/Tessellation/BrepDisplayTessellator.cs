@@ -2592,7 +2592,7 @@ public static class BrepDisplayTessellator
         if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding) && binding.TrimInterval is ParameterInterval trim)
         {
             interval = trim;
-            reverseSampleOrder = effectiveIsReversed;
+            reverseSampleOrder = effectiveIsReversed ^ !binding.OrientedEdgeSense;
         }
         else
         {

@@ -2423,13 +2423,15 @@ public static class BrepDisplayTessellator
         }
 
         var orderedIndices = new List<int>(coedges.Count) { 0 };
+        var chainedEndpoints = new List<(Point3D Start, Point3D End)>(coedges.Count) { orientedEndpoints[0] };
+        var traversalSwapped = new List<bool>(coedges.Count) { false };
         var used = new bool[coedges.Count];
         used[0] = true;
         var currentEnd = orientedEndpoints[0].End;
 
         for (var step = 1; step < coedges.Count; step++)
         {
-            var nextIndex = FindNextCoedgeIndex(orientedEndpoints, used, currentEnd, out _, out var nextEnd);
+            var nextIndex = FindNextCoedgeIndex(orientedEndpoints, used, currentEnd, out var nextStart, out var nextEnd, out var swapped);
             if (nextIndex < 0)
             {
                 return KernelResult<IReadOnlyList<Point3D>>.Failure([CreateInvalidArgument($"Face {faceId.Value} planar loop coedges do not form a contiguous chain.", PlanarCurveFlatteningFailedSource)]);
@@ -2437,21 +2439,25 @@ public static class BrepDisplayTessellator
 
             used[nextIndex] = true;
             orderedIndices.Add(nextIndex);
+            chainedEndpoints.Add((nextStart, nextEnd));
+            traversalSwapped.Add(swapped);
             currentEnd = nextEnd;
         }
 
-        if (!PointsAlmostEqual(orientedEndpoints[orderedIndices[0]].Start, currentEnd))
+        if (!PointsAlmostEqual(chainedEndpoints[0].Start, currentEnd))
         {
             return KernelResult<IReadOnlyList<Point3D>>.Failure([CreateInvalidArgument($"Face {faceId.Value} planar loop coedges did not close after chaining.", PlanarCurveFlatteningFailedSource)]);
         }
 
         var flattened = new List<Point3D>();
-        AppendUniquePoint(flattened, orientedEndpoints[orderedIndices[0]].Start);
+        AppendUniquePoint(flattened, chainedEndpoints[0].Start);
 
-        foreach (var index in orderedIndices)
+        for (var chainIndex = 0; chainIndex < orderedIndices.Count; chainIndex++)
         {
+            var index = orderedIndices[chainIndex];
             var coedge = coedges[index];
-            var (segmentStart, segmentEnd) = orientedEndpoints[index];
+            var (segmentStart, segmentEnd) = chainedEndpoints[chainIndex];
+            var isTraversalSwapped = traversalSwapped[chainIndex];
             var curve = body.GetEdgeCurve(coedge.EdgeId);
 
             switch (curve.Kind)
@@ -2460,7 +2466,7 @@ public static class BrepDisplayTessellator
                     AppendUniquePoint(flattened, segmentEnd);
                     break;
                 case CurveGeometryKind.Circle3:
-                    var arcPointsResult = SampleCircleArc(body, coedge, curve.Circle3!.Value, segmentStart, segmentEnd, plane, faceId);
+                    var arcPointsResult = SampleCircleArc(body, coedge, isTraversalSwapped, curve.Circle3!.Value, segmentStart, segmentEnd, plane, faceId);
                     if (!arcPointsResult.IsSuccess)
                     {
                         return KernelResult<IReadOnlyList<Point3D>>.Failure(arcPointsResult.Diagnostics);
@@ -2473,7 +2479,7 @@ public static class BrepDisplayTessellator
 
                     break;
                 case CurveGeometryKind.BSpline3:
-                    var splinePointsResult = SamplePlanarBSpline(body, coedge, curve.BSpline3!.Value, segmentStart, segmentEnd);
+                    var splinePointsResult = SamplePlanarBSpline(body, coedge, isTraversalSwapped, curve.BSpline3!.Value, segmentStart, segmentEnd);
                     if (!splinePointsResult.IsSuccess)
                     {
                         return KernelResult<IReadOnlyList<Point3D>>.Failure(splinePointsResult.Diagnostics);
@@ -2486,7 +2492,7 @@ public static class BrepDisplayTessellator
 
                     break;
                 case CurveGeometryKind.Ellipse3:
-                    var ellipsePointsResult = SamplePlanarEllipse(body, coedge, curve.Ellipse3!.Value, segmentStart, segmentEnd, plane, faceId);
+                    var ellipsePointsResult = SamplePlanarEllipse(body, coedge, isTraversalSwapped, curve.Ellipse3!.Value, segmentStart, segmentEnd, plane, faceId);
                     if (!ellipsePointsResult.IsSuccess)
                     {
                         return KernelResult<IReadOnlyList<Point3D>>.Failure(ellipsePointsResult.Diagnostics);
@@ -2516,6 +2522,7 @@ public static class BrepDisplayTessellator
     private static KernelResult<IReadOnlyList<Point3D>> SampleCircleArc(
         BrepBody body,
         Coedge coedge,
+        bool traversalSwapped,
         Circle3Curve circle,
         Point3D start,
         Point3D end,
@@ -2553,7 +2560,7 @@ public static class BrepDisplayTessellator
             return KernelResult<IReadOnlyList<Point3D>>.Success(points);
         }
 
-        var deltaResult = ResolveArcDelta(body, coedge, circle, start, end, plane, faceId);
+        var deltaResult = ResolveArcDelta(body, coedge, traversalSwapped, circle, start, end, plane, faceId);
         if (!deltaResult.IsSuccess)
         {
             return KernelResult<IReadOnlyList<Point3D>>.Failure(deltaResult.Diagnostics);
@@ -2573,20 +2580,22 @@ public static class BrepDisplayTessellator
     private static KernelResult<IReadOnlyList<Point3D>> SamplePlanarBSpline(
         BrepBody body,
         Coedge coedge,
+        bool traversalSwapped,
         BSpline3Curve spline,
         Point3D start,
         Point3D end)
     {
         var interval = new ParameterInterval(spline.DomainStart, spline.DomainEnd);
         var reverseSampleOrder = false;
+        var effectiveIsReversed = coedge.IsReversed ^ traversalSwapped;
         if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding) && binding.TrimInterval is ParameterInterval trim)
         {
             interval = trim;
-            reverseSampleOrder = coedge.IsReversed;
+            reverseSampleOrder = effectiveIsReversed;
         }
         else
         {
-            reverseSampleOrder = coedge.IsReversed;
+            reverseSampleOrder = effectiveIsReversed;
         }
 
         var sampled = CurveSampler.SampleBSpline(spline, interval).ToArray();
@@ -2616,6 +2625,7 @@ public static class BrepDisplayTessellator
     private static KernelResult<IReadOnlyList<Point3D>> SamplePlanarEllipse(
         BrepBody body,
         Coedge coedge,
+        bool traversalSwapped,
         Ellipse3Curve ellipse,
         Point3D start,
         Point3D end,
@@ -2632,7 +2642,7 @@ public static class BrepDisplayTessellator
                 CreateNotImplemented($"Face {faceId.Value} edge {coedge.EdgeId.Value} planar ellipse flattening requires the ellipse plane to match the face plane.", PlanarCurveFlatteningUnsupportedSource)]);
         }
 
-        var trimResult = ResolvePlanarEllipseTrim(body, coedge, ellipse, start, end, plane, faceId);
+        var trimResult = ResolvePlanarEllipseTrim(body, coedge, traversalSwapped, ellipse, start, end, plane, faceId);
         if (!trimResult.IsSuccess)
         {
             return KernelResult<IReadOnlyList<Point3D>>.Failure(trimResult.Diagnostics);
@@ -2656,6 +2666,7 @@ public static class BrepDisplayTessellator
     private static KernelResult<ParameterInterval> ResolvePlanarEllipseTrim(
         BrepBody body,
         Coedge coedge,
+        bool traversalSwapped,
         Ellipse3Curve ellipse,
         Point3D start,
         Point3D end,
@@ -2664,7 +2675,8 @@ public static class BrepDisplayTessellator
     {
         if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding) && binding.TrimInterval is ParameterInterval trim)
         {
-            return KernelResult<ParameterInterval>.Success(coedge.IsReversed
+            var effectiveIsReversed = coedge.IsReversed ^ traversalSwapped;
+            return KernelResult<ParameterInterval>.Success(effectiveIsReversed
                 ? new ParameterInterval(trim.End, trim.Start)
                 : trim);
         }
@@ -2690,6 +2702,7 @@ public static class BrepDisplayTessellator
     private static KernelResult<(double StartAngle, double Delta)> ResolveArcDelta(
         BrepBody body,
         Coedge coedge,
+        bool traversalSwapped,
         Circle3Curve circle,
         Point3D start,
         Point3D end,
@@ -2701,8 +2714,9 @@ public static class BrepDisplayTessellator
 
         if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding) && binding.TrimInterval is ParameterInterval trim)
         {
-            var trimStart = coedge.IsReversed ? trim.End : trim.Start;
-            var trimEnd = coedge.IsReversed ? trim.Start : trim.End;
+            var effectiveIsReversed = coedge.IsReversed ^ traversalSwapped;
+            var trimStart = effectiveIsReversed ? trim.End : trim.Start;
+            var trimEnd = effectiveIsReversed ? trim.Start : trim.End;
             var trimDelta = trimEnd - trimStart;
             if (double.IsFinite(trimDelta) && double.Abs(trimDelta) > 1e-9d)
             {
@@ -2805,11 +2819,13 @@ public static class BrepDisplayTessellator
         IReadOnlyList<bool> used,
         Point3D currentEnd,
         out Point3D nextStart,
-        out Point3D nextEnd)
+        out Point3D nextEnd,
+        out bool swapped)
     {
         var matchIndex = -1;
         nextStart = default;
         nextEnd = default;
+        swapped = false;
 
         for (var i = 0; i < endpoints.Count; i++)
         {
@@ -2824,6 +2840,7 @@ public static class BrepDisplayTessellator
                 matchIndex = i;
                 nextStart = start;
                 nextEnd = end;
+                swapped = false;
                 break;
             }
 
@@ -2832,6 +2849,7 @@ public static class BrepDisplayTessellator
                 matchIndex = i;
                 nextStart = end;
                 nextEnd = start;
+                swapped = true;
                 break;
             }
         }

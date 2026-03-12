@@ -7,10 +7,10 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
     [Theory]
     [InlineData(
         "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
-        "tessellator",
+        "",
         "Topology.GraphValidator",
-        "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
-        "Face 4 planar loop triangulation failed because the polygon is not simple.")]
+        "Audit.None",
+        "No diagnostics.")]
     [InlineData(
         "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
         null,

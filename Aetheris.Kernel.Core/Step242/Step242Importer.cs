@@ -669,7 +669,7 @@ public static class Step242Importer
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(circleResult.Diagnostics);
             }
 
-            var trimResult = ComputeCircleTrim(circleResult.Value, startPoint, endPoint);
+            var trimResult = ComputeCircleTrim(circleResult.Value, startPoint, endPoint, edgeSameSense);
             if (!trimResult.IsSuccess)
             {
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
@@ -689,7 +689,7 @@ public static class Step242Importer
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(ellipseResult.Diagnostics);
             }
 
-            var trimResult = ComputeEllipseTrim(ellipseResult.Value, startPoint, endPoint);
+            var trimResult = ComputeEllipseTrim(ellipseResult.Value, startPoint, endPoint, edgeSameSense);
             if (!trimResult.IsSuccess)
             {
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
@@ -1105,7 +1105,7 @@ public static class Step242Importer
                 source)
         ]);
 
-    private static KernelResult<ParameterInterval> ComputeEllipseTrim(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint)
+    private static KernelResult<ParameterInterval> ComputeEllipseTrim(Ellipse3Curve ellipse, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
     {
         var tolerance = ComputeEllipseTrimTolerance(ellipse, startPoint, endPoint);
 
@@ -1121,7 +1121,7 @@ public static class Step242Importer
             return KernelResult<ParameterInterval>.Failure(endAngleResult.Diagnostics);
         }
 
-        var intervalResult = CanonicalizeCircleTrimInterval(startAngleResult.Value, endAngleResult.Value, tolerance);
+        var intervalResult = CanonicalizeCircleTrimInterval(startAngleResult.Value, endAngleResult.Value, tolerance, edgeSameSense);
         if (!intervalResult.IsSuccess)
         {
             return FailureEllipseTrim(intervalResult.Diagnostics[0].Message, intervalResult.Diagnostics[0].Source);
@@ -1161,7 +1161,7 @@ public static class Step242Importer
         return System.Math.Max(1e-6d, scale * 1e-8d);
     }
 
-    private static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint)
+    private static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
     {
         var tolerance = ComputeCircleTrimTolerance(circle, startPoint, endPoint);
         if ((startPoint - endPoint).Length <= tolerance)
@@ -1181,7 +1181,7 @@ public static class Step242Importer
             return KernelResult<ParameterInterval>.Failure(endAngleResult.Diagnostics);
         }
 
-        var intervalResult = CanonicalizeCircleTrimInterval(startAngleResult.Value, endAngleResult.Value, tolerance);
+        var intervalResult = CanonicalizeCircleTrimInterval(startAngleResult.Value, endAngleResult.Value, tolerance, edgeSameSense);
         if (!intervalResult.IsSuccess)
         {
             return KernelResult<ParameterInterval>.Failure(intervalResult.Diagnostics);
@@ -1238,11 +1238,13 @@ public static class Step242Importer
         return double.Max(baseTolerance, scale * scaleFactor);
     }
 
-    private static KernelResult<ParameterInterval> CanonicalizeCircleTrimInterval(double startAngle, double endAngle, double tolerance)
+    private static KernelResult<ParameterInterval> CanonicalizeCircleTrimInterval(double startAngle, double endAngle, double tolerance, bool edgeSameSense)
     {
         var start = NormalizeAngle(startAngle);
         var end = NormalizeAngle(endAngle);
-        var span = NormalizePositiveAngle(end - start);
+        var canonicalStart = edgeSameSense ? start : end;
+        var canonicalEnd = edgeSameSense ? end : start;
+        var span = NormalizePositiveAngle(canonicalEnd - canonicalStart);
         var angleTolerance = tolerance;
 
         if (span <= angleTolerance)
@@ -1255,13 +1257,13 @@ public static class Step242Importer
             return KernelResult<ParameterInterval>.Success(new ParameterInterval(0d, 2d * double.Pi));
         }
 
-        var normalizedEnd = start + span;
-        if (normalizedEnd <= start)
+        var normalizedEnd = canonicalStart + span;
+        if (normalizedEnd <= canonicalStart)
         {
             return FailureCircleTrim("Unable to compute circle trim interval with a positive span after canonicalization.", "Importer.Geometry.CircleTrim.Interval");
         }
 
-        return KernelResult<ParameterInterval>.Success(new ParameterInterval(start, normalizedEnd));
+        return KernelResult<ParameterInterval>.Success(new ParameterInterval(canonicalStart, normalizedEnd));
     }
 
     private static double NormalizeAngle(double angle)

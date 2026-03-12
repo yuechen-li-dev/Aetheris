@@ -151,8 +151,8 @@ public sealed class Step242ConicalSurfaceRegressionTests
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
         "importer-topology",
-        "Importer.LoopRole.InnerDisjointAfterNormalization",
-        "Inner loop could not be normalized")]
+        "Importer.LoopRole.CylinderAmbiguousOuter",
+        "Unable to choose a unique cylindrical outer loop")]
     public void Step242_NistTargets_AdvancePastCircleTrim_AndKeepDeterministicNextBlocker(
         string relativePath,
         string expectedLayer,

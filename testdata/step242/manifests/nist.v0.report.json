@@ -285,7 +285,7 @@
       "facePatches": 42,
       "edgePolylines": 104
     },
-    "canonicalSha256": "29eaa5ebd9a0be6d11a9a1482f21107c30804083435a31911c365aef2ffc21bd"
+    "canonicalSha256": "d941e5707a91b7a8be0049455af81c42e2499cb620c71875435175e1cccf8426"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_06_asme1_ap242-e3",
@@ -316,18 +316,18 @@
     "path": "testdata/step242/nist/STC/nist_stc_07_asme1_ap242-e3.stp",
     "sizeBytes": 1927905,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.DisconnectedCoedges",
-      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=252, outerLoopId=251,"
+      "code": "NotImplemented",
+      "source": "",
+      "messagePrefix": "Face 20 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily \u0027circle-only non-seam loop\u0027. Observed"
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 588,
+      "edges": 871,
+      "faces": 306
     },
     "tessellationCounts": {
       "facePatches": 0,
@@ -391,8 +391,8 @@
     "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
       "code": "ValidationFailed",
-      "source": "Importer.LoopRole.InnerDisjointAfterNormalization",
-      "messagePrefix": "Inner loop could not be normalized"
+      "source": "Importer.LoopRole.CylinderAmbiguousOuter",
+      "messagePrefix": "Unable to choose a unique cylindrical outer loop."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

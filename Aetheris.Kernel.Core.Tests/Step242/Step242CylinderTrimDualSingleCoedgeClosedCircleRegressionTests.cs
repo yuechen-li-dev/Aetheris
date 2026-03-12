@@ -50,11 +50,11 @@ public sealed class Step242CylinderTrimDualSingleCoedgeClosedCircleRegressionTes
         var first = Step242CorpusManifestRunner.RunOne(new Step242CorpusManifestEntry("ftc11", relativePath, "nist-regression", null, null, null, null, null));
         var second = Step242CorpusManifestRunner.RunOne(new Step242CorpusManifestEntry("ftc11", relativePath, "nist-regression", null, null, null, null, null));
 
+        Assert.Equal("success", first.Status);
+        Assert.Equal(string.Empty, first.FirstFailureLayer);
         Assert.NotEqual("Viewer.Tessellation.CylinderTrimDegenerate", first.FirstDiagnostic.Source);
         Assert.NotEqual("Edge:29", first.FirstDiagnostic.Source);
         Assert.DoesNotContain("Edge endpoints resolve to a degenerate line direction.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
-        Assert.False(string.IsNullOrWhiteSpace(first.FirstFailureLayer));
-        Assert.False(string.IsNullOrWhiteSpace(first.FirstDiagnostic.MessagePrefix));
 
         Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);

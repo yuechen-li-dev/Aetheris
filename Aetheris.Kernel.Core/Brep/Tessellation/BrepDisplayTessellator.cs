@@ -2522,6 +2522,37 @@ public static class BrepDisplayTessellator
         PlaneSurface plane,
         FaceId faceId)
     {
+        if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding)
+            && CurveSampler.TrySampleTrimmedCircleArc(
+                circle,
+                start,
+                end,
+                coedge.IsReversed ? !binding.OrientedEdgeSense : binding.OrientedEdgeSense,
+                out var sampledPoints,
+                out var isClosed,
+                out var usedShorterArcFallback))
+        {
+            var points = new List<Point3D>(sampledPoints.Count - 1);
+            for (var i = 1; i < sampledPoints.Count; i++)
+            {
+                points.Add(sampledPoints[i]);
+            }
+
+            if (!isClosed)
+            {
+                points[^1] = end;
+            }
+
+            if (usedShorterArcFallback)
+            {
+                return KernelResult<IReadOnlyList<Point3D>>.Success(
+                    points,
+                    [CreateValidationWarning($"Face {faceId.Value} edge {coedge.EdgeId.Value} circular planar trim was ambiguous; using shorter arc.", CircleTrimAmbiguousUsedShorterArcSource)]);
+            }
+
+            return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+        }
+
         var deltaResult = ResolveArcDelta(body, coedge, circle, start, end, plane, faceId);
         if (!deltaResult.IsSuccess)
         {
@@ -2530,13 +2561,13 @@ public static class BrepDisplayTessellator
 
         var (startAngle, delta) = deltaResult.Value;
         var samples = CurveSampler.SampleCircleArc(circle, startAngle, delta);
-        var points = new List<Point3D>(samples.Count - 1);
+        var pointsFallback = new List<Point3D>(samples.Count - 1);
         for (var i = 1; i < samples.Count; i++)
         {
-            points.Add(samples[i]);
+            pointsFallback.Add(samples[i]);
         }
 
-        return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+        return KernelResult<IReadOnlyList<Point3D>>.Success(pointsFallback);
     }
 
     private static KernelResult<IReadOnlyList<Point3D>> SamplePlanarBSpline(

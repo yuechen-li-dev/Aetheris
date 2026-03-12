@@ -267,14 +267,14 @@
     "fileId": "testdata_step242_nist_FTC_nist_ftc_11_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
     "sizeBytes": 1920822,
-    "status": "importFail",
-    "firstFailureLayer": "exporter",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Edge:29",
-      "messagePrefix": "Edge endpoints resolve to a degenerate line direction."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 72,
@@ -285,7 +285,7 @@
       "facePatches": 42,
       "edgePolylines": 104
     },
-    "canonicalSha256": null
+    "canonicalSha256": "29eaa5ebd9a0be6d11a9a1482f21107c30804083435a31911c365aef2ffc21bd"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_06_asme1_ap242-e3",

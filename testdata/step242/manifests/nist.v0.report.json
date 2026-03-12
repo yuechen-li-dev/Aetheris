@@ -195,14 +195,14 @@
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
     "sizeBytes": 4658022,
-    "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
-      "messagePrefix": "Face 4 planar loop triangulation failed because the polygon is not simple."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 396,
@@ -210,10 +210,10 @@
       "faces": 247
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 247,
+      "edgePolylines": 616
     },
-    "canonicalSha256": null
+    "canonicalSha256": "bdc8e56bfd10539aa2d73c2bdecbcc94d7ffc3821517ffb77687f316590cd213"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_09_asme1_ap242-e1",
@@ -392,7 +392,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
-      "messagePrefix": "Face 3 planar loop triangulation failed because the polygon is not simple."
+      "messagePrefix": "Face 11 planar loop triangulation failed because the polygon is not simple."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

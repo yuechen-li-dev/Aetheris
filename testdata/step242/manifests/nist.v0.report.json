@@ -117,7 +117,7 @@
       "facePatches": 156,
       "edgePolylines": 331
     },
-    "canonicalSha256": "a874ae135bd12d3cd9eed0b479853ca5db2146d93ff24fa106e6343cf7a25365"
+    "canonicalSha256": "29b2850267dd6755e96eb7f9f7a1f568b0da34ea5e273096f6a962ccbe746494"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_06_asme1_ap242-e2",
@@ -309,7 +309,7 @@
       "facePatches": 144,
       "edgePolylines": 310
     },
-    "canonicalSha256": "4f7b738853058eb8590b02aca67d6ce4e47988b7139282a20db88e21a40071fc"
+    "canonicalSha256": "ab158a7eb18ce3eabe4412821683c9eda11ab355b176792a699dbb89752b2859"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_07_asme1_ap242-e3",
@@ -388,18 +388,18 @@
     "path": "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
     "sizeBytes": 4807322,
     "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.CylinderAmbiguousOuter",
-      "messagePrefix": "Unable to choose a unique cylindrical outer loop."
+      "code": "NotImplemented",
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 3 planar loop triangulation failed because the polygon is not simple."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 368,
+      "edges": 551,
+      "faces": 256
     },
     "tessellationCounts": {
       "facePatches": 0,

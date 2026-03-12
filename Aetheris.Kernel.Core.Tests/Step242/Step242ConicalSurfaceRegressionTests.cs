@@ -150,9 +150,9 @@ public sealed class Step242ConicalSurfaceRegressionTests
         "No diagnostics.")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
-        "importer-topology",
-        "Importer.LoopRole.CylinderAmbiguousOuter",
-        "Unable to choose a unique cylindrical outer loop")]
+        "tessellator",
+        "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+        "Face 3 planar loop triangulation failed because the polygon is not simple.")]
     public void Step242_NistTargets_AdvancePastCircleTrim_AndKeepDeterministicNextBlocker(
         string relativePath,
         string expectedLayer,

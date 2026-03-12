@@ -1444,6 +1444,7 @@ public static class Step242Importer
         const string containmentSource = "Importer.LoopRole.CylinderInnerContainmentFailed";
 
         var infos = new List<CylindricalLoopInfo>(loops.Count);
+        var degenerate = new List<(LoopBuildData Loop, CylinderProjectionAnalysis Analysis)>(loops.Count);
         var maxUniqueCount = 0;
         var maxAbsArea = 0d;
         foreach (var loop in loops)
@@ -1469,25 +1470,38 @@ public static class Step242Importer
 
             if (uniqueCount < 3 || double.Abs(area) <= AreaEps)
             {
+                degenerate.Add((loop, analysis));
                 continue;
             }
 
             infos.Add(new CylindricalLoopInfo(loop, projected, area, ComputePolygonCentroid(projected)));
         }
 
+        var fullRevolutionConstantAxial = degenerate
+            .Where(d => d.Analysis.Degeneracy == CylinderProjectionDegeneracy.FullRevolutionConstantAxial)
+            .OrderBy(d => d.Loop.LoopId.Value)
+            .ToArray();
+        var otherDegenerate = degenerate
+            .Where(d => d.Analysis.Degeneracy != CylinderProjectionDegeneracy.FullRevolutionConstantAxial)
+            .OrderBy(d => d.Loop.LoopId.Value)
+            .ToArray();
+
+        if (fullRevolutionConstantAxial.Length > 0 && (otherDegenerate.Length > 0 || infos.Count > 0))
+        {
+            var normalizedMixedInners = infos
+                .OrderByDescending(i => double.Abs(i.SignedArea))
+                .ThenBy(i => i.Loop.LoopId.Value)
+                .Select(i => NormalizeLoopWinding(i.Loop, i.SignedArea, shouldBePositive: false));
+
+            var mixedOrdered = new List<LoopBuildData>(fullRevolutionConstantAxial.Length + otherDegenerate.Length + infos.Count);
+            mixedOrdered.AddRange(fullRevolutionConstantAxial.Select(d => d.Loop));
+            mixedOrdered.AddRange(otherDegenerate.Select(d => d.Loop));
+            mixedOrdered.AddRange(normalizedMixedInners);
+            return KernelResult<IReadOnlyList<LoopBuildData>>.Success(mixedOrdered);
+        }
+
         if (infos.Count == 0)
         {
-            var degenerate = loops
-                .Select(loop =>
-                {
-                    var projected = ProjectLoopToCylinder(loop.Samples, cylinder);
-                    var uniqueCount = CountUniquePoints(projected, ContainmentEps);
-                    var area = ComputeSignedArea(projected);
-                    return (Loop: loop, Analysis: AnalyzeCylindricalProjection(uniqueCount, area, projected));
-                })
-                .OrderBy(d => d.Loop.LoopId.Value)
-                .ToArray();
-
             if (degenerate.All(d => d.Analysis.Degeneracy == CylinderProjectionDegeneracy.FullRevolutionConstantAxial))
             {
                 var canonical = degenerate

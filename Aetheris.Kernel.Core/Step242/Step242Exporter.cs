@@ -607,7 +607,8 @@ public static class Step242Exporter
             return FailurePoint("Edge curve geometry was not found.", $"Curve:{edgeBinding.CurveGeometryId.Value}");
         }
 
-        var parameter = useStart ? edgeBinding.TrimInterval.Value.Start : edgeBinding.TrimInterval.Value.End;
+        var useTrimStart = useStart == edgeBinding.OrientedEdgeSense;
+        var parameter = useTrimStart ? edgeBinding.TrimInterval.Value.Start : edgeBinding.TrimInterval.Value.End;
         return curve.Kind switch
         {
             CurveGeometryKind.Line3 when curve.Line3 is Line3Curve line => KernelResult<Point3D>.Success(line.Evaluate(parameter)),

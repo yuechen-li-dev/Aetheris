@@ -2529,12 +2529,13 @@ public static class BrepDisplayTessellator
         PlaneSurface plane,
         FaceId faceId)
     {
+        var effectiveIsReversed = coedge.IsReversed ^ traversalSwapped;
         if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding)
             && CurveSampler.TrySampleTrimmedCircleArc(
                 circle,
                 start,
                 end,
-                coedge.IsReversed ? !binding.OrientedEdgeSense : binding.OrientedEdgeSense,
+                effectiveIsReversed ? !binding.OrientedEdgeSense : binding.OrientedEdgeSense,
                 out var sampledPoints,
                 out var isClosed,
                 out var usedShorterArcFallback))

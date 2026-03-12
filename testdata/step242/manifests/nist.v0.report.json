@@ -392,7 +392,7 @@
     "firstDiagnostic": {
       "code": "NotImplemented",
       "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
-      "messagePrefix": "Face 11 planar loop triangulation failed because the polygon is not simple."
+      "messagePrefix": "Face 221 planar loop triangulation failed because the polygon is not simple."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,

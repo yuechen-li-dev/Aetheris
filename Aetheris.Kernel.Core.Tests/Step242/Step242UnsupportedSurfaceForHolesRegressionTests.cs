@@ -13,10 +13,10 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         "Face 4 planar loop triangulation failed because the polygon is not simple.")]
     [InlineData(
         "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
-        "tessellator",
+        "exporter",
         "Topology.GraphValidator",
-        "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
-        null)]
+        "Edge:29",
+        "Edge endpoints resolve to a degenerate line direction.")]
 
     public void Step242_NistTargets_AdvancePastGenericUnsupportedSurfaceForHoles_Deterministically(
         string relativePath,

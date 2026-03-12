@@ -268,11 +268,11 @@
     "path": "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
     "sizeBytes": 1920822,
     "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "firstFailureLayer": "exporter",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
-      "messagePrefix": "Face 21 planar loop triangulation failed because the polygon is not simple."
+      "source": "Edge:29",
+      "messagePrefix": "Edge endpoints resolve to a degenerate line direction."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -282,8 +282,8 @@
       "faces": 42
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 42,
+      "edgePolylines": 104
     },
     "canonicalSha256": null
   },

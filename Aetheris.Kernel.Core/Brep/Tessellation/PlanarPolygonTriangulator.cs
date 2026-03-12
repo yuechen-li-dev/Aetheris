@@ -16,6 +16,9 @@ internal static class PlanarPolygonTriangulator
     public static bool TryTriangulate(
         IReadOnlyList<Point3D> polygonPoints,
         Vector3D planeNormal,
+        Point3D? planeOrigin,
+        Vector3D? planeUAxis,
+        Vector3D? planeVAxis,
         out IReadOnlyList<int> indices,
         out PlanarPolygonTriangulationFailure? failure)
     {
@@ -34,7 +37,7 @@ internal static class PlanarPolygonTriangulator
             return false;
         }
 
-        var projected = ProjectToStablePlane(polygonPoints, normal);
+        var projected = ProjectToStablePlane(polygonPoints, normal, planeOrigin, planeUAxis, planeVAxis);
         if (!ValidatePolygon(projected))
         {
             failure = PlanarPolygonTriangulationFailure.Degenerate;
@@ -130,8 +133,28 @@ internal static class PlanarPolygonTriangulator
         return true;
     }
 
-    private static List<Point2> ProjectToStablePlane(IReadOnlyList<Point3D> polygonPoints, Vector3D normal)
+    private static List<Point2> ProjectToStablePlane(
+        IReadOnlyList<Point3D> polygonPoints,
+        Vector3D normal,
+        Point3D? planeOrigin,
+        Vector3D? planeUAxis,
+        Vector3D? planeVAxis)
     {
+        if (planeOrigin.HasValue
+            && planeUAxis.HasValue
+            && planeVAxis.HasValue
+            && planeUAxis.Value.TryNormalize(out var normalizedU)
+            && planeVAxis.Value.TryNormalize(out var normalizedV))
+        {
+            return polygonPoints
+                .Select(point =>
+                {
+                    var offset = point - planeOrigin.Value;
+                    return new Point2(offset.Dot(normalizedU), offset.Dot(normalizedV));
+                })
+                .ToList();
+        }
+
         var referenceAxis = double.Abs(normal.Z) < 0.9d
             ? new Vector3D(0d, 0d, 1d)
             : new Vector3D(1d, 0d, 0d);

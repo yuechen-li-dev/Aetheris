@@ -2610,7 +2610,8 @@ public static class BrepDisplayTessellator
             reverseSampleOrder = effectiveIsReversed;
         }
 
-        var sampled = CurveSampler.SampleBSpline(spline, interval).ToArray();
+        var segmentCount = System.Math.Max(8, spline.ControlPoints.Count);
+        var sampled = SampleBSplineDeterministic(spline, interval, segmentCount);
         if (reverseSampleOrder)
         {
             Array.Reverse(sampled);
@@ -2632,6 +2633,20 @@ public static class BrepDisplayTessellator
         }
 
         return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+    }
+
+    private static Point3D[] SampleBSplineDeterministic(BSpline3Curve spline, ParameterInterval interval, int segmentCount)
+    {
+        var resolvedSegmentCount = System.Math.Max(1, segmentCount);
+        var points = new Point3D[resolvedSegmentCount + 1];
+        var span = interval.End - interval.Start;
+        for (var i = 0; i <= resolvedSegmentCount; i++)
+        {
+            var t = (double)i / resolvedSegmentCount;
+            points[i] = spline.Evaluate(interval.Start + (span * t));
+        }
+
+        return points;
     }
 
     private static KernelResult<IReadOnlyList<Point3D>> SamplePlanarEllipse(

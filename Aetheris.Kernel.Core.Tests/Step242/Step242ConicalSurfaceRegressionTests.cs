@@ -150,9 +150,9 @@ public sealed class Step242ConicalSurfaceRegressionTests
         "No diagnostics.")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
-        "tessellator",
-        "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
-        "Face 225 planar loop triangulation failed")]
+        "",
+        "Audit.None",
+        "No diagnostics.")]
     public void Step242_NistTargets_AdvancePastCircleTrim_AndKeepDeterministicNextBlocker(
         string relativePath,
         string expectedLayer,

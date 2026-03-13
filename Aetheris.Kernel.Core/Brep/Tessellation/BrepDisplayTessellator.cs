@@ -2715,7 +2715,7 @@ public static class BrepDisplayTessellator
 
         if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding) && binding.TrimInterval is ParameterInterval trim)
         {
-            var effectiveIsReversed = coedge.IsReversed ^ traversalSwapped;
+            var effectiveIsReversed = coedge.IsReversed ^ traversalSwapped ^ !binding.OrientedEdgeSense;
             var trimStart = effectiveIsReversed ? trim.End : trim.Start;
             var trimEnd = effectiveIsReversed ? trim.Start : trim.End;
             var trimDelta = trimEnd - trimStart;

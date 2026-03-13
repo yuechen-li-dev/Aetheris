@@ -3034,7 +3034,8 @@ public static class BrepDisplayTessellator
         }
 
         var interval = binding.TrimInterval ?? new ParameterInterval(0d, 1d);
-        var parameter = useStart ? interval.Start : interval.End;
+        var useTrimStart = useStart == binding.OrientedEdgeSense;
+        var parameter = useTrimStart ? interval.Start : interval.End;
         return curve.Kind switch
         {
             CurveGeometryKind.Line3 => KernelResult<Point3D>.Success(curve.Line3!.Value.Evaluate(parameter)),

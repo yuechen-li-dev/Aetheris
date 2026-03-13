@@ -733,6 +733,17 @@ public static class BrepDisplayTessellator
             return KernelResult<(double, double, int, int)>.Success((0d, 2d * double.Pi, angularSegments, axialSegments));
         }
 
+        if (axialParameterFromPoint is not null)
+        {
+            var projectedVertexBounds = TryResolveAxialBoundsFromProjectedLoopVertices(body, coedges, axialParameterFromPoint, faceId);
+            if (projectedVertexBounds.IsSuccess)
+            {
+                var angularSegments = CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, radiusHint), options);
+                var axialSegments = CalculateAxialSegments(projectedVertexBounds.Value.VStart, projectedVertexBounds.Value.VEnd, options);
+                return KernelResult<(double, double, int, int)>.Success((projectedVertexBounds.Value.VStart, projectedVertexBounds.Value.VEnd, angularSegments, axialSegments));
+            }
+        }
+
         var topologyFamily = allowThreeCoedgeConeTopology ? "cone/revolved" : "torus/revolved";
         var observedFamily = ClassifyRevolvedTopologyFamily(body, coedges, lineCoedges, circleCoedges, bSplineCoedges);
         return KernelResult<(double, double, int, int)>.Failure([CreateNotImplemented($"Face {faceId.Value} curved tessellation supports selected repeated {topologyFamily} boundary subfamilies; unsupported subfamily '{observedFamily}'. Observed: {DescribeRevolvedLoopTopology(body, coedges)}")]);

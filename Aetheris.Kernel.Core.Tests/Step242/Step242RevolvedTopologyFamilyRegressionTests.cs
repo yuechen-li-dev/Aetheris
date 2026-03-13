@@ -6,8 +6,8 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
 {
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "No diagnostics.")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily 'four-coedge mixed line/bspline revolved loop'. Observed")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Face 67 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily 'other (coedges=5, uniqueEdges=5)'. Observed")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "Face 183 planar loop triangulation failed.")]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "Face 214 planar loop triangulation failed because the polygon is not simple.")]
     public void Step242_RepeatedCurvedRevolvedTargets_AdvanceWithExplicitDeterministicNextBlocker(
         string relativePath,
         string expectedMessagePrefix)
@@ -38,7 +38,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
     }
 
     [Fact]
-    public void Step242_Ftc07_SixCoedgeBsplineOnlyRevolvedLoop_AdvancesDeterministically_ToExplicitConeBlocker()
+    public void Step242_Ftc07_SixCoedgeBsplineOnlyRevolvedLoop_AdvancesDeterministically_ToPlanarTriangulationBlocker()
     {
         const string relativePath = "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp";
         var entry = new Step242CorpusManifestEntry(
@@ -59,7 +59,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
         Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
 
         Assert.DoesNotContain("unsupported subfamily 'six-coedge bspline-only revolved loop'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
-        Assert.StartsWith("Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily 'four-coedge mixed line/bspline revolved loop'. Observed", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.StartsWith("Face 183 planar loop triangulation failed.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
     }
 
 

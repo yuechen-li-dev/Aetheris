@@ -151,8 +151,8 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "",
-      "messagePrefix": "Face 129 curved tessellation supports selected repeated cone/revolved boundary subfamilies; unsupported subfamily \u0027four-coedge mixed line/bspline revolved loop\u0027. Observed"
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 183 planar loop triangulation failed."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -247,8 +247,8 @@
     "firstFailureLayer": "tessellator",
     "firstDiagnostic": {
       "code": "NotImplemented",
-      "source": "",
-      "messagePrefix": "Face 67 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily \u0027other (coedges=5, uniqueEdges=5)\u0027. Observed"
+      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
+      "messagePrefix": "Face 214 planar loop triangulation failed because the polygon is not simple."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
@@ -315,14 +315,14 @@
     "fileId": "testdata_step242_nist_STC_nist_stc_07_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_07_asme1_ap242-e3.stp",
     "sizeBytes": 1927905,
-    "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "",
-      "messagePrefix": "Face 20 curved tessellation supports selected repeated torus/revolved boundary subfamilies; unsupported subfamily \u0027circle-only non-seam loop\u0027. Observed"
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 588,
@@ -330,10 +330,10 @@
       "faces": 306
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 306,
+      "edgePolylines": 871
     },
-    "canonicalSha256": null
+    "canonicalSha256": "639f0d562dc98d38b3ea323e3dc81cad82cbe9d13e8ecf2a8d6db6703183a1eb"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_08_asme1_ap242-e3",

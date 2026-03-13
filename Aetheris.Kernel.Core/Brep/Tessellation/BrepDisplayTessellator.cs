@@ -145,14 +145,14 @@ public static class BrepDisplayTessellator
 
     private static LoopId SelectPlanarPrimaryLoop(BrepBody body, FaceId faceId, PlaneSurface plane, IReadOnlyList<LoopId> loopIds)
     {
+        const double signedAreaEpsilon = 1e-12d;
+
         if (loopIds.Count <= 1)
         {
             return loopIds[0];
         }
 
-        var bestLoop = loopIds[0];
-        var bestArea = double.NegativeInfinity;
-
+        var loopAreas = new List<(LoopId LoopId, double SignedArea, double AbsArea)>();
         foreach (var loopId in loopIds)
         {
             var coedges = body.GetCoedgeIds(loopId)
@@ -165,10 +165,73 @@ public static class BrepDisplayTessellator
                 continue;
             }
 
-            var area = double.Abs(ComputeSignedPlanarArea(pointsResult.Value, plane));
-            if (area > bestArea)
+            var signedArea = ComputeSignedPlanarArea(pointsResult.Value, plane);
+            loopAreas.Add((loopId, signedArea, double.Abs(signedArea)));
+        }
+
+        if (loopAreas.Count == 0)
+        {
+            return loopIds[0];
+        }
+
+        var expectedOuterSign = 0;
+        var expectedSignResolved = false;
+        foreach (var loopId in loopIds)
+        {
+            foreach (var candidate in loopAreas)
             {
-                bestArea = area;
+                if (candidate.LoopId != loopId)
+                {
+                    continue;
+                }
+
+                if (candidate.SignedArea > signedAreaEpsilon)
+                {
+                    expectedOuterSign = 1;
+                }
+                else if (candidate.SignedArea < -signedAreaEpsilon)
+                {
+                    expectedOuterSign = -1;
+                }
+
+                expectedSignResolved = true;
+                break;
+            }
+
+            if (expectedSignResolved)
+            {
+                break;
+            }
+        }
+
+        var hasExpectedSign = false;
+        var bestLoop = loopAreas[0].LoopId;
+        var bestAbsArea = double.NegativeInfinity;
+
+        foreach (var (loopId, signedArea, absArea) in loopAreas)
+        {
+            var loopSign = signedArea > signedAreaEpsilon
+                ? 1
+                : signedArea < -signedAreaEpsilon
+                    ? -1
+                    : 0;
+            var matchesExpectedOuterSign = expectedOuterSign != 0 && loopSign == expectedOuterSign;
+
+            if (matchesExpectedOuterSign)
+            {
+                if (!hasExpectedSign || absArea > bestAbsArea)
+                {
+                    hasExpectedSign = true;
+                    bestAbsArea = absArea;
+                    bestLoop = loopId;
+                }
+
+                continue;
+            }
+
+            if (!hasExpectedSign && absArea > bestAbsArea)
+            {
+                bestAbsArea = absArea;
                 bestLoop = loopId;
             }
         }

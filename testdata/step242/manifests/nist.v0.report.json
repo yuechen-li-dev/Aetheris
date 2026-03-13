@@ -387,14 +387,14 @@
     "fileId": "testdata_step242_nist_STC_nist_stc_10_asme1_ap242-e2",
     "path": "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
     "sizeBytes": 4807322,
-    "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
-      "messagePrefix": "Face 225 planar loop triangulation failed because the polygon is not simple."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 368,
@@ -402,9 +402,9 @@
       "faces": 256
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 256,
+      "edgePolylines": 551
     },
-    "canonicalSha256": null
+    "canonicalSha256": "3703906cba81c4fba8e935a298fcdb89bbd74c151552ea0d1324eccf429e98a9"
   }
 ]

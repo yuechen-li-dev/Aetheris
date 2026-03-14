@@ -150,10 +150,31 @@ public static class BrepDisplayTessellator
             return loopIds[0];
         }
 
-        var bestLoop = loopIds[0];
+        var lineOnlyLoopCandidates = loopIds.Where(loopId => IsAllLine3Loop(body, loopId)).ToArray();
+        if (TrySelectLargestViablePlanarLoop(body, faceId, plane, lineOnlyLoopCandidates, out var selectedLineLoop))
+        {
+            return selectedLineLoop;
+        }
+
+        if (TrySelectLargestViablePlanarLoop(body, faceId, plane, loopIds, out var selectedMixedLoop))
+        {
+            return selectedMixedLoop;
+        }
+
+        return loopIds[0];
+    }
+
+    private static bool TrySelectLargestViablePlanarLoop(
+        BrepBody body,
+        FaceId faceId,
+        PlaneSurface plane,
+        IReadOnlyList<LoopId> candidateLoopIds,
+        out LoopId bestLoop)
+    {
+        bestLoop = default;
         var bestArea = double.NegativeInfinity;
 
-        foreach (var loopId in loopIds)
+        foreach (var loopId in candidateLoopIds)
         {
             var coedges = body.GetCoedgeIds(loopId)
                 .Select(id => body.Topology.GetCoedge(id))
@@ -165,15 +186,41 @@ public static class BrepDisplayTessellator
                 continue;
             }
 
-            var area = double.Abs(ComputeSignedPlanarArea(pointsResult.Value, plane));
-            if (area > bestArea)
+            var polygonPoints = pointsResult.Value;
+            if (polygonPoints.Count < 3)
+            {
+                continue;
+            }
+
+            if (!PlanarPolygonTriangulator.TryTriangulate(polygonPoints, plane.Normal.ToVector(), out _, out _))
+            {
+                continue;
+            }
+
+            var area = double.Abs(ComputeSignedPlanarArea(polygonPoints, plane));
+            if (area > bestArea || (System.Math.Abs(area - bestArea) <= 1e-12d && loopId.Value < bestLoop.Value))
             {
                 bestArea = area;
                 bestLoop = loopId;
             }
         }
 
-        return bestLoop;
+        return bestArea > double.NegativeInfinity;
+    }
+
+    private static bool IsAllLine3Loop(BrepBody body, LoopId loopId)
+    {
+        var coedgeIds = body.GetCoedgeIds(loopId);
+        for (var i = 0; i < coedgeIds.Count; i++)
+        {
+            var edgeId = body.Topology.GetCoedge(coedgeIds[i]).EdgeId;
+            if (body.GetEdgeCurve(edgeId).Kind != CurveGeometryKind.Line3)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static double ComputeSignedPlanarArea(IReadOnlyList<Point3D> polygonPoints, PlaneSurface plane)

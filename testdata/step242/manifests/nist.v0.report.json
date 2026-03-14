@@ -147,14 +147,14 @@
     "fileId": "testdata_step242_nist_FTC_nist_ftc_07_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp",
     "sizeBytes": 1459346,
-    "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
-      "messagePrefix": "Face 183 planar loop triangulation failed."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 588,
@@ -162,10 +162,10 @@
       "faces": 306
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 306,
+      "edgePolylines": 871
     },
-    "canonicalSha256": null
+    "canonicalSha256": "e88e432d9cae16a3b457d1ba3ce3ccddcb2a64e3f740d543c3d5cd570026fa0a"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e1-tg",
@@ -243,14 +243,14 @@
     "fileId": "testdata_step242_nist_FTC_nist_ftc_10_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp",
     "sizeBytes": 1855829,
-    "status": "importFail",
-    "firstFailureLayer": "tessellator",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "NotImplemented",
-      "source": "Viewer.Tessellation.PlanarNonConvexTriangulationFailed",
-      "messagePrefix": "Face 214 planar loop triangulation failed because the polygon is not simple."
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 572,
@@ -258,10 +258,10 @@
       "faces": 268
     },
     "tessellationCounts": {
-      "facePatches": 0,
-      "edgePolylines": 0
+      "facePatches": 268,
+      "edgePolylines": 813
     },
-    "canonicalSha256": null
+    "canonicalSha256": "72852a798345f6815b5d56397e942efe70ca47e8c7c216770170fe06fa2ced11"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_11_asme1_ap242-e2",

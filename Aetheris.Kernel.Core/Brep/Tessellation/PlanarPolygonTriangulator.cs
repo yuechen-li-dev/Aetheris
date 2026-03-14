@@ -250,10 +250,26 @@ internal static class PlanarPolygonTriangulator
         => ((b.X - a.X) * (c.Y - a.Y)) - ((b.Y - a.Y) * (c.X - a.X));
 
     private static bool OnSegment(Point2 a, Point2 p, Point2 b)
-        => p.X >= double.Min(a.X, b.X) - Epsilon
-           && p.X <= double.Max(a.X, b.X) + Epsilon
-           && p.Y >= double.Min(a.Y, b.Y) - Epsilon
-           && p.Y <= double.Max(a.Y, b.Y) + Epsilon;
+    {
+        var abX = b.X - a.X;
+        var abY = b.Y - a.Y;
+        var abLengthSquared = (abX * abX) + (abY * abY);
+        if (abLengthSquared <= Epsilon * Epsilon)
+        {
+            return DistanceSquared(a, p) <= Epsilon * Epsilon;
+        }
+
+        var apX = p.X - a.X;
+        var apY = p.Y - a.Y;
+        var t = ((apX * abX) + (apY * abY)) / abLengthSquared;
+        if (t < -Epsilon || t > 1d + Epsilon)
+        {
+            return false;
+        }
+
+        var closest = new Point2(a.X + (t * abX), a.Y + (t * abY));
+        return DistanceSquared(closest, p) <= Epsilon * Epsilon;
+    }
 
     private static double DistanceSquared(Point2 a, Point2 b)
     {

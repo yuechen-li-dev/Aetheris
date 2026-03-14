@@ -239,7 +239,12 @@ internal static class FirmamentTopLevelParser
                 rawFields[property.Name] = property.Value.ToString();
             }
 
-            entries.Add(new FirmamentParsedOpEntry(opName, rawFields));
+            if (!FirmamentKnownOpKinds.TryParse(opName, out var knownKind))
+            {
+                return UnknownOpKind(index, opName);
+            }
+
+            entries.Add(new FirmamentParsedOpEntry(opName, knownKind, rawFields));
             index++;
         }
 
@@ -267,7 +272,12 @@ internal static class FirmamentTopLevelParser
                 return InvalidOpFieldValue(index);
             }
 
-            entries.Add(new FirmamentParsedOpEntry(opName, new Dictionary<string, string>(opEntry.Fields, StringComparer.Ordinal)));
+            if (!FirmamentKnownOpKinds.TryParse(opName, out var knownKind))
+            {
+                return UnknownOpKind(index, opName);
+            }
+
+            entries.Add(new FirmamentParsedOpEntry(opName, knownKind, new Dictionary<string, string>(opEntry.Fields, StringComparer.Ordinal)));
         }
 
         return KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Success(entries);
@@ -484,6 +494,15 @@ internal static class FirmamentTopLevelParser
                 KernelDiagnosticCode.ValidationFailed,
                 FirmamentDiagnosticCodes.StructureInvalidOpFieldValue,
                 $"Operation entry at index {index} has invalid 'op' value; expected a non-empty scalar.")
+        ]);
+
+    private static KernelResult<IReadOnlyList<FirmamentParsedOpEntry>> UnknownOpKind(int index, string opName) =>
+        KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Failure(
+        [
+            CreateDiagnostic(
+                KernelDiagnosticCode.ValidationFailed,
+                FirmamentDiagnosticCodes.StructureUnknownOpKind,
+                $"Operation entry at index {index} has unknown op kind '{opName}'.")
         ]);
 
     private static KernelDiagnostic CreateDiagnostic(KernelDiagnosticCode kernelCode, FirmamentDiagnosticCode firmamentCode, string message) =>

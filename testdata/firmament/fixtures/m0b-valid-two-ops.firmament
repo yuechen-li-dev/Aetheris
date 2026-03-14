@@ -8,6 +8,8 @@ model:
 ops[2]:
   -
     op: box
+    id: b1
+    size: [2, 3, 4]
   -
     op: subtract
     left: a

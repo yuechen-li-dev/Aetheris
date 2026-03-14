@@ -34,7 +34,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-ops-structure-known-kind-family-parsed", artifact.ArtifactKind);
+        Assert.Equal("firmament-ops-primitive-required-fields-validated", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);
@@ -50,7 +50,7 @@ public sealed class FirmamentScaffoldTests
               "firmament": { "version": "1" },
               "model": { "name": "demo", "units": "mm" },
               "ops": [
-                { "op": "box" }
+                { "op": "box", "id": "b1", "size": [1, 2, 3] }
               ]
             }
             """,
@@ -64,7 +64,7 @@ public sealed class FirmamentScaffoldTests
               "firmament": { "version": "1" },
               "model": { "name": "demo", "units": "mm" },
               "ops": [
-                { "op": "box" },
+                { "op": "box", "id": "b1", "size": [2, 3, 4] },
                 { "op": "subtract", "target": "a" }
               ]
             }
@@ -81,7 +81,7 @@ public sealed class FirmamentScaffoldTests
           "firmament": { "version": "1" },
           "model": { "name": "demo", "units": "mm" },
           "ops": [
-            { "op": "sphere", "note": "x" }
+            { "op": "sphere", "id": "s1", "radius": 2.5, "note": "x" }
           ]
         }
         """;
@@ -118,7 +118,7 @@ public sealed class FirmamentScaffoldTests
           "firmament": { "version": "1" },
           "model": { "name": "demo", "units": "mm" },
           "ops": [
-            { "op": "box" },
+            { "op": "box", "id": "b1", "size": [1, 2, 3] },
             { "op": "subtract" },
             { "op": "expect_manifold" }
           ]
@@ -389,6 +389,184 @@ public sealed class FirmamentScaffoldTests
             "Unknown top-level section 'other'.");
 
     [Fact]
+    public void Compiler_Accepts_ValidCylinderPrimitiveOp() =>
+        AssertValidOpsCount(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "cylinder", "id": "c1", "radius": 1.5, "height": 10 }
+              ]
+            }
+            """,
+            1);
+
+    [Fact]
+    public void Compiler_Rejects_Box_MissingId() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "box", "size": [1, 2, 3] }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.PrimitiveMissingRequiredField,
+            "Primitive op 'box' at index 0 is missing required field 'id'.");
+
+    [Fact]
+    public void Compiler_Rejects_Box_MissingSize() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "box", "id": "b1" }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.PrimitiveMissingRequiredField,
+            "Primitive op 'box' at index 0 is missing required field 'size'.");
+
+    [Fact]
+    public void Compiler_Rejects_Box_InvalidSizeShape() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "box", "id": "b1", "size": [1, 2] }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.PrimitiveInvalidFieldTypeOrShape,
+            "Primitive op 'box' at index 0 has invalid field 'size'; expected exactly 3 numeric components.");
+
+    [Fact]
+    public void Compiler_Rejects_Box_NonPositiveSizeComponent() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "box", "id": "b1", "size": [1, 0, 3] }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue,
+            "Primitive op 'box' at index 0 has invalid field 'size' value; all components must be greater than 0.");
+
+    [Fact]
+    public void Compiler_Rejects_Cylinder_MissingRadius() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "cylinder", "id": "c1", "height": 5 }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.PrimitiveMissingRequiredField,
+            "Primitive op 'cylinder' at index 0 is missing required field 'radius'.");
+
+    [Fact]
+    public void Compiler_Rejects_Cylinder_MissingHeight() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "cylinder", "id": "c1", "radius": 2 }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.PrimitiveMissingRequiredField,
+            "Primitive op 'cylinder' at index 0 is missing required field 'height'.");
+
+    [Fact]
+    public void Compiler_Rejects_Cylinder_NonPositiveRadiusOrHeight() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "cylinder", "id": "c1", "radius": -1, "height": 5 }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue,
+            "Primitive op 'cylinder' at index 0 has invalid field 'radius' value; expected a numeric value greater than 0.");
+
+    [Fact]
+    public void Compiler_Rejects_Sphere_MissingRadius() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "sphere", "id": "s1" }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.PrimitiveMissingRequiredField,
+            "Primitive op 'sphere' at index 0 is missing required field 'radius'.");
+
+    [Fact]
+    public void Compiler_Rejects_Sphere_NonPositiveRadius() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "sphere", "id": "s1", "radius": 0 }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue,
+            "Primitive op 'sphere' at index 0 has invalid field 'radius' value; expected a numeric value greater than 0.");
+
+    [Fact]
+    public void PrimitiveValidation_Diagnostics_AreDeterministic()
+    {
+        var compiler = new FirmamentCompiler();
+        var source = """
+        {
+          "firmament": { "version": "1" },
+          "model": { "name": "demo", "units": "mm" },
+          "ops": [
+            { "op": "box", "id": "b1", "size": [1, 2] }
+          ]
+        }
+        """;
+
+        var first = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+        var second = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.False(first.Compilation.IsSuccess);
+        Assert.False(second.Compilation.IsSuccess);
+
+        var firstDiagnostic = Assert.Single(first.Compilation.Diagnostics);
+        var secondDiagnostic = Assert.Single(second.Compilation.Diagnostics);
+
+        Assert.Equal(firstDiagnostic.Code, secondDiagnostic.Code);
+        Assert.Equal(firstDiagnostic.Severity, secondDiagnostic.Severity);
+        Assert.Equal(firstDiagnostic.Message, secondDiagnostic.Message);
+        Assert.Equal(firstDiagnostic.Source, secondDiagnostic.Source);
+    }
+
+    [Fact]
     public void DiagnosticTaxonomyIdentifiers_AreStableAndNonEmpty()
     {
         Assert.Equal("firmament", FirmamentDiagnosticConventions.Source);
@@ -401,6 +579,9 @@ public sealed class FirmamentScaffoldTests
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureMissingRequiredOpField.Value);
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureInvalidOpFieldValue.Value);
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureUnknownOpKind.Value);
+        Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.PrimitiveMissingRequiredField.Value);
+        Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.PrimitiveInvalidFieldTypeOrShape.Value);
+        Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue.Value);
         Assert.StartsWith("FIRM-REF", FirmamentDiagnosticCodes.ReferencePlaceholder.Value);
         Assert.StartsWith("FIRM-SEL", FirmamentDiagnosticCodes.SelectorPlaceholder.Value);
         Assert.StartsWith("FIRM-SCHEMA", FirmamentDiagnosticCodes.SchemaPlaceholder.Value);
@@ -432,12 +613,20 @@ public sealed class FirmamentScaffoldTests
     private static void AssertClassifiedFamily(string opName, FirmamentOpFamily expectedFamily)
     {
         var compiler = new FirmamentCompiler();
+        var payload = opName switch
+        {
+            "box" => "{ \"op\": \"box\", \"id\": \"b1\", \"size\": [1, 1, 1] }",
+            "cylinder" => "{ \"op\": \"cylinder\", \"id\": \"c1\", \"radius\": 1, \"height\": 2 }",
+            "sphere" => "{ \"op\": \"sphere\", \"id\": \"s1\", \"radius\": 1 }",
+            _ => $"{{ \"op\": \"{opName}\" }}"
+        };
+
         var source = $$"""
         {
           "firmament": { "version": "1" },
           "model": { "name": "demo", "units": "mm" },
           "ops": [
-            { "op": "{{opName}}" }
+            {{payload}}
           ]
         }
         """;

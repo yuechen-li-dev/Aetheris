@@ -2,6 +2,39 @@
   "version": "1",
   "entries": [
     {
+      "id": "m0b-invalid-op-entry-wrong-shape",
+      "name": "Invalid op entry wrong coarse shape",
+      "fixturePath": "testdata/firmament/fixtures/m0b-invalid-op-entry-wrong-shape.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0005"
+      }
+    },
+    {
+      "id": "m0b-invalid-op-missing-op",
+      "name": "Invalid op entry missing op field",
+      "fixturePath": "testdata/firmament/fixtures/m0b-invalid-op-missing-op.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0006"
+      }
+    },
+    {
+      "id": "m0b-invalid-op-value-shape",
+      "name": "Invalid op value shape",
+      "fixturePath": "testdata/firmament/fixtures/m0b-invalid-op-value-shape.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0007"
+      }
+    },
+    {
       "id": "m0b-valid-empty-ops",
       "name": "Valid empty ops section",
       "fixturePath": "testdata/firmament/fixtures/m0b-valid-empty-ops.firmament",
@@ -20,6 +53,17 @@
       "expectedOutcome": "success"
     },
     {
+      "id": "m0c-invalid-unknown-op",
+      "name": "Invalid unknown op kind",
+      "fixturePath": "testdata/firmament/fixtures/m0c-invalid-unknown-op.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0008"
+      }
+    },
+    {
       "id": "m0c-valid-known-boolean-op",
       "name": "Valid known boolean op",
       "fixturePath": "testdata/firmament/fixtures/m0c-valid-known-boolean-op.firmament",
@@ -32,48 +76,115 @@
       "expectedOutcome": "success"
     },
     {
-      "id": "m0b-invalid-op-missing-op",
-      "name": "Invalid op entry missing op field",
-      "fixturePath": "testdata/firmament/fixtures/m0b-invalid-op-missing-op.firmament",
+      "id": "m1a-invalid-box-missing-id",
+      "name": "Invalid box missing id",
+      "fixturePath": "testdata/firmament/fixtures/m1a-invalid-box-missing-id.firmament",
       "expectedOutcome": "failure",
       "expectedDiagnostic": {
         "source": "firmament",
         "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0006"
+        "firmamentCode": "FIRM-STRUCT-0009"
       }
     },
     {
-      "id": "m0b-invalid-op-entry-wrong-shape",
-      "name": "Invalid op entry wrong coarse shape",
-      "fixturePath": "testdata/firmament/fixtures/m0b-invalid-op-entry-wrong-shape.firmament",
+      "id": "m1a-invalid-box-missing-size",
+      "name": "Invalid box missing size",
+      "fixturePath": "testdata/firmament/fixtures/m1a-invalid-box-missing-size.firmament",
       "expectedOutcome": "failure",
       "expectedDiagnostic": {
         "source": "firmament",
         "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0005"
+        "firmamentCode": "FIRM-STRUCT-0009"
       }
     },
     {
-      "id": "m0b-invalid-op-value-shape",
-      "name": "Invalid op value shape",
-      "fixturePath": "testdata/firmament/fixtures/m0b-invalid-op-value-shape.firmament",
+      "id": "m1a-invalid-box-size-non-positive",
+      "name": "Invalid box non-positive size",
+      "fixturePath": "testdata/firmament/fixtures/m1a-invalid-box-size-non-positive.firmament",
       "expectedOutcome": "failure",
       "expectedDiagnostic": {
         "source": "firmament",
         "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0007"
+        "firmamentCode": "FIRM-STRUCT-0011"
       }
     },
     {
-      "id": "m0c-invalid-unknown-op",
-      "name": "Invalid unknown op kind",
-      "fixturePath": "testdata/firmament/fixtures/m0c-invalid-unknown-op.firmament",
+      "id": "m1a-invalid-box-size-shape",
+      "name": "Invalid box size shape",
+      "fixturePath": "testdata/firmament/fixtures/m1a-invalid-box-size-shape.firmament",
       "expectedOutcome": "failure",
       "expectedDiagnostic": {
         "source": "firmament",
         "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0008"
+        "firmamentCode": "FIRM-STRUCT-0010"
       }
+    },
+    {
+      "id": "m1a-invalid-cylinder-missing-height",
+      "name": "Invalid cylinder missing height",
+      "fixturePath": "testdata/firmament/fixtures/m1a-invalid-cylinder-missing-height.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0009"
+      }
+    },
+    {
+      "id": "m1a-invalid-cylinder-missing-radius",
+      "name": "Invalid cylinder missing radius",
+      "fixturePath": "testdata/firmament/fixtures/m1a-invalid-cylinder-missing-radius.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0009"
+      }
+    },
+    {
+      "id": "m1a-invalid-cylinder-non-positive-radius",
+      "name": "Invalid cylinder non-positive radius",
+      "fixturePath": "testdata/firmament/fixtures/m1a-invalid-cylinder-non-positive-radius.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0011"
+      }
+    },
+    {
+      "id": "m1a-invalid-sphere-missing-radius",
+      "name": "Invalid sphere missing radius",
+      "fixturePath": "testdata/firmament/fixtures/m1a-invalid-sphere-missing-radius.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0009"
+      }
+    },
+    {
+      "id": "m1a-invalid-sphere-non-positive-radius",
+      "name": "Invalid sphere non-positive radius",
+      "fixturePath": "testdata/firmament/fixtures/m1a-invalid-sphere-non-positive-radius.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0011"
+      }
+    },
+    {
+      "id": "m1a-valid-cylinder",
+      "name": "Valid cylinder primitive required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1a-valid-cylinder.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m1a-valid-sphere",
+      "name": "Valid sphere primitive required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1a-valid-sphere.firmament",
+      "expectedOutcome": "success"
     }
   ]
 }

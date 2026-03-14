@@ -2,6 +2,14 @@
 
 This project is the future home of Firmament in Aetheris.
 
-Current status: pre-M0 scaffold only. No parser, lowering, or validator behavior exists yet.
+Current status: pre-M0 scaffold only.
+
+Implemented scaffolding:
+- compile boundary contracts (`FirmamentSourceDocument`, `FirmamentCompileRequest`, `FirmamentCompileResult`)
+- Firmament diagnostic taxonomy placeholders and code-family conventions
+- source location contract placeholders (`FirmamentSourcePosition`, `FirmamentSourceSpan`)
+- deterministic compiler facade stub (`FirmamentCompiler`) that reports not implemented
+
+Not implemented yet: parser, semantic validation, selectors, lowering, or STEP behavior.
 
 The top-level lanes (`Connectors`, `ParsedModel`, `Lanes`, `Mapping`, `Diagnostics`) are intentionally separated to guide future implementation work.

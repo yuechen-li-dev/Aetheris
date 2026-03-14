@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using Aetheris.Kernel.Core.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -49,13 +48,11 @@ internal static class FirmamentCorpusHarness
         throw new InvalidOperationException("Unable to locate repository root.");
     }
 
-    public static KernelDiagnostic CompileFirstDiagnostic(string fixtureText)
+    public static FirmamentCompileResult Compile(string fixtureText)
     {
         var compiler = new FirmamentCompiler();
         var request = new FirmamentCompileRequest(new FirmamentSourceDocument(fixtureText));
-        var result = compiler.Compile(request);
-        Assert.False(result.Compilation.IsSuccess);
-        return Assert.Single(result.Compilation.Diagnostics);
+        return compiler.Compile(request);
     }
 }
 
@@ -83,5 +80,7 @@ internal sealed class FirmamentExpectedDiagnostic
 {
     public string Source { get; init; } = string.Empty;
 
-    public string Code { get; init; } = string.Empty;
+    public string KernelCode { get; init; } = string.Empty;
+
+    public string FirmamentCode { get; init; } = string.Empty;
 }

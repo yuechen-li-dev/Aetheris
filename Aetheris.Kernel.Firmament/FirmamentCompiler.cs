@@ -1,6 +1,5 @@
-using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
-using Aetheris.Kernel.Firmament.Diagnostics;
+using Aetheris.Kernel.Firmament.Parsing;
 
 namespace Aetheris.Kernel.Firmament;
 
@@ -10,13 +9,15 @@ public sealed class FirmamentCompiler
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var diagnostic = new KernelDiagnostic(
-            KernelDiagnosticCode.NotImplemented,
-            KernelDiagnosticSeverity.Error,
-            "Firmament compilation is not implemented yet (pre-M0 scaffold).",
-            Source: FirmamentDiagnosticConventions.Source);
+        var parseResult = FirmamentTopLevelParser.Parse(request.Document.SourceText);
+        if (!parseResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(parseResult.Diagnostics));
+        }
 
         return new FirmamentCompileResult(
-            KernelResult<FirmamentCompilationArtifact>.Failure([diagnostic]));
+            KernelResult<FirmamentCompilationArtifact>.Success(
+                new FirmamentCompilationArtifact(ParsedDocument: parseResult.Value)));
     }
 }

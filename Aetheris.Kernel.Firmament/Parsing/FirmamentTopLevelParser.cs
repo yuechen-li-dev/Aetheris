@@ -244,7 +244,8 @@ internal static class FirmamentTopLevelParser
                 return UnknownOpKind(index, opName);
             }
 
-            entries.Add(new FirmamentParsedOpEntry(opName, knownKind, rawFields));
+            var family = FirmamentKnownOpKinds.ClassifyFamily(knownKind);
+            entries.Add(new FirmamentParsedOpEntry(opName, knownKind, family, rawFields));
             index++;
         }
 
@@ -277,7 +278,8 @@ internal static class FirmamentTopLevelParser
                 return UnknownOpKind(index, opName);
             }
 
-            entries.Add(new FirmamentParsedOpEntry(opName, knownKind, new Dictionary<string, string>(opEntry.Fields, StringComparer.Ordinal)));
+            var family = FirmamentKnownOpKinds.ClassifyFamily(knownKind);
+            entries.Add(new FirmamentParsedOpEntry(opName, knownKind, family, new Dictionary<string, string>(opEntry.Fields, StringComparer.Ordinal)));
         }
 
         return KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Success(entries);

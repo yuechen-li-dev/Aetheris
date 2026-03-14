@@ -1,0 +1,13 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[2]:
+  -
+    op: box
+  -
+    op: subtract
+    left: a

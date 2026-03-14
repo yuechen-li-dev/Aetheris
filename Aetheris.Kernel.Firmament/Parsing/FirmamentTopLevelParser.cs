@@ -117,11 +117,17 @@ internal static class FirmamentTopLevelParser
             return MissingField("model", "units");
         }
 
+        var parsedOpsResult = ParseJsonOpsEntries(opsSection);
+        if (!parsedOpsResult.IsSuccess)
+        {
+            return KernelResult<FirmamentParsedDocument>.Failure(parsedOpsResult.Diagnostics);
+        }
+
         return KernelResult<FirmamentParsedDocument>.Success(
             new FirmamentParsedDocument(
                 new FirmamentParsedHeader(versionElement.ToString()),
                 new FirmamentParsedModelHeader(nameElement.ToString(), unitsElement.ToString()),
-                new FirmamentParsedOpsSection("array"),
+                new FirmamentParsedOpsSection(parsedOpsResult.Value),
                 HasSchema: root.TryGetProperty("schema", out _),
                 HasPmi: root.TryGetProperty("pmi", out _)));
     }
@@ -189,19 +195,90 @@ internal static class FirmamentTopLevelParser
             return MissingField("model", "units");
         }
 
+        var parsedOpsResult = ParseToonOpsEntries(opsSection);
+        if (!parsedOpsResult.IsSuccess)
+        {
+            return KernelResult<FirmamentParsedDocument>.Failure(parsedOpsResult.Diagnostics);
+        }
+
         return KernelResult<FirmamentParsedDocument>.Success(
             new FirmamentParsedDocument(
                 new FirmamentParsedHeader(version),
                 new FirmamentParsedModelHeader(name, units),
-                new FirmamentParsedOpsSection("array"),
+                new FirmamentParsedOpsSection(parsedOpsResult.Value),
                 HasSchema: toon.Sections.ContainsKey("schema"),
                 HasPmi: toon.Sections.ContainsKey("pmi")));
+    }
+
+    private static KernelResult<IReadOnlyList<FirmamentParsedOpEntry>> ParseJsonOpsEntries(JsonElement opsSection)
+    {
+        var entries = new List<FirmamentParsedOpEntry>();
+        var index = 0;
+        foreach (var opElement in opsSection.EnumerateArray())
+        {
+            if (opElement.ValueKind != JsonValueKind.Object)
+            {
+                return InvalidOpsEntryShape(index);
+            }
+
+            if (!opElement.TryGetProperty("op", out var opNameElement))
+            {
+                return MissingOpField(index);
+            }
+
+            if (!IsValidOpScalar(opNameElement))
+            {
+                return InvalidOpFieldValue(index);
+            }
+
+            var opName = opNameElement.ToString();
+
+            var rawFields = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var property in opElement.EnumerateObject())
+            {
+                rawFields[property.Name] = property.Value.ToString();
+            }
+
+            entries.Add(new FirmamentParsedOpEntry(opName, rawFields));
+            index++;
+        }
+
+        return KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Success(entries);
+    }
+
+    private static KernelResult<IReadOnlyList<FirmamentParsedOpEntry>> ParseToonOpsEntries(FirmamentToonSection opsSection)
+    {
+        var entries = new List<FirmamentParsedOpEntry>();
+        for (var index = 0; index < opsSection.ArrayEntries.Count; index++)
+        {
+            var opEntry = opsSection.ArrayEntries[index];
+            if (!opEntry.IsObjectLike)
+            {
+                return InvalidOpsEntryShape(index);
+            }
+
+            if (!opEntry.Fields.TryGetValue("op", out var opName))
+            {
+                return MissingOpField(index);
+            }
+
+            if (string.IsNullOrWhiteSpace(opName))
+            {
+                return InvalidOpFieldValue(index);
+            }
+
+            entries.Add(new FirmamentParsedOpEntry(opName, new Dictionary<string, string>(opEntry.Fields, StringComparer.Ordinal)));
+        }
+
+        return KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Success(entries);
     }
 
     private static KernelResult<FirmamentToonTopLevel> ParseToonTopLevel(string sourceText)
     {
         var sections = new Dictionary<string, FirmamentToonSection>(StringComparer.Ordinal);
         string? currentObjectSection = null;
+        FirmamentToonObjectEntry? currentArrayObjectEntry = null;
+        FirmamentToonSection? currentArraySection = null;
 
         var lines = sourceText.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal).Split('\n');
         for (var index = 0; index < lines.Length; index++)
@@ -216,12 +293,45 @@ internal static class FirmamentTopLevelParser
 
             if (char.IsWhiteSpace(rawLine[0]))
             {
+                var field = line.Trim();
+
+                if (currentArraySection is not null)
+                {
+                    if (field == "-")
+                    {
+                        currentObjectSection = null;
+                        currentArrayObjectEntry = new FirmamentToonObjectEntry();
+                        currentArraySection.ArrayEntries.Add(currentArrayObjectEntry);
+                        continue;
+                    }
+
+                    if (currentArrayObjectEntry is null)
+                    {
+                        return InvalidToonSyntax();
+                    }
+
+                    var arraySeparator = field.IndexOf(':');
+                    if (arraySeparator <= 0)
+                    {
+                        return InvalidToonSyntax();
+                    }
+
+                    var arrayFieldName = field[..arraySeparator].Trim();
+                    var arrayFieldValue = field[(arraySeparator + 1)..].Trim();
+                    if (arrayFieldName.Length == 0)
+                    {
+                        return InvalidToonSyntax();
+                    }
+
+                    currentArrayObjectEntry.Fields[arrayFieldName] = arrayFieldValue;
+                    continue;
+                }
+
                 if (currentObjectSection is null)
                 {
                     return InvalidToonSyntax();
                 }
 
-                var field = line.Trim();
                 var separator = field.IndexOf(':');
                 if (separator <= 0)
                 {
@@ -240,6 +350,8 @@ internal static class FirmamentTopLevelParser
             }
 
             currentObjectSection = null;
+            currentArrayObjectEntry = null;
+            currentArraySection = null;
 
             var header = line.Trim();
             if (!header.EndsWith(":", StringComparison.Ordinal))
@@ -255,7 +367,9 @@ internal static class FirmamentTopLevelParser
 
             if (TryParseArrayHeader(header, out var arraySectionName))
             {
-                sections[arraySectionName] = FirmamentToonSection.ArrayLike();
+                var arraySection = FirmamentToonSection.ArrayLike();
+                sections[arraySectionName] = arraySection;
+                currentArraySection = arraySection;
                 continue;
             }
 
@@ -286,6 +400,18 @@ internal static class FirmamentTopLevelParser
         var countText = header[(bracketStart + 1)..bracketEnd].Trim();
         return sectionName.Length > 0
             && int.TryParse(countText, out _);
+    }
+
+    private static bool IsValidOpScalar(JsonElement opNameElement)
+    {
+        return opNameElement.ValueKind switch
+        {
+            JsonValueKind.String => !string.IsNullOrWhiteSpace(opNameElement.GetString()),
+            JsonValueKind.Number => true,
+            JsonValueKind.True => true,
+            JsonValueKind.False => true,
+            _ => false
+        };
     }
 
     private static KernelResult<FirmamentToonTopLevel> InvalidToonSyntax() =>
@@ -333,6 +459,33 @@ internal static class FirmamentTopLevelParser
                 $"Section '{sectionName}' must be a {expectedShape}.")
         ]);
 
+    private static KernelResult<IReadOnlyList<FirmamentParsedOpEntry>> InvalidOpsEntryShape(int index) =>
+        KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Failure(
+        [
+            CreateDiagnostic(
+                KernelDiagnosticCode.ValidationFailed,
+                FirmamentDiagnosticCodes.StructureInvalidOpsEntryShape,
+                $"Operation entry at index {index} must be an object with fields.")
+        ]);
+
+    private static KernelResult<IReadOnlyList<FirmamentParsedOpEntry>> MissingOpField(int index) =>
+        KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Failure(
+        [
+            CreateDiagnostic(
+                KernelDiagnosticCode.ValidationFailed,
+                FirmamentDiagnosticCodes.StructureMissingRequiredOpField,
+                $"Operation entry at index {index} is missing required field 'op'.")
+        ]);
+
+    private static KernelResult<IReadOnlyList<FirmamentParsedOpEntry>> InvalidOpFieldValue(int index) =>
+        KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Failure(
+        [
+            CreateDiagnostic(
+                KernelDiagnosticCode.ValidationFailed,
+                FirmamentDiagnosticCodes.StructureInvalidOpFieldValue,
+                $"Operation entry at index {index} has invalid 'op' value; expected a non-empty scalar.")
+        ]);
+
     private static KernelDiagnostic CreateDiagnostic(KernelDiagnosticCode kernelCode, FirmamentDiagnosticCode firmamentCode, string message) =>
         new(
             kernelCode,
@@ -342,10 +495,17 @@ internal static class FirmamentTopLevelParser
 
     private sealed record FirmamentToonTopLevel(IReadOnlyDictionary<string, FirmamentToonSection> Sections);
 
-    private sealed record FirmamentToonSection(bool IsObjectLike, bool IsArrayLike, Dictionary<string, string> Fields)
+    private sealed record FirmamentToonSection(bool IsObjectLike, bool IsArrayLike, Dictionary<string, string> Fields, List<FirmamentToonObjectEntry> ArrayEntries)
     {
-        public static FirmamentToonSection ObjectLike() => new(true, false, new Dictionary<string, string>(StringComparer.Ordinal));
+        public static FirmamentToonSection ObjectLike() => new(true, false, new Dictionary<string, string>(StringComparer.Ordinal), []);
 
-        public static FirmamentToonSection ArrayLike() => new(false, true, new Dictionary<string, string>(StringComparer.Ordinal));
+        public static FirmamentToonSection ArrayLike() => new(false, true, new Dictionary<string, string>(StringComparer.Ordinal), []);
+    }
+
+    private sealed class FirmamentToonObjectEntry
+    {
+        public bool IsObjectLike { get; set; } = true;
+
+        public Dictionary<string, string> Fields { get; } = new(StringComparer.Ordinal);
     }
 }

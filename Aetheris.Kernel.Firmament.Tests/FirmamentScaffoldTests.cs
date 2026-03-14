@@ -33,11 +33,115 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-top-level-skeleton-parsed", artifact.ArtifactKind);
+        Assert.Equal("firmament-ops-structure-parsed", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);
         Assert.Equal("mm", artifact.ParsedDocument.Model.Units);
+        Assert.Empty(artifact.ParsedDocument.Ops.Entries);
+    }
+
+    [Fact]
+    public void Compiler_Accepts_StructurallyValidSingleOp() =>
+        AssertValidOpsCount(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "box" }
+              ]
+            }
+            """,
+            1);
+
+    [Fact]
+    public void Compiler_Accepts_StructurallyValidMultipleOps() =>
+        AssertValidOpsCount(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "box" },
+                { "op": "subtract", "target": "a" }
+              ]
+            }
+            """,
+            2);
+
+    [Fact]
+    public void Compiler_Rejects_OpEntry_MissingOp() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "target": "a" }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.StructureMissingRequiredOpField,
+            "Operation entry at index 0 is missing required field 'op'.");
+
+    [Fact]
+    public void Compiler_Rejects_OpEntry_WrongShape() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                "not-an-object"
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.StructureInvalidOpsEntryShape,
+            "Operation entry at index 0 must be an object with fields.");
+
+    [Fact]
+    public void Compiler_Rejects_OpValue_InvalidShape() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "" }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.StructureInvalidOpFieldValue,
+            "Operation entry at index 0 has invalid 'op' value; expected a non-empty scalar.");
+
+    [Fact]
+    public void Compiler_Rejects_OpEntry_MissingOp_Deterministically()
+    {
+        var compiler = new FirmamentCompiler();
+        var source = """
+        {
+          "firmament": { "version": "1" },
+          "model": { "name": "demo", "units": "mm" },
+          "ops": [
+            { "target": "a" }
+          ]
+        }
+        """;
+
+        var first = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+        var second = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.False(first.Compilation.IsSuccess);
+        Assert.False(second.Compilation.IsSuccess);
+
+        var firstDiagnostic = Assert.Single(first.Compilation.Diagnostics);
+        var secondDiagnostic = Assert.Single(second.Compilation.Diagnostics);
+
+        Assert.Equal(firstDiagnostic.Code, secondDiagnostic.Code);
+        Assert.Equal(firstDiagnostic.Severity, secondDiagnostic.Severity);
+        Assert.Equal(firstDiagnostic.Message, secondDiagnostic.Message);
+        Assert.Equal(firstDiagnostic.Source, secondDiagnostic.Source);
     }
 
     [Fact]
@@ -154,6 +258,9 @@ public sealed class FirmamentScaffoldTests
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureUnknownTopLevelSection.Value);
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureMissingRequiredField.Value);
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureInvalidSectionShape.Value);
+        Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureInvalidOpsEntryShape.Value);
+        Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureMissingRequiredOpField.Value);
+        Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureInvalidOpFieldValue.Value);
         Assert.StartsWith("FIRM-REF", FirmamentDiagnosticCodes.ReferencePlaceholder.Value);
         Assert.StartsWith("FIRM-SEL", FirmamentDiagnosticCodes.SelectorPlaceholder.Value);
         Assert.StartsWith("FIRM-SCHEMA", FirmamentDiagnosticCodes.SchemaPlaceholder.Value);
@@ -171,6 +278,15 @@ public sealed class FirmamentScaffoldTests
         Assert.Equal(1, span.Start.Column);
         Assert.Equal(1, span.End.Line);
         Assert.Equal(5, span.End.Column);
+    }
+
+    private static void AssertValidOpsCount(string source, int expectedOps)
+    {
+        var compiler = new FirmamentCompiler();
+        var result = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.Equal(expectedOps, result.Compilation.Value.ParsedDocument!.Ops.Entries.Count);
     }
 
     private static void AssertSingleValidationError(string source, FirmamentDiagnosticCode expectedFirmamentCode, string expectedMessageTail)

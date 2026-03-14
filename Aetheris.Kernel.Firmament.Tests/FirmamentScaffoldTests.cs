@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Firmament.Diagnostics;
+using Aetheris.Kernel.Firmament.ParsedModel;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -33,7 +34,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-ops-structure-parsed", artifact.ArtifactKind);
+        Assert.Equal("firmament-ops-structure-known-kind-parsed", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);
@@ -42,7 +43,7 @@ public sealed class FirmamentScaffoldTests
     }
 
     [Fact]
-    public void Compiler_Accepts_StructurallyValidSingleOp() =>
+    public void Compiler_Accepts_KnownPrimitiveOp() =>
         AssertValidOpsCount(
             """
             {
@@ -56,7 +57,7 @@ public sealed class FirmamentScaffoldTests
             1);
 
     [Fact]
-    public void Compiler_Accepts_StructurallyValidMultipleOps() =>
+    public void Compiler_Accepts_MultipleKnownOps() =>
         AssertValidOpsCount(
             """
             {
@@ -69,6 +70,58 @@ public sealed class FirmamentScaffoldTests
             }
             """,
             2);
+
+
+    [Fact]
+    public void Compiler_Classifies_KnownOpKind_OnParsedEntry()
+    {
+        var compiler = new FirmamentCompiler();
+        var source = """
+        {
+          "firmament": { "version": "1" },
+          "model": { "name": "demo", "units": "mm" },
+          "ops": [
+            { "op": "sphere", "note": "x" }
+          ]
+        }
+        """;
+
+        var result = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.True(result.Compilation.IsSuccess);
+        var op = Assert.Single(result.Compilation.Value.ParsedDocument!.Ops.Entries);
+        Assert.Equal("sphere", op.OpName);
+        Assert.Equal(FirmamentKnownOpKind.Sphere, op.KnownKind);
+        Assert.Equal("x", op.RawFields["note"]);
+    }
+
+    [Fact]
+    public void Compiler_Accepts_KnownBooleanOp() =>
+        AssertValidOpsCount(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "add" }
+              ]
+            }
+            """,
+            1);
+
+    [Fact]
+    public void Compiler_Accepts_KnownValidationOp() =>
+        AssertValidOpsCount(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "expect_exists" }
+              ]
+            }
+            """,
+            1);
 
     [Fact]
     public void Compiler_Rejects_OpEntry_MissingOp() =>
@@ -114,6 +167,51 @@ public sealed class FirmamentScaffoldTests
             """,
             FirmamentDiagnosticCodes.StructureInvalidOpFieldValue,
             "Operation entry at index 0 has invalid 'op' value; expected a non-empty scalar.");
+
+
+    [Fact]
+    public void Compiler_Rejects_UnknownOpKind() =>
+        AssertSingleValidationError(
+            """
+            {
+              "firmament": { "version": "1" },
+              "model": { "name": "demo", "units": "mm" },
+              "ops": [
+                { "op": "torus" }
+              ]
+            }
+            """,
+            FirmamentDiagnosticCodes.StructureUnknownOpKind,
+            "Operation entry at index 0 has unknown op kind 'torus'.");
+
+    [Fact]
+    public void Compiler_Rejects_UnknownOpKind_Deterministically()
+    {
+        var compiler = new FirmamentCompiler();
+        var source = """
+        {
+          "firmament": { "version": "1" },
+          "model": { "name": "demo", "units": "mm" },
+          "ops": [
+            { "op": "torus" }
+          ]
+        }
+        """;
+
+        var first = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+        var second = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.False(first.Compilation.IsSuccess);
+        Assert.False(second.Compilation.IsSuccess);
+
+        var firstDiagnostic = Assert.Single(first.Compilation.Diagnostics);
+        var secondDiagnostic = Assert.Single(second.Compilation.Diagnostics);
+
+        Assert.Equal(firstDiagnostic.Code, secondDiagnostic.Code);
+        Assert.Equal(firstDiagnostic.Severity, secondDiagnostic.Severity);
+        Assert.Equal(firstDiagnostic.Message, secondDiagnostic.Message);
+        Assert.Equal(firstDiagnostic.Source, secondDiagnostic.Source);
+    }
 
     [Fact]
     public void Compiler_Rejects_OpEntry_MissingOp_Deterministically()
@@ -261,6 +359,7 @@ public sealed class FirmamentScaffoldTests
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureInvalidOpsEntryShape.Value);
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureMissingRequiredOpField.Value);
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureInvalidOpFieldValue.Value);
+        Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.StructureUnknownOpKind.Value);
         Assert.StartsWith("FIRM-REF", FirmamentDiagnosticCodes.ReferencePlaceholder.Value);
         Assert.StartsWith("FIRM-SEL", FirmamentDiagnosticCodes.SelectorPlaceholder.Value);
         Assert.StartsWith("FIRM-SCHEMA", FirmamentDiagnosticCodes.SchemaPlaceholder.Value);

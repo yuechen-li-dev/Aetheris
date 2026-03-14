@@ -11,6 +11,7 @@ public static class FirmamentDiagnosticCodes
     public static readonly FirmamentDiagnosticCode StructureInvalidOpsEntryShape = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0005");
     public static readonly FirmamentDiagnosticCode StructureMissingRequiredOpField = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0006");
     public static readonly FirmamentDiagnosticCode StructureInvalidOpFieldValue = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0007");
+    public static readonly FirmamentDiagnosticCode StructureUnknownOpKind = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0008");
 
     public static readonly FirmamentDiagnosticCode ReferencePlaceholder = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0001");
     public static readonly FirmamentDiagnosticCode SelectorPlaceholder = new($"{FirmamentDiagnosticConventions.SelectorPrefix}-0001");

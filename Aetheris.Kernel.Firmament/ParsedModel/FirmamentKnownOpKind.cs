@@ -31,4 +31,19 @@ internal static class FirmamentKnownOpKinds
 
     public static bool TryParse(string opName, out FirmamentKnownOpKind kind) =>
         Registry.TryGetValue(opName, out kind);
+
+    public static FirmamentOpFamily ClassifyFamily(FirmamentKnownOpKind kind) =>
+        kind switch
+        {
+            FirmamentKnownOpKind.Box => FirmamentOpFamily.Primitive,
+            FirmamentKnownOpKind.Cylinder => FirmamentOpFamily.Primitive,
+            FirmamentKnownOpKind.Sphere => FirmamentOpFamily.Primitive,
+            FirmamentKnownOpKind.Add => FirmamentOpFamily.Boolean,
+            FirmamentKnownOpKind.Subtract => FirmamentOpFamily.Boolean,
+            FirmamentKnownOpKind.Intersect => FirmamentOpFamily.Boolean,
+            FirmamentKnownOpKind.ExpectExists => FirmamentOpFamily.Validation,
+            FirmamentKnownOpKind.ExpectSelectable => FirmamentOpFamily.Validation,
+            FirmamentKnownOpKind.ExpectManifold => FirmamentOpFamily.Validation,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown Firmament known op kind.")
+        };
 }

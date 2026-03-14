@@ -34,7 +34,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-ops-structure-known-kind-parsed", artifact.ArtifactKind);
+        Assert.Equal("firmament-ops-structure-known-kind-family-parsed", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);
@@ -92,7 +92,48 @@ public sealed class FirmamentScaffoldTests
         var op = Assert.Single(result.Compilation.Value.ParsedDocument!.Ops.Entries);
         Assert.Equal("sphere", op.OpName);
         Assert.Equal(FirmamentKnownOpKind.Sphere, op.KnownKind);
+        Assert.Equal(FirmamentOpFamily.Primitive, op.Family);
         Assert.Equal("x", op.RawFields["note"]);
+    }
+
+
+    [Fact]
+    public void Compiler_Classifies_KnownPrimitiveOpFamily() =>
+        AssertClassifiedFamily("box", FirmamentOpFamily.Primitive);
+
+    [Fact]
+    public void Compiler_Classifies_KnownBooleanOpFamily() =>
+        AssertClassifiedFamily("intersect", FirmamentOpFamily.Boolean);
+
+    [Fact]
+    public void Compiler_Classifies_KnownValidationOpFamily() =>
+        AssertClassifiedFamily("expect_selectable", FirmamentOpFamily.Validation);
+
+    [Fact]
+    public void Compiler_Preserves_FamilyClassification_ForMultipleOps()
+    {
+        var compiler = new FirmamentCompiler();
+        var source = """
+        {
+          "firmament": { "version": "1" },
+          "model": { "name": "demo", "units": "mm" },
+          "ops": [
+            { "op": "box" },
+            { "op": "subtract" },
+            { "op": "expect_manifold" }
+          ]
+        }
+        """;
+
+        var result = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.True(result.Compilation.IsSuccess);
+        var ops = result.Compilation.Value.ParsedDocument!.Ops.Entries;
+        Assert.Collection(
+            ops,
+            op => Assert.Equal(FirmamentOpFamily.Primitive, op.Family),
+            op => Assert.Equal(FirmamentOpFamily.Boolean, op.Family),
+            op => Assert.Equal(FirmamentOpFamily.Validation, op.Family));
     }
 
     [Fact]
@@ -386,6 +427,26 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         Assert.Equal(expectedOps, result.Compilation.Value.ParsedDocument!.Ops.Entries.Count);
+    }
+
+    private static void AssertClassifiedFamily(string opName, FirmamentOpFamily expectedFamily)
+    {
+        var compiler = new FirmamentCompiler();
+        var source = $$"""
+        {
+          "firmament": { "version": "1" },
+          "model": { "name": "demo", "units": "mm" },
+          "ops": [
+            { "op": "{{opName}}" }
+          ]
+        }
+        """;
+
+        var result = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.True(result.Compilation.IsSuccess);
+        var op = Assert.Single(result.Compilation.Value.ParsedDocument!.Ops.Entries);
+        Assert.Equal(expectedFamily, op.Family);
     }
 
     private static void AssertSingleValidationError(string source, FirmamentDiagnosticCode expectedFirmamentCode, string expectedMessageTail)

@@ -16,4 +16,5 @@ public sealed record FirmamentParsedOpsSection(IReadOnlyList<FirmamentParsedOpEn
 public sealed record FirmamentParsedOpEntry(
     string OpName,
     FirmamentKnownOpKind KnownKind,
+    FirmamentOpFamily Family,
     IReadOnlyDictionary<string, string> RawFields);

@@ -40,16 +40,13 @@ public sealed class ImportOrchestrator
         _lanes = lanes;
     }
 
-    public static ImportOrchestrator CreateDefault()
+    public static ImportOrchestrator CreateDefault(Action<ImportCompositionBuilder>? configure = null)
     {
-        var stepConnector = new Step242.StepSourceConnector();
-        return new ImportOrchestrator(
-            connectors: [stepConnector],
-            lanes:
-            [
-                new Step242.Step242ExactBRepImportLane(),
-                new Step242.Step242TessellatedImportLane()
-            ]);
+        var builder = new ImportCompositionBuilder();
+        Step242.Step242ImportComposition.Register(builder);
+        configure?.Invoke(builder);
+
+        return new ImportOrchestrator(builder.Connectors, builder.Lanes);
     }
 
     public ImportResult Import(ImportRequest request)
@@ -109,5 +106,27 @@ public sealed class ImportOrchestrator
         }
 
         return _lanes.FirstOrDefault(l => l.CanImport(document, policy));
+    }
+}
+
+public sealed class ImportCompositionBuilder
+{
+    private readonly List<ISourceConnector> _connectors = [];
+    private readonly List<IImportLane> _lanes = [];
+
+    internal IReadOnlyList<ISourceConnector> Connectors => _connectors;
+
+    internal IReadOnlyList<IImportLane> Lanes => _lanes;
+
+    public ImportCompositionBuilder AddConnector(ISourceConnector connector)
+    {
+        _connectors.Add(connector);
+        return this;
+    }
+
+    public ImportCompositionBuilder AddLane(IImportLane lane)
+    {
+        _lanes.Add(lane);
+        return this;
     }
 }

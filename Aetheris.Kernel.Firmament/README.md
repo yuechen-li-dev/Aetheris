@@ -14,3 +14,5 @@ Implemented scaffolding:
 Not implemented yet: parser, semantic validation, selectors, lowering, or STEP behavior. The corpus scaffold is infrastructure-only and will be expanded by future parser/validator/lowering work.
 
 The top-level lanes (`Connectors`, `ParsedModel`, `Lanes`, `Mapping`, `Diagnostics`) are intentionally separated to guide future implementation work.
+
+Pre-M0 composition seam note: `ImportOrchestrator.CreateDefault(...)` now supports additive registration while keeping STEP/AP242 as the default import composition, so Firmament can later register its own source-family connector/lane without reshaping STEP-specific wiring.

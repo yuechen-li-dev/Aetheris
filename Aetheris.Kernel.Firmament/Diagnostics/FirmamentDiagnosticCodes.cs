@@ -13,6 +13,10 @@ public static class FirmamentDiagnosticCodes
     public static readonly FirmamentDiagnosticCode StructureInvalidOpFieldValue = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0007");
     public static readonly FirmamentDiagnosticCode StructureUnknownOpKind = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0008");
 
+    public static readonly FirmamentDiagnosticCode PrimitiveMissingRequiredField = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0009");
+    public static readonly FirmamentDiagnosticCode PrimitiveInvalidFieldTypeOrShape = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0010");
+    public static readonly FirmamentDiagnosticCode PrimitiveInvalidFieldValue = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0011");
+
     public static readonly FirmamentDiagnosticCode ReferencePlaceholder = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0001");
     public static readonly FirmamentDiagnosticCode SelectorPlaceholder = new($"{FirmamentDiagnosticConventions.SelectorPrefix}-0001");
     public static readonly FirmamentDiagnosticCode SchemaPlaceholder = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0001");

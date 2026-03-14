@@ -1,0 +1,7 @@
+{
+  "firmament": { "version": "1" },
+  "model": { "name": "demo", "units": "mm" },
+  "ops": [
+    { "op": "box", "size": [1, 2, 3] }
+  ]
+}

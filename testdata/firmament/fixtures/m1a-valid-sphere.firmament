@@ -1,0 +1,7 @@
+{
+  "firmament": { "version": "1" },
+  "model": { "name": "demo", "units": "mm" },
+  "ops": [
+    { "op": "sphere", "id": "s1", "radius": 3 }
+  ]
+}

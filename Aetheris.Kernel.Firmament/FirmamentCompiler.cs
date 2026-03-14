@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Firmament.Parsing;
+using Aetheris.Kernel.Firmament.Validation;
 
 namespace Aetheris.Kernel.Firmament;
 
@@ -16,8 +17,17 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(parseResult.Diagnostics));
         }
 
+        var primitiveValidationResult = FirmamentPrimitiveRequiredFieldValidator.Validate(parseResult.Value);
+        if (!primitiveValidationResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(primitiveValidationResult.Diagnostics));
+        }
+
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
-                new FirmamentCompilationArtifact(ParsedDocument: parseResult.Value)));
+                new FirmamentCompilationArtifact(
+                    ArtifactKind: "firmament-ops-primitive-required-fields-validated",
+                    ParsedDocument: parseResult.Value)));
     }
 }

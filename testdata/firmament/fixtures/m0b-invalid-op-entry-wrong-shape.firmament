@@ -1,0 +1,5 @@
+{
+  "firmament": { "version": "1" },
+  "model": { "name": "demo", "units": "mm" },
+  "ops": ["not-an-object"]
+}

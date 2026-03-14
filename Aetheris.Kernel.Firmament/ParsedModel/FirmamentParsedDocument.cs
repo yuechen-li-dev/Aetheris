@@ -11,4 +11,8 @@ public sealed record FirmamentParsedHeader(string Version);
 
 public sealed record FirmamentParsedModelHeader(string Name, string Units);
 
-public sealed record FirmamentParsedOpsSection(string Shape);
+public sealed record FirmamentParsedOpsSection(IReadOnlyList<FirmamentParsedOpEntry> Entries);
+
+public sealed record FirmamentParsedOpEntry(
+    string OpName,
+    IReadOnlyDictionary<string, string> RawFields);

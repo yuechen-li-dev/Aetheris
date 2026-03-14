@@ -1,0 +1,56 @@
+{
+  "version": "1",
+  "entries": [
+    {
+      "id": "m0b-valid-empty-ops",
+      "name": "Valid empty ops section",
+      "fixturePath": "testdata/firmament/fixtures/m0b-valid-empty-ops.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m0b-valid-one-op",
+      "name": "Valid single structurally parsed op",
+      "fixturePath": "testdata/firmament/fixtures/m0b-valid-one-op.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m0b-valid-two-ops",
+      "name": "Valid multiple structurally parsed ops",
+      "fixturePath": "testdata/firmament/fixtures/m0b-valid-two-ops.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m0b-invalid-op-missing-op",
+      "name": "Invalid op entry missing op field",
+      "fixturePath": "testdata/firmament/fixtures/m0b-invalid-op-missing-op.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0006"
+      }
+    },
+    {
+      "id": "m0b-invalid-op-entry-wrong-shape",
+      "name": "Invalid op entry wrong coarse shape",
+      "fixturePath": "testdata/firmament/fixtures/m0b-invalid-op-entry-wrong-shape.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0005"
+      }
+    },
+    {
+      "id": "m0b-invalid-op-value-shape",
+      "name": "Invalid op value shape",
+      "fixturePath": "testdata/firmament/fixtures/m0b-invalid-op-value-shape.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0007"
+      }
+    }
+  ]
+}

@@ -4,7 +4,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentCorpusScaffoldTests
 {
-    private const string ManifestPath = "testdata/firmament/manifests/m0a.corpus.json";
+    private const string ManifestPath = "testdata/firmament/manifests/m0b.corpus.json";
 
     [Fact]
     public void Manifest_Exists_And_CanBeLoaded()
@@ -36,15 +36,19 @@ public sealed class FirmamentCorpusScaffoldTests
     }
 
     [Fact]
-    public void Fixtures_UseCanonicalEmptyOpsSpelling()
+    public void ToonFixtures_UseCanonicalOpsHeaderSpelling()
     {
         var manifest = FirmamentCorpusHarness.LoadManifest(ManifestPath);
 
         foreach (var entry in manifest.Entries)
         {
             var fixtureText = FirmamentCorpusHarness.ReadFixtureText(entry.FixturePath);
+            if (fixtureText.TrimStart().StartsWith("{", StringComparison.Ordinal))
+            {
+                continue;
+            }
 
-            Assert.Contains("ops[0]:", fixtureText, StringComparison.Ordinal);
+            Assert.Contains("ops[", fixtureText, StringComparison.Ordinal);
             Assert.DoesNotContain("ops: []", fixtureText, StringComparison.Ordinal);
             Assert.DoesNotContain("\nops:\n", fixtureText, StringComparison.Ordinal);
         }

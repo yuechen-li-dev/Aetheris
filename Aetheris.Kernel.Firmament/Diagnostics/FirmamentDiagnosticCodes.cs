@@ -2,8 +2,13 @@ namespace Aetheris.Kernel.Firmament.Diagnostics;
 
 public static class FirmamentDiagnosticCodes
 {
-    public static readonly FirmamentDiagnosticCode ParsePlaceholder = new($"{FirmamentDiagnosticConventions.ParsePrefix}-0001");
-    public static readonly FirmamentDiagnosticCode StructurePlaceholder = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0001");
+    public static readonly FirmamentDiagnosticCode ParseInvalidDocumentSyntax = new($"{FirmamentDiagnosticConventions.ParsePrefix}-0001");
+
+    public static readonly FirmamentDiagnosticCode StructureMissingRequiredSection = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0001");
+    public static readonly FirmamentDiagnosticCode StructureUnknownTopLevelSection = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0002");
+    public static readonly FirmamentDiagnosticCode StructureMissingRequiredField = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0003");
+    public static readonly FirmamentDiagnosticCode StructureInvalidSectionShape = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0004");
+
     public static readonly FirmamentDiagnosticCode ReferencePlaceholder = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0001");
     public static readonly FirmamentDiagnosticCode SelectorPlaceholder = new($"{FirmamentDiagnosticConventions.SelectorPrefix}-0001");
     public static readonly FirmamentDiagnosticCode SchemaPlaceholder = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0001");

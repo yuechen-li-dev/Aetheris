@@ -4,7 +4,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentCorpusScaffoldTests
 {
-    private const string ManifestPath = "testdata/firmament/manifests/pre-m0.corpus.json";
+    private const string ManifestPath = "testdata/firmament/manifests/m0a.corpus.json";
 
     [Fact]
     public void Manifest_Exists_And_CanBeLoaded()
@@ -36,23 +36,44 @@ public sealed class FirmamentCorpusScaffoldTests
     }
 
     [Fact]
-    public void CuratedCases_InvokeStubCompiler_WithExpectedCoarseOutcome()
+    public void Fixtures_UseCanonicalEmptyOpsSpelling()
+    {
+        var manifest = FirmamentCorpusHarness.LoadManifest(ManifestPath);
+
+        foreach (var entry in manifest.Entries)
+        {
+            var fixtureText = FirmamentCorpusHarness.ReadFixtureText(entry.FixturePath);
+
+            Assert.Contains("ops[0]:", fixtureText, StringComparison.Ordinal);
+            Assert.DoesNotContain("ops: []", fixtureText, StringComparison.Ordinal);
+            Assert.DoesNotContain("\nops:\n", fixtureText, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void CuratedCases_Compile_WithExpectedOutcomeAndDiagnostics()
     {
         var manifest = FirmamentCorpusHarness.LoadManifest(ManifestPath);
 
         foreach (var entry in manifest.Entries.OrderBy(e => e.Id, StringComparer.Ordinal))
         {
-            Assert.Equal("stubNotImplemented", entry.ExpectedOutcome);
-
             var fixtureText = FirmamentCorpusHarness.ReadFixtureText(entry.FixturePath);
-            var diagnostic = FirmamentCorpusHarness.CompileFirstDiagnostic(fixtureText);
+            var result = FirmamentCorpusHarness.Compile(fixtureText);
 
-            Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-            if (entry.ExpectedDiagnostic is not null)
+            if (string.Equals(entry.ExpectedOutcome, "success", StringComparison.Ordinal))
             {
-                Assert.Equal(entry.ExpectedDiagnostic.Source, diagnostic.Source);
-                Assert.Equal(entry.ExpectedDiagnostic.Code, diagnostic.Code.ToString());
+                Assert.True(result.Compilation.IsSuccess);
+                continue;
             }
+
+            Assert.Equal("failure", entry.ExpectedOutcome);
+            Assert.False(result.Compilation.IsSuccess);
+            var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+
+            Assert.NotNull(entry.ExpectedDiagnostic);
+            Assert.Equal(entry.ExpectedDiagnostic!.Source, diagnostic.Source);
+            Assert.Equal(Enum.Parse<KernelDiagnosticCode>(entry.ExpectedDiagnostic.KernelCode), diagnostic.Code);
+            Assert.Contains(entry.ExpectedDiagnostic.FirmamentCode, diagnostic.Message, StringComparison.Ordinal);
         }
     }
 }

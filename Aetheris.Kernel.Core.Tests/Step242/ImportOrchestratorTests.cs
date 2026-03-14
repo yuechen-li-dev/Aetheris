@@ -1,5 +1,8 @@
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Import;
+using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Results;
+using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
 
@@ -78,9 +81,53 @@ public sealed class ImportOrchestratorTests
         Assert.Equal(6, import.Value.Topology.Faces.Count());
     }
 
+    [Fact]
+    public void CreateDefault_AllowsAdditionalSourceFamilyRegistrationWithoutChangingStepBehavior()
+    {
+        var orchestrator = ImportOrchestrator.CreateDefault(builder =>
+            builder
+                .AddConnector(new StubSourceConnector())
+                .AddLane(new StubImportLane()));
+
+        var result = orchestrator.Import(new ImportRequest("FIRMAMENT:test"));
+
+        Assert.True(result.BodyResult.IsSuccess);
+        Assert.Equal("stub-connector", result.Connector);
+        Assert.Equal(ImportLaneKind.Compatibility, result.Lane);
+        Assert.Equal("FIRMAMENT", result.SourceFamily);
+    }
+
     private static string LoadFixture(string relativePath)
     {
         var path = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
         return File.ReadAllText(path);
+    }
+
+    private sealed class StubParsedSourceDocument : IParsedSourceDocument
+    {
+        public string SourceFamily => "FIRMAMENT";
+    }
+
+    private sealed class StubSourceConnector : ISourceConnector
+    {
+        public string Name => "stub-connector";
+
+        public bool CanOpen(ImportRequest request) => request.SourceText.StartsWith("FIRMAMENT:", StringComparison.Ordinal);
+
+        public KernelResult<IParsedSourceDocument> Parse(ImportRequest request)
+            => KernelResult<IParsedSourceDocument>.Success(new StubParsedSourceDocument());
+    }
+
+    private sealed class StubImportLane : IImportLane
+    {
+        public string Name => "stub-lane";
+
+        public ImportLaneKind Kind => ImportLaneKind.Compatibility;
+
+        public bool CanImport(IParsedSourceDocument document, ImportPolicy policy)
+            => document is StubParsedSourceDocument;
+
+        public KernelResult<BrepBody> Import(IParsedSourceDocument document, ImportPolicy policy)
+            => KernelResult<BrepBody>.Success(new BrepBody(new TopologyModel(), new BrepGeometryStore(), new BrepBindingModel()));
     }
 }

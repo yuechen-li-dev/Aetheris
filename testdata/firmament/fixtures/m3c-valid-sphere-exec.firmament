@@ -1,0 +1,12 @@
+firmament:
+  version: 1
+
+model:
+  name: m3c-sphere
+  units: mm
+
+ops[1]:
+  -
+    op: sphere
+    id: ball
+    radius: 4

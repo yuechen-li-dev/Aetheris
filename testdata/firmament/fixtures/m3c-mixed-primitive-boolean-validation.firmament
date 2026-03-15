@@ -1,0 +1,38 @@
+firmament:
+  version: 1
+
+model:
+  name: m3c-mixed
+  units: mm
+
+ops[5]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      10
+      4
+
+  -
+    op: add
+    id: join1
+    to: base
+    with:
+      op: cylinder
+
+  -
+    op: sphere
+    id: cap
+    radius: 3
+
+  -
+    op: subtract
+    id: cut1
+    from: cap
+    with:
+      op: box
+
+  -
+    op: expect_exists
+    target: cap

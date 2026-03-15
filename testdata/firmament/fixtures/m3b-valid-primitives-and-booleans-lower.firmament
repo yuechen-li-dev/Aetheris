@@ -1,0 +1,45 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[6]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      10
+      10
+
+  -
+    op: add
+    id: join1
+    to: base
+    with:
+      op: cylinder
+
+  -
+    op: sphere
+    id: cap
+    radius: 3
+
+  -
+    op: subtract
+    id: cut1
+    from: join1
+    with:
+      op: sphere
+
+  -
+    op: intersect
+    id: clip1
+    left: cut1
+    with:
+      op: box
+
+  -
+    op: expect_exists
+    target: clip1

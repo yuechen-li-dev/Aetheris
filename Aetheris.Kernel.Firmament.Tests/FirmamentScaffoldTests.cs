@@ -34,7 +34,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-ops-primitive-and-boolean-required-fields-validated", artifact.ArtifactKind);
+        Assert.Equal("firmament-ops-primitive-boolean-and-validation-required-fields-validated", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);
@@ -158,7 +158,7 @@ public sealed class FirmamentScaffoldTests
               "firmament": { "version": "1" },
               "model": { "name": "demo", "units": "mm" },
               "ops": [
-                { "op": "expect_exists" }
+                { "op": "expect_exists", "target": "base" }
               ]
             }
             """,
@@ -623,6 +623,9 @@ public sealed class FirmamentScaffoldTests
             "add" => "{ \"op\": \"add\", \"id\": \"a1\", \"to\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
             "subtract" => "{ \"op\": \"subtract\", \"id\": \"s1\", \"from\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
             "intersect" => "{ \"op\": \"intersect\", \"id\": \"i1\", \"left\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
+            "expect_exists" => "{ \"op\": \"expect_exists\", \"target\": \"b1\" }",
+            "expect_selectable" => "{ \"op\": \"expect_selectable\", \"target\": \"b1\", \"count\": 1 }",
+            "expect_manifold" => "{ \"op\": \"expect_manifold\" }",
             _ => $"{{ \"op\": \"{opName}\" }}"
         };
 

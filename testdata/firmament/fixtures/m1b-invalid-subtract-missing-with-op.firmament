@@ -10,4 +10,5 @@ ops[1]:
     op: subtract
     id: s1
     from: base
-    with: { id: tool }
+    with:
+      id: tool

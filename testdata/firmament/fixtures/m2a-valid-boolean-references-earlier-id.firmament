@@ -9,10 +9,13 @@ ops[2]:
   -
     op: box
     id: base
-    size: [10, 20, 30]
-
+    size[3]:
+      10
+      20
+      30
   -
     op: add
     id: fused
     to: base
-    with: { op: cylinder }
+    with:
+      op: cylinder

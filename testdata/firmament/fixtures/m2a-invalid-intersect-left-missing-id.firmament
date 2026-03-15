@@ -10,4 +10,5 @@ ops[1]:
     op: intersect
     id: clip1
     left: missing
-    with: { op: sphere }
+    with:
+      op: sphere

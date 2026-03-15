@@ -9,9 +9,13 @@ ops[2]:
   -
     op: box
     id: base
-    size: [1, 2, 3]
+    size[3]:
+      1
+      2
+      3
   -
     op: intersect
     id: int1
     left: base
-    with: { op: cylinder }
+    with:
+      op: cylinder

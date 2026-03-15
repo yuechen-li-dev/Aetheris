@@ -10,4 +10,5 @@ ops[1]:
     op: subtract
     id: cut1
     from: missing
-    with: { op: cylinder }
+    with:
+      op: cylinder

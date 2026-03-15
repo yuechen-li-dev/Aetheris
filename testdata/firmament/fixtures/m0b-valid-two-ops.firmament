@@ -9,9 +9,13 @@ ops[2]:
   -
     op: box
     id: b1
-    size: [1, 2, 3]
+    size[3]:
+      1
+      2
+      3
   -
     op: subtract
     id: cut1
     from: b1
-    with: { op: cylinder }
+    with:
+      op: cylinder

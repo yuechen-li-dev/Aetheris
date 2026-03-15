@@ -9,4 +9,5 @@ ops[1]:
   -
     op: subtract
     from: base
-    with: { op: box }
+    with:
+      op: box

@@ -9,8 +9,10 @@ ops[2]:
   -
     op: box
     id: base
-    size: [10, 20, 30]
-
+    size[3]:
+      10
+      20
+      30
   -
     op: sphere
     id: base

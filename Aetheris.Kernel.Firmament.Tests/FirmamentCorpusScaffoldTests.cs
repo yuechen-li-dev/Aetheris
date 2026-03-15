@@ -75,6 +75,23 @@ public sealed class FirmamentCorpusScaffoldTests
     }
 
     [Fact]
+    public void FirmamentTestSourceLiterals_AvoidJsonShapedExamples()
+    {
+        var testsRoot = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Kernel.Firmament.Tests");
+        var testFiles = Directory.GetFiles(testsRoot, "*.cs", SearchOption.TopDirectoryOnly)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.NotEmpty(testFiles);
+
+        foreach (var testFile in testFiles)
+        {
+            var contents = FirmamentCorpusHarness.NormalizeLf(File.ReadAllText(testFile));
+            Assert.DoesNotContain("\"firmament\":", contents, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void CuratedCases_Compile_WithExpectedOutcomeAndDiagnostics()
     {
         var manifest = FirmamentCorpusHarness.LoadManifest(ManifestPath);

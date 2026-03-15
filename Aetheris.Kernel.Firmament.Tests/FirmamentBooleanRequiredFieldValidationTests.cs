@@ -7,53 +7,99 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     [Fact]
     public void Compiler_Accepts_ValidAdd() =>
         AssertValidBooleanOp("""
-        {
-          "firmament": { "version": "1" },
-          "model": { "name": "demo", "units": "mm" },
-          "ops": [
-            { "op": "box", "id": "base", "size": [1, 2, 3] },
-            { "op": "add", "id": "add1", "to": "base", "with": { "op": "box" }, "place": "ignored-for-now" }
-          ]
-        }
+        firmament:
+          version: 1
+        
+        model:
+          name: demo
+          units: mm
+        
+        ops[2]:
+          -
+            op: box
+            id: base
+            size[3]:
+              1
+              2
+              3
+          -
+            op: add
+            id: add1
+            to: base
+            with:
+              op: box
+            place: ignored-for-now
         """);
 
     [Fact]
     public void Compiler_Accepts_ValidSubtract() =>
         AssertValidBooleanOp("""
-        {
-          "firmament": { "version": "1" },
-          "model": { "name": "demo", "units": "mm" },
-          "ops": [
-            { "op": "box", "id": "base", "size": [1, 2, 3] },
-            { "op": "subtract", "id": "sub1", "from": "base", "with": { "op": "cylinder" } }
-          ]
-        }
+        firmament:
+          version: 1
+        
+        model:
+          name: demo
+          units: mm
+        
+        ops[2]:
+          -
+            op: box
+            id: base
+            size[3]:
+              1
+              2
+              3
+          -
+            op: subtract
+            id: sub1
+            from: base
+            with:
+              op: cylinder
         """);
 
     [Fact]
     public void Compiler_Accepts_ValidIntersect() =>
         AssertValidBooleanOp("""
-        {
-          "firmament": { "version": "1" },
-          "model": { "name": "demo", "units": "mm" },
-          "ops": [
-            { "op": "box", "id": "base", "size": [1, 2, 3] },
-            { "op": "intersect", "id": "int1", "left": "base", "with": { "op": "sphere" } }
-          ]
-        }
+        firmament:
+          version: 1
+        
+        model:
+          name: demo
+          units: mm
+        
+        ops[2]:
+          -
+            op: box
+            id: base
+            size[3]:
+              1
+              2
+              3
+          -
+            op: intersect
+            id: int1
+            left: base
+            with:
+              op: sphere
         """);
 
     [Fact]
     public void Compiler_Rejects_Add_MissingId() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "add", "to": "base", "with": { "op": "box" } }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: add
+                to: base
+                with:
+                  op: box
             """,
             FirmamentDiagnosticCodes.BooleanMissingRequiredField,
             "Boolean op 'add' at index 0 is missing required field 'id'.");
@@ -62,13 +108,19 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Add_MissingTo() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "add", "id": "a1", "with": { "op": "box" } }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: add
+                id: a1
+                with:
+                  op: box
             """,
             FirmamentDiagnosticCodes.BooleanMissingRequiredField,
             "Boolean op 'add' at index 0 is missing required field 'to'.");
@@ -77,13 +129,18 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Add_MissingWith() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "add", "id": "a1", "to": "base" }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: add
+                id: a1
+                to: base
             """,
             FirmamentDiagnosticCodes.BooleanMissingRequiredField,
             "Boolean op 'add' at index 0 is missing required field 'with'.");
@@ -92,13 +149,19 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Add_InvalidWithShape() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "add", "id": "a1", "to": "base", "with": "sphere" }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: add
+                id: a1
+                to: base
+                with: sphere
             """,
             FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape,
             "Boolean op 'add' at index 0 has invalid field 'with'; expected an object-like mapping.");
@@ -107,13 +170,20 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Add_MissingWithOp() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "add", "id": "a1", "to": "base", "with": { "id": "tool1" } }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: add
+                id: a1
+                to: base
+                with:
+                  id: tool1
             """,
             FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape,
             "Boolean op 'add' at index 0 has invalid field 'with.op'; expected a non-empty scalar/string-like value.");
@@ -122,13 +192,19 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Subtract_MissingId() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "subtract", "from": "base", "with": { "op": "box" } }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: subtract
+                from: base
+                with:
+                  op: box
             """,
             FirmamentDiagnosticCodes.BooleanMissingRequiredField,
             "Boolean op 'subtract' at index 0 is missing required field 'id'.");
@@ -137,13 +213,19 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Subtract_MissingFrom() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "subtract", "id": "s1", "with": { "op": "box" } }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: subtract
+                id: s1
+                with:
+                  op: box
             """,
             FirmamentDiagnosticCodes.BooleanMissingRequiredField,
             "Boolean op 'subtract' at index 0 is missing required field 'from'.");
@@ -152,13 +234,18 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Subtract_MissingWith() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "subtract", "id": "s1", "from": "base" }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: subtract
+                id: s1
+                from: base
             """,
             FirmamentDiagnosticCodes.BooleanMissingRequiredField,
             "Boolean op 'subtract' at index 0 is missing required field 'with'.");
@@ -167,13 +254,20 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Subtract_InvalidWithShape() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "subtract", "id": "s1", "from": "base", "with": ["tool"] }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: subtract
+                id: s1
+                from: base
+                with[1]:
+                  tool
             """,
             FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape,
             "Boolean op 'subtract' at index 0 has invalid field 'with'; expected an object-like mapping.");
@@ -182,13 +276,20 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Subtract_MissingWithOp() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "subtract", "id": "s1", "from": "base", "with": { "op": "" } }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: subtract
+                id: s1
+                from: base
+                with:
+                  op: 
             """,
             FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape,
             "Boolean op 'subtract' at index 0 has invalid field 'with.op'; expected a non-empty scalar/string-like value.");
@@ -197,13 +298,19 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Intersect_MissingId() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "intersect", "left": "base", "with": { "op": "box" } }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: intersect
+                left: base
+                with:
+                  op: box
             """,
             FirmamentDiagnosticCodes.BooleanMissingRequiredField,
             "Boolean op 'intersect' at index 0 is missing required field 'id'.");
@@ -212,13 +319,19 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Intersect_MissingLeft() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "intersect", "id": "i1", "with": { "op": "box" } }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: intersect
+                id: i1
+                with:
+                  op: box
             """,
             FirmamentDiagnosticCodes.BooleanMissingRequiredField,
             "Boolean op 'intersect' at index 0 is missing required field 'left'.");
@@ -227,13 +340,18 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Intersect_MissingWith() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "intersect", "id": "i1", "left": "base" }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: intersect
+                id: i1
+                left: base
             """,
             FirmamentDiagnosticCodes.BooleanMissingRequiredField,
             "Boolean op 'intersect' at index 0 is missing required field 'with'.");
@@ -242,13 +360,19 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Intersect_InvalidWithShape() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "intersect", "id": "i1", "left": "base", "with": 7 }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: intersect
+                id: i1
+                left: base
+                with: 7
             """,
             FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape,
             "Boolean op 'intersect' at index 0 has invalid field 'with'; expected an object-like mapping.");
@@ -257,13 +381,20 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void Compiler_Rejects_Intersect_MissingWithOp() =>
         AssertBooleanFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "intersect", "id": "i1", "left": "base", "with": { "id": "tool" } }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: intersect
+                id: i1
+                left: base
+                with:
+                  id: tool
             """,
             FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape,
             "Boolean op 'intersect' at index 0 has invalid field 'with.op'; expected a non-empty scalar/string-like value.");
@@ -272,13 +403,20 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
     public void BooleanValidation_Diagnostics_AreDeterministic()
     {
         const string source = """
-        {
-          "firmament": { "version": "1" },
-          "model": { "name": "demo", "units": "mm" },
-          "ops": [
-            { "op": "add", "id": "a1", "to": "base", "with": { "id": "tool" } }
-          ]
-        }
+        firmament:
+          version: 1
+        
+        model:
+          name: demo
+          units: mm
+        
+        ops[1]:
+          -
+            op: add
+            id: a1
+            to: base
+            with:
+              id: tool
         """;
 
         var compiler = new FirmamentCompiler();

@@ -13,4 +13,4 @@ ops[2]:
   -
     op: expect_selectable
     target: mount_hole
-    count: 2
+    count: 1

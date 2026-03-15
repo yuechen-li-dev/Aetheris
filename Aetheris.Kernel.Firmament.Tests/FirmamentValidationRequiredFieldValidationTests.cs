@@ -35,7 +35,7 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
             ops[1]:
               -
                 op: expect_selectable
-                target: hole
+                target: hole.entry_face
                 count: 4
             """);
 

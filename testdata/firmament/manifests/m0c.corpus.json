@@ -626,6 +626,80 @@
         "kernelCode": "ValidationFailed",
         "firmamentCode": "FIRM-STRUCT-0017"
       }
+    },
+    {
+      "id": "m2c-valid-expect-exists-bare-target-earlier",
+      "name": "Valid M2c expect_exists bare target references earlier feature",
+      "fixturePath": "testdata/firmament/fixtures/m2c-valid-expect-exists-bare-target-earlier.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2c-valid-expect-selectable-bare-target-earlier",
+      "name": "Valid M2c expect_selectable bare target references earlier feature",
+      "fixturePath": "testdata/firmament/fixtures/m2c-valid-expect-selectable-bare-target-earlier.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2c-valid-expect-exists-selector-target-unresolved",
+      "name": "Valid M2c expect_exists selector-shaped target remains unresolved",
+      "fixturePath": "testdata/firmament/fixtures/m2c-valid-expect-exists-selector-target-unresolved.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2c-valid-expect-selectable-selector-target-unresolved",
+      "name": "Valid M2c expect_selectable selector-shaped target remains unresolved",
+      "fixturePath": "testdata/firmament/fixtures/m2c-valid-expect-selectable-selector-target-unresolved.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2c-valid-mixed-bare-and-selector-targets",
+      "name": "Valid M2c mixed bare and selector-shaped validation targets",
+      "fixturePath": "testdata/firmament/fixtures/m2c-valid-mixed-bare-and-selector-targets.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2c-invalid-expect-exists-bare-target-nonexistent",
+      "name": "Invalid M2c expect_exists bare target missing feature",
+      "fixturePath": "testdata/firmament/fixtures/m2c-invalid-expect-exists-bare-target-nonexistent.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0003"
+      }
+    },
+    {
+      "id": "m2c-invalid-expect-selectable-bare-target-nonexistent",
+      "name": "Invalid M2c expect_selectable bare target missing feature",
+      "fixturePath": "testdata/firmament/fixtures/m2c-invalid-expect-selectable-bare-target-nonexistent.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0003"
+      }
+    },
+    {
+      "id": "m2c-invalid-expect-exists-bare-target-forward",
+      "name": "Invalid M2c expect_exists bare target forward reference",
+      "fixturePath": "testdata/firmament/fixtures/m2c-invalid-expect-exists-bare-target-forward.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0003"
+      }
+    },
+    {
+      "id": "m2c-invalid-expect-selectable-bare-target-forward",
+      "name": "Invalid M2c expect_selectable bare target forward reference",
+      "fixturePath": "testdata/firmament/fixtures/m2c-invalid-expect-selectable-bare-target-forward.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0003"
+      }
     }
   ]
 }

@@ -7,12 +7,12 @@ model:
 
 ops[2]:
   -
+    op: expect_exists
+    target: later
+  -
     op: box
-    id: base
+    id: later
     size[3]:
       1
-      2
-      3
-  -
-    op: expect_exists
-    target: base
+      1
+      1

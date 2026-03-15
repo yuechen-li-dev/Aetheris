@@ -19,6 +19,21 @@ internal static class FirmamentDocumentCoherenceValidator
 
             if (entry.Family == FirmamentOpFamily.Validation)
             {
+                var targetShape = entry.ClassifiedFields is not null && entry.ClassifiedFields.TryGetValue("targetShape", out var shape)
+                    ? shape
+                    : null;
+
+                if (string.Equals(targetShape, FirmamentValidationTargetShape.FeatureId.ToString(), StringComparison.Ordinal)
+                    && entry.RawFields.TryGetValue("target", out var targetId)
+                    && !featureIds.Contains(targetId))
+                {
+                    return KernelResult<bool>.Failure([
+                        CreateDiagnostic(
+                            FirmamentDiagnosticCodes.ValidationTargetUnknownFeatureId,
+                            $"Validation op '{entry.OpName}' at index {index} references unknown feature id '{targetId}' via field 'target'.")
+                    ]);
+                }
+
                 continue;
             }
 

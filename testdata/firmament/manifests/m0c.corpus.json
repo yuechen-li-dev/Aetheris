@@ -700,6 +700,24 @@
         "kernelCode": "ValidationFailed",
         "firmamentCode": "FIRM-REF-0003"
       }
+    },
+    {
+      "id": "m3a-valid-primitive-only-lower",
+      "name": "Valid M3a primitive-only lowering plan",
+      "fixturePath": "testdata/firmament/fixtures/m3a-valid-primitive-only-lower.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m3a-valid-multiple-primitives-lower",
+      "name": "Valid M3a multiple primitive lowering plan",
+      "fixturePath": "testdata/firmament/fixtures/m3a-valid-multiple-primitives-lower.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m3a-mixed-primitive-boolean",
+      "name": "Valid M3a mixed primitive and boolean with primitive-only lowering",
+      "fixturePath": "testdata/firmament/fixtures/m3a-mixed-primitive-boolean.firmament",
+      "expectedOutcome": "success"
     }
   ]
 }

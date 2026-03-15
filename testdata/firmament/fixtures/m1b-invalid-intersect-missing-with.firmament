@@ -7,7 +7,6 @@ model:
 
 ops[1]:
   -
-    op: add
-    id: add1
-    to: base
-    with: { op: sphere }
+    op: intersect
+    id: i1
+    left: base

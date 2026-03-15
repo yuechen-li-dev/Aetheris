@@ -34,7 +34,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-ops-primitive-required-fields-validated", artifact.ArtifactKind);
+        Assert.Equal("firmament-ops-primitive-and-boolean-required-fields-validated", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);
@@ -65,7 +65,7 @@ public sealed class FirmamentScaffoldTests
               "model": { "name": "demo", "units": "mm" },
               "ops": [
                 { "op": "box", "id": "b1", "size": [2, 3, 4] },
-                { "op": "subtract", "target": "a" }
+                { "op": "subtract", "id": "cut1", "from": "a", "with": { "op": "box" } }
               ]
             }
             """,
@@ -119,7 +119,7 @@ public sealed class FirmamentScaffoldTests
           "model": { "name": "demo", "units": "mm" },
           "ops": [
             { "op": "box", "id": "b1", "size": [1, 2, 3] },
-            { "op": "subtract" },
+            { "op": "subtract", "id": "s1", "from": "b1", "with": { "op": "sphere" } },
             { "op": "expect_manifold" }
           ]
         }
@@ -144,7 +144,7 @@ public sealed class FirmamentScaffoldTests
               "firmament": { "version": "1" },
               "model": { "name": "demo", "units": "mm" },
               "ops": [
-                { "op": "add" }
+                { "op": "add", "id": "add1", "to": "b1", "with": { "op": "sphere" } }
               ]
             }
             """,
@@ -582,6 +582,8 @@ public sealed class FirmamentScaffoldTests
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.PrimitiveMissingRequiredField.Value);
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.PrimitiveInvalidFieldTypeOrShape.Value);
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue.Value);
+        Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.BooleanMissingRequiredField.Value);
+        Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape.Value);
         Assert.StartsWith("FIRM-REF", FirmamentDiagnosticCodes.ReferencePlaceholder.Value);
         Assert.StartsWith("FIRM-SEL", FirmamentDiagnosticCodes.SelectorPlaceholder.Value);
         Assert.StartsWith("FIRM-SCHEMA", FirmamentDiagnosticCodes.SchemaPlaceholder.Value);
@@ -618,6 +620,9 @@ public sealed class FirmamentScaffoldTests
             "box" => "{ \"op\": \"box\", \"id\": \"b1\", \"size\": [1, 1, 1] }",
             "cylinder" => "{ \"op\": \"cylinder\", \"id\": \"c1\", \"radius\": 1, \"height\": 2 }",
             "sphere" => "{ \"op\": \"sphere\", \"id\": \"s1\", \"radius\": 1 }",
+            "add" => "{ \"op\": \"add\", \"id\": \"a1\", \"to\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
+            "subtract" => "{ \"op\": \"subtract\", \"id\": \"s1\", \"from\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
+            "intersect" => "{ \"op\": \"intersect\", \"id\": \"i1\", \"left\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
             _ => $"{{ \"op\": \"{opName}\" }}"
         };
 

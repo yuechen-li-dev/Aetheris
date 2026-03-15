@@ -10,4 +10,4 @@ ops[1]:
     op: add
     id: add1
     to: base
-    with: { op: sphere }
+    with: { op: box }

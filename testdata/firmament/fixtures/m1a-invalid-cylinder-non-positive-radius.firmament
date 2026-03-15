@@ -1,7 +1,13 @@
-{
-  "firmament": { "version": "1" },
-  "model": { "name": "demo", "units": "mm" },
-  "ops": [
-    { "op": "cylinder", "id": "c1", "radius": -1, "height": 2 }
-  ]
-}
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[1]:
+  -
+    op: cylinder
+    id: c1
+    radius: -1
+    height: 2

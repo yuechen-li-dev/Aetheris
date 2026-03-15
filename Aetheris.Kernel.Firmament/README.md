@@ -16,3 +16,5 @@ Not implemented yet: parser, semantic validation, selectors, lowering, or STEP b
 The top-level lanes (`Connectors`, `ParsedModel`, `Lanes`, `Mapping`, `Diagnostics`) are intentionally separated to guide future implementation work.
 
 Pre-M0 composition seam note: `ImportOrchestrator.CreateDefault(...)` now supports additive registration while keeping STEP/AP242 as the default import composition, so Firmament can later register its own source-family connector/lane without reshaping STEP-specific wiring.
+
+Canonical corpus note: repository `.firmament` fixtures under `testdata/firmament/fixtures/` are maintained only in canonical TOON-style Firmament syntax; JSON-shaped source text is supported by parser compatibility but is not canonical corpus form.

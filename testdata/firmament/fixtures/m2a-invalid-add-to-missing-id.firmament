@@ -5,13 +5,9 @@ model:
   name: demo
   units: mm
 
-ops[2]:
-  -
-    op: box
-    id: base
-    size: [1, 2, 3]
+ops[1]:
   -
     op: add
-    id: add1
-    to: base
+    id: fused
+    to: missing
     with: { op: box }

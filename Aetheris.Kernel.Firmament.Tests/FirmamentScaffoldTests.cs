@@ -34,7 +34,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-ops-primitive-boolean-and-validation-required-fields-validated", artifact.ArtifactKind);
+        Assert.Equal("firmament-ops-document-coherence-validated", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);
@@ -65,7 +65,7 @@ public sealed class FirmamentScaffoldTests
               "model": { "name": "demo", "units": "mm" },
               "ops": [
                 { "op": "box", "id": "b1", "size": [2, 3, 4] },
-                { "op": "subtract", "id": "cut1", "from": "a", "with": { "op": "box" } }
+                { "op": "subtract", "id": "cut1", "from": "b1", "with": { "op": "box" } }
               ]
             }
             """,
@@ -144,11 +144,12 @@ public sealed class FirmamentScaffoldTests
               "firmament": { "version": "1" },
               "model": { "name": "demo", "units": "mm" },
               "ops": [
+                { "op": "box", "id": "b1", "size": [1, 2, 3] },
                 { "op": "add", "id": "add1", "to": "b1", "with": { "op": "sphere" } }
               ]
             }
             """,
-            1);
+            2);
 
     [Fact]
     public void Compiler_Accepts_KnownValidationOp() =>
@@ -584,7 +585,8 @@ public sealed class FirmamentScaffoldTests
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue.Value);
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.BooleanMissingRequiredField.Value);
         Assert.StartsWith("FIRM-STRUCT", FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape.Value);
-        Assert.StartsWith("FIRM-REF", FirmamentDiagnosticCodes.ReferencePlaceholder.Value);
+        Assert.StartsWith("FIRM-REF", FirmamentDiagnosticCodes.ReferenceDuplicateFeatureId.Value);
+        Assert.StartsWith("FIRM-REF", FirmamentDiagnosticCodes.ReferenceUnknownFeatureId.Value);
         Assert.StartsWith("FIRM-SEL", FirmamentDiagnosticCodes.SelectorPlaceholder.Value);
         Assert.StartsWith("FIRM-SCHEMA", FirmamentDiagnosticCodes.SchemaPlaceholder.Value);
         Assert.StartsWith("FIRM-LOWER", FirmamentDiagnosticCodes.LoweringPlaceholder.Value);
@@ -620,9 +622,9 @@ public sealed class FirmamentScaffoldTests
             "box" => "{ \"op\": \"box\", \"id\": \"b1\", \"size\": [1, 1, 1] }",
             "cylinder" => "{ \"op\": \"cylinder\", \"id\": \"c1\", \"radius\": 1, \"height\": 2 }",
             "sphere" => "{ \"op\": \"sphere\", \"id\": \"s1\", \"radius\": 1 }",
-            "add" => "{ \"op\": \"add\", \"id\": \"a1\", \"to\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
-            "subtract" => "{ \"op\": \"subtract\", \"id\": \"s1\", \"from\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
-            "intersect" => "{ \"op\": \"intersect\", \"id\": \"i1\", \"left\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
+            "add" => "{ \"op\": \"box\", \"id\": \"b1\", \"size\": [1, 1, 1] }, { \"op\": \"add\", \"id\": \"a1\", \"to\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
+            "subtract" => "{ \"op\": \"box\", \"id\": \"b1\", \"size\": [1, 1, 1] }, { \"op\": \"subtract\", \"id\": \"s1\", \"from\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
+            "intersect" => "{ \"op\": \"box\", \"id\": \"b1\", \"size\": [1, 1, 1] }, { \"op\": \"intersect\", \"id\": \"i1\", \"left\": \"b1\", \"with\": { \"op\": \"sphere\" } }",
             "expect_exists" => "{ \"op\": \"expect_exists\", \"target\": \"b1\" }",
             "expect_selectable" => "{ \"op\": \"expect_selectable\", \"target\": \"b1\", \"count\": 1 }",
             "expect_manifold" => "{ \"op\": \"expect_manifold\" }",
@@ -642,7 +644,8 @@ public sealed class FirmamentScaffoldTests
         var result = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
 
         Assert.True(result.Compilation.IsSuccess);
-        var op = Assert.Single(result.Compilation.Value.ParsedDocument!.Ops.Entries);
+        var ops = result.Compilation.Value.ParsedDocument!.Ops.Entries;
+        var op = ops[^1];
         Assert.Equal(expectedFamily, op.Family);
     }
 

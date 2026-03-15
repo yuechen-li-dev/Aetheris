@@ -5,7 +5,11 @@ model:
   name: demo
   units: mm
 
-ops[1]:
+ops[2]:
+  -
+    op: box
+    id: base
+    size: [1, 2, 3]
   -
     op: subtract
     id: sub1

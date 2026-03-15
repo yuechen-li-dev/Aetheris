@@ -11,6 +11,7 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
           "firmament": { "version": "1" },
           "model": { "name": "demo", "units": "mm" },
           "ops": [
+            { "op": "box", "id": "base", "size": [1, 2, 3] },
             { "op": "add", "id": "add1", "to": "base", "with": { "op": "box" }, "place": "ignored-for-now" }
           ]
         }
@@ -23,6 +24,7 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
           "firmament": { "version": "1" },
           "model": { "name": "demo", "units": "mm" },
           "ops": [
+            { "op": "box", "id": "base", "size": [1, 2, 3] },
             { "op": "subtract", "id": "sub1", "from": "base", "with": { "op": "cylinder" } }
           ]
         }
@@ -35,6 +37,7 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
           "firmament": { "version": "1" },
           "model": { "name": "demo", "units": "mm" },
           "ops": [
+            { "op": "box", "id": "base", "size": [1, 2, 3] },
             { "op": "intersect", "id": "int1", "left": "base", "with": { "op": "sphere" } }
           ]
         }

@@ -1,0 +1,30 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: base
+    size: [10, 20, 30]
+
+  -
+    op: subtract
+    id: cut1
+    from: base
+    with: { op: cylinder }
+
+  -
+    op: intersect
+    id: clipped
+    left: cut1
+    with: { op: sphere }
+
+  -
+    op: add
+    id: merged
+    to: clipped
+    with: { op: box }

@@ -536,6 +536,96 @@
       "name": "Valid M2a two primitives with distinct ids",
       "fixturePath": "testdata/firmament/fixtures/m2a-valid-two-primitives-distinct-ids.firmament",
       "expectedOutcome": "success"
+    },
+    {
+      "id": "m2b-valid-expect-exists-bare-target",
+      "name": "Valid M2b expect_exists bare feature target",
+      "fixturePath": "testdata/firmament/fixtures/m2b-valid-expect-exists-bare-target.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2b-valid-expect-exists-selector-target",
+      "name": "Valid M2b expect_exists selector-shaped target",
+      "fixturePath": "testdata/firmament/fixtures/m2b-valid-expect-exists-selector-target.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2b-valid-expect-selectable-bare-target",
+      "name": "Valid M2b expect_selectable bare feature target",
+      "fixturePath": "testdata/firmament/fixtures/m2b-valid-expect-selectable-bare-target.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2b-valid-expect-selectable-selector-target",
+      "name": "Valid M2b expect_selectable selector-shaped target",
+      "fixturePath": "testdata/firmament/fixtures/m2b-valid-expect-selectable-selector-target.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2b-invalid-expect-exists-empty-target",
+      "name": "Invalid M2b expect_exists empty target",
+      "fixturePath": "testdata/firmament/fixtures/m2b-invalid-expect-exists-empty-target.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0014"
+      }
+    },
+    {
+      "id": "m2b-invalid-expect-exists-leading-dot-target",
+      "name": "Invalid M2b expect_exists leading-dot target",
+      "fixturePath": "testdata/firmament/fixtures/m2b-invalid-expect-exists-leading-dot-target.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0017"
+      }
+    },
+    {
+      "id": "m2b-invalid-expect-exists-trailing-dot-target",
+      "name": "Invalid M2b expect_exists trailing-dot target",
+      "fixturePath": "testdata/firmament/fixtures/m2b-invalid-expect-exists-trailing-dot-target.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0017"
+      }
+    },
+    {
+      "id": "m2b-invalid-expect-exists-multi-dot-target",
+      "name": "Invalid M2b expect_exists multi-dot target",
+      "fixturePath": "testdata/firmament/fixtures/m2b-invalid-expect-exists-multi-dot-target.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0017"
+      }
+    },
+    {
+      "id": "m2b-invalid-expect-selectable-whitespace-target",
+      "name": "Invalid M2b expect_selectable whitespace target",
+      "fixturePath": "testdata/firmament/fixtures/m2b-invalid-expect-selectable-whitespace-target.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0017"
+      }
+    },
+    {
+      "id": "m2b-invalid-expect-selectable-invalid-id-start-target",
+      "name": "Invalid M2b expect_selectable invalid identifier start target",
+      "fixturePath": "testdata/firmament/fixtures/m2b-invalid-expect-selectable-invalid-id-start-target.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0017"
+      }
     }
   ]
 }

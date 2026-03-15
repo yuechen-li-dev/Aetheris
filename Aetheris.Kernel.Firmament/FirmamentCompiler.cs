@@ -45,10 +45,17 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(documentCoherenceValidationResult.Diagnostics));
         }
 
+        var targetShapeValidationResult = FirmamentValidationTargetShapeValidator.Validate(parseResult.Value);
+        if (!targetShapeValidationResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(targetShapeValidationResult.Diagnostics));
+        }
+
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
                 new FirmamentCompilationArtifact(
-                    ArtifactKind: "firmament-ops-document-coherence-validated",
-                    ParsedDocument: parseResult.Value)));
+                    ArtifactKind: "firmament-validation-target-shape-classified",
+                    ParsedDocument: targetShapeValidationResult.Value)));
     }
 }

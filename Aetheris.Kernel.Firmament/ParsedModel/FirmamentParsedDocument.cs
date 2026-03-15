@@ -17,4 +17,5 @@ public sealed record FirmamentParsedOpEntry(
     string OpName,
     FirmamentKnownOpKind KnownKind,
     FirmamentOpFamily Family,
-    IReadOnlyDictionary<string, string> RawFields);
+    IReadOnlyDictionary<string, string> RawFields,
+    IReadOnlyDictionary<string, string>? ClassifiedFields = null);

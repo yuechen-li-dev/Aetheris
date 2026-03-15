@@ -21,6 +21,7 @@ public static class FirmamentDiagnosticCodes
     public static readonly FirmamentDiagnosticCode ValidationMissingRequiredField = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0014");
     public static readonly FirmamentDiagnosticCode ValidationInvalidFieldTypeOrShape = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0015");
     public static readonly FirmamentDiagnosticCode ValidationInvalidFieldValue = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0016");
+    public static readonly FirmamentDiagnosticCode ValidationInvalidTargetShape = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0017");
 
     public static readonly FirmamentDiagnosticCode ReferenceDuplicateFeatureId = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0001");
     public static readonly FirmamentDiagnosticCode ReferenceUnknownFeatureId = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0002");

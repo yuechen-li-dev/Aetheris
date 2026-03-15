@@ -9,9 +9,13 @@ ops[2]:
   -
     op: box
     id: base
-    size: [1, 2, 3]
+    size[3]:
+      1
+      2
+      3
   -
     op: add
     id: add1
     to: base
-    with: { op: sphere }
+    with:
+      op: sphere

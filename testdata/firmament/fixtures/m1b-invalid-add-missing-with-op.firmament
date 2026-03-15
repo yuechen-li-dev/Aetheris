@@ -10,4 +10,5 @@ ops[1]:
     op: add
     id: a1
     to: base
-    with: { id: tool }
+    with:
+      id: tool

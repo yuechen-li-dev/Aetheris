@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.Json;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
@@ -291,6 +292,41 @@ internal static class FirmamentTopLevelParser
         string? currentObjectSection = null;
         FirmamentToonObjectEntry? currentArrayObjectEntry = null;
         FirmamentToonSection? currentArraySection = null;
+        string? currentNestedFieldName = null;
+        int currentNestedFieldIndent = -1;
+        var currentNestedLines = new List<string>();
+
+        static string CollapseNestedFieldValue(IReadOnlyList<string> nestedLines)
+        {
+            var nonEmptyLines = nestedLines.Where(line => !string.IsNullOrWhiteSpace(line)).Select(line => line.Trim()).ToList();
+            if (nonEmptyLines.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            if (nonEmptyLines.All(line => line.Contains(':', StringComparison.Ordinal)))
+            {
+                return "{ " + string.Join(", ", nonEmptyLines) + " }";
+            }
+
+            return "[" + string.Join(", ", nonEmptyLines) + "]";
+        }
+
+        void FlushNestedFieldIfNeeded()
+        {
+            if (currentArrayObjectEntry is null || string.IsNullOrWhiteSpace(currentNestedFieldName))
+            {
+                currentNestedFieldName = null;
+                currentNestedFieldIndent = -1;
+                currentNestedLines.Clear();
+                return;
+            }
+
+            currentArrayObjectEntry.Fields[currentNestedFieldName] = CollapseNestedFieldValue(currentNestedLines);
+            currentNestedFieldName = null;
+            currentNestedFieldIndent = -1;
+            currentNestedLines.Clear();
+        }
 
         var lines = sourceText.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal).Split('\n');
         for (var index = 0; index < lines.Length; index++)
@@ -303,14 +339,28 @@ internal static class FirmamentTopLevelParser
                 continue;
             }
 
+            var indentation = rawLine.Length - rawLine.TrimStart().Length;
+
             if (char.IsWhiteSpace(rawLine[0]))
             {
                 var field = line.Trim();
 
                 if (currentArraySection is not null)
                 {
+                    if (!string.IsNullOrWhiteSpace(currentNestedFieldName) && indentation <= currentNestedFieldIndent)
+                    {
+                        FlushNestedFieldIfNeeded();
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(currentNestedFieldName) && indentation > currentNestedFieldIndent)
+                    {
+                        currentNestedLines.Add(field);
+                        continue;
+                    }
+
                     if (field == "-")
                     {
+                        FlushNestedFieldIfNeeded();
                         currentObjectSection = null;
                         currentArrayObjectEntry = new FirmamentToonObjectEntry();
                         currentArraySection.ArrayEntries.Add(currentArrayObjectEntry);
@@ -319,6 +369,7 @@ internal static class FirmamentTopLevelParser
 
                     if (field.StartsWith("- ", StringComparison.Ordinal))
                     {
+                        FlushNestedFieldIfNeeded();
                         currentObjectSection = null;
                         currentArrayObjectEntry = null;
                         currentArraySection.ArrayEntries.Add(new FirmamentToonObjectEntry { IsObjectLike = false });
@@ -337,13 +388,24 @@ internal static class FirmamentTopLevelParser
                     }
 
                     var arrayFieldName = field[..arraySeparator].Trim();
+                    var normalizedArrayFieldName = TryParseArrayHeader(arrayFieldName, out var normalizedSectionName)
+                        ? normalizedSectionName
+                        : arrayFieldName;
                     var arrayFieldValue = field[(arraySeparator + 1)..].Trim();
-                    if (arrayFieldName.Length == 0)
+                    if (normalizedArrayFieldName.Length == 0)
                     {
                         return InvalidToonSyntax();
                     }
 
-                    currentArrayObjectEntry.Fields[arrayFieldName] = arrayFieldValue;
+                    if (arrayFieldValue.Length == 0)
+                    {
+                        currentNestedFieldName = normalizedArrayFieldName;
+                        currentNestedFieldIndent = indentation;
+                        currentNestedLines.Clear();
+                        continue;
+                    }
+
+                    currentArrayObjectEntry.Fields[normalizedArrayFieldName] = arrayFieldValue;
                     continue;
                 }
 
@@ -369,6 +431,7 @@ internal static class FirmamentTopLevelParser
                 continue;
             }
 
+            FlushNestedFieldIfNeeded();
             currentObjectSection = null;
             currentArrayObjectEntry = null;
             currentArraySection = null;
@@ -402,6 +465,7 @@ internal static class FirmamentTopLevelParser
             currentObjectSection = header;
         }
 
+        FlushNestedFieldIfNeeded();
         return KernelResult<FirmamentToonTopLevel>.Success(new FirmamentToonTopLevel(sections));
     }
 

@@ -8,52 +8,67 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
     public void Compiler_Accepts_ValidExpectExists() =>
         AssertValidationSuccess(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "expect_exists", "target": "base.top_face" }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: expect_exists
+                target: base.top_face
             """);
 
     [Fact]
     public void Compiler_Accepts_ValidExpectSelectable() =>
         AssertValidationSuccess(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "expect_selectable", "target": "hole", "count": 4 }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: expect_selectable
+                target: hole
+                count: 4
             """);
 
     [Fact]
     public void Compiler_Accepts_ValidExpectManifold_WithoutPayload() =>
         AssertValidationSuccess(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "expect_manifold" }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: expect_manifold
             """);
 
     [Fact]
     public void Compiler_Rejects_ExpectExists_MissingTarget() =>
         AssertValidationFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "expect_exists" }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: expect_exists
             """,
             FirmamentDiagnosticCodes.ValidationMissingRequiredField,
             "Validation op 'expect_exists' at index 0 is missing required field 'target'.");
@@ -62,13 +77,17 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
     public void Compiler_Rejects_ExpectSelectable_MissingTarget() =>
         AssertValidationFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "expect_selectable", "count": 2 }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: expect_selectable
+                count: 2
             """,
             FirmamentDiagnosticCodes.ValidationMissingRequiredField,
             "Validation op 'expect_selectable' at index 0 is missing required field 'target'.");
@@ -77,13 +96,17 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
     public void Compiler_Rejects_ExpectSelectable_MissingCount() =>
         AssertValidationFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "expect_selectable", "target": "base" }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: expect_selectable
+                target: base
             """,
             FirmamentDiagnosticCodes.ValidationMissingRequiredField,
             "Validation op 'expect_selectable' at index 0 is missing required field 'count'.");
@@ -92,13 +115,18 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
     public void Compiler_Rejects_ExpectSelectable_NonNumericCount() =>
         AssertValidationFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "expect_selectable", "target": "base", "count": "many" }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: expect_selectable
+                target: base
+                count: many
             """,
             FirmamentDiagnosticCodes.ValidationInvalidFieldTypeOrShape,
             "Validation op 'expect_selectable' at index 0 has invalid field 'count'; expected a numeric scalar value.");
@@ -107,13 +135,18 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
     public void Compiler_Rejects_ExpectSelectable_NonIntegerCount() =>
         AssertValidationFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "expect_selectable", "target": "base", "count": 1.5 }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: expect_selectable
+                target: base
+                count: 1.5
             """,
             FirmamentDiagnosticCodes.ValidationInvalidFieldValue,
             "Validation op 'expect_selectable' at index 0 has invalid field 'count' value; expected an integer-valued number greater than 0.");
@@ -122,13 +155,18 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
     public void Compiler_Rejects_ExpectSelectable_NonPositiveCount() =>
         AssertValidationFailure(
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "expect_selectable", "target": "base", "count": 0 }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: expect_selectable
+                target: base
+                count: 0
             """,
             FirmamentDiagnosticCodes.ValidationInvalidFieldValue,
             "Validation op 'expect_selectable' at index 0 has invalid field 'count' value; expected an integer-valued number greater than 0.");
@@ -138,13 +176,17 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
     {
         var source =
             """
-            {
-              "firmament": { "version": "1" },
-              "model": { "name": "demo", "units": "mm" },
-              "ops": [
-                { "op": "expect_selectable", "target": "base" }
-              ]
-            }
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: expect_selectable
+                target: base
             """;
 
         var compiler = new FirmamentCompiler();

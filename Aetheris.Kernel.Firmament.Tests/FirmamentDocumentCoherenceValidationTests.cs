@@ -57,15 +57,28 @@ public sealed class FirmamentDocumentCoherenceValidationTests
     public void Compiler_Leaves_ValidationTargets_Unresolved()
     {
         const string source = """
-        {
-          "firmament": { "version": "1" },
-          "model": { "name": "demo", "units": "mm" },
-          "ops": [
-            { "op": "box", "id": "base", "size": [1, 2, 3] },
-            { "op": "expect_exists", "target": "future_feature.top_face" },
-            { "op": "expect_selectable", "target": "ghost_feature", "count": 1 }
-          ]
-        }
+        firmament:
+          version: 1
+        
+        model:
+          name: demo
+          units: mm
+        
+        ops[3]:
+          -
+            op: box
+            id: base
+            size[3]:
+              1
+              2
+              3
+          -
+            op: expect_exists
+            target: future_feature.top_face
+          -
+            op: expect_selectable
+            target: ghost_feature
+            count: 1
         """;
 
         var compiler = new FirmamentCompiler();

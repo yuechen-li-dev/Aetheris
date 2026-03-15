@@ -10,9 +10,12 @@ ops[2]:
     op: add
     id: fused
     to: later
-    with: { op: box }
-
+    with:
+      op: box
   -
     op: box
     id: later
-    size: [10, 20, 30]
+    size[3]:
+      10
+      20
+      30

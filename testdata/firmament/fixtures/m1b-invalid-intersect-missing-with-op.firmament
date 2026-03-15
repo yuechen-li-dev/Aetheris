@@ -10,4 +10,5 @@ ops[1]:
     op: intersect
     id: i1
     left: base
-    with: { id: tool }
+    with:
+      id: tool

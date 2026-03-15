@@ -9,4 +9,6 @@ ops[1]:
   -
     op: box
     id: b1
-    size: [1, 2]
+    size[2]:
+      1
+      2

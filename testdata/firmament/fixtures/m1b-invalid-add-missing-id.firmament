@@ -9,4 +9,5 @@ ops[1]:
   -
     op: add
     to: base
-    with: { op: box }
+    with:
+      op: box

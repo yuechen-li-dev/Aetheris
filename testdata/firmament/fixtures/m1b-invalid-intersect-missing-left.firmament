@@ -9,4 +9,5 @@ ops[1]:
   -
     op: intersect
     id: i1
-    with: { op: box }
+    with:
+      op: box

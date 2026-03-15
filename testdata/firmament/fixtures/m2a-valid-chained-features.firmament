@@ -9,22 +9,25 @@ ops[4]:
   -
     op: box
     id: base
-    size: [10, 20, 30]
-
+    size[3]:
+      10
+      20
+      30
   -
     op: subtract
     id: cut1
     from: base
-    with: { op: cylinder }
-
+    with:
+      op: cylinder
   -
     op: intersect
     id: clipped
     left: cut1
-    with: { op: sphere }
-
+    with:
+      op: sphere
   -
     op: add
     id: merged
     to: clipped
-    with: { op: box }
+    with:
+      op: box

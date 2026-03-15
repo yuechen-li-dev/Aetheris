@@ -1,0 +1,13 @@
+firmament:
+  version: 1
+
+model:
+  name: m3c-cylinder
+  units: mm
+
+ops[1]:
+  -
+    op: cylinder
+    id: post
+    radius: 2
+    height: 9

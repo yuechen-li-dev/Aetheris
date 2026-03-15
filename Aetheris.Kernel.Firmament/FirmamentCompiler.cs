@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Results;
+using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.Parsing;
 using Aetheris.Kernel.Firmament.Validation;
@@ -60,11 +61,19 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(primitiveLoweringResult.Diagnostics));
         }
 
+        var primitiveExecutionResult = FirmamentPrimitiveExecutor.Execute(primitiveLoweringResult.Value);
+        if (!primitiveExecutionResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(primitiveExecutionResult.Diagnostics));
+        }
+
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
                 new FirmamentCompilationArtifact(
-                    ArtifactKind: "firmament-primitive-and-boolean-lowering-plan-built",
+                    ArtifactKind: "firmament-primitives-executed",
                     ParsedDocument: targetShapeValidationResult.Value,
-                    PrimitiveLoweringPlan: primitiveLoweringResult.Value)));
+                    PrimitiveLoweringPlan: primitiveLoweringResult.Value,
+                    PrimitiveExecutionResult: primitiveExecutionResult.Value)));
     }
 }

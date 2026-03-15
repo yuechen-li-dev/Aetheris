@@ -718,6 +718,36 @@
       "name": "Valid M3a mixed primitive and boolean with primitive-only lowering",
       "fixturePath": "testdata/firmament/fixtures/m3a-mixed-primitive-boolean.firmament",
       "expectedOutcome": "success"
+    },
+    {
+      "id": "m3c-valid-box-exec",
+      "name": "Valid M3c box primitive execution",
+      "fixturePath": "testdata/firmament/fixtures/m3c-valid-box-exec.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m3c-valid-cylinder-exec",
+      "name": "Valid M3c cylinder primitive execution",
+      "fixturePath": "testdata/firmament/fixtures/m3c-valid-cylinder-exec.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m3c-valid-sphere-exec",
+      "name": "Valid M3c sphere primitive execution",
+      "fixturePath": "testdata/firmament/fixtures/m3c-valid-sphere-exec.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m3c-valid-multiple-primitives-exec",
+      "name": "Valid M3c multiple primitive execution",
+      "fixturePath": "testdata/firmament/fixtures/m3c-valid-multiple-primitives-exec.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m3c-mixed-primitive-boolean-validation",
+      "name": "Valid M3c mixed document executes primitives only",
+      "fixturePath": "testdata/firmament/fixtures/m3c-mixed-primitive-boolean-validation.firmament",
+      "expectedOutcome": "success"
     }
   ]
 }

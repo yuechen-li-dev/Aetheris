@@ -7,11 +7,12 @@ model:
 
 ops[2]:
   -
-    op: box
-    id: base
-    size: [1, 2, 3]
-  -
     op: add
-    id: add1
-    to: base
+    id: fused
+    to: later
     with: { op: box }
+
+  -
+    op: box
+    id: later
+    size: [10, 20, 30]

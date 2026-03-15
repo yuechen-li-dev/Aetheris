@@ -22,7 +22,8 @@ public static class FirmamentDiagnosticCodes
     public static readonly FirmamentDiagnosticCode ValidationInvalidFieldTypeOrShape = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0015");
     public static readonly FirmamentDiagnosticCode ValidationInvalidFieldValue = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0016");
 
-    public static readonly FirmamentDiagnosticCode ReferencePlaceholder = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0001");
+    public static readonly FirmamentDiagnosticCode ReferenceDuplicateFeatureId = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0001");
+    public static readonly FirmamentDiagnosticCode ReferenceUnknownFeatureId = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0002");
     public static readonly FirmamentDiagnosticCode SelectorPlaceholder = new($"{FirmamentDiagnosticConventions.SelectorPrefix}-0001");
     public static readonly FirmamentDiagnosticCode SchemaPlaceholder = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0001");
     public static readonly FirmamentDiagnosticCode LoweringPlaceholder = new($"{FirmamentDiagnosticConventions.LoweringPrefix}-0001");

@@ -9,9 +9,10 @@ ops[2]:
   -
     op: box
     id: base
-    size: [1, 2, 3]
+    size: [10, 20, 30]
+
   -
     op: add
-    id: add1
+    id: fused
     to: base
-    with: { op: box }
+    with: { op: cylinder }

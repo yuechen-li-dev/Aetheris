@@ -187,22 +187,15 @@
       "expectedOutcome": "success"
     },
     {
-      "id": "m1b-valid-add",
-      "name": "Valid add boolean required fields",
-      "fixturePath": "testdata/firmament/fixtures/m1b-valid-add.firmament",
-      "expectedOutcome": "success"
-    },
-    {
-      "id": "m1b-valid-subtract",
-      "name": "Valid subtract boolean required fields",
-      "fixturePath": "testdata/firmament/fixtures/m1b-valid-subtract.firmament",
-      "expectedOutcome": "success"
-    },
-    {
-      "id": "m1b-valid-intersect",
-      "name": "Valid intersect boolean required fields",
-      "fixturePath": "testdata/firmament/fixtures/m1b-valid-intersect.firmament",
-      "expectedOutcome": "success"
+      "id": "m1b-invalid-add-invalid-with-shape",
+      "name": "Invalid add invalid with shape",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-add-invalid-with-shape.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0013"
+      }
     },
     {
       "id": "m1b-invalid-add-missing-id",
@@ -238,17 +231,6 @@
       }
     },
     {
-      "id": "m1b-invalid-add-invalid-with-shape",
-      "name": "Invalid add invalid with shape",
-      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-add-invalid-with-shape.firmament",
-      "expectedOutcome": "failure",
-      "expectedDiagnostic": {
-        "source": "firmament",
-        "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0013"
-      }
-    },
-    {
       "id": "m1b-invalid-add-missing-with-op",
       "name": "Invalid add missing with.op",
       "fixturePath": "testdata/firmament/fixtures/m1b-invalid-add-missing-with-op.firmament",
@@ -260,53 +242,9 @@
       }
     },
     {
-      "id": "m1b-invalid-subtract-missing-id",
-      "name": "Invalid subtract missing id",
-      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-id.firmament",
-      "expectedOutcome": "failure",
-      "expectedDiagnostic": {
-        "source": "firmament",
-        "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0012"
-      }
-    },
-    {
-      "id": "m1b-invalid-subtract-missing-from",
-      "name": "Invalid subtract missing from",
-      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-from.firmament",
-      "expectedOutcome": "failure",
-      "expectedDiagnostic": {
-        "source": "firmament",
-        "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0012"
-      }
-    },
-    {
-      "id": "m1b-invalid-subtract-missing-with",
-      "name": "Invalid subtract missing with",
-      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-with.firmament",
-      "expectedOutcome": "failure",
-      "expectedDiagnostic": {
-        "source": "firmament",
-        "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0012"
-      }
-    },
-    {
-      "id": "m1b-invalid-subtract-invalid-with-shape",
-      "name": "Invalid subtract invalid with shape",
-      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-invalid-with-shape.firmament",
-      "expectedOutcome": "failure",
-      "expectedDiagnostic": {
-        "source": "firmament",
-        "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0013"
-      }
-    },
-    {
-      "id": "m1b-invalid-subtract-missing-with-op",
-      "name": "Invalid subtract missing with.op",
-      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-with-op.firmament",
+      "id": "m1b-invalid-intersect-invalid-with-shape",
+      "name": "Invalid intersect invalid with shape",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-intersect-invalid-with-shape.firmament",
       "expectedOutcome": "failure",
       "expectedDiagnostic": {
         "source": "firmament",
@@ -348,17 +286,6 @@
       }
     },
     {
-      "id": "m1b-invalid-intersect-invalid-with-shape",
-      "name": "Invalid intersect invalid with shape",
-      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-intersect-invalid-with-shape.firmament",
-      "expectedOutcome": "failure",
-      "expectedDiagnostic": {
-        "source": "firmament",
-        "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0013"
-      }
-    },
-    {
       "id": "m1b-invalid-intersect-missing-with-op",
       "name": "Invalid intersect missing with.op",
       "fixturePath": "testdata/firmament/fixtures/m1b-invalid-intersect-missing-with-op.firmament",
@@ -370,38 +297,82 @@
       }
     },
     {
-      "id": "m1c-valid-expect-exists",
-      "name": "Valid expect_exists validation required fields",
-      "fixturePath": "testdata/firmament/fixtures/m1c-valid-expect-exists.firmament",
+      "id": "m1b-invalid-subtract-invalid-with-shape",
+      "name": "Invalid subtract invalid with shape",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-invalid-with-shape.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0013"
+      }
+    },
+    {
+      "id": "m1b-invalid-subtract-missing-from",
+      "name": "Invalid subtract missing from",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-from.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-subtract-missing-id",
+      "name": "Invalid subtract missing id",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-id.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-subtract-missing-with",
+      "name": "Invalid subtract missing with",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-with.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-subtract-missing-with-op",
+      "name": "Invalid subtract missing with.op",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-with-op.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0013"
+      }
+    },
+    {
+      "id": "m1b-valid-add",
+      "name": "Valid add boolean required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1b-valid-add.firmament",
       "expectedOutcome": "success"
     },
     {
-      "id": "m1c-valid-expect-selectable",
-      "name": "Valid expect_selectable validation required fields",
-      "fixturePath": "testdata/firmament/fixtures/m1c-valid-expect-selectable.firmament",
+      "id": "m1b-valid-intersect",
+      "name": "Valid intersect boolean required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1b-valid-intersect.firmament",
       "expectedOutcome": "success"
     },
     {
-      "id": "m1c-valid-expect-manifold",
-      "name": "Valid expect_manifold validation required fields",
-      "fixturePath": "testdata/firmament/fixtures/m1c-valid-expect-manifold.firmament",
+      "id": "m1b-valid-subtract",
+      "name": "Valid subtract boolean required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1b-valid-subtract.firmament",
       "expectedOutcome": "success"
     },
     {
       "id": "m1c-invalid-expect-exists-missing-target",
       "name": "Invalid expect_exists missing target",
       "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-exists-missing-target.firmament",
-      "expectedOutcome": "failure",
-      "expectedDiagnostic": {
-        "source": "firmament",
-        "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0014"
-      }
-    },
-    {
-      "id": "m1c-invalid-expect-selectable-missing-target",
-      "name": "Invalid expect_selectable missing target",
-      "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-selectable-missing-target.firmament",
       "expectedOutcome": "failure",
       "expectedDiagnostic": {
         "source": "firmament",
@@ -421,14 +392,14 @@
       }
     },
     {
-      "id": "m1c-invalid-expect-selectable-non-numeric-count",
-      "name": "Invalid expect_selectable non-numeric count",
-      "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-selectable-non-numeric-count.firmament",
+      "id": "m1c-invalid-expect-selectable-missing-target",
+      "name": "Invalid expect_selectable missing target",
+      "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-selectable-missing-target.firmament",
       "expectedOutcome": "failure",
       "expectedDiagnostic": {
         "source": "firmament",
         "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0015"
+        "firmamentCode": "FIRM-STRUCT-0014"
       }
     },
     {
@@ -443,6 +414,17 @@
       }
     },
     {
+      "id": "m1c-invalid-expect-selectable-non-numeric-count",
+      "name": "Invalid expect_selectable non-numeric count",
+      "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-selectable-non-numeric-count.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0015"
+      }
+    },
+    {
       "id": "m1c-invalid-expect-selectable-non-positive-count",
       "name": "Invalid expect_selectable non-positive count",
       "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-selectable-non-positive-count.firmament",
@@ -452,6 +434,108 @@
         "kernelCode": "ValidationFailed",
         "firmamentCode": "FIRM-STRUCT-0016"
       }
+    },
+    {
+      "id": "m1c-valid-expect-exists",
+      "name": "Valid expect_exists validation required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1c-valid-expect-exists.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m1c-valid-expect-manifold",
+      "name": "Valid expect_manifold validation required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1c-valid-expect-manifold.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m1c-valid-expect-selectable",
+      "name": "Valid expect_selectable validation required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1c-valid-expect-selectable.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2a-invalid-add-to-missing-id",
+      "name": "Invalid M2a add.to references missing feature",
+      "fixturePath": "testdata/firmament/fixtures/m2a-invalid-add-to-missing-id.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0002"
+      }
+    },
+    {
+      "id": "m2a-invalid-duplicate-id-across-primitive-boolean",
+      "name": "Invalid M2a duplicate id across primitive and boolean",
+      "fixturePath": "testdata/firmament/fixtures/m2a-invalid-duplicate-id-across-primitive-boolean.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0001"
+      }
+    },
+    {
+      "id": "m2a-invalid-duplicate-primitive-id",
+      "name": "Invalid M2a duplicate primitive id",
+      "fixturePath": "testdata/firmament/fixtures/m2a-invalid-duplicate-primitive-id.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0001"
+      }
+    },
+    {
+      "id": "m2a-invalid-forward-reference",
+      "name": "Invalid M2a boolean forward reference",
+      "fixturePath": "testdata/firmament/fixtures/m2a-invalid-forward-reference.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0002"
+      }
+    },
+    {
+      "id": "m2a-invalid-intersect-left-missing-id",
+      "name": "Invalid M2a intersect.left references missing feature",
+      "fixturePath": "testdata/firmament/fixtures/m2a-invalid-intersect-left-missing-id.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0002"
+      }
+    },
+    {
+      "id": "m2a-invalid-subtract-from-missing-id",
+      "name": "Invalid M2a subtract.from references missing feature",
+      "fixturePath": "testdata/firmament/fixtures/m2a-invalid-subtract-from-missing-id.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0002"
+      }
+    },
+    {
+      "id": "m2a-valid-boolean-references-earlier-id",
+      "name": "Valid M2a boolean references earlier feature id",
+      "fixturePath": "testdata/firmament/fixtures/m2a-valid-boolean-references-earlier-id.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2a-valid-chained-features",
+      "name": "Valid M2a chained feature ids and references",
+      "fixturePath": "testdata/firmament/fixtures/m2a-valid-chained-features.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m2a-valid-two-primitives-distinct-ids",
+      "name": "Valid M2a two primitives with distinct ids",
+      "fixturePath": "testdata/firmament/fixtures/m2a-valid-two-primitives-distinct-ids.firmament",
+      "expectedOutcome": "success"
     }
   ]
 }

@@ -1,0 +1,13 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[1]:
+  -
+    op: intersect
+    id: clip1
+    left: missing
+    with: { op: sphere }

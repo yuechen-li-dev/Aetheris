@@ -8,6 +8,5 @@ model:
 ops[1]:
   -
     op: add
-    id: add1
-    to: base
-    with: { op: sphere }
+    id: a1
+    with: { op: box }

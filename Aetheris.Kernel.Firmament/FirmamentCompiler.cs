@@ -24,10 +24,17 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(primitiveValidationResult.Diagnostics));
         }
 
+        var booleanValidationResult = FirmamentBooleanRequiredFieldValidator.Validate(parseResult.Value);
+        if (!booleanValidationResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(booleanValidationResult.Diagnostics));
+        }
+
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
                 new FirmamentCompilationArtifact(
-                    ArtifactKind: "firmament-ops-primitive-required-fields-validated",
+                    ArtifactKind: "firmament-ops-primitive-and-boolean-required-fields-validated",
                     ParsedDocument: parseResult.Value)));
     }
 }

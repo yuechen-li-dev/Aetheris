@@ -35,6 +35,26 @@ public sealed class FirmamentCorpusScaffoldTests
         }
     }
 
+
+    [Fact]
+    public void Fixtures_AreCanonicalToonStyle_NotJsonObjectLiterals()
+    {
+        var fixturesRoot = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "fixtures");
+        var fixtureFiles = Directory.GetFiles(fixturesRoot, "*.firmament", SearchOption.TopDirectoryOnly)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.NotEmpty(fixtureFiles);
+
+        foreach (var fixturePath in fixtureFiles)
+        {
+            var fixtureText = FirmamentCorpusHarness.NormalizeLf(File.ReadAllText(fixturePath));
+            Assert.False(
+                fixtureText.TrimStart().StartsWith("{", StringComparison.Ordinal),
+                $"Fixture '{Path.GetFileName(fixturePath)}' must use canonical TOON-style Firmament syntax, not a JSON object literal.");
+        }
+    }
+
     [Fact]
     public void ToonFixtures_UseCanonicalOpsHeaderSpelling()
     {

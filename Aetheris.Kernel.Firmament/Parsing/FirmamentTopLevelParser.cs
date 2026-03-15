@@ -317,6 +317,14 @@ internal static class FirmamentTopLevelParser
                         continue;
                     }
 
+                    if (field.StartsWith("- ", StringComparison.Ordinal))
+                    {
+                        currentObjectSection = null;
+                        currentArrayObjectEntry = null;
+                        currentArraySection.ArrayEntries.Add(new FirmamentToonObjectEntry { IsObjectLike = false });
+                        continue;
+                    }
+
                     if (currentArrayObjectEntry is null)
                     {
                         return InvalidToonSyntax();

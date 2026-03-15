@@ -1,7 +1,12 @@
-{
-  "firmament": { "version": "1" },
-  "model": { "name": "demo", "units": "mm" },
-  "ops": [
-    { "op": "box", "id": "b1", "size": [1, 2] }
-  ]
-}
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: b1
+    size: [1, 2]

@@ -185,6 +185,189 @@
       "name": "Valid sphere primitive required fields",
       "fixturePath": "testdata/firmament/fixtures/m1a-valid-sphere.firmament",
       "expectedOutcome": "success"
+    },
+    {
+      "id": "m1b-valid-add",
+      "name": "Valid add boolean required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1b-valid-add.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m1b-valid-subtract",
+      "name": "Valid subtract boolean required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1b-valid-subtract.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m1b-valid-intersect",
+      "name": "Valid intersect boolean required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1b-valid-intersect.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m1b-invalid-add-missing-id",
+      "name": "Invalid add missing id",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-add-missing-id.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-add-missing-to",
+      "name": "Invalid add missing to",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-add-missing-to.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-add-missing-with",
+      "name": "Invalid add missing with",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-add-missing-with.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-add-invalid-with-shape",
+      "name": "Invalid add invalid with shape",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-add-invalid-with-shape.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0013"
+      }
+    },
+    {
+      "id": "m1b-invalid-add-missing-with-op",
+      "name": "Invalid add missing with.op",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-add-missing-with-op.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0013"
+      }
+    },
+    {
+      "id": "m1b-invalid-subtract-missing-id",
+      "name": "Invalid subtract missing id",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-id.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-subtract-missing-from",
+      "name": "Invalid subtract missing from",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-from.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-subtract-missing-with",
+      "name": "Invalid subtract missing with",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-with.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-subtract-invalid-with-shape",
+      "name": "Invalid subtract invalid with shape",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-invalid-with-shape.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0013"
+      }
+    },
+    {
+      "id": "m1b-invalid-subtract-missing-with-op",
+      "name": "Invalid subtract missing with.op",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-subtract-missing-with-op.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0013"
+      }
+    },
+    {
+      "id": "m1b-invalid-intersect-missing-id",
+      "name": "Invalid intersect missing id",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-intersect-missing-id.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-intersect-missing-left",
+      "name": "Invalid intersect missing left",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-intersect-missing-left.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-intersect-missing-with",
+      "name": "Invalid intersect missing with",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-intersect-missing-with.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0012"
+      }
+    },
+    {
+      "id": "m1b-invalid-intersect-invalid-with-shape",
+      "name": "Invalid intersect invalid with shape",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-intersect-invalid-with-shape.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0013"
+      }
+    },
+    {
+      "id": "m1b-invalid-intersect-missing-with-op",
+      "name": "Invalid intersect missing with.op",
+      "fixturePath": "testdata/firmament/fixtures/m1b-invalid-intersect-missing-with-op.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0013"
+      }
     }
   ]
 }

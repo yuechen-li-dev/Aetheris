@@ -368,6 +368,90 @@
         "kernelCode": "ValidationFailed",
         "firmamentCode": "FIRM-STRUCT-0013"
       }
+    },
+    {
+      "id": "m1c-valid-expect-exists",
+      "name": "Valid expect_exists validation required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1c-valid-expect-exists.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m1c-valid-expect-selectable",
+      "name": "Valid expect_selectable validation required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1c-valid-expect-selectable.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m1c-valid-expect-manifold",
+      "name": "Valid expect_manifold validation required fields",
+      "fixturePath": "testdata/firmament/fixtures/m1c-valid-expect-manifold.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m1c-invalid-expect-exists-missing-target",
+      "name": "Invalid expect_exists missing target",
+      "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-exists-missing-target.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0014"
+      }
+    },
+    {
+      "id": "m1c-invalid-expect-selectable-missing-target",
+      "name": "Invalid expect_selectable missing target",
+      "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-selectable-missing-target.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0014"
+      }
+    },
+    {
+      "id": "m1c-invalid-expect-selectable-missing-count",
+      "name": "Invalid expect_selectable missing count",
+      "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-selectable-missing-count.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0014"
+      }
+    },
+    {
+      "id": "m1c-invalid-expect-selectable-non-numeric-count",
+      "name": "Invalid expect_selectable non-numeric count",
+      "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-selectable-non-numeric-count.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0015"
+      }
+    },
+    {
+      "id": "m1c-invalid-expect-selectable-non-integer-count",
+      "name": "Invalid expect_selectable non-integer count",
+      "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-selectable-non-integer-count.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0016"
+      }
+    },
+    {
+      "id": "m1c-invalid-expect-selectable-non-positive-count",
+      "name": "Invalid expect_selectable non-positive count",
+      "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-selectable-non-positive-count.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0016"
+      }
     }
   ]
 }

@@ -63,7 +63,7 @@ public sealed class FirmamentCompiler
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
                 new FirmamentCompilationArtifact(
-                    ArtifactKind: "firmament-primitive-lowering-plan-built",
+                    ArtifactKind: "firmament-primitive-and-boolean-lowering-plan-built",
                     ParsedDocument: targetShapeValidationResult.Value,
                     PrimitiveLoweringPlan: primitiveLoweringResult.Value)));
     }

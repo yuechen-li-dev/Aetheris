@@ -8,13 +8,14 @@ namespace Aetheris.Kernel.Firmament.Lowering;
 
 internal static class FirmamentPrimitiveLowerer
 {
-    private const string PrimitiveOnlySkipReason = "unsupported-op-in-m3a-primitive-only-lowering";
+    private const string ValidationSkipReason = "unsupported-op-in-m3b-boolean-lowering";
 
     public static KernelResult<FirmamentPrimitiveLoweringPlan> Lower(FirmamentParsedDocument parsedDocument)
     {
         ArgumentNullException.ThrowIfNull(parsedDocument);
 
         var loweredPrimitives = new List<FirmamentLoweredPrimitive>();
+        var loweredBooleans = new List<FirmamentLoweredBoolean>();
         var skippedOps = new List<FirmamentLoweringSkippedOp>();
 
         for (var index = 0; index < parsedDocument.Ops.Entries.Count; index++)
@@ -24,6 +25,7 @@ internal static class FirmamentPrimitiveLowerer
             {
                 case FirmamentKnownOpKind.Box:
                     loweredPrimitives.Add(new FirmamentLoweredPrimitive(
+                        OpIndex: index,
                         FeatureId: entry.RawFields["id"],
                         Kind: FirmamentLoweredPrimitiveKind.Box,
                         Parameters: LowerBoxParameters(entry.RawFields["size"])));
@@ -31,6 +33,7 @@ internal static class FirmamentPrimitiveLowerer
 
                 case FirmamentKnownOpKind.Cylinder:
                     loweredPrimitives.Add(new FirmamentLoweredPrimitive(
+                        OpIndex: index,
                         FeatureId: entry.RawFields["id"],
                         Kind: FirmamentLoweredPrimitiveKind.Cylinder,
                         Parameters: new FirmamentLoweredCylinderParameters(
@@ -40,10 +43,23 @@ internal static class FirmamentPrimitiveLowerer
 
                 case FirmamentKnownOpKind.Sphere:
                     loweredPrimitives.Add(new FirmamentLoweredPrimitive(
+                        OpIndex: index,
                         FeatureId: entry.RawFields["id"],
                         Kind: FirmamentLoweredPrimitiveKind.Sphere,
                         Parameters: new FirmamentLoweredSphereParameters(
                             Radius: ParseScalar(entry.RawFields["radius"]))));
+                    break;
+
+                case FirmamentKnownOpKind.Add:
+                    loweredBooleans.Add(LowerBoolean(index, entry, FirmamentLoweredBooleanKind.Add, "to"));
+                    break;
+
+                case FirmamentKnownOpKind.Subtract:
+                    loweredBooleans.Add(LowerBoolean(index, entry, FirmamentLoweredBooleanKind.Subtract, "from"));
+                    break;
+
+                case FirmamentKnownOpKind.Intersect:
+                    loweredBooleans.Add(LowerBoolean(index, entry, FirmamentLoweredBooleanKind.Intersect, "left"));
                     break;
 
                 default:
@@ -52,12 +68,74 @@ internal static class FirmamentPrimitiveLowerer
                         OpName: entry.OpName,
                         KnownKind: entry.KnownKind,
                         Family: entry.Family,
-                        Reason: PrimitiveOnlySkipReason));
+                        Reason: ValidationSkipReason));
                     break;
             }
         }
 
-        return KernelResult<FirmamentPrimitiveLoweringPlan>.Success(new FirmamentPrimitiveLoweringPlan(loweredPrimitives, skippedOps));
+        return KernelResult<FirmamentPrimitiveLoweringPlan>.Success(new FirmamentPrimitiveLoweringPlan(loweredPrimitives, loweredBooleans, skippedOps));
+    }
+
+    private static FirmamentLoweredBoolean LowerBoolean(
+        int opIndex,
+        FirmamentParsedOpEntry entry,
+        FirmamentLoweredBooleanKind booleanKind,
+        string primaryFieldName)
+    {
+        var tool = ParseTool(entry.RawFields["with"]);
+
+        return new FirmamentLoweredBoolean(
+            OpIndex: opIndex,
+            FeatureId: entry.RawFields["id"],
+            Kind: booleanKind,
+            PrimaryReferenceField: primaryFieldName,
+            PrimaryReferenceFeatureId: entry.RawFields[primaryFieldName],
+            Tool: tool);
+    }
+
+    private static FirmamentLoweredToolOp ParseTool(string rawWith)
+    {
+        var trimmed = rawWith.Trim();
+
+        if (trimmed.StartsWith("{", StringComparison.Ordinal) && trimmed.EndsWith("}", StringComparison.Ordinal))
+        {
+            var body = trimmed[1..^1].Trim();
+            var pairs = body.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var pair in pairs)
+            {
+                var separator = pair.IndexOf(':');
+                if (separator <= 0)
+                {
+                    continue;
+                }
+
+                var key = pair[..separator].Trim();
+                var value = pair[(separator + 1)..].Trim();
+                if (key.Length > 0)
+                {
+                    fields[key] = value;
+                }
+            }
+
+            fields.TryGetValue("op", out var opName);
+            return new FirmamentLoweredToolOp(opName ?? string.Empty, fields, rawWith);
+        }
+
+        if (trimmed.StartsWith("{", StringComparison.Ordinal))
+        {
+            using var jsonDoc = JsonDocument.Parse(trimmed);
+            var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var property in jsonDoc.RootElement.EnumerateObject())
+            {
+                fields[property.Name] = property.Value.ToString();
+            }
+
+            fields.TryGetValue("op", out var opName);
+            return new FirmamentLoweredToolOp(opName ?? string.Empty, fields, rawWith);
+        }
+
+        return new FirmamentLoweredToolOp(string.Empty, new Dictionary<string, string>(StringComparer.Ordinal), rawWith);
     }
 
     private static FirmamentLoweredBoxParameters LowerBoxParameters(string sizeRaw)

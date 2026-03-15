@@ -4,12 +4,29 @@ namespace Aetheris.Kernel.Firmament.Lowering;
 
 public sealed record FirmamentPrimitiveLoweringPlan(
     IReadOnlyList<FirmamentLoweredPrimitive> Primitives,
+    IReadOnlyList<FirmamentLoweredBoolean> Booleans,
     IReadOnlyList<FirmamentLoweringSkippedOp> SkippedOps);
 
 public sealed record FirmamentLoweredPrimitive(
+    int OpIndex,
     string FeatureId,
     FirmamentLoweredPrimitiveKind Kind,
     FirmamentLoweredPrimitiveParameters Parameters);
+
+public sealed record FirmamentLoweredBoolean(
+    int OpIndex,
+    string FeatureId,
+    FirmamentLoweredBooleanKind Kind,
+    string PrimaryReferenceField,
+    string PrimaryReferenceFeatureId,
+    FirmamentLoweredToolOp Tool);
+
+public enum FirmamentLoweredBooleanKind
+{
+    Add,
+    Subtract,
+    Intersect
+}
 
 public enum FirmamentLoweredPrimitiveKind
 {
@@ -28,6 +45,11 @@ public sealed record FirmamentLoweredCylinderParameters(double Radius, double He
 
 public sealed record FirmamentLoweredSphereParameters(double Radius)
     : FirmamentLoweredPrimitiveParameters;
+
+public sealed record FirmamentLoweredToolOp(
+    string OpName,
+    IReadOnlyDictionary<string, string> RawFields,
+    string RawValue);
 
 public sealed record FirmamentLoweringSkippedOp(
     int OpIndex,

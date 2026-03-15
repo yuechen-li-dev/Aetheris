@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Firmament.Lowering;
+using Aetheris.Kernel.Firmament.ParsedModel;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -29,6 +30,7 @@ public sealed class FirmamentPrimitiveLoweringTests
         Assert.True(result.Compilation.IsSuccess);
         var primitive = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Primitives);
         var parameters = Assert.IsType<FirmamentLoweredBoxParameters>(primitive.Parameters);
+        Assert.Equal(0, primitive.OpIndex);
         Assert.Equal("base", primitive.FeatureId);
         Assert.Equal(FirmamentLoweredPrimitiveKind.Box, primitive.Kind);
         Assert.Equal(10, parameters.SizeX);
@@ -91,40 +93,102 @@ public sealed class FirmamentPrimitiveLoweringTests
     }
 
     [Fact]
-    public void Compile_Lowers_Multiple_Primitives_In_Source_Order()
+    public void Compile_Lowers_Add_Boolean_With_Primary_Reference_And_Coarse_Tool()
     {
-        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m3a-valid-multiple-primitives-lower.firmament"));
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m1b-valid-add.firmament"));
+
+        Assert.True(result.Compilation.IsSuccess);
+        var boolean = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
+        Assert.Equal(1, boolean.OpIndex);
+        Assert.Equal("add1", boolean.FeatureId);
+        Assert.Equal(FirmamentLoweredBooleanKind.Add, boolean.Kind);
+        Assert.Equal("to", boolean.PrimaryReferenceField);
+        Assert.Equal("base", boolean.PrimaryReferenceFeatureId);
+        Assert.Equal("box", boolean.Tool.OpName);
+        Assert.Equal("box", boolean.Tool.RawFields["op"]);
+        Assert.Equal("{ op: box }", boolean.Tool.RawValue);
+    }
+
+    [Fact]
+    public void Compile_Lowers_Subtract_Boolean_With_Primary_Reference_And_Coarse_Tool()
+    {
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m1b-valid-subtract.firmament"));
+
+        Assert.True(result.Compilation.IsSuccess);
+        var boolean = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
+        Assert.Equal(FirmamentLoweredBooleanKind.Subtract, boolean.Kind);
+        Assert.Equal("from", boolean.PrimaryReferenceField);
+        Assert.Equal("base", boolean.PrimaryReferenceFeatureId);
+        Assert.Equal("sphere", boolean.Tool.OpName);
+    }
+
+    [Fact]
+    public void Compile_Lowers_Intersect_Boolean_With_Primary_Reference_And_Coarse_Tool()
+    {
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m1b-valid-intersect.firmament"));
+
+        Assert.True(result.Compilation.IsSuccess);
+        var boolean = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
+        Assert.Equal(FirmamentLoweredBooleanKind.Intersect, boolean.Kind);
+        Assert.Equal("left", boolean.PrimaryReferenceField);
+        Assert.Equal("base", boolean.PrimaryReferenceFeatureId);
+        Assert.Equal("cylinder", boolean.Tool.OpName);
+    }
+
+    [Fact]
+    public void Compile_Lowers_Mixed_Primitive_And_Boolean_In_Source_Order_With_Preserved_Ids()
+    {
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m3b-mixed-primitive-boolean-validation.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         var plan = result.Compilation.Value.PrimitiveLoweringPlan!;
+
         Assert.Collection(
             plan.Primitives,
-            p => Assert.Equal("b1", p.FeatureId),
-            p => Assert.Equal("c1", p.FeatureId),
-            p => Assert.Equal("s1", p.FeatureId));
-        Assert.Empty(plan.SkippedOps);
+            p =>
+            {
+                Assert.Equal(0, p.OpIndex);
+                Assert.Equal("base", p.FeatureId);
+            },
+            p =>
+            {
+                Assert.Equal(2, p.OpIndex);
+                Assert.Equal("cap", p.FeatureId);
+            });
+
+        Assert.Collection(
+            plan.Booleans,
+            b =>
+            {
+                Assert.Equal(1, b.OpIndex);
+                Assert.Equal("join1", b.FeatureId);
+                Assert.Equal("to", b.PrimaryReferenceField);
+            },
+            b =>
+            {
+                Assert.Equal(3, b.OpIndex);
+                Assert.Equal("cut1", b.FeatureId);
+                Assert.Equal("from", b.PrimaryReferenceField);
+            });
     }
 
     [Fact]
-    public void Compile_Mixed_Primitive_And_Boolean_Produces_Explicit_SkippedOps()
+    public void Compile_Validation_Family_Ops_Remain_Explicitly_NonLowered()
     {
-        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m3a-mixed-primitive-boolean.firmament"));
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m3b-mixed-primitive-boolean-validation.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
-        var plan = result.Compilation.Value.PrimitiveLoweringPlan!;
-        var primitive = Assert.Single(plan.Primitives);
-        var skipped = Assert.Single(plan.SkippedOps);
-
-        Assert.Equal("base", primitive.FeatureId);
-        Assert.Equal(1, skipped.OpIndex);
-        Assert.Equal("add", skipped.OpName);
-        Assert.Equal("unsupported-op-in-m3a-primitive-only-lowering", skipped.Reason);
+        var skipped = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.SkippedOps);
+        Assert.Equal(4, skipped.OpIndex);
+        Assert.Equal(FirmamentOpFamily.Validation, skipped.Family);
+        Assert.Equal("expect_exists", skipped.OpName);
+        Assert.Equal("unsupported-op-in-m3b-boolean-lowering", skipped.Reason);
     }
 
     [Fact]
-    public void Compile_Primitive_Lowering_Output_Is_Deterministic()
+    public void Compile_Primitive_And_Boolean_Lowering_Output_Is_Deterministic()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m3a-valid-primitive-only-lower.firmament");
+        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m3b-valid-primitives-and-booleans-lower.firmament");
 
         var first = Compile(source);
         var second = Compile(source);

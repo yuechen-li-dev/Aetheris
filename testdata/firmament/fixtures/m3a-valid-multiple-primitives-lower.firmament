@@ -1,0 +1,24 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: b1
+    size[3]:
+      1
+      2
+      3
+  -
+    op: cylinder
+    id: c1
+    radius: 4
+    height: 5
+  -
+    op: sphere
+    id: s1
+    radius: 6

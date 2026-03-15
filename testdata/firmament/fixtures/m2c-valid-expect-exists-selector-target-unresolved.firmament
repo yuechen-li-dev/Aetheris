@@ -7,6 +7,5 @@ model:
 
 ops[1]:
   -
-    op: expect_selectable
-    target: hole.entry_face
-    count: 4
+    op: expect_exists
+    target: ghost_feature.top_face

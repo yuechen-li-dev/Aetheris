@@ -38,13 +38,6 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(validationValidationResult.Diagnostics));
         }
 
-        var documentCoherenceValidationResult = FirmamentDocumentCoherenceValidator.Validate(parseResult.Value);
-        if (!documentCoherenceValidationResult.IsSuccess)
-        {
-            return new FirmamentCompileResult(
-                KernelResult<FirmamentCompilationArtifact>.Failure(documentCoherenceValidationResult.Diagnostics));
-        }
-
         var targetShapeValidationResult = FirmamentValidationTargetShapeValidator.Validate(parseResult.Value);
         if (!targetShapeValidationResult.IsSuccess)
         {
@@ -52,10 +45,17 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(targetShapeValidationResult.Diagnostics));
         }
 
+        var documentCoherenceValidationResult = FirmamentDocumentCoherenceValidator.Validate(targetShapeValidationResult.Value);
+        if (!documentCoherenceValidationResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(documentCoherenceValidationResult.Diagnostics));
+        }
+
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
                 new FirmamentCompilationArtifact(
-                    ArtifactKind: "firmament-validation-target-shape-classified",
+                    ArtifactKind: "firmament-validation-target-featureid-existence-checked",
                     ParsedDocument: targetShapeValidationResult.Value)));
     }
 }

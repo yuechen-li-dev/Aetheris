@@ -54,7 +54,7 @@ public sealed class FirmamentDocumentCoherenceValidationTests
     }
 
     [Fact]
-    public void Compiler_Leaves_ValidationTargets_Unresolved()
+    public void Compiler_Leaves_SelectorShapedValidationTargets_Unresolved()
     {
         const string source = """
         firmament:
@@ -77,7 +77,7 @@ public sealed class FirmamentDocumentCoherenceValidationTests
             target: future_feature.top_face
           -
             op: expect_selectable
-            target: ghost_feature
+            target: ghost_feature.side_a
             count: 1
         """;
 

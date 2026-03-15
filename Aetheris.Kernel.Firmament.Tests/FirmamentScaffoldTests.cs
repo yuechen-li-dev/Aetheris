@@ -37,7 +37,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-validation-target-shape-classified", artifact.ArtifactKind);
+        Assert.Equal("firmament-validation-target-featureid-existence-checked", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);
@@ -222,7 +222,7 @@ public sealed class FirmamentScaffoldTests
             ops[1]:
               -
                 op: expect_exists
-                target: base
+                target: base.top_face
             """,
             1);
 
@@ -843,12 +843,12 @@ public sealed class FirmamentScaffoldTests
             "expect_exists" => """
   -
     op: expect_exists
-    target: b1
+    target: b1.top_face
 """,
             "expect_selectable" => """
   -
     op: expect_selectable
-    target: b1
+    target: b1.top_face
     count: 1
 """,
             "expect_manifold" => """

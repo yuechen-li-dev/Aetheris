@@ -8,5 +8,5 @@ model:
 ops[1]:
   -
     op: expect_selectable
-    target: hole.entry_face
-    count: 4
+    target: missing
+    count: 1

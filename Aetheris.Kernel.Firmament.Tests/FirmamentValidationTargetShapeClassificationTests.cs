@@ -7,29 +7,51 @@ public sealed class FirmamentValidationTargetShapeClassificationTests
     [Theory]
     [InlineData("expect_exists", "base", "FeatureId")]
     [InlineData("expect_exists", "base.top_face", "SelectorShaped")]
-    [InlineData("expect_selectable", "mount_hole", "FeatureId")]
+    [InlineData("expect_selectable", "base", "FeatureId")]
     [InlineData("expect_selectable", "mount_hole.entry_face", "SelectorShaped")]
     public void Compiler_Classifies_ValidationTargets_BySurfaceShape(string opName, string target, string expectedShape)
     {
-        var source = $$"""
-        firmament:
-          version: 1
-        
-        model:
-          name: demo
-          units: mm
-        
-        ops[1]:
-          -
-            op: {{opName}}
-            target: {{target}}
-            {{(opName == "expect_selectable" ? "count: 1" : string.Empty)}}
-        """;
+        var source = string.Equals(expectedShape, "FeatureId", StringComparison.Ordinal)
+            ? $$"""
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  1
+                  1
+                  1
+              -
+                op: {{opName}}
+                target: {{target}}
+                {{(opName == "expect_selectable" ? "count: 1" : string.Empty)}}
+            """
+            : $$"""
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: {{opName}}
+                target: {{target}}
+                {{(opName == "expect_selectable" ? "count: 1" : string.Empty)}}
+            """;
 
         var result = Compile(source);
 
         Assert.True(result.Compilation.IsSuccess);
-        var op = Assert.Single(result.Compilation.Value.ParsedDocument!.Ops.Entries);
+        var op = result.Compilation.Value.ParsedDocument!.Ops.Entries[^1];
         Assert.NotNull(op.ClassifiedFields);
         Assert.Equal(expectedShape, op.ClassifiedFields!["targetShape"]);
     }
@@ -87,7 +109,7 @@ public sealed class FirmamentValidationTargetShapeClassificationTests
             target: future_feature.top_face
           -
             op: expect_selectable
-            target: ghost_feature
+            target: ghost_feature.edge_a
             count: 1
         """;
 

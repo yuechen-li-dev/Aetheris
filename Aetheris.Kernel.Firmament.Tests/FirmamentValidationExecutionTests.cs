@@ -1,3 +1,7 @@
+using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.ParsedModel;
 
 namespace Aetheris.Kernel.Firmament.Tests;
@@ -102,16 +106,71 @@ public sealed class FirmamentValidationExecutionTests
     }
 
     [Fact]
-    public void Compile_Records_Unsupported_For_ExpectManifold_At_M6a()
+    public void Compile_Executes_ExpectManifold_For_Valid_Solids()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/m6a-unsupported-expect-manifold.firmament");
+        var result = CompileFixture("testdata/firmament/fixtures/m6d-valid-manifold.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var validations = result.Compilation.Value.ValidationExecutionResult!.Validations;
+        Assert.Equal(4, validations.Count);
+        Assert.All(validations, validation =>
+        {
+            Assert.Equal(FirmamentKnownOpKind.ExpectManifold, validation.Kind);
+            Assert.True(validation.IsExecuted);
+            Assert.True(validation.IsSuccess);
+            Assert.Null(validation.Reason);
+        });
+    }
+
+    [Fact]
+    public void Compile_Rejects_SelectorShaped_Targets_For_ExpectManifold_Deterministically()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m6d-invalid-nonmanifold.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var validation = Assert.Single(result.Compilation.Value.ValidationExecutionResult!.Validations);
         Assert.Equal(FirmamentKnownOpKind.ExpectManifold, validation.Kind);
         Assert.False(validation.IsExecuted);
         Assert.False(validation.IsSuccess);
-        Assert.Contains("unsupported", validation.Reason, StringComparison.Ordinal);
+        Assert.Equal("expect_manifold does not support selector-shaped targets at M6d.", validation.Reason);
+    }
+
+    [Fact]
+    public void ValidationExecutor_Reports_NonManifold_Bodies_Deterministically()
+    {
+        var parsedDocument = new FirmamentParsedDocument(
+            new FirmamentParsedHeader("1"),
+            new FirmamentParsedModelHeader("demo", "mm"),
+            new FirmamentParsedOpsSection(
+            [
+                new FirmamentParsedOpEntry(
+                    OpName: "expect_manifold",
+                    KnownKind: FirmamentKnownOpKind.ExpectManifold,
+                    Family: FirmamentOpFamily.Validation,
+                    RawFields: new Dictionary<string, string>(StringComparer.Ordinal) { ["target"] = "base" },
+                    ClassifiedFields: new Dictionary<string, string>(StringComparer.Ordinal) { ["targetShape"] = "FeatureId" })
+            ]),
+            HasSchema: false,
+            HasPmi: false);
+
+        var executionResult = new FirmamentPrimitiveExecutionResult(
+            ExecutedPrimitives:
+            [
+                new FirmamentExecutedPrimitive(0, "base", FirmamentLoweredPrimitiveKind.Box, BuildNonManifoldBody())
+            ],
+            ExecutedBooleans: []);
+
+        var validationExecution = FirmamentValidationExecutor.Execute(parsedDocument, executionResult);
+
+        Assert.True(validationExecution.IsSuccess);
+        var validation = Assert.Single(validationExecution.Value.Validations);
+        Assert.True(validation.IsExecuted);
+        Assert.False(validation.IsSuccess);
+        Assert.Equal("Feature 'base' produced non-manifold geometry.", validation.Reason);
+
+        var diagnostic = Assert.Single(validationExecution.Diagnostics);
+        Assert.Contains("[FIRM-REF-0009]", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("Feature 'base' produced non-manifold geometry.", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -142,6 +201,7 @@ ops[4]:
     count: 1
   -
     op: expect_manifold
+    target: base
 """;
 
         var result = Compile(source);
@@ -175,6 +235,29 @@ ops[4]:
         Assert.True(result.Compilation.IsSuccess);
         Assert.NotEmpty(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
         Assert.NotEmpty(result.Compilation.Value.ValidationExecutionResult!.Validations);
+    }
+
+    private static BrepBody BuildNonManifoldBody()
+    {
+        var topologyBuilder = new TopologyBuilder();
+        var v0 = topologyBuilder.AddVertex();
+        var v1 = topologyBuilder.AddVertex();
+        var edge = topologyBuilder.AddEdge(v0, v1);
+
+        var faces = new List<FaceId>();
+        for (var i = 0; i < 3; i++)
+        {
+            var loopId = topologyBuilder.AllocateLoopId();
+            var coedgeId = topologyBuilder.AllocateCoedgeId();
+            topologyBuilder.AddLoop(new Loop(loopId, [coedgeId]));
+            topologyBuilder.AddCoedge(new Coedge(coedgeId, edge, loopId, coedgeId, coedgeId, false));
+            faces.Add(topologyBuilder.AddFace([loopId]));
+        }
+
+        var shell = topologyBuilder.AddShell(faces);
+        topologyBuilder.AddBody([shell]);
+
+        return new BrepBody(topologyBuilder.Model, new BrepGeometryStore(), new BrepBindingModel());
     }
 
     private static FirmamentCompileResult CompileFixture(string fixturePath) =>

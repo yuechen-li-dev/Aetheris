@@ -79,7 +79,7 @@ internal static class FirmamentDocumentCoherenceValidator
         diagnostic = null;
         enrichedEntry = null;
 
-        if (entry.KnownKind is not (FirmamentKnownOpKind.ExpectExists or FirmamentKnownOpKind.ExpectSelectable)
+        if (entry.KnownKind is not (FirmamentKnownOpKind.ExpectExists or FirmamentKnownOpKind.ExpectSelectable or FirmamentKnownOpKind.ExpectManifold)
             || !entry.RawFields.TryGetValue("target", out var targetRaw))
         {
             return;

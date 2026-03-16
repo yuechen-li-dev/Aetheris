@@ -33,13 +33,7 @@ internal static class FirmamentValidationExecutor
             {
                 FirmamentKnownOpKind.ExpectExists => ExecuteExpectExists(index, entry, target, featureBodies, diagnostics),
                 FirmamentKnownOpKind.ExpectSelectable => ExecuteExpectSelectable(index, entry, target, featureBodies, diagnostics),
-                FirmamentKnownOpKind.ExpectManifold => new FirmamentExecutedValidation(
-                    OpIndex: index,
-                    Kind: entry.KnownKind,
-                    Target: target,
-                    IsExecuted: false,
-                    IsSuccess: false,
-                    Reason: "expect_manifold is unsupported at M6a contract-level validation execution."),
+                FirmamentKnownOpKind.ExpectManifold => ExecuteExpectManifold(index, entry, target, featureBodies, diagnostics),
                 _ => new FirmamentExecutedValidation(
                     OpIndex: index,
                     Kind: entry.KnownKind,
@@ -176,6 +170,64 @@ internal static class FirmamentValidationExecutor
             Reason: isSuccess
                 ? null
                 : $"Selector '{target}' resolved to {resolution.Count.ToString(CultureInfo.InvariantCulture)} elements but {requestedCount.ToString(CultureInfo.InvariantCulture)} were expected.");
+    }
+
+
+    private static FirmamentExecutedValidation ExecuteExpectManifold(
+        int opIndex,
+        FirmamentParsedOpEntry entry,
+        string? target,
+        IReadOnlyDictionary<string, Aetheris.Kernel.Core.Brep.BrepBody> featureBodies,
+        ICollection<KernelDiagnostic> diagnostics)
+    {
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            return new FirmamentExecutedValidation(
+                OpIndex: opIndex,
+                Kind: entry.KnownKind,
+                Target: target,
+                IsExecuted: true,
+                IsSuccess: false,
+                Reason: "expect_manifold target is not executable.");
+        }
+
+        if (!IsFeatureIdTarget(entry))
+        {
+            return new FirmamentExecutedValidation(
+                OpIndex: opIndex,
+                Kind: entry.KnownKind,
+                Target: target,
+                IsExecuted: false,
+                IsSuccess: false,
+                Reason: "expect_manifold does not support selector-shaped targets at M6d.");
+        }
+
+        if (!featureBodies.TryGetValue(target, out var body))
+        {
+            return new FirmamentExecutedValidation(
+                OpIndex: opIndex,
+                Kind: entry.KnownKind,
+                Target: target,
+                IsExecuted: true,
+                IsSuccess: false,
+                Reason: $"Feature '{target}' does not have executable geometry for expect_manifold.");
+        }
+
+        var isSuccess = FirmamentManifoldChecker.IsManifold(body);
+        if (!isSuccess)
+        {
+            diagnostics.Add(CreateDiagnostic(
+                FirmamentDiagnosticCodes.ValidationTargetNonManifoldBody,
+                $"Feature '{target}' produced non-manifold geometry."));
+        }
+
+        return new FirmamentExecutedValidation(
+            OpIndex: opIndex,
+            Kind: entry.KnownKind,
+            Target: target,
+            IsExecuted: true,
+            IsSuccess: isSuccess,
+            Reason: isSuccess ? null : $"Feature '{target}' produced non-manifold geometry.");
     }
 
     private static IReadOnlyDictionary<string, Aetheris.Kernel.Core.Brep.BrepBody> BuildFeatureBodyMap(FirmamentPrimitiveExecutionResult primitiveExecutionResult)

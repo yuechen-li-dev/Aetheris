@@ -52,8 +52,33 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
             """);
 
     [Fact]
-    public void Compiler_Accepts_ValidExpectManifold_WithoutPayload() =>
+    public void Compiler_Accepts_ValidExpectManifold_With_FeatureTarget() =>
         AssertValidationSuccess(
+            """
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  1
+                  1
+                  1
+              -
+                op: expect_manifold
+                target: base
+            """);
+
+
+    [Fact]
+    public void Compiler_Rejects_ExpectManifold_MissingTarget() =>
+        AssertValidationFailure(
             """
             firmament:
               version: 1
@@ -65,7 +90,9 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
             ops[1]:
               -
                 op: expect_manifold
-            """);
+            """,
+            FirmamentDiagnosticCodes.ValidationMissingRequiredField,
+            "Validation op 'expect_manifold' at index 0 is missing required field 'target'.");
 
     [Fact]
     public void Compiler_Rejects_ExpectExists_MissingTarget() =>

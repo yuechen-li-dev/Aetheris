@@ -9,6 +9,8 @@ public sealed class FirmamentValidationTargetShapeClassificationTests
     [InlineData("expect_exists", "base.top_face", "SelectorShaped")]
     [InlineData("expect_selectable", "base", "FeatureId")]
     [InlineData("expect_selectable", "mount_hole.edges", "SelectorShaped")]
+    [InlineData("expect_manifold", "base", "FeatureId")]
+    [InlineData("expect_manifold", "base.top_face", "SelectorShaped")]
     public void Compiler_Classifies_ValidationTargets_BySurfaceShape(string opName, string target, string expectedShape)
     {
         var selectorRoot = target.Split('.', 2, StringSplitOptions.None)[0];
@@ -70,6 +72,7 @@ public sealed class FirmamentValidationTargetShapeClassificationTests
     [InlineData("expect_exists", "base.top.face")]
     [InlineData("expect_selectable", "base top_face")]
     [InlineData("expect_selectable", "1base")]
+    [InlineData("expect_manifold", "base..top_face")]
     public void Compiler_Rejects_MalformedValidationTargetShape_Deterministically(string opName, string target)
     {
         var source = $$"""

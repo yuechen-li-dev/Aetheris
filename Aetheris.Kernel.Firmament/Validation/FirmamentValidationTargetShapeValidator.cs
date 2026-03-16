@@ -16,7 +16,7 @@ internal static class FirmamentValidationTargetShapeValidator
         for (var index = 0; index < parsedDocument.Ops.Entries.Count; index++)
         {
             var entry = parsedDocument.Ops.Entries[index];
-            if (entry.KnownKind is not (FirmamentKnownOpKind.ExpectExists or FirmamentKnownOpKind.ExpectSelectable))
+            if (entry.KnownKind is not (FirmamentKnownOpKind.ExpectExists or FirmamentKnownOpKind.ExpectSelectable or FirmamentKnownOpKind.ExpectManifold))
             {
                 updatedEntries.Add(entry);
                 continue;

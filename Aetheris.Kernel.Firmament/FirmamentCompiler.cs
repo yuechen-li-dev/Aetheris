@@ -70,7 +70,7 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(primitiveExecutionResult.Diagnostics));
         }
 
-        var validationExecutionResult = FirmamentValidationExecutor.Execute(validatedDocument);
+        var validationExecutionResult = FirmamentValidationExecutor.Execute(validatedDocument, primitiveExecutionResult.Value);
         if (!validationExecutionResult.IsSuccess)
         {
             return new FirmamentCompileResult(
@@ -80,7 +80,7 @@ public sealed class FirmamentCompiler
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
                 new FirmamentCompilationArtifact(
-                    ArtifactKind: "firmament-contract-validations-executed",
+                    ArtifactKind: "firmament-topology-exists-validation-executed",
                     ParsedDocument: validatedDocument,
                     PrimitiveLoweringPlan: primitiveLoweringResult.Value,
                     PrimitiveExecutionResult: primitiveExecutionResult.Value,

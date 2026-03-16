@@ -118,7 +118,7 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
 
-        Assert.Equal("firmament-contract-validations-executed", artifact.ArtifactKind);
+        Assert.Equal("firmament-topology-exists-validation-executed", artifact.ArtifactKind);
         Assert.Equal(2, artifact.PrimitiveLoweringPlan!.Primitives.Count);
         Assert.Equal(2, artifact.PrimitiveLoweringPlan.Booleans.Count);
         Assert.Single(artifact.PrimitiveLoweringPlan.SkippedOps);

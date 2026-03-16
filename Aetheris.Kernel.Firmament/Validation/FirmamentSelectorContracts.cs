@@ -2,7 +2,7 @@ using Aetheris.Kernel.Firmament.ParsedModel;
 
 namespace Aetheris.Kernel.Firmament.Validation;
 
-internal static class FirmamentPrimitiveSelectorContracts
+internal static class FirmamentSelectorContracts
 {
     private static readonly IReadOnlyDictionary<string, FirmamentSelectorPortContract> BoxPorts =
         new Dictionary<string, FirmamentSelectorPortContract>(StringComparer.Ordinal)
@@ -33,6 +33,16 @@ internal static class FirmamentPrimitiveSelectorContracts
             ["vertices"] = new(FirmamentSelectorResultKind.VertexSet, FirmamentSelectorCardinality.Many)
         };
 
+    private static readonly IReadOnlyDictionary<string, FirmamentSelectorPortContract> BooleanPorts =
+        new Dictionary<string, FirmamentSelectorPortContract>(StringComparer.Ordinal)
+        {
+            ["top_face"] = new(FirmamentSelectorResultKind.Face, FirmamentSelectorCardinality.One),
+            ["bottom_face"] = new(FirmamentSelectorResultKind.Face, FirmamentSelectorCardinality.One),
+            ["side_faces"] = new(FirmamentSelectorResultKind.FaceSet, FirmamentSelectorCardinality.Many),
+            ["edges"] = new(FirmamentSelectorResultKind.EdgeSet, FirmamentSelectorCardinality.Many),
+            ["vertices"] = new(FirmamentSelectorResultKind.VertexSet, FirmamentSelectorCardinality.Many)
+        };
+
     public static bool TryGetAllowedPorts(FirmamentKnownOpKind featureKind, out IReadOnlySet<string> allowedPorts)
     {
         switch (featureKind)
@@ -45,6 +55,11 @@ internal static class FirmamentPrimitiveSelectorContracts
                 return true;
             case FirmamentKnownOpKind.Sphere:
                 allowedPorts = SphereAllowedPorts;
+                return true;
+            case FirmamentKnownOpKind.Add:
+            case FirmamentKnownOpKind.Subtract:
+            case FirmamentKnownOpKind.Intersect:
+                allowedPorts = BooleanAllowedPorts;
                 return true;
             default:
                 allowedPorts = EmptyPorts;
@@ -77,6 +92,11 @@ internal static class FirmamentPrimitiveSelectorContracts
             case FirmamentKnownOpKind.Sphere:
                 contracts = SpherePorts;
                 return true;
+            case FirmamentKnownOpKind.Add:
+            case FirmamentKnownOpKind.Subtract:
+            case FirmamentKnownOpKind.Intersect:
+                contracts = BooleanPorts;
+                return true;
             default:
                 contracts = EmptyContracts;
                 return false;
@@ -89,5 +109,6 @@ internal static class FirmamentPrimitiveSelectorContracts
     private static readonly IReadOnlySet<string> BoxAllowedPorts = new HashSet<string>(BoxPorts.Keys, StringComparer.Ordinal);
     private static readonly IReadOnlySet<string> CylinderAllowedPorts = new HashSet<string>(CylinderPorts.Keys, StringComparer.Ordinal);
     private static readonly IReadOnlySet<string> SphereAllowedPorts = new HashSet<string>(SpherePorts.Keys, StringComparer.Ordinal);
+    private static readonly IReadOnlySet<string> BooleanAllowedPorts = new HashSet<string>(BooleanPorts.Keys, StringComparer.Ordinal);
     private static readonly IReadOnlySet<string> EmptyPorts = new HashSet<string>(StringComparer.Ordinal);
 }

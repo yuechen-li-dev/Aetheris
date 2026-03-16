@@ -217,4 +217,106 @@ ops[1]:
         var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[0];
         Assert.Null(validationOp.ClassifiedFields);
     }
+
+    [Theory]
+    [InlineData("add", "join", "to", "join.top_face", "Face", "One")]
+    [InlineData("subtract", "cut", "from", "cut.side_faces", "FaceSet", "Many")]
+    [InlineData("intersect", "clip", "left", "clip.edges", "EdgeSet", "Many")]
+    public void Compiler_Attaches_SelectorContractMetadata_For_Legal_BooleanRoot_SelectorTargets(
+        string booleanOp,
+        string featureId,
+        string referenceField,
+        string selectorTarget,
+        string expectedResultKind,
+        string expectedCardinality)
+    {
+        var source = $$"""
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      20
+      30
+  -
+    op: {{booleanOp}}
+    id: {{featureId}}
+    {{referenceField}}: base
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+  -
+    op: expect_exists
+    target: {{selectorTarget}}
+""";
+
+        var result = new FirmamentCompiler().Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.True(result.Compilation.IsSuccess);
+        var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[2];
+        Assert.NotNull(validationOp.ClassifiedFields);
+        Assert.Equal("SelectorShaped", validationOp.ClassifiedFields!["targetShape"]);
+        Assert.Equal(expectedResultKind, validationOp.ClassifiedFields["selectorResultKind"]);
+        Assert.Equal(expectedCardinality, validationOp.ClassifiedFields["selectorCardinality"]);
+    }
+
+    [Fact]
+    public void Compiler_Rejects_SelectorShapedValidationTargets_WhenPortNotAllowedByBooleanFeatureContract()
+    {
+        const string source = """
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      20
+      30
+  -
+    op: subtract
+    id: cut
+    from: base
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+  -
+    op: expect_exists
+    target: cut.circular_edges
+""";
+
+        var first = new FirmamentCompiler().Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+        var second = new FirmamentCompiler().Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.False(first.Compilation.IsSuccess);
+        Assert.False(second.Compilation.IsSuccess);
+
+        var firstDiagnostic = Assert.Single(first.Compilation.Diagnostics);
+        var secondDiagnostic = Assert.Single(second.Compilation.Diagnostics);
+
+        Assert.Equal(firstDiagnostic.Message, secondDiagnostic.Message);
+        Assert.Equal(
+            $"[{FirmamentDiagnosticCodes.ValidationTargetSelectorPortNotAllowedForFeatureKind.Value}] Validation op 'expect_exists' at index 2 has selector port 'circular_edges' not allowed for feature kind 'subtract' on feature id 'cut' via field 'target'.",
+            firstDiagnostic.Message);
+    }
 }

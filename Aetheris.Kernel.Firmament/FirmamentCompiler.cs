@@ -73,7 +73,7 @@ public sealed class FirmamentCompiler
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
                 new FirmamentCompilationArtifact(
-                    ArtifactKind: "firmament-m5a-selector-contract-metadata-validated-primitives-and-booleans-executed",
+                    ArtifactKind: "firmament-m5b-selector-contract-metadata-validated-primitives-and-booleans-executed",
                     ParsedDocument: validatedDocument,
                     PrimitiveLoweringPlan: primitiveLoweringResult.Value,
                     PrimitiveExecutionResult: primitiveExecutionResult.Value)));

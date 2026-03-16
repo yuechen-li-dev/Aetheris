@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using Aetheris.Kernel.Core.Diagnostics;
@@ -246,7 +247,8 @@ internal static class FirmamentTopLevelParser
             }
 
             var family = FirmamentKnownOpKinds.ClassifyFamily(knownKind);
-            entries.Add(new FirmamentParsedOpEntry(opName, knownKind, family, rawFields));
+            var placement = ParsePlacementFromJson(opElement);
+            entries.Add(new FirmamentParsedOpEntry(opName, knownKind, family, rawFields, placement));
             index++;
         }
 
@@ -280,7 +282,8 @@ internal static class FirmamentTopLevelParser
             }
 
             var family = FirmamentKnownOpKinds.ClassifyFamily(knownKind);
-            entries.Add(new FirmamentParsedOpEntry(opName, knownKind, family, new Dictionary<string, string>(opEntry.Fields, StringComparer.Ordinal)));
+            var placement = ParsePlacementFromToon(opEntry);
+            entries.Add(new FirmamentParsedOpEntry(opName, knownKind, family, new Dictionary<string, string>(opEntry.Fields, StringComparer.Ordinal), placement));
         }
 
         return KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Success(entries);
@@ -525,6 +528,159 @@ internal static class FirmamentTopLevelParser
         var countText = header[(bracketStart + 1)..bracketEnd].Trim();
         return sectionName.Length > 0
             && int.TryParse(countText, out _);
+    }
+
+    private static FirmamentParsedPlacement? ParsePlacementFromJson(JsonElement opElement)
+    {
+        if (!opElement.TryGetProperty("place", out var placeElement))
+        {
+            return null;
+        }
+
+        if (placeElement.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var anchor = default(FirmamentParsedPlacementAnchor);
+        if (placeElement.TryGetProperty("on", out var onElement))
+        {
+            var onRaw = onElement.ToString();
+            anchor = string.Equals(onRaw, "origin", StringComparison.Ordinal)
+                ? (FirmamentParsedPlacementAnchor)new FirmamentParsedPlacementOriginAnchor()
+                : new FirmamentParsedPlacementSelectorAnchor(onRaw);
+        }
+
+        var offset = new List<double>();
+        if (placeElement.TryGetProperty("offset", out var offsetElement)
+            && offsetElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var component in offsetElement.EnumerateArray())
+            {
+                if (component.ValueKind == JsonValueKind.Number)
+                {
+                    offset.Add(component.GetDouble());
+                }
+            }
+        }
+
+        if (anchor is null)
+        {
+            return null;
+        }
+
+        return new FirmamentParsedPlacement(anchor, offset);
+    }
+
+    private static FirmamentParsedPlacement? ParsePlacementFromToon(FirmamentToonObjectEntry opEntry)
+    {
+        if (!opEntry.Fields.TryGetValue("place", out var placeRaw) || string.IsNullOrWhiteSpace(placeRaw))
+        {
+            return null;
+        }
+
+        var trimmed = placeRaw.Trim();
+        if (!trimmed.StartsWith("{", StringComparison.Ordinal) || !trimmed.EndsWith("}", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var body = trimmed[1..^1].Trim();
+        var pairs = SplitTopLevelCommaSeparated(body);
+        string? on = null;
+        var offset = new List<double>();
+
+        foreach (var pair in pairs)
+        {
+            var separator = pair.IndexOf(':');
+            if (separator <= 0)
+            {
+                continue;
+            }
+
+            var keyRaw = pair[..separator].Trim();
+            var key = TryParseArrayHeader(keyRaw, out var normalizedFieldName) ? normalizedFieldName : keyRaw;
+            var value = pair[(separator + 1)..].Trim();
+            if (string.Equals(key, "on", StringComparison.Ordinal))
+            {
+                on = value;
+                continue;
+            }
+
+            if (string.Equals(key, "offset", StringComparison.Ordinal)
+                && value.StartsWith("[", StringComparison.Ordinal)
+                && value.EndsWith("]", StringComparison.Ordinal))
+            {
+                var rawParts = value[1..^1].Split(',', StringSplitOptions.TrimEntries);
+                foreach (var part in rawParts)
+                {
+                    if (double.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out var component))
+                    {
+                        offset.Add(component);
+                    }
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(on))
+        {
+            return null;
+        }
+
+        var anchor = string.Equals(on, "origin", StringComparison.Ordinal)
+            ? (FirmamentParsedPlacementAnchor)new FirmamentParsedPlacementOriginAnchor()
+            : new FirmamentParsedPlacementSelectorAnchor(on);
+
+        return new FirmamentParsedPlacement(anchor, offset);
+    }
+
+    private static IReadOnlyList<string> SplitTopLevelCommaSeparated(string raw)
+    {
+        var parts = new List<string>();
+        var start = 0;
+        var squareDepth = 0;
+        var curlyDepth = 0;
+
+        for (var i = 0; i < raw.Length; i++)
+        {
+            var ch = raw[i];
+            switch (ch)
+            {
+                case '[':
+                    squareDepth++;
+                    break;
+                case ']':
+                    squareDepth = Math.Max(0, squareDepth - 1);
+                    break;
+                case '{':
+                    curlyDepth++;
+                    break;
+                case '}':
+                    curlyDepth = Math.Max(0, curlyDepth - 1);
+                    break;
+                case ',':
+                    if (squareDepth == 0 && curlyDepth == 0)
+                    {
+                        var part = raw[start..i].Trim();
+                        if (part.Length > 0)
+                        {
+                            parts.Add(part);
+                        }
+
+                        start = i + 1;
+                    }
+
+                    break;
+            }
+        }
+
+        var finalPart = raw[start..].Trim();
+        if (finalPart.Length > 0)
+        {
+            parts.Add(finalPart);
+        }
+
+        return parts;
     }
 
     private static bool IsValidOpScalar(JsonElement opNameElement)

@@ -1,0 +1,21 @@
+firmament:
+  version: 1
+
+model:
+  name: m7a_valid_box_origin_placement
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      20
+      30
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        0

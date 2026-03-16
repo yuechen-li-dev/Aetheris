@@ -24,7 +24,7 @@ internal static class FirmamentValidationRequiredFieldValidator
             {
                 FirmamentKnownOpKind.ExpectExists => ValidateExpectExists(entry, index),
                 FirmamentKnownOpKind.ExpectSelectable => ValidateExpectSelectable(entry, index),
-                FirmamentKnownOpKind.ExpectManifold => KernelResult<bool>.Success(true),
+                FirmamentKnownOpKind.ExpectManifold => ValidateExpectManifold(entry, index),
                 _ => KernelResult<bool>.Success(true)
             };
 
@@ -38,6 +38,16 @@ internal static class FirmamentValidationRequiredFieldValidator
     }
 
     private static KernelResult<bool> ValidateExpectExists(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredNonEmptyScalar(entry, "target", opIndex, out var missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateExpectManifold(FirmamentParsedOpEntry entry, int opIndex)
     {
         if (!TryGetRequiredNonEmptyScalar(entry, "target", opIndex, out var missingOrTypeDiagnostic))
         {

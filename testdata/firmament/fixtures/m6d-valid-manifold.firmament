@@ -1,0 +1,46 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[8]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      20
+      30
+  -
+    op: sphere
+    id: ball
+    radius: 8
+  -
+    op: cylinder
+    id: post
+    radius: 4
+    height: 12
+  -
+    op: add
+    id: join1
+    to: base
+    with:
+      op: box
+      size[3]:
+        2
+        2
+        2
+  -
+    op: expect_manifold
+    target: base
+  -
+    op: expect_manifold
+    target: ball
+  -
+    op: expect_manifold
+    target: post
+  -
+    op: expect_manifold
+    target: join1

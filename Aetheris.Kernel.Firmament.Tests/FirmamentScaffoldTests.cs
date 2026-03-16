@@ -37,7 +37,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-topology-selectable-validation-executed", artifact.ArtifactKind);
+        Assert.Equal("firmament-topology-manifold-validation-executed", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);
@@ -177,6 +177,7 @@ public sealed class FirmamentScaffoldTests
               radius: 1
           -
             op: expect_manifold
+            target: s1
         """;
 
         var result = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
@@ -891,7 +892,15 @@ public sealed class FirmamentScaffoldTests
 """,
             "expect_manifold" => """
   -
+    op: box
+    id: b1
+    size[3]:
+      1
+      1
+      1
+  -
     op: expect_manifold
+    target: b1
 """,
             _ => $$"""
   -
@@ -907,7 +916,7 @@ public sealed class FirmamentScaffoldTests
           name: demo
           units: mm
         
-        ops[{{((opName is "add" or "subtract" or "intersect" or "expect_exists" or "expect_selectable") ? 2 : 1)}}]:
+        ops[{{((opName is "add" or "subtract" or "intersect" or "expect_exists" or "expect_selectable" or "expect_manifold") ? 2 : 1)}}]:
         {{payload}}
         """;
 

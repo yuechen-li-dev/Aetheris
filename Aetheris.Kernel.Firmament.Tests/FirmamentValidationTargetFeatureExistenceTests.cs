@@ -206,16 +206,27 @@ model:
   name: demo
   units: mm
 
-ops[1]:
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      1
+      1
+      1
   -
     op: expect_manifold
+    target: base
 """;
 
         var result = new FirmamentCompiler().Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
 
         Assert.True(result.Compilation.IsSuccess);
-        var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[0];
-        Assert.Null(validationOp.ClassifiedFields);
+        var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[1];
+        Assert.NotNull(validationOp.ClassifiedFields);
+        Assert.Equal("FeatureId", validationOp.ClassifiedFields!["targetShape"]);
+        Assert.False(validationOp.ClassifiedFields.ContainsKey("selectorResultKind"));
+        Assert.False(validationOp.ClassifiedFields.ContainsKey("selectorCardinality"));
     }
 
     [Theory]

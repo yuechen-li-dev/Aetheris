@@ -106,7 +106,8 @@ public sealed class FirmamentPrimitiveLoweringTests
         Assert.Equal("base", boolean.PrimaryReferenceFeatureId);
         Assert.Equal("box", boolean.Tool.OpName);
         Assert.Equal("box", boolean.Tool.RawFields["op"]);
-        Assert.Equal("{ op: box }", boolean.Tool.RawValue);
+        Assert.Equal("[1, 1, 1]", boolean.Tool.RawFields["size"]);
+        Assert.Equal("{ op: box, size[3]: [1, 1, 1] }", boolean.Tool.RawValue);
     }
 
     [Fact]

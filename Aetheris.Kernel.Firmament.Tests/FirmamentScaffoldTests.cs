@@ -37,7 +37,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-primitives-executed", artifact.ArtifactKind);
+        Assert.Equal("firmament-primitives-and-booleans-executed", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);
@@ -92,6 +92,14 @@ public sealed class FirmamentScaffoldTests
                 from: b1
                 with:
                   op: box
+                  size[3]:
+                    1
+                    1
+                    1
+                  size[3]:
+                    1
+                    1
+                    1
             """,
             2);
 
@@ -165,6 +173,8 @@ public sealed class FirmamentScaffoldTests
             from: b1
             with:
               op: sphere
+              radius: 1
+              radius: 1
           -
             op: expect_manifold
         """;
@@ -205,6 +215,7 @@ public sealed class FirmamentScaffoldTests
                 to: b1
                 with:
                   op: sphere
+                  radius: 1
             """,
             2);
 
@@ -809,6 +820,8 @@ public sealed class FirmamentScaffoldTests
     to: b1
     with:
       op: sphere
+      radius: 1
+      radius: 1
 """,
             "subtract" => """
   -
@@ -824,6 +837,8 @@ public sealed class FirmamentScaffoldTests
     from: b1
     with:
       op: sphere
+      radius: 1
+      radius: 1
 """,
             "intersect" => """
   -
@@ -839,6 +854,8 @@ public sealed class FirmamentScaffoldTests
     left: b1
     with:
       op: sphere
+      radius: 1
+      radius: 1
 """,
             "expect_exists" => """
   -

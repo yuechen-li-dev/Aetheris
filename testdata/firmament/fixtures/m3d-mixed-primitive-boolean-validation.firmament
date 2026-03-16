@@ -2,7 +2,7 @@ firmament:
   version: 1
 
 model:
-  name: m3c-mixed
+  name: m3d-mixed
   units: mm
 
 ops[5]:
@@ -10,23 +10,28 @@ ops[5]:
     op: box
     id: base
     size[3]:
-      10
-      10
-      4
+      12
+      12
+      12
 
   -
     op: add
     id: join1
     to: base
     with:
-      op: cylinder
-      radius: 1
-      height: 1
+      op: box
+      size[3]:
+        1
+        1
+        1
 
   -
-    op: sphere
+    op: box
     id: cap
-    radius: 3
+    size[3]:
+      6
+      6
+      6
 
   -
     op: subtract

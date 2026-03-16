@@ -4,10 +4,17 @@ using Aetheris.Kernel.Firmament.Lowering;
 namespace Aetheris.Kernel.Firmament.Execution;
 
 public sealed record FirmamentPrimitiveExecutionResult(
-    IReadOnlyList<FirmamentExecutedPrimitive> ExecutedPrimitives);
+    IReadOnlyList<FirmamentExecutedPrimitive> ExecutedPrimitives,
+    IReadOnlyList<FirmamentExecutedBoolean> ExecutedBooleans);
 
 public sealed record FirmamentExecutedPrimitive(
     int OpIndex,
     string FeatureId,
     FirmamentLoweredPrimitiveKind Kind,
+    BrepBody Body);
+
+public sealed record FirmamentExecutedBoolean(
+    int OpIndex,
+    string FeatureId,
+    FirmamentLoweredBooleanKind Kind,
     BrepBody Body);

@@ -5,7 +5,7 @@ using Aetheris.Kernel.Firmament.ParsedModel;
 namespace Aetheris.Kernel.Firmament;
 
 public sealed record FirmamentCompilationArtifact(
-    string ArtifactKind = "firmament-primitives-executed",
+    string ArtifactKind = "firmament-primitives-and-booleans-executed",
     FirmamentParsedDocument? ParsedDocument = null,
     FirmamentPrimitiveLoweringPlan? PrimitiveLoweringPlan = null,
     FirmamentPrimitiveExecutionResult? PrimitiveExecutionResult = null);

@@ -18,6 +18,7 @@ public static class FirmamentDiagnosticCodes
     public static readonly FirmamentDiagnosticCode PrimitiveInvalidFieldValue = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0011");
     public static readonly FirmamentDiagnosticCode BooleanMissingRequiredField = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0012");
     public static readonly FirmamentDiagnosticCode BooleanInvalidFieldTypeOrShape = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0013");
+    public static readonly FirmamentDiagnosticCode BooleanInvalidFieldValue = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0018");
     public static readonly FirmamentDiagnosticCode ValidationMissingRequiredField = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0014");
     public static readonly FirmamentDiagnosticCode ValidationInvalidFieldTypeOrShape = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0015");
     public static readonly FirmamentDiagnosticCode ValidationInvalidFieldValue = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0016");

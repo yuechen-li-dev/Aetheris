@@ -2,36 +2,33 @@ firmament:
   version: 1
 
 model:
-  name: demo
+  name: m3d-chain
   units: mm
 
-ops[4]:
+ops[3]:
   -
     op: box
     id: base
     size[3]:
       10
-      20
-      30
+      10
+      10
+
   -
     op: subtract
     id: cut1
     from: base
     with:
-      op: cylinder
-      radius: 1
-      height: 1
-  -
-    op: intersect
-    id: clipped
-    left: cut1
-    with:
-      op: sphere
-      radius: 1
+      op: box
+      size[3]:
+        1
+        1
+        1
+
   -
     op: add
-    id: merged
-    to: clipped
+    id: joined
+    to: cut1
     with:
       op: box
       size[3]:

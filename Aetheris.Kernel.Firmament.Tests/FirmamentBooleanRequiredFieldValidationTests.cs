@@ -28,6 +28,10 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             to: base
             with:
               op: box
+              size[3]:
+                1
+                1
+                1
             place: ignored-for-now
         """);
 
@@ -55,6 +59,8 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             from: base
             with:
               op: cylinder
+              radius: 1
+              height: 1
         """);
 
     [Fact]
@@ -81,6 +87,7 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             left: base
             with:
               op: sphere
+              radius: 1
         """);
 
     [Fact]
@@ -398,6 +405,74 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             """,
             FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape,
             "Boolean op 'intersect' at index 0 has invalid field 'with.op'; expected a non-empty scalar/string-like value.");
+
+    [Fact]
+    public void Compiler_Rejects_Add_BoxTool_MissingSize() =>
+        AssertBooleanFailure(
+            """
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: add
+                id: a1
+                to: base
+                with:
+                  op: box
+            """,
+            FirmamentDiagnosticCodes.BooleanMissingRequiredField,
+            "Boolean op 'add' at index 0 is missing required field 'with.size'.");
+
+    [Fact]
+    public void Compiler_Rejects_Subtract_CylinderTool_MissingHeight() =>
+        AssertBooleanFailure(
+            """
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: subtract
+                id: s1
+                from: base
+                with:
+                  op: cylinder
+                  radius: 1
+            """,
+            FirmamentDiagnosticCodes.BooleanMissingRequiredField,
+            "Boolean op 'subtract' at index 0 is missing required field 'with.height'.");
+
+    [Fact]
+    public void Compiler_Rejects_Intersect_SphereTool_InvalidRadiusValue() =>
+        AssertBooleanFailure(
+            """
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[1]:
+              -
+                op: intersect
+                id: i1
+                left: base
+                with:
+                  op: sphere
+                  radius: 0
+            """,
+            FirmamentDiagnosticCodes.BooleanInvalidFieldValue,
+            "Boolean op 'intersect' at index 0 has invalid field 'with.radius'; expected a numeric value greater than 0.");
 
     [Fact]
     public void BooleanValidation_Diagnostics_AreDeterministic()

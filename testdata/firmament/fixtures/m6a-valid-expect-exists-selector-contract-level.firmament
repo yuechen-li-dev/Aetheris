@@ -1,0 +1,18 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      20
+      30
+  -
+    op: expect_exists
+    target: base.top_face

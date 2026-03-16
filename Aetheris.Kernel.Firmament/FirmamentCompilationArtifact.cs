@@ -8,4 +8,5 @@ public sealed record FirmamentCompilationArtifact(
     string ArtifactKind = "firmament-m5b-selector-contract-metadata-validated-primitives-and-booleans-executed",
     FirmamentParsedDocument? ParsedDocument = null,
     FirmamentPrimitiveLoweringPlan? PrimitiveLoweringPlan = null,
-    FirmamentPrimitiveExecutionResult? PrimitiveExecutionResult = null);
+    FirmamentPrimitiveExecutionResult? PrimitiveExecutionResult = null,
+    FirmamentValidationExecutionResult? ValidationExecutionResult = null);

@@ -1,0 +1,29 @@
+firmament:
+  version: 1
+
+model:
+  name: m7b_invalid_placement_selector_port_box
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: anchor
+    size[3]:
+      2
+      2
+      2
+
+  -
+    op: box
+    id: base
+    size[3]:
+      1
+      1
+      1
+    place:
+      on: anchor.circular_edges
+      offset[3]:
+        0
+        0
+        0

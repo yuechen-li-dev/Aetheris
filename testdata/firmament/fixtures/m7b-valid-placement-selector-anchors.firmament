@@ -1,0 +1,63 @@
+firmament:
+  version: 1
+
+model:
+  name: m7b_valid_placement_selector_anchors
+  units: mm
+
+ops[6]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      10
+      10
+
+  -
+    op: cylinder
+    id: cyl
+    radius: 2
+    height: 5
+
+  -
+    op: sphere
+    id: sphere
+    radius: 3
+
+  -
+    op: add
+    id: union
+    to: base
+    with:
+      op: cylinder
+      radius: 1
+      height: 2
+
+  -
+    op: box
+    id: b1
+    size[3]:
+      1
+      1
+      1
+    place:
+      on: base.top_face
+      offset[3]:
+        0
+        0
+        0
+
+  -
+    op: box
+    id: b2
+    size[3]:
+      1
+      1
+      1
+    place:
+      on: cyl.side_face
+      offset[3]:
+        0
+        0
+        0

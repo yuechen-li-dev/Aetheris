@@ -31,6 +31,12 @@ internal static class FirmamentDocumentCoherenceValidator
                 continue;
             }
 
+            ValidatePlacementSelectorReference(entry, index, featureIds, featureKindsById, out var placementDiagnostic);
+            if (placementDiagnostic is not null)
+            {
+                return KernelResult<FirmamentParsedDocument>.Failure([placementDiagnostic]);
+            }
+
             updatedEntries.Add(entry);
 
             var featureId = entry.RawFields["id"];
@@ -106,39 +112,17 @@ internal static class FirmamentDocumentCoherenceValidator
             return;
         }
 
-        var rootFeatureId = ExtractSelectorRoot(targetRaw);
-        if (!featureIds.Contains(rootFeatureId))
+        if (!TryValidateSelectorReference(
+                targetRaw,
+                featureIds,
+                featureKindsById,
+                $"Validation op '{entry.OpName}' at index {index}",
+                "target",
+                out var rootFeatureId,
+                out var portToken,
+                out var rootFeatureKind,
+                out diagnostic))
         {
-            diagnostic = CreateDiagnostic(
-                FirmamentDiagnosticCodes.ValidationTargetUnknownSelectorRootFeatureId,
-                $"Validation op '{entry.OpName}' at index {index} references unknown selector root feature id '{rootFeatureId}' via field 'target'.");
-            return;
-        }
-
-        var portToken = ExtractSelectorPort(targetRaw);
-        if (!FirmamentValidationTargetClassifier.IsValidIdentifier(portToken))
-        {
-            diagnostic = CreateDiagnostic(
-                FirmamentDiagnosticCodes.ValidationTargetInvalidSelectorPortToken,
-                $"Validation op '{entry.OpName}' at index {index} has invalid selector port token '{portToken}' via field 'target'.");
-            return;
-        }
-
-        if (!featureKindsById.TryGetValue(rootFeatureId, out var rootFeatureKind))
-        {
-            return;
-        }
-
-        if (!FirmamentSelectorContracts.TryGetAllowedPorts(rootFeatureKind, out var allowedPorts))
-        {
-            return;
-        }
-
-        if (!allowedPorts.Contains(portToken))
-        {
-            diagnostic = CreateDiagnostic(
-                FirmamentDiagnosticCodes.ValidationTargetSelectorPortNotAllowedForFeatureKind,
-                $"Validation op '{entry.OpName}' at index {index} has selector port '{portToken}' not allowed for feature kind '{rootFeatureKind.ToString().ToLowerInvariant()}' on feature id '{rootFeatureId}' via field 'target'.");
             return;
         }
 
@@ -155,6 +139,85 @@ internal static class FirmamentDocumentCoherenceValidator
         classifiedFields["selectorCardinality"] = contract.Cardinality.ToString();
 
         enrichedEntry = entry with { ClassifiedFields = classifiedFields };
+    }
+
+    private static void ValidatePlacementSelectorReference(
+        FirmamentParsedOpEntry entry,
+        int index,
+        HashSet<string> featureIds,
+        IReadOnlyDictionary<string, FirmamentKnownOpKind> featureKindsById,
+        out KernelDiagnostic? diagnostic)
+    {
+        diagnostic = null;
+
+        if (entry.Placement?.On is not FirmamentParsedPlacementSelectorAnchor selectorAnchor)
+        {
+            return;
+        }
+
+        TryValidateSelectorReference(
+            selectorAnchor.Selector,
+            featureIds,
+            featureKindsById,
+            $"Primitive op '{entry.OpName}' at index {index}",
+            "place.on",
+            out _,
+            out _,
+            out _,
+            out diagnostic);
+    }
+
+    private static bool TryValidateSelectorReference(
+        string selector,
+        HashSet<string> featureIds,
+        IReadOnlyDictionary<string, FirmamentKnownOpKind> featureKindsById,
+        string sourcePrefix,
+        string fieldName,
+        out string rootFeatureId,
+        out string portToken,
+        out FirmamentKnownOpKind rootFeatureKind,
+        out KernelDiagnostic? diagnostic)
+    {
+        rootFeatureId = ExtractSelectorRoot(selector);
+        portToken = ExtractSelectorPort(selector);
+        rootFeatureKind = default;
+        diagnostic = null;
+
+        if (!featureIds.Contains(rootFeatureId))
+        {
+            diagnostic = CreateDiagnostic(
+                FirmamentDiagnosticCodes.ValidationTargetUnknownSelectorRootFeatureId,
+                $"{sourcePrefix} references unknown selector root feature id '{rootFeatureId}' via field '{fieldName}'.");
+            return false;
+        }
+
+        if (!FirmamentValidationTargetClassifier.IsValidIdentifier(portToken))
+        {
+            diagnostic = CreateDiagnostic(
+                FirmamentDiagnosticCodes.ValidationTargetInvalidSelectorPortToken,
+                $"{sourcePrefix} has invalid selector port token '{portToken}' via field '{fieldName}'.");
+            return false;
+        }
+
+        if (!featureKindsById.TryGetValue(rootFeatureId, out rootFeatureKind))
+        {
+            return true;
+        }
+
+        if (!FirmamentSelectorContracts.TryGetAllowedPorts(rootFeatureKind, out var allowedPorts))
+        {
+            return true;
+        }
+
+        if (allowedPorts.Contains(portToken))
+        {
+            return true;
+        }
+
+        diagnostic = CreateDiagnostic(
+            FirmamentDiagnosticCodes.ValidationTargetSelectorPortNotAllowedForFeatureKind,
+            $"{sourcePrefix} has selector port '{portToken}' not allowed for feature kind '{rootFeatureKind.ToString().ToLowerInvariant()}' on feature id '{rootFeatureId}' via field '{fieldName}'.");
+        return false;
     }
 
     private static string ExtractSelectorRoot(string target)

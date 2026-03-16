@@ -2,7 +2,7 @@ firmament:
   version: 1
 
 model:
-  name: demo
+  name: m3d-intersect
   units: mm
 
 ops[2]:
@@ -10,14 +10,17 @@ ops[2]:
     op: box
     id: base
     size[3]:
-      1
-      2
-      3
+      8
+      8
+      8
+
   -
     op: intersect
-    id: int1
+    id: clipped
     left: base
     with:
-      op: cylinder
-      radius: 1
-      height: 1
+      op: box
+      size[3]:
+        1
+        1
+        1

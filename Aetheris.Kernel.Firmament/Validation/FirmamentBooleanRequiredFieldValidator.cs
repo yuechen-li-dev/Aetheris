@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
@@ -54,14 +55,97 @@ internal static class FirmamentBooleanRequiredFieldValidator
             return MissingField("with", opIndex, entry.OpName);
         }
 
-        if (!TryGetWithOpRaw(withRaw, out var withOpRaw, out var isMappingLike))
+        if (!TryGetWithFields(withRaw, out var withFields, out var isMappingLike))
         {
             return InvalidFieldTypeOrShape("with", opIndex, entry.OpName, "expected an object-like mapping");
         }
 
-        if (!isMappingLike || string.IsNullOrWhiteSpace(withOpRaw) || LooksLikeStructuredValue(withOpRaw))
+        if (!isMappingLike || !withFields.TryGetValue("op", out var withOpRaw) || string.IsNullOrWhiteSpace(withOpRaw) || LooksLikeStructuredValue(withOpRaw))
         {
             return InvalidFieldTypeOrShape("with.op", opIndex, entry.OpName, "expected a non-empty scalar/string-like value");
+        }
+
+        return ValidateNestedPrimitiveToolFields(entry, opIndex, withOpRaw, withFields);
+    }
+
+    private static KernelResult<bool> ValidateNestedPrimitiveToolFields(FirmamentParsedOpEntry entry, int opIndex, string withOpRaw, IReadOnlyDictionary<string, string> withFields)
+    {
+        if (string.Equals(withOpRaw, "box", StringComparison.Ordinal))
+        {
+            return ValidateBoxTool(entry, opIndex, withFields);
+        }
+
+        if (string.Equals(withOpRaw, "cylinder", StringComparison.Ordinal))
+        {
+            return ValidateCylinderTool(entry, opIndex, withFields);
+        }
+
+        if (string.Equals(withOpRaw, "sphere", StringComparison.Ordinal))
+        {
+            return ValidateSphereTool(entry, opIndex, withFields);
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateBoxTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
+    {
+        if (!withFields.TryGetValue("size", out var sizeRaw) || string.IsNullOrWhiteSpace(sizeRaw))
+        {
+            return MissingField("with.size", opIndex, entry.OpName);
+        }
+
+        if (!TryParseVector(sizeRaw, out var components))
+        {
+            return InvalidFieldTypeOrShape("with.size", opIndex, entry.OpName, "expected a 3-element numeric vector-like value");
+        }
+
+        if (components.Count != 3)
+        {
+            return InvalidFieldTypeOrShape("with.size", opIndex, entry.OpName, "expected exactly 3 numeric components");
+        }
+
+        for (var i = 0; i < components.Count; i++)
+        {
+            if (components[i] <= 0)
+            {
+                return InvalidFieldValue("with.size", opIndex, entry.OpName, "all components must be greater than 0");
+            }
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateCylinderTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
+    {
+        var radiusResult = ValidatePositiveNumericWithField(entry, opIndex, withFields, "radius");
+        if (!radiusResult.IsSuccess)
+        {
+            return radiusResult;
+        }
+
+        return ValidatePositiveNumericWithField(entry, opIndex, withFields, "height");
+    }
+
+    private static KernelResult<bool> ValidateSphereTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
+        => ValidatePositiveNumericWithField(entry, opIndex, withFields, "radius");
+
+    private static KernelResult<bool> ValidatePositiveNumericWithField(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields, string fieldName)
+    {
+        var qualifiedFieldName = $"with.{fieldName}";
+        if (!withFields.TryGetValue(fieldName, out var raw) || string.IsNullOrWhiteSpace(raw))
+        {
+            return MissingField(qualifiedFieldName, opIndex, entry.OpName);
+        }
+
+        if (!TryParseNumeric(raw, out var value))
+        {
+            return InvalidFieldTypeOrShape(qualifiedFieldName, opIndex, entry.OpName, "expected a numeric scalar value");
+        }
+
+        if (value <= 0)
+        {
+            return InvalidFieldValue(qualifiedFieldName, opIndex, entry.OpName, "expected a numeric value greater than 0");
         }
 
         return KernelResult<bool>.Success(true);
@@ -86,31 +170,25 @@ internal static class FirmamentBooleanRequiredFieldValidator
         return true;
     }
 
-    private static bool TryGetWithOpRaw(string raw, out string withOpRaw, out bool isMappingLike)
+    private static bool TryGetWithFields(string raw, out Dictionary<string, string> fields, out bool isMappingLike)
     {
-        withOpRaw = string.Empty;
+        fields = new Dictionary<string, string>(StringComparer.Ordinal);
         isMappingLike = false;
 
         if (TryParseJsonObject(raw, out var objectElement))
         {
             isMappingLike = true;
-            if (!objectElement.TryGetProperty("op", out var nestedOpElement))
+            foreach (var property in objectElement.EnumerateObject())
             {
-                return true;
+                fields[property.Name] = property.Value.ToString();
             }
 
-            withOpRaw = nestedOpElement.ToString();
             return true;
         }
 
-        if (TryParseToonInlineObject(raw, out var fields))
+        if (TryParseToonInlineObject(raw, out fields))
         {
             isMappingLike = true;
-            if (!fields.TryGetValue("op", out withOpRaw))
-            {
-                withOpRaw = string.Empty;
-            }
-
             return true;
         }
 
@@ -153,7 +231,7 @@ internal static class FirmamentBooleanRequiredFieldValidator
             return true;
         }
 
-        var parts = inner.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var parts = SplitTopLevelCommaSeparated(inner);
         foreach (var part in parts)
         {
             var separator = part.IndexOf(':');
@@ -162,7 +240,7 @@ internal static class FirmamentBooleanRequiredFieldValidator
                 return false;
             }
 
-            var name = part[..separator].Trim();
+            var name = NormalizeArrayFieldName(part[..separator].Trim());
             var value = part[(separator + 1)..].Trim();
             if (name.Length == 0)
             {
@@ -175,10 +253,136 @@ internal static class FirmamentBooleanRequiredFieldValidator
         return true;
     }
 
+    private static IReadOnlyList<string> SplitTopLevelCommaSeparated(string inner)
+    {
+        var parts = new List<string>();
+        var start = 0;
+        var squareDepth = 0;
+        var curlyDepth = 0;
+
+        for (var i = 0; i < inner.Length; i++)
+        {
+            var ch = inner[i];
+            switch (ch)
+            {
+                case '[':
+                    squareDepth++;
+                    break;
+                case ']':
+                    squareDepth = Math.Max(0, squareDepth - 1);
+                    break;
+                case '{':
+                    curlyDepth++;
+                    break;
+                case '}':
+                    curlyDepth = Math.Max(0, curlyDepth - 1);
+                    break;
+                case ',':
+                    if (squareDepth == 0 && curlyDepth == 0)
+                    {
+                        var segment = inner[start..i].Trim();
+                        if (segment.Length > 0)
+                        {
+                            parts.Add(segment);
+                        }
+
+                        start = i + 1;
+                    }
+
+                    break;
+            }
+        }
+
+        var last = inner[start..].Trim();
+        if (last.Length > 0)
+        {
+            parts.Add(last);
+        }
+
+        return parts;
+    }
+
+    private static string NormalizeArrayFieldName(string fieldName)
+    {
+        var bracketIndex = fieldName.IndexOf('[', StringComparison.Ordinal);
+        return bracketIndex > 0 && fieldName.EndsWith(']')
+            ? fieldName[..bracketIndex]
+            : fieldName;
+    }
+
     private static bool LooksLikeStructuredValue(string raw)
     {
         var trimmed = raw.Trim();
         return trimmed.StartsWith("{", StringComparison.Ordinal) || trimmed.StartsWith("[", StringComparison.Ordinal);
+    }
+
+    private static bool TryParseNumeric(string raw, out double value)
+    {
+        var trimmed = raw.Trim();
+        if (trimmed.StartsWith("\"", StringComparison.Ordinal) && trimmed.EndsWith("\"", StringComparison.Ordinal) && trimmed.Length >= 2)
+        {
+            trimmed = trimmed[1..^1];
+        }
+
+        return double.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+    }
+
+    private static bool TryParseVector(string raw, out List<double> components)
+    {
+        components = [];
+        var trimmed = raw.Trim();
+        try
+        {
+            if (trimmed.StartsWith("[", StringComparison.Ordinal))
+            {
+                using var document = JsonDocument.Parse(trimmed);
+                if (document.RootElement.ValueKind != JsonValueKind.Array)
+                {
+                    return false;
+                }
+
+                foreach (var element in document.RootElement.EnumerateArray())
+                {
+                    if (!TryParseNumeric(element.ToString(), out var value))
+                    {
+                        return false;
+                    }
+
+                    components.Add(value);
+                }
+
+                return true;
+            }
+
+            if (trimmed.StartsWith("{", StringComparison.Ordinal) && trimmed.EndsWith("}", StringComparison.Ordinal))
+            {
+                var inner = trimmed[1..^1].Trim();
+                if (inner.Length == 0)
+                {
+                    return false;
+                }
+
+                var separator = inner.IndexOf(':');
+                if (separator <= 0)
+                {
+                    return false;
+                }
+
+                var valueRaw = inner[(separator + 1)..].Trim();
+                if (!valueRaw.StartsWith("[", StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                return TryParseVector(valueRaw, out components);
+            }
+
+            return false;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private static KernelResult<bool> MissingField(string fieldName, int opIndex, string opName) =>
@@ -195,6 +399,14 @@ internal static class FirmamentBooleanRequiredFieldValidator
     private static KernelDiagnostic InvalidFieldTypeOrShapeDiagnostic(string fieldName, int opIndex, string opName, string expectation) =>
         CreateDiagnostic(
             FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape,
+            $"Boolean op '{opName}' at index {opIndex} has invalid field '{fieldName}'; {expectation}.");
+
+    private static KernelResult<bool> InvalidFieldValue(string fieldName, int opIndex, string opName, string expectation) =>
+        KernelResult<bool>.Failure([InvalidFieldValueDiagnostic(fieldName, opIndex, opName, expectation)]);
+
+    private static KernelDiagnostic InvalidFieldValueDiagnostic(string fieldName, int opIndex, string opName, string expectation) =>
+        CreateDiagnostic(
+            FirmamentDiagnosticCodes.BooleanInvalidFieldValue,
             $"Boolean op '{opName}' at index {opIndex} has invalid field '{fieldName}'; {expectation}.");
 
     private static KernelDiagnostic CreateDiagnostic(FirmamentDiagnosticCode code, string message) =>

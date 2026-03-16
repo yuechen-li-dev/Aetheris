@@ -19,3 +19,5 @@ ops[2]:
     from: b1
     with:
       op: cylinder
+      radius: 1
+      height: 1

@@ -304,9 +304,50 @@ internal static class FirmamentTopLevelParser
                 return string.Empty;
             }
 
-            if (nonEmptyLines.All(line => line.Contains(':', StringComparison.Ordinal)))
+            if (nonEmptyLines.Any(line => line.Contains(':', StringComparison.Ordinal)))
             {
-                return "{ " + string.Join(", ", nonEmptyLines) + " }";
+                var fields = new List<string>();
+                string? currentKey = null;
+                string? currentScalarValue = null;
+                var currentArrayValues = new List<string>();
+
+                void FlushCurrent()
+                {
+                    if (string.IsNullOrWhiteSpace(currentKey))
+                    {
+                        return;
+                    }
+
+                    if (currentArrayValues.Count > 0)
+                    {
+                        fields.Add($"{currentKey}: [{string.Join(", ", currentArrayValues)}]");
+                    }
+                    else
+                    {
+                        fields.Add($"{currentKey}: {currentScalarValue}");
+                    }
+                }
+
+                foreach (var line in nonEmptyLines)
+                {
+                    var separator = line.IndexOf(':');
+                    if (separator > 0)
+                    {
+                        FlushCurrent();
+                        currentKey = line[..separator].Trim();
+                        currentScalarValue = line[(separator + 1)..].Trim();
+                        currentArrayValues.Clear();
+                        continue;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(currentKey))
+                    {
+                        currentArrayValues.Add(line);
+                    }
+                }
+
+                FlushCurrent();
+                return "{ " + string.Join(", ", fields) + " }";
             }
 
             return "[" + string.Join(", ", nonEmptyLines) + "]";

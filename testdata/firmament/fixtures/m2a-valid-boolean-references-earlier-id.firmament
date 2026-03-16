@@ -19,3 +19,5 @@ ops[2]:
     to: base
     with:
       op: cylinder
+      radius: 1
+      height: 1

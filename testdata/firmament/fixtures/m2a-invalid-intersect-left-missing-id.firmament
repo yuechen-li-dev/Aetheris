@@ -12,3 +12,4 @@ ops[1]:
     left: missing
     with:
       op: sphere
+      radius: 1

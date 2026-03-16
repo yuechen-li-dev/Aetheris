@@ -2,7 +2,7 @@ firmament:
   version: 1
 
 model:
-  name: demo
+  name: m3d-invalid-tool-size
   units: mm
 
 ops[2]:
@@ -10,13 +10,13 @@ ops[2]:
     op: box
     id: base
     size[3]:
-      10
-      20
-      30
+      8
+      8
+      8
+
   -
     op: add
-    id: base
+    id: bad_size
     to: base
     with:
-      op: sphere
-      radius: 1
+      op: box

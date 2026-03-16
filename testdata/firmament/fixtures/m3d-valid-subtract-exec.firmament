@@ -2,7 +2,7 @@ firmament:
   version: 1
 
 model:
-  name: demo
+  name: m3d-subtract
   units: mm
 
 ops[2]:
@@ -10,13 +10,17 @@ ops[2]:
     op: box
     id: base
     size[3]:
-      1
-      2
-      3
+      8
+      8
+      8
+
   -
     op: subtract
-    id: sub1
+    id: cut
     from: base
     with:
-      op: sphere
-      radius: 1
+      op: box
+      size[3]:
+        1
+        1
+        1

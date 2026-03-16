@@ -20,6 +20,7 @@ ops[5]:
     to: base
     with:
       op: sphere
+      radius: 1
 
   -
     op: cylinder
@@ -33,6 +34,10 @@ ops[5]:
     from: join1
     with:
       op: box
+      size[3]:
+        1
+        1
+        1
 
   -
     op: expect_exists

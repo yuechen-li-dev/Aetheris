@@ -19,3 +19,4 @@ ops[2]:
     to: base
     with:
       op: sphere
+      radius: 1

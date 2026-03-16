@@ -100,7 +100,7 @@ internal static class FirmamentPrimitiveLowerer
         if (trimmed.StartsWith("{", StringComparison.Ordinal) && trimmed.EndsWith("}", StringComparison.Ordinal))
         {
             var body = trimmed[1..^1].Trim();
-            var pairs = body.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            var pairs = SplitTopLevelCommaSeparated(body);
             var fields = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var pair in pairs)
             {
@@ -110,7 +110,7 @@ internal static class FirmamentPrimitiveLowerer
                     continue;
                 }
 
-                var key = pair[..separator].Trim();
+                var key = NormalizeArrayFieldName(pair[..separator].Trim());
                 var value = pair[(separator + 1)..].Trim();
                 if (key.Length > 0)
                 {
@@ -136,6 +136,64 @@ internal static class FirmamentPrimitiveLowerer
         }
 
         return new FirmamentLoweredToolOp(string.Empty, new Dictionary<string, string>(StringComparer.Ordinal), rawWith);
+    }
+
+
+    private static IReadOnlyList<string> SplitTopLevelCommaSeparated(string raw)
+    {
+        var parts = new List<string>();
+        var start = 0;
+        var squareDepth = 0;
+        var curlyDepth = 0;
+
+        for (var i = 0; i < raw.Length; i++)
+        {
+            var ch = raw[i];
+            switch (ch)
+            {
+                case '[':
+                    squareDepth++;
+                    break;
+                case ']':
+                    squareDepth = Math.Max(0, squareDepth - 1);
+                    break;
+                case '{':
+                    curlyDepth++;
+                    break;
+                case '}':
+                    curlyDepth = Math.Max(0, curlyDepth - 1);
+                    break;
+                case ',':
+                    if (squareDepth == 0 && curlyDepth == 0)
+                    {
+                        var part = raw[start..i].Trim();
+                        if (part.Length > 0)
+                        {
+                            parts.Add(part);
+                        }
+
+                        start = i + 1;
+                    }
+
+                    break;
+            }
+        }
+
+        var finalPart = raw[start..].Trim();
+        if (finalPart.Length > 0)
+        {
+            parts.Add(finalPart);
+        }
+
+        return parts;
+    }
+
+    private static string NormalizeArrayFieldName(string fieldName)
+    {
+        var bracketIndex = fieldName.IndexOf('[', StringComparison.Ordinal);
+        return bracketIndex > 0 && fieldName.EndsWith(']')
+            ? fieldName[..bracketIndex]
+            : fieldName;
     }
 
     private static FirmamentLoweredBoxParameters LowerBoxParameters(string sizeRaw)

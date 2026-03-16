@@ -12,3 +12,7 @@ ops[1]:
     to: missing
     with:
       op: box
+      size[3]:
+        1
+        1
+        1

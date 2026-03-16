@@ -2,7 +2,7 @@ using Aetheris.Kernel.Firmament.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
-public sealed class FirmamentValidationTargetFeatureExistenceTests
+public sealed partial class FirmamentValidationTargetFeatureExistenceTests
 {
     [Theory]
     [InlineData("testdata/firmament/fixtures/m2c-valid-expect-exists-bare-target-earlier.firmament")]
@@ -128,5 +128,93 @@ public sealed class FirmamentValidationTargetFeatureExistenceTests
         var fixtureText = FirmamentCorpusHarness.ReadFixtureText(fixturePath);
         var compiler = new FirmamentCompiler();
         return compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(fixtureText)));
+    }
+}
+
+public sealed partial class FirmamentValidationTargetFeatureExistenceTests
+{
+    [Theory]
+    [InlineData("base.top_face", "Face", "One")]
+    [InlineData("base.side_faces", "FaceSet", "Many")]
+    [InlineData("cyl.side_face", "Face", "One")]
+    [InlineData("cyl.circular_edges", "EdgeSet", "Many")]
+    [InlineData("sphere.surface", "Face", "One")]
+    [InlineData("sphere.vertices", "VertexSet", "Many")]
+    public void Compiler_Attaches_SelectorContractMetadata_For_Legal_SelectorTargets(string selectorTarget, string expectedResultKind, string expectedCardinality)
+    {
+        var source = $$"""
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      20
+      30
+  -
+    op: cylinder
+    id: cyl
+    radius: 2
+    height: 5
+  -
+    op: sphere
+    id: sphere
+    radius: 4
+  -
+    op: expect_exists
+    target: {{selectorTarget}}
+""";
+
+        var result = new FirmamentCompiler().Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.True(result.Compilation.IsSuccess);
+        var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[3];
+        Assert.NotNull(validationOp.ClassifiedFields);
+        Assert.Equal("SelectorShaped", validationOp.ClassifiedFields!["targetShape"]);
+        Assert.Equal(expectedResultKind, validationOp.ClassifiedFields["selectorResultKind"]);
+        Assert.Equal(expectedCardinality, validationOp.ClassifiedFields["selectorCardinality"]);
+    }
+
+    [Fact]
+    public void Compiler_DoesNotAttach_SelectorMetadata_For_BareFeatureIdTarget()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m2c-valid-expect-exists-bare-target-earlier.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[1];
+        Assert.NotNull(validationOp.ClassifiedFields);
+        Assert.Equal("FeatureId", validationOp.ClassifiedFields!["targetShape"]);
+        Assert.False(validationOp.ClassifiedFields.ContainsKey("selectorResultKind"));
+        Assert.False(validationOp.ClassifiedFields.ContainsKey("selectorCardinality"));
+    }
+
+    [Fact]
+    public void Compiler_DoesNotAttach_SelectorMetadata_For_NonSelectorValidationOps()
+    {
+        var source = """
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[1]:
+  -
+    op: expect_manifold
+""";
+
+        var result = new FirmamentCompiler().Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.True(result.Compilation.IsSuccess);
+        var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[0];
+        Assert.Null(validationOp.ClassifiedFields);
     }
 }

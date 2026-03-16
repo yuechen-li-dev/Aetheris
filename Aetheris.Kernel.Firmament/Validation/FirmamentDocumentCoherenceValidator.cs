@@ -7,12 +7,13 @@ namespace Aetheris.Kernel.Firmament.Validation;
 
 internal static class FirmamentDocumentCoherenceValidator
 {
-    public static KernelResult<bool> Validate(FirmamentParsedDocument parsedDocument)
+    public static KernelResult<FirmamentParsedDocument> Validate(FirmamentParsedDocument parsedDocument)
     {
         ArgumentNullException.ThrowIfNull(parsedDocument);
 
         var featureIds = new HashSet<string>(StringComparer.Ordinal);
         var featureKindsById = new Dictionary<string, FirmamentKnownOpKind>(StringComparer.Ordinal);
+        var updatedEntries = new List<FirmamentParsedOpEntry>(parsedDocument.Ops.Entries.Count);
 
         for (var index = 0; index < parsedDocument.Ops.Entries.Count; index++)
         {
@@ -20,14 +21,17 @@ internal static class FirmamentDocumentCoherenceValidator
 
             if (entry.Family == FirmamentOpFamily.Validation)
             {
-                ValidateValidationTargetReference(entry, index, featureIds, featureKindsById, out var diagnostic);
+                ValidateValidationTargetReference(entry, index, featureIds, featureKindsById, out var diagnostic, out var enrichedEntry);
                 if (diagnostic is not null)
                 {
-                    return KernelResult<bool>.Failure([diagnostic]);
+                    return KernelResult<FirmamentParsedDocument>.Failure([diagnostic]);
                 }
 
+                updatedEntries.Add(enrichedEntry ?? entry);
                 continue;
             }
+
+            updatedEntries.Add(entry);
 
             var featureId = entry.RawFields["id"];
             if (entry.Family == FirmamentOpFamily.Boolean)
@@ -36,7 +40,7 @@ internal static class FirmamentDocumentCoherenceValidator
                 var referenceId = entry.RawFields[referenceFieldName];
                 if (!featureIds.Contains(referenceId))
                 {
-                    return KernelResult<bool>.Failure([
+                    return KernelResult<FirmamentParsedDocument>.Failure([
                         CreateDiagnostic(
                             FirmamentDiagnosticCodes.ReferenceUnknownFeatureId,
                             $"Boolean op '{entry.OpName}' at index {index} references unknown feature id '{referenceId}' via field '{referenceFieldName}'.")
@@ -46,7 +50,7 @@ internal static class FirmamentDocumentCoherenceValidator
 
             if (!featureIds.Add(featureId))
             {
-                return KernelResult<bool>.Failure([
+                return KernelResult<FirmamentParsedDocument>.Failure([
                     CreateDiagnostic(
                         FirmamentDiagnosticCodes.ReferenceDuplicateFeatureId,
                         $"Feature-producing op '{entry.OpName}' at index {index} reuses duplicate feature id '{featureId}'.")
@@ -56,7 +60,12 @@ internal static class FirmamentDocumentCoherenceValidator
             featureKindsById[featureId] = entry.KnownKind;
         }
 
-        return KernelResult<bool>.Success(true);
+        var updatedDocument = parsedDocument with
+        {
+            Ops = parsedDocument.Ops with { Entries = updatedEntries }
+        };
+
+        return KernelResult<FirmamentParsedDocument>.Success(updatedDocument);
     }
 
     private static void ValidateValidationTargetReference(
@@ -64,9 +73,11 @@ internal static class FirmamentDocumentCoherenceValidator
         int index,
         HashSet<string> featureIds,
         IReadOnlyDictionary<string, FirmamentKnownOpKind> featureKindsById,
-        out KernelDiagnostic? diagnostic)
+        out KernelDiagnostic? diagnostic,
+        out FirmamentParsedOpEntry? enrichedEntry)
     {
         diagnostic = null;
+        enrichedEntry = null;
 
         if (entry.KnownKind is not (FirmamentKnownOpKind.ExpectExists or FirmamentKnownOpKind.ExpectSelectable)
             || !entry.RawFields.TryGetValue("target", out var targetRaw))
@@ -128,7 +139,22 @@ internal static class FirmamentDocumentCoherenceValidator
             diagnostic = CreateDiagnostic(
                 FirmamentDiagnosticCodes.ValidationTargetSelectorPortNotAllowedForFeatureKind,
                 $"Validation op '{entry.OpName}' at index {index} has selector port '{portToken}' not allowed for feature kind '{rootFeatureKind.ToString().ToLowerInvariant()}' on feature id '{rootFeatureId}' via field 'target'.");
+            return;
         }
+
+        if (!FirmamentPrimitiveSelectorContracts.TryGetPortContract(rootFeatureKind, portToken, out var contract))
+        {
+            return;
+        }
+
+        var classifiedFields = entry.ClassifiedFields is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(entry.ClassifiedFields, StringComparer.Ordinal);
+
+        classifiedFields["selectorResultKind"] = contract.ResultKind.ToString();
+        classifiedFields["selectorCardinality"] = contract.Cardinality.ToString();
+
+        enrichedEntry = entry with { ClassifiedFields = classifiedFields };
     }
 
     private static string ExtractSelectorRoot(string target)

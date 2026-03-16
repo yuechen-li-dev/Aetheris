@@ -1,0 +1,21 @@
+firmament:
+  version: 1
+
+model:
+  name: m7b_invalid_placement_selector_root_missing
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: base
+    size[3]:
+      2
+      2
+      2
+    place:
+      on: missing.top_face
+      offset[3]:
+        0
+        0
+        0

@@ -26,6 +26,76 @@ public sealed class FirmamentPlacementValidationTests
     }
 
     [Fact]
+    public void Primitive_With_SelectorShaped_PlaceAnchor_Uses_Selector_Contracts()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7b-valid-placement-selector-anchors.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+    }
+
+    [Fact]
+    public void Primitive_With_Sphere_Surface_PlaceAnchor_Is_Valid()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7b-valid-placement-selector-anchor-sphere.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+    }
+
+    [Fact]
+    public void Primitive_With_Boolean_Edges_PlaceAnchor_Is_Valid()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7b-valid-placement-selector-anchor-boolean.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+    }
+
+    [Fact]
+    public void Primitive_With_SelectorShaped_PlaceAnchor_Unknown_Root_Is_Invalid()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7b-invalid-placement-selector-root-missing.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains(FirmamentDiagnosticCodes.ValidationTargetUnknownSelectorRootFeatureId.Value, diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("'place.on'", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Primitive_With_SelectorShaped_PlaceAnchor_Forward_Root_Is_Invalid()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7b-invalid-placement-selector-root-forward.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains(FirmamentDiagnosticCodes.ValidationTargetUnknownSelectorRootFeatureId.Value, diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("'future'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("'place.on'", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Primitive_With_SelectorShaped_PlaceAnchor_Illegal_Box_Port_Is_Invalid()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7b-invalid-placement-selector-port-box.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains(FirmamentDiagnosticCodes.ValidationTargetSelectorPortNotAllowedForFeatureKind.Value, diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("'circular_edges'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("'box'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("'place.on'", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Primitive_With_SelectorShaped_PlaceAnchor_Illegal_Sphere_Port_Is_Invalid()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7b-invalid-placement-selector-port-sphere.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains(FirmamentDiagnosticCodes.ValidationTargetSelectorPortNotAllowedForFeatureKind.Value, diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("'top_face'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("'sphere'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("'place.on'", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Primitive_With_Place_Missing_On_Is_Invalid()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m7a-invalid-box-placement-missing-on.firmament");

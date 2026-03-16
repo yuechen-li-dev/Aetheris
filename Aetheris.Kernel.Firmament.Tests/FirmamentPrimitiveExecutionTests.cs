@@ -118,7 +118,7 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
 
-        Assert.Equal("firmament-m5a-selector-contract-metadata-validated-primitives-and-booleans-executed", artifact.ArtifactKind);
+        Assert.Equal("firmament-m5b-selector-contract-metadata-validated-primitives-and-booleans-executed", artifact.ArtifactKind);
         Assert.Equal(2, artifact.PrimitiveLoweringPlan!.Primitives.Count);
         Assert.Equal(2, artifact.PrimitiveLoweringPlan.Booleans.Count);
         Assert.Single(artifact.PrimitiveLoweringPlan.SkippedOps);

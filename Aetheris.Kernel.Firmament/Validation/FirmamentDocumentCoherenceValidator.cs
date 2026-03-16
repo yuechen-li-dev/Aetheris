@@ -129,7 +129,7 @@ internal static class FirmamentDocumentCoherenceValidator
             return;
         }
 
-        if (!FirmamentPrimitiveSelectorContracts.TryGetAllowedPorts(rootFeatureKind, out var allowedPorts))
+        if (!FirmamentSelectorContracts.TryGetAllowedPorts(rootFeatureKind, out var allowedPorts))
         {
             return;
         }
@@ -142,7 +142,7 @@ internal static class FirmamentDocumentCoherenceValidator
             return;
         }
 
-        if (!FirmamentPrimitiveSelectorContracts.TryGetPortContract(rootFeatureKind, portToken, out var contract))
+        if (!FirmamentSelectorContracts.TryGetPortContract(rootFeatureKind, portToken, out var contract))
         {
             return;
         }

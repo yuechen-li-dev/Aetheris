@@ -12,6 +12,7 @@ internal static class FirmamentDocumentCoherenceValidator
         ArgumentNullException.ThrowIfNull(parsedDocument);
 
         var featureIds = new HashSet<string>(StringComparer.Ordinal);
+        var featureKindsById = new Dictionary<string, FirmamentKnownOpKind>(StringComparer.Ordinal);
 
         for (var index = 0; index < parsedDocument.Ops.Entries.Count; index++)
         {
@@ -19,7 +20,7 @@ internal static class FirmamentDocumentCoherenceValidator
 
             if (entry.Family == FirmamentOpFamily.Validation)
             {
-                ValidateValidationTargetReference(entry, index, featureIds, out var diagnostic);
+                ValidateValidationTargetReference(entry, index, featureIds, featureKindsById, out var diagnostic);
                 if (diagnostic is not null)
                 {
                     return KernelResult<bool>.Failure([diagnostic]);
@@ -51,6 +52,8 @@ internal static class FirmamentDocumentCoherenceValidator
                         $"Feature-producing op '{entry.OpName}' at index {index} reuses duplicate feature id '{featureId}'.")
                 ]);
             }
+
+            featureKindsById[featureId] = entry.KnownKind;
         }
 
         return KernelResult<bool>.Success(true);
@@ -60,6 +63,7 @@ internal static class FirmamentDocumentCoherenceValidator
         FirmamentParsedOpEntry entry,
         int index,
         HashSet<string> featureIds,
+        IReadOnlyDictionary<string, FirmamentKnownOpKind> featureKindsById,
         out KernelDiagnostic? diagnostic)
     {
         diagnostic = null;
@@ -106,6 +110,24 @@ internal static class FirmamentDocumentCoherenceValidator
             diagnostic = CreateDiagnostic(
                 FirmamentDiagnosticCodes.ValidationTargetInvalidSelectorPortToken,
                 $"Validation op '{entry.OpName}' at index {index} has invalid selector port token '{portToken}' via field 'target'.");
+            return;
+        }
+
+        if (!featureKindsById.TryGetValue(rootFeatureId, out var rootFeatureKind))
+        {
+            return;
+        }
+
+        if (!FirmamentPrimitiveSelectorContracts.TryGetAllowedPorts(rootFeatureKind, out var allowedPorts))
+        {
+            return;
+        }
+
+        if (!allowedPorts.Contains(portToken))
+        {
+            diagnostic = CreateDiagnostic(
+                FirmamentDiagnosticCodes.ValidationTargetSelectorPortNotAllowedForFeatureKind,
+                $"Validation op '{entry.OpName}' at index {index} has selector port '{portToken}' not allowed for feature kind '{rootFeatureKind.ToString().ToLowerInvariant()}' on feature id '{rootFeatureId}' via field 'target'.");
         }
     }
 

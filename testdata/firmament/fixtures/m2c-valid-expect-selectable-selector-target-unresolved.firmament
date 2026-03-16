@@ -12,5 +12,5 @@ ops[2]:
     radius: 2
   -
     op: expect_selectable
-    target: mount_hole.entry_face
+    target: mount_hole.surface
     count: 1

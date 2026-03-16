@@ -77,7 +77,7 @@ public sealed class FirmamentDocumentCoherenceValidationTests
             target: base.top_face
           -
             op: expect_selectable
-            target: base.side_a
+            target: base.edges
             count: 1
         """;
 

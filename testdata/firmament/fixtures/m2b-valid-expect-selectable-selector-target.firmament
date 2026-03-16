@@ -5,7 +5,11 @@ model:
   name: demo
   units: mm
 
-ops[1]:
+ops[2]:
+  -
+    op: sphere
+    id: mount_hole
+    radius: 2
   -
     op: expect_selectable
     target: mount_hole.entry_face

@@ -22,4 +22,4 @@ ops[4]:
     count: 1
   -
     op: expect_exists
-    target: future_feature.edge_a
+    target: base.edge_a

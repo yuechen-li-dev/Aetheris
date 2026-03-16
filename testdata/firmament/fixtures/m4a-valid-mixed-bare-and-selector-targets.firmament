@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[4]:
+  -
+    op: sphere
+    id: core
+    radius: 3
+  -
+    op: expect_exists
+    target: core
+  -
+    op: expect_exists
+    target: core.top_face
+  -
+    op: expect_selectable
+    target: core.any_port
+    count: 1

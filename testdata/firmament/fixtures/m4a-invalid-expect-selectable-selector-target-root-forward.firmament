@@ -7,11 +7,11 @@ model:
 
 ops[2]:
   -
+    op: expect_selectable
+    target: later.entry_face
+    count: 1
+  -
     op: cylinder
-    id: hole
+    id: later
     radius: 1
     height: 2
-  -
-    op: expect_selectable
-    target: hole.entry_face
-    count: 4

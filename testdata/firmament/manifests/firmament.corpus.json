@@ -810,6 +810,68 @@
         "kernelCode": "ValidationFailed",
         "firmamentCode": "FIRM-REF-0004"
       }
+    },
+    {
+      "id": "m4b-valid-expect-exists-selector-target-port-surface-valid",
+      "name": "Valid M4b expect_exists selector-shaped target with surface-valid port token",
+      "fixturePath": "testdata/firmament/fixtures/m4b-valid-expect-exists-selector-target-port-surface-valid.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m4b-valid-expect-selectable-selector-target-port-surface-valid",
+      "name": "Valid M4b expect_selectable selector-shaped target with surface-valid port token",
+      "fixturePath": "testdata/firmament/fixtures/m4b-valid-expect-selectable-selector-target-port-surface-valid.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m4b-valid-mixed-bare-and-selector-targets",
+      "name": "Valid M4b mixed bare and selector-shaped targets with valid selector ports",
+      "fixturePath": "testdata/firmament/fixtures/m4b-valid-mixed-bare-and-selector-targets.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m4b-invalid-expect-exists-selector-target-port-starts-digit",
+      "name": "Invalid M4b expect_exists selector-shaped target port token starts with digit",
+      "fixturePath": "testdata/firmament/fixtures/m4b-invalid-expect-exists-selector-target-port-starts-digit.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0005"
+      }
+    },
+    {
+      "id": "m4b-invalid-expect-selectable-selector-target-port-invalid-punctuation",
+      "name": "Invalid M4b expect_selectable selector-shaped target port token has punctuation",
+      "fixturePath": "testdata/firmament/fixtures/m4b-invalid-expect-selectable-selector-target-port-invalid-punctuation.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0005"
+      }
+    },
+    {
+      "id": "m4b-invalid-expect-selectable-selector-target-port-whitespace",
+      "name": "Invalid M4b expect_selectable selector-shaped target port token has whitespace",
+      "fixturePath": "testdata/firmament/fixtures/m4b-invalid-expect-selectable-selector-target-port-whitespace.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0005"
+      }
+    },
+    {
+      "id": "m4b-invalid-expect-exists-selector-target-port-invalid-symbol",
+      "name": "Invalid M4b expect_exists selector-shaped target port token has invalid symbol",
+      "fixturePath": "testdata/firmament/fixtures/m4b-invalid-expect-exists-selector-target-port-invalid-symbol.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0005"
+      }
     }
   ]
 }

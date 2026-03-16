@@ -1,0 +1,26 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      10
+      2
+  -
+    op: sphere
+    id: boss
+    radius: 2
+  -
+    op: expect_exists
+    target: base
+  -
+    op: expect_selectable
+    target: boss.entry_face
+    count: 1

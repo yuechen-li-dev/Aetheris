@@ -42,6 +42,9 @@ public sealed class FirmamentValidationTargetFeatureExistenceTests
     [InlineData("testdata/firmament/fixtures/m4a-valid-expect-selectable-selector-target-root-earlier.firmament")]
     [InlineData("testdata/firmament/fixtures/m2c-valid-expect-exists-selector-target-unresolved.firmament")]
     [InlineData("testdata/firmament/fixtures/m2c-valid-expect-selectable-selector-target-unresolved.firmament")]
+    [InlineData("testdata/firmament/fixtures/m4b-valid-expect-exists-selector-target-port-surface-valid.firmament")]
+    [InlineData("testdata/firmament/fixtures/m4b-valid-expect-selectable-selector-target-port-surface-valid.firmament")]
+    [InlineData("testdata/firmament/fixtures/m4b-valid-mixed-bare-and-selector-targets.firmament")]
     public void Compiler_Accepts_SelectorShapedValidationTargets_WhenRootFeatureDefinedEarlier(string fixturePath)
     {
         var result = CompileFixture(fixturePath);
@@ -68,6 +71,30 @@ public sealed class FirmamentValidationTargetFeatureExistenceTests
         Assert.Equal(firstDiagnostic.Message, secondDiagnostic.Message);
         Assert.Equal(
             $"[{FirmamentDiagnosticCodes.ValidationTargetUnknownSelectorRootFeatureId.Value}] Validation op '{opName}' at index 0 references unknown selector root feature id '{rootFeatureId}' via field 'target'.",
+            firstDiagnostic.Message);
+    }
+
+
+
+    [Theory]
+    [InlineData("testdata/firmament/fixtures/m4b-invalid-expect-exists-selector-target-port-starts-digit.firmament", "expect_exists", "1port")]
+    [InlineData("testdata/firmament/fixtures/m4b-invalid-expect-selectable-selector-target-port-invalid-punctuation.firmament", "expect_selectable", "top-face")]
+    [InlineData("testdata/firmament/fixtures/m4b-invalid-expect-selectable-selector-target-port-whitespace.firmament", "expect_selectable", "top face")]
+    [InlineData("testdata/firmament/fixtures/m4b-invalid-expect-exists-selector-target-port-invalid-symbol.firmament", "expect_exists", "face$")]
+    public void Compiler_Rejects_SelectorShapedValidationTargets_WhenPortTokenMalformed(string fixturePath, string opName, string portToken)
+    {
+        var first = CompileFixture(fixturePath);
+        var second = CompileFixture(fixturePath);
+
+        Assert.False(first.Compilation.IsSuccess);
+        Assert.False(second.Compilation.IsSuccess);
+
+        var firstDiagnostic = Assert.Single(first.Compilation.Diagnostics);
+        var secondDiagnostic = Assert.Single(second.Compilation.Diagnostics);
+
+        Assert.Equal(firstDiagnostic.Message, secondDiagnostic.Message);
+        Assert.Equal(
+            $"[{FirmamentDiagnosticCodes.ValidationTargetInvalidSelectorPortToken.Value}] Validation op '{opName}' at index 1 has invalid selector port token '{portToken}' via field 'target'.",
             firstDiagnostic.Message);
     }
 

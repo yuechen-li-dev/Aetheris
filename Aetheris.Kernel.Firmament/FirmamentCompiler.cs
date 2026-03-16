@@ -70,12 +70,20 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(primitiveExecutionResult.Diagnostics));
         }
 
+        var validationExecutionResult = FirmamentValidationExecutor.Execute(validatedDocument);
+        if (!validationExecutionResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(validationExecutionResult.Diagnostics));
+        }
+
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
                 new FirmamentCompilationArtifact(
-                    ArtifactKind: "firmament-m5b-selector-contract-metadata-validated-primitives-and-booleans-executed",
+                    ArtifactKind: "firmament-contract-validations-executed",
                     ParsedDocument: validatedDocument,
                     PrimitiveLoweringPlan: primitiveLoweringResult.Value,
-                    PrimitiveExecutionResult: primitiveExecutionResult.Value)));
+                    PrimitiveExecutionResult: primitiveExecutionResult.Value,
+                    ValidationExecutionResult: validationExecutionResult.Value)));
     }
 }

@@ -20,14 +20,32 @@ public sealed class FirmamentValidationExecutionTests
     }
 
     [Fact]
-    public void Compile_Executes_ExpectExists_For_ContractValid_SelectorTarget()
+    public void Compile_Executes_ExpectExists_For_TopologyBacked_SelectorTargets()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/m6a-valid-expect-exists-selector-contract-level.firmament");
+        var result = CompileFixture("testdata/firmament/fixtures/m6b-valid-selector-exists.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var validations = result.Compilation.Value.ValidationExecutionResult!.Validations;
+        Assert.Equal(4, validations.Count);
+        Assert.All(validations, validation =>
+        {
+            Assert.True(validation.IsExecuted);
+            Assert.True(validation.IsSuccess);
+            Assert.Null(validation.Reason);
+        });
+    }
+
+    [Fact]
+    public void Compile_Executes_ExpectExists_For_Empty_SelectorResolution_As_Deterministic_Failure()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m6b-invalid-selector-empty.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var validation = Assert.Single(result.Compilation.Value.ValidationExecutionResult!.Validations);
         Assert.True(validation.IsExecuted);
-        Assert.True(validation.IsSuccess);
+        Assert.False(validation.IsSuccess);
+        Assert.Equal("Selector 'sphere.edges' resolved to no topology elements.", validation.Reason);
+
     }
 
     [Fact]
@@ -143,7 +161,7 @@ ops[4]:
     }
 
     [Fact]
-    public void Compile_Still_Executes_Primitives_And_Booleans_With_M6a_ValidationExecution_Output()
+    public void Compile_Still_Executes_Primitives_And_Booleans_With_M6b_ValidationExecution_Output()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3d-mixed-primitive-boolean-validation.firmament");
 

@@ -30,6 +30,7 @@ public static class FirmamentDiagnosticCodes
     public static readonly FirmamentDiagnosticCode ValidationTargetUnknownSelectorRootFeatureId = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0004");
     public static readonly FirmamentDiagnosticCode ValidationTargetInvalidSelectorPortToken = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0005");
     public static readonly FirmamentDiagnosticCode ValidationTargetSelectorPortNotAllowedForFeatureKind = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0006");
+    public static readonly FirmamentDiagnosticCode ValidationTargetSelectorResolvedEmpty = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0007");
     public static readonly FirmamentDiagnosticCode SelectorPlaceholder = new($"{FirmamentDiagnosticConventions.SelectorPrefix}-0001");
     public static readonly FirmamentDiagnosticCode SchemaPlaceholder = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0001");
     public static readonly FirmamentDiagnosticCode LoweringPlaceholder = new($"{FirmamentDiagnosticConventions.LoweringPrefix}-0001");

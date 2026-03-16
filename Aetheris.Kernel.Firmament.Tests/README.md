@@ -10,6 +10,7 @@ Pre-M0 scaffold test areas:
 No parser, validator, selector, or lowering behavior is implemented yet.
 
 
-Corpus scaffold:
-- `testdata/firmament/manifests/pre-m0.corpus.json` defines tiny curated cases.
-- `testdata/firmament/fixtures/*.firmament` are pre-M0 placeholder fixtures only.
+Corpus manifests:
+- `testdata/firmament/manifests/firmament.corpus.json` is the canonical curated corpus for current Firmament coverage.
+- `testdata/firmament/manifests/pre-m0.corpus.json` remains as historical pre-M0 scaffold coverage.
+- `testdata/firmament/fixtures/*.firmament` contains milestone-prefixed fixtures used by these manifests.

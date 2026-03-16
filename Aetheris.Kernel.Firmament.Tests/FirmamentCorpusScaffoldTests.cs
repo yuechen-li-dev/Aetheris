@@ -4,7 +4,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentCorpusScaffoldTests
 {
-    private const string ManifestPath = "testdata/firmament/manifests/m0c.corpus.json";
+    private const string ManifestPath = "testdata/firmament/manifests/firmament.corpus.json";
 
     [Fact]
     public void Manifest_Exists_And_CanBeLoaded()

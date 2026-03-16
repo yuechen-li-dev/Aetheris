@@ -37,7 +37,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-topology-exists-validation-executed", artifact.ArtifactKind);
+        Assert.Equal("firmament-topology-selectable-validation-executed", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);

@@ -32,7 +32,7 @@ internal static class FirmamentValidationExecutor
             var result = entry.KnownKind switch
             {
                 FirmamentKnownOpKind.ExpectExists => ExecuteExpectExists(index, entry, target, featureBodies, diagnostics),
-                FirmamentKnownOpKind.ExpectSelectable => ExecuteExpectSelectable(index, entry, target),
+                FirmamentKnownOpKind.ExpectSelectable => ExecuteExpectSelectable(index, entry, target, featureBodies, diagnostics),
                 FirmamentKnownOpKind.ExpectManifold => new FirmamentExecutedValidation(
                     OpIndex: index,
                     Kind: entry.KnownKind,
@@ -124,7 +124,12 @@ internal static class FirmamentValidationExecutor
                 : $"Selector '{target}' resolved to no topology elements.");
     }
 
-    private static FirmamentExecutedValidation ExecuteExpectSelectable(int opIndex, FirmamentParsedOpEntry entry, string? target)
+    private static FirmamentExecutedValidation ExecuteExpectSelectable(
+        int opIndex,
+        FirmamentParsedOpEntry entry,
+        string? target,
+        IReadOnlyDictionary<string, Aetheris.Kernel.Core.Brep.BrepBody> featureBodies,
+        ICollection<KernelDiagnostic> diagnostics)
     {
         if (IsFeatureIdTarget(entry))
         {
@@ -138,9 +143,12 @@ internal static class FirmamentValidationExecutor
         }
 
         if (entry.ClassifiedFields is null
-            || !entry.ClassifiedFields.TryGetValue("selectorCardinality", out var selectorCardinality)
+            || !entry.ClassifiedFields.TryGetValue("selectorResultKind", out var selectorResultKind)
+            || !Enum.TryParse<FirmamentSelectorResultKind>(selectorResultKind, out var resultKind)
             || !entry.RawFields.TryGetValue("count", out var countRaw)
-            || !int.TryParse(countRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var requestedCount))
+            || !int.TryParse(countRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var requestedCount)
+            || string.IsNullOrWhiteSpace(target)
+            || !FirmamentSelectorResolver.TryResolve(target, featureBodies, resultKind, out var resolution))
         {
             return new FirmamentExecutedValidation(
                 OpIndex: opIndex,
@@ -148,13 +156,16 @@ internal static class FirmamentValidationExecutor
                 Target: target,
                 IsExecuted: true,
                 IsSuccess: false,
-                Reason: "expect_selectable missing executable contract-cardinality inputs.");
+                Reason: "expect_selectable selector target could not be resolved to executable topology at M6c.");
         }
 
-        var isSuccess = string.Equals(selectorCardinality, FirmamentSelectorCardinality.One.ToString(), StringComparison.Ordinal)
-            ? requestedCount == 1
-            : string.Equals(selectorCardinality, FirmamentSelectorCardinality.Many.ToString(), StringComparison.Ordinal)
-                && requestedCount > 1;
+        var isSuccess = resolution.Count == requestedCount;
+        if (!isSuccess)
+        {
+            diagnostics.Add(CreateDiagnostic(
+                FirmamentDiagnosticCodes.ValidationTargetSelectableCountMismatch,
+                $"Selector '{target}' resolved to {resolution.Count.ToString(CultureInfo.InvariantCulture)} elements but {requestedCount.ToString(CultureInfo.InvariantCulture)} were expected."));
+        }
 
         return new FirmamentExecutedValidation(
             OpIndex: opIndex,
@@ -164,7 +175,7 @@ internal static class FirmamentValidationExecutor
             IsSuccess: isSuccess,
             Reason: isSuccess
                 ? null
-                : $"expect_selectable count '{requestedCount}' is incompatible with selector cardinality '{selectorCardinality}' at M6a contract level.");
+                : $"Selector '{target}' resolved to {resolution.Count.ToString(CultureInfo.InvariantCulture)} elements but {requestedCount.ToString(CultureInfo.InvariantCulture)} were expected.");
     }
 
     private static IReadOnlyDictionary<string, Aetheris.Kernel.Core.Brep.BrepBody> BuildFeatureBodyMap(FirmamentPrimitiveExecutionResult primitiveExecutionResult)

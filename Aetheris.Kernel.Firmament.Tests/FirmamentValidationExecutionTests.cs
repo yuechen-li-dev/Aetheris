@@ -45,41 +45,48 @@ public sealed class FirmamentValidationExecutionTests
         Assert.True(validation.IsExecuted);
         Assert.False(validation.IsSuccess);
         Assert.Equal("Selector 'sphere.edges' resolved to no topology elements.", validation.Reason);
-
     }
 
     [Fact]
-    public void Compile_Executes_ExpectSelectable_One_With_Count_One()
+    public void Compile_Executes_ExpectSelectable_With_TopologyBacked_Counts_As_Successes()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/m6a-valid-expect-selectable-one-count1.firmament");
+        var result = CompileFixture("testdata/firmament/fixtures/m6c-valid-selectable-count.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
-        var validation = Assert.Single(result.Compilation.Value.ValidationExecutionResult!.Validations);
-        Assert.True(validation.IsExecuted);
-        Assert.True(validation.IsSuccess);
+        var validations = result.Compilation.Value.ValidationExecutionResult!.Validations;
+        Assert.Equal(4, validations.Count);
+        Assert.All(validations, validation =>
+        {
+            Assert.True(validation.IsExecuted);
+            Assert.True(validation.IsSuccess);
+            Assert.Null(validation.Reason);
+        });
     }
 
     [Fact]
-    public void Compile_Executes_ExpectSelectable_One_With_Count_Greater_Than_One_As_Failure()
+    public void Compile_Executes_ExpectSelectable_With_Count_Mismatch_As_Deterministic_Failure()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/m6a-invalid-expect-selectable-one-count2.firmament");
+        var result = CompileFixture("testdata/firmament/fixtures/m6c-invalid-selectable-count-mismatch.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
-        var validation = Assert.Single(result.Compilation.Value.ValidationExecutionResult!.Validations);
-        Assert.True(validation.IsExecuted);
-        Assert.False(validation.IsSuccess);
-        Assert.Contains("incompatible", validation.Reason, StringComparison.Ordinal);
-    }
+        var validations = result.Compilation.Value.ValidationExecutionResult!.Validations;
+        Assert.Equal(2, validations.Count);
 
-    [Fact]
-    public void Compile_Executes_ExpectSelectable_Many_With_Plural_Count()
-    {
-        var result = CompileFixture("testdata/firmament/fixtures/m6a-valid-expect-selectable-many-count2.firmament");
+        Assert.Collection(
+            validations,
+            first =>
+            {
+                Assert.True(first.IsExecuted);
+                Assert.False(first.IsSuccess);
+                Assert.Equal("Selector 'base.side_faces' resolved to 6 elements but 3 were expected.", first.Reason);
+            },
+            second =>
+            {
+                Assert.True(second.IsExecuted);
+                Assert.False(second.IsSuccess);
+                Assert.Equal("Selector 'sphere.surface' resolved to 1 elements but 2 were expected.", second.Reason);
+            });
 
-        Assert.True(result.Compilation.IsSuccess);
-        var validation = Assert.Single(result.Compilation.Value.ValidationExecutionResult!.Validations);
-        Assert.True(validation.IsExecuted);
-        Assert.True(validation.IsSuccess);
     }
 
     [Fact]

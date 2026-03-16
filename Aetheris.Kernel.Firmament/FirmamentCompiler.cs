@@ -80,7 +80,7 @@ public sealed class FirmamentCompiler
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
                 new FirmamentCompilationArtifact(
-                    ArtifactKind: "firmament-topology-exists-validation-executed",
+                    ArtifactKind: "firmament-topology-selectable-validation-executed",
                     ParsedDocument: validatedDocument,
                     PrimitiveLoweringPlan: primitiveLoweringResult.Value,
                     PrimitiveExecutionResult: primitiveExecutionResult.Value,

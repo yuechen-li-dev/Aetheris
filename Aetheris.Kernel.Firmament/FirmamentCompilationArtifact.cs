@@ -5,7 +5,7 @@ using Aetheris.Kernel.Firmament.ParsedModel;
 namespace Aetheris.Kernel.Firmament;
 
 public sealed record FirmamentCompilationArtifact(
-    string ArtifactKind = "firmament-topology-exists-validation-executed",
+    string ArtifactKind = "firmament-topology-selectable-validation-executed",
     FirmamentParsedDocument? ParsedDocument = null,
     FirmamentPrimitiveLoweringPlan? PrimitiveLoweringPlan = null,
     FirmamentPrimitiveExecutionResult? PrimitiveExecutionResult = null,

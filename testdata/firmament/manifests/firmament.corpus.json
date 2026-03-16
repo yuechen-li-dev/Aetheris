@@ -748,6 +748,68 @@
       "name": "Valid M3c mixed document executes primitives only",
       "fixturePath": "testdata/firmament/fixtures/m3c-mixed-primitive-boolean-validation.firmament",
       "expectedOutcome": "success"
+    },
+    {
+      "id": "m4a-valid-expect-exists-selector-target-root-earlier",
+      "name": "Valid M4a expect_exists selector-shaped target root references earlier feature",
+      "fixturePath": "testdata/firmament/fixtures/m4a-valid-expect-exists-selector-target-root-earlier.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m4a-valid-expect-selectable-selector-target-root-earlier",
+      "name": "Valid M4a expect_selectable selector-shaped target root references earlier feature",
+      "fixturePath": "testdata/firmament/fixtures/m4a-valid-expect-selectable-selector-target-root-earlier.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m4a-valid-mixed-bare-and-selector-targets",
+      "name": "Valid M4a mixed bare and selector-shaped targets with earlier roots",
+      "fixturePath": "testdata/firmament/fixtures/m4a-valid-mixed-bare-and-selector-targets.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m4a-invalid-expect-exists-selector-target-root-nonexistent",
+      "name": "Invalid M4a expect_exists selector-shaped target root missing feature",
+      "fixturePath": "testdata/firmament/fixtures/m4a-invalid-expect-exists-selector-target-root-nonexistent.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0004"
+      }
+    },
+    {
+      "id": "m4a-invalid-expect-selectable-selector-target-root-nonexistent",
+      "name": "Invalid M4a expect_selectable selector-shaped target root missing feature",
+      "fixturePath": "testdata/firmament/fixtures/m4a-invalid-expect-selectable-selector-target-root-nonexistent.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0004"
+      }
+    },
+    {
+      "id": "m4a-invalid-expect-exists-selector-target-root-forward",
+      "name": "Invalid M4a expect_exists selector-shaped target root forward reference",
+      "fixturePath": "testdata/firmament/fixtures/m4a-invalid-expect-exists-selector-target-root-forward.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0004"
+      }
+    },
+    {
+      "id": "m4a-invalid-expect-selectable-selector-target-root-forward",
+      "name": "Invalid M4a expect_selectable selector-shaped target root forward reference",
+      "fixturePath": "testdata/firmament/fixtures/m4a-invalid-expect-selectable-selector-target-root-forward.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0004"
+      }
     }
   ]
 }

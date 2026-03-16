@@ -19,19 +19,10 @@ internal static class FirmamentDocumentCoherenceValidator
 
             if (entry.Family == FirmamentOpFamily.Validation)
             {
-                var targetShape = entry.ClassifiedFields is not null && entry.ClassifiedFields.TryGetValue("targetShape", out var shape)
-                    ? shape
-                    : null;
-
-                if (string.Equals(targetShape, FirmamentValidationTargetShape.FeatureId.ToString(), StringComparison.Ordinal)
-                    && entry.RawFields.TryGetValue("target", out var targetId)
-                    && !featureIds.Contains(targetId))
+                ValidateValidationTargetReference(entry, index, featureIds, out var diagnostic);
+                if (diagnostic is not null)
                 {
-                    return KernelResult<bool>.Failure([
-                        CreateDiagnostic(
-                            FirmamentDiagnosticCodes.ValidationTargetUnknownFeatureId,
-                            $"Validation op '{entry.OpName}' at index {index} references unknown feature id '{targetId}' via field 'target'.")
-                    ]);
+                    return KernelResult<bool>.Failure([diagnostic]);
                 }
 
                 continue;
@@ -63,6 +54,58 @@ internal static class FirmamentDocumentCoherenceValidator
         }
 
         return KernelResult<bool>.Success(true);
+    }
+
+    private static void ValidateValidationTargetReference(
+        FirmamentParsedOpEntry entry,
+        int index,
+        HashSet<string> featureIds,
+        out KernelDiagnostic? diagnostic)
+    {
+        diagnostic = null;
+
+        if (entry.KnownKind is not (FirmamentKnownOpKind.ExpectExists or FirmamentKnownOpKind.ExpectSelectable)
+            || !entry.RawFields.TryGetValue("target", out var targetRaw))
+        {
+            return;
+        }
+
+        var targetShape = entry.ClassifiedFields is not null && entry.ClassifiedFields.TryGetValue("targetShape", out var shape)
+            ? shape
+            : null;
+
+        if (string.Equals(targetShape, FirmamentValidationTargetShape.FeatureId.ToString(), StringComparison.Ordinal))
+        {
+            if (!featureIds.Contains(targetRaw))
+            {
+                diagnostic = CreateDiagnostic(
+                    FirmamentDiagnosticCodes.ValidationTargetUnknownFeatureId,
+                    $"Validation op '{entry.OpName}' at index {index} references unknown feature id '{targetRaw}' via field 'target'.");
+            }
+
+            return;
+        }
+
+        if (!string.Equals(targetShape, FirmamentValidationTargetShape.SelectorShaped.ToString(), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var rootFeatureId = ExtractSelectorRoot(targetRaw);
+        if (!featureIds.Contains(rootFeatureId))
+        {
+            diagnostic = CreateDiagnostic(
+                FirmamentDiagnosticCodes.ValidationTargetUnknownSelectorRootFeatureId,
+                $"Validation op '{entry.OpName}' at index {index} references unknown selector root feature id '{rootFeatureId}' via field 'target'.");
+        }
+    }
+
+    private static string ExtractSelectorRoot(string target)
+    {
+        var separatorIndex = target.IndexOf('.', StringComparison.Ordinal);
+        return separatorIndex > 0
+            ? target[..separatorIndex]
+            : target;
     }
 
     private static string GetReferenceFieldName(FirmamentKnownOpKind kind) =>

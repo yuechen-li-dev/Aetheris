@@ -15,7 +15,14 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
               name: demo
               units: mm
             
-            ops[1]:
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  1
+                  1
+                  1
               -
                 op: expect_exists
                 target: base.top_face
@@ -32,7 +39,12 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
               name: demo
               units: mm
             
-            ops[1]:
+            ops[2]:
+              -
+                op: cylinder
+                id: hole
+                radius: 1
+                height: 2
               -
                 op: expect_selectable
                 target: hole.entry_face

@@ -8,10 +8,10 @@ model:
 ops[2]:
   -
     op: cylinder
-    id: hole
+    id: mount_hole
     radius: 1
     height: 2
   -
     op: expect_selectable
-    target: hole.entry_face
-    count: 4
+    target: mount_hole.entry_face
+    count: 1

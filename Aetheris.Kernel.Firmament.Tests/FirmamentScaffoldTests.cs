@@ -37,7 +37,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-primitives-and-booleans-executed", artifact.ArtifactKind);
+        Assert.Equal("firmament-m4a-selector-root-validated-primitives-and-booleans-executed", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);
@@ -230,12 +230,19 @@ public sealed class FirmamentScaffoldTests
               name: demo
               units: mm
             
-            ops[1]:
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  1
+                  1
+                  1
               -
                 op: expect_exists
                 target: base.top_face
             """,
-            1);
+            2);
 
     [Fact]
     public void Compiler_Rejects_OpEntry_MissingOp() =>
@@ -859,10 +866,24 @@ public sealed class FirmamentScaffoldTests
 """,
             "expect_exists" => """
   -
+    op: box
+    id: b1
+    size[3]:
+      1
+      1
+      1
+  -
     op: expect_exists
     target: b1.top_face
 """,
             "expect_selectable" => """
+  -
+    op: box
+    id: b1
+    size[3]:
+      1
+      1
+      1
   -
     op: expect_selectable
     target: b1.top_face
@@ -886,7 +907,7 @@ public sealed class FirmamentScaffoldTests
           name: demo
           units: mm
         
-        ops[{{((opName is "add" or "subtract" or "intersect") ? 2 : 1)}}]:
+        ops[{{((opName is "add" or "subtract" or "intersect" or "expect_exists" or "expect_selectable") ? 2 : 1)}}]:
         {{payload}}
         """;
 

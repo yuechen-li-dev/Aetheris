@@ -74,10 +74,10 @@ public sealed class FirmamentDocumentCoherenceValidationTests
               3
           -
             op: expect_exists
-            target: future_feature.top_face
+            target: base.top_face
           -
             op: expect_selectable
-            target: ghost_feature.side_a
+            target: base.side_a
             count: 1
         """;
 

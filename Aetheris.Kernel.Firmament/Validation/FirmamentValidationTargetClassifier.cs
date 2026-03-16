@@ -12,13 +12,6 @@ internal static class FirmamentValidationTargetClassifier
         }
 
         var trimmed = rawTarget.Trim();
-        if (trimmed.Contains(' ', StringComparison.Ordinal)
-            || trimmed.Contains('\t', StringComparison.Ordinal)
-            || trimmed.Contains('\n', StringComparison.Ordinal)
-            || trimmed.Contains('\r', StringComparison.Ordinal))
-        {
-            return false;
-        }
 
         var dotCount = 0;
         foreach (var character in trimmed)
@@ -49,7 +42,7 @@ internal static class FirmamentValidationTargetClassifier
         var left = trimmed[..separatorIndex];
         var right = trimmed[(separatorIndex + 1)..];
 
-        if (!IsValidIdentifier(left) || !IsValidIdentifier(right))
+        if (!IsValidIdentifier(left) || right.Length == 0)
         {
             return false;
         }
@@ -58,7 +51,7 @@ internal static class FirmamentValidationTargetClassifier
         return true;
     }
 
-    private static bool IsValidIdentifier(string value)
+    internal static bool IsValidIdentifier(string value)
     {
         if (value.Length == 0)
         {

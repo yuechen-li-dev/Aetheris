@@ -97,6 +97,15 @@ internal static class FirmamentDocumentCoherenceValidator
             diagnostic = CreateDiagnostic(
                 FirmamentDiagnosticCodes.ValidationTargetUnknownSelectorRootFeatureId,
                 $"Validation op '{entry.OpName}' at index {index} references unknown selector root feature id '{rootFeatureId}' via field 'target'.");
+            return;
+        }
+
+        var portToken = ExtractSelectorPort(targetRaw);
+        if (!FirmamentValidationTargetClassifier.IsValidIdentifier(portToken))
+        {
+            diagnostic = CreateDiagnostic(
+                FirmamentDiagnosticCodes.ValidationTargetInvalidSelectorPortToken,
+                $"Validation op '{entry.OpName}' at index {index} has invalid selector port token '{portToken}' via field 'target'.");
         }
     }
 
@@ -106,6 +115,14 @@ internal static class FirmamentDocumentCoherenceValidator
         return separatorIndex > 0
             ? target[..separatorIndex]
             : target;
+    }
+
+    private static string ExtractSelectorPort(string target)
+    {
+        var separatorIndex = target.IndexOf('.', StringComparison.Ordinal);
+        return separatorIndex >= 0 && separatorIndex < target.Length - 1
+            ? target[(separatorIndex + 1)..]
+            : string.Empty;
     }
 
     private static string GetReferenceFieldName(FirmamentKnownOpKind kind) =>

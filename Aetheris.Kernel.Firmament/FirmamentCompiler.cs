@@ -71,7 +71,7 @@ public sealed class FirmamentCompiler
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
                 new FirmamentCompilationArtifact(
-                    ArtifactKind: "firmament-m4a-selector-root-validated-primitives-and-booleans-executed",
+                    ArtifactKind: "firmament-m4b-selector-port-surface-validated-primitives-and-booleans-executed",
                     ParsedDocument: targetShapeValidationResult.Value,
                     PrimitiveLoweringPlan: primitiveLoweringResult.Value,
                     PrimitiveExecutionResult: primitiveExecutionResult.Value)));

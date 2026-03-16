@@ -54,7 +54,9 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(documentCoherenceValidationResult.Diagnostics));
         }
 
-        var primitiveLoweringResult = FirmamentPrimitiveLowerer.Lower(targetShapeValidationResult.Value);
+        var validatedDocument = documentCoherenceValidationResult.Value;
+
+        var primitiveLoweringResult = FirmamentPrimitiveLowerer.Lower(validatedDocument);
         if (!primitiveLoweringResult.IsSuccess)
         {
             return new FirmamentCompileResult(
@@ -71,8 +73,8 @@ public sealed class FirmamentCompiler
         return new FirmamentCompileResult(
             KernelResult<FirmamentCompilationArtifact>.Success(
                 new FirmamentCompilationArtifact(
-                    ArtifactKind: "firmament-m4b-selector-port-surface-validated-primitives-and-booleans-executed",
-                    ParsedDocument: targetShapeValidationResult.Value,
+                    ArtifactKind: "firmament-m5a-selector-contract-metadata-validated-primitives-and-booleans-executed",
+                    ParsedDocument: validatedDocument,
                     PrimitiveLoweringPlan: primitiveLoweringResult.Value,
                     PrimitiveExecutionResult: primitiveExecutionResult.Value)));
     }

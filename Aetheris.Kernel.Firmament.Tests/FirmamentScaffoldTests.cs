@@ -37,7 +37,7 @@ public sealed class FirmamentScaffoldTests
 
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
-        Assert.Equal("firmament-m4b-selector-port-surface-validated-primitives-and-booleans-executed", artifact.ArtifactKind);
+        Assert.Equal("firmament-m5a-selector-contract-metadata-validated-primitives-and-booleans-executed", artifact.ArtifactKind);
         Assert.NotNull(artifact.ParsedDocument);
         Assert.Equal("1", artifact.ParsedDocument!.Firmament.Version);
         Assert.Equal("demo", artifact.ParsedDocument.Model.Name);

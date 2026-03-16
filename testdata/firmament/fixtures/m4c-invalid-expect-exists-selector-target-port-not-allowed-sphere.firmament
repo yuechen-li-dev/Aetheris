@@ -1,0 +1,15 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[2]:
+  -
+    op: sphere
+    id: sphere
+    radius: 1
+  -
+    op: expect_exists
+    target: sphere.top_face

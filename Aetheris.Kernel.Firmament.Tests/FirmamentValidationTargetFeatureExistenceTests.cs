@@ -45,6 +45,7 @@ public sealed class FirmamentValidationTargetFeatureExistenceTests
     [InlineData("testdata/firmament/fixtures/m4b-valid-expect-exists-selector-target-port-surface-valid.firmament")]
     [InlineData("testdata/firmament/fixtures/m4b-valid-expect-selectable-selector-target-port-surface-valid.firmament")]
     [InlineData("testdata/firmament/fixtures/m4b-valid-mixed-bare-and-selector-targets.firmament")]
+    [InlineData("testdata/firmament/fixtures/m4c-valid-primitive-selector-contracts.firmament")]
     public void Compiler_Accepts_SelectorShapedValidationTargets_WhenRootFeatureDefinedEarlier(string fixturePath)
     {
         var result = CompileFixture(fixturePath);
@@ -95,6 +96,30 @@ public sealed class FirmamentValidationTargetFeatureExistenceTests
         Assert.Equal(firstDiagnostic.Message, secondDiagnostic.Message);
         Assert.Equal(
             $"[{FirmamentDiagnosticCodes.ValidationTargetInvalidSelectorPortToken.Value}] Validation op '{opName}' at index 1 has invalid selector port token '{portToken}' via field 'target'.",
+            firstDiagnostic.Message);
+    }
+
+
+
+    [Theory]
+    [InlineData("testdata/firmament/fixtures/m4c-invalid-expect-exists-selector-target-port-not-allowed-box.firmament", "expect_exists", "box", "circular_edges", "box", 1)]
+    [InlineData("testdata/firmament/fixtures/m4c-invalid-expect-exists-selector-target-port-not-allowed-sphere.firmament", "expect_exists", "sphere", "top_face", "sphere", 1)]
+    [InlineData("testdata/firmament/fixtures/m4c-invalid-expect-selectable-selector-target-port-not-allowed-cylinder.firmament", "expect_selectable", "cylinder", "surface", "cylinder", 1)]
+    [InlineData("testdata/firmament/fixtures/m4c-mixed-valid-and-invalid-selector-contracts.firmament", "expect_exists", "sph", "top_face", "sphere", 5)]
+    public void Compiler_Rejects_SelectorShapedValidationTargets_WhenPortNotAllowedByPrimitiveFeatureContract(string fixturePath, string opName, string featureId, string portToken, string featureKind, int opIndex)
+    {
+        var first = CompileFixture(fixturePath);
+        var second = CompileFixture(fixturePath);
+
+        Assert.False(first.Compilation.IsSuccess);
+        Assert.False(second.Compilation.IsSuccess);
+
+        var firstDiagnostic = Assert.Single(first.Compilation.Diagnostics);
+        var secondDiagnostic = Assert.Single(second.Compilation.Diagnostics);
+
+        Assert.Equal(firstDiagnostic.Message, secondDiagnostic.Message);
+        Assert.Equal(
+            $"[{FirmamentDiagnosticCodes.ValidationTargetSelectorPortNotAllowedForFeatureKind.Value}] Validation op '{opName}' at index {opIndex} has selector port '{portToken}' not allowed for feature kind '{featureKind}' on feature id '{featureId}' via field 'target'.",
             firstDiagnostic.Message);
     }
 

@@ -872,6 +872,56 @@
         "kernelCode": "ValidationFailed",
         "firmamentCode": "FIRM-REF-0005"
       }
+    },
+    {
+      "id": "m4c-valid-primitive-selector-contracts",
+      "name": "Valid M4c selector ports allowed by primitive feature contracts",
+      "fixturePath": "testdata/firmament/fixtures/m4c-valid-primitive-selector-contracts.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m4c-invalid-expect-exists-selector-target-port-not-allowed-box",
+      "name": "Invalid M4c expect_exists selector port not allowed for box",
+      "fixturePath": "testdata/firmament/fixtures/m4c-invalid-expect-exists-selector-target-port-not-allowed-box.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0006"
+      }
+    },
+    {
+      "id": "m4c-invalid-expect-exists-selector-target-port-not-allowed-sphere",
+      "name": "Invalid M4c expect_exists selector port not allowed for sphere",
+      "fixturePath": "testdata/firmament/fixtures/m4c-invalid-expect-exists-selector-target-port-not-allowed-sphere.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0006"
+      }
+    },
+    {
+      "id": "m4c-invalid-expect-selectable-selector-target-port-not-allowed-cylinder",
+      "name": "Invalid M4c expect_selectable selector port not allowed for cylinder",
+      "fixturePath": "testdata/firmament/fixtures/m4c-invalid-expect-selectable-selector-target-port-not-allowed-cylinder.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0006"
+      }
+    },
+    {
+      "id": "m4c-mixed-valid-and-invalid-selector-contracts",
+      "name": "Invalid M4c mixed selectors with one contract-illegal primitive selector port",
+      "fixturePath": "testdata/firmament/fixtures/m4c-mixed-valid-and-invalid-selector-contracts.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-REF-0006"
+      }
     }
   ]
 }

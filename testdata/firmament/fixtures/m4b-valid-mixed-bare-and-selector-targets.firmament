@@ -22,5 +22,5 @@ ops[4]:
     target: base
   -
     op: expect_selectable
-    target: boss.entry_face
+    target: boss.surface
     count: 1

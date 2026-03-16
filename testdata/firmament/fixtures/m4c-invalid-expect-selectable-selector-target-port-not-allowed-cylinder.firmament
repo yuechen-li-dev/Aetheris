@@ -7,10 +7,11 @@ model:
 
 ops[2]:
   -
-    op: sphere
-    id: mount_hole
+    op: cylinder
+    id: cylinder
     radius: 2
+    height: 3
   -
     op: expect_selectable
-    target: mount_hole.surface
-    count: 2
+    target: cylinder.surface
+    count: 1

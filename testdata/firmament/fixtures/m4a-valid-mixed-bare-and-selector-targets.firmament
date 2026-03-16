@@ -15,8 +15,8 @@ ops[4]:
     target: core
   -
     op: expect_exists
-    target: core.top_face
+    target: core.surface
   -
     op: expect_selectable
-    target: core.any_port
+    target: core.edges
     count: 1

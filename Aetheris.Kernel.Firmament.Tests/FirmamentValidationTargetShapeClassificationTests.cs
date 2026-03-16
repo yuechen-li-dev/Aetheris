@@ -8,7 +8,7 @@ public sealed class FirmamentValidationTargetShapeClassificationTests
     [InlineData("expect_exists", "base", "FeatureId")]
     [InlineData("expect_exists", "base.top_face", "SelectorShaped")]
     [InlineData("expect_selectable", "base", "FeatureId")]
-    [InlineData("expect_selectable", "mount_hole.entry_face", "SelectorShaped")]
+    [InlineData("expect_selectable", "mount_hole.edges", "SelectorShaped")]
     public void Compiler_Classifies_ValidationTargets_BySurfaceShape(string opName, string target, string expectedShape)
     {
         var selectorRoot = target.Split('.', 2, StringSplitOptions.None)[0];
@@ -101,7 +101,7 @@ public sealed class FirmamentValidationTargetShapeClassificationTests
     }
 
     [Fact]
-    public void Compiler_DoesNotResolve_SelectorPorts_Semantically()
+    public void Compiler_Allows_ContractLegalSelectorPorts_WithoutTopologyResolution()
     {
         const string source = """
         firmament:
@@ -121,10 +121,10 @@ public sealed class FirmamentValidationTargetShapeClassificationTests
               1
           -
             op: expect_exists
-            target: base.nonexistent_port_name
+            target: base.top_face
           -
             op: expect_selectable
-            target: base.any_other_port
+            target: base.edges
             count: 1
         """;
 

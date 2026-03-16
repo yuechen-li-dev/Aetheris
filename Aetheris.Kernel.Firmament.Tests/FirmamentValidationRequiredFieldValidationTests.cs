@@ -47,7 +47,7 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
                 height: 2
               -
                 op: expect_selectable
-                target: hole.entry_face
+                target: hole.top_face
                 count: 4
             """);
 

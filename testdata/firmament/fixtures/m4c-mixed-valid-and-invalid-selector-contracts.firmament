@@ -1,0 +1,34 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[6]:
+  -
+    op: box
+    id: base
+    size[3]:
+      4
+      5
+      6
+  -
+    op: cylinder
+    id: cyl
+    radius: 1
+    height: 2
+  -
+    op: sphere
+    id: sph
+    radius: 3
+  -
+    op: expect_exists
+    target: base.vertices
+  -
+    op: expect_selectable
+    target: cyl.circular_edges
+    count: 2
+  -
+    op: expect_exists
+    target: sph.top_face

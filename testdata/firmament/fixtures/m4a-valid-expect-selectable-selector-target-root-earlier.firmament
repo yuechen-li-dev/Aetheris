@@ -13,5 +13,5 @@ ops[2]:
     height: 2
   -
     op: expect_selectable
-    target: mount_hole.entry_face
+    target: mount_hole.top_face
     count: 1

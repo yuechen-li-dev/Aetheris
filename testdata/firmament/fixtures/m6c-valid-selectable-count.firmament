@@ -1,0 +1,50 @@
+firmament:
+  version: 1
+
+model:
+  name: m6c_valid_selectable_count
+  units: mm
+
+ops[8]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      8
+      6
+  -
+    op: sphere
+    id: sphere
+    radius: 4
+  -
+    op: cylinder
+    id: cyl
+    radius: 2
+    height: 5
+  -
+    op: add
+    id: join
+    to: base
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+  -
+    op: expect_selectable
+    target: base.side_faces
+    count: 6
+  -
+    op: expect_selectable
+    target: sphere.surface
+    count: 1
+  -
+    op: expect_selectable
+    target: cyl.circular_edges
+    count: 3
+  -
+    op: expect_selectable
+    target: join.edges
+    count: 12

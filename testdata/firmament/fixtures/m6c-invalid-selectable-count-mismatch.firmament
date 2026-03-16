@@ -1,0 +1,27 @@
+firmament:
+  version: 1
+
+model:
+  name: m6c_invalid_selectable_count_mismatch
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      8
+      6
+  -
+    op: sphere
+    id: sphere
+    radius: 4
+  -
+    op: expect_selectable
+    target: base.side_faces
+    count: 3
+  -
+    op: expect_selectable
+    target: sphere.surface
+    count: 2

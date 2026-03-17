@@ -59,9 +59,18 @@ internal static class FirmamentPrimitiveExecutor
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(booleanResult.Diagnostics);
             }
 
-            executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, booleanResult.Value));
-            publishedBodiesByFeatureId[boolean.FeatureId] = booleanResult.Value;
-            booleanExecutionBodiesByFeatureId[boolean.FeatureId] = booleanResult.Value;
+            var placedBooleanBody = booleanResult.Value;
+            var placementResult = FirmamentPlacementResolver.ResolvePlacementTranslation(boolean, publishedBodiesByFeatureId);
+            if (!placementResult.IsSuccess)
+            {
+                return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(placementResult.Diagnostics);
+            }
+
+            placedBooleanBody = TranslateBody(placedBooleanBody, placementResult.Value);
+
+            executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, placedBooleanBody));
+            publishedBodiesByFeatureId[boolean.FeatureId] = placedBooleanBody;
+            booleanExecutionBodiesByFeatureId[boolean.FeatureId] = placedBooleanBody;
         }
 
         return KernelResult<FirmamentPrimitiveExecutionResult>.Success(new FirmamentPrimitiveExecutionResult(executedPrimitives, executedBooleans));

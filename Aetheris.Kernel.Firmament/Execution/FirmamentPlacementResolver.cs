@@ -25,6 +25,17 @@ internal static class FirmamentPlacementResolver
         return KernelResult<Vector3D>.Success((anchorResult.Value - Point3D.Origin) + new Vector3D(o[0], o[1], o[2]));
     }
 
+    public static KernelResult<Vector3D> ResolvePlacementTranslation(FirmamentLoweredBoolean booleanOp, IReadOnlyDictionary<string, BrepBody> featureBodies)
+    {
+        if (booleanOp.Placement is null) return KernelResult<Vector3D>.Success(Vector3D.Zero);
+
+        var anchorResult = ResolveAnchorPoint(booleanOp.Placement.On, featureBodies);
+        if (!anchorResult.IsSuccess) return KernelResult<Vector3D>.Failure(anchorResult.Diagnostics);
+
+        var o = booleanOp.Placement.Offset;
+        return KernelResult<Vector3D>.Success((anchorResult.Value - Point3D.Origin) + new Vector3D(o[0], o[1], o[2]));
+    }
+
     private static KernelResult<Point3D> ResolveAnchorPoint(FirmamentLoweredPlacementAnchor anchor, IReadOnlyDictionary<string, BrepBody> featureBodies)
     {
         if (anchor is FirmamentLoweredPlacementOriginAnchor) return KernelResult<Point3D>.Success(Point3D.Origin);

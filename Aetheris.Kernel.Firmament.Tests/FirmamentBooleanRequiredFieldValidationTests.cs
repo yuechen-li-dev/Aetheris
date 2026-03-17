@@ -32,7 +32,6 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
                 1
                 1
                 1
-            place: ignored-for-now
         """);
 
     [Fact]

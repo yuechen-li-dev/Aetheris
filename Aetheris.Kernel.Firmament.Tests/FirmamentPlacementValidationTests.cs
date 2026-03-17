@@ -150,6 +150,32 @@ public sealed class FirmamentPlacementValidationTests
         Assert.Contains(FirmamentDiagnosticCodes.PlacementInvalidOffsetValue.Value, diagnostic.Message, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void Boolean_With_Origin_Place_Is_Valid()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7d-valid-boolean-origin-placement.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+    }
+
+    [Fact]
+    public void Boolean_With_SelectorShaped_PlaceAnchor_Is_Valid()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7d-valid-boolean-selector-placement.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+    }
+
+    [Fact]
+    public void Boolean_Placement_Runtime_Selector_Resolution_Failure_Is_Diagnostic()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7d-invalid-boolean-placement-selector-runtime-empty.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains(FirmamentDiagnosticCodes.ValidationTargetSelectorResolvedEmpty.Value, diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("resolved empty", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void Placement_Runtime_Selector_Resolution_Failure_Is_Diagnostic()
     {

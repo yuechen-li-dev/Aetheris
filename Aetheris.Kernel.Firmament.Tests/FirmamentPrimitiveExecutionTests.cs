@@ -248,6 +248,63 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.Equal(Point3D.Origin, surface!.Sphere!.Value.Center);
     }
 
+
+    [Fact]
+    public void Boolean_Without_Placement_Behaves_As_Before()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m3d-valid-add-exec.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
+        Assert.Equal("joined", executedBoolean.FeatureId);
+        Assert.NotEmpty(executedBoolean.Body.Topology.Faces);
+    }
+
+    [Fact]
+    public void Boolean_Origin_Placement_Translates_Result_Body()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7d-valid-boolean-origin-placement.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans).Body;
+        var bounds = GetBounds(body);
+        Assert.Equal(new Point3D(8d, -7d, 1d), bounds.Min);
+    }
+
+    [Fact]
+    public void Boolean_Selector_Placement_Uses_Deterministic_Anchor_Resolution()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7d-valid-boolean-selector-placement.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans).Body;
+        var bounds = GetBounds(body);
+        Assert.Equal(new Point3D(1d, -2.25d, -1d), bounds.Min);
+    }
+
+    [Fact]
+    public void Boolean_Placement_Does_Not_Mutate_Referenced_Source_Bodies()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7d-valid-boolean-origin-placement.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var primitive = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
+        var primitiveBounds = GetBounds(primitive.Body);
+        Assert.Equal(new Point3D(-2d, -2d, 0d), primitiveBounds.Min);
+        Assert.Equal(new Point3D(2d, 2d, 4d), primitiveBounds.Max);
+    }
+
+    [Fact]
+    public void Chained_Primitive_And_Placed_Boolean_Executes_Deterministically()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7d-valid-boolean-chain-placement.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var placedBoolean = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans.Single(b => b.FeatureId == "join2");
+        var bounds = GetBounds(placedBoolean.Body);
+        Assert.Equal(new Point3D(-7d, -1d, -3d), bounds.Min);
+    }
+
     [Fact]
     public void Origin_Placement_With_Offset_Translates_Primitive()
     {
@@ -263,12 +320,11 @@ public sealed class FirmamentPrimitiveExecutionTests
     private static (Point3D Min, Point3D Max) GetBounds(BrepBody body)
     {
         var points = body.Topology.Vertices
-            .Select(v =>
-            {
-                Assert.True(body.TryGetVertexPoint(v.Id, out var p));
-                return p;
-            })
+            .Select(v => body.TryGetVertexPoint(v.Id, out var p) ? p : (Point3D?)null)
+            .Where(p => p is not null)
+            .Select(p => p!.Value)
             .ToArray();
+        Assert.NotEmpty(points);
 
         return (
             new Point3D(points.Min(p => p.X), points.Min(p => p.Y), points.Min(p => p.Z)),

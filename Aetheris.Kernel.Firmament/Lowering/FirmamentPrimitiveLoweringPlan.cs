@@ -11,7 +11,18 @@ public sealed record FirmamentLoweredPrimitive(
     int OpIndex,
     string FeatureId,
     FirmamentLoweredPrimitiveKind Kind,
-    FirmamentLoweredPrimitiveParameters Parameters);
+    FirmamentLoweredPrimitiveParameters Parameters,
+    FirmamentLoweredPlacement? Placement);
+
+public sealed record FirmamentLoweredPlacement(
+    FirmamentLoweredPlacementAnchor On,
+    IReadOnlyList<double> Offset);
+
+public abstract record FirmamentLoweredPlacementAnchor;
+
+public sealed record FirmamentLoweredPlacementOriginAnchor : FirmamentLoweredPlacementAnchor;
+
+public sealed record FirmamentLoweredPlacementSelectorAnchor(string Selector) : FirmamentLoweredPlacementAnchor;
 
 public sealed record FirmamentLoweredBoolean(
     int OpIndex,

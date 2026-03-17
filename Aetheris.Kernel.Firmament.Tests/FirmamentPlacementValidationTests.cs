@@ -1,3 +1,4 @@
+using System.Linq;
 using Aetheris.Kernel.Firmament.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
@@ -40,10 +41,12 @@ public sealed class FirmamentPlacementValidationTests
     }
 
     [Fact]
-    public void Primitive_With_Boolean_Edges_PlaceAnchor_Is_Valid()
+    public void Primitive_With_Boolean_Edges_PlaceAnchor_Runtime_Is_Deterministically_Reported_When_Unresolved()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m7b-valid-placement-selector-anchor-boolean.firmament");
-        Assert.True(result.Compilation.IsSuccess);
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains(FirmamentDiagnosticCodes.ValidationTargetSelectorResolvedEmpty.Value, diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -148,21 +151,14 @@ public sealed class FirmamentPlacementValidationTests
     }
 
     [Fact]
-    public void Placement_Declarations_Do_Not_Change_Primitive_Execution_Output()
+    public void Placement_Runtime_Selector_Resolution_Failure_Is_Diagnostic()
     {
-        var baseline = CompileFixture("testdata/firmament/fixtures/m3c-valid-box-exec.firmament");
-        var withPlacement = CompileFixture("testdata/firmament/fixtures/m7a-valid-box-origin-placement.firmament");
+        var result = CompileFixture("testdata/firmament/fixtures/m7c-invalid-placement-selector-runtime-empty.firmament");
 
-        Assert.True(baseline.Compilation.IsSuccess);
-        Assert.True(withPlacement.Compilation.IsSuccess);
-
-        var basePrimitive = Assert.Single(baseline.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
-        var placedPrimitive = Assert.Single(withPlacement.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
-
-        Assert.Equal(basePrimitive.Kind, placedPrimitive.Kind);
-        Assert.Equal(basePrimitive.FeatureId, placedPrimitive.FeatureId);
-        Assert.Equal(basePrimitive.Body.Topology.Faces.Count(), placedPrimitive.Body.Topology.Faces.Count());
-        Assert.Equal(basePrimitive.Body.Topology.Edges.Count(), placedPrimitive.Body.Topology.Edges.Count());
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains(FirmamentDiagnosticCodes.ValidationTargetSelectorResolvedEmpty.Value, diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("resolved empty", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -179,6 +175,34 @@ public sealed class FirmamentPlacementValidationTests
         var secondDiagnostic = Assert.Single(second.Compilation.Diagnostics);
         Assert.Equal(firstDiagnostic.Message, secondDiagnostic.Message);
         Assert.Equal(firstDiagnostic.Code, secondDiagnostic.Code);
+    }
+
+
+
+    [Fact]
+    public void Selector_Placement_On_TopFace_Lands_At_Expected_Anchor_Point()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7c-valid-selector-top-face-anchor.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var placed = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "placed");
+        Assert.True(placed.Body.TryGetVertexPoint(new Aetheris.Kernel.Core.Topology.VertexId(1), out var p1));
+        Assert.Equal(new Aetheris.Kernel.Core.Math.Point3D(-1d, -1d, 4d), p1);
+    }
+
+    [Fact]
+    public void Selector_Placement_On_Vertices_And_Edges_Uses_Deterministic_Centroid_Aggregates()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7c-valid-selector-vertices-edges-anchors.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var vertexPlaced = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "on_vertices");
+        Assert.True(vertexPlaced.Body.TryGetVertexPoint(new Aetheris.Kernel.Core.Topology.VertexId(1), out var v1));
+        Assert.Equal(new Aetheris.Kernel.Core.Math.Point3D(-0.5d, -1.25d, 2d), v1);
+
+        var edgePlaced = result.Compilation.Value.PrimitiveExecutionResult.ExecutedPrimitives.Single(p => p.FeatureId == "on_edges");
+        Assert.True(edgePlaced.Body.TryGetVertexPoint(new Aetheris.Kernel.Core.Topology.VertexId(1), out var e1));
+        Assert.Equal(new Aetheris.Kernel.Core.Math.Point3D(-0.5d, -1.25d, 0d), e1);
     }
 
     private static FirmamentCompileResult CompileFixture(string fixturePath)

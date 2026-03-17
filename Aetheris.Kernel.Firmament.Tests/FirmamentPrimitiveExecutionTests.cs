@@ -1,5 +1,8 @@
+using System.Linq;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Firmament.Lowering;
+using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -118,7 +121,7 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.True(result.Compilation.IsSuccess);
         var artifact = result.Compilation.Value;
 
-        Assert.Equal("firmament-topology-manifold-validation-executed", artifact.ArtifactKind);
+        Assert.Equal("firmament-placement-executed", artifact.ArtifactKind);
         Assert.Equal(2, artifact.PrimitiveLoweringPlan!.Primitives.Count);
         Assert.Equal(2, artifact.PrimitiveLoweringPlan.Booleans.Count);
         Assert.Single(artifact.PrimitiveLoweringPlan.SkippedOps);
@@ -200,6 +203,76 @@ public sealed class FirmamentPrimitiveExecutionTests
             .ToArray();
 
         Assert.Equal(firstMetadata, secondMetadata);
+    }
+
+
+
+    [Fact]
+    public void Default_Box_Frame_Is_Centered_In_XY_And_Bottom_On_Z0()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m3c-valid-box-exec.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;
+
+        var bounds = GetBounds(body);
+        Assert.Equal(new Point3D(-5d, -10d, 0d), bounds.Min);
+        Assert.Equal(new Point3D(5d, 10d, 30d), bounds.Max);
+    }
+
+    [Fact]
+    public void Default_Cylinder_Frame_Is_Centered_In_XY_And_Bottom_On_Z0()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m3c-valid-cylinder-exec.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;
+        Assert.True(body.TryGetFaceSurfaceGeometry(new FaceId(1), out var side));
+        Assert.Equal(new Point3D(0d, 0d, 0d), side!.Cylinder!.Value.Origin);
+
+        Assert.True(body.TryGetFaceSurfaceGeometry(new FaceId(2), out var top));
+        Assert.Equal(new Point3D(0d, 0d, 9d), top!.Plane!.Value.Origin);
+
+        Assert.True(body.TryGetFaceSurfaceGeometry(new FaceId(3), out var bottom));
+        Assert.Equal(new Point3D(0d, 0d, 0d), bottom!.Plane!.Value.Origin);
+    }
+
+    [Fact]
+    public void Default_Sphere_Frame_Is_Centered_At_Origin()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m3c-valid-sphere-exec.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;
+        Assert.True(body.TryGetFaceSurfaceGeometry(new FaceId(1), out var surface));
+        Assert.Equal(Point3D.Origin, surface!.Sphere!.Value.Center);
+    }
+
+    [Fact]
+    public void Origin_Placement_With_Offset_Translates_Primitive()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7c-valid-origin-placement-offset.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;
+        var bounds = GetBounds(body);
+        Assert.Equal(new Point3D(9d, -6d, 2d), bounds.Min);
+        Assert.Equal(new Point3D(11d, -4d, 4d), bounds.Max);
+    }
+
+    private static (Point3D Min, Point3D Max) GetBounds(BrepBody body)
+    {
+        var points = body.Topology.Vertices
+            .Select(v =>
+            {
+                Assert.True(body.TryGetVertexPoint(v.Id, out var p));
+                return p;
+            })
+            .ToArray();
+
+        return (
+            new Point3D(points.Min(p => p.X), points.Min(p => p.Y), points.Min(p => p.Z)),
+            new Point3D(points.Max(p => p.X), points.Max(p => p.Y), points.Max(p => p.Z)));
     }
 
     private static FirmamentCompileResult CompileFixture(string fixturePath)

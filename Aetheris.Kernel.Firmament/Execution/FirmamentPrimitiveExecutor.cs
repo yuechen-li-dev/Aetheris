@@ -1,7 +1,12 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
+using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament.Execution;
@@ -14,27 +19,25 @@ internal static class FirmamentPrimitiveExecutor
 
         var executedPrimitives = new List<FirmamentExecutedPrimitive>(loweringPlan.Primitives.Count);
         var executedBooleans = new List<FirmamentExecutedBoolean>(loweringPlan.Booleans.Count);
-        var bodiesByFeatureId = new Dictionary<string, BrepBody>(StringComparer.Ordinal);
+        var publishedBodiesByFeatureId = new Dictionary<string, BrepBody>(StringComparer.Ordinal);
+        var booleanExecutionBodiesByFeatureId = new Dictionary<string, BrepBody>(StringComparer.Ordinal);
 
         foreach (var primitive in loweringPlan.Primitives.OrderBy(p => p.OpIndex))
         {
-            var bodyResult = ExecutePrimitive(primitive);
+            var bodyResult = ExecutePrimitive(primitive, publishedBodiesByFeatureId);
             if (!bodyResult.IsSuccess)
             {
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(bodyResult.Diagnostics);
             }
 
-            executedPrimitives.Add(new FirmamentExecutedPrimitive(
-                OpIndex: primitive.OpIndex,
-                FeatureId: primitive.FeatureId,
-                Kind: primitive.Kind,
-                Body: bodyResult.Value));
-            bodiesByFeatureId[primitive.FeatureId] = bodyResult.Value;
+            executedPrimitives.Add(new FirmamentExecutedPrimitive(primitive.OpIndex, primitive.FeatureId, primitive.Kind, bodyResult.Value.Published));
+            publishedBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.Published;
+            booleanExecutionBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.LegacyForBoolean;
         }
 
         foreach (var boolean in loweringPlan.Booleans.OrderBy(b => b.OpIndex))
         {
-            if (!bodiesByFeatureId.TryGetValue(boolean.PrimaryReferenceFeatureId, out var baseBody))
+            if (!booleanExecutionBodiesByFeatureId.TryGetValue(boolean.PrimaryReferenceFeatureId, out var baseBody))
             {
                 continue;
             }
@@ -56,15 +59,52 @@ internal static class FirmamentPrimitiveExecutor
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(booleanResult.Diagnostics);
             }
 
-            executedBooleans.Add(new FirmamentExecutedBoolean(
-                OpIndex: boolean.OpIndex,
-                FeatureId: boolean.FeatureId,
-                Kind: boolean.Kind,
-                Body: booleanResult.Value));
-            bodiesByFeatureId[boolean.FeatureId] = booleanResult.Value;
+            executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, booleanResult.Value));
+            publishedBodiesByFeatureId[boolean.FeatureId] = booleanResult.Value;
+            booleanExecutionBodiesByFeatureId[boolean.FeatureId] = booleanResult.Value;
         }
 
         return KernelResult<FirmamentPrimitiveExecutionResult>.Success(new FirmamentPrimitiveExecutionResult(executedPrimitives, executedBooleans));
+    }
+
+    private static KernelResult<FirmamentExecutedPrimitiveBodies> ExecutePrimitive(FirmamentLoweredPrimitive primitive, IReadOnlyDictionary<string, BrepBody> publishedBodies)
+    {
+        var legacyResult = ExecuteLegacyPrimitive(primitive);
+        if (!legacyResult.IsSuccess)
+        {
+            return KernelResult<FirmamentExecutedPrimitiveBodies>.Failure(legacyResult.Diagnostics);
+        }
+
+        var defaultFrameBody = ApplyDefaultLocalFrame(primitive, legacyResult.Value);
+        var placementResult = FirmamentPlacementResolver.ResolvePlacementTranslation(primitive, publishedBodies);
+        if (!placementResult.IsSuccess)
+        {
+            return KernelResult<FirmamentExecutedPrimitiveBodies>.Failure(placementResult.Diagnostics);
+        }
+
+        var publishedBody = TranslateBody(defaultFrameBody, placementResult.Value);
+        return KernelResult<FirmamentExecutedPrimitiveBodies>.Success(new FirmamentExecutedPrimitiveBodies(publishedBody, legacyResult.Value));
+    }
+
+    private static BrepBody ApplyDefaultLocalFrame(FirmamentLoweredPrimitive primitive, BrepBody body)
+    {
+        return primitive.Kind switch
+        {
+            FirmamentLoweredPrimitiveKind.Box => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredBoxParameters)primitive.Parameters).SizeZ * 0.5d)),
+            FirmamentLoweredPrimitiveKind.Cylinder => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredCylinderParameters)primitive.Parameters).Height * 0.5d)),
+            _ => body
+        };
+    }
+
+    private static KernelResult<BrepBody> ExecuteLegacyPrimitive(FirmamentLoweredPrimitive primitive)
+    {
+        return primitive.Kind switch
+        {
+            FirmamentLoweredPrimitiveKind.Box => BrepPrimitives.CreateBox(((FirmamentLoweredBoxParameters)primitive.Parameters).SizeX, ((FirmamentLoweredBoxParameters)primitive.Parameters).SizeY, ((FirmamentLoweredBoxParameters)primitive.Parameters).SizeZ),
+            FirmamentLoweredPrimitiveKind.Cylinder => BrepPrimitives.CreateCylinder(((FirmamentLoweredCylinderParameters)primitive.Parameters).Radius, ((FirmamentLoweredCylinderParameters)primitive.Parameters).Height),
+            FirmamentLoweredPrimitiveKind.Sphere => BrepPrimitives.CreateSphere(((FirmamentLoweredSphereParameters)primitive.Parameters).Radius),
+            _ => KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Primitive execution for kind '{primitive.Kind}' is not implemented.")])
+        };
     }
 
     private static KernelResult<BrepBody> ExecuteTool(FirmamentLoweredToolOp tool)
@@ -73,11 +113,7 @@ internal static class FirmamentPrimitiveExecutor
         {
             if (!tool.RawFields.TryGetValue("size", out var sizeRaw) || string.IsNullOrWhiteSpace(sizeRaw))
             {
-                return KernelResult<BrepBody>.Failure([
-                    new KernelDiagnostic(
-                        KernelDiagnosticCode.ValidationFailed,
-                        KernelDiagnosticSeverity.Error,
-                        "Boolean execution expected validated nested field 'with.size' for tool op 'box'.")]);
+                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested field 'with.size' for tool op 'box'.")]);
             }
 
             var parameters = FirmamentPrimitiveToolParsing.ParseBox(sizeRaw);
@@ -89,88 +125,74 @@ internal static class FirmamentPrimitiveExecutor
             if (!tool.RawFields.TryGetValue("radius", out var radiusRaw) || string.IsNullOrWhiteSpace(radiusRaw)
                 || !tool.RawFields.TryGetValue("height", out var heightRaw) || string.IsNullOrWhiteSpace(heightRaw))
             {
-                return KernelResult<BrepBody>.Failure([
-                    new KernelDiagnostic(
-                        KernelDiagnosticCode.ValidationFailed,
-                        KernelDiagnosticSeverity.Error,
-                        "Boolean execution expected validated nested fields 'with.radius' and 'with.height' for tool op 'cylinder'.")]);
+                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested fields 'with.radius' and 'with.height' for tool op 'cylinder'.")]);
             }
 
-            var radius = FirmamentPrimitiveToolParsing.ParseScalar(radiusRaw);
-            var height = FirmamentPrimitiveToolParsing.ParseScalar(heightRaw);
-            return BrepPrimitives.CreateCylinder(radius, height);
+            return BrepPrimitives.CreateCylinder(FirmamentPrimitiveToolParsing.ParseScalar(radiusRaw), FirmamentPrimitiveToolParsing.ParseScalar(heightRaw));
         }
 
         if (string.Equals(tool.OpName, "sphere", StringComparison.Ordinal))
         {
             if (!tool.RawFields.TryGetValue("radius", out var radiusRaw) || string.IsNullOrWhiteSpace(radiusRaw))
             {
-                return KernelResult<BrepBody>.Failure([
-                    new KernelDiagnostic(
-                        KernelDiagnosticCode.ValidationFailed,
-                        KernelDiagnosticSeverity.Error,
-                        "Boolean execution expected validated nested field 'with.radius' for tool op 'sphere'.")]);
+                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested field 'with.radius' for tool op 'sphere'.")]);
             }
 
-            var radius = FirmamentPrimitiveToolParsing.ParseScalar(radiusRaw);
-            return BrepPrimitives.CreateSphere(radius);
+            return BrepPrimitives.CreateSphere(FirmamentPrimitiveToolParsing.ParseScalar(radiusRaw));
         }
 
-        return KernelResult<BrepBody>.Failure([
-            new KernelDiagnostic(
-                KernelDiagnosticCode.NotImplemented,
-                KernelDiagnosticSeverity.Error,
-                $"Boolean execution supports nested tool ops 'box', 'cylinder', and 'sphere' only. Got '{tool.OpName}'.")]);
+        return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution supports nested tool ops 'box', 'cylinder', and 'sphere' only. Got '{tool.OpName}'.")]);
     }
 
-    private static KernelResult<BrepBody> ExecuteBoolean(FirmamentLoweredBooleanKind kind, BrepBody left, BrepBody right)
-    {
-        return kind switch
+    private static KernelResult<BrepBody> ExecuteBoolean(FirmamentLoweredBooleanKind kind, BrepBody left, BrepBody right) =>
+        kind switch
         {
             FirmamentLoweredBooleanKind.Add => BrepBoolean.Union(left, right),
             FirmamentLoweredBooleanKind.Subtract => BrepBoolean.Subtract(left, right),
             FirmamentLoweredBooleanKind.Intersect => BrepBoolean.Intersect(left, right),
-            _ => KernelResult<BrepBody>.Failure([
-                new KernelDiagnostic(
-                    KernelDiagnosticCode.NotImplemented,
-                    KernelDiagnosticSeverity.Error,
-                    $"Boolean execution for kind '{kind}' is not implemented.")])
+            _ => KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution for kind '{kind}' is not implemented.")])
         };
-    }
 
-    private static KernelResult<BrepBody> ExecutePrimitive(FirmamentLoweredPrimitive primitive)
+    private static BrepBody TranslateBody(BrepBody body, Vector3D translation)
     {
-        return primitive.Kind switch
+        if (translation == Vector3D.Zero) return body;
+
+        var translatedGeometry = new BrepGeometryStore();
+        foreach (var curveEntry in body.Geometry.Curves)
         {
-            FirmamentLoweredPrimitiveKind.Box => ExecuteBox(primitive),
-            FirmamentLoweredPrimitiveKind.Cylinder => ExecuteCylinder(primitive),
-            FirmamentLoweredPrimitiveKind.Sphere => ExecuteSphere(primitive),
-            _ => KernelResult<BrepBody>.Failure([
-                new KernelDiagnostic(
-                    KernelDiagnosticCode.NotImplemented,
-                    KernelDiagnosticSeverity.Error,
-                    $"Primitive execution for kind '{primitive.Kind}' is not implemented.")])
-        };
-    }
+            translatedGeometry.AddCurve(curveEntry.Key, curveEntry.Value.Kind switch
+            {
+                CurveGeometryKind.Line3 => CurveGeometry.FromLine(new Line3Curve(curveEntry.Value.Line3!.Value.Origin + translation, curveEntry.Value.Line3.Value.Direction)),
+                CurveGeometryKind.Circle3 => CurveGeometry.FromCircle(new Circle3Curve(curveEntry.Value.Circle3!.Value.Center + translation, curveEntry.Value.Circle3.Value.Normal, curveEntry.Value.Circle3.Value.Radius, curveEntry.Value.Circle3.Value.XAxis)),
+                _ => curveEntry.Value
+            });
+        }
 
-    private static KernelResult<BrepBody> ExecuteBox(FirmamentLoweredPrimitive primitive)
-    {
-        var parameters = (FirmamentLoweredBoxParameters)primitive.Parameters;
-        return BrepPrimitives.CreateBox(parameters.SizeX, parameters.SizeY, parameters.SizeZ);
-    }
+        foreach (var surfaceEntry in body.Geometry.Surfaces)
+        {
+            translatedGeometry.AddSurface(surfaceEntry.Key, surfaceEntry.Value.Kind switch
+            {
+                SurfaceGeometryKind.Plane => SurfaceGeometry.FromPlane(new PlaneSurface(surfaceEntry.Value.Plane!.Value.Origin + translation, surfaceEntry.Value.Plane.Value.Normal, surfaceEntry.Value.Plane.Value.UAxis)),
+                SurfaceGeometryKind.Cylinder => SurfaceGeometry.FromCylinder(new CylinderSurface(surfaceEntry.Value.Cylinder!.Value.Origin + translation, surfaceEntry.Value.Cylinder.Value.Axis, surfaceEntry.Value.Cylinder.Value.Radius, surfaceEntry.Value.Cylinder.Value.XAxis)),
+                SurfaceGeometryKind.Sphere => SurfaceGeometry.FromSphere(new SphereSurface(surfaceEntry.Value.Sphere!.Value.Center + translation, surfaceEntry.Value.Sphere.Value.Axis, surfaceEntry.Value.Sphere.Value.Radius, surfaceEntry.Value.Sphere.Value.XAxis)),
+                _ => surfaceEntry.Value
+            });
+        }
 
-    private static KernelResult<BrepBody> ExecuteCylinder(FirmamentLoweredPrimitive primitive)
-    {
-        var parameters = (FirmamentLoweredCylinderParameters)primitive.Parameters;
-        return BrepPrimitives.CreateCylinder(parameters.Radius, parameters.Height);
-    }
+        var vertexPoints = new Dictionary<VertexId, Point3D>();
+        foreach (var vertex in body.Topology.Vertices)
+        {
+            if (FirmamentPlacementResolver.TryGetVertexPoint(body, vertex.Id, out var point))
+            {
+                vertexPoints[vertex.Id] = point + translation;
+            }
+        }
 
-    private static KernelResult<BrepBody> ExecuteSphere(FirmamentLoweredPrimitive primitive)
-    {
-        var parameters = (FirmamentLoweredSphereParameters)primitive.Parameters;
-        return BrepPrimitives.CreateSphere(parameters.Radius);
+        return new BrepBody(body.Topology, translatedGeometry, body.Bindings, vertexPoints);
     }
 }
+
+internal sealed record FirmamentExecutedPrimitiveBodies(BrepBody Published, BrepBody LegacyForBoolean);
 
 internal static class FirmamentPrimitiveToolParsing
 {
@@ -178,11 +200,7 @@ internal static class FirmamentPrimitiveToolParsing
     {
         using var doc = System.Text.Json.JsonDocument.Parse(sizeRaw);
         var elements = doc.RootElement.EnumerateArray().ToArray();
-
-        return new FirmamentLoweredBoxParameters(
-            ParseScalar(elements[0].ToString()),
-            ParseScalar(elements[1].ToString()),
-            ParseScalar(elements[2].ToString()));
+        return new FirmamentLoweredBoxParameters(ParseScalar(elements[0].ToString()), ParseScalar(elements[1].ToString()), ParseScalar(elements[2].ToString()));
     }
 
     public static double ParseScalar(string raw)

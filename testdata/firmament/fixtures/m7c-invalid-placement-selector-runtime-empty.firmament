@@ -2,7 +2,7 @@ firmament:
   version: 1
 
 model:
-  name: m7b_valid_placement_selector_anchor_boolean
+  name: m7c_invalid_placement_selector_runtime_empty
   units: mm
 
 ops[3]:
@@ -15,15 +15,15 @@ ops[3]:
       4
 
   -
-    op: add
-    id: union
-    to: base
+    op: subtract
+    id: cut
+    from: base
     with:
       op: box
       size[3]:
-        1
-        1
-        1
+        4
+        4
+        4
 
   -
     op: box
@@ -33,7 +33,7 @@ ops[3]:
       1
       1
     place:
-      on: union.edges
+      on: cut.edges
       offset[3]:
         0
         0

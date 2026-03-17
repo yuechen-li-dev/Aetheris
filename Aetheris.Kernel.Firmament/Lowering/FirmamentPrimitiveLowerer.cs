@@ -28,7 +28,8 @@ internal static class FirmamentPrimitiveLowerer
                         OpIndex: index,
                         FeatureId: entry.RawFields["id"],
                         Kind: FirmamentLoweredPrimitiveKind.Box,
-                        Parameters: LowerBoxParameters(entry.RawFields["size"])));
+                        Parameters: LowerBoxParameters(entry.RawFields["size"]),
+                        Placement: LowerPlacement(entry.Placement)));
                     break;
 
                 case FirmamentKnownOpKind.Cylinder:
@@ -38,7 +39,8 @@ internal static class FirmamentPrimitiveLowerer
                         Kind: FirmamentLoweredPrimitiveKind.Cylinder,
                         Parameters: new FirmamentLoweredCylinderParameters(
                             Radius: ParseScalar(entry.RawFields["radius"]),
-                            Height: ParseScalar(entry.RawFields["height"]))));
+                            Height: ParseScalar(entry.RawFields["height"])),
+                        Placement: LowerPlacement(entry.Placement)));
                     break;
 
                 case FirmamentKnownOpKind.Sphere:
@@ -47,7 +49,8 @@ internal static class FirmamentPrimitiveLowerer
                         FeatureId: entry.RawFields["id"],
                         Kind: FirmamentLoweredPrimitiveKind.Sphere,
                         Parameters: new FirmamentLoweredSphereParameters(
-                            Radius: ParseScalar(entry.RawFields["radius"]))));
+                            Radius: ParseScalar(entry.RawFields["radius"])),
+                        Placement: LowerPlacement(entry.Placement)));
                     break;
 
                 case FirmamentKnownOpKind.Add:
@@ -74,6 +77,29 @@ internal static class FirmamentPrimitiveLowerer
         }
 
         return KernelResult<FirmamentPrimitiveLoweringPlan>.Success(new FirmamentPrimitiveLoweringPlan(loweredPrimitives, loweredBooleans, skippedOps));
+    }
+
+
+    private static FirmamentLoweredPlacement? LowerPlacement(FirmamentParsedPlacement? placement)
+    {
+        if (placement is null)
+        {
+            return null;
+        }
+
+        FirmamentLoweredPlacementAnchor? loweredAnchor = placement.On switch
+        {
+            FirmamentParsedPlacementOriginAnchor => new FirmamentLoweredPlacementOriginAnchor(),
+            FirmamentParsedPlacementSelectorAnchor selector => new FirmamentLoweredPlacementSelectorAnchor(selector.Selector),
+            _ => null
+        };
+
+        if (loweredAnchor is null)
+        {
+            return null;
+        }
+
+        return new FirmamentLoweredPlacement(loweredAnchor, placement.Offset);
     }
 
     private static FirmamentLoweredBoolean LowerBoolean(

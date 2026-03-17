@@ -116,7 +116,8 @@ internal static class FirmamentPrimitiveLowerer
             Kind: booleanKind,
             PrimaryReferenceField: primaryFieldName,
             PrimaryReferenceFeatureId: entry.RawFields[primaryFieldName],
-            Tool: tool);
+            Tool: tool,
+            Placement: LowerPlacement(entry.Placement));
     }
 
     private static FirmamentLoweredToolOp ParseTool(string rawWith)

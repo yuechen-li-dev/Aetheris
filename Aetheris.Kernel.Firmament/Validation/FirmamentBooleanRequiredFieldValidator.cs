@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
@@ -65,7 +66,13 @@ internal static class FirmamentBooleanRequiredFieldValidator
             return InvalidFieldTypeOrShape("with.op", opIndex, entry.OpName, "expected a non-empty scalar/string-like value");
         }
 
-        return ValidateNestedPrimitiveToolFields(entry, opIndex, withOpRaw, withFields);
+        var toolValidationResult = ValidateNestedPrimitiveToolFields(entry, opIndex, withOpRaw, withFields);
+        if (!toolValidationResult.IsSuccess)
+        {
+            return toolValidationResult;
+        }
+
+        return ValidatePlacement(entry, opIndex);
     }
 
     private static KernelResult<bool> ValidateNestedPrimitiveToolFields(FirmamentParsedOpEntry entry, int opIndex, string withOpRaw, IReadOnlyDictionary<string, string> withFields)
@@ -314,6 +321,135 @@ internal static class FirmamentBooleanRequiredFieldValidator
     {
         var trimmed = raw.Trim();
         return trimmed.StartsWith("{", StringComparison.Ordinal) || trimmed.StartsWith("[", StringComparison.Ordinal);
+    }
+
+
+    private static KernelResult<bool> ValidatePlacement(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!entry.RawFields.ContainsKey("place"))
+        {
+            return KernelResult<bool>.Success(true);
+        }
+
+        entry.RawFields.TryGetValue("place", out var placeRaw);
+        var hasOn = false;
+        var hasOffset = false;
+        TryReadPlacementFieldPresence(placeRaw ?? string.Empty, out hasOn, out hasOffset);
+
+        if (!hasOn)
+        {
+            return KernelResult<bool>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PlacementMissingRequiredField,
+                    $"Boolean op '{entry.OpName}' at index {opIndex} is missing required field 'place.on'.")]);
+        }
+
+        if (!hasOffset)
+        {
+            return KernelResult<bool>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PlacementMissingRequiredField,
+                    $"Boolean op '{entry.OpName}' at index {opIndex} is missing required field 'place.offset'.")]);
+        }
+
+        if (entry.Placement is null)
+        {
+            return KernelResult<bool>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PlacementMissingRequiredField,
+                    $"Boolean op '{entry.OpName}' at index {opIndex} has invalid field 'place'; expected object-like placement block with required fields 'on' and 'offset'.")]);
+        }
+
+        if (entry.Placement.On is FirmamentParsedPlacementSelectorAnchor selectorAnchor)
+        {
+            if (!FirmamentValidationTargetClassifier.TryClassify(selectorAnchor.Selector, out var shape)
+                || shape != FirmamentValidationTargetShape.SelectorShaped)
+            {
+                return KernelResult<bool>.Failure([
+                    CreateDiagnostic(
+                        FirmamentDiagnosticCodes.PlacementInvalidAnchorShape,
+                        $"Boolean op '{entry.OpName}' at index {opIndex} has invalid placement anchor in field 'place.on'; expected 'origin' or selector-shaped token 'feature.port'.")]);
+            }
+        }
+        else if (entry.Placement.On is not FirmamentParsedPlacementOriginAnchor)
+        {
+            return KernelResult<bool>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PlacementInvalidAnchorShape,
+                    $"Boolean op '{entry.OpName}' at index {opIndex} has invalid placement anchor in field 'place.on'; expected 'origin' or selector-shaped token 'feature.port'.")]);
+        }
+
+        if (entry.RawFields.TryGetValue("place", out var placeRawForOffset)
+            && TryReadOffsetRawTokens(placeRawForOffset, out var offsetTokens)
+            && offsetTokens.Count == 3
+            && offsetTokens.Any(token => !TryParseNumeric(token, out _)))
+        {
+            return KernelResult<bool>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PlacementInvalidOffsetValue,
+                    $"Boolean op '{entry.OpName}' at index {opIndex} has invalid field 'place.offset' value; all components must be numeric.")]);
+        }
+
+        if (entry.Placement.Offset.Count != 3)
+        {
+            return KernelResult<bool>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PlacementInvalidOffsetShape,
+                    $"Boolean op '{entry.OpName}' at index {opIndex} has invalid field 'place.offset'; expected exactly 3 numeric components.")]);
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static bool TryReadPlacementFieldPresence(string placeRaw, out bool hasOn, out bool hasOffset)
+    {
+        hasOn = false;
+        hasOffset = false;
+
+        var trimmed = placeRaw.Trim();
+        if (!trimmed.StartsWith("{", StringComparison.Ordinal) || !trimmed.EndsWith("}", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        hasOn = trimmed.Contains("on:", StringComparison.Ordinal);
+        hasOffset = trimmed.Contains("offset:", StringComparison.Ordinal)
+            || trimmed.Contains("offset[", StringComparison.Ordinal);
+        return true;
+    }
+
+    private static bool TryReadOffsetRawTokens(string placeRaw, out List<string> tokens)
+    {
+        tokens = [];
+        var trimmed = placeRaw.Trim();
+
+        if (trimmed.StartsWith("{", StringComparison.Ordinal) && trimmed.EndsWith("}", StringComparison.Ordinal))
+        {
+            var offsetKeyIndex = trimmed.IndexOf("offset", StringComparison.Ordinal);
+            if (offsetKeyIndex < 0)
+            {
+                return false;
+            }
+
+            var offsetSeparator = trimmed.IndexOf(':', offsetKeyIndex);
+            if (offsetSeparator < 0)
+            {
+                return false;
+            }
+
+            var bracketStart = trimmed.IndexOf('[', offsetSeparator + 1);
+            var bracketEnd = trimmed.IndexOf(']', bracketStart + 1);
+            if (bracketStart < 0 || bracketEnd <= bracketStart)
+            {
+                return false;
+            }
+
+            var content = trimmed[(bracketStart + 1)..bracketEnd];
+            tokens = content.Split(',', StringSplitOptions.TrimEntries).ToList();
+            return true;
+        }
+
+        return false;
     }
 
     private static bool TryParseNumeric(string raw, out double value)

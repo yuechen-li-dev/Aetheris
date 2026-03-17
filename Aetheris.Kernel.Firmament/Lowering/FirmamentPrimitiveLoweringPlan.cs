@@ -30,7 +30,8 @@ public sealed record FirmamentLoweredBoolean(
     FirmamentLoweredBooleanKind Kind,
     string PrimaryReferenceField,
     string PrimaryReferenceFeatureId,
-    FirmamentLoweredToolOp Tool);
+    FirmamentLoweredToolOp Tool,
+    FirmamentLoweredPlacement? Placement);
 
 public enum FirmamentLoweredBooleanKind
 {

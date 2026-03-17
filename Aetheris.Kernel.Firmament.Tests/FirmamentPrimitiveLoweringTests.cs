@@ -173,6 +173,20 @@ public sealed class FirmamentPrimitiveLoweringTests
             });
     }
 
+
+    [Fact]
+    public void Compile_Lowers_Boolean_Placement_Metadata_Using_Primitive_Placement_Model()
+    {
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m7d-valid-boolean-origin-placement.firmament"));
+
+        Assert.True(result.Compilation.IsSuccess);
+        var boolean = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
+        Assert.NotNull(boolean.Placement);
+        var origin = Assert.IsType<FirmamentLoweredPlacementOriginAnchor>(boolean.Placement!.On);
+        Assert.NotNull(origin);
+        Assert.Equal(new[] { 10d, -5d, 3d }, boolean.Placement.Offset);
+    }
+
     [Fact]
     public void Compile_Validation_Family_Ops_Remain_Explicitly_NonLowered()
     {

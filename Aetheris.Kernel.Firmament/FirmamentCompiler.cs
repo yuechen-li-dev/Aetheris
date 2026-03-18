@@ -19,6 +19,13 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(parseResult.Diagnostics));
         }
 
+        var schemaValidationResult = FirmamentSchemaValidator.Validate(parseResult.Value);
+        if (!schemaValidationResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(schemaValidationResult.Diagnostics));
+        }
+
         var primitiveValidationResult = FirmamentPrimitiveRequiredFieldValidator.Validate(parseResult.Value);
         if (!primitiveValidationResult.IsSuccess)
         {

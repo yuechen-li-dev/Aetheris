@@ -761,7 +761,7 @@ public sealed class FirmamentScaffoldTests
         Assert.StartsWith("FIRM-REF", FirmamentDiagnosticCodes.ReferenceDuplicateFeatureId.Value);
         Assert.StartsWith("FIRM-REF", FirmamentDiagnosticCodes.ReferenceUnknownFeatureId.Value);
         Assert.StartsWith("FIRM-SEL", FirmamentDiagnosticCodes.SelectorPlaceholder.Value);
-        Assert.StartsWith("FIRM-SCHEMA", FirmamentDiagnosticCodes.SchemaPlaceholder.Value);
+        Assert.StartsWith("FIRM-SCHEMA", FirmamentDiagnosticCodes.SchemaUnknownProcess.Value);
         Assert.StartsWith("FIRM-LOWER", FirmamentDiagnosticCodes.LoweringPlaceholder.Value);
     }
 

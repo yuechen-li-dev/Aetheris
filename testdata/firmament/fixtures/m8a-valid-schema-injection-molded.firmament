@@ -1,0 +1,17 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+schema:
+  process: injection_molded
+  parting_plane: xy
+  gate_location:
+    x: 0
+    y: 0
+    z: 0
+  draft_angle: 2
+
+ops[0]:

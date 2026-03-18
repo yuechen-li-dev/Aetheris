@@ -125,12 +125,14 @@ internal static class FirmamentTopLevelParser
             return KernelResult<FirmamentParsedDocument>.Failure(parsedOpsResult.Diagnostics);
         }
 
+        var parsedSchema = ParseSchemaFromJsonRoot(root);
+
         return KernelResult<FirmamentParsedDocument>.Success(
             new FirmamentParsedDocument(
                 new FirmamentParsedHeader(versionElement.ToString()),
                 new FirmamentParsedModelHeader(nameElement.ToString(), unitsElement.ToString()),
                 new FirmamentParsedOpsSection(parsedOpsResult.Value),
-                HasSchema: root.TryGetProperty("schema", out _),
+                Schema: parsedSchema,
                 HasPmi: root.TryGetProperty("pmi", out _)));
     }
 
@@ -203,12 +205,14 @@ internal static class FirmamentTopLevelParser
             return KernelResult<FirmamentParsedDocument>.Failure(parsedOpsResult.Diagnostics);
         }
 
+        var parsedSchema = ParseSchemaFromToonSections(toon.Sections);
+
         return KernelResult<FirmamentParsedDocument>.Success(
             new FirmamentParsedDocument(
                 new FirmamentParsedHeader(version),
                 new FirmamentParsedModelHeader(name, units),
                 new FirmamentParsedOpsSection(parsedOpsResult.Value),
-                HasSchema: toon.Sections.ContainsKey("schema"),
+                Schema: parsedSchema,
                 HasPmi: toon.Sections.ContainsKey("pmi")));
     }
 
@@ -298,6 +302,7 @@ internal static class FirmamentTopLevelParser
         string? currentNestedFieldName = null;
         int currentNestedFieldIndent = -1;
         var currentNestedLines = new List<string>();
+        Action<string, string>? currentNestedFieldWriter = null;
 
         static string CollapseNestedFieldValue(IReadOnlyList<string> nestedLines)
         {
@@ -358,18 +363,20 @@ internal static class FirmamentTopLevelParser
 
         void FlushNestedFieldIfNeeded()
         {
-            if (currentArrayObjectEntry is null || string.IsNullOrWhiteSpace(currentNestedFieldName))
+            if (currentNestedFieldWriter is null || string.IsNullOrWhiteSpace(currentNestedFieldName))
             {
                 currentNestedFieldName = null;
                 currentNestedFieldIndent = -1;
                 currentNestedLines.Clear();
+                currentNestedFieldWriter = null;
                 return;
             }
 
-            currentArrayObjectEntry.Fields[currentNestedFieldName] = CollapseNestedFieldValue(currentNestedLines);
+            currentNestedFieldWriter(currentNestedFieldName, CollapseNestedFieldValue(currentNestedLines));
             currentNestedFieldName = null;
             currentNestedFieldIndent = -1;
             currentNestedLines.Clear();
+            currentNestedFieldWriter = null;
         }
 
         var lines = sourceText.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal).Split('\n');
@@ -389,18 +396,19 @@ internal static class FirmamentTopLevelParser
             {
                 var field = line.Trim();
 
+                if (!string.IsNullOrWhiteSpace(currentNestedFieldName) && indentation <= currentNestedFieldIndent)
+                {
+                    FlushNestedFieldIfNeeded();
+                }
+
+                if (!string.IsNullOrWhiteSpace(currentNestedFieldName) && indentation > currentNestedFieldIndent)
+                {
+                    currentNestedLines.Add(field);
+                    continue;
+                }
+
                 if (currentArraySection is not null)
                 {
-                    if (!string.IsNullOrWhiteSpace(currentNestedFieldName) && indentation <= currentNestedFieldIndent)
-                    {
-                        FlushNestedFieldIfNeeded();
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(currentNestedFieldName) && indentation > currentNestedFieldIndent)
-                    {
-                        currentNestedLines.Add(field);
-                        continue;
-                    }
 
                     if (field == "-")
                     {
@@ -446,6 +454,7 @@ internal static class FirmamentTopLevelParser
                         currentNestedFieldName = normalizedArrayFieldName;
                         currentNestedFieldIndent = indentation;
                         currentNestedLines.Clear();
+                        currentNestedFieldWriter = (key, value) => currentArrayObjectEntry.Fields[key] = value;
                         continue;
                     }
 
@@ -466,9 +475,19 @@ internal static class FirmamentTopLevelParser
 
                 var fieldName = field[..separator].Trim();
                 var fieldValue = field[(separator + 1)..].Trim();
-                if (fieldName.Length == 0 || fieldValue.Length == 0)
+                if (fieldName.Length == 0)
                 {
                     return InvalidToonSyntax();
+                }
+
+                if (fieldValue.Length == 0)
+                {
+                    var objectSectionName = currentObjectSection;
+                    currentNestedFieldName = fieldName;
+                    currentNestedFieldIndent = indentation;
+                    currentNestedLines.Clear();
+                    currentNestedFieldWriter = (key, value) => sections[objectSectionName].Fields[key] = value;
+                    continue;
                 }
 
                 sections[currentObjectSection].Fields[fieldName] = fieldValue;
@@ -528,6 +547,177 @@ internal static class FirmamentTopLevelParser
         var countText = header[(bracketStart + 1)..bracketEnd].Trim();
         return sectionName.Length > 0
             && int.TryParse(countText, out _);
+    }
+
+    private static FirmamentParsedSchema? ParseSchemaFromJsonRoot(JsonElement root)
+    {
+        if (!root.TryGetProperty("schema", out var schemaElement))
+        {
+            return null;
+        }
+
+        if (schemaElement.ValueKind != JsonValueKind.Object)
+        {
+            return new FirmamentParsedSchema(false, null, FirmamentParsedSchemaProcess.Unknown);
+        }
+
+        schemaElement.TryGetProperty("process", out var processElement);
+        var processRaw = processElement.ToString();
+        var process = ParseSchemaProcess(processRaw);
+
+        schemaElement.TryGetProperty("minimum_tool_radius", out var minimumToolRadiusElement);
+        var minimumToolRadiusRaw = minimumToolRadiusElement.ToString();
+        double? minimumToolRadius = null;
+        if (minimumToolRadiusElement.ValueKind == JsonValueKind.Number)
+        {
+            minimumToolRadius = minimumToolRadiusElement.GetDouble();
+        }
+
+        string? partingPlane = null;
+        if (schemaElement.TryGetProperty("parting_plane", out var partingPlaneElement))
+        {
+            partingPlane = partingPlaneElement.ToString();
+        }
+
+        var hasGateLocation = schemaElement.TryGetProperty("gate_location", out var gateLocationElement);
+        var gateLocationIsObjectLike = hasGateLocation && gateLocationElement.ValueKind == JsonValueKind.Object;
+        FirmamentParsedSchemaGateLocation? gateLocation = null;
+        if (gateLocationIsObjectLike)
+        {
+            gateLocationElement.TryGetProperty("x", out var xElement);
+            gateLocationElement.TryGetProperty("y", out var yElement);
+            gateLocationElement.TryGetProperty("z", out var zElement);
+            gateLocation = new FirmamentParsedSchemaGateLocation(xElement.ToString(), yElement.ToString(), zElement.ToString());
+        }
+
+        schemaElement.TryGetProperty("draft_angle", out var draftAngleElement);
+        var draftAngleRaw = draftAngleElement.ToString();
+        double? draftAngle = null;
+        if (draftAngleElement.ValueKind == JsonValueKind.Number)
+        {
+            draftAngle = draftAngleElement.GetDouble();
+        }
+
+        schemaElement.TryGetProperty("printer_resolution", out var printerResolutionElement);
+        var printerResolutionRaw = printerResolutionElement.ToString();
+        double? printerResolution = null;
+        if (printerResolutionElement.ValueKind == JsonValueKind.Number)
+        {
+            printerResolution = printerResolutionElement.GetDouble();
+        }
+
+        return new FirmamentParsedSchema(true, processRaw, process, minimumToolRadiusRaw, minimumToolRadius, partingPlane, hasGateLocation, gateLocationIsObjectLike, gateLocation, draftAngleRaw, draftAngle, printerResolutionRaw, printerResolution);
+    }
+
+    private static FirmamentParsedSchema? ParseSchemaFromToonSections(IReadOnlyDictionary<string, FirmamentToonSection> sections)
+    {
+        if (!sections.TryGetValue("schema", out var schemaSection))
+        {
+            return null;
+        }
+
+        if (!schemaSection.IsObjectLike)
+        {
+            return new FirmamentParsedSchema(false, null, FirmamentParsedSchemaProcess.Unknown);
+        }
+
+        schemaSection.Fields.TryGetValue("process", out var processRaw);
+        var process = ParseSchemaProcess(processRaw);
+
+        schemaSection.Fields.TryGetValue("minimum_tool_radius", out var minimumToolRadiusRaw);
+        double? minimumToolRadius = null;
+        if (!string.IsNullOrWhiteSpace(minimumToolRadiusRaw)
+            && TryParseNumeric(minimumToolRadiusRaw, out var minimumToolRadiusValue))
+        {
+            minimumToolRadius = minimumToolRadiusValue;
+        }
+
+        schemaSection.Fields.TryGetValue("parting_plane", out var partingPlane);
+
+        var hasGateLocation = schemaSection.Fields.TryGetValue("gate_location", out var gateLocationRaw);
+        var gateLocationIsObjectLike = false;
+        var gateLocationFields = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (hasGateLocation && TryParseStructuredFields(gateLocationRaw!, out var parsedGateLocationFields))
+        {
+            gateLocationIsObjectLike = true;
+            gateLocationFields = new Dictionary<string, string>(parsedGateLocationFields, StringComparer.Ordinal);
+        }
+
+        FirmamentParsedSchemaGateLocation? gateLocation = null;
+        if (gateLocationIsObjectLike)
+        {
+            gateLocationFields.TryGetValue("x", out var xRaw);
+            gateLocationFields.TryGetValue("y", out var yRaw);
+            gateLocationFields.TryGetValue("z", out var zRaw);
+            gateLocation = new FirmamentParsedSchemaGateLocation(xRaw, yRaw, zRaw);
+        }
+
+        schemaSection.Fields.TryGetValue("draft_angle", out var draftAngleRaw);
+        double? draftAngle = null;
+        if (!string.IsNullOrWhiteSpace(draftAngleRaw)
+            && TryParseNumeric(draftAngleRaw, out var draftAngleValue))
+        {
+            draftAngle = draftAngleValue;
+        }
+
+        schemaSection.Fields.TryGetValue("printer_resolution", out var printerResolutionRaw);
+        double? printerResolution = null;
+        if (!string.IsNullOrWhiteSpace(printerResolutionRaw)
+            && TryParseNumeric(printerResolutionRaw, out var printerResolutionValue))
+        {
+            printerResolution = printerResolutionValue;
+        }
+
+        return new FirmamentParsedSchema(true, processRaw, process, minimumToolRadiusRaw, minimumToolRadius, partingPlane, hasGateLocation, gateLocationIsObjectLike, gateLocation, draftAngleRaw, draftAngle, printerResolutionRaw, printerResolution);
+    }
+
+    private static FirmamentParsedSchemaProcess ParseSchemaProcess(string? raw)
+    {
+        return raw?.Trim() switch
+        {
+            "cnc" => FirmamentParsedSchemaProcess.Cnc,
+            "injection_molded" => FirmamentParsedSchemaProcess.InjectionMolded,
+            "additive" => FirmamentParsedSchemaProcess.Additive,
+            _ => FirmamentParsedSchemaProcess.Unknown
+        };
+    }
+
+    private static bool TryParseStructuredFields(string raw, out IReadOnlyDictionary<string, string> fields)
+    {
+        fields = new Dictionary<string, string>(StringComparer.Ordinal);
+        var trimmed = raw.Trim();
+        if (!trimmed.StartsWith("{", StringComparison.Ordinal) || !trimmed.EndsWith("}", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var body = trimmed[1..^1].Trim();
+        var parsedFields = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var pair in SplitTopLevelCommaSeparated(body))
+        {
+            var separator = pair.IndexOf(':');
+            if (separator <= 0)
+            {
+                continue;
+            }
+
+            var name = pair[..separator].Trim();
+            var value = pair[(separator + 1)..].Trim();
+            if (name.Length == 0 || value.Length == 0)
+            {
+                continue;
+            }
+
+            parsedFields[name] = value;
+        }
+
+        fields = parsedFields;
+        return true;
+    }
+
+    private static bool TryParseNumeric(string raw, out double value)
+    {
+        return double.TryParse(raw.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
     private static FirmamentParsedPlacement? ParsePlacementFromJson(JsonElement opElement)

@@ -1,0 +1,11 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+schema:
+  process: laser
+
+ops[0]:

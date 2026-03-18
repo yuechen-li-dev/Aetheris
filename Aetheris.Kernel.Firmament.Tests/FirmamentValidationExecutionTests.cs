@@ -150,7 +150,7 @@ public sealed class FirmamentValidationExecutionTests
                     RawFields: new Dictionary<string, string>(StringComparer.Ordinal) { ["target"] = "base" },
                     ClassifiedFields: new Dictionary<string, string>(StringComparer.Ordinal) { ["targetShape"] = "FeatureId" })
             ]),
-            HasSchema: false,
+            Schema: null,
             HasPmi: false);
 
         var executionResult = new FirmamentPrimitiveExecutionResult(

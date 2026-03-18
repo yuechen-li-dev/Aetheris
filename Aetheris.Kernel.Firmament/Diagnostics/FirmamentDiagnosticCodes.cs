@@ -39,6 +39,11 @@ public static class FirmamentDiagnosticCodes
     public static readonly FirmamentDiagnosticCode ValidationTargetSelectableCountMismatch = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0008");
     public static readonly FirmamentDiagnosticCode ValidationTargetNonManifoldBody = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0009");
     public static readonly FirmamentDiagnosticCode SelectorPlaceholder = new($"{FirmamentDiagnosticConventions.SelectorPrefix}-0001");
-    public static readonly FirmamentDiagnosticCode SchemaPlaceholder = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0001");
+
+    public static readonly FirmamentDiagnosticCode SchemaUnknownProcess = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0001");
+    public static readonly FirmamentDiagnosticCode SchemaMissingRequiredField = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0002");
+    public static readonly FirmamentDiagnosticCode SchemaInvalidFieldTypeOrShape = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0003");
+    public static readonly FirmamentDiagnosticCode SchemaInvalidFieldValue = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0004");
+
     public static readonly FirmamentDiagnosticCode LoweringPlaceholder = new($"{FirmamentDiagnosticConventions.LoweringPrefix}-0001");
 }

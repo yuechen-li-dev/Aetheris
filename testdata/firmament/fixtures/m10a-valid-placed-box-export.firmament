@@ -1,0 +1,21 @@
+firmament:
+  version: 1
+
+model:
+  name: m10a_placed_box_export
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: placed_box
+    size[3]:
+      8
+      6
+      4
+    place:
+      on: origin
+      offset[3]:
+        2
+        -3
+        5

@@ -1,6 +1,7 @@
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Firmament.Lowering;
+using Aetheris.Kernel.Firmament.Mapping;
 using Aetheris.Kernel.Firmament.Parsing;
 using Aetheris.Kernel.Firmament.Validation;
 
@@ -62,6 +63,7 @@ public sealed class FirmamentCompiler
         }
 
         var validatedDocument = documentCoherenceValidationResult.Value;
+        var compiledSchema = FirmamentCompiledSchemaMapper.Map(validatedDocument.Schema);
 
         var primitiveLoweringResult = FirmamentPrimitiveLowerer.Lower(validatedDocument);
         if (!primitiveLoweringResult.IsSuccess)
@@ -89,6 +91,7 @@ public sealed class FirmamentCompiler
                 new FirmamentCompilationArtifact(
                     ArtifactKind: "firmament-placement-executed",
                     ParsedDocument: validatedDocument,
+                    CompiledSchema: compiledSchema,
                     PrimitiveLoweringPlan: primitiveLoweringResult.Value,
                     PrimitiveExecutionResult: primitiveExecutionResult.Value,
                     ValidationExecutionResult: validationExecutionResult.Value)));

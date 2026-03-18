@@ -20,6 +20,8 @@ public sealed class FirmamentStepExporterTests
         Assert.Contains("ISO-10303-21", first.Value.StepText, StringComparison.Ordinal);
         Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.StepText, StringComparison.Ordinal);
         Assert.Equal(first.Value.StepText, second.Value.StepText);
+
+        WriteExportArtifact("m10a-box.step", first.Value.StepText);
     }
 
     [Fact]
@@ -40,6 +42,8 @@ public sealed class FirmamentStepExporterTests
         Assert.True(result.IsSuccess);
         Assert.Equal("joined", result.Value.ExportedFeatureId);
         Assert.Contains("ADVANCED_FACE", result.Value.StepText, StringComparison.Ordinal);
+
+        WriteExportArtifact("m10a-boolean.step", result.Value.StepText);
     }
 
     [Fact]
@@ -175,4 +179,17 @@ ops[1]:
 
     private static FirmamentCompileResult CompileFixture(string fixturePath) =>
         FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
+
+    private static void WriteExportArtifact(string fileName, string stepText)
+    {
+        var path = Path.Combine(
+            FirmamentCorpusHarness.RepoRoot(),
+            "testdata",
+            "firmament",
+            "exports",
+            fileName);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, stepText);
+    }
 }

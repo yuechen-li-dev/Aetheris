@@ -65,6 +65,13 @@ public sealed class FirmamentCompiler
         var validatedDocument = documentCoherenceValidationResult.Value;
         var compiledSchema = FirmamentCompiledSchemaMapper.Map(validatedDocument.Schema);
 
+        var schemaDfmValidationResult = FirmamentSchemaCncDfmValidator.Validate(validatedDocument, compiledSchema);
+        if (!schemaDfmValidationResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(schemaDfmValidationResult.Diagnostics));
+        }
+
         var primitiveLoweringResult = FirmamentPrimitiveLowerer.Lower(validatedDocument);
         if (!primitiveLoweringResult.IsSuccess)
         {

@@ -1,0 +1,28 @@
+firmament:
+  version: 1
+
+model:
+  name: m8c-invalid-cnc-tool-radius
+  units: mm
+
+schema:
+  process: cnc
+  minimum_tool_radius: 2
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      8
+      8
+      8
+
+  -
+    op: subtract
+    id: hole
+    from: base
+    with:
+      op: cylinder
+      radius: 1
+      height: 8

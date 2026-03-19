@@ -108,6 +108,58 @@ public sealed class BrepPrimitivesTests
         Assert.Contains(result.Diagnostics, d => d.Code == KernelDiagnosticCode.InvalidArgument);
     }
 
+
+    [Fact]
+    public void CreateTorus_ProducesExpectedTopologyAndBindings_WithCircularSelfLoopSeams()
+    {
+        var result = BrepPrimitives.CreateTorus(5d, 2d);
+
+        Assert.True(result.IsSuccess);
+        var body = result.Value;
+
+        Assert.Single(body.Topology.Bodies);
+        Assert.Single(body.Topology.Shells);
+        Assert.Single(body.Topology.Faces);
+        Assert.Single(body.Topology.Loops);
+        Assert.Equal(4, body.Topology.Coedges.Count());
+        Assert.Equal(2, body.Topology.Edges.Count());
+        Assert.Single(body.Topology.Vertices);
+
+        var torusFace = Assert.Single(body.Topology.Faces);
+        Assert.Equal(SurfaceGeometryKind.Torus, body.GetFaceSurface(torusFace.Id).Kind);
+
+        var loopId = Assert.Single(body.GetLoopIds(torusFace.Id));
+        var coedges = body.GetCoedgeIds(loopId)
+            .Select(body.Topology.GetCoedge)
+            .ToArray();
+
+        Assert.Equal(4, coedges.Length);
+        Assert.All(coedges, coedge => Assert.Equal(CurveGeometryKind.Circle3, body.GetEdgeCurve(coedge.EdgeId).Kind));
+        Assert.Equal(2, coedges.Select(coedge => coedge.EdgeId).Distinct().Count());
+        Assert.All(body.Topology.Edges, edge => Assert.Equal(edge.StartVertexId, edge.EndVertexId));
+        Assert.Equal(4, coedges.Count(coedge => body.Topology.GetEdge(coedge.EdgeId).StartVertexId == body.Topology.GetEdge(coedge.EdgeId).EndVertexId));
+
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        Assert.True(validation.IsSuccess);
+    }
+
+    [Theory]
+    [InlineData(0d, 1d)]
+    [InlineData(1d, 0d)]
+    [InlineData(-1d, 1d)]
+    [InlineData(1d, -1d)]
+    [InlineData(1d, 1d)]
+    [InlineData(1d, 2d)]
+    [InlineData(double.NaN, 1d)]
+    [InlineData(2d, double.PositiveInfinity)]
+    public void CreateTorus_InvalidInputs_Fails(double majorRadius, double minorRadius)
+    {
+        var result = BrepPrimitives.CreateTorus(majorRadius, minorRadius);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Code == KernelDiagnosticCode.InvalidArgument);
+    }
+
     [Fact]
     public void CreateSphere_ProducesSingleClosedFaceWithSphereBinding()
     {

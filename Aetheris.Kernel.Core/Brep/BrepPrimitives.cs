@@ -186,6 +186,76 @@ public static class BrepPrimitives
         return ValidateAndReturn(new BrepBody(builder.Model, geometry, bindings));
     }
 
+
+    public static KernelResult<BrepBody> CreateTorus(double majorRadius, double minorRadius)
+    {
+        var diagnostics = ValidatePositiveFinite((majorRadius, nameof(majorRadius)), (minorRadius, nameof(minorRadius)));
+        if (majorRadius <= minorRadius)
+        {
+            diagnostics.Add(new KernelDiagnostic(
+                KernelDiagnosticCode.InvalidArgument,
+                KernelDiagnosticSeverity.Error,
+                $"{nameof(majorRadius)} must be greater than {nameof(minorRadius)} for a non-self-intersecting torus."));
+        }
+
+        if (diagnostics.Count > 0)
+        {
+            return KernelResult<BrepBody>.Failure(diagnostics);
+        }
+
+        var builder = new TopologyBuilder();
+
+        // Narrow M10g1 torus convention: one periodic toroidal face with one loop,
+        // represented by two circular self-loop seam edges that are each used twice.
+        var seamVertex = builder.AddVertex();
+        var majorSeamEdge = builder.AddEdge(seamVertex, seamVertex);
+        var minorSeamEdge = builder.AddEdge(seamVertex, seamVertex);
+
+        var torusFace = AddFaceWithLoop(
+            builder,
+            [
+                EdgeUse.Forward(majorSeamEdge),
+                EdgeUse.Reversed(minorSeamEdge),
+                EdgeUse.Reversed(majorSeamEdge),
+                EdgeUse.Forward(minorSeamEdge),
+            ]);
+
+        var shell = builder.AddShell([torusFace]);
+        builder.AddBody([shell]);
+
+        var geometry = new BrepGeometryStore();
+        var yAxis = Direction3D.Create(new Vector3D(0d, 1d, 0d));
+        var zAxis = Direction3D.Create(new Vector3D(0d, 0d, 1d));
+        var negativeXAxis = Direction3D.Create(new Vector3D(-1d, 0d, 0d));
+        var positiveXAxis = Direction3D.Create(new Vector3D(1d, 0d, 0d));
+
+        var sharedVertexPoint = new Point3D(-(majorRadius - minorRadius), 0d, 0d);
+
+        geometry.AddCurve(
+            new CurveGeometryId(1),
+            CurveGeometry.FromCircle(new Circle3Curve(Point3D.Origin, yAxis, majorRadius - minorRadius, negativeXAxis)));
+        geometry.AddCurve(
+            new CurveGeometryId(2),
+            CurveGeometry.FromCircle(new Circle3Curve(new Point3D(-majorRadius, 0d, 0d), zAxis, minorRadius, positiveXAxis)));
+        geometry.AddSurface(
+            new SurfaceGeometryId(1),
+            SurfaceGeometry.FromTorus(new TorusSurface(Point3D.Origin, yAxis, majorRadius, minorRadius, negativeXAxis)));
+
+        var bindings = new BrepBindingModel();
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(majorSeamEdge, new CurveGeometryId(1), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(minorSeamEdge, new CurveGeometryId(2), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(torusFace, new SurfaceGeometryId(1)));
+
+        return ValidateAndReturn(new BrepBody(
+            builder.Model,
+            geometry,
+            bindings,
+            new Dictionary<VertexId, Point3D>
+            {
+                [seamVertex] = sharedVertexPoint,
+            }));
+    }
+
     public static KernelResult<BrepBody> CreateSphere(double radius)
     {
         var diagnostics = ValidatePositiveFinite((radius, nameof(radius)));

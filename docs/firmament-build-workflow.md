@@ -25,7 +25,7 @@ The current in-repo flow is:
 5. execute validation ops against the compiled/executed result
 6. optionally export the selected executed body to STEP AP242
 
-There is not yet a polished standalone Firmament CLI documented in this repository. Today, the workflow is exercised through the compiler/exporter code paths and the automated tests.
+There is not yet a polished standalone Firmament CLI documented in this repository. Today, the workflow is exercised through the compiler/exporter code paths, the `FirmamentBuildAndExport.Run(string sourcePath)` helper, and the automated tests.
 
 ## Export policy
 
@@ -53,7 +53,7 @@ So the exported body is tied to execution success, not simply to the last textua
 
 - example source files: `testdata/firmament/examples/`
 - existing fixture corpus used by implementation tests: `testdata/firmament/fixtures/`
-- generated STEP artifacts checked by exporter tests: `testdata/firmament/exports/`
+- generated STEP artifacts checked by exporter tests and demo helper flows: `testdata/firmament/exports/`
 
 ## How to review the golden path today
 

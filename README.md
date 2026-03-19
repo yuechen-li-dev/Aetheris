@@ -1,62 +1,49 @@
-# Aetheris
+# Aetheris + Firmament v1
 
-Aetheris is a server/web-first solid modeling project with an ASP.NET backend and React TypeScript frontend.
+Firmament is a deterministic DSL for generating CAD geometry (STEP AP242) via Aetheris.
 
-## Current status
+## What works today
 
-Milestone **M00** is complete scaffolding work:
+- primitives and booleans: `box`, `cylinder`, `sphere`, `add`, `subtract`, `intersect`
+- placement with `place.on` anchors and `offset[3]`
+- validation ops: `expect_exists`, `expect_selectable`, `expect_manifold`
+- schema-aware CNC minimum tool radius validation
+- deterministic canonical formatting for supported `.firmament` source
+- STEP AP242 export for the current single-body golden path
 
-- Kernel project/test scaffolding exists.
-- Core vision, non-goals, architecture, numerics, and milestone docs are defined.
-- Baseline .NET CI is configured for restore/build/test.
+## 30-second demo
 
-No CAD/kernel feature implementation has started yet.
+Open the example at `testdata/firmament/examples/box_with_hole.firmament`.
 
-## Repository structure
-
-- `Aetheris.Server/` — ASP.NET host/API project.
-- `aetheris.client/` — React + Vite TypeScript client.
-- `Aetheris.Kernel.Core/` — placeholder kernel core class library (no modeling logic yet).
-- `Aetheris.Kernel.Core.Tests/` — xUnit baseline tests for kernel core scaffolding.
-- `docs/` — project charter, scope, and policy documentation.
-
-## Run .NET checks
+Then run the demo-oriented helper test:
 
 ```bash
-dotnet restore Aetheris.Server/Aetheris.Server.csproj
-dotnet restore Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj
-dotnet build Aetheris.Server/Aetheris.Server.csproj --no-restore
-dotnet build Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --no-restore
-dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --no-build
+export PATH="$HOME/.dotnet:$PATH"
+dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj --filter "FullyQualifiedName~FirmamentBuildAndExportTests.Run_BoxWithHoleExample_Writes_Default_Export_Artifact"
 ```
 
-Kernel implementation milestones begin after M00.
+That flow compiles the example, exports STEP using the current last-successful-body policy, and writes the artifact to:
 
-## Debug quickstart
+- `testdata/firmament/exports/box_with_hole.step`
 
-### Visual Studio (canonical)
+For `box_with_hole.firmament`, the exported body is currently the deterministic fallback body selected by the existing export contract, so the demo stays behaviorally accurate without changing runtime semantics.
 
-1. Open `Aetheris.slnx`.
-2. Set `Aetheris.Server` as the startup project.
-3. Press `F5`.
+If you want the API entry point instead of the test wrapper, use `FirmamentBuildAndExport.Run(string sourcePath)` from `Aetheris.Kernel.Firmament`.
 
-Visual Studio launches the ASP.NET host and the Vite dev server automatically via SpaProxy, then opens the app root page. API traffic remains under `/api` and proxies to the backend automatically in development.
+## Repo map
 
-### CLI (works everywhere, including VS Code terminals)
+- language/compiler/runtime: `Aetheris.Kernel.Firmament/`
+- examples: `testdata/firmament/examples/`
+- exported STEP artifacts: `testdata/firmament/exports/`
 
-Run in two terminals:
+## Docs
 
-```bash
-# Terminal 1
-cd Aetheris.Server
-dotnet watch run
-```
+- overview: `docs/firmament-overview.md`
+- build/export workflow: `docs/firmament-build-workflow.md`
+- selector contracts: `docs/firmament-selectors.md`
+- demo script: `docs/firmament-demo.md`
 
-```bash
-# Terminal 2
-cd aetheris.client
-npm run dev
-```
+## Notes
 
-Backend defaults to `https://localhost:7145` and the client dev server is pinned to `https://localhost:5173`.
-
+- This slice keeps the current v1 surface only; it does not add PMI, assemblies, or multi-body export.
+- The repository still contains the broader Aetheris server/client scaffolding, but the Firmament kernel path above is the v1 demo-ready entry point.

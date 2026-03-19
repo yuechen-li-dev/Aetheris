@@ -7,6 +7,7 @@ This directory contains small canonical Firmament examples for the current v1 su
 - `cone_frustum_basic.firmament` — minimal single frustum-cone export example using the v1 `cone` primitive; helper export path: `testdata/firmament/exports/cone_frustum_basic.step`.
 - `cone_pointed_top_zero.firmament` — minimal single pointed-cone export example using the same v1 `cone` primitive with `top_radius: 0`; helper export path: `testdata/firmament/exports/cone_pointed_top_zero.step`.
 - `sphere_basic.firmament` — minimal single-sphere export example; helper export path: `testdata/firmament/exports/sphere_basic.step`.
+- `torus_basic.firmament` — minimal single-torus export example using the canonical `major_radius` / `minor_radius` surface; helper export paths: `testdata/firmament/exports/torus_basic.step` and the milestone proof artifact `testdata/firmament/exports/m10g2-torus.step`.
 - `box_with_hole.firmament` — box plus subtract-with-cylinder boolean syntax example; helper export path: `testdata/firmament/exports/box_with_hole.step`.
 - `placed_primitive.firmament` — selector-based placement using `place.on` and `offset[3]`; helper export path: `testdata/firmament/exports/placed_primitive.step`.
 - `cnc_min_tool_radius_demo.firmament` — schema-aware CNC example using `minimum_tool_radius` with a subtract cylinder sized to pass the current rule.

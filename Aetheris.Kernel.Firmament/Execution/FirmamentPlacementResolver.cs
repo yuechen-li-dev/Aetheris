@@ -87,7 +87,7 @@ internal static class FirmamentPlacementResolver
                 .Where(x => x.Surface.Kind == SurfaceGeometryKind.Plane && Math.Abs(x.Surface.Plane!.Value.Normal.ToVector().Z) <= 0.5d)
                 .Select(x => x.Point),
             "surface" => facePoints
-                .Where(x => x.Surface.Kind == SurfaceGeometryKind.Sphere)
+                .Where(x => x.Surface.Kind is SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus)
                 .Select(x => x.Point),
             _ => facePoints.Select(x => x.Point)
         };
@@ -105,6 +105,7 @@ internal static class FirmamentPlacementResolver
             SurfaceGeometryKind.Plane => s.Plane!.Value.Origin,
             SurfaceGeometryKind.Cylinder => s.Cylinder!.Value.Origin,
             SurfaceGeometryKind.Cone => GetConicalFaceRepresentativePoint(body, faceId, s.Cone!.Value),
+            SurfaceGeometryKind.Torus => s.Torus!.Value.Center,
             SurfaceGeometryKind.Sphere => s.Sphere!.Value.Center,
             _ => null
         };
@@ -216,6 +217,7 @@ internal static class FirmamentPlacementResolver
             }
         }
 
+        if (f == 1 && e == 2) return FirmamentKnownOpKind.Torus;
         if (f == 1) return FirmamentKnownOpKind.Sphere;
         return FirmamentKnownOpKind.Add;
     }

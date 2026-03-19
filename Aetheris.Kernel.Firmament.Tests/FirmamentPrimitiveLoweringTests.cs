@@ -155,6 +155,35 @@ public sealed class FirmamentPrimitiveLoweringTests
     }
 
     [Fact]
+    public void Compile_Lowers_Torus_Primitive()
+    {
+        var result = Compile(
+            """
+            firmament:
+              version: 1
+
+            model:
+              name: demo
+              units: mm
+
+            ops[1]:
+              -
+                op: torus
+                id: donut1
+                major_radius: 10
+                minor_radius: 3
+            """);
+
+        Assert.True(result.Compilation.IsSuccess);
+        var primitive = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Primitives);
+        var parameters = Assert.IsType<FirmamentLoweredTorusParameters>(primitive.Parameters);
+        Assert.Equal("donut1", primitive.FeatureId);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.Torus, primitive.Kind);
+        Assert.Equal(10, parameters.MajorRadius);
+        Assert.Equal(3, parameters.MinorRadius);
+    }
+
+    [Fact]
     public void Compile_Lowers_Add_Boolean_With_Primary_Reference_And_Coarse_Tool()
     {
         var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m1b-valid-add.firmament"));

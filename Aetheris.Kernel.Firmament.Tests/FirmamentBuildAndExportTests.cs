@@ -42,6 +42,18 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_TorusBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/torus_basic.firmament",
+            "torus_basic.step",
+            "donut1",
+            0,
+            "primitive",
+            "torus");
+    }
+
+    [Fact]
     public void Run_ConeFrustumBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(

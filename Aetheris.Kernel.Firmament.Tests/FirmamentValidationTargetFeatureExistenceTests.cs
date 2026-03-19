@@ -173,6 +173,9 @@ public sealed partial class FirmamentValidationTargetFeatureExistenceTests
     [InlineData("frustum.side_face", "Face", "One")]
     [InlineData("frustum.circular_edges", "EdgeSet", "Many")]
     [InlineData("sphere.surface", "Face", "One")]
+    [InlineData("donut.surface", "Face", "One")]
+    [InlineData("donut.edges", "EdgeSet", "Many")]
+    [InlineData("donut.vertices", "VertexSet", "Many")]
     public void Compiler_Attaches_SelectorContractMetadata_For_Legal_SelectorTargets(string selectorTarget, string expectedResultKind, string expectedCardinality)
     {
         var source = $$"""
@@ -183,7 +186,7 @@ model:
   name: demo
   units: mm
 
-ops[5]:
+ops[6]:
   -
     op: box
     id: base
@@ -207,6 +210,11 @@ ops[5]:
     top_radius: 2
     height: 9
   -
+    op: torus
+    id: donut
+    major_radius: 10
+    minor_radius: 3
+  -
     op: expect_exists
     target: {{selectorTarget}}
 """;
@@ -214,7 +222,7 @@ ops[5]:
         var result = new FirmamentCompiler().Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
 
         Assert.True(result.Compilation.IsSuccess);
-        var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[4];
+        var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[5];
         Assert.NotNull(validationOp.ClassifiedFields);
         Assert.Equal("SelectorShaped", validationOp.ClassifiedFields!["targetShape"]);
         Assert.Equal(expectedResultKind, validationOp.ClassifiedFields["selectorResultKind"]);

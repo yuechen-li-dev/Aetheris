@@ -144,6 +144,10 @@ public sealed class FirmamentScaffoldTests
         AssertClassifiedFamily("cone", FirmamentOpFamily.Primitive);
 
     [Fact]
+    public void Compiler_Classifies_Torus_As_KnownPrimitiveOpFamily() =>
+        AssertClassifiedFamily("torus", FirmamentOpFamily.Primitive);
+
+    [Fact]
     public void Compiler_Classifies_KnownBooleanOpFamily() =>
         AssertClassifiedFamily("intersect", FirmamentOpFamily.Boolean);
 
@@ -316,10 +320,10 @@ public sealed class FirmamentScaffoldTests
             
             ops[1]:
               -
-                op: torus
+                op: pyramid
             """,
             FirmamentDiagnosticCodes.StructureUnknownOpKind,
-            "Operation entry at index 0 has unknown op kind 'torus'.");
+            "Operation entry at index 0 has unknown op kind 'pyramid'.");
 
     [Fact]
     public void Compiler_Rejects_UnknownOpKind_Deterministically()
@@ -335,7 +339,7 @@ public sealed class FirmamentScaffoldTests
         
         ops[1]:
           -
-            op: torus
+            op: pyramid
         """;
 
         var first = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
@@ -519,6 +523,26 @@ public sealed class FirmamentScaffoldTests
                 id: c1
                 radius: 1.5
                 height: 10
+            """,
+            1);
+
+    [Fact]
+    public void Compiler_Accepts_ValidTorusPrimitiveOp() =>
+        AssertValidOpsCount(
+            """
+            firmament:
+              version: 1
+
+            model:
+              name: demo
+              units: mm
+
+            ops[1]:
+              -
+                op: torus
+                id: donut1
+                major_radius: 10
+                minor_radius: 3
             """,
             1);
 
@@ -744,6 +768,48 @@ public sealed class FirmamentScaffoldTests
             "Primitive op 'sphere' at index 0 has invalid field 'radius' value; expected a numeric value greater than 0.");
 
     [Fact]
+    public void Compiler_Rejects_Torus_NonPositiveMajorRadius() =>
+        AssertSingleValidationError(
+            """
+            firmament:
+              version: 1
+
+            model:
+              name: demo
+              units: mm
+
+            ops[1]:
+              -
+                op: torus
+                id: donut1
+                major_radius: 0
+                minor_radius: 3
+            """,
+            FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue,
+            "Primitive op 'torus' at index 0 has invalid field 'major_radius' value; expected a numeric value greater than 0.");
+
+    [Fact]
+    public void Compiler_Rejects_Torus_MajorRadius_NotGreaterThan_MinorRadius() =>
+        AssertSingleValidationError(
+            """
+            firmament:
+              version: 1
+
+            model:
+              name: demo
+              units: mm
+
+            ops[1]:
+              -
+                op: torus
+                id: donut1
+                major_radius: 3
+                minor_radius: 3
+            """,
+            FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue,
+            "Primitive op 'torus' at index 0 has invalid field 'major_radius' value; expected a numeric value greater than 'minor_radius'.");
+
+    [Fact]
     public void PrimitiveValidation_Diagnostics_AreDeterministic()
     {
         var compiler = new FirmamentCompiler();
@@ -854,6 +920,13 @@ public sealed class FirmamentScaffoldTests
     bottom_radius: 3
     top_radius: 1
     height: 5
+""",
+            "torus" => """
+  -
+    op: torus
+    id: donut1
+    major_radius: 10
+    minor_radius: 3
 """,
             "sphere" => """
   -

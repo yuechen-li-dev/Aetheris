@@ -27,6 +27,7 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
                 FirmamentKnownOpKind.Box => ValidateBox(entry, index),
                 FirmamentKnownOpKind.Cylinder => ValidateCylinder(entry, index),
                 FirmamentKnownOpKind.Cone => ValidateCone(entry, index),
+                FirmamentKnownOpKind.Torus => ValidateTorus(entry, index),
                 FirmamentKnownOpKind.Sphere => ValidateSphere(entry, index),
                 _ => KernelResult<bool>.Success(true)
             };
@@ -118,6 +119,41 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
         if (!radiusResult.IsSuccess)
         {
             return radiusResult;
+        }
+
+        var placementResult = ValidatePlacement(entry, opIndex);
+        if (!placementResult.IsSuccess)
+        {
+            return placementResult;
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateTorus(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        var majorRadiusResult = ValidatePositiveNumericField(entry, "major_radius", opIndex);
+        if (!majorRadiusResult.IsSuccess)
+        {
+            return majorRadiusResult;
+        }
+
+        var minorRadiusResult = ValidatePositiveNumericField(entry, "minor_radius", opIndex);
+        if (!minorRadiusResult.IsSuccess)
+        {
+            return minorRadiusResult;
+        }
+
+        var majorRadius = ParseRequiredNumeric(entry.RawFields["major_radius"]);
+        var minorRadius = ParseRequiredNumeric(entry.RawFields["minor_radius"]);
+        if (majorRadius <= minorRadius)
+        {
+            return InvalidFieldValue("major_radius", opIndex, entry.OpName, "expected a numeric value greater than 'minor_radius'");
         }
 
         var placementResult = ValidatePlacement(entry, opIndex);

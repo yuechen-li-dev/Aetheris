@@ -34,6 +34,8 @@ internal static class FirmamentSelectorResolver
             ? cylinderCount
             : TryResolveConeCount(body, port, resultKind, out var coneCount)
                 ? coneCount
+            : TryResolveTorusCount(body, port, resultKind, out var torusCount)
+                ? torusCount
             : resultKind switch
             {
                 FirmamentSelectorResultKind.Face or FirmamentSelectorResultKind.FaceSet => body.Topology.Faces.Count(),
@@ -84,6 +86,26 @@ internal static class FirmamentSelectorResolver
             "bottom_face" => CountFaces(body, surface => surface.Kind == SurfaceGeometryKind.Plane && surface.Plane!.Value.Normal.ToVector().Z < -0.5d),
             "side_face" => CountFaces(body, surface => surface.Kind == SurfaceGeometryKind.Cylinder),
             "circular_edges" => CountEdges(body, curve => curve.Kind == CurveGeometryKind.Circle3),
+            "edges" when resultKind == FirmamentSelectorResultKind.EdgeSet => body.Topology.Edges.Count(),
+            "vertices" when resultKind == FirmamentSelectorResultKind.VertexSet => body.Topology.Vertices.Count(),
+            _ => 0
+        };
+
+        return true;
+    }
+
+    private static bool TryResolveTorusCount(BrepBody body, string port, FirmamentSelectorResultKind resultKind, out int count)
+    {
+        count = 0;
+
+        if (!LooksLikeTorus(body))
+        {
+            return false;
+        }
+
+        count = port switch
+        {
+            "surface" => CountFaces(body, surface => surface.Kind == SurfaceGeometryKind.Torus),
             "edges" when resultKind == FirmamentSelectorResultKind.EdgeSet => body.Topology.Edges.Count(),
             "vertices" when resultKind == FirmamentSelectorResultKind.VertexSet => body.Topology.Vertices.Count(),
             _ => 0
@@ -158,6 +180,19 @@ internal static class FirmamentSelectorResolver
         }
 
         return conicalFaces == 1 && (planarFaces == 1 || planarFaces == 2);
+    }
+
+    private static bool LooksLikeTorus(BrepBody body)
+    {
+        if (body.Topology.Faces.Count() != 1 || body.Topology.Edges.Count() != 2 || body.Topology.Vertices.Count() != 1)
+        {
+            return false;
+        }
+
+        var face = body.Topology.Faces.Single();
+        return body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface is not null
+            && surface.Kind == SurfaceGeometryKind.Torus;
     }
 
     private static int CountFaces(BrepBody body, Func<SurfaceGeometry, bool> predicate)

@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class FirmamentStepExporterTests
 {
     [Fact]
-    public void Export_SingleBoxFixture_Produces_NonEmpty_Deterministic_StepText()
+    public void Export_SingleBoxFixture_Returns_Explicit_Metadata_And_Persisted_Artifact()
     {
         var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10a-valid-single-box-export.firmament");
 
@@ -15,35 +15,72 @@ public sealed class FirmamentStepExporterTests
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
         Assert.Equal(FirmamentStepExporter.LastExecutedGeometricBodyPolicy, first.Value.ExportBodyPolicy);
+        Assert.Equal(FirmamentStepExporter.LastExecutedGeometricBodySelectionReason, first.Value.ExportBodySelectionReason);
         Assert.Equal("base", first.Value.ExportedFeatureId);
+        Assert.Equal(0, first.Value.ExportedOpIndex);
+        Assert.Equal("primitive", first.Value.ExportedBodyCategory);
+        Assert.Equal("box", first.Value.ExportedFeatureKind);
         Assert.NotEmpty(first.Value.StepText);
         Assert.Contains("ISO-10303-21", first.Value.StepText, StringComparison.Ordinal);
         Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.StepText, StringComparison.Ordinal);
         Assert.Equal(first.Value.StepText, second.Value.StepText);
 
-        WriteExportArtifact("m10a-box.step", first.Value.StepText);
+        var artifactPath = WriteExportArtifact("m10a-box.step", first.Value.StepText);
+        Assert.True(File.Exists(artifactPath));
+        Assert.Equal(first.Value.StepText, File.ReadAllText(artifactPath));
     }
 
     [Fact]
-    public void Export_PlacedPrimitiveFixture_Exports_Successfully()
+    public void Export_PlacedPrimitiveFixture_Exports_Successfully_With_Metadata_And_Deterministic_Text()
     {
-        var result = ExportFixture("testdata/firmament/fixtures/m10a-valid-placed-box-export.firmament");
+        var first = ExportFixture("testdata/firmament/fixtures/m10a-valid-placed-box-export.firmament");
+        var second = ExportFixture("testdata/firmament/fixtures/m10a-valid-placed-box-export.firmament");
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal("placed_box", result.Value.ExportedFeatureId);
-        Assert.Contains("CARTESIAN_POINT", result.Value.StepText, StringComparison.Ordinal);
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal("placed_box", first.Value.ExportedFeatureId);
+        Assert.Equal(0, first.Value.ExportedOpIndex);
+        Assert.Equal("primitive", first.Value.ExportedBodyCategory);
+        Assert.Equal("box", first.Value.ExportedFeatureKind);
+        Assert.Equal(first.Value.StepText, second.Value.StepText);
+        Assert.Contains("CARTESIAN_POINT", first.Value.StepText, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Export_BooleanFixture_Exports_Successfully()
+    public void Export_BooleanFixture_Exports_Successfully_With_Metadata_And_Deterministic_Text()
     {
-        var result = ExportFixture("testdata/firmament/fixtures/m10a-valid-boolean-export.firmament");
+        var first = ExportFixture("testdata/firmament/fixtures/m10a-valid-boolean-export.firmament");
+        var second = ExportFixture("testdata/firmament/fixtures/m10a-valid-boolean-export.firmament");
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal("joined", result.Value.ExportedFeatureId);
-        Assert.Contains("ADVANCED_FACE", result.Value.StepText, StringComparison.Ordinal);
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal("joined", first.Value.ExportedFeatureId);
+        Assert.Equal(1, first.Value.ExportedOpIndex);
+        Assert.Equal("boolean", first.Value.ExportedBodyCategory);
+        Assert.Equal("add", first.Value.ExportedFeatureKind);
+        Assert.Equal(first.Value.StepText, second.Value.StepText);
+        Assert.Contains("ADVANCED_FACE", first.Value.StepText, StringComparison.Ordinal);
 
-        WriteExportArtifact("m10a-boolean.step", result.Value.StepText);
+        var artifactPath = WriteExportArtifact("m10a-boolean.step", first.Value.StepText);
+        Assert.True(File.Exists(artifactPath));
+        Assert.Equal(first.Value.StepText, File.ReadAllText(artifactPath));
+    }
+
+    [Fact]
+    public void Export_SchemaPresent_Model_Still_Exports_With_Stable_Metadata_And_Deterministic_Text()
+    {
+        var first = ExportFixture("testdata/firmament/fixtures/m10b-valid-schema-box-export.firmament");
+        var second = ExportFixture("testdata/firmament/fixtures/m10b-valid-schema-box-export.firmament");
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal("schema_box", first.Value.ExportedFeatureId);
+        Assert.Equal(0, first.Value.ExportedOpIndex);
+        Assert.Equal("primitive", first.Value.ExportedBodyCategory);
+        Assert.Equal("box", first.Value.ExportedFeatureKind);
+        Assert.Equal(first.Value.ExportBodyPolicy, second.Value.ExportBodyPolicy);
+        Assert.Equal(first.Value.ExportBodySelectionReason, second.Value.ExportBodySelectionReason);
+        Assert.Equal(first.Value.StepText, second.Value.StepText);
     }
 
     [Fact]
@@ -54,8 +91,12 @@ public sealed class FirmamentStepExporterTests
 
         var export = FirmamentStepExporter.Export(compile.Compilation.Value);
         Assert.True(export.IsSuccess);
+        Assert.Equal(FirmamentStepExporter.LastExecutedGeometricBodyPolicy, export.Value.ExportBodyPolicy);
+        Assert.Equal(FirmamentStepExporter.LastExecutedGeometricBodySelectionReason, export.Value.ExportBodySelectionReason);
         Assert.Equal("cap", export.Value.ExportedFeatureId);
         Assert.Equal(2, export.Value.ExportedOpIndex);
+        Assert.Equal("primitive", export.Value.ExportedBodyCategory);
+        Assert.Equal("box", export.Value.ExportedFeatureKind);
 
         var expected = Step242Exporter.ExportBody(
             compile.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "cap").Body);
@@ -64,17 +105,17 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
-    public void Export_ValidationOps_Do_Not_Become_Export_Bodies()
+    public void Export_ValidationOps_Do_Not_Become_Export_Bodies_When_Final_Geometric_Body_Precedes_Validation()
     {
         const string source = """
 firmament:
   version: 1
 
 model:
-  name: validation_only_after_box
+  name: validation_after_geometry
   units: mm
 
-ops[2]:
+ops[3]:
   -
     op: box
     id: base
@@ -82,15 +123,27 @@ ops[2]:
       2
       3
       4
+
+  -
+    op: box
+    id: cap
+    size[3]:
+      5
+      6
+      7
+
   -
     op: expect_exists
-    target: base
+    target: cap
 """;
 
         var result = Export(source);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("base", result.Value.ExportedFeatureId);
+        Assert.Equal("cap", result.Value.ExportedFeatureId);
+        Assert.Equal(1, result.Value.ExportedOpIndex);
+        Assert.Equal("primitive", result.Value.ExportedBodyCategory);
+        Assert.Equal("box", result.Value.ExportedFeatureKind);
     }
 
     [Fact]
@@ -118,7 +171,7 @@ ops[2]:
     }
 
     [Fact]
-    public void Export_SchemaPresence_Does_Not_Change_Step_Semantics()
+    public void Export_SchemaPresence_Does_Not_Change_Step_Semantics_For_Equivalent_Geometry()
     {
         const string baseline = """
 firmament:
@@ -165,6 +218,10 @@ ops[1]:
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.ExportedFeatureId, second.Value.ExportedFeatureId);
+        Assert.Equal(first.Value.ExportedOpIndex, second.Value.ExportedOpIndex);
+        Assert.Equal(first.Value.ExportedBodyCategory, second.Value.ExportedBodyCategory);
+        Assert.Equal(first.Value.ExportedFeatureKind, second.Value.ExportedFeatureKind);
         Assert.Equal(first.Value.StepText, second.Value.StepText);
     }
 
@@ -180,7 +237,7 @@ ops[1]:
     private static FirmamentCompileResult CompileFixture(string fixturePath) =>
         FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
 
-    private static void WriteExportArtifact(string fileName, string stepText)
+    private static string WriteExportArtifact(string fileName, string stepText)
     {
         var path = Path.Combine(
             FirmamentCorpusHarness.RepoRoot(),
@@ -191,5 +248,6 @@ ops[1]:
 
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, stepText);
+        return path;
     }
 }

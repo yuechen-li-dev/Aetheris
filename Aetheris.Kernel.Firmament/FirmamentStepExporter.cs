@@ -10,6 +10,7 @@ namespace Aetheris.Kernel.Firmament;
 public static class FirmamentStepExporter
 {
     public const string LastExecutedGeometricBodyPolicy = "last-executed-geometric-body";
+    public const string LastExecutedGeometricBodySelectionReason = "Select the last successfully executed primitive or boolean body in source order; validation ops are never export bodies.";
 
     public static KernelResult<FirmamentStepExportResult> Export(FirmamentCompileRequest request)
     {
@@ -45,7 +46,9 @@ public static class FirmamentStepExporter
             new FirmamentStepExportResult(
                 stepResult.Value,
                 selectionResult.Value.FeatureId,
-                selectionResult.Value.OpIndex));
+                selectionResult.Value.OpIndex,
+                selectionResult.Value.BodyCategory,
+                selectionResult.Value.FeatureKind));
     }
 
     private static KernelResult<ExportBodySelection> SelectExportBody(FirmamentPrimitiveExecutionResult? primitiveExecutionResult)
@@ -61,14 +64,24 @@ public static class FirmamentStepExporter
         {
             selected = SelectLater(
                 selected,
-                new ExportBodySelection(primitive.OpIndex, primitive.FeatureId, primitive.Body));
+                new ExportBodySelection(
+                    primitive.OpIndex,
+                    primitive.FeatureId,
+                    ExportBodyCategoryPrimitive,
+                    primitive.Kind.ToString().ToLowerInvariant(),
+                    primitive.Body));
         }
 
         foreach (var boolean in primitiveExecutionResult.ExecutedBooleans)
         {
             selected = SelectLater(
                 selected,
-                new ExportBodySelection(boolean.OpIndex, boolean.FeatureId, boolean.Body));
+                new ExportBodySelection(
+                    boolean.OpIndex,
+                    boolean.FeatureId,
+                    ExportBodyCategoryBoolean,
+                    boolean.Kind.ToString().ToLowerInvariant(),
+                    boolean.Body));
         }
 
         return selected is null
@@ -96,5 +109,13 @@ public static class FirmamentStepExporter
                 FirmamentDiagnosticConventions.Source)
         ]);
 
-    private sealed record ExportBodySelection(int OpIndex, string FeatureId, BrepBody Body);
+    private const string ExportBodyCategoryPrimitive = "primitive";
+    private const string ExportBodyCategoryBoolean = "boolean";
+
+    private sealed record ExportBodySelection(
+        int OpIndex,
+        string FeatureId,
+        string BodyCategory,
+        string FeatureKind,
+        BrepBody Body);
 }

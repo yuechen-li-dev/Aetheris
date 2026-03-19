@@ -1,0 +1,24 @@
+firmament:
+  version: 1
+
+model:
+  name: box_with_hole
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      30
+      12
+
+  -
+    op: subtract
+    id: hole
+    from: base
+    with:
+      op: cylinder
+      radius: 4
+      height: 12

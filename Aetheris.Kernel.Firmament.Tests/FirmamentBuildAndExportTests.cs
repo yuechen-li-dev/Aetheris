@@ -28,6 +28,19 @@ public sealed class FirmamentBuildAndExportTests
             "cylinder");
     }
 
+
+    [Fact]
+    public void Run_SphereBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/sphere_basic.firmament",
+            "sphere_basic.step",
+            "ball",
+            0,
+            "primitive",
+            "sphere");
+    }
+
     [Fact]
     public void Run_BoxWithHoleExample_Writes_Default_Export_Artifact()
     {

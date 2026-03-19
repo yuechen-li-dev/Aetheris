@@ -28,9 +28,7 @@ internal static class FirmamentSelectorContracts
     private static readonly IReadOnlyDictionary<string, FirmamentSelectorPortContract> SpherePorts =
         new Dictionary<string, FirmamentSelectorPortContract>(StringComparer.Ordinal)
         {
-            ["surface"] = new(FirmamentSelectorResultKind.Face, FirmamentSelectorCardinality.One),
-            ["edges"] = new(FirmamentSelectorResultKind.EdgeSet, FirmamentSelectorCardinality.Many),
-            ["vertices"] = new(FirmamentSelectorResultKind.VertexSet, FirmamentSelectorCardinality.Many)
+            ["surface"] = new(FirmamentSelectorResultKind.Face, FirmamentSelectorCardinality.One)
         };
 
     private static readonly IReadOnlyDictionary<string, FirmamentSelectorPortContract> BooleanPorts =

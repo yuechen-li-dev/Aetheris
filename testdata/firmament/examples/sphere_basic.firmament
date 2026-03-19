@@ -1,0 +1,12 @@
+firmament:
+  version: 1
+
+model:
+  name: sphere_basic
+  units: mm
+
+ops[1]:
+  -
+    op: sphere
+    id: ball
+    radius: 12

@@ -1,5 +1,4 @@
 using Aetheris.Kernel.Core.Brep;
-using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Step242;
 using System.Globalization;
 
@@ -391,19 +390,20 @@ END-ISO-10303-21;";
     }
 
     [Fact]
-    public void ExportBody_Sphere_ReturnsNotImplementedDiagnostic_InsteadOfThrowing()
+    public void ExportBody_Sphere_ExportsCanonicalLooplessPrimitiveDeterministically()
     {
         var sphereResult = BrepPrimitives.CreateSphere(3d);
         Assert.True(sphereResult.IsSuccess);
 
-        var export = Step242Exporter.ExportBody(sphereResult.Value);
+        var first = Step242Exporter.ExportBody(sphereResult.Value);
+        var second = Step242Exporter.ExportBody(sphereResult.Value);
 
-        Assert.False(export.IsSuccess);
-        var diagnostic = Assert.Single(export.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal(KernelDiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Equal("Face:1", diagnostic.Source);
-        Assert.Contains("boundary loops", diagnostic.Message, StringComparison.Ordinal);
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value, second.Value);
+        Assert.Contains("SPHERICAL_SURFACE", first.Value, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value, StringComparison.Ordinal);
+        Assert.Contains("ADVANCED_FACE('',(),", first.Value, StringComparison.Ordinal);
     }
 
     [Fact]

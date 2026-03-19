@@ -8,6 +8,7 @@ public sealed class FirmamentExamplePackSmokeTests
     [
         "testdata/firmament/examples/box_basic.firmament",
         "testdata/firmament/examples/cylinder_basic.firmament",
+        "testdata/firmament/examples/sphere_basic.firmament",
         "testdata/firmament/examples/box_with_hole.firmament",
         "testdata/firmament/examples/placed_primitive.firmament",
         "testdata/firmament/examples/cnc_min_tool_radius_demo.firmament"
@@ -30,6 +31,7 @@ public sealed class FirmamentExamplePackSmokeTests
     [Theory]
     [InlineData("testdata/firmament/examples/box_basic.firmament", "base", 0, "primitive", "box")]
     [InlineData("testdata/firmament/examples/cylinder_basic.firmament", "post", 0, "primitive", "cylinder")]
+    [InlineData("testdata/firmament/examples/sphere_basic.firmament", "ball", 0, "primitive", "sphere")]
     [InlineData("testdata/firmament/examples/box_with_hole.firmament", "base", 0, "primitive", "box")]
     [InlineData("testdata/firmament/examples/placed_primitive.firmament", "post", 1, "primitive", "cylinder")]
     public void ExamplePack_GoldenPath_Examples_Export(string fixturePath, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)

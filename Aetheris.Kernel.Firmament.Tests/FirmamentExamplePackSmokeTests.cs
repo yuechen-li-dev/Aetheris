@@ -28,6 +28,7 @@ public sealed class FirmamentExamplePackSmokeTests
 
     [Theory]
     [InlineData("testdata/firmament/examples/box_basic.firmament", "base", 0, "primitive", "box")]
+    [InlineData("testdata/firmament/examples/box_with_hole.firmament", "base", 0, "primitive", "box")]
     [InlineData("testdata/firmament/examples/placed_primitive.firmament", "post", 1, "primitive", "cylinder")]
     public void ExamplePack_GoldenPath_Examples_Export(string fixturePath, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)
     {

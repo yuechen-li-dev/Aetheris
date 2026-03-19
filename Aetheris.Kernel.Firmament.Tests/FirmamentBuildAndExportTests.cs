@@ -1,0 +1,52 @@
+using System.Text;
+
+namespace Aetheris.Kernel.Firmament.Tests;
+
+public sealed class FirmamentBuildAndExportTests
+{
+    [Fact]
+    public void Run_BoxBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/box_basic.firmament",
+            "box_basic.step",
+            "base",
+            0,
+            "primitive",
+            "box");
+    }
+
+    [Fact]
+    public void Run_BoxWithHoleExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/box_with_hole.firmament",
+            "box_with_hole.step",
+            "base",
+            0,
+            "primitive",
+            "box");
+    }
+
+    private static void AssertExampleBuildAndExport(string sourcePath, string expectedFileName, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)
+    {
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath(sourcePath);
+        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "exports", expectedFileName);
+        if (File.Exists(expectedOutputPath))
+        {
+            File.Delete(expectedOutputPath);
+        }
+
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(fullSourcePath, result.Value.SourcePath);
+        Assert.Equal(expectedOutputPath, result.Value.OutputPath);
+        Assert.Equal(expectedFeatureId, result.Value.Export.ExportedFeatureId);
+        Assert.Equal(expectedOpIndex, result.Value.Export.ExportedOpIndex);
+        Assert.Equal(expectedBodyCategory, result.Value.Export.ExportedBodyCategory);
+        Assert.Equal(expectedFeatureKind, result.Value.Export.ExportedFeatureKind);
+        Assert.True(File.Exists(expectedOutputPath));
+        Assert.Equal(result.Value.Export.StepText, File.ReadAllText(expectedOutputPath, Encoding.UTF8));
+    }
+}

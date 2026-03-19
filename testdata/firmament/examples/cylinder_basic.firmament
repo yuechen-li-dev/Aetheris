@@ -1,0 +1,13 @@
+firmament:
+  version: 1
+
+model:
+  name: cylinder_basic
+  units: mm
+
+ops[1]:
+  -
+    op: cylinder
+    id: post
+    radius: 6
+    height: 18

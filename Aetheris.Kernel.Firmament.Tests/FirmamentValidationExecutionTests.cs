@@ -123,7 +123,7 @@ ops[7]:
     }
 
     [Fact]
-    public void Compile_Executes_Cone_Selector_Contract_With_Truthful_Runtime_Counts()
+    public void Compile_Executes_FrustumCone_Selector_Contract_With_Truthful_Runtime_Counts()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m10e-valid-cone-selector-contract.firmament");
 
@@ -135,6 +135,69 @@ ops[7]:
             Assert.True(validation.IsSuccess);
             Assert.Null(validation.Reason);
         });
+    }
+
+    [Fact]
+    public void Compile_Executes_PointedCone_TopRadiusZero_Selector_Contract_With_Truthful_Runtime_Counts()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m10f2-valid-cone-pointed-top-zero-selector-contract.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.Equal(6, result.Compilation.Value.ValidationExecutionResult!.Validations.Count);
+        Assert.All(result.Compilation.Value.ValidationExecutionResult.Validations, validation =>
+        {
+            Assert.True(validation.IsExecuted);
+            Assert.True(validation.IsSuccess);
+            Assert.Null(validation.Reason);
+        });
+    }
+
+    [Fact]
+    public void Compile_Executes_PointedCone_BottomRadiusZero_Selector_Contract_With_Truthful_Runtime_Counts()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m10f2-valid-cone-pointed-bottom-zero-selector-contract.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.Equal(6, result.Compilation.Value.ValidationExecutionResult!.Validations.Count);
+        Assert.All(result.Compilation.Value.ValidationExecutionResult.Validations, validation =>
+        {
+            Assert.True(validation.IsExecuted);
+            Assert.True(validation.IsSuccess);
+            Assert.Null(validation.Reason);
+        });
+    }
+
+    [Fact]
+    public void Compile_PointedCone_MissingCap_Selector_ExpectExists_Fails_Truthfully()
+    {
+        const string source = """
+firmament:
+  version: 1
+
+model:
+  name: pointed_missing_cap_selector
+  units: mm
+
+ops[2]:
+  -
+    op: cone
+    id: pointed
+    bottom_radius: 8
+    top_radius: 0
+    height: 20
+
+  -
+    op: expect_exists
+    target: pointed.top_face
+""";
+
+        var result = Compile(source);
+
+        Assert.True(result.Compilation.IsSuccess);
+        var validation = Assert.Single(result.Compilation.Value.ValidationExecutionResult!.Validations);
+        Assert.True(validation.IsExecuted);
+        Assert.False(validation.IsSuccess);
+        Assert.Equal("Selector 'pointed.top_face' resolved to no topology elements.", validation.Reason);
     }
 
 

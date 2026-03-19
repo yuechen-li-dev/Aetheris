@@ -426,14 +426,9 @@
     },
     {
       "id": "m1c-invalid-expect-selectable-non-positive-count",
-      "name": "Invalid expect_selectable non-positive count",
+      "name": "Valid expect_selectable zero count for truthful empty selectors",
       "fixturePath": "testdata/firmament/fixtures/m1c-invalid-expect-selectable-non-positive-count.firmament",
-      "expectedOutcome": "failure",
-      "expectedDiagnostic": {
-        "source": "firmament",
-        "kernelCode": "ValidationFailed",
-        "firmamentCode": "FIRM-STRUCT-0016"
-      }
+      "expectedOutcome": "success"
     },
     {
       "id": "m1c-valid-expect-exists",

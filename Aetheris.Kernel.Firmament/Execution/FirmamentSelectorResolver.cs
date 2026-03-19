@@ -127,7 +127,9 @@ internal static class FirmamentSelectorResolver
 
     private static bool LooksLikeCone(BrepBody body)
     {
-        if (body.Topology.Faces.Count() != 3 || body.Topology.Edges.Count() != 3)
+        var faceCount = body.Topology.Faces.Count();
+        var edgeCount = body.Topology.Edges.Count();
+        if ((faceCount != 3 || edgeCount != 3) && (faceCount != 2 || edgeCount != 2))
         {
             return false;
         }
@@ -155,7 +157,7 @@ internal static class FirmamentSelectorResolver
             }
         }
 
-        return conicalFaces == 1 && planarFaces == 2;
+        return conicalFaces == 1 && (planarFaces == 1 || planarFaces == 2);
     }
 
     private static int CountFaces(BrepBody body, Func<SurfaceGeometry, bool> predicate)

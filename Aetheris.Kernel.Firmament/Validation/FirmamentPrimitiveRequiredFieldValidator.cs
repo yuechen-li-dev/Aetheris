@@ -136,13 +136,13 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
             return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
         }
 
-        var bottomRadiusResult = ValidatePositiveNumericField(entry, "bottom_radius", opIndex);
+        var bottomRadiusResult = ValidateNonNegativeNumericField(entry, "bottom_radius", opIndex);
         if (!bottomRadiusResult.IsSuccess)
         {
             return bottomRadiusResult;
         }
 
-        var topRadiusResult = ValidatePositiveNumericField(entry, "top_radius", opIndex);
+        var topRadiusResult = ValidateNonNegativeNumericField(entry, "top_radius", opIndex);
         if (!topRadiusResult.IsSuccess)
         {
             return topRadiusResult;
@@ -156,9 +156,14 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
 
         var bottomRadius = ParseRequiredNumeric(entry.RawFields["bottom_radius"]);
         var topRadius = ParseRequiredNumeric(entry.RawFields["top_radius"]);
-        if (double.Abs(bottomRadius - topRadius) <= 1e-12d)
+        if (bottomRadius <= 1e-12d && topRadius <= 1e-12d)
         {
-            return InvalidFieldValue("top_radius", opIndex, entry.OpName, "expected a numeric value different from 'bottom_radius'");
+            return InvalidFieldValue("top_radius", opIndex, entry.OpName, "expected at least one of 'bottom_radius' or 'top_radius' to be greater than 0");
+        }
+
+        if (bottomRadius > 1e-12d && topRadius > 1e-12d && double.Abs(bottomRadius - topRadius) <= 1e-12d)
+        {
+            return InvalidFieldValue("top_radius", opIndex, entry.OpName, "expected a numeric value different from 'bottom_radius' when both cone radii are greater than 0");
         }
 
         var placementResult = ValidatePlacement(entry, opIndex);
@@ -332,6 +337,26 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
         if (value <= 0)
         {
             return InvalidFieldValue(fieldName, opIndex, entry.OpName, "expected a numeric value greater than 0");
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateNonNegativeNumericField(FirmamentParsedOpEntry entry, string fieldName, int opIndex)
+    {
+        if (!entry.RawFields.TryGetValue(fieldName, out var raw) || string.IsNullOrWhiteSpace(raw))
+        {
+            return MissingField(fieldName, opIndex, entry.OpName);
+        }
+
+        if (!TryParseNumeric(raw, out var value))
+        {
+            return InvalidFieldType(fieldName, opIndex, entry.OpName, "expected a numeric scalar value");
+        }
+
+        if (value < 0)
+        {
+            return InvalidFieldValue(fieldName, opIndex, entry.OpName, "expected a numeric value greater than or equal to 0");
         }
 
         return KernelResult<bool>.Success(true);

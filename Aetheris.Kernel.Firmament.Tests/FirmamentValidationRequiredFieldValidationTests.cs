@@ -188,10 +188,35 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
                 count: 1.5
             """,
             FirmamentDiagnosticCodes.ValidationInvalidFieldValue,
-            "Validation op 'expect_selectable' at index 0 has invalid field 'count' value; expected an integer-valued number greater than 0.");
+            "Validation op 'expect_selectable' at index 0 has invalid field 'count' value; expected an integer-valued number greater than or equal to 0.");
 
     [Fact]
-    public void Compiler_Rejects_ExpectSelectable_NonPositiveCount() =>
+    public void Compiler_Accepts_ExpectSelectable_ZeroCount_For_Truthful_Empty_Selector_Contracts() =>
+        AssertValidationSuccess(
+            """
+            firmament:
+              version: 1
+
+            model:
+              name: demo
+              units: mm
+
+            ops[2]:
+              -
+                op: cone
+                id: pointed
+                bottom_radius: 8
+                top_radius: 0
+                height: 20
+
+              -
+                op: expect_selectable
+                target: pointed.top_face
+                count: 0
+            """);
+
+    [Fact]
+    public void Compiler_Rejects_ExpectSelectable_NegativeCount() =>
         AssertValidationFailure(
             """
             firmament:
@@ -205,10 +230,10 @@ public sealed class FirmamentValidationRequiredFieldValidationTests
               -
                 op: expect_selectable
                 target: base
-                count: 0
+                count: -1
             """,
             FirmamentDiagnosticCodes.ValidationInvalidFieldValue,
-            "Validation op 'expect_selectable' at index 0 has invalid field 'count' value; expected an integer-valued number greater than 0.");
+            "Validation op 'expect_selectable' at index 0 has invalid field 'count' value; expected an integer-valued number greater than or equal to 0.");
 
     [Fact]
     public void Compiler_Rejects_ExpectSelectable_MissingCount_Deterministically()

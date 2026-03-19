@@ -1,4 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Firmament.ParsedModel;
 using Aetheris.Kernel.Firmament.Validation;
 
@@ -28,16 +30,102 @@ internal static class FirmamentSelectorResolver
             return false;
         }
 
-        var count = resultKind switch
-        {
-            FirmamentSelectorResultKind.Face or FirmamentSelectorResultKind.FaceSet => body.Topology.Faces.Count(),
-            FirmamentSelectorResultKind.EdgeSet => body.Topology.Edges.Count(),
-            FirmamentSelectorResultKind.VertexSet => body.Topology.Vertices.Count(),
-            _ => 0
-        };
+        var count = TryResolveCylinderCount(body, port, resultKind, out var cylinderCount)
+            ? cylinderCount
+            : resultKind switch
+            {
+                FirmamentSelectorResultKind.Face or FirmamentSelectorResultKind.FaceSet => body.Topology.Faces.Count(),
+                FirmamentSelectorResultKind.EdgeSet => body.Topology.Edges.Count(),
+                FirmamentSelectorResultKind.VertexSet => body.Topology.Vertices.Count(),
+                _ => 0
+            };
 
         resolution = new FirmamentSelectorResolution(featureId, port, resultKind, count);
         return true;
+    }
+
+    private static bool TryResolveCylinderCount(BrepBody body, string port, FirmamentSelectorResultKind resultKind, out int count)
+    {
+        count = 0;
+
+        if (!LooksLikeCylinder(body))
+        {
+            return false;
+        }
+
+        count = port switch
+        {
+            "top_face" => CountFaces(body, surface => surface.Kind == SurfaceGeometryKind.Plane && surface.Plane!.Value.Normal.ToVector().Z > 0.5d),
+            "bottom_face" => CountFaces(body, surface => surface.Kind == SurfaceGeometryKind.Plane && surface.Plane!.Value.Normal.ToVector().Z < -0.5d),
+            "side_face" => CountFaces(body, surface => surface.Kind == SurfaceGeometryKind.Cylinder),
+            "circular_edges" => CountEdges(body, curve => curve.Kind == CurveGeometryKind.Circle3),
+            "edges" when resultKind == FirmamentSelectorResultKind.EdgeSet => body.Topology.Edges.Count(),
+            "vertices" when resultKind == FirmamentSelectorResultKind.VertexSet => body.Topology.Vertices.Count(),
+            _ => 0
+        };
+
+        return true;
+    }
+
+    private static bool LooksLikeCylinder(BrepBody body)
+    {
+        if (body.Topology.Faces.Count() != 3 || body.Topology.Edges.Count() != 3)
+        {
+            return false;
+        }
+
+        var cylindricalFaces = 0;
+        var planarFaces = 0;
+
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null)
+            {
+                return false;
+            }
+
+            switch (surface.Kind)
+            {
+                case SurfaceGeometryKind.Cylinder:
+                    cylindricalFaces++;
+                    break;
+                case SurfaceGeometryKind.Plane:
+                    planarFaces++;
+                    break;
+                default:
+                    return false;
+            }
+        }
+
+        return cylindricalFaces == 1 && planarFaces == 2;
+    }
+
+    private static int CountFaces(BrepBody body, Func<SurfaceGeometry, bool> predicate)
+    {
+        var count = 0;
+        foreach (var face in body.Topology.Faces)
+        {
+            if (body.TryGetFaceSurfaceGeometry(face.Id, out var surface) && surface is not null && predicate(surface))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static int CountEdges(BrepBody body, Func<CurveGeometry, bool> predicate)
+    {
+        var count = 0;
+        foreach (var edge in body.Topology.Edges)
+        {
+            if (body.TryGetEdgeCurveGeometry(edge.Id, out var curve) && curve is not null && predicate(curve))
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 }
 

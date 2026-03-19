@@ -17,6 +17,18 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_CylinderBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/cylinder_basic.firmament",
+            "cylinder_basic.step",
+            "post",
+            0,
+            "primitive",
+            "cylinder");
+    }
+
+    [Fact]
     public void Run_BoxWithHoleExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(

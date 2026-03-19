@@ -43,7 +43,7 @@ ops[8]:
   -
     op: expect_selectable
     target: cyl.circular_edges
-    count: 3
+    count: 2
   -
     op: expect_selectable
     target: join.edges

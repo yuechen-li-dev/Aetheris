@@ -68,6 +68,61 @@ public sealed class FirmamentValidationExecutionTests
     }
 
     [Fact]
+    public void Compile_Executes_Cylinder_Selector_Contract_With_Truthful_Runtime_Counts()
+    {
+        const string source = """
+firmament:
+  version: 1
+
+model:
+  name: cylinder_selector_truth
+  units: mm
+
+ops[7]:
+  -
+    op: cylinder
+    id: cyl
+    radius: 2
+    height: 5
+  -
+    op: expect_selectable
+    target: cyl.top_face
+    count: 1
+  -
+    op: expect_selectable
+    target: cyl.bottom_face
+    count: 1
+  -
+    op: expect_selectable
+    target: cyl.side_face
+    count: 1
+  -
+    op: expect_selectable
+    target: cyl.circular_edges
+    count: 2
+  -
+    op: expect_selectable
+    target: cyl.edges
+    count: 3
+  -
+    op: expect_selectable
+    target: cyl.vertices
+    count: 4
+""";
+
+        var result = Compile(source);
+
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.Equal(6, result.Compilation.Value.ValidationExecutionResult!.Validations.Count);
+        Assert.All(result.Compilation.Value.ValidationExecutionResult.Validations, validation =>
+        {
+            Assert.True(validation.IsExecuted);
+            Assert.True(validation.IsSuccess);
+            Assert.Null(validation.Reason);
+        });
+    }
+
+    [Fact]
     public void Compile_Executes_ExpectSelectable_With_Count_Mismatch_As_Deterministic_Failure()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m6c-invalid-selectable-count-mismatch.firmament");

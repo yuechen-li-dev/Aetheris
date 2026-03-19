@@ -32,6 +32,15 @@ There is no implemented selector chaining or multi-hop traversal.
 - `edges` → `EdgeSet`, `Many`
 - `vertices` → `VertexSet`, `Many`
 
+Current verified primitive-body topology for `cylinder` is:
+
+- `top_face` = 1 planar cap face
+- `bottom_face` = 1 planar cap face
+- `side_face` = 1 cylindrical face
+- `circular_edges` = 2 circular cap edges
+- `edges` = 3 total edges (2 circular + 1 seam)
+- `vertices` = 4 total vertices
+
 #### `sphere`
 
 - `surface` → `Face`, `One`

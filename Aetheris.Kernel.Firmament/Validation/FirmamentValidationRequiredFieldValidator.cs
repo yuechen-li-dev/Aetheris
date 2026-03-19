@@ -76,12 +76,12 @@ internal static class FirmamentValidationRequiredFieldValidator
 
         if (Math.Abs(countValue - Math.Round(countValue)) > 0)
         {
-            return InvalidFieldValue("count", opIndex, entry.OpName, "expected an integer-valued number greater than 0");
+            return InvalidFieldValue("count", opIndex, entry.OpName, "expected an integer-valued number greater than or equal to 0");
         }
 
-        if (countValue <= 0)
+        if (countValue < 0)
         {
-            return InvalidFieldValue("count", opIndex, entry.OpName, "expected an integer-valued number greater than 0");
+            return InvalidFieldValue("count", opIndex, entry.OpName, "expected an integer-valued number greater than or equal to 0");
         }
 
         return KernelResult<bool>.Success(true);

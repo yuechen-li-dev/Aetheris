@@ -2,18 +2,13 @@ firmament:
   version: 1
 
 model:
-  name: demo
+  name: cone_pointed_top_zero_exec
   units: mm
 
-ops[2]:
+ops[1]:
   -
     op: cone
-    id: pointed
+    id: pointed_top
     bottom_radius: 8
     top_radius: 0
     height: 20
-
-  -
-    op: expect_selectable
-    target: pointed.top_face
-    count: 0

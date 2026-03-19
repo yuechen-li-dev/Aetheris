@@ -41,6 +41,43 @@ Current verified primitive-body topology for `cylinder` is:
 - `edges` = 3 total edges (2 circular + 1 seam)
 - `vertices` = 4 total vertices
 
+#### `cone`
+
+Implemented selector surface for the v1 `cone` primitive remains:
+
+- `top_face` → `Face`, `One`
+- `bottom_face` → `Face`, `One`
+- `side_face` → `Face`, `One`
+- `circular_edges` → `EdgeSet`, `Many`
+- `edges` → `EdgeSet`, `Many`
+- `vertices` → `VertexSet`, `Many`
+
+Current verified primitive-body topology for `cone` is conditional on the radii:
+
+- frustum cone (`bottom_radius > 0`, `top_radius > 0`, unequal)
+  - `top_face` = 1 planar cap face
+  - `bottom_face` = 1 planar cap face
+  - `side_face` = 1 conical face
+  - `circular_edges` = 2 circular cap edges
+  - `edges` = 3 total edges (2 circular + 1 seam)
+  - `vertices` = 4 total vertices
+- pointed cone with `top_radius = 0`
+  - `top_face` = 0
+  - `bottom_face` = 1 planar cap face
+  - `side_face` = 1 conical face
+  - `circular_edges` = 1 circular base edge
+  - `edges` = 2 total edges (1 circular + 1 seam)
+  - `vertices` = 3 total vertices
+- pointed cone with `bottom_radius = 0`
+  - `top_face` = 1 planar cap face
+  - `bottom_face` = 0
+  - `side_face` = 1 conical face
+  - `circular_edges` = 1 circular base edge
+  - `edges` = 2 total edges (1 circular + 1 seam)
+  - `vertices` = 3 total vertices
+
+Selectors on the missing cap remain legal source ports for `cone`, but truthfully resolve to zero runtime topology elements in the pointed case.
+
 #### `sphere`
 
 - `surface` → `Face`, `One`

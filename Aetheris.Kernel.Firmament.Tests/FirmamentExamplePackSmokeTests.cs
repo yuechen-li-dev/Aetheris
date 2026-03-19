@@ -9,6 +9,7 @@ public sealed class FirmamentExamplePackSmokeTests
         "testdata/firmament/examples/box_basic.firmament",
         "testdata/firmament/examples/cylinder_basic.firmament",
         "testdata/firmament/examples/cone_frustum_basic.firmament",
+        "testdata/firmament/examples/cone_pointed_top_zero.firmament",
         "testdata/firmament/examples/sphere_basic.firmament",
         "testdata/firmament/examples/box_with_hole.firmament",
         "testdata/firmament/examples/placed_primitive.firmament",
@@ -33,6 +34,7 @@ public sealed class FirmamentExamplePackSmokeTests
     [InlineData("testdata/firmament/examples/box_basic.firmament", "base", 0, "primitive", "box")]
     [InlineData("testdata/firmament/examples/cylinder_basic.firmament", "post", 0, "primitive", "cylinder")]
     [InlineData("testdata/firmament/examples/cone_frustum_basic.firmament", "frustum1", 0, "primitive", "cone")]
+    [InlineData("testdata/firmament/examples/cone_pointed_top_zero.firmament", "pointed1", 0, "primitive", "cone")]
     [InlineData("testdata/firmament/examples/sphere_basic.firmament", "ball", 0, "primitive", "sphere")]
     [InlineData("testdata/firmament/examples/box_with_hole.firmament", "base", 0, "primitive", "box")]
     [InlineData("testdata/firmament/examples/placed_primitive.firmament", "post", 1, "primitive", "cylinder")]

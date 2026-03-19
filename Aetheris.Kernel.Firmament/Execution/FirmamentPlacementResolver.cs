@@ -66,20 +66,30 @@ internal static class FirmamentPlacementResolver
     private static KernelResult<Point3D> ResolveFaceAnchor(BrepBody body, string port)
     {
         var facePoints = body.Topology.Faces
-            .Select(f => new { Face = f, Point = GetFaceRepresentativePoint(body, f.Id) })
-            .Where(x => x.Point is not null)
-            .Select(x => (x.Face, x.Point!.Value))
+            .Select(f => new { Face = f, Surface = body.TryGetFaceSurfaceGeometry(f.Id, out var surface) ? surface : null, Point = GetFaceRepresentativePoint(body, f.Id) })
+            .Where(x => x.Surface is not null && x.Point is not null)
+            .Select(x => (x.Face, Surface: x.Surface!, Point: x.Point!.Value))
             .ToList();
         if (facePoints.Count == 0) return Failure("Placement selector resolved empty face set at runtime.");
 
         IEnumerable<Point3D> selected = port switch
         {
-            "top_face" => [facePoints.OrderByDescending(x => x.Item2.Z).First().Item2],
-            "bottom_face" => [facePoints.OrderBy(x => x.Item2.Z).First().Item2],
-            "side_face" => [facePoints.OrderBy(x => Math.Abs(x.Item2.Z)).First().Item2],
-            "side_faces" => facePoints.OrderByDescending(x => Math.Abs(x.Item2.Z)).Skip(2).Select(x => x.Item2),
-            "surface" => [facePoints.First().Item2],
-            _ => facePoints.Select(x => x.Item2)
+            "top_face" => facePoints
+                .Where(x => x.Surface.Kind == SurfaceGeometryKind.Plane && x.Surface.Plane!.Value.Normal.ToVector().Z > 0.5d)
+                .Select(x => x.Point),
+            "bottom_face" => facePoints
+                .Where(x => x.Surface.Kind == SurfaceGeometryKind.Plane && x.Surface.Plane!.Value.Normal.ToVector().Z < -0.5d)
+                .Select(x => x.Point),
+            "side_face" => facePoints
+                .Where(x => x.Surface.Kind is SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone)
+                .Select(x => x.Point),
+            "side_faces" => facePoints
+                .Where(x => x.Surface.Kind == SurfaceGeometryKind.Plane && Math.Abs(x.Surface.Plane!.Value.Normal.ToVector().Z) <= 0.5d)
+                .Select(x => x.Point),
+            "surface" => facePoints
+                .Where(x => x.Surface.Kind == SurfaceGeometryKind.Sphere)
+                .Select(x => x.Point),
+            _ => facePoints.Select(x => x.Point)
         };
 
         var pts = selected.ToArray();
@@ -185,7 +195,7 @@ internal static class FirmamentPlacementResolver
         var f = body.Topology.Faces.Count();
         var e = body.Topology.Edges.Count();
         if (f == 6 && e == 12) return FirmamentKnownOpKind.Box;
-        if (f == 3)
+        if (f is 2 or 3)
         {
             foreach (var face in body.Topology.Faces)
             {

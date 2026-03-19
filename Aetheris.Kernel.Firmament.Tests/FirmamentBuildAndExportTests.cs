@@ -54,6 +54,18 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_ConePointedTopZeroExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/cone_pointed_top_zero.firmament",
+            "cone_pointed_top_zero.step",
+            "pointed1",
+            0,
+            "primitive",
+            "cone");
+    }
+
+    [Fact]
     public void Run_BoxWithHoleExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(

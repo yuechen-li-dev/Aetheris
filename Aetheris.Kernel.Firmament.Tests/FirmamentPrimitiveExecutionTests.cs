@@ -61,14 +61,82 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.Equal(3, executed.Body.Topology.Edges.Count());
         Assert.Equal(4, executed.Body.Topology.Vertices.Count());
 
-        Assert.True(executed.Body.TryGetFaceSurfaceGeometry(new FaceId(1), out var side));
+        var sideFace = Assert.Single(executed.Body.Topology.Faces, face =>
+        {
+            executed.Body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+            return surface!.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone;
+        });
+        Assert.True(executed.Body.TryGetFaceSurfaceGeometry(sideFace.Id, out var side));
         Assert.Equal(Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone, side!.Kind);
 
-        Assert.True(executed.Body.TryGetFaceSurfaceGeometry(new FaceId(2), out var bottom));
-        Assert.Equal(new Point3D(0d, 0d, 0d), bottom!.Plane!.Value.Origin);
+        var planarFaces = executed.Body.Topology.Faces
+            .Where(face =>
+            {
+                executed.Body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return surface!.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane;
+            })
+            .Select(face =>
+            {
+                executed.Body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return surface!.Plane!.Value;
+            })
+            .OrderBy(plane => plane.Origin.Z)
+            .ToArray();
+        Assert.Equal(2, planarFaces.Length);
+        Assert.Equal(new Point3D(0d, 0d, 0d), planarFaces[0].Origin);
+        Assert.Equal(new Point3D(0d, 0d, 20d), planarFaces[1].Origin);
+    }
 
-        Assert.True(executed.Body.TryGetFaceSurfaceGeometry(new FaceId(3), out var top));
-        Assert.Equal(new Point3D(0d, 0d, 20d), top!.Plane!.Value.Origin);
+    [Fact]
+    public void Compile_Executes_PointedCone_With_TopRadiusZero_Into_Truthful_Topology()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m10f2-valid-cone-pointed-top-zero-exec.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
+        Assert.Equal("pointed_top", executed.FeatureId);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.Cone, executed.Kind);
+        Assert.Equal(2, executed.Body.Topology.Faces.Count());
+        Assert.Equal(2, executed.Body.Topology.Edges.Count());
+        Assert.Equal(3, executed.Body.Topology.Vertices.Count());
+
+        Assert.Equal(1, executed.Body.Topology.Faces.Count(face =>
+        {
+            executed.Body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+            return surface!.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone;
+        }));
+        Assert.Equal(1, executed.Body.Topology.Faces.Count(face =>
+        {
+            executed.Body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+            return surface!.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane;
+        }));
+        Assert.Equal(1, executed.Body.Topology.Edges.Count(edge =>
+        {
+            executed.Body.TryGetEdgeCurveGeometry(edge.Id, out var curve);
+            return curve!.Kind == Aetheris.Kernel.Core.Geometry.CurveGeometryKind.Circle3;
+        }));
+    }
+
+    [Fact]
+    public void Compile_Executes_PointedCone_With_BottomRadiusZero_Into_Truthful_Topology()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m10f2-valid-cone-pointed-bottom-zero-exec.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
+        Assert.Equal("pointed_bottom", executed.FeatureId);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.Cone, executed.Kind);
+        Assert.Equal(2, executed.Body.Topology.Faces.Count());
+        Assert.Equal(2, executed.Body.Topology.Edges.Count());
+        Assert.Equal(3, executed.Body.Topology.Vertices.Count());
+
+        var planarFace = Assert.Single(executed.Body.Topology.Faces, face =>
+        {
+            executed.Body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+            return surface!.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane;
+        });
+        executed.Body.TryGetFaceSurfaceGeometry(planarFace.Id, out var planeSurface);
+        Assert.Equal(20d, planeSurface!.Plane!.Value.Origin.Z, 9);
     }
 
     [Fact]

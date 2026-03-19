@@ -148,6 +148,27 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
+    public void Export_PointedConeExample_Exports_Successfully_With_Metadata_Deterministic_Text_And_Persisted_Artifact()
+    {
+        var first = ExportFixture("testdata/firmament/examples/cone_pointed_top_zero.firmament");
+        var second = ExportFixture("testdata/firmament/examples/cone_pointed_top_zero.firmament");
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal("pointed1", first.Value.ExportedFeatureId);
+        Assert.Equal(0, first.Value.ExportedOpIndex);
+        Assert.Equal("primitive", first.Value.ExportedBodyCategory);
+        Assert.Equal("cone", first.Value.ExportedFeatureKind);
+        Assert.NotEmpty(first.Value.StepText);
+        Assert.Equal(first.Value.StepText, second.Value.StepText);
+        Assert.Contains("CONICAL_SURFACE", first.Value.StepText, StringComparison.Ordinal);
+
+        var artifactPath = WriteExportArtifact("m10f2-pointed-cone.step", first.Value.StepText);
+        Assert.True(File.Exists(artifactPath));
+        Assert.Equal(first.Value.StepText, File.ReadAllText(artifactPath));
+    }
+
+    [Fact]
     public void Export_MultipleExecutedGeometryBodies_Selects_Last_Executed_Geometric_Feature_Body()
     {
         var compile = CompileFixture("testdata/firmament/fixtures/m3d-mixed-primitive-boolean-validation.firmament");

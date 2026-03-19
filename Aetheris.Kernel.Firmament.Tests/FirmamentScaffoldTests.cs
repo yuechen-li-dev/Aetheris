@@ -670,18 +670,18 @@ public sealed class FirmamentScaffoldTests
             "Primitive op 'cylinder' at index 0 has invalid field 'radius' value; expected a numeric value greater than 0.");
 
     [Fact]
-    public void Compiler_Rejects_Cone_NonPositiveBottomRadius() =>
+    public void Compiler_Rejects_Cone_NegativeBottomRadius() =>
         AssertSingleValidationError(
-            FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10e-invalid-cone-bottom-radius-non-positive.firmament"),
+            FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10f2-invalid-cone-bottom-radius-negative.firmament"),
             FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue,
-            "Primitive op 'cone' at index 0 has invalid field 'bottom_radius' value; expected a numeric value greater than 0.");
+            "Primitive op 'cone' at index 0 has invalid field 'bottom_radius' value; expected a numeric value greater than or equal to 0.");
 
     [Fact]
-    public void Compiler_Rejects_Cone_NonPositiveTopRadius() =>
+    public void Compiler_Rejects_Cone_NegativeTopRadius() =>
         AssertSingleValidationError(
-            FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10e-invalid-cone-top-radius-non-positive.firmament"),
+            FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10f2-invalid-cone-top-radius-negative.firmament"),
             FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue,
-            "Primitive op 'cone' at index 0 has invalid field 'top_radius' value; expected a numeric value greater than 0.");
+            "Primitive op 'cone' at index 0 has invalid field 'top_radius' value; expected a numeric value greater than or equal to 0.");
 
     [Fact]
     public void Compiler_Rejects_Cone_NonPositiveHeight() =>
@@ -691,11 +691,18 @@ public sealed class FirmamentScaffoldTests
             "Primitive op 'cone' at index 0 has invalid field 'height' value; expected a numeric value greater than 0.");
 
     [Fact]
-    public void Compiler_Rejects_Cone_EqualRadii() =>
+    public void Compiler_Rejects_Cone_EqualPositiveRadii() =>
         AssertSingleValidationError(
             FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10e-invalid-cone-equal-radii.firmament"),
             FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue,
-            "Primitive op 'cone' at index 0 has invalid field 'top_radius' value; expected a numeric value different from 'bottom_radius'.");
+            "Primitive op 'cone' at index 0 has invalid field 'top_radius' value; expected a numeric value different from 'bottom_radius' when both cone radii are greater than 0.");
+
+    [Fact]
+    public void Compiler_Rejects_Cone_BothRadiiZero() =>
+        AssertSingleValidationError(
+            FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10f2-invalid-cone-both-radii-zero.firmament"),
+            FirmamentDiagnosticCodes.PrimitiveInvalidFieldValue,
+            "Primitive op 'cone' at index 0 has invalid field 'top_radius' value; expected at least one of 'bottom_radius' or 'top_radius' to be greater than 0.");
 
     [Fact]
     public void Compiler_Rejects_Sphere_MissingRadius() =>

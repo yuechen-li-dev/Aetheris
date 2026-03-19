@@ -18,5 +18,5 @@ ops[4]:
     target: core.surface
   -
     op: expect_selectable
-    target: core.edges
+    target: core.surface
     count: 1

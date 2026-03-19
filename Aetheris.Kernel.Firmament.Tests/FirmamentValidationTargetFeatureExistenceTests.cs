@@ -129,6 +129,38 @@ public sealed partial class FirmamentValidationTargetFeatureExistenceTests
         var compiler = new FirmamentCompiler();
         return compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(fixtureText)));
     }
+
+    [Theory]
+    [InlineData("edges")]
+    [InlineData("vertices")]
+    public void Compiler_Rejects_Sphere_SelectorPorts_Removed_From_Truthful_Contract(string portToken)
+    {
+        var source = $$"""
+firmament:
+  version: 1
+
+model:
+  name: sphere_contract_reduction
+  units: mm
+
+ops[2]:
+  -
+    op: sphere
+    id: sphere
+    radius: 4
+  -
+    op: expect_exists
+    target: sphere.{{portToken}}
+""";
+
+        var result = new FirmamentCompiler().Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Equal(
+            $"[{FirmamentDiagnosticCodes.ValidationTargetSelectorPortNotAllowedForFeatureKind.Value}] Validation op 'expect_exists' at index 1 has selector port '{portToken}' not allowed for feature kind 'sphere' on feature id 'sphere' via field 'target'.",
+            diagnostic.Message);
+    }
 }
 
 public sealed partial class FirmamentValidationTargetFeatureExistenceTests
@@ -139,7 +171,6 @@ public sealed partial class FirmamentValidationTargetFeatureExistenceTests
     [InlineData("cyl.side_face", "Face", "One")]
     [InlineData("cyl.circular_edges", "EdgeSet", "Many")]
     [InlineData("sphere.surface", "Face", "One")]
-    [InlineData("sphere.vertices", "VertexSet", "Many")]
     public void Compiler_Attaches_SelectorContractMetadata_For_Legal_SelectorTargets(string selectorTarget, string expectedResultKind, string expectedCardinality)
     {
         var source = $$"""

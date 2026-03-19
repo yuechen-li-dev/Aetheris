@@ -44,8 +44,12 @@ Current verified primitive-body topology for `cylinder` is:
 #### `sphere`
 
 - `surface` → `Face`, `One`
-- `edges` → `EdgeSet`, `Many`
-- `vertices` → `VertexSet`, `Many`
+
+Current verified primitive-body topology for `sphere` is:
+
+- `surface` = 1 spherical face
+- `edges` = 0 (not part of the truthful selector contract)
+- `vertices` = 0 (not part of the truthful selector contract)
 
 ### Boolean features
 

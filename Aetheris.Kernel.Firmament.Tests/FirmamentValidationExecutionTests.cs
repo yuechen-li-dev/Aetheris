@@ -40,15 +40,15 @@ public sealed class FirmamentValidationExecutionTests
     }
 
     [Fact]
-    public void Compile_Executes_ExpectExists_For_Empty_SelectorResolution_As_Deterministic_Failure()
+    public void Compile_Rejects_Sphere_Edge_Selector_After_Contract_Is_Reduced_To_Truthful_Surface_Only()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m6b-invalid-selector-empty.firmament");
 
-        Assert.True(result.Compilation.IsSuccess);
-        var validation = Assert.Single(result.Compilation.Value.ValidationExecutionResult!.Validations);
-        Assert.True(validation.IsExecuted);
-        Assert.False(validation.IsSuccess);
-        Assert.Equal("Selector 'sphere.edges' resolved to no topology elements.", validation.Reason);
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Equal(
+            "[FIRM-REF-0006] Validation op 'expect_exists' at index 1 has selector port 'edges' not allowed for feature kind 'sphere' on feature id 'sphere' via field 'target'.",
+            diagnostic.Message);
     }
 
     [Fact]
@@ -120,6 +120,43 @@ ops[7]:
             Assert.True(validation.IsSuccess);
             Assert.Null(validation.Reason);
         });
+    }
+
+
+    [Fact]
+    public void Compile_Executes_Sphere_Selector_Contract_With_Truthful_Runtime_Counts()
+    {
+        const string source = """
+firmament:
+  version: 1
+
+model:
+  name: sphere_selector_truth
+  units: mm
+
+ops[2]:
+  -
+    op: sphere
+    id: ball
+    radius: 4
+  -
+    op: expect_selectable
+    target: ball.surface
+    count: 1
+""";
+
+        var result = Compile(source);
+
+        Assert.True(result.Compilation.IsSuccess);
+        var validation = Assert.Single(result.Compilation.Value.ValidationExecutionResult!.Validations);
+        Assert.True(validation.IsExecuted);
+        Assert.True(validation.IsSuccess);
+        Assert.Null(validation.Reason);
+
+        var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;
+        Assert.Single(body.Topology.Faces);
+        Assert.Empty(body.Topology.Edges);
+        Assert.Empty(body.Topology.Vertices);
     }
 
     [Fact]

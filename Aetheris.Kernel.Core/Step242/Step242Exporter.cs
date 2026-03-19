@@ -46,11 +46,6 @@ public static class Step242Exporter
 
         foreach (var face in shell.FaceIds.OrderBy(id => id.Value).Select(model.GetFace))
         {
-            if (face.LoopIds.Count == 0)
-            {
-                return Failure("Faces without boundary loops are not supported in M22 export subset.", $"Face:{face.Id.Value}");
-            }
-
             if (!body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding))
             {
                 return Failure("Face is missing surface binding.", $"Face:{face.Id.Value}");
@@ -59,6 +54,11 @@ public static class Step242Exporter
             if (!body.Geometry.TryGetSurface(faceBinding.SurfaceGeometryId, out var surface) || surface is null)
             {
                 return Failure("Face surface geometry was not found.", $"Surface:{faceBinding.SurfaceGeometryId.Value}");
+            }
+
+            if (face.LoopIds.Count == 0 && !CanExportLooplessFace(body, face, surface))
+            {
+                return Failure("Faces without boundary loops are not supported in M22 export subset unless they are the canonical loopless sphere primitive.", $"Face:{face.Id.Value}");
             }
 
             var surfaceIdResult = BuildSurface(writer, surface, face.Id);
@@ -225,6 +225,13 @@ public static class Step242Exporter
             _ => Failure($"Unsupported surface kind '{surface.Kind}'.", $"Face:{faceId.Value}")
         };
     }
+
+    private static bool CanExportLooplessFace(BrepBody body, Face face, SurfaceGeometry surface) =>
+        surface.Kind == SurfaceGeometryKind.Sphere
+        && body.Topology.Faces.Count() == 1
+        && body.Topology.Edges.Count() == 0
+        && body.Topology.Vertices.Count() == 0
+        && face.LoopIds.Count == 0;
 
     private static string BuildAxisPlacement(Step242TextWriter writer, Point3D origin, Direction3D axis, Direction3D referenceAxis)
     {

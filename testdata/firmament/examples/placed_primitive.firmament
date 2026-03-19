@@ -1,0 +1,27 @@
+firmament:
+  version: 1
+
+model:
+  name: placed_primitive
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: anchor
+    size[3]:
+      20
+      20
+      8
+
+  -
+    op: cylinder
+    id: post
+    radius: 3
+    height: 10
+    place:
+      on: anchor.top_face
+      offset[3]:
+        0
+        0
+        2

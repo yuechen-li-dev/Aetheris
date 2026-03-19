@@ -1,0 +1,44 @@
+firmament:
+  version: 1
+
+model:
+  name: cone_selector_contract
+  units: mm
+
+ops[7]:
+  -
+    op: cone
+    id: frustum1
+    bottom_radius: 8
+    top_radius: 3
+    height: 20
+
+  -
+    op: expect_selectable
+    target: frustum1.bottom_face
+    count: 1
+
+  -
+    op: expect_selectable
+    target: frustum1.top_face
+    count: 1
+
+  -
+    op: expect_selectable
+    target: frustum1.side_face
+    count: 1
+
+  -
+    op: expect_selectable
+    target: frustum1.circular_edges
+    count: 2
+
+  -
+    op: expect_selectable
+    target: frustum1.edges
+    count: 3
+
+  -
+    op: expect_selectable
+    target: frustum1.vertices
+    count: 4

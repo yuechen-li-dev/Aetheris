@@ -4,6 +4,7 @@ public enum FirmamentKnownOpKind
 {
     Box,
     Cylinder,
+    Cone,
     Sphere,
     Add,
     Subtract,
@@ -20,6 +21,7 @@ internal static class FirmamentKnownOpKinds
         {
             ["box"] = FirmamentKnownOpKind.Box,
             ["cylinder"] = FirmamentKnownOpKind.Cylinder,
+            ["cone"] = FirmamentKnownOpKind.Cone,
             ["sphere"] = FirmamentKnownOpKind.Sphere,
             ["add"] = FirmamentKnownOpKind.Add,
             ["subtract"] = FirmamentKnownOpKind.Subtract,
@@ -37,6 +39,7 @@ internal static class FirmamentKnownOpKinds
         {
             FirmamentKnownOpKind.Box => FirmamentOpFamily.Primitive,
             FirmamentKnownOpKind.Cylinder => FirmamentOpFamily.Primitive,
+            FirmamentKnownOpKind.Cone => FirmamentOpFamily.Primitive,
             FirmamentKnownOpKind.Sphere => FirmamentOpFamily.Primitive,
             FirmamentKnownOpKind.Add => FirmamentOpFamily.Boolean,
             FirmamentKnownOpKind.Subtract => FirmamentOpFamily.Boolean,

@@ -26,6 +26,7 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
             {
                 FirmamentKnownOpKind.Box => ValidateBox(entry, index),
                 FirmamentKnownOpKind.Cylinder => ValidateCylinder(entry, index),
+                FirmamentKnownOpKind.Cone => ValidateCone(entry, index),
                 FirmamentKnownOpKind.Sphere => ValidateSphere(entry, index),
                 _ => KernelResult<bool>.Success(true)
             };
@@ -117,6 +118,47 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
         if (!radiusResult.IsSuccess)
         {
             return radiusResult;
+        }
+
+        var placementResult = ValidatePlacement(entry, opIndex);
+        if (!placementResult.IsSuccess)
+        {
+            return placementResult;
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateCone(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        var bottomRadiusResult = ValidatePositiveNumericField(entry, "bottom_radius", opIndex);
+        if (!bottomRadiusResult.IsSuccess)
+        {
+            return bottomRadiusResult;
+        }
+
+        var topRadiusResult = ValidatePositiveNumericField(entry, "top_radius", opIndex);
+        if (!topRadiusResult.IsSuccess)
+        {
+            return topRadiusResult;
+        }
+
+        var heightResult = ValidatePositiveNumericField(entry, "height", opIndex);
+        if (!heightResult.IsSuccess)
+        {
+            return heightResult;
+        }
+
+        var bottomRadius = ParseRequiredNumeric(entry.RawFields["bottom_radius"]);
+        var topRadius = ParseRequiredNumeric(entry.RawFields["top_radius"]);
+        if (double.Abs(bottomRadius - topRadius) <= 1e-12d)
+        {
+            return InvalidFieldValue("top_radius", opIndex, entry.OpName, "expected a numeric value different from 'bottom_radius'");
         }
 
         var placementResult = ValidatePlacement(entry, opIndex);
@@ -310,6 +352,12 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
         }
 
         return double.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+    }
+
+    private static double ParseRequiredNumeric(string raw)
+    {
+        _ = TryParseNumeric(raw, out var value);
+        return value;
     }
 
     private static bool TryParseVector(string raw, out List<double> components)

@@ -42,6 +42,18 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_ConeFrustumBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/cone_frustum_basic.firmament",
+            "cone_frustum_basic.step",
+            "frustum1",
+            0,
+            "primitive",
+            "cone");
+    }
+
+    [Fact]
     public void Run_BoxWithHoleExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(

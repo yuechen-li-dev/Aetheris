@@ -32,6 +32,8 @@ internal static class FirmamentSelectorResolver
 
         var count = TryResolveCylinderCount(body, port, resultKind, out var cylinderCount)
             ? cylinderCount
+            : TryResolveConeCount(body, port, resultKind, out var coneCount)
+                ? coneCount
             : resultKind switch
             {
                 FirmamentSelectorResultKind.Face or FirmamentSelectorResultKind.FaceSet => body.Topology.Faces.Count(),
@@ -41,6 +43,29 @@ internal static class FirmamentSelectorResolver
             };
 
         resolution = new FirmamentSelectorResolution(featureId, port, resultKind, count);
+        return true;
+    }
+
+    private static bool TryResolveConeCount(BrepBody body, string port, FirmamentSelectorResultKind resultKind, out int count)
+    {
+        count = 0;
+
+        if (!LooksLikeCone(body))
+        {
+            return false;
+        }
+
+        count = port switch
+        {
+            "top_face" => CountFaces(body, surface => surface.Kind == SurfaceGeometryKind.Plane && surface.Plane!.Value.Normal.ToVector().Z > 0.5d),
+            "bottom_face" => CountFaces(body, surface => surface.Kind == SurfaceGeometryKind.Plane && surface.Plane!.Value.Normal.ToVector().Z < -0.5d),
+            "side_face" => CountFaces(body, surface => surface.Kind == SurfaceGeometryKind.Cone),
+            "circular_edges" => CountEdges(body, curve => curve.Kind == CurveGeometryKind.Circle3),
+            "edges" when resultKind == FirmamentSelectorResultKind.EdgeSet => body.Topology.Edges.Count(),
+            "vertices" when resultKind == FirmamentSelectorResultKind.VertexSet => body.Topology.Vertices.Count(),
+            _ => 0
+        };
+
         return true;
     }
 
@@ -98,6 +123,39 @@ internal static class FirmamentSelectorResolver
         }
 
         return cylindricalFaces == 1 && planarFaces == 2;
+    }
+
+    private static bool LooksLikeCone(BrepBody body)
+    {
+        if (body.Topology.Faces.Count() != 3 || body.Topology.Edges.Count() != 3)
+        {
+            return false;
+        }
+
+        var conicalFaces = 0;
+        var planarFaces = 0;
+
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null)
+            {
+                return false;
+            }
+
+            switch (surface.Kind)
+            {
+                case SurfaceGeometryKind.Cone:
+                    conicalFaces++;
+                    break;
+                case SurfaceGeometryKind.Plane:
+                    planarFaces++;
+                    break;
+                default:
+                    return false;
+            }
+        }
+
+        return conicalFaces == 1 && planarFaces == 2;
     }
 
     private static int CountFaces(BrepBody body, Func<SurfaceGeometry, bool> predicate)

@@ -43,6 +43,18 @@ internal static class FirmamentPrimitiveLowerer
                         Placement: LowerPlacement(entry.Placement)));
                     break;
 
+                case FirmamentKnownOpKind.Cone:
+                    loweredPrimitives.Add(new FirmamentLoweredPrimitive(
+                        OpIndex: index,
+                        FeatureId: entry.RawFields["id"],
+                        Kind: FirmamentLoweredPrimitiveKind.Cone,
+                        Parameters: new FirmamentLoweredConeParameters(
+                            BottomRadius: ParseScalar(entry.RawFields["bottom_radius"]),
+                            TopRadius: ParseScalar(entry.RawFields["top_radius"]),
+                            Height: ParseScalar(entry.RawFields["height"])),
+                        Placement: LowerPlacement(entry.Placement)));
+                    break;
+
                 case FirmamentKnownOpKind.Sphere:
                     loweredPrimitives.Add(new FirmamentLoweredPrimitive(
                         OpIndex: index,

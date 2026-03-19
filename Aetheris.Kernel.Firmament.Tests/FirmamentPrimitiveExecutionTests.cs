@@ -49,6 +49,20 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_Executes_Torus_Primitive_Into_Real_Body_With_Truthful_Topology()
+    {
+        var result = CompileFixture("testdata/firmament/examples/torus_basic.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
+        Assert.Equal("donut1", executed.FeatureId);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.Torus, executed.Kind);
+        Assert.Single(executed.Body.Topology.Faces);
+        Assert.Equal(2, executed.Body.Topology.Edges.Count());
+        Assert.Single(executed.Body.Topology.Vertices);
+    }
+
+    [Fact]
     public void Compile_Executes_Cone_Primitive_Into_Real_Body_With_Truthful_Frustum_Topology()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m10e-valid-cone-exec.firmament");

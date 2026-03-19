@@ -7,4 +7,4 @@ model:
 
 ops[1]:
   -
-    op: torus
+    op: pyramid

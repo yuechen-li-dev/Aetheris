@@ -45,6 +45,7 @@ public enum FirmamentLoweredPrimitiveKind
     Box,
     Cylinder,
     Cone,
+    Torus,
     Sphere
 }
 
@@ -57,6 +58,9 @@ public sealed record FirmamentLoweredCylinderParameters(double Radius, double He
     : FirmamentLoweredPrimitiveParameters;
 
 public sealed record FirmamentLoweredConeParameters(double BottomRadius, double TopRadius, double Height)
+    : FirmamentLoweredPrimitiveParameters;
+
+public sealed record FirmamentLoweredTorusParameters(double MajorRadius, double MinorRadius)
     : FirmamentLoweredPrimitiveParameters;
 
 public sealed record FirmamentLoweredSphereParameters(double Radius)

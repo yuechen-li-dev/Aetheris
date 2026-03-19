@@ -55,6 +55,17 @@ internal static class FirmamentPrimitiveLowerer
                         Placement: LowerPlacement(entry.Placement)));
                     break;
 
+                case FirmamentKnownOpKind.Torus:
+                    loweredPrimitives.Add(new FirmamentLoweredPrimitive(
+                        OpIndex: index,
+                        FeatureId: entry.RawFields["id"],
+                        Kind: FirmamentLoweredPrimitiveKind.Torus,
+                        Parameters: new FirmamentLoweredTorusParameters(
+                            MajorRadius: ParseScalar(entry.RawFields["major_radius"]),
+                            MinorRadius: ParseScalar(entry.RawFields["minor_radius"])),
+                        Placement: LowerPlacement(entry.Placement)));
+                    break;
+
                 case FirmamentKnownOpKind.Sphere:
                     loweredPrimitives.Add(new FirmamentLoweredPrimitive(
                         OpIndex: index,

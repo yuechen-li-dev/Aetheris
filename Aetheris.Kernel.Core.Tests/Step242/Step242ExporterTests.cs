@@ -115,6 +115,34 @@ END-ISO-10303-21;";
         Assert.Contains("TOROIDAL_SURFACE", export.Value, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ExportBody_ProgrammaticTorus_IsDeterministic_AndEmitsToroidalSurface()
+    {
+        var torus = BrepPrimitives.CreateTorus(5d, 2d);
+        Assert.True(torus.IsSuccess);
+
+        var first = Step242Exporter.ExportBody(torus.Value);
+        var second = Step242Exporter.ExportBody(torus.Value);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value, second.Value);
+        Assert.Contains("TOROIDAL_SURFACE", first.Value, StringComparison.Ordinal);
+        Assert.Contains("CIRCLE", first.Value, StringComparison.Ordinal);
+
+        var import = Step242Importer.ImportBody(first.Value);
+        Assert.True(import.IsSuccess);
+
+        Assert.Equal(torus.Value.Topology.Faces.Count(), import.Value.Topology.Faces.Count());
+        Assert.Equal(torus.Value.Topology.Loops.Count(), import.Value.Topology.Loops.Count());
+        Assert.Equal(torus.Value.Topology.Edges.Count(), import.Value.Topology.Edges.Count());
+        Assert.Equal(torus.Value.Topology.Vertices.Count(), import.Value.Topology.Vertices.Count());
+
+        var torusFace = Assert.Single(import.Value.Topology.Faces);
+        Assert.Equal(Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Torus, import.Value.GetFaceSurface(torusFace.Id).Kind);
+    }
+
     [Fact]
     public void ExportBody_ImportedConicalFace_EmitsConicalSurfaceWithCanonicalRadianSemiAngle()
     {

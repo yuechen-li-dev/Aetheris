@@ -49,6 +49,29 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_Executes_Cone_Primitive_Into_Real_Body_With_Truthful_Frustum_Topology()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m10e-valid-cone-exec.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
+        Assert.Equal("frustum1", executed.FeatureId);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.Cone, executed.Kind);
+        Assert.Equal(3, executed.Body.Topology.Faces.Count());
+        Assert.Equal(3, executed.Body.Topology.Edges.Count());
+        Assert.Equal(4, executed.Body.Topology.Vertices.Count());
+
+        Assert.True(executed.Body.TryGetFaceSurfaceGeometry(new FaceId(1), out var side));
+        Assert.Equal(Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone, side!.Kind);
+
+        Assert.True(executed.Body.TryGetFaceSurfaceGeometry(new FaceId(2), out var bottom));
+        Assert.Equal(new Point3D(0d, 0d, 0d), bottom!.Plane!.Value.Origin);
+
+        Assert.True(executed.Body.TryGetFaceSurfaceGeometry(new FaceId(3), out var top));
+        Assert.Equal(new Point3D(0d, 0d, 20d), top!.Plane!.Value.Origin);
+    }
+
+    [Fact]
     public void Compile_Executes_Multiple_Primitives_In_Source_Order_With_Preserved_Ids()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3c-valid-multiple-primitives-exec.firmament");

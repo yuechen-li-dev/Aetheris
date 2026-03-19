@@ -119,6 +119,11 @@ internal static class FirmamentCanonicalFormatter
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "radius");
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "height");
                 break;
+            case FirmamentKnownOpKind.Cone:
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "bottom_radius");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "top_radius");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "height");
+                break;
             case FirmamentKnownOpKind.Sphere:
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "radius");
                 break;

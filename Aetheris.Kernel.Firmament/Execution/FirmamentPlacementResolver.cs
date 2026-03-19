@@ -2,6 +2,7 @@ using System.Linq;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
@@ -93,9 +94,35 @@ internal static class FirmamentPlacementResolver
         {
             SurfaceGeometryKind.Plane => s.Plane!.Value.Origin,
             SurfaceGeometryKind.Cylinder => s.Cylinder!.Value.Origin,
+            SurfaceGeometryKind.Cone => GetConicalFaceRepresentativePoint(body, faceId, s.Cone!.Value),
             SurfaceGeometryKind.Sphere => s.Sphere!.Value.Center,
             _ => null
         };
+    }
+
+    private static Point3D? GetConicalFaceRepresentativePoint(BrepBody body, FaceId faceId, ConeSurface cone)
+    {
+        var points = new List<Point3D>();
+        foreach (var edgeId in body.GetEdges(faceId))
+        {
+            var (startVertexId, endVertexId) = body.GetEdgeVertices(edgeId);
+            if (TryGetVertexPoint(body, startVertexId, out var startPoint))
+            {
+                points.Add(startPoint);
+            }
+
+            if (TryGetVertexPoint(body, endVertexId, out var endPoint))
+            {
+                points.Add(endPoint);
+            }
+        }
+
+        if (points.Count > 0)
+        {
+            return ComputeCentroid(points);
+        }
+
+        return cone.Evaluate(0d, 1d);
     }
 
     private static KernelResult<Point3D> ResolveEdgeAnchor(BrepBody body, string _)
@@ -158,7 +185,27 @@ internal static class FirmamentPlacementResolver
         var f = body.Topology.Faces.Count();
         var e = body.Topology.Edges.Count();
         if (f == 6 && e == 12) return FirmamentKnownOpKind.Box;
-        if (f == 3) return FirmamentKnownOpKind.Cylinder;
+        if (f == 3)
+        {
+            foreach (var face in body.Topology.Faces)
+            {
+                if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null)
+                {
+                    continue;
+                }
+
+                if (surface.Kind == SurfaceGeometryKind.Cone)
+                {
+                    return FirmamentKnownOpKind.Cone;
+                }
+
+                if (surface.Kind == SurfaceGeometryKind.Cylinder)
+                {
+                    return FirmamentKnownOpKind.Cylinder;
+                }
+            }
+        }
+
         if (f == 1) return FirmamentKnownOpKind.Sphere;
         return FirmamentKnownOpKind.Add;
     }

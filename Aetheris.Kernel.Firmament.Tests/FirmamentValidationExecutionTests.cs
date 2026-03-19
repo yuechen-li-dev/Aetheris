@@ -122,6 +122,21 @@ ops[7]:
         });
     }
 
+    [Fact]
+    public void Compile_Executes_Cone_Selector_Contract_With_Truthful_Runtime_Counts()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m10e-valid-cone-selector-contract.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.Equal(6, result.Compilation.Value.ValidationExecutionResult!.Validations.Count);
+        Assert.All(result.Compilation.Value.ValidationExecutionResult.Validations, validation =>
+        {
+            Assert.True(validation.IsExecuted);
+            Assert.True(validation.IsSuccess);
+            Assert.Null(validation.Reason);
+        });
+    }
+
 
     [Fact]
     public void Compile_Executes_Sphere_Selector_Contract_With_Truthful_Runtime_Counts()

@@ -67,6 +67,37 @@ public sealed class FirmamentPrimitiveLoweringTests
     }
 
     [Fact]
+    public void Compile_Lowers_Cone_Primitive()
+    {
+        var result = Compile(
+            """
+            firmament:
+              version: 1
+
+            model:
+              name: demo
+              units: mm
+
+            ops[1]:
+              -
+                op: cone
+                id: frustum1
+                bottom_radius: 8
+                top_radius: 3
+                height: 20
+            """);
+
+        Assert.True(result.Compilation.IsSuccess);
+        var primitive = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Primitives);
+        var parameters = Assert.IsType<FirmamentLoweredConeParameters>(primitive.Parameters);
+        Assert.Equal("frustum1", primitive.FeatureId);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.Cone, primitive.Kind);
+        Assert.Equal(8, parameters.BottomRadius);
+        Assert.Equal(3, parameters.TopRadius);
+        Assert.Equal(20, parameters.Height);
+    }
+
+    [Fact]
     public void Compile_Lowers_Sphere_Primitive()
     {
         var result = Compile(

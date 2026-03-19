@@ -1,0 +1,14 @@
+firmament:
+  version: 1
+
+model:
+  name: cone_exec
+  units: mm
+
+ops[1]:
+  -
+    op: cone
+    id: frustum1
+    bottom_radius: 8
+    top_radius: 3
+    height: 20

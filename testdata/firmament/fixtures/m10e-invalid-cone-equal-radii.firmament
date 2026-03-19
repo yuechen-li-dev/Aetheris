@@ -1,0 +1,14 @@
+firmament:
+  version: 1
+
+model:
+  name: cone_invalid_equal_radii
+  units: mm
+
+ops[1]:
+  -
+    op: cone
+    id: frustum1
+    bottom_radius: 8
+    top_radius: 8
+    height: 20

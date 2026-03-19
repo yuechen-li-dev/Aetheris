@@ -25,6 +25,17 @@ internal static class FirmamentSelectorContracts
             ["vertices"] = new(FirmamentSelectorResultKind.VertexSet, FirmamentSelectorCardinality.Many)
         };
 
+    private static readonly IReadOnlyDictionary<string, FirmamentSelectorPortContract> ConePorts =
+        new Dictionary<string, FirmamentSelectorPortContract>(StringComparer.Ordinal)
+        {
+            ["top_face"] = new(FirmamentSelectorResultKind.Face, FirmamentSelectorCardinality.One),
+            ["bottom_face"] = new(FirmamentSelectorResultKind.Face, FirmamentSelectorCardinality.One),
+            ["side_face"] = new(FirmamentSelectorResultKind.Face, FirmamentSelectorCardinality.One),
+            ["circular_edges"] = new(FirmamentSelectorResultKind.EdgeSet, FirmamentSelectorCardinality.Many),
+            ["edges"] = new(FirmamentSelectorResultKind.EdgeSet, FirmamentSelectorCardinality.Many),
+            ["vertices"] = new(FirmamentSelectorResultKind.VertexSet, FirmamentSelectorCardinality.Many)
+        };
+
     private static readonly IReadOnlyDictionary<string, FirmamentSelectorPortContract> SpherePorts =
         new Dictionary<string, FirmamentSelectorPortContract>(StringComparer.Ordinal)
         {
@@ -50,6 +61,9 @@ internal static class FirmamentSelectorContracts
                 return true;
             case FirmamentKnownOpKind.Cylinder:
                 allowedPorts = CylinderAllowedPorts;
+                return true;
+            case FirmamentKnownOpKind.Cone:
+                allowedPorts = ConeAllowedPorts;
                 return true;
             case FirmamentKnownOpKind.Sphere:
                 allowedPorts = SphereAllowedPorts;
@@ -87,6 +101,9 @@ internal static class FirmamentSelectorContracts
             case FirmamentKnownOpKind.Cylinder:
                 contracts = CylinderPorts;
                 return true;
+            case FirmamentKnownOpKind.Cone:
+                contracts = ConePorts;
+                return true;
             case FirmamentKnownOpKind.Sphere:
                 contracts = SpherePorts;
                 return true;
@@ -106,6 +123,7 @@ internal static class FirmamentSelectorContracts
 
     private static readonly IReadOnlySet<string> BoxAllowedPorts = new HashSet<string>(BoxPorts.Keys, StringComparer.Ordinal);
     private static readonly IReadOnlySet<string> CylinderAllowedPorts = new HashSet<string>(CylinderPorts.Keys, StringComparer.Ordinal);
+    private static readonly IReadOnlySet<string> ConeAllowedPorts = new HashSet<string>(ConePorts.Keys, StringComparer.Ordinal);
     private static readonly IReadOnlySet<string> SphereAllowedPorts = new HashSet<string>(SpherePorts.Keys, StringComparer.Ordinal);
     private static readonly IReadOnlySet<string> BooleanAllowedPorts = new HashSet<string>(BooleanPorts.Keys, StringComparer.Ordinal);
     private static readonly IReadOnlySet<string> EmptyPorts = new HashSet<string>(StringComparer.Ordinal);

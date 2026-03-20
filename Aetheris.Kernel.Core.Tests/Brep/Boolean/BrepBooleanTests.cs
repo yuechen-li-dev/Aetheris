@@ -446,6 +446,39 @@ public sealed class BrepBooleanTests
         Assert.Equal("Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
     }
 
+    public static TheoryData<string, BooleanOperation, Transform3D> BoxTorusRepresentativeCases =>
+        new()
+        {
+            { "subtract centered torus", BooleanOperation.Subtract, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 0d)) },
+            { "subtract torus fully inside box", BooleanOperation.Subtract, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 10d)) },
+            { "subtract offset torus", BooleanOperation.Subtract, Transform3D.CreateTranslation(new Vector3D(4d, 0d, 10d)) },
+            { "subtract torus intersecting faces", BooleanOperation.Subtract, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 18d)) },
+            { "subtract torus outside footprint", BooleanOperation.Subtract, Transform3D.CreateTranslation(new Vector3D(18d, 0d, 10d)) },
+            { "add torus fully inside box", BooleanOperation.Union, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 10d)) },
+            { "add offset torus", BooleanOperation.Union, Transform3D.CreateTranslation(new Vector3D(4d, 0d, 10d)) },
+            { "add torus intersecting faces", BooleanOperation.Union, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 18d)) },
+            { "add torus outside footprint", BooleanOperation.Union, Transform3D.CreateTranslation(new Vector3D(18d, 0d, 10d)) },
+            { "intersect torus fully inside box", BooleanOperation.Intersect, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 10d)) },
+            { "intersect offset torus", BooleanOperation.Intersect, Transform3D.CreateTranslation(new Vector3D(4d, 0d, 10d)) },
+            { "intersect torus intersecting faces", BooleanOperation.Intersect, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 18d)) },
+            { "intersect torus outside footprint", BooleanOperation.Intersect, Transform3D.CreateTranslation(new Vector3D(18d, 0d, 10d)) },
+        };
+
+    [Theory]
+    [MemberData(nameof(BoxTorusRepresentativeCases))]
+    public void BoxTorusRepresentativeCases_RemainUnsupported(string _, BooleanOperation operation, Transform3D transform)
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-10d, 10d, -10d, 10d, 0d, 20d)).Value;
+        var right = TransformBody(BrepPrimitives.CreateTorus(6d, 2d).Value, transform);
+
+        var result = BrepBoolean.Execute(new BooleanRequest(left, right, operation));
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal($"Boolean {operation}: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
     private static BrepBody CreateCone(double bottomRadius, double topRadius, double height)
     {
         var frame = new ExtrudeFrame3D(
@@ -498,6 +531,23 @@ public sealed class BrepBooleanTests
                     transform.Apply(surfaceEntry.Value.Cylinder.Value.Axis),
                     surfaceEntry.Value.Cylinder.Value.Radius,
                     transform.Apply(surfaceEntry.Value.Cylinder.Value.XAxis))),
+                SurfaceGeometryKind.Cone => SurfaceGeometry.FromCone(new ConeSurface(
+                    transform.Apply(surfaceEntry.Value.Cone!.Value.PlacementOrigin),
+                    transform.Apply(surfaceEntry.Value.Cone.Value.Axis),
+                    surfaceEntry.Value.Cone.Value.PlacementRadius,
+                    surfaceEntry.Value.Cone.Value.SemiAngleRadians,
+                    transform.Apply(surfaceEntry.Value.Cone.Value.ReferenceAxis))),
+                SurfaceGeometryKind.Torus => SurfaceGeometry.FromTorus(new TorusSurface(
+                    transform.Apply(surfaceEntry.Value.Torus!.Value.Center),
+                    transform.Apply(surfaceEntry.Value.Torus.Value.Axis),
+                    surfaceEntry.Value.Torus.Value.MajorRadius,
+                    surfaceEntry.Value.Torus.Value.MinorRadius,
+                    transform.Apply(surfaceEntry.Value.Torus.Value.XAxis))),
+                SurfaceGeometryKind.Sphere => SurfaceGeometry.FromSphere(new SphereSurface(
+                    transform.Apply(surfaceEntry.Value.Sphere!.Value.Center),
+                    transform.Apply(surfaceEntry.Value.Sphere.Value.Axis),
+                    surfaceEntry.Value.Sphere.Value.Radius,
+                    transform.Apply(surfaceEntry.Value.Sphere.Value.XAxis))),
                 _ => surfaceEntry.Value
             });
         }

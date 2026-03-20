@@ -258,7 +258,25 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
         Assert.Equal(Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Contains("supports nested tool ops 'box', 'cylinder', 'sphere', and 'cone' only", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("supports nested tool ops 'box', 'cylinder', 'sphere', 'cone', and 'torus' only", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-subtract-torus.firmament", "ring_cut", "subtract")]
+    [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-add-torus.firmament", "joined", "add")]
+    [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-intersect-torus.firmament", "overlap", "intersect")]
+    public void Compile_BoxTorusBooleanFixtures_Reach_Kernel_And_Fail_Loudly(string fixturePath, string expectedFeatureId, string expectedKind)
+    {
+        var result = CompileFixture(fixturePath);
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented
+            && diagnostic.Source == "firmament"
+            && diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' ({expectedKind}) could not be executed.", StringComparison.Ordinal));
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented
+            && diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
     }
 
     [Fact]

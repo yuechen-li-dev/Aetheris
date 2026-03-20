@@ -191,7 +191,20 @@ internal static class FirmamentPrimitiveExecutor
                 FirmamentPrimitiveToolParsing.ParseScalar(coneHeightRaw)));
         }
 
-        return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution supports nested tool ops 'box', 'cylinder', 'sphere', and 'cone' only. Got '{tool.OpName}'.")]);
+        if (string.Equals(tool.OpName, "torus", StringComparison.Ordinal))
+        {
+            if (!tool.RawFields.TryGetValue("major_radius", out var majorRadiusRaw) || string.IsNullOrWhiteSpace(majorRadiusRaw)
+                || !tool.RawFields.TryGetValue("minor_radius", out var minorRadiusRaw) || string.IsNullOrWhiteSpace(minorRadiusRaw))
+            {
+                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested fields 'with.major_radius' and 'with.minor_radius' for tool op 'torus'.")]);
+            }
+
+            return BrepPrimitives.CreateTorus(
+                FirmamentPrimitiveToolParsing.ParseScalar(majorRadiusRaw),
+                FirmamentPrimitiveToolParsing.ParseScalar(minorRadiusRaw));
+        }
+
+        return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution supports nested tool ops 'box', 'cylinder', 'sphere', 'cone', and 'torus' only. Got '{tool.OpName}'.")]);
     }
 
     private static KernelResult<BrepBody> ExecuteBoolean(FirmamentLoweredBooleanKind kind, BrepBody left, BrepBody right) =>

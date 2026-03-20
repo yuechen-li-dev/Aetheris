@@ -89,7 +89,10 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             { "testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "overlap", "intersect" },
             { "testdata/firmament/fixtures/m10m-unsupported-box-subtract-cone.firmament", "tapered_cut", "subtract" },
             { "testdata/firmament/fixtures/m10m-unsupported-box-add-cone.firmament", "joined", "add" },
-            { "testdata/firmament/fixtures/m10m-unsupported-box-intersect-cone.firmament", "overlap", "intersect" }
+            { "testdata/firmament/fixtures/m10m-unsupported-box-intersect-cone.firmament", "overlap", "intersect" },
+            { "testdata/firmament/fixtures/m10n-unsupported-box-subtract-torus.firmament", "ring_cut", "subtract" },
+            { "testdata/firmament/fixtures/m10n-unsupported-box-add-torus.firmament", "joined", "add" },
+            { "testdata/firmament/fixtures/m10n-unsupported-box-intersect-torus.firmament", "overlap", "intersect" }
         };
 
     [Theory]
@@ -126,6 +129,73 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             diagnostic.Code == KernelDiagnosticCode.NotImplemented
             && diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
     }
+
+    public static TheoryData<string, string, string> UnsupportedBoxTorusVariantSources =>
+        new()
+        {
+            { CreateBoxTorusSource("subtract", "ring_cut", "from", "contained", 0d, 0d, 0d), "ring_cut", "subtract" },
+            { CreateBoxTorusSource("subtract", "offset_ring_cut", "from", "offset", 6d, 0d, 0d), "offset_ring_cut", "subtract" },
+            { CreateBoxTorusSource("subtract", "face_ring_cut", "from", "intersecting", 0d, 0d, 8d, 8d, 3d), "face_ring_cut", "subtract" },
+            { CreateBoxTorusSource("subtract", "outside_ring_cut", "from", "outside", 20d, 0d, 0d), "outside_ring_cut", "subtract" },
+            { CreateBoxTorusSource("add", "joined", "to", "contained", 0d, 0d, 0d), "joined", "add" },
+            { CreateBoxTorusSource("add", "offset_joined", "to", "offset", 6d, 0d, 0d), "offset_joined", "add" },
+            { CreateBoxTorusSource("add", "face_joined", "to", "intersecting", 0d, 0d, 8d, 8d, 3d), "face_joined", "add" },
+            { CreateBoxTorusSource("add", "outside_joined", "to", "outside", 20d, 0d, 0d), "outside_joined", "add" },
+            { CreateBoxTorusSource("intersect", "overlap", "left", "contained", 0d, 0d, 0d), "overlap", "intersect" },
+            { CreateBoxTorusSource("intersect", "offset_overlap", "left", "offset", 6d, 0d, 0d), "offset_overlap", "intersect" },
+            { CreateBoxTorusSource("intersect", "face_overlap", "left", "intersecting", 0d, 0d, 8d, 8d, 3d), "face_overlap", "intersect" },
+            { CreateBoxTorusSource("intersect", "outside_overlap", "left", "outside", 20d, 0d, 0d), "outside_overlap", "intersect" }
+        };
+
+    [Theory]
+    [MemberData(nameof(UnsupportedBoxTorusVariantSources))]
+    public void BoxTorusVariants_RemainUnsupported_Across_Audited_Positions(string source, string expectedFeatureId, string expectedKind)
+    {
+        var result = FirmamentCorpusHarness.Compile(source);
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Source == "firmament"
+            && diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' ({expectedKind}) could not be executed.", StringComparison.Ordinal));
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
+    }
+
+    private static string CreateBoxTorusSource(string op, string featureId, string targetField, string nameSuffix, double offsetX, double offsetY, double offsetZ, double majorRadius = 6d, double minorRadius = 2d) =>
+        $"""
+        firmament:
+          version: 1
+        
+        model:
+          name: m10n_box_torus_{nameSuffix}_{op}
+          units: mm
+        
+        ops[2]:
+          -
+            op: box
+            id: base
+            size[3]:
+              40
+              30
+              12
+        
+          -
+            op: {op}
+            id: {featureId}
+            {targetField}: base
+            with:
+              op: torus
+              major_radius: {majorRadius}
+              minor_radius: {minorRadius}
+            place:
+              on: origin
+              offset[3]:
+                {offsetX}
+                {offsetY}
+                {offsetZ}
+        """;
 
     private static Aetheris.Kernel.Core.Results.KernelResult<FirmamentStepExportResult> ExportFixture(string fixturePath) =>
         FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(FirmamentCorpusHarness.ReadFixtureText(fixturePath))));

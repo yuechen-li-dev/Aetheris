@@ -107,10 +107,45 @@ public sealed class FirmamentStepExporterTests
     [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-subtract-cone.firmament", "tapered_cut")]
     [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-add-cone.firmament", "joined")]
     [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-intersect-cone.firmament", "overlap")]
-    public void Export_BoxSphereFixtures_Fail_Loudly_Without_Fallback(string fixturePath, string expectedFeatureId)
+    [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-subtract-torus.firmament", "ring_cut")]
+    [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-add-torus.firmament", "joined")]
+    [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-intersect-torus.firmament", "overlap")]
+    public void Export_UnsupportedMixedPrimitiveBooleanFixtures_Fail_Loudly_Without_Fallback(string fixturePath, string expectedFeatureId)
     {
         var first = ExportFixture(fixturePath);
         var second = ExportFixture(fixturePath);
+
+        Assert.False(first.IsSuccess);
+        Assert.False(second.IsSuccess);
+        Assert.Equal(first.Diagnostics, second.Diagnostics);
+        Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}'", StringComparison.Ordinal));
+        Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
+        Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
+    }
+
+    public static TheoryData<string, string> UnsupportedBoxTorusVariantSources =>
+        new()
+        {
+            { CreateBoxTorusSource("subtract", "ring_cut", "from", 0d, 0d, 0d), "ring_cut" },
+            { CreateBoxTorusSource("subtract", "offset_ring_cut", "from", 6d, 0d, 0d), "offset_ring_cut" },
+            { CreateBoxTorusSource("subtract", "face_ring_cut", "from", 0d, 0d, 8d, 8d, 3d), "face_ring_cut" },
+            { CreateBoxTorusSource("subtract", "outside_ring_cut", "from", 20d, 0d, 0d), "outside_ring_cut" },
+            { CreateBoxTorusSource("add", "joined", "to", 0d, 0d, 0d), "joined" },
+            { CreateBoxTorusSource("add", "offset_joined", "to", 6d, 0d, 0d), "offset_joined" },
+            { CreateBoxTorusSource("add", "face_joined", "to", 0d, 0d, 8d, 8d, 3d), "face_joined" },
+            { CreateBoxTorusSource("add", "outside_joined", "to", 20d, 0d, 0d), "outside_joined" },
+            { CreateBoxTorusSource("intersect", "overlap", "left", 0d, 0d, 0d), "overlap" },
+            { CreateBoxTorusSource("intersect", "offset_overlap", "left", 6d, 0d, 0d), "offset_overlap" },
+            { CreateBoxTorusSource("intersect", "face_overlap", "left", 0d, 0d, 8d, 8d, 3d), "face_overlap" },
+            { CreateBoxTorusSource("intersect", "outside_overlap", "left", 20d, 0d, 0d), "outside_overlap" }
+        };
+
+    [Theory]
+    [MemberData(nameof(UnsupportedBoxTorusVariantSources))]
+    public void Export_BoxTorusVariants_Fail_Loudly_Without_Fallback(string source, string expectedFeatureId)
+    {
+        var first = Export(source);
+        var second = Export(source);
 
         Assert.False(first.IsSuccess);
         Assert.False(second.IsSuccess);
@@ -471,6 +506,40 @@ ops[1]:
 
     private static FirmamentCompileResult CompileFixture(string fixturePath) =>
         FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
+
+    private static string CreateBoxTorusSource(string op, string featureId, string targetField, double offsetX, double offsetY, double offsetZ, double majorRadius = 6d, double minorRadius = 2d) =>
+        $"""
+        firmament:
+          version: 1
+        
+        model:
+          name: m10n_box_torus_export_{featureId}
+          units: mm
+        
+        ops[2]:
+          -
+            op: box
+            id: base
+            size[3]:
+              40
+              30
+              12
+        
+          -
+            op: {op}
+            id: {featureId}
+            {targetField}: base
+            with:
+              op: torus
+              major_radius: {majorRadius}
+              minor_radius: {minorRadius}
+            place:
+              on: origin
+              offset[3]:
+                {offsetX}
+                {offsetY}
+                {offsetZ}
+        """;
 
     private static string WriteExportArtifact(string fileName, string stepText)
     {

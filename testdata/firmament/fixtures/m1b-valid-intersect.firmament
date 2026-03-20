@@ -18,6 +18,8 @@ ops[2]:
     id: int1
     left: base
     with:
-      op: cylinder
-      radius: 1
-      height: 1
+      op: box
+      size[3]:
+        1
+        1
+        1

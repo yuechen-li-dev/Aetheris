@@ -2,24 +2,25 @@ firmament:
   version: 1
 
 model:
-  name: demo
+  name: box_add_basic
   units: mm
 
 ops[2]:
   -
     op: box
-    id: b1
+    id: base
     size[3]:
-      1
-      2
-      3
+      4
+      4
+      4
+
   -
     op: add
-    id: add1
-    to: b1
+    id: joined
+    to: base
     with:
       op: box
       size[3]:
-        1
-        1
-        1
+        2
+        2
+        2

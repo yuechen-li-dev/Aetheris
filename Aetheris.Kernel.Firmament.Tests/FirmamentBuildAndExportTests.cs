@@ -78,15 +78,33 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
-    public void Run_BoxWithHoleExample_Writes_Default_Export_Artifact()
+    public void Run_BoxAddBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "testdata/firmament/examples/box_with_hole.firmament",
-            "box_with_hole.step",
-            "base",
-            0,
-            "primitive",
-            "box");
+            "testdata/firmament/examples/box_add_basic.firmament",
+            "box_add_basic.step",
+            "joined",
+            1,
+            "boolean",
+            "add");
+    }
+
+    [Fact]
+    public void Run_UnsupportedBoxWithCylinderHoleFixture_Fails_And_Does_Not_Write_Fallback_Export()
+    {
+        var sourcePath = "testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament";
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath(sourcePath);
+        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "exports", "m10h1-unsupported-box-with-cylinder-hole.step");
+        if (File.Exists(expectedOutputPath))
+        {
+            File.Delete(expectedOutputPath);
+        }
+
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.False(result.IsSuccess);
+        Assert.False(File.Exists(expectedOutputPath));
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     private static void AssertExampleBuildAndExport(string sourcePath, string expectedFileName, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)

@@ -277,16 +277,19 @@ ops[2]:
     }
 
     [Theory]
-    [InlineData("add", "join", "to", "join.top_face", "Face", "One")]
-    [InlineData("subtract", "cut", "from", "cut.side_faces", "FaceSet", "Many")]
-    [InlineData("intersect", "clip", "left", "clip.edges", "EdgeSet", "Many")]
+    [InlineData("add", "join", "to", "base", "join.top_face", "Face", "One", "10\n      20\n      30", "")]
+    [InlineData("subtract", "cut", "from", "anchor", "cut.side_faces", "FaceSet", "Many", "1\n      1\n      1", "\n  -\n    op: add\n    id: anchor\n    to: base\n    with:\n      op: box\n      size[3]:\n        1\n        1\n        1\n    place:\n      on: origin\n      offset[3]:\n        10\n        0\n        0")]
+    [InlineData("intersect", "clip", "left", "base", "clip.edges", "EdgeSet", "Many", "10\n      20\n      30", "")]
     public void Compiler_Attaches_SelectorContractMetadata_For_Legal_BooleanRoot_SelectorTargets(
         string booleanOp,
         string featureId,
         string referenceField,
+        string primaryReferenceFeatureId,
         string selectorTarget,
         string expectedResultKind,
-        string expectedCardinality)
+        string expectedCardinality,
+        string baseSize,
+        string preambleOps)
     {
         var source = $$"""
 firmament:
@@ -301,13 +304,12 @@ ops[3]:
     op: box
     id: base
     size[3]:
-      10
-      20
-      30
+      {{baseSize}}
+{{preambleOps}}
   -
     op: {{booleanOp}}
     id: {{featureId}}
-    {{referenceField}}: base
+    {{referenceField}}: {{primaryReferenceFeatureId}}
     with:
       op: box
       size[3]:
@@ -322,7 +324,7 @@ ops[3]:
         var result = new FirmamentCompiler().Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
 
         Assert.True(result.Compilation.IsSuccess);
-        var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[2];
+        var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[^1];
         Assert.NotNull(validationOp.ClassifiedFields);
         Assert.Equal("SelectorShaped", validationOp.ClassifiedFields!["targetShape"]);
         Assert.Equal(expectedResultKind, validationOp.ClassifiedFields["selectorResultKind"]);

@@ -2,17 +2,17 @@ firmament:
   version: 1
 
 model:
-  name: m3c-mixed
+  name: m10h1_valid_mixed
   units: mm
 
-ops[5]:
+ops[4]:
   -
     op: box
     id: base
     size[3]:
-      10
-      10
-      4
+      12
+      12
+      12
 
   -
     op: add
@@ -29,20 +29,9 @@ ops[5]:
     op: box
     id: cap
     size[3]:
-      3
-      3
-      3
-
-  -
-    op: add
-    id: cut1
-    to: cap
-    with:
-      op: box
-      size[3]:
-        1
-        1
-        1
+      6
+      6
+      6
 
   -
     op: expect_exists

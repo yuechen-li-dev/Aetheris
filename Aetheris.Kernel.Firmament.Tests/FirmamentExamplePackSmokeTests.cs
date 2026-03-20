@@ -12,9 +12,9 @@ public sealed class FirmamentExamplePackSmokeTests
         "testdata/firmament/examples/cone_pointed_top_zero.firmament",
         "testdata/firmament/examples/sphere_basic.firmament",
         "testdata/firmament/examples/torus_basic.firmament",
-        "testdata/firmament/examples/box_with_hole.firmament",
+        "testdata/firmament/examples/box_add_basic.firmament",
         "testdata/firmament/examples/placed_primitive.firmament",
-        "testdata/firmament/examples/cnc_min_tool_radius_demo.firmament"
+        "testdata/firmament/examples/schema_box_basic.firmament"
     ];
 
     [Theory]
@@ -38,8 +38,9 @@ public sealed class FirmamentExamplePackSmokeTests
     [InlineData("testdata/firmament/examples/cone_pointed_top_zero.firmament", "pointed1", 0, "primitive", "cone")]
     [InlineData("testdata/firmament/examples/sphere_basic.firmament", "ball", 0, "primitive", "sphere")]
     [InlineData("testdata/firmament/examples/torus_basic.firmament", "donut1", 0, "primitive", "torus")]
-    [InlineData("testdata/firmament/examples/box_with_hole.firmament", "base", 0, "primitive", "box")]
+    [InlineData("testdata/firmament/examples/box_add_basic.firmament", "joined", 1, "boolean", "add")]
     [InlineData("testdata/firmament/examples/placed_primitive.firmament", "post", 1, "primitive", "cylinder")]
+    [InlineData("testdata/firmament/examples/schema_box_basic.firmament", "schema_box", 0, "primitive", "box")]
     public void ExamplePack_GoldenPath_Examples_Export(string fixturePath, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)
     {
         var first = ExportFixture(fixturePath);
@@ -58,14 +59,14 @@ public sealed class FirmamentExamplePackSmokeTests
     }
 
     [Fact]
-    public void ExamplePack_SchemaExample_Attaches_CncSchema_And_BooleanPlan()
+    public void ExamplePack_SchemaExample_Attaches_Schema_Without_Changing_Geometric_Export()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/cnc_min_tool_radius_demo.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/schema_box_basic.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         Assert.NotNull(result.Compilation.Value.CompiledSchema);
-        Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
-        Assert.Equal("hole", result.Compilation.Value.PrimitiveLoweringPlan.Booleans.Single().FeatureId);
+        Assert.Empty(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
+        Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
     }
 
     private static Aetheris.Kernel.Core.Results.KernelResult<FirmamentStepExportResult> ExportFixture(string fixturePath) =>

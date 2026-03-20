@@ -2,20 +2,16 @@ firmament:
   version: 1
 
 model:
-  name: cnc_min_tool_radius_demo
+  name: m10h1_unsupported_box_with_cylinder_hole
   units: mm
-
-schema:
-  process: cnc
-  minimum_tool_radius: 2
 
 ops[2]:
   -
     op: box
     id: base
     size[3]:
-      24
-      24
+      40
+      30
       12
 
   -
@@ -24,5 +20,5 @@ ops[2]:
     from: base
     with:
       op: cylinder
-      radius: 2
+      radius: 4
       height: 12

@@ -30,9 +30,11 @@ ops[6]:
     id: union
     to: base
     with:
-      op: cylinder
-      radius: 1
-      height: 2
+      op: box
+      size[3]:
+        1
+        1
+        1
 
   -
     op: box

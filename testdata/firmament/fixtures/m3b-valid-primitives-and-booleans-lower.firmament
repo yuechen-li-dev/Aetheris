@@ -19,9 +19,17 @@ ops[6]:
     id: join1
     to: base
     with:
-      op: cylinder
-      radius: 1
-      height: 1
+      op: box
+      size[3]:
+        1
+        1
+        1
+    place:
+      on: origin
+      offset[3]:
+        10
+        0
+        0
 
   -
     op: sphere
@@ -33,13 +41,16 @@ ops[6]:
     id: cut1
     from: join1
     with:
-      op: sphere
-      radius: 1
+      op: box
+      size[3]:
+        1
+        1
+        1
 
   -
-    op: intersect
+    op: subtract
     id: clip1
-    left: cut1
+    from: cut1
     with:
       op: box
       size[3]:

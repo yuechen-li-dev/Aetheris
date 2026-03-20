@@ -67,6 +67,19 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
+    public void Export_UnsupportedBoxWithCylinderHole_Fails_Instead_Of_Falling_Back_To_Base_Primitive()
+    {
+        var first = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
+        var second = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
+
+        Assert.False(first.IsSuccess);
+        Assert.False(second.IsSuccess);
+        Assert.Equal(first.Diagnostics, second.Diagnostics);
+        Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
+        Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Export_SchemaPresent_Model_Still_Exports_With_Stable_Metadata_And_Deterministic_Text()
     {
         var first = ExportFixture("testdata/firmament/fixtures/m10b-valid-schema-box-export.firmament");
@@ -267,7 +280,7 @@ ops[2]:
     [Fact]
     public void Export_MultipleExecutedGeometryBodies_Selects_Last_Executed_Geometric_Feature_Body()
     {
-        var compile = CompileFixture("testdata/firmament/fixtures/m3d-mixed-primitive-boolean-validation.firmament");
+        var compile = CompileFixture("testdata/firmament/fixtures/m10h1-valid-mixed-primitive-boolean-validation.firmament");
         Assert.True(compile.Compilation.IsSuccess);
 
         var export = FirmamentStepExporter.Export(compile.Compilation.Value);

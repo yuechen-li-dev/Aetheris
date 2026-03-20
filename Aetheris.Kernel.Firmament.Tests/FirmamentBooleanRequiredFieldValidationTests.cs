@@ -44,22 +44,40 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
           name: demo
           units: mm
         
-        ops[2]:
+        ops[3]:
           -
             op: box
             id: base
             size[3]:
               1
-              2
-              3
+              1
+              1
+          -
+            op: add
+            id: anchor
+            to: base
+            with:
+              op: box
+              size[3]:
+                1
+                1
+                1
+            place:
+              on: origin
+              offset[3]:
+                10
+                0
+                0
           -
             op: subtract
             id: sub1
-            from: base
+            from: anchor
             with:
-              op: cylinder
-              radius: 1
-              height: 1
+              op: box
+              size[3]:
+                1
+                1
+                1
         """);
 
     [Fact]
@@ -85,8 +103,11 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             id: int1
             left: base
             with:
-              op: sphere
-              radius: 1
+              op: box
+              size[3]:
+                1
+                1
+                1
         """);
 
     [Fact]

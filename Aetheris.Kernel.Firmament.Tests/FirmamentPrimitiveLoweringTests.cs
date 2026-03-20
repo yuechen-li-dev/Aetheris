@@ -207,11 +207,11 @@ public sealed class FirmamentPrimitiveLoweringTests
         var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m1b-valid-subtract.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
-        var boolean = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
+        var boolean = result.Compilation.Value.PrimitiveLoweringPlan!.Booleans.Single(b => b.FeatureId == "sub1");
         Assert.Equal(FirmamentLoweredBooleanKind.Subtract, boolean.Kind);
         Assert.Equal("from", boolean.PrimaryReferenceField);
-        Assert.Equal("base", boolean.PrimaryReferenceFeatureId);
-        Assert.Equal("sphere", boolean.Tool.OpName);
+        Assert.Equal("anchor", boolean.PrimaryReferenceFeatureId);
+        Assert.Equal("box", boolean.Tool.OpName);
     }
 
     [Fact]
@@ -224,7 +224,7 @@ public sealed class FirmamentPrimitiveLoweringTests
         Assert.Equal(FirmamentLoweredBooleanKind.Intersect, boolean.Kind);
         Assert.Equal("left", boolean.PrimaryReferenceField);
         Assert.Equal("base", boolean.PrimaryReferenceFeatureId);
-        Assert.Equal("cylinder", boolean.Tool.OpName);
+        Assert.Equal("box", boolean.Tool.OpName);
     }
 
     [Fact]

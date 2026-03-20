@@ -78,30 +78,42 @@ public sealed class FirmamentScaffoldTests
               name: demo
               units: mm
             
-            ops[2]:
+            ops[3]:
               -
                 op: box
                 id: b1
                 size[3]:
-                  2
-                  3
-                  4
+                  1
+                  1
+                  1
               -
-                op: subtract
-                id: cut1
-                from: b1
+                op: add
+                id: anchor
+                to: b1
                 with:
                   op: box
                   size[3]:
                     1
                     1
                     1
+                place:
+                  on: origin
+                  offset[3]:
+                    10
+                    0
+                    0
+              -
+                op: subtract
+                id: cut1
+                from: anchor
+                with:
+                  op: box
                   size[3]:
                     1
                     1
                     1
             """,
-            2);
+            3);
 
 
     [Fact]
@@ -167,22 +179,40 @@ public sealed class FirmamentScaffoldTests
           name: demo
           units: mm
         
-        ops[3]:
+        ops[4]:
           -
             op: box
             id: b1
             size[3]:
               1
-              2
-              3
+              1
+              1
+          -
+            op: add
+            id: anchor
+            to: b1
+            with:
+              op: box
+              size[3]:
+                1
+                1
+                1
+            place:
+              on: origin
+              offset[3]:
+                10
+                0
+                0
           -
             op: subtract
             id: s1
-            from: b1
+            from: anchor
             with:
-              op: sphere
-              radius: 1
-              radius: 1
+              op: box
+              size[3]:
+                1
+                1
+                1
           -
             op: expect_manifold
             target: s1
@@ -195,6 +225,7 @@ public sealed class FirmamentScaffoldTests
         Assert.Collection(
             ops,
             op => Assert.Equal(FirmamentOpFamily.Primitive, op.Family),
+            op => Assert.Equal(FirmamentOpFamily.Boolean, op.Family),
             op => Assert.Equal(FirmamentOpFamily.Boolean, op.Family),
             op => Assert.Equal(FirmamentOpFamily.Validation, op.Family));
     }
@@ -216,15 +247,18 @@ public sealed class FirmamentScaffoldTests
                 id: b1
                 size[3]:
                   1
-                  2
+                  1
                   3
               -
                 op: add
                 id: add1
                 to: b1
                 with:
-                  op: sphere
-                  radius: 1
+                  op: box
+                  size[3]:
+                    1
+                    1
+                    1
             """,
             2);
 
@@ -947,9 +981,11 @@ public sealed class FirmamentScaffoldTests
     id: a1
     to: b1
     with:
-      op: sphere
-      radius: 1
-      radius: 1
+      op: box
+      size[3]:
+        1
+        1
+        1
 """,
             "subtract" => """
   -
@@ -959,14 +995,22 @@ public sealed class FirmamentScaffoldTests
       1
       1
       1
+    place:
+      on: origin
+      offset[3]:
+        10
+        0
+        0
   -
     op: subtract
     id: s1
     from: b1
     with:
-      op: sphere
-      radius: 1
-      radius: 1
+      op: box
+      size[3]:
+        1
+        1
+        1
 """,
             "intersect" => """
   -
@@ -981,9 +1025,11 @@ public sealed class FirmamentScaffoldTests
     id: i1
     left: b1
     with:
-      op: sphere
-      radius: 1
-      radius: 1
+      op: box
+      size[3]:
+        1
+        1
+        1
 """,
             "expect_exists" => """
   -

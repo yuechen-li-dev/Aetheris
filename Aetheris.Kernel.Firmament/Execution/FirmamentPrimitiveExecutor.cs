@@ -52,12 +52,11 @@ internal static class FirmamentPrimitiveExecutor
             var booleanResult = ExecuteBoolean(boolean.Kind, baseBody, toolResult.Value);
             if (!booleanResult.IsSuccess)
             {
-                if (booleanResult.Diagnostics.All(d => d.Code == KernelDiagnosticCode.NotImplemented))
-                {
-                    continue;
-                }
-
-                return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(booleanResult.Diagnostics);
+                return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
+                [
+                    CreateBooleanExecutionFailureDiagnostic(boolean),
+                    .. booleanResult.Diagnostics
+                ]);
             }
 
             var placedBooleanBody = booleanResult.Value;
@@ -76,6 +75,13 @@ internal static class FirmamentPrimitiveExecutor
 
         return KernelResult<FirmamentPrimitiveExecutionResult>.Success(new FirmamentPrimitiveExecutionResult(executedPrimitives, executedBooleans));
     }
+
+    private static KernelDiagnostic CreateBooleanExecutionFailureDiagnostic(FirmamentLoweredBoolean boolean)
+        => new(
+            KernelDiagnosticCode.NotImplemented,
+            KernelDiagnosticSeverity.Error,
+            $"Requested boolean feature '{boolean.FeatureId}' ({boolean.Kind.ToString().ToLowerInvariant()}) could not be executed.",
+            Source: "firmament");
 
     private static KernelResult<FirmamentExecutedPrimitiveBodies> ExecutePrimitive(FirmamentLoweredPrimitive primitive, IReadOnlyDictionary<string, BrepBody> publishedBodies)
     {

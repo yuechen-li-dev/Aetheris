@@ -400,7 +400,7 @@ ops[4]:
     [Fact]
     public void Compile_Still_Executes_Primitives_And_Booleans_With_M6b_ValidationExecution_Output()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/m3d-mixed-primitive-boolean-validation.firmament");
+        var result = CompileFixture("testdata/firmament/fixtures/m10h1-valid-mixed-primitive-boolean-validation.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         Assert.NotEmpty(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);

@@ -197,12 +197,14 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
-    public void Compile_Subtract_Boolean_Is_Deterministically_NonExecuted_When_Kernel_Cannot_Represent_Result()
+    public void Compile_Subtract_Boolean_Fails_Deterministically_When_Kernel_Cannot_Represent_Result()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3d-valid-subtract-exec.firmament");
 
-        Assert.True(result.Compilation.IsSuccess);
-        Assert.Empty(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Equal("firmament", result.Compilation.Diagnostics[0].Source);
+        Assert.Contains("Requested boolean feature 'cut' (subtract) could not be executed.", result.Compilation.Diagnostics[0].Message, StringComparison.Ordinal);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Code == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented);
     }
 
     [Fact]
@@ -219,37 +221,21 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
-    public void Compile_Mixed_Document_Executes_Primitives_And_Booleans_In_Source_Order_With_Preserved_Ids_And_Skips_Validation_Family()
+    public void Compile_Mixed_Document_With_Unsupported_Boolean_Fails_Before_Publishing_Success_Artifact()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3d-mixed-primitive-boolean-validation.firmament");
 
-        Assert.True(result.Compilation.IsSuccess);
-        var artifact = result.Compilation.Value;
-
-        Assert.Equal("firmament-placement-executed", artifact.ArtifactKind);
-        Assert.Equal(2, artifact.PrimitiveLoweringPlan!.Primitives.Count);
-        Assert.Equal(2, artifact.PrimitiveLoweringPlan.Booleans.Count);
-        Assert.Single(artifact.PrimitiveLoweringPlan.SkippedOps);
-
-        Assert.Equal(new[] { "base", "cap" }, artifact.PrimitiveExecutionResult!.ExecutedPrimitives.Select(p => p.FeatureId).ToArray());
-        Assert.Equal(new[] { "join1" }, artifact.PrimitiveExecutionResult.ExecutedBooleans.Select(b => b.FeatureId).ToArray());
-
-        var ordered = artifact.PrimitiveExecutionResult.ExecutedPrimitives
-            .Select(p => (p.OpIndex, p.FeatureId))
-            .Concat(artifact.PrimitiveExecutionResult.ExecutedBooleans.Select(b => (b.OpIndex, b.FeatureId)))
-            .OrderBy(entry => entry.OpIndex)
-            .ToArray();
-        Assert.Equal(new[] { "base", "join1", "cap" }, ordered.Select(x => x.FeatureId).ToArray());
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'cut1' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void Compile_Boolean_Can_Depend_On_Earlier_Executed_Boolean_Result()
+    public void Compile_Boolean_Chain_Fails_When_Earlier_Requested_Boolean_Could_Not_Execute()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3d-valid-boolean-chain-exec.firmament");
 
-        Assert.True(result.Compilation.IsSuccess);
-        var booleans = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans;
-        Assert.Empty(booleans);
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'cut1' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -286,7 +272,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Primitive_And_Boolean_Execution_Output_Is_Deterministic_For_Metadata()
     {
-        var fixture = "testdata/firmament/fixtures/m3d-mixed-primitive-boolean-validation.firmament";
+        var fixture = "testdata/firmament/fixtures/m10h1-valid-mixed-primitive-boolean-validation.firmament";
 
         var first = CompileFixture(fixture);
         var second = CompileFixture(fixture);

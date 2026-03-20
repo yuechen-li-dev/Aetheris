@@ -36,9 +36,9 @@ ops[2]:
 
         var result = Compile(source);
 
-        Assert.True(result.Compilation.IsSuccess);
-        var loweredBoolean = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
-        Assert.Equal("hole", loweredBoolean.FeatureId);
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains(FirmamentDiagnosticCodes.SchemaCncMinimumToolRadiusViolated.Value, StringComparison.Ordinal));
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -46,10 +46,8 @@ ops[2]:
     {
         var result = CompileFixture("testdata/firmament/fixtures/m8c-valid-schema-cnc-minimum-tool-radius.firmament");
 
-        Assert.True(result.Compilation.IsSuccess);
-        var loweredBoolean = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
-        Assert.Equal("hole", loweredBoolean.FeatureId);
-        Assert.Equal("2", loweredBoolean.Tool.RawFields["radius"]);
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -106,8 +104,9 @@ ops[2]:
       height: 8
 """);
 
-        Assert.True(result.Compilation.IsSuccess);
-        Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains(FirmamentDiagnosticCodes.SchemaCncMinimumToolRadiusViolated.Value, StringComparison.Ordinal));
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -144,13 +143,13 @@ ops[2]:
 
         var result = Compile(source);
 
-        Assert.True(result.Compilation.IsSuccess);
-        var loweredBoolean = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
-        Assert.Equal("pocket", loweredBoolean.FeatureId);
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains(FirmamentDiagnosticCodes.SchemaCncMinimumToolRadiusViolated.Value, StringComparison.Ordinal));
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'pocket' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void Compile_WithValidCncSchema_Preserves_BooleanExecution_Metadata()
+    public void Compile_WithValidCncSchema_Preserves_Failure_Truth_For_Unsupported_Boolean_Execution()
     {
         const string baseline = """
 firmament:
@@ -211,17 +210,10 @@ ops[2]:
         var first = Compile(baseline);
         var second = Compile(withSchema);
 
-        Assert.True(first.Compilation.IsSuccess);
-        Assert.True(second.Compilation.IsSuccess);
-
-        var firstMetadata = first.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans
-            .Select(b => (b.OpIndex, b.FeatureId, Kind: b.Kind.ToString(), BodyCount: b.Body.Topology.Bodies.Count(), FaceCount: b.Body.Topology.Faces.Count()))
-            .ToArray();
-        var secondMetadata = second.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans
-            .Select(b => (b.OpIndex, b.FeatureId, Kind: b.Kind.ToString(), BodyCount: b.Body.Topology.Bodies.Count(), FaceCount: b.Body.Topology.Faces.Count()))
-            .ToArray();
-
-        Assert.Equal(firstMetadata, secondMetadata);
+        Assert.False(first.Compilation.IsSuccess);
+        Assert.False(second.Compilation.IsSuccess);
+        Assert.Equal(first.Compilation.Diagnostics, second.Compilation.Diagnostics);
+        Assert.Contains(first.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     private static FirmamentCompileResult Compile(string source)

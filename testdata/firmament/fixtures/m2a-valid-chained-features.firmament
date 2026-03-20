@@ -14,20 +14,25 @@ ops[4]:
       20
       30
   -
-    op: subtract
-    id: cut1
-    from: base
+    op: add
+    id: joined
+    to: base
     with:
-      op: cylinder
-      radius: 1
-      height: 1
+      op: box
+      size[3]:
+        1
+        1
+        1
   -
     op: intersect
     id: clipped
-    left: cut1
+    left: joined
     with:
-      op: sphere
-      radius: 1
+      op: box
+      size[3]:
+        1
+        1
+        1
   -
     op: add
     id: merged

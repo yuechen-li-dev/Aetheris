@@ -166,14 +166,12 @@ public sealed class FirmamentPlacementValidationTests
     }
 
     [Fact]
-    public void Boolean_Placement_Runtime_Selector_Resolution_Failure_Is_Diagnostic()
+    public void Boolean_Placement_Fails_Early_When_Requested_Boolean_Cannot_Execute()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m7d-invalid-boolean-placement-selector-runtime-empty.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
-        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
-        Assert.Contains(FirmamentDiagnosticCodes.ValidationTargetSelectorResolvedEmpty.Value, diagnostic.Message, StringComparison.Ordinal);
-        Assert.Contains("resolved empty", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'cut' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -36,9 +36,9 @@ ops[2]:
 
         var result = Compile(source);
 
-        Assert.False(result.Compilation.IsSuccess);
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.Empty(result.Compilation.Diagnostics);
         Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains(FirmamentDiagnosticCodes.SchemaCncMinimumToolRadiusViolated.Value, StringComparison.Ordinal));
-        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -46,8 +46,8 @@ ops[2]:
     {
         var result = CompileFixture("testdata/firmament/fixtures/m8c-valid-schema-cnc-minimum-tool-radius.firmament");
 
-        Assert.False(result.Compilation.IsSuccess);
-        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.Empty(result.Compilation.Diagnostics);
     }
 
     [Fact]
@@ -104,9 +104,9 @@ ops[2]:
       height: 8
 """);
 
-        Assert.False(result.Compilation.IsSuccess);
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.Empty(result.Compilation.Diagnostics);
         Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains(FirmamentDiagnosticCodes.SchemaCncMinimumToolRadiusViolated.Value, StringComparison.Ordinal));
-        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -210,10 +210,10 @@ ops[2]:
         var first = Compile(baseline);
         var second = Compile(withSchema);
 
-        Assert.False(first.Compilation.IsSuccess);
-        Assert.False(second.Compilation.IsSuccess);
+        Assert.True(first.Compilation.IsSuccess);
+        Assert.True(second.Compilation.IsSuccess);
         Assert.Equal(first.Compilation.Diagnostics, second.Compilation.Diagnostics);
-        Assert.Contains(first.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
+        Assert.Empty(first.Compilation.Diagnostics);
     }
 
     private static FirmamentCompileResult Compile(string source)

@@ -67,6 +67,23 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
+    public void Export_SupportedBoxCylinderHole_Exports_Deterministically_With_CylindricalSurface()
+    {
+        var first = ExportFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var second = ExportFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.StepText, second.Value.StepText);
+        Assert.Equal("hole", first.Value.ExportedFeatureId);
+        Assert.Equal(1, first.Value.ExportedOpIndex);
+        Assert.Equal("boolean", first.Value.ExportedBodyCategory);
+        Assert.Equal("subtract", first.Value.ExportedFeatureKind);
+        Assert.Contains("CYLINDRICAL_SURFACE", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Export_UnsupportedBoxWithCylinderHole_Fails_Instead_Of_Falling_Back_To_Base_Primitive()
     {
         var first = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
@@ -76,6 +93,7 @@ public sealed class FirmamentStepExporterTests
         Assert.False(second.IsSuccess);
         Assert.Equal(first.Diagnostics, second.Diagnostics);
         Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
+        Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains("strict Z-aligned through-hole subset", StringComparison.Ordinal));
         Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
     }
 

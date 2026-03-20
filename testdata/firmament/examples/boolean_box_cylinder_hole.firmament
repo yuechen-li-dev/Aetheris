@@ -2,7 +2,7 @@ firmament:
   version: 1
 
 model:
-  name: m10h1_unsupported_box_with_partial_cylinder_hole
+  name: boolean_box_cylinder_hole
   units: mm
 
 ops[2]:
@@ -21,4 +21,4 @@ ops[2]:
     with:
       op: cylinder
       radius: 4
-      height: 8
+      height: 20

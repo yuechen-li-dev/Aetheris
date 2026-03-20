@@ -269,9 +269,8 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("BrepBoolean.AnalyticHoleConstraintViolation", diagnostic.Source);
-        Assert.Contains("analytic hole candidate violates M13 constraints", diagnostic.Message, StringComparison.Ordinal);
-        Assert.Contains("cylinder axis is not aligned with the box Z axis", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal("BrepBoolean.AnalyticHole.AxisNotAligned", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic AxisNotAligned (cylinder axis is not aligned with the box Z axis.).", diagnostic.Message);
     }
 
     [Fact]
@@ -285,25 +284,38 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("BrepBoolean.AnalyticHoleConstraintViolation", diagnostic.Source);
-        Assert.Contains("analytic hole candidate violates M13 constraints", diagnostic.Message, StringComparison.Ordinal);
-        Assert.Contains("does not fully span the box Z range", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic NotFullySpanning (cylinder does not fully span the box Z range.).", diagnostic.Message);
     }
 
     [Fact]
-    public void Subtract_BoxCylinderOutsideFootprint_ReturnsDeterministicNotImplemented()
+    public void Subtract_BoxCylinderOutsideFootprint_ReturnsRadiusExceedsBoundaryDiagnostic()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
-        var outside = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(30d, 0d, 6d)));
+        var outside = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(17d, 0d, 6d)));
 
         var result = BrepBoolean.Subtract(left, outside);
 
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("BrepBoolean.AnalyticHoleConstraintViolation", diagnostic.Source);
-        Assert.Contains("analytic hole candidate violates M13 constraints", diagnostic.Message, StringComparison.Ordinal);
-        Assert.Contains("strictly inside the box XY footprint", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal("BrepBoolean.AnalyticHole.RadiusExceedsBoundary", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic RadiusExceedsBoundary (cylinder radial footprint exceeds the box XY boundary.).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Subtract_BoxCylinderTangentToBoundary_ReturnsTangentContactDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var tangent = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(16d, 0d, 6d)));
+
+        var result = BrepBoolean.Subtract(left, tangent);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.TangentContact", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic TangentContact (cylinder is tangent to the box XY boundary.).", diagnostic.Message);
     }
 
     [Fact]

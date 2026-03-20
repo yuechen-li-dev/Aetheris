@@ -16,10 +16,10 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         switch (surface.Kind)
         {
             case AnalyticSurfaceKind.Cylinder when surface.Cylinder is RecognizedCylinder cylinder:
-                if (!BrepBooleanCylinderRecognition.ValidateThroughHole(outer, cylinder, tolerance, out var reason))
+                if (!BrepBooleanCylinderRecognition.ValidateThroughHole(outer, cylinder, tolerance, out var diagnostic))
                 {
                     return KernelResult<BrepBody>.Failure([
-                        BrepBooleanCylinderRecognition.CreateConstraintViolationDiagnostic(BooleanOperation.Subtract.ToString(), reason),
+                        diagnostic!.ToKernelDiagnostic(),
                     ]);
                 }
 
@@ -28,11 +28,11 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             case AnalyticSurfaceKind.Sphere:
             case AnalyticSurfaceKind.Torus:
                 return KernelResult<BrepBody>.Failure([
-                    CreateUnsupportedAnalyticSurfaceKindDiagnostic(BooleanOperation.Subtract.ToString(), surface.Kind),
+                    BrepBooleanCylinderRecognition.CreateUnsupportedAnalyticSurfaceKindDiagnostic(BooleanOperation.Subtract.ToString(), surface.Kind).ToKernelDiagnostic(),
                 ]);
             default:
                 return KernelResult<BrepBody>.Failure([
-                    CreateUnsupportedAnalyticSurfaceKindDiagnostic(BooleanOperation.Subtract.ToString(), surface.Kind),
+                    BrepBooleanCylinderRecognition.CreateUnsupportedAnalyticSurfaceKindDiagnostic(BooleanOperation.Subtract.ToString(), surface.Kind).ToKernelDiagnostic(),
                 ]);
         }
     }
@@ -186,13 +186,6 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
     }
-
-    private static KernelDiagnostic CreateUnsupportedAnalyticSurfaceKindDiagnostic(string operation, AnalyticSurfaceKind kind)
-        => new(
-            KernelDiagnosticCode.NotImplemented,
-            KernelDiagnosticSeverity.Error,
-            $"Boolean {operation}: analytic hole surface kind '{kind}' is recognized but not implemented for M13 reconstruction.",
-            Source: "BrepBoolean.UnsupportedAnalyticSurfaceKind");
 
     private static LoopId AddLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)
     {

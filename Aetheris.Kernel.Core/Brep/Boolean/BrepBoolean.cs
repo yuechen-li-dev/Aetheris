@@ -40,7 +40,8 @@ public sealed record BooleanCaseClassification(
     AxisAlignedBoxExtents? LeftBox,
     AxisAlignedBoxExtents? RightBox,
     AnalyticSurface? RightAnalyticSurface,
-    string? UnsupportedReason);
+    string? UnsupportedReason,
+    BooleanDiagnostic? Diagnostic = null);
 
 public sealed record BooleanIntersectionData(
     BooleanAnalysis Analysis,
@@ -55,7 +56,8 @@ public sealed record BooleanClassificationData(
     int FragmentCount,
     AxisAlignedBoxExtents? SingleBoxResult,
     AnalyticSurface? AnalyticHoleSurface,
-    string? UnsupportedReason);
+    string? UnsupportedReason,
+    BooleanDiagnostic? Diagnostic = null);
 
 public sealed record BooleanRebuildData(
     BooleanClassificationData Classification,
@@ -165,12 +167,7 @@ public static class BrepBoolean
 
         if (operation == BooleanOperation.Subtract && leftRecognized && rightAnalyticRecognized)
         {
-            if (analyticSurface.Kind != AnalyticSurfaceKind.Cone
-                || (analyticSurface.Cone is RecognizedCone cone
-                    && BrepBooleanCylinderRecognition.ValidateThroughHole(leftBox, cone, resolvedTolerance, out _)))
-            {
-                return new BooleanCaseClassification(BooleanExecutionClass.PlanarWithAnalyticHole, leftBox, null, analyticSurface, null);
-            }
+            return new BooleanCaseClassification(BooleanExecutionClass.PlanarWithAnalyticHole, leftBox, null, analyticSurface, null);
         }
 
         return new BooleanCaseClassification(
@@ -229,7 +226,7 @@ public static class BrepBoolean
 
         if (analyticSurface.Kind == AnalyticSurfaceKind.Cylinder
             && analyticSurface.Cylinder is RecognizedCylinder cylinder
-            && !BrepBooleanCylinderRecognition.ValidateThroughHole(left, cylinder, tolerance, out var reason))
+            && !BrepBooleanCylinderRecognition.ValidateThroughHole(left, cylinder, tolerance, out var diagnostic))
         {
             return new BooleanClassificationData(
                 intersections,
@@ -237,7 +234,20 @@ public static class BrepBoolean
                 FragmentCount: 0,
                 SingleBoxResult: null,
                 AnalyticHoleSurface: analyticSurface,
-                UnsupportedReason: $"Boolean {operation}: analytic hole candidate violates M13 constraints ({reason}).");
+                UnsupportedReason: null,
+                Diagnostic: diagnostic);
+        }
+
+        if (analyticSurface.Kind is AnalyticSurfaceKind.Cone or AnalyticSurfaceKind.Sphere or AnalyticSurfaceKind.Torus)
+        {
+            return new BooleanClassificationData(
+                intersections,
+                IsComputed: true,
+                FragmentCount: 0,
+                SingleBoxResult: null,
+                AnalyticHoleSurface: analyticSurface,
+                UnsupportedReason: null,
+                Diagnostic: BrepBooleanCylinderRecognition.CreateUnsupportedAnalyticSurfaceKindDiagnostic(operation.ToString(), analyticSurface.Kind));
         }
 
         return new BooleanClassificationData(
@@ -329,6 +339,17 @@ public static class BrepBoolean
     {
         var operation = request.Operation;
 
+        if (classification.Diagnostic is not null)
+        {
+            return new BooleanRebuildData(
+                classification,
+                RebuiltBody: null,
+                Diagnostics:
+                [
+                    classification.Diagnostic.ToKernelDiagnostic(),
+                ]);
+        }
+
         if (classification.AnalyticHoleSurface is not null)
         {
             var tolerance = request.Tolerance ?? ToleranceContext.Default;
@@ -340,15 +361,12 @@ public static class BrepBoolean
 
         if (classification.UnsupportedReason is not null)
         {
-            var source = classification.UnsupportedReason.Contains("analytic hole candidate violates M13 constraints", StringComparison.Ordinal)
-                ? "BrepBoolean.AnalyticHoleConstraintViolation"
-                : "BrepBoolean.RebuildResult";
             return new BooleanRebuildData(
                 classification,
                 RebuiltBody: null,
                 Diagnostics:
                 [
-                    CreateNotImplemented(classification.UnsupportedReason, source: source),
+                    CreateNotImplemented(classification.UnsupportedReason, source: "BrepBoolean.RebuildResult"),
                 ]);
         }
 

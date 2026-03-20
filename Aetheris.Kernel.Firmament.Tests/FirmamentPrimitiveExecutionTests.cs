@@ -258,7 +258,7 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
         Assert.Equal(Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Contains("supports nested tool ops 'box', 'cylinder', and 'sphere' only", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("supports nested tool ops 'box', 'cylinder', 'sphere', and 'cone' only", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

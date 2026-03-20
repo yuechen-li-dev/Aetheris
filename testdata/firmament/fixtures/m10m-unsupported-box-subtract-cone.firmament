@@ -1,0 +1,25 @@
+firmament:
+  version: 1
+
+model:
+  name: m10m_unsupported_box_subtract_cone
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      30
+      12
+
+  -
+    op: subtract
+    id: tapered_cut
+    from: base
+    with:
+      op: cone
+      bottom_radius: 6
+      top_radius: 0
+      height: 20

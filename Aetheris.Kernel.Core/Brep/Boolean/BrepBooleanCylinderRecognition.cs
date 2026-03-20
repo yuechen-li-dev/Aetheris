@@ -193,6 +193,58 @@ public static class BrepBooleanCylinderRecognition
         return true;
     }
 
+    public static bool ValidateThroughHole(AxisAlignedBoxExtents box, in RecognizedCone cone, ToleranceContext tolerance, out string reason)
+    {
+        reason = string.Empty;
+
+        var axis = cone.Axis.ToVector();
+        if (!ToleranceMath.AlmostZero(axis.X, tolerance)
+            || !ToleranceMath.AlmostZero(axis.Y, tolerance)
+            || !ToleranceMath.AlmostEqual(double.Abs(axis.Z), 1d, tolerance))
+        {
+            reason = "cone axis is not aligned with the box Z axis.";
+            return false;
+        }
+
+        var minCenter = cone.MinCenter;
+        var maxCenter = cone.MaxCenter;
+        if (!ToleranceMath.AlmostEqual(minCenter.X, maxCenter.X, tolerance) || !ToleranceMath.AlmostEqual(minCenter.Y, maxCenter.Y, tolerance))
+        {
+            reason = "cone cap centers are not vertically aligned in XY.";
+            return false;
+        }
+
+        var centerX = minCenter.X;
+        var centerY = minCenter.Y;
+        var minZ = System.Math.Min(minCenter.Z, maxCenter.Z);
+        var maxZ = System.Math.Max(minCenter.Z, maxCenter.Z);
+        var maxRadius = cone.MaxRadius;
+
+        if (minZ > (box.MinZ + tolerance.Linear) || maxZ < (box.MaxZ - tolerance.Linear))
+        {
+            reason = "cone does not fully span the box Z range.";
+            return false;
+        }
+
+        if ((centerX - maxRadius) <= (box.MinX + tolerance.Linear)
+            || (centerX + maxRadius) >= (box.MaxX - tolerance.Linear)
+            || (centerY - maxRadius) <= (box.MinY + tolerance.Linear)
+            || (centerY + maxRadius) >= (box.MaxY - tolerance.Linear))
+        {
+            reason = "cone radial footprint must stay strictly inside the box XY footprint.";
+            return false;
+        }
+
+        return true;
+    }
+
+    public static KernelDiagnostic CreateConstraintViolationDiagnostic(string operation, string message)
+        => new(
+            KernelDiagnosticCode.NotImplemented,
+            KernelDiagnosticSeverity.Error,
+            $"Boolean {operation}: analytic hole candidate violates M13 constraints ({message}).",
+            Source: "BrepBoolean.AnalyticHoleConstraintViolation");
+
     public static KernelDiagnostic CreateUnsupportedThroughHoleDiagnostic(string operation, string reason)
         => new(
             KernelDiagnosticCode.NotImplemented,

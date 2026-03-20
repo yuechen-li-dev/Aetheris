@@ -269,7 +269,8 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Contains("strict Z-aligned through-hole subset", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal("BrepBoolean.AnalyticHoleConstraintViolation", diagnostic.Source);
+        Assert.Contains("analytic hole candidate violates M13 constraints", diagnostic.Message, StringComparison.Ordinal);
         Assert.Contains("cylinder axis is not aligned with the box Z axis", diagnostic.Message, StringComparison.Ordinal);
     }
 
@@ -284,7 +285,8 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Contains("strict Z-aligned through-hole subset", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal("BrepBoolean.AnalyticHoleConstraintViolation", diagnostic.Source);
+        Assert.Contains("analytic hole candidate violates M13 constraints", diagnostic.Message, StringComparison.Ordinal);
         Assert.Contains("does not fully span the box Z range", diagnostic.Message, StringComparison.Ordinal);
     }
 
@@ -299,7 +301,8 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Contains("strict Z-aligned through-hole subset", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal("BrepBoolean.AnalyticHoleConstraintViolation", diagnostic.Source);
+        Assert.Contains("analytic hole candidate violates M13 constraints", diagnostic.Message, StringComparison.Ordinal);
         Assert.Contains("strictly inside the box XY footprint", diagnostic.Message, StringComparison.Ordinal);
     }
 
@@ -343,7 +346,8 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Subtract: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole surface kind 'Sphere' is recognized but not implemented for M13 reconstruction.", diagnostic.Message);
     }
 
     [Fact]
@@ -385,7 +389,8 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Subtract: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole surface kind 'Cone' is recognized but not implemented for M13 reconstruction.", diagnostic.Message);
     }
 
     [Fact]
@@ -399,7 +404,8 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Subtract: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole surface kind 'Cone' is recognized but not implemented for M13 reconstruction.", diagnostic.Message);
     }
 
     [Fact]
@@ -428,6 +434,53 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("Boolean Intersect: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void ClassifyBooleanCase_BoxBox_IsPlanarOnly()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-2d, 2d, -2d, 2d, -2d, 2d)).Value;
+        var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-1d, 1d, -1d, 1d, -1d, 1d)).Value;
+
+        var classification = BrepBoolean.ClassifyBooleanCase(left, right, BooleanOperation.Union);
+
+        Assert.Equal(BooleanExecutionClass.PlanarOnly, classification.ExecutionClass);
+        Assert.NotNull(classification.LeftBox);
+        Assert.NotNull(classification.RightBox);
+        Assert.Null(classification.RightAnalyticSurface);
+    }
+
+    [Fact]
+    public void ClassifyBooleanCase_BoxCylinderSubtract_IsPlanarWithAnalyticHole()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(3d, -2d, 6d)));
+
+        var classification = BrepBoolean.ClassifyBooleanCase(left, right, BooleanOperation.Subtract);
+
+        Assert.Equal(BooleanExecutionClass.PlanarWithAnalyticHole, classification.ExecutionClass);
+        Assert.Equal(AnalyticSurfaceKind.Cylinder, classification.RightAnalyticSurface?.Kind);
+    }
+
+    [Theory]
+    [InlineData(AnalyticSurfaceKind.Cone)]
+    [InlineData(AnalyticSurfaceKind.Sphere)]
+    [InlineData(AnalyticSurfaceKind.Torus)]
+    public void ClassifyBooleanCase_BoxAnalyticSubtract_RoutesToAnalyticHoleClass(AnalyticSurfaceKind expectedKind)
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = expectedKind switch
+        {
+            AnalyticSurfaceKind.Cone => CreateCone(bottomRadius: 6d, topRadius: 0d, height: 20d),
+            AnalyticSurfaceKind.Sphere => TransformBody(BrepPrimitives.CreateSphere(4d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d))),
+            AnalyticSurfaceKind.Torus => TransformBody(BrepPrimitives.CreateTorus(6d, 2d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d))),
+            _ => throw new ArgumentOutOfRangeException(nameof(expectedKind)),
+        };
+
+        var classification = BrepBoolean.ClassifyBooleanCase(left, right, BooleanOperation.Subtract);
+
+        Assert.Equal(BooleanExecutionClass.PlanarWithAnalyticHole, classification.ExecutionClass);
+        Assert.Equal(expectedKind, classification.RightAnalyticSurface?.Kind);
     }
 
     [Fact]
@@ -476,7 +529,15 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal($"Boolean {operation}: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        if (operation == BooleanOperation.Subtract)
+        {
+            Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
+            Assert.Equal($"Boolean {operation}: analytic hole surface kind 'Torus' is recognized but not implemented for M13 reconstruction.", diagnostic.Message);
+        }
+        else
+        {
+            Assert.Equal($"Boolean {operation}: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        }
     }
 
     private static BrepBody CreateCone(double bottomRadius, double topRadius, double height)

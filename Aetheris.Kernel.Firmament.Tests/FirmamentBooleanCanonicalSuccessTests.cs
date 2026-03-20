@@ -108,8 +108,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             && diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' ({expectedKind}) could not be executed.", StringComparison.Ordinal));
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Code == KernelDiagnosticCode.NotImplemented
-            && (diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
-                || diagnostic.Message.Contains("strict Z-aligned through-hole subset", StringComparison.Ordinal)));
+            && HasExpectedMixedPrimitiveFailure(diagnostic.Message));
     }
 
 
@@ -127,7 +126,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             && diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' (subtract) could not be executed.", StringComparison.Ordinal));
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Code == KernelDiagnosticCode.NotImplemented
-            && diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
+            && HasExpectedMixedPrimitiveFailure(diagnostic.Message));
     }
 
     public static TheoryData<string, string, string> UnsupportedBoxTorusVariantSources =>
@@ -160,8 +159,13 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             && diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' ({expectedKind}) could not be executed.", StringComparison.Ordinal));
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Code == KernelDiagnosticCode.NotImplemented
-            && diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
+            && HasExpectedMixedPrimitiveFailure(diagnostic.Message));
     }
+
+    private static bool HasExpectedMixedPrimitiveFailure(string message)
+        => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
+           || message.Contains("analytic hole candidate violates M13 constraints", StringComparison.Ordinal)
+           || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
 
     private static string CreateBoxTorusSource(string op, string featureId, string targetField, string nameSuffix, double offsetX, double offsetY, double offsetZ, double majorRadius = 6d, double minorRadius = 2d) =>
         $"""

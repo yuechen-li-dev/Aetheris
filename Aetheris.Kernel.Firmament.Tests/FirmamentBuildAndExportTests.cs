@@ -198,6 +198,11 @@ public sealed class FirmamentBuildAndExportTests
         Assert.False(result.IsSuccess);
         Assert.False(File.Exists(expectedOutputPath));
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' ({expectedKind}) could not be executed.", StringComparison.Ordinal));
-        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal) || diagnostic.Message.Contains("strict Z-aligned through-hole subset", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, diagnostic => HasExpectedMixedPrimitiveFailure(diagnostic.Message));
     }
+
+    private static bool HasExpectedMixedPrimitiveFailure(string message)
+        => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
+           || message.Contains("analytic hole candidate violates M13 constraints", StringComparison.Ordinal)
+           || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
 }

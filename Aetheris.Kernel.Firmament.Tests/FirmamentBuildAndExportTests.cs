@@ -203,6 +203,6 @@ public sealed class FirmamentBuildAndExportTests
 
     private static bool HasExpectedMixedPrimitiveFailure(string message)
         => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
-           || message.Contains("analytic hole candidate violates M13 constraints", StringComparison.Ordinal)
+           || message.Contains("analytic hole candidate failed diagnostic", StringComparison.Ordinal)
            || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
 }

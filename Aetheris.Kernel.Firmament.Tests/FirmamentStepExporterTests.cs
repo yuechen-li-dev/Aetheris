@@ -93,7 +93,8 @@ public sealed class FirmamentStepExporterTests
         Assert.False(second.IsSuccess);
         Assert.Equal(first.Diagnostics, second.Diagnostics);
         Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
-        Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains("analytic hole candidate violates M13 constraints", StringComparison.Ordinal));
+        Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Source == "BrepBoolean.AnalyticHole.NotFullySpanning"
+            && diagnostic.Message.Contains("analytic hole candidate failed diagnostic NotFullySpanning", StringComparison.Ordinal));
         Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
     }
 
@@ -157,7 +158,7 @@ public sealed class FirmamentStepExporterTests
 
     private static bool HasExpectedMixedPrimitiveFailure(string message)
         => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
-           || message.Contains("analytic hole candidate violates M13 constraints", StringComparison.Ordinal)
+           || message.Contains("analytic hole candidate failed diagnostic", StringComparison.Ordinal)
            || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
 
     [Fact]

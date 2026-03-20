@@ -152,13 +152,13 @@ public static class BrepBooleanCylinderRecognition
             && ToleranceMath.AlmostEqual(double.Abs(axis.Z), 1d, tolerance);
     }
 
-    public static bool ValidateThroughHole(AxisAlignedBoxExtents box, in RecognizedCylinder cylinder, ToleranceContext tolerance, out string reason)
+    public static bool ValidateThroughHole(AxisAlignedBoxExtents box, in RecognizedCylinder cylinder, ToleranceContext tolerance, out BooleanDiagnostic? diagnostic)
     {
-        reason = string.Empty;
+        diagnostic = null;
 
         if (!ValidateAxisAlignedZ(cylinder, tolerance))
         {
-            reason = "cylinder axis is not aligned with the box Z axis.";
+            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), "cylinder axis is not aligned with the box Z axis.");
             return false;
         }
 
@@ -166,7 +166,7 @@ public static class BrepBooleanCylinderRecognition
         var maxCenter = cylinder.MaxCenter;
         if (!ToleranceMath.AlmostEqual(minCenter.X, maxCenter.X, tolerance) || !ToleranceMath.AlmostEqual(minCenter.Y, maxCenter.Y, tolerance))
         {
-            reason = "cylinder cap centers are not vertically aligned in XY.";
+            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), "cylinder cap centers are not vertically aligned in XY.");
             return false;
         }
 
@@ -177,16 +177,32 @@ public static class BrepBooleanCylinderRecognition
 
         if (minZ > (box.MinZ + tolerance.Linear) || maxZ < (box.MaxZ - tolerance.Linear))
         {
-            reason = "cylinder does not fully span the box Z range.";
+            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), "cylinder does not fully span the box Z range.");
             return false;
         }
 
-        if ((centerX - cylinder.Radius) <= (box.MinX + tolerance.Linear)
-            || (centerX + cylinder.Radius) >= (box.MaxX - tolerance.Linear)
-            || (centerY - cylinder.Radius) <= (box.MinY + tolerance.Linear)
-            || (centerY + cylinder.Radius) >= (box.MaxY - tolerance.Linear))
+        var minFootprintX = centerX - cylinder.Radius;
+        var maxFootprintX = centerX + cylinder.Radius;
+        var minFootprintY = centerY - cylinder.Radius;
+        var maxFootprintY = centerY + cylinder.Radius;
+
+        var tangentContact =
+            ToleranceMath.AlmostEqual(minFootprintX, box.MinX, tolerance)
+            || ToleranceMath.AlmostEqual(maxFootprintX, box.MaxX, tolerance)
+            || ToleranceMath.AlmostEqual(minFootprintY, box.MinY, tolerance)
+            || ToleranceMath.AlmostEqual(maxFootprintY, box.MaxY, tolerance);
+        if (tangentContact)
         {
-            reason = "cylinder radial footprint must stay strictly inside the box XY footprint.";
+            diagnostic = CreateTangentContactDiagnostic(BooleanOperation.Subtract.ToString(), "cylinder is tangent to the box XY boundary.");
+            return false;
+        }
+
+        if (minFootprintX < (box.MinX - tolerance.Linear)
+            || maxFootprintX > (box.MaxX + tolerance.Linear)
+            || minFootprintY < (box.MinY - tolerance.Linear)
+            || maxFootprintY > (box.MaxY + tolerance.Linear))
+        {
+            diagnostic = CreateRadiusExceedsBoundaryDiagnostic(BooleanOperation.Subtract.ToString(), "cylinder radial footprint exceeds the box XY boundary.");
             return false;
         }
 
@@ -238,17 +254,33 @@ public static class BrepBooleanCylinderRecognition
         return true;
     }
 
-    public static KernelDiagnostic CreateConstraintViolationDiagnostic(string operation, string message)
+    public static BooleanDiagnostic CreateAxisNotAlignedDiagnostic(string operation, string detail)
         => new(
-            KernelDiagnosticCode.NotImplemented,
-            KernelDiagnosticSeverity.Error,
-            $"Boolean {operation}: analytic hole candidate violates M13 constraints ({message}).",
-            Source: "BrepBoolean.AnalyticHoleConstraintViolation");
+            BooleanDiagnosticCode.AxisNotAligned,
+            $"Boolean {operation}: analytic hole candidate failed diagnostic AxisNotAligned ({detail}).",
+            "BrepBoolean.AnalyticHole.AxisNotAligned");
 
-    public static KernelDiagnostic CreateUnsupportedThroughHoleDiagnostic(string operation, string reason)
+    public static BooleanDiagnostic CreateNotFullySpanningDiagnostic(string operation, string detail)
         => new(
-            KernelDiagnosticCode.NotImplemented,
-            KernelDiagnosticSeverity.Error,
-            $"Boolean {operation}: box-cylinder subtract only supports a strict Z-aligned through-hole subset ({reason}).",
-            Source: "BrepBoolean.RebuildResult");
+            BooleanDiagnosticCode.NotFullySpanning,
+            $"Boolean {operation}: analytic hole candidate failed diagnostic NotFullySpanning ({detail}).",
+            "BrepBoolean.AnalyticHole.NotFullySpanning");
+
+    public static BooleanDiagnostic CreateRadiusExceedsBoundaryDiagnostic(string operation, string detail)
+        => new(
+            BooleanDiagnosticCode.RadiusExceedsBoundary,
+            $"Boolean {operation}: analytic hole candidate failed diagnostic RadiusExceedsBoundary ({detail}).",
+            "BrepBoolean.AnalyticHole.RadiusExceedsBoundary");
+
+    public static BooleanDiagnostic CreateTangentContactDiagnostic(string operation, string detail)
+        => new(
+            BooleanDiagnosticCode.TangentContact,
+            $"Boolean {operation}: analytic hole candidate failed diagnostic TangentContact ({detail}).",
+            "BrepBoolean.AnalyticHole.TangentContact");
+
+    public static BooleanDiagnostic CreateUnsupportedAnalyticSurfaceKindDiagnostic(string operation, AnalyticSurfaceKind kind)
+        => new(
+            BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind,
+            $"Boolean {operation}: analytic hole surface kind '{kind}' is recognized but not implemented for M13 reconstruction.",
+            "BrepBoolean.UnsupportedAnalyticSurfaceKind");
 }

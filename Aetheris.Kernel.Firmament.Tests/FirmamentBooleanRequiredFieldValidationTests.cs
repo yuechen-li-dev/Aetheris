@@ -103,12 +103,51 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             id: int1
             left: base
             with:
-              op: box
-              size[3]:
-                1
-                1
-                1
+                op: box
+                size[3]:
+                  1
+                  1
+                  1
         """);
+
+    [Fact]
+    public void Compiler_Allows_ValidTorusBooleanToolShape_Past_FieldValidation()
+    {
+        const string source = """
+        firmament:
+          version: 1
+        
+        model:
+          name: demo
+          units: mm
+        
+        ops[2]:
+          -
+            op: box
+            id: base
+            size[3]:
+              40
+              30
+              12
+          -
+            op: subtract
+            id: groove
+            from: base
+            with:
+              op: torus
+              major_radius: 10
+              minor_radius: 3
+        """;
+
+        var compiler = new FirmamentCompiler();
+        var result = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("[FIRM-STRUCT-", StringComparison.Ordinal));
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented
+            && diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
+    }
 
     [Fact]
     public void Compiler_Rejects_Add_MissingId() =>
@@ -214,6 +253,37 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             """,
             FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape,
             "Boolean op 'add' at index 0 has invalid field 'with.op'; expected a non-empty scalar/string-like value.");
+
+    [Fact]
+    public void Compiler_Rejects_TorusTool_MajorRadius_NotGreaterThan_MinorRadius() =>
+        AssertBooleanFailure(
+            """
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  40
+                  30
+                  12
+              -
+                op: add
+                id: joined
+                to: base
+                with:
+                  op: torus
+                  major_radius: 3
+                  minor_radius: 3
+            """,
+            FirmamentDiagnosticCodes.BooleanInvalidFieldValue,
+            "Boolean op 'add' at index 1 has invalid field 'with.major_radius'; expected a numeric value greater than 'with.minor_radius'.");
 
     [Fact]
     public void Compiler_Rejects_Subtract_MissingId() =>

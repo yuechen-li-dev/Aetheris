@@ -97,6 +97,11 @@ internal static class FirmamentBooleanRequiredFieldValidator
             return ValidateConeTool(entry, opIndex, withFields);
         }
 
+        if (string.Equals(withOpRaw, "torus", StringComparison.Ordinal))
+        {
+            return ValidateTorusTool(entry, opIndex, withFields);
+        }
+
         return KernelResult<bool>.Success(true);
     }
 
@@ -172,6 +177,30 @@ internal static class FirmamentBooleanRequiredFieldValidator
         if (bottomRadius > 1e-12d && topRadius > 1e-12d && double.Abs(bottomRadius - topRadius) <= 1e-12d)
         {
             return InvalidFieldValue("with.top_radius", opIndex, entry.OpName, "expected a numeric value different from 'with.bottom_radius' when both cone radii are greater than 0");
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateTorusTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
+    {
+        var majorRadiusResult = ValidatePositiveNumericWithField(entry, opIndex, withFields, "major_radius");
+        if (!majorRadiusResult.IsSuccess)
+        {
+            return majorRadiusResult;
+        }
+
+        var minorRadiusResult = ValidatePositiveNumericWithField(entry, opIndex, withFields, "minor_radius");
+        if (!minorRadiusResult.IsSuccess)
+        {
+            return minorRadiusResult;
+        }
+
+        _ = TryParseNumeric(withFields["major_radius"], out var majorRadius);
+        _ = TryParseNumeric(withFields["minor_radius"], out var minorRadius);
+        if (majorRadius <= minorRadius)
+        {
+            return InvalidFieldValue("with.major_radius", opIndex, entry.OpName, "expected a numeric value greater than 'with.minor_radius'");
         }
 
         return KernelResult<bool>.Success(true);

@@ -330,6 +330,49 @@ public sealed class BrepBooleanTests
         Assert.Equal("Boolean Intersect: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
     }
 
+
+    [Fact]
+    public void Subtract_BoxSphereFullyContained_StillReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, -6d, 6d)).Value;
+        var right = BrepPrimitives.CreateSphere(4d).Value;
+
+        var result = BrepBoolean.Subtract(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Boolean Subtract: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Union_BoxSphereOverlap_StillReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, -6d, 6d)).Value;
+        var right = BrepPrimitives.CreateSphere(4d).Value;
+
+        var result = BrepBoolean.Union(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Intersect_BoxSphereOverlap_StillReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, -6d, 6d)).Value;
+        var right = BrepPrimitives.CreateSphere(4d).Value;
+
+        var result = BrepBoolean.Intersect(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Boolean Intersect: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
     [Fact]
     public void Execute_NonBoxInput_ReturnsDeterministicNotImplementedWithoutThrowing()
     {

@@ -78,17 +78,20 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
     }
 
-    public static TheoryData<string, string, string> UnsupportedBoxCylinderBooleanFixtures =>
+    public static TheoryData<string, string, string> UnsupportedMixedPrimitiveBooleanFixtures =>
         new()
         {
             { "testdata/firmament/fixtures/m10j-unsupported-box-add-cylinder.firmament", "joined", "add" },
             { "testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament", "hole", "subtract" },
-            { "testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "overlap", "intersect" }
+            { "testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "overlap", "intersect" },
+            { "testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-contained.firmament", "cavity", "subtract" },
+            { "testdata/firmament/fixtures/m10l-unsupported-box-add-sphere.firmament", "joined", "add" },
+            { "testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "overlap", "intersect" }
         };
 
     [Theory]
-    [MemberData(nameof(UnsupportedBoxCylinderBooleanFixtures))]
-    public void BoxCylinderBooleans_Remain_Unsupported_And_Fail_Loudly(string fixturePath, string expectedFeatureId, string expectedKind)
+    [MemberData(nameof(UnsupportedMixedPrimitiveBooleanFixtures))]
+    public void MixedPrimitiveBooleans_Remain_Unsupported_And_Fail_Loudly(string fixturePath, string expectedFeatureId, string expectedKind)
     {
         var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
 
@@ -101,6 +104,24 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             diagnostic.Code == KernelDiagnosticCode.NotImplemented
             && (diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
                 || diagnostic.Message.Contains("strict Z-aligned through-hole subset", StringComparison.Ordinal)));
+    }
+
+
+    [Theory]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament", "tangent_cavity")]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "leaking_cavity")]
+    public void BoxSphereSubtract_OutsideProvenSubset_RemainsUnsupported(string fixturePath, string expectedFeatureId)
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Source == "firmament"
+            && diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' (subtract) could not be executed.", StringComparison.Ordinal));
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
     }
 
     private static Aetheris.Kernel.Core.Results.KernelResult<FirmamentStepExportResult> ExportFixture(string fixturePath) =>

@@ -97,6 +97,26 @@ public sealed class FirmamentStepExporterTests
         Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
     }
 
+
+    [Theory]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-contained.firmament", "cavity")]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament", "tangent_cavity")]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "leaking_cavity")]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-add-sphere.firmament", "joined")]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "overlap")]
+    public void Export_BoxSphereFixtures_Fail_Loudly_Without_Fallback(string fixturePath, string expectedFeatureId)
+    {
+        var first = ExportFixture(fixturePath);
+        var second = ExportFixture(fixturePath);
+
+        Assert.False(first.IsSuccess);
+        Assert.False(second.IsSuccess);
+        Assert.Equal(first.Diagnostics, second.Diagnostics);
+        Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}'", StringComparison.Ordinal));
+        Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
+        Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Export_SchemaPresent_Model_Still_Exports_With_Stable_Metadata_And_Deterministic_Text()
     {

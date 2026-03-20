@@ -270,7 +270,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.AxisNotAligned", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic AxisNotAligned (cylinder axis is not aligned with the box Z axis.).", diagnostic.Message);
+        Assert.Equal("Boolean Subtract requires the cylinder axis to be parallel to world Z; the current cylinder axis is not aligned with the box Z axis. Rotate or redefine the tool so both cylinder caps stay on a world-Z through-hole axis.", diagnostic.Message);
     }
 
     [Fact]
@@ -285,7 +285,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic NotFullySpanning (cylinder does not fully span the box Z range.).", diagnostic.Message);
+        Assert.Equal("Boolean Subtract does not reach both box boundary planes; partial-depth cylinder cuts are outside the supported safe boolean family. Extend the cylinder so it spans the full box Z range.", diagnostic.Message);
     }
 
     [Fact]
@@ -300,7 +300,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.RadiusExceedsBoundary", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic RadiusExceedsBoundary (cylinder radial footprint exceeds the box XY boundary.).", diagnostic.Message);
+        Assert.Equal("Boolean Subtract extends outside the box side-wall footprint. Reduce the cylinder radius or move the center farther inside the box XY boundary.", diagnostic.Message);
     }
 
     [Fact]
@@ -315,7 +315,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.TangentContact", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic TangentContact (cylinder is tangent to the box XY boundary.).", diagnostic.Message);
+        Assert.Equal("Boolean Subtract is tangent to a box side wall; tangent analytic-hole cases are rejected to avoid zero-thickness geometry. Move the hole inward or reduce the radius.", diagnostic.Message);
     }
 
     [Fact]
@@ -399,7 +399,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.AxisNotAligned", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic AxisNotAligned (cone axis is not aligned with the box Z axis.).", diagnostic.Message);
+        Assert.Equal("Boolean Subtract requires the cone axis to be parallel to world Z; the current cone axis is not aligned with the box Z axis. Rotate or redefine the tool so the cone reconstructs as a world-Z through-hole.", diagnostic.Message);
     }
 
     [Fact]
@@ -414,7 +414,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic NotFullySpanning (cone does not fully span the box Z range.).", diagnostic.Message);
+        Assert.Equal("Boolean Subtract does not reach both box boundary planes; partial-depth cone cuts are outside the supported safe boolean family. Extend the cone so it spans the full box Z range.", diagnostic.Message);
     }
 
     [Fact]
@@ -429,7 +429,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.RadiusExceedsBoundary", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic RadiusExceedsBoundary (cone top-plane cross-section exceeds the box XY boundary.).", diagnostic.Message);
+        Assert.Equal("Boolean Subtract has top boundary circle extending outside the box side-wall footprint. Reduce the boundary radius or move the cone center farther inside the box XY boundary.", diagnostic.Message);
     }
 
     [Fact]
@@ -444,7 +444,33 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.TangentContact", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic TangentContact (cone top-plane cross-section is tangent to the box XY boundary.).", diagnostic.Message);
+        Assert.Equal("Boolean Subtract has top boundary circle tangent to a box side wall; tangent analytic-hole cases are rejected to avoid zero-thickness geometry. Move the cone inward or reduce the boundary radius at that plane.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void ValidateThroughHole_ConeBoundarySectionDegenerates_ReturnsDegenerateBoundarySectionDiagnostic()
+    {
+        var box = new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d);
+        var cone = new RecognizedCone(
+            new Point3D(0d, 0d, 0d),
+            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            0d,
+            20d,
+            System.Math.Atan(0.5d),
+            0d,
+            10d);
+
+        var result = BrepBooleanCylinderRecognition.ValidateThroughHole(
+            box,
+            cone,
+            ToleranceContext.Default,
+            out var diagnostic);
+
+        Assert.False(result);
+        Assert.NotNull(diagnostic);
+        Assert.Equal(BooleanDiagnosticCode.DegenerateBoundarySection, diagnostic!.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.DegenerateBoundarySection", diagnostic.Source);
+        Assert.Equal("Boolean Subtract cannot produce circular sections on both box boundary planes because the apex or cone termination lands inside the box span. Move the apex outside the box span or lengthen the cone.", diagnostic.Message);
     }
 
     [Fact]
@@ -530,7 +556,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(second.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.HoleInterference", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic HoleInterference (analytic hole footprint overlaps an existing composed hole).", diagnostic.Message);
+        Assert.Equal("Boolean Subtract overlaps previously accepted hole <unknown>; overlapping safe-hole composition is not supported. Separate the hole centers or reduce one of the boundary radii.", diagnostic.Message);
     }
 
     [Fact]
@@ -549,7 +575,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(second.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.TangentContact", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic TangentContact (analytic hole footprint is tangent to an existing composed hole.).", diagnostic.Message);
+        Assert.Equal("Boolean Subtract would be tangent to previously accepted hole <unknown>; tangent safe-hole composition is rejected to avoid zero-thickness geometry.", diagnostic.Message);
     }
 
     [Fact]
@@ -593,7 +619,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole surface kind 'Sphere' is recognized but not implemented for M13 reconstruction.", diagnostic.Message);
+        Assert.Equal("Boolean Subtract does not support analytic tool surface kind 'Sphere' in the safe boolean family. Use a cylinder or cone through-hole instead.", diagnostic.Message);
     }
 
     [Fact]
@@ -748,7 +774,7 @@ public sealed class BrepBooleanTests
         if (operation == BooleanOperation.Subtract)
         {
             Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
-            Assert.Equal($"Boolean {operation}: analytic hole surface kind 'Torus' is recognized but not implemented for M13 reconstruction.", diagnostic.Message);
+            Assert.Equal($"Boolean {operation} does not support analytic tool surface kind 'Torus' in the safe boolean family. Use a cylinder or cone through-hole instead.", diagnostic.Message);
         }
         else
         {

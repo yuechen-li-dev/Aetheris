@@ -10,12 +10,13 @@ public static class BrepBooleanSafeCompositionGraphValidator
         AnalyticSurface surface,
         ToleranceContext tolerance,
         out SafeBooleanComposition updatedComposition,
-        out BooleanDiagnostic? diagnostic)
+        out BooleanDiagnostic? diagnostic,
+        string? nextFeatureId = null)
     {
         updatedComposition = composition;
         diagnostic = null;
 
-        if (!TryCreateSupportedHole(composition.OuterBox, surface, tolerance, out var nextHole, out diagnostic))
+        if (!TryCreateSupportedHole(composition.OuterBox, surface, tolerance, out var nextHole, out diagnostic, nextFeatureId))
         {
             return false;
         }
@@ -31,7 +32,8 @@ public static class BrepBooleanSafeCompositionGraphValidator
             {
                 diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(
                     BooleanOperation.Subtract.ToString(),
-                    "analytic hole footprint is tangent to an existing composed hole.");
+                    nextFeatureId,
+                    $"would be tangent to previously accepted hole {FormatFeatureRef(existingHole.FeatureId)}; tangent safe-hole composition is rejected to avoid zero-thickness geometry.");
                 return false;
             }
 
@@ -39,7 +41,10 @@ public static class BrepBooleanSafeCompositionGraphValidator
             {
                 diagnostic = new BooleanDiagnostic(
                     BooleanDiagnosticCode.HoleInterference,
-                    "Boolean Subtract: analytic hole candidate failed diagnostic HoleInterference (analytic hole footprint overlaps an existing composed hole).",
+                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                        BooleanOperation.Subtract.ToString(),
+                        nextFeatureId,
+                        $"overlaps previously accepted hole {FormatFeatureRef(existingHole.FeatureId)}; overlapping safe-hole composition is not supported. Separate the hole centers or reduce one of the boundary radii."),
                     "BrepBoolean.AnalyticHole.HoleInterference");
                 return false;
             }
@@ -57,18 +62,20 @@ public static class BrepBooleanSafeCompositionGraphValidator
         AnalyticSurface surface,
         ToleranceContext tolerance,
         out SupportedBooleanHole hole,
-        out BooleanDiagnostic? diagnostic)
+        out BooleanDiagnostic? diagnostic,
+        string? featureId)
     {
         switch (surface.Kind)
         {
             case AnalyticSurfaceKind.Cylinder when surface.Cylinder is RecognizedCylinder cylinder:
-                if (!BrepBooleanCylinderRecognition.ValidateThroughHole(outerBox, cylinder, tolerance, out diagnostic))
+                if (!BrepBooleanCylinderRecognition.ValidateThroughHole(outerBox, cylinder, tolerance, out diagnostic, featureId))
                 {
                     hole = default;
                     return false;
                 }
 
                 hole = new SupportedBooleanHole(
+                    featureId,
                     surface,
                     cylinder.MinCenter.X,
                     cylinder.MinCenter.Y,
@@ -77,7 +84,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
                 return true;
 
             case AnalyticSurfaceKind.Cone when surface.Cone is RecognizedCone cone:
-                if (!BrepBooleanCylinderRecognition.ValidateThroughHole(outerBox, cone, tolerance, out diagnostic))
+                if (!BrepBooleanCylinderRecognition.ValidateThroughHole(outerBox, cone, tolerance, out diagnostic, featureId))
                 {
                     hole = default;
                     return false;
@@ -87,6 +94,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
                 var topAxisParameter = AxisParameterAtZ(cone, outerBox.MaxZ, tolerance);
                 var boundaryBottomCenter = cone.PointAtAxisParameter(bottomAxisParameter);
                 hole = new SupportedBooleanHole(
+                    featureId,
                     surface,
                     boundaryBottomCenter.X,
                     boundaryBottomCenter.Y,
@@ -99,7 +107,8 @@ public static class BrepBooleanSafeCompositionGraphValidator
             default:
                 diagnostic = BrepBooleanCylinderRecognition.CreateUnsupportedAnalyticSurfaceKindDiagnostic(
                     BooleanOperation.Subtract.ToString(),
-                    surface.Kind);
+                    surface.Kind,
+                    featureId);
                 hole = default;
                 return false;
         }
@@ -115,4 +124,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
 
         return (z - cone.AxisOrigin.Z) / axisZ;
     }
+
+    private static string FormatFeatureRef(string? featureId)
+        => string.IsNullOrWhiteSpace(featureId) ? "<unknown>" : $"'{featureId}'";
 }

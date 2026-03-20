@@ -278,7 +278,7 @@ public sealed class FirmamentPrimitiveExecutionTests
             diagnostic.Code == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented
             && (diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
                 || diagnostic.Message.Contains("analytic hole surface kind", StringComparison.Ordinal)
-                || diagnostic.Message.Contains("analytic hole candidate failed diagnostic", StringComparison.Ordinal)));
+                || diagnostic.Message.Contains("Boolean feature", StringComparison.Ordinal)));
     }
 
     [Fact]

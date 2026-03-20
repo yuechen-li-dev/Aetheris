@@ -6,6 +6,7 @@ public enum BooleanDiagnosticCode
 {
     AxisNotAligned,
     NotFullySpanning,
+    DegenerateBoundarySection,
     RadiusExceedsBoundary,
     TangentContact,
     MultiBodyResult,

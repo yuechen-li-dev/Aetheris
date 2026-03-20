@@ -23,7 +23,10 @@ internal static class FirmamentPlacementResolver
         if (!anchorResult.IsSuccess) return KernelResult<Vector3D>.Failure(anchorResult.Diagnostics);
 
         var o = primitive.Placement.Offset;
-        return KernelResult<Vector3D>.Success((anchorResult.Value - Point3D.Origin) + new Vector3D(o[0], o[1], o[2]));
+        return KernelResult<Vector3D>.Success(
+            (anchorResult.Value - Point3D.Origin)
+            + ResolvePrimitivePlacementLocalFrameCorrection(primitive)
+            + new Vector3D(o[0], o[1], o[2]));
     }
 
     public static KernelResult<Vector3D> ResolvePlacementTranslation(FirmamentLoweredBoolean booleanOp, IReadOnlyDictionary<string, BrepBody> featureBodies)
@@ -35,6 +38,16 @@ internal static class FirmamentPlacementResolver
 
         var o = booleanOp.Placement.Offset;
         return KernelResult<Vector3D>.Success((anchorResult.Value - Point3D.Origin) + new Vector3D(o[0], o[1], o[2]));
+    }
+
+    private static Vector3D ResolvePrimitivePlacementLocalFrameCorrection(FirmamentLoweredPrimitive primitive)
+    {
+        return primitive.Kind switch
+        {
+            FirmamentLoweredPrimitiveKind.Sphere => new Vector3D(0d, 0d, ((FirmamentLoweredSphereParameters)primitive.Parameters).Radius),
+            FirmamentLoweredPrimitiveKind.Torus => new Vector3D(0d, 0d, ((FirmamentLoweredTorusParameters)primitive.Parameters).MinorRadius),
+            _ => Vector3D.Zero
+        };
     }
 
     private static KernelResult<Point3D> ResolveAnchorPoint(FirmamentLoweredPlacementAnchor anchor, IReadOnlyDictionary<string, BrepBody> featureBodies)

@@ -13,6 +13,9 @@ public sealed class FirmamentExamplePackSmokeTests
         "testdata/firmament/examples/sphere_basic.firmament",
         "testdata/firmament/examples/torus_basic.firmament",
         "testdata/firmament/examples/box_add_basic.firmament",
+        "testdata/firmament/examples/boolean_add_basic.firmament",
+        "testdata/firmament/examples/boolean_subtract_basic.firmament",
+        "testdata/firmament/examples/boolean_intersect_basic.firmament",
         "testdata/firmament/examples/placed_primitive.firmament",
         "testdata/firmament/examples/schema_box_basic.firmament"
     ];
@@ -39,6 +42,9 @@ public sealed class FirmamentExamplePackSmokeTests
     [InlineData("testdata/firmament/examples/sphere_basic.firmament", "ball", 0, "primitive", "sphere")]
     [InlineData("testdata/firmament/examples/torus_basic.firmament", "donut1", 0, "primitive", "torus")]
     [InlineData("testdata/firmament/examples/box_add_basic.firmament", "joined", 1, "boolean", "add")]
+    [InlineData("testdata/firmament/examples/boolean_add_basic.firmament", "joined", 2, "boolean", "add")]
+    [InlineData("testdata/firmament/examples/boolean_subtract_basic.firmament", "carved", 2, "boolean", "subtract")]
+    [InlineData("testdata/firmament/examples/boolean_intersect_basic.firmament", "overlap", 2, "boolean", "intersect")]
     [InlineData("testdata/firmament/examples/placed_primitive.firmament", "post", 1, "primitive", "cylinder")]
     [InlineData("testdata/firmament/examples/schema_box_basic.firmament", "schema_box", 0, "primitive", "box")]
     public void ExamplePack_GoldenPath_Examples_Export(string fixturePath, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)

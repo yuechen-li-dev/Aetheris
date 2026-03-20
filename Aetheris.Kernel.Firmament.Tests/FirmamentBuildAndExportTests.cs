@@ -90,6 +90,42 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_BooleanAddBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_add_basic.firmament",
+            "boolean_add_basic.step",
+            "joined",
+            2,
+            "boolean",
+            "add");
+    }
+
+    [Fact]
+    public void Run_BooleanSubtractBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_subtract_basic.firmament",
+            "boolean_subtract_basic.step",
+            "carved",
+            2,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_BooleanIntersectBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_intersect_basic.firmament",
+            "boolean_intersect_basic.step",
+            "overlap",
+            2,
+            "boolean",
+            "intersect");
+    }
+
+    [Fact]
     public void Run_UnsupportedBoxWithCylinderHoleFixture_Fails_And_Does_Not_Write_Fallback_Export()
     {
         var sourcePath = "testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament";

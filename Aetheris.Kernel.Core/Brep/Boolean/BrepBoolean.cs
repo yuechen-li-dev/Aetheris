@@ -238,7 +238,21 @@ public static class BrepBoolean
                 Diagnostic: diagnostic);
         }
 
-        if (analyticSurface.Kind is AnalyticSurfaceKind.Cone or AnalyticSurfaceKind.Sphere or AnalyticSurfaceKind.Torus)
+        if (analyticSurface.Kind == AnalyticSurfaceKind.Cone
+            && analyticSurface.Cone is RecognizedCone cone
+            && !BrepBooleanCylinderRecognition.ValidateThroughHole(left, cone, tolerance, out var coneDiagnostic))
+        {
+            return new BooleanClassificationData(
+                intersections,
+                IsComputed: true,
+                FragmentCount: 0,
+                SingleBoxResult: null,
+                AnalyticHoleSurface: analyticSurface,
+                UnsupportedReason: null,
+                Diagnostic: coneDiagnostic);
+        }
+
+        if (analyticSurface.Kind is AnalyticSurfaceKind.Sphere or AnalyticSurfaceKind.Torus)
         {
             return new BooleanClassificationData(
                 intersections,

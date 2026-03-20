@@ -11,7 +11,8 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             { "testdata/firmament/examples/boolean_add_basic.firmament", "joined", FirmamentLoweredBooleanKind.Add },
             { "testdata/firmament/examples/boolean_subtract_basic.firmament", "carved", FirmamentLoweredBooleanKind.Subtract },
             { "testdata/firmament/examples/boolean_intersect_basic.firmament", "overlap", FirmamentLoweredBooleanKind.Intersect },
-            { "testdata/firmament/examples/boolean_box_cylinder_hole.firmament", "hole", FirmamentLoweredBooleanKind.Subtract }
+            { "testdata/firmament/examples/boolean_box_cylinder_hole.firmament", "hole", FirmamentLoweredBooleanKind.Subtract },
+            { "testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament", "cut", FirmamentLoweredBooleanKind.Subtract }
         };
 
     [Theory]
@@ -36,6 +37,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     [InlineData("testdata/firmament/examples/boolean_subtract_basic.firmament", "carved", 2, "subtract")]
     [InlineData("testdata/firmament/examples/boolean_intersect_basic.firmament", "overlap", 2, "intersect")]
     [InlineData("testdata/firmament/examples/boolean_box_cylinder_hole.firmament", "hole", 1, "subtract")]
+    [InlineData("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament", "cut", 1, "subtract")]
     public void CanonicalBooleanExamples_Export_Deterministically_WithExpectedMarkers(string fixturePath, string expectedFeatureId, int expectedOpIndex, string expectedKind)
     {
         var first = ExportFixture(fixturePath);
@@ -60,7 +62,9 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
         var unsupportedSingleBoxSubtract = FirmamentCorpusHarness.Compile(
             FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m3d-valid-subtract-exec.firmament"));
         var supportedCylinderHoleExport = ExportFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var supportedConeHoleExport = ExportFixture("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament");
         var unsupportedCylinderHoleExport = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
+        var unsupportedConeHoleExport = ExportFixture("testdata/firmament/fixtures/m10m-unsupported-box-subtract-cone.firmament");
 
         Assert.False(unsupportedSingleBoxSubtract.Compilation.IsSuccess);
         Assert.Contains(unsupportedSingleBoxSubtract.Compilation.Diagnostics, diagnostic =>
@@ -70,11 +74,21 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
         Assert.True(supportedCylinderHoleExport.IsSuccess);
         Assert.Contains("CYLINDRICAL_SURFACE", supportedCylinderHoleExport.Value.StepText, StringComparison.Ordinal);
 
+        Assert.True(supportedConeHoleExport.IsSuccess);
+        Assert.Contains("CONICAL_SURFACE", supportedConeHoleExport.Value.StepText, StringComparison.Ordinal);
+
         Assert.False(unsupportedCylinderHoleExport.IsSuccess);
         Assert.Contains(unsupportedCylinderHoleExport.Diagnostics, diagnostic =>
             diagnostic.Code == KernelDiagnosticCode.NotImplemented
             && diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
         Assert.DoesNotContain(unsupportedCylinderHoleExport.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
+
+        Assert.False(unsupportedConeHoleExport.IsSuccess);
+        Assert.Contains(unsupportedConeHoleExport.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Message.Contains("Requested boolean feature 'tapered_cut' (subtract) could not be executed.", StringComparison.Ordinal));
+        Assert.DoesNotContain(unsupportedConeHoleExport.Diagnostics, diagnostic =>
             diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
     }
 
@@ -164,7 +178,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
 
     private static bool HasExpectedMixedPrimitiveFailure(string message)
         => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
-           || message.Contains("analytic hole candidate violates M13 constraints", StringComparison.Ordinal)
+           || message.Contains("analytic hole candidate failed diagnostic", StringComparison.Ordinal)
            || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
 
     private static string CreateBoxTorusSource(string op, string featureId, string targetField, string nameSuffix, double offsetX, double offsetY, double offsetZ, double majorRadius = 6d, double minorRadius = 2d) =>

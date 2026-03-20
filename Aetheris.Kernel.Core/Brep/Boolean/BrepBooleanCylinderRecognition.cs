@@ -209,16 +209,16 @@ public static class BrepBooleanCylinderRecognition
         return true;
     }
 
-    public static bool ValidateThroughHole(AxisAlignedBoxExtents box, in RecognizedCone cone, ToleranceContext tolerance, out string reason)
+    public static bool ValidateThroughHole(AxisAlignedBoxExtents box, in RecognizedCone cone, ToleranceContext tolerance, out BooleanDiagnostic? diagnostic)
     {
-        reason = string.Empty;
+        diagnostic = null;
 
         var axis = cone.Axis.ToVector();
         if (!ToleranceMath.AlmostZero(axis.X, tolerance)
             || !ToleranceMath.AlmostZero(axis.Y, tolerance)
             || !ToleranceMath.AlmostEqual(double.Abs(axis.Z), 1d, tolerance))
         {
-            reason = "cone axis is not aligned with the box Z axis.";
+            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), "cone axis is not aligned with the box Z axis.");
             return false;
         }
 
@@ -226,28 +226,92 @@ public static class BrepBooleanCylinderRecognition
         var maxCenter = cone.MaxCenter;
         if (!ToleranceMath.AlmostEqual(minCenter.X, maxCenter.X, tolerance) || !ToleranceMath.AlmostEqual(minCenter.Y, maxCenter.Y, tolerance))
         {
-            reason = "cone cap centers are not vertically aligned in XY.";
+            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), "cone cap centers are not vertically aligned in XY.");
             return false;
         }
 
-        var centerX = minCenter.X;
-        var centerY = minCenter.Y;
-        var minZ = System.Math.Min(minCenter.Z, maxCenter.Z);
-        var maxZ = System.Math.Max(minCenter.Z, maxCenter.Z);
-        var maxRadius = cone.MaxRadius;
+        var bottomAxisParameter = AxisParameterAtZ(cone, box.MinZ, tolerance);
+        var topAxisParameter = AxisParameterAtZ(cone, box.MaxZ, tolerance);
 
-        if (minZ > (box.MinZ + tolerance.Linear) || maxZ < (box.MaxZ - tolerance.Linear))
+        if (bottomAxisParameter < (cone.MinAxisParameter - tolerance.Linear)
+            || bottomAxisParameter > (cone.MaxAxisParameter + tolerance.Linear)
+            || topAxisParameter < (cone.MinAxisParameter - tolerance.Linear)
+            || topAxisParameter > (cone.MaxAxisParameter + tolerance.Linear))
         {
-            reason = "cone does not fully span the box Z range.";
+            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), "cone does not fully span the box Z range.");
             return false;
         }
 
-        if ((centerX - maxRadius) <= (box.MinX + tolerance.Linear)
-            || (centerX + maxRadius) >= (box.MaxX - tolerance.Linear)
-            || (centerY - maxRadius) <= (box.MinY + tolerance.Linear)
-            || (centerY + maxRadius) >= (box.MaxY - tolerance.Linear))
+        if (bottomAxisParameter <= tolerance.Linear || topAxisParameter <= tolerance.Linear)
         {
-            reason = "cone radial footprint must stay strictly inside the box XY footprint.";
+            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), "cone apex or termination prevents circular through-hole sections at both box Z boundary planes.");
+            return false;
+        }
+
+        var centerX = cone.AxisOrigin.X;
+        var centerY = cone.AxisOrigin.Y;
+        var bottomRadius = cone.RadiusAtAxisParameter(bottomAxisParameter);
+        var topRadius = cone.RadiusAtAxisParameter(topAxisParameter);
+
+        if (bottomRadius <= tolerance.Linear || topRadius <= tolerance.Linear)
+        {
+            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), "cone cross-sections at the box Z boundary planes must be non-degenerate circles.");
+            return false;
+        }
+
+        if (!ValidateCircleInsideBoxFootprint(box, centerX, centerY, bottomRadius, tolerance, out diagnostic, "cone bottom-plane cross-section")
+            || !ValidateCircleInsideBoxFootprint(box, centerX, centerY, topRadius, tolerance, out diagnostic, "cone top-plane cross-section"))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static double AxisParameterAtZ(in RecognizedCone cone, double z, ToleranceContext tolerance)
+    {
+        var axisZ = cone.Axis.ToVector().Z;
+        if (ToleranceMath.AlmostZero(axisZ, tolerance))
+        {
+            throw new InvalidOperationException("AxisParameterAtZ requires a cone axis aligned with Z.");
+        }
+
+        return (z - cone.AxisOrigin.Z) / axisZ;
+    }
+
+    private static bool ValidateCircleInsideBoxFootprint(
+        AxisAlignedBoxExtents box,
+        double centerX,
+        double centerY,
+        double radius,
+        ToleranceContext tolerance,
+        out BooleanDiagnostic? diagnostic,
+        string circleLabel)
+    {
+        diagnostic = null;
+
+        var minFootprintX = centerX - radius;
+        var maxFootprintX = centerX + radius;
+        var minFootprintY = centerY - radius;
+        var maxFootprintY = centerY + radius;
+
+        var tangentContact =
+            ToleranceMath.AlmostEqual(minFootprintX, box.MinX, tolerance)
+            || ToleranceMath.AlmostEqual(maxFootprintX, box.MaxX, tolerance)
+            || ToleranceMath.AlmostEqual(minFootprintY, box.MinY, tolerance)
+            || ToleranceMath.AlmostEqual(maxFootprintY, box.MaxY, tolerance);
+        if (tangentContact)
+        {
+            diagnostic = CreateTangentContactDiagnostic(BooleanOperation.Subtract.ToString(), $"{circleLabel} is tangent to the box XY boundary.");
+            return false;
+        }
+
+        if (minFootprintX < (box.MinX - tolerance.Linear)
+            || maxFootprintX > (box.MaxX + tolerance.Linear)
+            || minFootprintY < (box.MinY - tolerance.Linear)
+            || maxFootprintY > (box.MaxY + tolerance.Linear))
+        {
+            diagnostic = CreateRadiusExceedsBoundaryDiagnostic(BooleanOperation.Subtract.ToString(), $"{circleLabel} exceeds the box XY boundary.");
             return false;
         }
 

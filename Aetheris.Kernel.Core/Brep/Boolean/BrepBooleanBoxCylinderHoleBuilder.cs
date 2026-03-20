@@ -24,7 +24,15 @@ public static class BrepBooleanBoxCylinderHoleBuilder
                 }
 
                 return CreateThroughHoleBody(outer, cylinder);
-            case AnalyticSurfaceKind.Cone:
+            case AnalyticSurfaceKind.Cone when surface.Cone is RecognizedCone cone:
+                if (!BrepBooleanCylinderRecognition.ValidateThroughHole(outer, cone, tolerance, out var coneDiagnostic))
+                {
+                    return KernelResult<BrepBody>.Failure([
+                        coneDiagnostic!.ToKernelDiagnostic(),
+                    ]);
+                }
+
+                return CreateThroughHoleBody(outer, cone);
             case AnalyticSurfaceKind.Sphere:
             case AnalyticSurfaceKind.Torus:
                 return KernelResult<BrepBody>.Failure([
@@ -185,6 +193,169 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         return validation.IsSuccess
             ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
+    }
+
+    private static KernelResult<BrepBody> CreateThroughHoleBody(AxisAlignedBoxExtents box, in RecognizedCone cone)
+    {
+        var builder = new TopologyBuilder();
+
+        var v1 = builder.AddVertex();
+        var v2 = builder.AddVertex();
+        var v3 = builder.AddVertex();
+        var v4 = builder.AddVertex();
+        var v5 = builder.AddVertex();
+        var v6 = builder.AddVertex();
+        var v7 = builder.AddVertex();
+        var v8 = builder.AddVertex();
+        var topHoleVertex = builder.AddVertex();
+        var bottomHoleVertex = builder.AddVertex();
+        var seamTopVertex = builder.AddVertex();
+        var seamBottomVertex = builder.AddVertex();
+
+        var e1 = builder.AddEdge(v1, v2);
+        var e2 = builder.AddEdge(v2, v3);
+        var e3 = builder.AddEdge(v3, v4);
+        var e4 = builder.AddEdge(v4, v1);
+        var e5 = builder.AddEdge(v5, v6);
+        var e6 = builder.AddEdge(v6, v7);
+        var e7 = builder.AddEdge(v7, v8);
+        var e8 = builder.AddEdge(v8, v5);
+        var e9 = builder.AddEdge(v1, v5);
+        var e10 = builder.AddEdge(v2, v6);
+        var e11 = builder.AddEdge(v3, v7);
+        var e12 = builder.AddEdge(v4, v8);
+        var topCircle = builder.AddEdge(topHoleVertex, topHoleVertex);
+        var bottomCircle = builder.AddEdge(bottomHoleVertex, bottomHoleVertex);
+        var seam = builder.AddEdge(seamTopVertex, seamBottomVertex);
+
+        var bottomOuterLoop = AddLoop(builder, [Forward(e1), Forward(e2), Forward(e3), Forward(e4)]);
+        var topOuterLoop = AddLoop(builder, [Forward(e5), Forward(e6), Forward(e7), Forward(e8)]);
+        var topInnerLoop = AddLoop(builder, [Forward(topCircle)]);
+        var bottomInnerLoop = AddLoop(builder, [Reversed(bottomCircle)]);
+        var bottomFace = builder.AddFace([bottomOuterLoop, bottomInnerLoop]);
+        var topFace = builder.AddFace([topOuterLoop, topInnerLoop]);
+
+        var xMinFace = builder.AddFace([AddLoop(builder, [Forward(e1), Forward(e10), Reversed(e5), Reversed(e9)])]);
+        var xMaxFace = builder.AddFace([AddLoop(builder, [Forward(e2), Forward(e11), Reversed(e6), Reversed(e10)])]);
+        var yMaxFace = builder.AddFace([AddLoop(builder, [Forward(e3), Forward(e12), Reversed(e7), Reversed(e11)])]);
+        var yMinFace = builder.AddFace([AddLoop(builder, [Forward(e4), Forward(e9), Reversed(e8), Reversed(e12)])]);
+        var holeFace = builder.AddFace([AddLoop(builder, [Forward(seam), Reversed(topCircle), Reversed(seam), Forward(bottomCircle)])]);
+
+        var shell = builder.AddShell([bottomFace, topFace, xMinFace, xMaxFace, yMaxFace, yMinFace, holeFace]);
+        builder.AddBody([shell]);
+
+        var geometry = new BrepGeometryStore();
+        var width = box.MaxX - box.MinX;
+        var depth = box.MaxY - box.MinY;
+        var height = box.MaxZ - box.MinZ;
+
+        var p1 = new Point3D(box.MinX, box.MinY, box.MinZ);
+        var p2 = new Point3D(box.MaxX, box.MinY, box.MinZ);
+        var p3 = new Point3D(box.MaxX, box.MaxY, box.MinZ);
+        var p4 = new Point3D(box.MinX, box.MaxY, box.MinZ);
+        var p5 = new Point3D(box.MinX, box.MinY, box.MaxZ);
+        var p6 = new Point3D(box.MaxX, box.MinY, box.MaxZ);
+        var p7 = new Point3D(box.MaxX, box.MaxY, box.MaxZ);
+        var p8 = new Point3D(box.MinX, box.MaxY, box.MaxZ);
+
+        var zAxis = Direction3D.Create(new Vector3D(0d, 0d, 1d));
+        var xAxis = Direction3D.Create(new Vector3D(1d, 0d, 0d));
+        var yAxis = Direction3D.Create(new Vector3D(0d, 1d, 0d));
+
+        var bottomAxisParameter = AxisParameterAtZ(cone, box.MinZ);
+        var topAxisParameter = AxisParameterAtZ(cone, box.MaxZ);
+        var bottomCenter = cone.PointAtAxisParameter(bottomAxisParameter);
+        var topCenter = cone.PointAtAxisParameter(topAxisParameter);
+        var bottomRadius = cone.RadiusAtAxisParameter(bottomAxisParameter);
+        var topRadius = cone.RadiusAtAxisParameter(topAxisParameter);
+        var seamBottomPoint = new Point3D(bottomCenter.X + bottomRadius, bottomCenter.Y, bottomCenter.Z);
+        var seamTopPoint = new Point3D(topCenter.X + topRadius, topCenter.Y, topCenter.Z);
+
+        var lineCurves = new[]
+        {
+            (p1, new Vector3D(width, 0d, 0d)),
+            (p2, new Vector3D(0d, depth, 0d)),
+            (p3, new Vector3D(-width, 0d, 0d)),
+            (p4, new Vector3D(0d, -depth, 0d)),
+            (p5, new Vector3D(width, 0d, 0d)),
+            (p6, new Vector3D(0d, depth, 0d)),
+            (p7, new Vector3D(-width, 0d, 0d)),
+            (p8, new Vector3D(0d, -depth, 0d)),
+            (p1, new Vector3D(0d, 0d, height)),
+            (p2, new Vector3D(0d, 0d, height)),
+            (p3, new Vector3D(0d, 0d, height)),
+            (p4, new Vector3D(0d, 0d, height)),
+            (topCenter, zAxis.ToVector()),
+            (bottomCenter, zAxis.ToVector()),
+            (seamTopPoint, seamBottomPoint - seamTopPoint),
+        };
+
+        for (var i = 0; i < 12; i++)
+        {
+            geometry.AddCurve(new CurveGeometryId(i + 1), CurveGeometry.FromLine(new Line3Curve(lineCurves[i].Item1, Direction3D.Create(lineCurves[i].Item2))));
+        }
+
+        geometry.AddCurve(new CurveGeometryId(13), CurveGeometry.FromCircle(new Circle3Curve(topCenter, zAxis, topRadius, xAxis)));
+        geometry.AddCurve(new CurveGeometryId(14), CurveGeometry.FromCircle(new Circle3Curve(bottomCenter, zAxis, bottomRadius, xAxis)));
+        geometry.AddCurve(new CurveGeometryId(15), CurveGeometry.FromLine(new Line3Curve(seamTopPoint, Direction3D.Create(lineCurves[14].Item2))));
+
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, box.MinZ), Direction3D.Create(new Vector3D(0d, 0d, -1d)), xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(2), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, box.MaxZ), zAxis, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(3), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, box.MinY, 0d), Direction3D.Create(new Vector3D(0d, -1d, 0d)), xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(4), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(box.MaxX, 0d, 0d), Direction3D.Create(new Vector3D(1d, 0d, 0d)), yAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(5), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, box.MaxY, 0d), Direction3D.Create(new Vector3D(0d, 1d, 0d)), Direction3D.Create(new Vector3D(-1d, 0d, 0d)))));
+        geometry.AddSurface(new SurfaceGeometryId(6), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(box.MinX, 0d, 0d), Direction3D.Create(new Vector3D(-1d, 0d, 0d)), yAxis)));
+
+        var innerMinAxisParameter = System.Math.Min(bottomAxisParameter, topAxisParameter);
+        var innerMinCenter = cone.PointAtAxisParameter(innerMinAxisParameter);
+        var innerMinRadius = cone.RadiusAtAxisParameter(innerMinAxisParameter);
+        geometry.AddSurface(new SurfaceGeometryId(7), SurfaceGeometry.FromCone(new ConeSurface(innerMinCenter, cone.Axis, innerMinRadius, cone.SemiAngleRadians, xAxis)));
+
+        var bindings = new BrepBindingModel();
+        for (var i = 0; i < 12; i++)
+        {
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(new EdgeId(i + 1), new CurveGeometryId(i + 1), new ParameterInterval(0d, 1d)));
+        }
+
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(topCircle, new CurveGeometryId(13), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(bottomCircle, new CurveGeometryId(14), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(seam, new CurveGeometryId(15), new ParameterInterval(0d, (seamBottomPoint - seamTopPoint).Length)));
+
+        bindings.AddFaceBinding(new FaceGeometryBinding(bottomFace, new SurfaceGeometryId(1)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(topFace, new SurfaceGeometryId(2)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(xMinFace, new SurfaceGeometryId(3)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(xMaxFace, new SurfaceGeometryId(4)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(yMaxFace, new SurfaceGeometryId(5)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(yMinFace, new SurfaceGeometryId(6)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(holeFace, new SurfaceGeometryId(7)));
+
+        var vertexPoints = new Dictionary<VertexId, Point3D>
+        {
+            [v1] = p1,
+            [v2] = p2,
+            [v3] = p3,
+            [v4] = p4,
+            [v5] = p5,
+            [v6] = p6,
+            [v7] = p7,
+            [v8] = p8,
+            [topHoleVertex] = seamTopPoint,
+            [bottomHoleVertex] = seamBottomPoint,
+            [seamTopVertex] = seamTopPoint,
+            [seamBottomVertex] = seamBottomPoint,
+        };
+
+        var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints);
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        return validation.IsSuccess
+            ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
+            : KernelResult<BrepBody>.Failure(validation.Diagnostics);
+    }
+
+    private static double AxisParameterAtZ(in RecognizedCone cone, double z)
+    {
+        var axisZ = cone.Axis.ToVector().Z;
+        return (z - cone.AxisOrigin.Z) / axisZ;
     }
 
     private static LoopId AddLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)

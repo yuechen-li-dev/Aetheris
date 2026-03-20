@@ -84,6 +84,27 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
+    public void Export_SupportedBoxConeThroughHole_Exports_Deterministically_With_ConicalSurface_And_Persisted_Artifact()
+    {
+        var first = ExportFixture("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament");
+        var second = ExportFixture("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament");
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.StepText, second.Value.StepText);
+        Assert.Equal("cut", first.Value.ExportedFeatureId);
+        Assert.Equal(1, first.Value.ExportedOpIndex);
+        Assert.Equal("boolean", first.Value.ExportedBodyCategory);
+        Assert.Equal("subtract", first.Value.ExportedFeatureKind);
+        Assert.Contains("CONICAL_SURFACE", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.StepText, StringComparison.Ordinal);
+
+        var artifactPath = WriteExportArtifact("boolean_box_cone_throughhole_basic.step", first.Value.StepText);
+        Assert.True(File.Exists(artifactPath));
+        Assert.Equal(first.Value.StepText, File.ReadAllText(artifactPath));
+    }
+
+    [Fact]
     public void Export_UnsupportedBoxWithCylinderHole_Fails_Instead_Of_Falling_Back_To_Base_Primitive()
     {
         var first = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");

@@ -319,6 +319,135 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_BoxFrustumConeThroughHole_Returns_ManifoldBodyWithConicalHole()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = CreateCone(bottomRadius: 4d, topRadius: 8d, height: 20d);
+
+        var result = BrepBoolean.Subtract(left, right);
+
+        Assert.True(result.IsSuccess);
+        var body = result.Value;
+        Assert.Single(body.Topology.Bodies);
+        Assert.Single(body.Topology.Shells);
+        Assert.Equal(7, body.Topology.Faces.Count());
+        Assert.Equal(15, body.Topology.Edges.Count());
+        Assert.Equal(12, body.Topology.Vertices.Count());
+        Assert.True(BrepBindingValidator.Validate(body, true).IsSuccess);
+
+        var conicalFace = Assert.Single(body.Topology.Faces, face =>
+            body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Cone);
+        Assert.Single(body.GetLoopIds(conicalFace.Id));
+
+        var topFace = Assert.Single(body.Topology.Faces, face =>
+            body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Plane
+            && surface.Plane!.Value.Normal.Z > 0.5d);
+        Assert.Equal(2, body.GetLoopIds(topFace.Id).Count);
+
+        var bottomFace = Assert.Single(body.Topology.Faces, face =>
+            body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Plane
+            && surface.Plane!.Value.Normal.Z < -0.5d);
+        Assert.Equal(2, body.GetLoopIds(bottomFace.Id).Count);
+    }
+
+    [Fact]
+    public void Subtract_BoxPointedConeThroughHole_Exports_And_RoundTrips_Deterministically()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = CreateCone(bottomRadius: 6d, topRadius: 0d, height: 20d);
+
+        var first = BrepBoolean.Subtract(left, right);
+        var second = BrepBoolean.Subtract(left, right);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(7, first.Value.Topology.Faces.Count());
+        Assert.Contains(first.Value.Topology.Faces, face =>
+            first.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Cone);
+
+        var firstExport = Step242Exporter.ExportBody(first.Value);
+        var secondExport = Step242Exporter.ExportBody(second.Value);
+        Assert.True(firstExport.IsSuccess);
+        Assert.True(secondExport.IsSuccess);
+        Assert.Equal(firstExport.Value, secondExport.Value);
+        Assert.Contains("MANIFOLD_SOLID_BREP", firstExport.Value, StringComparison.Ordinal);
+        Assert.Contains("CONICAL_SURFACE", firstExport.Value, StringComparison.Ordinal);
+        Assert.Contains("FACE_BOUND('',", firstExport.Value, StringComparison.Ordinal);
+        Assert.Contains("FACE_OUTER_BOUND('',", firstExport.Value, StringComparison.Ordinal);
+
+        var import = Step242Importer.ImportBody(firstExport.Value);
+        Assert.True(import.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(import.Value, true).IsSuccess);
+        Assert.Contains(import.Value.Topology.Faces, face =>
+            import.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Cone);
+    }
+
+    [Fact]
+    public void Subtract_BoxConeRotatedAxis_ReturnsAxisNotAlignedDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var rotated = TransformBody(CreateCone(bottomRadius: 4d, topRadius: 8d, height: 20d), Transform3D.CreateRotationX(System.Math.PI / 2d));
+
+        var result = BrepBoolean.Subtract(left, rotated);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.AxisNotAligned", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic AxisNotAligned (cone axis is not aligned with the box Z axis.).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Subtract_BoxConePartialHeight_ReturnsNotFullySpanningDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var partial = CreateCone(bottomRadius: 4d, topRadius: 2d, height: 8d);
+
+        var result = BrepBoolean.Subtract(left, partial);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic NotFullySpanning (cone does not fully span the box Z range.).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Subtract_BoxConeOutsideFootprint_ReturnsRadiusExceedsBoundaryDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var outside = TransformBody(CreateCone(bottomRadius: 4d, topRadius: 8d, height: 20d), Transform3D.CreateTranslation(new Vector3D(13.7d, 0d, 0d)));
+
+        var result = BrepBoolean.Subtract(left, outside);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.RadiusExceedsBoundary", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic RadiusExceedsBoundary (cone top-plane cross-section exceeds the box XY boundary.).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Subtract_BoxConeTangentToBoundary_ReturnsTangentContactDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var tangent = TransformBody(CreateCone(bottomRadius: 4d, topRadius: 8d, height: 20d), Transform3D.CreateTranslation(new Vector3D(13.6d, 0d, 0d)));
+
+        var result = BrepBoolean.Subtract(left, tangent);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.TangentContact", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic TangentContact (cone top-plane cross-section is tangent to the box XY boundary.).", diagnostic.Message);
+    }
+
+    [Fact]
     public void Add_BoxCylinder_StillReturnsDeterministicNotImplemented()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
@@ -388,36 +517,6 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("Boolean Intersect: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
-    }
-
-    [Fact]
-    public void Subtract_BoxPointedCone_StillReturnsDeterministicNotImplemented()
-    {
-        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
-        var right = CreateCone(bottomRadius: 6d, topRadius: 0d, height: 20d);
-
-        var result = BrepBoolean.Subtract(left, right);
-
-        Assert.False(result.IsSuccess);
-        var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole surface kind 'Cone' is recognized but not implemented for M13 reconstruction.", diagnostic.Message);
-    }
-
-    [Fact]
-    public void Subtract_BoxFrustumCone_StillReturnsDeterministicNotImplemented()
-    {
-        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
-        var right = CreateCone(bottomRadius: 6d, topRadius: 2d, height: 20d);
-
-        var result = BrepBoolean.Subtract(left, right);
-
-        Assert.False(result.IsSuccess);
-        var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole surface kind 'Cone' is recognized but not implemented for M13 reconstruction.", diagnostic.Message);
     }
 
     [Fact]

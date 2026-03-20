@@ -108,6 +108,7 @@ internal static class FirmamentPrimitiveExecutor
         {
             FirmamentLoweredPrimitiveKind.Box => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredBoxParameters)primitive.Parameters).SizeZ * 0.5d)),
             FirmamentLoweredPrimitiveKind.Cylinder => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredCylinderParameters)primitive.Parameters).Height * 0.5d)),
+            FirmamentLoweredPrimitiveKind.Cone => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredConeParameters)primitive.Parameters).Height * 0.5d)),
             _ => body
         };
     }
@@ -133,13 +134,20 @@ internal static class FirmamentPrimitiveExecutor
             uAxis: Direction3D.Create(new Vector3D(1d, 0d, 0d)));
         var axis = new RevolveAxis3D(Point3D.Origin, new Vector3D(0d, 0d, 1d));
 
-        return BrepRevolve.Create(
+        var coneResult = BrepRevolve.Create(
             [
                 new ProfilePoint2D(parameters.BottomRadius, 0d),
                 new ProfilePoint2D(parameters.TopRadius, parameters.Height)
             ],
             frame,
             axis);
+
+        if (!coneResult.IsSuccess)
+        {
+            return coneResult;
+        }
+
+        return KernelResult<BrepBody>.Success(TranslateBody(coneResult.Value, new Vector3D(0d, 0d, -parameters.Height * 0.5d)));
     }
 
     private static KernelResult<BrepBody> ExecuteTool(FirmamentLoweredToolOp tool)

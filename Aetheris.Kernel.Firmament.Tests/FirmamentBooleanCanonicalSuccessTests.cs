@@ -86,7 +86,10 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             { "testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "overlap", "intersect" },
             { "testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-contained.firmament", "cavity", "subtract" },
             { "testdata/firmament/fixtures/m10l-unsupported-box-add-sphere.firmament", "joined", "add" },
-            { "testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "overlap", "intersect" }
+            { "testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "overlap", "intersect" },
+            { "testdata/firmament/fixtures/m10m-unsupported-box-subtract-cone.firmament", "tapered_cut", "subtract" },
+            { "testdata/firmament/fixtures/m10m-unsupported-box-add-cone.firmament", "joined", "add" },
+            { "testdata/firmament/fixtures/m10m-unsupported-box-intersect-cone.firmament", "overlap", "intersect" }
         };
 
     [Theory]

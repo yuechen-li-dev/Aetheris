@@ -176,7 +176,22 @@ internal static class FirmamentPrimitiveExecutor
             return BrepPrimitives.CreateSphere(FirmamentPrimitiveToolParsing.ParseScalar(radiusRaw));
         }
 
-        return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution supports nested tool ops 'box', 'cylinder', and 'sphere' only. Got '{tool.OpName}'.")]);
+        if (string.Equals(tool.OpName, "cone", StringComparison.Ordinal))
+        {
+            if (!tool.RawFields.TryGetValue("bottom_radius", out var bottomRadiusRaw) || string.IsNullOrWhiteSpace(bottomRadiusRaw)
+                || !tool.RawFields.TryGetValue("top_radius", out var topRadiusRaw) || string.IsNullOrWhiteSpace(topRadiusRaw)
+                || !tool.RawFields.TryGetValue("height", out var coneHeightRaw) || string.IsNullOrWhiteSpace(coneHeightRaw))
+            {
+                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested fields 'with.bottom_radius', 'with.top_radius', and 'with.height' for tool op 'cone'.")]);
+            }
+
+            return ExecuteCone(new FirmamentLoweredConeParameters(
+                FirmamentPrimitiveToolParsing.ParseScalar(bottomRadiusRaw),
+                FirmamentPrimitiveToolParsing.ParseScalar(topRadiusRaw),
+                FirmamentPrimitiveToolParsing.ParseScalar(coneHeightRaw)));
+        }
+
+        return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution supports nested tool ops 'box', 'cylinder', 'sphere', and 'cone' only. Got '{tool.OpName}'.")]);
     }
 
     private static KernelResult<BrepBody> ExecuteBoolean(FirmamentLoweredBooleanKind kind, BrepBody left, BrepBody right) =>

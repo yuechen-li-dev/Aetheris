@@ -92,6 +92,11 @@ internal static class FirmamentBooleanRequiredFieldValidator
             return ValidateSphereTool(entry, opIndex, withFields);
         }
 
+        if (string.Equals(withOpRaw, "cone", StringComparison.Ordinal))
+        {
+            return ValidateConeTool(entry, opIndex, withFields);
+        }
+
         return KernelResult<bool>.Success(true);
     }
 
@@ -137,6 +142,41 @@ internal static class FirmamentBooleanRequiredFieldValidator
     private static KernelResult<bool> ValidateSphereTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
         => ValidatePositiveNumericWithField(entry, opIndex, withFields, "radius");
 
+    private static KernelResult<bool> ValidateConeTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
+    {
+        var bottomRadiusResult = ValidateNonNegativeNumericWithField(entry, opIndex, withFields, "bottom_radius");
+        if (!bottomRadiusResult.IsSuccess)
+        {
+            return bottomRadiusResult;
+        }
+
+        var topRadiusResult = ValidateNonNegativeNumericWithField(entry, opIndex, withFields, "top_radius");
+        if (!topRadiusResult.IsSuccess)
+        {
+            return topRadiusResult;
+        }
+
+        var heightResult = ValidatePositiveNumericWithField(entry, opIndex, withFields, "height");
+        if (!heightResult.IsSuccess)
+        {
+            return heightResult;
+        }
+
+        _ = TryParseNumeric(withFields["bottom_radius"], out var bottomRadius);
+        _ = TryParseNumeric(withFields["top_radius"], out var topRadius);
+        if (bottomRadius <= 1e-12d && topRadius <= 1e-12d)
+        {
+            return InvalidFieldValue("with.top_radius", opIndex, entry.OpName, "expected at least one of 'with.bottom_radius' or 'with.top_radius' to be greater than 0");
+        }
+
+        if (bottomRadius > 1e-12d && topRadius > 1e-12d && double.Abs(bottomRadius - topRadius) <= 1e-12d)
+        {
+            return InvalidFieldValue("with.top_radius", opIndex, entry.OpName, "expected a numeric value different from 'with.bottom_radius' when both cone radii are greater than 0");
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
     private static KernelResult<bool> ValidatePositiveNumericWithField(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields, string fieldName)
     {
         var qualifiedFieldName = $"with.{fieldName}";
@@ -153,6 +193,27 @@ internal static class FirmamentBooleanRequiredFieldValidator
         if (value <= 0)
         {
             return InvalidFieldValue(qualifiedFieldName, opIndex, entry.OpName, "expected a numeric value greater than 0");
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateNonNegativeNumericWithField(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields, string fieldName)
+    {
+        var qualifiedFieldName = $"with.{fieldName}";
+        if (!withFields.TryGetValue(fieldName, out var raw) || string.IsNullOrWhiteSpace(raw))
+        {
+            return MissingField(qualifiedFieldName, opIndex, entry.OpName);
+        }
+
+        if (!TryParseNumeric(raw, out var value))
+        {
+            return InvalidFieldTypeOrShape(qualifiedFieldName, opIndex, entry.OpName, "expected a numeric scalar value");
+        }
+
+        if (value < 0)
+        {
+            return InvalidFieldValue(qualifiedFieldName, opIndex, entry.OpName, "expected a numeric value greater than or equal to 0");
         }
 
         return KernelResult<bool>.Success(true);

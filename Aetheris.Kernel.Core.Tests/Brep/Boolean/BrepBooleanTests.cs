@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
@@ -374,6 +375,62 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_BoxPointedCone_StillReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = CreateCone(bottomRadius: 6d, topRadius: 0d, height: 20d);
+
+        var result = BrepBoolean.Subtract(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Boolean Subtract: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Subtract_BoxFrustumCone_StillReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = CreateCone(bottomRadius: 6d, topRadius: 2d, height: 20d);
+
+        var result = BrepBoolean.Subtract(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Boolean Subtract: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Union_BoxConeOverlap_StillReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = CreateCone(bottomRadius: 6d, topRadius: 0d, height: 20d);
+
+        var result = BrepBoolean.Union(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Intersect_BoxConeOverlap_StillReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = CreateCone(bottomRadius: 6d, topRadius: 0d, height: 20d);
+
+        var result = BrepBoolean.Intersect(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Boolean Intersect: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
+    [Fact]
     public void Execute_NonBoxInput_ReturnsDeterministicNotImplementedWithoutThrowing()
     {
         var left = BrepPrimitives.CreateCylinder(1d, 2d).Value;
@@ -387,6 +444,26 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
+    private static BrepBody CreateCone(double bottomRadius, double topRadius, double height)
+    {
+        var frame = new ExtrudeFrame3D(
+            origin: Point3D.Origin,
+            normal: Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            uAxis: Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+        var axis = new RevolveAxis3D(Point3D.Origin, new Vector3D(0d, 0d, 1d));
+
+        var result = BrepRevolve.Create(
+            [
+                new ProfilePoint2D(bottomRadius, 0d),
+                new ProfilePoint2D(topRadius, height)
+            ],
+            frame,
+            axis);
+
+        Assert.True(result.IsSuccess);
+        return result.Value;
     }
 
     private static BrepBody TransformBody(BrepBody body, Transform3D transform)

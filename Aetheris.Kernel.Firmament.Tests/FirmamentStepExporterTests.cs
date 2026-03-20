@@ -104,6 +104,9 @@ public sealed class FirmamentStepExporterTests
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "leaking_cavity")]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-add-sphere.firmament", "joined")]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "overlap")]
+    [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-subtract-cone.firmament", "tapered_cut")]
+    [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-add-cone.firmament", "joined")]
+    [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-intersect-cone.firmament", "overlap")]
     public void Export_BoxSphereFixtures_Fail_Loudly_Without_Fallback(string fixturePath, string expectedFeatureId)
     {
         var first = ExportFixture(fixturePath);

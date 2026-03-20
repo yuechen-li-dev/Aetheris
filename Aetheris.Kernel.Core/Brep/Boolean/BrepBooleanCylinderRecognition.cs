@@ -152,13 +152,13 @@ public static class BrepBooleanCylinderRecognition
             && ToleranceMath.AlmostEqual(double.Abs(axis.Z), 1d, tolerance);
     }
 
-    public static bool ValidateThroughHole(AxisAlignedBoxExtents box, in RecognizedCylinder cylinder, ToleranceContext tolerance, out BooleanDiagnostic? diagnostic)
+    public static bool ValidateThroughHole(AxisAlignedBoxExtents box, in RecognizedCylinder cylinder, ToleranceContext tolerance, out BooleanDiagnostic? diagnostic, string? featureId = null)
     {
         diagnostic = null;
 
         if (!ValidateAxisAlignedZ(cylinder, tolerance))
         {
-            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), "cylinder axis is not aligned with the box Z axis.");
+            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires the cylinder axis to be parallel to world Z; the current cylinder axis is not aligned with the box Z axis. Rotate or redefine the tool so both cylinder caps stay on a world-Z through-hole axis.");
             return false;
         }
 
@@ -166,7 +166,7 @@ public static class BrepBooleanCylinderRecognition
         var maxCenter = cylinder.MaxCenter;
         if (!ToleranceMath.AlmostEqual(minCenter.X, maxCenter.X, tolerance) || !ToleranceMath.AlmostEqual(minCenter.Y, maxCenter.Y, tolerance))
         {
-            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), "cylinder cap centers are not vertically aligned in XY.");
+            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires one vertical through-hole centerline; the cylinder cap centers drift in XY instead of staying on a single world-Z axis. Rebuild the tool so the cap centers share the same X/Y location.");
             return false;
         }
 
@@ -177,7 +177,7 @@ public static class BrepBooleanCylinderRecognition
 
         if (minZ > (box.MinZ + tolerance.Linear) || maxZ < (box.MaxZ - tolerance.Linear))
         {
-            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), "cylinder does not fully span the box Z range.");
+            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not reach both box boundary planes; partial-depth cylinder cuts are outside the supported safe boolean family. Extend the cylinder so it spans the full box Z range.");
             return false;
         }
 
@@ -193,7 +193,7 @@ public static class BrepBooleanCylinderRecognition
             || ToleranceMath.AlmostEqual(maxFootprintY, box.MaxY, tolerance);
         if (tangentContact)
         {
-            diagnostic = CreateTangentContactDiagnostic(BooleanOperation.Subtract.ToString(), "cylinder is tangent to the box XY boundary.");
+            diagnostic = CreateTangentContactDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "is tangent to a box side wall; tangent analytic-hole cases are rejected to avoid zero-thickness geometry. Move the hole inward or reduce the radius.");
             return false;
         }
 
@@ -202,14 +202,14 @@ public static class BrepBooleanCylinderRecognition
             || minFootprintY < (box.MinY - tolerance.Linear)
             || maxFootprintY > (box.MaxY + tolerance.Linear))
         {
-            diagnostic = CreateRadiusExceedsBoundaryDiagnostic(BooleanOperation.Subtract.ToString(), "cylinder radial footprint exceeds the box XY boundary.");
+            diagnostic = CreateRadiusExceedsBoundaryDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "extends outside the box side-wall footprint. Reduce the cylinder radius or move the center farther inside the box XY boundary.");
             return false;
         }
 
         return true;
     }
 
-    public static bool ValidateThroughHole(AxisAlignedBoxExtents box, in RecognizedCone cone, ToleranceContext tolerance, out BooleanDiagnostic? diagnostic)
+    public static bool ValidateThroughHole(AxisAlignedBoxExtents box, in RecognizedCone cone, ToleranceContext tolerance, out BooleanDiagnostic? diagnostic, string? featureId = null)
     {
         diagnostic = null;
 
@@ -218,7 +218,7 @@ public static class BrepBooleanCylinderRecognition
             || !ToleranceMath.AlmostZero(axis.Y, tolerance)
             || !ToleranceMath.AlmostEqual(double.Abs(axis.Z), 1d, tolerance))
         {
-            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), "cone axis is not aligned with the box Z axis.");
+            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires the cone axis to be parallel to world Z; the current cone axis is not aligned with the box Z axis. Rotate or redefine the tool so the cone reconstructs as a world-Z through-hole.");
             return false;
         }
 
@@ -226,7 +226,7 @@ public static class BrepBooleanCylinderRecognition
         var maxCenter = cone.MaxCenter;
         if (!ToleranceMath.AlmostEqual(minCenter.X, maxCenter.X, tolerance) || !ToleranceMath.AlmostEqual(minCenter.Y, maxCenter.Y, tolerance))
         {
-            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), "cone cap centers are not vertically aligned in XY.");
+            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires one vertical through-hole centerline; the cone boundary circles do not share a single X/Y center. Rebuild the cone so both boundary sections stay on one world-Z axis.");
             return false;
         }
 
@@ -238,13 +238,13 @@ public static class BrepBooleanCylinderRecognition
             || topAxisParameter < (cone.MinAxisParameter - tolerance.Linear)
             || topAxisParameter > (cone.MaxAxisParameter + tolerance.Linear))
         {
-            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), "cone does not fully span the box Z range.");
+            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not reach both box boundary planes; partial-depth cone cuts are outside the supported safe boolean family. Extend the cone so it spans the full box Z range.");
             return false;
         }
 
         if (bottomAxisParameter <= tolerance.Linear || topAxisParameter <= tolerance.Linear)
         {
-            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), "cone apex or termination prevents circular through-hole sections at both box Z boundary planes.");
+            diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "cannot produce circular sections on both box boundary planes because the apex or cone termination lands inside the box span. Move the apex outside the box span or lengthen the cone.");
             return false;
         }
 
@@ -255,12 +255,12 @@ public static class BrepBooleanCylinderRecognition
 
         if (bottomRadius <= tolerance.Linear || topRadius <= tolerance.Linear)
         {
-            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), "cone cross-sections at the box Z boundary planes must be non-degenerate circles.");
+            diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires non-degenerate circular sections where the cone meets the two box boundary planes. Increase the boundary radii at those planes by moving the apex farther away or changing the cone taper.");
             return false;
         }
 
-        if (!ValidateCircleInsideBoxFootprint(box, centerX, centerY, bottomRadius, tolerance, out diagnostic, "cone bottom-plane cross-section")
-            || !ValidateCircleInsideBoxFootprint(box, centerX, centerY, topRadius, tolerance, out diagnostic, "cone top-plane cross-section"))
+        if (!ValidateCircleInsideBoxFootprint(box, centerX, centerY, bottomRadius, tolerance, out diagnostic, "bottom boundary circle", featureId)
+            || !ValidateCircleInsideBoxFootprint(box, centerX, centerY, topRadius, tolerance, out diagnostic, "top boundary circle", featureId))
         {
             return false;
         }
@@ -286,7 +286,8 @@ public static class BrepBooleanCylinderRecognition
         double radius,
         ToleranceContext tolerance,
         out BooleanDiagnostic? diagnostic,
-        string circleLabel)
+        string circleLabel,
+        string? featureId)
     {
         diagnostic = null;
 
@@ -302,7 +303,7 @@ public static class BrepBooleanCylinderRecognition
             || ToleranceMath.AlmostEqual(maxFootprintY, box.MaxY, tolerance);
         if (tangentContact)
         {
-            diagnostic = CreateTangentContactDiagnostic(BooleanOperation.Subtract.ToString(), $"{circleLabel} is tangent to the box XY boundary.");
+            diagnostic = CreateTangentContactDiagnostic(BooleanOperation.Subtract.ToString(), featureId, $"has {circleLabel} tangent to a box side wall; tangent analytic-hole cases are rejected to avoid zero-thickness geometry. Move the cone inward or reduce the boundary radius at that plane.");
             return false;
         }
 
@@ -311,7 +312,7 @@ public static class BrepBooleanCylinderRecognition
             || minFootprintY < (box.MinY - tolerance.Linear)
             || maxFootprintY > (box.MaxY + tolerance.Linear))
         {
-            diagnostic = CreateRadiusExceedsBoundaryDiagnostic(BooleanOperation.Subtract.ToString(), $"{circleLabel} exceeds the box XY boundary.");
+            diagnostic = CreateRadiusExceedsBoundaryDiagnostic(BooleanOperation.Subtract.ToString(), featureId, $"has {circleLabel} extending outside the box side-wall footprint. Reduce the boundary radius or move the cone center farther inside the box XY boundary.");
             return false;
         }
 
@@ -319,32 +320,61 @@ public static class BrepBooleanCylinderRecognition
     }
 
     public static BooleanDiagnostic CreateAxisNotAlignedDiagnostic(string operation, string detail)
+        => CreateAxisNotAlignedDiagnostic(operation, null, detail);
+
+    public static BooleanDiagnostic CreateAxisNotAlignedDiagnostic(string operation, string? featureId, string detail)
         => new(
             BooleanDiagnosticCode.AxisNotAligned,
-            $"Boolean {operation}: analytic hole candidate failed diagnostic AxisNotAligned ({detail}).",
+            CreateBooleanMessage(operation, featureId, detail),
             "BrepBoolean.AnalyticHole.AxisNotAligned");
 
     public static BooleanDiagnostic CreateNotFullySpanningDiagnostic(string operation, string detail)
+        => CreateNotFullySpanningDiagnostic(operation, null, detail);
+
+    public static BooleanDiagnostic CreateNotFullySpanningDiagnostic(string operation, string? featureId, string detail)
         => new(
             BooleanDiagnosticCode.NotFullySpanning,
-            $"Boolean {operation}: analytic hole candidate failed diagnostic NotFullySpanning ({detail}).",
+            CreateBooleanMessage(operation, featureId, detail),
             "BrepBoolean.AnalyticHole.NotFullySpanning");
 
+    public static BooleanDiagnostic CreateDegenerateBoundarySectionDiagnostic(string operation, string? featureId, string detail)
+        => new(
+            BooleanDiagnosticCode.DegenerateBoundarySection,
+            CreateBooleanMessage(operation, featureId, detail),
+            "BrepBoolean.AnalyticHole.DegenerateBoundarySection");
+
     public static BooleanDiagnostic CreateRadiusExceedsBoundaryDiagnostic(string operation, string detail)
+        => CreateRadiusExceedsBoundaryDiagnostic(operation, null, detail);
+
+    public static BooleanDiagnostic CreateRadiusExceedsBoundaryDiagnostic(string operation, string? featureId, string detail)
         => new(
             BooleanDiagnosticCode.RadiusExceedsBoundary,
-            $"Boolean {operation}: analytic hole candidate failed diagnostic RadiusExceedsBoundary ({detail}).",
+            CreateBooleanMessage(operation, featureId, detail),
             "BrepBoolean.AnalyticHole.RadiusExceedsBoundary");
 
     public static BooleanDiagnostic CreateTangentContactDiagnostic(string operation, string detail)
+        => CreateTangentContactDiagnostic(operation, null, detail);
+
+    public static BooleanDiagnostic CreateTangentContactDiagnostic(string operation, string? featureId, string detail)
         => new(
             BooleanDiagnosticCode.TangentContact,
-            $"Boolean {operation}: analytic hole candidate failed diagnostic TangentContact ({detail}).",
+            CreateBooleanMessage(operation, featureId, detail),
             "BrepBoolean.AnalyticHole.TangentContact");
 
     public static BooleanDiagnostic CreateUnsupportedAnalyticSurfaceKindDiagnostic(string operation, AnalyticSurfaceKind kind)
+        => CreateUnsupportedAnalyticSurfaceKindDiagnostic(operation, kind, null);
+
+    public static BooleanDiagnostic CreateUnsupportedAnalyticSurfaceKindDiagnostic(string operation, AnalyticSurfaceKind kind, string? featureId)
         => new(
             BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind,
-            $"Boolean {operation}: analytic hole surface kind '{kind}' is recognized but not implemented for M13 reconstruction.",
+            CreateBooleanMessage(operation, featureId, $"does not support analytic tool surface kind '{kind}' in the safe boolean family. Use a cylinder or cone through-hole instead."),
             "BrepBoolean.UnsupportedAnalyticSurfaceKind");
+
+    public static string CreateBooleanMessage(string operation, string? featureId, string detail)
+    {
+        var subject = string.IsNullOrWhiteSpace(featureId)
+            ? $"Boolean {operation}"
+            : $"Boolean feature '{featureId}' ({operation.ToLowerInvariant()})";
+        return $"{subject} {detail}";
+    }
 }

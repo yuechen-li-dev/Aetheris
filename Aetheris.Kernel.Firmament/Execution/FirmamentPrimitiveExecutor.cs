@@ -57,7 +57,7 @@ internal static class FirmamentPrimitiveExecutor
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
                 [
                     CreateBooleanExecutionFailureDiagnostic(boolean),
-                    .. featureGraphValidation.Diagnostics
+                    .. WithBooleanContext(boolean, featureGraphValidation.Diagnostics)
                 ]);
             }
 
@@ -73,7 +73,7 @@ internal static class FirmamentPrimitiveExecutor
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
                 [
                     CreateBooleanExecutionFailureDiagnostic(boolean),
-                    .. booleanResult.Diagnostics
+                    .. WithBooleanContext(boolean, booleanResult.Diagnostics)
                 ]);
             }
 
@@ -94,6 +94,21 @@ internal static class FirmamentPrimitiveExecutor
 
         return KernelResult<FirmamentPrimitiveExecutionResult>.Success(new FirmamentPrimitiveExecutionResult(executedPrimitives, executedBooleans));
     }
+
+
+    private static IReadOnlyList<KernelDiagnostic> WithBooleanContext(FirmamentLoweredBoolean boolean, IReadOnlyList<KernelDiagnostic> diagnostics)
+        => diagnostics.Select(diagnostic =>
+        {
+            if (diagnostic.Message.Contains($"Boolean feature '{boolean.FeatureId}'", StringComparison.Ordinal))
+            {
+                return diagnostic;
+            }
+
+            return diagnostic with
+            {
+                Message = $"Boolean feature '{boolean.FeatureId}' ({boolean.Kind.ToString().ToLowerInvariant()}): {diagnostic.Message}"
+            };
+        }).ToArray();
 
     private static KernelDiagnostic CreateBooleanExecutionFailureDiagnostic(FirmamentLoweredBoolean boolean)
         => new(

@@ -17,14 +17,15 @@ public sealed class FirmamentSafeSubtractFeatureGraphValidationTests
     }
 
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "violates safe subtract feature-graph ordering", "firmament.feature-graph")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-overlapping-composed-holes.firmament", "HoleInterference", "BrepBoolean.AnalyticHole.HoleInterference")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", "TangentContact", "BrepBoolean.AnalyticHole.TangentContact")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "unsupported follow-on tool kind 'sphere'", "firmament.feature-graph")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "unsupported follow-on tool kind 'box'", "firmament.feature-graph")]
-    [InlineData("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament", "outside that supported family", "firmament.feature-graph")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", KernelDiagnosticCode.ValidationFailed, "Boolean feature 'joined' (add) cannot continue the safe subtract chain rooted at 'hole_a'", "firmament.feature-graph.invalid-composition-order")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-overlapping-composed-holes.firmament", KernelDiagnosticCode.NotImplemented, "Boolean feature 'hole_b' (subtract) overlaps previously accepted hole <unknown>", "BrepBoolean.AnalyticHole.HoleInterference")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", KernelDiagnosticCode.NotImplemented, "Boolean feature 'hole_b' (subtract) would be tangent to previously accepted hole <unknown>", "BrepBoolean.AnalyticHole.TangentContact")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", KernelDiagnosticCode.ValidationFailed, "Boolean feature 'cavity' (subtract) uses unsupported follow-on tool kind 'sphere'", "firmament.feature-graph.unsupported-follow-on-kind")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", KernelDiagnosticCode.ValidationFailed, "Boolean feature 'notch' (subtract) uses unsupported follow-on tool kind 'box'", "firmament.feature-graph.unsupported-follow-on-kind")]
+    [InlineData("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament", KernelDiagnosticCode.ValidationFailed, "Boolean feature 'hole' (subtract) cannot re-enter the safe subtract family from 'joined'", "firmament.feature-graph.invalid-composition-order")]
     public void FeatureGraphValidator_FailsDeterministically_ForUnsupportedSequentialComposition(
         string fixturePath,
+        KernelDiagnosticCode expectedCode,
         string expectedMessage,
         string expectedSource)
     {
@@ -32,7 +33,7 @@ public sealed class FirmamentSafeSubtractFeatureGraphValidationTests
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
-            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            diagnostic.Code == expectedCode
             && diagnostic.Message.Contains(expectedMessage, StringComparison.Ordinal)
             && diagnostic.Source == expectedSource);
         Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic =>

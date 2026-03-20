@@ -31,13 +31,17 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
             if (boolean.Kind != FirmamentLoweredBooleanKind.Subtract)
             {
                 return Failure(
-                    $"Boolean op '{boolean.FeatureId}' at index {boolean.OpIndex} violates safe subtract feature-graph ordering: composed hole chains can only continue with 'subtract', but got '{boolean.Kind.ToString().ToLowerInvariant()}'.");
+                    KernelDiagnosticCode.ValidationFailed,
+                    $"Boolean feature '{boolean.FeatureId}' ({boolean.Kind.ToString().ToLowerInvariant()}) cannot continue the safe subtract chain rooted at '{boolean.PrimaryReferenceFeatureId}' because only follow-on subtract operations are supported after a safe-hole composition has started.",
+                    "firmament.feature-graph.invalid-composition-order");
             }
 
             if (!usesSupportedSafeHoleTool)
             {
                 return Failure(
-                    $"Boolean op '{boolean.FeatureId}' at index {boolean.OpIndex} uses unsupported follow-on tool kind '{boolean.Tool.OpName}' after safe subtract composition began; only nested 'cylinder' or 'cone' subtract tools are supported.");
+                    KernelDiagnosticCode.ValidationFailed,
+                    $"Boolean feature '{boolean.FeatureId}' (subtract) uses unsupported follow-on tool kind '{boolean.Tool.OpName}' after safe subtract composition began on '{boolean.PrimaryReferenceFeatureId}'. Only nested cylinder or cone through-hole tools are supported in that chain.",
+                    "firmament.feature-graph.unsupported-follow-on-kind");
             }
 
             return ValidateSupportedSafeSubtract(boolean, executionBodiesByFeatureId, tolerance);
@@ -59,7 +63,9 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
         if (boolean.Kind == FirmamentLoweredBooleanKind.Subtract && usesSupportedSafeHoleTool)
         {
             return Failure(
-                $"Boolean op '{boolean.FeatureId}' at index {boolean.OpIndex} violates safe subtract feature-graph ordering: nested 'cylinder'/'cone' through-hole composition can only start from a box or continue from a previously validated safe subtract result, but '{boolean.PrimaryReferenceFeatureId}' is outside that supported family.");
+                KernelDiagnosticCode.ValidationFailed,
+                $"Boolean feature '{boolean.FeatureId}' (subtract) cannot re-enter the safe subtract family from '{boolean.PrimaryReferenceFeatureId}'. Safe-hole composition may start only from a box root or continue from a previously validated safe subtract result.",
+                "firmament.feature-graph.invalid-composition-order");
         }
 
         return KernelResult<FirmamentSafeSubtractFeatureGraphValidation>.Success(
@@ -75,14 +81,16 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
     {
         if (!executionBodiesByFeatureId.TryGetValue(boolean.PrimaryReferenceFeatureId, out var leftBody))
         {
-            return Failure($"Boolean op '{boolean.FeatureId}' at index {boolean.OpIndex} could not resolve left feature '{boolean.PrimaryReferenceFeatureId}' for feature-graph validation.");
+            return Failure(KernelDiagnosticCode.ValidationFailed, $"Boolean feature '{boolean.FeatureId}' ({boolean.Kind.ToString().ToLowerInvariant()}) could not resolve left feature '{boolean.PrimaryReferenceFeatureId}' for safe subtract feature-graph validation.", "firmament.feature-graph.unresolved-left");
         }
 
         var resolvedTolerance = tolerance ?? ToleranceContext.Default;
         if (!BrepBooleanSafeComposition.TryRecognize(leftBody, resolvedTolerance, out var composition, out _))
         {
             return Failure(
-                $"Boolean op '{boolean.FeatureId}' at index {boolean.OpIndex} violates safe subtract feature-graph ordering: left feature '{boolean.PrimaryReferenceFeatureId}' is not a recognized base box or previously validated safe subtract composition.");
+                KernelDiagnosticCode.ValidationFailed,
+                $"Boolean feature '{boolean.FeatureId}' (subtract) cannot use '{boolean.PrimaryReferenceFeatureId}' as a safe subtract input because that earlier result is not a recognized base box or previously validated safe-hole composition.",
+                "firmament.feature-graph.invalid-composition-order");
         }
 
         var toolBodyResult = FirmamentBooleanToolBodyFactory.CreateBody(boolean.Tool);
@@ -94,7 +102,9 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
         if (!BrepBooleanAnalyticSurfaceRecognition.TryRecognizeAnalyticSurface(toolBodyResult.Value, resolvedTolerance, out var analyticSurface, out var reason))
         {
             return Failure(
-                $"Boolean op '{boolean.FeatureId}' at index {boolean.OpIndex} could not recognize nested tool op '{boolean.Tool.OpName}' as an analytic hole candidate for safe subtract feature-graph validation ({reason}).");
+                KernelDiagnosticCode.ValidationFailed,
+                $"Boolean feature '{boolean.FeatureId}' (subtract) could not recognize nested tool op '{boolean.Tool.OpName}' as an analytic through-hole candidate for safe subtract validation ({reason}).",
+                "firmament.feature-graph.unrecognized-analytic-hole");
         }
 
         if (!BrepBooleanSafeCompositionGraphValidator.TryValidateNextSubtract(
@@ -102,7 +112,8 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
             analyticSurface,
             resolvedTolerance,
             out _,
-            out var diagnostic))
+            out var diagnostic,
+            boolean.FeatureId))
         {
             return KernelResult<FirmamentSafeSubtractFeatureGraphValidation>.Failure([diagnostic!.ToKernelDiagnostic()]);
         }
@@ -117,14 +128,14 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
         => string.Equals(tool.OpName, "cylinder", StringComparison.Ordinal)
            || string.Equals(tool.OpName, "cone", StringComparison.Ordinal);
 
-    private static KernelResult<FirmamentSafeSubtractFeatureGraphValidation> Failure(string message)
+    private static KernelResult<FirmamentSafeSubtractFeatureGraphValidation> Failure(KernelDiagnosticCode code, string message, string source)
         => KernelResult<FirmamentSafeSubtractFeatureGraphValidation>.Failure(
         [
             new KernelDiagnostic(
-                KernelDiagnosticCode.NotImplemented,
+                code,
                 KernelDiagnosticSeverity.Error,
                 message,
-                Source: "firmament.feature-graph")
+                Source: source)
         ]);
 }
 

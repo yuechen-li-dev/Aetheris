@@ -24,6 +24,7 @@ public sealed record SafeBooleanComposition(
 }
 
 public readonly record struct SupportedBooleanHole(
+    string? FeatureId,
     AnalyticSurface Surface,
     double CenterX,
     double CenterY,

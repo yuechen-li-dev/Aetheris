@@ -249,8 +249,8 @@ public sealed class FirmamentBuildAndExportTests
     private static bool HasExpectedMixedPrimitiveFailure(string message)
         => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
            || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone through-holes", StringComparison.Ordinal)
-           || message.Contains("feature-graph ordering", StringComparison.Ordinal)
+           || message.Contains("safe subtract", StringComparison.Ordinal)
            || message.Contains("unsupported follow-on tool kind", StringComparison.Ordinal)
-           || message.Contains("analytic hole candidate failed diagnostic", StringComparison.Ordinal)
+           || message.Contains("Boolean feature", StringComparison.Ordinal)
            || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
 }

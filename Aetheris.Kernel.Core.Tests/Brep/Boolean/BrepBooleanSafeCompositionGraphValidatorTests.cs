@@ -17,6 +17,7 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
             new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d),
             [
                 new SupportedBooleanHole(
+                    "hole_a",
                     new AnalyticSurface(
                         AnalyticSurfaceKind.Cylinder,
                         Cylinder: new RecognizedCylinder(
@@ -77,6 +78,7 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
         Assert.NotNull(diagnostic);
         Assert.Equal(BooleanDiagnosticCode.HoleInterference, diagnostic!.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.HoleInterference", diagnostic.Source);
+        Assert.Contains("previously accepted hole", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -100,7 +102,7 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
         Assert.NotNull(diagnostic);
         Assert.Equal(BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind, diagnostic!.Code);
         Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
-        Assert.Equal("Boolean Subtract: analytic hole surface kind 'Sphere' is recognized but not implemented for M13 reconstruction.", diagnostic.Message);
+        Assert.Equal("Boolean Subtract does not support analytic tool surface kind 'Sphere' in the safe boolean family. Use a cylinder or cone through-hole instead.", diagnostic.Message);
     }
 
     private static BrepBody TransformBody(BrepBody body, Transform3D transform)

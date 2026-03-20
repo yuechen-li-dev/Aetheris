@@ -128,19 +128,23 @@ public sealed class FirmamentBuildAndExportTests
     [Fact]
     public void Run_UnsupportedBoxWithCylinderHoleFixture_Fails_And_Does_Not_Write_Fallback_Export()
     {
-        var sourcePath = "testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament";
-        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath(sourcePath);
-        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "exports", "m10h1-unsupported-box-with-cylinder-hole.step");
-        if (File.Exists(expectedOutputPath))
-        {
-            File.Delete(expectedOutputPath);
-        }
+        AssertUnsupportedBuildAndExport(
+            "testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament",
+            "m10h1-unsupported-box-with-cylinder-hole.step",
+            "hole",
+            "subtract");
+    }
 
-        var result = FirmamentBuildAndExport.Run(fullSourcePath);
-
-        Assert.False(result.IsSuccess);
-        Assert.False(File.Exists(expectedOutputPath));
-        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
+    [Theory]
+    [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-add-cylinder.firmament", "m10j-unsupported-box-add-cylinder.step", "joined", "add")]
+    [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "m10j-unsupported-box-intersect-cylinder.step", "overlap", "intersect")]
+    public void Run_Unsupported_BoxCylinder_Fixtures_Fail_And_Do_Not_Write_Fallback_Export(
+        string sourcePath,
+        string expectedFileName,
+        string expectedFeatureId,
+        string expectedKind)
+    {
+        AssertUnsupportedBuildAndExport(sourcePath, expectedFileName, expectedFeatureId, expectedKind);
     }
 
     private static void AssertExampleBuildAndExport(string sourcePath, string expectedFileName, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)
@@ -163,5 +167,22 @@ public sealed class FirmamentBuildAndExportTests
         Assert.Equal(expectedFeatureKind, result.Value.Export.ExportedFeatureKind);
         Assert.True(File.Exists(expectedOutputPath));
         Assert.Equal(result.Value.Export.StepText, File.ReadAllText(expectedOutputPath, Encoding.UTF8));
+    }
+
+    private static void AssertUnsupportedBuildAndExport(string sourcePath, string expectedFileName, string expectedFeatureId, string expectedKind)
+    {
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath(sourcePath);
+        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "exports", expectedFileName);
+        if (File.Exists(expectedOutputPath))
+        {
+            File.Delete(expectedOutputPath);
+        }
+
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.False(result.IsSuccess);
+        Assert.False(File.Exists(expectedOutputPath));
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' ({expectedKind}) could not be executed.", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
     }
 }

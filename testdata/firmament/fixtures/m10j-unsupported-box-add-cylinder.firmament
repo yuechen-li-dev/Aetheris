@@ -1,0 +1,24 @@
+firmament:
+  version: 1
+
+model:
+  name: m10j_unsupported_box_add_cylinder
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      30
+      12
+
+  -
+    op: add
+    id: joined
+    to: base
+    with:
+      op: cylinder
+      radius: 4
+      height: 12

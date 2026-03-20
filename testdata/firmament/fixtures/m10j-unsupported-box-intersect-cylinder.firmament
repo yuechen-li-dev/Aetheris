@@ -1,0 +1,24 @@
+firmament:
+  version: 1
+
+model:
+  name: m10j_unsupported_box_intersect_cylinder
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      30
+      12
+
+  -
+    op: intersect
+    id: overlap
+    left: base
+    with:
+      op: cylinder
+      radius: 4
+      height: 12

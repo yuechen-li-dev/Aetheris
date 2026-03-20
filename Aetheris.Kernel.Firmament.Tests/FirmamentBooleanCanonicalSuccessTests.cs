@@ -165,9 +165,10 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     [Theory]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-overlapping-composed-holes.firmament", "hole_b", "HoleInterference")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", "hole_b", "TangentContact")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "joined", "sequential safe composition only supports subtracting supported cylinder/cone through-holes")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "cavity", "analytic hole surface kind 'Sphere'")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch", "sequential safe composition only supports subtracting supported cylinder/cone through-holes")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "joined", "violates safe subtract feature-graph ordering")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "cavity", "unsupported follow-on tool kind 'sphere'")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch", "unsupported follow-on tool kind 'box'")]
+    [InlineData("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament", "hole", "outside that supported family")]
     public void SequentialCompositionOutsideSafeSubset_RemainsRejectedWithoutFallback(string fixturePath, string expectedFeatureId, string expectedMessageFragment)
     {
         var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
@@ -223,6 +224,8 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     private static bool HasExpectedMixedPrimitiveFailure(string message)
         => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
            || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone through-holes", StringComparison.Ordinal)
+           || message.Contains("feature-graph ordering", StringComparison.Ordinal)
+           || message.Contains("unsupported follow-on tool kind", StringComparison.Ordinal)
            || message.Contains("analytic hole candidate failed diagnostic", StringComparison.Ordinal)
            || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
 

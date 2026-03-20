@@ -1,0 +1,39 @@
+firmament:
+  version: 1
+
+model:
+  name: m13a_unsupported_tangent_composed_holes
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      30
+      12
+
+  -
+    op: subtract
+    id: hole_a
+    from: base
+    with:
+      op: cylinder
+      radius: 4
+      height: 20
+    place:
+      on: origin
+      offset[3]:
+        -8
+        0
+        0
+
+  -
+    op: subtract
+    id: hole_b
+    from: hole_a
+    with:
+      op: cylinder
+      radius: 4
+      height: 20

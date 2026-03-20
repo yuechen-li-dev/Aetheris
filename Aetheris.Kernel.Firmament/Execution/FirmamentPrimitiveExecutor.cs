@@ -261,7 +261,7 @@ internal static class FirmamentPrimitiveExecutor
             }
         }
 
-        return new BrepBody(body.Topology, translatedGeometry, body.Bindings, vertexPoints);
+        return new BrepBody(body.Topology, translatedGeometry, body.Bindings, vertexPoints, body.SafeBooleanComposition?.Translate(translation));
     }
 }
 

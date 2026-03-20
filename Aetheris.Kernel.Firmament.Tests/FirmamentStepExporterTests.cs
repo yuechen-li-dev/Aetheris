@@ -105,6 +105,49 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
+    public void Export_SupportedTwoCylinderComposition_Exports_Deterministically_With_Persisted_Artifact()
+    {
+        var first = ExportFixture("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament");
+        var second = ExportFixture("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament");
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.StepText, second.Value.StepText);
+        Assert.Equal("hole_b", first.Value.ExportedFeatureId);
+        Assert.Equal(2, first.Value.ExportedOpIndex);
+        Assert.Equal("boolean", first.Value.ExportedBodyCategory);
+        Assert.Equal("subtract", first.Value.ExportedFeatureKind);
+        Assert.Equal(2, CountOccurrences(first.Value.StepText, "CYLINDRICAL_SURFACE"));
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.StepText, StringComparison.Ordinal);
+
+        var artifactPath = WriteExportArtifact("boolean_two_cylinder_holes_basic.step", first.Value.StepText);
+        Assert.True(File.Exists(artifactPath));
+        Assert.Equal(first.Value.StepText, File.ReadAllText(artifactPath));
+    }
+
+    [Fact]
+    public void Export_SupportedCylinderConeComposition_Exports_Deterministically_With_Persisted_Artifact()
+    {
+        var first = ExportFixture("testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament");
+        var second = ExportFixture("testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament");
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.StepText, second.Value.StepText);
+        Assert.Equal("cut_b", first.Value.ExportedFeatureId);
+        Assert.Equal(2, first.Value.ExportedOpIndex);
+        Assert.Equal("boolean", first.Value.ExportedBodyCategory);
+        Assert.Equal("subtract", first.Value.ExportedFeatureKind);
+        Assert.Contains("CYLINDRICAL_SURFACE", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("CONICAL_SURFACE", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.StepText, StringComparison.Ordinal);
+
+        var artifactPath = WriteExportArtifact("boolean_cylinder_cone_holes_basic.step", first.Value.StepText);
+        Assert.True(File.Exists(artifactPath));
+        Assert.Equal(first.Value.StepText, File.ReadAllText(artifactPath));
+    }
+
+    [Fact]
     public void Export_UnsupportedBoxWithCylinderHole_Fails_Instead_Of_Falling_Back_To_Base_Primitive()
     {
         var first = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
@@ -132,6 +175,11 @@ public sealed class FirmamentStepExporterTests
     [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-subtract-torus.firmament", "ring_cut")]
     [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-add-torus.firmament", "joined")]
     [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-intersect-torus.firmament", "overlap")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-overlapping-composed-holes.firmament", "hole_b")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", "hole_b")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "joined")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "cavity")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch")]
     public void Export_UnsupportedMixedPrimitiveBooleanFixtures_Fail_Loudly_Without_Fallback(string fixturePath, string expectedFeatureId)
     {
         var first = ExportFixture(fixturePath);
@@ -179,8 +227,22 @@ public sealed class FirmamentStepExporterTests
 
     private static bool HasExpectedMixedPrimitiveFailure(string message)
         => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
+           || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone through-holes", StringComparison.Ordinal)
            || message.Contains("analytic hole candidate failed diagnostic", StringComparison.Ordinal)
            || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
+
+    private static int CountOccurrences(string text, string token)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+
+        return count;
+    }
 
     [Fact]
     public void Export_SchemaPresent_Model_Still_Exports_With_Stable_Metadata_And_Deterministic_Text()

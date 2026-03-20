@@ -1,0 +1,39 @@
+firmament:
+  version: 1
+
+model:
+  name: m13a_unsupported_composed_add_ordering
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      30
+      12
+
+  -
+    op: subtract
+    id: hole_a
+    from: base
+    with:
+      op: cylinder
+      radius: 4
+      height: 20
+
+  -
+    op: add
+    id: joined
+    to: hole_a
+    with:
+      op: cylinder
+      radius: 3
+      height: 20
+    place:
+      on: origin
+      offset[3]:
+        8
+        0
+        0

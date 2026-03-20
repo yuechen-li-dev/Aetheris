@@ -150,6 +150,30 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_BooleanTwoCylinderHolesExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament",
+            "boolean_two_cylinder_holes_basic.step",
+            "hole_b",
+            2,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_BooleanCylinderConeHolesExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament",
+            "boolean_cylinder_cone_holes_basic.step",
+            "cut_b",
+            2,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
     public void Run_UnsupportedBoxWithCylinderHoleFixture_Fails_And_Does_Not_Write_Fallback_Export()
     {
         AssertUnsupportedBuildAndExport(
@@ -168,6 +192,11 @@ public sealed class FirmamentBuildAndExportTests
     [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-subtract-cone.firmament", "m10m-unsupported-box-subtract-cone.step", "tapered_cut", "subtract")]
     [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-add-cone.firmament", "m10m-unsupported-box-add-cone.step", "joined", "add")]
     [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-intersect-cone.firmament", "m10m-unsupported-box-intersect-cone.step", "overlap", "intersect")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-overlapping-composed-holes.firmament", "m13a-unsupported-overlapping-composed-holes.step", "hole_b", "subtract")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", "m13a-unsupported-tangent-composed-holes.step", "hole_b", "subtract")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "m13a-unsupported-composed-add-ordering.step", "joined", "add")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "m13a-unsupported-composed-subtract-sphere.step", "cavity", "subtract")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "m13a-unsupported-composed-subtract-box.step", "notch", "subtract")]
     public void Run_Unsupported_MixedPrimitive_Fixtures_Fail_And_Do_Not_Write_Fallback_Export(
         string sourcePath,
         string expectedFileName,
@@ -218,6 +247,7 @@ public sealed class FirmamentBuildAndExportTests
 
     private static bool HasExpectedMixedPrimitiveFailure(string message)
         => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
+           || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone through-holes", StringComparison.Ordinal)
            || message.Contains("analytic hole candidate failed diagnostic", StringComparison.Ordinal)
            || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
 }

@@ -448,6 +448,111 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_ComposedTwoCylinderThroughHoles_RemainsTruthful_And_Deterministic()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var firstHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(-7d, 0d, 6d)));
+        var secondHole = TransformBody(BrepPrimitives.CreateCylinder(3d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(8d, 2d, 6d)));
+
+        var first = BrepBoolean.Subtract(baseBox, firstHole);
+        Assert.True(first.IsSuccess);
+
+        var second = BrepBoolean.Subtract(first.Value, secondHole);
+        var repeated = BrepBoolean.Subtract(first.Value, secondHole);
+
+        Assert.True(second.IsSuccess);
+        Assert.True(repeated.IsSuccess);
+        Assert.Equal(8, second.Value.Topology.Faces.Count());
+        Assert.Equal(18, second.Value.Topology.Edges.Count());
+        Assert.Equal(16, second.Value.Topology.Vertices.Count());
+        Assert.Equal(second.Value.SafeBooleanComposition?.Holes.Count, repeated.Value.SafeBooleanComposition?.Holes.Count);
+        Assert.Equal(2, second.Value.SafeBooleanComposition?.Holes.Count);
+        Assert.True(BrepBindingValidator.Validate(second.Value, true).IsSuccess);
+
+        var export = Step242Exporter.ExportBody(second.Value);
+        var repeatedExport = Step242Exporter.ExportBody(repeated.Value);
+        Assert.True(export.IsSuccess);
+        Assert.True(repeatedExport.IsSuccess);
+        Assert.Equal(export.Value, repeatedExport.Value);
+        Assert.Contains("CYLINDRICAL_SURFACE", export.Value, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_ComposedCylinderThenConeThroughHole_RemainsTruthful_And_Deterministic()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var cylinderHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(-7d, -2d, 6d)));
+        var coneHole = TransformBody(CreateCone(bottomRadius: 3d, topRadius: 5d, height: 20d), Transform3D.CreateTranslation(new Vector3D(8d, 0d, 0d)));
+
+        var first = BrepBoolean.Subtract(baseBox, cylinderHole);
+        Assert.True(first.IsSuccess);
+
+        var second = BrepBoolean.Subtract(first.Value, coneHole);
+        var repeated = BrepBoolean.Subtract(first.Value, coneHole);
+
+        Assert.True(second.IsSuccess);
+        Assert.True(repeated.IsSuccess);
+        Assert.Equal(8, second.Value.Topology.Faces.Count());
+        Assert.Equal(18, second.Value.Topology.Edges.Count());
+        Assert.Equal(16, second.Value.Topology.Vertices.Count());
+        Assert.Equal(2, second.Value.SafeBooleanComposition?.Holes.Count);
+        Assert.True(BrepBindingValidator.Validate(second.Value, true).IsSuccess);
+        Assert.Contains(second.Value.Topology.Faces, face =>
+            second.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Cylinder);
+        Assert.Contains(second.Value.Topology.Faces, face =>
+            second.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Cone);
+
+        var export = Step242Exporter.ExportBody(second.Value);
+        var repeatedExport = Step242Exporter.ExportBody(repeated.Value);
+        Assert.True(export.IsSuccess);
+        Assert.True(repeatedExport.IsSuccess);
+        Assert.Equal(export.Value, repeatedExport.Value);
+        Assert.Contains("CYLINDRICAL_SURFACE", export.Value, StringComparison.Ordinal);
+        Assert.Contains("CONICAL_SURFACE", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_ComposedOverlappingHoles_FailsWithDeterministicInterferenceDiagnostic()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var firstHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
+        var secondHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(6d, 0d, 6d)));
+
+        var first = BrepBoolean.Subtract(baseBox, firstHole);
+        Assert.True(first.IsSuccess);
+
+        var second = BrepBoolean.Subtract(first.Value, secondHole);
+
+        Assert.False(second.IsSuccess);
+        var diagnostic = Assert.Single(second.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.HoleInterference", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic HoleInterference (analytic hole footprint overlaps an existing composed hole).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Subtract_ComposedTangentHoles_FailsWithDeterministicTangentDiagnostic()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var firstHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(-4d, 0d, 6d)));
+        var secondHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(4d, 0d, 6d)));
+
+        var first = BrepBoolean.Subtract(baseBox, firstHole);
+        Assert.True(first.IsSuccess);
+
+        var second = BrepBoolean.Subtract(first.Value, secondHole);
+
+        Assert.False(second.IsSuccess);
+        var diagnostic = Assert.Single(second.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.TangentContact", diagnostic.Source);
+        Assert.Equal("Boolean Subtract: analytic hole candidate failed diagnostic TangentContact (analytic hole footprint is tangent to an existing composed hole.).", diagnostic.Message);
+    }
+
+    [Fact]
     public void Add_BoxCylinder_StillReturnsDeterministicNotImplemented()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
@@ -733,7 +838,7 @@ public sealed class BrepBooleanTests
             }
         }
 
-        return new BrepBody(body.Topology, geometry, body.Bindings, vertexPoints);
+        return new BrepBody(body.Topology, geometry, body.Bindings, vertexPoints, body.SafeBooleanComposition);
     }
 
 }

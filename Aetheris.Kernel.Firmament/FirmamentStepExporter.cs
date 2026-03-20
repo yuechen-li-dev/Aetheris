@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Diagnostics;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament;
 
@@ -36,7 +37,8 @@ public static class FirmamentStepExporter
             return KernelResult<FirmamentStepExportResult>.Failure(selectionResult.Diagnostics);
         }
 
-        var stepResult = Step242Exporter.ExportBody(selectionResult.Value.Body);
+        var semanticPmi = DeriveSemanticPmi(artifact.PrimitiveLoweringPlan, selectionResult.Value);
+        var stepResult = Step242Exporter.ExportBody(selectionResult.Value.Body, semanticPmi);
         if (!stepResult.IsSuccess)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(stepResult.Diagnostics);
@@ -111,6 +113,41 @@ public static class FirmamentStepExporter
 
     private const string ExportBodyCategoryPrimitive = "primitive";
     private const string ExportBodyCategoryBoolean = "boolean";
+
+    private static IReadOnlyList<Step242SemanticPmiDiameter> DeriveSemanticPmi(
+        FirmamentPrimitiveLoweringPlan? loweringPlan,
+        ExportBodySelection selection)
+    {
+        if (loweringPlan is null
+            || !string.Equals(selection.BodyCategory, ExportBodyCategoryBoolean, StringComparison.Ordinal)
+            || !string.Equals(selection.FeatureKind, "subtract", StringComparison.Ordinal))
+        {
+            return [];
+        }
+
+        var booleansByFeatureId = loweringPlan.Booleans.ToDictionary(boolean => boolean.FeatureId, StringComparer.Ordinal);
+        var currentFeatureId = selection.FeatureId;
+        var derived = new List<(int OpIndex, Step242SemanticPmiDiameter Item)>();
+
+        while (booleansByFeatureId.TryGetValue(currentFeatureId, out var boolean)
+            && boolean.Kind == FirmamentLoweredBooleanKind.Subtract)
+        {
+            if (string.Equals(boolean.Tool.OpName, "cylinder", StringComparison.Ordinal)
+                && boolean.Tool.RawFields.TryGetValue("radius", out var radiusRaw)
+                && !string.IsNullOrWhiteSpace(radiusRaw))
+            {
+                var radius = FirmamentPrimitiveToolParsing.ParseScalar(radiusRaw);
+                derived.Add((boolean.OpIndex, new Step242SemanticPmiDiameter(boolean.FeatureId, radius * 2d)));
+            }
+
+            currentFeatureId = boolean.PrimaryReferenceFeatureId;
+        }
+
+        return derived
+            .OrderBy(item => item.OpIndex)
+            .Select(item => item.Item)
+            .ToArray();
+    }
 
     private sealed record ExportBodySelection(
         int OpIndex,

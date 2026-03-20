@@ -29,6 +29,37 @@ public sealed class Step242ExporterTests
     }
 
 
+
+    [Fact]
+    public void ExportBody_WithSemanticCylinderHolePmi_EmitsSemanticOnlyDeterministicChain()
+    {
+        var boxResult = BrepPrimitives.CreateBox(4d, 6d, 8d);
+        Assert.True(boxResult.IsSuccess);
+
+        var semanticPmi = new[]
+        {
+            new Step242SemanticPmiDiameter("hole_a", 8d),
+            new Step242SemanticPmiDiameter("hole_b", 6d)
+        };
+
+        var first = Step242Exporter.ExportBody(boxResult.Value, semanticPmi);
+        var second = Step242Exporter.ExportBody(boxResult.Value, semanticPmi);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value, second.Value);
+        Assert.Equal(2, CountOccurrences(first.Value, "SHAPE_ASPECT"));
+        Assert.Equal(2, CountOccurrences(first.Value, "PROPERTY_DEFINITION_REPRESENTATION"));
+        Assert.Equal(2, CountOccurrences(first.Value, "SHAPE_DIMENSION_REPRESENTATION"));
+        Assert.Equal(2, CountOccurrences(first.Value, "MEASURE_REPRESENTATION_ITEM"));
+        Assert.Contains("firmament-feature:hole_a", first.Value, StringComparison.Ordinal);
+        Assert.Contains("firmament-feature:hole_b", first.Value, StringComparison.Ordinal);
+        Assert.Contains("MEASURE_REPRESENTATION_ITEM('diameter',8,#", first.Value, StringComparison.Ordinal);
+        Assert.Contains("MEASURE_REPRESENTATION_ITEM('diameter',6,#", first.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("DRAUGHTING_CALLOUT", first.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("ANNOTATION_PLANE", first.Value, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ExportBody_ImportedCylindricalFace_EmitsCylindricalSurface()
     {
@@ -762,4 +793,18 @@ END-ISO-10303-21;";
     private sealed record ParsedLine((double X, double Y, double Z) Origin, int VectorId, double Length);
 
     private sealed record ParsedEdgeCurve(int EdgeCurveId, int StartVertexId, int EndVertexId, int CurveId);
+
+
+    private static int CountOccurrences(string text, string token)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+
+        return count;
+    }
 }

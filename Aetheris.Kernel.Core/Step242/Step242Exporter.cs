@@ -12,6 +12,12 @@ namespace Aetheris.Kernel.Core.Step242;
 public static class Step242Exporter
 {
     public static KernelResult<string> ExportBody(BrepBody body, Step242ExportOptions? options = null)
+        => ExportBody(body, semanticPmi: null, options);
+
+    public static KernelResult<string> ExportBody(
+        BrepBody body,
+        IReadOnlyList<Step242SemanticPmiDiameter>? semanticPmi,
+        Step242ExportOptions? options = null)
     {
         options ??= new Step242ExportOptions();
 
@@ -131,10 +137,58 @@ public static class Step242Exporter
         var planeAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)PLANE_ANGLE_UNIT()SI_UNIT($,.RADIAN.))");
         var solidAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)SI_UNIT($,.STERADIAN.)SOLID_ANGLE_UNIT())");
         var repContextId = writer.AddRawEntity($"(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNIT_ASSIGNED_CONTEXT(({lengthUnitId},{planeAngleUnitId},{solidAngleUnitId}))REPRESENTATION_CONTEXT('3','3D'))");
+        EmitSemanticPmi(writer, shapeId, repContextId, lengthUnitId, semanticPmi);
+
         var shapeRepresentationId = writer.AddEntity("SHAPE_REPRESENTATION", Step242TextWriter.String(options.ProductName), Step242TextWriter.List(brepId), Step242TextWriter.Ref(repContextId));
         writer.AddEntity("SHAPE_DEFINITION_REPRESENTATION", Step242TextWriter.Ref(shapeId), Step242TextWriter.Ref(shapeRepresentationId));
 
         return KernelResult<string>.Success(writer.Build(options.ApplicationName));
+    }
+
+    private static void EmitSemanticPmi(
+        Step242TextWriter writer,
+        string shapeId,
+        string repContextId,
+        string lengthUnitId,
+        IReadOnlyList<Step242SemanticPmiDiameter>? semanticPmi)
+    {
+        if (semanticPmi is null || semanticPmi.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var diameter in semanticPmi)
+        {
+            var featureShapeAspectId = writer.AddEntity(
+                "SHAPE_ASPECT",
+                Step242TextWriter.String($"firmament-feature:{diameter.FeatureId}"),
+                Step242TextWriter.String("supported cylinder through-hole feature"),
+                Step242TextWriter.Ref(shapeId),
+                Step242TextWriter.Enum("FALSE"));
+
+            var propertyDefinitionId = writer.AddEntity(
+                "PROPERTY_DEFINITION",
+                Step242TextWriter.String($"diameter:{diameter.FeatureId}"),
+                Step242TextWriter.String("auto-derived semantic PMI diameter"),
+                Step242TextWriter.Ref(featureShapeAspectId));
+
+            var measureItemId = writer.AddEntity(
+                "MEASURE_REPRESENTATION_ITEM",
+                Step242TextWriter.String("diameter"),
+                Step242TextWriter.Number(diameter.Diameter),
+                Step242TextWriter.Ref(lengthUnitId));
+
+            var representationId = writer.AddEntity(
+                "SHAPE_DIMENSION_REPRESENTATION",
+                Step242TextWriter.String($"diameter:{diameter.FeatureId}"),
+                Step242TextWriter.List(measureItemId),
+                Step242TextWriter.Ref(repContextId));
+
+            writer.AddEntity(
+                "PROPERTY_DEFINITION_REPRESENTATION",
+                Step242TextWriter.Ref(propertyDefinitionId),
+                Step242TextWriter.Ref(representationId));
+        }
     }
 
     private static string BuildPlane(Step242TextWriter writer, PlaneSurface plane)

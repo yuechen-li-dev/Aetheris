@@ -67,7 +67,7 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
-    public void Export_SupportedBoxCylinderHole_Exports_Deterministically_With_CylindricalSurface()
+    public void Export_SupportedBoxCylinderHole_Exports_Deterministically_With_Semantic_Diameter_Pmi()
     {
         var first = ExportFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
         var second = ExportFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
@@ -81,6 +81,13 @@ public sealed class FirmamentStepExporterTests
         Assert.Equal("subtract", first.Value.ExportedFeatureKind);
         Assert.Contains("CYLINDRICAL_SURFACE", first.Value.StepText, StringComparison.Ordinal);
         Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("SHAPE_ASPECT", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("PROPERTY_DEFINITION_REPRESENTATION", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("SHAPE_DIMENSION_REPRESENTATION", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("MEASURE_REPRESENTATION_ITEM('diameter',8,#", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("firmament-feature:hole", first.Value.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("DRAUGHTING_CALLOUT", first.Value.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("ANNOTATION_PLANE", first.Value.StepText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -105,7 +112,7 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
-    public void Export_SupportedTwoCylinderComposition_Exports_Deterministically_With_Persisted_Artifact()
+    public void Export_SupportedTwoCylinderComposition_Exports_Two_Semantic_Diameter_Items_Deterministically()
     {
         var first = ExportFixture("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament");
         var second = ExportFixture("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament");
@@ -118,6 +125,12 @@ public sealed class FirmamentStepExporterTests
         Assert.Equal("boolean", first.Value.ExportedBodyCategory);
         Assert.Equal("subtract", first.Value.ExportedFeatureKind);
         Assert.Equal(2, CountOccurrences(first.Value.StepText, "CYLINDRICAL_SURFACE"));
+        Assert.Equal(2, CountOccurrences(first.Value.StepText, "SHAPE_ASPECT"));
+        Assert.Equal(2, CountOccurrences(first.Value.StepText, "MEASURE_REPRESENTATION_ITEM"));
+        Assert.Contains("firmament-feature:hole_a", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("firmament-feature:hole_b", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("MEASURE_REPRESENTATION_ITEM('diameter',8,#", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("MEASURE_REPRESENTATION_ITEM('diameter',6,#", first.Value.StepText, StringComparison.Ordinal);
         Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.StepText, StringComparison.Ordinal);
 
         var artifactPath = WriteExportArtifact("boolean_two_cylinder_holes_basic.step", first.Value.StepText);
@@ -126,7 +139,7 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
-    public void Export_SupportedCylinderConeComposition_Exports_Deterministically_With_Persisted_Artifact()
+    public void Export_SupportedCylinderConeComposition_Exports_Only_Cylinder_Diameter_Pmi()
     {
         var first = ExportFixture("testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament");
         var second = ExportFixture("testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament");
@@ -140,11 +153,40 @@ public sealed class FirmamentStepExporterTests
         Assert.Equal("subtract", first.Value.ExportedFeatureKind);
         Assert.Contains("CYLINDRICAL_SURFACE", first.Value.StepText, StringComparison.Ordinal);
         Assert.Contains("CONICAL_SURFACE", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("firmament-feature:hole_a", first.Value.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("firmament-feature:cut_b", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Equal(1, CountOccurrences(first.Value.StepText, "MEASURE_REPRESENTATION_ITEM"));
+        Assert.Contains("MEASURE_REPRESENTATION_ITEM('diameter',8,#", first.Value.StepText, StringComparison.Ordinal);
         Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.StepText, StringComparison.Ordinal);
 
         var artifactPath = WriteExportArtifact("boolean_cylinder_cone_holes_basic.step", first.Value.StepText);
         Assert.True(File.Exists(artifactPath));
         Assert.Equal(first.Value.StepText, File.ReadAllText(artifactPath));
+    }
+
+
+    [Fact]
+    public void Export_NonCylinderOrFailedBooleanCases_DoNotEmit_SemanticPmi()
+    {
+        var boxSubtract = ExportFixture("testdata/firmament/examples/boolean_subtract_basic.firmament");
+        var coneHole = ExportFixture("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament");
+        var unsupportedCylinder = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
+        var unsupportedSphere = ExportFixture("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-contained.firmament");
+        var unsupportedTorus = ExportFixture("testdata/firmament/fixtures/m10n-unsupported-box-subtract-torus.firmament");
+
+        Assert.True(boxSubtract.IsSuccess);
+        Assert.DoesNotContain("SHAPE_ASPECT", boxSubtract.Value.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("MEASURE_REPRESENTATION_ITEM", boxSubtract.Value.StepText, StringComparison.Ordinal);
+
+        Assert.True(coneHole.IsSuccess);
+        Assert.DoesNotContain("SHAPE_ASPECT", coneHole.Value.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("MEASURE_REPRESENTATION_ITEM", coneHole.Value.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("DRAUGHTING_CALLOUT", coneHole.Value.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("ANNOTATION_PLANE", coneHole.Value.StepText, StringComparison.Ordinal);
+
+        Assert.False(unsupportedCylinder.IsSuccess);
+        Assert.False(unsupportedSphere.IsSuccess);
+        Assert.False(unsupportedTorus.IsSuccess);
     }
 
     [Fact]

@@ -1,0 +1,32 @@
+firmament:
+  version: 1
+
+model:
+  name: m13a_unsupported_composed_subtract_sphere
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      30
+      12
+
+  -
+    op: subtract
+    id: hole_a
+    from: base
+    with:
+      op: cylinder
+      radius: 4
+      height: 20
+
+  -
+    op: subtract
+    id: cavity
+    from: hole_a
+    with:
+      op: sphere
+      radius: 3

@@ -12,7 +12,9 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             { "testdata/firmament/examples/boolean_subtract_basic.firmament", "carved", FirmamentLoweredBooleanKind.Subtract },
             { "testdata/firmament/examples/boolean_intersect_basic.firmament", "overlap", FirmamentLoweredBooleanKind.Intersect },
             { "testdata/firmament/examples/boolean_box_cylinder_hole.firmament", "hole", FirmamentLoweredBooleanKind.Subtract },
-            { "testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament", "cut", FirmamentLoweredBooleanKind.Subtract }
+            { "testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament", "cut", FirmamentLoweredBooleanKind.Subtract },
+            { "testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament", "hole_b", FirmamentLoweredBooleanKind.Subtract },
+            { "testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament", "cut_b", FirmamentLoweredBooleanKind.Subtract }
         };
 
     [Theory]
@@ -38,6 +40,8 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     [InlineData("testdata/firmament/examples/boolean_intersect_basic.firmament", "overlap", 2, "intersect")]
     [InlineData("testdata/firmament/examples/boolean_box_cylinder_hole.firmament", "hole", 1, "subtract")]
     [InlineData("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament", "cut", 1, "subtract")]
+    [InlineData("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament", "hole_b", 2, "subtract")]
+    [InlineData("testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament", "cut_b", 2, "subtract")]
     public void CanonicalBooleanExamples_Export_Deterministically_WithExpectedMarkers(string fixturePath, string expectedFeatureId, int expectedOpIndex, string expectedKind)
     {
         var first = ExportFixture(fixturePath);
@@ -54,6 +58,21 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
         Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.StepText, StringComparison.Ordinal);
         Assert.Contains("ADVANCED_FACE", first.Value.StepText, StringComparison.Ordinal);
         Assert.Contains("PLANE", first.Value.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SequentialSafeCompositionExamples_ExportExpectedAnalyticMarkers()
+    {
+        var twoCylinder = ExportFixture("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament");
+        var cylinderCone = ExportFixture("testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament");
+
+        Assert.True(twoCylinder.IsSuccess);
+        Assert.Contains("CYLINDRICAL_SURFACE", twoCylinder.Value.StepText, StringComparison.Ordinal);
+        Assert.Equal(2, CountOccurrences(twoCylinder.Value.StepText, "CYLINDRICAL_SURFACE"));
+
+        Assert.True(cylinderCone.IsSuccess);
+        Assert.Contains("CYLINDRICAL_SURFACE", cylinderCone.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("CONICAL_SURFACE", cylinderCone.Value.StepText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -143,6 +162,31 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             && HasExpectedMixedPrimitiveFailure(diagnostic.Message));
     }
 
+    [Theory]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-overlapping-composed-holes.firmament", "hole_b", "HoleInterference")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", "hole_b", "TangentContact")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "joined", "sequential safe composition only supports subtracting supported cylinder/cone through-holes")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "cavity", "analytic hole surface kind 'Sphere'")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch", "sequential safe composition only supports subtracting supported cylinder/cone through-holes")]
+    public void SequentialCompositionOutsideSafeSubset_RemainsRejectedWithoutFallback(string fixturePath, string expectedFeatureId, string expectedMessageFragment)
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
+        var export = ExportFixture(fixturePath);
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}'", StringComparison.Ordinal));
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains(expectedMessageFragment, StringComparison.Ordinal));
+
+        Assert.False(export.IsSuccess);
+        Assert.Contains(export.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}'", StringComparison.Ordinal));
+        Assert.DoesNotContain(export.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
+    }
+
     public static TheoryData<string, string, string> UnsupportedBoxTorusVariantSources =>
         new()
         {
@@ -178,8 +222,22 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
 
     private static bool HasExpectedMixedPrimitiveFailure(string message)
         => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
+           || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone through-holes", StringComparison.Ordinal)
            || message.Contains("analytic hole candidate failed diagnostic", StringComparison.Ordinal)
            || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
+
+    private static int CountOccurrences(string text, string token)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+
+        return count;
+    }
 
     private static string CreateBoxTorusSource(string op, string featureId, string targetField, string nameSuffix, double offsetX, double offsetY, double offsetZ, double majorRadius = 6d, double minorRadius = 2d) =>
         $"""

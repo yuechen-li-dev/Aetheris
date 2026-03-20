@@ -23,6 +23,7 @@ public sealed record BooleanAnalysis(
     bool IsSameBodyInstance,
     string? ShortcutReason,
     BooleanExecutionClass ExecutionClass,
+    SafeBooleanComposition? LeftSafeComposition,
     AxisAlignedBoxExtents? LeftBox,
     AxisAlignedBoxExtents? RightBox,
     AnalyticSurface? RightAnalyticSurface,
@@ -37,6 +38,7 @@ public enum BooleanExecutionClass
 
 public sealed record BooleanCaseClassification(
     BooleanExecutionClass ExecutionClass,
+    SafeBooleanComposition? LeftSafeComposition,
     AxisAlignedBoxExtents? LeftBox,
     AxisAlignedBoxExtents? RightBox,
     AnalyticSurface? RightAnalyticSurface,
@@ -55,7 +57,7 @@ public sealed record BooleanClassificationData(
     bool IsComputed,
     int FragmentCount,
     AxisAlignedBoxExtents? SingleBoxResult,
-    AnalyticSurface? AnalyticHoleSurface,
+    SafeBooleanComposition? SafeCompositionResult,
     string? UnsupportedReason,
     BooleanDiagnostic? Diagnostic = null);
 
@@ -147,6 +149,7 @@ public static class BrepBoolean
             isSameBodyInstance,
             shortcutReason,
             classification.ExecutionClass,
+            classification.LeftSafeComposition,
             classification.LeftBox,
             classification.RightBox,
             classification.RightAnalyticSurface,
@@ -156,22 +159,44 @@ public static class BrepBoolean
     public static BooleanCaseClassification ClassifyBooleanCase(BrepBody leftBody, BrepBody rightBody, BooleanOperation operation, ToleranceContext? tolerance = null)
     {
         var resolvedTolerance = tolerance ?? ToleranceContext.Default;
+        var leftSafeCompositionRecognized = leftBody.SafeBooleanComposition is not null;
+        var leftSafeComposition = leftSafeCompositionRecognized
+            ? leftBody.SafeBooleanComposition!
+            : null;
         var leftRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(leftBody, resolvedTolerance, out var leftBox, out _);
         var rightRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(rightBody, resolvedTolerance, out var rightBox, out _);
         var rightAnalyticRecognized = BrepBooleanAnalyticSurfaceRecognition.TryRecognizeAnalyticSurface(rightBody, resolvedTolerance, out var analyticSurface, out _);
 
         if (leftRecognized && rightRecognized)
         {
-            return new BooleanCaseClassification(BooleanExecutionClass.PlanarOnly, leftBox, rightBox, null, null);
+            return new BooleanCaseClassification(BooleanExecutionClass.PlanarOnly, leftSafeComposition, leftBox, rightBox, null, null);
         }
 
-        if (operation == BooleanOperation.Subtract && leftRecognized && rightAnalyticRecognized)
+        if (operation == BooleanOperation.Subtract && (leftRecognized || leftSafeCompositionRecognized) && rightAnalyticRecognized)
         {
-            return new BooleanCaseClassification(BooleanExecutionClass.PlanarWithAnalyticHole, leftBox, null, analyticSurface, null);
+            return new BooleanCaseClassification(
+                BooleanExecutionClass.PlanarWithAnalyticHole,
+                leftSafeCompositionRecognized ? leftSafeComposition : new SafeBooleanComposition(leftBox, []),
+                leftRecognized ? leftBox : leftSafeComposition!.OuterBox,
+                null,
+                analyticSurface,
+                null);
+        }
+
+        if (leftSafeCompositionRecognized)
+        {
+            return new BooleanCaseClassification(
+                BooleanExecutionClass.UnsupportedGeneralCase,
+                leftSafeComposition,
+                leftRecognized ? leftBox : leftSafeComposition!.OuterBox,
+                rightRecognized ? rightBox : null,
+                rightAnalyticRecognized ? analyticSurface : null,
+                $"Boolean {operation}: sequential safe composition only supports subtracting supported cylinder/cone through-holes from the current composed box shell.");
         }
 
         return new BooleanCaseClassification(
             BooleanExecutionClass.UnsupportedGeneralCase,
+            null,
             leftRecognized ? leftBox : null,
             rightRecognized ? rightBox : null,
             rightAnalyticRecognized ? analyticSurface : null,
@@ -209,59 +234,33 @@ public static class BrepBoolean
             case BooleanExecutionClass.PlanarWithAnalyticHole:
                 return ClassifyPlanarWithAnalyticHole(request, intersections);
             default:
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, AnalyticHoleSurface: null, UnsupportedReason: intersections.Analysis.UnsupportedReason);
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: intersections.Analysis.UnsupportedReason);
         }
     }
 
     private static BooleanClassificationData ClassifyPlanarWithAnalyticHole(BooleanRequest request, BooleanIntersectionData intersections)
     {
-        var left = intersections.Analysis.LeftBox!.Value;
+        var leftComposition = intersections.Analysis.LeftSafeComposition
+            ?? new SafeBooleanComposition(intersections.Analysis.LeftBox!.Value, []);
+        var left = leftComposition.OuterBox;
         var tolerance = request.Tolerance ?? ToleranceContext.Default;
         var operation = request.Operation;
 
         if (intersections.Analysis.RightAnalyticSurface is not AnalyticSurface analyticSurface)
         {
-            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, AnalyticHoleSurface: null, UnsupportedReason: $"Boolean {operation}: analytic-hole classification requires a recognized analytic surface.");
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: analytic-hole classification requires a recognized analytic surface.");
         }
 
-        if (analyticSurface.Kind == AnalyticSurfaceKind.Cylinder
-            && analyticSurface.Cylinder is RecognizedCylinder cylinder
-            && !BrepBooleanCylinderRecognition.ValidateThroughHole(left, cylinder, tolerance, out var diagnostic))
+        if (!BrepBooleanSafeComposition.TryAppend(leftComposition, analyticSurface, tolerance, out var updatedComposition, out var diagnostic))
         {
             return new BooleanClassificationData(
                 intersections,
                 IsComputed: true,
                 FragmentCount: 0,
                 SingleBoxResult: null,
-                AnalyticHoleSurface: analyticSurface,
+                SafeCompositionResult: null,
                 UnsupportedReason: null,
                 Diagnostic: diagnostic);
-        }
-
-        if (analyticSurface.Kind == AnalyticSurfaceKind.Cone
-            && analyticSurface.Cone is RecognizedCone cone
-            && !BrepBooleanCylinderRecognition.ValidateThroughHole(left, cone, tolerance, out var coneDiagnostic))
-        {
-            return new BooleanClassificationData(
-                intersections,
-                IsComputed: true,
-                FragmentCount: 0,
-                SingleBoxResult: null,
-                AnalyticHoleSurface: analyticSurface,
-                UnsupportedReason: null,
-                Diagnostic: coneDiagnostic);
-        }
-
-        if (analyticSurface.Kind is AnalyticSurfaceKind.Sphere or AnalyticSurfaceKind.Torus)
-        {
-            return new BooleanClassificationData(
-                intersections,
-                IsComputed: true,
-                FragmentCount: 0,
-                SingleBoxResult: null,
-                AnalyticHoleSurface: analyticSurface,
-                UnsupportedReason: null,
-                Diagnostic: BrepBooleanCylinderRecognition.CreateUnsupportedAnalyticSurfaceKindDiagnostic(operation.ToString(), analyticSurface.Kind));
         }
 
         return new BooleanClassificationData(
@@ -269,7 +268,7 @@ public static class BrepBoolean
             IsComputed: true,
             FragmentCount: 1,
             SingleBoxResult: null,
-            AnalyticHoleSurface: analyticSurface,
+            SafeCompositionResult: updatedComposition,
             UnsupportedReason: null);
     }
 
@@ -277,7 +276,7 @@ public static class BrepBoolean
     {
         if (intersections.Analysis.UnsupportedReason is not null)
         {
-            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, AnalyticHoleSurface: null, UnsupportedReason: intersections.Analysis.UnsupportedReason);
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: intersections.Analysis.UnsupportedReason);
         }
 
         var left = intersections.Analysis.LeftBox!.Value;
@@ -289,64 +288,64 @@ public static class BrepBoolean
         {
             if (intersections.IsTouchingOnly)
             {
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, AnalyticHoleSurface: null, UnsupportedReason: $"Boolean {operation}: touching-only intersection is non-solid and empty results are not representable in M13.");
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: touching-only intersection is non-solid and empty results are not representable in M13.");
             }
 
             if (intersections.OverlapBox is null)
             {
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, AnalyticHoleSurface: null, UnsupportedReason: $"Boolean {operation}: empty intersection result is not representable in M13.");
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: empty intersection result is not representable in M13.");
             }
 
-            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: intersections.OverlapBox, AnalyticHoleSurface: null, UnsupportedReason: null);
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: intersections.OverlapBox, SafeCompositionResult: null, UnsupportedReason: null);
         }
 
         if (operation == BooleanOperation.Union)
         {
             if (left.ApproximatelyEquals(right, tolerance))
             {
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: left, AnalyticHoleSurface: null, UnsupportedReason: null);
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: left, SafeCompositionResult: null, UnsupportedReason: null);
             }
 
             if (left.Contains(right, tolerance))
             {
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: left, AnalyticHoleSurface: null, UnsupportedReason: null);
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: left, SafeCompositionResult: null, UnsupportedReason: null);
             }
 
             if (right.Contains(left, tolerance))
             {
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: right, AnalyticHoleSurface: null, UnsupportedReason: null);
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: right, SafeCompositionResult: null, UnsupportedReason: null);
             }
 
             var bounds = AxisAlignedBoxExtents.Bounding(left, right);
             if (AxisAlignedBoxExtents.UnionIsSingleBox(left, right, bounds, tolerance))
             {
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: bounds, AnalyticHoleSurface: null, UnsupportedReason: null);
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: bounds, SafeCompositionResult: null, UnsupportedReason: null);
             }
 
             if (AxisAlignedBoxExtents.Intersection(left, right) is null)
             {
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, AnalyticHoleSurface: null, UnsupportedReason: $"Boolean {operation}: disjoint box union is multi-body and not supported in M13.");
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: disjoint box union is multi-body and not supported in M13.");
             }
 
-            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, AnalyticHoleSurface: null, UnsupportedReason: $"Boolean {operation}: box union is not a single box in M13 (for example L-shaped unions)." );
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: box union is not a single box in M13 (for example L-shaped unions)." );
         }
 
         if (!left.OverlapsWithPositiveVolume(right, tolerance))
         {
-            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: left, AnalyticHoleSurface: null, UnsupportedReason: null);
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: left, SafeCompositionResult: null, UnsupportedReason: null);
         }
 
         if (right.Contains(left, tolerance))
         {
-            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, AnalyticHoleSurface: null, UnsupportedReason: $"Boolean {operation}: subtraction fully removes the left box and empty results are not representable in M13.");
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: subtraction fully removes the left box and empty results are not representable in M13.");
         }
 
         if (TrySubtractToSingleBox(left, right, tolerance, out var singleBox))
         {
-            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: singleBox, AnalyticHoleSurface: null, UnsupportedReason: null);
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: singleBox, SafeCompositionResult: null, UnsupportedReason: null);
         }
 
-        return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, AnalyticHoleSurface: null, UnsupportedReason: $"Boolean {operation}: box subtraction result is not representable as a single box in M13.");
+        return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: box subtraction result is not representable as a single box in M13.");
     }
 
     private static BooleanRebuildData RebuildResult(BooleanRequest request, BooleanClassificationData classification)
@@ -364,10 +363,10 @@ public static class BrepBoolean
                 ]);
         }
 
-        if (classification.AnalyticHoleSurface is not null)
+        if (classification.SafeCompositionResult is not null)
         {
             var tolerance = request.Tolerance ?? ToleranceContext.Default;
-            var rebuiltThroughHole = BrepBooleanBoxCylinderHoleBuilder.BuildAnalyticHole(classification.Intersections.Analysis.LeftBox!.Value, classification.AnalyticHoleSurface.Value, tolerance);
+            var rebuiltThroughHole = BrepBooleanBoxCylinderHoleBuilder.BuildComposition(classification.SafeCompositionResult, tolerance);
             return rebuiltThroughHole.IsSuccess
                 ? new BooleanRebuildData(classification, rebuiltThroughHole.Value, rebuiltThroughHole.Diagnostics)
                 : new BooleanRebuildData(classification, RebuiltBody: null, Diagnostics: rebuiltThroughHole.Diagnostics);

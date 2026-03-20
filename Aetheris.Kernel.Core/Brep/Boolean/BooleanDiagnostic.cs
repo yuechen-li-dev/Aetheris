@@ -9,6 +9,7 @@ public enum BooleanDiagnosticCode
     RadiusExceedsBoundary,
     TangentContact,
     MultiBodyResult,
+    HoleInterference,
     UnsupportedAnalyticSurfaceKind
 }
 

@@ -1,0 +1,43 @@
+firmament:
+  version: 1
+
+model:
+  name: boolean_subtract_basic
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: carrier
+    size[3]:
+      6
+      2
+      2
+
+  -
+    op: add
+    id: shifted
+    to: carrier
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+    place:
+      on: origin
+      offset[3]:
+        3
+        0
+        0
+
+  -
+    op: subtract
+    id: carved
+    from: shifted
+    with:
+      op: box
+      size[3]:
+        3
+        2
+        2

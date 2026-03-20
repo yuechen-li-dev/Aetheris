@@ -251,7 +251,7 @@ public static class BrepBoolean
             return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: analytic-hole classification requires a recognized analytic surface.");
         }
 
-        if (!BrepBooleanSafeComposition.TryAppend(leftComposition, analyticSurface, tolerance, out var updatedComposition, out var diagnostic))
+        if (!BrepBooleanSafeCompositionGraphValidator.TryValidateNextSubtract(leftComposition, analyticSurface, tolerance, out var updatedComposition, out var diagnostic))
         {
             return new BooleanClassificationData(
                 intersections,

@@ -180,6 +180,7 @@ public sealed class FirmamentStepExporterTests
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "joined")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "cavity")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch")]
+    [InlineData("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament", "hole")]
     public void Export_UnsupportedMixedPrimitiveBooleanFixtures_Fail_Loudly_Without_Fallback(string fixturePath, string expectedFeatureId)
     {
         var first = ExportFixture(fixturePath);
@@ -228,6 +229,8 @@ public sealed class FirmamentStepExporterTests
     private static bool HasExpectedMixedPrimitiveFailure(string message)
         => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
            || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone through-holes", StringComparison.Ordinal)
+           || message.Contains("feature-graph ordering", StringComparison.Ordinal)
+           || message.Contains("unsupported follow-on tool kind", StringComparison.Ordinal)
            || message.Contains("analytic hole candidate failed diagnostic", StringComparison.Ordinal)
            || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
 

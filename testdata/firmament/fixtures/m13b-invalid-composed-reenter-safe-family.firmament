@@ -1,0 +1,35 @@
+firmament:
+  version: 1
+
+model:
+  name: m13b_invalid_composed_reenter_safe_family
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      30
+      12
+
+  -
+    op: add
+    id: joined
+    to: base
+    with:
+      op: box
+      size[3]:
+        6
+        6
+        6
+
+  -
+    op: subtract
+    id: hole
+    from: joined
+    with:
+      op: cylinder
+      radius: 2
+      height: 20

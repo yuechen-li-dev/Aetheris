@@ -9,6 +9,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.Lowering;
+using Aetheris.Kernel.Firmament.Validation;
 
 namespace Aetheris.Kernel.Firmament.Execution;
 
@@ -22,6 +23,7 @@ internal static class FirmamentPrimitiveExecutor
         var executedBooleans = new List<FirmamentExecutedBoolean>(loweringPlan.Booleans.Count);
         var publishedBodiesByFeatureId = new Dictionary<string, BrepBody>(StringComparer.Ordinal);
         var booleanExecutionBodiesByFeatureId = new Dictionary<string, BrepBody>(StringComparer.Ordinal);
+        var featureGraphStates = new Dictionary<string, FirmamentSafeSubtractFeatureGraphState>(StringComparer.Ordinal);
 
         foreach (var primitive in loweringPlan.Primitives.OrderBy(p => p.OpIndex))
         {
@@ -34,6 +36,9 @@ internal static class FirmamentPrimitiveExecutor
             executedPrimitives.Add(new FirmamentExecutedPrimitive(primitive.OpIndex, primitive.FeatureId, primitive.Kind, bodyResult.Value.Published));
             publishedBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.Published;
             booleanExecutionBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.LegacyForBoolean;
+            featureGraphStates[primitive.FeatureId] = primitive.Kind == FirmamentLoweredPrimitiveKind.Box
+                ? FirmamentSafeSubtractFeatureGraphState.BoxRoot
+                : FirmamentSafeSubtractFeatureGraphState.Other;
         }
 
         foreach (var boolean in loweringPlan.Booleans.OrderBy(b => b.OpIndex))
@@ -43,7 +48,20 @@ internal static class FirmamentPrimitiveExecutor
                 continue;
             }
 
-            var toolResult = ExecuteTool(boolean.Tool);
+            var featureGraphValidation = FirmamentSafeSubtractFeatureGraphValidator.ValidateNextBoolean(
+                boolean,
+                featureGraphStates,
+                booleanExecutionBodiesByFeatureId);
+            if (!featureGraphValidation.IsSuccess)
+            {
+                return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
+                [
+                    CreateBooleanExecutionFailureDiagnostic(boolean),
+                    .. featureGraphValidation.Diagnostics
+                ]);
+            }
+
+            var toolResult = FirmamentBooleanToolBodyFactory.CreateBody(boolean.Tool);
             if (!toolResult.IsSuccess)
             {
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(toolResult.Diagnostics);
@@ -71,6 +89,7 @@ internal static class FirmamentPrimitiveExecutor
             executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, placedBooleanBody));
             publishedBodiesByFeatureId[boolean.FeatureId] = placedBooleanBody;
             booleanExecutionBodiesByFeatureId[boolean.FeatureId] = placedBooleanBody;
+            featureGraphStates[boolean.FeatureId] = featureGraphValidation.Value.ResultState;
         }
 
         return KernelResult<FirmamentPrimitiveExecutionResult>.Success(new FirmamentPrimitiveExecutionResult(executedPrimitives, executedBooleans));
@@ -126,7 +145,7 @@ internal static class FirmamentPrimitiveExecutor
         };
     }
 
-    private static KernelResult<BrepBody> ExecuteCone(FirmamentLoweredConeParameters parameters)
+    internal static KernelResult<BrepBody> ExecuteCone(FirmamentLoweredConeParameters parameters)
     {
         var frame = new ExtrudeFrame3D(
             origin: Point3D.Origin,
@@ -148,71 +167,6 @@ internal static class FirmamentPrimitiveExecutor
         }
 
         return KernelResult<BrepBody>.Success(TranslateBody(coneResult.Value, new Vector3D(0d, 0d, -parameters.Height * 0.5d)));
-    }
-
-    private static KernelResult<BrepBody> ExecuteTool(FirmamentLoweredToolOp tool)
-    {
-        if (string.Equals(tool.OpName, "box", StringComparison.Ordinal))
-        {
-            if (!tool.RawFields.TryGetValue("size", out var sizeRaw) || string.IsNullOrWhiteSpace(sizeRaw))
-            {
-                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested field 'with.size' for tool op 'box'.")]);
-            }
-
-            var parameters = FirmamentPrimitiveToolParsing.ParseBox(sizeRaw);
-            return BrepPrimitives.CreateBox(parameters.SizeX, parameters.SizeY, parameters.SizeZ);
-        }
-
-        if (string.Equals(tool.OpName, "cylinder", StringComparison.Ordinal))
-        {
-            if (!tool.RawFields.TryGetValue("radius", out var radiusRaw) || string.IsNullOrWhiteSpace(radiusRaw)
-                || !tool.RawFields.TryGetValue("height", out var heightRaw) || string.IsNullOrWhiteSpace(heightRaw))
-            {
-                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested fields 'with.radius' and 'with.height' for tool op 'cylinder'.")]);
-            }
-
-            return BrepPrimitives.CreateCylinder(FirmamentPrimitiveToolParsing.ParseScalar(radiusRaw), FirmamentPrimitiveToolParsing.ParseScalar(heightRaw));
-        }
-
-        if (string.Equals(tool.OpName, "sphere", StringComparison.Ordinal))
-        {
-            if (!tool.RawFields.TryGetValue("radius", out var radiusRaw) || string.IsNullOrWhiteSpace(radiusRaw))
-            {
-                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested field 'with.radius' for tool op 'sphere'.")]);
-            }
-
-            return BrepPrimitives.CreateSphere(FirmamentPrimitiveToolParsing.ParseScalar(radiusRaw));
-        }
-
-        if (string.Equals(tool.OpName, "cone", StringComparison.Ordinal))
-        {
-            if (!tool.RawFields.TryGetValue("bottom_radius", out var bottomRadiusRaw) || string.IsNullOrWhiteSpace(bottomRadiusRaw)
-                || !tool.RawFields.TryGetValue("top_radius", out var topRadiusRaw) || string.IsNullOrWhiteSpace(topRadiusRaw)
-                || !tool.RawFields.TryGetValue("height", out var coneHeightRaw) || string.IsNullOrWhiteSpace(coneHeightRaw))
-            {
-                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested fields 'with.bottom_radius', 'with.top_radius', and 'with.height' for tool op 'cone'.")]);
-            }
-
-            return ExecuteCone(new FirmamentLoweredConeParameters(
-                FirmamentPrimitiveToolParsing.ParseScalar(bottomRadiusRaw),
-                FirmamentPrimitiveToolParsing.ParseScalar(topRadiusRaw),
-                FirmamentPrimitiveToolParsing.ParseScalar(coneHeightRaw)));
-        }
-
-        if (string.Equals(tool.OpName, "torus", StringComparison.Ordinal))
-        {
-            if (!tool.RawFields.TryGetValue("major_radius", out var majorRadiusRaw) || string.IsNullOrWhiteSpace(majorRadiusRaw)
-                || !tool.RawFields.TryGetValue("minor_radius", out var minorRadiusRaw) || string.IsNullOrWhiteSpace(minorRadiusRaw))
-            {
-                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested fields 'with.major_radius' and 'with.minor_radius' for tool op 'torus'.")]);
-            }
-
-            return BrepPrimitives.CreateTorus(
-                FirmamentPrimitiveToolParsing.ParseScalar(majorRadiusRaw),
-                FirmamentPrimitiveToolParsing.ParseScalar(minorRadiusRaw));
-        }
-
-        return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution supports nested tool ops 'box', 'cylinder', 'sphere', 'cone', and 'torus' only. Got '{tool.OpName}'.")]);
     }
 
     private static KernelResult<BrepBody> ExecuteBoolean(FirmamentLoweredBooleanKind kind, BrepBody left, BrepBody right) =>

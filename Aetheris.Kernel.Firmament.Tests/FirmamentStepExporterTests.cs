@@ -148,6 +148,81 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
+    public void Export_Placed_Sphere_And_Torus_Remain_Supported()
+    {
+        const string sphereSource = """
+firmament:
+  version: 1
+
+model:
+  name: placed_sphere_export
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      8
+      8
+      4
+
+  -
+    op: sphere
+    id: ball
+    radius: 3
+    place:
+      on: base.top_face
+      offset[3]:
+        0
+        0
+        0
+""";
+
+        const string torusSource = """
+firmament:
+  version: 1
+
+model:
+  name: placed_torus_export
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      8
+      8
+      4
+
+  -
+    op: torus
+    id: donut
+    major_radius: 5
+    minor_radius: 2
+    place:
+      on: base.top_face
+      offset[3]:
+        0
+        0
+        0
+""";
+
+        var sphereExport = Export(sphereSource);
+        var torusExport = Export(torusSource);
+
+        Assert.True(sphereExport.IsSuccess);
+        Assert.True(torusExport.IsSuccess);
+        Assert.Equal("ball", sphereExport.Value.ExportedFeatureId);
+        Assert.Equal("sphere", sphereExport.Value.ExportedFeatureKind);
+        Assert.Contains("SPHERICAL_SURFACE", sphereExport.Value.StepText, StringComparison.Ordinal);
+        Assert.Equal("donut", torusExport.Value.ExportedFeatureId);
+        Assert.Equal("torus", torusExport.Value.ExportedFeatureKind);
+        Assert.Contains("TOROIDAL_SURFACE", torusExport.Value.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Export_ConeExample_Exports_Successfully_With_Metadata_Deterministic_Text_And_Persisted_Artifact()
     {
         var first = ExportFixture("testdata/firmament/examples/cone_frustum_basic.firmament");

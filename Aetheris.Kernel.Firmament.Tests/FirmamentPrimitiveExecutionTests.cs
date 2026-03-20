@@ -353,6 +353,230 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.Equal(Point3D.Origin, surface!.Sphere!.Value.Center);
     }
 
+    [Fact]
+    public void Default_Torus_Frame_Is_Centered_At_Origin()
+    {
+        var result = CompileFixture("testdata/firmament/examples/torus_basic.firmament");
+        Assert.True(result.Compilation.IsSuccess);
+
+        var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;
+        Assert.True(body.TryGetFaceSurfaceGeometry(new FaceId(1), out var surface));
+        Assert.Equal(Point3D.Origin, surface!.Torus!.Value.Center);
+    }
+
+    [Fact]
+    public void Selector_Placement_On_TopFace_Makes_Sphere_Tangent_Instead_Of_Buried()
+    {
+        const string source = """
+firmament:
+  version: 1
+
+model:
+  name: placed_sphere_contact
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      8
+      8
+      4
+
+  -
+    op: sphere
+    id: ball
+    radius: 3
+    place:
+      on: base.top_face
+      offset[3]:
+        0
+        0
+        0
+""";
+
+        var result = Compile(source);
+        Assert.True(result.Compilation.IsSuccess);
+
+        var baseBody = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "base").Body;
+        Assert.True(baseBody.TryGetFaceSurfaceGeometry(new FaceId(2), out var baseTop));
+        Assert.Equal(4d, baseTop!.Plane!.Value.Origin.Z, 9);
+
+        var sphereBody = result.Compilation.Value.PrimitiveExecutionResult.ExecutedPrimitives.Single(p => p.FeatureId == "ball").Body;
+        Assert.True(sphereBody.TryGetFaceSurfaceGeometry(new FaceId(1), out var sphereSurface));
+        Assert.Equal(new Point3D(0d, 0d, 7d), sphereSurface!.Sphere!.Value.Center);
+    }
+
+    [Fact]
+    public void Selector_Placement_On_TopFace_Makes_Torus_Tangent_Instead_Of_Buried()
+    {
+        const string source = """
+firmament:
+  version: 1
+
+model:
+  name: placed_torus_contact
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      8
+      8
+      4
+
+  -
+    op: torus
+    id: donut
+    major_radius: 5
+    minor_radius: 2
+    place:
+      on: base.top_face
+      offset[3]:
+        0
+        0
+        0
+""";
+
+        var result = Compile(source);
+        Assert.True(result.Compilation.IsSuccess);
+
+        var torusBody = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "donut").Body;
+        Assert.True(torusBody.TryGetFaceSurfaceGeometry(new FaceId(1), out var torusSurface));
+        Assert.Equal(new Point3D(0d, 0d, 6d), torusSurface!.Torus!.Value.Center);
+    }
+
+    [Fact]
+    public void Selector_Placement_Offset_Composes_After_Sphere_Contact_Correction()
+    {
+        const string source = """
+firmament:
+  version: 1
+
+model:
+  name: placed_sphere_offset
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      8
+      8
+      4
+
+  -
+    op: sphere
+    id: ball
+    radius: 3
+    place:
+      on: base.top_face
+      offset[3]:
+        1
+        -2
+        5
+""";
+
+        var result = Compile(source);
+        Assert.True(result.Compilation.IsSuccess);
+
+        var sphereBody = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "ball").Body;
+        Assert.True(sphereBody.TryGetFaceSurfaceGeometry(new FaceId(1), out var sphereSurface));
+        Assert.Equal(new Point3D(1d, -2d, 12d), sphereSurface!.Sphere!.Value.Center);
+    }
+
+    [Fact]
+    public void Selector_Placement_On_TopFace_Leaves_Box_Cylinder_And_Cone_Behavior_Unchanged()
+    {
+        const string source = """
+firmament:
+  version: 1
+
+model:
+  name: unchanged_contact_frames
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: base
+    size[3]:
+      8
+      8
+      4
+
+  -
+    op: box
+    id: placed_box
+    size[3]:
+      2
+      2
+      3
+    place:
+      on: base.top_face
+      offset[3]:
+        0
+        0
+        0
+
+  -
+    op: cylinder
+    id: placed_cylinder
+    radius: 2
+    height: 6
+    place:
+      on: base.top_face
+      offset[3]:
+        0
+        0
+        0
+
+  -
+    op: cone
+    id: placed_cone
+    bottom_radius: 3
+    top_radius: 1
+    height: 5
+    place:
+      on: base.top_face
+      offset[3]:
+        0
+        0
+        0
+""";
+
+        var result = Compile(source);
+        Assert.True(result.Compilation.IsSuccess);
+
+        var boxBody = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "placed_box").Body;
+        var boxBounds = GetBounds(boxBody);
+        Assert.Equal(new Point3D(-1d, -1d, 4d), boxBounds.Min);
+        Assert.Equal(new Point3D(1d, 1d, 7d), boxBounds.Max);
+
+        var cylinderBody = result.Compilation.Value.PrimitiveExecutionResult.ExecutedPrimitives.Single(p => p.FeatureId == "placed_cylinder").Body;
+        Assert.True(cylinderBody.TryGetFaceSurfaceGeometry(new FaceId(3), out var cylinderBottom));
+        Assert.True(cylinderBody.TryGetFaceSurfaceGeometry(new FaceId(2), out var cylinderTop));
+        Assert.Equal(4d, cylinderBottom!.Plane!.Value.Origin.Z, 9);
+        Assert.Equal(10d, cylinderTop!.Plane!.Value.Origin.Z, 9);
+
+        var coneBody = result.Compilation.Value.PrimitiveExecutionResult.ExecutedPrimitives.Single(p => p.FeatureId == "placed_cone").Body;
+        var conePlanes = coneBody.Topology.Faces
+            .Select(face =>
+            {
+                coneBody.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return surface;
+            })
+            .Where(surface => surface?.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane)
+            .Select(surface => surface!.Plane!.Value.Origin.Z)
+            .OrderBy(z => z)
+            .ToArray();
+        Assert.Equal(new[] { 4d, 9d }, conePlanes);
+    }
+
 
     [Fact]
     public void Boolean_Without_Placement_Behaves_As_Before()
@@ -439,6 +663,11 @@ public sealed class FirmamentPrimitiveExecutionTests
     private static FirmamentCompileResult CompileFixture(string fixturePath)
     {
         var source = FirmamentCorpusHarness.ReadFixtureText(fixturePath);
+        return Compile(source);
+    }
+
+    private static FirmamentCompileResult Compile(string source)
+    {
         var compiler = new FirmamentCompiler();
         return compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
     }

@@ -150,7 +150,10 @@ public sealed class FirmamentBuildAndExportTests
     [Theory]
     [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-add-cylinder.firmament", "m10j-unsupported-box-add-cylinder.step", "joined", "add")]
     [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "m10j-unsupported-box-intersect-cylinder.step", "overlap", "intersect")]
-    public void Run_Unsupported_BoxCylinder_Fixtures_Fail_And_Do_Not_Write_Fallback_Export(
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-contained.firmament", "m10l-unsupported-box-subtract-sphere-contained.step", "cavity", "subtract")]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-add-sphere.firmament", "m10l-unsupported-box-add-sphere.step", "joined", "add")]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "m10l-unsupported-box-intersect-sphere.step", "overlap", "intersect")]
+    public void Run_Unsupported_MixedPrimitive_Fixtures_Fail_And_Do_Not_Write_Fallback_Export(
         string sourcePath,
         string expectedFileName,
         string expectedFeatureId,

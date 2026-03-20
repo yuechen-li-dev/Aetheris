@@ -2,7 +2,7 @@ firmament:
   version: 1
 
 model:
-  name: m10m_unsupported_box_subtract_cone
+  name: boolean_box_cone_throughhole_basic
   units: mm
 
 ops[2]:
@@ -16,10 +16,16 @@ ops[2]:
 
   -
     op: subtract
-    id: tapered_cut
+    id: cut
     from: base
     with:
       op: cone
       bottom_radius: 4
       top_radius: 2
-      height: 6
+      height: 10
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -5

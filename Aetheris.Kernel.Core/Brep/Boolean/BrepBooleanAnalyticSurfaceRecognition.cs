@@ -19,6 +19,7 @@ public readonly record struct RecognizedCone(
     Direction3D Axis,
     double MinAxisParameter,
     double MaxAxisParameter,
+    double SemiAngleRadians,
     double RadiusAtMinAxisParameter,
     double RadiusAtMaxAxisParameter)
 {
@@ -27,6 +28,12 @@ public readonly record struct RecognizedCone(
     public Point3D MaxCenter => AxisOrigin + (Axis.ToVector() * MaxAxisParameter);
 
     public double MaxRadius => System.Math.Max(RadiusAtMinAxisParameter, RadiusAtMaxAxisParameter);
+
+    public double RadiusScale => double.Tan(SemiAngleRadians);
+
+    public Point3D PointAtAxisParameter(double axisParameter) => AxisOrigin + (Axis.ToVector() * axisParameter);
+
+    public double RadiusAtAxisParameter(double axisParameter) => axisParameter * RadiusScale;
 }
 
 public readonly record struct RecognizedSphere(Point3D Center, double Radius);
@@ -151,6 +158,7 @@ public static class BrepBooleanAnalyticSurfaceRecognition
                 axis,
                 samples[0].AxisParameter,
                 samples[1].AxisParameter,
+                coneSurface.SemiAngleRadians,
                 samples[0].Radius,
                 samples[1].Radius));
         return true;

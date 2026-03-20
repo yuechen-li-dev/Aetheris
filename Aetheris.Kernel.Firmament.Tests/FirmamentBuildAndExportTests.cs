@@ -126,6 +126,18 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_BooleanBoxCylinderHoleExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_box_cylinder_hole.firmament",
+            "boolean_box_cylinder_hole.step",
+            "hole",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
     public void Run_UnsupportedBoxWithCylinderHoleFixture_Fails_And_Does_Not_Write_Fallback_Export()
     {
         AssertUnsupportedBuildAndExport(
@@ -183,6 +195,6 @@ public sealed class FirmamentBuildAndExportTests
         Assert.False(result.IsSuccess);
         Assert.False(File.Exists(expectedOutputPath));
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' ({expectedKind}) could not be executed.", StringComparison.Ordinal));
-        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal) || diagnostic.Message.Contains("strict Z-aligned through-hole subset", StringComparison.Ordinal));
     }
 }

@@ -10,7 +10,8 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
         {
             { "testdata/firmament/examples/boolean_add_basic.firmament", "joined", FirmamentLoweredBooleanKind.Add },
             { "testdata/firmament/examples/boolean_subtract_basic.firmament", "carved", FirmamentLoweredBooleanKind.Subtract },
-            { "testdata/firmament/examples/boolean_intersect_basic.firmament", "overlap", FirmamentLoweredBooleanKind.Intersect }
+            { "testdata/firmament/examples/boolean_intersect_basic.firmament", "overlap", FirmamentLoweredBooleanKind.Intersect },
+            { "testdata/firmament/examples/boolean_box_cylinder_hole.firmament", "hole", FirmamentLoweredBooleanKind.Subtract }
         };
 
     [Theory]
@@ -34,6 +35,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     [InlineData("testdata/firmament/examples/boolean_add_basic.firmament", "joined", 2, "add")]
     [InlineData("testdata/firmament/examples/boolean_subtract_basic.firmament", "carved", 2, "subtract")]
     [InlineData("testdata/firmament/examples/boolean_intersect_basic.firmament", "overlap", 2, "intersect")]
+    [InlineData("testdata/firmament/examples/boolean_box_cylinder_hole.firmament", "hole", 1, "subtract")]
     public void CanonicalBooleanExamples_Export_Deterministically_WithExpectedMarkers(string fixturePath, string expectedFeatureId, int expectedOpIndex, string expectedKind)
     {
         var first = ExportFixture(fixturePath);
@@ -57,12 +59,16 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     {
         var unsupportedSingleBoxSubtract = FirmamentCorpusHarness.Compile(
             FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m3d-valid-subtract-exec.firmament"));
+        var supportedCylinderHoleExport = ExportFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
         var unsupportedCylinderHoleExport = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
 
         Assert.False(unsupportedSingleBoxSubtract.Compilation.IsSuccess);
         Assert.Contains(unsupportedSingleBoxSubtract.Compilation.Diagnostics, diagnostic =>
             diagnostic.Code == KernelDiagnosticCode.NotImplemented
             && diagnostic.Message.Contains("Requested boolean feature 'cut' (subtract) could not be executed.", StringComparison.Ordinal));
+
+        Assert.True(supportedCylinderHoleExport.IsSuccess);
+        Assert.Contains("CYLINDRICAL_SURFACE", supportedCylinderHoleExport.Value.StepText, StringComparison.Ordinal);
 
         Assert.False(unsupportedCylinderHoleExport.IsSuccess);
         Assert.Contains(unsupportedCylinderHoleExport.Diagnostics, diagnostic =>
@@ -93,7 +99,8 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             && diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' ({expectedKind}) could not be executed.", StringComparison.Ordinal));
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Code == KernelDiagnosticCode.NotImplemented
-            && diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal));
+            && (diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
+                || diagnostic.Message.Contains("strict Z-aligned through-hole subset", StringComparison.Ordinal)));
     }
 
     private static Aetheris.Kernel.Core.Results.KernelResult<FirmamentStepExportResult> ExportFixture(string fixturePath) =>

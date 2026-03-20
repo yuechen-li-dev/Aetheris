@@ -1,7 +1,13 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
+using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Boolean;
 
@@ -185,6 +191,145 @@ public sealed class BrepBooleanTests
         Assert.True(BrepBindingValidator.Validate(result.Value, true).IsSuccess);
     }
 
+
+    [Fact]
+    public void Subtract_BoxCylinderThroughHole_Returns_ManifoldBodyWithCylindricalHole()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(3d, -2d, 6d)));
+
+        var result = BrepBoolean.Subtract(left, right);
+
+        Assert.True(result.IsSuccess);
+        var body = result.Value;
+        Assert.Single(body.Topology.Bodies);
+        Assert.Single(body.Topology.Shells);
+        Assert.Equal(7, body.Topology.Faces.Count());
+        Assert.Equal(15, body.Topology.Edges.Count());
+        Assert.Equal(12, body.Topology.Vertices.Count());
+        Assert.True(BrepBindingValidator.Validate(body, true).IsSuccess);
+
+        var cylindricalFace = Assert.Single(body.Topology.Faces, face =>
+            body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Cylinder);
+        Assert.Single(body.GetLoopIds(cylindricalFace.Id));
+
+        var topFace = Assert.Single(body.Topology.Faces, face =>
+            body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Plane
+            && surface.Plane!.Value.Normal.Z > 0.5d);
+        Assert.Equal(2, body.GetLoopIds(topFace.Id).Count);
+
+        var bottomFace = Assert.Single(body.Topology.Faces, face =>
+            body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Plane
+            && surface.Plane!.Value.Normal.Z < -0.5d);
+        Assert.Equal(2, body.GetLoopIds(bottomFace.Id).Count);
+    }
+
+    [Fact]
+    public void Subtract_BoxCylinderThroughHole_Exports_And_RoundTrips_Deterministically()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(3d, -2d, 6d)));
+
+        var first = BrepBoolean.Subtract(left, right);
+        var second = BrepBoolean.Subtract(left, right);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+
+        var firstExport = Step242Exporter.ExportBody(first.Value);
+        var secondExport = Step242Exporter.ExportBody(second.Value);
+        Assert.True(firstExport.IsSuccess);
+        Assert.True(secondExport.IsSuccess);
+        Assert.Equal(firstExport.Value, secondExport.Value);
+        Assert.Contains("MANIFOLD_SOLID_BREP", firstExport.Value, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", firstExport.Value, StringComparison.Ordinal);
+        Assert.Contains("FACE_BOUND('',", firstExport.Value, StringComparison.Ordinal);
+        Assert.Contains("FACE_OUTER_BOUND('',", firstExport.Value, StringComparison.Ordinal);
+
+        var import = Step242Importer.ImportBody(firstExport.Value);
+        Assert.True(import.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(import.Value, true).IsSuccess);
+        Assert.Contains(import.Value.Topology.Faces, face =>
+            import.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Cylinder);
+    }
+
+    [Fact]
+    public void Subtract_BoxCylinderRotatedAxis_ReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var rotated = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateRotationX(System.Math.PI / 2d) * Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
+
+        var result = BrepBoolean.Subtract(left, rotated);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Contains("strict Z-aligned through-hole subset", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("cylinder axis is not aligned with the box Z axis", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_BoxCylinderPartialHeight_ReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var partial = TransformBody(BrepPrimitives.CreateCylinder(4d, 6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
+
+        var result = BrepBoolean.Subtract(left, partial);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Contains("strict Z-aligned through-hole subset", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("does not fully span the box Z range", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_BoxCylinderOutsideFootprint_ReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var outside = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(30d, 0d, 6d)));
+
+        var result = BrepBoolean.Subtract(left, outside);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Contains("strict Z-aligned through-hole subset", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("strictly inside the box XY footprint", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Add_BoxCylinder_StillReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
+
+        var result = BrepBoolean.Union(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Intersect_BoxCylinder_StillReturnsDeterministicNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var right = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
+
+        var result = BrepBoolean.Intersect(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Boolean Intersect: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+    }
+
     [Fact]
     public void Execute_NonBoxInput_ReturnsDeterministicNotImplementedWithoutThrowing()
     {
@@ -200,4 +345,53 @@ public sealed class BrepBooleanTests
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
     }
+
+    private static BrepBody TransformBody(BrepBody body, Transform3D transform)
+    {
+        var geometry = new BrepGeometryStore();
+        foreach (var curveEntry in body.Geometry.Curves)
+        {
+            geometry.AddCurve(curveEntry.Key, curveEntry.Value.Kind switch
+            {
+                CurveGeometryKind.Line3 => CurveGeometry.FromLine(new Line3Curve(
+                    transform.Apply(curveEntry.Value.Line3!.Value.Origin),
+                    transform.Apply(curveEntry.Value.Line3.Value.Direction))),
+                CurveGeometryKind.Circle3 => CurveGeometry.FromCircle(new Circle3Curve(
+                    transform.Apply(curveEntry.Value.Circle3!.Value.Center),
+                    transform.Apply(curveEntry.Value.Circle3.Value.Normal),
+                    curveEntry.Value.Circle3.Value.Radius,
+                    transform.Apply(curveEntry.Value.Circle3.Value.XAxis))),
+                _ => curveEntry.Value
+            });
+        }
+
+        foreach (var surfaceEntry in body.Geometry.Surfaces)
+        {
+            geometry.AddSurface(surfaceEntry.Key, surfaceEntry.Value.Kind switch
+            {
+                SurfaceGeometryKind.Plane => SurfaceGeometry.FromPlane(new PlaneSurface(
+                    transform.Apply(surfaceEntry.Value.Plane!.Value.Origin),
+                    transform.Apply(surfaceEntry.Value.Plane.Value.Normal),
+                    transform.Apply(surfaceEntry.Value.Plane.Value.UAxis))),
+                SurfaceGeometryKind.Cylinder => SurfaceGeometry.FromCylinder(new CylinderSurface(
+                    transform.Apply(surfaceEntry.Value.Cylinder!.Value.Origin),
+                    transform.Apply(surfaceEntry.Value.Cylinder.Value.Axis),
+                    surfaceEntry.Value.Cylinder.Value.Radius,
+                    transform.Apply(surfaceEntry.Value.Cylinder.Value.XAxis))),
+                _ => surfaceEntry.Value
+            });
+        }
+
+        var vertexPoints = new Dictionary<VertexId, Point3D>();
+        foreach (var vertex in body.Topology.Vertices)
+        {
+            if (body.TryGetVertexPoint(vertex.Id, out var point))
+            {
+                vertexPoints[vertex.Id] = transform.Apply(point);
+            }
+        }
+
+        return new BrepBody(body.Topology, geometry, body.Bindings, vertexPoints);
+    }
+
 }

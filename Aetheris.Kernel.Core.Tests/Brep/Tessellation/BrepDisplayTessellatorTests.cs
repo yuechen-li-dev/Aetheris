@@ -181,42 +181,76 @@ public sealed class BrepDisplayTessellatorTests
     [Fact]
     public void Tessellate_TrimmedBsplineSurface_RespectsOuterLoopBounds()
     {
-        var body = CreateTrimmedBsplineSurfaceBody(
-            outerBounds: (0.2d, 0.8d, 0.1d, 0.9d),
-            holeBounds: null);
+        var outerLoop =
+        new (double U, double V)[]
+        {
+            (0.1d, 0.1d),
+            (0.9d, 0.1d),
+            (0.9d, 0.45d),
+            (0.55d, 0.45d),
+            (0.55d, 0.9d),
+            (0.1d, 0.9d),
+        };
+        var body = CreateTrimmedBsplineSurfaceBody([outerLoop]);
         var options = DisplayTessellationOptions.Create(double.Pi / 8d, 0.1d, minimumSegments: 12, maximumSegments: 12).Value;
 
-        var result = BrepDisplayTessellator.Tessellate(body, options);
+        var first = BrepDisplayTessellator.Tessellate(body, options);
+        var second = BrepDisplayTessellator.Tessellate(body, options);
 
-        Assert.True(result.IsSuccess);
-        Assert.Empty(result.Diagnostics);
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Empty(first.Diagnostics);
+        var firstPatch = Assert.Single(first.Value.FacePatches);
+        var secondPatch = Assert.Single(second.Value.FacePatches);
+        Assert.Equal(firstPatch.Positions, secondPatch.Positions);
+        Assert.Equal(firstPatch.Normals, secondPatch.Normals);
+        Assert.Equal(firstPatch.TriangleIndices, secondPatch.TriangleIndices);
 
-        var patch = Assert.Single(result.Value.FacePatches);
-        Assert.NotEmpty(patch.TriangleIndices);
-        Assert.All(GetTriangleCentroids(patch), centroid =>
-        {
-            Assert.InRange(centroid.X, 0.2d - 1e-6d, 0.8d + 1e-6d);
-            Assert.InRange(centroid.Y, 0.1d - 1e-6d, 0.9d + 1e-6d);
-        });
+        Assert.NotEmpty(firstPatch.TriangleIndices);
+        Assert.All(GetTrianglePointSamples(firstPatch), sample =>
+            Assert.True(IsInsidePolygon(sample, outerLoop), $"sample {sample} escaped trimmed outer boundary"));
     }
 
     [Fact]
     public void Tessellate_TrimmedBsplineSurfaceWithHole_PreservesHole()
     {
-        var body = CreateTrimmedBsplineSurfaceBody(
-            outerBounds: (0.1d, 0.9d, 0.1d, 0.9d),
-            holeBounds: (0.35d, 0.65d, 0.3d, 0.7d));
+        var outerLoop =
+        new (double U, double V)[]
+        {
+            (0.1d, 0.1d),
+            (0.9d, 0.1d),
+            (0.9d, 0.9d),
+            (0.1d, 0.9d),
+        };
+        var holeLoop =
+        new (double U, double V)[]
+        {
+            (0.35d, 0.3d),
+            (0.65d, 0.3d),
+            (0.65d, 0.7d),
+            (0.35d, 0.7d),
+        };
+        var body = CreateTrimmedBsplineSurfaceBody([outerLoop, holeLoop]);
         var options = DisplayTessellationOptions.Create(double.Pi / 8d, 0.1d, minimumSegments: 12, maximumSegments: 12).Value;
 
-        var result = BrepDisplayTessellator.Tessellate(body, options);
+        var first = BrepDisplayTessellator.Tessellate(body, options);
+        var second = BrepDisplayTessellator.Tessellate(body, options);
 
-        Assert.True(result.IsSuccess);
-        Assert.Empty(result.Diagnostics);
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Empty(first.Diagnostics);
+        var firstPatch = Assert.Single(first.Value.FacePatches);
+        var secondPatch = Assert.Single(second.Value.FacePatches);
+        Assert.Equal(firstPatch.Positions, secondPatch.Positions);
+        Assert.Equal(firstPatch.Normals, secondPatch.Normals);
+        Assert.Equal(firstPatch.TriangleIndices, secondPatch.TriangleIndices);
 
-        var patch = Assert.Single(result.Value.FacePatches);
-        Assert.NotEmpty(patch.TriangleIndices);
-        Assert.All(GetTriangleCentroids(patch), centroid =>
-            Assert.False(IsInsideRectangle(centroid, 0.35d, 0.65d, 0.3d, 0.7d)));
+        Assert.NotEmpty(firstPatch.TriangleIndices);
+        Assert.All(GetTrianglePointSamples(firstPatch), sample =>
+        {
+            Assert.True(IsInsidePolygon(sample, outerLoop));
+            Assert.False(IsInsidePolygon(sample, holeLoop));
+        });
     }
 
     [Fact]
@@ -302,10 +336,10 @@ public sealed class BrepDisplayTessellatorTests
         Assert.Equal(firstPatch.TriangleIndices, secondPatch.TriangleIndices);
 
         var outerMidU = (outerBounds.UMin + outerBounds.UMax) * 0.5d;
-        Assert.All(GetTriangleUvCentroids(firstPatch, point => ProjectCylinderUv(cylinder, point, outerMidU)), centroid =>
+        Assert.All(GetTriangleUvSamples(firstPatch, point => ProjectCylinderUv(cylinder, point, outerMidU)), sample =>
         {
-            Assert.True(IsInsideUvRectangle(centroid, outerBounds));
-            Assert.False(IsInsideUvRectangle(centroid, holeBounds));
+            Assert.True(IsInsideUvRectangle(sample, outerBounds));
+            Assert.False(IsInsideUvRectangle(sample, holeBounds));
         });
     }
 
@@ -454,6 +488,27 @@ public sealed class BrepDisplayTessellatorTests
         }
     }
 
+    private static IEnumerable<Point3D> GetTrianglePointSamples(DisplayFaceMeshPatch patch)
+    {
+        for (var i = 0; i < patch.TriangleIndices.Count; i += 3)
+        {
+            var a = patch.Positions[patch.TriangleIndices[i]];
+            var b = patch.Positions[patch.TriangleIndices[i + 1]];
+            var c = patch.Positions[patch.TriangleIndices[i + 2]];
+
+            yield return a;
+            yield return b;
+            yield return c;
+            yield return Midpoint(a, b);
+            yield return Midpoint(b, c);
+            yield return Midpoint(c, a);
+            yield return new Point3D(
+                (a.X + b.X + c.X) / 3d,
+                (a.Y + b.Y + c.Y) / 3d,
+                (a.Z + b.Z + c.Z) / 3d);
+        }
+    }
+
     private static bool IsInsideRectangle(Point3D point, double minX, double maxX, double minY, double maxY)
         => point.X > minX - 1e-6d
             && point.X < maxX + 1e-6d
@@ -465,6 +520,19 @@ public sealed class BrepDisplayTessellatorTests
         (double UMin, double UMax, double VMin, double VMax)? holeBounds,
         double offsetOuterTopEdgeZ = 0d)
     {
+        var loops = new List<IReadOnlyList<(double U, double V)>> { CreateRectangleLoop(outerBounds) };
+        if (holeBounds is { } hole)
+        {
+            loops.Add(CreateRectangleLoop(hole));
+        }
+
+        return CreateTrimmedBsplineSurfaceBody(loops, offsetOuterTopEdgeZ);
+    }
+
+    private static BrepBody CreateTrimmedBsplineSurfaceBody(
+        IReadOnlyList<IReadOnlyList<(double U, double V)>> uvLoops,
+        double offsetOuterTopEdgeZ = 0d)
+    {
         var builder = new TopologyBuilder();
         var geometry = new BrepGeometryStore();
         var bindings = new BrepBindingModel();
@@ -473,13 +541,10 @@ public sealed class BrepDisplayTessellatorTests
         var faceLoops = new List<LoopId>();
         var curveId = 1;
 
-        var outerVertices = CreateRectangleVertices(outerBounds, offsetTopEdgeZ: offsetOuterTopEdgeZ);
-        faceLoops.Add(AddLoop(builder, geometry, bindings, vertexPoints, outerVertices, ref curveId));
-
-        if (holeBounds is { } hole)
+        for (var loopIndex = 0; loopIndex < uvLoops.Count; loopIndex++)
         {
-            var innerVertices = CreateRectangleVertices(hole, offsetTopEdgeZ: 0d);
-            faceLoops.Add(AddLoop(builder, geometry, bindings, vertexPoints, innerVertices, ref curveId));
+            var vertices = CreateBsplineLoopVertices(uvLoops[loopIndex], loopIndex == 0 ? offsetOuterTopEdgeZ : 0d);
+            faceLoops.Add(AddLoop(builder, geometry, bindings, vertexPoints, vertices, ref curveId));
         }
 
         var face = builder.AddFace(faceLoops);
@@ -554,13 +619,24 @@ public sealed class BrepDisplayTessellatorTests
     private static Point3D[] CreateRectangleVertices(
         (double UMin, double UMax, double VMin, double VMax) bounds,
         double offsetTopEdgeZ)
+        => CreateBsplineLoopVertices(CreateRectangleLoop(bounds), offsetTopEdgeZ);
+
+    private static Point3D[] CreateBsplineLoopVertices(IReadOnlyList<(double U, double V)> uvLoop, double offsetTopEdgeZ)
     {
-        var lowerLeft = EvaluateBilinearPoint(bounds.UMin, bounds.VMin, 0d);
-        var lowerRight = EvaluateBilinearPoint(bounds.UMax, bounds.VMin, 0d);
-        var upperRight = EvaluateBilinearPoint(bounds.UMax, bounds.VMax, offsetTopEdgeZ);
-        var upperLeft = EvaluateBilinearPoint(bounds.UMin, bounds.VMax, offsetTopEdgeZ);
-        return [lowerLeft, lowerRight, upperRight, upperLeft];
+        var topV = uvLoop.Max(point => point.V);
+        return uvLoop
+            .Select(point => EvaluateBilinearPoint(point.U, point.V, System.Math.Abs(point.V - topV) <= 1e-9d ? offsetTopEdgeZ : 0d))
+            .ToArray();
     }
+
+    private static (double U, double V)[] CreateRectangleLoop((double UMin, double UMax, double VMin, double VMax) bounds)
+        =>
+        [
+            (bounds.UMin, bounds.VMin),
+            (bounds.UMax, bounds.VMin),
+            (bounds.UMax, bounds.VMax),
+            (bounds.UMin, bounds.VMax),
+        ];
 
     private static Point3D EvaluateBilinearPoint(double u, double v, double zOffset)
         => new(u, v, (u * v) + zOffset);
@@ -787,6 +863,26 @@ public sealed class BrepDisplayTessellatorTests
         }
     }
 
+    private static IEnumerable<(double U, double V)> GetTriangleUvSamples(
+        DisplayFaceMeshPatch patch,
+        Func<Point3D, (double U, double V)> projectPoint)
+    {
+        for (var i = 0; i < patch.TriangleIndices.Count; i += 3)
+        {
+            var a = projectPoint(patch.Positions[patch.TriangleIndices[i]]);
+            var b = projectPoint(patch.Positions[patch.TriangleIndices[i + 1]]);
+            var c = projectPoint(patch.Positions[patch.TriangleIndices[i + 2]]);
+
+            yield return a;
+            yield return b;
+            yield return c;
+            yield return ((a.U + b.U) / 2d, (a.V + b.V) / 2d);
+            yield return ((b.U + c.U) / 2d, (b.V + c.V) / 2d);
+            yield return ((c.U + a.U) / 2d, (c.V + a.V) / 2d);
+            yield return ((a.U + b.U + c.U) / 3d, (a.V + b.V + c.V) / 3d);
+        }
+    }
+
     private static (double U, double V) ProjectCylinderUv(CylinderSurface cylinder, Point3D point, double referenceU)
     {
         var offset = point - cylinder.Origin;
@@ -830,4 +926,52 @@ public sealed class BrepDisplayTessellatorTests
             && uv.U <= bounds.UMax + 1e-6d
             && uv.V >= bounds.VMin - 1e-6d
             && uv.V <= bounds.VMax + 1e-6d;
+
+    private static Point3D Midpoint(Point3D a, Point3D b)
+        => new((a.X + b.X) / 2d, (a.Y + b.Y) / 2d, (a.Z + b.Z) / 2d);
+
+    private static bool IsInsidePolygon(Point3D point, IReadOnlyList<(double U, double V)> polygon)
+        => IsInsidePolygon((point.X, point.Y), polygon);
+
+    private static bool IsInsidePolygon((double U, double V) point, IReadOnlyList<(double U, double V)> polygon)
+    {
+        var inside = false;
+        for (var i = 0; i < polygon.Count; i++)
+        {
+            var a = polygon[i];
+            var b = polygon[(i + 1) % polygon.Count];
+
+            if (IsOnSegment(point, a, b))
+            {
+                return true;
+            }
+
+            var crosses = ((a.V > point.V) != (b.V > point.V))
+                && (point.U < (((b.U - a.U) * (point.V - a.V)) / (b.V - a.V)) + a.U);
+            if (crosses)
+            {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    private static bool IsOnSegment((double U, double V) point, (double U, double V) a, (double U, double V) b)
+    {
+        var cross = ((point.U - a.U) * (b.V - a.V)) - ((point.V - a.V) * (b.U - a.U));
+        if (System.Math.Abs(cross) > 1e-9d)
+        {
+            return false;
+        }
+
+        var dot = ((point.U - a.U) * (b.U - a.U)) + ((point.V - a.V) * (b.V - a.V));
+        if (dot < -1e-9d)
+        {
+            return false;
+        }
+
+        var lengthSquared = ((b.U - a.U) * (b.U - a.U)) + ((b.V - a.V) * (b.V - a.V));
+        return dot <= lengthSquared + 1e-9d;
+    }
 }

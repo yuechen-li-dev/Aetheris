@@ -10,6 +10,25 @@
 
 - Behavior changes require tests.
 - Run .NET build/test checks locally before opening a PR.
+- Prefer the automation-friendly repo entrypoint:
+
+  ```bash
+  export PATH="$HOME/.dotnet:$PATH"
+  ./scripts/test-all.sh
+  ```
+
+- The default script currently runs the full Firmament and Server suites plus the verified core `BrepDisplayTessellatorTests` slice in a deterministic order. Use direct `dotnet test ...csproj` commands when you need broader or more targeted coverage.
+
+- If you need a narrower repro, run the individual test projects directly:
+
+  ```bash
+  export PATH="$HOME/.dotnet:$PATH"
+  dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj --logger "console;verbosity=minimal"
+  dotnet test Aetheris.Server.Tests/Aetheris.Server.Tests.csproj --logger "console;verbosity=minimal"
+  dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --logger "console;verbosity=minimal"
+  ```
+
+- Use `Aetheris.sln` for solution-oriented automation and editor compatibility with .NET 8; do not rely on `Aetheris.slnx` as the routine automation entrypoint.
 
 ## Kernel discipline
 

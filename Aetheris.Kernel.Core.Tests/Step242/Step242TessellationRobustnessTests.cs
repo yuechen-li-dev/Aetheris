@@ -10,9 +10,64 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242TessellationRobustnessTests
 {
     [Fact]
-    public void Step242_Tessellate_PlanarFace_AllowsMultipleLoops_UsesOuterOnly()
+    public void Step242_Tessellate_PlanarFace_WithHole_PreservesHoleDeterministically()
     {
         var text = LoadFixture("testdata/step242/tessellation-robustness/planar-face-with-hole-outer-and-inner.step");
+
+        var firstImport = Step242Importer.ImportBody(text);
+        var secondImport = Step242Importer.ImportBody(text);
+
+        Assert.True(firstImport.IsSuccess);
+        Assert.True(secondImport.IsSuccess);
+
+        var first = BrepDisplayTessellator.Tessellate(firstImport.Value);
+        var second = BrepDisplayTessellator.Tessellate(secondImport.Value);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.DoesNotContain(first.Diagnostics, d => d.Message.Contains("requires exactly one loop", StringComparison.Ordinal));
+        Assert.DoesNotContain(first.Diagnostics, d => string.Equals(d.Source, "Viewer.Tessellation.PlanarHolesIgnored", StringComparison.Ordinal));
+
+        var firstPatch = Assert.Single(first.Value.FacePatches);
+        var secondPatch = Assert.Single(second.Value.FacePatches);
+
+        Assert.NotEmpty(firstPatch.TriangleIndices);
+        Assert.Equal(firstPatch.Positions, secondPatch.Positions);
+        Assert.Equal(firstPatch.TriangleIndices, secondPatch.TriangleIndices);
+        Assert.All(GetTriangleCentroids(firstPatch), centroid =>
+            Assert.False(IsInsideAxisAlignedRectangle(centroid, minX: 3d, minY: 3d, maxX: 7d, maxY: 7d)));
+    }
+
+    [Fact]
+    public void Step242_Tessellate_BoxTopCapWithCircularHole_PreservesHoleDeterministically()
+    {
+        var text = LoadFixture("testdata/firmament/exports/boolean_box_cylinder_hole.step");
+
+        var firstImport = Step242Importer.ImportBody(text);
+        var secondImport = Step242Importer.ImportBody(text);
+
+        Assert.True(firstImport.IsSuccess);
+        Assert.True(secondImport.IsSuccess);
+
+        var first = BrepDisplayTessellator.Tessellate(firstImport.Value);
+        var second = BrepDisplayTessellator.Tessellate(secondImport.Value);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+
+        var firstPatch = GetPlanarCapPatch(first.Value, zValue: 6d);
+        var secondPatch = GetPlanarCapPatch(second.Value, zValue: 6d);
+
+        Assert.Equal(firstPatch.Positions, secondPatch.Positions);
+        Assert.Equal(firstPatch.TriangleIndices, secondPatch.TriangleIndices);
+        Assert.All(GetTriangleCentroids(firstPatch), centroid =>
+            Assert.True(((centroid.X * centroid.X) + (centroid.Y * centroid.Y)) >= (4d * 4d) - 1e-6d));
+    }
+
+    [Fact]
+    public void Step242_Tessellate_BoxPlanarFaceWithoutHole_RemainsValid()
+    {
+        var text = LoadFixture("testdata/firmament/exports/box_basic.step");
 
         var import = Step242Importer.ImportBody(text);
 
@@ -21,16 +76,34 @@ public sealed class Step242TessellationRobustnessTests
         var tessellation = BrepDisplayTessellator.Tessellate(import.Value);
 
         Assert.True(tessellation.IsSuccess);
-        Assert.DoesNotContain(tessellation.Diagnostics, d => d.Message.Contains("requires exactly one loop", StringComparison.Ordinal));
+        Assert.Equal(6, tessellation.Value.FacePatches.Count);
+        Assert.All(tessellation.Value.FacePatches, patch => Assert.NotEmpty(patch.TriangleIndices));
+    }
 
-        var facePatch = Assert.Single(tessellation.Value.FacePatches);
-        Assert.NotEmpty(facePatch.TriangleIndices);
+    [Fact]
+    public void Step242_Tessellate_UnsupportedComplexPlanarMultiLoop_DoesNotFallbackToOuterLoopFill()
+    {
+        var text = LoadFixture("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");
 
-        var warning = tessellation.Diagnostics.SingleOrDefault(d => string.Equals(d.Source, "Viewer.Tessellation.PlanarHolesIgnored", StringComparison.Ordinal));
-        if (warning is not null)
-        {
-            Assert.Contains("ignored", warning.Message, StringComparison.Ordinal);
-        }
+        var import = Step242Importer.ImportBody(text);
+
+        Assert.True(import.IsSuccess);
+
+        var tessellation = BrepDisplayTessellator.Tessellate(import.Value);
+
+        Assert.True(tessellation.IsSuccess);
+
+        var diagnostics = tessellation.Diagnostics
+            .Where(d => string.Equals(d.Source, "Viewer.Tessellation.PlanarMultiLoopTriangulationSkipped", StringComparison.Ordinal))
+            .ToArray();
+        Assert.NotEmpty(diagnostics);
+        var diagnostic = Assert.Single(diagnostics, d => d.Message.Contains("Face 2 ", StringComparison.Ordinal));
+        Assert.Equal(KernelDiagnosticCode.ValidationFailed, diagnostic.Code);
+        Assert.Contains("skipping face patch", diagnostic.Message, StringComparison.Ordinal);
+
+        var skippedPatch = Assert.Single(tessellation.Value.FacePatches, patch => patch.FaceId.Value == 2);
+        Assert.Empty(skippedPatch.Positions);
+        Assert.Empty(skippedPatch.TriangleIndices);
     }
 
     [Fact]
@@ -241,6 +314,30 @@ public sealed class Step242TessellationRobustnessTests
 
         return patches;
     }
+
+    private static DisplayFaceMeshPatch GetPlanarCapPatch(DisplayTessellationResult tessellation, double zValue)
+    {
+        return Assert.Single(tessellation.FacePatches, patch =>
+            patch.Positions.Count > 0
+            && patch.Positions.All(point => double.Abs(point.Z - zValue) <= 1e-6d));
+    }
+
+    private static IEnumerable<Point3D> GetTriangleCentroids(DisplayFaceMeshPatch patch)
+    {
+        for (var i = 0; i < patch.TriangleIndices.Count; i += 3)
+        {
+            var p0 = patch.Positions[patch.TriangleIndices[i]];
+            var p1 = patch.Positions[patch.TriangleIndices[i + 1]];
+            var p2 = patch.Positions[patch.TriangleIndices[i + 2]];
+            yield return new Point3D(
+                (p0.X + p1.X + p2.X) / 3d,
+                (p0.Y + p1.Y + p2.Y) / 3d,
+                (p0.Z + p1.Z + p2.Z) / 3d);
+        }
+    }
+
+    private static bool IsInsideAxisAlignedRectangle(Point3D point, double minX, double minY, double maxX, double maxY)
+        => point.X > minX && point.X < maxX && point.Y > minY && point.Y < maxY;
 
     private static double ComputeAngularSpan(CylinderSurface cylinder, IReadOnlyList<Point3D> positions)
     {

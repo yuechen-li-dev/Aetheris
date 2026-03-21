@@ -31,6 +31,7 @@ public static class BrepDisplayTessellator
     private const string SphereTrimTwoCoedgeBiArcLuneSource = "Viewer.Tessellation.SphereTrim.TwoCoedgeBiArcLune";
     private const string SphereTrimTwoCoedgeBsplineBiArcSurrogateSource = "Viewer.Tessellation.SphereTrim.TwoCoedgeBsplineBiArcSurrogate";
     private const string SphereTrimTwoCoedgeUnsupportedSource = "Viewer.Tessellation.SphereTrim.TwoCoedgeUnsupported";
+    private const string PlanarMultiLoopTriangulationSkippedSource = "Viewer.Tessellation.PlanarMultiLoopTriangulationSkipped";
 
     public static KernelResult<DisplayTessellationResult> Tessellate(BrepBody body, DisplayTessellationOptions? options = null)
     {
@@ -104,29 +105,57 @@ public static class BrepDisplayTessellator
             return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar tessellation requires at least one loop.")]);
         }
 
-        var selectedLoopId = SelectPlanarPrimaryLoop(body, faceId, plane, loopIds);
-        var ignoredLoopCount = System.Math.Max(0, loopIds.Count - 1);
-        var successDiagnostics = ignoredLoopCount > 0
-            ? new[] { CreateValidationWarning($"Face {faceId.Value} planar tessellation ignored {ignoredLoopCount} inner loop(s).", "Viewer.Tessellation.PlanarHolesIgnored") }
-            : Array.Empty<KernelDiagnostic>();
+        if (loopIds.Count == 1)
+        {
+            var simpleLoopPoints = FlattenPlanarLoop(body, faceId, plane, options, loopIds[0]);
+            if (!simpleLoopPoints.IsSuccess)
+            {
+                return KernelResult<DisplayFaceMeshPatch>.Failure(simpleLoopPoints.Diagnostics);
+            }
 
-        var coedges = body.GetCoedgeIds(selectedLoopId)
-            .Select(id => body.Topology.GetCoedge(id))
+            return TriangulatePlanarPatch(faceId, plane, simpleLoopPoints.Value);
+        }
+
+        var flattenedLoops = new Dictionary<LoopId, IReadOnlyList<Point3D>>();
+        foreach (var loopId in loopIds.OrderBy(id => id.Value))
+        {
+            var flattenedLoop = FlattenPlanarLoop(body, faceId, plane, options, loopId);
+            if (!flattenedLoop.IsSuccess)
+            {
+                return KernelResult<DisplayFaceMeshPatch>.Failure(flattenedLoop.Diagnostics);
+            }
+
+            flattenedLoops[loopId] = flattenedLoop.Value;
+        }
+
+        var outerLoopId = SelectPlanarPrimaryLoop(body, faceId, plane, loopIds);
+        var outerLoop = flattenedLoops[outerLoopId];
+        var holes = loopIds
+            .Where(loopId => loopId != outerLoopId)
+            .OrderBy(loopId => loopId.Value)
+            .Select(loopId => flattenedLoops[loopId])
             .ToArray();
 
-        var polygonPointsResult = BuildFlattenedPlanarLoopPoints(body, coedges, faceId, plane, options);
-        if (!polygonPointsResult.IsSuccess)
+        if (!PlanarPolygonTriangulator.TryTriangulateWithHoles(
+                outerLoop,
+                holes,
+                plane.Normal.ToVector(),
+                out var triangulationPoints,
+                out var indices,
+                out var failure))
         {
-            return KernelResult<DisplayFaceMeshPatch>.Failure(polygonPointsResult.Diagnostics);
+            return KernelResult<DisplayFaceMeshPatch>.Success(
+                CreateEmptyPlanarPatch(faceId),
+                [CreateValidationWarning(
+                    $"Face {faceId.Value} planar multi-loop tessellation could not be resolved ({failure?.ToString() ?? "Unknown"}); skipping face patch to avoid misleading filled geometry.",
+                    PlanarMultiLoopTriangulationSkippedSource)]);
         }
 
-        var polygonPoints = polygonPointsResult.Value;
+        return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, triangulationPoints, plane.Normal.ToVector(), indices));
+    }
 
-        if (polygonPoints.Count < 3)
-        {
-            return KernelResult<DisplayFaceMeshPatch>.Failure([CreateInvalidArgument($"Face {faceId.Value} planar loop flattening produced fewer than three unique points.", PlanarCurveFlatteningFailedSource)]);
-        }
-
+    private static KernelResult<DisplayFaceMeshPatch> TriangulatePlanarPatch(FaceId faceId, PlaneSurface plane, IReadOnlyList<Point3D> polygonPoints)
+    {
         if (!PlanarPolygonTriangulator.TryTriangulate(polygonPoints, plane.Normal.ToVector(), out var indices, out var failure))
         {
             return failure switch
@@ -140,7 +169,34 @@ public static class BrepDisplayTessellator
             };
         }
 
-        return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, polygonPoints, plane.Normal.ToVector(), indices), successDiagnostics);
+        return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, polygonPoints, plane.Normal.ToVector(), indices));
+    }
+
+    private static KernelResult<IReadOnlyList<Point3D>> FlattenPlanarLoop(
+        BrepBody body,
+        FaceId faceId,
+        PlaneSurface plane,
+        DisplayTessellationOptions options,
+        LoopId loopId)
+    {
+        var coedges = body.GetCoedgeIds(loopId)
+            .Select(id => body.Topology.GetCoedge(id))
+            .ToArray();
+
+        var polygonPointsResult = BuildFlattenedPlanarLoopPoints(body, coedges, faceId, plane, options);
+        if (!polygonPointsResult.IsSuccess)
+        {
+            return KernelResult<IReadOnlyList<Point3D>>.Failure(polygonPointsResult.Diagnostics);
+        }
+
+        var polygonPoints = polygonPointsResult.Value;
+        if (polygonPoints.Count < 3)
+        {
+            return KernelResult<IReadOnlyList<Point3D>>.Failure([
+                CreateInvalidArgument($"Face {faceId.Value} planar loop flattening produced fewer than three unique points.", PlanarCurveFlatteningFailedSource)]);
+        }
+
+        return KernelResult<IReadOnlyList<Point3D>>.Success(polygonPoints);
     }
 
     private static LoopId SelectPlanarPrimaryLoop(BrepBody body, FaceId faceId, PlaneSurface plane, IReadOnlyList<LoopId> loopIds)
@@ -2453,6 +2509,9 @@ public static class BrepDisplayTessellator
         var normals = Enumerable.Repeat(normal, polygonPoints.Count).ToArray();
         return new DisplayFaceMeshPatch(faceId, polygonPoints.ToArray(), normals, triangleIndices.ToArray());
     }
+
+    private static DisplayFaceMeshPatch CreateEmptyPlanarPatch(FaceId faceId)
+        => new(faceId, Array.Empty<Point3D>(), Array.Empty<Vector3D>(), Array.Empty<int>());
 
     private static KernelResult<IReadOnlyList<Point3D>> BuildFlattenedPlanarLoopPoints(
         BrepBody body,

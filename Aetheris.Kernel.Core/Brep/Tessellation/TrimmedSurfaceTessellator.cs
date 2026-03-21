@@ -9,6 +9,7 @@ internal static class TrimmedSurfaceTessellator
 {
     private const double PointOnSegmentTolerance = 1e-9d;
     private const double SignedAreaTolerance = 1e-10d;
+    private const int BoundaryRefinementDepth = 1;
 
     public static KernelResult<DisplayFaceMeshPatch> Tessellate(
         FaceId faceId,
@@ -106,18 +107,87 @@ internal static class TrimmedSurfaceTessellator
 
         void TryAppendTriangle(int ia, int ib, int ic)
         {
-            var centroid = (
-                (uvGrid[ia].U + uvGrid[ib].U + uvGrid[ic].U) / 3d,
-                (uvGrid[ia].V + uvGrid[ib].V + uvGrid[ic].V) / 3d);
-            if (!IsInsideTrimRegion(centroid, outerLoop, innerLoops))
-            {
-                return;
-            }
-
-            indices.Add(ia);
-            indices.Add(ib);
-            indices.Add(ic);
+            AppendTriangleWithBoundaryRefinement(ia, ib, ic, remainingDepth: BoundaryRefinementDepth);
         }
+
+        void AppendTriangleWithBoundaryRefinement(int ia, int ib, int ic, int remainingDepth)
+        {
+            var classification = ClassifyTriangle(uvGrid[ia], uvGrid[ib], uvGrid[ic], outerLoop, innerLoops);
+            switch (classification)
+            {
+                case TriangleTrimClassification.ConfidentlyInside:
+                    indices.Add(ia);
+                    indices.Add(ib);
+                    indices.Add(ic);
+                    return;
+                case TriangleTrimClassification.ConfidentlyOutside:
+                    return;
+                default:
+                    if (remainingDepth <= 0)
+                    {
+                        return;
+                    }
+
+                    var iab = AppendVertexAtUv(Interpolate(uvGrid[ia], uvGrid[ib]));
+                    var ibc = AppendVertexAtUv(Interpolate(uvGrid[ib], uvGrid[ic]));
+                    var ica = AppendVertexAtUv(Interpolate(uvGrid[ic], uvGrid[ia]));
+
+                    AppendTriangleWithBoundaryRefinement(ia, iab, ica, remainingDepth - 1);
+                    AppendTriangleWithBoundaryRefinement(iab, ib, ibc, remainingDepth - 1);
+                    AppendTriangleWithBoundaryRefinement(ica, ibc, ic, remainingDepth - 1);
+                    AppendTriangleWithBoundaryRefinement(iab, ibc, ica, remainingDepth - 1);
+                    return;
+            }
+        }
+
+        int AppendVertexAtUv((double U, double V) uv)
+        {
+            var index = uvGrid.Count;
+            uvGrid.Add(uv);
+            positions.Add(evaluate(uv.U, uv.V));
+            normals.Add(evaluateNormal(uv.U, uv.V));
+            return index;
+        }
+    }
+
+    private static TriangleTrimClassification ClassifyTriangle(
+        (double U, double V) a,
+        (double U, double V) b,
+        (double U, double V) c,
+        IReadOnlyList<(double U, double V)> outerLoop,
+        IReadOnlyList<IReadOnlyList<(double U, double V)>> innerLoops)
+    {
+        var samples = new[]
+        {
+            a,
+            b,
+            c,
+            Interpolate(a, b),
+            Interpolate(b, c),
+            Interpolate(c, a),
+            ((a.U + b.U + c.U) / 3d, (a.V + b.V + c.V) / 3d),
+        };
+
+        var insideCount = 0;
+        foreach (var sample in samples)
+        {
+            if (IsInsideTrimRegion(sample, outerLoop, innerLoops))
+            {
+                insideCount++;
+            }
+        }
+
+        if (insideCount == samples.Length)
+        {
+            return TriangleTrimClassification.ConfidentlyInside;
+        }
+
+        if (insideCount == 0)
+        {
+            return TriangleTrimClassification.ConfidentlyOutside;
+        }
+
+        return TriangleTrimClassification.BoundaryStraddling;
     }
 
     private static bool IsInsideTrimRegion(
@@ -252,6 +322,16 @@ internal static class TrimmedSurfaceTessellator
         => System.Math.Abs(left.U - right.U) <= PointOnSegmentTolerance
             && System.Math.Abs(left.V - right.V) <= PointOnSegmentTolerance;
 
+    private static (double U, double V) Interpolate((double U, double V) left, (double U, double V) right)
+        => ((left.U + right.U) * 0.5d, (left.V + right.V) * 0.5d);
+
     private static DisplayFaceMeshPatch CreateEmptyPatch(FaceId faceId)
         => new(faceId, Array.Empty<Point3D>(), Array.Empty<Vector3D>(), Array.Empty<int>());
+
+    private enum TriangleTrimClassification
+    {
+        ConfidentlyOutside = 0,
+        BoundaryStraddling = 1,
+        ConfidentlyInside = 2,
+    }
 }

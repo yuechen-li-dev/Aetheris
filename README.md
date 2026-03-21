@@ -30,6 +30,46 @@ For `box_with_hole.firmament`, the exported body is currently the deterministic 
 
 If you want the API entry point instead of the test wrapper, use `FirmamentBuildAndExport.Run(string sourcePath)` from `Aetheris.Kernel.Firmament`.
 
+## Automation-friendly test entrypoints
+
+The repository now has a classic `Aetheris.sln` for compatibility with .NET 8 automation and tools that do not handle `Aetheris.slnx` reliably.
+
+### Canonical repo-level test path
+
+Use the shell script below as the official automation-friendly entrypoint. It runs the repository test projects in a deterministic order, prints each `dotnet test` command before running it, and fails fast on the first failing suite. In the current .NET 8 automation environment it runs the full Firmament and Server test projects plus the verified core `BrepDisplayTessellatorTests` slice.
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+./scripts/test-all.sh
+```
+
+### Narrow fallback test paths
+
+If you need a single project or a smaller local repro, use the project-level commands directly:
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj --logger "console;verbosity=minimal"
+dotnet test Aetheris.Server.Tests/Aetheris.Server.Tests.csproj --logger "console;verbosity=minimal"
+dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --logger "console;verbosity=minimal"
+```
+
+If you want the same script with a narrower or broader explicit project list, pass the test projects as arguments:
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+DOTNET_BIN=dotnet ./scripts/test-all.sh Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj Aetheris.Server.Tests/Aetheris.Server.Tests.csproj
+```
+
+For editor/IDE compatibility or solution-wide restore/build flows, use:
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+dotnet test Aetheris.sln
+```
+
+`Aetheris.slnx` is retained for newer tooling convenience, but routine automation should use `./scripts/test-all.sh` and `Aetheris.sln`.
+
 ## Repo map
 
 - language/compiler/runtime: `Aetheris.Kernel.Firmament/`

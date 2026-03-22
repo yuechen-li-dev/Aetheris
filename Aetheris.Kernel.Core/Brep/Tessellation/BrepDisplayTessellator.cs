@@ -678,6 +678,98 @@ public static class BrepDisplayTessellator
         return (bestU, bestV);
     }
 
+    private static KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>> TryBuildDoublyPeriodicTrimmedSurfaceUvLoops(
+        BrepBody body,
+        FaceId faceId,
+        IReadOnlyList<LoopId> loopIds,
+        Func<Point3D, (double U, double V)?> projectPointToUv,
+        DisplayTessellationOptions options)
+    {
+        var uvLoops = new List<IReadOnlyList<(double U, double V)>>(loopIds.Count);
+        foreach (var loopId in loopIds.OrderBy(id => id.Value))
+        {
+            var uvLoop = TryBuildDoublyPeriodicTrimmedSurfaceUvLoop(body, faceId, loopId, projectPointToUv, options);
+            if (!uvLoop.IsSuccess)
+            {
+                return KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>>.Failure(uvLoop.Diagnostics);
+            }
+
+            uvLoops.Add(uvLoop.Value);
+        }
+
+        return KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>>.Success(uvLoops);
+    }
+
+    private static KernelResult<IReadOnlyList<(double U, double V)>> TryBuildDoublyPeriodicTrimmedSurfaceUvLoop(
+        BrepBody body,
+        FaceId faceId,
+        LoopId loopId,
+        Func<Point3D, (double U, double V)?> projectPointToUv,
+        DisplayTessellationOptions options)
+    {
+        var coedges = body.GetCoedgeIds(loopId).Select(id => body.Topology.GetCoedge(id)).ToArray();
+        if (coedges.Length < 1)
+        {
+            return KernelResult<IReadOnlyList<(double U, double V)>>.Failure([
+                CreateNotImplemented(
+                    $"Face {faceId.Value} periodic trim loop must contain at least one coedge.",
+                    TrimEvaluationFailedSource)]);
+        }
+
+        var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
+        if (!vertexPointsResult.IsSuccess)
+        {
+            return KernelResult<IReadOnlyList<(double U, double V)>>.Failure(vertexPointsResult.Diagnostics);
+        }
+
+        var uvPoints = new List<(double U, double V)>();
+        double? previousWrappedU = null;
+        double? previousWrappedV = null;
+        double currentUOffset = 0d;
+        double currentVOffset = 0d;
+
+        foreach (var coedge in coedges)
+        {
+            var sampledCurve = TrySampleCoedgeForTrimEvaluation(body, faceId, coedge, vertexPointsResult.Value, options);
+            if (!sampledCurve.IsSuccess)
+            {
+                return KernelResult<IReadOnlyList<(double U, double V)>>.Failure(sampledCurve.Diagnostics);
+            }
+
+            foreach (var point in sampledCurve.Value)
+            {
+                var uv = projectPointToUv(point);
+                if (!uv.HasValue)
+                {
+                    return KernelResult<IReadOnlyList<(double U, double V)>>.Failure([
+                        CreateNotImplemented(
+                            $"Face {faceId.Value} periodic trim tessellation could not project loop samples into the native torus parameter domain.",
+                            TrimEvaluationFailedSource)]);
+                }
+
+                var unwrapResult = TryUnwrapDoublyPeriodicUvPoint(
+                    uvPoints,
+                    uv.Value,
+                    ref previousWrappedU,
+                    ref currentUOffset,
+                    ref previousWrappedV,
+                    ref currentVOffset,
+                    faceId);
+                if (!unwrapResult.IsSuccess)
+                {
+                    return KernelResult<IReadOnlyList<(double U, double V)>>.Failure(unwrapResult.Diagnostics);
+                }
+            }
+        }
+
+        if (uvPoints.Count > 1 && UvPointsAlmostEqual(uvPoints[0], uvPoints[^1]))
+        {
+            uvPoints.RemoveAt(uvPoints.Count - 1);
+        }
+
+        return KernelResult<IReadOnlyList<(double U, double V)>>.Success(uvPoints);
+    }
+
     private static KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>> TryBuildPeriodicTrimmedSurfaceUvLoops(
         BrepBody body,
         FaceId faceId,
@@ -779,6 +871,100 @@ public static class BrepDisplayTessellator
         }
 
         return KernelResult<IReadOnlyList<(double U, double V)>>.Success(uvPoints);
+    }
+
+    private static KernelResult<bool> TryUnwrapDoublyPeriodicUvPoint(
+        List<(double U, double V)> uvPoints,
+        (double U, double V) wrappedUv,
+        ref double? previousWrappedU,
+        ref double currentUOffset,
+        ref double? previousWrappedV,
+        ref double currentVOffset,
+        FaceId faceId)
+    {
+        var unwrappedUResult = TryUnwrapPeriodicCoordinate(wrappedUv.U, uvPoints, isUCoordinate: true, ref previousWrappedU, ref currentUOffset, faceId);
+        if (!unwrappedUResult.IsSuccess)
+        {
+            return KernelResult<bool>.Failure(unwrappedUResult.Diagnostics);
+        }
+
+        var unwrappedVResult = TryUnwrapPeriodicCoordinate(wrappedUv.V, uvPoints, isUCoordinate: false, ref previousWrappedV, ref currentVOffset, faceId);
+        if (!unwrappedVResult.IsSuccess)
+        {
+            return KernelResult<bool>.Failure(unwrappedVResult.Diagnostics);
+        }
+
+        AppendUniqueUvPoint(uvPoints, (unwrappedUResult.Value, unwrappedVResult.Value));
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<double> TryUnwrapPeriodicCoordinate(
+        double wrappedValue,
+        IReadOnlyList<(double U, double V)> uvPoints,
+        bool isUCoordinate,
+        ref double? previousWrappedValue,
+        ref double currentOffset,
+        FaceId faceId)
+    {
+        var wrappedSpanTolerance = double.Pi + 1e-6d;
+        if (previousWrappedValue.HasValue)
+        {
+            var delta = wrappedValue - previousWrappedValue.Value;
+            if (delta > double.Pi)
+            {
+                currentOffset -= 2d * double.Pi;
+            }
+            else if (delta < -double.Pi)
+            {
+                currentOffset += 2d * double.Pi;
+            }
+
+            if (uvPoints.Count > 0)
+            {
+                var adjustedValue = wrappedValue + currentOffset;
+                var previousValue = isUCoordinate ? uvPoints[^1].U : uvPoints[^1].V;
+                if (double.Abs(adjustedValue - previousValue) > wrappedSpanTolerance)
+                {
+                    var coordinateName = isUCoordinate ? "major" : "minor";
+                    return KernelResult<double>.Failure([
+                        CreateNotImplemented(
+                            $"Face {faceId.Value} torus trim loop crossed the {coordinateName} angular seam ambiguously and could not be normalized deterministically.",
+                            TrimEvaluationFailedSource)]);
+                }
+            }
+        }
+
+        previousWrappedValue = wrappedValue;
+        return KernelResult<double>.Success(wrappedValue + currentOffset);
+    }
+
+    private static (double U, double V)? TryProjectPointToTorusUv(TorusSurface torus, Point3D point)
+    {
+        var axis = torus.Axis.ToVector();
+        var xAxis = torus.XAxis.ToVector();
+        var yAxis = torus.YAxis.ToVector();
+        var offset = point - torus.Center;
+        var axial = offset.Dot(axis);
+        var planar = offset - (axis * axial);
+        var planarLength = planar.Length;
+        if (!double.IsFinite(planarLength) || planarLength <= 1e-9d)
+        {
+            return null;
+        }
+
+        var u = NormalizeToZeroTwoPi(double.Atan2(planar.Dot(yAxis), planar.Dot(xAxis)));
+        var radialFromMajor = planarLength - torus.MajorRadius;
+        var v = NormalizeToZeroTwoPi(double.Atan2(axial, radialFromMajor));
+
+        var residual = torus.Evaluate(u, v) - point;
+        var residualDistance = System.Math.Sqrt(residual.Dot(residual));
+        var tolerance = System.Math.Max(1e-5d, System.Math.Max(torus.MajorRadius, torus.MinorRadius) * 1e-4d);
+        if (!double.IsFinite(residualDistance) || residualDistance > tolerance)
+        {
+            return null;
+        }
+
+        return (u, v);
     }
 
     private static (double U, double V)? TryProjectPointToCylinderUv(CylinderSurface cylinder, Point3D point)
@@ -1036,6 +1222,32 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateTorusFace(BrepBody body, FaceId faceId, TorusSurface torus, DisplayTessellationOptions options)
     {
+        var loopIds = body.GetLoopIds(faceId);
+        if (loopIds.Count > 0)
+        {
+            var uvLoopsResult = TryBuildDoublyPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToTorusUv(torus, point), options);
+            if (!uvLoopsResult.IsSuccess)
+            {
+                return KernelResult<DisplayFaceMeshPatch>.Success(
+                    CreateEmptyPlanarPatch(faceId),
+                    [CreateValidationWarning(
+                        $"Face {faceId.Value} torus trim evaluation failed; skipping face patch to avoid misleading untrimmed geometry.",
+                        TrimEvaluationFailedSource)]);
+            }
+
+            return TrimmedSurfaceTessellator.Tessellate(
+                faceId,
+                uvLoopsResult.Value,
+                (u, v) => torus.Evaluate(u, v),
+                (u, v) => torus.Normal(u, v).ToVector(),
+                options,
+                double.NegativeInfinity,
+                double.PositiveInfinity,
+                double.NegativeInfinity,
+                double.PositiveInfinity,
+                CreateValidationWarning);
+        }
+
         var parameters = GetRevolvedFaceParameters(body, faceId, options, radiusHint: torus.MajorRadius + torus.MinorRadius, allowThreeCoedgeConeTopology: false, axialParameterFromPoint: point => TorusMinorAngleOf(torus, point));
         if (!parameters.IsSuccess)
         {

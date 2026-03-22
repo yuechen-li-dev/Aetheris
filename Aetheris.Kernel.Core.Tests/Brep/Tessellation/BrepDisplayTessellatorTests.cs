@@ -380,6 +380,127 @@ public sealed class BrepDisplayTessellatorTests
     }
 
     [Fact]
+    public void Tessellate_TrimmedTorusSurface_RespectsOuterLoop_Deterministically()
+    {
+        var torus = new TorusSurface(
+            Point3D.Origin,
+            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            4d,
+            1.25d,
+            Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+        var outerBounds = (UMin: 0.4d, UMax: 2.2d, VMin: 0.5d, VMax: 2.3d);
+        var body = CreateTrimmedTorusSurfaceBody(torus, outerBounds, holeBounds: null);
+        var options = DisplayTessellationOptions.Create(double.Pi / 8d, 0.2d, minimumSegments: 12, maximumSegments: 12).Value;
+
+        var first = BrepDisplayTessellator.Tessellate(body, options);
+        var second = BrepDisplayTessellator.Tessellate(body, options);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Source == "Viewer.Tessellation.TrimEvaluationFailed");
+
+        var firstPatch = Assert.Single(first.Value.FacePatches);
+        var secondPatch = Assert.Single(second.Value.FacePatches);
+        Assert.NotEmpty(firstPatch.TriangleIndices);
+        Assert.Equal(firstPatch.Positions, secondPatch.Positions);
+        Assert.Equal(firstPatch.Normals, secondPatch.Normals);
+        Assert.Equal(firstPatch.TriangleIndices, secondPatch.TriangleIndices);
+
+        var outerMidU = (outerBounds.UMin + outerBounds.UMax) * 0.5d;
+        var outerMidV = (outerBounds.VMin + outerBounds.VMax) * 0.5d;
+        Assert.All(GetTriangleUvSamples(firstPatch, point => ProjectTorusUv(torus, point, outerMidU, outerMidV)), sample =>
+            Assert.True(IsInsideUvRectangle(sample, outerBounds)));
+    }
+
+    [Fact]
+    public void Tessellate_TrimmedTorusSurfaceWithHole_PreservesHole_Deterministically()
+    {
+        var torus = new TorusSurface(
+            Point3D.Origin,
+            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            4d,
+            1.25d,
+            Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+        var outerBounds = (UMin: 0.5d, UMax: 2.4d, VMin: 0.6d, VMax: 2.5d);
+        var holeBounds = (UMin: 1.1d, UMax: 1.7d, VMin: 1.2d, VMax: 1.9d);
+        var body = CreateTrimmedTorusSurfaceBody(torus, outerBounds, holeBounds);
+        var options = DisplayTessellationOptions.Create(double.Pi / 8d, 0.2d, minimumSegments: 12, maximumSegments: 12).Value;
+
+        var first = BrepDisplayTessellator.Tessellate(body, options);
+        var second = BrepDisplayTessellator.Tessellate(body, options);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Source == "Viewer.Tessellation.TrimEvaluationFailed");
+
+        var firstPatch = Assert.Single(first.Value.FacePatches);
+        var secondPatch = Assert.Single(second.Value.FacePatches);
+        Assert.NotEmpty(firstPatch.TriangleIndices);
+        Assert.Equal(firstPatch.Positions, secondPatch.Positions);
+        Assert.Equal(firstPatch.Normals, secondPatch.Normals);
+        Assert.Equal(firstPatch.TriangleIndices, secondPatch.TriangleIndices);
+
+        var outerMidU = (outerBounds.UMin + outerBounds.UMax) * 0.5d;
+        var outerMidV = (outerBounds.VMin + outerBounds.VMax) * 0.5d;
+        Assert.All(GetTriangleUvCentroids(firstPatch, point => ProjectTorusUv(torus, point, outerMidU, outerMidV)), centroid =>
+        {
+            Assert.True(IsInsideUvRectangle(centroid, outerBounds));
+            Assert.False(IsInsideUvRectangle(centroid, holeBounds));
+        });
+    }
+
+    [Fact]
+    public void Tessellate_TrimmedTorusSurfaceAcrossSeam_UsesDeterministicUnwrap()
+    {
+        var torus = new TorusSurface(
+            Point3D.Origin,
+            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            4d,
+            1.25d,
+            Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+        var outerBounds = (UMin: 5.7d, UMax: 6.7d, VMin: 5.8d, VMax: 6.6d);
+        var body = CreateTrimmedTorusSurfaceBody(torus, outerBounds, holeBounds: null);
+        var options = DisplayTessellationOptions.Create(double.Pi / 8d, 0.2d, minimumSegments: 12, maximumSegments: 12).Value;
+
+        var result = BrepDisplayTessellator.Tessellate(body, options);
+
+        Assert.True(result.IsSuccess);
+        Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Source == "Viewer.Tessellation.TrimEvaluationFailed");
+
+        var patch = Assert.Single(result.Value.FacePatches);
+        Assert.NotEmpty(patch.TriangleIndices);
+
+        var outerMidU = (outerBounds.UMin + outerBounds.UMax) * 0.5d;
+        var outerMidV = (outerBounds.VMin + outerBounds.VMax) * 0.5d;
+        Assert.All(GetTriangleUvCentroids(patch, point => ProjectTorusUv(torus, point, outerMidU, outerMidV)), centroid =>
+            Assert.True(IsInsideUvRectangle(centroid, outerBounds)));
+    }
+
+    [Fact]
+    public void Tessellate_TrimmedTorusSurface_WhenProjectionFails_EmitsWarningAndSkipsWithoutFallback()
+    {
+        var torus = new TorusSurface(
+            Point3D.Origin,
+            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            4d,
+            1.25d,
+            Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+        var outerBounds = (UMin: 0.4d, UMax: 2.2d, VMin: 0.5d, VMax: 2.3d);
+        var body = CreateTrimmedTorusSurfaceBody(torus, outerBounds, holeBounds: null, topRadialOffset: 0.4d);
+
+        var result = BrepDisplayTessellator.Tessellate(body);
+
+        Assert.True(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.ValidationFailed, diagnostic.Code);
+        Assert.Equal("Viewer.Tessellation.TrimEvaluationFailed", diagnostic.Source);
+
+        var patch = Assert.Single(result.Value.FacePatches);
+        Assert.Empty(patch.Positions);
+        Assert.Empty(patch.TriangleIndices);
+    }
+
+    [Fact]
     public void Tessellate_TrimmedCylinderSurfaceAcrossSeam_UsesDeterministicUnwrap()
     {
         var cylinder = new CylinderSurface(
@@ -690,6 +811,36 @@ public sealed class BrepDisplayTessellatorTests
         return new BrepBody(builder.Model, geometry, bindings, vertexPoints);
     }
 
+    private static BrepBody CreateTrimmedTorusSurfaceBody(
+        TorusSurface torus,
+        (double UMin, double UMax, double VMin, double VMax) outerBounds,
+        (double UMin, double UMax, double VMin, double VMax)? holeBounds,
+        double topRadialOffset = 0d)
+    {
+        var builder = new TopologyBuilder();
+        var geometry = new BrepGeometryStore();
+        var bindings = new BrepBindingModel();
+        var vertexPoints = new Dictionary<VertexId, Point3D>();
+        var curveId = 1;
+        var loops = new List<LoopId>
+        {
+            AddTorusLoop(builder, geometry, bindings, vertexPoints, torus, outerBounds, ref curveId, topRadialOffset),
+        };
+
+        if (holeBounds is { } hole)
+        {
+            loops.Add(AddTorusLoop(builder, geometry, bindings, vertexPoints, torus, hole, ref curveId, topRadialOffset: 0d));
+        }
+
+        var face = builder.AddFace(loops);
+        var shell = builder.AddShell([face]);
+        builder.AddBody([shell]);
+
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromTorus(torus));
+        bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(1)));
+        return new BrepBody(builder.Model, geometry, bindings, vertexPoints);
+    }
+
     private static BrepBody CreateTrimmedConeSurfaceBody(
         ConeSurface cone,
         (double UMin, double UMax, double VMin, double VMax) outerBounds,
@@ -755,6 +906,77 @@ public sealed class BrepDisplayTessellatorTests
             ref curveId,
             cone.Evaluate,
             v => CreateCircleAtConeV(cone, v));
+
+    private static LoopId AddTorusLoop(
+        TopologyBuilder builder,
+        BrepGeometryStore geometry,
+        BrepBindingModel bindings,
+        Dictionary<VertexId, Point3D> vertexPoints,
+        TorusSurface torus,
+        (double UMin, double UMax, double VMin, double VMax) bounds,
+        ref int curveId,
+        double topRadialOffset)
+    {
+        var vertices = new[]
+        {
+            EvaluateTorusPoint(torus, bounds.UMin, bounds.VMin, radialOffset: 0d),
+            EvaluateTorusPoint(torus, bounds.UMax, bounds.VMin, radialOffset: 0d),
+            EvaluateTorusPoint(torus, bounds.UMax, bounds.VMax, radialOffset: topRadialOffset),
+            EvaluateTorusPoint(torus, bounds.UMin, bounds.VMax, radialOffset: topRadialOffset),
+        };
+
+        var vertexIds = vertices
+            .Select(point =>
+            {
+                var vertexId = builder.AddVertex();
+                vertexPoints[vertexId] = point;
+                return vertexId;
+            })
+            .ToArray();
+
+        var loopId = builder.AllocateLoopId();
+        var edgeIds = new[]
+        {
+            builder.AddEdge(vertexIds[0], vertexIds[1]),
+            builder.AddEdge(vertexIds[1], vertexIds[2]),
+            builder.AddEdge(vertexIds[2], vertexIds[3]),
+            builder.AddEdge(vertexIds[3], vertexIds[0]),
+        };
+
+        geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromCircle(CreateCircleAtTorusV(torus, bounds.VMin)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeIds[0], new CurveGeometryId(curveId++), new ParameterInterval(bounds.UMin, bounds.UMax)));
+
+        geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromCircle(CreateCircleAtTorusU(torus, bounds.UMax)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeIds[1], new CurveGeometryId(curveId++), new ParameterInterval(bounds.VMin, bounds.VMax)));
+
+        geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromCircle(CreateCircleAtTorusV(torus, bounds.VMax, topRadialOffset)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeIds[2], new CurveGeometryId(curveId++), new ParameterInterval(System.Math.Min(bounds.UMin, bounds.UMax), System.Math.Max(bounds.UMin, bounds.UMax))));
+
+        geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromCircle(CreateCircleAtTorusU(torus, bounds.UMin)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeIds[3], new CurveGeometryId(curveId++), new ParameterInterval(bounds.VMin, bounds.VMax)));
+
+        var coedgeIds = new[]
+        {
+            builder.AllocateCoedgeId(),
+            builder.AllocateCoedgeId(),
+            builder.AllocateCoedgeId(),
+            builder.AllocateCoedgeId(),
+        };
+
+        for (var i = 0; i < coedgeIds.Length; i++)
+        {
+            builder.AddCoedge(new Coedge(
+                coedgeIds[i],
+                edgeIds[i],
+                loopId,
+                coedgeIds[(i + 1) % coedgeIds.Length],
+                coedgeIds[(i - 1 + coedgeIds.Length) % coedgeIds.Length],
+                IsReversed: false));
+        }
+
+        builder.AddLoop(new Loop(loopId, coedgeIds));
+        return loopId;
+    }
 
     private static LoopId AddPeriodicRectangleLoop(
         TopologyBuilder builder,
@@ -850,6 +1072,23 @@ public sealed class BrepDisplayTessellatorTests
             v * System.Math.Tan(cone.SemiAngleRadians),
             cone.ReferenceAxis);
 
+    private static Circle3Curve CreateCircleAtTorusV(TorusSurface torus, double v, double radialOffset = 0d)
+        => new(
+            torus.Center + (torus.Axis.ToVector() * (torus.MinorRadius * System.Math.Sin(v))),
+            torus.Axis,
+            torus.MajorRadius + (torus.MinorRadius * System.Math.Cos(v)) + radialOffset,
+            torus.XAxis);
+
+    private static Circle3Curve CreateCircleAtTorusU(TorusSurface torus, double u)
+    {
+        var majorDirection = (torus.XAxis.ToVector() * System.Math.Cos(u)) + (torus.YAxis.ToVector() * System.Math.Sin(u));
+        return new Circle3Curve(
+            torus.Center + (majorDirection * torus.MajorRadius),
+            Direction3D.Create(majorDirection.Cross(torus.Axis.ToVector())),
+            torus.MinorRadius,
+            Direction3D.Create(majorDirection));
+    }
+
     private static IEnumerable<(double U, double V)> GetTriangleUvCentroids(
         DisplayFaceMeshPatch patch,
         Func<Point3D, (double U, double V)> projectPoint)
@@ -901,6 +1140,23 @@ public sealed class BrepDisplayTessellatorTests
         var yAxis = Direction3D.Create(cone.Axis.ToVector().Cross(xAxis)).ToVector();
         var angle = radial.Length <= 1e-9d ? 0d : System.Math.Atan2(radial.Dot(yAxis), radial.Dot(xAxis));
         return (UnwrapNearReference(angle, referenceU), axial);
+    }
+
+    private static Point3D EvaluateTorusPoint(TorusSurface torus, double u, double v, double radialOffset)
+    {
+        var majorDirection = (torus.XAxis.ToVector() * System.Math.Cos(u)) + (torus.YAxis.ToVector() * System.Math.Sin(u));
+        var radialDistance = torus.MajorRadius + ((torus.MinorRadius + radialOffset) * System.Math.Cos(v));
+        return torus.Center + (majorDirection * radialDistance) + (torus.Axis.ToVector() * ((torus.MinorRadius + radialOffset) * System.Math.Sin(v)));
+    }
+
+    private static (double U, double V) ProjectTorusUv(TorusSurface torus, Point3D point, double referenceU, double referenceV)
+    {
+        var offset = point - torus.Center;
+        var axial = offset.Dot(torus.Axis.ToVector());
+        var planar = offset - (torus.Axis.ToVector() * axial);
+        var u = System.Math.Atan2(planar.Dot(torus.YAxis.ToVector()), planar.Dot(torus.XAxis.ToVector()));
+        var v = System.Math.Atan2(axial, planar.Length - torus.MajorRadius);
+        return (UnwrapNearReference(u, referenceU), UnwrapNearReference(v, referenceV));
     }
 
     private static double UnwrapNearReference(double angle, double reference)

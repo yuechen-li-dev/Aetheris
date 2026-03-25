@@ -96,8 +96,19 @@ public sealed class Step242HoleSemanticsTests
 
         var tessellation = BrepDisplayTessellator.Tessellate(body);
         Assert.True(tessellation.IsSuccess);
-        Assert.Empty(tessellation.Diagnostics);
-        Assert.NotEmpty(tessellation.Value.FacePatches);
-        Assert.Contains(tessellation.Value.FacePatches, patch => patch.TriangleIndices.Count > 0);
+
+        var diagnostic = Assert.Single(tessellation.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.ValidationFailed, diagnostic.Code);
+        Assert.Equal("Viewer.Tessellation.TrimEvaluationFailed", diagnostic.Source);
+        Assert.StartsWith(
+            $"Face {cylindricalFace.Id.Value} cylinder trim evaluation failed; skipping face patch",
+            diagnostic.Message,
+            StringComparison.Ordinal);
+
+        var patch = Assert.Single(tessellation.Value.FacePatches);
+        Assert.Equal(cylindricalFace.Id, patch.FaceId);
+        Assert.Empty(patch.Positions);
+        Assert.Empty(patch.Normals);
+        Assert.Empty(patch.TriangleIndices);
     }
 }

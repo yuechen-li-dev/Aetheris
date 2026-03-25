@@ -593,8 +593,7 @@ export function ViewerViewport({
   const hasInteractionEdgeHighlight = highlightedEdgeId !== null;
 
   return (
-    <div className="viewport-canvas-frame">
-      <Canvas orthographic camera={{ position: [6, 6, 6], zoom: 90, near: -10000, far: 10000 }} gl={{ alpha: true }}>
+    <Canvas style={{ display: 'block', width: '100%', height: '100%' }} orthographic camera={{ position: [6, 6, 6], zoom: 90, near: -10000, far: 10000 }} gl={{ alpha: true }}>
         {/*Negative near value is indeed correct in order to show negative value on grid. Documentation is wrong.*/}
         <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
         <directionalLight position={[-5, 9, 6]} intensity={VIEWPORT_THEME.directionalIntensity} />
@@ -623,6 +622,5 @@ export function ViewerViewport({
         <PickRayCapture onPickRay={onPickRay} />
         <OrbitControls makeDefault enablePan enableZoom />
       </Canvas>
-    </div>
   );
 }

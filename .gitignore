@@ -362,3 +362,4 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /testdata/step214/handcrafted/baseline/stair.STEP
+/Aetheris.Kernel.Core.Tests/TessellationHoleDiagnosticsTests.cs

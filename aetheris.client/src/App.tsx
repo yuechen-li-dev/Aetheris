@@ -549,40 +549,31 @@ function App() {
 
             <main className="main-layout">
                 <section className="viewport-column">
-                    <div className="viewport-shell">
-                        <div className="viewport-frame-outline">
-                            <div className="viewport-frame">
-                                <div className="viewport-header">
-                                    <h2 className="section-title viewport-header__title">Viewport</h2>
-                                    <div className="viewport-segmented" role="group" aria-label="Viewport display controls">
-                                        <button
-                                            type="button"
-                                            className={isGridVisible ? 'viewport-segmented__button is-active' : 'viewport-segmented__button'}
-                                            onClick={() => setIsGridVisible((value) => !value)}
-                                            aria-pressed={isGridVisible}>
-                                            GRID
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={isCoordVisible ? 'viewport-segmented__button is-active' : 'viewport-segmented__button'}
-                                            onClick={() => setIsCoordVisible((value) => !value)}
-                                            aria-pressed={isCoordVisible}>
-                                            COORD
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="viewport-canvas-outline">
-                                    <ViewerViewport
-                                        sceneData={sceneData}
-                                        highlightedFaceId={highlightedFaceId}
-                                        highlightedEdgeId={highlightedEdgeId}
-                                        showGrid={isGridVisible}
-                                        showAxisGuide={isCoordVisible}
-                                        onPickRay={(origin, direction) => void handlePickRay(origin, direction)}
-                                    />
-                                </div>
-                            </div>
+                    <div className="viewport-frame">
+                        <div className="viewport-controls" role="group" aria-label="Viewport display controls">
+                            <button
+                                type="button"
+                                className={isGridVisible ? 'viewport-segmented__button is-active' : 'viewport-segmented__button'}
+                                onClick={() => setIsGridVisible((value) => !value)}
+                                aria-pressed={isGridVisible}>
+                                GRID
+                            </button>
+                            <button
+                                type="button"
+                                className={isCoordVisible ? 'viewport-segmented__button is-active' : 'viewport-segmented__button'}
+                                onClick={() => setIsCoordVisible((value) => !value)}
+                                aria-pressed={isCoordVisible}>
+                                COORD
+                            </button>
                         </div>
+                        <ViewerViewport
+                            sceneData={sceneData}
+                            highlightedFaceId={highlightedFaceId}
+                            highlightedEdgeId={highlightedEdgeId}
+                            showGrid={isGridVisible}
+                            showAxisGuide={isCoordVisible}
+                            onPickRay={(origin, direction) => void handlePickRay(origin, direction)}
+                        />
                     </div>
                 </section>
 

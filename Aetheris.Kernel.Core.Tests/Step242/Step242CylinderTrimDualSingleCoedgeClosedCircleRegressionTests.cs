@@ -50,7 +50,7 @@ public sealed class Step242CylinderTrimDualSingleCoedgeClosedCircleRegressionTes
         var first = Step242CorpusManifestRunner.RunOne(new Step242CorpusManifestEntry("ftc11", relativePath, "nist-regression", null, null, null, null, null));
         var second = Step242CorpusManifestRunner.RunOne(new Step242CorpusManifestEntry("ftc11", relativePath, "nist-regression", null, null, null, null, null));
 
-        Assert.Equal("importFail", first.Status);
+        Assert.Equal("pickerBlockedByTessellationSkip", first.Status);
         Assert.Equal("picker", first.FirstFailureLayer);
         Assert.Equal("Audit.Picker", first.FirstDiagnostic.Source);
         Assert.Equal("Picker smoke ray produced no hit.", first.FirstDiagnostic.MessagePrefix);

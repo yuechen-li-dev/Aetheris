@@ -608,7 +608,7 @@ public sealed class BrepBooleanTests
 
 
     [Fact]
-    public void Subtract_BoxSphereFullyContained_StillReturnsDeterministicNotImplemented()
+    public void Subtract_BoxSphereFullyContained_ReturnsMultiShellNotSupportedDiagnostic()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, -6d, 6d)).Value;
         var right = BrepPrimitives.CreateSphere(4d).Value;
@@ -618,8 +618,38 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
-        Assert.Equal("Boolean Subtract does not support analytic tool surface kind 'Sphere' in the safe boolean family. Use a cylinder or cone through-hole instead.", diagnostic.Message);
+        Assert.Equal("BrepBoolean.AnalyticHole.MultiBodyResult", diagnostic.Source);
+        Assert.Equal("Boolean Subtract would produce a fully enclosed spherical cavity that requires an inner shell; current explicit reconstruction and STEP export support only one shell per body.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Subtract_BoxSphereTangentBoundary_ReturnsTangentContactDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, -6d, 6d)).Value;
+        var right = TransformBody(BrepPrimitives.CreateSphere(6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 0d)));
+
+        var result = BrepBoolean.Subtract(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.TangentContact", diagnostic.Source);
+        Assert.Equal("Boolean Subtract is tangent to a box boundary plane; tangent spherical cavities are rejected to avoid zero-thickness boundary contact.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Subtract_BoxSpherePartiallyOutside_ReturnsRadiusExceedsBoundaryDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, -6d, 6d)).Value;
+        var right = TransformBody(BrepPrimitives.CreateSphere(4d).Value, Transform3D.CreateTranslation(new Vector3D(17d, 0d, 0d)));
+
+        var result = BrepBoolean.Subtract(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.RadiusExceedsBoundary", diagnostic.Source);
+        Assert.Equal("Boolean Subtract extends outside the box boundary; spherical cavity tools must remain strictly contained inside the box.", diagnostic.Message);
     }
 
     [Fact]

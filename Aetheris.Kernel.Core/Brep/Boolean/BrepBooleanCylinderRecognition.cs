@@ -361,6 +361,12 @@ public static class BrepBooleanCylinderRecognition
             CreateBooleanMessage(operation, featureId, detail),
             "BrepBoolean.AnalyticHole.TangentContact");
 
+    public static BooleanDiagnostic CreateMultiBodyResultDiagnostic(string operation, string? featureId, string detail)
+        => new(
+            BooleanDiagnosticCode.MultiBodyResult,
+            CreateBooleanMessage(operation, featureId, detail),
+            "BrepBoolean.AnalyticHole.MultiBodyResult");
+
     public static BooleanDiagnostic CreateUnsupportedAnalyticSurfaceKindDiagnostic(string operation, AnalyticSurfaceKind kind)
         => CreateUnsupportedAnalyticSurfaceKindDiagnostic(operation, kind, null);
 

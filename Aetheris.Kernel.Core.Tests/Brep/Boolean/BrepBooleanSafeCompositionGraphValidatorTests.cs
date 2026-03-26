@@ -82,14 +82,14 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
     }
 
     [Fact]
-    public void ValidateNextSubtract_Sphere_FailsWithUnsupportedSurfaceDiagnostic()
+    public void ValidateNextSubtract_ContainedSphere_FailsWithMultiShellDiagnostic()
     {
         var composition = new SafeBooleanComposition(
             new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d),
             []);
         var sphere = new AnalyticSurface(
             AnalyticSurfaceKind.Sphere,
-            Sphere: new RecognizedSphere(Point3D.Origin, 3d));
+            Sphere: new RecognizedSphere(new Point3D(0d, 0d, 6d), 3d));
 
         var result = BrepBooleanSafeCompositionGraphValidator.TryValidateNextSubtract(
             composition,
@@ -100,9 +100,9 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
 
         Assert.False(result);
         Assert.NotNull(diagnostic);
-        Assert.Equal(BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind, diagnostic!.Code);
-        Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
-        Assert.Equal("Boolean Subtract does not support analytic tool surface kind 'Sphere' in the safe boolean family. Use a cylinder or cone through-hole instead.", diagnostic.Message);
+        Assert.Equal(BooleanDiagnosticCode.MultiBodyResult, diagnostic!.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.MultiBodyResult", diagnostic.Source);
+        Assert.Equal("Boolean Subtract would produce a fully enclosed spherical cavity that requires an inner shell; current explicit reconstruction and STEP export support only one shell per body.", diagnostic.Message);
     }
 
     private static BrepBody TransformBody(BrepBody body, Transform3D transform)

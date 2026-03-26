@@ -1,5 +1,9 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Brep.Picking;
+using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Topology;
 
@@ -37,6 +41,58 @@ public sealed class Step242InnerShellExportTests
         Assert.Contains("BREP_WITH_VOIDS", first.Value, StringComparison.Ordinal);
         Assert.Contains("ORIENTED_CLOSED_SHELL", first.Value, StringComparison.Ordinal);
         Assert.Equal(2, CountOccurrences(first.Value, "=CLOSED_SHELL("));
+    }
+
+    [Fact]
+    public void ExportBody_InnerShellRepresentation_ImportRoundTrip_IsExplicitlyUnsupportedInCurrentSubset()
+    {
+        var body = CreateSyntheticBodyWithInnerShell();
+        var export = Step242Exporter.ExportBody(body);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("BREP_WITH_VOIDS", export.Value, StringComparison.Ordinal);
+
+        var import = Step242Importer.ImportBody(export.Value);
+
+        Assert.False(import.IsSuccess);
+        var diagnostic = Assert.Single(import.Diagnostics);
+        Assert.Equal("Importer.TopologyRoot", diagnostic.Source);
+        Assert.StartsWith("Missing MANIFOLD_SOLID_BREP", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_BoxSphereCavity_InnerShellBody_ValidatesExportsAndExternalPickerStaysOnOuterShell()
+    {
+        var outer = BrepPrimitives.CreateBox(40d, 30d, 12d);
+        var inner = BrepPrimitives.CreateSphere(4d);
+        Assert.True(outer.IsSuccess);
+        Assert.True(inner.IsSuccess);
+
+        var subtract = BrepBoolean.Subtract(outer.Value, inner.Value);
+        Assert.True(subtract.IsSuccess);
+        Assert.NotNull(subtract.Value.ShellRepresentation);
+        Assert.Single(subtract.Value.ShellRepresentation!.InnerShellIds);
+
+        var validation = BrepBindingValidator.Validate(subtract.Value, requireAllEdgeAndFaceBindings: true);
+        Assert.True(validation.IsSuccess);
+
+        var export = Step242Exporter.ExportBody(subtract.Value);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("BREP_WITH_VOIDS", export.Value, StringComparison.Ordinal);
+
+        var tessellation = BrepDisplayTessellator.Tessellate(subtract.Value);
+        Assert.True(tessellation.IsSuccess);
+        Assert.NotEmpty(tessellation.Value.FacePatches);
+
+        var outerFaceIds = subtract.Value.Topology.GetShell(subtract.Value.ShellRepresentation.OuterShellId).FaceIds.ToHashSet();
+        var ray = new Ray3D(
+            new Point3D(0d, 0d, 100d),
+            Direction3D.Create(new Vector3D(0d, 0d, -1d)));
+        var pick = BrepPicker.Pick(subtract.Value, tessellation.Value, ray, PickQueryOptions.Default with { NearestOnly = true });
+
+        Assert.True(pick.IsSuccess);
+        var hit = Assert.Single(pick.Value);
+        Assert.NotNull(hit.FaceId);
+        Assert.Contains(hit.FaceId.Value, outerFaceIds);
     }
 
     [Fact]

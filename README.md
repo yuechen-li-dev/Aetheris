@@ -65,7 +65,15 @@ For editor/IDE compatibility or solution-wide restore/build flows, use:
 
 ```bash
 export PATH="$HOME/.dotnet:$PATH"
-dotnet test Aetheris.sln
+dotnet test Aetheris.sln --filter "Category!=SlowCorpus"
+```
+
+Use the `SlowCorpus` category to keep the heavyweight STEP242 NIST audit out of default solution runs. Invoke that corpus explicitly when needed:
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+dotnet test Aetheris.sln --filter "Category!=SlowCorpus"
+dotnet test Aetheris.Kernel.Core.Tests --filter "Category=SlowCorpus"
 ```
 
 `Aetheris.slnx` is retained for newer tooling convenience, but routine automation should use `./scripts/test-all.sh` and `Aetheris.sln`.

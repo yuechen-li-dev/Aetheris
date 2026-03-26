@@ -29,12 +29,17 @@ public static class Step242Exporter
         }
 
         var shellIds = bodyNodes[0].ShellIds.OrderBy(s => s.Value).ToArray();
-        if (shellIds.Length != 1)
+        var shellRepresentation = body.ShellRepresentation;
+        if (shellRepresentation is null)
         {
-            return Failure("Only one shell per body is supported.", "Topology.Shells");
+            if (shellIds.Length != 1)
+            {
+                return Failure("Multi-shell export requires an explicit BrepBody shell representation.", "Topology.Shells");
+            }
+
+            shellRepresentation = new BrepBodyShellRepresentation(shellIds[0], []);
         }
 
-        var shell = model.GetShell(shellIds[0]);
         var writer = new Step242TextWriter();
 
         var vertexPointIds = new Dictionary<VertexId, string>();
@@ -48,29 +53,105 @@ public static class Step242Exporter
         var bsplineIds = new Dictionary<EdgeId, string>();
         var ellipseIds = new Dictionary<EdgeId, string>();
 
-        var faceIds = new List<string>();
+        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds);
+        if (outerClosedShellId is null)
+        {
+            return Failure($"Shell {shellRepresentation.OuterShellId.Value} could not be exported.", $"Shell:{shellRepresentation.OuterShellId.Value}");
+        }
 
+        string brepId;
+        if (shellRepresentation.InnerShellIds.Count == 0)
+        {
+            brepId = writer.AddEntity("MANIFOLD_SOLID_BREP", Step242TextWriter.String(options.ProductName), Step242TextWriter.Ref(outerClosedShellId));
+        }
+        else
+        {
+            var orientedVoidShellIds = new List<string>();
+            foreach (var innerShellId in shellRepresentation.InnerShellIds.OrderBy(id => id.Value))
+            {
+                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds);
+                if (innerClosedShellId is null)
+                {
+                    return Failure($"Shell {innerShellId.Value} could not be exported.", $"Shell:{innerShellId.Value}");
+                }
+
+                var orientedClosedShellId = writer.AddEntity(
+                    "ORIENTED_CLOSED_SHELL",
+                    "$",
+                    Step242TextWriter.Ref(innerClosedShellId),
+                    Step242TextWriter.BooleanLogical(false));
+
+                orientedVoidShellIds.Add(orientedClosedShellId);
+            }
+
+            brepId = writer.AddEntity(
+                "BREP_WITH_VOIDS",
+                Step242TextWriter.String(options.ProductName),
+                Step242TextWriter.Ref(outerClosedShellId),
+                Step242TextWriter.List(orientedVoidShellIds.ToArray()));
+        }
+
+        var appContextId = writer.AddEntity("APPLICATION_CONTEXT", Step242TextWriter.String("mechanical design"));
+        var productContextId = writer.AddEntity("PRODUCT_CONTEXT", Step242TextWriter.String(""), Step242TextWriter.Ref(appContextId), Step242TextWriter.String("mechanical"));
+        var productId = writer.AddEntity("PRODUCT", Step242TextWriter.String("AETHERIS"), Step242TextWriter.String(options.ProductName), Step242TextWriter.String(""), Step242TextWriter.List(productContextId));
+        var formationId = writer.AddEntity("PRODUCT_DEFINITION_FORMATION", Step242TextWriter.String(""), Step242TextWriter.String(""), Step242TextWriter.Ref(productId));
+        var definitionContextId = writer.AddEntity("PRODUCT_DEFINITION_CONTEXT", Step242TextWriter.String("design"), Step242TextWriter.Ref(appContextId), Step242TextWriter.String("design"));
+        var definitionId = writer.AddEntity("PRODUCT_DEFINITION", Step242TextWriter.String(""), Step242TextWriter.String(""), Step242TextWriter.Ref(formationId), Step242TextWriter.Ref(definitionContextId));
+        var shapeId = writer.AddEntity("PRODUCT_DEFINITION_SHAPE", Step242TextWriter.String(""), Step242TextWriter.String(""), Step242TextWriter.Ref(definitionId));
+        var lengthUnitId = writer.AddRawEntity("(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.))");
+        var planeAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)PLANE_ANGLE_UNIT()SI_UNIT($,.RADIAN.))");
+        var solidAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)SI_UNIT($,.STERADIAN.)SOLID_ANGLE_UNIT())");
+        var repContextId = writer.AddRawEntity($"(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNIT_ASSIGNED_CONTEXT(({lengthUnitId},{planeAngleUnitId},{solidAngleUnitId}))REPRESENTATION_CONTEXT('3','3D'))");
+        EmitSemanticPmi(writer, shapeId, repContextId, lengthUnitId, semanticPmi);
+
+        var shapeRepresentationId = writer.AddEntity("SHAPE_REPRESENTATION", Step242TextWriter.String(options.ProductName), Step242TextWriter.List(brepId), Step242TextWriter.Ref(repContextId));
+        writer.AddEntity("SHAPE_DEFINITION_REPRESENTATION", Step242TextWriter.Ref(shapeId), Step242TextWriter.Ref(shapeRepresentationId));
+
+        return KernelResult<string>.Success(writer.Build(options.ApplicationName));
+    }
+
+    private static string? BuildClosedShell(
+        Step242TextWriter writer,
+        BrepBody body,
+        TopologyModel model,
+        ShellId shellId,
+        Dictionary<VertexId, Point3D> vertexPoints,
+        Dictionary<VertexId, string> cartesianPointIds,
+        Dictionary<VertexId, string> vertexPointIds,
+        Dictionary<EdgeId, string> edgeCurveIds,
+        Dictionary<CoedgeId, string> orientedEdgeIds,
+        Dictionary<EdgeId, string> lineIds,
+        Dictionary<EdgeId, string> circleIds,
+        Dictionary<EdgeId, string> bsplineIds,
+        Dictionary<EdgeId, string> ellipseIds)
+    {
+        if (!model.TryGetShell(shellId, out var shell) || shell is null)
+        {
+            return null;
+        }
+
+        var faceIds = new List<string>();
         foreach (var face in shell.FaceIds.OrderBy(id => id.Value).Select(model.GetFace))
         {
             if (!body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding))
             {
-                return Failure("Face is missing surface binding.", $"Face:{face.Id.Value}");
+                return null;
             }
 
             if (!body.Geometry.TryGetSurface(faceBinding.SurfaceGeometryId, out var surface) || surface is null)
             {
-                return Failure("Face surface geometry was not found.", $"Surface:{faceBinding.SurfaceGeometryId.Value}");
+                return null;
             }
 
             if (face.LoopIds.Count == 0 && !CanExportLooplessFace(body, face, surface))
             {
-                return Failure("Faces without boundary loops are not supported in M22 export subset unless they are the canonical loopless sphere primitive.", $"Face:{face.Id.Value}");
+                return null;
             }
 
             var surfaceIdResult = BuildSurface(writer, surface, face.Id);
             if (!surfaceIdResult.IsSuccess)
             {
-                return KernelResult<string>.Failure(surfaceIdResult.Diagnostics);
+                return null;
             }
 
             var loopBoundIds = new List<string>();
@@ -88,7 +169,7 @@ public static class Step242Exporter
                         var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds, ellipseIds);
                         if (!edgeResult.IsSuccess)
                         {
-                            return KernelResult<string>.Failure(edgeResult.Diagnostics);
+                            return null;
                         }
 
                         edgeCurveId = edgeResult.Value;
@@ -123,26 +204,7 @@ public static class Step242Exporter
             faceIds.Add(advancedFaceId);
         }
 
-        var closedShellId = writer.AddEntity("CLOSED_SHELL", "$", Step242TextWriter.List(faceIds.ToArray()));
-        var brepId = writer.AddEntity("MANIFOLD_SOLID_BREP", Step242TextWriter.String(options.ProductName), Step242TextWriter.Ref(closedShellId));
-
-        var appContextId = writer.AddEntity("APPLICATION_CONTEXT", Step242TextWriter.String("mechanical design"));
-        var productContextId = writer.AddEntity("PRODUCT_CONTEXT", Step242TextWriter.String(""), Step242TextWriter.Ref(appContextId), Step242TextWriter.String("mechanical"));
-        var productId = writer.AddEntity("PRODUCT", Step242TextWriter.String("AETHERIS"), Step242TextWriter.String(options.ProductName), Step242TextWriter.String(""), Step242TextWriter.List(productContextId));
-        var formationId = writer.AddEntity("PRODUCT_DEFINITION_FORMATION", Step242TextWriter.String(""), Step242TextWriter.String(""), Step242TextWriter.Ref(productId));
-        var definitionContextId = writer.AddEntity("PRODUCT_DEFINITION_CONTEXT", Step242TextWriter.String("design"), Step242TextWriter.Ref(appContextId), Step242TextWriter.String("design"));
-        var definitionId = writer.AddEntity("PRODUCT_DEFINITION", Step242TextWriter.String(""), Step242TextWriter.String(""), Step242TextWriter.Ref(formationId), Step242TextWriter.Ref(definitionContextId));
-        var shapeId = writer.AddEntity("PRODUCT_DEFINITION_SHAPE", Step242TextWriter.String(""), Step242TextWriter.String(""), Step242TextWriter.Ref(definitionId));
-        var lengthUnitId = writer.AddRawEntity("(LENGTH_UNIT()NAMED_UNIT(*)SI_UNIT(.MILLI.,.METRE.))");
-        var planeAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)PLANE_ANGLE_UNIT()SI_UNIT($,.RADIAN.))");
-        var solidAngleUnitId = writer.AddRawEntity("(NAMED_UNIT(*)SI_UNIT($,.STERADIAN.)SOLID_ANGLE_UNIT())");
-        var repContextId = writer.AddRawEntity($"(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNIT_ASSIGNED_CONTEXT(({lengthUnitId},{planeAngleUnitId},{solidAngleUnitId}))REPRESENTATION_CONTEXT('3','3D'))");
-        EmitSemanticPmi(writer, shapeId, repContextId, lengthUnitId, semanticPmi);
-
-        var shapeRepresentationId = writer.AddEntity("SHAPE_REPRESENTATION", Step242TextWriter.String(options.ProductName), Step242TextWriter.List(brepId), Step242TextWriter.Ref(repContextId));
-        writer.AddEntity("SHAPE_DEFINITION_REPRESENTATION", Step242TextWriter.Ref(shapeId), Step242TextWriter.Ref(shapeRepresentationId));
-
-        return KernelResult<string>.Success(writer.Build(options.ApplicationName));
+        return writer.AddEntity("CLOSED_SHELL", "$", Step242TextWriter.List(faceIds.ToArray()));
     }
 
     private static void EmitSemanticPmi(

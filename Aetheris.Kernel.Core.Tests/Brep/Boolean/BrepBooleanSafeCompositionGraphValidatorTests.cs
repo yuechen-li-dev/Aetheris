@@ -82,7 +82,7 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
     }
 
     [Fact]
-    public void ValidateNextSubtract_ContainedSphere_FailsWithMultiShellDiagnostic()
+    public void ValidateNextSubtract_ContainedSphere_PassesForSingleContainedCavity()
     {
         var composition = new SafeBooleanComposition(
             new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d),
@@ -98,11 +98,46 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
             out _,
             out var diagnostic);
 
+        Assert.True(result);
+        Assert.Null(diagnostic);
+    }
+
+    [Fact]
+    public void ValidateNextSubtract_SphereAfterExistingHole_FailsWithUnsupportedAnalyticSurfaceDiagnostic()
+    {
+        var composition = new SafeBooleanComposition(
+            new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d),
+            [
+                new SupportedBooleanHole(
+                    "hole_a",
+                    new AnalyticSurface(
+                        AnalyticSurfaceKind.Cylinder,
+                        Cylinder: new RecognizedCylinder(
+                            new Point3D(0d, 0d, -4d),
+                            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+                            0d,
+                            20d,
+                            3d)),
+                    0d,
+                    0d,
+                    3d,
+                    3d),
+            ]);
+        var sphere = new AnalyticSurface(
+            AnalyticSurfaceKind.Sphere,
+            Sphere: new RecognizedSphere(new Point3D(10d, 0d, 6d), 2d));
+
+        var result = BrepBooleanSafeCompositionGraphValidator.TryValidateNextSubtract(
+            composition,
+            sphere,
+            ToleranceContext.Default,
+            out _,
+            out var diagnostic);
+
         Assert.False(result);
         Assert.NotNull(diagnostic);
-        Assert.Equal(BooleanDiagnosticCode.MultiBodyResult, diagnostic!.Code);
-        Assert.Equal("BrepBoolean.AnalyticHole.MultiBodyResult", diagnostic.Source);
-        Assert.Equal("Boolean Subtract would produce a fully enclosed spherical cavity that requires an inner shell; current explicit reconstruction and STEP export support only one shell per body.", diagnostic.Message);
+        Assert.Equal(BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind, diagnostic!.Code);
+        Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
     }
 
     private static BrepBody TransformBody(BrepBody body, Transform3D transform)

@@ -608,18 +608,28 @@ public sealed class BrepBooleanTests
 
 
     [Fact]
-    public void Subtract_BoxSphereFullyContained_ReturnsMultiShellNotSupportedDiagnostic()
+    public void Subtract_BoxSphereFullyContained_RebuildsToInnerShellCavityAndExportsDeterministically()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, -6d, 6d)).Value;
         var right = BrepPrimitives.CreateSphere(4d).Value;
 
         var result = BrepBoolean.Subtract(left, right);
+        var repeated = BrepBoolean.Subtract(left, right);
 
-        Assert.False(result.IsSuccess);
-        var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("BrepBoolean.AnalyticHole.MultiBodyResult", diagnostic.Source);
-        Assert.Equal("Boolean Subtract would produce a fully enclosed spherical cavity that requires an inner shell; current explicit reconstruction and STEP export support only one shell per body.", diagnostic.Message);
+        Assert.True(result.IsSuccess);
+        Assert.True(repeated.IsSuccess);
+        Assert.NotNull(result.Value.ShellRepresentation);
+        Assert.Single(result.Value.ShellRepresentation!.InnerShellIds);
+        Assert.True(BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+
+        var export = Step242Exporter.ExportBody(result.Value);
+        var repeatedExport = Step242Exporter.ExportBody(repeated.Value);
+        Assert.True(export.IsSuccess);
+        Assert.True(repeatedExport.IsSuccess);
+        Assert.Equal(export.Value, repeatedExport.Value);
+        Assert.Contains("SPHERICAL_SURFACE", export.Value, StringComparison.Ordinal);
+        Assert.Contains("BREP_WITH_VOIDS", export.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("MANIFOLD_SOLID_BREP", export.Value, StringComparison.Ordinal);
     }
 
     [Fact]

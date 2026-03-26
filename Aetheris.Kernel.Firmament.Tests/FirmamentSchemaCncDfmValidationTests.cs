@@ -143,9 +143,8 @@ ops[2]:
 
         var result = Compile(source);
 
-        Assert.False(result.Compilation.IsSuccess);
+        Assert.True(result.Compilation.IsSuccess);
         Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains(FirmamentDiagnosticCodes.SchemaCncMinimumToolRadiusViolated.Value, StringComparison.Ordinal));
-        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'pocket' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]

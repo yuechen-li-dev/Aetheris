@@ -174,6 +174,18 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_BooleanBoxSphereCavityExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament",
+            "boolean_box_sphere_cavity_basic.step",
+            "cavity",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
     public void Run_UnsupportedBoxWithCylinderHoleFixture_Fails_And_Does_Not_Write_Fallback_Export()
     {
         AssertUnsupportedBuildAndExport(
@@ -186,7 +198,6 @@ public sealed class FirmamentBuildAndExportTests
     [Theory]
     [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-add-cylinder.firmament", "m10j-unsupported-box-add-cylinder.step", "joined", "add")]
     [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "m10j-unsupported-box-intersect-cylinder.step", "overlap", "intersect")]
-    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-contained.firmament", "m10l-unsupported-box-subtract-sphere-contained.step", "cavity", "subtract")]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-add-sphere.firmament", "m10l-unsupported-box-add-sphere.step", "joined", "add")]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "m10l-unsupported-box-intersect-sphere.step", "overlap", "intersect")]
     [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-subtract-cone.firmament", "m10m-unsupported-box-subtract-cone.step", "tapered_cut", "subtract")]

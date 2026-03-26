@@ -117,7 +117,6 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             { "testdata/firmament/fixtures/m10j-unsupported-box-add-cylinder.firmament", "joined", "add" },
             { "testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament", "hole", "subtract" },
             { "testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "overlap", "intersect" },
-            { "testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-contained.firmament", "cavity", "subtract" },
             { "testdata/firmament/fixtures/m10l-unsupported-box-add-sphere.firmament", "joined", "add" },
             { "testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "overlap", "intersect" },
             { "testdata/firmament/fixtures/m10m-unsupported-box-subtract-cone.firmament", "tapered_cut", "subtract" },
@@ -162,8 +161,20 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             && HasExpectedMixedPrimitiveFailure(diagnostic.Message));
     }
 
+    [Fact]
+    public void BoxSphereSubtract_ContainedCavity_Succeeds_WithoutFallback()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament"));
+
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.NotNull(result.Compilation.Value.PrimitiveExecutionResult);
+        Assert.NotEmpty(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
+        var body = result.Compilation.Value.PrimitiveExecutionResult.ExecutedBooleans.Single(booleanResult => booleanResult.FeatureId == "cavity").Body;
+        Assert.NotNull(body.ShellRepresentation);
+        Assert.Single(body.ShellRepresentation!.InnerShellIds);
+    }
+
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-contained.firmament", "BrepBoolean.AnalyticHole.MultiBodyResult", "fully enclosed spherical cavity")]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament", "BrepBoolean.AnalyticHole.TangentContact", "tangent to a box boundary plane")]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "BrepBoolean.AnalyticHole.RadiusExceedsBoundary", "must remain strictly contained inside the box")]
     public void BoxSphereSubtract_Diagnostics_ArePropagated_WithSpecificSources(string fixturePath, string expectedSource, string expectedMessageFragment)

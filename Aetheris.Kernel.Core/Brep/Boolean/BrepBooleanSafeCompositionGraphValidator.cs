@@ -16,7 +16,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
         updatedComposition = composition;
         diagnostic = null;
 
-        if (!TryCreateSupportedHole(composition.OuterBox, surface, tolerance, out var nextHole, out diagnostic, nextFeatureId))
+        if (!TryCreateSupportedHole(composition.OuterBox, surface, tolerance, composition.Holes.Count > 0, out var nextHole, out diagnostic, nextFeatureId))
         {
             return false;
         }
@@ -61,6 +61,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
         AxisAlignedBoxExtents outerBox,
         AnalyticSurface surface,
         ToleranceContext tolerance,
+        bool hasExistingHoles,
         out SupportedBooleanHole hole,
         out BooleanDiagnostic? diagnostic,
         string? featureId)
@@ -109,12 +110,24 @@ public static class BrepBooleanSafeCompositionGraphValidator
                     return false;
                 }
 
-                diagnostic = BrepBooleanCylinderRecognition.CreateMultiBodyResultDiagnostic(
-                    BooleanOperation.Subtract.ToString(),
+                if (hasExistingHoles)
+                {
+                    diagnostic = BrepBooleanCylinderRecognition.CreateUnsupportedAnalyticSurfaceKindDiagnostic(
+                        BooleanOperation.Subtract.ToString(),
+                        AnalyticSurfaceKind.Sphere,
+                        featureId);
+                    hole = default;
+                    return false;
+                }
+
+                hole = new SupportedBooleanHole(
                     featureId,
-                    "would produce a fully enclosed spherical cavity that requires an inner shell; current explicit reconstruction and STEP export support only one shell per body.");
-                hole = default;
-                return false;
+                    surface,
+                    sphere.Center.X,
+                    sphere.Center.Y,
+                    sphere.Radius,
+                    sphere.Radius);
+                return true;
 
             case AnalyticSurfaceKind.Sphere:
             case AnalyticSurfaceKind.Torus:

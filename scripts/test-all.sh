@@ -31,4 +31,4 @@ fi
 
 run_test "Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj"
 run_test "Aetheris.Server.Tests/Aetheris.Server.Tests.csproj"
-run_test "Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj" --filter "FullyQualifiedName~BrepDisplayTessellatorTests"
+run_test "Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj" --filter "Category!=SlowCorpus"

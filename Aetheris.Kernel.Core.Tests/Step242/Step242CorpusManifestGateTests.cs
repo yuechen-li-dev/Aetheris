@@ -80,4 +80,20 @@ public sealed class Step242CorpusManifestGateTests
             Assert.Contains("MANIFOLD_SOLID_BREP", text, StringComparison.Ordinal);
         }
     }
+
+    [Fact]
+    public void V0CorpusManifest_StatusContract_DistinguishesPickerBlockerFromSuccess()
+    {
+        var manifest = Step242CorpusManifestRunner.LoadManifest("testdata/step242/manifests/v0.corpus.json");
+        var blockerEntry = manifest.Entries.Single(e => e.Id == "exp_cylinder_hole_unsupported");
+        var blockerReport = Step242CorpusManifestRunner.RunOne(blockerEntry);
+        Assert.Equal("pickerBlockedByTessellationSkip", blockerReport.Status);
+        Assert.Equal("picker", blockerReport.FirstFailureLayer);
+        Assert.Equal("Audit.Picker", blockerReport.FirstDiagnostic.Source);
+
+        var successEntry = manifest.Entries.Single(e => e.Id == "gen_box_v0");
+        var successReport = Step242CorpusManifestRunner.RunOne(successEntry);
+        Assert.Equal("success", successReport.Status);
+        Assert.Equal(string.Empty, successReport.FirstFailureLayer);
+    }
 }

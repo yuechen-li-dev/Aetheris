@@ -76,7 +76,7 @@ internal static class Step242CorpusManifestRunner
             var pick = TryPickSmoke(body, tessellation.Value);
             if (!pick.IsSuccess)
             {
-                return BuildFailure(entry, sizeBytes, "picker", pick.Diagnostics, body, tessellation.Value);
+                return BuildFailure(entry, sizeBytes, "picker", pick.Diagnostics, body, tessellation.Value, tessellation.Diagnostics);
             }
 
             var export = Step242Exporter.ExportBody(body);
@@ -211,14 +211,15 @@ internal static class Step242CorpusManifestRunner
         string layer,
         IReadOnlyList<KernelDiagnostic> diagnostics,
         BrepBody? body = null,
-        DisplayTessellationResult? tessellation = null)
+        DisplayTessellationResult? tessellation = null,
+        IReadOnlyList<KernelDiagnostic>? tessellationDiagnostics = null)
     {
         return new Step242CorpusReportEntry(
             entry.Id,
             entry.Path,
             entry.Group,
             sizeBytes,
-            Status: string.Equals(layer, "parser", StringComparison.Ordinal) ? "parseFail" : "importFail",
+            Status: ClassifyStatus(layer, tessellationDiagnostics),
             FirstFailureLayer: layer,
             FirstDiagnostic: FirstDiagnostic(diagnostics),
             DiagnosticCount: diagnostics.Count,
@@ -228,6 +229,26 @@ internal static class Step242CorpusManifestRunner
             CanonicalSha256: null,
             ExportedCanonicalText: null);
     }
+
+    private static string ClassifyStatus(string layer, IReadOnlyList<KernelDiagnostic>? tessellationDiagnostics)
+    {
+        if (string.Equals(layer, "parser", StringComparison.Ordinal))
+        {
+            return "parseFail";
+        }
+
+        if (string.Equals(layer, "picker", StringComparison.Ordinal))
+        {
+            return HasTruthfulTessellationSkip(tessellationDiagnostics)
+                ? "pickerBlockedByTessellationSkip"
+                : "pickerFail";
+        }
+
+        return "importFail";
+    }
+
+    private static bool HasTruthfulTessellationSkip(IReadOnlyList<KernelDiagnostic>? tessellationDiagnostics)
+        => tessellationDiagnostics?.Any(d => string.Equals(d.Source, "Viewer.Tessellation.TrimEvaluationFailed", StringComparison.Ordinal)) == true;
 
     private static Step242AuditDiagnostic FirstDiagnostic(IReadOnlyList<KernelDiagnostic> diagnostics)
     {

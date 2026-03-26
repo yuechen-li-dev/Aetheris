@@ -6,6 +6,7 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242NistAuditHarnessTests
 {
     [Fact]
+    [Trait("Category", "SlowCorpus")]
     public void NistCorpus_AuditReport_IsByteStableAcrossConsecutiveRuns_AndMatchesSnapshot()
     {
         var entries = Directory

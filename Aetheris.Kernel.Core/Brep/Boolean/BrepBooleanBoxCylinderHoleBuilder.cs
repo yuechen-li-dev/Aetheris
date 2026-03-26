@@ -25,7 +25,235 @@ public static class BrepBooleanBoxCylinderHoleBuilder
     {
         ArgumentNullException.ThrowIfNull(composition);
         _ = tolerance;
+        if (composition.Holes.Count == 1
+            && composition.Holes[0].Surface.Kind == AnalyticSurfaceKind.Sphere
+            && composition.Holes[0].Surface.Sphere is RecognizedSphere sphere)
+        {
+            return CreateComposedContainedSphereCavityBody(composition.OuterBox, sphere);
+        }
+
+        if (composition.Holes.Any(hole => hole.Surface.Kind == AnalyticSurfaceKind.Sphere))
+        {
+            return KernelResult<BrepBody>.Failure([
+                new BooleanDiagnostic(
+                    BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind,
+                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                        BooleanOperation.Subtract.ToString(),
+                        null,
+                        "safe subtract composition only supports one contained spherical cavity when no prior holes have been accepted."),
+                    "BrepBoolean.AnalyticHole.UnsupportedAnalyticSurfaceKind").ToKernelDiagnostic(),
+            ]);
+        }
+
         return CreateComposedThroughHoleBody(composition);
+    }
+
+    private static KernelResult<BrepBody> CreateComposedContainedSphereCavityBody(AxisAlignedBoxExtents outerBox, in RecognizedSphere sphere)
+    {
+        var outer = BrepBooleanBoxRecognition.CreateBoxFromExtents(outerBox);
+        if (!outer.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(outer.Diagnostics);
+        }
+
+        var innerResult = CreateSphereShell(sphere);
+        if (!innerResult.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(innerResult.Diagnostics);
+        }
+
+        var merged = MergeOuterAndInnerShell(outer.Value, innerResult.Value);
+        var validation = BrepBindingValidator.Validate(merged, requireAllEdgeAndFaceBindings: true);
+        return validation.IsSuccess
+            ? KernelResult<BrepBody>.Success(merged, validation.Diagnostics)
+            : KernelResult<BrepBody>.Failure(validation.Diagnostics);
+    }
+
+    private static BrepBody MergeOuterAndInnerShell(BrepBody outer, BrepBody inner)
+    {
+        const int idOffset = 1000;
+        var topology = new TopologyModel();
+
+        foreach (var vertex in outer.Topology.Vertices.OrderBy(v => v.Id.Value))
+        {
+            topology.AddVertex(vertex);
+        }
+
+        foreach (var edge in outer.Topology.Edges.OrderBy(e => e.Id.Value))
+        {
+            topology.AddEdge(edge);
+        }
+
+        foreach (var coedge in outer.Topology.Coedges.OrderBy(c => c.Id.Value))
+        {
+            topology.AddCoedge(coedge);
+        }
+
+        foreach (var loop in outer.Topology.Loops.OrderBy(l => l.Id.Value))
+        {
+            topology.AddLoop(loop);
+        }
+
+        foreach (var face in outer.Topology.Faces.OrderBy(f => f.Id.Value))
+        {
+            topology.AddFace(face);
+        }
+
+        foreach (var shell in outer.Topology.Shells.OrderBy(s => s.Id.Value))
+        {
+            topology.AddShell(shell);
+        }
+
+        var innerVertexMap = inner.Topology.Vertices.ToDictionary(v => v.Id, v => new VertexId(v.Id.Value + idOffset));
+        var innerEdgeMap = inner.Topology.Edges.ToDictionary(e => e.Id, e => new EdgeId(e.Id.Value + idOffset));
+        var innerLoopMap = inner.Topology.Loops.ToDictionary(l => l.Id, l => new LoopId(l.Id.Value + idOffset));
+        var innerCoedgeMap = inner.Topology.Coedges.ToDictionary(c => c.Id, c => new CoedgeId(c.Id.Value + idOffset));
+        var innerFaceMap = inner.Topology.Faces.ToDictionary(f => f.Id, f => new FaceId(f.Id.Value + idOffset));
+        var innerShellMap = inner.Topology.Shells.ToDictionary(s => s.Id, s => new ShellId(s.Id.Value + idOffset));
+
+        foreach (var vertex in inner.Topology.Vertices.OrderBy(v => v.Id.Value))
+        {
+            topology.AddVertex(new Vertex(innerVertexMap[vertex.Id]));
+        }
+
+        foreach (var edge in inner.Topology.Edges.OrderBy(e => e.Id.Value))
+        {
+            topology.AddEdge(new Edge(innerEdgeMap[edge.Id], innerVertexMap[edge.StartVertexId], innerVertexMap[edge.EndVertexId]));
+        }
+
+        foreach (var coedge in inner.Topology.Coedges.OrderBy(c => c.Id.Value))
+        {
+            topology.AddCoedge(new Coedge(
+                innerCoedgeMap[coedge.Id],
+                innerEdgeMap[coedge.EdgeId],
+                innerLoopMap[coedge.LoopId],
+                innerCoedgeMap[coedge.NextCoedgeId],
+                innerCoedgeMap[coedge.PrevCoedgeId],
+                coedge.IsReversed));
+        }
+
+        foreach (var loop in inner.Topology.Loops.OrderBy(l => l.Id.Value))
+        {
+            topology.AddLoop(new Loop(innerLoopMap[loop.Id], loop.CoedgeIds.Select(id => innerCoedgeMap[id]).ToArray()));
+        }
+
+        foreach (var face in inner.Topology.Faces.OrderBy(f => f.Id.Value))
+        {
+            topology.AddFace(new Face(innerFaceMap[face.Id], face.LoopIds.Select(id => innerLoopMap[id]).ToArray()));
+        }
+
+        foreach (var shell in inner.Topology.Shells.OrderBy(s => s.Id.Value))
+        {
+            topology.AddShell(new Shell(innerShellMap[shell.Id], shell.FaceIds.Select(id => innerFaceMap[id]).ToArray()));
+        }
+
+        var outerShellId = AssertSingleShellId(outer.Topology);
+        var remappedInnerShellId = innerShellMap[AssertSingleShellId(inner.Topology)];
+        topology.AddBody(new Body(new BodyId(1), [outerShellId, remappedInnerShellId]));
+
+        var geometry = new BrepGeometryStore();
+        foreach (var curve in outer.Geometry.Curves)
+        {
+            geometry.AddCurve(curve.Key, curve.Value);
+        }
+
+        foreach (var surface in outer.Geometry.Surfaces)
+        {
+            geometry.AddSurface(surface.Key, surface.Value);
+        }
+
+        foreach (var curve in inner.Geometry.Curves)
+        {
+            geometry.AddCurve(new CurveGeometryId(curve.Key.Value + idOffset), curve.Value);
+        }
+
+        foreach (var surface in inner.Geometry.Surfaces)
+        {
+            geometry.AddSurface(new SurfaceGeometryId(surface.Key.Value + idOffset), surface.Value);
+        }
+
+        var bindings = new BrepBindingModel();
+        foreach (var edgeBinding in outer.Bindings.EdgeBindings.OrderBy(binding => binding.EdgeId.Value))
+        {
+            bindings.AddEdgeBinding(edgeBinding);
+        }
+
+        foreach (var faceBinding in outer.Bindings.FaceBindings.OrderBy(binding => binding.FaceId.Value))
+        {
+            bindings.AddFaceBinding(faceBinding);
+        }
+
+        foreach (var edgeBinding in inner.Bindings.EdgeBindings.OrderBy(binding => binding.EdgeId.Value))
+        {
+            bindings.AddEdgeBinding(edgeBinding with
+            {
+                EdgeId = innerEdgeMap[edgeBinding.EdgeId],
+                CurveGeometryId = new CurveGeometryId(edgeBinding.CurveGeometryId.Value + idOffset),
+            });
+        }
+
+        foreach (var faceBinding in inner.Bindings.FaceBindings.OrderBy(binding => binding.FaceId.Value))
+        {
+            bindings.AddFaceBinding(faceBinding with
+            {
+                FaceId = innerFaceMap[faceBinding.FaceId],
+                SurfaceGeometryId = new SurfaceGeometryId(faceBinding.SurfaceGeometryId.Value + idOffset),
+            });
+        }
+
+        var vertexPoints = new Dictionary<VertexId, Point3D>();
+        foreach (var vertex in outer.Topology.Vertices.OrderBy(v => v.Id.Value))
+        {
+            if (outer.TryGetVertexPoint(vertex.Id, out var point))
+            {
+                vertexPoints[vertex.Id] = point;
+            }
+        }
+
+        foreach (var vertex in inner.Topology.Vertices.OrderBy(v => v.Id.Value))
+        {
+            if (inner.TryGetVertexPoint(vertex.Id, out var point))
+            {
+                vertexPoints[innerVertexMap[vertex.Id]] = point;
+            }
+        }
+
+        return new BrepBody(
+            topology,
+            geometry,
+            bindings,
+            vertexPoints,
+            safeBooleanComposition: null,
+            shellRepresentation: new BrepBodyShellRepresentation(outerShellId, [remappedInnerShellId]));
+    }
+
+    private static ShellId AssertSingleShellId(TopologyModel topology)
+        => topology.Bodies.Single().ShellIds.Single();
+
+    private static KernelResult<BrepBody> CreateSphereShell(in RecognizedSphere sphere)
+    {
+        var builder = new TopologyBuilder();
+        var sphereFace = builder.AddFace([]);
+        var sphereShell = builder.AddShell([sphereFace]);
+        builder.AddBody([sphereShell]);
+
+        var geometry = new BrepGeometryStore();
+        geometry.AddSurface(
+            new SurfaceGeometryId(1),
+            SurfaceGeometry.FromSphere(new SphereSurface(
+                sphere.Center,
+                Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+                sphere.Radius,
+                Direction3D.Create(new Vector3D(1d, 0d, 0d)))));
+
+        var bindings = new BrepBindingModel();
+        bindings.AddFaceBinding(new FaceGeometryBinding(sphereFace, new SurfaceGeometryId(1)));
+
+        var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints: null, safeBooleanComposition: null);
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        return validation.IsSuccess
+            ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
+            : KernelResult<BrepBody>.Failure(validation.Diagnostics);
     }
 
     private static KernelResult<BrepBody> CreateComposedThroughHoleBody(SafeBooleanComposition composition)

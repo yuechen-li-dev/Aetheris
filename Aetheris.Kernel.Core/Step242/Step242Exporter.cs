@@ -342,11 +342,8 @@ public static class Step242Exporter
         };
     }
 
-    private static bool CanExportLooplessFace(BrepBody body, Face face, SurfaceGeometry surface) =>
+    private static bool CanExportLooplessFace(BrepBody _, Face face, SurfaceGeometry surface) =>
         surface.Kind == SurfaceGeometryKind.Sphere
-        && body.Topology.Faces.Count() == 1
-        && body.Topology.Edges.Count() == 0
-        && body.Topology.Vertices.Count() == 0
         && face.LoopIds.Count == 0;
 
     private static string BuildAxisPlacement(Step242TextWriter writer, Point3D origin, Direction3D axis, Direction3D referenceAxis)

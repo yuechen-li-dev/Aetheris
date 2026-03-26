@@ -164,6 +164,29 @@ public sealed class FirmamentStepExporterTests
         Assert.Equal(first.Value.StepText, File.ReadAllText(artifactPath));
     }
 
+    [Fact]
+    public void Export_SupportedBoxSphereCavity_Uses_BrepWithVoids_And_Is_Deterministic()
+    {
+        var first = ExportFixture("testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament");
+        var second = ExportFixture("testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament");
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.StepText, second.Value.StepText);
+        Assert.Equal("cavity", first.Value.ExportedFeatureId);
+        Assert.Equal(1, first.Value.ExportedOpIndex);
+        Assert.Equal("boolean", first.Value.ExportedBodyCategory);
+        Assert.Equal("subtract", first.Value.ExportedFeatureKind);
+        Assert.Contains("SPHERICAL_SURFACE", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("BREP_WITH_VOIDS", first.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("ORIENTED_CLOSED_SHELL", first.Value.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("MANIFOLD_SOLID_BREP", first.Value.StepText, StringComparison.Ordinal);
+
+        var artifactPath = WriteExportArtifact("boolean_box_sphere_cavity_basic.step", first.Value.StepText);
+        Assert.True(File.Exists(artifactPath));
+        Assert.Equal(first.Value.StepText, File.ReadAllText(artifactPath));
+    }
+
 
     [Fact]
     public void Export_NonCylinderOrFailedBooleanCases_DoNotEmit_SemanticPmi()
@@ -171,7 +194,7 @@ public sealed class FirmamentStepExporterTests
         var boxSubtract = ExportFixture("testdata/firmament/examples/boolean_subtract_basic.firmament");
         var coneHole = ExportFixture("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament");
         var unsupportedCylinder = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
-        var unsupportedSphere = ExportFixture("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-contained.firmament");
+        var supportedSphereCavity = ExportFixture("testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament");
         var unsupportedTorus = ExportFixture("testdata/firmament/fixtures/m10n-unsupported-box-subtract-torus.firmament");
 
         Assert.True(boxSubtract.IsSuccess);
@@ -185,7 +208,7 @@ public sealed class FirmamentStepExporterTests
         Assert.DoesNotContain("ANNOTATION_PLANE", coneHole.Value.StepText, StringComparison.Ordinal);
 
         Assert.False(unsupportedCylinder.IsSuccess);
-        Assert.False(unsupportedSphere.IsSuccess);
+        Assert.True(supportedSphereCavity.IsSuccess);
         Assert.False(unsupportedTorus.IsSuccess);
     }
 
@@ -206,7 +229,6 @@ public sealed class FirmamentStepExporterTests
 
 
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-contained.firmament", "cavity")]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament", "tangent_cavity")]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "leaking_cavity")]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-add-sphere.firmament", "joined")]

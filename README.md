@@ -36,7 +36,7 @@ The repository now has a classic `Aetheris.sln` for compatibility with .NET 8 au
 
 ### Canonical repo-level test path
 
-Use the shell script below as the official automation-friendly entrypoint. It runs the repository test projects in a deterministic order, prints each `dotnet test` command before running it, and fails fast on the first failing suite. In the current .NET 8 automation environment it runs the full Firmament and Server test projects plus the verified core `BrepDisplayTessellatorTests` slice.
+Use the shell script below as the official automation-friendly entrypoint. It runs the repository test projects in a deterministic order, prints each `dotnet test` command before running it, and fails fast on the first failing suite. In the current .NET 8 automation environment it runs the full Firmament and Server test projects plus the Core suite with `Category!=SlowCorpus`.
 
 ```bash
 export PATH="$HOME/.dotnet:$PATH"

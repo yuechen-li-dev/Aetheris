@@ -17,7 +17,7 @@
   ./scripts/test-all.sh
   ```
 
-- The default script currently runs the full Firmament and Server suites plus the verified core `BrepDisplayTessellatorTests` slice in a deterministic order. Use direct `dotnet test ...csproj` commands when you need broader or more targeted coverage.
+- The default script currently runs the full Firmament and Server suites plus `Aetheris.Kernel.Core.Tests` with `Category!=SlowCorpus` in a deterministic order. Use direct `dotnet test ...csproj` commands when you need broader or more targeted coverage.
 
 - If you need a narrower repro, run the individual test projects directly:
 

@@ -10,6 +10,7 @@ internal static class TrimmedSurfaceTessellator
     private const double PointOnSegmentTolerance = 1e-9d;
     private const double SignedAreaTolerance = 1e-10d;
     private const int BoundaryRefinementDepth = 1;
+    private const int MaxPointClassificationCacheEntries = 65_536;
 
     public static KernelResult<DisplayFaceMeshPatch> Tessellate(
         FaceId faceId,
@@ -45,13 +46,9 @@ internal static class TrimmedSurfaceTessellator
         }
 
         var outerLoopIndex = SelectOuterLoop(normalizedLoops);
-        var outerLoop = normalizedLoops[outerLoopIndex];
-        var innerLoops = normalizedLoops
-            .Where((_, index) => index != outerLoopIndex)
-            .Cast<IReadOnlyList<(double U, double V)>>()
-            .ToArray();
+        var trimContext = TrimEvaluationContext.Create(normalizedLoops, outerLoopIndex);
 
-        var (uStartRaw, uEndRaw, vStartRaw, vEndRaw) = ComputeBounds(outerLoop);
+        var (uStartRaw, uEndRaw, vStartRaw, vEndRaw) = trimContext.OuterLoop.Bounds;
         var uStart = System.Math.Max(uDomainStart, uStartRaw);
         var uEnd = System.Math.Min(uDomainEnd, uEndRaw);
         var vStart = System.Math.Max(vDomainStart, vStartRaw);
@@ -112,7 +109,7 @@ internal static class TrimmedSurfaceTessellator
 
         void AppendTriangleWithBoundaryRefinement(int ia, int ib, int ic, int remainingDepth)
         {
-            var classification = ClassifyTriangle(uvGrid[ia], uvGrid[ib], uvGrid[ic], outerLoop, innerLoops);
+            var classification = ClassifyTriangle(uvGrid[ia], uvGrid[ib], uvGrid[ic], trimContext);
             switch (classification)
             {
                 case TriangleTrimClassification.ConfidentlyInside:
@@ -154,8 +151,7 @@ internal static class TrimmedSurfaceTessellator
         (double U, double V) a,
         (double U, double V) b,
         (double U, double V) c,
-        IReadOnlyList<(double U, double V)> outerLoop,
-        IReadOnlyList<IReadOnlyList<(double U, double V)>> innerLoops)
+        TrimEvaluationContext trimContext)
     {
         var samples = new[]
         {
@@ -171,7 +167,7 @@ internal static class TrimmedSurfaceTessellator
         var insideCount = 0;
         foreach (var sample in samples)
         {
-            if (IsInsideTrimRegion(sample, outerLoop, innerLoops))
+            if (trimContext.IsInsideTrimRegion(sample))
             {
                 insideCount++;
             }
@@ -188,27 +184,6 @@ internal static class TrimmedSurfaceTessellator
         }
 
         return TriangleTrimClassification.BoundaryStraddling;
-    }
-
-    private static bool IsInsideTrimRegion(
-        (double U, double V) point,
-        IReadOnlyList<(double U, double V)> outerLoop,
-        IReadOnlyList<IReadOnlyList<(double U, double V)>> innerLoops)
-    {
-        if (!ContainsPoint(outerLoop, point))
-        {
-            return false;
-        }
-
-        foreach (var hole in innerLoops)
-        {
-            if (ContainsPoint(hole, point))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private static int SelectOuterLoop(IReadOnlyList<IReadOnlyList<(double U, double V)>> loops)
@@ -235,6 +210,21 @@ internal static class TrimmedSurfaceTessellator
             loop.Max(point => point.U),
             loop.Min(point => point.V),
             loop.Max(point => point.V));
+
+    internal static TrimEvaluationMetrics EvaluatePointContainmentMetricsForTest(
+        IReadOnlyList<IReadOnlyList<(double U, double V)>> normalizedLoops,
+        int outerLoopIndex,
+        IReadOnlyList<(double U, double V)> points)
+    {
+        var metrics = new TrimEvaluationMetrics();
+        var context = TrimEvaluationContext.Create(normalizedLoops, outerLoopIndex, metrics);
+        foreach (var point in points)
+        {
+            context.IsInsideTrimRegion(point);
+        }
+
+        return metrics;
+    }
 
     private static List<(double U, double V)> NormalizeLoop(IReadOnlyList<(double U, double V)> loop)
     {
@@ -327,6 +317,121 @@ internal static class TrimmedSurfaceTessellator
 
     private static DisplayFaceMeshPatch CreateEmptyPatch(FaceId faceId)
         => new(faceId, Array.Empty<Point3D>(), Array.Empty<Vector3D>(), Array.Empty<int>());
+
+    internal sealed class TrimEvaluationMetrics
+    {
+        public int FullContainsPointEvaluations { get; private set; }
+
+        public int CacheHits { get; private set; }
+
+        internal void IncrementContainsPointEvaluations() => FullContainsPointEvaluations++;
+
+        internal void IncrementCacheHits() => CacheHits++;
+    }
+
+    private sealed class TrimEvaluationContext
+    {
+        private readonly Dictionary<UvPointCacheKey, bool> pointInsideCache = new();
+        private readonly TrimEvaluationMetrics? metrics;
+
+        private TrimEvaluationContext(TrimLoopData outerLoop, IReadOnlyList<TrimLoopData> innerLoops, TrimEvaluationMetrics? metrics)
+        {
+            OuterLoop = outerLoop;
+            InnerLoops = innerLoops;
+            this.metrics = metrics;
+        }
+
+        public TrimLoopData OuterLoop { get; }
+
+        public IReadOnlyList<TrimLoopData> InnerLoops { get; }
+
+        public static TrimEvaluationContext Create(
+            IReadOnlyList<IReadOnlyList<(double U, double V)>> loops,
+            int outerLoopIndex,
+            TrimEvaluationMetrics? metrics = null)
+        {
+            var loopData = new List<TrimLoopData>(loops.Count);
+            for (var i = 0; i < loops.Count; i++)
+            {
+                var polygon = loops[i];
+                var bounds = ComputeBounds(polygon);
+                loopData.Add(new TrimLoopData(i == outerLoopIndex, polygon, bounds));
+            }
+
+            var outer = loopData[outerLoopIndex];
+            var inner = loopData.Where(static loop => !loop.IsOuterLoop).ToArray();
+            return new TrimEvaluationContext(outer, inner, metrics);
+        }
+
+        public bool IsInsideTrimRegion((double U, double V) point)
+        {
+            var key = new UvPointCacheKey(point.U, point.V);
+            if (pointInsideCache.TryGetValue(key, out var isInsideCached))
+            {
+                metrics?.IncrementCacheHits();
+                return isInsideCached;
+            }
+
+            var isInside = IsInsideTrimRegionUncached(point);
+            if (pointInsideCache.Count < MaxPointClassificationCacheEntries)
+            {
+                pointInsideCache.Add(key, isInside);
+            }
+
+            return isInside;
+        }
+
+        private bool IsInsideTrimRegionUncached((double U, double V) point)
+        {
+            if (!ContainsPoint(OuterLoop, point, metrics))
+            {
+                return false;
+            }
+
+            foreach (var hole in InnerLoops)
+            {
+                if (ContainsPoint(hole, point, metrics))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    private readonly record struct TrimLoopData(
+        bool IsOuterLoop,
+        IReadOnlyList<(double U, double V)> Polygon,
+        (double UMin, double UMax, double VMin, double VMax) Bounds);
+
+    private readonly record struct UvPointCacheKey(ulong UBits, ulong VBits)
+    {
+        public UvPointCacheKey(double u, double v)
+            : this(BitConverter.DoubleToUInt64Bits(u), BitConverter.DoubleToUInt64Bits(v))
+        {
+        }
+    }
+
+    private static bool ContainsPoint(
+        TrimLoopData loop,
+        (double U, double V) point,
+        TrimEvaluationMetrics? metrics)
+    {
+        if (!IsWithinBounds(loop.Bounds, point))
+        {
+            return false;
+        }
+
+        metrics?.IncrementContainsPointEvaluations();
+        return ContainsPoint(loop.Polygon, point);
+    }
+
+    private static bool IsWithinBounds((double UMin, double UMax, double VMin, double VMax) bounds, (double U, double V) point)
+        => point.U >= (bounds.UMin - PointOnSegmentTolerance)
+            && point.U <= (bounds.UMax + PointOnSegmentTolerance)
+            && point.V >= (bounds.VMin - PointOnSegmentTolerance)
+            && point.V <= (bounds.VMax + PointOnSegmentTolerance);
 
     private enum TriangleTrimClassification
     {

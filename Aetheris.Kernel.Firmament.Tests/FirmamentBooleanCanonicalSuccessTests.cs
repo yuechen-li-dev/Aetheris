@@ -163,6 +163,21 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     }
 
     [Theory]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-contained.firmament", "BrepBoolean.AnalyticHole.MultiBodyResult", "fully enclosed spherical cavity")]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament", "BrepBoolean.AnalyticHole.TangentContact", "tangent to a box boundary plane")]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "BrepBoolean.AnalyticHole.RadiusExceedsBoundary", "must remain strictly contained inside the box")]
+    public void BoxSphereSubtract_Diagnostics_ArePropagated_WithSpecificSources(string fixturePath, string expectedSource, string expectedMessageFragment)
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Source == expectedSource
+            && diagnostic.Message.Contains(expectedMessageFragment, StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-overlapping-composed-holes.firmament", "hole_b", "overlaps previously accepted hole")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", "hole_b", "would be tangent to previously accepted hole")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "joined", "cannot continue the safe subtract chain rooted at 'hole_a'")]
@@ -227,7 +242,8 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
            || message.Contains("safe subtract", StringComparison.Ordinal)
            || message.Contains("unsupported follow-on tool kind", StringComparison.Ordinal)
            || message.Contains("Boolean feature", StringComparison.Ordinal)
-           || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
+           || message.Contains("analytic hole surface kind", StringComparison.Ordinal)
+           || message.Contains("fully enclosed spherical cavity", StringComparison.Ordinal);
 
     private static int CountOccurrences(string text, string token)
     {

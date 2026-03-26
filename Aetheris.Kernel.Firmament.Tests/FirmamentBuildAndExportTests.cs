@@ -252,5 +252,6 @@ public sealed class FirmamentBuildAndExportTests
            || message.Contains("safe subtract", StringComparison.Ordinal)
            || message.Contains("unsupported follow-on tool kind", StringComparison.Ordinal)
            || message.Contains("Boolean feature", StringComparison.Ordinal)
-           || message.Contains("analytic hole surface kind", StringComparison.Ordinal);
+           || message.Contains("analytic hole surface kind", StringComparison.Ordinal)
+           || message.Contains("fully enclosed spherical cavity", StringComparison.Ordinal);
 }

@@ -102,6 +102,20 @@ public static class BrepBooleanSafeCompositionGraphValidator
                     cone.RadiusAtAxisParameter(topAxisParameter));
                 return true;
 
+            case AnalyticSurfaceKind.Sphere when surface.Sphere is RecognizedSphere sphere:
+                if (!ValidateContainedSphereCavity(outerBox, sphere, tolerance, out diagnostic, featureId))
+                {
+                    hole = default;
+                    return false;
+                }
+
+                diagnostic = BrepBooleanCylinderRecognition.CreateMultiBodyResultDiagnostic(
+                    BooleanOperation.Subtract.ToString(),
+                    featureId,
+                    "would produce a fully enclosed spherical cavity that requires an inner shell; current explicit reconstruction and STEP export support only one shell per body.");
+                hole = default;
+                return false;
+
             case AnalyticSurfaceKind.Sphere:
             case AnalyticSurfaceKind.Torus:
             default:
@@ -127,4 +141,53 @@ public static class BrepBooleanSafeCompositionGraphValidator
 
     private static string FormatFeatureRef(string? featureId)
         => string.IsNullOrWhiteSpace(featureId) ? "<unknown>" : $"'{featureId}'";
+
+    private static bool ValidateContainedSphereCavity(
+        AxisAlignedBoxExtents outerBox,
+        in RecognizedSphere sphere,
+        ToleranceContext tolerance,
+        out BooleanDiagnostic? diagnostic,
+        string? featureId)
+    {
+        diagnostic = null;
+
+        var minX = sphere.Center.X - sphere.Radius;
+        var maxX = sphere.Center.X + sphere.Radius;
+        var minY = sphere.Center.Y - sphere.Radius;
+        var maxY = sphere.Center.Y + sphere.Radius;
+        var minZ = sphere.Center.Z - sphere.Radius;
+        var maxZ = sphere.Center.Z + sphere.Radius;
+
+        var tangentContact =
+            ToleranceMath.AlmostEqual(minX, outerBox.MinX, tolerance)
+            || ToleranceMath.AlmostEqual(maxX, outerBox.MaxX, tolerance)
+            || ToleranceMath.AlmostEqual(minY, outerBox.MinY, tolerance)
+            || ToleranceMath.AlmostEqual(maxY, outerBox.MaxY, tolerance)
+            || ToleranceMath.AlmostEqual(minZ, outerBox.MinZ, tolerance)
+            || ToleranceMath.AlmostEqual(maxZ, outerBox.MaxZ, tolerance);
+        if (tangentContact)
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                featureId,
+                "is tangent to a box boundary plane; tangent spherical cavities are rejected to avoid zero-thickness boundary contact.");
+            return false;
+        }
+
+        if (minX < (outerBox.MinX - tolerance.Linear)
+            || maxX > (outerBox.MaxX + tolerance.Linear)
+            || minY < (outerBox.MinY - tolerance.Linear)
+            || maxY > (outerBox.MaxY + tolerance.Linear)
+            || minZ < (outerBox.MinZ - tolerance.Linear)
+            || maxZ > (outerBox.MaxZ + tolerance.Linear))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                featureId,
+                "extends outside the box boundary; spherical cavity tools must remain strictly contained inside the box.");
+            return false;
+        }
+
+        return true;
+    }
 }

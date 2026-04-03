@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Aetheris.Server.Contracts;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -83,6 +84,105 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.Single(pick.Data!.Hits);
         Assert.NotNull(pick.Data.Hits[0].Point);
         Assert.Empty(pick.Diagnostics);
+    }
+
+    [Fact]
+    public async Task DisplayPrepare_BoxCylinderThroughHole_UsesAnalyticLaneWithoutTessellationFallback()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 40, 30, 12);
+
+        var cylinderResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/primitives/cylinder",
+            new CylinderCreateRequestDto(4, 20));
+        cylinderResponse.EnsureSuccessStatusCode();
+        var cylinder = await cylinderResponse.Content.ReadFromJsonAsync<ApiResponseDto<BodyCreatedResponseDto>>();
+        Assert.NotNull(cylinder);
+        Assert.True(cylinder!.Success);
+
+        var translateResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{cylinder.Data!.BodyId}/transform",
+            new TranslateBodyRequestDto(new Vector3Dto(3, -2, 6)));
+        translateResponse.EnsureSuccessStatusCode();
+
+        var booleanResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/operations/boolean",
+            new BooleanRequestDto(box.Data!.BodyId, cylinder.Data.BodyId, "subtract"));
+        booleanResponse.EnsureSuccessStatusCode();
+        var resultBody = await booleanResponse.Content.ReadFromJsonAsync<ApiResponseDto<BodyCreatedResponseDto>>();
+        Assert.NotNull(resultBody);
+        Assert.True(resultBody!.Success);
+
+        var prepared = await PrepareDisplayAsync(document.Data.DocumentId, resultBody.Data!.BodyId);
+
+        Assert.Equal("analytic-only", prepared.Data!.Lane);
+        Assert.NotEmpty(prepared.Data.AnalyticPacket.AnalyticFaces);
+        Assert.Contains(prepared.Data.AnalyticPacket.AnalyticFaces, face => face.SurfaceKind == "Cylinder");
+        Assert.Empty(prepared.Data.AnalyticPacket.FallbackFaces);
+        Assert.Null(prepared.Data.TessellationFallback);
+    }
+
+    [Fact]
+    public async Task DisplayPrepare_ImportedUnsupportedBody_PreservesFallbackRouting()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var unsupportedStepText = await File.ReadAllTextAsync(GetRepositoryPath("testdata/step242/handcrafted/edge-trimming/block-full-round.step"));
+
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto(unsupportedStepText, "Unsupported"));
+        importResponse.EnsureSuccessStatusCode();
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+        Assert.NotNull(imported);
+        Assert.True(imported!.Success);
+
+        var prepared = await PrepareDisplayAsync(document.Data.DocumentId, imported.Data!.OccurrenceId);
+
+        Assert.NotEqual("analytic-only", prepared.Data!.Lane);
+        Assert.NotEmpty(prepared.Data.AnalyticPacket.FallbackFaces);
+        Assert.Contains(prepared.Data.AnalyticPacket.FallbackFaces, face => face.Reason is "UnsupportedSurfaceKind" or "UnsupportedTrim");
+        Assert.NotNull(prepared.Data.TessellationFallback);
+        Assert.NotEmpty(prepared.Data.TessellationFallback!.FacePatches);
+    }
+
+    [Fact]
+    public async Task DisplayPrepare_SameBodyTwice_IsDeterministic()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var first = await PrepareDisplayAsync(document.Data.DocumentId, box.Data!.BodyId);
+        var second = await PrepareDisplayAsync(document.Data.DocumentId, box.Data.BodyId);
+
+        Assert.NotNull(first.Data);
+        Assert.NotNull(second.Data);
+        var firstSignature = JsonSerializer.Serialize(first.Data);
+        var secondSignature = JsonSerializer.Serialize(second.Data);
+        Assert.Equal(firstSignature, secondSignature);
+    }
+
+    [Fact]
+    public async Task Tessellate_UnsupportedImportedBody_StillWorksAfterDisplayPrepareIntegration()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var unsupportedStepText = await File.ReadAllTextAsync(GetRepositoryPath("testdata/step242/handcrafted/edge-trimming/block-full-round.step"));
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto(unsupportedStepText, "Unsupported"));
+        importResponse.EnsureSuccessStatusCode();
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+
+        var displayPrepared = await PrepareDisplayAsync(document.Data.DocumentId, imported!.Data!.OccurrenceId);
+        Assert.NotNull(displayPrepared.Data!.TessellationFallback);
+
+        var tessellationResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{imported.Data.OccurrenceId}/tessellate",
+            new TessellateRequestDto(null));
+        tessellationResponse.EnsureSuccessStatusCode();
+        var tessellation = await tessellationResponse.Content.ReadFromJsonAsync<ApiResponseDto<TessellationResponseDto>>();
+        Assert.NotNull(tessellation);
+        Assert.True(tessellation!.Success);
+        Assert.NotEmpty(tessellation.Data!.FacePatches);
     }
 
 
@@ -532,4 +632,19 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         var body = await response.Content.ReadFromJsonAsync<ApiResponseDto<BodyCreatedResponseDto>>();
         return body!;
     }
+
+    private async Task<ApiResponseDto<DisplayPreparationResponseDto>> PrepareDisplayAsync(Guid documentId, Guid bodyId)
+    {
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{documentId}/bodies/{bodyId}/display/prepare",
+            new DisplayPrepareRequestDto(null));
+        response.EnsureSuccessStatusCode();
+        var prepared = await response.Content.ReadFromJsonAsync<ApiResponseDto<DisplayPreparationResponseDto>>();
+        Assert.NotNull(prepared);
+        Assert.True(prepared!.Success);
+        return prepared;
+    }
+
+    private static string GetRepositoryPath(string relativePath)
+        => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", relativePath));
 }

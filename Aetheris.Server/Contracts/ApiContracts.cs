@@ -72,6 +72,37 @@ public sealed record FacePatchDto(int FaceId, IReadOnlyList<Point3Dto> Positions
 
 public sealed record EdgePolylineDto(int EdgeId, IReadOnlyList<Point3Dto> Points, bool IsClosed);
 
+public sealed record DisplayPrepareRequestDto(TessellationOptionsDto? TessellationOptions);
+
+public sealed record AnalyticDisplayFaceDomainHintDto(double? MinV, double? MaxV);
+
+public sealed record AnalyticDisplayFaceDto(
+    int FaceId,
+    int ShellId,
+    string ShellRole,
+    int SurfaceGeometryId,
+    string SurfaceKind,
+    int LoopCount,
+    AnalyticDisplayFaceDomainHintDto? DomainHint);
+
+public sealed record AnalyticDisplayFallbackFaceDto(
+    int FaceId,
+    int ShellId,
+    string ShellRole,
+    string Reason,
+    string? SurfaceKind,
+    string? Detail);
+
+public sealed record AnalyticDisplayPacketDto(
+    int BodyId,
+    IReadOnlyList<AnalyticDisplayFaceDto> AnalyticFaces,
+    IReadOnlyList<AnalyticDisplayFallbackFaceDto> FallbackFaces);
+
+public sealed record DisplayPreparationResponseDto(
+    string Lane,
+    AnalyticDisplayPacketDto AnalyticPacket,
+    TessellationResponseDto? TessellationFallback);
+
 public sealed record PickOptionsDto(bool? NearestOnly, bool? IncludeBackfaces, double? EdgeTolerance, double? SortTieTolerance, double? MaxDistance);
 
 public sealed record PickRequestDto(Point3Dto Origin, Vector3Dto Direction, TessellationOptionsDto? TessellationOptions, PickOptionsDto? PickOptions);

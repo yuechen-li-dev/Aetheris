@@ -90,7 +90,20 @@ public static class ApiMappings
                     ToVectorDto(cylinder.XAxis.ToVector()),
                     ToVectorDto(cylinder.YAxis.ToVector()),
                     cylinder.Radius) : null,
-                face.SurfaceGeometry.Cone is { } cone ? ToConeGeometryDto(cone) : null)).ToArray(),
+                face.SurfaceGeometry.Cone is { } cone ? ToConeGeometryDto(cone) : null,
+                face.SurfaceGeometry.Sphere is { } sphere ? new AnalyticDisplaySphereGeometryDto(
+                    ToPointDto(sphere.Center),
+                    ToVectorDto(sphere.Axis.ToVector()),
+                    ToVectorDto(sphere.XAxis.ToVector()),
+                    ToVectorDto(sphere.YAxis.ToVector()),
+                    sphere.Radius) : null,
+                face.SurfaceGeometry.Torus is { } torus ? new AnalyticDisplayTorusGeometryDto(
+                    ToPointDto(torus.Center),
+                    ToVectorDto(torus.Axis.ToVector()),
+                    ToVectorDto(torus.XAxis.ToVector()),
+                    ToVectorDto(torus.YAxis.ToVector()),
+                    torus.MajorRadius,
+                    torus.MinorRadius) : null)).ToArray(),
             packet.FallbackFaces.Select(face => new AnalyticDisplayFallbackFaceDto(
                 face.FaceId.Value,
                 face.ShellId.Value,

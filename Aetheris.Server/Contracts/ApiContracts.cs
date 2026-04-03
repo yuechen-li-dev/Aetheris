@@ -96,6 +96,21 @@ public sealed record AnalyticDisplayConeGeometryDto(
     Vector3Dto YAxis,
     double SemiAngleRadians);
 
+public sealed record AnalyticDisplaySphereGeometryDto(
+    Point3Dto Center,
+    Vector3Dto Axis,
+    Vector3Dto XAxis,
+    Vector3Dto YAxis,
+    double Radius);
+
+public sealed record AnalyticDisplayTorusGeometryDto(
+    Point3Dto Center,
+    Vector3Dto Axis,
+    Vector3Dto XAxis,
+    Vector3Dto YAxis,
+    double MajorRadius,
+    double MinorRadius);
+
 public sealed record AnalyticDisplayFaceDto(
     int FaceId,
     int ShellId,
@@ -106,7 +121,9 @@ public sealed record AnalyticDisplayFaceDto(
     AnalyticDisplayFaceDomainHintDto? DomainHint,
     AnalyticDisplayPlaneGeometryDto? PlaneGeometry,
     AnalyticDisplayCylinderGeometryDto? CylinderGeometry,
-    AnalyticDisplayConeGeometryDto? ConeGeometry);
+    AnalyticDisplayConeGeometryDto? ConeGeometry,
+    AnalyticDisplaySphereGeometryDto? SphereGeometry,
+    AnalyticDisplayTorusGeometryDto? TorusGeometry);
 
 public sealed record AnalyticDisplayFallbackFaceDto(
     int FaceId,

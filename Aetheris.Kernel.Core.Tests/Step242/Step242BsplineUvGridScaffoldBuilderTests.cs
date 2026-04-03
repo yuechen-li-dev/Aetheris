@@ -71,7 +71,7 @@ public sealed class Step242BsplineUvGridScaffoldBuilderTests
         var surface = GetBsplineSurface(body, face.Id);
         var referencePatch = GetReferencePatch(body, face.Id);
 
-        var trimMask = new BsplineUvGridTrimMask(outerLoopUv, [innerHoleUv]);
+        var trimMask = new UvTrimMask(outerLoopUv, [innerHoleUv]);
 
         var result = Builder.Build(
             surface,

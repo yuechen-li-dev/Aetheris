@@ -112,10 +112,11 @@ internal sealed class BsplineUvGridScaffoldBuilder
                 var topRight = GridIndex(uIndex + 1, vIndex + 1, columns);
 
                 if (request.TrimMask is not null
-                    && (!request.TrimMask.Contains(uvPoints[bottomLeft])
-                        || !request.TrimMask.Contains(uvPoints[bottomRight])
-                        || !request.TrimMask.Contains(uvPoints[topLeft])
-                        || !request.TrimMask.Contains(uvPoints[topRight])))
+                    && !request.TrimMask.KeepCellByCorners(
+                        uvPoints[bottomLeft],
+                        uvPoints[bottomRight],
+                        uvPoints[topLeft],
+                        uvPoints[topRight]))
                 {
                     continue;
                 }
@@ -164,7 +165,7 @@ internal sealed class BsplineUvGridScaffoldBuilder
         return (double)degenerate / triangles;
     }
 
-    private static int ComputeTrimLeakageCount(BsplineUvGridScaffoldMesh mesh, BsplineUvGridTrimMask? trimMask)
+    private static int ComputeTrimLeakageCount(BsplineUvGridScaffoldMesh mesh, UvTrimMask? trimMask)
     {
         if (trimMask is null)
         {
@@ -187,7 +188,7 @@ internal sealed class BsplineUvGridScaffoldBuilder
         return leakage;
     }
 
-    private static double ComputeBoundaryDeviation(BsplineUvGridScaffoldMesh mesh, BsplineUvGridTrimMask? trimMask)
+    private static double ComputeBoundaryDeviation(BsplineUvGridScaffoldMesh mesh, UvTrimMask? trimMask)
     {
         if (trimMask is null)
         {
@@ -302,7 +303,7 @@ internal sealed class BsplineUvGridScaffoldBuilder
 internal sealed record BsplineUvGridScaffoldBuildRequest(
     int USegments,
     int VSegments,
-    BsplineUvGridTrimMask? TrimMask = null,
+    UvTrimMask? TrimMask = null,
     IReadOnlyList<Point3D>? ReferencePositions = null,
     int? ReferenceTriangleCount = null,
     double MaxDegenerateTriangleRatio = 0.15d,
@@ -356,69 +357,6 @@ internal sealed record BsplineUvGridScaffoldResult(
 
     internal static BsplineUvGridScaffoldResult Rejected(BsplineUvGridScaffoldRejectionReason reason, BsplineUvGridScaffoldMetrics metrics, BsplineUvGridScaffoldMesh? mesh = null)
         => new(BsplineUvGridScaffoldAcceptance.Rejected, mesh, metrics, reason);
-}
-
-internal sealed record BsplineUvGridTrimMask(IReadOnlyList<UvPoint> OuterLoop, IReadOnlyList<IReadOnlyList<UvPoint>> InnerLoops)
-{
-    internal bool Contains(UvPoint point)
-    {
-        if (!PointInLoop(OuterLoop, point))
-        {
-            return false;
-        }
-
-        foreach (var hole in InnerLoops)
-        {
-            if (PointInLoop(hole, point))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool PointInLoop(IReadOnlyList<UvPoint> loop, UvPoint point)
-    {
-        var inside = false;
-        for (var i = 0; i < loop.Count; i++)
-        {
-            var a = loop[i];
-            var b = loop[(i + 1) % loop.Count];
-            if (IsPointOnSegment(point, a, b))
-            {
-                return true;
-            }
-
-            var crosses = ((a.V > point.V) != (b.V > point.V))
-                && (point.U < (((b.U - a.U) * (point.V - a.V)) / (b.V - a.V)) + a.U);
-            if (crosses)
-            {
-                inside = !inside;
-            }
-        }
-
-        return inside;
-    }
-
-    private static bool IsPointOnSegment(UvPoint point, UvPoint a, UvPoint b)
-    {
-        const double tolerance = 1e-9d;
-        var cross = ((point.U - a.U) * (b.V - a.V)) - ((point.V - a.V) * (b.U - a.U));
-        if (double.Abs(cross) > tolerance)
-        {
-            return false;
-        }
-
-        var dot = ((point.U - a.U) * (b.U - a.U)) + ((point.V - a.V) * (b.V - a.V));
-        if (dot < -tolerance)
-        {
-            return false;
-        }
-
-        var lengthSquared = ((b.U - a.U) * (b.U - a.U)) + ((b.V - a.V) * (b.V - a.V));
-        return dot <= lengthSquared + tolerance;
-    }
 }
 
 internal readonly record struct UvPoint(double U, double V);

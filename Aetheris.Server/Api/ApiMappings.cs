@@ -2,6 +2,7 @@ using Aetheris.Kernel.Core.Brep.Picking;
 using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Server.Contracts;
@@ -77,7 +78,19 @@ public static class ApiMappings
                 face.SurfaceGeometryId.Value,
                 face.SurfaceKind.ToString(),
                 face.LoopCount,
-                face.DomainHint is { } hint ? new AnalyticDisplayFaceDomainHintDto(hint.MinV, hint.MaxV) : null)).ToArray(),
+                face.DomainHint is { } hint ? new AnalyticDisplayFaceDomainHintDto(hint.MinV, hint.MaxV) : null,
+                face.SurfaceGeometry.Plane is { } plane ? new AnalyticDisplayPlaneGeometryDto(
+                    ToPointDto(plane.Origin),
+                    ToVectorDto(plane.Normal.ToVector()),
+                    ToVectorDto(plane.UAxis.ToVector()),
+                    ToVectorDto(plane.VAxis.ToVector())) : null,
+                face.SurfaceGeometry.Cylinder is { } cylinder ? new AnalyticDisplayCylinderGeometryDto(
+                    ToPointDto(cylinder.Origin),
+                    ToVectorDto(cylinder.Axis.ToVector()),
+                    ToVectorDto(cylinder.XAxis.ToVector()),
+                    ToVectorDto(cylinder.YAxis.ToVector()),
+                    cylinder.Radius) : null,
+                face.SurfaceGeometry.Cone is { } cone ? ToConeGeometryDto(cone) : null)).ToArray(),
             packet.FallbackFaces.Select(face => new AnalyticDisplayFallbackFaceDto(
                 face.FaceId.Value,
                 face.ShellId.Value,
@@ -138,5 +151,24 @@ public static class ApiMappings
             options.EdgeTolerance ?? defaults.EdgeTolerance,
             options.SortTieTolerance ?? defaults.SortTieTolerance,
             options.MaxDistance ?? defaults.MaxDistance);
+    }
+
+    private static AnalyticDisplayConeGeometryDto ToConeGeometryDto(ConeSurface cone)
+    {
+        var axis = cone.Axis.ToVector();
+        var projectedX = cone.ReferenceAxis.ToVector() - (axis * cone.ReferenceAxis.ToVector().Dot(axis));
+        var xAxis = projectedX.TryNormalize(out var normalizedX) ? normalizedX : cone.ReferenceAxis.ToVector();
+        var yAxis = axis.Cross(xAxis);
+        if (!yAxis.TryNormalize(out var normalizedY))
+        {
+            normalizedY = yAxis;
+        }
+
+        return new AnalyticDisplayConeGeometryDto(
+            ToPointDto(cone.Apex),
+            ToVectorDto(axis),
+            ToVectorDto(xAxis),
+            ToVectorDto(normalizedY),
+            cone.SemiAngleRadians);
     }
 }

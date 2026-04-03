@@ -21,7 +21,7 @@ import {
 import { StepImportDropzone } from './components/StepImportDropzone';
 import { Button } from './components/ui/button';
 import { ViewerViewport } from './viewer/ViewerViewport';
-import { mapTessellationToRenderData } from './viewer/tessellationMapper';
+import { buildDisplaySceneData } from './viewer/displaySceneBuilder';
 import { STEP_UPLOAD_LIMIT_BYTES, STEP_UPLOAD_LIMIT_MB, formatMegabytes } from './config/stepUpload';
 
 type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
@@ -473,7 +473,8 @@ function App() {
         }
     }, [activeBodyId, documentId]);
 
-    const sceneData = useMemo(() => (tessellation ? mapTessellationToRenderData(tessellation) : null), [tessellation]);
+    const displayScene = useMemo(() => buildDisplaySceneData(displayPreparation), [displayPreparation]);
+    const sceneData = displayScene.sceneData;
     const nearestHit = pickHits[0] ?? null;
     const highlightedFaceId = nearestHit?.entityKind === 'Face' ? nearestHit.faceId : null;
     const highlightedEdgeId = nearestHit?.entityKind === 'Edge' ? nearestHit.edgeId : null;
@@ -656,6 +657,7 @@ function App() {
                                 <p><strong>Definition ID:</strong> {activeOccurrence?.definitionId ?? 'None'}</p>
                                 <p><strong>Occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
                                 <p><strong>Display lane:</strong> {displayPreparation?.lane ?? 'None'}</p>
+                                <p><strong>Render path:</strong> {displayScene.renderPath}</p>
                                 <p><strong>Analytic faces:</strong> {displayPreparation?.analyticPacket.analyticFaces.length ?? 0}</p>
                                 <p><strong>Fallback faces:</strong> {displayPreparation?.analyticPacket.fallbackFaces.length ?? 0}</p>
                                 <p><strong>Face count:</strong> {tessellation?.facePatches.length ?? 0}</p>
@@ -760,6 +762,7 @@ function App() {
                                 <p><strong>Active occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
                                 <p><strong>Occurrence count:</strong> {bodyIds.length}</p>
                                 <p><strong>Display lane:</strong> {displayPreparation?.lane ?? 'None'}</p>
+                                <p><strong>Render path:</strong> {displayScene.renderPath}</p>
                                 <p><strong>Analytic faces:</strong> {displayPreparation?.analyticPacket.analyticFaces.length ?? 0}</p>
                                 <p><strong>Fallback faces:</strong> {displayPreparation?.analyticPacket.fallbackFaces.length ?? 0}</p>
                                 <p><strong>Face patches:</strong> {tessellation?.facePatches.length ?? 0}</p>

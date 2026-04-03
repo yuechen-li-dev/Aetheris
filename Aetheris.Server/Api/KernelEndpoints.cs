@@ -2,6 +2,7 @@ using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Brep.Picking;
+using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
@@ -292,6 +293,32 @@ public static class KernelEndpoints
                 return ApiMappings.Ok(ApiMappings.ToTessellationResponse(kernel.Value));
             }));
 
+        documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/display/prepare", (Guid documentId, Guid bodyId, DisplayPrepareRequestDto? request, KernelDocumentStore store) =>
+            WithDocumentOccurrence(store, documentId, bodyId, (document, body) =>
+            {
+                var analyticPacket = AnalyticDisplayPacketBuilder.Build(body);
+                var lane = ResolveDisplayLane(analyticPacket);
+                TessellationResponseDto? tessellationFallback = null;
+
+                if (lane is not "analytic-only")
+                {
+                    var tessellateKernel = BrepDisplayTessellator.Tessellate(body, ApiMappings.BuildTessellationOptions(request?.TessellationOptions));
+                    if (!tessellateKernel.IsSuccess)
+                    {
+                        return ApiMappings.KernelFailure(tessellateKernel.Diagnostics);
+                    }
+
+                    tessellationFallback = document.TryGetBodyTransform(bodyId, out var fallbackTransform)
+                        ? ApiMappings.ToTessellationResponse(tessellateKernel.Value, fallbackTransform)
+                        : ApiMappings.ToTessellationResponse(tessellateKernel.Value);
+                }
+
+                return ApiMappings.Ok(new DisplayPreparationResponseDto(
+                    lane,
+                    ApiMappings.ToAnalyticDisplayPacketResponse(analyticPacket),
+                    tessellationFallback));
+            }));
+
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/pick", (Guid documentId, Guid bodyId, PickRequestDto request, KernelDocumentStore store) =>
             WithDocumentOccurrence(store, documentId, bodyId, (document, body) =>
             {
@@ -398,5 +425,20 @@ public static class KernelEndpoints
             error = ApiMappings.BadRequestFromMessage(ex.Message, "operations.extrude");
             return false;
         }
+    }
+
+    private static string ResolveDisplayLane(AnalyticDisplayPacket packet)
+    {
+        if (packet.AnalyticFaces.Count > 0 && packet.FallbackFaces.Count == 0)
+        {
+            return "analytic-only";
+        }
+
+        if (packet.AnalyticFaces.Count > 0)
+        {
+            return "mixed-fallback";
+        }
+
+        return "fallback-only";
     }
 }

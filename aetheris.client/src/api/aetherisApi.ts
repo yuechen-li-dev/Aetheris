@@ -103,6 +103,42 @@ export interface TessellationResponseDto {
     edgePolylines: EdgePolylineDto[];
 }
 
+export interface AnalyticDisplayFaceDomainHintDto {
+    minV: number | null;
+    maxV: number | null;
+}
+
+export interface AnalyticDisplayFaceDto {
+    faceId: number;
+    shellId: number;
+    shellRole: 'Outer' | 'InnerVoid' | 'Unknown';
+    surfaceGeometryId: number;
+    surfaceKind: 'Plane' | 'Sphere' | 'Cylinder' | 'Cone' | 'Torus' | string;
+    loopCount: number;
+    domainHint: AnalyticDisplayFaceDomainHintDto | null;
+}
+
+export interface AnalyticDisplayFallbackFaceDto {
+    faceId: number;
+    shellId: number;
+    shellRole: 'Outer' | 'InnerVoid' | 'Unknown';
+    reason: 'MissingFaceBinding' | 'MissingSurfaceGeometry' | 'UnsupportedSurfaceKind' | 'UnsupportedTrim' | string;
+    surfaceKind: string | null;
+    detail: string | null;
+}
+
+export interface AnalyticDisplayPacketDto {
+    bodyId: number;
+    analyticFaces: AnalyticDisplayFaceDto[];
+    fallbackFaces: AnalyticDisplayFallbackFaceDto[];
+}
+
+export interface DisplayPreparationResponseDto {
+    lane: 'analytic-only' | 'mixed-fallback' | 'fallback-only' | string;
+    analyticPacket: AnalyticDisplayPacketDto;
+    tessellationFallback: TessellationResponseDto | null;
+}
+
 export interface PickOptionsDto {
     nearestOnly?: boolean;
     includeBackfaces?: boolean;
@@ -199,6 +235,13 @@ export async function tessellateBody(documentId: string, bodyId: string): Promis
     return request<TessellationResponseDto>(`/api/v1/documents/${documentId}/bodies/${bodyId}/tessellate`, {
         method: 'POST',
         body: JSON.stringify({ options: null }),
+    });
+}
+
+export async function prepareBodyDisplay(documentId: string, bodyId: string): Promise<DisplayPreparationResponseDto> {
+    return request<DisplayPreparationResponseDto>(`/api/v1/documents/${documentId}/bodies/${bodyId}/display/prepare`, {
+        method: 'POST',
+        body: JSON.stringify({ tessellationOptions: null }),
     });
 }
 

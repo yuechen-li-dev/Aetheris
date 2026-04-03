@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Brep.Picking;
+using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Math;
@@ -65,6 +66,25 @@ public static class ApiMappings
                 e.EdgeId.Value,
                 e.Points.Select(point => ToPointDto(transform.Apply(point))).ToArray(),
                 e.IsClosed)).ToArray());
+
+    public static AnalyticDisplayPacketDto ToAnalyticDisplayPacketResponse(AnalyticDisplayPacket packet)
+        => new(
+            packet.BodyId.Value,
+            packet.AnalyticFaces.Select(face => new AnalyticDisplayFaceDto(
+                face.FaceId.Value,
+                face.ShellId.Value,
+                face.ShellRole.ToString(),
+                face.SurfaceGeometryId.Value,
+                face.SurfaceKind.ToString(),
+                face.LoopCount,
+                face.DomainHint is { } hint ? new AnalyticDisplayFaceDomainHintDto(hint.MinV, hint.MaxV) : null)).ToArray(),
+            packet.FallbackFaces.Select(face => new AnalyticDisplayFallbackFaceDto(
+                face.FaceId.Value,
+                face.ShellId.Value,
+                face.ShellRole.ToString(),
+                face.Reason.ToString(),
+                face.SurfaceKind?.ToString(),
+                face.Detail)).ToArray());
 
     public static PickResponseDto ToPickResponse(IReadOnlyList<PickHit> hits, Guid occurrenceId)
         => ToPickResponse(hits, Transform3D.Identity, occurrenceId);

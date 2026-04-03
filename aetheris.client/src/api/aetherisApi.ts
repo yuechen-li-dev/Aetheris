@@ -131,6 +131,23 @@ export interface AnalyticDisplayConeGeometryDto {
     semiAngleRadians: number;
 }
 
+export interface AnalyticDisplaySphereGeometryDto {
+    center: Point3Dto;
+    axis: Vector3Dto;
+    xAxis: Vector3Dto;
+    yAxis: Vector3Dto;
+    radius: number;
+}
+
+export interface AnalyticDisplayTorusGeometryDto {
+    center: Point3Dto;
+    axis: Vector3Dto;
+    xAxis: Vector3Dto;
+    yAxis: Vector3Dto;
+    majorRadius: number;
+    minorRadius: number;
+}
+
 export interface AnalyticDisplayFaceDto {
     faceId: number;
     shellId: number;
@@ -142,6 +159,8 @@ export interface AnalyticDisplayFaceDto {
     planeGeometry: AnalyticDisplayPlaneGeometryDto | null;
     cylinderGeometry: AnalyticDisplayCylinderGeometryDto | null;
     coneGeometry: AnalyticDisplayConeGeometryDto | null;
+    sphereGeometry: AnalyticDisplaySphereGeometryDto | null;
+    torusGeometry: AnalyticDisplayTorusGeometryDto | null;
 }
 
 export interface AnalyticDisplayFallbackFaceDto {

@@ -123,6 +123,33 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     }
 
     [Fact]
+    public async Task DisplayPrepare_SpherePrimitive_UsesAnalyticLaneWithSphereGeometry()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/bodies/primitives/sphere",
+            new SphereCreateRequestDto(5));
+        response.EnsureSuccessStatusCode();
+        var sphere = await response.Content.ReadFromJsonAsync<ApiResponseDto<BodyCreatedResponseDto>>();
+        Assert.NotNull(sphere);
+        Assert.True(sphere!.Success);
+
+        var prepared = await PrepareDisplayAsync(document.Data.DocumentId, sphere.Data!.BodyId);
+
+        Assert.Equal("analytic-only", prepared.Data!.Lane);
+        Assert.NotEmpty(prepared.Data.AnalyticPacket.AnalyticFaces);
+        Assert.Contains(prepared.Data.AnalyticPacket.AnalyticFaces, face =>
+            face.SurfaceKind == "Sphere"
+            && face.SphereGeometry is not null
+            && face.PlaneGeometry is null
+            && face.CylinderGeometry is null
+            && face.ConeGeometry is null
+            && face.TorusGeometry is null);
+        Assert.Empty(prepared.Data.AnalyticPacket.FallbackFaces);
+        Assert.Null(prepared.Data.TessellationFallback);
+    }
+
+    [Fact]
     public async Task DisplayPrepare_ImportedUnsupportedBody_PreservesFallbackRouting()
     {
         var document = await CreateDocumentAsync("/api/v1/documents");

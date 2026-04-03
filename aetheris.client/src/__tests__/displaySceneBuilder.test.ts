@@ -25,6 +25,8 @@ const analyticPreparation: DisplayPreparationResponseDto = {
           radius: 0.5,
         },
         coneGeometry: null,
+        sphereGeometry: null,
+        torusGeometry: null,
       },
     ],
     fallbackFaces: [],
@@ -91,6 +93,85 @@ describe('buildDisplaySceneData', () => {
     expect(mapFallback).not.toHaveBeenCalled();
   });
 
+  it('keeps analytic-only lane for sphere packets and does not call fallback mapping', () => {
+    const spherePreparation: DisplayPreparationResponseDto = {
+      ...analyticPreparation,
+      analyticPacket: {
+        ...analyticPreparation.analyticPacket,
+        analyticFaces: [
+          {
+            faceId: 21,
+            shellId: 1,
+            shellRole: 'Outer',
+            surfaceGeometryId: 210,
+            surfaceKind: 'Sphere',
+            loopCount: 0,
+            domainHint: null,
+            planeGeometry: null,
+            cylinderGeometry: null,
+            coneGeometry: null,
+            sphereGeometry: {
+              center: { x: 0, y: 0, z: 0 },
+              axis: { x: 0, y: 0, z: 1 },
+              xAxis: { x: 1, y: 0, z: 0 },
+              yAxis: { x: 0, y: 1, z: 0 },
+              radius: 2,
+            },
+            torusGeometry: null,
+          },
+        ],
+      },
+    };
+    const mapAnalytic = vi.fn().mockReturnValue({ faces: [], edges: [] });
+    const mapFallback = vi.fn().mockReturnValue({ faces: [], edges: [] });
+
+    const result = buildDisplaySceneData(spherePreparation, { mapAnalytic, mapFallback });
+
+    expect(result.renderPath).toBe('analytic-only');
+    expect(mapAnalytic).toHaveBeenCalledOnce();
+    expect(mapFallback).not.toHaveBeenCalled();
+  });
+
+  it('keeps analytic-only lane for torus packets and does not call fallback mapping', () => {
+    const torusPreparation: DisplayPreparationResponseDto = {
+      ...analyticPreparation,
+      analyticPacket: {
+        ...analyticPreparation.analyticPacket,
+        analyticFaces: [
+          {
+            faceId: 22,
+            shellId: 1,
+            shellRole: 'Outer',
+            surfaceGeometryId: 220,
+            surfaceKind: 'Torus',
+            loopCount: 0,
+            domainHint: null,
+            planeGeometry: null,
+            cylinderGeometry: null,
+            coneGeometry: null,
+            sphereGeometry: null,
+            torusGeometry: {
+              center: { x: 0, y: 0, z: 0 },
+              axis: { x: 0, y: 0, z: 1 },
+              xAxis: { x: 1, y: 0, z: 0 },
+              yAxis: { x: 0, y: 1, z: 0 },
+              majorRadius: 5,
+              minorRadius: 1.5,
+            },
+          },
+        ],
+      },
+    };
+    const mapAnalytic = vi.fn().mockReturnValue({ faces: [], edges: [] });
+    const mapFallback = vi.fn().mockReturnValue({ faces: [], edges: [] });
+
+    const result = buildDisplaySceneData(torusPreparation, { mapAnalytic, mapFallback });
+
+    expect(result.renderPath).toBe('analytic-only');
+    expect(mapAnalytic).toHaveBeenCalledOnce();
+    expect(mapFallback).not.toHaveBeenCalled();
+  });
+
   it('routes fallback-only lane to tessellation fallback mapping', () => {
     const mapAnalytic = vi.fn().mockReturnValue({ faces: [], edges: [] });
     const mapFallback = vi.fn().mockReturnValue({ faces: [], edges: [] });
@@ -115,6 +196,87 @@ describe('buildDisplaySceneData', () => {
 });
 
 describe('mapAnalyticPacketToRenderData', () => {
+  it('maps sphere packet faces deterministically', () => {
+    const spherePacket = {
+      bodyId: 2,
+      analyticFaces: [
+        {
+          faceId: 200,
+          shellId: 1,
+          shellRole: 'Outer' as const,
+          surfaceGeometryId: 2000,
+          surfaceKind: 'Sphere',
+          loopCount: 0,
+          domainHint: null,
+          planeGeometry: null,
+          cylinderGeometry: null,
+          coneGeometry: null,
+          sphereGeometry: {
+            center: { x: 1, y: 2, z: 3 },
+            axis: { x: 0, y: 0, z: 1 },
+            xAxis: { x: 1, y: 0, z: 0 },
+            yAxis: { x: 0, y: 1, z: 0 },
+            radius: 4,
+          },
+          torusGeometry: null,
+        },
+      ],
+      fallbackFaces: [],
+    };
+
+    const first = mapAnalyticPacketToRenderData(spherePacket);
+    const second = mapAnalyticPacketToRenderData(spherePacket);
+
+    expect(first.faces).toHaveLength(1);
+    expect(first.faces[0].positions.length).toBeGreaterThan(0);
+    expect(first.faces[0].normals.length).toBe(first.faces[0].positions.length);
+    expect(first.faces[0].indices.length).toBeGreaterThan(0);
+    expect(Array.from(first.faces[0].positions)).toEqual(Array.from(second.faces[0].positions));
+    expect(Array.from(first.faces[0].normals)).toEqual(Array.from(second.faces[0].normals));
+    expect(Array.from(first.faces[0].indices)).toEqual(Array.from(second.faces[0].indices));
+  });
+
+  it('maps torus packet faces deterministically', () => {
+    const torusPacket = {
+      bodyId: 3,
+      analyticFaces: [
+        {
+          faceId: 300,
+          shellId: 1,
+          shellRole: 'Outer' as const,
+          surfaceGeometryId: 3000,
+          surfaceKind: 'Torus',
+          loopCount: 0,
+          domainHint: null,
+          planeGeometry: null,
+          cylinderGeometry: null,
+          coneGeometry: null,
+          sphereGeometry: null,
+          torusGeometry: {
+            center: { x: 0, y: 0, z: 0 },
+            axis: { x: 0, y: 0, z: 1 },
+            xAxis: { x: 1, y: 0, z: 0 },
+            yAxis: { x: 0, y: 1, z: 0 },
+            majorRadius: 6,
+            minorRadius: 1,
+          },
+        },
+      ],
+      fallbackFaces: [],
+    };
+
+    const first = mapAnalyticPacketToRenderData(torusPacket);
+    const second = mapAnalyticPacketToRenderData(torusPacket);
+
+    expect(first.faces).toHaveLength(1);
+    expect(first.faces[0].positions.length).toBeGreaterThan(0);
+    expect(first.faces[0].normals.length).toBe(first.faces[0].positions.length);
+    expect(first.faces[0].indices.length).toBeGreaterThan(0);
+    expect(Array.from(first.faces[0].positions)).toEqual(Array.from(second.faces[0].positions));
+    expect(Array.from(first.faces[0].normals)).toEqual(Array.from(second.faces[0].normals));
+    expect(Array.from(first.faces[0].indices)).toEqual(Array.from(second.faces[0].indices));
+  });
+
   it('is deterministic for the same analytic packet input', () => {
     const first = mapAnalyticPacketToRenderData(analyticPreparation.analyticPacket);
     const second = mapAnalyticPacketToRenderData(analyticPreparation.analyticPacket);

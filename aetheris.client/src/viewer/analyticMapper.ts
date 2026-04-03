@@ -159,6 +159,111 @@ function buildConePatch(face: AnalyticDisplayFaceDto): RenderFacePatch | null {
   };
 }
 
+function buildSpherePatch(face: AnalyticDisplayFaceDto): RenderFacePatch | null {
+  if (!face.sphereGeometry) {
+    return null;
+  }
+
+  const center = toArray(face.sphereGeometry.center);
+  const axis = toArray(face.sphereGeometry.axis);
+  const xAxis = toArray(face.sphereGeometry.xAxis);
+  const yAxis = toArray(face.sphereGeometry.yAxis);
+  const radius = face.sphereGeometry.radius;
+  const longitudinalSegments = 32;
+  const latitudinalSegments = 16;
+
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const indices: number[] = [];
+
+  for (let i = 0; i <= longitudinalSegments; i += 1) {
+    const u = (i / longitudinalSegments) * TAU;
+    const cosU = Math.cos(u);
+    const sinU = Math.sin(u);
+
+    for (let j = 0; j <= latitudinalSegments; j += 1) {
+      const v = ((j / latitudinalSegments) * Math.PI) - (Math.PI * 0.5);
+      const cosV = Math.cos(v);
+      const sinV = Math.sin(v);
+
+      const normal = normalize(add(add(mul(xAxis, cosV * cosU), mul(yAxis, cosV * sinU)), mul(axis, sinV)));
+      const point = add(center, mul(normal, radius));
+      positions.push(...point);
+      normals.push(...normal);
+
+      if (i < longitudinalSegments && j < latitudinalSegments) {
+        const stride = latitudinalSegments + 1;
+        const a = (i * stride) + j;
+        const b = a + 1;
+        const c = a + stride;
+        const d = c + 1;
+        indices.push(a, c, d, a, d, b);
+      }
+    }
+  }
+
+  return {
+    faceId: face.faceId,
+    positions: new Float32Array(positions),
+    normals: new Float32Array(normals),
+    indices: new Uint32Array(indices),
+  };
+}
+
+function buildTorusPatch(face: AnalyticDisplayFaceDto): RenderFacePatch | null {
+  if (!face.torusGeometry) {
+    return null;
+  }
+
+  const center = toArray(face.torusGeometry.center);
+  const axis = toArray(face.torusGeometry.axis);
+  const xAxis = toArray(face.torusGeometry.xAxis);
+  const yAxis = toArray(face.torusGeometry.yAxis);
+  const majorRadius = face.torusGeometry.majorRadius;
+  const minorRadius = face.torusGeometry.minorRadius;
+  const majorSegments = 32;
+  const minorSegments = 16;
+
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const indices: number[] = [];
+
+  for (let i = 0; i <= majorSegments; i += 1) {
+    const u = (i / majorSegments) * TAU;
+    const cosU = Math.cos(u);
+    const sinU = Math.sin(u);
+    const majorDirection = normalize(add(mul(xAxis, cosU), mul(yAxis, sinU)));
+
+    for (let j = 0; j <= minorSegments; j += 1) {
+      const v = (j / minorSegments) * TAU;
+      const cosV = Math.cos(v);
+      const sinV = Math.sin(v);
+
+      const normal = normalize(add(mul(majorDirection, cosV), mul(axis, sinV)));
+      const ringCenter = add(center, mul(majorDirection, majorRadius));
+      const point = add(ringCenter, mul(normal, minorRadius));
+      positions.push(...point);
+      normals.push(...normal);
+
+      if (i < majorSegments && j < minorSegments) {
+        const stride = minorSegments + 1;
+        const a = (i * stride) + j;
+        const b = a + 1;
+        const c = a + stride;
+        const d = c + 1;
+        indices.push(a, c, d, a, d, b);
+      }
+    }
+  }
+
+  return {
+    faceId: face.faceId,
+    positions: new Float32Array(positions),
+    normals: new Float32Array(normals),
+    indices: new Uint32Array(indices),
+  };
+}
+
 function mapFace(face: AnalyticDisplayFaceDto): RenderFacePatch | null {
   if (face.surfaceKind === 'Plane') {
     return buildPlanePatch(face);
@@ -170,6 +275,14 @@ function mapFace(face: AnalyticDisplayFaceDto): RenderFacePatch | null {
 
   if (face.surfaceKind === 'Cone') {
     return buildConePatch(face);
+  }
+
+  if (face.surfaceKind === 'Sphere') {
+    return buildSpherePatch(face);
+  }
+
+  if (face.surfaceKind === 'Torus') {
+    return buildTorusPatch(face);
   }
 
   return null;

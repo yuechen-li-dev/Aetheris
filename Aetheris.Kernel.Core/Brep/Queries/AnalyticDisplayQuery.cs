@@ -418,10 +418,19 @@ public static class AnalyticDisplayQuery
             }
         }
 
+        var normal = plane.Normal.ToVector();
+        var axisAlignedPlane = double.Abs(normal.X) > 0.9d || double.Abs(normal.Y) > 0.9d || double.Abs(normal.Z) > 0.9d;
+
+        if (!axisAlignedPlane)
+        {
+            return circularBoundaries.Count == 1
+                && face.LoopIds.Count == 1
+                && IsPointInsideCircularBoundary(point, plane, circularBoundaries[0].Center, circularBoundaries[0].Radius, tolerance);
+        }
+
         var inAxisAlignedFaceBounds = true;
         if (TryResolveAxisAlignedBoxBounds(body, out var min, out var max))
         {
-            var normal = plane.Normal.ToVector();
             if (double.Abs(normal.X) > 0.9d)
             {
                 inAxisAlignedFaceBounds = point.Y >= min.Y - tolerance.Linear && point.Y <= max.Y + tolerance.Linear
@@ -432,7 +441,7 @@ public static class AnalyticDisplayQuery
                 inAxisAlignedFaceBounds = point.X >= min.X - tolerance.Linear && point.X <= max.X + tolerance.Linear
                     && point.Z >= min.Z - tolerance.Linear && point.Z <= max.Z + tolerance.Linear;
             }
-            else if (double.Abs(normal.Z) > 0.9d)
+            else
             {
                 inAxisAlignedFaceBounds = point.X >= min.X - tolerance.Linear && point.X <= max.X + tolerance.Linear
                     && point.Y >= min.Y - tolerance.Linear && point.Y <= max.Y + tolerance.Linear;

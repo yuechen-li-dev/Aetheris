@@ -26,8 +26,9 @@ public sealed class Step242BsplineUvGridScaffoldBuilderTests
             VSegments: 12,
             ReferencePositions: referencePatch.Positions,
             ReferenceTriangleCount: referencePatch.TriangleIndices.Count / 3,
-            MaxFidelityError: 0.08d,
-            MaxTriangleDensityRatioVsFallback: 1.10d);
+            Acceptance: new BsplineUvGridScaffoldAcceptanceThresholds(
+                MaxFidelityError: 0.08d,
+                MaxTriangleDensityRatioVsFallback: 1.10d));
 
         var first = Builder.Build(surface, request);
         var second = Builder.Build(surface, request);
@@ -37,6 +38,7 @@ public sealed class Step242BsplineUvGridScaffoldBuilderTests
         Assert.NotNull(first.Mesh);
         Assert.Equal(first.Mesh!.Positions, second.Mesh!.Positions);
         Assert.Equal(first.Mesh.TriangleIndices, second.Mesh.TriangleIndices);
+        Assert.Equal(first.Metrics, second.Metrics);
         Assert.Equal(first.Acceptance, second.Acceptance);
         Assert.Equal(first.RejectionReason, second.RejectionReason);
     }
@@ -56,8 +58,9 @@ public sealed class Step242BsplineUvGridScaffoldBuilderTests
                 VSegments: 16,
                 ReferencePositions: referencePatch.Positions,
                 ReferenceTriangleCount: referencePatch.TriangleIndices.Count / 3,
-                MaxFidelityError: 0.08d,
-                MaxTriangleDensityRatioVsFallback: 1.10d));
+                Acceptance: new BsplineUvGridScaffoldAcceptanceThresholds(
+                    MaxFidelityError: 0.08d,
+                    MaxTriangleDensityRatioVsFallback: 1.10d)));
 
         Assert.Equal(BsplineUvGridScaffoldAcceptance.Accepted, result.Acceptance);
         Assert.Equal(BsplineUvGridScaffoldRejectionReason.None, result.RejectionReason);
@@ -81,9 +84,10 @@ public sealed class Step242BsplineUvGridScaffoldBuilderTests
                 TrimMask: trimMask,
                 ReferencePositions: referencePatch.Positions,
                 ReferenceTriangleCount: referencePatch.TriangleIndices.Count / 3,
-                MaxFidelityError: 0.10d,
-                MaxBoundaryDeviationUv: 0.051d,
-                MaxTriangleDensityRatioVsFallback: 1.10d));
+                Acceptance: new BsplineUvGridScaffoldAcceptanceThresholds(
+                    MaxFidelityError: 0.10d,
+                    MaxBoundaryDeviationUv: 0.051d,
+                    MaxTriangleDensityRatioVsFallback: 1.10d)));
 
         Assert.Equal(BsplineUvGridScaffoldAcceptance.Accepted, result.Acceptance);
         Assert.Equal(BsplineUvGridScaffoldRejectionReason.None, result.RejectionReason);
@@ -105,8 +109,9 @@ public sealed class Step242BsplineUvGridScaffoldBuilderTests
                 VSegments: 12,
                 ReferencePositions: referencePatch.Positions,
                 ReferenceTriangleCount: referencePatch.TriangleIndices.Count / 3,
-                MaxFidelityError: 0.08d,
-                MaxTriangleDensityRatioVsFallback: 1.10d));
+                Acceptance: new BsplineUvGridScaffoldAcceptanceThresholds(
+                    MaxFidelityError: 0.08d,
+                    MaxTriangleDensityRatioVsFallback: 1.10d)));
 
         var rejected = Builder.Build(
             surface,
@@ -115,12 +120,56 @@ public sealed class Step242BsplineUvGridScaffoldBuilderTests
                 VSegments: 12,
                 ReferencePositions: referencePatch.Positions,
                 ReferenceTriangleCount: referencePatch.TriangleIndices.Count / 3,
-                MaxFidelityError: 0.08d,
-                MaxTriangleDensityRatioVsFallback: 0.10d));
+                Acceptance: new BsplineUvGridScaffoldAcceptanceThresholds(
+                    MaxFidelityError: 0.08d,
+                    MaxTriangleDensityRatioVsFallback: 0.10d)));
 
         Assert.Equal(BsplineUvGridScaffoldAcceptance.Accepted, accepted.Acceptance);
         Assert.Equal(BsplineUvGridScaffoldAcceptance.Rejected, rejected.Acceptance);
         Assert.Equal(BsplineUvGridScaffoldRejectionReason.TooDenseVsFallback, rejected.RejectionReason);
+    }
+
+    [Fact]
+    public void M20_Rejects_WhenFidelityThresholdIsImpossible_AndReasonIsDeterministic()
+    {
+        var body = ImportRepresentativeBsplineBody();
+        var face = Assert.Single(body.Topology.Faces);
+        var surface = GetBsplineSurface(body, face.Id);
+        var referencePatch = GetReferencePatch(body, face.Id);
+
+        var request = new BsplineUvGridScaffoldBuildRequest(
+            USegments: 12,
+            VSegments: 12,
+            ReferencePositions: referencePatch.Positions,
+            ReferenceTriangleCount: referencePatch.TriangleIndices.Count / 3,
+            Acceptance: new BsplineUvGridScaffoldAcceptanceThresholds(
+                MaxFidelityError: 0d,
+                MaxTriangleDensityRatioVsFallback: 10d));
+
+        var first = Builder.Build(surface, request);
+        var second = Builder.Build(surface, request);
+
+        Assert.Equal(BsplineUvGridScaffoldAcceptance.Rejected, first.Acceptance);
+        Assert.Equal(BsplineUvGridScaffoldRejectionReason.FidelityTooLow, first.RejectionReason);
+        Assert.Equal(first.Acceptance, second.Acceptance);
+        Assert.Equal(first.RejectionReason, second.RejectionReason);
+        Assert.Equal(first.Metrics, second.Metrics);
+    }
+
+    [Fact]
+    public void M20_RejectsUnsupportedInput_BeforeMetricEvaluation()
+    {
+        var body = ImportRepresentativeBsplineBody();
+        var face = Assert.Single(body.Topology.Faces);
+        var surface = GetBsplineSurface(body, face.Id);
+
+        var result = Builder.Build(
+            surface,
+            new BsplineUvGridScaffoldBuildRequest(USegments: 0, VSegments: 12));
+
+        Assert.Equal(BsplineUvGridScaffoldAcceptance.Rejected, result.Acceptance);
+        Assert.Equal(BsplineUvGridScaffoldRejectionReason.UnsupportedInput, result.RejectionReason);
+        Assert.Equal(BsplineUvGridScaffoldMetrics.Empty, result.Metrics);
     }
 
     private static DisplayFaceMeshPatch GetReferencePatch(BrepBody body, FaceId faceId)

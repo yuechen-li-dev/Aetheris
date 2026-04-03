@@ -51,13 +51,8 @@
     {
       "id": "exp_cylinder_hole_unsupported",
       "path": "testdata/step242/generated/v0-expectedfail/cylinder_hole_unsupported.step",
-      "group": "expectedFail",
-      "notes": "Truthful warn-and-skip tessellation leaves no face patch for picker smoke to hit.",
-      "expectedFirstDiagnostic": {
-        "code": "ValidationFailed",
-        "source": "Audit.Picker",
-        "messagePrefix": "Picker smoke ray produced no hit."
-      }
+      "group": "deferred",
+      "notes": "AP242 lane passes while display/query lane truthfully reports picker blocker from tessellation warn-and-skip behavior."
     },
     {
       "id": "exp_parser_missing_paren",

@@ -50,14 +50,17 @@ public sealed class Step242CylinderTrimDualSingleCoedgeClosedCircleRegressionTes
         var first = Step242CorpusManifestRunner.RunOne(new Step242CorpusManifestEntry("ftc11", relativePath, "nist-regression", null, null, null, null, null));
         var second = Step242CorpusManifestRunner.RunOne(new Step242CorpusManifestEntry("ftc11", relativePath, "nist-regression", null, null, null, null, null));
 
-        Assert.Equal("pickerBlockedByTessellationSkip", first.Status);
-        Assert.Equal("picker", first.FirstFailureLayer);
-        Assert.Equal("Audit.Picker", first.FirstDiagnostic.Source);
-        Assert.Equal("Picker smoke ray produced no hit.", first.FirstDiagnostic.MessagePrefix);
+        Assert.Equal("success", first.Status);
+        Assert.Equal(string.Empty, first.FirstFailureLayer);
+        Assert.Equal("pickerBlockedByTessellationSkip", first.DisplayStatus);
+        Assert.Equal("picker", first.DisplayFirstFailureLayer);
+        Assert.Equal("Audit.Picker", first.DisplayFirstDiagnostic.Source);
+        Assert.Equal("Picker smoke ray produced no hit.", first.DisplayFirstDiagnostic.MessagePrefix);
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
+        Assert.Equal(first.DisplayStatus, second.DisplayStatus);
+        Assert.Equal(first.DisplayFirstFailureLayer, second.DisplayFirstFailureLayer);
+        Assert.Equal(first.DisplayFirstDiagnostic.Source, second.DisplayFirstDiagnostic.Source);
+        Assert.Equal(first.DisplayFirstDiagnostic.MessagePrefix, second.DisplayFirstDiagnostic.MessagePrefix);
     }
 
     [Fact]

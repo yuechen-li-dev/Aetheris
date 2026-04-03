@@ -183,15 +183,138 @@ describe('buildDisplaySceneData', () => {
     expect(mapAnalytic).not.toHaveBeenCalled();
   });
 
-  it('routes mixed-fallback lane to tessellation fallback mapping', () => {
-    const mapAnalytic = vi.fn().mockReturnValue({ faces: [], edges: [] });
-    const mapFallback = vi.fn().mockReturnValue({ faces: [], edges: [] });
+  it('composes mixed-fallback lane with analytic and fallback subsets without duplicates', () => {
+    const mixedPreparation: DisplayPreparationResponseDto = {
+      lane: 'mixed-fallback',
+      analyticPacket: {
+        bodyId: 9,
+        analyticFaces: [
+          {
+            faceId: 10,
+            shellId: 1,
+            shellRole: 'Outer',
+            surfaceGeometryId: 100,
+            surfaceKind: 'Plane',
+            loopCount: 1,
+            domainHint: null,
+            planeGeometry: {
+              origin: { x: 0, y: 0, z: 0 },
+              normal: { x: 0, y: 0, z: 1 },
+              uAxis: { x: 1, y: 0, z: 0 },
+              vAxis: { x: 0, y: 1, z: 0 },
+            },
+            cylinderGeometry: null,
+            coneGeometry: null,
+            sphereGeometry: null,
+            torusGeometry: null,
+          },
+        ],
+        fallbackFaces: [
+          {
+            faceId: 20,
+            shellId: 1,
+            shellRole: 'Outer',
+            reason: 'UnsupportedSurfaceKind',
+            surfaceKind: 'BSplineSurfaceWithKnots',
+            detail: null,
+          },
+        ],
+      },
+      tessellationFallback: {
+        facePatches: [],
+        edgePolylines: [],
+      },
+    };
 
-    const result = buildDisplaySceneData({ ...fallbackPreparation, lane: 'mixed-fallback' }, { mapAnalytic, mapFallback });
+    const mapAnalytic = vi.fn().mockReturnValue({
+      faces: [{ faceId: 10, positions: new Float32Array([0, 0, 0]), normals: new Float32Array([0, 0, 1]), indices: new Uint32Array([0, 0, 0]) }],
+      edges: [],
+    });
+    const mapFallback = vi.fn().mockReturnValue({
+      faces: [
+        { faceId: 10, positions: new Float32Array([0, 0, 0]), normals: new Float32Array([0, 0, 1]), indices: new Uint32Array([0, 0, 0]) },
+        { faceId: 20, positions: new Float32Array([1, 0, 0]), normals: new Float32Array([0, 0, 1]), indices: new Uint32Array([0, 0, 0]) },
+      ],
+      edges: [{ edgeId: 1, points: new Float32Array([0, 0, 0, 1, 0, 0]) }],
+    });
 
-    expect(result.renderPath).toBe('fallback');
+    const result = buildDisplaySceneData(mixedPreparation, { mapAnalytic, mapFallback });
+
+    expect(result.renderPath).toBe('mixed-fallback');
+    expect(mapAnalytic).toHaveBeenCalledOnce();
     expect(mapFallback).toHaveBeenCalledOnce();
-    expect(mapAnalytic).not.toHaveBeenCalled();
+    expect(result.sceneData?.faces.map((face) => face.faceId)).toEqual([10, 20]);
+    expect(result.sceneData?.edges).toHaveLength(1);
+  });
+
+  it('is deterministic for repeated mixed-fallback builds', () => {
+    const mixedPreparation: DisplayPreparationResponseDto = {
+      lane: 'mixed-fallback',
+      analyticPacket: {
+        bodyId: 10,
+        analyticFaces: [
+          {
+            faceId: 101,
+            shellId: 1,
+            shellRole: 'Outer',
+            surfaceGeometryId: 1001,
+            surfaceKind: 'Cylinder',
+            loopCount: 1,
+            domainHint: { minV: -0.5, maxV: 0.5 },
+            planeGeometry: null,
+            cylinderGeometry: {
+              origin: { x: 0, y: 0, z: 0 },
+              axis: { x: 0, y: 1, z: 0 },
+              xAxis: { x: 1, y: 0, z: 0 },
+              yAxis: { x: 0, y: 0, z: 1 },
+              radius: 0.25,
+            },
+            coneGeometry: null,
+            sphereGeometry: null,
+            torusGeometry: null,
+          },
+        ],
+        fallbackFaces: [
+          {
+            faceId: 202,
+            shellId: 1,
+            shellRole: 'Outer',
+            reason: 'UnsupportedTrim',
+            surfaceKind: 'Cylinder',
+            detail: 'trim requires fallback',
+          },
+        ],
+      },
+      tessellationFallback: {
+        facePatches: [
+          {
+            faceId: 202,
+            positions: [
+              { x: 0, y: 0, z: 0 },
+              { x: 1, y: 0, z: 0 },
+              { x: 0, y: 1, z: 0 },
+            ],
+            normals: [
+              { x: 0, y: 0, z: 1 },
+              { x: 0, y: 0, z: 1 },
+              { x: 0, y: 0, z: 1 },
+            ],
+            triangleIndices: [0, 1, 2],
+          },
+        ],
+        edgePolylines: [],
+      },
+    };
+
+    const first = buildDisplaySceneData(mixedPreparation);
+    const second = buildDisplaySceneData(mixedPreparation);
+
+    expect(first.renderPath).toBe('mixed-fallback');
+    expect(second.renderPath).toBe('mixed-fallback');
+    expect(first.sceneData?.faces.map((face) => face.faceId)).toEqual(second.sceneData?.faces.map((face) => face.faceId));
+    expect(first.sceneData?.faces).toHaveLength(2);
+    expect(Array.from(first.sceneData?.faces[0].positions ?? [])).toEqual(Array.from(second.sceneData?.faces[0].positions ?? []));
+    expect(Array.from(first.sceneData?.faces[1].indices ?? [])).toEqual(Array.from(second.sceneData?.faces[1].indices ?? []));
   });
 });
 

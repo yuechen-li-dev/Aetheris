@@ -1,6 +1,7 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
@@ -12,6 +13,8 @@ public sealed class Step242BSplineUvGridScaffoldExperimentTests
 {
     private const int USegments = 12;
     private const int VSegments = 12;
+    private const int HarderUSegments = 16;
+    private const int HarderVSegments = 16;
 
     [Fact]
     public void BspineUvGridScaffold_RepresentativeFace_IsDeterministic_AndComparableToCurrentTessellationPath()
@@ -68,6 +71,44 @@ public sealed class Step242BSplineUvGridScaffoldExperimentTests
         AssertBoundaryUnchanged(unsmoothed.Positions, smoothed.Positions, USegments, VSegments);
     }
 
+    [Fact]
+    public void BspineUvGridScaffold_M17h2_HarderCurvedRectangularFace_IsDeterministic_AndComparableToCurrentTessellationPath()
+    {
+        var body = CreateHarderCurvedRectangularBsplineBody();
+
+        var face = Assert.Single(body.Topology.Faces);
+        var surface = GetBsplineSurface(body, face.Id);
+
+        var first = BuildUvGridScaffold(surface, HarderUSegments, HarderVSegments, smoothInteriorOnce: false);
+        var second = BuildUvGridScaffold(surface, HarderUSegments, HarderVSegments, smoothInteriorOnce: false);
+
+        Assert.Equal(first.Positions, second.Positions);
+        Assert.Equal(first.TriangleIndices, second.TriangleIndices);
+
+        Assert.Equal((HarderUSegments + 1) * (HarderVSegments + 1), first.Positions.Count);
+        Assert.Equal(HarderUSegments * HarderVSegments * 2, first.TriangleIndices.Count / 3);
+
+        AssertBoundaryLooksReasonableForHarderCurvedFace(first, body, face.Id, HarderUSegments, HarderVSegments);
+
+        var tessellation = BrepDisplayTessellator.Tessellate(body);
+        Assert.True(tessellation.IsSuccess);
+        var referencePatch = Assert.Single(tessellation.Value.FacePatches, patch => patch.FaceId == face.Id);
+
+        Assert.NotEmpty(referencePatch.Positions);
+        Assert.NotEmpty(referencePatch.TriangleIndices);
+
+        var scaffoldToReference = ComputeMeanNearestDistance(first.Positions, referencePatch.Positions);
+        var referenceToScaffold = ComputeMeanNearestDistance(referencePatch.Positions, first.Positions);
+
+        Assert.True(scaffoldToReference <= 0.08d, $"Scaffold->tessellation mean nearest distance too large: {scaffoldToReference:0.########}");
+        Assert.True(referenceToScaffold <= 0.08d, $"Tessellation->scaffold mean nearest distance too large: {referenceToScaffold:0.########}");
+
+        Assert.True(first.Positions.Count < referencePatch.Positions.Count,
+            $"Expected UV scaffold to stay lower-count in this harder case. scaffold={first.Positions.Count}, tessellation={referencePatch.Positions.Count}");
+        Assert.True(first.TriangleIndices.Count / 3 < referencePatch.TriangleIndices.Count / 3,
+            $"Expected UV scaffold triangle count to stay lower. scaffold={first.TriangleIndices.Count / 3}, tessellation={referencePatch.TriangleIndices.Count / 3}");
+    }
+
     private static BrepBody ImportRepresentativeBsplineBody()
     {
         // Representative case choice for M17h experiment:
@@ -78,6 +119,76 @@ public sealed class Step242BSplineUvGridScaffoldExperimentTests
         var import = Step242Importer.ImportBody(text);
         Assert.True(import.IsSuccess);
         return import.Value;
+    }
+
+    private static BrepBody CreateHarderCurvedRectangularBsplineBody()
+    {
+        // M17h2 harder case choice:
+        // - one curved cubic B-spline patch (stronger curvature than the M17h planar patch)
+        // - still rectangular trim so this stays a fair but bounded follow-up experiment.
+        (double U, double V)[] uvOuterLoop =
+        [
+            (0d, 0d),
+            (1d, 0d),
+            (1d, 1d),
+            (0d, 1d),
+        ];
+
+        var builder = new TopologyBuilder();
+        var geometry = new BrepGeometryStore();
+        var bindings = new BrepBindingModel();
+        var vertexPoints = new Dictionary<VertexId, Point3D>();
+
+        var loopId = builder.AllocateLoopId();
+        var edgeIds = new List<EdgeId>(uvOuterLoop.Length);
+        var coedgeIds = new List<CoedgeId>(uvOuterLoop.Length);
+        var surface = CreateCurvedBsplineSurface();
+        var curveId = 1;
+
+        var vertices = uvOuterLoop
+            .Select(uv => surface.Evaluate(uv.U, uv.V))
+            .ToArray();
+
+        var vertexIds = vertices
+            .Select(point =>
+            {
+                var vertexId = builder.AddVertex();
+                vertexPoints[vertexId] = point;
+                return vertexId;
+            })
+            .ToArray();
+
+        for (var i = 0; i < vertices.Length; i++)
+        {
+            var startVertex = vertexIds[i];
+            var endVertex = vertexIds[(i + 1) % vertices.Length];
+            var edgeId = builder.AddEdge(startVertex, endVertex);
+            edgeIds.Add(edgeId);
+
+            var line = CreateLine(vertices[i], vertices[(i + 1) % vertices.Length], out var length);
+            var geometryId = new CurveGeometryId(curveId++);
+            geometry.AddCurve(geometryId, CurveGeometry.FromLine(line));
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, geometryId, new ParameterInterval(0d, length)));
+
+            coedgeIds.Add(builder.AllocateCoedgeId());
+        }
+
+        for (var i = 0; i < edgeIds.Count; i++)
+        {
+            var next = coedgeIds[(i + 1) % coedgeIds.Count];
+            var prev = coedgeIds[(i - 1 + coedgeIds.Count) % coedgeIds.Count];
+            builder.AddCoedge(new Coedge(coedgeIds[i], edgeIds[i], loopId, next, prev, IsReversed: false));
+        }
+
+        builder.AddLoop(new Loop(loopId, coedgeIds));
+        var faceId = builder.AddFace([loopId]);
+        var shell = builder.AddShell([faceId]);
+        builder.AddBody([shell]);
+
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromBSplineSurfaceWithKnots(surface));
+        bindings.AddFaceBinding(new FaceGeometryBinding(faceId, new SurfaceGeometryId(1)));
+
+        return new BrepBody(builder.Model, geometry, bindings, vertexPoints);
     }
 
     private static BSplineSurfaceWithKnots GetBsplineSurface(BrepBody body, FaceId faceId)
@@ -281,6 +392,87 @@ public sealed class Step242BSplineUvGridScaffoldExperimentTests
 
         return sum / source.Count;
     }
+
+    private static void AssertBoundaryLooksReasonableForHarderCurvedFace(
+        ScaffoldMesh scaffold,
+        BrepBody body,
+        FaceId faceId,
+        int uSegments,
+        int vSegments)
+    {
+        var face = body.Topology.GetFace(faceId);
+        var loopId = Assert.Single(face.LoopIds);
+        var loop = body.Topology.GetLoop(loopId);
+        Assert.Equal(4, loop.CoedgeIds.Count);
+
+        var boundaryVertexPoints = loop.CoedgeIds
+            .Select(coedgeId => body.Topology.GetCoedge(coedgeId))
+            .Select(coedge =>
+            {
+                var edge = body.Topology.GetEdge(coedge.EdgeId);
+                var vertexId = coedge.IsReversed ? edge.EndVertexId : edge.StartVertexId;
+                var found = body.TryGetVertexPoint(vertexId, out var point);
+                Assert.True(found);
+                return point;
+            })
+            .Distinct()
+            .ToArray();
+        Assert.Equal(4, boundaryVertexPoints.Length);
+
+        var cols = vSegments + 1;
+        var corners = new[]
+        {
+            scaffold.Positions[GridIndex(0, 0, cols)],
+            scaffold.Positions[GridIndex(uSegments, 0, cols)],
+            scaffold.Positions[GridIndex(uSegments, vSegments, cols)],
+            scaffold.Positions[GridIndex(0, vSegments, cols)],
+        };
+
+        foreach (var corner in corners)
+        {
+            var nearestDistance = boundaryVertexPoints.Min(vertex => (vertex - corner).Length);
+            Assert.True(nearestDistance <= 1e-9d);
+        }
+
+        var boundary = EnumerateBoundaryPoints(scaffold.Positions, uSegments, vSegments).ToArray();
+        var zRange = boundary.Max(p => p.Z) - boundary.Min(p => p.Z);
+        Assert.True(zRange >= 0.15d, $"Expected meaningful boundary curvature variation; got zRange={zRange:0.########}");
+
+        var boundsMinX = boundary.Min(point => point.X);
+        var boundsMaxX = boundary.Max(point => point.X);
+        var boundsMinY = boundary.Min(point => point.Y);
+        var boundsMaxY = boundary.Max(point => point.Y);
+        Assert.True(boundsMinX >= -1e-12d && boundsMaxX <= 1d + 1e-12d);
+        Assert.True(boundsMinY >= -1e-12d && boundsMaxY <= 1d + 1e-12d);
+    }
+
+    private static Line3Curve CreateLine(Point3D start, Point3D end, out double length)
+    {
+        var delta = end - start;
+        length = delta.Length;
+        return new Line3Curve(start, Direction3D.Create(delta));
+    }
+
+    private static BSplineSurfaceWithKnots CreateCurvedBsplineSurface()
+        => new(
+            degreeU: 3,
+            degreeV: 3,
+            controlPoints:
+            [
+                [new Point3D(0.00d, 0.00d, 0.00d), new Point3D(0.00d, 0.33d, 0.28d), new Point3D(0.00d, 0.66d, -0.22d), new Point3D(0.00d, 1.00d, 0.10d)],
+                [new Point3D(0.33d, 0.00d, 0.42d), new Point3D(0.33d, 0.33d, 0.62d), new Point3D(0.33d, 0.66d, 0.18d), new Point3D(0.33d, 1.00d, -0.10d)],
+                [new Point3D(0.66d, 0.00d, -0.20d), new Point3D(0.66d, 0.33d, 0.20d), new Point3D(0.66d, 0.66d, 0.72d), new Point3D(0.66d, 1.00d, 0.34d)],
+                [new Point3D(1.00d, 0.00d, 0.12d), new Point3D(1.00d, 0.33d, -0.30d), new Point3D(1.00d, 0.66d, 0.24d), new Point3D(1.00d, 1.00d, 0.52d)],
+            ],
+            surfaceForm: "UNSPECIFIED",
+            uClosed: false,
+            vClosed: false,
+            selfIntersect: false,
+            knotMultiplicitiesU: [4, 4],
+            knotMultiplicitiesV: [4, 4],
+            knotValuesU: [0d, 1d],
+            knotValuesV: [0d, 1d],
+            knotSpec: "UNSPECIFIED");
 
     private static int GridIndex(int uIndex, int vIndex, int columns)
         => (uIndex * columns) + vIndex;

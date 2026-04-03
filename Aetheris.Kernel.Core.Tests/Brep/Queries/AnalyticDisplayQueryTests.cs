@@ -6,6 +6,8 @@ using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Tests.Step242;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Queries;
 
@@ -135,6 +137,43 @@ public sealed class AnalyticDisplayQueryTests
 
         Assert.True(hit.Distance > 0d);
         Assert.Equal(Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Torus, hit.SurfaceKind);
+    }
+
+    [Fact]
+    public void TrimmedSphereFace_QueryRejectsAndMatchesPacketFallback()
+    {
+        var body = CreateTrimmedSphereBody();
+        var sphereFaceId = body.Topology.Faces
+            .Select(face => face.Id)
+            .First(faceId => body.GetFaceSurface(faceId).Kind == SurfaceGeometryKind.Sphere);
+        Assert.NotEmpty(body.Topology.GetFace(sphereFaceId).LoopIds);
+
+        var packet = AnalyticDisplayPacketBuilder.Build(body);
+        var ray = new Ray3D(new Point3D(-20d, 0d, 0d), Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+
+        Assert.False(AnalyticDisplayQuery.TryIntersectFace(body, sphereFaceId, ray, out _));
+        Assert.Contains(packet.FallbackFaces, face => face.FaceId == sphereFaceId && face.Reason == AnalyticDisplayFallbackReason.UnsupportedTrim);
+        Assert.DoesNotContain(packet.AnalyticFaces, face => face.FaceId == sphereFaceId);
+    }
+
+    [Fact]
+    public void TrimmedTorusFace_QueryRejectsAndMatchesPacketFallback_Deterministically()
+    {
+        var body = CreateTrimmedTorusBody();
+        var torusFaceId = body.Topology.Faces
+            .Select(face => face.Id)
+            .First(faceId => body.GetFaceSurface(faceId).Kind == SurfaceGeometryKind.Torus);
+        Assert.NotEmpty(body.Topology.GetFace(torusFaceId).LoopIds);
+
+        var packetFirst = AnalyticDisplayPacketBuilder.Build(body);
+        var packetSecond = AnalyticDisplayPacketBuilder.Build(body);
+        var ray = new Ray3D(new Point3D(-20d, 0d, 0d), Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+
+        Assert.False(AnalyticDisplayQuery.TryIntersectFace(body, torusFaceId, ray, out _));
+        Assert.False(AnalyticDisplayQuery.TryIntersectFace(body, torusFaceId, ray, out _));
+        Assert.Contains(packetFirst.FallbackFaces, face => face.FaceId == torusFaceId && face.Reason == AnalyticDisplayFallbackReason.UnsupportedTrim);
+        Assert.Contains(packetSecond.FallbackFaces, face => face.FaceId == torusFaceId && face.Reason == AnalyticDisplayFallbackReason.UnsupportedTrim);
+        Assert.Equal(PacketSignature(packetFirst), PacketSignature(packetSecond));
     }
 
     [Fact]
@@ -293,6 +332,32 @@ public sealed class AnalyticDisplayQueryTests
         var result = BrepBoolean.Subtract(left, right);
         Assert.True(result.IsSuccess);
         return result.Value;
+    }
+
+    private static BrepBody CreateTrimmedSphereBody()
+    {
+        return ImportFromCorpus("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp");
+    }
+
+    private static BrepBody CreateTrimmedTorusBody()
+    {
+        return ImportFromCorpus("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp");
+    }
+
+    private static BrepBody ImportFromCorpus(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var import = Step242Importer.ImportBody(text);
+        Assert.True(import.IsSuccess);
+        return import.Value;
+    }
+
+    private static string PacketSignature(AnalyticDisplayPacket packet)
+    {
+        var analytic = string.Join("|", packet.AnalyticFaces.Select(face => $"{face.FaceId.Value}:{face.ShellId.Value}:{face.ShellRole}:{face.SurfaceKind}:{face.LoopCount}:{face.DomainHint?.MinV}:{face.DomainHint?.MaxV}"));
+        var fallback = string.Join("|", packet.FallbackFaces.Select(face => $"{face.FaceId.Value}:{face.ShellId.Value}:{face.ShellRole}:{face.Reason}:{face.SurfaceKind}"));
+        return $"{packet.BodyId.Value};A[{analytic}];F[{fallback}]";
     }
 
     private static BrepBody CreateCone(double bottomRadius, double topRadius, double height)

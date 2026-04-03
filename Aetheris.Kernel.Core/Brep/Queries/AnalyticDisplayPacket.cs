@@ -1,5 +1,4 @@
 using Aetheris.Kernel.Core.Geometry;
-using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Topology;
@@ -63,30 +62,18 @@ public static class AnalyticDisplayPacketBuilder
             var faceIds = body.Topology.GetShell(shellId).FaceIds.OrderBy(faceId => faceId.Value);
             foreach (var faceId in faceIds)
             {
-                if (!body.Bindings.TryGetFaceBinding(faceId, out var faceBinding))
+                if (!AnalyticDisplaySupportPolicy.TryGetSupportedSurface(body, faceId, out var surface, out var fallbackReason))
                 {
-                    fallbackFaces.Add(new AnalyticDisplayFallbackFaceEntry(faceId, shellId, shellRole, AnalyticDisplayFallbackReason.MissingFaceBinding));
+                    SurfaceGeometryKind? surfaceKind = body.Bindings.TryGetFaceBinding(faceId, out var binding)
+                        && body.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var candidate)
+                        && candidate is not null
+                        ? candidate.Kind
+                        : (SurfaceGeometryKind?)null;
+                    fallbackFaces.Add(new AnalyticDisplayFallbackFaceEntry(faceId, shellId, shellRole, fallbackReason, surfaceKind));
                     continue;
                 }
 
-                if (!body.Geometry.TryGetSurface(faceBinding.SurfaceGeometryId, out var surface) || surface is null)
-                {
-                    fallbackFaces.Add(new AnalyticDisplayFallbackFaceEntry(faceId, shellId, shellRole, AnalyticDisplayFallbackReason.MissingSurfaceGeometry));
-                    continue;
-                }
-
-                if (!IsSupportedSurfaceKind(surface.Kind))
-                {
-                    fallbackFaces.Add(new AnalyticDisplayFallbackFaceEntry(faceId, shellId, shellRole, AnalyticDisplayFallbackReason.UnsupportedSurfaceKind, surface.Kind));
-                    continue;
-                }
-
-                if (!IsSupportedTrim(body, faceId, surface.Kind))
-                {
-                    fallbackFaces.Add(new AnalyticDisplayFallbackFaceEntry(faceId, shellId, shellRole, AnalyticDisplayFallbackReason.UnsupportedTrim, surface.Kind));
-                    continue;
-                }
-
+                var faceBinding = body.Bindings.GetFaceBinding(faceId);
                 analyticFaces.Add(new AnalyticDisplayFaceEntry(
                     faceId,
                     shellId,
@@ -100,93 +87,6 @@ public static class AnalyticDisplayPacketBuilder
         }
 
         return new AnalyticDisplayPacket(bodyId, analyticFaces, fallbackFaces);
-    }
-
-    private static bool IsSupportedSurfaceKind(SurfaceGeometryKind kind)
-        => kind is SurfaceGeometryKind.Plane
-            or SurfaceGeometryKind.Sphere
-            or SurfaceGeometryKind.Cylinder
-            or SurfaceGeometryKind.Cone
-            or SurfaceGeometryKind.Torus;
-
-    private static bool IsSupportedTrim(BrepBody body, FaceId faceId, SurfaceGeometryKind kind)
-    {
-        if (kind is SurfaceGeometryKind.Plane)
-        {
-            return IsSupportedPlanarTrim(body, faceId);
-        }
-
-        if (kind is SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus)
-        {
-            return true;
-        }
-
-        var face = body.Topology.GetFace(faceId);
-        if (face.LoopIds.Count != 1)
-        {
-            return false;
-        }
-
-        var loop = body.Topology.GetLoop(face.LoopIds[0]);
-        foreach (var coedgeId in loop.CoedgeIds)
-        {
-            var edgeId = body.Topology.GetCoedge(coedgeId).EdgeId;
-            if (!body.Bindings.TryGetEdgeBinding(edgeId, out var edgeBinding)
-                || !edgeBinding.TrimInterval.HasValue
-                || !body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve)
-                || curve is null
-                || (curve.Kind is not CurveGeometryKind.Line3 and not CurveGeometryKind.Circle3))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-
-    private static bool IsSupportedPlanarTrim(BrepBody body, FaceId faceId)
-    {
-        if (!body.Bindings.TryGetFaceBinding(faceId, out var faceBinding)
-            || !body.Geometry.TryGetSurface(faceBinding.SurfaceGeometryId, out var surface)
-            || surface?.Plane is not PlaneSurface plane
-            || !body.Topology.TryGetFace(faceId, out var face)
-            || face is null)
-        {
-            return false;
-        }
-
-        var normal = plane.Normal.ToVector();
-        var axisAlignedPlane = double.Abs(normal.X) > 0.9d || double.Abs(normal.Y) > 0.9d || double.Abs(normal.Z) > 0.9d;
-        if (axisAlignedPlane)
-        {
-            return true;
-        }
-
-        if (face.LoopIds.Count != 1)
-        {
-            return false;
-        }
-
-        var loop = body.Topology.GetLoop(face.LoopIds[0]);
-        if (loop.CoedgeIds.Count == 0)
-        {
-            return false;
-        }
-
-        foreach (var coedgeId in loop.CoedgeIds)
-        {
-            var edgeId = body.Topology.GetCoedge(coedgeId).EdgeId;
-            if (!body.Bindings.TryGetEdgeBinding(edgeId, out var edgeBinding)
-                || !body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve)
-                || curve is null
-                || curve.Kind != CurveGeometryKind.Circle3)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private static AnalyticDisplayFaceDomainHint? TryResolveDomainHint(BrepBody body, FaceId faceId, SurfaceGeometry surface)

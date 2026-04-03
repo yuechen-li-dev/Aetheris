@@ -6,6 +6,8 @@ using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Tests.Step242;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Queries;
 
@@ -76,6 +78,56 @@ public sealed class AnalyticDisplayPacketBuilderTests
         Assert.Contains(packet.AnalyticFaces, face => face.SurfaceKind == SurfaceGeometryKind.Plane && face.ShellRole == AnalyticDisplayShellRole.Outer);
         Assert.Contains(packet.AnalyticFaces, face => face.SurfaceKind == SurfaceGeometryKind.Sphere && face.ShellRole == AnalyticDisplayShellRole.InnerVoid);
         Assert.Empty(packet.FallbackFaces);
+    }
+
+    [Fact]
+    public void Build_TrimmedSphereFace_RoutesToUnsupportedTrimFallback()
+    {
+        var body = CreateTrimmedSphereBody();
+
+        var sphereFaceIds = body.Topology.Faces
+            .Select(face => face.Id)
+            .Where(faceId => body.GetFaceSurface(faceId).Kind == SurfaceGeometryKind.Sphere)
+            .ToArray();
+        Assert.NotEmpty(sphereFaceIds);
+        Assert.All(sphereFaceIds, faceId => Assert.NotEmpty(body.Topology.GetFace(faceId).LoopIds));
+
+        var packet = AnalyticDisplayPacketBuilder.Build(body);
+
+        Assert.DoesNotContain(packet.AnalyticFaces, face => face.SurfaceKind == SurfaceGeometryKind.Sphere);
+        Assert.Contains(packet.FallbackFaces, face => face.SurfaceKind == SurfaceGeometryKind.Sphere && face.Reason == AnalyticDisplayFallbackReason.UnsupportedTrim);
+    }
+
+    [Fact]
+    public void Build_TrimmedTorusFace_RoutesToUnsupportedTrimFallback()
+    {
+        var body = CreateTrimmedTorusBody();
+
+        var torusFaceIds = body.Topology.Faces
+            .Select(face => face.Id)
+            .Where(faceId => body.GetFaceSurface(faceId).Kind == SurfaceGeometryKind.Torus)
+            .ToArray();
+        Assert.NotEmpty(torusFaceIds);
+        Assert.All(torusFaceIds, faceId => Assert.NotEmpty(body.Topology.GetFace(faceId).LoopIds));
+
+        var packet = AnalyticDisplayPacketBuilder.Build(body);
+
+        Assert.DoesNotContain(packet.AnalyticFaces, face => face.SurfaceKind == SurfaceGeometryKind.Torus);
+        Assert.Contains(packet.FallbackFaces, face => face.SurfaceKind == SurfaceGeometryKind.Torus && face.Reason == AnalyticDisplayFallbackReason.UnsupportedTrim);
+    }
+
+    [Fact]
+    public void Build_WholePrimitiveSphereAndTorus_RemainAnalytic()
+    {
+        var sphere = BrepPrimitives.CreateSphere(2d).Value;
+        var spherePacket = AnalyticDisplayPacketBuilder.Build(sphere);
+        Assert.Contains(spherePacket.AnalyticFaces, face => face.SurfaceKind == SurfaceGeometryKind.Sphere);
+        Assert.DoesNotContain(spherePacket.FallbackFaces, face => face.SurfaceKind == SurfaceGeometryKind.Sphere);
+
+        var torus = BrepPrimitives.CreateTorus(4d, 1d).Value;
+        var torusPacket = AnalyticDisplayPacketBuilder.Build(torus);
+        Assert.Contains(torusPacket.AnalyticFaces, face => face.SurfaceKind == SurfaceGeometryKind.Torus);
+        Assert.DoesNotContain(torusPacket.FallbackFaces, face => face.SurfaceKind == SurfaceGeometryKind.Torus);
     }
 
     [Fact]
@@ -205,6 +257,25 @@ public sealed class AnalyticDisplayPacketBuilderTests
         var result = BrepBoolean.Subtract(left, right);
         Assert.True(result.IsSuccess);
         return result.Value;
+    }
+
+    private static BrepBody CreateTrimmedSphereBody()
+    {
+        return ImportFromCorpus("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp");
+    }
+
+    private static BrepBody CreateTrimmedTorusBody()
+    {
+        return ImportFromCorpus("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp");
+    }
+
+    private static BrepBody ImportFromCorpus(string relativePath)
+    {
+        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var text = File.ReadAllText(absolutePath);
+        var import = Step242Importer.ImportBody(text);
+        Assert.True(import.IsSuccess);
+        return import.Value;
     }
 
     private static BrepBody CreateCone(double bottomRadius, double topRadius, double height)

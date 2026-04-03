@@ -17,10 +17,6 @@
       "edges": 318,
       "faces": 117
     },
-    "tessellationCounts": {
-      "facePatches": 117,
-      "edgePolylines": 318
-    },
     "canonicalSha256": "dc035a418ef98d85aa31f20cfd1582cc5ad3c44159a8018a1b70b87344abcd1f"
   },
   {
@@ -40,10 +36,6 @@
       "vertices": 876,
       "edges": 1416,
       "faces": 637
-    },
-    "tessellationCounts": {
-      "facePatches": 637,
-      "edgePolylines": 1416
     },
     "canonicalSha256": "d49fd736ad41ba423a0ee40e73f99edeed13ff93dec4985e14c9bd59382e612e"
   },
@@ -65,10 +57,6 @@
       "edges": 354,
       "faces": 120
     },
-    "tessellationCounts": {
-      "facePatches": 120,
-      "edgePolylines": 354
-    },
     "canonicalSha256": "8d32fe4a6f88f6a6de325f5126475fe49bb56c4dd4e2e49cff8d68474838abb2"
   },
   {
@@ -88,10 +76,6 @@
       "vertices": 664,
       "edges": 1110,
       "faces": 484
-    },
-    "tessellationCounts": {
-      "facePatches": 484,
-      "edgePolylines": 1110
     },
     "canonicalSha256": "3103da3bc3e8ad82026a4cd1debfea1ac2978ced50fb4a722ec82d732b1882ae"
   },
@@ -113,10 +97,6 @@
       "edges": 331,
       "faces": 156
     },
-    "tessellationCounts": {
-      "facePatches": 156,
-      "edgePolylines": 331
-    },
     "canonicalSha256": "29b2850267dd6755e96eb7f9f7a1f568b0da34ea5e273096f6a962ccbe746494"
   },
   {
@@ -136,10 +116,6 @@
       "vertices": 310,
       "edges": 476,
       "faces": 187
-    },
-    "tessellationCounts": {
-      "facePatches": 187,
-      "edgePolylines": 476
     },
     "canonicalSha256": "4c9eee2cc02bff8f4a0eb27f69651214a773d03acab2ed5322cc396ada0592ae"
   },
@@ -161,10 +137,6 @@
       "edges": 871,
       "faces": 306
     },
-    "tessellationCounts": {
-      "facePatches": 306,
-      "edgePolylines": 871
-    },
     "canonicalSha256": "e88e432d9cae16a3b457d1ba3ce3ccddcb2a64e3f740d543c3d5cd570026fa0a"
   },
   {
@@ -184,10 +156,6 @@
       "vertices": 10083,
       "edges": 10083,
       "faces": 3361
-    },
-    "tessellationCounts": {
-      "facePatches": 3361,
-      "edgePolylines": 10083
     },
     "canonicalSha256": "02272208c101eede63651658006f4b483dbabe4d7148654a12dc9e01f8509b19"
   },
@@ -209,10 +177,6 @@
       "edges": 616,
       "faces": 247
     },
-    "tessellationCounts": {
-      "facePatches": 247,
-      "edgePolylines": 616
-    },
     "canonicalSha256": "bdc8e56bfd10539aa2d73c2bdecbcc94d7ffc3821517ffb77687f316590cd213"
   },
   {
@@ -232,10 +196,6 @@
       "vertices": 304,
       "edges": 458,
       "faces": 159
-    },
-    "tessellationCounts": {
-      "facePatches": 159,
-      "edgePolylines": 458
     },
     "canonicalSha256": "25b4cf509c5d90b49db0c212d9c8bc08e1db96011e424803a65593b3f275b30a"
   },
@@ -257,10 +217,6 @@
       "edges": 813,
       "faces": 268
     },
-    "tessellationCounts": {
-      "facePatches": 268,
-      "edgePolylines": 813
-    },
     "canonicalSha256": "72852a798345f6815b5d56397e942efe70ca47e8c7c216770170fe06fa2ced11"
   },
   {
@@ -280,10 +236,6 @@
       "vertices": 72,
       "edges": 104,
       "faces": 42
-    },
-    "tessellationCounts": {
-      "facePatches": 42,
-      "edgePolylines": 104
     },
     "canonicalSha256": "d941e5707a91b7a8be0049455af81c42e2499cb620c71875435175e1cccf8426"
   },
@@ -305,10 +257,6 @@
       "edges": 310,
       "faces": 144
     },
-    "tessellationCounts": {
-      "facePatches": 144,
-      "edgePolylines": 310
-    },
     "canonicalSha256": "ab158a7eb18ce3eabe4412821683c9eda11ab355b176792a699dbb89752b2859"
   },
   {
@@ -328,10 +276,6 @@
       "vertices": 588,
       "edges": 871,
       "faces": 306
-    },
-    "tessellationCounts": {
-      "facePatches": 306,
-      "edgePolylines": 871
     },
     "canonicalSha256": "639f0d562dc98d38b3ea323e3dc81cad82cbe9d13e8ecf2a8d6db6703183a1eb"
   },
@@ -353,10 +297,6 @@
       "edges": 709,
       "faces": 271
     },
-    "tessellationCounts": {
-      "facePatches": 271,
-      "edgePolylines": 709
-    },
     "canonicalSha256": "df51040864fadab2d106c45a9610a20edc5944f518c90be82e0e7c734457ae35"
   },
   {
@@ -377,10 +317,6 @@
       "edges": 392,
       "faces": 125
     },
-    "tessellationCounts": {
-      "facePatches": 125,
-      "edgePolylines": 392
-    },
     "canonicalSha256": "8ac9846765fabbae05bab97ca0e540e10f58cddf4b1d5daf052fcbb7263c71a5"
   },
   {
@@ -400,10 +336,6 @@
       "vertices": 368,
       "edges": 551,
       "faces": 256
-    },
-    "tessellationCounts": {
-      "facePatches": 256,
-      "edgePolylines": 551
     },
     "canonicalSha256": "3703906cba81c4fba8e935a298fcdb89bbd74c151552ea0d1324eccf429e98a9"
   }

@@ -11,7 +11,7 @@ public sealed class Step242CorpusManifestGateTests
         Assert.Equal("1", manifest.Version);
 
         var entries = manifest.Entries.OrderBy(e => e.Path, StringComparer.Ordinal).ToArray();
-        var reports = entries.Select(Step242CorpusManifestRunner.RunOne).ToArray();
+        var reports = entries.Select(entry => Step242CorpusManifestRunner.RunOne(entry)).ToArray();
 
         Assert.All(reports, r => Assert.False(r.ExceptionEscaped));
 
@@ -86,7 +86,7 @@ public sealed class Step242CorpusManifestGateTests
     {
         var manifest = Step242CorpusManifestRunner.LoadManifest("testdata/step242/manifests/v0.corpus.json");
         var blockerEntry = manifest.Entries.Single(e => e.Id == "exp_cylinder_hole_unsupported");
-        var blockerReport = Step242CorpusManifestRunner.RunOne(blockerEntry);
+        var blockerReport = Step242CorpusManifestRunner.RunOne(blockerEntry, includeDisplayAudit: true);
         Assert.Equal("success", blockerReport.Status);
         Assert.Equal(string.Empty, blockerReport.FirstFailureLayer);
         Assert.Equal("pickerBlockedByTessellationSkip", blockerReport.DisplayStatus);
@@ -94,7 +94,7 @@ public sealed class Step242CorpusManifestGateTests
         Assert.Equal("Audit.Picker", blockerReport.DisplayFirstDiagnostic.Source);
 
         var successEntry = manifest.Entries.Single(e => e.Id == "gen_box_v0");
-        var successReport = Step242CorpusManifestRunner.RunOne(successEntry);
+        var successReport = Step242CorpusManifestRunner.RunOne(successEntry, includeDisplayAudit: true);
         Assert.Equal("success", successReport.Status);
         Assert.Equal(string.Empty, successReport.FirstFailureLayer);
         Assert.Equal("success", successReport.DisplayStatus);

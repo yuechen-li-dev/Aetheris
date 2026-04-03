@@ -81,6 +81,7 @@ public sealed class Step242TessellationRobustnessTests
     }
 
     [Fact]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_Tessellate_UnsupportedComplexPlanarMultiLoop_DoesNotFallbackToOuterLoopFill()
     {
         var text = LoadFixture("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");

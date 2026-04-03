@@ -34,7 +34,7 @@ internal static class Step242CorpusManifestRunner
     {
         var reportEntries = entries
             .OrderBy(e => e.Path, StringComparer.Ordinal)
-            .Select(RunOne)
+            .Select(entry => RunOne(entry))
             .ToArray();
 
         var report = JsonSerializer.Serialize(reportEntries, new JsonSerializerOptions
@@ -46,7 +46,7 @@ internal static class Step242CorpusManifestRunner
         return NormalizeLf(report) + "\n";
     }
 
-    public static Step242CorpusReportEntry RunOne(Step242CorpusManifestEntry entry)
+    public static Step242CorpusReportEntry RunOne(Step242CorpusManifestEntry entry, bool includeDisplayAudit = false)
     {
         var fullPath = Path.Combine(RepoRoot(), entry.Path.Replace('/', Path.DirectorySeparatorChar));
         var text = File.ReadAllText(fullPath, Encoding.UTF8);
@@ -73,7 +73,9 @@ internal static class Step242CorpusManifestRunner
                 return BuildAp242Failure(entry, sizeBytes, "exporter", export.Diagnostics, body);
             }
 
-            var displayAudit = RunDisplayAudit(body);
+            var displayAudit = includeDisplayAudit
+                ? RunDisplayAudit(body)
+                : DisplayAuditResult.NotRun;
             return new Step242CorpusReportEntry(
                 entry.Id,
                 entry.Path,
@@ -384,4 +386,12 @@ internal sealed record DisplayAuditResult(
     string FirstFailureLayer,
     Step242AuditDiagnostic FirstDiagnostic,
     int DiagnosticCount,
-    Step242TessellationCounts TessellationCounts);
+    Step242TessellationCounts TessellationCounts)
+{
+    public static DisplayAuditResult NotRun { get; } = new(
+        "notRun",
+        string.Empty,
+        new Step242AuditDiagnostic("Unknown", "Audit.None", "Not run."),
+        0,
+        Step242TessellationCounts.Zero);
+}

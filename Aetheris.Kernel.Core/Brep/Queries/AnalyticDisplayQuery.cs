@@ -71,9 +71,7 @@ public static class AnalyticDisplayQuery
         var context = tolerance ?? ToleranceContext.Default;
         hit = default;
 
-        if (!body.Bindings.TryGetFaceBinding(faceId, out var binding)
-            || !body.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var surface)
-            || surface is null)
+        if (!AnalyticDisplaySupportPolicy.TryGetSupportedSurface(body, faceId, out var surface, out _))
         {
             return false;
         }

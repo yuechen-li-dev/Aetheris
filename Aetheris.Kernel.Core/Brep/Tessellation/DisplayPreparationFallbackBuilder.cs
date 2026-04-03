@@ -26,6 +26,7 @@ public static class DisplayPreparationFallbackBuilder
         var effectiveScaffoldOptions = scaffoldOptions ?? DisplayPreparationBsplineScaffoldOptions.ConservativeDefaults;
         var fallbackByFace = tessellation.Value.FacePatches.ToDictionary(patch => patch.FaceId);
         var scaffoldBuilder = new BsplineUvGridScaffoldBuilder();
+        var trimMaskExtractor = new UvTrimMaskExtractor();
 
         foreach (var face in body.Topology.Faces.OrderBy(f => f.Id.Value))
         {
@@ -44,10 +45,21 @@ public static class DisplayPreparationFallbackBuilder
                 continue;
             }
 
+            var trimMaskResult = trimMaskExtractor.TryExtract(body, face.Id, bspline);
+            if (!trimMaskResult.IsSuccess || trimMaskResult.TrimMask is null)
+            {
+                fallbackByFace[face.Id] = existingPatch with
+                {
+                    Source = DisplayFaceMeshSource.Tessellator,
+                    ScaffoldRejectionReason = $"TrimMaskExtraction:{trimMaskResult.FailureReason}",
+                };
+                continue;
+            }
+
             var request = new BsplineUvGridScaffoldBuildRequest(
                 effectiveScaffoldOptions.USegments,
                 effectiveScaffoldOptions.VSegments,
-                TrimMask: null,
+                TrimMask: trimMaskResult.TrimMask,
                 ReferencePositions: existingPatch.Positions,
                 ReferenceTriangleCount: existingPatch.TriangleIndices.Count / 3,
                 Acceptance: effectiveScaffoldOptions.Acceptance);
@@ -90,7 +102,7 @@ public static class DisplayPreparationFallbackBuilder
         }
 
         var loopIds = body.GetLoopIds(faceId);
-        return loopIds.Count == 1;
+        return loopIds.Count >= 1 && loopIds.Count <= 2;
     }
 
     private static IReadOnlyList<Vector3D> ComputeVertexNormals(IReadOnlyList<Point3D> positions, IReadOnlyList<int> triangleIndices)

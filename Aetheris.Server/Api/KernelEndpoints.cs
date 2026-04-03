@@ -302,7 +302,7 @@ public static class KernelEndpoints
 
                 if (lane is not "analytic-only")
                 {
-                    var tessellateKernel = BrepDisplayTessellator.Tessellate(body, ApiMappings.BuildTessellationOptions(request?.TessellationOptions));
+                    var tessellateKernel = DisplayPreparationFallbackBuilder.Build(body, ApiMappings.BuildTessellationOptions(request?.TessellationOptions));
                     if (!tessellateKernel.IsSuccess)
                     {
                         return ApiMappings.KernelFailure(tessellateKernel.Diagnostics);

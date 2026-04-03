@@ -62,7 +62,9 @@ public static class ApiMappings
                 p.FaceId.Value,
                 p.Positions.Select(position => ToPointDto(transform.Apply(position))).ToArray(),
                 p.Normals.Select(normal => ToVectorDto(transform.Apply(normal))).ToArray(),
-                p.TriangleIndices.ToArray())).ToArray(),
+                p.TriangleIndices.ToArray(),
+                p.Source.ToString(),
+                p.ScaffoldRejectionReason)).ToArray(),
             result.EdgePolylines.Select(e => new EdgePolylineDto(
                 e.EdgeId.Value,
                 e.Points.Select(point => ToPointDto(transform.Apply(point))).ToArray(),

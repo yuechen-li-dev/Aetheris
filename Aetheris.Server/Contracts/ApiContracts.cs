@@ -68,7 +68,13 @@ public sealed record TessellateRequestDto(TessellationOptionsDto? Options);
 
 public sealed record TessellationResponseDto(IReadOnlyList<FacePatchDto> FacePatches, IReadOnlyList<EdgePolylineDto> EdgePolylines);
 
-public sealed record FacePatchDto(int FaceId, IReadOnlyList<Point3Dto> Positions, IReadOnlyList<Vector3Dto> Normals, IReadOnlyList<int> TriangleIndices);
+public sealed record FacePatchDto(
+    int FaceId,
+    IReadOnlyList<Point3Dto> Positions,
+    IReadOnlyList<Vector3Dto> Normals,
+    IReadOnlyList<int> TriangleIndices,
+    string Source,
+    string? ScaffoldRejectionReason);
 
 public sealed record EdgePolylineDto(int EdgeId, IReadOnlyList<Point3Dto> Points, bool IsClosed);
 

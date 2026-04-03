@@ -49,54 +49,52 @@ internal sealed class BsplineUvGridScaffoldBuilder
             return BsplineUvGridScaffoldResult.Rejected(BsplineUvGridScaffoldRejectionReason.UnsupportedInput, BsplineUvGridScaffoldMetrics.Empty, mesh);
         }
 
-        var degenerateRatio = ComputeDegenerateTriangleRatio(mesh, request.DegenerateTriangleAreaTolerance);
-        if (degenerateRatio > request.MaxDegenerateTriangleRatio)
+        var metrics = new BsplineUvGridScaffoldMetrics(
+            ComputeDegenerateTriangleRatio(mesh, (request.Acceptance ?? BsplineUvGridScaffoldAcceptanceThresholds.ConservativeDefaults).DegenerateTriangleAreaTolerance),
+            ComputeTrimLeakageCount(mesh, request.TrimMask),
+            ComputeBoundaryDeviation(mesh, request.TrimMask),
+            ComputeFidelityError(mesh, request.ReferencePositions),
+            ComputeDensityRatio(mesh, request.ReferenceTriangleCount));
+
+        var rejectionReason = EvaluateAcceptance(metrics, request.Acceptance ?? BsplineUvGridScaffoldAcceptanceThresholds.ConservativeDefaults);
+        if (rejectionReason != BsplineUvGridScaffoldRejectionReason.None)
         {
-            return BsplineUvGridScaffoldResult.Rejected(
-                BsplineUvGridScaffoldRejectionReason.ExcessiveDegenerateTriangles,
-                new BsplineUvGridScaffoldMetrics(degenerateRatio, 0, 0d, 0d, 1d),
-                mesh);
+            return BsplineUvGridScaffoldResult.Rejected(rejectionReason, metrics, mesh);
         }
 
-        var leakageCount = ComputeTrimLeakageCount(mesh, request.TrimMask);
-        if (leakageCount > 0)
+        return BsplineUvGridScaffoldResult.Accepted(mesh, metrics);
+    }
+
+    private static BsplineUvGridScaffoldRejectionReason EvaluateAcceptance(
+        BsplineUvGridScaffoldMetrics metrics,
+        BsplineUvGridScaffoldAcceptanceThresholds thresholds)
+    {
+        if (metrics.DegenerateTriangleRatio > thresholds.MaxDegenerateTriangleRatio)
         {
-            return BsplineUvGridScaffoldResult.Rejected(
-                BsplineUvGridScaffoldRejectionReason.TrimLeakage,
-                new BsplineUvGridScaffoldMetrics(degenerateRatio, leakageCount, 0d, 0d, 1d),
-                mesh);
+            return BsplineUvGridScaffoldRejectionReason.ExcessiveDegenerateTriangles;
         }
 
-        var boundaryDeviation = ComputeBoundaryDeviation(mesh, request.TrimMask);
-        if (boundaryDeviation > request.MaxBoundaryDeviationUv)
+        if (metrics.LeakageTriangleCount > 0)
         {
-            return BsplineUvGridScaffoldResult.Rejected(
-                BsplineUvGridScaffoldRejectionReason.BoundaryDeviationTooHigh,
-                new BsplineUvGridScaffoldMetrics(degenerateRatio, leakageCount, boundaryDeviation, 0d, 1d),
-                mesh);
+            return BsplineUvGridScaffoldRejectionReason.TrimLeakage;
         }
 
-        var fidelityError = ComputeFidelityError(mesh, request.ReferencePositions);
-        if (fidelityError > request.MaxFidelityError)
+        if (metrics.BoundaryDeviationUv > thresholds.MaxBoundaryDeviationUv)
         {
-            return BsplineUvGridScaffoldResult.Rejected(
-                BsplineUvGridScaffoldRejectionReason.FidelityTooLow,
-                new BsplineUvGridScaffoldMetrics(degenerateRatio, leakageCount, boundaryDeviation, fidelityError, 1d),
-                mesh);
+            return BsplineUvGridScaffoldRejectionReason.BoundaryDeviationTooHigh;
         }
 
-        var densityRatio = ComputeDensityRatio(mesh, request.ReferenceTriangleCount);
-        if (densityRatio > request.MaxTriangleDensityRatioVsFallback)
+        if (metrics.FidelityError > thresholds.MaxFidelityError)
         {
-            return BsplineUvGridScaffoldResult.Rejected(
-                BsplineUvGridScaffoldRejectionReason.TooDenseVsFallback,
-                new BsplineUvGridScaffoldMetrics(degenerateRatio, leakageCount, boundaryDeviation, fidelityError, densityRatio),
-                mesh);
+            return BsplineUvGridScaffoldRejectionReason.FidelityTooLow;
         }
 
-        return BsplineUvGridScaffoldResult.Accepted(
-            mesh,
-            new BsplineUvGridScaffoldMetrics(degenerateRatio, leakageCount, boundaryDeviation, fidelityError, densityRatio));
+        if (metrics.TriangleDensityRatio > thresholds.MaxTriangleDensityRatioVsFallback)
+        {
+            return BsplineUvGridScaffoldRejectionReason.TooDenseVsFallback;
+        }
+
+        return BsplineUvGridScaffoldRejectionReason.None;
     }
 
     private static List<int> BuildTriangles(BsplineUvGridScaffoldBuildRequest request, IReadOnlyList<UvPoint> uvPoints, int columns)
@@ -306,11 +304,17 @@ internal sealed record BsplineUvGridScaffoldBuildRequest(
     UvTrimMask? TrimMask = null,
     IReadOnlyList<Point3D>? ReferencePositions = null,
     int? ReferenceTriangleCount = null,
+    BsplineUvGridScaffoldAcceptanceThresholds? Acceptance = null);
+
+internal sealed record BsplineUvGridScaffoldAcceptanceThresholds(
     double MaxDegenerateTriangleRatio = 0.15d,
     double DegenerateTriangleAreaTolerance = 1e-12d,
     double MaxBoundaryDeviationUv = 0.06d,
     double MaxFidelityError = 0.10d,
-    double MaxTriangleDensityRatioVsFallback = 1.10d);
+    double MaxTriangleDensityRatioVsFallback = 1.10d)
+{
+    internal static BsplineUvGridScaffoldAcceptanceThresholds ConservativeDefaults { get; } = new();
+}
 
 internal sealed record BsplineUvGridScaffoldMesh(
     IReadOnlyList<Point3D> Positions,

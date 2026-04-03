@@ -51,13 +51,29 @@ public sealed class Step242NistAuditHarnessTests
     }
 
     [Fact]
-    public void NistCorpus_RepresentativeDisplayBlocker_DoesNotFailAp242Lane()
+    public void NistCorpus_RepresentativeAp242Lane_DoesNotRequireDisplayAudit()
     {
         const string relativePath = "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp";
         var entry = BuildNistEntry(relativePath);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
         var second = Step242CorpusManifestRunner.RunOne(entry);
+
+        Assert.Equal("success", first.Status);
+        Assert.Equal(string.Empty, first.FirstFailureLayer);
+        Assert.Equal("notRun", first.DisplayStatus);
+        Assert.Equal(string.Empty, first.DisplayFirstFailureLayer);
+        Assert.Equal(first.DisplayStatus, second.DisplayStatus);
+    }
+
+    [Fact]
+    public void NistCorpus_RepresentativeDisplayBlocker_RemainsVisibleInDisplayLane()
+    {
+        const string relativePath = "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp";
+        var entry = BuildNistEntry(relativePath);
+
+        var first = Step242CorpusManifestRunner.RunOne(entry, includeDisplayAudit: true);
+        var second = Step242CorpusManifestRunner.RunOne(entry, includeDisplayAudit: true);
 
         Assert.Equal("success", first.Status);
         Assert.Equal(string.Empty, first.FirstFailureLayer);
@@ -111,7 +127,6 @@ public sealed class Step242NistAuditHarnessTests
             DiagnosticCount: r.DiagnosticCount,
             ExceptionEscaped: r.ExceptionEscaped,
             TopologyCounts: r.TopologyCounts,
-            TessellationCounts: r.TessellationCounts,
             CanonicalSha256: r.CanonicalSha256);
     }
 
@@ -144,6 +159,5 @@ public sealed class Step242NistAuditHarnessTests
         int DiagnosticCount,
         bool ExceptionEscaped,
         Step242TopologyCounts TopologyCounts,
-        Step242TessellationCounts TessellationCounts,
         string? CanonicalSha256);
 }

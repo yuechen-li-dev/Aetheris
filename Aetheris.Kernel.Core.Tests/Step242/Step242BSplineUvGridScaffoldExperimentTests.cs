@@ -15,6 +15,8 @@ public sealed class Step242BSplineUvGridScaffoldExperimentTests
     private const int VSegments = 12;
     private const int HarderUSegments = 16;
     private const int HarderVSegments = 16;
+    private const int TrimmedUSegments = 20;
+    private const int TrimmedVSegments = 20;
 
     [Fact]
     public void BspineUvGridScaffold_RepresentativeFace_IsDeterministic_AndComparableToCurrentTessellationPath()
@@ -109,6 +111,51 @@ public sealed class Step242BSplineUvGridScaffoldExperimentTests
             $"Expected UV scaffold triangle count to stay lower. scaffold={first.TriangleIndices.Count / 3}, tessellation={referencePatch.TriangleIndices.Count / 3}");
     }
 
+    [Fact]
+    public void BspineUvGridScaffold_M17h3_TrimmedFaceWithInnerHole_UsesUvMasking_AndStaysComparableToCurrentTessellationPath()
+    {
+        var body = CreateTrimmedPlanarBsplineBodyWithRectangularHole(
+            out var outerLoopUv,
+            out var innerHoleUv);
+        var face = Assert.Single(body.Topology.Faces);
+        var surface = GetBsplineSurface(body, face.Id);
+
+        var first = BuildMaskedUvGridScaffold(
+            surface,
+            TrimmedUSegments,
+            TrimmedVSegments,
+            outerLoopUv,
+            [innerHoleUv]);
+        var second = BuildMaskedUvGridScaffold(
+            surface,
+            TrimmedUSegments,
+            TrimmedVSegments,
+            outerLoopUv,
+            [innerHoleUv]);
+
+        Assert.Equal(first.Positions, second.Positions);
+        Assert.Equal(first.UvPoints, second.UvPoints);
+        Assert.Equal(first.TriangleIndices, second.TriangleIndices);
+        Assert.NotEmpty(first.TriangleIndices);
+        Assert.True(first.TriangleIndices.Count / 3 < TrimmedUSegments * TrimmedVSegments * 2);
+
+        AssertTrimMaskSanity(first, innerHoleUv);
+        AssertHoleBoundaryAlignment(first, innerHoleUv);
+
+        var tessellation = BrepDisplayTessellator.Tessellate(body);
+        Assert.True(tessellation.IsSuccess);
+        var referencePatch = Assert.Single(tessellation.Value.FacePatches, patch => patch.FaceId == face.Id);
+        Assert.NotEmpty(referencePatch.Positions);
+        Assert.NotEmpty(referencePatch.TriangleIndices);
+
+        var scaffoldUsedPositions = CollectReferencedPositions(first);
+        var scaffoldToReference = ComputeMeanNearestDistance(scaffoldUsedPositions, referencePatch.Positions);
+        var referenceToScaffold = ComputeMeanNearestDistance(referencePatch.Positions, scaffoldUsedPositions);
+
+        Assert.True(scaffoldToReference <= 0.10d, $"Scaffold->tessellation mean nearest distance too large: {scaffoldToReference:0.########}");
+        Assert.True(referenceToScaffold <= 0.10d, $"Tessellation->scaffold mean nearest distance too large: {referenceToScaffold:0.########}");
+    }
+
     private static BrepBody ImportRepresentativeBsplineBody()
     {
         // Representative case choice for M17h experiment:
@@ -200,6 +247,93 @@ public sealed class Step242BSplineUvGridScaffoldExperimentTests
         return surface.BSplineSurfaceWithKnots!;
     }
 
+    private static BrepBody CreateTrimmedPlanarBsplineBodyWithRectangularHole(
+        out IReadOnlyList<(double U, double V)> outerLoopUv,
+        out IReadOnlyList<(double U, double V)> innerHoleUv)
+    {
+        outerLoopUv =
+        [
+            (0d, 0d),
+            (1d, 0d),
+            (1d, 1d),
+            (0d, 1d),
+        ];
+
+        innerHoleUv =
+        [
+            (0.35d, 0.35d),
+            (0.65d, 0.35d),
+            (0.65d, 0.65d),
+            (0.35d, 0.65d),
+        ];
+
+        var surface = CreatePlanarBsplineSurface();
+        var builder = new TopologyBuilder();
+        var geometry = new BrepGeometryStore();
+        var bindings = new BrepBindingModel();
+        var vertexPoints = new Dictionary<VertexId, Point3D>();
+        var nextCurveId = 1;
+
+        var outerLoopId = AddUvPolygonLoop(outerLoopUv, surface, builder, geometry, bindings, vertexPoints, ref nextCurveId);
+        var innerLoopId = AddUvPolygonLoop(innerHoleUv, surface, builder, geometry, bindings, vertexPoints, ref nextCurveId);
+
+        var faceId = builder.AddFace([outerLoopId, innerLoopId]);
+        var shell = builder.AddShell([faceId]);
+        builder.AddBody([shell]);
+
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromBSplineSurfaceWithKnots(surface));
+        bindings.AddFaceBinding(new FaceGeometryBinding(faceId, new SurfaceGeometryId(1)));
+
+        return new BrepBody(builder.Model, geometry, bindings, vertexPoints);
+    }
+
+    private static LoopId AddUvPolygonLoop(
+        IReadOnlyList<(double U, double V)> uvPolygon,
+        BSplineSurfaceWithKnots surface,
+        TopologyBuilder builder,
+        BrepGeometryStore geometry,
+        BrepBindingModel bindings,
+        IDictionary<VertexId, Point3D> vertexPoints,
+        ref int nextCurveId)
+    {
+        var loopId = builder.AllocateLoopId();
+        var edgeIds = new List<EdgeId>(uvPolygon.Count);
+        var coedgeIds = new List<CoedgeId>(uvPolygon.Count);
+        var vertices = uvPolygon.Select(uv => surface.Evaluate(uv.U, uv.V)).ToArray();
+        var vertexIds = vertices
+            .Select(point =>
+            {
+                var vertexId = builder.AddVertex();
+                vertexPoints[vertexId] = point;
+                return vertexId;
+            })
+            .ToArray();
+
+        for (var i = 0; i < uvPolygon.Count; i++)
+        {
+            var startVertex = vertexIds[i];
+            var endVertex = vertexIds[(i + 1) % uvPolygon.Count];
+            var edgeId = builder.AddEdge(startVertex, endVertex);
+            edgeIds.Add(edgeId);
+            var line = CreateLine(vertices[i], vertices[(i + 1) % uvPolygon.Count], out var length);
+            var geometryId = new CurveGeometryId(nextCurveId++);
+            geometry.AddCurve(geometryId, CurveGeometry.FromLine(line));
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, geometryId, new ParameterInterval(0d, length)));
+
+            coedgeIds.Add(builder.AllocateCoedgeId());
+        }
+
+        for (var i = 0; i < edgeIds.Count; i++)
+        {
+            var next = coedgeIds[(i + 1) % coedgeIds.Count];
+            var prev = coedgeIds[(i - 1 + coedgeIds.Count) % coedgeIds.Count];
+            builder.AddCoedge(new Coedge(coedgeIds[i], edgeIds[i], loopId, next, prev, IsReversed: false));
+        }
+
+        builder.AddLoop(new Loop(loopId, coedgeIds));
+        return loopId;
+    }
+
     private static ScaffoldMesh BuildUvGridScaffold(BSplineSurfaceWithKnots surface, int uSegments, int vSegments, bool smoothInteriorOnce)
     {
         var rows = uSegments + 1;
@@ -244,6 +378,63 @@ public sealed class Step242BSplineUvGridScaffoldExperimentTests
         }
 
         return new ScaffoldMesh(positions, triangles);
+    }
+
+    private static ScaffoldMesh BuildMaskedUvGridScaffold(
+        BSplineSurfaceWithKnots surface,
+        int uSegments,
+        int vSegments,
+        IReadOnlyList<(double U, double V)> outerLoopUv,
+        IReadOnlyList<IReadOnlyList<(double U, double V)>> innerLoopUvs)
+    {
+        var rows = uSegments + 1;
+        var cols = vSegments + 1;
+        var positions = new Point3D[rows * cols];
+        var uvPoints = new (double U, double V)[rows * cols];
+
+        for (var uIndex = 0; uIndex < rows; uIndex++)
+        {
+            var tu = (double)uIndex / uSegments;
+            var u = Lerp(surface.DomainStartU, surface.DomainEndU, tu);
+            for (var vIndex = 0; vIndex < cols; vIndex++)
+            {
+                var tv = (double)vIndex / vSegments;
+                var v = Lerp(surface.DomainStartV, surface.DomainEndV, tv);
+                var index = GridIndex(uIndex, vIndex, cols);
+                uvPoints[index] = (u, v);
+                positions[index] = surface.Evaluate(u, v);
+            }
+        }
+
+        var triangles = new List<int>(uSegments * vSegments * 6);
+        for (var uIndex = 0; uIndex < uSegments; uIndex++)
+        {
+            for (var vIndex = 0; vIndex < vSegments; vIndex++)
+            {
+                var bottomLeft = GridIndex(uIndex, vIndex, cols);
+                var bottomRight = GridIndex(uIndex + 1, vIndex, cols);
+                var topLeft = GridIndex(uIndex, vIndex + 1, cols);
+                var topRight = GridIndex(uIndex + 1, vIndex + 1, cols);
+
+                if (!PointInsideTrimRegion(uvPoints[bottomLeft], outerLoopUv, innerLoopUvs)
+                    || !PointInsideTrimRegion(uvPoints[bottomRight], outerLoopUv, innerLoopUvs)
+                    || !PointInsideTrimRegion(uvPoints[topLeft], outerLoopUv, innerLoopUvs)
+                    || !PointInsideTrimRegion(uvPoints[topRight], outerLoopUv, innerLoopUvs))
+                {
+                    continue;
+                }
+
+                triangles.Add(bottomLeft);
+                triangles.Add(bottomRight);
+                triangles.Add(topRight);
+
+                triangles.Add(bottomLeft);
+                triangles.Add(topRight);
+                triangles.Add(topLeft);
+            }
+        }
+
+        return new ScaffoldMesh(positions, triangles, uvPoints);
     }
 
     private static Point3D[] SmoothInteriorOnce(IReadOnlyList<Point3D> positions, int uSegments, int vSegments)
@@ -393,6 +584,146 @@ public sealed class Step242BSplineUvGridScaffoldExperimentTests
         return sum / source.Count;
     }
 
+    private static IReadOnlyList<Point3D> CollectReferencedPositions(ScaffoldMesh scaffold)
+    {
+        var used = scaffold.TriangleIndices
+            .Distinct()
+            .OrderBy(index => index)
+            .Select(index => scaffold.Positions[index])
+            .ToArray();
+        Assert.NotEmpty(used);
+        return used;
+    }
+
+    private static void AssertTrimMaskSanity(
+        ScaffoldMesh scaffold,
+        IReadOnlyList<(double U, double V)> innerHoleUv)
+    {
+        Assert.NotNull(scaffold.UvPoints);
+        var triangleCount = scaffold.TriangleIndices.Count / 3;
+        Assert.True(triangleCount > 0);
+
+        for (var i = 0; i < scaffold.TriangleIndices.Count; i += 3)
+        {
+            var a = scaffold.UvPoints[scaffold.TriangleIndices[i]];
+            var b = scaffold.UvPoints[scaffold.TriangleIndices[i + 1]];
+            var c = scaffold.UvPoints[scaffold.TriangleIndices[i + 2]];
+            var centroid = ((a.U + b.U + c.U) / 3d, (a.V + b.V + c.V) / 3d);
+            var insideHole = PointInPolygon(innerHoleUv, centroid);
+            Assert.False(insideHole, $"Trim leakage: triangle centroid {centroid} is inside hole.");
+        }
+    }
+
+    private static void AssertHoleBoundaryAlignment(
+        ScaffoldMesh scaffold,
+        IReadOnlyList<(double U, double V)> innerHoleUv)
+    {
+        Assert.NotNull(scaffold.UvPoints);
+        var usedIndices = scaffold.TriangleIndices.Distinct().ToHashSet();
+        var usedUv = usedIndices.Select(index => scaffold.UvPoints[index]).ToArray();
+        Assert.NotEmpty(usedUv);
+
+        const double maxAllowedUvEdgeDistance = 0.051d;
+        for (var i = 0; i < innerHoleUv.Count; i++)
+        {
+            var start = innerHoleUv[i];
+            var end = innerHoleUv[(i + 1) % innerHoleUv.Count];
+            var nearest = usedUv.Min(sample => DistancePointToSegment(sample, start, end));
+            Assert.True(
+                nearest <= maxAllowedUvEdgeDistance,
+                $"Expected scaffold UV boundary samples near hole edge {start}->{end}, nearest={nearest:0.########}");
+        }
+    }
+
+    private static bool PointInsideTrimRegion(
+        (double U, double V) point,
+        IReadOnlyList<(double U, double V)> outerLoopUv,
+        IReadOnlyList<IReadOnlyList<(double U, double V)>> innerLoopUvs)
+    {
+        if (!PointInPolygon(outerLoopUv, point))
+        {
+            return false;
+        }
+
+        foreach (var innerLoop in innerLoopUvs)
+        {
+            if (PointInPolygon(innerLoop, point))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool PointInPolygon(IReadOnlyList<(double U, double V)> polygon, (double U, double V) point)
+    {
+        var inside = false;
+        for (var i = 0; i < polygon.Count; i++)
+        {
+            var a = polygon[i];
+            var b = polygon[(i + 1) % polygon.Count];
+            if (IsPointOnSegment(point, a, b))
+            {
+                return true;
+            }
+
+            var crosses = ((a.V > point.V) != (b.V > point.V))
+                && (point.U < (((b.U - a.U) * (point.V - a.V)) / (b.V - a.V)) + a.U);
+            if (crosses)
+            {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    private static bool IsPointOnSegment((double U, double V) point, (double U, double V) a, (double U, double V) b)
+    {
+        const double tolerance = 1e-9d;
+        var cross = ((point.U - a.U) * (b.V - a.V)) - ((point.V - a.V) * (b.U - a.U));
+        if (double.Abs(cross) > tolerance)
+        {
+            return false;
+        }
+
+        var dot = ((point.U - a.U) * (b.U - a.U)) + ((point.V - a.V) * (b.V - a.V));
+        if (dot < -tolerance)
+        {
+            return false;
+        }
+
+        var lengthSquared = ((b.U - a.U) * (b.U - a.U)) + ((b.V - a.V) * (b.V - a.V));
+        return dot <= lengthSquared + tolerance;
+    }
+
+    private static double UvDistance((double U, double V) left, (double U, double V) right)
+    {
+        var du = left.U - right.U;
+        var dv = left.V - right.V;
+        return double.Sqrt((du * du) + (dv * dv));
+    }
+
+    private static double DistancePointToSegment(
+        (double U, double V) point,
+        (double U, double V) segmentStart,
+        (double U, double V) segmentEnd)
+    {
+        var segmentU = segmentEnd.U - segmentStart.U;
+        var segmentV = segmentEnd.V - segmentStart.V;
+        var segmentLengthSquared = (segmentU * segmentU) + (segmentV * segmentV);
+        if (segmentLengthSquared <= 1e-12d)
+        {
+            return UvDistance(point, segmentStart);
+        }
+
+        var projection = (((point.U - segmentStart.U) * segmentU) + ((point.V - segmentStart.V) * segmentV)) / segmentLengthSquared;
+        projection = double.Clamp(projection, 0d, 1d);
+        var closest = (segmentStart.U + (projection * segmentU), segmentStart.V + (projection * segmentV));
+        return UvDistance(point, closest);
+    }
+
     private static void AssertBoundaryLooksReasonableForHarderCurvedFace(
         ScaffoldMesh scaffold,
         BrepBody body,
@@ -474,6 +805,27 @@ public sealed class Step242BSplineUvGridScaffoldExperimentTests
             knotValuesV: [0d, 1d],
             knotSpec: "UNSPECIFIED");
 
+    private static BSplineSurfaceWithKnots CreatePlanarBsplineSurface()
+        => new(
+            degreeU: 3,
+            degreeV: 3,
+            controlPoints:
+            [
+                [new Point3D(0.00d, 0.00d, 0.00d), new Point3D(0.00d, 0.33d, 0.00d), new Point3D(0.00d, 0.66d, 0.00d), new Point3D(0.00d, 1.00d, 0.00d)],
+                [new Point3D(0.33d, 0.00d, 0.00d), new Point3D(0.33d, 0.33d, 0.00d), new Point3D(0.33d, 0.66d, 0.00d), new Point3D(0.33d, 1.00d, 0.00d)],
+                [new Point3D(0.66d, 0.00d, 0.00d), new Point3D(0.66d, 0.33d, 0.00d), new Point3D(0.66d, 0.66d, 0.00d), new Point3D(0.66d, 1.00d, 0.00d)],
+                [new Point3D(1.00d, 0.00d, 0.00d), new Point3D(1.00d, 0.33d, 0.00d), new Point3D(1.00d, 0.66d, 0.00d), new Point3D(1.00d, 1.00d, 0.00d)],
+            ],
+            surfaceForm: "UNSPECIFIED",
+            uClosed: false,
+            vClosed: false,
+            selfIntersect: false,
+            knotMultiplicitiesU: [4, 4],
+            knotMultiplicitiesV: [4, 4],
+            knotValuesU: [0d, 1d],
+            knotValuesV: [0d, 1d],
+            knotSpec: "UNSPECIFIED");
+
     private static int GridIndex(int uIndex, int vIndex, int columns)
         => (uIndex * columns) + vIndex;
 
@@ -482,5 +834,6 @@ public sealed class Step242BSplineUvGridScaffoldExperimentTests
 
     private sealed record ScaffoldMesh(
         IReadOnlyList<Point3D> Positions,
-        IReadOnlyList<int> TriangleIndices);
+        IReadOnlyList<int> TriangleIndices,
+        IReadOnlyList<(double U, double V)>? UvPoints = null);
 }

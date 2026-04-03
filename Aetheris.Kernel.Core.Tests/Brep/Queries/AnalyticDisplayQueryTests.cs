@@ -30,6 +30,43 @@ public sealed class AnalyticDisplayQueryTests
         Assert.Equal(-1d, faceHit.Normal.Z, 12);
     }
 
+
+    [Fact]
+    public void PlanarFace_RotatedBoxSide_RejectsOutOfDomainPlaneHit()
+    {
+        var rotated = TransformBody(BrepPrimitives.CreateBox(2d, 2d, 2d).Value, Transform3D.CreateRotationZ(double.Pi / 4d));
+        var sideFaceId = rotated.Topology.Faces
+            .Select(face => face.Id)
+            .First(faceId =>
+            {
+                var surface = rotated.GetFaceSurface(faceId);
+                return surface.Kind == SurfaceGeometryKind.Plane
+                    && surface.Plane is { } plane
+                    && double.Abs(plane.Normal.Z) < 0.1d;
+            });
+
+        var plane = rotated.GetFaceSurface(sideFaceId).Plane!.Value;
+        var outsideOnPlane = plane.Origin + (plane.VAxis.ToVector() * 5d);
+        var ray = new Ray3D(outsideOnPlane - (plane.Normal.ToVector() * 3d), Direction3D.Create(plane.Normal.ToVector()));
+
+        Assert.False(AnalyticDisplayQuery.TryIntersectFace(rotated, sideFaceId, ray, out _));
+    }
+
+    [Fact]
+    public void PlanarFace_CircularCap_StillUsesAnalyticDomain()
+    {
+        var cylinder = BrepPrimitives.CreateCylinder(2d, 6d).Value;
+        var capFaceId = cylinder.Topology.Faces
+            .Select(face => face.Id)
+            .First(faceId => cylinder.GetFaceSurface(faceId).Kind == SurfaceGeometryKind.Plane);
+
+        var hitRay = new Ray3D(new Point3D(0d, 0d, 10d), Direction3D.Create(new Vector3D(0d, 0d, -1d)));
+        var missRay = new Ray3D(new Point3D(3d, 0d, 10d), Direction3D.Create(new Vector3D(0d, 0d, -1d)));
+
+        Assert.True(AnalyticDisplayQuery.TryIntersectFace(cylinder, capFaceId, hitRay, out _));
+        Assert.False(AnalyticDisplayQuery.TryIntersectFace(cylinder, capFaceId, missRay, out _));
+    }
+
     [Fact]
     public void Sphere_HitMissAndNormal()
     {

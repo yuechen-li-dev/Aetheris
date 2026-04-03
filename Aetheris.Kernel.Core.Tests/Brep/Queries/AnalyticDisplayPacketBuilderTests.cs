@@ -23,6 +23,23 @@ public sealed class AnalyticDisplayPacketBuilderTests
         Assert.All(packet.AnalyticFaces, face => Assert.Equal(SurfaceGeometryKind.Plane, face.SurfaceKind));
     }
 
+
+    [Fact]
+    public void Build_RotatedBoxBody_RoutesNonAxisPlanarFacesToFallback()
+    {
+        var body = TransformBody(BrepPrimitives.CreateBox(2d, 2d, 2d).Value, Transform3D.CreateRotationX(double.Pi / 4d));
+
+        var packet = AnalyticDisplayPacketBuilder.Build(body);
+
+        Assert.NotEmpty(packet.AnalyticFaces);
+        Assert.NotEmpty(packet.FallbackFaces);
+        Assert.All(packet.FallbackFaces, face =>
+        {
+            Assert.Equal(AnalyticDisplayFallbackReason.UnsupportedTrim, face.Reason);
+            Assert.Equal(SurfaceGeometryKind.Plane, face.SurfaceKind);
+        });
+    }
+
     [Fact]
     public void Build_BoxCylinderThroughHole_ProducesPlanarAndCylindricalAnalyticEntries()
     {

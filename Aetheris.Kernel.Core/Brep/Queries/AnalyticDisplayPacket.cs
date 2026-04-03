@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Topology;
@@ -110,7 +111,12 @@ public static class AnalyticDisplayPacketBuilder
 
     private static bool IsSupportedTrim(BrepBody body, FaceId faceId, SurfaceGeometryKind kind)
     {
-        if (kind is SurfaceGeometryKind.Plane or SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus)
+        if (kind is SurfaceGeometryKind.Plane)
+        {
+            return IsSupportedPlanarTrim(body, faceId);
+        }
+
+        if (kind is SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus)
         {
             return true;
         }
@@ -130,6 +136,51 @@ public static class AnalyticDisplayPacketBuilder
                 || !body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve)
                 || curve is null
                 || (curve.Kind is not CurveGeometryKind.Line3 and not CurveGeometryKind.Circle3))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+
+    private static bool IsSupportedPlanarTrim(BrepBody body, FaceId faceId)
+    {
+        if (!body.Bindings.TryGetFaceBinding(faceId, out var faceBinding)
+            || !body.Geometry.TryGetSurface(faceBinding.SurfaceGeometryId, out var surface)
+            || surface?.Plane is not PlaneSurface plane
+            || !body.Topology.TryGetFace(faceId, out var face)
+            || face is null)
+        {
+            return false;
+        }
+
+        var normal = plane.Normal.ToVector();
+        var axisAlignedPlane = double.Abs(normal.X) > 0.9d || double.Abs(normal.Y) > 0.9d || double.Abs(normal.Z) > 0.9d;
+        if (axisAlignedPlane)
+        {
+            return true;
+        }
+
+        if (face.LoopIds.Count != 1)
+        {
+            return false;
+        }
+
+        var loop = body.Topology.GetLoop(face.LoopIds[0]);
+        if (loop.CoedgeIds.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var coedgeId in loop.CoedgeIds)
+        {
+            var edgeId = body.Topology.GetCoedge(coedgeId).EdgeId;
+            if (!body.Bindings.TryGetEdgeBinding(edgeId, out var edgeBinding)
+                || !body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve)
+                || curve is null
+                || curve.Kind != CurveGeometryKind.Circle3)
             {
                 return false;
             }

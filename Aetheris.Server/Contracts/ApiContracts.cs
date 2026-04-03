@@ -76,6 +76,26 @@ public sealed record DisplayPrepareRequestDto(TessellationOptionsDto? Tessellati
 
 public sealed record AnalyticDisplayFaceDomainHintDto(double? MinV, double? MaxV);
 
+public sealed record AnalyticDisplayPlaneGeometryDto(
+    Point3Dto Origin,
+    Vector3Dto Normal,
+    Vector3Dto UAxis,
+    Vector3Dto VAxis);
+
+public sealed record AnalyticDisplayCylinderGeometryDto(
+    Point3Dto Origin,
+    Vector3Dto Axis,
+    Vector3Dto XAxis,
+    Vector3Dto YAxis,
+    double Radius);
+
+public sealed record AnalyticDisplayConeGeometryDto(
+    Point3Dto Apex,
+    Vector3Dto Axis,
+    Vector3Dto XAxis,
+    Vector3Dto YAxis,
+    double SemiAngleRadians);
+
 public sealed record AnalyticDisplayFaceDto(
     int FaceId,
     int ShellId,
@@ -83,7 +103,10 @@ public sealed record AnalyticDisplayFaceDto(
     int SurfaceGeometryId,
     string SurfaceKind,
     int LoopCount,
-    AnalyticDisplayFaceDomainHintDto? DomainHint);
+    AnalyticDisplayFaceDomainHintDto? DomainHint,
+    AnalyticDisplayPlaneGeometryDto? PlaneGeometry,
+    AnalyticDisplayCylinderGeometryDto? CylinderGeometry,
+    AnalyticDisplayConeGeometryDto? ConeGeometry);
 
 public sealed record AnalyticDisplayFallbackFaceDto(
     int FaceId,

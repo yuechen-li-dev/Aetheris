@@ -108,6 +108,29 @@ export interface AnalyticDisplayFaceDomainHintDto {
     maxV: number | null;
 }
 
+export interface AnalyticDisplayPlaneGeometryDto {
+    origin: Point3Dto;
+    normal: Vector3Dto;
+    uAxis: Vector3Dto;
+    vAxis: Vector3Dto;
+}
+
+export interface AnalyticDisplayCylinderGeometryDto {
+    origin: Point3Dto;
+    axis: Vector3Dto;
+    xAxis: Vector3Dto;
+    yAxis: Vector3Dto;
+    radius: number;
+}
+
+export interface AnalyticDisplayConeGeometryDto {
+    apex: Point3Dto;
+    axis: Vector3Dto;
+    xAxis: Vector3Dto;
+    yAxis: Vector3Dto;
+    semiAngleRadians: number;
+}
+
 export interface AnalyticDisplayFaceDto {
     faceId: number;
     shellId: number;
@@ -116,6 +139,9 @@ export interface AnalyticDisplayFaceDto {
     surfaceKind: 'Plane' | 'Sphere' | 'Cylinder' | 'Cone' | 'Torus' | string;
     loopCount: number;
     domainHint: AnalyticDisplayFaceDomainHintDto | null;
+    planeGeometry: AnalyticDisplayPlaneGeometryDto | null;
+    cylinderGeometry: AnalyticDisplayCylinderGeometryDto | null;
+    coneGeometry: AnalyticDisplayConeGeometryDto | null;
 }
 
 export interface AnalyticDisplayFallbackFaceDto {

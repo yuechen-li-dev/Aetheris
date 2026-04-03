@@ -16,6 +16,10 @@ public sealed class Step242NistAuditHarnessTests
         var second = ExecutePerFileLegacyAudit(entry);
 
         Assert.Equal(first, second);
+        if (string.Equals(Environment.GetEnvironmentVariable("AETHERIS_UPDATE_STEP242_SNAPSHOT"), "1", StringComparison.Ordinal))
+        {
+            return;
+        }
 
         var expectedByPath = LoadLegacySnapshotEntriesByPath();
         Assert.True(expectedByPath.TryGetValue(entry.Path, out var expected), $"Missing snapshot entry for '{entry.Path}'.");
@@ -44,6 +48,25 @@ public sealed class Step242NistAuditHarnessTests
 
             Assert.Fail("NIST audit snapshot mismatch.");
         }
+    }
+
+    [Fact]
+    public void NistCorpus_RepresentativeDisplayBlocker_DoesNotFailAp242Lane()
+    {
+        const string relativePath = "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp";
+        var entry = BuildNistEntry(relativePath);
+
+        var first = Step242CorpusManifestRunner.RunOne(entry);
+        var second = Step242CorpusManifestRunner.RunOne(entry);
+
+        Assert.Equal("success", first.Status);
+        Assert.Equal(string.Empty, first.FirstFailureLayer);
+        Assert.Equal("pickerBlockedByTessellationSkip", first.DisplayStatus);
+        Assert.Equal("picker", first.DisplayFirstFailureLayer);
+        Assert.Equal(first.DisplayStatus, second.DisplayStatus);
+        Assert.Equal(first.DisplayFirstFailureLayer, second.DisplayFirstFailureLayer);
+        Assert.Equal(first.DisplayFirstDiagnostic.Source, second.DisplayFirstDiagnostic.Source);
+        Assert.Equal(first.DisplayFirstDiagnostic.MessagePrefix, second.DisplayFirstDiagnostic.MessagePrefix);
     }
 
     public static IEnumerable<object[]> NistCorpusEntries() => GetNistCorpusRelativePaths().Select(path => new object[] { path });

@@ -57,34 +57,23 @@ internal static class Step242CorpusManifestRunner
             var import = Step242Importer.ImportBody(text);
             if (!import.IsSuccess)
             {
-                return BuildFailure(entry, sizeBytes, DetermineImportFailureLayer(import.Diagnostics), import.Diagnostics);
+                return BuildAp242Failure(entry, sizeBytes, DetermineImportFailureLayer(import.Diagnostics), import.Diagnostics);
             }
 
             var body = import.Value;
             var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
             if (!validation.IsSuccess)
             {
-                return BuildFailure(entry, sizeBytes, "validator", validation.Diagnostics, body);
-            }
-
-            var tessellation = BrepDisplayTessellator.Tessellate(body);
-            if (!tessellation.IsSuccess)
-            {
-                return BuildFailure(entry, sizeBytes, "tessellator", tessellation.Diagnostics, body);
-            }
-
-            var pick = TryPickSmoke(body, tessellation.Value);
-            if (!pick.IsSuccess)
-            {
-                return BuildFailure(entry, sizeBytes, "picker", pick.Diagnostics, body, tessellation.Value, tessellation.Diagnostics);
+                return BuildAp242Failure(entry, sizeBytes, "validator", validation.Diagnostics, body);
             }
 
             var export = Step242Exporter.ExportBody(body);
             if (!export.IsSuccess)
             {
-                return BuildFailure(entry, sizeBytes, "exporter", export.Diagnostics, body, tessellation.Value);
+                return BuildAp242Failure(entry, sizeBytes, "exporter", export.Diagnostics, body);
             }
 
+            var displayAudit = RunDisplayAudit(body);
             return new Step242CorpusReportEntry(
                 entry.Id,
                 entry.Path,
@@ -95,8 +84,12 @@ internal static class Step242CorpusManifestRunner
                 FirstDiagnostic: FirstDiagnostic(import.Diagnostics),
                 DiagnosticCount: import.Diagnostics.Count,
                 ExceptionEscaped: false,
+                DisplayStatus: displayAudit.Status,
+                DisplayFirstFailureLayer: displayAudit.FirstFailureLayer,
+                DisplayFirstDiagnostic: displayAudit.FirstDiagnostic,
+                DisplayDiagnosticCount: displayAudit.DiagnosticCount,
                 TopologyCounts: new Step242TopologyCounts(body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count()),
-                TessellationCounts: new Step242TessellationCounts(tessellation.Value.FacePatches.Count, tessellation.Value.EdgePolylines.Count),
+                TessellationCounts: displayAudit.TessellationCounts,
                 CanonicalSha256: ComputeSha256LowerHex(export.Value),
                 ExportedCanonicalText: export.Value);
         }
@@ -112,6 +105,10 @@ internal static class Step242CorpusManifestRunner
                 FirstDiagnostic: new Step242AuditDiagnostic("InvalidOperation", "Audit.Exception", StableMessagePrefix(ex.Message)),
                 DiagnosticCount: 1,
                 ExceptionEscaped: true,
+                DisplayStatus: "notRun",
+                DisplayFirstFailureLayer: string.Empty,
+                DisplayFirstDiagnostic: new Step242AuditDiagnostic("Unknown", "Audit.None", "Not run."),
+                DisplayDiagnosticCount: 0,
                 TopologyCounts: Step242TopologyCounts.Zero,
                 TessellationCounts: Step242TessellationCounts.Zero,
                 CanonicalSha256: null,
@@ -205,46 +202,67 @@ internal static class Step242CorpusManifestRunner
         ];
     }
 
-    private static Step242CorpusReportEntry BuildFailure(
+    private static Step242CorpusReportEntry BuildAp242Failure(
         Step242CorpusManifestEntry entry,
         int sizeBytes,
         string layer,
         IReadOnlyList<KernelDiagnostic> diagnostics,
-        BrepBody? body = null,
-        DisplayTessellationResult? tessellation = null,
-        IReadOnlyList<KernelDiagnostic>? tessellationDiagnostics = null)
+        BrepBody? body = null)
     {
         return new Step242CorpusReportEntry(
             entry.Id,
             entry.Path,
             entry.Group,
             sizeBytes,
-            Status: ClassifyStatus(layer, tessellationDiagnostics),
+            Status: ClassifyAp242Status(layer),
             FirstFailureLayer: layer,
             FirstDiagnostic: FirstDiagnostic(diagnostics),
             DiagnosticCount: diagnostics.Count,
             ExceptionEscaped: false,
+            DisplayStatus: "notRun",
+            DisplayFirstFailureLayer: string.Empty,
+            DisplayFirstDiagnostic: new Step242AuditDiagnostic("Unknown", "Audit.None", "Not run."),
+            DisplayDiagnosticCount: 0,
             TopologyCounts: body is null ? Step242TopologyCounts.Zero : new Step242TopologyCounts(body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count()),
-            TessellationCounts: tessellation is null ? Step242TessellationCounts.Zero : new Step242TessellationCounts(tessellation.FacePatches.Count, tessellation.EdgePolylines.Count),
+            TessellationCounts: Step242TessellationCounts.Zero,
             CanonicalSha256: null,
             ExportedCanonicalText: null);
     }
 
-    private static string ClassifyStatus(string layer, IReadOnlyList<KernelDiagnostic>? tessellationDiagnostics)
+    private static string ClassifyAp242Status(string layer)
     {
         if (string.Equals(layer, "parser", StringComparison.Ordinal))
         {
             return "parseFail";
         }
 
-        if (string.Equals(layer, "picker", StringComparison.Ordinal))
+        return "importFail";
+    }
+
+    private static DisplayAuditResult RunDisplayAudit(BrepBody body)
+    {
+        var tessellation = BrepDisplayTessellator.Tessellate(body);
+        if (!tessellation.IsSuccess)
         {
-            return HasTruthfulTessellationSkip(tessellationDiagnostics)
-                ? "pickerBlockedByTessellationSkip"
-                : "pickerFail";
+            return new DisplayAuditResult(
+                "tessellationFail",
+                "tessellator",
+                FirstDiagnostic(tessellation.Diagnostics),
+                tessellation.Diagnostics.Count,
+                Step242TessellationCounts.Zero);
         }
 
-        return "importFail";
+        var counts = new Step242TessellationCounts(tessellation.Value.FacePatches.Count, tessellation.Value.EdgePolylines.Count);
+        var pick = TryPickSmoke(body, tessellation.Value);
+        if (pick.IsSuccess)
+        {
+            return new DisplayAuditResult("success", string.Empty, FirstDiagnostic(pick.Diagnostics), pick.Diagnostics.Count, counts);
+        }
+
+        var status = HasTruthfulTessellationSkip(tessellation.Diagnostics)
+            ? "pickerBlockedByTessellationSkip"
+            : "pickerFail";
+        return new DisplayAuditResult(status, "picker", FirstDiagnostic(pick.Diagnostics), pick.Diagnostics.Count, counts);
     }
 
     private static bool HasTruthfulTessellationSkip(IReadOnlyList<KernelDiagnostic>? tessellationDiagnostics)
@@ -340,6 +358,10 @@ internal sealed record Step242CorpusReportEntry(
     Step242AuditDiagnostic FirstDiagnostic,
     int DiagnosticCount,
     bool ExceptionEscaped,
+    string DisplayStatus,
+    string DisplayFirstFailureLayer,
+    Step242AuditDiagnostic DisplayFirstDiagnostic,
+    int DisplayDiagnosticCount,
     Step242TopologyCounts TopologyCounts,
     Step242TessellationCounts TessellationCounts,
     string? CanonicalSha256,
@@ -356,3 +378,10 @@ internal sealed record Step242TessellationCounts(int FacePatches, int EdgePolyli
 {
     public static Step242TessellationCounts Zero { get; } = new(0, 0);
 }
+
+internal sealed record DisplayAuditResult(
+    string Status,
+    string FirstFailureLayer,
+    Step242AuditDiagnostic FirstDiagnostic,
+    int DiagnosticCount,
+    Step242TessellationCounts TessellationCounts);

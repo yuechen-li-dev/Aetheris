@@ -23,37 +23,46 @@ public static class AnalyticDisplayQuery
     {
         var context = tolerance ?? ToleranceContext.Default;
         hit = default;
-        var bodyEntity = body.Topology.Bodies.OrderBy(b => b.Id.Value).FirstOrDefault();
-        if (bodyEntity is not Body resolvedBody)
-        {
-            return false;
-        }
-
-        var faceIds = resolvedBody.ShellIds
+        var faceIds = GetOrderedShellIds(body)
             .SelectMany(shellId => body.Topology.GetShell(shellId).FaceIds)
             .Distinct()
             .OrderBy(id => id.Value)
             .ToArray();
-
-        var found = false;
-        AnalyticRayHit best = default;
+        var candidates = new List<AnalyticRayHit>(faceIds.Length);
 
         foreach (var faceId in faceIds)
         {
-            if (TryIntersectFace(body, faceId, ray, out var candidate, maxDistance, context)
-                && (!found || candidate.Distance < best.Distance - context.Linear || (ToleranceMath.AlmostEqual(candidate.Distance, best.Distance, context) && candidate.FaceId.Value < best.FaceId.Value)))
+            if (TryIntersectFace(body, faceId, ray, out var candidate, maxDistance, context))
             {
-                found = true;
-                best = candidate;
+                candidates.Add(candidate);
             }
         }
 
-        if (!found)
+        if (candidates.Count == 0)
         {
             return false;
         }
 
-        hit = best;
+        var ordered = candidates
+            .OrderBy(candidate => candidate.Distance)
+            .ThenBy(candidate => candidate.FaceId.Value)
+            .ToArray();
+
+        var sampleOffset = double.Max(context.Linear * 32d, 1e-6d);
+        foreach (var candidate in ordered)
+        {
+            var beforePoint = ray.PointAt(double.Max(0d, candidate.Distance - sampleOffset));
+            var afterPoint = ray.PointAt(candidate.Distance + sampleOffset);
+            var beforeInside = IsPointInMaterial(body, beforePoint, context);
+            var afterInside = IsPointInMaterial(body, afterPoint, context);
+            if (beforeInside != afterInside)
+            {
+                hit = candidate;
+                return true;
+            }
+        }
+
+        hit = ordered[0];
         return true;
     }
 
@@ -374,62 +383,92 @@ public static class AnalyticDisplayQuery
             return true;
         }
 
-        var circularBoundary = false;
-        var circleCenter = Point3D.Origin;
-        var circleRadius = 0d;
+        var circularBoundaries = new List<(LoopId LoopId, Point3D Center, double Radius)>();
 
         foreach (var loopId in face.LoopIds)
         {
             var loop = body.Topology.GetLoop(loopId);
+            var loopHasOnlyCircles = loop.CoedgeIds.Count > 0;
+            Point3D? loopCenter = null;
+            double? loopRadius = null;
+
             foreach (var coedgeId in loop.CoedgeIds)
             {
                 var edgeId = body.Topology.GetCoedge(coedgeId).EdgeId;
                 if (!body.Bindings.TryGetEdgeBinding(edgeId, out var edgeBinding)
                     || !body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve))
                 {
+                    loopHasOnlyCircles = false;
                     continue;
                 }
 
-                if (curve.Kind == CurveGeometryKind.Circle3 && curve.Circle3 is { } circle)
+                if (curve is { Kind: CurveGeometryKind.Circle3, Circle3: { } circle })
                 {
-                    circularBoundary = true;
-                    circleCenter = circle.Center;
-                    circleRadius = circle.Radius;
+                    loopCenter ??= circle.Center;
+                    loopRadius ??= circle.Radius;
+                    continue;
                 }
+
+                loopHasOnlyCircles = false;
+            }
+
+            if (loopHasOnlyCircles && loopCenter.HasValue && loopRadius.HasValue)
+            {
+                circularBoundaries.Add((loopId, loopCenter.Value, loopRadius.Value));
             }
         }
 
-        if (circularBoundary)
-        {
-            var radial = point - circleCenter;
-            var height = radial.Dot(plane.Normal.ToVector());
-            var inPlaneRadial = radial - (plane.Normal.ToVector() * height);
-            return inPlaneRadial.Dot(inPlaneRadial) <= (circleRadius + tolerance.Linear) * (circleRadius + tolerance.Linear);
-        }
-
+        var inAxisAlignedFaceBounds = true;
         if (TryResolveAxisAlignedBoxBounds(body, out var min, out var max))
         {
             var normal = plane.Normal.ToVector();
             if (double.Abs(normal.X) > 0.9d)
             {
-                return point.Y >= min.Y - tolerance.Linear && point.Y <= max.Y + tolerance.Linear
+                inAxisAlignedFaceBounds = point.Y >= min.Y - tolerance.Linear && point.Y <= max.Y + tolerance.Linear
                     && point.Z >= min.Z - tolerance.Linear && point.Z <= max.Z + tolerance.Linear;
             }
-
-            if (double.Abs(normal.Y) > 0.9d)
+            else if (double.Abs(normal.Y) > 0.9d)
             {
-                return point.X >= min.X - tolerance.Linear && point.X <= max.X + tolerance.Linear
+                inAxisAlignedFaceBounds = point.X >= min.X - tolerance.Linear && point.X <= max.X + tolerance.Linear
                     && point.Z >= min.Z - tolerance.Linear && point.Z <= max.Z + tolerance.Linear;
             }
-
-            if (double.Abs(normal.Z) > 0.9d)
+            else if (double.Abs(normal.Z) > 0.9d)
             {
-                return point.X >= min.X - tolerance.Linear && point.X <= max.X + tolerance.Linear
+                inAxisAlignedFaceBounds = point.X >= min.X - tolerance.Linear && point.X <= max.X + tolerance.Linear
                     && point.Y >= min.Y - tolerance.Linear && point.Y <= max.Y + tolerance.Linear;
             }
         }
 
+        if (!inAxisAlignedFaceBounds)
+        {
+            return false;
+        }
+
+        if (circularBoundaries.Count == 1 && face.LoopIds.Count == 1)
+        {
+            return IsPointInsideCircularBoundary(point, plane, circularBoundaries[0].Center, circularBoundaries[0].Radius, tolerance);
+        }
+
+        if (face.LoopIds.Count > 1 && circularBoundaries.Count > 0)
+        {
+            foreach (var boundary in circularBoundaries)
+            {
+                if (IsPointInsideCircularBoundary(point, plane, boundary.Center, boundary.Radius, tolerance))
+                {
+                    return false;
+                }
+            }
+        }
+
         return true;
+    }
+
+    private static bool IsPointInsideCircularBoundary(Point3D point, PlaneSurface plane, Point3D center, double radius, ToleranceContext tolerance)
+    {
+        var radial = point - center;
+        var height = radial.Dot(plane.Normal.ToVector());
+        var inPlaneRadial = radial - (plane.Normal.ToVector() * height);
+        return inPlaneRadial.Dot(inPlaneRadial) <= (radius + tolerance.Linear) * (radius + tolerance.Linear);
     }
 
     private static bool TryResolveAxisAlignedBoxBounds(BrepBody body, out Point3D min, out Point3D max)
@@ -599,5 +638,77 @@ public static class AnalyticDisplayQuery
             .ToArray();
 
         return candidates.Length == 0 ? double.NaN : candidates[0];
+    }
+
+    private static IReadOnlyList<ShellId> GetOrderedShellIds(BrepBody body)
+    {
+        if (body.ShellRepresentation is { } representation)
+        {
+            return representation.OrderedShellIds;
+        }
+
+        var topologyBody = body.Topology.Bodies.OrderBy(topologyBody => topologyBody.Id.Value).FirstOrDefault();
+        return topologyBody?.ShellIds.OrderBy(shellId => shellId.Value).ToArray() ?? [];
+    }
+
+    private static bool IsPointInMaterial(BrepBody body, Point3D point, ToleranceContext tolerance)
+    {
+        var shellIds = GetOrderedShellIds(body);
+        if (shellIds.Count == 0)
+        {
+            return false;
+        }
+
+        var outerShellId = shellIds[0];
+        if (!IsPointInShell(body, outerShellId, point, tolerance))
+        {
+            return false;
+        }
+
+        for (var index = 1; index < shellIds.Count; index++)
+        {
+            if (IsPointInShell(body, shellIds[index], point, tolerance))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsPointInShell(BrepBody body, ShellId shellId, Point3D point, ToleranceContext tolerance)
+    {
+        var shell = body.Topology.GetShell(shellId);
+        var probeDirection = Direction3D.Create(new Vector3D(1d, 0.3125d, 0.1875d));
+        var probeRay = new Ray3D(point, probeDirection);
+        var intersections = new List<double>(shell.FaceIds.Count);
+
+        foreach (var faceId in shell.FaceIds)
+        {
+            if (TryIntersectFace(body, faceId, probeRay, out var hit, maxDistance: 1e6d, tolerance)
+                && hit.Distance > tolerance.Linear * 4d)
+            {
+                intersections.Add(hit.Distance);
+            }
+        }
+
+        if (intersections.Count == 0)
+        {
+            return false;
+        }
+
+        intersections.Sort();
+        var uniqueCount = 0;
+        double? previous = null;
+        foreach (var distance in intersections)
+        {
+            if (!previous.HasValue || double.Abs(distance - previous.Value) > tolerance.Linear * 16d)
+            {
+                uniqueCount++;
+                previous = distance;
+            }
+        }
+
+        return (uniqueCount & 1) == 1;
     }
 }

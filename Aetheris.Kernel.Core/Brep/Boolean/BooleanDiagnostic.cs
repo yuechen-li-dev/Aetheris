@@ -11,7 +11,8 @@ public enum BooleanDiagnosticCode
     TangentContact,
     MultiBodyResult,
     HoleInterference,
-    UnsupportedAnalyticSurfaceKind
+    UnsupportedAnalyticSurfaceKind,
+    UnsupportedBlindHoleComposition
 }
 
 public sealed record BooleanDiagnostic(

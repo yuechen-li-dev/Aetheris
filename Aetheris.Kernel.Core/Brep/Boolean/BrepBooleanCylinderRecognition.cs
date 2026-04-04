@@ -21,6 +21,15 @@ public readonly record struct RecognizedCylinder(
     public Point3D MaxCenter => AxisOrigin + (Axis.ToVector() * MaxAxisParameter);
 }
 
+public readonly record struct SupportedSubtractProfile(
+    SupportedBooleanHoleSpanKind SpanKind,
+    double CenterX,
+    double CenterY,
+    double StartZ,
+    double EndZ,
+    double StartRadius,
+    double EndRadius);
+
 public static class BrepBooleanCylinderRecognition
 {
     public static bool TryRecognizeCylinder(BrepBody body, ToleranceContext tolerance, out RecognizedCylinder cylinder, out string reason)
@@ -154,6 +163,13 @@ public static class BrepBooleanCylinderRecognition
 
     public static bool ValidateThroughHole(AxisAlignedBoxExtents box, in RecognizedCylinder cylinder, ToleranceContext tolerance, out BooleanDiagnostic? diagnostic, string? featureId = null)
     {
+        var success = TryValidateCylinderSubtractProfile(box, cylinder, tolerance, out var profile, out diagnostic, featureId);
+        return success && profile.SpanKind == SupportedBooleanHoleSpanKind.Through;
+    }
+
+    public static bool TryValidateCylinderSubtractProfile(AxisAlignedBoxExtents box, in RecognizedCylinder cylinder, ToleranceContext tolerance, out SupportedSubtractProfile profile, out BooleanDiagnostic? diagnostic, string? featureId = null)
+    {
+        profile = default;
         diagnostic = null;
 
         if (!ValidateAxisAlignedZ(cylinder, tolerance))
@@ -174,12 +190,6 @@ public static class BrepBooleanCylinderRecognition
         var centerY = minCenter.Y;
         var minZ = System.Math.Min(minCenter.Z, maxCenter.Z);
         var maxZ = System.Math.Max(minCenter.Z, maxCenter.Z);
-
-        if (minZ > (box.MinZ + tolerance.Linear) || maxZ < (box.MaxZ - tolerance.Linear))
-        {
-            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not reach both box boundary planes; partial-depth cylinder cuts are outside the supported safe boolean family. Extend the cylinder so it spans the full box Z range.");
-            return false;
-        }
 
         var minFootprintX = centerX - cylinder.Radius;
         var maxFootprintX = centerX + cylinder.Radius;
@@ -206,11 +216,54 @@ public static class BrepBooleanCylinderRecognition
             return false;
         }
 
-        return true;
+        var touchesBottom = minZ <= (box.MinZ + tolerance.Linear);
+        var touchesTop = maxZ >= (box.MaxZ - tolerance.Linear);
+
+        if (touchesBottom && touchesTop)
+        {
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.Through, centerX, centerY, box.MinZ, box.MaxZ, cylinder.Radius, cylinder.Radius);
+            return true;
+        }
+
+        if (touchesTop && minZ > (box.MinZ + tolerance.Linear))
+        {
+            var depth = box.MaxZ - minZ;
+            if (depth <= tolerance.Linear)
+            {
+                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "has near-zero blind-hole depth after entering from the top box face; extend the tool farther into the box.");
+                return false;
+            }
+
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromTop, centerX, centerY, box.MaxZ, minZ, cylinder.Radius, cylinder.Radius);
+            return true;
+        }
+
+        if (touchesBottom && maxZ < (box.MaxZ - tolerance.Linear))
+        {
+            var depth = maxZ - box.MinZ;
+            if (depth <= tolerance.Linear)
+            {
+                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "has near-zero blind-hole depth after entering from the bottom box face; extend the tool farther into the box.");
+                return false;
+            }
+
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromBottom, centerX, centerY, box.MinZ, maxZ, cylinder.Radius, cylinder.Radius);
+            return true;
+        }
+
+        diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.");
+        return false;
     }
 
     public static bool ValidateThroughHole(AxisAlignedBoxExtents box, in RecognizedCone cone, ToleranceContext tolerance, out BooleanDiagnostic? diagnostic, string? featureId = null)
     {
+        var success = TryValidateConeSubtractProfile(box, cone, tolerance, out var profile, out diagnostic, featureId);
+        return success && profile.SpanKind == SupportedBooleanHoleSpanKind.Through;
+    }
+
+    public static bool TryValidateConeSubtractProfile(AxisAlignedBoxExtents box, in RecognizedCone cone, ToleranceContext tolerance, out SupportedSubtractProfile profile, out BooleanDiagnostic? diagnostic, string? featureId = null)
+    {
+        profile = default;
         diagnostic = null;
 
         var axis = cone.Axis.ToVector();
@@ -230,42 +283,100 @@ public static class BrepBooleanCylinderRecognition
             return false;
         }
 
-        var bottomAxisParameter = AxisParameterAtZ(cone, box.MinZ, tolerance);
-        var topAxisParameter = AxisParameterAtZ(cone, box.MaxZ, tolerance);
-
-        if (bottomAxisParameter < (cone.MinAxisParameter - tolerance.Linear)
-            || bottomAxisParameter > (cone.MaxAxisParameter + tolerance.Linear)
-            || topAxisParameter < (cone.MinAxisParameter - tolerance.Linear)
-            || topAxisParameter > (cone.MaxAxisParameter + tolerance.Linear))
-        {
-            diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not reach both box boundary planes; partial-depth cone cuts are outside the supported safe boolean family. Extend the cone so it spans the full box Z range.");
-            return false;
-        }
-
-        if (bottomAxisParameter <= tolerance.Linear || topAxisParameter <= tolerance.Linear)
-        {
-            diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "cannot produce circular sections on both box boundary planes because the apex or cone termination lands inside the box span. Move the apex outside the box span or lengthen the cone.");
-            return false;
-        }
-
         var centerX = cone.AxisOrigin.X;
         var centerY = cone.AxisOrigin.Y;
-        var bottomRadius = cone.RadiusAtAxisParameter(bottomAxisParameter);
-        var topRadius = cone.RadiusAtAxisParameter(topAxisParameter);
 
-        if (bottomRadius <= tolerance.Linear || topRadius <= tolerance.Linear)
+        var bottomAxisParameter = AxisParameterAtZ(cone, box.MinZ, tolerance);
+        var topAxisParameter = AxisParameterAtZ(cone, box.MaxZ, tolerance);
+        var coversBottom = bottomAxisParameter >= (cone.MinAxisParameter - tolerance.Linear)
+            && bottomAxisParameter <= (cone.MaxAxisParameter + tolerance.Linear);
+        var coversTop = topAxisParameter >= (cone.MinAxisParameter - tolerance.Linear)
+            && topAxisParameter <= (cone.MaxAxisParameter + tolerance.Linear);
+
+        if (coversBottom && coversTop)
         {
-            diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires non-degenerate circular sections where the cone meets the two box boundary planes. Increase the boundary radii at those planes by moving the apex farther away or changing the cone taper.");
-            return false;
+            if (bottomAxisParameter <= tolerance.Linear || topAxisParameter <= tolerance.Linear)
+            {
+                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "cannot produce circular sections on both box boundary planes because the apex or cone termination lands inside the box span. Move the apex outside the box span or lengthen the cone.");
+                return false;
+            }
+
+            var bottomRadius = cone.RadiusAtAxisParameter(bottomAxisParameter);
+            var topRadius = cone.RadiusAtAxisParameter(topAxisParameter);
+            if (bottomRadius <= tolerance.Linear || topRadius <= tolerance.Linear)
+            {
+                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires non-degenerate circular sections where the cone meets the two box boundary planes. Increase the boundary radii at those planes by moving the apex farther away or changing the cone taper.");
+                return false;
+            }
+
+            if (!ValidateCircleInsideBoxFootprint(box, centerX, centerY, bottomRadius, tolerance, out diagnostic, "bottom boundary circle", featureId)
+                || !ValidateCircleInsideBoxFootprint(box, centerX, centerY, topRadius, tolerance, out diagnostic, "top boundary circle", featureId))
+            {
+                return false;
+            }
+
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.Through, centerX, centerY, box.MinZ, box.MaxZ, bottomRadius, topRadius);
+            return true;
         }
 
-        if (!ValidateCircleInsideBoxFootprint(box, centerX, centerY, bottomRadius, tolerance, out diagnostic, "bottom boundary circle", featureId)
-            || !ValidateCircleInsideBoxFootprint(box, centerX, centerY, topRadius, tolerance, out diagnostic, "top boundary circle", featureId))
+        if (coversTop && !coversBottom)
         {
-            return false;
+            var minEndIsLower = cone.MinCenter.Z <= cone.MaxCenter.Z;
+            var terminationZ = System.Math.Min(cone.MinCenter.Z, cone.MaxCenter.Z);
+            if (terminationZ <= (box.MinZ + tolerance.Linear) || terminationZ >= (box.MaxZ - tolerance.Linear))
+            {
+                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; cone blind holes must terminate strictly inside the box.");
+                return false;
+            }
+
+            var topRadius = cone.RadiusAtAxisParameter(topAxisParameter);
+            var endRadius = minEndIsLower ? cone.RadiusAtMinAxisParameter : cone.RadiusAtMaxAxisParameter;
+            if (topRadius <= tolerance.Linear || endRadius <= tolerance.Linear)
+            {
+                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires non-degenerate entry and bottom sections for supported cone blind holes.");
+                return false;
+            }
+
+            if (!ValidateCircleInsideBoxFootprint(box, centerX, centerY, topRadius, tolerance, out diagnostic, "top boundary circle", featureId)
+                || !ValidateCircleInsideBoxFootprint(box, centerX, centerY, endRadius, tolerance, out diagnostic, "blind bottom circle", featureId))
+            {
+                return false;
+            }
+
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromTop, centerX, centerY, box.MaxZ, terminationZ, topRadius, endRadius);
+            return true;
         }
 
-        return true;
+        if (coversBottom && !coversTop)
+        {
+            var maxEndIsHigher = cone.MaxCenter.Z >= cone.MinCenter.Z;
+            var terminationZ = System.Math.Max(cone.MinCenter.Z, cone.MaxCenter.Z);
+            if (terminationZ <= (box.MinZ + tolerance.Linear) || terminationZ >= (box.MaxZ - tolerance.Linear))
+            {
+                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; cone blind holes must terminate strictly inside the box.");
+                return false;
+            }
+
+            var bottomRadius = cone.RadiusAtAxisParameter(bottomAxisParameter);
+            var endRadius = maxEndIsHigher ? cone.RadiusAtMaxAxisParameter : cone.RadiusAtMinAxisParameter;
+            if (bottomRadius <= tolerance.Linear || endRadius <= tolerance.Linear)
+            {
+                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires non-degenerate entry and bottom sections for supported cone blind holes.");
+                return false;
+            }
+
+            if (!ValidateCircleInsideBoxFootprint(box, centerX, centerY, bottomRadius, tolerance, out diagnostic, "bottom boundary circle", featureId)
+                || !ValidateCircleInsideBoxFootprint(box, centerX, centerY, endRadius, tolerance, out diagnostic, "blind bottom circle", featureId))
+            {
+                return false;
+            }
+
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromBottom, centerX, centerY, box.MinZ, terminationZ, bottomRadius, endRadius);
+            return true;
+        }
+
+        diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.");
+        return false;
     }
 
     private static double AxisParameterAtZ(in RecognizedCone cone, double z, ToleranceContext tolerance)

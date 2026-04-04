@@ -223,7 +223,7 @@ public sealed class FirmamentStepExporterTests
         Assert.Equal(first.Diagnostics, second.Diagnostics);
         Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
         Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Source == "BrepBoolean.AnalyticHole.NotFullySpanning"
-            && diagnostic.Message.Contains("Boolean feature 'hole' (subtract) does not reach both box boundary planes", StringComparison.Ordinal));
+            && diagnostic.Message.Contains("Boolean feature 'hole' (subtract) does not match the supported subtract span family", StringComparison.Ordinal));
         Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
     }
 
@@ -292,7 +292,7 @@ public sealed class FirmamentStepExporterTests
 
     private static bool HasExpectedMixedPrimitiveFailure(string message)
         => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
-           || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone through-holes", StringComparison.Ordinal)
+           || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone analytic holes", StringComparison.Ordinal)
            || message.Contains("safe subtract", StringComparison.Ordinal)
            || message.Contains("unsupported follow-on tool kind", StringComparison.Ordinal)
            || message.Contains("Boolean feature", StringComparison.Ordinal)

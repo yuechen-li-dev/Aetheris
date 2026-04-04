@@ -29,7 +29,10 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
                     -7d,
                     -2d,
                     4d,
-                    4d)
+                    4d,
+                    SupportedBooleanHoleSpanKind.Through,
+                    0d,
+                    12d)
             ]);
         var next = new AnalyticSurface(
             AnalyticSurfaceKind.Cone,
@@ -121,7 +124,10 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
                     0d,
                     0d,
                     3d,
-                    3d),
+                    3d,
+                    SupportedBooleanHoleSpanKind.Through,
+                    0d,
+                    12d),
             ]);
         var sphere = new AnalyticSurface(
             AnalyticSurfaceKind.Sphere,

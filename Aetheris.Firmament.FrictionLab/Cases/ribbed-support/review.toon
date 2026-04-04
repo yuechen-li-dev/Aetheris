@@ -1,5 +1,5 @@
 case_id: ribbed-support
-possible: false
+possible: partial
 awkwardness: high
 pain_points[2]:
   - "Thin rib authoring would require brute-force repeated adds with fragile dimensions."
@@ -7,4 +7,9 @@ pain_points[2]:
 proposed_features[2]:
   - "Rib feature with thickness, draft, and anchor references."
   - "Stable additive union support for connected support geometry."
-reviewer_verdict: "Stopped per anti-pretzel rule: rib modeling is not cleanly expressible in current surface area."
+reviewer_verdict: "Support wall now exports; true multi-rib intent is still awkward without dedicated rib semantics."
+previous_status: failure
+current_status: partial
+changed: yes
+blocker_class: improved_but_still_blocked
+change_note: "F1 bounded union unblocked the baseline wall add, but ergonomic rib authoring remains weak."

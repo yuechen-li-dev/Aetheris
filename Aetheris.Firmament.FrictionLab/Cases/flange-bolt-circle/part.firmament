@@ -22,6 +22,12 @@ ops[6]:
       height: 24
 
   -
+    op: cylinder
+    id: axis_ref
+    radius: 1
+    height: 12
+
+  -
     op: subtract
     id: bolt_0
     from: center_bore
@@ -31,52 +37,13 @@ ops[6]:
       height: 24
     place:
       on: origin
-      offset[3]:
-        25
-        0
-        0
+      around_axis: axis_ref.side_face
+      radial_offset: 25
+      angle_degrees: 0
 
   -
-    op: subtract
-    id: bolt_90
-    from: bolt_0
-    with:
-      op: cylinder
-      radius: 4
-      height: 24
-    place:
-      on: origin
-      offset[3]:
-        0
-        25
-        0
-
-  -
-    op: subtract
-    id: bolt_180
-    from: bolt_90
-    with:
-      op: cylinder
-      radius: 4
-      height: 24
-    place:
-      on: origin
-      offset[3]:
-        -25
-        0
-        0
-
-  -
-    op: subtract
-    id: bolt_270
-    from: bolt_180
-    with:
-      op: cylinder
-      radius: 4
-      height: 24
-    place:
-      on: origin
-      offset[3]:
-        0
-        -25
-        0
+    op: pattern_circular
+    source: bolt_0
+    count: 4
+    axis: axis_ref.side_face
+    angle_step_degrees: 90

@@ -8,3 +8,8 @@ proposed_features[2]:
   - "Robust add/union support for simple multi-box bracket construction."
   - "Face/axis placement primitives for hole positioning."
 reviewer_verdict: "Intent is clear but blocked by union limitations, so only partial authoring confidence."
+previous_status: partial
+current_status: partial
+changed: yes
+blocker_class: improved_but_still_blocked
+change_note: "F1 union now gets the bracket add farther; blocker moved to subtract-family composition from the new bracket root."

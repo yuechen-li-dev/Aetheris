@@ -50,19 +50,12 @@ internal static class BrepBooleanCoaxialSubtractStackFamily
             return false;
         }
 
-        var firstTop = ResolveTop(first);
-        var firstBottom = ResolveBottom(first);
-        var secondTop = ResolveTop(second);
-        var secondBottom = ResolveBottom(second);
-
         var firstTopEntry = IsTopEntry(first, outerBox, tolerance);
         var secondTopEntry = IsTopEntry(second, outerBox, tolerance);
         var firstBottomEntry = IsBottomEntry(first, outerBox, tolerance);
         var secondBottomEntry = IsBottomEntry(second, outerBox, tolerance);
         var hasTopEntry = firstTopEntry || secondTopEntry;
         var hasBottomEntry = firstBottomEntry || secondBottomEntry;
-        var hasTopBlindEntry = IsTopBlindEntry(first, outerBox, tolerance) || IsTopBlindEntry(second, outerBox, tolerance);
-        var hasBottomBlindEntry = IsBottomBlindEntry(first, outerBox, tolerance) || IsBottomBlindEntry(second, outerBox, tolerance);
 
         if (!hasTopEntry && !hasBottomEntry)
         {
@@ -73,7 +66,14 @@ internal static class BrepBooleanCoaxialSubtractStackFamily
             return false;
         }
 
-        if (hasTopBlindEntry && hasBottomBlindEntry)
+        var firstTopOnlyEntry = firstTopEntry && !firstBottomEntry;
+        var secondTopOnlyEntry = secondTopEntry && !secondBottomEntry;
+        var firstBottomOnlyEntry = firstBottomEntry && !firstTopEntry;
+        var secondBottomOnlyEntry = secondBottomEntry && !secondTopEntry;
+        var hasTopOnlyEntry = firstTopOnlyEntry || secondTopOnlyEntry;
+        var hasBottomOnlyEntry = firstBottomOnlyEntry || secondBottomOnlyEntry;
+
+        if (hasTopOnlyEntry && hasBottomOnlyEntry)
         {
             diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
                 BooleanOperation.Subtract.ToString(),
@@ -82,17 +82,56 @@ internal static class BrepBooleanCoaxialSubtractStackFamily
             return false;
         }
 
-        var entryFromTop = hasTopEntry;
-        var entryIsFirst = firstTopEntry || firstBottomEntry;
+        var entryFromTop = hasTopOnlyEntry;
+        var firstIsEntryCandidate = entryFromTop ? firstTopOnlyEntry : firstBottomOnlyEntry;
+        var secondIsEntryCandidate = entryFromTop ? secondTopOnlyEntry : secondBottomOnlyEntry;
+        var fallbackContainedEntry = false;
+        if (!firstIsEntryCandidate && !secondIsEntryCandidate)
+        {
+            var firstContained = first.SpanKind == SupportedBooleanHoleSpanKind.Contained;
+            var secondContained = second.SpanKind == SupportedBooleanHoleSpanKind.Contained;
+            if (firstContained == secondContained)
+            {
+                diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
+                    BooleanOperation.Subtract.ToString(),
+                    featureId,
+                    "bounded contained coaxial subtract-stack support requires one shallow segment to open on exactly one box entry face.");
+                return false;
+            }
+
+            fallbackContainedEntry = true;
+        }
+
+        var entryIsFirst = fallbackContainedEntry
+            ? first.SpanKind == SupportedBooleanHoleSpanKind.Contained
+            : firstIsEntryCandidate && (!secondIsEntryCandidate || first.BottomRadius >= second.BottomRadius);
         var entryHole = entryIsFirst ? first : second;
         var deepHole = entryIsFirst ? second : first;
 
-        if (entryHole.SpanKind == SupportedBooleanHoleSpanKind.Contained)
+        if (fallbackContainedEntry)
+        {
+            entryFromTop = IsTopEntry(deepHole, outerBox, tolerance)
+                ? true
+                : IsBottomEntry(deepHole, outerBox, tolerance)
+                    ? false
+                    : (outerBox.MaxZ - ResolveTop(entryHole)) <= (ResolveBottom(entryHole) - outerBox.MinZ);
+        }
+
+        if (!fallbackContainedEntry && !IntersectsEntryFace(entryHole, entryFromTop, outerBox, tolerance))
         {
             diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
                 BooleanOperation.Subtract.ToString(),
                 featureId,
                 "bounded contained coaxial subtract-stack support requires the entry segment to intersect the chosen entry face; fully contained-first stacks remain deferred.");
+            return false;
+        }
+
+        if (fallbackContainedEntry && !IntersectsEntryFace(deepHole, entryFromTop, outerBox, tolerance))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                featureId,
+                "bounded contained coaxial subtract-stack support requires the deeper segment to intersect the selected entry face when the entry segment is fully contained.");
             return false;
         }
 
@@ -102,12 +141,12 @@ internal static class BrepBooleanCoaxialSubtractStackFamily
 
         if (entryFromTop)
         {
-            if (deepTop < (outerBox.MaxZ - tolerance.Linear))
+            if (deepTop < (entryShoulder - tolerance.Linear))
             {
                 diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
                     BooleanOperation.Subtract.ToString(),
                     featureId,
-                    "bounded contained coaxial subtract-stack support requires the deeper segment to open on the same top entry face.");
+                    "bounded contained coaxial subtract-stack support requires the deeper segment to reach the shoulder plane; unsupported deeper continuation shape.");
                 return false;
             }
 
@@ -116,18 +155,18 @@ internal static class BrepBooleanCoaxialSubtractStackFamily
                 diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
                     BooleanOperation.Subtract.ToString(),
                     featureId,
-                    "bounded contained coaxial subtract-stack support requires the deeper segment to extend below the shoulder plane.");
+                    "bounded contained coaxial subtract-stack support requires the deeper segment to continue below the shoulder plane.");
                 return false;
             }
         }
         else
         {
-            if (deepBottom > (outerBox.MinZ + tolerance.Linear))
+            if (deepBottom > (entryShoulder + tolerance.Linear))
             {
                 diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
                     BooleanOperation.Subtract.ToString(),
                     featureId,
-                    "bounded contained coaxial subtract-stack support requires the deeper segment to open on the same bottom entry face.");
+                    "bounded contained coaxial subtract-stack support requires the deeper segment to reach the shoulder plane; unsupported deeper continuation shape.");
                 return false;
             }
 
@@ -136,7 +175,7 @@ internal static class BrepBooleanCoaxialSubtractStackFamily
                 diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
                     BooleanOperation.Subtract.ToString(),
                     featureId,
-                    "bounded contained coaxial subtract-stack support requires the deeper segment to extend above the shoulder plane.");
+                    "bounded contained coaxial subtract-stack support requires the deeper segment to continue above the shoulder plane.");
                 return false;
             }
         }
@@ -146,7 +185,7 @@ internal static class BrepBooleanCoaxialSubtractStackFamily
             diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(
                 BooleanOperation.Subtract.ToString(),
                 featureId,
-                "bounded contained coaxial subtract-stack support requires a strictly larger entry-segment radius than the deeper segment radius to avoid degenerate shoulder geometry.");
+                "bounded contained coaxial subtract-stack support requires a strictly larger entry-segment radius than the deeper segment radius; invalid counterbore radius ordering or degenerate shoulder geometry.");
             return false;
         }
 
@@ -164,13 +203,10 @@ internal static class BrepBooleanCoaxialSubtractStackFamily
     private static bool IsBottomEntry(in SupportedBooleanHole hole, AxisAlignedBoxExtents outerBox, ToleranceContext tolerance)
         => ResolveBottom(hole) <= (outerBox.MinZ + tolerance.Linear);
 
-    private static bool IsTopBlindEntry(in SupportedBooleanHole hole, AxisAlignedBoxExtents outerBox, ToleranceContext tolerance)
-        => hole.SpanKind == SupportedBooleanHoleSpanKind.BlindFromTop
-           || (hole.SpanKind == SupportedBooleanHoleSpanKind.Contained && IsTopEntry(hole, outerBox, tolerance));
-
-    private static bool IsBottomBlindEntry(in SupportedBooleanHole hole, AxisAlignedBoxExtents outerBox, ToleranceContext tolerance)
-        => hole.SpanKind == SupportedBooleanHoleSpanKind.BlindFromBottom
-           || (hole.SpanKind == SupportedBooleanHoleSpanKind.Contained && IsBottomEntry(hole, outerBox, tolerance));
+    private static bool IntersectsEntryFace(in SupportedBooleanHole hole, bool entryFromTop, AxisAlignedBoxExtents outerBox, ToleranceContext tolerance)
+        => entryFromTop
+            ? IsTopEntry(hole, outerBox, tolerance)
+            : IsBottomEntry(hole, outerBox, tolerance);
 
     private static bool IsWorldZAligned(Direction3D axis, ToleranceContext tolerance)
     {

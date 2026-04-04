@@ -91,6 +91,7 @@ describe('buildDisplaySceneData', () => {
     expect(result.renderPath).toBe('analytic-only');
     expect(mapAnalytic).toHaveBeenCalledOnce();
     expect(mapFallback).not.toHaveBeenCalled();
+    expect(result.missingFallbackFaceIds).toEqual([]);
   });
 
   it('keeps analytic-only lane for sphere packets and does not call fallback mapping', () => {
@@ -130,6 +131,7 @@ describe('buildDisplaySceneData', () => {
     expect(result.renderPath).toBe('analytic-only');
     expect(mapAnalytic).toHaveBeenCalledOnce();
     expect(mapFallback).not.toHaveBeenCalled();
+    expect(result.missingFallbackFaceIds).toEqual([]);
   });
 
   it('keeps analytic-only lane for torus packets and does not call fallback mapping', () => {
@@ -170,6 +172,7 @@ describe('buildDisplaySceneData', () => {
     expect(result.renderPath).toBe('analytic-only');
     expect(mapAnalytic).toHaveBeenCalledOnce();
     expect(mapFallback).not.toHaveBeenCalled();
+    expect(result.missingFallbackFaceIds).toEqual([]);
   });
 
   it('routes fallback-only lane to tessellation fallback mapping', () => {
@@ -181,6 +184,7 @@ describe('buildDisplaySceneData', () => {
     expect(result.renderPath).toBe('fallback');
     expect(mapFallback).toHaveBeenCalledOnce();
     expect(mapAnalytic).not.toHaveBeenCalled();
+    expect(result.missingFallbackFaceIds).toEqual([]);
   });
 
   it('composes mixed-fallback lane with analytic and fallback subsets without duplicates', () => {
@@ -245,6 +249,84 @@ describe('buildDisplaySceneData', () => {
     expect(mapFallback).toHaveBeenCalledOnce();
     expect(result.sceneData?.faces.map((face) => face.faceId)).toEqual([10, 20]);
     expect(result.sceneData?.edges).toHaveLength(1);
+    expect(result.missingFallbackFaceIds).toEqual([]);
+  });
+
+  it('surfaces deterministic diagnostics when mixed-fallback required faces are missing from fallback payload', () => {
+    const mixedPreparation: DisplayPreparationResponseDto = {
+      lane: 'mixed-fallback',
+      analyticPacket: {
+        bodyId: 11,
+        analyticFaces: [
+          {
+            faceId: 501,
+            shellId: 1,
+            shellRole: 'Outer',
+            surfaceGeometryId: 5101,
+            surfaceKind: 'Plane',
+            loopCount: 1,
+            domainHint: null,
+            planeGeometry: {
+              origin: { x: 0, y: 0, z: 0 },
+              normal: { x: 0, y: 0, z: 1 },
+              uAxis: { x: 1, y: 0, z: 0 },
+              vAxis: { x: 0, y: 1, z: 0 },
+            },
+            cylinderGeometry: null,
+            coneGeometry: null,
+            sphereGeometry: null,
+            torusGeometry: null,
+          },
+        ],
+        fallbackFaces: [
+          {
+            faceId: 601,
+            shellId: 1,
+            shellRole: 'Outer',
+            reason: 'UnsupportedTrim',
+            surfaceKind: 'Plane',
+            detail: 'trim requires fallback',
+          },
+          {
+            faceId: 602,
+            shellId: 1,
+            shellRole: 'Outer',
+            reason: 'UnsupportedSurfaceKind',
+            surfaceKind: 'BSplineSurfaceWithKnots',
+            detail: null,
+          },
+        ],
+      },
+      tessellationFallback: {
+        facePatches: [
+          {
+            faceId: 601,
+            positions: [
+              { x: 0, y: 0, z: 0 },
+              { x: 1, y: 0, z: 0 },
+              { x: 0, y: 1, z: 0 },
+            ],
+            normals: [
+              { x: 0, y: 0, z: 1 },
+              { x: 0, y: 0, z: 1 },
+              { x: 0, y: 0, z: 1 },
+            ],
+            triangleIndices: [0, 1, 2],
+          },
+        ],
+        edgePolylines: [],
+      },
+    };
+
+    const first = buildDisplaySceneData(mixedPreparation);
+    const second = buildDisplaySceneData(mixedPreparation);
+
+    expect(first.renderPath).toBe('mixed-fallback');
+    expect(second.renderPath).toBe('mixed-fallback');
+    expect(first.sceneData?.faces.map((face) => face.faceId)).toEqual([501, 601]);
+    expect(second.sceneData?.faces.map((face) => face.faceId)).toEqual([501, 601]);
+    expect(first.missingFallbackFaceIds).toEqual([602]);
+    expect(second.missingFallbackFaceIds).toEqual([602]);
   });
 
   it('is deterministic for repeated mixed-fallback builds', () => {
@@ -312,6 +394,8 @@ describe('buildDisplaySceneData', () => {
     expect(first.renderPath).toBe('mixed-fallback');
     expect(second.renderPath).toBe('mixed-fallback');
     expect(first.sceneData?.faces.map((face) => face.faceId)).toEqual(second.sceneData?.faces.map((face) => face.faceId));
+    expect(first.missingFallbackFaceIds).toEqual(second.missingFallbackFaceIds);
+    expect(first.missingFallbackFaceIds).toEqual([]);
     expect(first.sceneData?.faces).toHaveLength(2);
     expect(Array.from(first.sceneData?.faces[0].positions ?? [])).toEqual(Array.from(second.sceneData?.faces[0].positions ?? []));
     expect(Array.from(first.sceneData?.faces[1].indices ?? [])).toEqual(Array.from(second.sceneData?.faces[1].indices ?? []));

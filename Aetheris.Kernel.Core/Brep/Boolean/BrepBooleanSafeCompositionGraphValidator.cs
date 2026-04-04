@@ -105,15 +105,6 @@ public static class BrepBooleanSafeCompositionGraphValidator
         updatedComposition = composition;
         diagnostic = null;
 
-        if (composition.Holes.Count > 0)
-        {
-            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
-                BooleanOperation.Subtract.ToString(),
-                nextFeatureId,
-                "supports only a single center-bore subtract on the bounded cylinder-root safe family in F2; follow-on cylinder-root subtract composition is deferred.");
-            return false;
-        }
-
         if (surface.Kind != AnalyticSurfaceKind.Cylinder || surface.Cylinder is not RecognizedCylinder toolCylinder)
         {
             diagnostic = BrepBooleanCylinderRecognition.CreateUnsupportedAnalyticSurfaceKindDiagnostic(
@@ -151,25 +142,6 @@ public static class BrepBooleanSafeCompositionGraphValidator
             (toolCylinder.MinCenter.Y + toolCylinder.MaxCenter.Y) * 0.5d,
             (toolCylinder.MinCenter.Z + toolCylinder.MaxCenter.Z) * 0.5d);
 
-        if (!ToleranceMath.AlmostEqual(rootCenter.X, toolCenter.X, tolerance)
-            || !ToleranceMath.AlmostEqual(rootCenter.Y, toolCenter.Y, tolerance))
-        {
-            diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
-                BooleanOperation.Subtract.ToString(),
-                nextFeatureId,
-                "is outside the bounded cylinder-root safe subtract family; only coaxial center bores are supported.");
-            return false;
-        }
-
-        if (toolCylinder.Radius >= (rootCylinder.Radius - tolerance.Linear))
-        {
-            diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
-                BooleanOperation.Subtract.ToString(),
-                nextFeatureId,
-                "must remain strictly smaller than the flange root radius in the bounded cylinder-root safe subtract family.");
-            return false;
-        }
-
         var rootMinZ = System.Math.Min(rootCylinder.MinCenter.Z, rootCylinder.MaxCenter.Z);
         var rootMaxZ = System.Math.Max(rootCylinder.MinCenter.Z, rootCylinder.MaxCenter.Z);
         var toolMinZ = System.Math.Min(toolCylinder.MinCenter.Z, toolCylinder.MaxCenter.Z);
@@ -184,25 +156,136 @@ public static class BrepBooleanSafeCompositionGraphValidator
             return false;
         }
 
+        var deltaX = toolCenter.X - rootCenter.X;
+        var deltaY = toolCenter.Y - rootCenter.Y;
+        var radialDistance = System.Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+        var isCoaxialCenterBore = ToleranceMath.AlmostZero(radialDistance, tolerance);
+        var nextHole = new SupportedBooleanHole(
+            nextFeatureId,
+            surface,
+            toolCenter.X,
+            toolCenter.Y,
+            new Point3D(toolCenter.X, toolCenter.Y, rootMinZ),
+            new Point3D(toolCenter.X, toolCenter.Y, rootMaxZ),
+            toolCylinder.Axis,
+            Direction3D.Create(new Vector3D(1d, 0d, 0d)),
+            toolCylinder.Radius,
+            toolCylinder.Radius,
+            SupportedBooleanHoleSpanKind.Through,
+            rootMinZ,
+            rootMaxZ);
+
+        if (composition.Holes.Count == 0)
+        {
+            if (!isCoaxialCenterBore)
+            {
+                diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
+                    BooleanOperation.Subtract.ToString(),
+                    nextFeatureId,
+                    "is outside the bounded cylinder-root safe subtract family; the first subtract must be a coaxial center bore.");
+                return false;
+            }
+
+            if (toolCylinder.Radius >= (rootCylinder.Radius - tolerance.Linear))
+            {
+                diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
+                    BooleanOperation.Subtract.ToString(),
+                    nextFeatureId,
+                    "must remain strictly smaller than the flange root radius in the bounded cylinder-root safe subtract family.");
+                return false;
+            }
+
+            updatedComposition = composition with
+            {
+                Holes = [nextHole],
+            };
+
+            return true;
+        }
+
+        var centerBore = composition.Holes[0];
+        var centerBoreDeltaX = centerBore.CenterX - rootCenter.X;
+        var centerBoreDeltaY = centerBore.CenterY - rootCenter.Y;
+        var centerBoreOffset = System.Math.Sqrt((centerBoreDeltaX * centerBoreDeltaX) + (centerBoreDeltaY * centerBoreDeltaY));
+        if (!ToleranceMath.AlmostZero(centerBoreOffset, tolerance))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                nextFeatureId,
+                "cannot continue cylinder-root safe subtract composition because the first accepted hole is not a coaxial center bore.");
+            return false;
+        }
+
+        if (isCoaxialCenterBore)
+        {
+            diagnostic = new BooleanDiagnostic(
+                BooleanDiagnosticCode.HoleInterference,
+                BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                    BooleanOperation.Subtract.ToString(),
+                    nextFeatureId,
+                    "cannot append another coaxial center bore in the bounded cylinder-root safe family."),
+                "BrepBoolean.AnalyticHole.HoleInterference");
+            return false;
+        }
+
+        var ringOuterDistance = radialDistance + toolCylinder.Radius;
+        var ringInnerDistance = radialDistance - toolCylinder.Radius;
+        if (ToleranceMath.AlmostEqual(ringOuterDistance, rootCylinder.Radius, tolerance)
+            || ringOuterDistance > (rootCylinder.Radius - tolerance.Linear))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                nextFeatureId,
+                "is outside the bounded cylinder-root safe subtract family; off-axis through-holes must remain strictly inside the outer cylindrical wall.");
+            return false;
+        }
+
+        if (ToleranceMath.AlmostEqual(ringInnerDistance, centerBore.BottomRadius, tolerance)
+            || ringInnerDistance < (centerBore.BottomRadius + tolerance.Linear))
+        {
+            diagnostic = new BooleanDiagnostic(
+                BooleanDiagnosticCode.HoleInterference,
+                BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                    BooleanOperation.Subtract.ToString(),
+                    nextFeatureId,
+                    "is outside the bounded cylinder-root safe subtract family; off-axis through-holes must remain strictly outside the center bore ring boundary."),
+                "BrepBoolean.AnalyticHole.HoleInterference");
+            return false;
+        }
+
+        for (var i = 1; i < composition.Holes.Count; i++)
+        {
+            var existingHole = composition.Holes[i];
+            var existingDeltaX = existingHole.CenterX - nextHole.CenterX;
+            var existingDeltaY = existingHole.CenterY - nextHole.CenterY;
+            var centerDistance = System.Math.Sqrt((existingDeltaX * existingDeltaX) + (existingDeltaY * existingDeltaY));
+            var requiredDistance = existingHole.MaxBoundaryRadius + nextHole.MaxBoundaryRadius;
+
+            if (ToleranceMath.AlmostEqual(centerDistance, requiredDistance, tolerance))
+            {
+                diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(
+                    BooleanOperation.Subtract.ToString(),
+                    nextFeatureId,
+                    $"would be tangent to previously accepted off-axis hole {FormatFeatureRef(existingHole.FeatureId)}; tangent safe-hole composition is rejected.");
+                return false;
+            }
+
+            if (centerDistance < (requiredDistance - tolerance.Linear))
+            {
+                diagnostic = new BooleanDiagnostic(
+                    BooleanDiagnosticCode.HoleInterference,
+                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                        BooleanOperation.Subtract.ToString(),
+                        nextFeatureId,
+                        $"overlaps previously accepted off-axis hole {FormatFeatureRef(existingHole.FeatureId)}; overlapping cylinder-root hole chains are not supported."),
+                    "BrepBoolean.AnalyticHole.HoleInterference");
+                return false;
+            }
+        }
+
         updatedComposition = composition with
         {
-            Holes =
-            [
-                new SupportedBooleanHole(
-                    nextFeatureId,
-                    surface,
-                    rootCenter.X,
-                    rootCenter.Y,
-                    new Point3D(rootCenter.X, rootCenter.Y, rootMinZ),
-                    new Point3D(rootCenter.X, rootCenter.Y, rootMaxZ),
-                    toolCylinder.Axis,
-                    Direction3D.Create(new Vector3D(1d, 0d, 0d)),
-                    toolCylinder.Radius,
-                    toolCylinder.Radius,
-                    SupportedBooleanHoleSpanKind.Through,
-                    rootMinZ,
-                    rootMaxZ)
-            ],
+            Holes = [.. composition.Holes, nextHole],
         };
 
         return true;

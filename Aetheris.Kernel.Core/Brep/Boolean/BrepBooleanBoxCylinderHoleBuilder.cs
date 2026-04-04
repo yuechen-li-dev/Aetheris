@@ -28,7 +28,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         _ = tolerance;
         if (composition.RootDescriptor.Kind == SafeBooleanRootKind.Cylinder)
         {
-            return CreateBoundedCylinderRootCenterBoreBody(composition, tolerance);
+            return CreateBoundedCylinderRootHoleChainBody(composition, tolerance);
         }
 
         if (composition.Holes.Count == 1
@@ -54,12 +54,11 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         return CreateComposedThroughHoleBody(composition);
     }
 
-    private static KernelResult<BrepBody> CreateBoundedCylinderRootCenterBoreBody(SafeBooleanComposition composition, ToleranceContext tolerance)
+    private static KernelResult<BrepBody> CreateBoundedCylinderRootHoleChainBody(SafeBooleanComposition composition, ToleranceContext tolerance)
     {
         if (composition.RootDescriptor.Cylinder is not RecognizedCylinder rootCylinder
-            || composition.Holes.Count != 1
-            || composition.Holes[0].Surface.Kind != AnalyticSurfaceKind.Cylinder
-            || composition.Holes[0].Surface.Cylinder is not RecognizedCylinder boreCylinder)
+            || composition.Holes.Count < 1
+            || composition.Holes.Any(hole => hole.Surface.Kind != AnalyticSurfaceKind.Cylinder))
         {
             return KernelResult<BrepBody>.Failure([
                 new BooleanDiagnostic(
@@ -67,7 +66,21 @@ public static class BrepBooleanBoxCylinderHoleBuilder
                     BrepBooleanCylinderRecognition.CreateBooleanMessage(
                         BooleanOperation.Subtract.ToString(),
                         null,
-                        "cylinder-root safe rebuild in F2 requires exactly one recognized through center-bore cylinder."),
+                        "cylinder-root safe rebuild in F3 requires a center-bore plus optional off-axis through-hole cylinder chain."),
+                    "BrepBoolean.AnalyticHole.CylinderRootUnsupportedComposition").ToKernelDiagnostic(),
+            ]);
+        }
+
+        var centerBore = composition.Holes[0];
+        if (centerBore.Surface.Cylinder is not RecognizedCylinder boreCylinder)
+        {
+            return KernelResult<BrepBody>.Failure([
+                new BooleanDiagnostic(
+                    BooleanDiagnosticCode.NotFullySpanning,
+                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                        BooleanOperation.Subtract.ToString(),
+                        centerBore.FeatureId,
+                        "cylinder-root safe rebuild in F3 requires recognized cylindrical tool surfaces."),
                     "BrepBoolean.AnalyticHole.CylinderRootUnsupportedComposition").ToKernelDiagnostic(),
             ]);
         }
@@ -101,13 +114,21 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             return KernelResult<BrepBody>.Failure(outer.Diagnostics);
         }
 
-        var inner = BrepPrimitives.CreateCylinder(boreCylinder.Radius, rootCylinder.Height);
-        if (!inner.IsSuccess)
+        var innerShells = new List<BrepBody>(composition.Holes.Count);
+        foreach (var hole in composition.Holes)
         {
-            return KernelResult<BrepBody>.Failure(inner.Diagnostics);
+            var localCenter = new Point3D(hole.CenterX - rootCenter.X, hole.CenterY - rootCenter.Y, rootCylinder.Height * 0.5d);
+            var holeShell = BrepPrimitives.CreateCylinder(hole.BottomRadius, rootCylinder.Height);
+            if (!holeShell.IsSuccess)
+            {
+                return KernelResult<BrepBody>.Failure(holeShell.Diagnostics);
+            }
+
+            var transformedHoleShell = TranslateBody(holeShell.Value, new Vector3D(localCenter.X, localCenter.Y, localCenter.Z));
+            innerShells.Add(transformedHoleShell);
         }
 
-        var merged = MergeOuterAndInnerShell(outer.Value, inner.Value);
+        var merged = MergeOuterAndInnerShells(outer.Value, innerShells);
         var bodyWithComposition = TranslateMergedBody(merged, rootCenter, composition);
         var validation = BrepBindingValidator.Validate(bodyWithComposition, requireAllEdgeAndFaceBindings: true);
         return validation.IsSuccess
@@ -137,8 +158,10 @@ public static class BrepBooleanBoxCylinderHoleBuilder
     }
 
     private static BrepBody MergeOuterAndInnerShell(BrepBody outer, BrepBody inner)
+        => MergeOuterAndInnerShells(outer, [inner]);
+
+    private static BrepBody MergeOuterAndInnerShells(BrepBody outer, IReadOnlyList<BrepBody> innerShells)
     {
-        const int idOffset = 1000;
         var topology = new TopologyModel();
 
         foreach (var vertex in outer.Topology.Vertices.OrderBy(v => v.Id.Value))
@@ -171,52 +194,59 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             topology.AddShell(shell);
         }
 
-        var innerVertexMap = inner.Topology.Vertices.ToDictionary(v => v.Id, v => new VertexId(v.Id.Value + idOffset));
-        var innerEdgeMap = inner.Topology.Edges.ToDictionary(e => e.Id, e => new EdgeId(e.Id.Value + idOffset));
-        var innerLoopMap = inner.Topology.Loops.ToDictionary(l => l.Id, l => new LoopId(l.Id.Value + idOffset));
-        var innerCoedgeMap = inner.Topology.Coedges.ToDictionary(c => c.Id, c => new CoedgeId(c.Id.Value + idOffset));
-        var innerFaceMap = inner.Topology.Faces.ToDictionary(f => f.Id, f => new FaceId(f.Id.Value + idOffset));
-        var innerShellMap = inner.Topology.Shells.ToDictionary(s => s.Id, s => new ShellId(s.Id.Value + idOffset));
-
-        foreach (var vertex in inner.Topology.Vertices.OrderBy(v => v.Id.Value))
+        var remappedInnerShellIds = new List<ShellId>(innerShells.Count);
+        for (var innerIndex = 0; innerIndex < innerShells.Count; innerIndex++)
         {
-            topology.AddVertex(new Vertex(innerVertexMap[vertex.Id]));
-        }
+            var inner = innerShells[innerIndex];
+            var idOffset = 1000 * (innerIndex + 1);
+            var innerVertexMap = inner.Topology.Vertices.ToDictionary(v => v.Id, v => new VertexId(v.Id.Value + idOffset));
+            var innerEdgeMap = inner.Topology.Edges.ToDictionary(e => e.Id, e => new EdgeId(e.Id.Value + idOffset));
+            var innerLoopMap = inner.Topology.Loops.ToDictionary(l => l.Id, l => new LoopId(l.Id.Value + idOffset));
+            var innerCoedgeMap = inner.Topology.Coedges.ToDictionary(c => c.Id, c => new CoedgeId(c.Id.Value + idOffset));
+            var innerFaceMap = inner.Topology.Faces.ToDictionary(f => f.Id, f => new FaceId(f.Id.Value + idOffset));
+            var innerShellMap = inner.Topology.Shells.ToDictionary(s => s.Id, s => new ShellId(s.Id.Value + idOffset));
 
-        foreach (var edge in inner.Topology.Edges.OrderBy(e => e.Id.Value))
-        {
-            topology.AddEdge(new Edge(innerEdgeMap[edge.Id], innerVertexMap[edge.StartVertexId], innerVertexMap[edge.EndVertexId]));
-        }
+            foreach (var vertex in inner.Topology.Vertices.OrderBy(v => v.Id.Value))
+            {
+                topology.AddVertex(new Vertex(innerVertexMap[vertex.Id]));
+            }
 
-        foreach (var coedge in inner.Topology.Coedges.OrderBy(c => c.Id.Value))
-        {
-            topology.AddCoedge(new Coedge(
-                innerCoedgeMap[coedge.Id],
-                innerEdgeMap[coedge.EdgeId],
-                innerLoopMap[coedge.LoopId],
-                innerCoedgeMap[coedge.NextCoedgeId],
-                innerCoedgeMap[coedge.PrevCoedgeId],
-                coedge.IsReversed));
-        }
+            foreach (var edge in inner.Topology.Edges.OrderBy(e => e.Id.Value))
+            {
+                topology.AddEdge(new Edge(innerEdgeMap[edge.Id], innerVertexMap[edge.StartVertexId], innerVertexMap[edge.EndVertexId]));
+            }
 
-        foreach (var loop in inner.Topology.Loops.OrderBy(l => l.Id.Value))
-        {
-            topology.AddLoop(new Loop(innerLoopMap[loop.Id], loop.CoedgeIds.Select(id => innerCoedgeMap[id]).ToArray()));
-        }
+            foreach (var coedge in inner.Topology.Coedges.OrderBy(c => c.Id.Value))
+            {
+                topology.AddCoedge(new Coedge(
+                    innerCoedgeMap[coedge.Id],
+                    innerEdgeMap[coedge.EdgeId],
+                    innerLoopMap[coedge.LoopId],
+                    innerCoedgeMap[coedge.NextCoedgeId],
+                    innerCoedgeMap[coedge.PrevCoedgeId],
+                    coedge.IsReversed));
+            }
 
-        foreach (var face in inner.Topology.Faces.OrderBy(f => f.Id.Value))
-        {
-            topology.AddFace(new Face(innerFaceMap[face.Id], face.LoopIds.Select(id => innerLoopMap[id]).ToArray()));
-        }
+            foreach (var loop in inner.Topology.Loops.OrderBy(l => l.Id.Value))
+            {
+                topology.AddLoop(new Loop(innerLoopMap[loop.Id], loop.CoedgeIds.Select(id => innerCoedgeMap[id]).ToArray()));
+            }
 
-        foreach (var shell in inner.Topology.Shells.OrderBy(s => s.Id.Value))
-        {
-            topology.AddShell(new Shell(innerShellMap[shell.Id], shell.FaceIds.Select(id => innerFaceMap[id]).ToArray()));
+            foreach (var face in inner.Topology.Faces.OrderBy(f => f.Id.Value))
+            {
+                topology.AddFace(new Face(innerFaceMap[face.Id], face.LoopIds.Select(id => innerLoopMap[id]).ToArray()));
+            }
+
+            foreach (var shell in inner.Topology.Shells.OrderBy(s => s.Id.Value))
+            {
+                topology.AddShell(new Shell(innerShellMap[shell.Id], shell.FaceIds.Select(id => innerFaceMap[id]).ToArray()));
+            }
+
+            remappedInnerShellIds.Add(innerShellMap[AssertSingleShellId(inner.Topology)]);
         }
 
         var outerShellId = AssertSingleShellId(outer.Topology);
-        var remappedInnerShellId = innerShellMap[AssertSingleShellId(inner.Topology)];
-        topology.AddBody(new Body(new BodyId(1), [outerShellId, remappedInnerShellId]));
+        topology.AddBody(new Body(new BodyId(1), [outerShellId, .. remappedInnerShellIds]));
 
         var geometry = new BrepGeometryStore();
         foreach (var curve in outer.Geometry.Curves)
@@ -229,14 +259,19 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             geometry.AddSurface(surface.Key, surface.Value);
         }
 
-        foreach (var curve in inner.Geometry.Curves)
+        for (var innerIndex = 0; innerIndex < innerShells.Count; innerIndex++)
         {
-            geometry.AddCurve(new CurveGeometryId(curve.Key.Value + idOffset), curve.Value);
-        }
+            var inner = innerShells[innerIndex];
+            var idOffset = 1000 * (innerIndex + 1);
+            foreach (var curve in inner.Geometry.Curves)
+            {
+                geometry.AddCurve(new CurveGeometryId(curve.Key.Value + idOffset), curve.Value);
+            }
 
-        foreach (var surface in inner.Geometry.Surfaces)
-        {
-            geometry.AddSurface(new SurfaceGeometryId(surface.Key.Value + idOffset), surface.Value);
+            foreach (var surface in inner.Geometry.Surfaces)
+            {
+                geometry.AddSurface(new SurfaceGeometryId(surface.Key.Value + idOffset), surface.Value);
+            }
         }
 
         var bindings = new BrepBindingModel();
@@ -250,22 +285,30 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             bindings.AddFaceBinding(faceBinding);
         }
 
-        foreach (var edgeBinding in inner.Bindings.EdgeBindings.OrderBy(binding => binding.EdgeId.Value))
+        for (var innerIndex = 0; innerIndex < innerShells.Count; innerIndex++)
         {
-            bindings.AddEdgeBinding(edgeBinding with
-            {
-                EdgeId = innerEdgeMap[edgeBinding.EdgeId],
-                CurveGeometryId = new CurveGeometryId(edgeBinding.CurveGeometryId.Value + idOffset),
-            });
-        }
+            var inner = innerShells[innerIndex];
+            var idOffset = 1000 * (innerIndex + 1);
+            var innerEdgeMap = inner.Topology.Edges.ToDictionary(e => e.Id, e => new EdgeId(e.Id.Value + idOffset));
+            var innerFaceMap = inner.Topology.Faces.ToDictionary(f => f.Id, f => new FaceId(f.Id.Value + idOffset));
 
-        foreach (var faceBinding in inner.Bindings.FaceBindings.OrderBy(binding => binding.FaceId.Value))
-        {
-            bindings.AddFaceBinding(faceBinding with
+            foreach (var edgeBinding in inner.Bindings.EdgeBindings.OrderBy(binding => binding.EdgeId.Value))
             {
-                FaceId = innerFaceMap[faceBinding.FaceId],
-                SurfaceGeometryId = new SurfaceGeometryId(faceBinding.SurfaceGeometryId.Value + idOffset),
-            });
+                bindings.AddEdgeBinding(edgeBinding with
+                {
+                    EdgeId = innerEdgeMap[edgeBinding.EdgeId],
+                    CurveGeometryId = new CurveGeometryId(edgeBinding.CurveGeometryId.Value + idOffset),
+                });
+            }
+
+            foreach (var faceBinding in inner.Bindings.FaceBindings.OrderBy(binding => binding.FaceId.Value))
+            {
+                bindings.AddFaceBinding(faceBinding with
+                {
+                    FaceId = innerFaceMap[faceBinding.FaceId],
+                    SurfaceGeometryId = new SurfaceGeometryId(faceBinding.SurfaceGeometryId.Value + idOffset),
+                });
+            }
         }
 
         var vertexPoints = new Dictionary<VertexId, Point3D>();
@@ -277,11 +320,16 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             }
         }
 
-        foreach (var vertex in inner.Topology.Vertices.OrderBy(v => v.Id.Value))
+        for (var innerIndex = 0; innerIndex < innerShells.Count; innerIndex++)
         {
-            if (inner.TryGetVertexPoint(vertex.Id, out var point))
+            var inner = innerShells[innerIndex];
+            var idOffset = 1000 * (innerIndex + 1);
+            foreach (var vertex in inner.Topology.Vertices.OrderBy(v => v.Id.Value))
             {
-                vertexPoints[innerVertexMap[vertex.Id]] = point;
+                if (inner.TryGetVertexPoint(vertex.Id, out var point))
+                {
+                    vertexPoints[new VertexId(vertex.Id.Value + idOffset)] = point;
+                }
             }
         }
 
@@ -291,7 +339,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             bindings,
             vertexPoints,
             safeBooleanComposition: null,
-            shellRepresentation: new BrepBodyShellRepresentation(outerShellId, [remappedInnerShellId]));
+            shellRepresentation: new BrepBodyShellRepresentation(outerShellId, remappedInnerShellIds));
     }
 
     private static ShellId AssertSingleShellId(TopologyModel topology)
@@ -684,6 +732,50 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         }
 
         return new BrepBody(body.Topology, translatedGeometry, body.Bindings, vertexPoints, composition, body.ShellRepresentation);
+    }
+
+    private static BrepBody TranslateBody(BrepBody body, Vector3D translation)
+    {
+        if (translation == Vector3D.Zero)
+        {
+            return body;
+        }
+
+        var translatedGeometry = new BrepGeometryStore();
+        foreach (var curveEntry in body.Geometry.Curves)
+        {
+            translatedGeometry.AddCurve(curveEntry.Key, curveEntry.Value.Kind switch
+            {
+                CurveGeometryKind.Line3 => CurveGeometry.FromLine(new Line3Curve(curveEntry.Value.Line3!.Value.Origin + translation, curveEntry.Value.Line3.Value.Direction)),
+                CurveGeometryKind.Circle3 => CurveGeometry.FromCircle(new Circle3Curve(curveEntry.Value.Circle3!.Value.Center + translation, curveEntry.Value.Circle3.Value.Normal, curveEntry.Value.Circle3.Value.Radius, curveEntry.Value.Circle3.Value.XAxis)),
+                _ => curveEntry.Value
+            });
+        }
+
+        foreach (var surfaceEntry in body.Geometry.Surfaces)
+        {
+            translatedGeometry.AddSurface(surfaceEntry.Key, surfaceEntry.Value.Kind switch
+            {
+                SurfaceGeometryKind.Plane => SurfaceGeometry.FromPlane(new PlaneSurface(surfaceEntry.Value.Plane!.Value.Origin + translation, surfaceEntry.Value.Plane.Value.Normal, surfaceEntry.Value.Plane.Value.UAxis)),
+                SurfaceGeometryKind.Cylinder => SurfaceGeometry.FromCylinder(new CylinderSurface(surfaceEntry.Value.Cylinder!.Value.Origin + translation, surfaceEntry.Value.Cylinder.Value.Axis, surfaceEntry.Value.Cylinder.Value.Radius, surfaceEntry.Value.Cylinder.Value.XAxis)),
+                _ => surfaceEntry.Value
+            });
+        }
+
+        Dictionary<VertexId, Point3D>? vertexPoints = null;
+        if (body.Topology.Vertices.Any())
+        {
+            vertexPoints = [];
+            foreach (var vertex in body.Topology.Vertices)
+            {
+                if (body.TryGetVertexPoint(vertex.Id, out var point))
+                {
+                    vertexPoints[vertex.Id] = point + translation;
+                }
+            }
+        }
+
+        return new BrepBody(body.Topology, translatedGeometry, body.Bindings, vertexPoints, body.SafeBooleanComposition, body.ShellRepresentation);
     }
 
     private static LoopId AddLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)

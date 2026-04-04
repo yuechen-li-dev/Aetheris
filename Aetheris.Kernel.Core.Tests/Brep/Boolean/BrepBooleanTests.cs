@@ -308,16 +308,109 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Subtract_CylinderRootOffsetHole_IsRejectedLoudly()
+    public void Subtract_CylinderRootCenterBoreAndOffsetHole_Succeeds()
     {
         var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;
+        var centerBore = BrepPrimitives.CreateCylinder(12d, 24d).Value;
         var offsetHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(25d, 0d, 0d)));
 
-        var result = BrepBoolean.Subtract(root, offsetHole);
+        var withCenterBore = BrepBoolean.Subtract(root, centerBore);
+        Assert.True(withCenterBore.IsSuccess);
+
+        var result = BrepBoolean.Subtract(withCenterBore.Value, offsetHole);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(result.Value, true).IsSuccess);
+        Assert.Equal(9, result.Value.Topology.Faces.Count());
+        Assert.NotNull(result.Value.ShellRepresentation);
+        Assert.Equal(2, result.Value.ShellRepresentation!.InnerShellIds.Count);
+        var export = Step242Exporter.ExportBody(result.Value);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("BREP_WITH_VOIDS", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_CylinderRootCenterBoreAndBoltCircle_SucceedsDeterministically()
+    {
+        var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;
+        var centerBore = BrepPrimitives.CreateCylinder(12d, 24d).Value;
+        var hole0 = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(25d, 0d, 0d)));
+        var hole90 = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 25d, 0d)));
+        var hole180 = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(-25d, 0d, 0d)));
+        var hole270 = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(0d, -25d, 0d)));
+
+        var first = BrepBoolean.Subtract(root, centerBore).Value;
+        first = BrepBoolean.Subtract(first, hole0).Value;
+        first = BrepBoolean.Subtract(first, hole90).Value;
+        first = BrepBoolean.Subtract(first, hole180).Value;
+        var firstResult = BrepBoolean.Subtract(first, hole270);
+
+        var second = BrepBoolean.Subtract(root, centerBore).Value;
+        second = BrepBoolean.Subtract(second, hole0).Value;
+        second = BrepBoolean.Subtract(second, hole90).Value;
+        second = BrepBoolean.Subtract(second, hole180).Value;
+        var secondResult = BrepBoolean.Subtract(second, hole270);
+
+        Assert.True(firstResult.IsSuccess);
+        Assert.True(secondResult.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(firstResult.Value, true).IsSuccess);
+        Assert.Equal(5, firstResult.Value.ShellRepresentation!.InnerShellIds.Count);
+        var firstExport = Step242Exporter.ExportBody(firstResult.Value);
+        var secondExport = Step242Exporter.ExportBody(secondResult.Value);
+        Assert.True(firstExport.IsSuccess);
+        Assert.True(secondExport.IsSuccess);
+        Assert.Equal(firstExport.Value, secondExport.Value);
+    }
+
+    [Fact]
+    public void Subtract_CylinderRootCenterBoreThenWallTouchingOffsetHole_IsRejectedLoudly()
+    {
+        var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;
+        var centerBore = BrepPrimitives.CreateCylinder(12d, 24d).Value;
+        var touchingOuterWallHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(36d, 0d, 0d)));
+
+        var withCenterBore = BrepBoolean.Subtract(root, centerBore);
+        Assert.True(withCenterBore.IsSuccess);
+        var result = BrepBoolean.Subtract(withCenterBore.Value, touchingOuterWallHole);
 
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Contains("only coaxial center bores are supported", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("strictly inside the outer cylindrical wall", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_CylinderRootCenterBoreThenOverlappingOffsetHole_IsRejectedLoudly()
+    {
+        var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;
+        var centerBore = BrepPrimitives.CreateCylinder(12d, 24d).Value;
+        var overlappingCenterBoreHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(15d, 0d, 0d)));
+
+        var withCenterBore = BrepBoolean.Subtract(root, centerBore);
+        Assert.True(withCenterBore.IsSuccess);
+        var result = BrepBoolean.Subtract(withCenterBore.Value, overlappingCenterBoreHole);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Contains("strictly outside the center bore ring boundary", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_CylinderRootBoltHoleTangentToBoltHole_IsRejectedLoudly()
+    {
+        var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;
+        var centerBore = BrepPrimitives.CreateCylinder(12d, 24d).Value;
+        var holeA = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(25d, 0d, 0d)));
+        var tangentHoleB = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(33d, 0d, 0d)));
+
+        var withCenterBore = BrepBoolean.Subtract(root, centerBore);
+        Assert.True(withCenterBore.IsSuccess);
+        var withHoleA = BrepBoolean.Subtract(withCenterBore.Value, holeA);
+        Assert.True(withHoleA.IsSuccess);
+        var result = BrepBoolean.Subtract(withHoleA.Value, tangentHoleB);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Contains("tangent to previously accepted off-axis hole", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

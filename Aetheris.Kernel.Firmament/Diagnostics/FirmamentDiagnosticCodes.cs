@@ -51,6 +51,7 @@ public static class FirmamentDiagnosticCodes
     public static readonly FirmamentDiagnosticCode SchemaInvalidFieldTypeOrShape = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0003");
     public static readonly FirmamentDiagnosticCode SchemaInvalidFieldValue = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0004");
     public static readonly FirmamentDiagnosticCode SchemaCncMinimumToolRadiusViolated = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0005");
+    public static readonly FirmamentDiagnosticCode SchemaEnclosedVoidsNotAllowed = new($"{FirmamentDiagnosticConventions.SchemaPrefix}-0006");
 
     public static readonly FirmamentDiagnosticCode LoweringPlaceholder = new($"{FirmamentDiagnosticConventions.LoweringPrefix}-0001");
 }

@@ -1,0 +1,30 @@
+firmament:
+  version: 1
+
+model:
+  name: fl2_shaft_keyway
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: shaft
+    radius: 15
+    height: 80
+
+  -
+    op: subtract
+    id: keyway
+    from: shaft
+    with:
+      op: box
+      size[3]:
+        10
+        6
+        90
+    place:
+      on: origin
+      offset[3]:
+        10
+        0
+        0

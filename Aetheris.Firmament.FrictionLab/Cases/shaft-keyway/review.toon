@@ -1,0 +1,10 @@
+case_id: shaft-keyway
+possible: true
+awkwardness: medium
+pain_points[2]:
+  - "Slot alignment to cylinder is offset-based instead of axis/face constrained."
+  - "No dedicated keyway helper, so dimensions are manually coordinated."
+proposed_features[2]:
+  - "Axis-aligned slot primitive for shafts."
+  - "Reference constraints against cylindrical faces/axes."
+reviewer_verdict: "Possible with existing primitives, but alignment readability is weaker than desired."

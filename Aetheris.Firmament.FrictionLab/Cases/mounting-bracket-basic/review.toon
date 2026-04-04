@@ -1,0 +1,10 @@
+case_id: mounting-bracket-basic
+possible: partial
+awkwardness: high
+pain_points[2]:
+  - "Bracket union requires add behavior that currently fails on non-trivial unions."
+  - "Hole placement requires manual offsets with no alignment helper for faces/axes."
+proposed_features[2]:
+  - "Robust add/union support for simple multi-box bracket construction."
+  - "Face/axis placement primitives for hole positioning."
+reviewer_verdict: "Intent is clear but blocked by union limitations, so only partial authoring confidence."

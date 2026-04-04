@@ -1,0 +1,10 @@
+case_id: loft-transition-test
+possible: false
+awkwardness: high
+pain_points[2]:
+  - "Loft between dissimilar profiles is not available in current primitive set."
+  - "No profile sketch or multi-section transition construct exists to express intent."
+proposed_features[2]:
+  - "Profile definition blocks with reusable sketches."
+  - "Loft feature supporting multi-section transitions and guide constraints."
+reviewer_verdict: "Expected failure: transition loft cannot be authored without missing core shape operations."

@@ -1,0 +1,14 @@
+firmament:
+  version: 1
+
+model:
+  name: fl2_loft_transition_test
+  units: mm
+
+ops[1]:
+  -
+    op: loft
+    id: transition
+    profiles[2]:
+      rectangle_profile
+      circle_profile

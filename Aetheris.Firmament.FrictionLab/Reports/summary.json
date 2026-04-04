@@ -1,13 +1,38 @@
 {
-  "totalCases": 3,
+  "totalCases": 13,
   "successCount": 1,
-  "partialCount": 0,
-  "failureCount": 2,
+  "partialCount": 7,
+  "failureCount": 5,
   "caseResults": [
     {
-      "caseId": "blind-hole-mount-block",
-      "buildStatus": "failure",
+      "caseId": "blind-hole-block-deep",
+      "buildStatus": "partial",
+      "artifactPresent": false,
       "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "medium",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027deep_blind_hole\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027deep_blind_hole\u0027 (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.",
+          "source": "BrepBoolean.AnalyticHole.NotFullySpanning"
+        }
+      ]
+    },
+    {
+      "caseId": "blind-hole-mount-block",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "medium",
       "diagnostics": [
         {
           "code": "NotImplemented",
@@ -24,15 +49,191 @@
       ]
     },
     {
+      "caseId": "counterbore-hole",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027counterbore_pocket\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027counterbore_pocket\u0027 (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.",
+          "source": "BrepBoolean.AnalyticHole.NotFullySpanning"
+        }
+      ]
+    },
+    {
+      "caseId": "enclosure-hollow-box",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027shell_cut\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027shell_cut\u0027 (subtract): Boolean Subtract: box subtraction result is not representable as a single box in M13.",
+          "source": "BrepBoolean.RebuildResult"
+        }
+      ]
+    },
+    {
+      "caseId": "flange-bolt-circle",
+      "buildStatus": "failure",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027center_bore\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "ValidationFailed",
+          "severity": "Error",
+          "message": "Boolean feature \u0027center_bore\u0027 (subtract) cannot re-enter the safe subtract family from \u0027flange\u0027. Safe-hole composition may start only from a box root or continue from a previously validated safe subtract result.",
+          "source": "firmament.feature-graph.invalid-composition-order"
+        }
+      ]
+    },
+    {
       "caseId": "flange-plate-hole-pattern",
       "buildStatus": "success",
+      "artifactPresent": true,
       "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/flange-plate-hole-pattern.step",
+      "possible": "true",
+      "awkwardness": "low",
       "diagnostics": []
     },
     {
-      "caseId": "simple-bracket",
+      "caseId": "loft-transition-test",
       "buildStatus": "failure",
+      "artifactPresent": false,
       "stepArtifactPath": null,
+      "possible": "false",
+      "awkwardness": "high",
+      "diagnostics": [
+        {
+          "code": "ValidationFailed",
+          "severity": "Error",
+          "message": "[FIRM-STRUCT-0008] Operation entry at index 0 has unknown op kind \u0027loft\u0027.",
+          "source": "firmament"
+        }
+      ]
+    },
+    {
+      "caseId": "mounting-bracket-basic",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027bracket\u0027 (add) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027bracket\u0027 (add): Boolean Union: box union is not a single box in M13 (for example L-shaped unions).",
+          "source": "BrepBoolean.RebuildResult"
+        }
+      ]
+    },
+    {
+      "caseId": "pocketed-plate",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "medium",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027pocket\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027pocket\u0027 (subtract): Boolean Subtract: box subtraction result is not representable as a single box in M13.",
+          "source": "BrepBoolean.RebuildResult"
+        }
+      ]
+    },
+    {
+      "caseId": "ribbed-support",
+      "buildStatus": "failure",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "false",
+      "awkwardness": "high",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027wall\u0027 (add) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027wall\u0027 (add): Boolean Union: box union is not a single box in M13 (for example L-shaped unions).",
+          "source": "BrepBoolean.RebuildResult"
+        }
+      ]
+    },
+    {
+      "caseId": "shaft-keyway",
+      "buildStatus": "failure",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027keyway\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027keyway\u0027 (subtract): Boolean Subtract: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).",
+          "source": "BrepBoolean.RebuildResult"
+        }
+      ]
+    },
+    {
+      "caseId": "simple-bracket",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "high",
       "diagnostics": [
         {
           "code": "NotImplemented",
@@ -45,6 +246,22 @@
           "severity": "Error",
           "message": "Boolean feature \u0027upright_seed\u0027 (add): Boolean Union: box union is not a single box in M13 (for example L-shaped unions).",
           "source": "BrepBoolean.RebuildResult"
+        }
+      ]
+    },
+    {
+      "caseId": "thread-helix-test",
+      "buildStatus": "failure",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "false",
+      "awkwardness": "high",
+      "diagnostics": [
+        {
+          "code": "ValidationFailed",
+          "severity": "Error",
+          "message": "[FIRM-STRUCT-0008] Operation entry at index 1 has unknown op kind \u0027helix_thread\u0027.",
+          "source": "firmament"
         }
       ]
     }

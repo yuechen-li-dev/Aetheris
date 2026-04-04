@@ -27,7 +27,10 @@ internal sealed record FrictionLabSummary(
 internal sealed record FrictionCaseResult(
     string CaseId,
     string BuildStatus,
+    bool ArtifactPresent,
     string? StepArtifactPath,
+    string Possible,
+    string Awkwardness,
     IReadOnlyList<FrictionDiagnostic> Diagnostics);
 
 internal sealed record FrictionDiagnostic(
@@ -35,3 +38,15 @@ internal sealed record FrictionDiagnostic(
     string Severity,
     string Message,
     string? Source);
+
+internal sealed record FrictionCaseReview(
+    string CaseId,
+    string Possible,
+    string Awkwardness,
+    IReadOnlyList<string> PainPoints,
+    IReadOnlyList<string> ProposedFeatures,
+    string ReviewerVerdict)
+{
+    public static FrictionCaseReview Missing(string caseId) =>
+        new(caseId, "partial", "high", ["Missing or invalid review.toon file."], ["Enforce review parsing in harness validation."], "Review metadata missing.");
+}

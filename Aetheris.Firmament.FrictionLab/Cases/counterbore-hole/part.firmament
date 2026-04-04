@@ -13,6 +13,12 @@ ops[3]:
       70
       40
       16
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -5
 
   -
     op: subtract
@@ -22,12 +28,6 @@ ops[3]:
       op: cylinder
       radius: 7
       height: 6
-    place:
-      on: origin
-      offset[3]:
-        0
-        0
-        5
 
   -
     op: subtract
@@ -36,4 +36,4 @@ ops[3]:
     with:
       op: cylinder
       radius: 3.5
-      height: 24
+      height: 26

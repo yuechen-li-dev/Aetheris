@@ -64,6 +64,29 @@ public static class BrepBooleanSafeCompositionGraphValidator
             var centerDistance = System.Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
             var requiredDistance = existingHole.MaxBoundaryRadius + nextHole.MaxBoundaryRadius;
 
+            if (composition.Holes.Count == 1
+                && (existingHole.IsBlind || nextHole.IsBlind)
+                && centerDistance < (requiredDistance + tolerance.Linear))
+            {
+                if (BrepBooleanSteppedHoleFamily.TryClassifyPair(
+                    composition.OuterBox,
+                    existingHole,
+                    nextHole,
+                    tolerance,
+                    out _,
+                    out var steppedDiagnostic,
+                    nextFeatureId))
+                {
+                    continue;
+                }
+
+                if (steppedDiagnostic is not null)
+                {
+                    diagnostic = steppedDiagnostic;
+                    return false;
+                }
+            }
+
             if (ToleranceMath.AlmostEqual(centerDistance, requiredDistance, tolerance))
             {
                 diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(

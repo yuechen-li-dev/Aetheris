@@ -28,3 +28,9 @@ ops[2]:
       op: cylinder
       radius: 5
       height: 10
+    place:
+      on_face: base.top_face
+      offset[3]:
+        0
+        0
+        -10

@@ -363,6 +363,25 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_CylinderRootOffsetHoleThenCenterBore_Succeeds()
+    {
+        var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;
+        var offsetHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(25d, 0d, 0d)));
+        var centerBore = BrepPrimitives.CreateCylinder(12d, 24d).Value;
+
+        var withOffset = BrepBoolean.Subtract(root, offsetHole);
+        Assert.True(withOffset.IsSuccess);
+        var result = BrepBoolean.Subtract(withOffset.Value, centerBore);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(result.Value, true).IsSuccess);
+        Assert.Equal(2, result.Value.ShellRepresentation!.InnerShellIds.Count);
+        var export = Step242Exporter.ExportBody(result.Value);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("BREP_WITH_VOIDS", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Subtract_CylinderRootCenterBoreThenWallTouchingOffsetHole_IsRejectedLoudly()
     {
         var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;
@@ -391,7 +410,7 @@ public sealed class BrepBooleanTests
 
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Contains("strictly outside the center bore ring boundary", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("overlaps previously accepted hole", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -410,7 +429,7 @@ public sealed class BrepBooleanTests
 
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Contains("tangent to previously accepted off-axis hole", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("tangent to previously accepted hole", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

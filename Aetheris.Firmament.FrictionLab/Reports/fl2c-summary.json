@@ -1,0 +1,46 @@
+{
+  "milestone": "FL2c",
+  "description": "Targeted friction reassessment for G3 bounded stepped/coaxial and blind-hole-family impact.",
+  "rerun_case_count": 2,
+  "source_previous_summary": "Aetheris.Firmament.FrictionLab/Reports/fl2b-summary.json",
+  "source_current_run": "Aetheris.Firmament.FrictionLab/Reports/fl2c-run.json",
+  "cases": [
+    {
+      "case_id": "blind-hole-mount-block",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "medium",
+      "remaining_blocker": "Boolean feature 'blind_hole' (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone."
+    },
+    {
+      "case_id": "counterbore-hole",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "remaining_blocker": "Boolean feature 'counterbore_pocket' (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone."
+    }
+  ],
+  "improved_cases": [],
+  "top_repeated_remaining_blockers": [
+    {
+      "blocker": "BrepBoolean.AnalyticHole.NotFullySpanning",
+      "count": 2
+    }
+  ],
+  "deterministic_case_order": [
+    "blind-hole-mount-block",
+    "counterbore-hole"
+  ]
+}

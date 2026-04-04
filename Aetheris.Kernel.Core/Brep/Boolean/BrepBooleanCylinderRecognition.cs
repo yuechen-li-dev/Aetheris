@@ -265,12 +265,6 @@ public static class BrepBooleanCylinderRecognition
     {
         profile = default;
         diagnostic = null;
-        if (!IsAxisAlignedWithWorldZ(cone.Axis, tolerance))
-        {
-            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "currently defers arbitrary-axis cone subtract in the safe family; only world-Z cone subtract is supported in this milestone.");
-            return false;
-        }
-
         if (!TryResolveBoundaryAxisParameter(cone.AxisOrigin, cone.Axis, box.MinZ, tolerance, out var bottomAxisParameter)
             || !TryResolveBoundaryAxisParameter(cone.AxisOrigin, cone.Axis, box.MaxZ, tolerance, out var topAxisParameter))
         {
@@ -310,6 +304,12 @@ public static class BrepBooleanCylinderRecognition
 
         if (coversTop && !coversBottom)
         {
+            if (!IsAxisAlignedWithWorldZ(cone.Axis, tolerance))
+            {
+                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "currently supports arbitrary-axis cone subtract only for through-holes; blind arbitrary-axis cone holes remain deferred in this milestone.");
+                return false;
+            }
+
             var minEndIsLower = cone.MinCenter.Z <= cone.MaxCenter.Z;
             var terminationZ = System.Math.Min(cone.MinCenter.Z, cone.MaxCenter.Z);
             if (terminationZ <= (box.MinZ + tolerance.Linear) || terminationZ >= (box.MaxZ - tolerance.Linear))
@@ -339,6 +339,12 @@ public static class BrepBooleanCylinderRecognition
 
         if (coversBottom && !coversTop)
         {
+            if (!IsAxisAlignedWithWorldZ(cone.Axis, tolerance))
+            {
+                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "currently supports arbitrary-axis cone subtract only for through-holes; blind arbitrary-axis cone holes remain deferred in this milestone.");
+                return false;
+            }
+
             var maxEndIsHigher = cone.MaxCenter.Z >= cone.MinCenter.Z;
             var terminationZ = System.Math.Max(cone.MinCenter.Z, cone.MaxCenter.Z);
             if (terminationZ <= (box.MinZ + tolerance.Linear) || terminationZ >= (box.MaxZ - tolerance.Linear))

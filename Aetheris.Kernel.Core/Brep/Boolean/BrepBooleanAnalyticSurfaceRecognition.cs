@@ -106,6 +106,7 @@ public static class BrepBooleanAnalyticSurfaceRecognition
         var axis = coneSurface.Axis;
         var axisVector = axis.ToVector();
 
+        var capCircles = new List<Circle3Curve>(2);
         foreach (var edgeBinding in body.Bindings.EdgeBindings)
         {
             var edgeCurve = body.Geometry.GetCurve(edgeBinding.CurveGeometryId);
@@ -114,6 +115,17 @@ public static class BrepBooleanAnalyticSurfaceRecognition
                 reason = "cone recognition requires one line seam and circular cap edges only.";
                 return false;
             }
+
+            if (edgeCurve.Kind == CurveGeometryKind.Circle3 && edgeCurve.Circle3 is Circle3Curve circle)
+            {
+                capCircles.Add(circle);
+            }
+        }
+
+        if (capCircles.Count is < 1 or > 2 || capCircles.Count != planeBindings.Count)
+        {
+            reason = "cone recognition requires one line seam and one or two circular cap edges.";
+            return false;
         }
 
         var samples = new List<(double AxisParameter, double Radius)>(2);
@@ -127,7 +139,18 @@ public static class BrepBooleanAnalyticSurfaceRecognition
                 return false;
             }
 
-            var centerOffset = plane.Origin - coneSurface.Apex;
+        }
+
+        foreach (var circle in capCircles)
+        {
+            var normalDot = circle.Normal.ToVector().Dot(axisVector);
+            if (!ToleranceMath.AlmostEqual(double.Abs(normalDot), 1d, tolerance))
+            {
+                reason = "cone recognition requires cap circle normals parallel to the cone axis.";
+                return false;
+            }
+
+            var centerOffset = circle.Center - coneSurface.Apex;
             var axisParameter = centerOffset.Dot(axisVector);
             var radialOffset = centerOffset - (axisVector * axisParameter);
             if (radialOffset.Length > tolerance.Linear)
@@ -136,7 +159,7 @@ public static class BrepBooleanAnalyticSurfaceRecognition
                 return false;
             }
 
-            samples.Add((axisParameter, System.Math.Abs(axisParameter) * System.Math.Tan(coneSurface.SemiAngleRadians)));
+            samples.Add((axisParameter, circle.Radius));
         }
 
         if (planeBindings.Count == 1)

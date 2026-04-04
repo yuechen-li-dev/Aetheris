@@ -136,36 +136,6 @@ internal static class AnalyticDisplaySupportPolicy
             return false;
         }
 
-        var normal = plane.Normal.ToVector();
-        var axisAlignedPlane = double.Abs(normal.X) > 0.9d || double.Abs(normal.Y) > 0.9d || double.Abs(normal.Z) > 0.9d;
-        if (axisAlignedPlane)
-        {
-            return true;
-        }
-
-        if (face.LoopIds.Count != 1)
-        {
-            return false;
-        }
-
-        var loop = body.Topology.GetLoop(face.LoopIds[0]);
-        if (loop.CoedgeIds.Count == 0)
-        {
-            return false;
-        }
-
-        foreach (var coedgeId in loop.CoedgeIds)
-        {
-            var edgeId = body.Topology.GetCoedge(coedgeId).EdgeId;
-            if (!body.Bindings.TryGetEdgeBinding(edgeId, out var edgeBinding)
-                || !body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve)
-                || curve is null
-                || curve.Kind != CurveGeometryKind.Circle3)
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return AnalyticPlanarFaceDomain.TryCreate(body, faceId, plane, out _);
     }
 }

@@ -34,24 +34,47 @@ public sealed class AnalyticDisplayQueryTests
 
 
     [Fact]
-    public void PlanarFace_RotatedBoxSide_RejectsOutOfDomainPlaneHit()
+    public void PlanarFace_RotatedNonAxisPolygon_RejectsOutOfDomainPlaneHit()
     {
-        var rotated = TransformBody(BrepPrimitives.CreateBox(2d, 2d, 2d).Value, Transform3D.CreateRotationZ(double.Pi / 4d));
-        var sideFaceId = rotated.Topology.Faces
-            .Select(face => face.Id)
-            .First(faceId =>
-            {
-                var surface = rotated.GetFaceSurface(faceId);
-                return surface.Kind == SurfaceGeometryKind.Plane
-                    && surface.Plane is { } plane
-                    && double.Abs(plane.Normal.Z) < 0.1d;
-            });
+        var imported = ImportFromCorpus("testdata/step242/tessellation-robustness/planar-nonconvex-single-loop.step");
+        var rotated = TransformBody(imported, Transform3D.CreateRotationX(double.Pi / 4d));
+        var sideFaceId = rotated.Topology.Faces.Single().Id;
 
         var plane = rotated.GetFaceSurface(sideFaceId).Plane!.Value;
-        var outsideOnPlane = plane.Origin + (plane.VAxis.ToVector() * 5d);
+        var insideRay = new Ray3D(plane.Origin - (plane.Normal.ToVector() * 3d), Direction3D.Create(plane.Normal.ToVector()));
+        var outsideOnPlane = plane.Origin + (plane.VAxis.ToVector() * 50d);
         var ray = new Ray3D(outsideOnPlane - (plane.Normal.ToVector() * 3d), Direction3D.Create(plane.Normal.ToVector()));
 
+        Assert.True(AnalyticDisplayQuery.TryIntersectFace(rotated, sideFaceId, insideRay, out _));
         Assert.False(AnalyticDisplayQuery.TryIntersectFace(rotated, sideFaceId, ray, out _));
+    }
+
+    [Fact]
+    public void PlanarFace_NonAxisPolygon_QueryAndPacketStayConsistent()
+    {
+        var imported = ImportFromCorpus("testdata/step242/tessellation-robustness/planar-nonconvex-single-loop.step");
+        var rotated = TransformBody(imported, Transform3D.CreateRotationY(double.Pi / 5d));
+        var packet = AnalyticDisplayPacketBuilder.Build(rotated);
+        var sideFaceId = rotated.Topology.Faces.Single().Id;
+        var plane = rotated.GetFaceSurface(sideFaceId).Plane!.Value;
+
+        var hitRay = new Ray3D(plane.Origin - (plane.Normal.ToVector() * 4d), Direction3D.Create(plane.Normal.ToVector()));
+
+        Assert.Contains(packet.AnalyticFaces, face => face.FaceId == sideFaceId && face.SurfaceKind == SurfaceGeometryKind.Plane);
+        Assert.True(AnalyticDisplayQuery.TryIntersectFace(rotated, sideFaceId, hitRay, out _));
+    }
+
+    [Fact]
+    public void PlanarFace_NonAxisCurvedTrim_RemainsFallbackAndQueryRejects()
+    {
+        var body = TransformBody(ImportFromCorpus("testdata/step242/tessellation-robustness/planar-rect-with-filleted-corners.step"), Transform3D.CreateRotationX(double.Pi / 6d));
+        var packet = AnalyticDisplayPacketBuilder.Build(body);
+        var planarFallback = Assert.Single(packet.FallbackFaces, face => face.SurfaceKind == SurfaceGeometryKind.Plane && face.Reason == AnalyticDisplayFallbackReason.UnsupportedTrim);
+        var plane = body.GetFaceSurface(planarFallback.FaceId).Plane!.Value;
+        var ray = new Ray3D(plane.Origin - (plane.Normal.ToVector() * 10d), Direction3D.Create(plane.Normal.ToVector()));
+
+        Assert.DoesNotContain(packet.AnalyticFaces, face => face.FaceId == planarFallback.FaceId);
+        Assert.False(AnalyticDisplayQuery.TryIntersectFace(body, planarFallback.FaceId, ray, out _));
     }
 
     [Fact]

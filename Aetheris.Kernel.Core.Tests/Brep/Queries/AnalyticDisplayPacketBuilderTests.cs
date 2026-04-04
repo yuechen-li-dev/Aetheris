@@ -27,19 +27,25 @@ public sealed class AnalyticDisplayPacketBuilderTests
 
 
     [Fact]
-    public void Build_RotatedBoxBody_RoutesNonAxisPlanarFacesToFallback()
+    public void Build_RotatedPlanarPolygonBody_KeepsNonAxisPlanarPolygonFaceAnalytic()
     {
-        var body = TransformBody(BrepPrimitives.CreateBox(2d, 2d, 2d).Value, Transform3D.CreateRotationX(double.Pi / 4d));
+        var imported = ImportFromCorpus("testdata/step242/tessellation-robustness/planar-nonconvex-single-loop.step");
+        var body = TransformBody(imported, Transform3D.CreateRotationX(double.Pi / 4d));
 
         var packet = AnalyticDisplayPacketBuilder.Build(body);
 
-        Assert.NotEmpty(packet.AnalyticFaces);
-        Assert.NotEmpty(packet.FallbackFaces);
-        Assert.All(packet.FallbackFaces, face =>
-        {
-            Assert.Equal(AnalyticDisplayFallbackReason.UnsupportedTrim, face.Reason);
-            Assert.Equal(SurfaceGeometryKind.Plane, face.SurfaceKind);
-        });
+        Assert.Contains(packet.AnalyticFaces, face => face.SurfaceKind == SurfaceGeometryKind.Plane);
+    }
+
+    [Fact]
+    public void Build_RotatedPlanarCurvedTrimBody_RoutesNonAxisUnsupportedPlanarTrimToFallback()
+    {
+        var imported = ImportFromCorpus("testdata/step242/tessellation-robustness/planar-rect-with-filleted-corners.step");
+        var body = TransformBody(imported, Transform3D.CreateRotationX(double.Pi / 6d));
+
+        var packet = AnalyticDisplayPacketBuilder.Build(body);
+
+        Assert.Contains(packet.FallbackFaces, face => face.SurfaceKind == SurfaceGeometryKind.Plane && face.Reason == AnalyticDisplayFallbackReason.UnsupportedTrim);
     }
 
     [Fact]

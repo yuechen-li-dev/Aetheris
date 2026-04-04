@@ -1,0 +1,64 @@
+{
+  "milestone": "FL2b",
+  "description": "Targeted friction reassessment for G1 geometry-first subtract validation impact.",
+  "rerun_case_count": 3,
+  "source_previous_summary": "Aetheris.Firmament.FrictionLab/Reports/fl2a-summary.json",
+  "source_current_run": "Aetheris.Firmament.FrictionLab/Reports/fl2b-run.json",
+  "cases": [
+    {
+      "case_id": "flange-bolt-circle",
+      "previous_status": "failure",
+      "current_status": "failure",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "Boolean feature 'bolt_0' (subtract) overlaps previously accepted hole; overlapping cylinder-root hole chains are not supported."
+    },
+    {
+      "case_id": "blind-hole-mount-block",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "medium",
+      "remaining_blocker": "Boolean feature 'blind_hole' (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone."
+    },
+    {
+      "case_id": "counterbore-hole",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "remaining_blocker": "Boolean feature 'counterbore_pocket' (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone."
+    }
+  ],
+  "improved_cases": [],
+  "top_repeated_remaining_blockers": [
+    {
+      "blocker": "BrepBoolean.AnalyticHole.NotFullySpanning",
+      "count": 2
+    },
+    {
+      "blocker": "BrepBoolean.AnalyticHole.HoleInterference",
+      "count": 1
+    }
+  ],
+  "deterministic_case_order": [
+    "flange-bolt-circle",
+    "blind-hole-mount-block",
+    "counterbore-hole"
+  ]
+}

@@ -7,9 +7,11 @@ pain_points[2]:
 proposed_features[2]:
   - "Polar pattern operation for repeated cuts around an axis."
   - "Parameter blocks for shared hole dimensions."
-reviewer_verdict: "Possible today, but repetitive and error-prone for larger bolt counts."
+reviewer_verdict: "Rerun confirms geometry-first validation no longer blocks entry; execution still fails on overlapping hole-chain interference."
 previous_status: failure
 current_status: failure
-changed: yes
-blocker_class: improved_but_still_blocked
-change_note: "F2/F3 removed the old cylinder-root entry blocker; now blocked later by hole-interference/coaxial subtract constraints."
+changed: no
+improved: false
+classification: unchanged_kernel_blocker
+if_changed_why: "n/a"
+if_unchanged_blocker: "Boolean feature 'bolt_0' (subtract) overlaps previously accepted hole; overlapping cylinder-root hole chains are not supported."

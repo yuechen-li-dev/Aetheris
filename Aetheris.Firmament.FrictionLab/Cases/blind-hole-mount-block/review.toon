@@ -6,9 +6,11 @@ pain_points[2]:
   - "Author intent is clear, but permissible blind-hole envelope is narrow and opaque."
 proposed_features[1]:
   - "Broaden subtract span-family support and expose explicit blind-hole capability constraints."
-reviewer_verdict: "Stopped intentionally; friction captured for future feature pressure."
+reviewer_verdict: "No material change from FL2a; the blind-hole span-family limiter remains the active blocker after G1."
 previous_status: partial
 current_status: partial
 changed: no
-blocker_class: unchanged_kernel_blocker
-blocker_remaining: "Blind-hole subtract still violates supported subtract span-family envelope."
+improved: false
+classification: unchanged_kernel_blocker
+if_changed_why: "n/a"
+if_unchanged_blocker: "Boolean feature 'blind_hole' (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone."

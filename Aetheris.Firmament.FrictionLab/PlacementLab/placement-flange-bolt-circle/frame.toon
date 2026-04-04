@@ -1,0 +1,28 @@
+# friction-lab candidate syntax only
+# not production Firmament
+candidate:
+  id: placement-flange-bolt-circle
+  style: frame
+  setup:
+    flange:
+      op: cylinder
+      radius: 70
+      height: 14
+    flange_top_frame:
+      from_face: flange.top_face
+      origin: center
+      x_axis: radial_zero
+      y_axis: tangent_zero
+      z_axis: normal
+  placement:
+    bolt_holes:
+      type: circular_pattern
+      frame: flange_top_frame
+      seed_feature:
+        type: blind_hole
+        position_xyz: [52, 0, 0]
+        direction: +z
+        diameter: 9
+        depth: 12
+      count: 6
+      angle_step_deg: 60

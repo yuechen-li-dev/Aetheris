@@ -1,0 +1,32 @@
+case: placement-shaft-keyway
+comparison:
+  anchor:
+    possible: partial
+    awkwardness: medium
+    verbosity: medium
+    pretzel_risk: medium
+    pain_points:
+      - side-face normal on cylinder needs extra clocking concept
+      - mixing axial and radial offsets is easy to misread
+    smallest_feature_shape: "slot on cylindrical side using axis + clocking + z offset"
+  frame:
+    possible: partial
+    awkwardness: high
+    verbosity: high
+    pretzel_risk: high
+    pain_points:
+      - cylindrical frame definition is cognitively heavy for routine keyway
+      - multiple axes/center values invite coordinate mistakes
+    smallest_feature_shape: "cylinder-derived frame at angle + z"
+  semantic:
+    possible: true
+    awkwardness: low
+    verbosity: low
+    pretzel_risk: low
+    pain_points:
+      - very task-specific; general slot variants may not fit
+    smallest_feature_shape: "shaft_keyway(shaft, clocking, start_z, length, width, depth)"
+verdict:
+  preferred_candidate: semantic
+  why: "captures common shaft keyway intent without forcing cylindrical frame math"
+  what_should_be_tried_first_in_production: "prototype tiny keyway sugar only for straight shaft cases"

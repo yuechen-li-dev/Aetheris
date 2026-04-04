@@ -19,25 +19,70 @@ internal static class FirmamentPlacementResolver
     {
         if (primitive.Placement is null) return KernelResult<Vector3D>.Success(Vector3D.Zero);
 
-        var anchorResult = ResolveAnchorPoint(primitive.Placement.On, featureBodies);
-        if (!anchorResult.IsSuccess) return KernelResult<Vector3D>.Failure(anchorResult.Diagnostics);
+        var semanticAnchorResult = ResolveSemanticAnchorPoint(primitive.Placement, featureBodies);
+        if (!semanticAnchorResult.IsSuccess) return KernelResult<Vector3D>.Failure(semanticAnchorResult.Diagnostics);
+
+        var baseAnchorPoint = semanticAnchorResult.Value;
+        if (!string.IsNullOrWhiteSpace(primitive.Placement.AroundAxis))
+        {
+            var axisResult = ResolveAxisFromSelector(primitive.Placement.AroundAxis!, featureBodies);
+            if (!axisResult.IsSuccess) return KernelResult<Vector3D>.Failure(axisResult.Diagnostics);
+            var radialOffset = primitive.Placement.RadialOffset ?? 0d;
+            var angleDegrees = primitive.Placement.AngleDegrees ?? 0d;
+            baseAnchorPoint = ResolveAroundAxisPoint(axisResult.Value, baseAnchorPoint, radialOffset, angleDegrees);
+        }
 
         var o = primitive.Placement.Offset;
         return KernelResult<Vector3D>.Success(
-            (anchorResult.Value - Point3D.Origin)
+            (baseAnchorPoint - Point3D.Origin)
             + ResolvePrimitivePlacementLocalFrameCorrection(primitive)
-            + new Vector3D(o[0], o[1], o[2]));
+            + ResolveOffset(o));
     }
 
     public static KernelResult<Vector3D> ResolvePlacementTranslation(FirmamentLoweredBoolean booleanOp, IReadOnlyDictionary<string, BrepBody> featureBodies)
     {
         if (booleanOp.Placement is null) return KernelResult<Vector3D>.Success(Vector3D.Zero);
-
-        var anchorResult = ResolveAnchorPoint(booleanOp.Placement.On, featureBodies);
-        if (!anchorResult.IsSuccess) return KernelResult<Vector3D>.Failure(anchorResult.Diagnostics);
+        var semanticAnchorResult = ResolveSemanticAnchorPoint(booleanOp.Placement, featureBodies);
+        if (!semanticAnchorResult.IsSuccess) return KernelResult<Vector3D>.Failure(semanticAnchorResult.Diagnostics);
+        var baseAnchorPoint = semanticAnchorResult.Value;
+        if (!string.IsNullOrWhiteSpace(booleanOp.Placement.AroundAxis))
+        {
+            var axisResult = ResolveAxisFromSelector(booleanOp.Placement.AroundAxis!, featureBodies);
+            if (!axisResult.IsSuccess) return KernelResult<Vector3D>.Failure(axisResult.Diagnostics);
+            var radialOffset = booleanOp.Placement.RadialOffset ?? 0d;
+            var angleDegrees = booleanOp.Placement.AngleDegrees ?? 0d;
+            baseAnchorPoint = ResolveAroundAxisPoint(axisResult.Value, baseAnchorPoint, radialOffset, angleDegrees);
+        }
 
         var o = booleanOp.Placement.Offset;
-        return KernelResult<Vector3D>.Success((anchorResult.Value - Point3D.Origin) + new Vector3D(o[0], o[1], o[2]));
+        return KernelResult<Vector3D>.Success((baseAnchorPoint - Point3D.Origin) + ResolveOffset(o));
+    }
+
+    private static KernelResult<Point3D> ResolveSemanticAnchorPoint(FirmamentLoweredPlacement placement, IReadOnlyDictionary<string, BrepBody> featureBodies)
+    {
+        if (!string.IsNullOrWhiteSpace(placement.OnFace))
+        {
+            return ResolveAnchorPoint(new FirmamentLoweredPlacementSelectorAnchor(placement.OnFace!), featureBodies);
+        }
+
+        if (!string.IsNullOrWhiteSpace(placement.CenteredOn))
+        {
+            return ResolveAnchorPoint(new FirmamentLoweredPlacementSelectorAnchor(placement.CenteredOn!), featureBodies);
+        }
+
+        if (placement.On is not null)
+        {
+            return ResolveAnchorPoint(placement.On, featureBodies);
+        }
+
+        if (!string.IsNullOrWhiteSpace(placement.AroundAxis))
+        {
+            var axis = ResolveAxisFromSelector(placement.AroundAxis!, featureBodies);
+            if (!axis.IsSuccess) return KernelResult<Point3D>.Failure(axis.Diagnostics);
+            return KernelResult<Point3D>.Success(axis.Value.Origin);
+        }
+
+        return KernelResult<Point3D>.Success(Point3D.Origin);
     }
 
     private static Vector3D ResolvePrimitivePlacementLocalFrameCorrection(FirmamentLoweredPrimitive primitive)
@@ -74,6 +119,94 @@ internal static class FirmamentPlacementResolver
             FirmamentSelectorResultKind.VertexSet => ResolveVertexAnchor(body),
             _ => Failure($"Placement selector '{selector}' uses unsupported selector result for placement anchor extraction.")
         };
+    }
+
+    private static KernelResult<FirmamentPlacementAxis> ResolveAxisFromSelector(string selector, IReadOnlyDictionary<string, BrepBody> featureBodies)
+    {
+        var i = selector.IndexOf('.', StringComparison.Ordinal);
+        if (i <= 0 || i >= selector.Length - 1) return FailureAxis($"Placement selector '{selector}' is not selector-shaped.");
+
+        var featureId = selector[..i];
+        var port = selector[(i + 1)..];
+        if (!featureBodies.TryGetValue(featureId, out var body)) return FailureAxis($"Placement selector '{selector}' resolved empty at runtime.");
+
+        var candidateFaces = body.Topology.Faces
+            .Where(face => body.TryGetFaceSurfaceGeometry(face.Id, out var _) && true)
+            .ToList();
+        if (candidateFaces.Count == 0)
+        {
+            return FailureAxis($"Placement selector '{selector}' resolved empty face set at runtime.");
+        }
+
+        foreach (var face in candidateFaces)
+        {
+            body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+            if (surface is null)
+            {
+                continue;
+            }
+
+            if (port == "side_face" && surface.Kind == SurfaceGeometryKind.Cylinder)
+            {
+                var c = surface.Cylinder!.Value;
+                return KernelResult<FirmamentPlacementAxis>.Success(new FirmamentPlacementAxis(c.Origin, c.Axis.ToVector()));
+            }
+
+            if (port == "side_face" && surface.Kind == SurfaceGeometryKind.Cone)
+            {
+                var c = surface.Cone!.Value;
+                return KernelResult<FirmamentPlacementAxis>.Success(new FirmamentPlacementAxis(c.Apex, c.Axis.ToVector()));
+            }
+        }
+
+        return FailureAxis($"Placement selector '{selector}' cannot resolve an axis for P1 around-axis placement; expected cylindrical/conical side_face selector.");
+    }
+
+    private static Point3D ResolveAroundAxisPoint(FirmamentPlacementAxis axis, Point3D basePoint, double radialOffset, double angleDegrees)
+    {
+        if (!axis.Direction.TryNormalize(out var axisDir))
+        {
+            return basePoint;
+        }
+        var toBase = basePoint - axis.Origin;
+        var projectedLength = toBase.Dot(axisDir);
+        var onAxis = axis.Origin + (axisDir * projectedLength);
+
+        var reference = new Vector3D(1d, 0d, 0d);
+        if (!reference.TryNormalize(out var normalizedReference))
+        {
+            normalizedReference = new Vector3D(1d, 0d, 0d);
+        }
+
+        if (Math.Abs(normalizedReference.Dot(axisDir)) > 0.99d)
+        {
+            reference = new Vector3D(0d, 1d, 0d);
+        }
+
+        var radialUraw = reference - axisDir * reference.Dot(axisDir);
+        if (!radialUraw.TryNormalize(out var radialU))
+        {
+            radialU = new Vector3D(1d, 0d, 0d);
+        }
+
+        var radialVraw = axisDir.Cross(radialU);
+        if (!radialVraw.TryNormalize(out var radialV))
+        {
+            radialV = new Vector3D(0d, 1d, 0d);
+        }
+        var radians = angleDegrees * (Math.PI / 180d);
+        var radial = (radialU * Math.Cos(radians) + radialV * Math.Sin(radians)) * radialOffset;
+        return onAxis + radial;
+    }
+
+    private static Vector3D ResolveOffset(IReadOnlyList<double> offset)
+    {
+        if (offset.Count == 3)
+        {
+            return new Vector3D(offset[0], offset[1], offset[2]);
+        }
+
+        return Vector3D.Zero;
     }
 
     private static KernelResult<Point3D> ResolveFaceAnchor(BrepBody body, string port)
@@ -237,4 +370,9 @@ internal static class FirmamentPlacementResolver
 
     private static KernelResult<Point3D> Failure(string message) =>
         KernelResult<Point3D>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, $"[{FirmamentDiagnosticCodes.ValidationTargetSelectorResolvedEmpty.Value}] {message}", FirmamentDiagnosticConventions.Source)]);
+
+    private static KernelResult<FirmamentPlacementAxis> FailureAxis(string message) =>
+        KernelResult<FirmamentPlacementAxis>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, $"[{FirmamentDiagnosticCodes.ValidationTargetSelectorResolvedEmpty.Value}] {message}", FirmamentDiagnosticConventions.Source)]);
+
+    private readonly record struct FirmamentPlacementAxis(Point3D Origin, Vector3D Direction);
 }

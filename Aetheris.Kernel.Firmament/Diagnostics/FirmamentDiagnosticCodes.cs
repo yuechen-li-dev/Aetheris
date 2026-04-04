@@ -28,6 +28,8 @@ public static class FirmamentDiagnosticCodes
     public static readonly FirmamentDiagnosticCode PlacementInvalidAnchorShape = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0020");
     public static readonly FirmamentDiagnosticCode PlacementInvalidOffsetShape = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0021");
     public static readonly FirmamentDiagnosticCode PlacementInvalidOffsetValue = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0022");
+    public static readonly FirmamentDiagnosticCode PlacementUnsupportedSemanticField = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0023");
+    public static readonly FirmamentDiagnosticCode PlacementInvalidSemanticCombination = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0024");
 
     public static readonly FirmamentDiagnosticCode ReferenceDuplicateFeatureId = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0001");
     public static readonly FirmamentDiagnosticCode ReferenceUnknownFeatureId = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0002");

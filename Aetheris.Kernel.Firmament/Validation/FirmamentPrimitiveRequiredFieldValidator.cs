@@ -219,11 +219,29 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
         }
 
         entry.RawFields.TryGetValue("place", out var placeRaw);
-        var hasOn = false;
-        var hasOffset = false;
-        TryReadPlacementFieldPresence(placeRaw ?? string.Empty, out hasOn, out hasOffset);
+        if (entry.Placement is null)
+        {
+            return KernelResult<bool>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PlacementMissingRequiredField,
+                    $"Primitive op '{entry.OpName}' at index {opIndex} has invalid field 'place'; expected object-like placement block.")]);
+        }
 
-        if (!hasOn)
+        if (entry.Placement.UnknownFields.Count > 0)
+        {
+            return KernelResult<bool>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PlacementUnsupportedSemanticField,
+                    $"Primitive op '{entry.OpName}' at index {opIndex} uses unsupported placement semantic field(s): {string.Join(", ", entry.Placement.UnknownFields.Select(f => $"'{f}'"))}.")]);
+        }
+
+        var usesSemantic = !string.IsNullOrWhiteSpace(entry.Placement.OnFace)
+                           || !string.IsNullOrWhiteSpace(entry.Placement.CenteredOn)
+                           || !string.IsNullOrWhiteSpace(entry.Placement.AroundAxis)
+                           || entry.Placement.RadialOffset is not null
+                           || entry.Placement.AngleDegrees is not null;
+
+        if (!usesSemantic && entry.Placement.On is null)
         {
             return KernelResult<bool>.Failure([
                 CreateDiagnostic(
@@ -231,20 +249,17 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
                     $"Primitive op '{entry.OpName}' at index {opIndex} is missing required field 'place.on'.")]);
         }
 
-        if (!hasOffset)
+        if (!usesSemantic)
         {
-            return KernelResult<bool>.Failure([
-                CreateDiagnostic(
-                    FirmamentDiagnosticCodes.PlacementMissingRequiredField,
-                    $"Primitive op '{entry.OpName}' at index {opIndex} is missing required field 'place.offset'.")]);
-        }
-
-        if (entry.Placement is null)
-        {
-            return KernelResult<bool>.Failure([
-                CreateDiagnostic(
-                    FirmamentDiagnosticCodes.PlacementMissingRequiredField,
-                    $"Primitive op '{entry.OpName}' at index {opIndex} has invalid field 'place'; expected object-like placement block with required fields 'on' and 'offset'.")]);
+            var hasOffset = false;
+            _ = TryReadPlacementFieldPresence(placeRaw ?? string.Empty, out _, out hasOffset);
+            if (!hasOffset)
+            {
+                return KernelResult<bool>.Failure([
+                    CreateDiagnostic(
+                        FirmamentDiagnosticCodes.PlacementMissingRequiredField,
+                        $"Primitive op '{entry.OpName}' at index {opIndex} is missing required field 'place.offset'.")]);
+            }
         }
 
         if (entry.Placement.On is FirmamentParsedPlacementSelectorAnchor selectorAnchor)
@@ -258,12 +273,28 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
                         $"Primitive op '{entry.OpName}' at index {opIndex} has invalid placement anchor in field 'place.on'; expected 'origin' or selector-shaped token 'feature.port'.")]);
             }
         }
-        else if (entry.Placement.On is not FirmamentParsedPlacementOriginAnchor)
+        else if (entry.Placement.On is not null && entry.Placement.On is not FirmamentParsedPlacementOriginAnchor)
         {
             return KernelResult<bool>.Failure([
                 CreateDiagnostic(
                     FirmamentDiagnosticCodes.PlacementInvalidAnchorShape,
                     $"Primitive op '{entry.OpName}' at index {opIndex} has invalid placement anchor in field 'place.on'; expected 'origin' or selector-shaped token 'feature.port'.")]);
+        }
+
+        var semanticSelectorError = ValidateSemanticSelectorField(entry.Placement.OnFace, "place.on_face", entry, opIndex)
+                                    ?? ValidateSemanticSelectorField(entry.Placement.CenteredOn, "place.centered_on", entry, opIndex)
+                                    ?? ValidateSemanticSelectorField(entry.Placement.AroundAxis, "place.around_axis", entry, opIndex);
+        if (semanticSelectorError is not null)
+        {
+            return KernelResult<bool>.Failure([semanticSelectorError]);
+        }
+
+        if (entry.Placement.RadialOffset is not null && string.IsNullOrWhiteSpace(entry.Placement.AroundAxis))
+        {
+            return KernelResult<bool>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PlacementInvalidSemanticCombination,
+                    $"Primitive op '{entry.OpName}' at index {opIndex} has invalid placement semantics; 'place.radial_offset' requires 'place.around_axis'.")]);
         }
 
         if (entry.RawFields.TryGetValue("place", out var placeRawForOffset)
@@ -277,7 +308,7 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
                     $"Primitive op '{entry.OpName}' at index {opIndex} has invalid field 'place.offset' value; all components must be numeric.")]);
         }
 
-        if (entry.Placement.Offset.Count != 3)
+        if (entry.Placement.Offset.Count > 0 && entry.Placement.Offset.Count != 3)
         {
             return KernelResult<bool>.Failure([
                 CreateDiagnostic(
@@ -286,6 +317,24 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
         }
 
         return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelDiagnostic? ValidateSemanticSelectorField(string? selector, string fieldName, FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (string.IsNullOrWhiteSpace(selector))
+        {
+            return null;
+        }
+
+        if (!FirmamentValidationTargetClassifier.TryClassify(selector, out var shape)
+            || shape != FirmamentValidationTargetShape.SelectorShaped)
+        {
+            return CreateDiagnostic(
+                FirmamentDiagnosticCodes.PlacementInvalidAnchorShape,
+                $"Primitive op '{entry.OpName}' at index {opIndex} has invalid placement selector in field '{fieldName}'; expected selector-shaped token 'feature.port'.");
+        }
+
+        return null;
     }
 
     private static bool TryReadPlacementFieldPresence(string placeRaw, out bool hasOn, out bool hasOffset)

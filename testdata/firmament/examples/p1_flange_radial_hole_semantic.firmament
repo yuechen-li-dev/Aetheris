@@ -1,0 +1,28 @@
+firmament:
+  version: 1
+
+model:
+  name: p1_flange_radial_hole_semantic
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: flange
+    radius: 36
+    height: 12
+
+  -
+    op: cylinder
+    id: radial_hole_tool
+    radius: 3
+    height: 12
+    place:
+      on_face: flange.top_face
+      around_axis: flange.side_face
+      radial_offset: 20
+      angle_degrees: 30
+      offset[3]:
+        0
+        0
+        -12

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Linq;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -210,6 +211,42 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_P1BlindHoleOnFaceSemanticExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/p1_blind_hole_on_face_semantic.firmament",
+            "p1_blind_hole_on_face_semantic.step",
+            "blind_hole_tool",
+            1,
+            "primitive",
+            "cylinder");
+    }
+
+    [Fact]
+    public void Run_P1FlangeRadialHoleSemanticExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/p1_flange_radial_hole_semantic.firmament",
+            "p1_flange_radial_hole_semantic.step",
+            "radial_hole_tool",
+            1,
+            "primitive",
+            "cylinder");
+    }
+
+    [Fact]
+    public void Semantic_Placement_Build_Is_Deterministic()
+    {
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmament/examples/p1_flange_radial_hole_semantic.firmament");
+        var first = FirmamentBuildAndExport.Run(fullSourcePath);
+        var second = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+    }
+
+    [Fact]
     public void Run_UnsupportedBoxWithCylinderHoleFixture_Fails_And_Does_Not_Write_Fallback_Export()
     {
         AssertUnsupportedBuildAndExport(
@@ -254,7 +291,7 @@ public sealed class FirmamentBuildAndExportTests
 
         var result = FirmamentBuildAndExport.Run(fullSourcePath);
 
-        Assert.True(result.IsSuccess);
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.Equal(fullSourcePath, result.Value.SourcePath);
         Assert.Equal(expectedOutputPath, result.Value.OutputPath);
         Assert.Equal(expectedFeatureId, result.Value.Export.ExportedFeatureId);

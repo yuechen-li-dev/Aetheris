@@ -182,6 +182,44 @@ Notes:
 
 ---
 
+# Placement Shape (P1 subset)
+
+Placement remains optional. When present, use a small explicit `place` object.
+
+Legacy anchor placement:
+
+```
+place:
+  on: origin
+  offset[3]:
+    0
+    0
+    0
+```
+
+Semantic placement subset (P1):
+
+```
+place:
+  on_face: base.top_face
+  centered_on: flange.top_face
+  around_axis: flange.side_face
+  radial_offset: 20
+  angle_degrees: 30
+  offset[3]:
+    0
+    0
+    -12
+```
+
+Rules:
+- Supported semantic fields are exactly: `on_face`, `centered_on`, `around_axis`, `radial_offset`, `angle_degrees`.
+- `radial_offset` requires `around_axis`.
+- Unknown placement semantic keys are rejected.
+- This is a minimal ergonomics subset; it is **not** a general frame/constraint language.
+
+---
+
 # Validation Operations
 
 Validation operations do not create geometry.

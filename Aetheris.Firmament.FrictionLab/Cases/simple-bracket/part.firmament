@@ -1,0 +1,49 @@
+firmament:
+  version: 1
+
+model:
+  name: friction_simple_bracket
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      10
+      6
+
+  -
+    op: add
+    id: upright_seed
+    to: base
+    with:
+      op: box
+      size[3]:
+        8
+        10
+        24
+    place:
+      on: origin
+      offset[3]:
+        16
+        0
+        9
+
+  -
+    op: add
+    id: bracket
+    to: upright_seed
+    with:
+      op: box
+      size[3]:
+        8
+        10
+        12
+    place:
+      on: origin
+      offset[3]:
+        -16
+        0
+        9

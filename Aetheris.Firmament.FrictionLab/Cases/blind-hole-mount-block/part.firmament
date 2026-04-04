@@ -1,0 +1,30 @@
+firmament:
+  version: 1
+
+model:
+  name: friction_blind_hole_mount_block
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      50
+      40
+      20
+
+  -
+    op: subtract
+    id: blind_hole
+    from: base
+    with:
+      op: cylinder
+      radius: 5
+      height: 10
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        5

@@ -1,0 +1,53 @@
+{
+  "totalCases": 3,
+  "successCount": 1,
+  "partialCount": 0,
+  "failureCount": 2,
+  "caseResults": [
+    {
+      "caseId": "blind-hole-mount-block",
+      "buildStatus": "failure",
+      "stepArtifactPath": null,
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027blind_hole\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027blind_hole\u0027 (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.",
+          "source": "BrepBoolean.AnalyticHole.NotFullySpanning"
+        }
+      ]
+    },
+    {
+      "caseId": "flange-plate-hole-pattern",
+      "buildStatus": "success",
+      "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/flange-plate-hole-pattern.step",
+      "diagnostics": []
+    },
+    {
+      "caseId": "simple-bracket",
+      "buildStatus": "failure",
+      "stepArtifactPath": null,
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027upright_seed\u0027 (add) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027upright_seed\u0027 (add): Boolean Union: box union is not a single box in M13 (for example L-shaped unions).",
+          "source": "BrepBoolean.RebuildResult"
+        }
+      ]
+    }
+  ],
+  "summaryPath": "Aetheris.Firmament.FrictionLab/Reports/summary.json"
+}

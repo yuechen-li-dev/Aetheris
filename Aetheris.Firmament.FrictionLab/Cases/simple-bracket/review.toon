@@ -1,0 +1,9 @@
+case_id: simple-bracket
+possible: partial
+awkwardness: high
+pain_points[2]:
+  - "Additive union of offset boxes fails for non-single-box unions in current milestone."
+  - "Clean bracket intent cannot be expressed without unsupported boolean union behavior."
+proposed_features[1]:
+  - "Expand boolean add execution beyond single-box union rebuild constraints."
+reviewer_verdict: "Stopped intentionally; recorded friction instead of forcing workaround geometry."

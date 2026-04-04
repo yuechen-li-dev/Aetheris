@@ -1,0 +1,45 @@
+firmament:
+  version: 1
+
+model:
+  name: friction_flange_plate_hole_pattern
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: plate
+    size[3]:
+      80
+      40
+      8
+
+  -
+    op: subtract
+    id: hole_left
+    from: plate
+    with:
+      op: cylinder
+      radius: 4
+      height: 20
+    place:
+      on: origin
+      offset[3]:
+        -20
+        0
+        0
+
+  -
+    op: subtract
+    id: hole_right
+    from: hole_left
+    with:
+      op: cylinder
+      radius: 4
+      height: 20
+    place:
+      on: origin
+      offset[3]:
+        20
+        0
+        0

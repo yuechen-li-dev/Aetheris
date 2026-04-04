@@ -9,10 +9,12 @@ namespace Aetheris.Kernel.Core.Brep.Tessellation;
 
 internal sealed class UvTrimMaskExtractor
 {
+    private const int MaxSupportedLoops = 2;
+
     internal UvTrimMaskExtractionResult TryExtract(BrepBody body, FaceId faceId, BSplineSurfaceWithKnots surface)
     {
         var loopIds = body.GetLoopIds(faceId).OrderBy(id => id.Value).ToArray();
-        if (loopIds.Length != 1)
+        if (loopIds.Length == 0 || loopIds.Length > MaxSupportedLoops)
         {
             return UvTrimMaskExtractionResult.Unsupported(UvTrimMaskExtractionFailureReason.UnsupportedLoopTopology);
         }

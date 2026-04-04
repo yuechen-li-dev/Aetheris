@@ -21,6 +21,18 @@ public static class BrepBooleanSafeCompositionGraphValidator
             return false;
         }
 
+        if (composition.Holes.Count > 0 && nextHole.IsBlind)
+        {
+            diagnostic = new BooleanDiagnostic(
+                BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
+                BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                    BooleanOperation.Subtract.ToString(),
+                    nextFeatureId,
+                    "cannot append a blind analytic hole to an existing safe subtract composition in B1; blind-hole support is currently limited to single-feature subtracts."),
+                "BrepBoolean.AnalyticHole.UnsupportedBlindHoleComposition");
+            return false;
+        }
+
         foreach (var existingHole in composition.Holes)
         {
             var deltaX = existingHole.CenterX - nextHole.CenterX;
@@ -69,7 +81,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
         switch (surface.Kind)
         {
             case AnalyticSurfaceKind.Cylinder when surface.Cylinder is RecognizedCylinder cylinder:
-                if (!BrepBooleanCylinderRecognition.ValidateThroughHole(outerBox, cylinder, tolerance, out diagnostic, featureId))
+                if (!BrepBooleanCylinderRecognition.TryValidateCylinderSubtractProfile(outerBox, cylinder, tolerance, out var cylinderProfile, out diagnostic, featureId))
                 {
                     hole = default;
                     return false;
@@ -78,29 +90,32 @@ public static class BrepBooleanSafeCompositionGraphValidator
                 hole = new SupportedBooleanHole(
                     featureId,
                     surface,
-                    cylinder.MinCenter.X,
-                    cylinder.MinCenter.Y,
-                    cylinder.Radius,
-                    cylinder.Radius);
+                    cylinderProfile.CenterX,
+                    cylinderProfile.CenterY,
+                    cylinderProfile.StartRadius,
+                    cylinderProfile.EndRadius,
+                    cylinderProfile.SpanKind,
+                    cylinderProfile.StartZ,
+                    cylinderProfile.EndZ);
                 return true;
 
             case AnalyticSurfaceKind.Cone when surface.Cone is RecognizedCone cone:
-                if (!BrepBooleanCylinderRecognition.ValidateThroughHole(outerBox, cone, tolerance, out diagnostic, featureId))
+                if (!BrepBooleanCylinderRecognition.TryValidateConeSubtractProfile(outerBox, cone, tolerance, out var coneProfile, out diagnostic, featureId))
                 {
                     hole = default;
                     return false;
                 }
 
-                var bottomAxisParameter = AxisParameterAtZ(cone, outerBox.MinZ, tolerance);
-                var topAxisParameter = AxisParameterAtZ(cone, outerBox.MaxZ, tolerance);
-                var boundaryBottomCenter = cone.PointAtAxisParameter(bottomAxisParameter);
                 hole = new SupportedBooleanHole(
                     featureId,
                     surface,
-                    boundaryBottomCenter.X,
-                    boundaryBottomCenter.Y,
-                    cone.RadiusAtAxisParameter(bottomAxisParameter),
-                    cone.RadiusAtAxisParameter(topAxisParameter));
+                    coneProfile.CenterX,
+                    coneProfile.CenterY,
+                    coneProfile.StartRadius,
+                    coneProfile.EndRadius,
+                    coneProfile.SpanKind,
+                    coneProfile.StartZ,
+                    coneProfile.EndZ);
                 return true;
 
             case AnalyticSurfaceKind.Sphere when surface.Sphere is RecognizedSphere sphere:
@@ -126,7 +141,10 @@ public static class BrepBooleanSafeCompositionGraphValidator
                     sphere.Center.X,
                     sphere.Center.Y,
                     sphere.Radius,
-                    sphere.Radius);
+                    sphere.Radius,
+                    SupportedBooleanHoleSpanKind.Through,
+                    outerBox.MinZ,
+                    outerBox.MaxZ);
                 return true;
 
             case AnalyticSurfaceKind.Sphere:
@@ -139,17 +157,6 @@ public static class BrepBooleanSafeCompositionGraphValidator
                 hole = default;
                 return false;
         }
-    }
-
-    private static double AxisParameterAtZ(in RecognizedCone cone, double z, ToleranceContext tolerance)
-    {
-        var axisZ = cone.Axis.ToVector().Z;
-        if (ToleranceMath.AlmostEqual(axisZ, 0d, tolerance))
-        {
-            throw new InvalidOperationException("AxisParameterAtZ requires a cone axis aligned with Z.");
-        }
-
-        return (z - cone.AxisOrigin.Z) / axisZ;
     }
 
     private static string FormatFeatureRef(string? featureId)

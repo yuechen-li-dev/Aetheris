@@ -274,18 +274,29 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Subtract_BoxCylinderPartialHeight_ReturnsDeterministicNotImplemented()
+    public void Subtract_BoxCylinderBlindTopEntry_ReturnsClosedBottomHole()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
-        var partial = TransformBody(BrepPrimitives.CreateCylinder(4d, 6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
+        var blind = TransformBody(BrepPrimitives.CreateCylinder(4d, 8d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 8d)));
 
-        var result = BrepBoolean.Subtract(left, partial);
+        var result = BrepBoolean.Subtract(left, blind);
 
-        Assert.False(result.IsSuccess);
-        var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
-        Assert.Equal("Boolean Subtract does not reach both box boundary planes; partial-depth cylinder cuts are outside the supported safe boolean family. Extend the cylinder so it spans the full box Z range.", diagnostic.Message);
+        Assert.True(result.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(result.Value, true).IsSuccess);
+        Assert.Equal(8, result.Value.Topology.Faces.Count());
+
+        var topFace = Assert.Single(result.Value.Topology.Faces, face =>
+            result.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Plane
+            && surface.Plane!.Value.Normal.Z > 0.5d);
+        Assert.Equal(2, result.Value.GetLoopIds(topFace.Id).Count);
+
+        var bottomFace = Assert.Single(result.Value.Topology.Faces, face =>
+            result.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Plane
+            && surface.Plane!.Value.Normal.Z < -0.5d
+            && System.Math.Abs(surface.Plane!.Value.Origin.Z) < 1e-6d);
+        Assert.Single(result.Value.GetLoopIds(bottomFace.Id));
     }
 
     [Fact]
@@ -403,10 +414,10 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Subtract_BoxConePartialHeight_ReturnsNotFullySpanningDiagnostic()
+    public void Subtract_BoxCylinderMidSpanPartialHeight_ReturnsNotFullySpanningDiagnostic()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
-        var partial = CreateCone(bottomRadius: 4d, topRadius: 2d, height: 8d);
+        var partial = TransformBody(BrepPrimitives.CreateCylinder(4d, 6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
 
         var result = BrepBoolean.Subtract(left, partial);
 
@@ -414,7 +425,47 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
-        Assert.Equal("Boolean Subtract does not reach both box boundary planes; partial-depth cone cuts are outside the supported safe boolean family. Extend the cone so it spans the full box Z range.", diagnostic.Message);
+        Assert.Equal("Boolean Subtract does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Subtract_BoxConeBlindTopEntry_ReturnsClosedBottomHole()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var blind = TransformBody(CreateCone(bottomRadius: 4d, topRadius: 2d, height: 8d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 4d)));
+
+        var result = BrepBoolean.Subtract(left, blind);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(result.Value, true).IsSuccess);
+        Assert.Equal(8, result.Value.Topology.Faces.Count());
+        var topFace = Assert.Single(result.Value.Topology.Faces, face =>
+            result.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Plane
+            && surface.Plane!.Value.Normal.Z > 0.5d);
+        Assert.Equal(2, result.Value.GetLoopIds(topFace.Id).Count);
+
+        var bottomFace = Assert.Single(result.Value.Topology.Faces, face =>
+            result.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Plane
+            && surface.Plane!.Value.Normal.Z < -0.5d
+            && System.Math.Abs(surface.Plane!.Value.Origin.Z) < 1e-6d);
+        Assert.Single(result.Value.GetLoopIds(bottomFace.Id));
+    }
+
+    [Fact]
+    public void Subtract_BoxConePartialHeight_ReturnsNotFullySpanningDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var partial = TransformBody(CreateCone(bottomRadius: 4d, topRadius: 2d, height: 8d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 1d)));
+
+        var result = BrepBoolean.Subtract(left, partial);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
+        Assert.Equal("Boolean Subtract does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.", diagnostic.Message);
     }
 
     [Fact]
@@ -538,6 +589,22 @@ public sealed class BrepBooleanTests
         Assert.Equal(export.Value, repeatedExport.Value);
         Assert.Contains("CYLINDRICAL_SURFACE", export.Value, StringComparison.Ordinal);
         Assert.Contains("CONICAL_SURFACE", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_ComposedThroughThenBlindCylinder_ReturnsUnsupportedBlindHoleCompositionDiagnostic()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var firstHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(-7d, 0d, 6d)));
+        var blind = TransformBody(BrepPrimitives.CreateCylinder(3d, 8d).Value, Transform3D.CreateTranslation(new Vector3D(8d, 1d, 8d)));
+
+        var first = BrepBoolean.Subtract(baseBox, firstHole);
+        Assert.True(first.IsSuccess);
+
+        var result = BrepBoolean.Subtract(first.Value, blind);
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("BrepBoolean.AnalyticHole.UnsupportedBlindHoleComposition", diagnostic.Source);
     }
 
     [Fact]

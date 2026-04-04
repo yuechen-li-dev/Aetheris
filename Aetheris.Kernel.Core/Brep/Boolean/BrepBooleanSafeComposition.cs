@@ -23,15 +23,26 @@ public sealed record SafeBooleanComposition(
     }
 }
 
+public enum SupportedBooleanHoleSpanKind
+{
+    Through,
+    BlindFromTop,
+    BlindFromBottom,
+}
+
 public readonly record struct SupportedBooleanHole(
     string? FeatureId,
     AnalyticSurface Surface,
     double CenterX,
     double CenterY,
     double BottomRadius,
-    double TopRadius)
+    double TopRadius,
+    SupportedBooleanHoleSpanKind SpanKind,
+    double StartZ,
+    double EndZ)
 {
     public double MaxBoundaryRadius => System.Math.Max(BottomRadius, TopRadius);
+    public bool IsBlind => SpanKind != SupportedBooleanHoleSpanKind.Through;
 
     public SupportedBooleanHole Translate(Vector3D translation)
         => this with
@@ -39,6 +50,8 @@ public readonly record struct SupportedBooleanHole(
             Surface = Surface.Translate(translation),
             CenterX = CenterX + translation.X,
             CenterY = CenterY + translation.Y,
+            StartZ = StartZ + translation.Z,
+            EndZ = EndZ + translation.Z,
         };
 }
 

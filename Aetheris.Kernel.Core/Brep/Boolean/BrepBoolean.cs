@@ -191,7 +191,7 @@ public static class BrepBoolean
                 leftRecognized ? leftBox : leftSafeComposition!.OuterBox,
                 rightRecognized ? rightBox : null,
                 rightAnalyticRecognized ? analyticSurface : null,
-                $"Boolean {operation}: sequential safe composition only supports subtracting supported cylinder/cone through-holes from the current composed box shell.");
+                $"Boolean {operation}: sequential safe composition only supports subtracting supported cylinder/cone analytic holes from the current composed box shell.");
         }
 
         return new BooleanCaseClassification(

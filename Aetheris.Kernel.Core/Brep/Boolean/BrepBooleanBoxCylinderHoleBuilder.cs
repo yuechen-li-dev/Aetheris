@@ -260,6 +260,18 @@ public static class BrepBooleanBoxCylinderHoleBuilder
     {
         var box = composition.OuterBox;
         var holes = composition.Holes;
+        if (holes.Count > 1 && holes.Any(h => h.IsBlind))
+        {
+            return KernelResult<BrepBody>.Failure([
+                new BooleanDiagnostic(
+                    BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
+                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                        BooleanOperation.Subtract.ToString(),
+                        null,
+                        "cannot rebuild a composition with more than one blind analytic hole in B1; blind-hole support is limited to single-feature subtracts."),
+                    "BrepBoolean.AnalyticHole.UnsupportedBlindHoleComposition").ToKernelDiagnostic(),
+            ]);
+        }
 
         var builder = new TopologyBuilder();
 
@@ -306,8 +318,19 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         var topLoops = new List<LoopId>(holes.Count + 1) { topOuterLoop };
         foreach (var hole in holeTopology)
         {
-            topLoops.Add(AddLoop(builder, [Forward(hole.TopCircle)]));
-            bottomLoops.Add(AddLoop(builder, [Reversed(hole.BottomCircle)]));
+            if (hole.Hole.SpanKind == SupportedBooleanHoleSpanKind.Through)
+            {
+                topLoops.Add(AddLoop(builder, [Forward(hole.TopCircle)]));
+                bottomLoops.Add(AddLoop(builder, [Reversed(hole.BottomCircle)]));
+            }
+            else if (hole.Hole.SpanKind == SupportedBooleanHoleSpanKind.BlindFromTop)
+            {
+                topLoops.Add(AddLoop(builder, [Forward(hole.TopCircle)]));
+            }
+            else
+            {
+                bottomLoops.Add(AddLoop(builder, [Reversed(hole.BottomCircle)]));
+            }
         }
 
         var bottomFace = builder.AddFace(bottomLoops);
@@ -325,6 +348,13 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             ]));
         }
 
+        var blindBottomFaces = new List<FaceId>();
+        foreach (var hole in holeTopology.Where(h => h.Hole.IsBlind))
+        {
+            var terminationEdge = hole.Hole.SpanKind == SupportedBooleanHoleSpanKind.BlindFromTop ? hole.BottomCircle : hole.TopCircle;
+            blindBottomFaces.Add(builder.AddFace([AddLoop(builder, [Forward(terminationEdge)])]));
+        }
+
         var shellFaces = new List<FaceId>(6 + holeFaces.Count)
         {
             bottomFace,
@@ -335,6 +365,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             yMinFace,
         };
         shellFaces.AddRange(holeFaces);
+        shellFaces.AddRange(blindBottomFaces);
 
         var shell = builder.AddShell(shellFaces);
         builder.AddBody([shell]);
@@ -412,6 +443,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
 
         var nextCurveId = 13;
         var nextSurfaceId = 7;
+        var blindBottomFaceIndex = 0;
         for (var i = 0; i < holeTopology.Count; i++)
         {
             var topology = holeTopology[i];
@@ -431,6 +463,19 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             bindings.AddEdgeBinding(new EdgeGeometryBinding(topology.Seam, seamCurveId, new ParameterInterval(0d, geometryData.SeamLength)));
             bindings.AddFaceBinding(new FaceGeometryBinding(holeFaces[i], surfaceId));
 
+            if (topology.Hole.IsBlind)
+            {
+                var blindBottomCenter = topology.Hole.SpanKind == SupportedBooleanHoleSpanKind.BlindFromTop
+                    ? geometryData.BottomCenter
+                    : geometryData.TopCenter;
+                var blindBottomSurfaceId = new SurfaceGeometryId(nextSurfaceId++);
+                geometry.AddSurface(blindBottomSurfaceId, SurfaceGeometry.FromPlane(new PlaneSurface(
+                    new Point3D(blindBottomCenter.X, blindBottomCenter.Y, blindBottomCenter.Z),
+                    Direction3D.Create(new Vector3D(0d, 0d, -1d)),
+                    xAxis)));
+                bindings.AddFaceBinding(new FaceGeometryBinding(blindBottomFaces[blindBottomFaceIndex++], blindBottomSurfaceId));
+            }
+
             vertexPoints[topology.TopHoleVertex] = geometryData.SeamTopPoint;
             vertexPoints[topology.BottomHoleVertex] = geometryData.SeamBottomPoint;
             vertexPoints[topology.SeamTopVertex] = geometryData.SeamTopPoint;
@@ -447,40 +492,46 @@ public static class BrepBooleanBoxCylinderHoleBuilder
     private static HoleGeometryData CreateHoleGeometry(SupportedBooleanHole hole, AxisAlignedBoxExtents box, Direction3D zAxis, Direction3D xAxis)
     {
         return hole.Surface.Kind switch
-        {
-            AnalyticSurfaceKind.Cylinder when hole.Surface.Cylinder is RecognizedCylinder cylinder => CreateCylinderHoleGeometry(box, xAxis, zAxis, cylinder),
-            AnalyticSurfaceKind.Cone when hole.Surface.Cone is RecognizedCone cone => CreateConeHoleGeometry(box, xAxis, zAxis, cone),
+        { 
+            AnalyticSurfaceKind.Cylinder when hole.Surface.Cylinder is RecognizedCylinder cylinder => CreateCylinderHoleGeometry(hole, xAxis, zAxis, cylinder),
+            AnalyticSurfaceKind.Cone when hole.Surface.Cone is RecognizedCone cone => CreateConeHoleGeometry(hole, xAxis, zAxis, cone),
             _ => throw new InvalidOperationException($"Unsupported hole surface kind '{hole.Surface.Kind}'."),
         };
     }
 
-    private static HoleGeometryData CreateCylinderHoleGeometry(AxisAlignedBoxExtents box, Direction3D xAxis, Direction3D zAxis, in RecognizedCylinder cylinder)
+    private static HoleGeometryData CreateCylinderHoleGeometry(SupportedBooleanHole hole, Direction3D xAxis, Direction3D zAxis, in RecognizedCylinder cylinder)
     {
         var centerX = cylinder.MinCenter.X;
         var centerY = cylinder.MinCenter.Y;
-        var bottomCenter = new Point3D(centerX, centerY, box.MinZ);
-        var topCenter = new Point3D(centerX, centerY, box.MaxZ);
-        var seamBottomPoint = new Point3D(centerX + cylinder.Radius, centerY, box.MinZ);
-        var seamTopPoint = new Point3D(centerX + cylinder.Radius, centerY, box.MaxZ);
+        var topZ = System.Math.Max(hole.StartZ, hole.EndZ);
+        var bottomZ = System.Math.Min(hole.StartZ, hole.EndZ);
+        var topCenter = new Point3D(centerX, centerY, topZ);
+        var bottomCenter = new Point3D(centerX, centerY, bottomZ);
+        var seamBottomPoint = new Point3D(centerX + cylinder.Radius, centerY, bottomZ);
+        var seamTopPoint = new Point3D(centerX + cylinder.Radius, centerY, topZ);
 
         return new HoleGeometryData(
             CurveGeometry.FromCircle(new Circle3Curve(topCenter, zAxis, cylinder.Radius, xAxis)),
             CurveGeometry.FromCircle(new Circle3Curve(bottomCenter, zAxis, cylinder.Radius, xAxis)),
             CurveGeometry.FromLine(new Line3Curve(seamTopPoint, Direction3D.Create(seamBottomPoint - seamTopPoint))),
             SurfaceGeometry.FromCylinder(new CylinderSurface(bottomCenter, zAxis, cylinder.Radius, xAxis)),
+            topCenter,
+            bottomCenter,
             seamTopPoint,
             seamBottomPoint,
             (seamBottomPoint - seamTopPoint).Length);
     }
 
-    private static HoleGeometryData CreateConeHoleGeometry(AxisAlignedBoxExtents box, Direction3D xAxis, Direction3D zAxis, in RecognizedCone cone)
+    private static HoleGeometryData CreateConeHoleGeometry(SupportedBooleanHole hole, Direction3D xAxis, Direction3D zAxis, in RecognizedCone cone)
     {
-        var bottomAxisParameter = AxisParameterAtZ(cone, box.MinZ);
-        var topAxisParameter = AxisParameterAtZ(cone, box.MaxZ);
+        var bottomZ = System.Math.Min(hole.StartZ, hole.EndZ);
+        var topZ = System.Math.Max(hole.StartZ, hole.EndZ);
+        var bottomAxisParameter = AxisParameterAtZ(cone, bottomZ);
+        var topAxisParameter = AxisParameterAtZ(cone, topZ);
         var bottomCenter = cone.PointAtAxisParameter(bottomAxisParameter);
         var topCenter = cone.PointAtAxisParameter(topAxisParameter);
-        var bottomRadius = cone.RadiusAtAxisParameter(bottomAxisParameter);
-        var topRadius = cone.RadiusAtAxisParameter(topAxisParameter);
+        var bottomRadius = hole.BottomRadius;
+        var topRadius = hole.TopRadius;
         var seamBottomPoint = new Point3D(bottomCenter.X + bottomRadius, bottomCenter.Y, bottomCenter.Z);
         var seamTopPoint = new Point3D(topCenter.X + topRadius, topCenter.Y, topCenter.Z);
         var innerMinAxisParameter = System.Math.Min(bottomAxisParameter, topAxisParameter);
@@ -492,6 +543,8 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             CurveGeometry.FromCircle(new Circle3Curve(bottomCenter, zAxis, bottomRadius, xAxis)),
             CurveGeometry.FromLine(new Line3Curve(seamTopPoint, Direction3D.Create(seamBottomPoint - seamTopPoint))),
             SurfaceGeometry.FromCone(new ConeSurface(innerMinCenter, cone.Axis, innerMinRadius, cone.SemiAngleRadians, xAxis)),
+            topCenter,
+            bottomCenter,
             seamTopPoint,
             seamBottomPoint,
             (seamBottomPoint - seamTopPoint).Length);
@@ -539,6 +592,8 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         CurveGeometry BottomCircle,
         CurveGeometry Seam,
         SurfaceGeometry Surface,
+        Point3D TopCenter,
+        Point3D BottomCenter,
         Point3D SeamTopPoint,
         Point3D SeamBottomPoint,
         double SeamLength);

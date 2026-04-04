@@ -5,6 +5,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Core.Brep.Features;
 
 namespace Aetheris.Kernel.Core.Brep.Boolean;
 
@@ -25,6 +26,11 @@ public static class BrepBooleanBoxCylinderHoleBuilder
     {
         ArgumentNullException.ThrowIfNull(composition);
         _ = tolerance;
+        if (composition.RootDescriptor.Kind == SafeBooleanRootKind.Cylinder)
+        {
+            return CreateBoundedCylinderRootCenterBoreBody(composition, tolerance);
+        }
+
         if (composition.Holes.Count == 1
             && composition.Holes[0].Surface.Kind == AnalyticSurfaceKind.Sphere
             && composition.Holes[0].Surface.Sphere is RecognizedSphere sphere)
@@ -46,6 +52,67 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         }
 
         return CreateComposedThroughHoleBody(composition);
+    }
+
+    private static KernelResult<BrepBody> CreateBoundedCylinderRootCenterBoreBody(SafeBooleanComposition composition, ToleranceContext tolerance)
+    {
+        if (composition.RootDescriptor.Cylinder is not RecognizedCylinder rootCylinder
+            || composition.Holes.Count != 1
+            || composition.Holes[0].Surface.Kind != AnalyticSurfaceKind.Cylinder
+            || composition.Holes[0].Surface.Cylinder is not RecognizedCylinder boreCylinder)
+        {
+            return KernelResult<BrepBody>.Failure([
+                new BooleanDiagnostic(
+                    BooleanDiagnosticCode.NotFullySpanning,
+                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                        BooleanOperation.Subtract.ToString(),
+                        null,
+                        "cylinder-root safe rebuild in F2 requires exactly one recognized through center-bore cylinder."),
+                    "BrepBoolean.AnalyticHole.CylinderRootUnsupportedComposition").ToKernelDiagnostic(),
+            ]);
+        }
+
+        var rootCenter = new Point3D(
+            (rootCylinder.MinCenter.X + rootCylinder.MaxCenter.X) * 0.5d,
+            (rootCylinder.MinCenter.Y + rootCylinder.MaxCenter.Y) * 0.5d,
+            (rootCylinder.MinCenter.Z + rootCylinder.MaxCenter.Z) * 0.5d);
+        var boreCenter = new Point3D(
+            (boreCylinder.MinCenter.X + boreCylinder.MaxCenter.X) * 0.5d,
+            (boreCylinder.MinCenter.Y + boreCylinder.MaxCenter.Y) * 0.5d,
+            (boreCylinder.MinCenter.Z + boreCylinder.MaxCenter.Z) * 0.5d);
+
+        if (!ToleranceMath.AlmostEqual(rootCenter.X, boreCenter.X, tolerance)
+            || !ToleranceMath.AlmostEqual(rootCenter.Y, boreCenter.Y, tolerance))
+        {
+            return KernelResult<BrepBody>.Failure([
+                new BooleanDiagnostic(
+                    BooleanDiagnosticCode.RadiusExceedsBoundary,
+                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                        BooleanOperation.Subtract.ToString(),
+                        null,
+                        "cylinder-root safe rebuild in F2 only supports coaxial center bores."),
+                    "BrepBoolean.AnalyticHole.CylinderRootUnsupportedComposition").ToKernelDiagnostic(),
+            ]);
+        }
+
+        var outer = BrepPrimitives.CreateCylinder(rootCylinder.Radius, rootCylinder.Height);
+        if (!outer.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(outer.Diagnostics);
+        }
+
+        var inner = BrepPrimitives.CreateCylinder(boreCylinder.Radius, rootCylinder.Height);
+        if (!inner.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(inner.Diagnostics);
+        }
+
+        var merged = MergeOuterAndInnerShell(outer.Value, inner.Value);
+        var bodyWithComposition = TranslateMergedBody(merged, rootCenter, composition);
+        var validation = BrepBindingValidator.Validate(bodyWithComposition, requireAllEdgeAndFaceBindings: true);
+        return validation.IsSuccess
+            ? KernelResult<BrepBody>.Success(bodyWithComposition, validation.Diagnostics)
+            : KernelResult<BrepBody>.Failure(validation.Diagnostics);
     }
 
     private static KernelResult<BrepBody> CreateComposedContainedSphereCavityBody(AxisAlignedBoxExtents outerBox, in RecognizedSphere sphere)
@@ -576,6 +643,47 @@ public static class BrepBooleanBoxCylinderHoleBuilder
     {
         var axisZ = cone.Axis.ToVector().Z;
         return (z - cone.AxisOrigin.Z) / axisZ;
+    }
+
+    private static BrepBody TranslateMergedBody(BrepBody body, Point3D center, SafeBooleanComposition composition)
+    {
+        var translation = new Vector3D(center.X, center.Y, center.Z);
+        if (translation == Vector3D.Zero)
+        {
+            return new BrepBody(body.Topology, body.Geometry, body.Bindings, vertexPoints: null, composition, body.ShellRepresentation);
+        }
+
+        var translatedGeometry = new BrepGeometryStore();
+        foreach (var curveEntry in body.Geometry.Curves)
+        {
+            translatedGeometry.AddCurve(curveEntry.Key, curveEntry.Value.Kind switch
+            {
+                CurveGeometryKind.Line3 => CurveGeometry.FromLine(new Line3Curve(curveEntry.Value.Line3!.Value.Origin + translation, curveEntry.Value.Line3.Value.Direction)),
+                CurveGeometryKind.Circle3 => CurveGeometry.FromCircle(new Circle3Curve(curveEntry.Value.Circle3!.Value.Center + translation, curveEntry.Value.Circle3.Value.Normal, curveEntry.Value.Circle3.Value.Radius, curveEntry.Value.Circle3.Value.XAxis)),
+                _ => curveEntry.Value
+            });
+        }
+
+        foreach (var surfaceEntry in body.Geometry.Surfaces)
+        {
+            translatedGeometry.AddSurface(surfaceEntry.Key, surfaceEntry.Value.Kind switch
+            {
+                SurfaceGeometryKind.Plane => SurfaceGeometry.FromPlane(new PlaneSurface(surfaceEntry.Value.Plane!.Value.Origin + translation, surfaceEntry.Value.Plane.Value.Normal, surfaceEntry.Value.Plane.Value.UAxis)),
+                SurfaceGeometryKind.Cylinder => SurfaceGeometry.FromCylinder(new CylinderSurface(surfaceEntry.Value.Cylinder!.Value.Origin + translation, surfaceEntry.Value.Cylinder.Value.Axis, surfaceEntry.Value.Cylinder.Value.Radius, surfaceEntry.Value.Cylinder.Value.XAxis)),
+                _ => surfaceEntry.Value
+            });
+        }
+
+        var vertexPoints = new Dictionary<VertexId, Point3D>();
+        foreach (var vertex in body.Topology.Vertices)
+        {
+            if (body.TryGetVertexPoint(vertex.Id, out var point))
+            {
+                vertexPoints[vertex.Id] = point + translation;
+            }
+        }
+
+        return new BrepBody(body.Topology, translatedGeometry, body.Bindings, vertexPoints, composition, body.ShellRepresentation);
     }
 
     private static LoopId AddLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)

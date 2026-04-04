@@ -16,6 +16,19 @@ public static class BrepBooleanSafeCompositionGraphValidator
     {
         updatedComposition = composition;
         diagnostic = null;
+        var root = composition.RootDescriptor;
+
+        if (root.Kind == SafeBooleanRootKind.Cylinder)
+        {
+            return TryValidateCylinderRootSubtract(
+                composition,
+                root,
+                surface,
+                tolerance,
+                out updatedComposition,
+                out diagnostic,
+                nextFeatureId);
+        }
 
         if (!TryCreateSupportedHole(composition.OuterBox, surface, tolerance, composition.Holes.Count > 0, out var nextHole, out diagnostic, nextFeatureId))
         {
@@ -77,6 +90,121 @@ public static class BrepBooleanSafeCompositionGraphValidator
         {
             Holes = [.. composition.Holes, nextHole],
         };
+        return true;
+    }
+
+    private static bool TryValidateCylinderRootSubtract(
+        SafeBooleanComposition composition,
+        SafeBooleanRootDescriptor root,
+        AnalyticSurface surface,
+        ToleranceContext tolerance,
+        out SafeBooleanComposition updatedComposition,
+        out BooleanDiagnostic? diagnostic,
+        string? nextFeatureId)
+    {
+        updatedComposition = composition;
+        diagnostic = null;
+
+        if (composition.Holes.Count > 0)
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                nextFeatureId,
+                "supports only a single center-bore subtract on the bounded cylinder-root safe family in F2; follow-on cylinder-root subtract composition is deferred.");
+            return false;
+        }
+
+        if (surface.Kind != AnalyticSurfaceKind.Cylinder || surface.Cylinder is not RecognizedCylinder toolCylinder)
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateUnsupportedAnalyticSurfaceKindDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                surface.Kind,
+                nextFeatureId);
+            return false;
+        }
+
+        if (root.Cylinder is not RecognizedCylinder rootCylinder)
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateAxisNotAlignedDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                nextFeatureId,
+                "cannot resolve recognized cylinder-root descriptor.");
+            return false;
+        }
+
+        if (!BrepBooleanCylinderRecognition.ValidateAxisAlignedZ(rootCylinder, tolerance)
+            || !BrepBooleanCylinderRecognition.ValidateAxisAlignedZ(toolCylinder, tolerance))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateAxisNotAlignedDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                nextFeatureId,
+                "bounded cylinder-root safe subtract supports only world-Z aligned root and center-bore cylinders.");
+            return false;
+        }
+
+        var rootCenter = new Point3D(
+            (rootCylinder.MinCenter.X + rootCylinder.MaxCenter.X) * 0.5d,
+            (rootCylinder.MinCenter.Y + rootCylinder.MaxCenter.Y) * 0.5d,
+            (rootCylinder.MinCenter.Z + rootCylinder.MaxCenter.Z) * 0.5d);
+        var toolCenter = new Point3D(
+            (toolCylinder.MinCenter.X + toolCylinder.MaxCenter.X) * 0.5d,
+            (toolCylinder.MinCenter.Y + toolCylinder.MaxCenter.Y) * 0.5d,
+            (toolCylinder.MinCenter.Z + toolCylinder.MaxCenter.Z) * 0.5d);
+
+        if (!ToleranceMath.AlmostEqual(rootCenter.X, toolCenter.X, tolerance)
+            || !ToleranceMath.AlmostEqual(rootCenter.Y, toolCenter.Y, tolerance))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                nextFeatureId,
+                "is outside the bounded cylinder-root safe subtract family; only coaxial center bores are supported.");
+            return false;
+        }
+
+        if (toolCylinder.Radius >= (rootCylinder.Radius - tolerance.Linear))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                nextFeatureId,
+                "must remain strictly smaller than the flange root radius in the bounded cylinder-root safe subtract family.");
+            return false;
+        }
+
+        var rootMinZ = System.Math.Min(rootCylinder.MinCenter.Z, rootCylinder.MaxCenter.Z);
+        var rootMaxZ = System.Math.Max(rootCylinder.MinCenter.Z, rootCylinder.MaxCenter.Z);
+        var toolMinZ = System.Math.Min(toolCylinder.MinCenter.Z, toolCylinder.MaxCenter.Z);
+        var toolMaxZ = System.Math.Max(toolCylinder.MinCenter.Z, toolCylinder.MaxCenter.Z);
+        var spansRoot = toolMinZ <= (rootMinZ + tolerance.Linear) && toolMaxZ >= (rootMaxZ - tolerance.Linear);
+        if (!spansRoot)
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                nextFeatureId,
+                "is outside the bounded cylinder-root safe subtract family; only through center bores that span both planar caps are supported.");
+            return false;
+        }
+
+        updatedComposition = composition with
+        {
+            Holes =
+            [
+                new SupportedBooleanHole(
+                    nextFeatureId,
+                    surface,
+                    rootCenter.X,
+                    rootCenter.Y,
+                    new Point3D(rootCenter.X, rootCenter.Y, rootMinZ),
+                    new Point3D(rootCenter.X, rootCenter.Y, rootMaxZ),
+                    toolCylinder.Axis,
+                    Direction3D.Create(new Vector3D(1d, 0d, 0d)),
+                    toolCylinder.Radius,
+                    toolCylinder.Radius,
+                    SupportedBooleanHoleSpanKind.Through,
+                    rootMinZ,
+                    rootMaxZ)
+            ],
+        };
+
         return true;
     }
 

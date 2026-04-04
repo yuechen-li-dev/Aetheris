@@ -36,9 +36,12 @@ internal static class FirmamentPrimitiveExecutor
             executedPrimitives.Add(new FirmamentExecutedPrimitive(primitive.OpIndex, primitive.FeatureId, primitive.Kind, bodyResult.Value.Published));
             publishedBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.Published;
             booleanExecutionBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.LegacyForBoolean;
-            featureGraphStates[primitive.FeatureId] = primitive.Kind == FirmamentLoweredPrimitiveKind.Box
-                ? FirmamentSafeSubtractFeatureGraphState.BoxRoot
-                : FirmamentSafeSubtractFeatureGraphState.Other;
+            featureGraphStates[primitive.FeatureId] = primitive.Kind switch
+            {
+                FirmamentLoweredPrimitiveKind.Box => FirmamentSafeSubtractFeatureGraphState.BoxRoot,
+                FirmamentLoweredPrimitiveKind.Cylinder => FirmamentSafeSubtractFeatureGraphState.CylinderRoot,
+                _ => FirmamentSafeSubtractFeatureGraphState.Other
+            };
         }
 
         foreach (var boolean in loweringPlan.Booleans.OrderBy(b => b.OpIndex))

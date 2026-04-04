@@ -47,7 +47,7 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
             return ValidateSupportedSafeSubtract(boolean, executionBodiesByFeatureId, tolerance);
         }
 
-        if (sourceState == FirmamentSafeSubtractFeatureGraphState.BoxRoot)
+        if (sourceState is FirmamentSafeSubtractFeatureGraphState.BoxRoot or FirmamentSafeSubtractFeatureGraphState.CylinderRoot)
         {
             if (boolean.Kind == FirmamentLoweredBooleanKind.Subtract && usesSupportedSafeHoleTool)
             {
@@ -64,7 +64,7 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
         {
             return Failure(
                 KernelDiagnosticCode.ValidationFailed,
-                $"Boolean feature '{boolean.FeatureId}' (subtract) cannot re-enter the safe subtract family from '{boolean.PrimaryReferenceFeatureId}'. Safe-hole composition may start only from a box root or continue from a previously validated safe subtract result.",
+                $"Boolean feature '{boolean.FeatureId}' (subtract) cannot re-enter the safe subtract family from '{boolean.PrimaryReferenceFeatureId}'. Safe-hole composition may start only from a bounded box/cylinder root or continue from a previously validated safe subtract result.",
                 "firmament.feature-graph.invalid-composition-order");
         }
 
@@ -89,7 +89,7 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
         {
             return Failure(
                 KernelDiagnosticCode.ValidationFailed,
-                $"Boolean feature '{boolean.FeatureId}' (subtract) cannot use '{boolean.PrimaryReferenceFeatureId}' as a safe subtract input because that earlier result is not a recognized base box or previously validated safe-hole composition.",
+                $"Boolean feature '{boolean.FeatureId}' (subtract) cannot use '{boolean.PrimaryReferenceFeatureId}' as a safe subtract input because that earlier result is not a recognized bounded box/cylinder root or previously validated safe-hole composition.",
                 "firmament.feature-graph.invalid-composition-order");
         }
 
@@ -146,6 +146,7 @@ internal sealed record FirmamentSafeSubtractFeatureGraphValidation(
 internal enum FirmamentSafeSubtractFeatureGraphState
 {
     BoxRoot,
+    CylinderRoot,
     SafeSubtractComposition,
     Other
 }

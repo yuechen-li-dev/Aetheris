@@ -2,16 +2,16 @@ case_id: counterbore-hole
 possible: partial
 awkwardness: high
 pain_points[2]:
-  - "Counterbore requires stacked subtract operations without feature-level hole semantics."
-  - "Coaxial alignment between bore stages is implicit and fragile."
+  - "Counterbore still requires stacked subtract operations without native feature-level counterbore semantics."
+  - "Even with aligned authoring intent, bounded contained/coaxial stack acceptance remains fragile and under-specified."
 proposed_features[2]:
   - "Native hole feature supporting counterbore/countersink parameters."
-  - "Axis-reuse reference between sequential subtract tools."
-reviewer_verdict: "FL2c rerun after G3 shows no pipeline-visible change for this case; the pocket-stage subtract is still rejected before stepped/coaxial composition can complete."
+  - "Clear authoring constraints for bounded contained/coaxial subtract-stack entry-face alignment."
+reviewer_verdict: "FL2d rerun after G4 improves this case from pocket-stage rejection to through-stage rejection, but it remains blocked before STEP export."
 previous_status: partial
 current_status: partial
-changed: no
-improved: false
-classification: unchanged_kernel_blocker
-if_changed_why: "n/a"
-if_unchanged_blocker: "Boolean feature 'counterbore_pocket' (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone."
+changed: yes
+improved: true
+classification: improved_but_still_blocked
+if_changed_why: "G4 admits the initial counterbore pocket stage; blocker moved to deeper coaxial segment validation."
+if_unchanged_blocker: "Boolean feature 'counterbore_through' (subtract) bounded contained coaxial subtract-stack support requires the deeper segment to open on the same top entry face."

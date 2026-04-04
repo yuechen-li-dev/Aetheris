@@ -37,3 +37,9 @@ ops[3]:
       op: cylinder
       radius: 3.5
       height: 26
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -10

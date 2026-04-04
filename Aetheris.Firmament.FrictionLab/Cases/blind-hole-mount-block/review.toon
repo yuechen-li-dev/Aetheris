@@ -1,0 +1,9 @@
+case_id: blind-hole-mount-block
+possible: partial
+awkwardness: medium
+pain_points[2]:
+  - "Blind-hole subtract case is rejected by current subtract span-family constraints."
+  - "Author intent is clear, but permissible blind-hole envelope is narrow and opaque."
+proposed_features[1]:
+  - "Broaden subtract span-family support and expose explicit blind-hole capability constraints."
+reviewer_verdict: "Stopped intentionally; friction captured for future feature pressure."

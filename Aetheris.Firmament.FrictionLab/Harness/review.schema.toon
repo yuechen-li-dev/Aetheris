@@ -1,0 +1,19 @@
+review_schema:
+  version: 1
+  file: review.toon
+  required_fields[6]:
+    case_id
+    possible
+    awkwardness
+    pain_points
+    proposed_features
+    reviewer_verdict
+  enums:
+    possible[3]:
+      true
+      false
+      partial
+    awkwardness[3]:
+      low
+      medium
+      high

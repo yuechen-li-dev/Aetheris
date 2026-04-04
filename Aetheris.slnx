@@ -4,6 +4,7 @@
   <Project Path="Aetheris.Kernel.Core/Aetheris.Kernel.Core.csproj" />
   <Project Path="Aetheris.Kernel.Firmament/Aetheris.Kernel.Firmament.csproj" />
   <Project Path="Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj" />
+  <Project Path="Aetheris.Firmament.FrictionLab/Aetheris.Firmament.FrictionLab.csproj" />
   <Project Path="aetheris.client/aetheris.client.esproj">
     <Build />
     <Deploy />

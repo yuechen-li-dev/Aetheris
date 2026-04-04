@@ -1,0 +1,8 @@
+case_id: flange-plate-hole-pattern
+possible: true
+awkwardness: low
+pain_points[1]:
+  - "Hole arrays require repeated manual feature chaining."
+proposed_features[1]:
+  - "Pattern helper for repeated boolean tools with spacing controls."
+reviewer_verdict: "Expressible and useful as a repeatable starter case."

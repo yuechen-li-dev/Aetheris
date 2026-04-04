@@ -110,17 +110,30 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Union_LShapedOverlap_DoesNotReturnBoundingBox()
+    public void Union_LShapedOverlap_Rebuilds_BoundedOrthogonalUnion()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 2d, 0d, 4d, 0d, 2d)).Value;
         var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(2d, 4d, 0d, 2d, 0d, 2d)).Value;
 
         var result = BrepBoolean.Union(left, right);
 
-        Assert.False(result.IsSuccess);
-        var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Contains("not a single box", diagnostic.Message, StringComparison.Ordinal);
+        Assert.True(result.IsSuccess);
+        Assert.False(BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(result.Value, ToleranceContext.Default, out _, out _));
+        var validation = BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true);
+        Assert.True(validation.IsSuccess);
+    }
+
+    [Fact]
+    public void Union_RibWallLikeAdd_Rebuilds_BoundedOrthogonalUnion()
+    {
+        var basePlate = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 6d, 0d, 4d, 0d, 1d)).Value;
+        var ribWall = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(2d, 4d, 0d, 4d, 1d, 4d)).Value;
+
+        var result = BrepBoolean.Union(basePlate, ribWall);
+
+        Assert.True(result.IsSuccess);
+        var validation = BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true);
+        Assert.True(validation.IsSuccess);
     }
 
     [Fact]
@@ -135,6 +148,20 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("Boolean Union: disjoint box union is multi-body and not supported in M13.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Union_ConnectedButOutsideBoundedFamily_ReturnsNotImplemented()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 3d, 0d, 2d, 0d, 2d)).Value;
+        var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(1d, 4d, 1d, 3d, 1d, 3d)).Value;
+
+        var result = BrepBoolean.Union(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Contains("bounded F1 additive family", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

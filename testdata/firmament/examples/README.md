@@ -13,6 +13,7 @@ Other combinations may fail and are intentionally not supported yet.
 - `torus_basic.firmament` — minimal single-torus export example using the canonical `major_radius` / `minor_radius` surface; helper export paths: `testdata/firmament/exports/torus_basic.step` and the milestone proof artifact `testdata/firmament/exports/m10g2-torus.step`.
 - `box_add_basic.firmament` — minimal supported box-plus-box boolean add example; helper export path: `testdata/firmament/exports/box_add_basic.step`.
 - `boolean_add_basic.firmament` — canonical proven boolean add example for the current box/box single-box subset; helper export path: `testdata/firmament/exports/boolean_add_basic.step`.
+- `ribbed_support_f1.firmament` — bounded F1 connected orthogonal add family example for rib/wall-like parts; helper export path: `testdata/firmament/exports/ribbed_support_f1.step`.
 - `boolean_subtract_basic.firmament` — canonical proven boolean subtract example for the current box/box single-box subset; helper export path: `testdata/firmament/exports/boolean_subtract_basic.step`.
 - `boolean_intersect_basic.firmament` — canonical proven boolean intersect example for the current box/box single-box subset; helper export path: `testdata/firmament/exports/boolean_intersect_basic.step`.
 - `boolean_box_cylinder_hole.firmament` — the only supported box+cylinder boolean case: subtracting a Z-aligned cylinder that cleanly spans the full box height to form a single box-with-through-hole solid; helper export path: `testdata/firmament/exports/boolean_box_cylinder_hole.step`.

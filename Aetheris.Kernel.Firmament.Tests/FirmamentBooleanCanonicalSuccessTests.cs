@@ -82,7 +82,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m3d-valid-subtract-exec.firmament"));
         var supportedCylinderHoleExport = ExportFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
         var supportedConeHoleExport = ExportFixture("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament");
-        var unsupportedCylinderHoleExport = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
+        var containedCylinderHoleExport = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
         var unsupportedConeHoleExport = ExportFixture("testdata/firmament/fixtures/m10m-unsupported-box-subtract-cone.firmament");
 
         Assert.False(unsupportedSingleBoxSubtract.Compilation.IsSuccess);
@@ -96,12 +96,8 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
         Assert.True(supportedConeHoleExport.IsSuccess);
         Assert.Contains("CONICAL_SURFACE", supportedConeHoleExport.Value.StepText, StringComparison.Ordinal);
 
-        Assert.False(unsupportedCylinderHoleExport.IsSuccess);
-        Assert.Contains(unsupportedCylinderHoleExport.Diagnostics, diagnostic =>
-            diagnostic.Code == KernelDiagnosticCode.NotImplemented
-            && diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
-        Assert.DoesNotContain(unsupportedCylinderHoleExport.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
+        Assert.True(containedCylinderHoleExport.IsSuccess);
+        Assert.Contains("BREP_WITH_VOIDS", containedCylinderHoleExport.Value.StepText, StringComparison.Ordinal);
 
         Assert.False(unsupportedConeHoleExport.IsSuccess);
         Assert.Contains(unsupportedConeHoleExport.Diagnostics, diagnostic =>
@@ -115,7 +111,6 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
         new()
         {
             { "testdata/firmament/fixtures/m10j-unsupported-box-add-cylinder.firmament", "joined", "add" },
-            { "testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament", "hole", "subtract" },
             { "testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "overlap", "intersect" },
             { "testdata/firmament/fixtures/m10l-unsupported-box-add-sphere.firmament", "joined", "add" },
             { "testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "overlap", "intersect" },

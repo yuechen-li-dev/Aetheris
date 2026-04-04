@@ -68,7 +68,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
                 && (existingHole.IsBlind || nextHole.IsBlind)
                 && centerDistance < (requiredDistance + tolerance.Linear))
             {
-                if (BrepBooleanSteppedHoleFamily.TryClassifyPair(
+                if (BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
                     composition.OuterBox,
                     existingHole,
                     nextHole,
@@ -262,8 +262,12 @@ public static class BrepBooleanSafeCompositionGraphValidator
             case AnalyticSurfaceKind.Cylinder when surface.Cylinder is RecognizedCylinder cylinder:
                 if (!BrepBooleanCylinderRecognition.TryValidateCylinderSubtractProfile(outerBox, cylinder, tolerance, out var cylinderProfile, out diagnostic, featureId))
                 {
-                    hole = default;
-                    return false;
+                    if (!ShouldTryContainedCylinderSegment(outerBox, cylinder, tolerance)
+                        || !TryValidateContainedCylinderSubtractSegment(outerBox, cylinder, tolerance, out cylinderProfile, out diagnostic, featureId))
+                    {
+                        hole = default;
+                        return false;
+                    }
                 }
 
                 hole = new SupportedBooleanHole(
@@ -348,6 +352,127 @@ public static class BrepBooleanSafeCompositionGraphValidator
                 hole = default;
                 return false;
         }
+    }
+
+    private static bool ShouldTryContainedCylinderSegment(AxisAlignedBoxExtents outerBox, in RecognizedCylinder cylinder, ToleranceContext tolerance)
+    {
+        if (!BrepBooleanCylinderRecognition.ValidateAxisAlignedZ(cylinder, tolerance))
+        {
+            return false;
+        }
+
+        var minCenter = cylinder.MinCenter;
+        var maxCenter = cylinder.MaxCenter;
+        var bottomZ = System.Math.Min(minCenter.Z, maxCenter.Z);
+        var topZ = System.Math.Max(minCenter.Z, maxCenter.Z);
+        return topZ < (outerBox.MaxZ - tolerance.Linear)
+            && bottomZ > (outerBox.MinZ + tolerance.Linear);
+    }
+
+    private static bool TryValidateContainedCylinderSubtractSegment(
+        AxisAlignedBoxExtents outerBox,
+        in RecognizedCylinder cylinder,
+        ToleranceContext tolerance,
+        out SupportedSubtractProfile profile,
+        out BooleanDiagnostic? diagnostic,
+        string? featureId)
+    {
+        profile = default;
+        diagnostic = null;
+
+        if (!BrepBooleanCylinderRecognition.ValidateAxisAlignedZ(cylinder, tolerance))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateAxisNotAlignedDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                featureId,
+                "bounded contained coaxial subtract-stack support requires world-Z aligned contained cylinder segments.");
+            return false;
+        }
+
+        var minCenter = cylinder.MinCenter;
+        var maxCenter = cylinder.MaxCenter;
+        var bottomCenter = minCenter.Z <= maxCenter.Z ? minCenter : maxCenter;
+        var topCenter = minCenter.Z > maxCenter.Z ? minCenter : maxCenter;
+
+        if (topCenter.Z >= (outerBox.MaxZ - tolerance.Linear)
+            || bottomCenter.Z <= (outerBox.MinZ + tolerance.Linear))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                featureId,
+                "is outside the bounded contained coaxial subtract-stack family; contained cylinder segments must remain strictly between box entry planes.");
+            return false;
+        }
+
+        if (!ValidateCircleInsideBoxFootprint(outerBox, topCenter.X, topCenter.Y, cylinder.Radius, tolerance, out diagnostic, "top contained section", featureId)
+            || !ValidateCircleInsideBoxFootprint(outerBox, bottomCenter.X, bottomCenter.Y, cylinder.Radius, tolerance, out diagnostic, "bottom contained section", featureId))
+        {
+            return false;
+        }
+
+        profile = new SupportedSubtractProfile(
+            SupportedBooleanHoleSpanKind.Contained,
+            (topCenter.X + bottomCenter.X) * 0.5d,
+            (topCenter.Y + bottomCenter.Y) * 0.5d,
+            topCenter,
+            bottomCenter,
+            cylinder.Axis,
+            ResolveReferenceAxis(cylinder.Axis),
+            topCenter.Z,
+            bottomCenter.Z,
+            cylinder.Radius,
+            cylinder.Radius);
+        return true;
+    }
+
+    private static Direction3D ResolveReferenceAxis(Direction3D axis)
+    {
+        var candidate = System.Math.Abs(axis.ToVector().X) > 0.5d
+            ? Direction3D.Create(new Vector3D(0d, 1d, 0d))
+            : Direction3D.Create(new Vector3D(1d, 0d, 0d));
+        var projected = candidate.ToVector() - (axis.ToVector() * candidate.ToVector().Dot(axis.ToVector()));
+        return projected.Length <= 1e-12d
+            ? Direction3D.Create(new Vector3D(0d, 1d, 0d))
+            : Direction3D.Create(projected);
+    }
+
+    private static bool ValidateCircleInsideBoxFootprint(
+        AxisAlignedBoxExtents box,
+        double centerX,
+        double centerY,
+        double radius,
+        ToleranceContext tolerance,
+        out BooleanDiagnostic? diagnostic,
+        string section,
+        string? featureId)
+    {
+        diagnostic = null;
+        var tangent = ToleranceMath.AlmostEqual(centerX - radius, box.MinX, tolerance)
+            || ToleranceMath.AlmostEqual(centerX + radius, box.MaxX, tolerance)
+            || ToleranceMath.AlmostEqual(centerY - radius, box.MinY, tolerance)
+            || ToleranceMath.AlmostEqual(centerY + radius, box.MaxY, tolerance);
+        if (tangent)
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                featureId,
+                $"has tangent contact at the box side walls ({section}); tangent support is rejected to avoid zero-thickness boundary sections.");
+            return false;
+        }
+
+        if (centerX - radius < (box.MinX - tolerance.Linear)
+            || centerX + radius > (box.MaxX + tolerance.Linear)
+            || centerY - radius < (box.MinY - tolerance.Linear)
+            || centerY + radius > (box.MaxY + tolerance.Linear))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                featureId,
+                $"extends outside the box side walls ({section}); supported subtract tools must remain inside the box footprint.");
+            return false;
+        }
+
+        return true;
     }
 
     private static string FormatFeatureRef(string? featureId)

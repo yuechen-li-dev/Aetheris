@@ -259,6 +259,22 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_FrictionLabBlindHoleMountBlock_NowBuildsAndExports()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/blind-hole-mount-block/part.firmament");
+
+        var first = FirmamentBuildAndExport.Run(fullSourcePath);
+        var second = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.NotEmpty(first.Value.Export.StepText);
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+        Assert.Contains("BREP_WITH_VOIDS", first.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", first.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Semantic_Placement_Build_Is_Deterministic()
     {
         var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmament/examples/p1_flange_radial_hole_semantic.firmament");
@@ -283,12 +299,14 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
-    public void Run_UnsupportedBoxWithCylinderHoleFixture_Fails_And_Does_Not_Write_Fallback_Export()
+    public void Run_ContainedBoxWithCylinderHoleFixture_Builds_And_Writes_Export()
     {
-        AssertUnsupportedBuildAndExport(
+        AssertExampleBuildAndExport(
             "testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament",
             "m10h1-unsupported-box-with-cylinder-hole.step",
             "hole",
+            1,
+            "boolean",
             "subtract");
     }
 

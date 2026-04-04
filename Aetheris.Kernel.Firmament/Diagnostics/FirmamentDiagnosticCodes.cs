@@ -31,6 +31,10 @@ public static class FirmamentDiagnosticCodes
     public static readonly FirmamentDiagnosticCode PlacementUnsupportedSemanticField = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0023");
     public static readonly FirmamentDiagnosticCode PlacementInvalidSemanticCombination = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0024");
 
+    public static readonly FirmamentDiagnosticCode PatternMissingRequiredField = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0025");
+    public static readonly FirmamentDiagnosticCode PatternInvalidFieldTypeOrShape = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0026");
+    public static readonly FirmamentDiagnosticCode PatternInvalidFieldValue = new($"{FirmamentDiagnosticConventions.StructurePrefix}-0027");
+
     public static readonly FirmamentDiagnosticCode ReferenceDuplicateFeatureId = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0001");
     public static readonly FirmamentDiagnosticCode ReferenceUnknownFeatureId = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0002");
     public static readonly FirmamentDiagnosticCode ValidationTargetUnknownFeatureId = new($"{FirmamentDiagnosticConventions.ReferencePrefix}-0003");

@@ -235,9 +235,45 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_P2LinearHoleRowExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/p2_linear_hole_row.firmament",
+            "p2_linear_hole_row.step",
+            "hole_marker_1__lin3",
+            4,
+            "primitive",
+            "cylinder");
+    }
+
+    [Fact]
+    public void Run_P2FlangeBoltCirclePatternExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/p2_flange_bolt_circle_pattern.firmament",
+            "p2_flange_bolt_circle_pattern.step",
+            "bolt_marker_1__cir5",
+            6,
+            "primitive",
+            "cylinder");
+    }
+
+    [Fact]
     public void Semantic_Placement_Build_Is_Deterministic()
     {
         var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmament/examples/p1_flange_radial_hole_semantic.firmament");
+        var first = FirmamentBuildAndExport.Run(fullSourcePath);
+        var second = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+    }
+
+    [Fact]
+    public void P2_CircularPattern_Build_Is_Deterministic()
+    {
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmament/examples/p2_flange_bolt_circle_pattern.firmament");
         var first = FirmamentBuildAndExport.Run(fullSourcePath);
         var second = FirmamentBuildAndExport.Run(fullSourcePath);
 

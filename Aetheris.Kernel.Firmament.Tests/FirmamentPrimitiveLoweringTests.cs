@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.ParsedModel;
+using System.Linq;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -262,6 +263,23 @@ public sealed class FirmamentPrimitiveLoweringTests
                 Assert.Equal("cut1", b.FeatureId);
                 Assert.Equal("from", b.PrimaryReferenceField);
             });
+    }
+
+    [Fact]
+    public void Compile_Expands_LinearPattern_Into_Repeated_Primitives_With_Deterministic_Ids()
+    {
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/p2_linear_hole_row.firmament"));
+
+        Assert.True(result.Compilation.IsSuccess);
+        var primitives = result.Compilation.Value.PrimitiveLoweringPlan!.Primitives
+            .Where(p => p.Kind == FirmamentLoweredPrimitiveKind.Cylinder)
+            .OrderBy(p => p.OpIndex)
+            .ToArray();
+        Assert.Equal(4, primitives.Length);
+        Assert.Equal("hole_marker_1", primitives[0].FeatureId);
+        Assert.Equal("hole_marker_1__lin1", primitives[1].FeatureId);
+        Assert.Equal("hole_marker_1__lin2", primitives[2].FeatureId);
+        Assert.Equal("hole_marker_1__lin3", primitives[3].FeatureId);
     }
 
 

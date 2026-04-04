@@ -41,6 +41,13 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(booleanValidationResult.Diagnostics));
         }
 
+        var patternValidationResult = FirmamentPatternRequiredFieldValidator.Validate(parseResult.Value);
+        if (!patternValidationResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(patternValidationResult.Diagnostics));
+        }
+
         var validationValidationResult = FirmamentValidationRequiredFieldValidator.Validate(parseResult.Value);
         if (!validationValidationResult.IsSuccess)
         {

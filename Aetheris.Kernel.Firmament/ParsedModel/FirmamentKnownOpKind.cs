@@ -12,7 +12,9 @@ public enum FirmamentKnownOpKind
     Intersect,
     ExpectExists,
     ExpectSelectable,
-    ExpectManifold
+    ExpectManifold,
+    PatternLinear,
+    PatternCircular
 }
 
 internal static class FirmamentKnownOpKinds
@@ -30,7 +32,9 @@ internal static class FirmamentKnownOpKinds
             ["intersect"] = FirmamentKnownOpKind.Intersect,
             ["expect_exists"] = FirmamentKnownOpKind.ExpectExists,
             ["expect_selectable"] = FirmamentKnownOpKind.ExpectSelectable,
-            ["expect_manifold"] = FirmamentKnownOpKind.ExpectManifold
+            ["expect_manifold"] = FirmamentKnownOpKind.ExpectManifold,
+            ["pattern_linear"] = FirmamentKnownOpKind.PatternLinear,
+            ["pattern_circular"] = FirmamentKnownOpKind.PatternCircular
         };
 
     public static bool TryParse(string opName, out FirmamentKnownOpKind kind) =>
@@ -50,6 +54,8 @@ internal static class FirmamentKnownOpKinds
             FirmamentKnownOpKind.ExpectExists => FirmamentOpFamily.Validation,
             FirmamentKnownOpKind.ExpectSelectable => FirmamentOpFamily.Validation,
             FirmamentKnownOpKind.ExpectManifold => FirmamentOpFamily.Validation,
+            FirmamentKnownOpKind.PatternLinear => FirmamentOpFamily.Pattern,
+            FirmamentKnownOpKind.PatternCircular => FirmamentOpFamily.Pattern,
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown Firmament known op kind.")
         };
 }

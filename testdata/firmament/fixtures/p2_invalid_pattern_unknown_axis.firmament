@@ -1,0 +1,35 @@
+firmament:
+  version: 1
+
+model:
+  name: p2_invalid_pattern_unknown_axis
+  units: mm
+
+ops[3]:
+  -
+    op: cylinder
+    id: flange
+    radius: 36
+    height: 12
+
+  -
+    op: cylinder
+    id: bolt_marker_1
+    radius: 3
+    height: 12
+    place:
+      on_face: flange.top_face
+      around_axis: flange.side_face
+      radial_offset: 20
+      angle_degrees: 0
+      offset[3]:
+        0
+        0
+        0
+
+  -
+    op: pattern_circular
+    source: bolt_marker_1
+    count: 5
+    axis: missing.side_face
+    angle_degrees: 360

@@ -4,5 +4,6 @@ public enum FirmamentOpFamily
 {
     Primitive,
     Boolean,
-    Validation
+    Validation,
+    Pattern
 }

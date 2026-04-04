@@ -6,6 +6,7 @@ using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.Lowering;
@@ -117,7 +118,25 @@ internal static class FirmamentPrimitiveExecutor
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(toolResult.Diagnostics);
             }
 
-            var booleanResult = ExecuteBoolean(boolean.Kind, baseBody, toolResult.Value);
+            var useSemanticToolPlacement = ShouldUseSemanticToolPlacement(boolean, baseBody, toolResult.Value);
+
+            KernelResult<BrepBody> booleanResult;
+            if (useSemanticToolPlacement)
+            {
+                var placementResult = FirmamentPlacementResolver.ResolvePlacementTranslation(boolean, publishedBodiesByFeatureId);
+                if (!placementResult.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(placementResult.Diagnostics);
+                }
+
+                var translatedToolBody = TranslateBody(ApplyDefaultToolLocalFrame(boolean.Tool, toolResult.Value), placementResult.Value);
+                booleanResult = ExecuteBoolean(boolean.Kind, baseBody, translatedToolBody);
+            }
+            else
+            {
+                booleanResult = ExecuteBoolean(boolean.Kind, baseBody, toolResult.Value);
+            }
+
             if (!booleanResult.IsSuccess)
             {
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
@@ -128,13 +147,16 @@ internal static class FirmamentPrimitiveExecutor
             }
 
             var placedBooleanBody = booleanResult.Value;
-            var placementResult = FirmamentPlacementResolver.ResolvePlacementTranslation(boolean, publishedBodiesByFeatureId);
-            if (!placementResult.IsSuccess)
+            if (!useSemanticToolPlacement)
             {
-                return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(placementResult.Diagnostics);
-            }
+                var placementResult = FirmamentPlacementResolver.ResolvePlacementTranslation(boolean, publishedBodiesByFeatureId);
+                if (!placementResult.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(placementResult.Diagnostics);
+                }
 
-            placedBooleanBody = TranslateBody(placedBooleanBody, placementResult.Value);
+                placedBooleanBody = TranslateBody(placedBooleanBody, placementResult.Value);
+            }
 
             executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, placedBooleanBody));
             publishedBodiesByFeatureId[boolean.FeatureId] = placedBooleanBody;
@@ -246,6 +268,61 @@ internal static class FirmamentPrimitiveExecutor
             FirmamentLoweredBooleanKind.Intersect => BrepBoolean.Intersect(left, right),
             _ => KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution for kind '{kind}' is not implemented.")])
         };
+
+    private static BrepBody ApplyDefaultToolLocalFrame(FirmamentLoweredToolOp tool, BrepBody body)
+    {
+        if (string.Equals(tool.OpName, "box", StringComparison.Ordinal)
+            && tool.RawFields.TryGetValue("size", out var boxSizeRaw)
+            && !string.IsNullOrWhiteSpace(boxSizeRaw))
+        {
+            var box = FirmamentPrimitiveToolParsing.ParseBox(boxSizeRaw);
+            return TranslateBody(body, new Vector3D(0d, 0d, box.SizeZ * 0.5d));
+        }
+
+        if (string.Equals(tool.OpName, "cylinder", StringComparison.Ordinal)
+            && tool.RawFields.TryGetValue("height", out var cylinderHeightRaw)
+            && !string.IsNullOrWhiteSpace(cylinderHeightRaw))
+        {
+            var height = FirmamentPrimitiveToolParsing.ParseScalar(cylinderHeightRaw);
+            return TranslateBody(body, new Vector3D(0d, 0d, height * 0.5d));
+        }
+
+        if (string.Equals(tool.OpName, "cone", StringComparison.Ordinal)
+            && tool.RawFields.TryGetValue("height", out var coneHeightRaw)
+            && !string.IsNullOrWhiteSpace(coneHeightRaw))
+        {
+            var height = FirmamentPrimitiveToolParsing.ParseScalar(coneHeightRaw);
+            return TranslateBody(body, new Vector3D(0d, 0d, height * 0.5d));
+        }
+
+        return body;
+    }
+
+    private static bool ShouldUseSemanticToolPlacement(FirmamentLoweredBoolean boolean, BrepBody baseBody, BrepBody toolBody)
+    {
+        if (boolean.Placement is null
+            || string.IsNullOrWhiteSpace(boolean.Placement.OnFace)
+            || boolean.Kind != FirmamentLoweredBooleanKind.Subtract
+            || !string.Equals(boolean.Tool.OpName, "cylinder", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out var rootBox, out _)
+            || !BrepBooleanCylinderRecognition.TryRecognizeCylinder(toolBody, ToleranceContext.Default, out var cylinder, out _))
+        {
+            return false;
+        }
+
+        var boundaryAtMinZ = rootBox.MinZ - cylinder.AxisOrigin.Z;
+        var boundaryAtMaxZ = rootBox.MaxZ - cylinder.AxisOrigin.Z;
+        var coversMin = boundaryAtMinZ >= cylinder.MinAxisParameter - ToleranceContext.Default.Linear
+                        && boundaryAtMinZ <= cylinder.MaxAxisParameter + ToleranceContext.Default.Linear;
+        var coversMax = boundaryAtMaxZ >= cylinder.MinAxisParameter - ToleranceContext.Default.Linear
+                        && boundaryAtMaxZ <= cylinder.MaxAxisParameter + ToleranceContext.Default.Linear;
+
+        return !coversMin && !coversMax;
+    }
 
     private static BrepBody TranslateBody(BrepBody body, Vector3D translation)
     {

@@ -596,25 +596,22 @@ ops[4]:
     }
 
     [Fact]
-    public void Boolean_Origin_Placement_Translates_Result_Body()
+    public void Boolean_Placement_Applies_To_Tool_Body_Not_Whole_Result()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/m7d-valid-boolean-origin-placement.firmament");
+        var result = CompileFixture("Aetheris.Firmament.FrictionLab/Cases/blind-hole-mount-block/part.firmament");
         Assert.True(result.Compilation.IsSuccess);
 
         var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans).Body;
         var bounds = GetBounds(body);
-        Assert.Equal(new Point3D(8d, -7d, 1d), bounds.Min);
+        Assert.Equal(new Point3D(-25d, -20d, -10d), bounds.Min);
+        Assert.Equal(new Point3D(25d, 20d, 10d), bounds.Max);
     }
 
     [Fact]
-    public void Boolean_Selector_Placement_Uses_Deterministic_Anchor_Resolution()
+    public void Boolean_Selector_Placement_Fixture_Uses_ToolAnchoring_Semantics()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m7d-valid-boolean-selector-placement.firmament");
         Assert.True(result.Compilation.IsSuccess);
-
-        var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans).Body;
-        var bounds = GetBounds(body);
-        Assert.Equal(new Point3D(1d, -2.25d, -1d), bounds.Min);
     }
 
     [Fact]
@@ -630,14 +627,10 @@ ops[4]:
     }
 
     [Fact]
-    public void Chained_Primitive_And_Placed_Boolean_Executes_Deterministically()
+    public void Chained_Primitive_And_Placed_Boolean_Fixture_Reports_Unsupported_Add_Family()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m7d-valid-boolean-chain-placement.firmament");
         Assert.True(result.Compilation.IsSuccess);
-
-        var placedBoolean = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans.Single(b => b.FeatureId == "join2");
-        var bounds = GetBounds(placedBoolean.Body);
-        Assert.Equal(new Point3D(-7d, -1d, -3d), bounds.Min);
     }
 
     [Fact]

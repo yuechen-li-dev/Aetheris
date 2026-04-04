@@ -270,8 +270,35 @@ public sealed class FirmamentBuildAndExportTests
         Assert.True(second.IsSuccess);
         Assert.NotEmpty(first.Value.Export.StepText);
         Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
-        Assert.Contains("BREP_WITH_VOIDS", first.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.Export.StepText, StringComparison.Ordinal);
         Assert.Contains("CYLINDRICAL_SURFACE", first.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_FrictionLabBlindHoleMountBlock_ExportedStep_Has_TopFace_Opening_Not_ContainedVoidShell()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/blind-hole-mount-block/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+        Assert.True(result.IsSuccess);
+
+        var import = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(result.Value.Export.StepText);
+        Assert.True(import.IsSuccess);
+
+        var body = import.Value;
+        Assert.DoesNotContain("BREP_WITH_VOIDS", result.Value.Export.StepText, StringComparison.Ordinal);
+
+        var topFace = body.Topology.Faces
+            .Select(face =>
+            {
+                body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return (face, surface);
+            })
+            .Where(entry => entry.surface?.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane)
+            .Where(entry => entry.surface!.Plane!.Value.Normal.ToVector().Z > 0.5d)
+            .OrderByDescending(entry => entry.surface!.Plane!.Value.Origin.Z)
+            .First();
+
+        Assert.Equal(2, topFace.face.LoopIds.Count);
     }
 
     [Fact]

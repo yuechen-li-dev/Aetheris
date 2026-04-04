@@ -49,6 +49,19 @@ public sealed class FirmamentDocumentCoherenceValidationTests
             diagnostic.Message);
     }
 
+
+    [Fact]
+    public void Compiler_Rejects_PatternLinear_With_Primitive_Source_Feature()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/p2_invalid_pattern_source_primitive.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Equal(
+            $"[{FirmamentDiagnosticCodes.PatternInvalidFieldValue.Value}] Pattern op 'pattern_linear' at index 1 uses unsupported source feature id 'hole_marker_1'; only 'subtract' boolean features are currently patternable.",
+            diagnostic.Message);
+    }
+
     [Theory]
     [InlineData("testdata/firmament/fixtures/m2a-invalid-add-to-missing-id.firmament", "add", "to", "missing")]
     [InlineData("testdata/firmament/fixtures/m2a-invalid-subtract-from-missing-id.firmament", "subtract", "from", "missing")]

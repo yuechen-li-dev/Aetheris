@@ -15,7 +15,8 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
         FirmamentLoweredBoolean boolean,
         IReadOnlyDictionary<string, FirmamentSafeSubtractFeatureGraphState> statesByFeatureId,
         IReadOnlyDictionary<string, BrepBody> executionBodiesByFeatureId,
-        ToleranceContext? tolerance = null)
+        ToleranceContext? tolerance = null,
+        BrepBody? resolvedToolBody = null)
     {
         ArgumentNullException.ThrowIfNull(boolean);
         ArgumentNullException.ThrowIfNull(statesByFeatureId);
@@ -44,14 +45,14 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
                     "firmament.feature-graph.unsupported-follow-on-kind");
             }
 
-            return ValidateSupportedSafeSubtract(boolean, executionBodiesByFeatureId, tolerance);
+            return ValidateSupportedSafeSubtract(boolean, executionBodiesByFeatureId, tolerance, resolvedToolBody);
         }
 
         if (sourceState is FirmamentSafeSubtractFeatureGraphState.BoxRoot or FirmamentSafeSubtractFeatureGraphState.CylinderRoot)
         {
             if (boolean.Kind == FirmamentLoweredBooleanKind.Subtract && usesSupportedSafeHoleTool)
             {
-                return ValidateSupportedSafeSubtract(boolean, executionBodiesByFeatureId, tolerance);
+                return ValidateSupportedSafeSubtract(boolean, executionBodiesByFeatureId, tolerance, resolvedToolBody);
             }
 
             return KernelResult<FirmamentSafeSubtractFeatureGraphValidation>.Success(
@@ -77,7 +78,8 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
     private static KernelResult<FirmamentSafeSubtractFeatureGraphValidation> ValidateSupportedSafeSubtract(
         FirmamentLoweredBoolean boolean,
         IReadOnlyDictionary<string, BrepBody> executionBodiesByFeatureId,
-        ToleranceContext? tolerance)
+        ToleranceContext? tolerance,
+        BrepBody? resolvedToolBody)
     {
         if (!executionBodiesByFeatureId.TryGetValue(boolean.PrimaryReferenceFeatureId, out var leftBody))
         {
@@ -93,13 +95,23 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
                 "firmament.feature-graph.invalid-composition-order");
         }
 
-        var toolBodyResult = FirmamentBooleanToolBodyFactory.CreateBody(boolean.Tool);
-        if (!toolBodyResult.IsSuccess)
+        BrepBody toolBody;
+        if (resolvedToolBody is not null)
         {
-            return KernelResult<FirmamentSafeSubtractFeatureGraphValidation>.Failure(toolBodyResult.Diagnostics);
+            toolBody = resolvedToolBody;
+        }
+        else
+        {
+            var toolBodyResult = FirmamentBooleanToolBodyFactory.CreateBody(boolean.Tool);
+            if (!toolBodyResult.IsSuccess)
+            {
+                return KernelResult<FirmamentSafeSubtractFeatureGraphValidation>.Failure(toolBodyResult.Diagnostics);
+            }
+
+            toolBody = toolBodyResult.Value;
         }
 
-        if (!BrepBooleanAnalyticSurfaceRecognition.TryRecognizeAnalyticSurface(toolBodyResult.Value, resolvedTolerance, out var analyticSurface, out var reason))
+        if (!BrepBooleanAnalyticSurfaceRecognition.TryRecognizeAnalyticSurface(toolBody, resolvedTolerance, out var analyticSurface, out var reason))
         {
             return Failure(
                 KernelDiagnosticCode.ValidationFailed,

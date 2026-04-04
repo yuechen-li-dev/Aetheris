@@ -1,0 +1,10 @@
+case_id: flange-bolt-circle
+possible: true
+awkwardness: medium
+pain_points[2]:
+  - "Bolt circle requires fully manual repeated operations and hard-coded angles."
+  - "No pattern abstraction for circular feature arrays."
+proposed_features[2]:
+  - "Polar pattern operation for repeated cuts around an axis."
+  - "Parameter blocks for shared hole dimensions."
+reviewer_verdict: "Possible today, but repetitive and error-prone for larger bolt counts."

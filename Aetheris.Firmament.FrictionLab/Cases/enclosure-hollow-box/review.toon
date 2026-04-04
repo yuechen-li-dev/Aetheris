@@ -1,0 +1,10 @@
+case_id: enclosure-hollow-box
+possible: partial
+awkwardness: high
+pain_points[2]:
+  - "Shelling is emulated by manually sizing and offsetting an inner box."
+  - "Wall thickness intent is implicit and easy to break with edits."
+proposed_features[2]:
+  - "Shell feature with wall thickness and open-face options."
+  - "Offset-body operation with topology-aware validation."
+reviewer_verdict: "Expressed with primitive subtraction, but true enclosure shell semantics are missing."

@@ -1,0 +1,10 @@
+case_id: thread-helix-test
+possible: false
+awkwardness: high
+pain_points[2]:
+  - "No helix/thread operation exists in current Firmament operation set."
+  - "Approximating thread with many cuts would violate anti-pretzel authoring guidance."
+proposed_features[2]:
+  - "Helix curve primitive and sweep/subtract support."
+  - "High-level thread feature (standard profile + pitch + handedness)."
+reviewer_verdict: "Expected failure confirmed: helix-thread authoring is currently unavailable."

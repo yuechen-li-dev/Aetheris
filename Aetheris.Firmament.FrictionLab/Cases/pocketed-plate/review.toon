@@ -1,0 +1,10 @@
+case_id: pocketed-plate
+possible: partial
+awkwardness: medium
+pain_points[2]:
+  - "Region-removal relies on subtracting another box instead of declaring a pocket intent."
+  - "Pocket depth and top-face reference are not explicit first-class concepts."
+proposed_features[2]:
+  - "Pocket primitive with profile + depth definition."
+  - "Feature references for top-face anchored cuts."
+reviewer_verdict: "Plate pocket is expressible only as primitive abuse; semantics are missing."

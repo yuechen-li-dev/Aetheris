@@ -1,0 +1,10 @@
+case_id: ribbed-support
+possible: false
+awkwardness: high
+pain_points[2]:
+  - "Thin rib authoring would require brute-force repeated adds with fragile dimensions."
+  - "Baseline add for support wall already fails for L-like unions, so rib attempt was intentionally stopped."
+proposed_features[2]:
+  - "Rib feature with thickness, draft, and anchor references."
+  - "Stable additive union support for connected support geometry."
+reviewer_verdict: "Stopped per anti-pretzel rule: rib modeling is not cleanly expressible in current surface area."

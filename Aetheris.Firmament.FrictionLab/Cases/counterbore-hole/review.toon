@@ -1,0 +1,10 @@
+case_id: counterbore-hole
+possible: partial
+awkwardness: high
+pain_points[2]:
+  - "Counterbore requires stacked subtract operations without feature-level hole semantics."
+  - "Coaxial alignment between bore stages is implicit and fragile."
+proposed_features[2]:
+  - "Native hole feature supporting counterbore/countersink parameters."
+  - "Axis-reuse reference between sequential subtract tools."
+reviewer_verdict: "Intent is representable but awkward and sensitive to subtract constraints."

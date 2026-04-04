@@ -43,13 +43,18 @@ internal sealed class FrictionLabRunner
     private static FrictionCaseResult RunCase(FrictionLabPaths paths, string caseDirectory)
     {
         var caseId = Path.GetFileName(caseDirectory);
+        var review = ReadReview(caseDirectory, caseId);
+
         var sourcePath = Path.Combine(caseDirectory, "part.firmament");
         if (!File.Exists(sourcePath))
         {
             return new FrictionCaseResult(
                 caseId,
-                "failure",
+                ComputeBuildStatus(false, review),
+                false,
                 null,
+                review.Possible,
+                review.Awkwardness,
                 [new FrictionDiagnostic("ValidationFailed", "Error", "Case is missing required file 'part.firmament'.", "friction-lab")]);
         }
 
@@ -66,21 +71,106 @@ internal sealed class FrictionLabRunner
         {
             return new FrictionCaseResult(
                 caseId,
-                "failure",
+                ComputeBuildStatus(false, review),
+                false,
                 null,
+                review.Possible,
+                review.Awkwardness,
                 exportResult.Diagnostics.Select(MapDiagnostic).ToArray());
         }
 
         File.WriteAllText(artifactPath, exportResult.Value.StepText, new UTF8Encoding(false));
-        var status = exportResult.Diagnostics.Any(d => d.Severity != KernelDiagnosticSeverity.Info)
-            ? "partial"
-            : "success";
 
         return new FrictionCaseResult(
             caseId,
-            status,
+            ComputeBuildStatus(true, review),
+            true,
             ToRepoRelativePath(paths.RepoRoot, artifactPath),
+            review.Possible,
+            review.Awkwardness,
             exportResult.Diagnostics.Select(MapDiagnostic).ToArray());
+    }
+
+    private static FrictionCaseReview ReadReview(string caseDirectory, string caseId)
+    {
+        var reviewPath = Path.Combine(caseDirectory, "review.toon");
+        if (!File.Exists(reviewPath))
+        {
+            return FrictionCaseReview.Missing(caseId);
+        }
+
+        var lines = NormalizeLf(File.ReadAllText(reviewPath, Encoding.UTF8)).Split('\n');
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+        var lists = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        string? currentList = null;
+
+        foreach (var raw in lines)
+        {
+            var line = raw.TrimEnd();
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            var trimmed = line.TrimStart();
+            if (trimmed.StartsWith("-", StringComparison.Ordinal) && currentList is not null)
+            {
+                lists[currentList].Add(Unquote(trimmed[1..].Trim()));
+                continue;
+            }
+
+            currentList = null;
+            var separatorIndex = line.IndexOf(':');
+            if (separatorIndex < 0)
+            {
+                continue;
+            }
+
+            var key = line[..separatorIndex].Trim();
+            var value = line[(separatorIndex + 1)..].Trim();
+            if (key.Contains('[', StringComparison.Ordinal))
+            {
+                var listKey = key[..key.IndexOf('[', StringComparison.Ordinal)];
+                lists[listKey] = [];
+                currentList = listKey;
+                continue;
+            }
+
+            values[key] = Unquote(value);
+        }
+
+        return new FrictionCaseReview(
+            values.GetValueOrDefault("case_id", caseId),
+            values.GetValueOrDefault("possible", "partial"),
+            values.GetValueOrDefault("awkwardness", "high"),
+            lists.GetValueOrDefault("pain_points", []),
+            lists.GetValueOrDefault("proposed_features", []),
+            values.GetValueOrDefault("reviewer_verdict", "No verdict provided."));
+    }
+
+    private static string ComputeBuildStatus(bool exportSuccess, FrictionCaseReview review)
+    {
+        if (!exportSuccess)
+        {
+            return review.Possible.Equals("partial", StringComparison.Ordinal) ? "partial" : "failure";
+        }
+
+        return review.Possible switch
+        {
+            "true" => "success",
+            "partial" => "partial",
+            _ => "failure"
+        };
+    }
+
+    private static string Unquote(string value)
+    {
+        if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
+        {
+            return value[1..^1];
+        }
+
+        return value;
     }
 
     private static FrictionDiagnostic MapDiagnostic(KernelDiagnostic diagnostic) =>

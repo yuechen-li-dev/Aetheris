@@ -1,0 +1,10 @@
+case_id: blind-hole-block-deep
+possible: partial
+awkwardness: medium
+pain_points[2]:
+  - "Blind-hole depth behavior depends on subtract span constraints that are hard to predict."
+  - "Depth intent is concise in source but often rejected during execution."
+proposed_features[2]:
+  - "Explicit blind-hole primitive with depth and reference-face semantics."
+  - "Preflight validation message for allowed subtract span families."
+reviewer_verdict: "Authoring is straightforward, but execution support for deep blind holes is incomplete."

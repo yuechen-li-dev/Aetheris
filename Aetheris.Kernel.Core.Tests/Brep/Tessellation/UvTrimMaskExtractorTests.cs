@@ -1,7 +1,11 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Tessellation;
+using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Tessellation;
 
@@ -46,6 +50,29 @@ public sealed class UvTrimMaskExtractorTests
     }
 
     [Fact]
+    public void TryExtract_RealBsplineFaceWithHole_BuildsDeterministicOuterAndInnerLoops()
+    {
+        var body = ImportBsplineBodyWithHole();
+        var face = Assert.Single(body.Topology.Faces);
+        Assert.True(body.TryGetFaceSurfaceGeometry(face.Id, out var surface));
+        var bspline = surface?.BSplineSurfaceWithKnots;
+        Assert.NotNull(bspline);
+
+        var extractor = new UvTrimMaskExtractor();
+        var first = extractor.TryExtract(body, face.Id, bspline!);
+        var second = extractor.TryExtract(body, face.Id, bspline!);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.NotNull(first.TrimMask);
+        Assert.NotNull(second.TrimMask);
+        Assert.Equal(first.TrimMask!.OuterLoop, second.TrimMask!.OuterLoop);
+        Assert.Equal(first.TrimMask.InnerLoops.Count, second.TrimMask.InnerLoops.Count);
+        Assert.Single(first.TrimMask.InnerLoops);
+        Assert.Equal(first.TrimMask.InnerLoops[0], second.TrimMask.InnerLoops[0]);
+    }
+
+    [Fact]
     public void TryExtract_BsplineFaceWithUnsupportedTrimEdge_IsExplicitlyUnsupported()
     {
         var body = CreateBodyWithUnsupportedTrimEdge(ImportSingleLoopBsplineBody());
@@ -69,6 +96,127 @@ public sealed class UvTrimMaskExtractorTests
         Assert.True(import.IsSuccess);
         return import.Value;
     }
+
+    internal static BrepBody ImportBsplineBodyWithHole()
+    {
+        return CreateTrimmedBsplineSurfaceBody(
+            outerBounds: (0d, 1d, 0d, 1d),
+            holeBounds: (0.3d, 0.7d, 0.3d, 0.7d));
+    }
+
+    private static BrepBody CreateTrimmedBsplineSurfaceBody(
+        (double UMin, double UMax, double VMin, double VMax) outerBounds,
+        (double UMin, double UMax, double VMin, double VMax)? holeBounds)
+    {
+        var loops = new List<IReadOnlyList<(double U, double V)>> { CreateRectangleLoop(outerBounds) };
+        if (holeBounds is { } hole)
+        {
+            loops.Add(CreateRectangleLoop(hole));
+        }
+
+        var builder = new TopologyBuilder();
+        var geometry = new BrepGeometryStore();
+        var bindings = new BrepBindingModel();
+        var vertexPoints = new Dictionary<VertexId, Point3D>();
+        var faceLoops = new List<LoopId>(loops.Count);
+        var curveId = 1;
+
+        foreach (var loop in loops)
+        {
+            faceLoops.Add(AddLoop(builder, geometry, bindings, vertexPoints, CreateBsplineLoopVertices(loop), ref curveId));
+        }
+
+        var face = builder.AddFace(faceLoops);
+        var shell = builder.AddShell([face]);
+        builder.AddBody([shell]);
+
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromBSplineSurfaceWithKnots(CreateBilinearBsplineSurface()));
+        bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(1)));
+
+        return new BrepBody(builder.Model, geometry, bindings, vertexPoints);
+    }
+
+    private static LoopId AddLoop(
+        TopologyBuilder builder,
+        BrepGeometryStore geometry,
+        BrepBindingModel bindings,
+        Dictionary<VertexId, Point3D> vertexPoints,
+        IReadOnlyList<Point3D> vertices,
+        ref int curveId)
+    {
+        var vertexIds = vertices.Select(point =>
+        {
+            var vertexId = builder.AddVertex();
+            vertexPoints[vertexId] = point;
+            return vertexId;
+        }).ToArray();
+
+        var loopId = builder.AllocateLoopId();
+        var coedgeIds = new List<CoedgeId>(vertices.Count);
+        var edgeIds = new List<EdgeId>(vertices.Count);
+        for (var i = 0; i < vertices.Count; i++)
+        {
+            var edgeId = builder.AddEdge(vertexIds[i], vertexIds[(i + 1) % vertices.Count]);
+            edgeIds.Add(edgeId);
+            var line = CreateLine(vertices[i], vertices[(i + 1) % vertices.Count], out var length);
+            var geometryId = new CurveGeometryId(curveId++);
+            geometry.AddCurve(geometryId, CurveGeometry.FromLine(line));
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(edgeId, geometryId, new ParameterInterval(0d, length)));
+        }
+
+        for (var i = 0; i < edgeIds.Count; i++)
+        {
+            coedgeIds.Add(builder.AllocateCoedgeId());
+        }
+
+        for (var i = 0; i < edgeIds.Count; i++)
+        {
+            var next = coedgeIds[(i + 1) % coedgeIds.Count];
+            var prev = coedgeIds[(i - 1 + coedgeIds.Count) % coedgeIds.Count];
+            builder.AddCoedge(new Coedge(coedgeIds[i], edgeIds[i], loopId, next, prev, IsReversed: false));
+        }
+
+        builder.AddLoop(new Loop(loopId, coedgeIds));
+        return loopId;
+    }
+
+    private static Point3D[] CreateBsplineLoopVertices(IReadOnlyList<(double U, double V)> uvLoop)
+        => uvLoop.Select(point => new Point3D(point.U, point.V, point.U * point.V)).ToArray();
+
+    private static Line3Curve CreateLine(Point3D start, Point3D end, out double length)
+    {
+        var delta = end - start;
+        length = delta.Length;
+        return new Line3Curve(start, Direction3D.Create(delta));
+    }
+
+    private static (double U, double V)[] CreateRectangleLoop((double UMin, double UMax, double VMin, double VMax) bounds)
+        =>
+        [
+            (bounds.UMin, bounds.VMin),
+            (bounds.UMax, bounds.VMin),
+            (bounds.UMax, bounds.VMax),
+            (bounds.UMin, bounds.VMax),
+        ];
+
+    private static BSplineSurfaceWithKnots CreateBilinearBsplineSurface()
+        => new(
+            degreeU: 1,
+            degreeV: 1,
+            controlPoints:
+            [
+                [new Point3D(0d, 0d, 0d), new Point3D(0d, 1d, 0d)],
+                [new Point3D(1d, 0d, 0d), new Point3D(1d, 1d, 1d)],
+            ],
+            surfaceForm: "UNSPECIFIED",
+            uClosed: false,
+            vClosed: false,
+            selfIntersect: false,
+            knotMultiplicitiesU: [2, 2],
+            knotMultiplicitiesV: [2, 2],
+            knotValuesU: [0d, 1d],
+            knotValuesV: [0d, 1d],
+            knotSpec: "UNSPECIFIED");
 
     internal static BrepBody CreateBodyWithMissingVertexPoint(BrepBody source)
     {

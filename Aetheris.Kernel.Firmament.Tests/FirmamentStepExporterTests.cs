@@ -193,7 +193,7 @@ public sealed class FirmamentStepExporterTests
     {
         var boxSubtract = ExportFixture("testdata/firmament/examples/boolean_subtract_basic.firmament");
         var coneHole = ExportFixture("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament");
-        var unsupportedCylinder = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
+        var containedCylinder = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
         var supportedSphereCavity = ExportFixture("testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament");
         var unsupportedTorus = ExportFixture("testdata/firmament/fixtures/m10n-unsupported-box-subtract-torus.firmament");
 
@@ -207,24 +207,22 @@ public sealed class FirmamentStepExporterTests
         Assert.DoesNotContain("DRAUGHTING_CALLOUT", coneHole.Value.StepText, StringComparison.Ordinal);
         Assert.DoesNotContain("ANNOTATION_PLANE", coneHole.Value.StepText, StringComparison.Ordinal);
 
-        Assert.False(unsupportedCylinder.IsSuccess);
+        Assert.True(containedCylinder.IsSuccess);
+        Assert.Contains("SHAPE_ASPECT", containedCylinder.Value.StepText, StringComparison.Ordinal);
         Assert.True(supportedSphereCavity.IsSuccess);
         Assert.False(unsupportedTorus.IsSuccess);
     }
 
     [Fact]
-    public void Export_UnsupportedBoxWithCylinderHole_Fails_Instead_Of_Falling_Back_To_Base_Primitive()
+    public void Export_ContainedBoxWithCylinderHole_Succeeds_Deterministically_Without_Fallback()
     {
         var first = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
         var second = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
 
-        Assert.False(first.IsSuccess);
-        Assert.False(second.IsSuccess);
-        Assert.Equal(first.Diagnostics, second.Diagnostics);
-        Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'hole' (subtract) could not be executed.", StringComparison.Ordinal));
-        Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Source == "BrepBoolean.AnalyticHole.NotFullySpanning"
-            && diagnostic.Message.Contains("Boolean feature 'hole' (subtract) does not match the supported subtract span family", StringComparison.Ordinal));
-        Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.StepText, second.Value.StepText);
+        Assert.Contains("BREP_WITH_VOIDS", first.Value.StepText, StringComparison.Ordinal);
     }
 
 

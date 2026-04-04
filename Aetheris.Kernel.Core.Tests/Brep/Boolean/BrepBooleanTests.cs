@@ -586,18 +586,17 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Subtract_BoxCylinderMidSpanPartialHeight_ReturnsNotFullySpanningDiagnostic()
+    public void Subtract_BoxCylinderMidSpanPartialHeight_RebuildsAsContainedCylinderCavity()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
         var partial = TransformBody(BrepPrimitives.CreateCylinder(4d, 6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
 
         var result = BrepBoolean.Subtract(left, partial);
 
-        Assert.False(result.IsSuccess);
-        var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
-        Assert.Equal("Boolean Subtract does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.", diagnostic.Message);
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value.ShellRepresentation);
+        Assert.Single(result.Value.ShellRepresentation!.InnerShellIds);
+        Assert.True(BrepBindingValidator.Validate(result.Value, true).IsSuccess);
     }
 
     [Fact]
@@ -868,6 +867,64 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(second.Diagnostics);
         Assert.Equal("BrepBoolean.AnalyticHole.AxisNotAligned", diagnostic.Source);
         Assert.Contains("requires coaxial cylinders", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_BoxContainedCylinderCavity_Succeeds_WithInnerShell_And_DeterministicExport()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-25d, 25d, -20d, 20d, -10d, 10d)).Value;
+        var containedPocket = BrepPrimitives.CreateCylinder(5d, 6d).Value;
+
+        var first = BrepBoolean.Subtract(baseBox, containedPocket);
+        var second = BrepBoolean.Subtract(baseBox, containedPocket);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.NotNull(first.Value.ShellRepresentation);
+        Assert.Single(first.Value.ShellRepresentation!.InnerShellIds);
+        Assert.True(BrepBindingValidator.Validate(first.Value, true).IsSuccess);
+
+        var export = Step242Exporter.ExportBody(first.Value);
+        var repeatedExport = Step242Exporter.ExportBody(second.Value);
+        Assert.True(export.IsSuccess);
+        Assert.True(repeatedExport.IsSuccess);
+        Assert.Equal(export.Value, repeatedExport.Value);
+        Assert.Contains("BREP_WITH_VOIDS", export.Value, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_ComposedContainedThenThroughCoaxial_ReturnsUnsupportedTwoSidedEntryStackDiagnostic()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-25d, 25d, -20d, 20d, -10d, 10d)).Value;
+        var containedPocket = BrepPrimitives.CreateCylinder(6d, 6d).Value;
+        var through = BrepPrimitives.CreateCylinder(3d, 30d).Value;
+
+        var first = BrepBoolean.Subtract(baseBox, containedPocket);
+        Assert.True(first.IsSuccess);
+
+        var result = BrepBoolean.Subtract(first.Value, through);
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
+        Assert.Contains("open on the same top entry face", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_ComposedBlindPocketThenEqualRadiusThrough_ReturnsDegenerateShoulderDiagnostic()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-35d, 35d, -20d, 20d, -8d, 8d)).Value;
+        var pocket = TransformBody(BrepPrimitives.CreateCylinder(3.5d, 6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 5d)));
+        var through = BrepPrimitives.CreateCylinder(3.5d, 24d).Value;
+
+        var first = BrepBoolean.Subtract(baseBox, pocket);
+        Assert.True(first.IsSuccess);
+
+        var second = BrepBoolean.Subtract(first.Value, through);
+        Assert.False(second.IsSuccess);
+        var diagnostic = Assert.Single(second.Diagnostics);
+        Assert.Equal("BrepBoolean.AnalyticHole.TangentContact", diagnostic.Source);
+        Assert.Contains("strictly larger entry-segment radius", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

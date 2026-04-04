@@ -38,6 +38,14 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             return CreateComposedContainedSphereCavityBody(composition.OuterBox, sphere);
         }
 
+        if (composition.Holes.Count == 1
+            && composition.Holes[0].SpanKind == SupportedBooleanHoleSpanKind.Contained
+            && composition.Holes[0].Surface.Kind == AnalyticSurfaceKind.Cylinder
+            && composition.Holes[0].Surface.Cylinder is RecognizedCylinder containedCylinder)
+        {
+            return CreateComposedContainedCylinderCavityBody(composition.OuterBox, containedCylinder, composition);
+        }
+
         if (composition.Holes.Any(hole => hole.Surface.Kind == AnalyticSurfaceKind.Sphere))
         {
             return KernelResult<BrepBody>.Failure([
@@ -53,7 +61,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
 
         if (composition.Holes.Count == 2 && composition.Holes.Any(h => h.IsBlind))
         {
-            if (BrepBooleanSteppedHoleFamily.TryClassifyPair(
+            if (BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
                 composition.OuterBox,
                 composition.Holes[0],
                 composition.Holes[1],
@@ -144,10 +152,40 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
     }
 
-    private static BrepBody MergeOuterAndInnerShell(BrepBody outer, BrepBody inner)
-        => MergeOuterAndInnerShells(outer, [inner]);
+    private static KernelResult<BrepBody> CreateComposedContainedCylinderCavityBody(
+        AxisAlignedBoxExtents outerBox,
+        in RecognizedCylinder cylinder,
+        SafeBooleanComposition composition)
+    {
+        var outer = BrepBooleanBoxRecognition.CreateBoxFromExtents(outerBox);
+        if (!outer.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(outer.Diagnostics);
+        }
 
-    private static BrepBody MergeOuterAndInnerShells(BrepBody outer, IReadOnlyList<BrepBody> innerShells)
+        var height = System.Math.Abs(cylinder.MaxAxisParameter - cylinder.MinAxisParameter);
+        var innerResult = BrepPrimitives.CreateCylinder(cylinder.Radius, height);
+        if (!innerResult.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(innerResult.Diagnostics);
+        }
+
+        var center = new Point3D(
+            (cylinder.MinCenter.X + cylinder.MaxCenter.X) * 0.5d,
+            (cylinder.MinCenter.Y + cylinder.MaxCenter.Y) * 0.5d,
+            (cylinder.MinCenter.Z + cylinder.MaxCenter.Z) * 0.5d);
+        var inner = TranslateBody(innerResult.Value, new Vector3D(center.X, center.Y, center.Z));
+        var body = MergeOuterAndInnerShell(outer.Value, inner, composition);
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        return validation.IsSuccess
+            ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
+            : KernelResult<BrepBody>.Failure(validation.Diagnostics);
+    }
+
+    private static BrepBody MergeOuterAndInnerShell(BrepBody outer, BrepBody inner, SafeBooleanComposition? composition = null)
+        => MergeOuterAndInnerShells(outer, [inner], composition);
+
+    private static BrepBody MergeOuterAndInnerShells(BrepBody outer, IReadOnlyList<BrepBody> innerShells, SafeBooleanComposition? composition = null)
     {
         var topology = new TopologyModel();
 
@@ -325,7 +363,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             geometry,
             bindings,
             vertexPoints,
-            safeBooleanComposition: null,
+            safeBooleanComposition: composition,
             shellRepresentation: new BrepBodyShellRepresentation(outerShellId, remappedInnerShellIds));
     }
 
@@ -593,7 +631,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
 
     private static KernelResult<BrepBody> CreateSteppedCoaxialCylinderBody(
         SafeBooleanComposition composition,
-        in SteppedCoaxialHoleProfile steppedProfile)
+        in CoaxialCylinderSubtractStackProfile steppedProfile)
     {
         var box = composition.OuterBox;
         var builder = new TopologyBuilder();

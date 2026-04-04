@@ -85,6 +85,7 @@ public enum SupportedBooleanHoleSpanKind
     Through,
     BlindFromTop,
     BlindFromBottom,
+    Contained,
 }
 
 public readonly record struct SupportedBooleanHole(

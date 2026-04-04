@@ -51,6 +51,25 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             ]);
         }
 
+        if (composition.Holes.Count == 2 && composition.Holes.Any(h => h.IsBlind))
+        {
+            if (BrepBooleanSteppedHoleFamily.TryClassifyPair(
+                composition.OuterBox,
+                composition.Holes[0],
+                composition.Holes[1],
+                tolerance,
+                out var steppedProfile,
+                out var steppedDiagnostic))
+            {
+                return CreateSteppedCoaxialCylinderBody(composition, steppedProfile);
+            }
+
+            if (steppedDiagnostic is not null)
+            {
+                return KernelResult<BrepBody>.Failure([steppedDiagnostic.ToKernelDiagnostic()]);
+            }
+        }
+
         return CreateComposedThroughHoleBody(composition);
     }
 
@@ -564,6 +583,250 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             vertexPoints[topology.SeamTopVertex] = geometryData.SeamTopPoint;
             vertexPoints[topology.SeamBottomVertex] = geometryData.SeamBottomPoint;
         }
+
+        var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints, composition);
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        return validation.IsSuccess
+            ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
+            : KernelResult<BrepBody>.Failure(validation.Diagnostics);
+    }
+
+    private static KernelResult<BrepBody> CreateSteppedCoaxialCylinderBody(
+        SafeBooleanComposition composition,
+        in SteppedCoaxialHoleProfile steppedProfile)
+    {
+        var box = composition.OuterBox;
+        var builder = new TopologyBuilder();
+
+        var v1 = builder.AddVertex();
+        var v2 = builder.AddVertex();
+        var v3 = builder.AddVertex();
+        var v4 = builder.AddVertex();
+        var v5 = builder.AddVertex();
+        var v6 = builder.AddVertex();
+        var v7 = builder.AddVertex();
+        var v8 = builder.AddVertex();
+
+        var e1 = builder.AddEdge(v1, v2);
+        var e2 = builder.AddEdge(v2, v3);
+        var e3 = builder.AddEdge(v3, v4);
+        var e4 = builder.AddEdge(v4, v1);
+        var e5 = builder.AddEdge(v5, v6);
+        var e6 = builder.AddEdge(v6, v7);
+        var e7 = builder.AddEdge(v7, v8);
+        var e8 = builder.AddEdge(v8, v5);
+        var e9 = builder.AddEdge(v1, v5);
+        var e10 = builder.AddEdge(v2, v6);
+        var e11 = builder.AddEdge(v3, v7);
+        var e12 = builder.AddEdge(v4, v8);
+
+        var entryVertex = builder.AddVertex();
+        var shoulderOuterVertex = builder.AddVertex();
+        var shoulderInnerVertex = builder.AddVertex();
+        var deepEndVertex = builder.AddVertex();
+        var outerSeamStartVertex = builder.AddVertex();
+        var outerSeamEndVertex = builder.AddVertex();
+        var innerSeamStartVertex = builder.AddVertex();
+        var innerSeamEndVertex = builder.AddVertex();
+
+        var entryCircle = builder.AddEdge(entryVertex, entryVertex);
+        var shoulderOuterCircle = builder.AddEdge(shoulderOuterVertex, shoulderOuterVertex);
+        var shoulderInnerCircle = builder.AddEdge(shoulderInnerVertex, shoulderInnerVertex);
+        var deepEndCircle = builder.AddEdge(deepEndVertex, deepEndVertex);
+        var outerSeam = builder.AddEdge(outerSeamStartVertex, outerSeamEndVertex);
+        var innerSeam = builder.AddEdge(innerSeamStartVertex, innerSeamEndVertex);
+
+        var bottomOuterLoop = AddLoop(builder, [Forward(e1), Forward(e2), Forward(e3), Forward(e4)]);
+        var topOuterLoop = AddLoop(builder, [Forward(e5), Forward(e6), Forward(e7), Forward(e8)]);
+        var bottomLoops = new List<LoopId>(2) { bottomOuterLoop };
+        var topLoops = new List<LoopId>(2) { topOuterLoop };
+        if (steppedProfile.EntryFromTop)
+        {
+            topLoops.Add(AddLoop(builder, [Forward(entryCircle)]));
+            if (steppedProfile.DeepHole.SpanKind == SupportedBooleanHoleSpanKind.Through)
+            {
+                bottomLoops.Add(AddLoop(builder, [Reversed(deepEndCircle)]));
+            }
+        }
+        else
+        {
+            bottomLoops.Add(AddLoop(builder, [Reversed(entryCircle)]));
+            if (steppedProfile.DeepHole.SpanKind == SupportedBooleanHoleSpanKind.Through)
+            {
+                topLoops.Add(AddLoop(builder, [Forward(deepEndCircle)]));
+            }
+        }
+
+        var bottomFace = builder.AddFace(bottomLoops);
+        var topFace = builder.AddFace(topLoops);
+        var xMinFace = builder.AddFace([AddLoop(builder, [Forward(e1), Forward(e10), Reversed(e5), Reversed(e9)])]);
+        var xMaxFace = builder.AddFace([AddLoop(builder, [Forward(e2), Forward(e11), Reversed(e6), Reversed(e10)])]);
+        var yMaxFace = builder.AddFace([AddLoop(builder, [Forward(e3), Forward(e12), Reversed(e7), Reversed(e11)])]);
+        var yMinFace = builder.AddFace([AddLoop(builder, [Forward(e4), Forward(e9), Reversed(e8), Reversed(e12)])]);
+
+        var outerWallFace = builder.AddFace([
+            AddLoop(builder, [Forward(outerSeam), Reversed(entryCircle), Reversed(outerSeam), Forward(shoulderOuterCircle)])
+        ]);
+        var shoulderFace = builder.AddFace([
+            AddLoop(builder, [Forward(shoulderOuterCircle)]),
+            AddLoop(builder, [Reversed(shoulderInnerCircle)])
+        ]);
+        var innerWallFace = builder.AddFace([
+            AddLoop(builder, [Forward(innerSeam), Reversed(shoulderInnerCircle), Reversed(innerSeam), Forward(deepEndCircle)])
+        ]);
+
+        FaceId? deepBottomFace = null;
+        if (steppedProfile.DeepHole.IsBlind)
+        {
+            deepBottomFace = builder.AddFace([AddLoop(builder, [Forward(deepEndCircle)])]);
+        }
+
+        var shellFaces = new List<FaceId>
+        {
+            bottomFace,
+            topFace,
+            xMinFace,
+            xMaxFace,
+            yMaxFace,
+            yMinFace,
+            outerWallFace,
+            shoulderFace,
+            innerWallFace,
+        };
+        if (deepBottomFace is FaceId deepBottom)
+        {
+            shellFaces.Add(deepBottom);
+        }
+
+        var shell = builder.AddShell(shellFaces);
+        builder.AddBody([shell]);
+
+        var zAxis = Direction3D.Create(new Vector3D(0d, 0d, 1d));
+        var xAxis = Direction3D.Create(new Vector3D(1d, 0d, 0d));
+        var yAxis = Direction3D.Create(new Vector3D(0d, 1d, 0d));
+        var width = box.MaxX - box.MinX;
+        var depth = box.MaxY - box.MinY;
+        var height = box.MaxZ - box.MinZ;
+        var p1 = new Point3D(box.MinX, box.MinY, box.MinZ);
+        var p2 = new Point3D(box.MaxX, box.MinY, box.MinZ);
+        var p3 = new Point3D(box.MaxX, box.MaxY, box.MinZ);
+        var p4 = new Point3D(box.MinX, box.MaxY, box.MinZ);
+        var p5 = new Point3D(box.MinX, box.MinY, box.MaxZ);
+        var p6 = new Point3D(box.MaxX, box.MinY, box.MaxZ);
+        var p7 = new Point3D(box.MaxX, box.MaxY, box.MaxZ);
+        var p8 = new Point3D(box.MinX, box.MaxY, box.MaxZ);
+
+        var entryZ = steppedProfile.EntryFromTop ? box.MaxZ : box.MinZ;
+        var shoulderZ = steppedProfile.ShoulderZ;
+        var deepEndZ = steppedProfile.DeepHole.SpanKind == SupportedBooleanHoleSpanKind.Through
+            ? (steppedProfile.EntryFromTop ? box.MinZ : box.MaxZ)
+            : steppedProfile.DeepHole.EndCenter.Z;
+        var center = new Point3D(steppedProfile.EntryHole.CenterX, steppedProfile.EntryHole.CenterY, 0d);
+        var entryCenter = new Point3D(center.X, center.Y, entryZ);
+        var shoulderCenter = new Point3D(center.X, center.Y, shoulderZ);
+        var deepEndCenter = new Point3D(center.X, center.Y, deepEndZ);
+        var entryRadius = steppedProfile.EntryHole.BottomRadius;
+        var deepRadius = steppedProfile.DeepHole.BottomRadius;
+        var seamAxis = steppedProfile.EntryFromTop ? Direction3D.Create(new Vector3D(0d, 0d, -1d)) : Direction3D.Create(new Vector3D(0d, 0d, 1d));
+        var outerSeamStart = entryCenter + (xAxis.ToVector() * entryRadius);
+        var outerSeamEnd = shoulderCenter + (xAxis.ToVector() * entryRadius);
+        var innerSeamStart = shoulderCenter + (xAxis.ToVector() * deepRadius);
+        var innerSeamEnd = deepEndCenter + (xAxis.ToVector() * deepRadius);
+
+        var geometry = new BrepGeometryStore();
+        var lineCurves = new[]
+        {
+            (p1, new Vector3D(width, 0d, 0d)),
+            (p2, new Vector3D(0d, depth, 0d)),
+            (p3, new Vector3D(-width, 0d, 0d)),
+            (p4, new Vector3D(0d, -depth, 0d)),
+            (p5, new Vector3D(width, 0d, 0d)),
+            (p6, new Vector3D(0d, depth, 0d)),
+            (p7, new Vector3D(-width, 0d, 0d)),
+            (p8, new Vector3D(0d, -depth, 0d)),
+            (p1, new Vector3D(0d, 0d, height)),
+            (p2, new Vector3D(0d, 0d, height)),
+            (p3, new Vector3D(0d, 0d, height)),
+            (p4, new Vector3D(0d, 0d, height)),
+        };
+        for (var i = 0; i < lineCurves.Length; i++)
+        {
+            geometry.AddCurve(new CurveGeometryId(i + 1), CurveGeometry.FromLine(new Line3Curve(lineCurves[i].Item1, Direction3D.Create(lineCurves[i].Item2))));
+        }
+
+        var entryCurveId = new CurveGeometryId(13);
+        var shoulderOuterCurveId = new CurveGeometryId(14);
+        var shoulderInnerCurveId = new CurveGeometryId(15);
+        var deepEndCurveId = new CurveGeometryId(16);
+        var outerSeamCurveId = new CurveGeometryId(17);
+        var innerSeamCurveId = new CurveGeometryId(18);
+        geometry.AddCurve(entryCurveId, CurveGeometry.FromCircle(new Circle3Curve(entryCenter, zAxis, entryRadius, xAxis)));
+        geometry.AddCurve(shoulderOuterCurveId, CurveGeometry.FromCircle(new Circle3Curve(shoulderCenter, zAxis, entryRadius, xAxis)));
+        geometry.AddCurve(shoulderInnerCurveId, CurveGeometry.FromCircle(new Circle3Curve(shoulderCenter, zAxis, deepRadius, xAxis)));
+        geometry.AddCurve(deepEndCurveId, CurveGeometry.FromCircle(new Circle3Curve(deepEndCenter, zAxis, deepRadius, xAxis)));
+        geometry.AddCurve(outerSeamCurveId, CurveGeometry.FromLine(new Line3Curve(outerSeamStart, seamAxis)));
+        geometry.AddCurve(innerSeamCurveId, CurveGeometry.FromLine(new Line3Curve(innerSeamStart, seamAxis)));
+
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, box.MinZ), Direction3D.Create(new Vector3D(0d, 0d, -1d)), xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(2), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, box.MaxZ), zAxis, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(3), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, box.MinY, 0d), Direction3D.Create(new Vector3D(0d, -1d, 0d)), xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(4), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(box.MaxX, 0d, 0d), Direction3D.Create(new Vector3D(1d, 0d, 0d)), yAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(5), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, box.MaxY, 0d), Direction3D.Create(new Vector3D(0d, 1d, 0d)), Direction3D.Create(new Vector3D(-1d, 0d, 0d)))));
+        geometry.AddSurface(new SurfaceGeometryId(6), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(box.MinX, 0d, 0d), Direction3D.Create(new Vector3D(-1d, 0d, 0d)), yAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(7), SurfaceGeometry.FromCylinder(new CylinderSurface(shoulderCenter, zAxis, entryRadius, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(8), SurfaceGeometry.FromPlane(new PlaneSurface(shoulderCenter, Direction3D.Create(new Vector3D(0d, 0d, steppedProfile.EntryFromTop ? -1d : 1d)), xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(9), SurfaceGeometry.FromCylinder(new CylinderSurface(deepEndCenter, zAxis, deepRadius, xAxis)));
+        if (deepBottomFace is not null)
+        {
+            geometry.AddSurface(new SurfaceGeometryId(10), SurfaceGeometry.FromPlane(new PlaneSurface(deepEndCenter, Direction3D.Create(new Vector3D(0d, 0d, steppedProfile.EntryFromTop ? -1d : 1d)), xAxis)));
+        }
+
+        var bindings = new BrepBindingModel();
+        for (var i = 0; i < 12; i++)
+        {
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(new EdgeId(i + 1), new CurveGeometryId(i + 1), new ParameterInterval(0d, 1d)));
+        }
+
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(entryCircle, entryCurveId, new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(shoulderOuterCircle, shoulderOuterCurveId, new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(shoulderInnerCircle, shoulderInnerCurveId, new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(deepEndCircle, deepEndCurveId, new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(outerSeam, outerSeamCurveId, new ParameterInterval(0d, (outerSeamEnd - outerSeamStart).Length)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(innerSeam, innerSeamCurveId, new ParameterInterval(0d, (innerSeamEnd - innerSeamStart).Length)));
+
+        bindings.AddFaceBinding(new FaceGeometryBinding(bottomFace, new SurfaceGeometryId(1)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(topFace, new SurfaceGeometryId(2)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(xMinFace, new SurfaceGeometryId(3)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(xMaxFace, new SurfaceGeometryId(4)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(yMaxFace, new SurfaceGeometryId(5)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(yMinFace, new SurfaceGeometryId(6)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(outerWallFace, new SurfaceGeometryId(7)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(shoulderFace, new SurfaceGeometryId(8)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(innerWallFace, new SurfaceGeometryId(9)));
+        if (deepBottomFace is FaceId deepBottomBinding)
+        {
+            bindings.AddFaceBinding(new FaceGeometryBinding(deepBottomBinding, new SurfaceGeometryId(10)));
+        }
+
+        var vertexPoints = new Dictionary<VertexId, Point3D>
+        {
+            [v1] = p1,
+            [v2] = p2,
+            [v3] = p3,
+            [v4] = p4,
+            [v5] = p5,
+            [v6] = p6,
+            [v7] = p7,
+            [v8] = p8,
+            [entryVertex] = outerSeamStart,
+            [shoulderOuterVertex] = outerSeamEnd,
+            [shoulderInnerVertex] = innerSeamStart,
+            [deepEndVertex] = innerSeamEnd,
+            [outerSeamStartVertex] = outerSeamStart,
+            [outerSeamEndVertex] = outerSeamEnd,
+            [innerSeamStartVertex] = innerSeamStart,
+            [innerSeamEndVertex] = innerSeamEnd,
+        };
 
         var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints, composition);
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);

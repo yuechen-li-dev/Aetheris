@@ -827,6 +827,50 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_ComposedBlindPocketThenCoaxialThrough_Succeeds_AsBoundedSteppedHole()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-35d, 35d, -20d, 20d, -8d, 8d)).Value;
+        var pocket = TransformBody(BrepPrimitives.CreateCylinder(7d, 6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 5d)));
+        var through = BrepPrimitives.CreateCylinder(3.5d, 24d).Value;
+
+        var first = BrepBoolean.Subtract(baseBox, pocket);
+        Assert.True(first.IsSuccess);
+        var second = BrepBoolean.Subtract(first.Value, through);
+        var repeated = BrepBoolean.Subtract(first.Value, through);
+
+        Assert.True(second.IsSuccess);
+        Assert.True(repeated.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(second.Value, true).IsSuccess);
+        Assert.Equal(9, second.Value.Topology.Faces.Count());
+        Assert.Equal(2, second.Value.SafeBooleanComposition?.Holes.Count);
+
+        var export = Step242Exporter.ExportBody(second.Value);
+        var repeatedExport = Step242Exporter.ExportBody(repeated.Value);
+        Assert.True(export.IsSuccess);
+        Assert.True(repeatedExport.IsSuccess);
+        Assert.Equal(export.Value, repeatedExport.Value);
+        Assert.Contains("CYLINDRICAL_SURFACE", export.Value, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_ComposedBlindPocketThenOffsetThrough_ReturnsCoaxialSteppedDiagnostic()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-35d, 35d, -20d, 20d, -8d, 8d)).Value;
+        var pocket = TransformBody(BrepPrimitives.CreateCylinder(7d, 6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 5d)));
+        var offsetThrough = TransformBody(BrepPrimitives.CreateCylinder(3.5d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(1.5d, 0d, 0d)));
+
+        var first = BrepBoolean.Subtract(baseBox, pocket);
+        Assert.True(first.IsSuccess);
+        var second = BrepBoolean.Subtract(first.Value, offsetThrough);
+
+        Assert.False(second.IsSuccess);
+        var diagnostic = Assert.Single(second.Diagnostics);
+        Assert.Equal("BrepBoolean.AnalyticHole.AxisNotAligned", diagnostic.Source);
+        Assert.Contains("requires coaxial cylinders", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Subtract_ComposedOverlappingHoles_FailsWithDeterministicInterferenceDiagnostic()
     {
         var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;

@@ -470,9 +470,9 @@ public static class BrepBooleanBoxCylinderHoleBuilder
                     : geometryData.TopCenter;
                 var blindBottomSurfaceId = new SurfaceGeometryId(nextSurfaceId++);
                 geometry.AddSurface(blindBottomSurfaceId, SurfaceGeometry.FromPlane(new PlaneSurface(
-                    new Point3D(blindBottomCenter.X, blindBottomCenter.Y, blindBottomCenter.Z),
-                    Direction3D.Create(new Vector3D(0d, 0d, -1d)),
-                    xAxis)));
+                    blindBottomCenter,
+                    Direction3D.Create(topology.Hole.Axis.ToVector() * -1d),
+                    topology.Hole.ReferenceAxis)));
                 bindings.AddFaceBinding(new FaceGeometryBinding(blindBottomFaces[blindBottomFaceIndex++], blindBottomSurfaceId));
             }
 
@@ -501,20 +501,20 @@ public static class BrepBooleanBoxCylinderHoleBuilder
 
     private static HoleGeometryData CreateCylinderHoleGeometry(SupportedBooleanHole hole, Direction3D xAxis, Direction3D zAxis, in RecognizedCylinder cylinder)
     {
-        var centerX = cylinder.MinCenter.X;
-        var centerY = cylinder.MinCenter.Y;
-        var topZ = System.Math.Max(hole.StartZ, hole.EndZ);
-        var bottomZ = System.Math.Min(hole.StartZ, hole.EndZ);
-        var topCenter = new Point3D(centerX, centerY, topZ);
-        var bottomCenter = new Point3D(centerX, centerY, bottomZ);
-        var seamBottomPoint = new Point3D(centerX + cylinder.Radius, centerY, bottomZ);
-        var seamTopPoint = new Point3D(centerX + cylinder.Radius, centerY, topZ);
+        var topCenter = hole.StartCenter.Z >= hole.EndCenter.Z ? hole.StartCenter : hole.EndCenter;
+        var bottomCenter = hole.StartCenter.Z < hole.EndCenter.Z ? hole.StartCenter : hole.EndCenter;
+        var axis = hole.Axis;
+        var referenceAxis = hole.ReferenceAxis;
+        var topEllipse = hole.SpanKind != SupportedBooleanHoleSpanKind.BlindFromBottom;
+        var bottomEllipse = hole.SpanKind != SupportedBooleanHoleSpanKind.BlindFromTop;
+        var (topCurve, seamTopPoint) = CreateSectionCurve(topCenter, cylinder.Radius, axis, referenceAxis, topEllipse, zAxis);
+        var (bottomCurve, seamBottomPoint) = CreateSectionCurve(bottomCenter, cylinder.Radius, axis, referenceAxis, bottomEllipse, zAxis);
 
         return new HoleGeometryData(
-            CurveGeometry.FromCircle(new Circle3Curve(topCenter, zAxis, cylinder.Radius, xAxis)),
-            CurveGeometry.FromCircle(new Circle3Curve(bottomCenter, zAxis, cylinder.Radius, xAxis)),
+            topCurve,
+            bottomCurve,
             CurveGeometry.FromLine(new Line3Curve(seamTopPoint, Direction3D.Create(seamBottomPoint - seamTopPoint))),
-            SurfaceGeometry.FromCylinder(new CylinderSurface(bottomCenter, zAxis, cylinder.Radius, xAxis)),
+            SurfaceGeometry.FromCylinder(new CylinderSurface(bottomCenter, axis, cylinder.Radius, referenceAxis)),
             topCenter,
             bottomCenter,
             seamTopPoint,
@@ -524,30 +524,52 @@ public static class BrepBooleanBoxCylinderHoleBuilder
 
     private static HoleGeometryData CreateConeHoleGeometry(SupportedBooleanHole hole, Direction3D xAxis, Direction3D zAxis, in RecognizedCone cone)
     {
-        var bottomZ = System.Math.Min(hole.StartZ, hole.EndZ);
-        var topZ = System.Math.Max(hole.StartZ, hole.EndZ);
-        var bottomAxisParameter = AxisParameterAtZ(cone, bottomZ);
-        var topAxisParameter = AxisParameterAtZ(cone, topZ);
-        var bottomCenter = cone.PointAtAxisParameter(bottomAxisParameter);
-        var topCenter = cone.PointAtAxisParameter(topAxisParameter);
-        var bottomRadius = hole.BottomRadius;
-        var topRadius = hole.TopRadius;
-        var seamBottomPoint = new Point3D(bottomCenter.X + bottomRadius, bottomCenter.Y, bottomCenter.Z);
-        var seamTopPoint = new Point3D(topCenter.X + topRadius, topCenter.Y, topCenter.Z);
-        var innerMinAxisParameter = System.Math.Min(bottomAxisParameter, topAxisParameter);
-        var innerMinCenter = cone.PointAtAxisParameter(innerMinAxisParameter);
-        var innerMinRadius = cone.RadiusAtAxisParameter(innerMinAxisParameter);
+        var startIsTop = hole.StartCenter.Z >= hole.EndCenter.Z;
+        var topCenter = startIsTop ? hole.StartCenter : hole.EndCenter;
+        var bottomCenter = startIsTop ? hole.EndCenter : hole.StartCenter;
+        var topRadius = startIsTop ? hole.BottomRadius : hole.TopRadius;
+        var bottomRadius = startIsTop ? hole.TopRadius : hole.BottomRadius;
+        var axis = hole.Axis;
+        var referenceAxis = hole.ReferenceAxis;
+        var topEllipse = hole.SpanKind != SupportedBooleanHoleSpanKind.BlindFromBottom;
+        var bottomEllipse = hole.SpanKind != SupportedBooleanHoleSpanKind.BlindFromTop;
+        var (topCurve, seamTopPoint) = CreateSectionCurve(topCenter, topRadius, axis, referenceAxis, topEllipse, zAxis);
+        var (bottomCurve, seamBottomPoint) = CreateSectionCurve(bottomCenter, bottomRadius, axis, referenceAxis, bottomEllipse, zAxis);
+        var innerMinCenter = cone.PointAtAxisParameter(System.Math.Min(cone.MinAxisParameter, cone.MaxAxisParameter));
+        var innerMinRadius = cone.RadiusAtAxisParameter(System.Math.Min(cone.MinAxisParameter, cone.MaxAxisParameter));
 
         return new HoleGeometryData(
-            CurveGeometry.FromCircle(new Circle3Curve(topCenter, zAxis, topRadius, xAxis)),
-            CurveGeometry.FromCircle(new Circle3Curve(bottomCenter, zAxis, bottomRadius, xAxis)),
+            topCurve,
+            bottomCurve,
             CurveGeometry.FromLine(new Line3Curve(seamTopPoint, Direction3D.Create(seamBottomPoint - seamTopPoint))),
-            SurfaceGeometry.FromCone(new ConeSurface(innerMinCenter, cone.Axis, innerMinRadius, cone.SemiAngleRadians, xAxis)),
+            SurfaceGeometry.FromCone(new ConeSurface(innerMinCenter, cone.Axis, innerMinRadius, cone.SemiAngleRadians, referenceAxis)),
             topCenter,
             bottomCenter,
             seamTopPoint,
             seamBottomPoint,
             (seamBottomPoint - seamTopPoint).Length);
+    }
+
+    private static (CurveGeometry Curve, Point3D SeamPoint) CreateSectionCurve(
+        Point3D center,
+        double radius,
+        Direction3D axis,
+        Direction3D referenceAxis,
+        bool forceEllipse,
+        Direction3D zAxis)
+    {
+        var axisDotZ = System.Math.Abs(axis.ToVector().Dot(zAxis.ToVector()));
+        if (forceEllipse && axisDotZ < 0.999d)
+        {
+            var majorRadius = radius / axisDotZ;
+            var projected = axis.ToVector() - (zAxis.ToVector() * axis.ToVector().Dot(zAxis.ToVector()));
+            var majorAxis = Direction3D.Create(projected);
+            var seamPoint = center + (majorAxis.ToVector() * majorRadius);
+            return (CurveGeometry.FromEllipse(new Ellipse3Curve(center, zAxis, majorRadius, radius, majorAxis)), seamPoint);
+        }
+
+        var seam = center + (referenceAxis.ToVector() * radius);
+        return (CurveGeometry.FromCircle(new Circle3Curve(center, axis, radius, referenceAxis)), seam);
     }
 
     private static double AxisParameterAtZ(in RecognizedCone cone, double z)

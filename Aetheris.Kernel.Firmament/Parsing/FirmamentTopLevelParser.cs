@@ -732,7 +732,7 @@ internal static class FirmamentTopLevelParser
             return null;
         }
 
-        var anchor = default(FirmamentParsedPlacementAnchor);
+        FirmamentParsedPlacementAnchor? anchor = null;
         if (placeElement.TryGetProperty("on", out var onElement))
         {
             var onRaw = onElement.ToString();
@@ -754,12 +754,23 @@ internal static class FirmamentTopLevelParser
             }
         }
 
-        if (anchor is null)
-        {
-            return null;
-        }
+        var onFace = placeElement.TryGetProperty("on_face", out var onFaceElement) ? onFaceElement.ToString() : null;
+        var centeredOn = placeElement.TryGetProperty("centered_on", out var centeredOnElement) ? centeredOnElement.ToString() : null;
+        var aroundAxis = placeElement.TryGetProperty("around_axis", out var aroundAxisElement) ? aroundAxisElement.ToString() : null;
+        var radialOffset = placeElement.TryGetProperty("radial_offset", out var radialOffsetElement) && radialOffsetElement.ValueKind == JsonValueKind.Number
+            ? radialOffsetElement.GetDouble()
+            : (double?)null;
+        var angleDegrees = placeElement.TryGetProperty("angle_degrees", out var angleDegreesElement) && angleDegreesElement.ValueKind == JsonValueKind.Number
+            ? angleDegreesElement.GetDouble()
+            : (double?)null;
+        var unknownFields = placeElement
+            .EnumerateObject()
+            .Select(p => p.Name)
+            .Where(name => !KnownPlacementFields.Contains(name))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
 
-        return new FirmamentParsedPlacement(anchor, offset);
+        return new FirmamentParsedPlacement(anchor, offset, onFace, centeredOn, aroundAxis, radialOffset, angleDegrees, unknownFields);
     }
 
     private static FirmamentParsedPlacement? ParsePlacementFromToon(FirmamentToonObjectEntry opEntry)
@@ -778,7 +789,13 @@ internal static class FirmamentTopLevelParser
         var body = trimmed[1..^1].Trim();
         var pairs = SplitTopLevelCommaSeparated(body);
         string? on = null;
+        string? onFace = null;
+        string? centeredOn = null;
+        string? aroundAxis = null;
+        double? radialOffset = null;
+        double? angleDegrees = null;
         var offset = new List<double>();
+        var unknownFields = new List<string>();
 
         foreach (var pair in pairs)
         {
@@ -796,6 +813,39 @@ internal static class FirmamentTopLevelParser
                 on = value;
                 continue;
             }
+            if (string.Equals(key, "on_face", StringComparison.Ordinal))
+            {
+                onFace = value;
+                continue;
+            }
+            if (string.Equals(key, "centered_on", StringComparison.Ordinal))
+            {
+                centeredOn = value;
+                continue;
+            }
+            if (string.Equals(key, "around_axis", StringComparison.Ordinal))
+            {
+                aroundAxis = value;
+                continue;
+            }
+            if (string.Equals(key, "radial_offset", StringComparison.Ordinal))
+            {
+                if (TryParseNumeric(value, out var parsedRadialOffset))
+                {
+                    radialOffset = parsedRadialOffset;
+                }
+
+                continue;
+            }
+            if (string.Equals(key, "angle_degrees", StringComparison.Ordinal))
+            {
+                if (TryParseNumeric(value, out var parsedAngleDegrees))
+                {
+                    angleDegrees = parsedAngleDegrees;
+                }
+
+                continue;
+            }
 
             if (string.Equals(key, "offset", StringComparison.Ordinal)
                 && value.StartsWith("[", StringComparison.Ordinal)
@@ -809,20 +859,37 @@ internal static class FirmamentTopLevelParser
                         offset.Add(component);
                     }
                 }
+
+                continue;
+            }
+
+            if (!KnownPlacementFields.Contains(key))
+            {
+                unknownFields.Add(key);
             }
         }
 
-        if (string.IsNullOrWhiteSpace(on))
+        FirmamentParsedPlacementAnchor? anchor = null;
+        if (!string.IsNullOrWhiteSpace(on))
         {
-            return null;
+            anchor = string.Equals(on, "origin", StringComparison.Ordinal)
+                ? (FirmamentParsedPlacementAnchor)new FirmamentParsedPlacementOriginAnchor()
+                : new FirmamentParsedPlacementSelectorAnchor(on);
         }
 
-        var anchor = string.Equals(on, "origin", StringComparison.Ordinal)
-            ? (FirmamentParsedPlacementAnchor)new FirmamentParsedPlacementOriginAnchor()
-            : new FirmamentParsedPlacementSelectorAnchor(on);
-
-        return new FirmamentParsedPlacement(anchor, offset);
+        return new FirmamentParsedPlacement(anchor, offset, onFace, centeredOn, aroundAxis, radialOffset, angleDegrees, unknownFields.OrderBy(x => x, StringComparer.Ordinal).ToArray());
     }
+
+    private static readonly HashSet<string> KnownPlacementFields = new(StringComparer.Ordinal)
+    {
+        "on",
+        "offset",
+        "on_face",
+        "centered_on",
+        "around_axis",
+        "radial_offset",
+        "angle_degrees"
+    };
 
     private static IReadOnlyList<string> SplitTopLevelCommaSeparated(string raw)
     {

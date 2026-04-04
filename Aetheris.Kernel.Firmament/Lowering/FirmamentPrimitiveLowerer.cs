@@ -116,13 +116,15 @@ internal static class FirmamentPrimitiveLowerer
             FirmamentParsedPlacementSelectorAnchor selector => new FirmamentLoweredPlacementSelectorAnchor(selector.Selector),
             _ => null
         };
-
-        if (loweredAnchor is null)
-        {
-            return null;
-        }
-
-        return new FirmamentLoweredPlacement(loweredAnchor, placement.Offset);
+        return new FirmamentLoweredPlacement(
+            loweredAnchor,
+            placement.Offset,
+            placement.OnFace,
+            placement.CenteredOn,
+            placement.AroundAxis,
+            placement.RadialOffset,
+            placement.AngleDegrees,
+            placement.UnknownFields);
     }
 
     private static FirmamentLoweredBoolean LowerBoolean(

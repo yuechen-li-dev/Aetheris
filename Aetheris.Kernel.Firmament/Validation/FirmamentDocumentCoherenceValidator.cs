@@ -150,21 +150,55 @@ internal static class FirmamentDocumentCoherenceValidator
     {
         diagnostic = null;
 
-        if (entry.Placement?.On is not FirmamentParsedPlacementSelectorAnchor selectorAnchor)
+        var selectorAnchor = entry.Placement?.On as FirmamentParsedPlacementSelectorAnchor;
+
+        if (selectorAnchor is not null)
         {
-            return;
+            TryValidateSelectorReference(
+                selectorAnchor.Selector,
+                featureIds,
+                featureKindsById,
+                $"Primitive op '{entry.OpName}' at index {index}",
+                "place.on",
+                out _,
+                out _,
+                out _,
+                out diagnostic);
+            if (diagnostic is not null)
+            {
+                return;
+            }
+        }
+
+        diagnostic = ValidateSemanticPlacementSelector(entry.Placement?.OnFace, featureIds, featureKindsById, entry, index, "place.on_face")
+            ?? ValidateSemanticPlacementSelector(entry.Placement?.CenteredOn, featureIds, featureKindsById, entry, index, "place.centered_on")
+            ?? ValidateSemanticPlacementSelector(entry.Placement?.AroundAxis, featureIds, featureKindsById, entry, index, "place.around_axis");
+    }
+
+    private static KernelDiagnostic? ValidateSemanticPlacementSelector(
+        string? selector,
+        HashSet<string> featureIds,
+        IReadOnlyDictionary<string, FirmamentKnownOpKind> featureKindsById,
+        FirmamentParsedOpEntry entry,
+        int index,
+        string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(selector))
+        {
+            return null;
         }
 
         TryValidateSelectorReference(
-            selectorAnchor.Selector,
+            selector,
             featureIds,
             featureKindsById,
             $"Primitive op '{entry.OpName}' at index {index}",
-            "place.on",
+            fieldName,
             out _,
             out _,
             out _,
-            out diagnostic);
+            out var diagnostic);
+        return diagnostic;
     }
 
     private static bool TryValidateSelectorReference(

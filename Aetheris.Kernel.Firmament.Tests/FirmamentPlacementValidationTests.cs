@@ -34,6 +34,30 @@ public sealed class FirmamentPlacementValidationTests
     }
 
     [Fact]
+    public void Semantic_OnFace_Placement_For_Rib_Is_Valid()
+    {
+        var result = CompileFixture("testdata/firmament/examples/p1_bracket_rib_on_face_semantic.firmament");
+        Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
+    }
+
+    [Fact]
+    public void Semantic_AroundAxis_And_RadialOffset_For_FlangeHole_Is_Valid()
+    {
+        var result = CompileFixture("testdata/firmament/examples/p1_flange_radial_hole_semantic.firmament");
+        Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
+    }
+
+    [Fact]
+    public void Unsupported_Placement_Semantic_Field_Is_Rejected_Loudly()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/p1-invalid-unsupported-placement-semantic.firmament");
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains(FirmamentDiagnosticCodes.PlacementUnsupportedSemanticField.Value, diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("concentric_with", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Primitive_With_Sphere_Surface_PlaceAnchor_Is_Valid()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m7b-valid-placement-selector-anchor-sphere.firmament");

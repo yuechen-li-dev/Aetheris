@@ -1,0 +1,21 @@
+firmament:
+  version: 1
+
+model:
+  name: p1_invalid_unsupported_placement_semantic
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      10
+      10
+    place:
+      concentric_with: prior.axis
+      offset[3]:
+        0
+        0
+        0

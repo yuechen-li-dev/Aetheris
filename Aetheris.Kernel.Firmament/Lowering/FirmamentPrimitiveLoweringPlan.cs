@@ -15,8 +15,14 @@ public sealed record FirmamentLoweredPrimitive(
     FirmamentLoweredPlacement? Placement);
 
 public sealed record FirmamentLoweredPlacement(
-    FirmamentLoweredPlacementAnchor On,
-    IReadOnlyList<double> Offset);
+    FirmamentLoweredPlacementAnchor? On,
+    IReadOnlyList<double> Offset,
+    string? OnFace,
+    string? CenteredOn,
+    string? AroundAxis,
+    double? RadialOffset,
+    double? AngleDegrees,
+    IReadOnlyList<string> UnknownFields);
 
 public abstract record FirmamentLoweredPlacementAnchor;
 

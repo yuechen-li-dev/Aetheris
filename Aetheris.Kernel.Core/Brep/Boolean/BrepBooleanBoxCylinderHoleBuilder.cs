@@ -66,21 +66,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
                     BrepBooleanCylinderRecognition.CreateBooleanMessage(
                         BooleanOperation.Subtract.ToString(),
                         null,
-                        "cylinder-root safe rebuild in F3 requires a center-bore plus optional off-axis through-hole cylinder chain."),
-                    "BrepBoolean.AnalyticHole.CylinderRootUnsupportedComposition").ToKernelDiagnostic(),
-            ]);
-        }
-
-        var centerBore = composition.Holes[0];
-        if (centerBore.Surface.Cylinder is not RecognizedCylinder boreCylinder)
-        {
-            return KernelResult<BrepBody>.Failure([
-                new BooleanDiagnostic(
-                    BooleanDiagnosticCode.NotFullySpanning,
-                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
-                        BooleanOperation.Subtract.ToString(),
-                        centerBore.FeatureId,
-                        "cylinder-root safe rebuild in F3 requires recognized cylindrical tool surfaces."),
+                        "cylinder-root safe rebuild in F3 requires a through-hole cylinder chain."),
                     "BrepBoolean.AnalyticHole.CylinderRootUnsupportedComposition").ToKernelDiagnostic(),
             ]);
         }
@@ -89,24 +75,6 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             (rootCylinder.MinCenter.X + rootCylinder.MaxCenter.X) * 0.5d,
             (rootCylinder.MinCenter.Y + rootCylinder.MaxCenter.Y) * 0.5d,
             (rootCylinder.MinCenter.Z + rootCylinder.MaxCenter.Z) * 0.5d);
-        var boreCenter = new Point3D(
-            (boreCylinder.MinCenter.X + boreCylinder.MaxCenter.X) * 0.5d,
-            (boreCylinder.MinCenter.Y + boreCylinder.MaxCenter.Y) * 0.5d,
-            (boreCylinder.MinCenter.Z + boreCylinder.MaxCenter.Z) * 0.5d);
-
-        if (!ToleranceMath.AlmostEqual(rootCenter.X, boreCenter.X, tolerance)
-            || !ToleranceMath.AlmostEqual(rootCenter.Y, boreCenter.Y, tolerance))
-        {
-            return KernelResult<BrepBody>.Failure([
-                new BooleanDiagnostic(
-                    BooleanDiagnosticCode.RadiusExceedsBoundary,
-                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
-                        BooleanOperation.Subtract.ToString(),
-                        null,
-                        "cylinder-root safe rebuild in F2 only supports coaxial center bores."),
-                    "BrepBoolean.AnalyticHole.CylinderRootUnsupportedComposition").ToKernelDiagnostic(),
-            ]);
-        }
 
         var outer = BrepPrimitives.CreateCylinder(rootCylinder.Radius, rootCylinder.Height);
         if (!outer.IsSuccess)

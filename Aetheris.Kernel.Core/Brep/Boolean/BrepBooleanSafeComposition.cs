@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Numerics;
 
 namespace Aetheris.Kernel.Core.Brep.Boolean;
@@ -35,6 +36,10 @@ public readonly record struct SupportedBooleanHole(
     AnalyticSurface Surface,
     double CenterX,
     double CenterY,
+    Point3D StartCenter,
+    Point3D EndCenter,
+    Direction3D Axis,
+    Direction3D ReferenceAxis,
     double BottomRadius,
     double TopRadius,
     SupportedBooleanHoleSpanKind SpanKind,
@@ -50,6 +55,8 @@ public readonly record struct SupportedBooleanHole(
             Surface = Surface.Translate(translation),
             CenterX = CenterX + translation.X,
             CenterY = CenterY + translation.Y,
+            StartCenter = StartCenter + translation,
+            EndCenter = EndCenter + translation,
             StartZ = StartZ + translation.Z,
             EndZ = EndZ + translation.Z,
         };

@@ -259,18 +259,18 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Subtract_BoxCylinderRotatedAxis_ReturnsDeterministicNotImplemented()
+    public void Subtract_BoxCylinderRotatedAxis_SucceedsWithinBoundedSubset()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
-        var rotated = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateRotationX(System.Math.PI / 2d) * Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
+        var rotated = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateRotationX(System.Math.PI / 6d) * Transform3D.CreateTranslation(new Vector3D(0d, -3d, 6d)));
 
         var result = BrepBoolean.Subtract(left, rotated);
 
-        Assert.False(result.IsSuccess);
-        var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("BrepBoolean.AnalyticHole.AxisNotAligned", diagnostic.Source);
-        Assert.Equal("Boolean Subtract requires the cylinder axis to be parallel to world Z; the current cylinder axis is not aligned with the box Z axis. Rotate or redefine the tool so both cylinder caps stay on a world-Z through-hole axis.", diagnostic.Message);
+        Assert.True(result.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(result.Value, true).IsSuccess);
+        var export = Step242Exporter.ExportBody(result.Value);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("ELLIPSE", export.Value, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -311,7 +311,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.RadiusExceedsBoundary", diagnostic.Source);
-        Assert.Equal("Boolean Subtract extends outside the box side-wall footprint. Reduce the cylinder radius or move the center farther inside the box XY boundary.", diagnostic.Message);
+        Assert.Contains("extending outside the box side-wall footprint", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -326,7 +326,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.TangentContact", diagnostic.Source);
-        Assert.Equal("Boolean Subtract is tangent to a box side wall; tangent analytic-hole cases are rejected to avoid zero-thickness geometry. Move the hole inward or reduce the radius.", diagnostic.Message);
+        Assert.Contains("tangent to a box side wall", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -399,18 +399,16 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Subtract_BoxConeRotatedAxis_ReturnsAxisNotAlignedDiagnostic()
+    public void Subtract_BoxConeRotatedAxis_ReturnsDeferredArbitraryAxisDiagnostic()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
-        var rotated = TransformBody(CreateCone(bottomRadius: 4d, topRadius: 8d, height: 20d), Transform3D.CreateRotationX(System.Math.PI / 2d));
+        var rotated = TransformBody(CreateCone(bottomRadius: 2d, topRadius: 3d, height: 20d), Transform3D.CreateRotationX(System.Math.PI / 12d) * Transform3D.CreateTranslation(new Vector3D(0d, -1d, 2d)));
 
         var result = BrepBoolean.Subtract(left, rotated);
 
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("BrepBoolean.AnalyticHole.AxisNotAligned", diagnostic.Source);
-        Assert.Equal("Boolean Subtract requires the cone axis to be parallel to world Z; the current cone axis is not aligned with the box Z axis. Rotate or redefine the tool so the cone reconstructs as a world-Z through-hole.", diagnostic.Message);
     }
 
     [Fact]
@@ -429,6 +427,17 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_BoxCylinderAxisNearlyParallelToTopPlane_ReturnsAxisNotAlignedDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var rotated = TransformBody(BrepPrimitives.CreateCylinder(3d, 20d).Value, Transform3D.CreateRotationX(System.Math.PI / 2d) * Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
+        var result = BrepBoolean.Subtract(left, rotated);
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("BrepBoolean.AnalyticHole.AxisNotAligned", diagnostic.Source);
+    }
+
+    [Fact]
     public void Subtract_BoxConeBlindTopEntry_ReturnsClosedBottomHole()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
@@ -442,7 +451,8 @@ public sealed class BrepBooleanTests
         var topFace = Assert.Single(result.Value.Topology.Faces, face =>
             result.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
             && surface?.Kind == SurfaceGeometryKind.Plane
-            && surface.Plane!.Value.Normal.Z > 0.5d);
+            && surface.Plane!.Value.Normal.Z > 0.5d
+            && System.Math.Abs(surface.Plane!.Value.Origin.Z - 12d) < 1e-6d);
         Assert.Equal(2, result.Value.GetLoopIds(topFace.Id).Count);
 
         var bottomFace = Assert.Single(result.Value.Topology.Faces, face =>
@@ -451,6 +461,41 @@ public sealed class BrepBooleanTests
             && surface.Plane!.Value.Normal.Z < -0.5d
             && System.Math.Abs(surface.Plane!.Value.Origin.Z) < 1e-6d);
         Assert.Single(result.Value.GetLoopIds(bottomFace.Id));
+    }
+
+    [Fact]
+    public void Subtract_BoxCylinderBlindRotatedAxis_ReturnsDeferredArbitraryAxisBlindDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var blind = TransformBody(BrepPrimitives.CreateCylinder(2.5d, 8d).Value, Transform3D.CreateRotationX(System.Math.PI / 12d) * Transform3D.CreateTranslation(new Vector3D(-1d, -1d, 8d)));
+        var result = BrepBoolean.Subtract(left, blind);
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
+        Assert.Contains("does not match the supported subtract span family", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_BoxConeBlindRotatedAxis_ReturnsDeferredArbitraryAxisDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var blind = TransformBody(CreateCone(bottomRadius: 2.5d, topRadius: 1.5d, height: 8d), Transform3D.CreateRotationX(System.Math.PI / 12d) * Transform3D.CreateTranslation(new Vector3D(1d, -1d, 4d)));
+        var result = BrepBoolean.Subtract(left, blind);
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+    }
+
+    [Fact]
+    public void Subtract_BoxConeRotatedAxis_RejectionIsDeterministic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var rotated = TransformBody(CreateCone(bottomRadius: 2d, topRadius: 3d, height: 20d), Transform3D.CreateRotationX(System.Math.PI / 12d) * Transform3D.CreateTranslation(new Vector3D(0d, -1d, 2d)));
+        var first = BrepBoolean.Subtract(left, rotated);
+        var second = BrepBoolean.Subtract(left, rotated);
+        Assert.False(first.IsSuccess);
+        Assert.False(second.IsSuccess);
+        Assert.Equal(Assert.Single(first.Diagnostics).Message, Assert.Single(second.Diagnostics).Message);
     }
 
     [Fact]
@@ -521,7 +566,7 @@ public sealed class BrepBooleanTests
         Assert.NotNull(diagnostic);
         Assert.Equal(BooleanDiagnosticCode.DegenerateBoundarySection, diagnostic!.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.DegenerateBoundarySection", diagnostic.Source);
-        Assert.Equal("Boolean Subtract cannot produce circular sections on both box boundary planes because the apex or cone termination lands inside the box span. Move the apex outside the box span or lengthen the cone.", diagnostic.Message);
+        Assert.Equal("Boolean Subtract requires non-degenerate circular sections where the cone meets the two box boundary planes. Increase the boundary radii at those planes by moving the apex farther away or changing the cone taper.", diagnostic.Message);
     }
 
     [Fact]

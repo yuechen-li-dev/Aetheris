@@ -25,6 +25,10 @@ public readonly record struct SupportedSubtractProfile(
     SupportedBooleanHoleSpanKind SpanKind,
     double CenterX,
     double CenterY,
+    Point3D StartCenter,
+    Point3D EndCenter,
+    Direction3D Axis,
+    Direction3D ReferenceAxis,
     double StartZ,
     double EndZ,
     double StartRadius,
@@ -171,83 +175,79 @@ public static class BrepBooleanCylinderRecognition
     {
         profile = default;
         diagnostic = null;
-
-        if (!ValidateAxisAlignedZ(cylinder, tolerance))
+        if (!TryResolveBoundaryAxisParameter(cylinder.AxisOrigin, cylinder.Axis, box.MinZ, tolerance, out var bottomAtZ)
+            || !TryResolveBoundaryAxisParameter(cylinder.AxisOrigin, cylinder.Axis, box.MaxZ, tolerance, out var topAtZ))
         {
-            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires the cylinder axis to be parallel to world Z; the current cylinder axis is not aligned with the box Z axis. Rotate or redefine the tool so both cylinder caps stay on a world-Z through-hole axis.");
+            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the bounded arbitrary-axis subtract subset because the tool axis is nearly parallel to the box top/bottom planes.");
             return false;
         }
 
-        var minCenter = cylinder.MinCenter;
-        var maxCenter = cylinder.MaxCenter;
-        if (!ToleranceMath.AlmostEqual(minCenter.X, maxCenter.X, tolerance) || !ToleranceMath.AlmostEqual(minCenter.Y, maxCenter.Y, tolerance))
+        var coversBottom = bottomAtZ >= (cylinder.MinAxisParameter - tolerance.Linear) && bottomAtZ <= (cylinder.MaxAxisParameter + tolerance.Linear);
+        var coversTop = topAtZ >= (cylinder.MinAxisParameter - tolerance.Linear) && topAtZ <= (cylinder.MaxAxisParameter + tolerance.Linear);
+        var bottomCenter = cylinder.AxisOrigin + (cylinder.Axis.ToVector() * bottomAtZ);
+        var topCenter = cylinder.AxisOrigin + (cylinder.Axis.ToVector() * topAtZ);
+        var averageCenter = new Point3D((bottomCenter.X + topCenter.X) * 0.5d, (bottomCenter.Y + topCenter.Y) * 0.5d, (bottomCenter.Z + topCenter.Z) * 0.5d);
+        var radialBound = cylinder.Radius / System.Math.Abs(cylinder.Axis.ToVector().Z);
+
+        if (coversBottom && coversTop)
         {
-            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires one vertical through-hole centerline; the cylinder cap centers drift in XY instead of staying on a single world-Z axis. Rebuild the tool so the cap centers share the same X/Y location.");
-            return false;
-        }
-
-        var centerX = minCenter.X;
-        var centerY = minCenter.Y;
-        var minZ = System.Math.Min(minCenter.Z, maxCenter.Z);
-        var maxZ = System.Math.Max(minCenter.Z, maxCenter.Z);
-
-        var minFootprintX = centerX - cylinder.Radius;
-        var maxFootprintX = centerX + cylinder.Radius;
-        var minFootprintY = centerY - cylinder.Radius;
-        var maxFootprintY = centerY + cylinder.Radius;
-
-        var tangentContact =
-            ToleranceMath.AlmostEqual(minFootprintX, box.MinX, tolerance)
-            || ToleranceMath.AlmostEqual(maxFootprintX, box.MaxX, tolerance)
-            || ToleranceMath.AlmostEqual(minFootprintY, box.MinY, tolerance)
-            || ToleranceMath.AlmostEqual(maxFootprintY, box.MaxY, tolerance);
-        if (tangentContact)
-        {
-            diagnostic = CreateTangentContactDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "is tangent to a box side wall; tangent analytic-hole cases are rejected to avoid zero-thickness geometry. Move the hole inward or reduce the radius.");
-            return false;
-        }
-
-        if (minFootprintX < (box.MinX - tolerance.Linear)
-            || maxFootprintX > (box.MaxX + tolerance.Linear)
-            || minFootprintY < (box.MinY - tolerance.Linear)
-            || maxFootprintY > (box.MaxY + tolerance.Linear))
-        {
-            diagnostic = CreateRadiusExceedsBoundaryDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "extends outside the box side-wall footprint. Reduce the cylinder radius or move the center farther inside the box XY boundary.");
-            return false;
-        }
-
-        var touchesBottom = minZ <= (box.MinZ + tolerance.Linear);
-        var touchesTop = maxZ >= (box.MaxZ - tolerance.Linear);
-
-        if (touchesBottom && touchesTop)
-        {
-            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.Through, centerX, centerY, box.MinZ, box.MaxZ, cylinder.Radius, cylinder.Radius);
-            return true;
-        }
-
-        if (touchesTop && minZ > (box.MinZ + tolerance.Linear))
-        {
-            var depth = box.MaxZ - minZ;
-            if (depth <= tolerance.Linear)
+            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, radialBound, tolerance, out diagnostic, "bottom boundary section", featureId)
+                || !ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, radialBound, tolerance, out diagnostic, "top boundary section", featureId))
             {
-                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "has near-zero blind-hole depth after entering from the top box face; extend the tool farther into the box.");
                 return false;
             }
 
-            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromTop, centerX, centerY, box.MaxZ, minZ, cylinder.Radius, cylinder.Radius);
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.Through, averageCenter.X, averageCenter.Y, bottomCenter, topCenter, cylinder.Axis, ResolveReferenceAxis(cylinder.Axis), box.MinZ, box.MaxZ, cylinder.Radius, cylinder.Radius);
             return true;
         }
 
-        if (touchesBottom && maxZ < (box.MaxZ - tolerance.Linear))
+        if (coversTop)
         {
-            var depth = maxZ - box.MinZ;
-            if (depth <= tolerance.Linear)
+            if (!ValidateAxisAlignedZ(cylinder, tolerance))
             {
-                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "has near-zero blind-hole depth after entering from the bottom box face; extend the tool farther into the box.");
+                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "currently supports arbitrary-axis cylinder subtract only for through-holes; blind arbitrary-axis cylinder holes remain deferred in this milestone.");
                 return false;
             }
 
-            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromBottom, centerX, centerY, box.MinZ, maxZ, cylinder.Radius, cylinder.Radius);
+            var termination = cylinder.MinCenter.Z < cylinder.MaxCenter.Z ? cylinder.MinCenter : cylinder.MaxCenter;
+            if (termination.Z <= (box.MinZ + tolerance.Linear) || termination.Z >= (box.MaxZ - tolerance.Linear))
+            {
+                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; cylinder blind holes must terminate strictly inside the box.");
+                return false;
+            }
+
+            if (!ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, radialBound, tolerance, out diagnostic, "top boundary section", featureId)
+                || !ValidateCircleInsideBoxFootprint(box, termination.X, termination.Y, cylinder.Radius, tolerance, out diagnostic, "blind bottom circle", featureId))
+            {
+                return false;
+            }
+
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromTop, topCenter.X, topCenter.Y, topCenter, termination, cylinder.Axis, ResolveReferenceAxis(cylinder.Axis), box.MaxZ, termination.Z, cylinder.Radius, cylinder.Radius);
+            return true;
+        }
+
+        if (coversBottom)
+        {
+            if (!ValidateAxisAlignedZ(cylinder, tolerance))
+            {
+                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "currently supports arbitrary-axis cylinder subtract only for through-holes; blind arbitrary-axis cylinder holes remain deferred in this milestone.");
+                return false;
+            }
+
+            var termination = cylinder.MinCenter.Z > cylinder.MaxCenter.Z ? cylinder.MinCenter : cylinder.MaxCenter;
+            if (termination.Z <= (box.MinZ + tolerance.Linear) || termination.Z >= (box.MaxZ - tolerance.Linear))
+            {
+                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; cylinder blind holes must terminate strictly inside the box.");
+                return false;
+            }
+
+            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, radialBound, tolerance, out diagnostic, "bottom boundary section", featureId)
+                || !ValidateCircleInsideBoxFootprint(box, termination.X, termination.Y, cylinder.Radius, tolerance, out diagnostic, "blind bottom circle", featureId))
+            {
+                return false;
+            }
+
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromBottom, bottomCenter.X, bottomCenter.Y, bottomCenter, termination, cylinder.Axis, ResolveReferenceAxis(cylinder.Axis), box.MinZ, termination.Z, cylinder.Radius, cylinder.Radius);
             return true;
         }
 
@@ -265,42 +265,31 @@ public static class BrepBooleanCylinderRecognition
     {
         profile = default;
         diagnostic = null;
-
-        var axis = cone.Axis.ToVector();
-        if (!ToleranceMath.AlmostZero(axis.X, tolerance)
-            || !ToleranceMath.AlmostZero(axis.Y, tolerance)
-            || !ToleranceMath.AlmostEqual(double.Abs(axis.Z), 1d, tolerance))
+        if (!IsAxisAlignedWithWorldZ(cone.Axis, tolerance))
         {
-            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires the cone axis to be parallel to world Z; the current cone axis is not aligned with the box Z axis. Rotate or redefine the tool so the cone reconstructs as a world-Z through-hole.");
+            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "currently defers arbitrary-axis cone subtract in the safe family; only world-Z cone subtract is supported in this milestone.");
             return false;
         }
 
-        var minCenter = cone.MinCenter;
-        var maxCenter = cone.MaxCenter;
-        if (!ToleranceMath.AlmostEqual(minCenter.X, maxCenter.X, tolerance) || !ToleranceMath.AlmostEqual(minCenter.Y, maxCenter.Y, tolerance))
+        if (!TryResolveBoundaryAxisParameter(cone.AxisOrigin, cone.Axis, box.MinZ, tolerance, out var bottomAxisParameter)
+            || !TryResolveBoundaryAxisParameter(cone.AxisOrigin, cone.Axis, box.MaxZ, tolerance, out var topAxisParameter))
         {
-            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires one vertical through-hole centerline; the cone boundary circles do not share a single X/Y center. Rebuild the cone so both boundary sections stay on one world-Z axis.");
+            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the bounded arbitrary-axis subtract subset because the tool axis is nearly parallel to the box top/bottom planes.");
             return false;
         }
 
-        var centerX = cone.AxisOrigin.X;
-        var centerY = cone.AxisOrigin.Y;
-
-        var bottomAxisParameter = AxisParameterAtZ(cone, box.MinZ, tolerance);
-        var topAxisParameter = AxisParameterAtZ(cone, box.MaxZ, tolerance);
+        var bottomCenter = cone.PointAtAxisParameter(bottomAxisParameter);
+        var topCenter = cone.PointAtAxisParameter(topAxisParameter);
+        var centerX = (bottomCenter.X + topCenter.X) * 0.5d;
+        var centerY = (bottomCenter.Y + topCenter.Y) * 0.5d;
         var coversBottom = bottomAxisParameter >= (cone.MinAxisParameter - tolerance.Linear)
             && bottomAxisParameter <= (cone.MaxAxisParameter + tolerance.Linear);
         var coversTop = topAxisParameter >= (cone.MinAxisParameter - tolerance.Linear)
             && topAxisParameter <= (cone.MaxAxisParameter + tolerance.Linear);
+        var axisZ = System.Math.Abs(cone.Axis.ToVector().Z);
 
         if (coversBottom && coversTop)
         {
-            if (bottomAxisParameter <= tolerance.Linear || topAxisParameter <= tolerance.Linear)
-            {
-                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "cannot produce circular sections on both box boundary planes because the apex or cone termination lands inside the box span. Move the apex outside the box span or lengthen the cone.");
-                return false;
-            }
-
             var bottomRadius = cone.RadiusAtAxisParameter(bottomAxisParameter);
             var topRadius = cone.RadiusAtAxisParameter(topAxisParameter);
             if (bottomRadius <= tolerance.Linear || topRadius <= tolerance.Linear)
@@ -309,13 +298,13 @@ public static class BrepBooleanCylinderRecognition
                 return false;
             }
 
-            if (!ValidateCircleInsideBoxFootprint(box, centerX, centerY, bottomRadius, tolerance, out diagnostic, "bottom boundary circle", featureId)
-                || !ValidateCircleInsideBoxFootprint(box, centerX, centerY, topRadius, tolerance, out diagnostic, "top boundary circle", featureId))
+            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, bottomRadius / axisZ, tolerance, out diagnostic, "bottom boundary circle", featureId)
+                || !ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, topRadius / axisZ, tolerance, out diagnostic, "top boundary circle", featureId))
             {
                 return false;
             }
 
-            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.Through, centerX, centerY, box.MinZ, box.MaxZ, bottomRadius, topRadius);
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.Through, centerX, centerY, bottomCenter, topCenter, cone.Axis, ResolveReferenceAxis(cone.Axis), box.MinZ, box.MaxZ, bottomRadius, topRadius);
             return true;
         }
 
@@ -337,13 +326,14 @@ public static class BrepBooleanCylinderRecognition
                 return false;
             }
 
-            if (!ValidateCircleInsideBoxFootprint(box, centerX, centerY, topRadius, tolerance, out diagnostic, "top boundary circle", featureId)
-                || !ValidateCircleInsideBoxFootprint(box, centerX, centerY, endRadius, tolerance, out diagnostic, "blind bottom circle", featureId))
+            var endCenter = minEndIsLower ? cone.MinCenter : cone.MaxCenter;
+            if (!ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, topRadius / axisZ, tolerance, out diagnostic, "top boundary circle", featureId)
+                || !ValidateCircleInsideBoxFootprint(box, endCenter.X, endCenter.Y, endRadius, tolerance, out diagnostic, "blind bottom circle", featureId))
             {
                 return false;
             }
 
-            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromTop, centerX, centerY, box.MaxZ, terminationZ, topRadius, endRadius);
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromTop, topCenter.X, topCenter.Y, topCenter, endCenter, cone.Axis, ResolveReferenceAxis(cone.Axis), box.MaxZ, terminationZ, topRadius, endRadius);
             return true;
         }
 
@@ -365,13 +355,14 @@ public static class BrepBooleanCylinderRecognition
                 return false;
             }
 
-            if (!ValidateCircleInsideBoxFootprint(box, centerX, centerY, bottomRadius, tolerance, out diagnostic, "bottom boundary circle", featureId)
-                || !ValidateCircleInsideBoxFootprint(box, centerX, centerY, endRadius, tolerance, out diagnostic, "blind bottom circle", featureId))
+            var endCenter = maxEndIsHigher ? cone.MaxCenter : cone.MinCenter;
+            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, bottomRadius / axisZ, tolerance, out diagnostic, "bottom boundary circle", featureId)
+                || !ValidateCircleInsideBoxFootprint(box, endCenter.X, endCenter.Y, endRadius, tolerance, out diagnostic, "blind bottom circle", featureId))
             {
                 return false;
             }
 
-            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromBottom, centerX, centerY, box.MinZ, terminationZ, bottomRadius, endRadius);
+            profile = new SupportedSubtractProfile(SupportedBooleanHoleSpanKind.BlindFromBottom, bottomCenter.X, bottomCenter.Y, bottomCenter, endCenter, cone.Axis, ResolveReferenceAxis(cone.Axis), box.MinZ, terminationZ, bottomRadius, endRadius);
             return true;
         }
 
@@ -379,14 +370,41 @@ public static class BrepBooleanCylinderRecognition
         return false;
     }
 
-    private static double AxisParameterAtZ(in RecognizedCone cone, double z, ToleranceContext tolerance)
+    private static bool TryResolveBoundaryAxisParameter(Point3D axisOrigin, Direction3D axis, double z, ToleranceContext tolerance, out double axisParameter)
     {
-        var axisZ = cone.Axis.ToVector().Z;
+        var axisZ = axis.ToVector().Z;
         if (ToleranceMath.AlmostZero(axisZ, tolerance))
         {
-            throw new InvalidOperationException("AxisParameterAtZ requires a cone axis aligned with Z.");
+            axisParameter = 0d;
+            return false;
         }
 
+        axisParameter = (z - axisOrigin.Z) / axisZ;
+        return true;
+    }
+
+    private static Direction3D ResolveReferenceAxis(Direction3D axis)
+    {
+        var axisVector = axis.ToVector();
+        var seed = System.Math.Abs(axisVector.Z) < 0.9d
+            ? new Vector3D(0d, 0d, 1d)
+            : new Vector3D(1d, 0d, 0d);
+        var projected = seed - (axisVector * seed.Dot(axisVector));
+        return Direction3D.Create(projected);
+    }
+
+    private static bool IsAxisAlignedWithWorldZ(Direction3D axis, ToleranceContext tolerance)
+    {
+        var v = axis.ToVector();
+        return ToleranceMath.AlmostZero(v.X, tolerance)
+            && ToleranceMath.AlmostZero(v.Y, tolerance)
+            && ToleranceMath.AlmostEqual(System.Math.Abs(v.Z), 1d, tolerance);
+    }
+
+    private static double AxisParameterAtZ(in RecognizedCone cone, double z, ToleranceContext tolerance)
+    {
+        _ = tolerance;
+        var axisZ = cone.Axis.ToVector().Z;
         return (z - cone.AxisOrigin.Z) / axisZ;
     }
 

@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Numerics;
 
 namespace Aetheris.Kernel.Core.Brep.Boolean;
@@ -30,6 +31,16 @@ public static class BrepBooleanSafeCompositionGraphValidator
                     nextFeatureId,
                     "cannot append a blind analytic hole to an existing safe subtract composition in B1; blind-hole support is currently limited to single-feature subtracts."),
                 "BrepBoolean.AnalyticHole.UnsupportedBlindHoleComposition");
+            return false;
+        }
+
+        if (composition.Holes.Count > 0
+            && (!IsAxisAlignedWithWorldZ(nextHole.Axis, tolerance) || composition.Holes.Any(h => !IsAxisAlignedWithWorldZ(h.Axis, tolerance))))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                nextFeatureId,
+                "currently keeps arbitrary-axis subtract support to single-feature rebuilds; composed safe-hole chains remain limited to world-Z family in this milestone.");
             return false;
         }
 
@@ -92,6 +103,10 @@ public static class BrepBooleanSafeCompositionGraphValidator
                     surface,
                     cylinderProfile.CenterX,
                     cylinderProfile.CenterY,
+                    cylinderProfile.StartCenter,
+                    cylinderProfile.EndCenter,
+                    cylinderProfile.Axis,
+                    cylinderProfile.ReferenceAxis,
                     cylinderProfile.StartRadius,
                     cylinderProfile.EndRadius,
                     cylinderProfile.SpanKind,
@@ -111,6 +126,10 @@ public static class BrepBooleanSafeCompositionGraphValidator
                     surface,
                     coneProfile.CenterX,
                     coneProfile.CenterY,
+                    coneProfile.StartCenter,
+                    coneProfile.EndCenter,
+                    coneProfile.Axis,
+                    coneProfile.ReferenceAxis,
                     coneProfile.StartRadius,
                     coneProfile.EndRadius,
                     coneProfile.SpanKind,
@@ -140,6 +159,10 @@ public static class BrepBooleanSafeCompositionGraphValidator
                     surface,
                     sphere.Center.X,
                     sphere.Center.Y,
+                    sphere.Center,
+                    sphere.Center,
+                    Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+                    Direction3D.Create(new Vector3D(1d, 0d, 0d)),
                     sphere.Radius,
                     sphere.Radius,
                     SupportedBooleanHoleSpanKind.Through,
@@ -161,6 +184,14 @@ public static class BrepBooleanSafeCompositionGraphValidator
 
     private static string FormatFeatureRef(string? featureId)
         => string.IsNullOrWhiteSpace(featureId) ? "<unknown>" : $"'{featureId}'";
+
+    private static bool IsAxisAlignedWithWorldZ(Direction3D axis, ToleranceContext tolerance)
+    {
+        var v = axis.ToVector();
+        return ToleranceMath.AlmostZero(v.X, tolerance)
+               && ToleranceMath.AlmostZero(v.Y, tolerance)
+               && ToleranceMath.AlmostEqual(System.Math.Abs(v.Z), 1d, tolerance);
+    }
 
     private static bool ValidateContainedSphereCavity(
         AxisAlignedBoxExtents outerBox,

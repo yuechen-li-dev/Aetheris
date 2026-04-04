@@ -5,6 +5,10 @@ model:
   name: f2_flange_center_bore
   units: mm
 
+schema:
+  process: additive
+  printer_resolution: 0.1
+
 ops[2]:
   -
     op: cylinder

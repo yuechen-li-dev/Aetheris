@@ -93,6 +93,13 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(primitiveExecutionResult.Diagnostics));
         }
 
+        var enclosedVoidValidationResult = FirmamentSchemaEnclosedVoidValidator.Validate(primitiveExecutionResult.Value, compiledSchema);
+        if (!enclosedVoidValidationResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(enclosedVoidValidationResult.Diagnostics));
+        }
+
         var validationExecutionResult = FirmamentValidationExecutor.Execute(validatedDocument, primitiveExecutionResult.Value);
         if (!validationExecutionResult.IsSuccess)
         {

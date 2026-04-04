@@ -5,6 +5,10 @@ model:
   name: boolean_box_sphere_cavity_basic
   units: mm
 
+schema:
+  process: additive
+  printer_resolution: 0.1
+
 ops[2]:
   -
     op: box

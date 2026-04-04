@@ -137,8 +137,10 @@ ops[2]:
     id: pocket
     from: base
     with:
-      op: sphere
-      radius: 1
+      op: cone
+      bottom_radius: 1.2
+      top_radius: 0.8
+      height: 8
 """;
 
         var result = Compile(source);

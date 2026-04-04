@@ -5,6 +5,10 @@ model:
   name: m10h1_unsupported_box_with_partial_cylinder_hole
   units: mm
 
+schema:
+  process: additive
+  printer_resolution: 0.1
+
 ops[2]:
   -
     op: box

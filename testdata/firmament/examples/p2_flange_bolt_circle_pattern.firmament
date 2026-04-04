@@ -1,0 +1,39 @@
+firmament:
+  version: 1
+
+model:
+  name: p2_flange_bolt_circle_pattern
+  units: mm
+
+ops[4]:
+  -
+    op: cylinder
+    id: flange
+    radius: 36
+    height: 12
+
+  -
+    op: cylinder
+    id: bolt_marker_1
+    radius: 3
+    height: 12
+    place:
+      on_face: flange.top_face
+      around_axis: flange.side_face
+      radial_offset: 20
+      angle_degrees: 0
+      offset[3]:
+        0
+        0
+        0
+
+  -
+    op: pattern_circular
+    source: bolt_marker_1
+    count: 5
+    axis: flange.side_face
+    angle_degrees: 360
+
+  -
+    op: expect_manifold
+    target: bolt_marker_1__cir5

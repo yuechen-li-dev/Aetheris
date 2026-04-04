@@ -152,6 +152,18 @@ internal static class FirmamentCanonicalFormatter
                 break;
             case FirmamentKnownOpKind.ExpectManifold:
                 break;
+            case FirmamentKnownOpKind.PatternLinear:
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "source");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "count");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "step");
+                break;
+            case FirmamentKnownOpKind.PatternCircular:
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "source");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "count");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "axis");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "angle_degrees");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "angle_step_degrees");
+                break;
         }
 
         foreach (var pair in entry.RawFields)

@@ -37,6 +37,18 @@ public sealed class FirmamentDocumentCoherenceValidationTests
         Assert.True(result.Compilation.IsSuccess);
     }
 
+    [Fact]
+    public void Compiler_Rejects_PatternCircular_With_Unknown_Axis_Root()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/p2_invalid_pattern_unknown_axis.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Equal(
+            $"[{FirmamentDiagnosticCodes.ValidationTargetUnknownSelectorRootFeatureId.Value}] Pattern op 'pattern_circular' at index 2 references unknown selector root feature id 'missing' via field 'axis'.",
+            diagnostic.Message);
+    }
+
     [Theory]
     [InlineData("testdata/firmament/fixtures/m2a-invalid-add-to-missing-id.firmament", "add", "to", "missing")]
     [InlineData("testdata/firmament/fixtures/m2a-invalid-subtract-from-missing-id.firmament", "subtract", "from", "missing")]

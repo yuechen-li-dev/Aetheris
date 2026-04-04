@@ -241,6 +241,48 @@ op: expect_manifold
 ```
 ---
 
+# Built-in Pattern Operations (P2 subset)
+
+Firmament currently has exactly two built-in pattern ops:
+- `pattern_linear`
+- `pattern_circular`
+
+Anything outside this bounded subset (path/variable spacing/suppression/nested pattern systems) is intentionally deferred.
+
+## pattern_linear
+```
+op: pattern_linear
+source: hole_1
+count: 3
+step[3]:
+  10
+  0
+  0
+```
+
+Rules:
+- `source` must reference an earlier feature id.
+- `count` must be an integer > 0.
+- `step` must be a 3-component numeric vector.
+- This op deterministically expands into repeated source-feature instances.
+
+## pattern_circular
+```
+op: pattern_circular
+source: bolt_hole_1
+count: 5
+axis: flange.side_face
+angle_degrees: 360
+```
+
+Rules:
+- `source` must reference an earlier feature id.
+- `count` must be an integer > 0.
+- `axis` must be a valid selector-shaped axis reference.
+- Use either `angle_degrees` (span distributed across instances) or `angle_step_degrees` (fixed per-instance step).
+- This op deterministically expands into repeated source-feature instances around the axis.
+---
+
 # Scalar Style
 
 Use simple scalars wherever possible.

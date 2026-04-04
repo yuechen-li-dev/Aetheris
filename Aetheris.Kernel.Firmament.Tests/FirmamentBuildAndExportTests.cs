@@ -275,6 +275,22 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_FrictionLabCounterboreHole_NowBuildsAndExports()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/counterbore-hole/part.firmament");
+
+        var first = FirmamentBuildAndExport.Run(fullSourcePath);
+        var second = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.NotEmpty(first.Value.Export.StepText);
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", first.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Semantic_Placement_Build_Is_Deterministic()
     {
         var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmament/examples/p1_flange_radial_hole_semantic.firmament");

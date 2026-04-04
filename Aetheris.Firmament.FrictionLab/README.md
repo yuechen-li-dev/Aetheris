@@ -19,6 +19,20 @@ The suite is designed for measurement, not pass-rate inflation:
 - partials expose awkward or fragile expressions,
 - failures document genuinely missing shape capabilities.
 
+## FL3 milestone — placement/reference ergonomics mini-lab
+
+FL3 adds `PlacementLab/` as a candidate-syntax experiment to compare three placement authoring models before any implementation work:
+
+- **anchor-based** placement (`on`, `axis`, `normal`, `offset`, `concentric_with` style intent),
+- **frame-based** placement (explicit local frame/origin/axes),
+- **tiny semantic sugar** for narrow, common mechanical placement tasks.
+
+These FL3 files are **not production Firmament syntax** and are intentionally isolated from production parser/compiler fixtures.
+
+FL3 keeps the anti-pretzel rule active: if a candidate style becomes awkward, verbose, or unnatural, record that friction directly instead of inventing helper scaffolding.
+
+Goal: establish the smallest, clearest placement model to trial first, using friction evidence rather than overengineering.
+
 ## Anti-pretzel rule (mandatory)
 
 If a case cannot be expressed cleanly:

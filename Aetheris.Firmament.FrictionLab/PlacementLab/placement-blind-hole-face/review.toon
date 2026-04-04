@@ -1,0 +1,32 @@
+case: placement-blind-hole-face
+comparison:
+  anchor:
+    possible: true
+    awkwardness: low
+    verbosity: medium
+    pretzel_risk: low
+    pain_points:
+      - must choose stable face center convention
+      - offset axes can be ambiguous without face orientation note
+    smallest_feature_shape: "blind_hole on face + center-relative offset + depth"
+  frame:
+    possible: true
+    awkwardness: medium
+    verbosity: high
+    pretzel_risk: medium
+    pain_points:
+      - frame boilerplate dominates a single hole
+      - explicit axis naming adds coordinate-soup pressure
+    smallest_feature_shape: "frame from face, then one positioned feature"
+  semantic:
+    possible: true
+    awkwardness: low
+    verbosity: low
+    pretzel_risk: low
+    pain_points:
+      - narrow vocabulary may break for non-orthogonal face conventions
+    smallest_feature_shape: "blind_hole(face, offset_xy, depth)"
+verdict:
+  preferred_candidate: semantic
+  why: "single-feature case stays shortest and clearest with minimal coordinate handling"
+  what_should_be_tried_first_in_production: "start with tiny blind-hole placement sugar over existing selectors"

@@ -1,0 +1,32 @@
+case: placement-bracket-rib
+comparison:
+  anchor:
+    possible: true
+    awkwardness: medium
+    verbosity: medium
+    pretzel_risk: medium
+    pain_points:
+      - "between" endpoints become fuzzy on non-rectangular faces
+      - offset source edge needs explicit disambiguation
+    smallest_feature_shape: "rib on face with edge offset toward support face"
+  frame:
+    possible: true
+    awkwardness: medium
+    verbosity: high
+    pretzel_risk: medium
+    pain_points:
+      - local line construction adds ceremony for simple rib intent
+      - corner-based origin can flip when topology naming shifts
+    smallest_feature_shape: "face frame + base line + extrusion"
+  semantic:
+    possible: true
+    awkwardness: low
+    verbosity: low
+    pretzel_risk: low
+    pain_points:
+      - span presets may be too rigid beyond common bracket shapes
+    smallest_feature_shape: "support_rib(base_face, toward_face, edge_offset, thickness, height)"
+verdict:
+  preferred_candidate: semantic
+  why: "common bracket rib reads as intent-first with minimal reference scaffolding"
+  what_should_be_tried_first_in_production: "small rib placement helper constrained to orthogonal bracket scenarios"

@@ -7,29 +7,25 @@ model:
 
 ops[3]:
   -
-    op: cylinder
-    id: flange
-    radius: 36
-    height: 12
+    op: box
+    id: plate
+    size[3]:
+      60
+      20
+      8
 
   -
-    op: cylinder
-    id: bolt_marker_1
-    radius: 3
-    height: 12
-    place:
-      on_face: flange.top_face
-      around_axis: flange.side_face
-      radial_offset: 20
-      angle_degrees: 0
-      offset[3]:
-        0
-        0
-        0
+    op: subtract
+    id: hole_cut_1
+    from: plate
+    with:
+      op: cylinder
+      radius: 2
+      height: 8
 
   -
     op: pattern_circular
-    source: bolt_marker_1
+    source: hole_cut_1
     count: 5
     axis: missing.side_face
     angle_degrees: 360

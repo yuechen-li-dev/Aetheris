@@ -240,10 +240,10 @@ public sealed class FirmamentBuildAndExportTests
         AssertExampleBuildAndExport(
             "testdata/firmament/examples/p2_linear_hole_row.firmament",
             "p2_linear_hole_row.step",
-            "hole_marker_1__lin3",
+            "hole_cut_1__lin3",
             4,
-            "primitive",
-            "cylinder");
+            "boolean",
+            "subtract");
     }
 
     [Fact]
@@ -252,10 +252,10 @@ public sealed class FirmamentBuildAndExportTests
         AssertExampleBuildAndExport(
             "testdata/firmament/examples/p2_flange_bolt_circle_pattern.firmament",
             "p2_flange_bolt_circle_pattern.step",
-            "bolt_marker_1__cir5",
-            6,
-            "primitive",
-            "cylinder");
+            "bolt_hole_1__cir5",
+            7,
+            "boolean",
+            "subtract");
     }
 
     [Fact]

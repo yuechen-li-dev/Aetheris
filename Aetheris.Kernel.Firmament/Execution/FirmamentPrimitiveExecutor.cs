@@ -51,6 +51,53 @@ internal static class FirmamentPrimitiveExecutor
                 continue;
             }
 
+            if (IsPatternGeneratedFeature(boolean.FeatureId))
+            {
+                var patternToolResult = FirmamentBooleanToolBodyFactory.CreateBody(boolean.Tool);
+                if (!patternToolResult.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(patternToolResult.Diagnostics);
+                }
+
+                var patternPlacementResult = FirmamentPlacementResolver.ResolvePlacementTranslation(boolean, publishedBodiesByFeatureId);
+                if (!patternPlacementResult.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(patternPlacementResult.Diagnostics);
+                }
+
+                var placedToolBody = TranslateBody(patternToolResult.Value, patternPlacementResult.Value);
+                var patternGraphValidation = FirmamentSafeSubtractFeatureGraphValidator.ValidateNextBoolean(
+                    boolean,
+                    featureGraphStates,
+                    booleanExecutionBodiesByFeatureId,
+                    resolvedToolBody: placedToolBody);
+                if (!patternGraphValidation.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
+                    [
+                        CreateBooleanExecutionFailureDiagnostic(boolean),
+                        .. WithBooleanContext(boolean, patternGraphValidation.Diagnostics)
+                    ]);
+                }
+
+                var patternBooleanResult = ExecuteBoolean(boolean.Kind, baseBody, placedToolBody);
+                if (!patternBooleanResult.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
+                    [
+                        CreateBooleanExecutionFailureDiagnostic(boolean),
+                        .. WithBooleanContext(boolean, patternBooleanResult.Diagnostics)
+                    ]);
+                }
+
+                var patternBooleanBody = patternBooleanResult.Value;
+                executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, patternBooleanBody));
+                publishedBodiesByFeatureId[boolean.FeatureId] = patternBooleanBody;
+                booleanExecutionBodiesByFeatureId[boolean.FeatureId] = patternBooleanBody;
+                featureGraphStates[boolean.FeatureId] = patternGraphValidation.Value.ResultState;
+                continue;
+            }
+
             var featureGraphValidation = FirmamentSafeSubtractFeatureGraphValidator.ValidateNextBoolean(
                 boolean,
                 featureGraphStates,
@@ -119,6 +166,10 @@ internal static class FirmamentPrimitiveExecutor
             KernelDiagnosticSeverity.Error,
             $"Requested boolean feature '{boolean.FeatureId}' ({boolean.Kind.ToString().ToLowerInvariant()}) could not be executed.",
             Source: "firmament");
+
+    private static bool IsPatternGeneratedFeature(string featureId)
+        => featureId.Contains("__lin", StringComparison.Ordinal)
+           || featureId.Contains("__cir", StringComparison.Ordinal);
 
     private static KernelResult<FirmamentExecutedPrimitiveBodies> ExecutePrimitive(FirmamentLoweredPrimitive primitive, IReadOnlyDictionary<string, BrepBody> publishedBodies)
     {

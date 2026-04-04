@@ -266,20 +266,28 @@ public sealed class FirmamentPrimitiveLoweringTests
     }
 
     [Fact]
-    public void Compile_Expands_LinearPattern_Into_Repeated_Primitives_With_Deterministic_Ids()
+    public void Compile_Expands_LinearPattern_Into_Chained_SubtractBooleans_With_Deterministic_Ids()
     {
         var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/p2_linear_hole_row.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
-        var primitives = result.Compilation.Value.PrimitiveLoweringPlan!.Primitives
-            .Where(p => p.Kind == FirmamentLoweredPrimitiveKind.Cylinder)
-            .OrderBy(p => p.OpIndex)
+        var booleans = result.Compilation.Value.PrimitiveLoweringPlan!.Booleans
+            .Where(b => b.Kind == FirmamentLoweredBooleanKind.Subtract)
+            .OrderBy(b => b.OpIndex)
             .ToArray();
-        Assert.Equal(4, primitives.Length);
-        Assert.Equal("hole_marker_1", primitives[0].FeatureId);
-        Assert.Equal("hole_marker_1__lin1", primitives[1].FeatureId);
-        Assert.Equal("hole_marker_1__lin2", primitives[2].FeatureId);
-        Assert.Equal("hole_marker_1__lin3", primitives[3].FeatureId);
+
+        Assert.Equal(4, booleans.Length);
+        Assert.Equal("hole_cut_1", booleans[0].FeatureId);
+        Assert.Equal("plate", booleans[0].PrimaryReferenceFeatureId);
+
+        Assert.Equal("hole_cut_1__lin1", booleans[1].FeatureId);
+        Assert.Equal("hole_cut_1", booleans[1].PrimaryReferenceFeatureId);
+
+        Assert.Equal("hole_cut_1__lin2", booleans[2].FeatureId);
+        Assert.Equal("hole_cut_1__lin1", booleans[2].PrimaryReferenceFeatureId);
+
+        Assert.Equal("hole_cut_1__lin3", booleans[3].FeatureId);
+        Assert.Equal("hole_cut_1__lin2", booleans[3].PrimaryReferenceFeatureId);
     }
 
 

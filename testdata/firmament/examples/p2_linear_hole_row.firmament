@@ -10,15 +10,18 @@ ops[4]:
     op: box
     id: plate
     size[3]:
-      60
-      20
+      120
+      80
       8
 
   -
-    op: cylinder
-    id: hole_marker_1
-    radius: 2
-    height: 8
+    op: subtract
+    id: hole_cut_1
+    from: plate
+    with:
+      op: cylinder
+      radius: 2
+      height: 8
     place:
       on: origin
       offset[3]:
@@ -28,7 +31,7 @@ ops[4]:
 
   -
     op: pattern_linear
-    source: hole_marker_1
+    source: hole_cut_1
     count: 3
     step[3]:
       10
@@ -37,4 +40,4 @@ ops[4]:
 
   -
     op: expect_manifold
-    target: hole_marker_1__lin3
+    target: hole_cut_1__lin3

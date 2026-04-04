@@ -123,12 +123,12 @@ internal static class FirmamentDocumentCoherenceValidator
             ]);
         }
 
-        if (sourceEntry.Family is not (FirmamentOpFamily.Primitive or FirmamentOpFamily.Boolean))
+        if (sourceEntry.Family != FirmamentOpFamily.Boolean || sourceEntry.KnownKind != FirmamentKnownOpKind.Subtract)
         {
             return KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Failure([
                 CreateDiagnostic(
                     FirmamentDiagnosticCodes.PatternInvalidFieldValue,
-                    $"Pattern op '{patternEntry.OpName}' at index {opIndex} uses unsupported source feature id '{sourceId}' from op family '{sourceEntry.Family}'.")
+                    $"Pattern op '{patternEntry.OpName}' at index {opIndex} uses unsupported source feature id '{sourceId}'; only 'subtract' boolean features are currently patternable.")
             ]);
         }
 

@@ -286,6 +286,41 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_CylinderRootCenterBore_Exports_And_RoundTrips_Deterministically()
+    {
+        var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;
+        var bore = BrepPrimitives.CreateCylinder(12d, 24d).Value;
+
+        var first = BrepBoolean.Subtract(root, bore);
+        var second = BrepBoolean.Subtract(root, bore);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(first.Value, true).IsSuccess);
+
+        var firstExport = Step242Exporter.ExportBody(first.Value);
+        var secondExport = Step242Exporter.ExportBody(second.Value);
+        Assert.True(firstExport.IsSuccess);
+        Assert.True(secondExport.IsSuccess);
+        Assert.Equal(firstExport.Value, secondExport.Value);
+        Assert.Contains("BREP_WITH_VOIDS", firstExport.Value, StringComparison.Ordinal);
+        Assert.Equal(6, first.Value.Topology.Faces.Count());
+    }
+
+    [Fact]
+    public void Subtract_CylinderRootOffsetHole_IsRejectedLoudly()
+    {
+        var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;
+        var offsetHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(25d, 0d, 0d)));
+
+        var result = BrepBoolean.Subtract(root, offsetHole);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Contains("only coaxial center bores are supported", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Subtract_BoxCylinderRotatedAxis_SucceedsWithinBoundedSubset()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;

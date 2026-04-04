@@ -6,8 +6,11 @@ namespace Aetheris.Kernel.Core.Brep.Boolean;
 
 public sealed record SafeBooleanComposition(
     AxisAlignedBoxExtents OuterBox,
-    IReadOnlyList<SupportedBooleanHole> Holes)
+    IReadOnlyList<SupportedBooleanHole> Holes,
+    SafeBooleanRootDescriptor? Root = null)
 {
+    public SafeBooleanRootDescriptor RootDescriptor => Root ?? SafeBooleanRootDescriptor.FromBox(OuterBox);
+
     public SafeBooleanComposition Translate(Vector3D translation)
     {
         var translatedOuter = new AxisAlignedBoxExtents(
@@ -20,7 +23,60 @@ public sealed record SafeBooleanComposition(
 
         return new SafeBooleanComposition(
             translatedOuter,
-            Holes.Select(hole => hole.Translate(translation)).ToArray());
+            Holes.Select(hole => hole.Translate(translation)).ToArray(),
+            RootDescriptor.Translate(translation));
+    }
+}
+
+public enum SafeBooleanRootKind
+{
+    Box,
+    Cylinder,
+}
+
+public readonly record struct SafeBooleanRootDescriptor(
+    SafeBooleanRootKind Kind,
+    AxisAlignedBoxExtents Box,
+    RecognizedCylinder? Cylinder = null)
+{
+    public static SafeBooleanRootDescriptor FromBox(AxisAlignedBoxExtents box)
+        => new(SafeBooleanRootKind.Box, box);
+
+    public static SafeBooleanRootDescriptor FromCylinder(in RecognizedCylinder cylinder)
+    {
+        var minCenter = cylinder.MinCenter;
+        var maxCenter = cylinder.MaxCenter;
+        var minX = System.Math.Min(minCenter.X, maxCenter.X) - cylinder.Radius;
+        var maxX = System.Math.Max(minCenter.X, maxCenter.X) + cylinder.Radius;
+        var minY = System.Math.Min(minCenter.Y, maxCenter.Y) - cylinder.Radius;
+        var maxY = System.Math.Max(minCenter.Y, maxCenter.Y) + cylinder.Radius;
+        var minZ = System.Math.Min(minCenter.Z, maxCenter.Z);
+        var maxZ = System.Math.Max(minCenter.Z, maxCenter.Z);
+        return new SafeBooleanRootDescriptor(
+            SafeBooleanRootKind.Cylinder,
+            new AxisAlignedBoxExtents(minX, maxX, minY, maxY, minZ, maxZ),
+            cylinder);
+    }
+
+    public SafeBooleanRootDescriptor Translate(Vector3D translation)
+    {
+        var translatedBox = new AxisAlignedBoxExtents(
+            Box.MinX + translation.X,
+            Box.MaxX + translation.X,
+            Box.MinY + translation.Y,
+            Box.MaxY + translation.Y,
+            Box.MinZ + translation.Z,
+            Box.MaxZ + translation.Z);
+
+        if (Kind == SafeBooleanRootKind.Cylinder && Cylinder is RecognizedCylinder cylinder)
+        {
+            return new SafeBooleanRootDescriptor(
+                Kind,
+                translatedBox,
+                cylinder with { AxisOrigin = cylinder.AxisOrigin + translation });
+        }
+
+        return new SafeBooleanRootDescriptor(Kind, translatedBox);
     }
 }
 
@@ -75,7 +131,15 @@ public static class BrepBooleanSafeComposition
 
         if (BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(body, tolerance, out var box, out reason))
         {
-            composition = new SafeBooleanComposition(box, []);
+            composition = new SafeBooleanComposition(box, [], SafeBooleanRootDescriptor.FromBox(box));
+            return true;
+        }
+
+        if (BrepBooleanCylinderRecognition.TryRecognizeCylinder(body, tolerance, out var cylinder, out reason)
+            && BrepBooleanCylinderRecognition.ValidateAxisAlignedZ(cylinder, tolerance))
+        {
+            var root = SafeBooleanRootDescriptor.FromCylinder(cylinder);
+            composition = new SafeBooleanComposition(root.Box, [], root);
             return true;
         }
 

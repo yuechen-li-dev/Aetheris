@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+
+model:
+  name: f2_flange_center_bore
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: flange
+    radius: 40
+    height: 12
+
+  -
+    op: subtract
+    id: center_bore
+    from: flange
+    with:
+      op: cylinder
+      radius: 12
+      height: 24

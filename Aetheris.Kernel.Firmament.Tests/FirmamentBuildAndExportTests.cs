@@ -198,6 +198,18 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_F2FlangeCenterBoreExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/f2_flange_center_bore.firmament",
+            "f2_flange_center_bore.step",
+            "center_bore",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
     public void Run_UnsupportedBoxWithCylinderHoleFixture_Fails_And_Does_Not_Write_Fallback_Export()
     {
         AssertUnsupportedBuildAndExport(
@@ -221,6 +233,7 @@ public sealed class FirmamentBuildAndExportTests
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "m13a-unsupported-composed-subtract-sphere.step", "cavity", "subtract")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "m13a-unsupported-composed-subtract-box.step", "notch", "subtract")]
     [InlineData("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament", "m13b-invalid-composed-reenter-safe-family.step", "hole", "subtract")]
+    [InlineData("testdata/firmament/fixtures/m13c-unsupported-cylinder-root-follow-on-hole.firmament", "m13c-unsupported-cylinder-root-follow-on-hole.step", "bolt_hole", "subtract")]
     public void Run_Unsupported_MixedPrimitive_Fixtures_Fail_And_Do_Not_Write_Fallback_Export(
         string sourcePath,
         string expectedFileName,

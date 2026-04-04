@@ -173,6 +173,13 @@ public static class BrepBoolean
             return new BooleanCaseClassification(BooleanExecutionClass.PlanarOnly, leftSafeComposition, leftBox, rightBox, null, null);
         }
 
+        if (operation == BooleanOperation.Subtract && !leftRecognized && !leftSafeCompositionRecognized
+            && BrepBooleanSafeComposition.TryRecognize(leftBody, resolvedTolerance, out var recognizedRootComposition, out _))
+        {
+            leftSafeCompositionRecognized = true;
+            leftSafeComposition = recognizedRootComposition;
+        }
+
         if (operation == BooleanOperation.Subtract && (leftRecognized || leftSafeCompositionRecognized) && rightAnalyticRecognized)
         {
             return new BooleanCaseClassification(
@@ -192,7 +199,7 @@ public static class BrepBoolean
                 leftRecognized ? leftBox : leftSafeComposition!.OuterBox,
                 rightRecognized ? rightBox : null,
                 rightAnalyticRecognized ? analyticSurface : null,
-                $"Boolean {operation}: sequential safe composition only supports subtracting supported cylinder/cone analytic holes from the current composed box shell.");
+                $"Boolean {operation}: sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family.");
         }
 
         return new BooleanCaseClassification(

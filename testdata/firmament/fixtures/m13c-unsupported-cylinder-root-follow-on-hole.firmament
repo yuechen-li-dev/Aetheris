@@ -1,0 +1,37 @@
+firmament:
+  version: 1
+
+model:
+  name: m13c_unsupported_cylinder_root_follow_on_hole
+  units: mm
+
+ops[3]:
+  -
+    op: cylinder
+    id: flange
+    radius: 40
+    height: 12
+
+  -
+    op: subtract
+    id: center_bore
+    from: flange
+    with:
+      op: cylinder
+      radius: 12
+      height: 24
+
+  -
+    op: subtract
+    id: bolt_hole
+    from: center_bore
+    with:
+      op: cylinder
+      radius: 4
+      height: 24
+    place:
+      on: origin
+      offset[3]:
+        25
+        0
+        0

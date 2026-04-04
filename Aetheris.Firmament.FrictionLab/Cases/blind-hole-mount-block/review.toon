@@ -6,7 +6,7 @@ pain_points[2]:
   - "Author intent is clear, but permissible blind-hole envelope is narrow and opaque."
 proposed_features[1]:
   - "Broaden subtract span-family support and expose explicit blind-hole capability constraints."
-reviewer_verdict: "No material change from FL2a; the blind-hole span-family limiter remains the active blocker after G1."
+reviewer_verdict: "FL2c rerun after G3 shows no pipeline-visible change for this case; blind-hole subtract remains blocked by subtract span-family validation."
 previous_status: partial
 current_status: partial
 changed: no

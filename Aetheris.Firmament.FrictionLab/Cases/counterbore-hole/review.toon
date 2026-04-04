@@ -7,7 +7,7 @@ pain_points[2]:
 proposed_features[2]:
   - "Native hole feature supporting counterbore/countersink parameters."
   - "Axis-reuse reference between sequential subtract tools."
-reviewer_verdict: "No material change from FL2a; stepped subtract/counterbore composition is still blocked by subtract span-family limits at the pocket stage."
+reviewer_verdict: "FL2c rerun after G3 shows no pipeline-visible change for this case; the pocket-stage subtract is still rejected before stepped/coaxial composition can complete."
 previous_status: partial
 current_status: partial
 changed: no

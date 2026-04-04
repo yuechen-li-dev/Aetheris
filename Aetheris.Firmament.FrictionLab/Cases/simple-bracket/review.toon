@@ -7,3 +7,8 @@ pain_points[2]:
 proposed_features[1]:
   - "Expand boolean add execution beyond single-box union rebuild constraints."
 reviewer_verdict: "Stopped intentionally; recorded friction instead of forcing workaround geometry."
+previous_status: partial
+current_status: partial
+changed: no
+blocker_class: unchanged_kernel_blocker
+blocker_remaining: "Second additive union step still fails rebuild constraints for multi-box bracket completion."

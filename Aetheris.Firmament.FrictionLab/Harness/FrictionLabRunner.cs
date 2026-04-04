@@ -12,28 +12,33 @@ internal sealed class FrictionLabRunner
         WriteIndented = true
     };
 
-    public FrictionLabSummary Run()
+    public FrictionLabSummary Run(IReadOnlyList<string>? caseIds = null, string summaryFileName = "summary.json")
     {
         var paths = FrictionLabPaths.Resolve();
         Directory.CreateDirectory(paths.ReportsDirectory);
         Directory.CreateDirectory(paths.ArtifactsDirectory);
 
-        var caseResults = DiscoverCaseDirectories(paths.CasesDirectory)
+        var caseResults = DiscoverCaseDirectories(paths.CasesDirectory, caseIds)
             .Select(caseDirectory => RunCase(paths, caseDirectory))
             .ToArray();
 
-        var summaryPath = Path.Combine(paths.ReportsDirectory, "summary.json");
+        var summaryPath = Path.Combine(paths.ReportsDirectory, summaryFileName);
         var summary = FrictionLabSummary.FromResults(caseResults, ToRepoRelativePath(paths.RepoRoot, summaryPath));
         File.WriteAllText(summaryPath, JsonSerializer.Serialize(summary, JsonOptions), new UTF8Encoding(false));
 
         return summary;
     }
 
-    private static IEnumerable<string> DiscoverCaseDirectories(string casesDirectory)
+    private static IEnumerable<string> DiscoverCaseDirectories(string casesDirectory, IReadOnlyList<string>? caseIds)
     {
         if (!Directory.Exists(casesDirectory))
         {
             return [];
+        }
+
+        if (caseIds is { Count: > 0 })
+        {
+            return caseIds.Select(caseId => Path.Combine(casesDirectory, caseId));
         }
 
         return Directory.GetDirectories(casesDirectory)

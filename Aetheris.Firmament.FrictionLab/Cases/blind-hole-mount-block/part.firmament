@@ -23,8 +23,8 @@ ops[2]:
       radius: 5
       height: 10
     place:
-      on: origin
+      on_face: base.top_face
       offset[3]:
         0
         0
-        5
+        -10

@@ -1,0 +1,144 @@
+{
+  "milestone": "FL2a",
+  "description": "Targeted rerun of affected Firmament friction cases after F1/F2/F3/P1/P2 changes.",
+  "rerun_case_count": 8,
+  "source_previous_summary": "Aetheris.Firmament.FrictionLab/Reports/summary.json",
+  "source_current_run": "Aetheris.Firmament.FrictionLab/Reports/fl2a-run.json",
+  "cases": [
+    {
+      "case_id": "mounting-bracket-basic",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "improved_but_still_blocked",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "remaining_blocker": "Boolean feature 'base_hole' (subtract) cannot re-enter the safe subtract family from 'bracket'. Safe-hole composition may start only from a bounded box/cylinder root or continue from a previously validated safe subtract result."
+    },
+    {
+      "case_id": "simple-bracket",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "remaining_blocker": "Boolean feature 'bracket' (add): Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...)."
+    },
+    {
+      "case_id": "ribbed-support",
+      "previous_status": "failure",
+      "current_status": "partial",
+      "changed": "yes",
+      "improved": true,
+      "classification": "improved_but_still_blocked",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/ribbed-support.step",
+      "possible": "partial",
+      "awkwardness": "high",
+      "remaining_blocker": null
+    },
+    {
+      "case_id": "flange-bolt-circle",
+      "previous_status": "failure",
+      "current_status": "failure",
+      "changed": "no",
+      "improved": false,
+      "classification": "improved_but_still_blocked",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "Boolean feature 'bolt_0' (subtract) cannot append another coaxial center bore in the bounded cylinder-root safe family."
+    },
+    {
+      "case_id": "blind-hole-mount-block",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "medium",
+      "remaining_blocker": "Boolean feature 'blind_hole' (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone."
+    },
+    {
+      "case_id": "counterbore-hole",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "remaining_blocker": "Boolean feature 'counterbore_pocket' (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone."
+    },
+    {
+      "case_id": "pocketed-plate",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "medium",
+      "remaining_blocker": "Boolean feature 'pocket' (subtract): Boolean Subtract: box subtraction result is not representable as a single box in M13."
+    },
+    {
+      "case_id": "shaft-keyway",
+      "previous_status": "failure",
+      "current_status": "failure",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "Boolean feature 'keyway' (subtract): Boolean Subtract: sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family."
+    }
+  ],
+  "improved_cases": [
+    "ribbed-support"
+  ],
+  "top_repeated_remaining_blockers": [
+    {
+      "blocker": "BrepBoolean.RebuildResult",
+      "count": 3
+    },
+    {
+      "blocker": "BrepBoolean.AnalyticHole.NotFullySpanning",
+      "count": 2
+    },
+    {
+      "blocker": "BrepBoolean.AnalyticHole.HoleInterference",
+      "count": 1
+    },
+    {
+      "blocker": "firmament.feature-graph.invalid-composition-order",
+      "count": 1
+    }
+  ],
+  "deterministic_case_order": [
+    "mounting-bracket-basic",
+    "simple-bracket",
+    "ribbed-support",
+    "flange-bolt-circle",
+    "blind-hole-mount-block",
+    "counterbore-hole",
+    "pocketed-plate",
+    "shaft-keyway"
+  ]
+}

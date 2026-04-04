@@ -8,3 +8,8 @@ proposed_features[2]:
   - "Pocket primitive with profile + depth definition."
   - "Feature references for top-face anchored cuts."
 reviewer_verdict: "Plate pocket is expressible only as primitive abuse; semantics are missing."
+previous_status: partial
+current_status: partial
+changed: no
+blocker_class: unchanged_kernel_blocker
+blocker_remaining: "Box-minus-box pocket result still cannot be represented in current subtract rebuild model."

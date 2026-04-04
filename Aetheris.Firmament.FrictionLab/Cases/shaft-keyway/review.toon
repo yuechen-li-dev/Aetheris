@@ -8,3 +8,8 @@ proposed_features[2]:
   - "Axis-aligned slot primitive for shafts."
   - "Reference constraints against cylindrical faces/axes."
 reviewer_verdict: "Possible with existing primitives, but alignment readability is weaker than desired."
+previous_status: failure
+current_status: failure
+changed: no
+blocker_class: unchanged_kernel_blocker
+blocker_remaining: "Shaft keyway subtract remains outside safe subtract composition support for bounded cylinder roots."

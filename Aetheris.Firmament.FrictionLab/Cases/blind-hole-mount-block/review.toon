@@ -7,3 +7,8 @@ pain_points[2]:
 proposed_features[1]:
   - "Broaden subtract span-family support and expose explicit blind-hole capability constraints."
 reviewer_verdict: "Stopped intentionally; friction captured for future feature pressure."
+previous_status: partial
+current_status: partial
+changed: no
+blocker_class: unchanged_kernel_blocker
+blocker_remaining: "Blind-hole subtract still violates supported subtract span-family envelope."

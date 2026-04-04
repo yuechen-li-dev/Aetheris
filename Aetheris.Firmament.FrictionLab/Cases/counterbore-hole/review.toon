@@ -8,3 +8,8 @@ proposed_features[2]:
   - "Native hole feature supporting counterbore/countersink parameters."
   - "Axis-reuse reference between sequential subtract tools."
 reviewer_verdict: "Intent is representable but awkward and sensitive to subtract constraints."
+previous_status: partial
+current_status: partial
+changed: no
+blocker_class: unchanged_kernel_blocker
+blocker_remaining: "Counterbore pocket stage is still outside the supported subtract span family."

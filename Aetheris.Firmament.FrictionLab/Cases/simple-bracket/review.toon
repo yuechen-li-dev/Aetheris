@@ -2,15 +2,16 @@ case_id: simple-bracket
 possible: partial
 awkwardness: high
 pain_points[2]:
-  - "Second bracket add still hits M13 union rebuild constraints for non-single-box recognized roots."
-  - "Bracket intent is straightforward but expression remains blocked by limited add/union representability."
+  - "Build/export now succeeds, but STEP inspection indicates the final solid collapses to a single box instead of the intended multi-add bracket."
+  - "Add-chain intent remains fragile because semantic correctness cannot be inferred from export success alone."
 proposed_features[1]:
-  - "Expand boolean add execution beyond single recognized axis-aligned box rebuild constraints."
-reviewer_verdict: "FL2e rerun remains blocked at the same second-add union step seen in FL2a."
+  - "Preserve boolean-add semantics for chained bracket unions so resultant topology reflects intended profile."
+reviewer_verdict: "FL2f rerun changed from FL2e: export now succeeds, but the produced geometry is semantically wrong (not the intended bracket form)."
 previous_status: partial
 current_status: partial
-changed: no
-improved: false
-classification: unchanged_kernel_blocker
-blocker_remaining: "Boolean feature 'bracket' (add): Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...)."
-comparison_to_fl2a: "No change versus FL2a; G2 does not affect this add/union blocker path."
+changed: yes
+improved: true
+classification: exported_but_semantically_wrong
+blocker_remaining: "STEP has one manifold solid with only 6 advanced faces (rectangular prism-like), indicating wrong boolean/add result for the intended bracket shape."
+comparison_to_fl2e: "Compared with FL2e (blocked at second add), FL2f now emits STEP; direct inspection shows topologically valid but semantically incorrect output."
+step_artifact_semantic_inspection: "Artifact exports as MANIFOLD_SOLID_BREP, but no cylindrical features and only 6 ADVANCED_FACE entries are present, matching a simple box rather than the intended L/bracket composition."

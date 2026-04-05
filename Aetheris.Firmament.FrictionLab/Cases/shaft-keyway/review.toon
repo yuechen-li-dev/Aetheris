@@ -2,16 +2,17 @@ case_id: shaft-keyway
 possible: true
 awkwardness: medium
 pain_points[2]:
-  - "Keyway subtract is still outside the supported sequential safe subtract family on bounded cylinder roots."
-  - "Alignment intent remains offset-driven with no dedicated shaft/keyway semantic helper."
+  - "Keyway subtract remains outside the supported sequential safe subtract family on cylinder roots."
+  - "No semantic keyway primitive/reference exists; authoring remains offset-driven."
 proposed_features[2]:
-  - "Extend subtract family recognition for bounded cylinder-root slot/keyway geometry."
-  - "Reference constraints against cylindrical faces/axes."
-reviewer_verdict: "FL2e rerun is unchanged from FL2a: keyway subtract remains unsupported by current safe composition rules."
+  - "Extend subtract-family support for bounded cylinder-root slot/keyway cuts."
+  - "Support cylindrical-face/axis anchoring for shaft features."
+reviewer_verdict: "FL2f rerun is unchanged from FL2e/FL2a: keyway subtract still fails execution in BrepBoolean.RebuildResult."
 previous_status: failure
 current_status: failure
 changed: no
 improved: false
 classification: unchanged_kernel_blocker
-blocker_remaining: "Boolean feature 'keyway' (subtract): Boolean Subtract: sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family."
-comparison_to_fl2a: "No status change relative to FL2a; G2 does not materially improve this shaft/keyway case."
+blocker_remaining: "Boolean feature 'keyway' (subtract): sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family."
+comparison_to_fl2e: "No status or diagnostic class change relative to FL2e."
+step_artifact_semantic_inspection: "Not applicable: export did not succeed; no STEP artifact generated."

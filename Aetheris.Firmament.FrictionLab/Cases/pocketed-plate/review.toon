@@ -2,14 +2,17 @@ case_id: pocketed-plate
 possible: partial
 awkwardness: medium
 pain_points[2]:
-  - "Region-removal relies on subtracting another box instead of declaring a pocket intent."
-  - "Pocket depth and top-face reference are not explicit first-class concepts."
+  - "Pocket intent is still expressed as box subtraction and remains blocked by subtract rebuild representability."
+  - "Top-face anchored pocket semantics are still absent from production authoring flow."
 proposed_features[2]:
-  - "Pocket primitive with profile + depth definition."
-  - "Feature references for top-face anchored cuts."
-reviewer_verdict: "Plate pocket is expressible only as primitive abuse; semantics are missing."
+  - "Support pocket-like subtract representability beyond single-box rebuild constraints."
+  - "Add feature references for top-face anchored depth cuts."
+reviewer_verdict: "FL2f rerun is unchanged from FL2a: pocket subtract still fails due to box-minus-box rebuild representability limits."
 previous_status: partial
 current_status: partial
 changed: no
-blocker_class: unchanged_kernel_blocker
-blocker_remaining: "Box-minus-box pocket result still cannot be represented in current subtract rebuild model."
+improved: false
+classification: unchanged_kernel_blocker
+blocker_remaining: "Boolean feature 'pocket' (subtract): box subtraction result is not representable as a single box in M13."
+comparison_to_fl2a: "No status change relative to FL2a; blocker remained BrepBoolean.RebuildResult."
+step_artifact_semantic_inspection: "Not applicable: export did not succeed; no STEP artifact generated."

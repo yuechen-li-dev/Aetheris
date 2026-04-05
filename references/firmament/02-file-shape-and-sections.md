@@ -34,6 +34,9 @@ Current implementation note: units must be present but are not currently validat
 - Each entry begins with `-` and contains an object-like block including `op`.
 - `op` token must map to known op kind.
 
+`ops[n]` count behavior (important): parser accepts the bracketed integer format but uses the actual list entries that follow.  
+The declared `n` is informational/canonical style only; it is not enforced as a hard count check.
+
 ## Known op kinds (current)
 
 Primitive:
@@ -72,7 +75,9 @@ When `schema` is present:
 Additional current behavior:
 
 - CNC DFM currently checks subtract-tool cylinder `with.radius >= minimum_tool_radius`.
-- Enclosed voids are rejected for non-additive process modes.
+- Enclosed voids are a hard compile failure for non-additive process modes (including default/no-schema behavior, `cnc`, and `injection_molded`).
+  - Practical trip case: a sealed cavity (for example, subtracting a fully enclosed sphere cavity) fails compile under those modes.
+  - `additive` explicitly allows enclosed voids.
 
 ## PMI behavior (current)
 

@@ -52,12 +52,18 @@ Execution semantics:
   - `count: 0` currently means "expect selector resolves to no elements" and passes only when resolved count is zero.
   - failures add warning diagnostics; they do not stop primitive/boolean execution.
 - `expect_manifold`: bare feature-id only (selector target not supported at execution).
+  - this is a topology/geometry check, not syntax checking.
+  - operationally, current checker verifies 2-manifold-style edge incidence: every edge in the body topology must be used by exactly two face-side incidences.
+  - therefore open-boundary edges (incidence 1), dangling/unused edges (0), or non-manifold edges (>2) fail `expect_manifold`.
+
+⚠️ Severity for all validation ops (`expect_exists`, `expect_selectable`, `expect_manifold`): failures are diagnostic-only warning outcomes. They do **not** by themselves block compile success or STEP export.
 
 ### Export semantics
 - Export body policy is fixed: last successfully executed geometric body by source op index.
   - Failed later booleans do not invalidate earlier successful bodies.
   - Partial execution can still produce a valid STEP file that silently omits intended later features.
 - Validation ops never become export bodies.
+- Validation-op failures can coexist with successful STEP export (because they are diagnostic-only).
 - Output STEP text represents the selected body in world coordinates after all default-frame and placement transforms already applied.
 - Firmament world coordinates map directly to STEP geometry coordinates (no additional global remap in exporter).
 

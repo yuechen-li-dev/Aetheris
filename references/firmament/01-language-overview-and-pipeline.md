@@ -32,7 +32,7 @@ Compile flow today:
 9. Run CNC DFM checks (narrow current rule).
 10. Lower primitives/booleans.
 11. Execute primitives then booleans.
-12. Enclosed-void schema guard.
+12. Enclosed-void schema guard (hard failure when disallowed by process policy).
 13. Run validation ops against executed geometry.
 
 The returned artifact includes parsed doc, compiled schema, lowered plan, primitive/boolean execution result, and validation execution result.
@@ -48,3 +48,10 @@ The returned artifact includes parsed doc, compiled schema, lowered plan, primit
 
 Export chooses the **last successfully executed geometric body by op index** (primitive or boolean).
 Validation ops are never export bodies.
+
+Validation-op failures are diagnostic-only: they can mark validations unsuccessful and add warning diagnostics, but they do not by themselves block compile success or STEP export.
+
+## Reference scope note (authoring vs integration API)
+
+This corpus is primarily for `.firmament` file authoring semantics.  
+If you are integrating at compiler API level, inspect implementation contracts directly (`FirmamentCompileResult` + `FirmamentCompilationArtifact`) and the integration tests in `Aetheris.Kernel.Firmament.Tests`.

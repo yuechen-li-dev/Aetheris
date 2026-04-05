@@ -205,6 +205,7 @@ Interpretation:
 - `expect_exists` selector target is allowed.
 - `expect_selectable` requires selector target + integer count.
 - `expect_manifold` requires bare feature ID target.
+- If one of these validations fails, compile can still succeed and export can still return STEP (validation failures are warning diagnostics, not hard export blockers).
 - Export body remains `hole` because it is the last executed geometric body (validation ops do not replace export selection).
 
 ---

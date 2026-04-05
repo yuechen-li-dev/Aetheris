@@ -98,6 +98,8 @@ Trap: using one target style uniformly for all validation ops.
 
 `expect_selectable.count` is exact-match and `count: 0` means "expect none" (passes only on zero resolved elements). Failures produce warnings, not execution aborts.
 
+⚠️ Severity trap: all three validation ops (`expect_exists`, `expect_selectable`, `expect_manifold`) are diagnostic-only at execution. Failed validations produce warning diagnostics but do not by themselves fail compile or block export.
+
 ---
 
 ## 11) `model.units` is required but currently unconstrained as an enum
@@ -117,6 +119,8 @@ Validation ops affect diagnostics, not exported body selection.
 Trap: expecting final validation op target to become export body.
 
 ⚠️ Partial execution trap: if a later boolean fails, earlier successful geometry is still exported. This can look like success while silently truncating intended features.
+
+Validation failures can still appear alongside successful compile/export because they are warning-only diagnostics.
 
 ---
 
@@ -147,5 +151,27 @@ Trap: expecting PMI entries to affect geometry/export semantics in current imple
 ## 17) `intersect` is implemented but narrow
 
 `intersect` uses `left` as its primary reference field (`left` role mirrors `from`/`to` in other boolean ops) and executes through the general boolean path.
+Positive behavior: it computes geometric overlap (`left ∩ with`) when that overlap is representable inside the currently supported bounded subset.
 
 Trap: assuming it participates in safe subtract continuation semantics. It does not; treat as narrow subset behavior unless test-backed.
+
+## 18) Pointed-cone cap selectors can legally parse but resolve empty
+
+Cone selector ports include `top_face`/`bottom_face`, but runtime counts actual topology.
+
+- `top_radius: 0` pointed cone ⇒ no top cap face ⇒ `top_face` resolves to zero elements.
+- `bottom_radius: 0` pointed cone ⇒ no bottom cap face ⇒ `bottom_face` resolves to zero elements.
+
+Trap: assuming compile-time port allowance guarantees runtime non-empty selector results.
+
+## 19) Enclosed-void policy is export-blocking in non-allowing modes
+
+For default/no schema, `cnc`, and `injection_molded`, enclosed void detection is a hard compile failure (error diagnostic), not a warning.
+
+Trap: treating "void rejected" as advisory. A fully enclosed cavity (for example an internal spherical cavity) prevents successful compile/export in those modes. `additive` is the allowing mode.
+
+## 20) Pattern marker substrings are effectively reserved in generated IDs
+
+Pattern expansion synthesizes IDs with `__linN` and `__cirN`, and executor logic treats feature IDs containing `__lin`/`__cir` as pattern-generated behavior cues.
+
+⚠️ Avoid manually authoring feature IDs that contain `__lin` or `__cir` substrings unless you intentionally want that pattern-generated classification behavior.

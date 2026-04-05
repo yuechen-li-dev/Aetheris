@@ -76,7 +76,7 @@ Current continuation family is intentionally narrow:
 - follow-on tool kind must be `cylinder` or `cone`
 - geometric guards enforce non-overlap/non-tangent/non-degenerate-safe constraints
 
-`intersect` does execute, but it is outside safe-family continuation semantics (`WasValidated=false` path) and should be treated as a narrow subset operation rather than a safe-chain building block.
+`intersect` computes the geometric overlap of `left` and `with`. It does execute, but is outside safe-family continuation semantics (`WasValidated=false` path) and only succeeds inside the currently recognized bounded subset; treat it as a narrow subset operation rather than a safe-chain building block.
 
 Anything outside this family should be treated as deferred/unsupported unless explicitly test-backed.
 
@@ -153,6 +153,12 @@ Worked angle example:
 - source `angle_degrees = 30`
 - pattern `angle_step_degrees = 45`, `count=3`
 - generated angles: `cir1=75`, `cir2=120`, `cir3=165`
+
+Span-vs-step comparison (same `count=4`, source/base angle = `0`):
+- `angle_degrees: 360` (span form) ⇒ angular step is `360/4 = 90` ⇒ generated angles: `90, 180, 270, 360`
+- `angle_step_degrees: 90` (step form) ⇒ explicit per-instance step `90` ⇒ generated angles: `90, 180, 270, 360`
+
+Use span form when you want to describe a total covered arc; use step form when you want explicit per-instance spacing regardless of count.
 
 Also chains primary boolean reference sequentially like linear pattern.
 

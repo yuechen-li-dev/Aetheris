@@ -191,3 +191,7 @@ These are compile-time contracts used by placement and validation target checks.
 Boolean result ports are intentionally box-like, not primitive-tool-like.
 
 ⚠️ Boolean result ports are heuristic selectors, not guaranteed topological truths. `top_face`/`bottom_face` use orientation filters (for example, planar normal Z thresholds), so rotated or complex geometry can produce empty or surprising matches.
+
+⚠️ **Pointed cone selector trap:** cone ports are compile-time allowed, but runtime selector resolution is topology-truthful.  
+For a pointed cone with `top_radius: 0`, there is no top planar cap, so `cone.top_face` resolves to zero elements (effectively unavailable).  
+Likewise, for `bottom_radius: 0`, `cone.bottom_face` resolves to zero.

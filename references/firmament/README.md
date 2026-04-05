@@ -20,3 +20,6 @@ Goal: let a fresh model write correct Firmament without guessing hidden semantic
 This reference is anchored to current repository behavior (parser/validators/lowering/execution/tests/examples), not aspirational language design.
 
 Use this folder as the **primary authoring reference** for LLM-generated `.firmament` in this repo.
+
+Integration boundary note: this corpus focuses on file-authoring semantics, not full caller-facing compiler API contracts.  
+Integrators should inspect `Aetheris.Kernel.Firmament/FirmamentCompileResult.cs`, `Aetheris.Kernel.Firmament/FirmamentCompilationArtifact.cs`, and integration tests under `Aetheris.Kernel.Firmament.Tests`.

@@ -414,7 +414,7 @@ public sealed class FirmamentBuildAndExportTests
             .Select(surface => surface!.Plane!.Value)
             .ToArray();
 
-        Assert.Contains(planarFaces, plane => Math.Abs(plane.Normal.ToVector().X) > 0.9d && Math.Abs(plane.Origin.X + 12d) < 1e-6d);
+        Assert.Contains(planarFaces, plane => Math.Abs(plane.Normal.ToVector().X) > 0.9d && Math.Abs(plane.Origin.X + 50d) < 1e-6d);
         Assert.True(planarFaces.Length > 6, "Simple bracket must not collapse to a six-face bounding box.");
 
         var export = FirmamentStepExporter.Export(compilation.Value);

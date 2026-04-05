@@ -365,6 +365,34 @@ public sealed class FirmamentBuildAndExportTests
             "subtract");
     }
 
+    [Fact]
+    public void Run_FrictionLabMountingBracketBasic_ProgressesPastUnrecognizedAdditiveRoot_ToBlindHoleCompositionBlocker()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/mounting-bracket-basic/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("Requested boolean feature 'upright_hole' (subtract) could not be executed.", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("cannot append a blind analytic hole to an existing safe subtract composition", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            string.Equals(diagnostic.Source, "firmament.feature-graph.unrecognized-additive-root", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Run_FrictionLabSimpleBracket_NowBuildsAndExports()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/simple-bracket/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("bracket", result.Value.Export.ExportedFeatureId);
+        Assert.Equal("boolean", result.Value.Export.ExportedBodyCategory);
+        Assert.Equal("add", result.Value.Export.ExportedFeatureKind);
+        Assert.Contains("MANIFOLD_SOLID_BREP", result.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-add-cylinder.firmament", "m10j-unsupported-box-add-cylinder.step", "joined", "add")]
     [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "m10j-unsupported-box-intersect-cylinder.step", "overlap", "intersect")]
@@ -386,6 +414,20 @@ public sealed class FirmamentBuildAndExportTests
         string expectedKind)
     {
         AssertUnsupportedBuildAndExport(sourcePath, expectedFileName, expectedFeatureId, expectedKind);
+    }
+
+    [Fact]
+    public void Run_FrictionLabShaftKeyway_RemainsExplicitlyUnsupported()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/shaft-keyway/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("Requested boolean feature 'keyway' (subtract) could not be executed.", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Source == "BrepBoolean.RebuildResult"
+            && diagnostic.Message.Contains("sequential safe composition only supports subtracting supported analytic holes", StringComparison.Ordinal));
     }
 
     private static void AssertExampleBuildAndExport(string sourcePath, string expectedFileName, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)

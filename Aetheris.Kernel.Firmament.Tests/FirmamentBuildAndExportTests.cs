@@ -545,12 +545,41 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
-    public void Run_FrictionLabPocketedPlate_NowFailsWithExplicitEnclosedPocketDiagnostic()
+    public void Run_FrictionLabPocketedPlate_ExecutesBoundedOpenMouthPocketAndExports()
     {
         var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/pocketed-plate/part.firmament");
+        var existingOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/pocketed-plate/part.step");
+        if (File.Exists(existingOutputPath))
+        {
+            File.Delete(existingOutputPath);
+        }
+
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("pocket", result.Value.Export.ExportedFeatureId);
+        Assert.Equal("boolean", result.Value.Export.ExportedBodyCategory);
+        Assert.Equal("subtract", result.Value.Export.ExportedFeatureKind);
+        Assert.True(File.Exists(result.Value.OutputPath));
+
+        var stepText = result.Value.Export.StepText;
+        Assert.True(CountOccurrences(stepText, "ADVANCED_FACE") > 6);
+    }
+
+    [Fact]
+    public void Run_BoundedPocketFixture_WithSealedCavity_RemainsExplicitlyRejected()
+    {
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmament/fixtures/m13b-unsupported-sealed-pocket-box.firmament");
+        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "exports", "m13b-unsupported-sealed-pocket-box.step");
+        if (File.Exists(expectedOutputPath))
+        {
+            File.Delete(expectedOutputPath);
+        }
+
         var result = FirmamentBuildAndExport.Run(fullSourcePath);
 
         Assert.False(result.IsSuccess);
+        Assert.False(File.Exists(expectedOutputPath));
         Assert.Contains(result.Diagnostics, diagnostic =>
             diagnostic.Source == "BrepBoolean.RebuildResult"
             && diagnostic.Message.Contains("requires the subtract box to open to exactly one exterior root face", StringComparison.Ordinal));

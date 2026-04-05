@@ -353,6 +353,18 @@ public sealed class FirmamentBuildAndExportTests
             "subtract");
     }
 
+    [Fact]
+    public void Run_AddThenSubtract_ReentrySafeRootFixture_Builds_And_Writes_Export()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament",
+            "m13b-invalid-composed-reenter-safe-family.step",
+            "hole",
+            2,
+            "boolean",
+            "subtract");
+    }
+
     [Theory]
     [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-add-cylinder.firmament", "m10j-unsupported-box-add-cylinder.step", "joined", "add")]
     [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "m10j-unsupported-box-intersect-cylinder.step", "overlap", "intersect")]
@@ -366,7 +378,6 @@ public sealed class FirmamentBuildAndExportTests
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "m13a-unsupported-composed-add-ordering.step", "joined", "add")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "m13a-unsupported-composed-subtract-sphere.step", "cavity", "subtract")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "m13a-unsupported-composed-subtract-box.step", "notch", "subtract")]
-    [InlineData("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament", "m13b-invalid-composed-reenter-safe-family.step", "hole", "subtract")]
     [InlineData("testdata/firmament/fixtures/m13c-unsupported-cylinder-root-follow-on-hole.firmament", "m13c-unsupported-cylinder-root-follow-on-hole.step", "bolt_hole", "subtract")]
     public void Run_Unsupported_MixedPrimitive_Fixtures_Fail_And_Do_Not_Write_Fallback_Export(
         string sourcePath,

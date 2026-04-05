@@ -149,6 +149,21 @@ public sealed class BrepBooleanTests
         var second = BrepBoolean.Union(first.Value, flange);
         Assert.True(second.IsSuccess);
         Assert.True(BrepBindingValidator.Validate(second.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        Assert.False(BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(second.Value, ToleranceContext.Default, out _, out _));
+        Assert.NotNull(second.Value.SafeBooleanComposition);
+        Assert.True(second.Value.SafeBooleanComposition!.OccupiedCells is { Count: > 2 });
+
+        var planarFaces = second.Value.Topology.Faces
+            .Select(face =>
+            {
+                second.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return surface;
+            })
+            .Where(surface => surface?.Kind == SurfaceGeometryKind.Plane)
+            .Select(surface => surface!.Plane!.Value)
+            .ToArray();
+        Assert.Contains(planarFaces, plane => plane.Normal.ToVector().X > 0.9d && System.Math.Abs(plane.Origin.X + 12d) < 1e-6d);
+        Assert.Contains(planarFaces, plane => plane.Normal.ToVector().X < -0.9d && System.Math.Abs(plane.Origin.X - 12d) < 1e-6d);
     }
 
     [Fact]

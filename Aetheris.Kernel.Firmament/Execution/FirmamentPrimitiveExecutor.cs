@@ -332,9 +332,18 @@ internal static class FirmamentPrimitiveExecutor
     private static bool ShouldUseSemanticToolPlacement(FirmamentLoweredBoolean boolean, BrepBody baseBody, BrepBody toolBody)
     {
         if (boolean.Placement is null
-            || string.IsNullOrWhiteSpace(boolean.Placement.OnFace)
             || boolean.Kind != FirmamentLoweredBooleanKind.Subtract
             || !string.Equals(boolean.Tool.OpName, "cylinder", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (baseBody.SafeBooleanComposition is { Holes.Count: > 0 })
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(boolean.Placement.OnFace))
         {
             return false;
         }

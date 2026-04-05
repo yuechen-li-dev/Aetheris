@@ -16,9 +16,9 @@ ops[2]:
     place:
       on: origin
       offset[3]:
-        55
+        30
         10
-        5
+        0
 
   -
     op: add
@@ -36,4 +36,4 @@ ops[2]:
       offset[3]:
         5
         10
-        30
+        0

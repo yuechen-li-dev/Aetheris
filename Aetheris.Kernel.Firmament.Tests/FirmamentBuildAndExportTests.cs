@@ -416,13 +416,13 @@ public sealed class FirmamentBuildAndExportTests
         20
         60", sourceText, StringComparison.Ordinal);
         Assert.Contains(@"offset[3]:
-        55
+        30
         10
-        5", sourceText, StringComparison.Ordinal);
+        0", sourceText, StringComparison.Ordinal);
         Assert.Contains(@"offset[3]:
         5
         10
-        30", sourceText, StringComparison.Ordinal);
+        0", sourceText, StringComparison.Ordinal);
         Assert.DoesNotContain("op: subtract", sourceText, StringComparison.Ordinal);
 
         var pointPattern = new System.Text.RegularExpressions.Regex(

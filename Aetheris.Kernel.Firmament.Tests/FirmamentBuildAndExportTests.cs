@@ -504,6 +504,18 @@ public sealed class FirmamentBuildAndExportTests
             && diagnostic.Message.Contains("sequential safe composition only supports subtracting supported analytic holes", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Run_FrictionLabPocketedPlate_NowFailsWithExplicitEnclosedPocketDiagnostic()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/pocketed-plate/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Source == "BrepBoolean.RebuildResult"
+            && diagnostic.Message.Contains("requires the subtract box to open to exactly one exterior root face", StringComparison.Ordinal));
+    }
+
     private static void AssertExampleBuildAndExport(string sourcePath, string expectedFileName, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)
     {
         var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath(sourcePath);

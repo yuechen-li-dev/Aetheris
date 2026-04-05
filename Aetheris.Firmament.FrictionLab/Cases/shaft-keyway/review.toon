@@ -2,14 +2,16 @@ case_id: shaft-keyway
 possible: true
 awkwardness: medium
 pain_points[2]:
-  - "Slot alignment to cylinder is offset-based instead of axis/face constrained."
-  - "No dedicated keyway helper, so dimensions are manually coordinated."
+  - "Keyway subtract is still outside the supported sequential safe subtract family on bounded cylinder roots."
+  - "Alignment intent remains offset-driven with no dedicated shaft/keyway semantic helper."
 proposed_features[2]:
-  - "Axis-aligned slot primitive for shafts."
+  - "Extend subtract family recognition for bounded cylinder-root slot/keyway geometry."
   - "Reference constraints against cylindrical faces/axes."
-reviewer_verdict: "Possible with existing primitives, but alignment readability is weaker than desired."
+reviewer_verdict: "FL2e rerun is unchanged from FL2a: keyway subtract remains unsupported by current safe composition rules."
 previous_status: failure
 current_status: failure
 changed: no
-blocker_class: unchanged_kernel_blocker
-blocker_remaining: "Shaft keyway subtract remains outside safe subtract composition support for bounded cylinder roots."
+improved: false
+classification: unchanged_kernel_blocker
+blocker_remaining: "Boolean feature 'keyway' (subtract): Boolean Subtract: sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family."
+comparison_to_fl2a: "No status change relative to FL2a; G2 does not materially improve this shaft/keyway case."

@@ -1,0 +1,70 @@
+{
+  "milestone": "FL2e",
+  "description": "Targeted friction reassessment rerun for continued-root and bracket-style blocker cases after G2.",
+  "rerun_case_count": 3,
+  "source_previous_summary": "Aetheris.Firmament.FrictionLab/Reports/fl2a-summary.json",
+  "source_current_run": "Aetheris.Firmament.FrictionLab/Reports/fl2e-run.json",
+  "cases": [
+    {
+      "case_id": "mounting-bracket-basic",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "remaining_blocker": "Boolean feature 'base_hole' (subtract) cannot continue from 'bracket' because that prior add result is not a recognized bounded orthogonal safe subtract root."
+    },
+    {
+      "case_id": "simple-bracket",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "remaining_blocker": "Boolean feature 'bracket' (add): Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...)."
+    },
+    {
+      "case_id": "shaft-keyway",
+      "previous_status": "failure",
+      "current_status": "failure",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "Boolean feature 'keyway' (subtract): Boolean Subtract: sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family."
+    }
+  ],
+  "improved_cases": [],
+  "top_repeated_remaining_blockers": [
+    {
+      "blocker": "BrepBoolean.RebuildResult",
+      "count": 2
+    },
+    {
+      "blocker": "firmament.feature-graph.unrecognized-additive-root",
+      "count": 1
+    }
+  ],
+  "top_repeated_remaining_blocker_classes": [
+    {
+      "classification": "unchanged_kernel_blocker",
+      "count": 3
+    }
+  ],
+  "deterministic_case_order": [
+    "mounting-bracket-basic",
+    "simple-bracket",
+    "shaft-keyway"
+  ]
+}

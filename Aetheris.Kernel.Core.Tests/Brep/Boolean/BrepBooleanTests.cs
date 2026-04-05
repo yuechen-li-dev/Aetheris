@@ -938,6 +938,30 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_RecognizedOrthogonalAdditiveRoot_WithIndependentBlindHoles_Succeeds_And_Exports()
+    {
+        var basePlate = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-30d, 30d, -15d, 15d, -4d, 4d)).Value;
+        var upright = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(22d, 30d, -15d, 15d, 4d, 44d)).Value;
+        var bracket = BrepBoolean.Union(basePlate, upright);
+        Assert.True(bracket.IsSuccess);
+
+        var baseHole = TransformBody(BrepPrimitives.CreateCylinder(3.5d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(-15d, 0d, 0d)));
+        var uprightHole = TransformBody(BrepPrimitives.CreateCylinder(3.5d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(26d, 0d, 18d)));
+
+        var first = BrepBoolean.Subtract(bracket.Value, baseHole);
+        Assert.True(first.IsSuccess);
+
+        var second = BrepBoolean.Subtract(first.Value, uprightHole);
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
+        Assert.True(BrepBindingValidator.Validate(second.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        Assert.Equal(2, second.Value.SafeBooleanComposition?.Holes.Count);
+
+        var export = Step242Exporter.ExportBody(second.Value);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("MANIFOLD_SOLID_BREP", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Subtract_BoxContainedCylinderCavity_Succeeds_WithInnerShell_And_DeterministicExport()
     {
         var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-25d, 25d, -20d, 20d, -10d, 10d)).Value;

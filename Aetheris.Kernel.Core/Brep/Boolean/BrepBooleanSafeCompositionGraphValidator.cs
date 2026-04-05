@@ -66,24 +66,45 @@ public static class BrepBooleanSafeCompositionGraphValidator
             var requiredDistance = existingHole.MaxBoundaryRadius + nextHole.MaxBoundaryRadius;
 
             if (composition.Holes.Count == 1
-                && (existingHole.IsBlind || nextHole.IsBlind)
-                && centerDistance < (requiredDistance + tolerance.Linear))
+                && (existingHole.IsBlind || nextHole.IsBlind))
             {
-                if (BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
-                    composition.OuterBox,
-                    existingHole,
-                    nextHole,
-                    tolerance,
-                    out _,
-                    out var steppedDiagnostic,
-                    nextFeatureId))
+                if (IsCoaxialHolePair(existingHole, nextHole, tolerance))
                 {
-                    continue;
-                }
+                    if (BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
+                        composition.OuterBox,
+                        existingHole,
+                        nextHole,
+                        tolerance,
+                        out _,
+                        out var steppedDiagnostic,
+                        nextFeatureId))
+                    {
+                        continue;
+                    }
 
-                if (steppedDiagnostic is not null)
+                    if (steppedDiagnostic is not null)
+                    {
+                        diagnostic = steppedDiagnostic;
+                        return false;
+                    }
+                }
+                else if (!SupportsBoundedIndependentHoleContinuationOnRecognizedOrthogonalAdditiveRoot(composition, nextHole, tolerance))
                 {
-                    diagnostic = steppedDiagnostic;
+                    BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
+                        composition.OuterBox,
+                        existingHole,
+                        nextHole,
+                        tolerance,
+                        out _,
+                        out var steppedDiagnostic,
+                        nextFeatureId);
+                    diagnostic = steppedDiagnostic ?? new BooleanDiagnostic(
+                        BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
+                        BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                            BooleanOperation.Subtract.ToString(),
+                            nextFeatureId,
+                            "independent multi-hole continuation exceeds the bounded family; non-coaxial blind-hole composition is only supported on recognized orthogonal additive roots with world-Z cylinder/cone holes."),
+                        "BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily");
                     return false;
                 }
             }
@@ -488,6 +509,49 @@ public static class BrepBooleanSafeCompositionGraphValidator
                && ToleranceMath.AlmostZero(v.Y, tolerance)
                && ToleranceMath.AlmostEqual(System.Math.Abs(v.Z), 1d, tolerance);
     }
+
+    private static bool IsCoaxialHolePair(in SupportedBooleanHole first, in SupportedBooleanHole second, ToleranceContext tolerance)
+    {
+        var deltaX = first.CenterX - second.CenterX;
+        var deltaY = first.CenterY - second.CenterY;
+        return ToleranceMath.AlmostZero(deltaX, tolerance)
+            && ToleranceMath.AlmostZero(deltaY, tolerance);
+    }
+
+    private static bool SupportsBoundedIndependentHoleContinuationOnRecognizedOrthogonalAdditiveRoot(
+        SafeBooleanComposition composition,
+        in SupportedBooleanHole nextHole,
+        ToleranceContext tolerance)
+    {
+        if (composition.OccupiedCells is null || composition.OccupiedCells.Count < 2)
+        {
+            return false;
+        }
+
+        if (!IsAxisAlignedWithWorldZ(nextHole.Axis, tolerance))
+        {
+            return false;
+        }
+
+        if (!IsSupportedIndependentHoleShape(nextHole.Surface.Kind))
+        {
+            return false;
+        }
+
+        foreach (var existingHole in composition.Holes)
+        {
+            if (!IsAxisAlignedWithWorldZ(existingHole.Axis, tolerance)
+                || !IsSupportedIndependentHoleShape(existingHole.Surface.Kind))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsSupportedIndependentHoleShape(AnalyticSurfaceKind kind)
+        => kind is AnalyticSurfaceKind.Cylinder or AnalyticSurfaceKind.Cone;
 
     private static bool SupportsBoundedBlindContinuationOnRecognizedOrthogonalAdditiveRoot(
         SafeBooleanComposition composition,

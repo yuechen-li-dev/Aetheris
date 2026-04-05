@@ -26,6 +26,8 @@ Unknown top-level sections are rejected.
 - `model.name` required.
 - `model.units` required.
 
+Current implementation note: units must be present but are not currently validated against a closed enum list; corpus convention is `mm`.
+
 ## Ops structure
 
 - `ops[n]:` header defines count in canonical TOON style.

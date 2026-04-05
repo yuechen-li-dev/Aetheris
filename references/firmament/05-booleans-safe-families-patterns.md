@@ -1,23 +1,47 @@
-# Booleans, Bounded Families, and Pattern Continuation
+# Booleans, Safe-Family State, and Pattern Expansion
 
-## Boolean ops and required shape
+This file documents executable boolean and pattern semantics as implemented.
+
+## Boolean op contracts
 
 Supported boolean ops:
+- `add`: requires `id`, `to`, `with`
+- `subtract`: requires `id`, `from`, `with`
+- `intersect`: requires `id`, `left`, `with`
 
-- `add` requires `id`, `to`, `with`
-- `subtract` requires `id`, `from`, `with`
-- `intersect` requires `id`, `left`, `with`
+`with` must be a nested primitive tool object-like value.
+Supported tool ops inside `with`:
+- `box`, `cylinder`, `sphere`, `cone`, `torus`
 
-`with` must be object-like with nested primitive tool `op`.
+---
 
-Nested tool parameter validation exists for: box/cylinder/sphere/cone/torus.
+## Boolean result selector ports
 
-## Safe-family model (current implemented boundary)
+All boolean result features (`add`/`subtract`/`intersect`) expose the same selector contract:
+- `top_face`
+- `bottom_face`
+- `side_faces`
+- `edges`
+- `vertices`
 
-The system enforces a bounded feature-graph model via explicit state tracking.
+This is intentionally not a union of all primitive-tool ports.
 
-Key states:
+---
 
+## Boolean reference fields vs placement anchors
+
+Do not conflate these:
+
+- Reference field (`to`/`from`/`left`) chooses the primary boolean source feature.
+- Placement anchor fields (`place.on`, `place.on_face`, etc.) choose anchor sampling for placement translation.
+
+A boolean can subtract from one feature while anchoring to another selector source.
+
+---
+
+## Safe-family state machine (implemented boundary)
+
+Execution tracks feature graph states per produced feature ID:
 - `BoxRoot`
 - `CylinderRoot`
 - `BoundedOrthogonalAdditiveSafeRoot`
@@ -25,60 +49,96 @@ Key states:
 - `SafeSubtractComposition`
 - `Other`
 
-### Orthogonal additive unions
+### Core implications
 
-Add results can be recognized as bounded orthogonal safe roots.
-If recognized, subtract safe-family continuation may proceed from that additive result.
-If not recognized, safe-family subtract re-entry is blocked.
+1. Subtract continuation is not purely syntax-based.
+2. A parsed/validated boolean can still fail feature-graph safety checks.
+3. Re-entry from `Other` into safe subtract continuation is blocked.
 
-### Subtract re-entry rule
+### Orthogonal additive transition
 
-Subtract with safe-hole tools (`cylinder`/`cone`) may:
+`add` may classify to:
+- `BoundedOrthogonalAdditiveSafeRoot` (recognized safe), or
+- `BoundedOrthogonalAdditiveOutsideSafeRoot` (recognized outside safe subset).
 
-- start from bounded recognized roots,
-- continue from already validated safe subtract composition,
-- but cannot re-enter from arbitrary `Other` states.
+Subtract continuation from these states is guarded and narrower than generic boolean parsing suggests.
 
-### Hole families / continuation
+### Supported continuation family
 
-Supported safe-hole continuation family is narrow:
+Current continuation family is intentionally narrow:
+- follow-on op must be `subtract`
+- follow-on tool kind must be `cylinder` or `cone`
+- geometric guards enforce non-overlap/non-tangent/non-degenerate-safe constraints
 
-- follow-on boolean must be `subtract`
-- follow-on tool kind must remain `cylinder` or `cone`
-- analytic recognition + overlap/tangent guards are enforced by boolean graph validator path
+Anything outside this family should be treated as deferred/unsupported unless explicitly test-backed.
 
-### Counterbore/blind/coaxial notes
+---
 
-There is no general counterbore feature op family today.
-Blind/coaxial-like outcomes can appear only when they fit current subtract + placement + kernel recognition constraints; do not assume dedicated semantics.
+## Placement timing inside booleans
 
-### Independent multi-hole continuation
+Boolean placement has two execution modes:
 
-Pattern expansion and sequential subtracts can produce multi-hole chains, but only within current safe subtract family and non-interfering analytic constraints.
+1. **Tool-placement mode** (selected path): place translated tool before boolean.
+2. **Result-placement mode** (fallback/general): run boolean first, then translate resulting body.
 
-## Pattern family (P2 subset)
+Pattern-generated booleans always place tool first in their dedicated execution branch.
 
-Supported pattern ops:
+This timing distinction is a major source of authoring mistakes.
 
+---
+
+## Pattern ops (P2 subset)
+
+Supported:
 - `pattern_linear`
 - `pattern_circular`
 
-Constraints:
+Both require:
+- `source` referencing an earlier feature ID
+- source feature must be a boolean `subtract`
 
-- `source` must reference earlier feature.
-- Source currently must be a `subtract` boolean feature.
+Pattern ops themselves are **not** feature-producing geometry.
+They are compile-time expansion directives that inject synthesized boolean ops.
 
-`pattern_linear`:
+### `pattern_linear`
 
-- requires `count > 0` integer, `step[3]` numeric.
-- clones source boolean entries with synthesized IDs `source__linN`.
-- chains primary boolean reference to previous instance.
+Required:
+- `count` positive integer
+- `step[3]` numeric vector
 
-`pattern_circular`:
+`step[3]` meaning:
+- world-space translation delta added per instance
+- instance `i` gets offset contribution `i * step`
 
-- requires `count > 0`, `axis` selector.
-- requires either `angle_degrees` (span) or `angle_step_degrees` (exclusive).
-- clones source with `around_axis = axis` and adjusted `angle_degrees`, IDs `source__cirN`.
-- chains primary boolean reference to previous instance.
+Synthesized IDs:
+- `source__lin1`, `source__lin2`, ... `source__linN`
 
-Pattern expansion is compile-time document transformation before lowering/execution.
+Reference chaining:
+- each generated boolean rebinds its primary reference (`from`/`to`/`left`) to the previous instance ID
+- first generated instance references original `source`
+
+So generated instances are sequential composition, not independent clones from root.
+
+### `pattern_circular`
+
+Required:
+- `count` positive integer
+- `axis` selector
+- exactly one of `angle_degrees` (span) or `angle_step_degrees`
+
+Expansion behavior:
+- synthesized IDs: `source__cir1..source__cirN`
+- cloned placement injects `around_axis = axis`
+- `radial_offset` defaults to `0` if absent on source placement
+- angle per instance uses either explicit step or `span / count`
+- base source placement angle (if any) is included
+
+Also chains primary boolean reference sequentially like linear pattern.
+
+---
+
+## When pattern expansion happens
+
+Pattern expansion occurs during document coherence validation, before lowering/execution/export body selection.
+
+After expansion, downstream stages operate on concrete generated boolean entries as if authored directly.

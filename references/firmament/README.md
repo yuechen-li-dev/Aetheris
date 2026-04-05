@@ -1,6 +1,6 @@
 # Firmament Reference Corpus (LLM Authoring)
 
-This folder is the canonical, implementation-grounded Firmament reference pass for **LLM authors**.
+This folder is the canonical, implementation-grounded Firmament reference for **LLM authors**.
 
 Goal: let a fresh model write correct Firmament without guessing hidden semantics.
 
@@ -13,6 +13,7 @@ Goal: let a fresh model write correct Firmament without guessing hidden semantic
 5. `05-booleans-safe-families-patterns.md`
 6. `06-supported-vs-deferred.md`
 7. `07-semantic-mismatches-and-gotchas.md`
+8. `08-worked-examples.md`
 
 ## Scope
 

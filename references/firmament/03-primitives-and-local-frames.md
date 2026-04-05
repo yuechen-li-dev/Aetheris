@@ -1,93 +1,181 @@
-# Primitive Definitions, Parameters, and Local Frames
+# Primitive Definitions, Parameters, and Default Spatial Frames
 
-This section defines each currently supported primitive, required fields, constraints, and default spatial frame behavior.
+This file is the spatial ground truth for primitive authoring.
+
+Use it when you need to answer:
+- where a primitive exists **before** placement,
+- what point acts as its effective placement anchor,
+- what its default world-space Z span is with no `place` block,
+- how placement math composes with default-frame corrections.
 
 ## Common primitive rules
 
-All primitives require:
-
+All primitive ops require:
 - `op`
 - `id` (non-empty scalar)
 
 Optional:
+- `place` block (legacy anchor+offset or semantic subset)
 
-- `place` block (legacy or semantic placement)
+All feature IDs must be unique and referencable by later ops.
+
+---
+
+## Default-frame model used by execution
+
+Primitive execution applies transforms in this order:
+
+1. Create raw primitive body in kernel-local coordinates.
+2. Apply primitive default local-frame publish transform (`box/cylinder/cone` only).
+3. Apply placement translation from `FirmamentPlacementResolver`.
+
+For primitives only, placement translation includes an extra local-frame correction for:
+- `sphere`: `+radius` on Z
+- `torus`: `+minor_radius` on Z
+
+No primitive-local correction is applied in placement resolver for `box`, `cylinder`, or `cone`.
+
+---
 
 ## `box`
 
-Fields:
+### Required fields
+- `size[3]` (numeric, each `> 0`)
 
-- `size[3]` required; all components numeric and `> 0`.
+### Raw body (before default frame)
+`BrepPrimitives.CreateBox(sizeX,sizeY,sizeZ)` produces a box centered on origin:
+- `x ∈ [-sizeX/2, +sizeX/2]`
+- `y ∈ [-sizeY/2, +sizeY/2]`
+- `z ∈ [-sizeZ/2, +sizeZ/2]`
 
-Semantics:
+### Default publish transform
+Execution applies `+sizeZ/2` in Z.
 
-- Dimensions interpreted as X, Y, Z extents.
-- Underlying primitive is created at origin then translated by `+sizeZ/2` in Z as default local-frame publish transform.
-- Published default body occupies approximately `z ∈ [0, sizeZ]` (before additional `place` translation).
+### Final default span with no `place`
+- `x ∈ [-sizeX/2, +sizeX/2]`
+- `y ∈ [-sizeY/2, +sizeY/2]`
+- `z ∈ [0, sizeZ]`
+
+### Effective placement anchor intuition
+Without placement, the bottom face lies on `z=0`. With selector-based placement on another top face, the box bottom lands on the anchor plane.
+
+---
 
 ## `cylinder`
 
-Fields:
+### Required fields
+- `radius` (`> 0`)
+- `height` (`> 0`)
 
-- `radius` required, numeric `> 0`
-- `height` required, numeric `> 0`
+### Raw body (before default frame)
+`BrepPrimitives.CreateCylinder(radius,height)` is axis-aligned on Z and symmetric around `z=0`.
 
-Semantics:
+### Default publish transform
+Execution applies `+height/2` in Z.
 
-- Axis is Z-axis in default construction.
-- Underlying primitive then translated by `+height/2` in Z in publish path.
-- Published default cylinder spans approximately `z ∈ [0, height]`.
+### Final default span with no `place`
+- axis stays parallel to global Z
+- bottom cap at `z=0`
+- top cap at `z=height`
+
+### Effective placement anchor intuition
+Placement anchoring tends to align the cylinder bottom cap to the anchor Z when `offset[2]=0`.
+
+---
 
 ## `cone`
 
-Fields:
+### Required fields
+- `bottom_radius` (`>= 0`)
+- `top_radius` (`>= 0`)
+- `height` (`> 0`)
 
-- `bottom_radius` required, numeric `>= 0`
-- `top_radius` required, numeric `>= 0`
-- `height` required, numeric `> 0`
+### Constraints
+- Radii cannot both be zero.
+- If both radii are positive, they must be different (`bottom_radius != top_radius`).
 
-Constraints:
+### Raw body construction arithmetic
+Cone creation performs two internal transforms:
+1. Revolve profile points `(bottom_radius,0)` → `(top_radius,height)` around Z.
+2. Immediately translate by `-height/2` in Z inside `ExecuteCone`.
 
-- Not both radii zero.
-- If both radii > 0, they must be unequal.
+Then primitive publish applies `+height/2` in Z (`ApplyDefaultLocalFrame`).
 
-Semantics:
+These two shifts cancel exactly.
 
-- Built via revolve profile along Z.
-- Cone execution path recenters during construction then publish path applies `+height/2` Z shift.
-- Published default cone occupies base/top along Z consistent with `z ∈ [0, height]` envelope.
+### Final default span with no `place`
+Cone cap plane origins land at:
+- lower cap: `z=0`
+- upper cap: `z=height`
+
+This holds for frustum and pointed variants (one cap may be absent when a radius is zero, but span arithmetic still uses `[0,height]`).
+
+### Effective placement anchor intuition
+Cone behaves like box/cylinder for vertical anchoring in default frame: placement on a top face with zero offset starts its lower extent at anchor Z.
+
+---
 
 ## `sphere`
 
-Fields:
+### Required fields
+- `radius` (`> 0`)
 
-- `radius` required, numeric `> 0`
+### Raw body (before default frame)
+`BrepPrimitives.CreateSphere(radius)` is centered at origin.
 
-Semantics:
+### Default publish transform
+No shift in `ApplyDefaultLocalFrame`.
 
-- Raw sphere primitive is center-at-origin.
-- Placement resolver applies extra primitive correction `+radius` in Z for primitive placement translation.
-- Net published default center is elevated relative to origin unless placement counteracts it.
+### Placement resolver correction (primitive-specific)
+Primitive placement translation adds `+radius` in Z.
+
+### Final default span with no `place`
+With no `place`, translation resolver returns zero (no placement block), so sphere remains centered at origin:
+- center `(0,0,0)`
+- `z ∈ [-radius,+radius]`
+
+### Important placement consequence
+When a `place` block exists (even zero offset), sphere gets the extra `+radius` Z correction.
+Example: `on: base.top_face` at `z=4`, `radius=3`, zero offset ⇒ center at `z=7` (tangent contact), not `z=4`.
+
+---
 
 ## `torus`
 
-Fields:
+### Required fields
+- `major_radius` (`> 0`)
+- `minor_radius` (`> 0`)
+- `major_radius > minor_radius`
 
-- `major_radius` required, numeric `> 0`
-- `minor_radius` required, numeric `> 0`
-- constraint: `major_radius > minor_radius`
+### Raw body (before default frame)
+`BrepPrimitives.CreateTorus(major,minor)` is centered at origin, axis along Z.
 
-Semantics:
+### Default publish transform
+No shift in `ApplyDefaultLocalFrame`.
 
-- Raw torus primitive centered at origin with axis along Z.
-- Placement resolver applies extra primitive correction `+minor_radius` in Z for primitive placement translation.
+### Placement resolver correction (primitive-specific)
+Primitive placement translation adds `+minor_radius` in Z.
 
-## Selector-port contracts by primitive kind
+### Final default span with no `place`
+With no `place`, torus remains centered at origin:
+- center `(0,0,0)`
+- vertical span `z ∈ [-minor_radius,+minor_radius]`
+
+### Important placement consequence
+When a `place` block exists, torus gets the extra `+minor_radius` correction.
+Example: anchor on `z=4`, `minor_radius=2`, zero offset ⇒ center at `z=6`.
+
+---
+
+## Selector-port contracts by feature kind
+
+These are compile-time contracts used by placement and validation target checks.
 
 - Box: `top_face`, `bottom_face`, `side_faces`, `edges`, `vertices`
 - Cylinder: `top_face`, `bottom_face`, `side_face`, `circular_edges`, `edges`, `vertices`
 - Cone: `top_face`, `bottom_face`, `side_face`, `circular_edges`, `edges`, `vertices`
 - Sphere: `surface`
 - Torus: `surface`, `edges`, `vertices`
+- Boolean results (`add`/`subtract`/`intersect`): `top_face`, `bottom_face`, `side_faces`, `edges`, `vertices`
 
-These contracts are compile-time selector guards and influence placement/validation legality.
+Boolean result ports are intentionally box-like, not primitive-tool-like.

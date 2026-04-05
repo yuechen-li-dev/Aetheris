@@ -446,6 +446,12 @@ public sealed class FirmamentBuildAndExportTests
         Assert.Equal(60d, maxX - minX, 6);
         Assert.Equal(20d, maxY - minY, 6);
         Assert.Equal(60d, maxZ - minZ, 6);
+        Assert.Equal(0d, minX, 6);
+        Assert.Equal(60d, maxX, 6);
+        Assert.Equal(0d, minY, 6);
+        Assert.Equal(20d, maxY, 6);
+        Assert.Equal(0d, minZ, 6);
+        Assert.Equal(60d, maxZ, 6);
 
         Assert.DoesNotContain("B_SPLINE", build.Value.Export.StepText, StringComparison.Ordinal);
         Assert.DoesNotContain("TOROIDAL_SURFACE", build.Value.Export.StepText, StringComparison.Ordinal);

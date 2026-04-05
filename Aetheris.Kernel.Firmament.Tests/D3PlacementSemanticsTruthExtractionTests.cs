@@ -84,7 +84,7 @@ ops[1]:
     }
 
     [Fact]
-    public void ProbeC_TwoBox_Additive_Union_Uses_Legacy_Boolean_Frames_Then_Applies_Boolean_Placement_To_Result()
+    public void ProbeC_TwoBox_Additive_Union_Uses_PublishedWorld_Primitive_Frames()
     {
         const string source = """
 firmament:
@@ -139,12 +139,6 @@ ops[2]:
         Assert.Equal(new Point3D(0d, 0d, 0d), publishedBaseBounds.Min);
         Assert.Equal(new Point3D(60d, 20d, 10d), publishedBaseBounds.Max);
 
-        var legacyBase = BrepPrimitives.CreateBox(60d, 20d, 10d);
-        Assert.True(legacyBase.IsSuccess);
-        var legacyBaseBounds = GetBounds(legacyBase.Value);
-        Assert.Equal(new Point3D(-30d, -10d, -5d), legacyBaseBounds.Min);
-        Assert.Equal(new Point3D(30d, 10d, 5d), legacyBaseBounds.Max);
-
         var toolBody = FirmamentBooleanToolBodyFactory.CreateBody(addBoolean.Tool);
         Assert.True(toolBody.IsSuccess);
         var toolBounds = GetBounds(toolBody.Value);
@@ -157,16 +151,16 @@ ops[2]:
         Assert.True(translation.IsSuccess);
         Assert.Equal(new Vector3D(5d, 10d, 0d), translation.Value);
 
-        var prePlacementUnion = BrepBoolean.Union(legacyBase.Value, toolBody.Value);
-        Assert.True(prePlacementUnion.IsSuccess);
-        var prePlacementBounds = GetBounds(prePlacementUnion.Value);
-        Assert.Equal(new Point3D(-30d, -10d, -30d), prePlacementBounds.Min);
-        Assert.Equal(new Point3D(30d, 10d, 30d), prePlacementBounds.Max);
+        var publishedToolBounds = (
+            Min: new Point3D(toolBounds.Min.X + translation.Value.X, toolBounds.Min.Y + translation.Value.Y, toolBounds.Min.Z + 30d + translation.Value.Z),
+            Max: new Point3D(toolBounds.Max.X + translation.Value.X, toolBounds.Max.Y + translation.Value.Y, toolBounds.Max.Z + 30d + translation.Value.Z));
+        Assert.Equal(new Point3D(0d, 0d, 0d), publishedToolBounds.Min);
+        Assert.Equal(new Point3D(10d, 20d, 60d), publishedToolBounds.Max);
 
         var publishedBoolean = compilation.Compilation.Value.PrimitiveExecutionResult.ExecutedBooleans.Single(b => b.FeatureId == "bracket").Body;
         var publishedBooleanBounds = GetBounds(publishedBoolean);
-        Assert.Equal(new Point3D(-25d, 0d, -30d), publishedBooleanBounds.Min);
-        Assert.Equal(new Point3D(35d, 20d, 30d), publishedBooleanBounds.Max);
+        Assert.Equal(new Point3D(0d, 0d, 0d), publishedBooleanBounds.Min);
+        Assert.Equal(new Point3D(60d, 20d, 60d), publishedBooleanBounds.Max);
     }
 
     [Fact]

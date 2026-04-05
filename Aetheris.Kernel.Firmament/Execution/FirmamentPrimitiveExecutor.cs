@@ -124,10 +124,39 @@ internal static class FirmamentPrimitiveExecutor
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(toolResult.Diagnostics);
             }
 
-            var useSemanticToolPlacement = ShouldUseSemanticToolPlacement(boolean, baseBody, toolResult.Value);
+            var canUsePublishedFrameAdditiveExecution = boolean.Kind == FirmamentLoweredBooleanKind.Add
+                && boolean.Placement is not null;
+            var usedPublishedFrameAdditiveExecution = false;
+            var useSemanticToolPlacement = !canUsePublishedFrameAdditiveExecution
+                && ShouldUseSemanticToolPlacement(boolean, baseBody, toolResult.Value);
 
             KernelResult<BrepBody> booleanResult;
-            if (useSemanticToolPlacement)
+            if (canUsePublishedFrameAdditiveExecution)
+            {
+                if (!publishedBodiesByFeatureId.TryGetValue(boolean.PrimaryReferenceFeatureId, out var publishedBaseBody))
+                {
+                    continue;
+                }
+
+                var placementResult = FirmamentPlacementResolver.ResolvePlacementTranslation(boolean, publishedBodiesByFeatureId);
+                if (!placementResult.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(placementResult.Diagnostics);
+                }
+
+                var translatedToolBody = TranslateBody(ApplyDefaultToolLocalFrame(boolean.Tool, toolResult.Value), placementResult.Value);
+                booleanResult = ExecuteBoolean(boolean.Kind, publishedBaseBody, translatedToolBody);
+
+                if (booleanResult.IsSuccess)
+                {
+                    usedPublishedFrameAdditiveExecution = true;
+                }
+                else
+                {
+                    booleanResult = ExecuteBoolean(boolean.Kind, baseBody, toolResult.Value);
+                }
+            }
+            else if (useSemanticToolPlacement)
             {
                 var placementResult = FirmamentPlacementResolver.ResolvePlacementTranslation(boolean, publishedBodiesByFeatureId);
                 if (!placementResult.IsSuccess)
@@ -153,7 +182,7 @@ internal static class FirmamentPrimitiveExecutor
             }
 
             var placedBooleanBody = booleanResult.Value;
-            if (!useSemanticToolPlacement)
+            if (!useSemanticToolPlacement && !usedPublishedFrameAdditiveExecution)
             {
                 var placementResult = FirmamentPlacementResolver.ResolvePlacementTranslation(boolean, publishedBodiesByFeatureId);
                 if (!placementResult.IsSuccess)

@@ -1,0 +1,32 @@
+firmament:
+  version: 1
+
+model:
+  name: m13b_unsupported_sealed_pocket_box
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: plate
+    size[3]:
+      90
+      60
+      12
+
+  -
+    op: subtract
+    id: sealed_pocket
+    from: plate
+    with:
+      op: box
+      size[3]:
+        60
+        30
+        6
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -4

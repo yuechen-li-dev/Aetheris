@@ -361,8 +361,18 @@ internal static class FirmamentPrimitiveExecutor
     private static bool ShouldUseSemanticToolPlacement(FirmamentLoweredBoolean boolean, BrepBody baseBody, BrepBody toolBody)
     {
         if (boolean.Placement is null
-            || boolean.Kind != FirmamentLoweredBooleanKind.Subtract
-            || !string.Equals(boolean.Tool.OpName, "cylinder", StringComparison.Ordinal))
+            || boolean.Kind != FirmamentLoweredBooleanKind.Subtract)
+        {
+            return false;
+        }
+
+        if (string.Equals(boolean.Tool.OpName, "box", StringComparison.Ordinal))
+        {
+            return BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out _, out _)
+                && BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(toolBody, ToleranceContext.Default, out _, out _);
+        }
+
+        if (!string.Equals(boolean.Tool.OpName, "cylinder", StringComparison.Ordinal))
         {
             return false;
         }

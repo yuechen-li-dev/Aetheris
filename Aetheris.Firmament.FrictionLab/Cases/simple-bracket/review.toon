@@ -2,15 +2,15 @@ case_id: simple-bracket
 possible: true
 awkwardness: low
 pain_points[1]:
-  - "Canonical FL2i input is deterministic because both prisms are explicitly rooted at origin with fixed dimensions and no mirroring."
+  - "D4 seam fix appears correct here, but authoring still uses explicit numeric placement instead of semantic anchors."
 proposed_features[1]:
-  - "Keep semantic placement references for ergonomics, but preserve this FL2i canonical numeric fixture for regression checks."
-reviewer_verdict: "FL2i enforces a strict canonical L-bracket: exactly two additive axis-aligned boxes with required overlap and no extra arms or features."
+  - "Keep this canonical fixture unchanged as a regression probe for additive world-frame semantics."
+reviewer_verdict: "FL2j rerun after D4 remains successful and semantically correct: exported STEP is a canonical L-bracket in the intended world primitive frame with no recentering drift or cross/T collapse."
 previous_status: success
 current_status: success
-changed: yes
-improved: true
+changed: no
+improved: false
 classification: resolved
-blocker_remaining: "No blocker for this fixture; FL2i geometry is explicitly constrained and unambiguous."
-comparison_to_fl2h: "FL2i replaces prior dimensions/offsets with exact fixed spans (base 60x20x10, upright 10x20x60 at origin) to prevent cross-like interpretations."
-step_artifact_semantic_inspection: "STEP inspection confirms an orthogonal L-bracket with only planar rectangular faces, no triangular faces, no diagonal edges, no negative X/Z extension, and no bilateral X/Z symmetry."
+blocker_remaining: "None for this case; D4 additive-frame semantics hold on rerun."
+comparison_to_fl2i: "No status change relative to FL2i follow-up baseline; FL2j confirms the same intended canonical geometry under the D4 seam fix."
+step_artifact_semantic_inspection: "Direct STEP inspection confirms extents x=[0,60], y=[0,20], z=[0,60], no negative drift, planar-only bracket topology, and no evidence of cross/T collapse."

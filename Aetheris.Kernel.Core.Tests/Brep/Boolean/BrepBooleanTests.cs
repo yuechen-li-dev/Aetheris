@@ -825,7 +825,7 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Subtract_ComposedThroughThenBlindCylinder_ReturnsUnsupportedBlindHoleCompositionDiagnostic()
+    public void Subtract_ComposedThroughThenBlindCylinder_OnPrimitiveRoot_ReturnsBoundedBlindContinuationDiagnostic()
     {
         var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
         var firstHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(-7d, 0d, 6d)));
@@ -837,7 +837,60 @@ public sealed class BrepBooleanTests
         var result = BrepBoolean.Subtract(first.Value, blind);
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Equal("BrepBoolean.AnalyticHole.UnsupportedBlindHoleComposition", diagnostic.Source);
+        Assert.Equal("BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily", diagnostic.Source);
+    }
+
+    [Fact]
+    public void Subtract_RecognizedOrthogonalAdditiveRoot_ComposedThroughThenBlindCylinder_PassesValidatorBoundedFamily()
+    {
+        var composition = new SafeBooleanComposition(
+            new AxisAlignedBoxExtents(-30d, 30d, -15d, 15d, -4d, 44d),
+            [
+                new SupportedBooleanHole(
+                    "base_hole",
+                    new AnalyticSurface(
+                        AnalyticSurfaceKind.Cylinder,
+                        Cylinder: new RecognizedCylinder(
+                            new Point3D(-15d, 0d, -30d),
+                            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+                            0d,
+                            80d,
+                            3.5d)),
+                    -15d,
+                    0d,
+                    new Point3D(-15d, 0d, -4d),
+                    new Point3D(-15d, 0d, 44d),
+                    Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+                    Direction3D.Create(new Vector3D(1d, 0d, 0d)),
+                    3.5d,
+                    3.5d,
+                    SupportedBooleanHoleSpanKind.Through,
+                    -4d,
+                    44d),
+            ],
+            SafeBooleanRootDescriptor.FromBox(new AxisAlignedBoxExtents(-30d, 30d, -15d, 15d, -4d, 44d)),
+            [new AxisAlignedBoxExtents(-30d, 30d, -15d, 15d, -4d, 4d), new AxisAlignedBoxExtents(22d, 30d, -15d, 15d, 4d, 44d)]);
+        var blind = new AnalyticSurface(
+            AnalyticSurfaceKind.Cylinder,
+            Cylinder: new RecognizedCylinder(
+                new Point3D(26d, 0d, 8d),
+                Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+                0d,
+                20d,
+                3.5d));
+
+        var accepted = BrepBooleanSafeCompositionGraphValidator.TryValidateNextSubtract(
+            composition,
+            blind,
+            ToleranceContext.Default,
+            out var updated,
+            out var diagnostic,
+            "upright_hole");
+
+        Assert.True(accepted);
+        Assert.Null(diagnostic);
+        Assert.Equal(2, updated.Holes.Count);
+        Assert.Equal("upright_hole", updated.Holes[1].FeatureId);
     }
 
     [Fact]

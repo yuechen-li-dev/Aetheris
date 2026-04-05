@@ -366,7 +366,7 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
-    public void Run_FrictionLabMountingBracketBasic_ProgressesPastUnrecognizedAdditiveRoot_ToBlindHoleCompositionBlocker()
+    public void Run_FrictionLabMountingBracketBasic_ProgressesToCoaxialStackConstraint()
     {
         var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/mounting-bracket-basic/part.firmament");
         var result = FirmamentBuildAndExport.Run(fullSourcePath);
@@ -375,9 +375,9 @@ public sealed class FirmamentBuildAndExportTests
         Assert.Contains(result.Diagnostics, diagnostic =>
             diagnostic.Message.Contains("Requested boolean feature 'upright_hole' (subtract) could not be executed.", StringComparison.Ordinal));
         Assert.Contains(result.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("cannot append a blind analytic hole to an existing safe subtract composition", StringComparison.Ordinal));
+            diagnostic.Message.Contains("requires coaxial cylinders with matching XY axis centers", StringComparison.Ordinal));
         Assert.DoesNotContain(result.Diagnostics, diagnostic =>
-            string.Equals(diagnostic.Source, "firmament.feature-graph.unrecognized-additive-root", StringComparison.Ordinal));
+            diagnostic.Message.Contains("cannot append a blind analytic hole to an existing safe subtract composition", StringComparison.Ordinal));
     }
 
     [Fact]

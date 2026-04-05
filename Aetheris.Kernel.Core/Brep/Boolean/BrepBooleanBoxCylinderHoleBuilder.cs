@@ -78,7 +78,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             }
         }
 
-        return CreateComposedThroughHoleBody(composition);
+        return CreateComposedThroughHoleBody(composition, tolerance);
     }
 
     private static KernelResult<BrepBody> CreateBoundedCylinderRootHoleChainBody(SafeBooleanComposition composition, ToleranceContext tolerance)
@@ -396,11 +396,13 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
     }
 
-    private static KernelResult<BrepBody> CreateComposedThroughHoleBody(SafeBooleanComposition composition)
+    private static KernelResult<BrepBody> CreateComposedThroughHoleBody(SafeBooleanComposition composition, ToleranceContext tolerance)
     {
         var box = composition.OuterBox;
         var holes = composition.Holes;
-        if (holes.Count > 1 && holes.Any(h => h.IsBlind))
+        if (holes.Count > 1
+            && holes.Any(h => h.IsBlind)
+            && !SupportsBoundedBlindContinuationOnRecognizedOrthogonalAdditiveRoot(composition, tolerance))
         {
             return KernelResult<BrepBody>.Failure([
                 new BooleanDiagnostic(
@@ -408,8 +410,8 @@ public static class BrepBooleanBoxCylinderHoleBuilder
                     BrepBooleanCylinderRecognition.CreateBooleanMessage(
                         BooleanOperation.Subtract.ToString(),
                         null,
-                        "cannot rebuild a composition with more than one blind analytic hole in B1; blind-hole support is limited to single-feature subtracts."),
-                    "BrepBoolean.AnalyticHole.UnsupportedBlindHoleComposition").ToKernelDiagnostic(),
+                        "blind-hole continuation exceeds bounded rebuild support; only recognized orthogonal additive roots with world-Z cylinder/cone hole chains are rebuildable in this milestone."),
+                    "BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily").ToKernelDiagnostic(),
             ]);
         }
 
@@ -1066,6 +1068,35 @@ public static class BrepBooleanBoxCylinderHoleBuilder
 
         builder.AddLoop(new Loop(loopId, coedgeIds));
         return loopId;
+    }
+
+    private static bool SupportsBoundedBlindContinuationOnRecognizedOrthogonalAdditiveRoot(
+        SafeBooleanComposition composition,
+        ToleranceContext tolerance)
+    {
+        if (composition.OccupiedCells is null || composition.OccupiedCells.Count < 2)
+        {
+            return false;
+        }
+
+        foreach (var hole in composition.Holes.Where(h => h.IsBlind))
+        {
+            if (hole.Surface.Kind is not (AnalyticSurfaceKind.Cylinder or AnalyticSurfaceKind.Cone)
+                || !IsAxisAlignedWithWorldZ(hole.Axis, tolerance))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsAxisAlignedWithWorldZ(Direction3D axis, ToleranceContext tolerance)
+    {
+        var v = axis.ToVector();
+        return ToleranceMath.AlmostZero(v.X, tolerance)
+            && ToleranceMath.AlmostZero(v.Y, tolerance)
+            && ToleranceMath.AlmostEqual(System.Math.Abs(v.Z), 1d, tolerance);
     }
 
     private readonly record struct HoleTopology(

@@ -162,6 +162,47 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void OrthogonalUnionBuilder_LineEdgeBindings_UsePhysicalLengths_AndMatchEdgeVertices()
+    {
+        var cells = new[]
+        {
+            new AxisAlignedBoxExtents(0d, 60d, 0d, 20d, 0d, 10d),
+            new AxisAlignedBoxExtents(0d, 10d, 0d, 20d, 0d, 60d),
+        };
+
+        var body = BrepBooleanOrthogonalUnionBuilder.BuildFromCells(cells);
+        Assert.True(body.IsSuccess);
+
+        var hasLongEdge = false;
+        foreach (var edge in body.Value.Topology.Edges)
+        {
+            Assert.True(body.Value.Bindings.TryGetEdgeBinding(edge.Id, out var binding));
+            Assert.NotNull(binding.TrimInterval);
+            Assert.True(body.Value.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve));
+            Assert.Equal(CurveGeometryKind.Line3, curve.Kind);
+
+            Assert.True(body.Value.TryGetVertexPoint(edge.StartVertexId, out var startVertexPoint));
+            Assert.True(body.Value.TryGetVertexPoint(edge.EndVertexId, out var endVertexPoint));
+
+            var expectedLength = (endVertexPoint - startVertexPoint).Length;
+            Assert.Equal(0d, binding.TrimInterval!.Value.Start, 6);
+            Assert.Equal(expectedLength, binding.TrimInterval.Value.End, 6);
+
+            var line = curve.Line3!.Value;
+            var startParameter = binding.OrientedEdgeSense ? binding.TrimInterval.Value.Start : binding.TrimInterval.Value.End;
+            var endParameter = binding.OrientedEdgeSense ? binding.TrimInterval.Value.End : binding.TrimInterval.Value.Start;
+            var startFromCurve = line.Evaluate(startParameter);
+            var endFromCurve = line.Evaluate(endParameter);
+            Assert.True(ArePointsEqual(startFromCurve, startVertexPoint, 1e-6d));
+            Assert.True(ArePointsEqual(endFromCurve, endVertexPoint, 1e-6d));
+
+            hasLongEdge |= expectedLength > 1d + 1e-6d;
+        }
+
+        Assert.True(hasLongEdge);
+    }
+
+    [Fact]
     public void Union_RibWallLikeAdd_Rebuilds_BoundedOrthogonalUnion()
     {
         var basePlate = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 6d, 0d, 4d, 0d, 1d)).Value;
@@ -1518,5 +1559,10 @@ public sealed class BrepBooleanTests
 
         return new BrepBody(body.Topology, geometry, body.Bindings, vertexPoints, body.SafeBooleanComposition);
     }
+
+    private static bool ArePointsEqual(Point3D left, Point3D right, double tolerance)
+        => System.Math.Abs(left.X - right.X) <= tolerance
+           && System.Math.Abs(left.Y - right.Y) <= tolerance
+           && System.Math.Abs(left.Z - right.Z) <= tolerance;
 
 }

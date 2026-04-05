@@ -1,18 +1,16 @@
 case_id: mounting-bracket-basic
-possible: partial
-awkwardness: high
-pain_points[2]:
-  - "Build/export now succeeds, but STEP inspection shows the base-hole intent is not preserved after additive-root continuation."
-  - "Hole locations still require manual offsets with no semantic placement constraints."
-proposed_features[2]:
-  - "Stabilize subtract continuation placement through additive roots so hole frames stay anchored to intended geometry."
-  - "Add face/axis placement references for hole authoring."
-reviewer_verdict: "FL2f rerun changed from FL2e: export now succeeds, but geometry is semantically wrong (base_hole is misplaced from intended base position)."
+possible: true
+awkwardness: medium
+pain_points[1]:
+  - "Authoring still relies on raw origin offsets; semantic face/axis references are still unavailable."
+proposed_features[1]:
+  - "Add face/axis placement references for hole authoring ergonomics."
+reviewer_verdict: "FL2g rerun confirms D1 subtract-placement fidelity fix: export succeeds and both intended holes are semantically correct in the STEP artifact."
 previous_status: partial
-current_status: partial
+current_status: success
 changed: yes
 improved: true
-classification: exported_but_semantically_wrong
-blocker_remaining: "Exported STEP has two cylindrical cuts, but base_hole appears at x=11 instead of the intended base-centered x=-15 offset; this is a root-interpretation/placement mismatch rather than a pure export failure."
-comparison_to_fl2e: "Compared with FL2e (no artifact), FL2f now emits STEP; however direct artifact inspection shows semantic mismatch in hole placement."
-step_artifact_semantic_inspection: "Artifact contains two cylindrical surfaces (r=3.5) centered at (11,0,22) and (26,0,22); first center does not match intended base_hole offset, so result is topologically valid but semantically wrong."
+classification: resolved
+blocker_remaining: "No semantic-fidelity blocker remains for this case; only authoring ergonomics remain awkward."
+comparison_to_fl2f: "Compared with FL2f exported-but-wrong state, FL2g preserves intended base and upright hole placement after additive-root continuation."
+step_artifact_semantic_inspection: "Direct STEP inspection shows cylindrical hole axes centered at (-15,0,*) and (26,0,*), matching intended base_hole and upright_hole offsets for the L-bracket intent."

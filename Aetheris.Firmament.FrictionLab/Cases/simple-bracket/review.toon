@@ -1,17 +1,16 @@
 case_id: simple-bracket
-possible: partial
-awkwardness: high
-pain_points[2]:
-  - "Build/export now succeeds, but STEP inspection indicates the final solid collapses to a single box instead of the intended multi-add bracket."
-  - "Add-chain intent remains fragile because semantic correctness cannot be inferred from export success alone."
+possible: true
+awkwardness: medium
+pain_points[1]:
+  - "Chained additive authoring is still offset-heavy and not self-documenting without semantic references."
 proposed_features[1]:
-  - "Preserve boolean-add semantics for chained bracket unions so resultant topology reflects intended profile."
-reviewer_verdict: "FL2f rerun changed from FL2e: export now succeeds, but the produced geometry is semantically wrong (not the intended bracket form)."
+  - "Add semantic placement references to reduce dependence on cumulative offsets in additive chains."
+reviewer_verdict: "FL2g rerun confirms D1 continued-root union reconstruction fidelity fix: export succeeds and STEP geometry now reflects bracket intent rather than a box-like collapse."
 previous_status: partial
-current_status: partial
+current_status: success
 changed: yes
 improved: true
-classification: exported_but_semantically_wrong
-blocker_remaining: "STEP has one manifold solid with only 6 advanced faces (rectangular prism-like), indicating wrong boolean/add result for the intended bracket shape."
-comparison_to_fl2e: "Compared with FL2e (blocked at second add), FL2f now emits STEP; direct inspection shows topologically valid but semantically incorrect output."
-step_artifact_semantic_inspection: "Artifact exports as MANIFOLD_SOLID_BREP, but no cylindrical features and only 6 ADVANCED_FACE entries are present, matching a simple box rather than the intended L/bracket composition."
+classification: resolved
+blocker_remaining: "No semantic-fidelity blocker remains for this case; remaining friction is authoring ergonomics."
+comparison_to_fl2f: "Compared with FL2f exported-but-wrong state, FL2g produces non-box bracket-like topology consistent with the intended additive composition."
+step_artifact_semantic_inspection: "Direct STEP inspection shows a complex multi-face solid (34 ADVANCED_FACE entries) with distinct x extents for base/upright segments, indicating the intended bracket composition instead of a single rectangular prism."

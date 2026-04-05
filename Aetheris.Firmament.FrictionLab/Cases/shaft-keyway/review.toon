@@ -7,12 +7,12 @@ pain_points[2]:
 proposed_features[2]:
   - "Extend subtract-family support for bounded cylinder-root slot/keyway cuts."
   - "Support cylindrical-face/axis anchoring for shaft features."
-reviewer_verdict: "FL2f rerun is unchanged from FL2e/FL2a: keyway subtract still fails execution in BrepBoolean.RebuildResult."
+reviewer_verdict: "FL2g rerun is unchanged from FL2f: keyway subtract still fails execution in BrepBoolean.RebuildResult."
 previous_status: failure
 current_status: failure
 changed: no
 improved: false
 classification: unchanged_kernel_blocker
 blocker_remaining: "Boolean feature 'keyway' (subtract): sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family."
-comparison_to_fl2e: "No status or diagnostic class change relative to FL2e."
+comparison_to_fl2f: "No status or diagnostic class change relative to FL2f."
 step_artifact_semantic_inspection: "Not applicable: export did not succeed; no STEP artifact generated."

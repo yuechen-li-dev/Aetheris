@@ -211,7 +211,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     }
 
     [Fact]
-    public void CylinderRootKeywayPressureCase_Fails_WithExplicitCenterlineSubsetDiagnostic()
+    public void CylinderRootKeywayPressureCase_Fails_WithExplicitOpenSlotRebuildDiagnostic()
     {
         var source = FirmamentCorpusHarness.ReadFixtureText("Aetheris.Firmament.FrictionLab/Cases/shaft-keyway/part.firmament");
         var result = FirmamentCorpusHarness.Compile(source);
@@ -220,7 +220,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Code == KernelDiagnosticCode.NotImplemented
             && diagnostic.Source == "BrepBoolean.RebuildResult"
-            && diagnostic.Message.Contains("bounded keyway family excludes centerline-spanning trenches", StringComparison.Ordinal));
+            && diagnostic.Message.Contains("bounded cylinder-root keyway family is recognized", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -266,6 +266,51 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             diagnostic.Code == KernelDiagnosticCode.NotImplemented
             && diagnostic.Source == "BrepBoolean.RebuildResult"
             && diagnostic.Message.Contains("requires a through slot that spans both cylinder end caps", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CylinderRootKeywayOutsideBoundedSubset_Fails_WhenToolCutsThroughFarSideWall()
+    {
+        const string source = """
+        firmament:
+          version: 1
+
+        model:
+          name: keyway_far_side_cut_outside_subset
+          units: mm
+
+        ops[2]:
+          -
+            op: cylinder
+            id: shaft
+            radius: 15
+            height: 80
+
+          -
+            op: subtract
+            id: deep_keyway
+            from: shaft
+            with:
+              op: box
+              size[3]:
+                40
+                6
+                90
+            place:
+              on: origin
+              offset[3]:
+                0
+                0
+                0
+        """;
+
+        var result = FirmamentCorpusHarness.Compile(source);
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Source == "BrepBoolean.RebuildResult"
+            && diagnostic.Message.Contains("requires a single exterior mouth and cannot cut through the far-side cylindrical wall", StringComparison.Ordinal));
     }
 
     public static TheoryData<string, string, string> UnsupportedBoxTorusVariantSources =>

@@ -826,10 +826,11 @@ public static class BrepBoolean
             return false;
         }
 
-        if (ContainsPoint(toolBox.MinX, toolBox.MaxX, rootCenterX, tolerance)
-            && ContainsPoint(toolBox.MinY, toolBox.MaxY, rootCenterY, tolerance))
+        var reachesFarSideWall = ContainsPoint(toolBox.MinX, toolBox.MaxX, rootCenterX - rootCylinder.Radius, tolerance)
+            && ContainsPoint(toolBox.MinY, toolBox.MaxY, rootCenterY, tolerance);
+        if (reachesFarSideWall)
         {
-            unsupportedReason = "Boolean Subtract: bounded keyway family excludes centerline-spanning trenches; slot must remain one-sided off-axis.";
+            unsupportedReason = "Boolean Subtract: bounded keyway family requires a single exterior mouth and cannot cut through the far-side cylindrical wall.";
             return false;
         }
 

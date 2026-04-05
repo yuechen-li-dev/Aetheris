@@ -439,6 +439,22 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_CylinderRootCenterlineKeyway_ProgressesToExplicitOpenSlotRebuildBlocker()
+    {
+        var shaft = BrepPrimitives.CreateCylinder(15d, 80d).Value;
+        var keywayTool = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(5d, 15d, -3d, 3d, -45d, 45d)).Value;
+
+        var result = BrepBoolean.Subtract(shaft, keywayTool);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal(
+            "Boolean Subtract: bounded cylinder-root keyway family is recognized (single world-Z through rectangular slot), but rebuild/export for open-slot topology is not implemented yet.",
+            diagnostic.Message);
+    }
+
+    [Fact]
     public void Subtract_CylinderRootCenterBore_Exports_And_RoundTrips_Deterministically()
     {
         var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;

@@ -48,10 +48,15 @@ This file is the capability boundary for LLM authoring.
 Execution semantics:
 - `expect_exists`: executes for feature-id and selector targets.
 - `expect_selectable`: selector targets only (bare feature-id not supported at execution).
+  - `count` is an exact-match expectation (`resolved_count == count`), not a minimum.
+  - `count: 0` currently means "expect selector resolves to no elements" and passes only when resolved count is zero.
+  - failures add warning diagnostics; they do not stop primitive/boolean execution.
 - `expect_manifold`: bare feature-id only (selector target not supported at execution).
 
 ### Export semantics
 - Export body policy is fixed: last successfully executed geometric body by source op index.
+  - Failed later booleans do not invalidate earlier successful bodies.
+  - Partial execution can still produce a valid STEP file that silently omits intended later features.
 - Validation ops never become export bodies.
 - Output STEP text represents the selected body in world coordinates after all default-frame and placement transforms already applied.
 - Firmament world coordinates map directly to STEP geometry coordinates (no additional global remap in exporter).

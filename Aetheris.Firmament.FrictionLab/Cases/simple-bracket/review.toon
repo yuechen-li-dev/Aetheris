@@ -2,15 +2,15 @@ case_id: simple-bracket
 possible: true
 awkwardness: low
 pain_points[1]:
-  - "Canonical orthogonal L-bracket is explicit and stable, but placement still depends on numeric offsets."
+  - "Canonical FL2i input is deterministic because both prisms are explicitly rooted at origin with fixed dimensions and no mirroring."
 proposed_features[1]:
-  - "Add semantic placement references so overlapping prisms can be anchored without manual origin offsets."
-reviewer_verdict: "FL2h normalizes simple-bracket to a canonical orthogonal L-bracket: two axis-aligned rectangular prisms, additive union only, single connected solid intent."
+  - "Keep semantic placement references for ergonomics, but preserve this FL2i canonical numeric fixture for regression checks."
+reviewer_verdict: "FL2i enforces a strict canonical L-bracket: exactly two additive axis-aligned boxes with required overlap and no extra arms or features."
 previous_status: success
 current_status: success
 changed: yes
 improved: true
 classification: resolved
-blocker_remaining: "No blocker in this case definition; geometry intent is now explicit and unambiguous."
-comparison_to_fl2g: "FL2h replaces the prior ambiguous multi-add shape with a strict two-prism orthogonal L-bracket baseline for deterministic geometry debugging."
-step_artifact_semantic_inspection: "Direct STEP inspection confirms the exported solid remains an orthogonal L-bracket with only planar axis-aligned faces and no diagonal/triangular/non-orthogonal surfaces."
+blocker_remaining: "No blocker for this fixture; FL2i geometry is explicitly constrained and unambiguous."
+comparison_to_fl2h: "FL2i replaces prior dimensions/offsets with exact fixed spans (base 60x20x10, upright 10x20x60 at origin) to prevent cross-like interpretations."
+step_artifact_semantic_inspection: "STEP inspection confirms an orthogonal L-bracket with only planar rectangular faces, no triangular faces, no diagonal edges, no negative X/Z extension, and no bilateral X/Z symmetry."

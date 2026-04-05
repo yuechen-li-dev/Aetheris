@@ -392,35 +392,67 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
-    public void Run_FrictionLabSimpleBracket_ExportedStep_Remains_NonBox_LShape()
+    public void Run_FrictionLabSimpleBracket_ExportedStep_Matches_FL2i_Canonical_LShape_Constraints()
     {
-        var sourceText = File.ReadAllText(
-            Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/simple-bracket/part.firmament"),
-            Encoding.UTF8);
-        var compiler = new FirmamentCompiler();
-        var compilation = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText))).Compilation;
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/simple-bracket/part.firmament");
+        var build = FirmamentBuildAndExport.Run(fullSourcePath);
 
-        Assert.True(compilation.IsSuccess, string.Join(Environment.NewLine, compilation.Diagnostics.Select(d => d.Message)));
-        var finalBody = Assert.Single(compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans, b => b.FeatureId == "bracket").Body;
-        Assert.False(Aetheris.Kernel.Core.Brep.Boolean.BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(finalBody, Aetheris.Kernel.Core.Numerics.ToleranceContext.Default, out _, out _));
+        Assert.True(build.IsSuccess, string.Join(Environment.NewLine, build.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("bracket", build.Value.Export.ExportedFeatureId);
+        Assert.Equal("boolean", build.Value.Export.ExportedBodyCategory);
+        Assert.Equal("add", build.Value.Export.ExportedFeatureKind);
 
-        var planarFaces = finalBody.Topology.Faces
-            .Select(face =>
-            {
-                finalBody.TryGetFaceSurfaceGeometry(face.Id, out var surface);
-                return surface;
-            })
-            .Where(surface => surface?.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane)
-            .Select(surface => surface!.Plane!.Value)
+        Assert.DoesNotContain("TRIANGULATED_FACE_SET", build.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.True(CountOccurrences(build.Value.Export.StepText, "ADVANCED_FACE") > 6);
+
+        var sourceText = File.ReadAllText(fullSourcePath, Encoding.UTF8);
+        Assert.Contains("ops[2]", sourceText, StringComparison.Ordinal);
+        Assert.Contains(@"size[3]:
+      60
+      20
+      10", sourceText, StringComparison.Ordinal);
+        Assert.Contains(@"size[3]:
+        10
+        20
+        60", sourceText, StringComparison.Ordinal);
+        Assert.Contains(@"offset[3]:
+        55
+        10
+        5", sourceText, StringComparison.Ordinal);
+        Assert.Contains(@"offset[3]:
+        5
+        10
+        30", sourceText, StringComparison.Ordinal);
+        Assert.DoesNotContain("op: subtract", sourceText, StringComparison.Ordinal);
+
+        var pointPattern = new System.Text.RegularExpressions.Regex(
+            @"CARTESIAN_POINT\([^\)]*\(([-0-9.E+]+),([-0-9.E+]+),([-0-9.E+]+)\)\)",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+        var points = pointPattern.Matches(build.Value.Export.StepText)
+            .Select(match => (
+                X: double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture),
+                Y: double.Parse(match.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture),
+                Z: double.Parse(match.Groups[3].Value, System.Globalization.CultureInfo.InvariantCulture)))
             .ToArray();
+        Assert.NotEmpty(points);
 
-        Assert.Contains(planarFaces, plane => Math.Abs(plane.Normal.ToVector().X) > 0.9d && Math.Abs(plane.Origin.X + 50d) < 1e-6d);
-        Assert.True(planarFaces.Length > 6, "Simple bracket must not collapse to a six-face bounding box.");
+        var minX = points.Min(p => p.X);
+        var maxX = points.Max(p => p.X);
+        var minY = points.Min(p => p.Y);
+        var maxY = points.Max(p => p.Y);
+        var minZ = points.Min(p => p.Z);
+        var maxZ = points.Max(p => p.Z);
 
-        var export = FirmamentStepExporter.Export(compilation.Value);
-        Assert.True(export.IsSuccess, string.Join(Environment.NewLine, export.Diagnostics.Select(d => d.Message)));
-        Assert.True(CountOccurrences(export.Value.StepText, "ADVANCED_FACE") > 6);
+        Assert.Equal(60d, maxX - minX, 6);
+        Assert.Equal(20d, maxY - minY, 6);
+        Assert.Equal(60d, maxZ - minZ, 6);
+
+        Assert.DoesNotContain("B_SPLINE", build.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("TOROIDAL_SURFACE", build.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("CONICAL_SURFACE", build.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("SPHERICAL_SURFACE", build.Value.Export.StepText, StringComparison.Ordinal);
     }
+
 
     [Fact]
     public void Run_FrictionLabMountingBracketBasic_ContinuedRoot_SubtractPlacement_Uses_World_Frame()

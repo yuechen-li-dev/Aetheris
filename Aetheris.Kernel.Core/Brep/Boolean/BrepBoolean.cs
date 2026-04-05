@@ -326,6 +326,32 @@ public static class BrepBoolean
 
         if (operation == BooleanOperation.Union)
         {
+            string? additiveUnsupportedReason = null;
+            if (intersections.Analysis.LeftSafeComposition is { OccupiedCells.Count: > 0 } leftComposition
+                && TryClassifyBoundedOrthogonalUnionWithExistingRoot(leftComposition, right, tolerance, out var additiveComposition, out additiveUnsupportedReason))
+            {
+                return new BooleanClassificationData(
+                    intersections,
+                    IsComputed: true,
+                    FragmentCount: 1,
+                    SingleBoxResult: null,
+                    SafeCompositionResult: additiveComposition,
+                    UnsupportedReason: null,
+                    OrthogonalUnionCells: additiveComposition.OccupiedCells);
+            }
+
+            if (intersections.Analysis.LeftSafeComposition is { OccupiedCells.Count: > 0 }
+                && additiveUnsupportedReason is not null)
+            {
+                return new BooleanClassificationData(
+                    intersections,
+                    IsComputed: true,
+                    FragmentCount: 0,
+                    SingleBoxResult: null,
+                    SafeCompositionResult: null,
+                    UnsupportedReason: additiveUnsupportedReason);
+            }
+
             if (left.ApproximatelyEquals(right, tolerance))
             {
                 return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: left, SafeCompositionResult: null, UnsupportedReason: null);

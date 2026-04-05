@@ -391,6 +391,82 @@ public sealed class FirmamentBuildAndExportTests
         Assert.Contains("MANIFOLD_SOLID_BREP", result.Value.Export.StepText, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Run_FrictionLabSimpleBracket_ExportedStep_Remains_NonBox_LShape()
+    {
+        var sourceText = File.ReadAllText(
+            Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/simple-bracket/part.firmament"),
+            Encoding.UTF8);
+        var compiler = new FirmamentCompiler();
+        var compilation = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText))).Compilation;
+
+        Assert.True(compilation.IsSuccess, string.Join(Environment.NewLine, compilation.Diagnostics.Select(d => d.Message)));
+        var finalBody = Assert.Single(compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans, b => b.FeatureId == "bracket").Body;
+        Assert.False(Aetheris.Kernel.Core.Brep.Boolean.BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(finalBody, Aetheris.Kernel.Core.Numerics.ToleranceContext.Default, out _, out _));
+
+        var planarFaces = finalBody.Topology.Faces
+            .Select(face =>
+            {
+                finalBody.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return surface;
+            })
+            .Where(surface => surface?.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane)
+            .Select(surface => surface!.Plane!.Value)
+            .ToArray();
+
+        Assert.Contains(planarFaces, plane => Math.Abs(plane.Normal.ToVector().X) > 0.9d && Math.Abs(plane.Origin.X + 12d) < 1e-6d);
+        Assert.True(planarFaces.Length > 6, "Simple bracket must not collapse to a six-face bounding box.");
+
+        var export = FirmamentStepExporter.Export(compilation.Value);
+        Assert.True(export.IsSuccess, string.Join(Environment.NewLine, export.Diagnostics.Select(d => d.Message)));
+        Assert.True(CountOccurrences(export.Value.StepText, "ADVANCED_FACE") > 6);
+    }
+
+    [Fact]
+    public void Run_FrictionLabMountingBracketBasic_ContinuedRoot_SubtractPlacement_Uses_World_Frame()
+    {
+        var sourceText = File.ReadAllText(
+            Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/mounting-bracket-basic/part.firmament"),
+            Encoding.UTF8);
+        var compiler = new FirmamentCompiler();
+        var compilation = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText))).Compilation;
+
+        Assert.True(compilation.IsSuccess, string.Join(Environment.NewLine, compilation.Diagnostics.Select(d => d.Message)));
+        var finalBody = Assert.Single(compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans, b => b.FeatureId == "upright_hole").Body;
+        Assert.NotNull(finalBody.SafeBooleanComposition);
+        var composition = finalBody.SafeBooleanComposition!;
+        Assert.Equal(2, composition.Holes.Count);
+
+        Assert.Contains(composition.Holes, hole => Math.Abs(hole.CenterX + 15d) < 1e-6d && Math.Abs(hole.CenterY) < 1e-6d);
+        Assert.Contains(composition.Holes, hole => Math.Abs(hole.CenterX - 26d) < 1e-6d && Math.Abs(hole.CenterY) < 1e-6d);
+    }
+
+    [Fact]
+    public void Run_FrictionLabMountingBracketBasic_ExportedStep_Holes_Are_At_Intended_X_Positions()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/mounting-bracket-basic/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        var import = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(result.Value.Export.StepText);
+        Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
+
+        var cylinderOriginsX = import.Value.Topology.Faces
+            .Select(face =>
+            {
+                import.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return surface;
+            })
+            .Where(surface => surface?.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder)
+            .Select(surface => surface!.Cylinder!.Value.Origin.X)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToArray();
+
+        Assert.Contains(cylinderOriginsX, x => Math.Abs(x + 15d) < 1e-6d);
+        Assert.Contains(cylinderOriginsX, x => Math.Abs(x - 26d) < 1e-6d);
+    }
+
     [Theory]
     [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-add-cylinder.firmament", "m10j-unsupported-box-add-cylinder.step", "joined", "add")]
     [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "m10j-unsupported-box-intersect-cylinder.step", "overlap", "intersect")]
@@ -475,4 +551,17 @@ public sealed class FirmamentBuildAndExportTests
            || message.Contains("Boolean feature", StringComparison.Ordinal)
            || message.Contains("analytic hole surface kind", StringComparison.Ordinal)
            || message.Contains("fully enclosed spherical cavity", StringComparison.Ordinal);
+
+    private static int CountOccurrences(string value, string token)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = value.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+
+        return count;
+    }
 }

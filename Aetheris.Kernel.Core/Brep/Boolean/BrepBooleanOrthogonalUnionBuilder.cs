@@ -103,8 +103,19 @@ public static class BrepBooleanOrthogonalUnionBuilder
                 ]);
             }
 
+            var topologicalEdge = builder.Model.GetEdge(edgeId);
+            var startMatchesTopologicalStart =
+                vertexPoints.TryGetValue(topologicalEdge.StartVertexId, out var topologicalStartPoint)
+                && topologicalStartPoint.X.Equals(endpoints.Start.X)
+                && topologicalStartPoint.Y.Equals(endpoints.Start.Y)
+                && topologicalStartPoint.Z.Equals(endpoints.Start.Z);
+
             geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromLine(new Line3Curve(start, Direction3D.Create(direction))));
-            edgeBindings.Add(new EdgeGeometryBinding(edgeId, new CurveGeometryId(curveId), new ParameterInterval(0d, 1d)));
+            edgeBindings.Add(new EdgeGeometryBinding(
+                edgeId,
+                new CurveGeometryId(curveId),
+                new ParameterInterval(0d, length),
+                OrientedEdgeSense: startMatchesTopologicalStart));
             curveId++;
         }
 

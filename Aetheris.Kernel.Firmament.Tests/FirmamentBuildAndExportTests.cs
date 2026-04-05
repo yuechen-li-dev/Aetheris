@@ -452,6 +452,8 @@ public sealed class FirmamentBuildAndExportTests
         Assert.Equal(20d, maxY, 6);
         Assert.Equal(0d, minZ, 6);
         Assert.Equal(60d, maxZ, 6);
+        Assert.DoesNotContain(points, p => ArePointWithinTolerance(p, 1d, 0d, 10d, 1e-6d));
+        Assert.DoesNotContain(points, p => ArePointWithinTolerance(p, 0d, 20d, 1d, 1e-6d));
 
         Assert.DoesNotContain("B_SPLINE", build.Value.Export.StepText, StringComparison.Ordinal);
         Assert.DoesNotContain("TOROIDAL_SURFACE", build.Value.Export.StepText, StringComparison.Ordinal);
@@ -614,4 +616,9 @@ public sealed class FirmamentBuildAndExportTests
 
         return count;
     }
+
+    private static bool ArePointWithinTolerance((double X, double Y, double Z) point, double x, double y, double z, double tolerance)
+        => Math.Abs(point.X - x) <= tolerance
+           && Math.Abs(point.Y - y) <= tolerance
+           && Math.Abs(point.Z - z) <= tolerance;
 }

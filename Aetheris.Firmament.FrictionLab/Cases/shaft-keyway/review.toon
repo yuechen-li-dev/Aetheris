@@ -1,18 +1,16 @@
 case_id: shaft-keyway
 possible: true
 awkwardness: medium
-pain_points[2]:
-  - "Keyway subtract remains outside the supported sequential safe subtract family on cylinder roots."
-  - "No semantic keyway primitive/reference exists; authoring remains offset-driven."
-proposed_features[2]:
-  - "Extend subtract-family support for bounded cylinder-root slot/keyway cuts."
-  - "Support cylindrical-face/axis anchoring for shaft features."
-reviewer_verdict: "FL2j rerun after D4 is unchanged: keyway subtract still fails in kernel rebuild and no STEP artifact is produced."
+pain_points[1]:
+  - "Keyway remains offset-driven without semantic cylindrical-face anchoring in authoring."
+proposed_features[1]:
+  - "Optional future semantic cylindrical anchor references for shaft features."
+reviewer_verdict: "FL3 rerun after F5/S3 now exports and is semantically correct for the cylinder-root open-slot keyway intent."
 previous_status: failure
-current_status: failure
-changed: no
-improved: false
-classification: unchanged_kernel_blocker
-blocker_remaining: "Boolean feature 'keyway' (subtract): sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family."
-comparison_to_fl2g: "No status or blocker-class change relative to FL2g."
-step_artifact_semantic_inspection: "Not applicable: export did not succeed; no STEP artifact generated for semantic inspection."
+current_status: success
+changed: yes
+improved: true
+classification: resolved
+if_changed_why: "Cylinder-root open-slot/keyway subtract family now supports this topology and exports through STEP."
+if_unchanged_blocker: "n/a"
+step_artifact_semantic_inspection: "Direct STEP inspection shows cylindrical root surface (radius 15) with keyway slot planes and end-face notch boundaries (6 ADVANCED_FACE total), consistent with an open-slot keywayed shaft."

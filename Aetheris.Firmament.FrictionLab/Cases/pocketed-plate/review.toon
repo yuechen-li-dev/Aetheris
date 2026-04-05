@@ -1,18 +1,16 @@
 case_id: pocketed-plate
-possible: partial
-awkwardness: medium
-pain_points[2]:
-  - "Pocket intent is still expressed as box subtraction and remains blocked by subtract rebuild representability."
-  - "Top-face anchored pocket semantics are still absent from production authoring flow."
-proposed_features[2]:
-  - "Support pocket-like subtract representability beyond single-box rebuild constraints."
-  - "Add feature references for top-face anchored depth cuts."
-reviewer_verdict: "FL2j rerun after D4 is unchanged: pocket subtract still fails execution and no STEP artifact is produced."
+possible: true
+awkwardness: low
+pain_points[1]:
+  - "Pocket intent is still encoded as a generic box subtract rather than first-class pocket syntax."
+proposed_features[1]:
+  - "Optional future authoring sugar for top-face pocket depth features."
+reviewer_verdict: "FL3 rerun after F5/S3 now exports and is semantically correct for the intended open-mouth orthogonal pocket."
 previous_status: partial
-current_status: partial
-changed: no
-improved: false
-classification: unchanged_kernel_blocker
-blocker_remaining: "Boolean feature 'pocket' (subtract): bounded orthogonal pocket family requires subtract box to open to exactly one exterior root face; fully enclosed cavities remain deferred."
-comparison_to_fl2g: "No status change relative to FL2g; blocker remains BrepBoolean.RebuildResult enclosed/open-mouth pocket classification and representability gate."
-step_artifact_semantic_inspection: "Not applicable: export did not succeed; no STEP artifact generated for semantic inspection."
+current_status: success
+changed: yes
+improved: true
+classification: resolved
+if_changed_why: "Bounded open-mouth orthogonal pocket family now executes this subtract and exports STEP."
+if_unchanged_blocker: "n/a"
+step_artifact_semantic_inspection: "Direct STEP inspection shows a single closed shell with planar pocket topology (14 ADVANCED_FACE), including interior pocket walls/floor opening to the top face as intended."

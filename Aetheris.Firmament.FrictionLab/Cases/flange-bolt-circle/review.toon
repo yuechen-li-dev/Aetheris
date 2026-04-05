@@ -2,12 +2,12 @@ case_id: flange-bolt-circle
 possible: true
 awkwardness: medium
 pain_points[2]:
-  - "Bolt circle requires fully manual repeated operations and hard-coded angles."
-  - "No pattern abstraction for circular feature arrays."
+  - "Bolt-circle authoring still depends on manually chained operations and angular placement bookkeeping."
+  - "Overlapping/interfering cylinder-root hole chains remain unsupported in this sequence."
 proposed_features[2]:
-  - "Polar pattern operation for repeated cuts around an axis."
-  - "Parameter blocks for shared hole dimensions."
-reviewer_verdict: "Rerun confirms geometry-first validation no longer blocks entry; execution still fails on overlapping hole-chain interference."
+  - "Polar pattern ergonomics for repeated cuts around an axis."
+  - "Kernel support for overlapping/intersecting cylinder-root hole-chain execution where geometrically valid."
+reviewer_verdict: "FL3 rerun after F5/S3 is unchanged: execution still fails at bolt_0 before export."
 previous_status: failure
 current_status: failure
 changed: no
@@ -15,3 +15,4 @@ improved: false
 classification: unchanged_kernel_blocker
 if_changed_why: "n/a"
 if_unchanged_blocker: "Boolean feature 'bolt_0' (subtract) overlaps previously accepted hole; overlapping cylinder-root hole chains are not supported."
+step_artifact_semantic_inspection: "Not applicable: export failed; no STEP artifact generated."

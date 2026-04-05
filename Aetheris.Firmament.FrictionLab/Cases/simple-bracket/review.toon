@@ -2,15 +2,15 @@ case_id: simple-bracket
 possible: true
 awkwardness: low
 pain_points[1]:
-  - "D4 seam fix appears correct here, but authoring still uses explicit numeric placement instead of semantic anchors."
+  - "Authoring remains numeric-offset driven; semantic anchors would still reduce placement bookkeeping."
 proposed_features[1]:
   - "Keep this canonical fixture unchanged as a regression probe for additive world-frame semantics."
-reviewer_verdict: "FL2j rerun after D4 remains successful and semantically correct: exported STEP is a canonical L-bracket in the intended world primitive frame with no recentering drift or cross/T collapse."
+reviewer_verdict: "FL3 rerun after F5/S3 remains successful and semantically correct."
 previous_status: success
 current_status: success
 changed: no
 improved: false
 classification: resolved
-blocker_remaining: "None for this case; D4 additive-frame semantics hold on rerun."
-comparison_to_fl2i: "No status change relative to FL2i follow-up baseline; FL2j confirms the same intended canonical geometry under the D4 seam fix."
-step_artifact_semantic_inspection: "Direct STEP inspection confirms extents x=[0,60], y=[0,20], z=[0,60], no negative drift, planar-only bracket topology, and no evidence of cross/T collapse."
+if_changed_why: "n/a"
+if_unchanged_blocker: "None; execution and exported geometry match case intent."
+step_artifact_semantic_inspection: "Direct STEP inspection: single closed shell with planar bracket topology, 10 ADVANCED_FACE entries, and world extents consistent with intended L-bracket envelope (x=0..60, y=0..20, z=0..60)."

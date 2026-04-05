@@ -2,15 +2,15 @@ case_id: mounting-bracket-basic
 possible: true
 awkwardness: medium
 pain_points[1]:
-  - "Hole authoring still relies on absolute offsets because semantic face/axis references are not yet available."
+  - "Hole placement is still authored with explicit offsets rather than semantic face/axis references."
 proposed_features[1]:
   - "Add face/axis semantic placement references to reduce bracket-hole authoring friction."
-reviewer_verdict: "FL2j rerun after D4 remains successful and semantically correct: exported STEP preserves bracket shape and intended hole placement without wrong-frame accumulation drift."
+reviewer_verdict: "FL3 rerun after F5/S3 remains successful and semantically correct."
 previous_status: success
 current_status: success
 changed: no
 improved: false
 classification: resolved
-blocker_remaining: "No kernel execution blocker for this case; remaining friction is authoring ergonomics only."
-comparison_to_fl2g: "No status change relative to FL2g; FL2j reconfirms additive-root continuation and hole placement fidelity after D4."
-step_artifact_semantic_inspection: "Direct STEP inspection finds two cylindrical hole surfaces at origins (-15,0,4) and (26,0,18) with radius 3.5, matching intended base_hole and upright_hole placement in the bracket frame."
+if_changed_why: "n/a"
+if_unchanged_blocker: "No execution blocker; remaining friction is ergonomic only."
+step_artifact_semantic_inspection: "Direct STEP inspection confirms two cylindrical hole surfaces (radius 3.5) centered at (-15,0,4) and (26,0,18), matching base and upright hole intent."

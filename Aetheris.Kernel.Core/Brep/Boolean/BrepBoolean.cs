@@ -208,6 +208,36 @@ public static class BrepBoolean
                 null);
         }
 
+        if (operation == BooleanOperation.Subtract
+            && leftSafeCompositionRecognized
+            && leftSafeComposition is not null
+            && leftSafeComposition.RootDescriptor.Kind == SafeBooleanRootKind.Cylinder
+            && rightRecognized)
+        {
+            if (TryClassifyBoundedCylinderRootKeyway(
+                leftSafeComposition.RootDescriptor,
+                rightBox,
+                resolvedTolerance,
+                out var keywayUnsupportedReason))
+            {
+                return new BooleanCaseClassification(
+                    BooleanExecutionClass.UnsupportedGeneralCase,
+                    leftSafeComposition,
+                    leftSafeComposition.OuterBox,
+                    rightBox,
+                    null,
+                    "Boolean Subtract: bounded cylinder-root keyway family is recognized (single world-Z through rectangular slot), but rebuild/export for open-slot topology is not implemented yet.");
+            }
+
+            return new BooleanCaseClassification(
+                BooleanExecutionClass.UnsupportedGeneralCase,
+                leftSafeComposition,
+                leftSafeComposition.OuterBox,
+                rightBox,
+                null,
+                keywayUnsupportedReason ?? "Boolean Subtract: cylinder-root subtract with box tool is outside the bounded keyway family.");
+        }
+
         if (leftSafeCompositionRecognized)
         {
             return new BooleanCaseClassification(
@@ -758,6 +788,64 @@ public static class BrepBoolean
 
         return visited.Count == cells.Count;
     }
+
+    private static bool TryClassifyBoundedCylinderRootKeyway(
+        in SafeBooleanRootDescriptor rootDescriptor,
+        AxisAlignedBoxExtents toolBox,
+        ToleranceContext tolerance,
+        out string? unsupportedReason)
+    {
+        unsupportedReason = null;
+        if (rootDescriptor.Kind != SafeBooleanRootKind.Cylinder || rootDescriptor.Cylinder is not RecognizedCylinder rootCylinder)
+        {
+            unsupportedReason = "Boolean Subtract: bounded keyway family requires a recognized cylinder root.";
+            return false;
+        }
+
+        if (!BrepBooleanCylinderRecognition.ValidateAxisAlignedZ(rootCylinder, tolerance))
+        {
+            unsupportedReason = "Boolean Subtract: bounded keyway family requires a world-Z aligned cylinder root.";
+            return false;
+        }
+
+        var rootCenterX = (rootCylinder.MinCenter.X + rootCylinder.MaxCenter.X) * 0.5d;
+        var rootCenterY = (rootCylinder.MinCenter.Y + rootCylinder.MaxCenter.Y) * 0.5d;
+        var rootMinZ = System.Math.Min(rootCylinder.MinCenter.Z, rootCylinder.MaxCenter.Z);
+        var rootMaxZ = System.Math.Max(rootCylinder.MinCenter.Z, rootCylinder.MaxCenter.Z);
+
+        if (toolBox.MinZ > (rootMinZ + tolerance.Linear) || toolBox.MaxZ < (rootMaxZ - tolerance.Linear))
+        {
+            unsupportedReason = "Boolean Subtract: bounded keyway family requires a through slot that spans both cylinder end caps along world-Z.";
+            return false;
+        }
+
+        var hasInteriorPenetration = DistanceFromPointToRectangle(rootCenterX, rootCenterY, toolBox) < (rootCylinder.Radius - tolerance.Linear);
+        if (!hasInteriorPenetration)
+        {
+            unsupportedReason = "Boolean Subtract: bounded keyway family requires the rectangular tool to penetrate inside the shaft radius.";
+            return false;
+        }
+
+        if (ContainsPoint(toolBox.MinX, toolBox.MaxX, rootCenterX, tolerance)
+            && ContainsPoint(toolBox.MinY, toolBox.MaxY, rootCenterY, tolerance))
+        {
+            unsupportedReason = "Boolean Subtract: bounded keyway family excludes centerline-spanning trenches; slot must remain one-sided off-axis.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool ContainsPoint(double min, double max, double value, ToleranceContext tolerance)
+        => value >= (min - tolerance.Linear) && value <= (max + tolerance.Linear);
+
+    private static double DistanceFromPointToRectangle(double px, double py, AxisAlignedBoxExtents rectangle)
+    {
+        var dx = px < rectangle.MinX ? rectangle.MinX - px : px > rectangle.MaxX ? px - rectangle.MaxX : 0d;
+        var dy = py < rectangle.MinY ? rectangle.MinY - py : py > rectangle.MaxY ? py - rectangle.MaxY : 0d;
+        return System.Math.Sqrt((dx * dx) + (dy * dy));
+    }
+
 
     private static bool CellsShareVolumeOrFace(AxisAlignedBoxExtents a, AxisAlignedBoxExtents b, ToleranceContext tolerance)
     {

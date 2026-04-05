@@ -439,19 +439,35 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Subtract_CylinderRootCenterlineKeyway_ProgressesToExplicitOpenSlotRebuildBlocker()
+    public void Subtract_CylinderRootCenterlineKeyway_RebuildsAndExportsTruthfully()
     {
         var shaft = BrepPrimitives.CreateCylinder(15d, 80d).Value;
         var keywayTool = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(5d, 15d, -3d, 3d, -45d, 45d)).Value;
 
         var result = BrepBoolean.Subtract(shaft, keywayTool);
 
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.True(BrepBindingValidator.Validate(result.Value, true).IsSuccess);
+        Assert.Equal(6, result.Value.Topology.Faces.Count());
+
+        var export = Step242Exporter.ExportBody(result.Value);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("CYLINDRICAL_SURFACE", export.Value, StringComparison.Ordinal);
+        Assert.Contains("PLANE", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_CylinderRootKeywayRejectsTangentSideWalls()
+    {
+        var shaft = BrepPrimitives.CreateCylinder(15d, 80d).Value;
+        var tangentTool = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(5d, 15d, -15d, 15d, -45d, 45d)).Value;
+
+        var result = BrepBoolean.Subtract(shaft, tangentTool);
+
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal(
-            "Boolean Subtract: bounded cylinder-root keyway family is recognized (single world-Z through rectangular slot), but rebuild/export for open-slot topology is not implemented yet.",
-            diagnostic.Message);
+        Assert.Contains("tangent side walls are unsupported", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

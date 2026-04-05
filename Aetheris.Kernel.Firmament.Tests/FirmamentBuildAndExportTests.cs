@@ -531,17 +531,16 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
-    public void Run_FrictionLabShaftKeyway_RemainsExplicitlyUnsupported()
+    public void Run_FrictionLabShaftKeyway_SucceedsAndExports()
     {
         var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/shaft-keyway/part.firmament");
         var result = FirmamentBuildAndExport.Run(fullSourcePath);
 
-        Assert.False(result.IsSuccess);
-        Assert.Contains(result.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("Requested boolean feature 'keyway' (subtract) could not be executed.", StringComparison.Ordinal));
-        Assert.Contains(result.Diagnostics, diagnostic =>
-            diagnostic.Source == "BrepBoolean.RebuildResult"
-            && diagnostic.Message.Contains("bounded cylinder-root keyway family is recognized", StringComparison.Ordinal));
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("keyway", result.Value.Export.ExportedFeatureId);
+        Assert.Equal("boolean", result.Value.Export.ExportedBodyCategory);
+        Assert.Equal("subtract", result.Value.Export.ExportedFeatureKind);
+        Assert.Contains("CYLINDRICAL_SURFACE", result.Value.Export.StepText, StringComparison.Ordinal);
     }
 
     [Fact]

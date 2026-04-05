@@ -220,13 +220,7 @@ public static class BrepBoolean
                 resolvedTolerance,
                 out var keywayUnsupportedReason))
             {
-                return new BooleanCaseClassification(
-                    BooleanExecutionClass.UnsupportedGeneralCase,
-                    leftSafeComposition,
-                    leftSafeComposition.OuterBox,
-                    rightBox,
-                    null,
-                    "Boolean Subtract: bounded cylinder-root keyway family is recognized (single world-Z through rectangular slot), but rebuild/export for open-slot topology is not implemented yet.");
+                return new BooleanCaseClassification(BooleanExecutionClass.UnsupportedGeneralCase, leftSafeComposition, leftSafeComposition.OuterBox, rightBox, null, null);
             }
 
             return new BooleanCaseClassification(
@@ -289,8 +283,43 @@ public static class BrepBoolean
             case BooleanExecutionClass.PlanarWithAnalyticHole:
                 return ClassifyPlanarWithAnalyticHole(request, intersections);
             default:
+                if (TryClassifyBoundedCylinderRootOpenSlot(request, intersections, out var openSlotClassification))
+                {
+                    return openSlotClassification;
+                }
+
                 return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: intersections.Analysis.UnsupportedReason);
         }
+    }
+
+    private static bool TryClassifyBoundedCylinderRootOpenSlot(BooleanRequest request, BooleanIntersectionData intersections, out BooleanClassificationData classification)
+    {
+        classification = default!;
+        if (request.Operation != BooleanOperation.Subtract
+            || intersections.Analysis.LeftSafeComposition is not SafeBooleanComposition leftComposition
+            || intersections.Analysis.RightBox is not AxisAlignedBoxExtents toolBox
+            || leftComposition.RootDescriptor.Kind != SafeBooleanRootKind.Cylinder)
+        {
+            return false;
+        }
+
+        var tolerance = request.Tolerance ?? ToleranceContext.Default;
+        if (!TryClassifyBoundedCylinderRootKeyway(leftComposition.RootDescriptor, toolBox, tolerance, out _))
+        {
+            return false;
+        }
+
+        classification = new BooleanClassificationData(
+            intersections,
+            IsComputed: true,
+            FragmentCount: 1,
+            SingleBoxResult: null,
+            SafeCompositionResult: leftComposition with
+            {
+                OpenSlots = [new SupportedCylinderOpenSlot(toolBox)],
+            },
+            UnsupportedReason: null);
+        return true;
     }
 
     private static BooleanClassificationData ClassifyPlanarWithAnalyticHole(BooleanRequest request, BooleanIntersectionData intersections)
@@ -826,11 +855,34 @@ public static class BrepBoolean
             return false;
         }
 
+        if ((toolBox.MaxY - toolBox.MinY) <= (2d * tolerance.Linear))
+        {
+            unsupportedReason = "Boolean Subtract: bounded keyway family requires strictly positive keyway side-wall span (non-degenerate slot width).";
+            return false;
+        }
+
+        var dyMin = toolBox.MinY - rootCenterY;
+        var dyMax = toolBox.MaxY - rootCenterY;
+        if (System.Math.Abs(dyMin) >= (rootCylinder.Radius - tolerance.Linear)
+            || System.Math.Abs(dyMax) >= (rootCylinder.Radius - tolerance.Linear))
+        {
+            unsupportedReason = "Boolean Subtract: bounded keyway family requires side walls to intersect the cylindrical wall with positive span (tangent side walls are unsupported).";
+            return false;
+        }
+
         var reachesFarSideWall = ContainsPoint(toolBox.MinX, toolBox.MaxX, rootCenterX - rootCylinder.Radius, tolerance)
             && ContainsPoint(toolBox.MinY, toolBox.MaxY, rootCenterY, tolerance);
         if (reachesFarSideWall)
         {
             unsupportedReason = "Boolean Subtract: bounded keyway family requires a single exterior mouth and cannot cut through the far-side cylindrical wall.";
+            return false;
+        }
+
+        var positiveWallAtMinY = (rootCenterX + System.Math.Sqrt((rootCylinder.Radius * rootCylinder.Radius) - (dyMin * dyMin))) - toolBox.MinX;
+        var positiveWallAtMaxY = (rootCenterX + System.Math.Sqrt((rootCylinder.Radius * rootCylinder.Radius) - (dyMax * dyMax))) - toolBox.MinX;
+        if (positiveWallAtMinY <= (2d * tolerance.Linear) || positiveWallAtMaxY <= (2d * tolerance.Linear))
+        {
+            unsupportedReason = "Boolean Subtract: bounded keyway family requires strictly positive wall thickness between the slot floor and cylindrical wall.";
             return false;
         }
 

@@ -28,6 +28,11 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         _ = tolerance;
         if (composition.RootDescriptor.Kind == SafeBooleanRootKind.Cylinder)
         {
+            if (composition.OpenSlots is { Count: > 0 })
+            {
+                return BrepBooleanCylinderOpenSlotBuilder.Build(composition, tolerance);
+            }
+
             return CreateBoundedCylinderRootHoleChainBody(composition, tolerance);
         }
 

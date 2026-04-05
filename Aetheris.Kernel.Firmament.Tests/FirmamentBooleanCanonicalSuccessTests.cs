@@ -211,16 +211,12 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     }
 
     [Fact]
-    public void CylinderRootKeywayPressureCase_Fails_WithExplicitOpenSlotRebuildDiagnostic()
+    public void CylinderRootKeywayPressureCase_Succeeds()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("Aetheris.Firmament.FrictionLab/Cases/shaft-keyway/part.firmament");
-        var result = FirmamentCorpusHarness.Compile(source);
+        var result = ExportFixture("Aetheris.Firmament.FrictionLab/Cases/shaft-keyway/part.firmament");
 
-        Assert.False(result.Compilation.IsSuccess);
-        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
-            diagnostic.Code == KernelDiagnosticCode.NotImplemented
-            && diagnostic.Source == "BrepBoolean.RebuildResult"
-            && diagnostic.Message.Contains("bounded cylinder-root keyway family is recognized", StringComparison.Ordinal));
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Contains("CYLINDRICAL_SURFACE", result.Value.StepText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -311,6 +307,51 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             diagnostic.Code == KernelDiagnosticCode.NotImplemented
             && diagnostic.Source == "BrepBoolean.RebuildResult"
             && diagnostic.Message.Contains("requires a single exterior mouth and cannot cut through the far-side cylindrical wall", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CylinderRootKeywayOutsideBoundedSubset_Fails_WhenSideWallsAreTangent()
+    {
+        const string source = """
+        firmament:
+          version: 1
+
+        model:
+          name: keyway_tangent_side_walls
+          units: mm
+
+        ops[2]:
+          -
+            op: cylinder
+            id: shaft
+            radius: 15
+            height: 80
+
+          -
+            op: subtract
+            id: tangent_keyway
+            from: shaft
+            with:
+              op: box
+              size[3]:
+                10
+                30
+                90
+            place:
+              on: origin
+              offset[3]:
+                10
+                0
+                0
+        """;
+
+        var result = FirmamentCorpusHarness.Compile(source);
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Source == "BrepBoolean.RebuildResult"
+            && diagnostic.Message.Contains("tangent side walls are unsupported", StringComparison.Ordinal));
     }
 
     public static TheoryData<string, string, string> UnsupportedBoxTorusVariantSources =>

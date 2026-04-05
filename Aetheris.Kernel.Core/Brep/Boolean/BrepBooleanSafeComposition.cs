@@ -8,7 +8,8 @@ public sealed record SafeBooleanComposition(
     AxisAlignedBoxExtents OuterBox,
     IReadOnlyList<SupportedBooleanHole> Holes,
     SafeBooleanRootDescriptor? Root = null,
-    IReadOnlyList<AxisAlignedBoxExtents>? OccupiedCells = null)
+    IReadOnlyList<AxisAlignedBoxExtents>? OccupiedCells = null,
+    IReadOnlyList<SupportedCylinderOpenSlot>? OpenSlots = null)
 {
     public SafeBooleanRootDescriptor RootDescriptor => Root ?? SafeBooleanRootDescriptor.FromBox(OuterBox);
 
@@ -32,7 +33,8 @@ public sealed record SafeBooleanComposition(
                 cell.MinY + translation.Y,
                 cell.MaxY + translation.Y,
                 cell.MinZ + translation.Z,
-                cell.MaxZ + translation.Z)).ToArray());
+                cell.MaxZ + translation.Z)).ToArray(),
+            OpenSlots?.Select(slot => slot.Translate(translation)).ToArray());
     }
 }
 
@@ -125,6 +127,19 @@ public readonly record struct SupportedBooleanHole(
             StartZ = StartZ + translation.Z,
             EndZ = EndZ + translation.Z,
         };
+}
+
+public readonly record struct SupportedCylinderOpenSlot(
+    AxisAlignedBoxExtents ToolExtents)
+{
+    public SupportedCylinderOpenSlot Translate(Vector3D translation)
+        => new(new AxisAlignedBoxExtents(
+            ToolExtents.MinX + translation.X,
+            ToolExtents.MaxX + translation.X,
+            ToolExtents.MinY + translation.Y,
+            ToolExtents.MaxY + translation.Y,
+            ToolExtents.MinZ + translation.Z,
+            ToolExtents.MaxZ + translation.Z));
 }
 
 public static class BrepBooleanSafeComposition

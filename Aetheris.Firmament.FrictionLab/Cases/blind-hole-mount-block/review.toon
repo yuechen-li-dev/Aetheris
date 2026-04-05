@@ -1,16 +1,16 @@
 case_id: blind-hole-mount-block
 possible: true
 awkwardness: low
-pain_points[2]:
-  - "Blind-hole subtract still depends on contained/coaxial bounded stack constraints that are not obvious from authoring alone."
-  - "The case now converts without diagnostics, but capability limits are still implicit rather than discoverable."
+pain_points[1]:
+  - "Bounded blind-hole acceptance criteria are still implicit; discoverability remains low for authors."
 proposed_features[1]:
-  - "Document bounded contained/coaxial subtract-stack acceptance criteria directly in author-facing guidance."
-reviewer_verdict: "FL2d rerun after G4 shows this case now converts end-to-end through the real pipeline and exports a STEP artifact."
-previous_status: partial
+  - "Document bounded blind/coaxial hole-family acceptance constraints in author guidance."
+reviewer_verdict: "FL3 rerun after F5/S3 remains successful and semantically correct."
+previous_status: success
 current_status: success
-changed: yes
-improved: true
+changed: no
+improved: false
 classification: resolved
-if_changed_why: "G4 bounded contained/coaxial subtract-stack support now admits the authored blind-hole subtract; rerun produced no diagnostics and emitted STEP."
-if_unchanged_blocker: "n/a"
+if_changed_why: "n/a"
+if_unchanged_blocker: "None; case exports and matches intended blind-hole geometry."
+step_artifact_semantic_inspection: "Direct STEP inspection shows one cylindrical hole face (radius 5) plus a planar blind-hole floor (8 ADVANCED_FACE total), confirming an open-to-top blind hole rather than a sealed cavity."

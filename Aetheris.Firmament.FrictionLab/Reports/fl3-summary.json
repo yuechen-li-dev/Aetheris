@@ -1,0 +1,178 @@
+{
+  "milestone": "FL3",
+  "description": "Post-F5/S3 consolidation reassessment of representative major FrictionLab cases with direct STEP semantic inspection.",
+  "rerun_case_count": 7,
+  "source_previous_summary": "Aetheris.Firmament.FrictionLab/Reports/fl2a-summary.json",
+  "source_current_run": "Aetheris.Firmament.FrictionLab/Reports/fl3-run.json",
+  "deterministic_case_order": [
+    "simple-bracket",
+    "mounting-bracket-basic",
+    "blind-hole-mount-block",
+    "counterbore-hole",
+    "flange-bolt-circle",
+    "pocketed-plate",
+    "shaft-keyway"
+  ],
+  "cases": [
+    {
+      "case_id": "simple-bracket",
+      "previous_status": "success",
+      "current_status": "success",
+      "changed": "no",
+      "improved": false,
+      "classification": "resolved",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/simple-bracket.step",
+      "possible": "true",
+      "awkwardness": "low",
+      "remaining_blocker": "none",
+      "step_semantic_inspection": {
+        "inspected": true,
+        "expected_feature_geometry_present": true,
+        "semantically_correct": true,
+        "mismatch_kind": "none",
+        "inspection_notes": "Planar L-bracket topology remains correct; STEP has one closed shell and 10 planar faces consistent with intended base+upright geometry."
+      }
+    },
+    {
+      "case_id": "mounting-bracket-basic",
+      "previous_status": "success",
+      "current_status": "success",
+      "changed": "no",
+      "improved": false,
+      "classification": "resolved",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/mounting-bracket-basic.step",
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "none (execution)",
+      "step_semantic_inspection": {
+        "inspected": true,
+        "expected_feature_geometry_present": true,
+        "semantically_correct": true,
+        "mismatch_kind": "none",
+        "inspection_notes": "Two cylindrical subtract features are present at intended centers (-15,0,4) and (26,0,18), each radius 3.5, with bracket body preserved."
+      }
+    },
+    {
+      "case_id": "blind-hole-mount-block",
+      "previous_status": "success",
+      "current_status": "success",
+      "changed": "no",
+      "improved": false,
+      "classification": "resolved",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/blind-hole-mount-block.step",
+      "possible": "true",
+      "awkwardness": "low",
+      "remaining_blocker": "none",
+      "step_semantic_inspection": {
+        "inspected": true,
+        "expected_feature_geometry_present": true,
+        "semantically_correct": true,
+        "mismatch_kind": "none",
+        "inspection_notes": "Blind hole is open on the top face and terminates on an internal floor plane (8-face body), not a sealed cavity."
+      }
+    },
+    {
+      "case_id": "counterbore-hole",
+      "previous_status": "partial",
+      "current_status": "success",
+      "changed": "yes",
+      "improved": true,
+      "classification": "resolved",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/counterbore-hole.step",
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "none",
+      "step_semantic_inspection": {
+        "inspected": true,
+        "expected_feature_geometry_present": true,
+        "semantically_correct": true,
+        "mismatch_kind": "none",
+        "inspection_notes": "Coaxial two-stage hole is present with cylindrical radii 7.0 and 3.5 plus shoulder plane, matching counterbore pocket + through-hole intent."
+      }
+    },
+    {
+      "case_id": "flange-bolt-circle",
+      "previous_status": "failure",
+      "current_status": "failure",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "Boolean feature 'bolt_0' (subtract) overlaps previously accepted hole; overlapping cylinder-root hole chains are not supported.",
+      "step_semantic_inspection": {
+        "inspected": false,
+        "expected_feature_geometry_present": false,
+        "semantically_correct": false,
+        "mismatch_kind": "other",
+        "inspection_notes": "No STEP artifact produced due to BrepBoolean.AnalyticHole.HoleInterference rejection at bolt_0."
+      }
+    },
+    {
+      "case_id": "pocketed-plate",
+      "previous_status": "partial",
+      "current_status": "success",
+      "changed": "yes",
+      "improved": true,
+      "classification": "resolved",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/pocketed-plate.step",
+      "possible": "true",
+      "awkwardness": "low",
+      "remaining_blocker": "none",
+      "step_semantic_inspection": {
+        "inspected": true,
+        "expected_feature_geometry_present": true,
+        "semantically_correct": true,
+        "mismatch_kind": "none",
+        "inspection_notes": "Open-mouth orthogonal pocket topology is present with pocket walls/floor cut from top face; single closed shell remains valid."
+      }
+    },
+    {
+      "case_id": "shaft-keyway",
+      "previous_status": "failure",
+      "current_status": "success",
+      "changed": "yes",
+      "improved": true,
+      "classification": "resolved",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/shaft-keyway.step",
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "none",
+      "step_semantic_inspection": {
+        "inspected": true,
+        "expected_feature_geometry_present": true,
+        "semantically_correct": true,
+        "mismatch_kind": "none",
+        "inspection_notes": "Cylinder-root shaft with open-slot keyway is present: one cylindrical root surface plus slot planes/end-face notch boundaries in a valid closed shell."
+      }
+    }
+  ],
+  "step_artifact_case_count": 6,
+  "improved_cases": [
+    "counterbore-hole",
+    "pocketed-plate",
+    "shaft-keyway"
+  ],
+  "top_repeated_remaining_blockers": [
+    {
+      "blocker": "BrepBoolean.AnalyticHole.HoleInterference overlapping cylinder-root hole chain rejection",
+      "count": 1
+    }
+  ],
+  "top_repeated_remaining_blocker_classes": [
+    {
+      "classification": "unchanged_kernel_blocker",
+      "count": 1
+    }
+  ],
+  "next_blocker_after_f5_s3": "Overlapping/interfering cylinder-root hole-chain support (or validated decomposition path) in BrepBoolean analytic-hole execution for flange bolt-circle style cases.",
+  "notes": "FL3 is measurement-only; no new production Firmament language, parser, or kernel feature implementation was added."
+}

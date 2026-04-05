@@ -1,0 +1,85 @@
+{
+  "totalCases": 7,
+  "successCount": 6,
+  "partialCount": 0,
+  "failureCount": 1,
+  "caseResults": [
+    {
+      "caseId": "simple-bracket",
+      "buildStatus": "success",
+      "artifactPresent": true,
+      "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/simple-bracket.step",
+      "possible": "true",
+      "awkwardness": "low",
+      "diagnostics": []
+    },
+    {
+      "caseId": "mounting-bracket-basic",
+      "buildStatus": "success",
+      "artifactPresent": true,
+      "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/mounting-bracket-basic.step",
+      "possible": "true",
+      "awkwardness": "medium",
+      "diagnostics": []
+    },
+    {
+      "caseId": "blind-hole-mount-block",
+      "buildStatus": "success",
+      "artifactPresent": true,
+      "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/blind-hole-mount-block.step",
+      "possible": "true",
+      "awkwardness": "low",
+      "diagnostics": []
+    },
+    {
+      "caseId": "counterbore-hole",
+      "buildStatus": "success",
+      "artifactPresent": true,
+      "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/counterbore-hole.step",
+      "possible": "true",
+      "awkwardness": "medium",
+      "diagnostics": []
+    },
+    {
+      "caseId": "flange-bolt-circle",
+      "buildStatus": "failure",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027bolt_0\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027bolt_0\u0027 (subtract) overlaps previously accepted hole \u003Cunknown\u003E; overlapping cylinder-root hole chains are not supported.",
+          "source": "BrepBoolean.AnalyticHole.HoleInterference"
+        }
+      ]
+    },
+    {
+      "caseId": "pocketed-plate",
+      "buildStatus": "success",
+      "artifactPresent": true,
+      "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/pocketed-plate.step",
+      "possible": "true",
+      "awkwardness": "low",
+      "diagnostics": []
+    },
+    {
+      "caseId": "shaft-keyway",
+      "buildStatus": "success",
+      "artifactPresent": true,
+      "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/shaft-keyway.step",
+      "possible": "true",
+      "awkwardness": "medium",
+      "diagnostics": []
+    }
+  ],
+  "summaryPath": "Aetheris.Firmament.FrictionLab/Reports/fl3-run.json"
+}

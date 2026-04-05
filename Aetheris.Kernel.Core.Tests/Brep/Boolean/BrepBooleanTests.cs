@@ -232,7 +232,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Subtract: box subtraction result is not representable as a single box in M13.", diagnostic.Message);
+        Assert.Equal("Boolean Subtract: bounded orthogonal pocket family requires a single pocket mouth; through-slots and multi-face openings remain deferred.", diagnostic.Message);
     }
 
     [Fact]
@@ -247,6 +247,50 @@ public sealed class BrepBooleanTests
         Assert.True(BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(result.Value, ToleranceContext.Default, out var extents, out _));
         Assert.Equal(new AxisAlignedBoxExtents(0d, 3d, 0d, 2d, 0d, 2d), extents);
         Assert.True(BrepBindingValidator.Validate(result.Value, true).IsSuccess);
+    }
+
+    [Fact]
+    public void Subtract_OpenFaceRectangularPocket_RebuildsBoundedOrthogonalPocket()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 10d, 0d, 8d, 0d, 6d)).Value;
+        var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(2d, 8d, 2d, 6d, 3d, 6d)).Value;
+
+        var result = BrepBoolean.Subtract(left, right);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.False(BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(result.Value, ToleranceContext.Default, out _, out _));
+        Assert.True(BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        Assert.NotNull(result.Value.SafeBooleanComposition);
+        Assert.NotNull(result.Value.SafeBooleanComposition!.OccupiedCells);
+        Assert.NotEmpty(result.Value.SafeBooleanComposition.OccupiedCells!);
+    }
+
+    [Fact]
+    public void Subtract_EnclosedRectangularCavity_RemainsExplicitlyDeferred()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 10d, 0d, 8d, 0d, 6d)).Value;
+        var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(2d, 8d, 2d, 6d, 2d, 5d)).Value;
+
+        var result = BrepBoolean.Subtract(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Boolean Subtract: bounded orthogonal pocket family requires the subtract box to open to exactly one exterior root face; fully enclosed cavities remain deferred.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void Subtract_TangentToolContact_IsRejectedAsDegenerate()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 10d, 0d, 8d, 0d, 6d)).Value;
+        var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(2d, 8d, 2d, 6d, 6d, 9d)).Value;
+
+        var result = BrepBoolean.Subtract(left, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Boolean Subtract: bounded orthogonal pocket family rejects tangent/zero-thickness subtract contact.", diagnostic.Message);
     }
 
 

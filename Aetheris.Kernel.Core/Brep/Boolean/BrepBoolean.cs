@@ -398,6 +398,11 @@ public static class BrepBoolean
             return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: unsupportedReason ?? $"Boolean {operation}: box union is outside the bounded connected orthogonal additive family for F1.");
         }
 
+        if (intersections.IsTouchingOnly)
+        {
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: "Boolean Subtract: bounded orthogonal pocket family rejects tangent/zero-thickness subtract contact.");
+        }
+
         if (!left.OverlapsWithPositiveVolume(right, tolerance))
         {
             return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: left, SafeCompositionResult: null, UnsupportedReason: null);
@@ -411,6 +416,27 @@ public static class BrepBoolean
         if (TrySubtractToSingleBox(left, right, tolerance, out var singleBox))
         {
             return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: singleBox, SafeCompositionResult: null, UnsupportedReason: null);
+        }
+
+        if (TryClassifyBoundedOrthogonalPocketSubtract(left, right, tolerance, out var pocketCells, out var pocketUnsupportedReason))
+        {
+            return new BooleanClassificationData(
+                intersections,
+                IsComputed: true,
+                FragmentCount: 1,
+                SingleBoxResult: null,
+                SafeCompositionResult: new SafeBooleanComposition(
+                    left,
+                    [],
+                    SafeBooleanRootDescriptor.FromBox(left),
+                    pocketCells),
+                UnsupportedReason: null,
+                OrthogonalUnionCells: pocketCells);
+        }
+
+        if (pocketUnsupportedReason is not null)
+        {
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: pocketUnsupportedReason);
         }
 
         return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: box subtraction result is not representable as a single box in M13.");
@@ -756,6 +782,136 @@ public static class BrepBoolean
             && PositiveOverlap(left.MinX, left.MaxX, right.MinX, right.MaxX, tolerance)
             && PositiveOverlap(left.MinY, left.MaxY, right.MinY, right.MaxY, tolerance);
         return xFaceTouch || yFaceTouch || zFaceTouch;
+    }
+
+    private static bool TryClassifyBoundedOrthogonalPocketSubtract(
+        AxisAlignedBoxExtents left,
+        AxisAlignedBoxExtents right,
+        ToleranceContext tolerance,
+        out IReadOnlyList<AxisAlignedBoxExtents> occupiedCells,
+        out string? unsupportedReason)
+    {
+        occupiedCells = Array.Empty<AxisAlignedBoxExtents>();
+        unsupportedReason = null;
+
+        var overlap = AxisAlignedBoxExtents.Intersection(left, right);
+        if (overlap is null || !overlap.Value.HasPositiveVolume(tolerance))
+        {
+            unsupportedReason = "Boolean Subtract: orthogonal pocket family requires positive-volume overlap between the root and subtract tool.";
+            return false;
+        }
+
+        var removed = overlap.Value;
+        var touchesMinX = ToleranceMath.AlmostEqual(removed.MinX, left.MinX, tolerance);
+        var touchesMaxX = ToleranceMath.AlmostEqual(removed.MaxX, left.MaxX, tolerance);
+        var touchesMinY = ToleranceMath.AlmostEqual(removed.MinY, left.MinY, tolerance);
+        var touchesMaxY = ToleranceMath.AlmostEqual(removed.MaxY, left.MaxY, tolerance);
+        var touchesMinZ = ToleranceMath.AlmostEqual(removed.MinZ, left.MinZ, tolerance);
+        var touchesMaxZ = ToleranceMath.AlmostEqual(removed.MaxZ, left.MaxZ, tolerance);
+        var mouthTouchCount = (touchesMinX ? 1 : 0) + (touchesMaxX ? 1 : 0) + (touchesMinY ? 1 : 0) + (touchesMaxY ? 1 : 0) + (touchesMinZ ? 1 : 0) + (touchesMaxZ ? 1 : 0);
+
+        if (mouthTouchCount == 0)
+        {
+            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket family requires the subtract box to open to exactly one exterior root face; fully enclosed cavities remain deferred.";
+            return false;
+        }
+
+        if (mouthTouchCount > 1)
+        {
+            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket family requires a single pocket mouth; through-slots and multi-face openings remain deferred.";
+            return false;
+        }
+
+        var sideWallPositiveX = removed.MinX - left.MinX;
+        var sideWallNegativeX = left.MaxX - removed.MaxX;
+        var sideWallPositiveY = removed.MinY - left.MinY;
+        var sideWallNegativeY = left.MaxY - removed.MaxY;
+        var sideWallPositiveZ = removed.MinZ - left.MinZ;
+        var sideWallNegativeZ = left.MaxZ - removed.MaxZ;
+
+        if ((touchesMinX || touchesMaxX) && (!HasStrictThickness(sideWallPositiveY)
+            || !HasStrictThickness(sideWallNegativeY)
+            || !HasStrictThickness(sideWallPositiveZ)
+            || !HasStrictThickness(sideWallNegativeZ)))
+        {
+            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket family requires strictly positive wall/floor thickness; tangent or zero-thickness side walls are unsupported.";
+            return false;
+        }
+
+        if ((touchesMinY || touchesMaxY) && (!HasStrictThickness(sideWallPositiveX)
+            || !HasStrictThickness(sideWallNegativeX)
+            || !HasStrictThickness(sideWallPositiveZ)
+            || !HasStrictThickness(sideWallNegativeZ)))
+        {
+            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket family requires strictly positive wall/floor thickness; tangent or zero-thickness side walls are unsupported.";
+            return false;
+        }
+
+        if ((touchesMinZ || touchesMaxZ) && (!HasStrictThickness(sideWallPositiveX)
+            || !HasStrictThickness(sideWallNegativeX)
+            || !HasStrictThickness(sideWallPositiveY)
+            || !HasStrictThickness(sideWallNegativeY)))
+        {
+            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket family requires strictly positive wall/floor thickness; tangent or zero-thickness side walls are unsupported.";
+            return false;
+        }
+
+        var splitX = new[] { left.MinX, removed.MinX, removed.MaxX, left.MaxX }.Distinct().OrderBy(v => v).ToArray();
+        var splitY = new[] { left.MinY, removed.MinY, removed.MaxY, left.MaxY }.Distinct().OrderBy(v => v).ToArray();
+        var splitZ = new[] { left.MinZ, removed.MinZ, removed.MaxZ, left.MaxZ }.Distinct().OrderBy(v => v).ToArray();
+        var cells = new List<AxisAlignedBoxExtents>();
+
+        for (var ix = 0; ix < splitX.Length - 1; ix++)
+        {
+            for (var iy = 0; iy < splitY.Length - 1; iy++)
+            {
+                for (var iz = 0; iz < splitZ.Length - 1; iz++)
+                {
+                    var candidate = new AxisAlignedBoxExtents(
+                        splitX[ix],
+                        splitX[ix + 1],
+                        splitY[iy],
+                        splitY[iy + 1],
+                        splitZ[iz],
+                        splitZ[iz + 1]);
+
+                    if (!candidate.HasPositiveVolume(tolerance))
+                    {
+                        continue;
+                    }
+
+                    if (!left.Contains(candidate, tolerance))
+                    {
+                        continue;
+                    }
+
+                    if (removed.Contains(candidate, tolerance))
+                    {
+                        continue;
+                    }
+
+                    cells.Add(candidate);
+                }
+            }
+        }
+
+        if (cells.Count == 0)
+        {
+            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket reconstruction produced no occupied cells.";
+            return false;
+        }
+
+        if (!TryValidateOrthogonalCellConnectivity(cells, tolerance))
+        {
+            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket result would be disconnected or only edge-connected.";
+            return false;
+        }
+
+        occupiedCells = cells;
+        return true;
+
+        bool HasStrictThickness(double thickness)
+            => thickness > (2d * tolerance.Linear);
     }
 
     private static bool PositiveOverlap(double minA, double maxA, double minB, double maxB, ToleranceContext tolerance)

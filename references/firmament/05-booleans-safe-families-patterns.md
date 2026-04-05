@@ -9,9 +9,13 @@ Supported boolean ops:
 - `subtract`: requires `id`, `from`, `with`
 - `intersect`: requires `id`, `left`, `with`
 
+`left` is the primary reference field for `intersect` and is equivalent in role to `from` (subtract) / `to` (add): it names the already-existing feature body that the boolean starts from.
+
 `with` must be a nested primitive tool object-like value.
 Supported tool ops inside `with`:
 - `box`, `cylinder`, `sphere`, `cone`, `torus`
+
+⚠️ `with.place` is not a supported tool field. Placement is read only from the boolean's top-level `place` block. Nested placement-like fields under `with` are ignored by execution.
 
 ---
 
@@ -25,6 +29,8 @@ All boolean result features (`add`/`subtract`/`intersect`) expose the same selec
 - `vertices`
 
 This is intentionally not a union of all primitive-tool ports.
+
+⚠️ These boolean ports are heuristic (normal/classification based), not robust topology identities. Do not rely on boolean `top_face`/`bottom_face` ports for rotated or complex geometry.
 
 ---
 
@@ -70,6 +76,8 @@ Current continuation family is intentionally narrow:
 - follow-on tool kind must be `cylinder` or `cone`
 - geometric guards enforce non-overlap/non-tangent/non-degenerate-safe constraints
 
+`intersect` does execute, but it is outside safe-family continuation semantics (`WasValidated=false` path) and should be treated as a narrow subset operation rather than a safe-chain building block.
+
 Anything outside this family should be treated as deferred/unsupported unless explicitly test-backed.
 
 ---
@@ -109,6 +117,12 @@ Required:
 `step[3]` meaning:
 - world-space translation delta added per instance
 - instance `i` gets offset contribution `i * step`
+- final instance offset is `source_offset + (i * step)` (step accumulates on top of source placement; it is not absolute placement)
+
+Worked accumulation example:
+- source `offset = [5, 0, 0]`
+- `step = [10, 0, 0]`
+- generated offsets: `lin1=[15,0,0]`, `lin2=[25,0,0]`, `lin3=[35,0,0]`
 
 Synthesized IDs:
 - `source__lin1`, `source__lin2`, ... `source__linN`
@@ -131,7 +145,14 @@ Expansion behavior:
 - cloned placement injects `around_axis = axis`
 - `radial_offset` defaults to `0` if absent on source placement
 - angle per instance uses either explicit step or `span / count`
-- base source placement angle (if any) is included
+- instance angle is `baseAngle + (i * angularStep)`
+- `baseAngle` is the source placement `angle_degrees` value (if absent: 0)
+- pattern does not reset angle to zero
+
+Worked angle example:
+- source `angle_degrees = 30`
+- pattern `angle_step_degrees = 45`, `count=3`
+- generated angles: `cir1=75`, `cir2=120`, `cir3=165`
 
 Also chains primary boolean reference sequentially like linear pattern.
 

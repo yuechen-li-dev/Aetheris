@@ -17,11 +17,11 @@ No `place` block:
 - sphere center remains at origin
 - torus center remains at origin
 
-With `place` block:
+With `place` block (including `place.on: origin` with zero offset):
 - sphere gets extra `+radius Z`
 - torus gets extra `+minor_radius Z`
 
-Trap: thinking these corrections apply globally even without placement.
+Trap: thinking these corrections apply globally even without placement, or assuming `place.on: origin` == no placement block.
 
 ---
 
@@ -76,6 +76,8 @@ Each generated boolean references previous generated instance as primary source.
 
 Trap: assuming instance `N` subtracts from original source body directly.
 
+Also: linear pattern `step` accumulates on top of source offset (`source_offset + i*step`), and circular pattern angle accumulates on top of source angle (`baseAngle + i*angularStep`).
+
 ---
 
 ## 9) Safe-family acceptance is stricter than syntax validity
@@ -94,6 +96,8 @@ Trap: assuming parser/required-field success implies executable support.
 
 Trap: using one target style uniformly for all validation ops.
 
+`expect_selectable.count` is exact-match and `count: 0` means "expect none" (passes only on zero resolved elements). Failures produce warnings, not execution aborts.
+
 ---
 
 ## 11) `model.units` is required but currently unconstrained as an enum
@@ -107,10 +111,12 @@ Trap: assuming units string changes internal scaling. Current pipeline exports c
 
 ## 12) Export body selection ignores validation ops
 
-Export always chooses the last executed primitive/boolean body by source order.
+Export always chooses the last successfully executed primitive/boolean body by source order.
 Validation ops affect diagnostics, not exported body selection.
 
 Trap: expecting final validation op target to become export body.
+
+⚠️ Partial execution trap: if a later boolean fails, earlier successful geometry is still exported. This can look like success while silently truncating intended features.
 
 ---
 
@@ -118,3 +124,28 @@ Trap: expecting final validation op target to become export body.
 
 Some older human-readable docs may lag implementation status.
 For semantic disputes, trust parser/validation/lowering/execution code and tests over stale module summaries.
+
+
+## 14) `with.place` is ignored
+
+Boolean tool objects do not support nested placement semantics.
+
+Trap: writing `with.place` expecting tool motion. Placement must be authored at boolean top-level `place`.
+
+## 15) Boolean selector ports are heuristic
+
+Boolean result ports (for example `top_face`) rely on classification heuristics (such as normal-direction filters), not guaranteed topological identity.
+
+Trap: relying on these ports for rotated or complex boolean outcomes.
+
+## 16) `pmi` is currently no-op metadata
+
+`pmi` is parsed as section presence but currently does not change execution behavior or STEP export payload.
+
+Trap: expecting PMI entries to affect geometry/export semantics in current implementation.
+
+## 17) `intersect` is implemented but narrow
+
+`intersect` uses `left` as its primary reference field (`left` role mirrors `from`/`to` in other boolean ops) and executes through the general boolean path.
+
+Trap: assuming it participates in safe subtract continuation semantics. It does not; treat as narrow subset behavior unless test-backed.

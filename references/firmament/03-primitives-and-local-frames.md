@@ -127,7 +127,7 @@ Cone behaves like box/cylinder for vertical anchoring in default frame: placemen
 No shift in `ApplyDefaultLocalFrame`.
 
 ### Placement resolver correction (primitive-specific)
-Primitive placement translation adds `+radius` in Z.
+Primitive placement translation adds `+radius` in Z **only when a `place` block exists**.
 
 ### Final default span with no `place`
 With no `place`, translation resolver returns zero (no placement block), so sphere remains centered at origin:
@@ -135,8 +135,15 @@ With no `place`, translation resolver returns zero (no placement block), so sphe
 - `z ∈ [-radius,+radius]`
 
 ### Important placement consequence
-When a `place` block exists (even zero offset), sphere gets the extra `+radius` Z correction.
-Example: `on: base.top_face` at `z=4`, `radius=3`, zero offset ⇒ center at `z=7` (tangent contact), not `z=4`.
+When a `place` block exists (even zero offset or `on: origin`), sphere gets the extra `+radius` Z correction.
+
+⚠️ **Trap:** `place: { on: origin, offset:[0,0,0] }` is **not** equivalent to omitting `place`.
+
+Minimal difference example (`radius: 3`):
+- no `place` block ⇒ center at `z=0`
+- `place.on: origin` + zero offset ⇒ center at `z=3`
+
+Example with selector anchor: `on: base.top_face` at `z=4`, `radius=3`, zero offset ⇒ center at `z=7` (tangent contact), not `z=4`.
 
 ---
 
@@ -154,7 +161,7 @@ Example: `on: base.top_face` at `z=4`, `radius=3`, zero offset ⇒ center at `z=
 No shift in `ApplyDefaultLocalFrame`.
 
 ### Placement resolver correction (primitive-specific)
-Primitive placement translation adds `+minor_radius` in Z.
+Primitive placement translation adds `+minor_radius` in Z **only when a `place` block exists**.
 
 ### Final default span with no `place`
 With no `place`, torus remains centered at origin:
@@ -162,7 +169,10 @@ With no `place`, torus remains centered at origin:
 - vertical span `z ∈ [-minor_radius,+minor_radius]`
 
 ### Important placement consequence
-When a `place` block exists, torus gets the extra `+minor_radius` correction.
+When a `place` block exists (even zero offset or `on: origin`), torus gets the extra `+minor_radius` correction.
+
+⚠️ **Trap:** `place: on: origin` is not equivalent to no `place` block for torus either.
+
 Example: anchor on `z=4`, `minor_radius=2`, zero offset ⇒ center at `z=6`.
 
 ---
@@ -179,3 +189,5 @@ These are compile-time contracts used by placement and validation target checks.
 - Boolean results (`add`/`subtract`/`intersect`): `top_face`, `bottom_face`, `side_faces`, `edges`, `vertices`
 
 Boolean result ports are intentionally box-like, not primitive-tool-like.
+
+⚠️ Boolean result ports are heuristic selectors, not guaranteed topological truths. `top_face`/`bottom_face` use orientation filters (for example, planar normal Z thresholds), so rotated or complex geometry can produce empty or surprising matches.

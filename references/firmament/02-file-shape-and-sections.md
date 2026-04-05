@@ -73,3 +73,7 @@ Additional current behavior:
 
 - CNC DFM currently checks subtract-tool cylinder `with.radius >= minimum_tool_radius`.
 - Enclosed voids are rejected for non-additive process modes.
+
+## PMI behavior (current)
+
+`pmi` section presence is parsed/tracked (`HasPmi`) but currently does not alter execution, validation outcomes, or STEP output content. Treat `pmi` as no-op metadata in current milestone state.

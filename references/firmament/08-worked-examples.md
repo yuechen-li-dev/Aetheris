@@ -259,3 +259,139 @@ ops[5]:
 ```
 
 This demonstrates targeting a synthesized pattern-generated feature ID in later validation.
+
+
+## 7) Sphere placement edge case: no `place` vs `place.on: origin`
+
+```toon
+firmament:
+  version: 1
+
+model:
+  name: ex_sphere_place_origin_difference
+  units: mm
+
+ops[2]:
+  -
+    op: sphere
+    id: s_no_place
+    radius: 3
+  -
+    op: sphere
+    id: s_with_place
+    radius: 3
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        0
+```
+
+Key difference:
+- `s_no_place` center is at `z=0`.
+- `s_with_place` center is at `z=3` because any `place` block activates sphere `+radius` correction.
+
+---
+
+## 8) Linear pattern accumulation with non-zero source offset
+
+```toon
+firmament:
+  version: 1
+
+model:
+  name: ex_linear_offset_accumulation
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: plate
+    size[3]:
+      80
+      20
+      8
+  -
+    op: subtract
+    id: seed
+    from: plate
+    with:
+      op: cylinder
+      radius: 2
+      height: 20
+    place:
+      on: plate.top_face
+      offset[3]:
+        5
+        0
+        0
+  -
+    op: pattern_linear
+    source: seed
+    count: 3
+    step[3]:
+      10
+      0
+      0
+```
+
+Generated offsets are cumulative from source offset:
+- `seed__lin1`: `[15,0,0]`
+- `seed__lin2`: `[25,0,0]`
+- `seed__lin3`: `[35,0,0]`
+
+---
+
+## 9) Circular pattern angle composition with non-zero base angle
+
+```toon
+firmament:
+  version: 1
+
+model:
+  name: ex_circular_angle_composition
+  units: mm
+
+ops[4]:
+  -
+    op: cylinder
+    id: flange
+    radius: 30
+    height: 8
+  -
+    op: cylinder
+    id: axis_ref
+    radius: 1
+    height: 20
+  -
+    op: subtract
+    id: seed
+    from: flange
+    with:
+      op: cylinder
+      radius: 2
+      height: 20
+    place:
+      on_face: flange.top_face
+      around_axis: axis_ref.side_face
+      radial_offset: 20
+      angle_degrees: 30
+      offset[3]:
+        0
+        0
+        0
+  -
+    op: pattern_circular
+    source: seed
+    count: 3
+    axis: axis_ref.side_face
+    angle_step_degrees: 45
+```
+
+Generated instance angles:
+- `seed__cir1`: `75°`
+- `seed__cir2`: `120°`
+- `seed__cir3`: `165°`
+
+Pattern composes on top of base angle; it does not reset to zero.

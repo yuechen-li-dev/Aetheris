@@ -35,15 +35,16 @@ public static class BrepBooleanSafeCompositionGraphValidator
             return false;
         }
 
-        if (composition.Holes.Count > 0 && nextHole.IsBlind)
+        var supportsContinuedAdditiveBlindComposition = SupportsBoundedBlindContinuationOnRecognizedOrthogonalAdditiveRoot(composition, nextHole, tolerance);
+        if (composition.Holes.Count > 0 && nextHole.IsBlind && !supportsContinuedAdditiveBlindComposition)
         {
             diagnostic = new BooleanDiagnostic(
                 BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
                 BrepBooleanCylinderRecognition.CreateBooleanMessage(
                     BooleanOperation.Subtract.ToString(),
                     nextFeatureId,
-                    "cannot append a blind analytic hole to an existing safe subtract composition in B1; blind-hole support is currently limited to single-feature subtracts."),
-                "BrepBoolean.AnalyticHole.UnsupportedBlindHoleComposition");
+                    "blind-hole continuation exceeds the bounded family; only recognized orthogonal additive roots with world-Z analytic-hole chains are supported for continued blind-hole composition."),
+                "BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily");
             return false;
         }
 
@@ -486,6 +487,29 @@ public static class BrepBooleanSafeCompositionGraphValidator
         return ToleranceMath.AlmostZero(v.X, tolerance)
                && ToleranceMath.AlmostZero(v.Y, tolerance)
                && ToleranceMath.AlmostEqual(System.Math.Abs(v.Z), 1d, tolerance);
+    }
+
+    private static bool SupportsBoundedBlindContinuationOnRecognizedOrthogonalAdditiveRoot(
+        SafeBooleanComposition composition,
+        in SupportedBooleanHole nextHole,
+        ToleranceContext tolerance)
+    {
+        if (composition.OccupiedCells is null || composition.OccupiedCells.Count < 2)
+        {
+            return false;
+        }
+
+        if (!IsAxisAlignedWithWorldZ(nextHole.Axis, tolerance))
+        {
+            return false;
+        }
+
+        if (composition.Holes.Any(existingHole => !IsAxisAlignedWithWorldZ(existingHole.Axis, tolerance)))
+        {
+            return false;
+        }
+
+        return nextHole.Surface.Kind is AnalyticSurfaceKind.Cylinder or AnalyticSurfaceKind.Cone;
     }
 
     private static bool ValidateContainedSphereCavity(

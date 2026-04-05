@@ -541,7 +541,7 @@ public sealed class FirmamentBuildAndExportTests
             diagnostic.Message.Contains("Requested boolean feature 'keyway' (subtract) could not be executed.", StringComparison.Ordinal));
         Assert.Contains(result.Diagnostics, diagnostic =>
             diagnostic.Source == "BrepBoolean.RebuildResult"
-            && diagnostic.Message.Contains("bounded keyway family excludes centerline-spanning trenches", StringComparison.Ordinal));
+            && diagnostic.Message.Contains("bounded cylinder-root keyway family is recognized", StringComparison.Ordinal));
     }
 
     [Fact]

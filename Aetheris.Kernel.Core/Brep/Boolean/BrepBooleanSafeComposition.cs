@@ -7,7 +7,8 @@ namespace Aetheris.Kernel.Core.Brep.Boolean;
 public sealed record SafeBooleanComposition(
     AxisAlignedBoxExtents OuterBox,
     IReadOnlyList<SupportedBooleanHole> Holes,
-    SafeBooleanRootDescriptor? Root = null)
+    SafeBooleanRootDescriptor? Root = null,
+    IReadOnlyList<AxisAlignedBoxExtents>? OccupiedCells = null)
 {
     public SafeBooleanRootDescriptor RootDescriptor => Root ?? SafeBooleanRootDescriptor.FromBox(OuterBox);
 
@@ -24,7 +25,14 @@ public sealed record SafeBooleanComposition(
         return new SafeBooleanComposition(
             translatedOuter,
             Holes.Select(hole => hole.Translate(translation)).ToArray(),
-            RootDescriptor.Translate(translation));
+            RootDescriptor.Translate(translation),
+            OccupiedCells?.Select(cell => new AxisAlignedBoxExtents(
+                cell.MinX + translation.X,
+                cell.MaxX + translation.X,
+                cell.MinY + translation.Y,
+                cell.MaxY + translation.Y,
+                cell.MinZ + translation.Z,
+                cell.MaxZ + translation.Z)).ToArray());
     }
 }
 

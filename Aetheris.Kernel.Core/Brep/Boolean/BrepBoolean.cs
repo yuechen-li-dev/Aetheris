@@ -2,6 +2,7 @@ using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
+using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Brep.Boolean;
 
@@ -167,6 +168,22 @@ public static class BrepBoolean
         var leftRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(leftBody, resolvedTolerance, out var leftBox, out _);
         var rightRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(rightBody, resolvedTolerance, out var rightBox, out _);
         var rightAnalyticRecognized = BrepBooleanAnalyticSurfaceRecognition.TryRecognizeAnalyticSurface(rightBody, resolvedTolerance, out var analyticSurface, out _);
+
+        if (operation == BooleanOperation.Union
+            && !leftRecognized
+            && leftSafeCompositionRecognized
+            && rightRecognized
+            && leftSafeComposition is not null
+            && TryClassifyBoundedOrthogonalUnionWithExistingRoot(leftSafeComposition, rightBox, resolvedTolerance, out var additiveComposition, out var additiveUnsupportedReason))
+        {
+            return new BooleanCaseClassification(
+                BooleanExecutionClass.PlanarOnly,
+                additiveComposition,
+                additiveComposition.OuterBox,
+                rightBox,
+                null,
+                null);
+        }
 
         if (leftRecognized && rightRecognized)
         {
@@ -337,12 +354,17 @@ public static class BrepBoolean
 
             if (TryClassifyBoundedOrthogonalUnion(left, right, tolerance, out var unionCells, out var unsupportedReason))
             {
+                var unionBounds = AxisAlignedBoxExtents.Bounding(left, right);
                 return new BooleanClassificationData(
                     intersections,
                     IsComputed: true,
                     FragmentCount: 1,
                     SingleBoxResult: null,
-                    SafeCompositionResult: null,
+                    SafeCompositionResult: new SafeBooleanComposition(
+                        unionBounds,
+                        [],
+                        SafeBooleanRootDescriptor.FromBox(unionBounds),
+                        unionCells),
                     UnsupportedReason: null,
                     OrthogonalUnionCells: unionCells);
             }
@@ -383,6 +405,20 @@ public static class BrepBoolean
                 ]);
         }
 
+        if (classification.OrthogonalUnionCells is not null)
+        {
+            var rebuiltOrthogonalUnion = BrepBooleanOrthogonalUnionBuilder.BuildFromCells(classification.OrthogonalUnionCells);
+            if (!rebuiltOrthogonalUnion.IsSuccess)
+            {
+                return new BooleanRebuildData(classification, RebuiltBody: null, Diagnostics: rebuiltOrthogonalUnion.Diagnostics);
+            }
+
+            var rebuiltBody = classification.SafeCompositionResult is null
+                ? rebuiltOrthogonalUnion.Value
+                : CopyWithSafeComposition(rebuiltOrthogonalUnion.Value, classification.SafeCompositionResult);
+            return new BooleanRebuildData(classification, rebuiltBody, rebuiltOrthogonalUnion.Diagnostics);
+        }
+
         if (classification.SafeCompositionResult is not null)
         {
             var tolerance = request.Tolerance ?? ToleranceContext.Default;
@@ -390,14 +426,6 @@ public static class BrepBoolean
             return rebuiltThroughHole.IsSuccess
                 ? new BooleanRebuildData(classification, rebuiltThroughHole.Value, rebuiltThroughHole.Diagnostics)
                 : new BooleanRebuildData(classification, RebuiltBody: null, Diagnostics: rebuiltThroughHole.Diagnostics);
-        }
-
-        if (classification.OrthogonalUnionCells is not null)
-        {
-            var rebuiltOrthogonalUnion = BrepBooleanOrthogonalUnionBuilder.BuildFromCells(classification.OrthogonalUnionCells);
-            return rebuiltOrthogonalUnion.IsSuccess
-                ? new BooleanRebuildData(classification, rebuiltOrthogonalUnion.Value, rebuiltOrthogonalUnion.Diagnostics)
-                : new BooleanRebuildData(classification, RebuiltBody: null, Diagnostics: rebuiltOrthogonalUnion.Diagnostics);
         }
 
         if (classification.UnsupportedReason is not null)
@@ -571,6 +599,125 @@ public static class BrepBoolean
         return true;
     }
 
+    private static bool TryClassifyBoundedOrthogonalUnionWithExistingRoot(
+        SafeBooleanComposition leftComposition,
+        AxisAlignedBoxExtents right,
+        ToleranceContext tolerance,
+        out SafeBooleanComposition additiveComposition,
+        out string? unsupportedReason)
+    {
+        additiveComposition = leftComposition;
+        unsupportedReason = null;
+
+        var leftCells = leftComposition.OccupiedCells;
+        if (leftCells is null || leftCells.Count == 0)
+        {
+            unsupportedReason = "Boolean Union: additive root does not carry bounded orthogonal occupancy cells for chained union recognition.";
+            return false;
+        }
+
+        var combined = new List<AxisAlignedBoxExtents>(leftCells.Count + 1);
+        combined.AddRange(leftCells);
+        combined.Add(right);
+
+        var distinctX = combined.SelectMany(cell => new[] { cell.MinX, cell.MaxX }).Distinct().OrderBy(v => v).ToArray();
+        var distinctY = combined.SelectMany(cell => new[] { cell.MinY, cell.MaxY }).Distinct().OrderBy(v => v).ToArray();
+        var distinctZ = combined.SelectMany(cell => new[] { cell.MinZ, cell.MaxZ }).Distinct().OrderBy(v => v).ToArray();
+        var refinedCells = new List<AxisAlignedBoxExtents>();
+
+        for (var ix = 0; ix < distinctX.Length - 1; ix++)
+        {
+            for (var iy = 0; iy < distinctY.Length - 1; iy++)
+            {
+                for (var iz = 0; iz < distinctZ.Length - 1; iz++)
+                {
+                    var candidate = new AxisAlignedBoxExtents(
+                        distinctX[ix],
+                        distinctX[ix + 1],
+                        distinctY[iy],
+                        distinctY[iy + 1],
+                        distinctZ[iz],
+                        distinctZ[iz + 1]);
+                    if (!candidate.HasPositiveVolume(tolerance))
+                    {
+                        continue;
+                    }
+
+                    if (combined.Any(cell => cell.Contains(candidate, tolerance)))
+                    {
+                        refinedCells.Add(candidate);
+                    }
+                }
+            }
+        }
+
+        if (refinedCells.Count == 0)
+        {
+            unsupportedReason = "Boolean Union: additive-root refinement produced no occupied orthogonal cells.";
+            return false;
+        }
+
+        var bounds = AxisAlignedBoxExtents.Bounding(refinedCells[0], refinedCells[0]);
+        for (var i = 1; i < refinedCells.Count; i++)
+        {
+            bounds = AxisAlignedBoxExtents.Bounding(bounds, refinedCells[i]);
+        }
+
+        if (!TryValidateOrthogonalCellConnectivity(refinedCells, tolerance))
+        {
+            unsupportedReason = "Boolean Union: additive-root chained union is disjoint or only edge-connected after bounded orthogonal refinement.";
+            return false;
+        }
+
+        additiveComposition = new SafeBooleanComposition(
+            bounds,
+            leftComposition.Holes,
+            SafeBooleanRootDescriptor.FromBox(bounds),
+            refinedCells);
+        return true;
+    }
+
+    private static bool TryValidateOrthogonalCellConnectivity(IReadOnlyList<AxisAlignedBoxExtents> cells, ToleranceContext tolerance)
+    {
+        if (cells.Count == 0)
+        {
+            return false;
+        }
+
+        var visited = new HashSet<int>();
+        var queue = new Queue<int>();
+        visited.Add(0);
+        queue.Enqueue(0);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            for (var i = 0; i < cells.Count; i++)
+            {
+                if (visited.Contains(i) || !CellsShareVolumeOrFace(cells[current], cells[i], tolerance))
+                {
+                    continue;
+                }
+
+                visited.Add(i);
+                queue.Enqueue(i);
+            }
+        }
+
+        return visited.Count == cells.Count;
+    }
+
+    private static bool CellsShareVolumeOrFace(AxisAlignedBoxExtents a, AxisAlignedBoxExtents b, ToleranceContext tolerance)
+    {
+        var overlap = AxisAlignedBoxExtents.Intersection(a, b);
+        if (overlap is not null && overlap.Value.HasPositiveVolume(tolerance))
+        {
+            return true;
+        }
+
+        return IsPositiveAreaFaceContact(a, b, tolerance);
+    }
+
     private static bool IsPositiveAreaFaceContact(AxisAlignedBoxExtents left, AxisAlignedBoxExtents right, ToleranceContext tolerance)
     {
         var xFaceTouch = (ToleranceMath.AlmostEqual(left.MaxX, right.MinX, tolerance) || ToleranceMath.AlmostEqual(right.MaxX, left.MinX, tolerance))
@@ -611,4 +758,21 @@ public static class BrepBoolean
 
     private static KernelDiagnostic CreateInternalError(string message, string source)
         => new(KernelDiagnosticCode.InternalError, KernelDiagnosticSeverity.Error, message, source);
+
+    private static BrepBody CopyWithSafeComposition(BrepBody source, SafeBooleanComposition composition)
+        => new(source.Topology, source.Geometry, source.Bindings, GetVertexPoints(source), composition, source.ShellRepresentation);
+
+    private static IReadOnlyDictionary<VertexId, Point3D> GetVertexPoints(BrepBody source)
+    {
+        var points = new Dictionary<VertexId, Point3D>();
+        foreach (var vertex in source.Topology.Vertices)
+        {
+            if (source.TryGetVertexPoint(vertex.Id, out var point))
+            {
+                points[vertex.Id] = point;
+            }
+        }
+
+        return points;
+    }
 }

@@ -30,7 +30,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
                 nextFeatureId);
         }
 
-        if (!TryCreateSupportedHole(composition.OuterBox, surface, tolerance, composition.Holes.Count > 0, out var nextHole, out diagnostic, nextFeatureId))
+        if (!TryCreateSupportedHole(composition, surface, tolerance, composition.Holes.Count > 0, out var nextHole, out diagnostic, nextFeatureId))
         {
             return false;
         }
@@ -249,7 +249,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
     }
 
     private static bool TryCreateSupportedHole(
-        AxisAlignedBoxExtents outerBox,
+        SafeBooleanComposition composition,
         AnalyticSurface surface,
         ToleranceContext tolerance,
         bool hasExistingHoles,
@@ -257,6 +257,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
         out BooleanDiagnostic? diagnostic,
         string? featureId)
     {
+        var outerBox = composition.OuterBox;
         switch (surface.Kind)
         {
             case AnalyticSurfaceKind.Cylinder when surface.Cylinder is RecognizedCylinder cylinder:
@@ -353,6 +354,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
                 return false;
         }
     }
+
 
     private static bool ShouldTryContainedCylinderSegment(AxisAlignedBoxExtents outerBox, in RecognizedCylinder cylinder, ToleranceContext tolerance)
     {

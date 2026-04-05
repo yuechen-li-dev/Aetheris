@@ -137,6 +137,21 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Union_ChainedOnRecognizedOrthogonalAdditiveRoot_RemainsSupported()
+    {
+        var basePlate = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -5d, 5d, -3d, 3d)).Value;
+        var upright = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(12d, 20d, -5d, 5d, 3d, 27d)).Value;
+        var flange = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, -12d, -5d, 5d, 3d, 15d)).Value;
+
+        var first = BrepBoolean.Union(basePlate, upright);
+        Assert.True(first.IsSuccess);
+
+        var second = BrepBoolean.Union(first.Value, flange);
+        Assert.True(second.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(second.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+    }
+
+    [Fact]
     public void Union_DisjointBoxes_ReturnsNotImplemented()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 1d, 0d, 1d, 0d, 1d)).Value;

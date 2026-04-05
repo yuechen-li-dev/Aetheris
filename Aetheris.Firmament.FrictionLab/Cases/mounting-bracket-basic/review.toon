@@ -2,14 +2,16 @@ case_id: mounting-bracket-basic
 possible: partial
 awkwardness: high
 pain_points[2]:
-  - "Bracket union requires add behavior that currently fails on non-trivial unions."
-  - "Hole placement requires manual offsets with no alignment helper for faces/axes."
+  - "Bracket add root is still not recognized as a bounded orthogonal safe subtract root for follow-on subtract features."
+  - "Hole placement remains manual offset authoring with no semantic alignment helpers."
 proposed_features[2]:
-  - "Robust add/union support for simple multi-box bracket construction."
+  - "Broaden bounded additive-root recognition so valid bracket add/union results can re-enter safe subtract composition."
   - "Face/axis placement primitives for hole positioning."
-reviewer_verdict: "Intent is clear but blocked by union limitations, so only partial authoring confidence."
+reviewer_verdict: "FL2e rerun is unchanged from FL2a: subtract continuation after bracket add still fails root recognition."
 previous_status: partial
 current_status: partial
-changed: yes
-blocker_class: improved_but_still_blocked
-change_note: "F1 union now gets the bracket add farther; blocker moved to subtract-family composition from the new bracket root."
+changed: no
+improved: false
+classification: unchanged_kernel_blocker
+blocker_remaining: "Boolean feature 'base_hole' (subtract) cannot continue from 'bracket' because that prior add result is not a recognized bounded orthogonal safe subtract root."
+comparison_to_fl2a: "No status change relative to FL2a; G2 did not unlock this case's subtract continuation path."

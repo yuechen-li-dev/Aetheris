@@ -1,0 +1,75 @@
+{
+  "totalCases": 3,
+  "successCount": 0,
+  "partialCount": 2,
+  "failureCount": 1,
+  "caseResults": [
+    {
+      "caseId": "mounting-bracket-basic",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027base_hole\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "ValidationFailed",
+          "severity": "Error",
+          "message": "Boolean feature \u0027base_hole\u0027 (subtract) cannot continue from \u0027bracket\u0027 because that prior add result is not a recognized bounded orthogonal safe subtract root.",
+          "source": "firmament.feature-graph.unrecognized-additive-root"
+        }
+      ]
+    },
+    {
+      "caseId": "simple-bracket",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027bracket\u0027 (add) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027bracket\u0027 (add): Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).",
+          "source": "BrepBoolean.RebuildResult"
+        }
+      ]
+    },
+    {
+      "caseId": "shaft-keyway",
+      "buildStatus": "failure",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027keyway\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027keyway\u0027 (subtract): Boolean Subtract: sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family.",
+          "source": "BrepBoolean.RebuildResult"
+        }
+      ]
+    }
+  ],
+  "summaryPath": "Aetheris.Firmament.FrictionLab/Reports/fl2e-run.json"
+}

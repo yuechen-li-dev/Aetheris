@@ -2,13 +2,15 @@ case_id: simple-bracket
 possible: partial
 awkwardness: high
 pain_points[2]:
-  - "Additive union of offset boxes fails for non-single-box unions in current milestone."
-  - "Clean bracket intent cannot be expressed without unsupported boolean union behavior."
+  - "Second bracket add still hits M13 union rebuild constraints for non-single-box recognized roots."
+  - "Bracket intent is straightforward but expression remains blocked by limited add/union representability."
 proposed_features[1]:
-  - "Expand boolean add execution beyond single-box union rebuild constraints."
-reviewer_verdict: "Stopped intentionally; recorded friction instead of forcing workaround geometry."
+  - "Expand boolean add execution beyond single recognized axis-aligned box rebuild constraints."
+reviewer_verdict: "FL2e rerun remains blocked at the same second-add union step seen in FL2a."
 previous_status: partial
 current_status: partial
 changed: no
-blocker_class: unchanged_kernel_blocker
-blocker_remaining: "Second additive union step still fails rebuild constraints for multi-box bracket completion."
+improved: false
+classification: unchanged_kernel_blocker
+blocker_remaining: "Boolean feature 'bracket' (add): Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...)."
+comparison_to_fl2a: "No change versus FL2a; G2 does not affect this add/union blocker path."

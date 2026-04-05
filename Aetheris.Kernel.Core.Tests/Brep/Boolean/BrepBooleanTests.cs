@@ -121,6 +121,44 @@ public sealed class BrepBooleanTests
         Assert.False(BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(result.Value, ToleranceContext.Default, out _, out _));
         var validation = BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true);
         Assert.True(validation.IsSuccess);
+
+        Assert.Single(FindPlanarFaces(result.Value, normalY: -1d, originY: 0d));
+        Assert.Single(FindPlanarFaces(result.Value, normalY: 1d, originY: 4d));
+    }
+
+    [Fact]
+    public void OrthogonalUnionBuilder_Merges_CoplanarExteriorRects_AndKeepsInteriorSuppressed()
+    {
+        var cells = new[]
+        {
+            new AxisAlignedBoxExtents(0d, 2d, 0d, 2d, 0d, 1d),
+            new AxisAlignedBoxExtents(2d, 4d, 0d, 2d, 0d, 1d),
+        };
+
+        var body = BrepBooleanOrthogonalUnionBuilder.BuildFromCells(cells);
+        Assert.True(body.IsSuccess);
+        Assert.Equal(6, body.Value.Topology.Faces.Count());
+        Assert.Single(FindPlanarFaces(body.Value, normalZ: -1d, originZ: 0d));
+        Assert.Single(FindPlanarFaces(body.Value, normalZ: 1d, originZ: 1d));
+        Assert.Empty(FindPlanarFaces(body.Value, normalX: 1d, originX: 2d));
+        Assert.Empty(FindPlanarFaces(body.Value, normalX: -1d, originX: 2d));
+    }
+
+    [Fact]
+    public void OrthogonalUnionBuilder_LShapedPlaneRegion_IsRetiledDeterministicallyWithoutRedundantSplits()
+    {
+        var cells = new[]
+        {
+            new AxisAlignedBoxExtents(0d, 2d, 0d, 2d, 0d, 1d),
+            new AxisAlignedBoxExtents(2d, 4d, 0d, 2d, 0d, 1d),
+            new AxisAlignedBoxExtents(0d, 2d, 2d, 4d, 0d, 1d),
+        };
+
+        var body = BrepBooleanOrthogonalUnionBuilder.BuildFromCells(cells);
+        Assert.True(body.IsSuccess);
+        Assert.Equal(10, body.Value.Topology.Faces.Count());
+        Assert.Equal(2, FindPlanarFaces(body.Value, normalZ: -1d, originZ: 0d).Count);
+        Assert.Equal(2, FindPlanarFaces(body.Value, normalZ: 1d, originZ: 1d).Count);
     }
 
     [Fact]
@@ -1375,6 +1413,26 @@ public sealed class BrepBooleanTests
             Assert.Equal($"Boolean {operation}: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
         }
     }
+
+    private static List<Face> FindPlanarFaces(BrepBody body, double? normalX = null, double? normalY = null, double? normalZ = null, double? originX = null, double? originY = null, double? originZ = null)
+        => body.Topology.Faces
+            .Where(face =>
+            {
+                if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface.Kind != SurfaceGeometryKind.Plane)
+                {
+                    return false;
+                }
+
+                var plane = surface.Plane!.Value;
+                var normal = plane.Normal.ToVector();
+                return (normalX is null || System.Math.Abs(normal.X - normalX.Value) <= 1e-6d)
+                    && (normalY is null || System.Math.Abs(normal.Y - normalY.Value) <= 1e-6d)
+                    && (normalZ is null || System.Math.Abs(normal.Z - normalZ.Value) <= 1e-6d)
+                    && (originX is null || System.Math.Abs(plane.Origin.X - originX.Value) <= 1e-6d)
+                    && (originY is null || System.Math.Abs(plane.Origin.Y - originY.Value) <= 1e-6d)
+                    && (originZ is null || System.Math.Abs(plane.Origin.Z - originZ.Value) <= 1e-6d);
+            })
+            .ToList();
 
     private static BrepBody CreateCone(double bottomRadius, double topRadius, double height)
     {

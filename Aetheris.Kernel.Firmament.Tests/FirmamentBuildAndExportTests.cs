@@ -403,7 +403,7 @@ public sealed class FirmamentBuildAndExportTests
         Assert.Equal("add", build.Value.Export.ExportedFeatureKind);
 
         Assert.DoesNotContain("TRIANGULATED_FACE_SET", build.Value.Export.StepText, StringComparison.Ordinal);
-        Assert.True(CountOccurrences(build.Value.Export.StepText, "ADVANCED_FACE") > 6);
+        Assert.Equal(10, CountOccurrences(build.Value.Export.StepText, "ADVANCED_FACE"));
 
         var sourceText = File.ReadAllText(fullSourcePath, Encoding.UTF8);
         Assert.Contains("ops[2]", sourceText, StringComparison.Ordinal);

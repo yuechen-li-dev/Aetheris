@@ -26,6 +26,7 @@ public static class BrepBooleanOrthogonalUnionBuilder
         }
 
         var faceRects = CollectBoundaryFaceRectangles(cells);
+        faceRects = MergeCoplanarFaceRectangles(faceRects);
         if (faceRects.Count == 0)
         {
             return KernelResult<BrepBody>.Failure([
@@ -188,6 +189,108 @@ public static class BrepBooleanOrthogonalUnionBuilder
         return faces;
     }
 
+    private static List<FaceRect> MergeCoplanarFaceRectangles(IReadOnlyList<FaceRect> faces)
+    {
+        var merged = new List<FaceRect>();
+        foreach (var group in faces.GroupBy(face => new PlaneKey(face.Axis, face.Fixed, face.IsPositiveNormal)))
+        {
+            merged.AddRange(MergePlaneGroup(group.Key, group.ToArray()));
+        }
+
+        return merged;
+    }
+
+    private static IEnumerable<FaceRect> MergePlaneGroup(PlaneKey plane, IReadOnlyList<FaceRect> faces)
+    {
+        var aCoordinates = faces.SelectMany(face => new[] { face.MinA, face.MaxA }).Distinct().OrderBy(v => v).ToArray();
+        var bCoordinates = faces.SelectMany(face => new[] { face.MinB, face.MaxB }).Distinct().OrderBy(v => v).ToArray();
+        if (aCoordinates.Length < 2 || bCoordinates.Length < 2)
+        {
+            yield break;
+        }
+
+        var aIndex = new Dictionary<double, int>(aCoordinates.Length);
+        for (var i = 0; i < aCoordinates.Length; i++)
+        {
+            aIndex[aCoordinates[i]] = i;
+        }
+
+        var bIndex = new Dictionary<double, int>(bCoordinates.Length);
+        for (var i = 0; i < bCoordinates.Length; i++)
+        {
+            bIndex[bCoordinates[i]] = i;
+        }
+
+        var occupancy = new bool[aCoordinates.Length - 1, bCoordinates.Length - 1];
+        foreach (var rect in faces)
+        {
+            var minA = aIndex[rect.MinA];
+            var maxA = aIndex[rect.MaxA];
+            var minB = bIndex[rect.MinB];
+            var maxB = bIndex[rect.MaxB];
+            for (var a = minA; a < maxA; a++)
+            {
+                for (var b = minB; b < maxB; b++)
+                {
+                    occupancy[a, b] = true;
+                }
+            }
+        }
+
+        for (var b = 0; b < bCoordinates.Length - 1; b++)
+        {
+            for (var a = 0; a < aCoordinates.Length - 1; a++)
+            {
+                if (!occupancy[a, b])
+                {
+                    continue;
+                }
+
+                var maxA = a + 1;
+                while (maxA < aCoordinates.Length - 1 && occupancy[maxA, b])
+                {
+                    maxA++;
+                }
+
+                var maxB = b + 1;
+                var canGrow = true;
+                while (canGrow && maxB < bCoordinates.Length - 1)
+                {
+                    for (var fillA = a; fillA < maxA; fillA++)
+                    {
+                        if (!occupancy[fillA, maxB])
+                        {
+                            canGrow = false;
+                            break;
+                        }
+                    }
+
+                    if (canGrow)
+                    {
+                        maxB++;
+                    }
+                }
+
+                for (var fillA = a; fillA < maxA; fillA++)
+                {
+                    for (var fillB = b; fillB < maxB; fillB++)
+                    {
+                        occupancy[fillA, fillB] = false;
+                    }
+                }
+
+                yield return new FaceRect(
+                    plane.Axis,
+                    plane.Fixed,
+                    aCoordinates[a],
+                    aCoordinates[maxA],
+                    bCoordinates[b],
+                    bCoordinates[maxB],
+                    plane.IsPositiveNormal);
+            }
+        }
+    }
+
     private static void TryAddFace(IReadOnlyList<AxisAlignedBoxExtents> cells, List<FaceRect> faces, CellKey cell, AxisKind axis, double fixedValue, bool isPositiveNormal)
     {
         var coveredByNeighbor = cells.Any(other =>
@@ -246,6 +349,8 @@ public static class BrepBooleanOrthogonalUnionBuilder
         public static CellKey FromExtents(AxisAlignedBoxExtents extents)
             => new(extents.MinX, extents.MaxX, extents.MinY, extents.MaxY, extents.MinZ, extents.MaxZ);
     }
+
+    private readonly record struct PlaneKey(AxisKind Axis, double Fixed, bool IsPositiveNormal);
 
     private readonly record struct FaceRect(AxisKind Axis, double Fixed, double MinA, double MaxA, double MinB, double MaxB, bool IsPositiveNormal)
     {

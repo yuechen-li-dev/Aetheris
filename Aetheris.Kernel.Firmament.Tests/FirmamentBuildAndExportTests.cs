@@ -539,7 +539,7 @@ public sealed class FirmamentBuildAndExportTests
             diagnostic.Message.Contains("Requested boolean feature 'keyway' (subtract) could not be executed.", StringComparison.Ordinal));
         Assert.Contains(result.Diagnostics, diagnostic =>
             diagnostic.Source == "BrepBoolean.RebuildResult"
-            && diagnostic.Message.Contains("sequential safe composition only supports subtracting supported analytic holes", StringComparison.Ordinal));
+            && diagnostic.Message.Contains("bounded keyway family excludes centerline-spanning trenches", StringComparison.Ordinal));
     }
 
     [Fact]

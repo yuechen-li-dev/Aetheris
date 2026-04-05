@@ -210,6 +210,64 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void CylinderRootKeywayPressureCase_Fails_WithExplicitCenterlineSubsetDiagnostic()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("Aetheris.Firmament.FrictionLab/Cases/shaft-keyway/part.firmament");
+        var result = FirmamentCorpusHarness.Compile(source);
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Source == "BrepBoolean.RebuildResult"
+            && diagnostic.Message.Contains("bounded keyway family excludes centerline-spanning trenches", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CylinderRootKeywayOutsideBoundedSubset_Fails_WithSpecificDepthDiagnostic()
+    {
+        const string source = """
+        firmament:
+          version: 1
+
+        model:
+          name: keyway_depth_outside_subset
+          units: mm
+
+        ops[2]:
+          -
+            op: cylinder
+            id: shaft
+            radius: 15
+            height: 80
+
+          -
+            op: subtract
+            id: shallow_keyway
+            from: shaft
+            with:
+              op: box
+              size[3]:
+                10
+                6
+                30
+            place:
+              on: origin
+              offset[3]:
+                10
+                0
+                0
+        """;
+
+        var result = FirmamentCorpusHarness.Compile(source);
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.NotImplemented
+            && diagnostic.Source == "BrepBoolean.RebuildResult"
+            && diagnostic.Message.Contains("requires a through slot that spans both cylinder end caps", StringComparison.Ordinal));
+    }
+
     public static TheoryData<string, string, string> UnsupportedBoxTorusVariantSources =>
         new()
         {

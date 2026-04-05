@@ -26,6 +26,8 @@ internal static class FirmamentPrimitiveExecutor
         var booleanExecutionBodiesByFeatureId = new Dictionary<string, BrepBody>(StringComparer.Ordinal);
         var featureGraphStates = new Dictionary<string, FirmamentSafeSubtractFeatureGraphState>(StringComparer.Ordinal);
 
+        var tolerance = ToleranceContext.Default;
+
         foreach (var primitive in loweringPlan.Primitives.OrderBy(p => p.OpIndex))
         {
             var bodyResult = ExecutePrimitive(primitive, publishedBodiesByFeatureId);
@@ -95,7 +97,11 @@ internal static class FirmamentPrimitiveExecutor
                 executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, patternBooleanBody));
                 publishedBodiesByFeatureId[boolean.FeatureId] = patternBooleanBody;
                 booleanExecutionBodiesByFeatureId[boolean.FeatureId] = patternBooleanBody;
-                featureGraphStates[boolean.FeatureId] = patternGraphValidation.Value.ResultState;
+                featureGraphStates[boolean.FeatureId] = DetermineBooleanFeatureGraphState(
+                    boolean,
+                    patternGraphValidation.Value.ResultState,
+                    patternBooleanBody,
+                    tolerance);
                 continue;
             }
 
@@ -161,7 +167,11 @@ internal static class FirmamentPrimitiveExecutor
             executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, placedBooleanBody));
             publishedBodiesByFeatureId[boolean.FeatureId] = placedBooleanBody;
             booleanExecutionBodiesByFeatureId[boolean.FeatureId] = placedBooleanBody;
-            featureGraphStates[boolean.FeatureId] = featureGraphValidation.Value.ResultState;
+            featureGraphStates[boolean.FeatureId] = DetermineBooleanFeatureGraphState(
+                boolean,
+                featureGraphValidation.Value.ResultState,
+                placedBooleanBody,
+                tolerance);
         }
 
         return KernelResult<FirmamentPrimitiveExecutionResult>.Success(new FirmamentPrimitiveExecutionResult(executedPrimitives, executedBooleans));
@@ -268,6 +278,27 @@ internal static class FirmamentPrimitiveExecutor
             FirmamentLoweredBooleanKind.Intersect => BrepBoolean.Intersect(left, right),
             _ => KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution for kind '{kind}' is not implemented.")])
         };
+
+    private static FirmamentSafeSubtractFeatureGraphState DetermineBooleanFeatureGraphState(
+        FirmamentLoweredBoolean boolean,
+        FirmamentSafeSubtractFeatureGraphState validatedResultState,
+        BrepBody resultBody,
+        ToleranceContext tolerance)
+    {
+        if (validatedResultState == FirmamentSafeSubtractFeatureGraphState.SafeSubtractComposition)
+        {
+            return validatedResultState;
+        }
+
+        if (boolean.Kind == FirmamentLoweredBooleanKind.Add)
+        {
+            return BrepBooleanSafeComposition.TryRecognize(resultBody, tolerance, out _, out _)
+                ? FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveSafeRoot
+                : FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveOutsideSafeRoot;
+        }
+
+        return validatedResultState;
+    }
 
     private static BrepBody ApplyDefaultToolLocalFrame(FirmamentLoweredToolOp tool, BrepBody body)
     {

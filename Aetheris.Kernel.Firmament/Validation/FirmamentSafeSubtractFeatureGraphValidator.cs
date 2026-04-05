@@ -48,7 +48,9 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
             return ValidateSupportedSafeSubtract(boolean, executionBodiesByFeatureId, tolerance, resolvedToolBody);
         }
 
-        if (sourceState is FirmamentSafeSubtractFeatureGraphState.BoxRoot or FirmamentSafeSubtractFeatureGraphState.CylinderRoot)
+        if (sourceState is FirmamentSafeSubtractFeatureGraphState.BoxRoot
+            or FirmamentSafeSubtractFeatureGraphState.CylinderRoot
+            or FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveSafeRoot)
         {
             if (boolean.Kind == FirmamentLoweredBooleanKind.Subtract && usesSupportedSafeHoleTool)
             {
@@ -59,6 +61,16 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
                 new FirmamentSafeSubtractFeatureGraphValidation(
                     WasValidated: false,
                     ResultState: FirmamentSafeSubtractFeatureGraphState.Other));
+        }
+
+        if (sourceState == FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveOutsideSafeRoot
+            && boolean.Kind == FirmamentLoweredBooleanKind.Subtract
+            && usesSupportedSafeHoleTool)
+        {
+            return Failure(
+                KernelDiagnosticCode.ValidationFailed,
+                $"Boolean feature '{boolean.FeatureId}' (subtract) cannot continue from '{boolean.PrimaryReferenceFeatureId}' because that prior add result is not a recognized bounded orthogonal safe subtract root.",
+                "firmament.feature-graph.unrecognized-additive-root");
         }
 
         if (boolean.Kind == FirmamentLoweredBooleanKind.Subtract && usesSupportedSafeHoleTool)
@@ -159,6 +171,8 @@ internal enum FirmamentSafeSubtractFeatureGraphState
 {
     BoxRoot,
     CylinderRoot,
+    BoundedOrthogonalAdditiveSafeRoot,
+    BoundedOrthogonalAdditiveOutsideSafeRoot,
     SafeSubtractComposition,
     Other
 }

@@ -225,6 +225,18 @@ public sealed class FirmamentStepExporterTests
         Assert.Contains("BREP_WITH_VOIDS", first.Value.StepText, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Export_AddThenSubtract_ReentrySafeRootFixture_Succeeds_Deterministically_Without_Fallback()
+    {
+        var first = ExportFixture("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament");
+        var second = ExportFixture("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament");
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.StepText, second.Value.StepText);
+        Assert.Contains("CYLINDRICAL_SURFACE", first.Value.StepText, StringComparison.Ordinal);
+    }
+
 
     [Theory]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament", "tangent_cavity")]
@@ -242,7 +254,6 @@ public sealed class FirmamentStepExporterTests
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "joined")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "cavity")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch")]
-    [InlineData("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament", "hole")]
     public void Export_UnsupportedMixedPrimitiveBooleanFixtures_Fail_Loudly_Without_Fallback(string fixturePath, string expectedFeatureId)
     {
         var first = ExportFixture(fixturePath);

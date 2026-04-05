@@ -1,4 +1,6 @@
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Firmament.Lowering;
+using Aetheris.Kernel.Firmament.Validation;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -22,7 +24,6 @@ public sealed class FirmamentSafeSubtractFeatureGraphValidationTests
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", KernelDiagnosticCode.NotImplemented, "Boolean feature 'hole_b' (subtract) would be tangent to previously accepted hole <unknown>", "BrepBoolean.AnalyticHole.TangentContact")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", KernelDiagnosticCode.ValidationFailed, "Boolean feature 'cavity' (subtract) uses unsupported follow-on tool kind 'sphere'", "firmament.feature-graph.unsupported-follow-on-kind")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", KernelDiagnosticCode.ValidationFailed, "Boolean feature 'notch' (subtract) uses unsupported follow-on tool kind 'box'", "firmament.feature-graph.unsupported-follow-on-kind")]
-    [InlineData("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament", KernelDiagnosticCode.ValidationFailed, "Boolean feature 'hole' (subtract) cannot re-enter the safe subtract family from 'joined'", "firmament.feature-graph.invalid-composition-order")]
     public void FeatureGraphValidator_FailsDeterministically_ForUnsupportedSequentialComposition(
         string fixturePath,
         KernelDiagnosticCode expectedCode,
@@ -38,5 +39,39 @@ public sealed class FirmamentSafeSubtractFeatureGraphValidationTests
             && diagnostic.Source == expectedSource);
         Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FeatureGraphValidator_Rejects_AdditiveRootOutsideRecognizedSafeFamily_WithSpecificDiagnostic()
+    {
+        var boolean = new FirmamentLoweredBoolean(
+            OpIndex: 2,
+            FeatureId: "hole",
+            Kind: FirmamentLoweredBooleanKind.Subtract,
+            PrimaryReferenceField: "from",
+            PrimaryReferenceFeatureId: "joined",
+            Tool: new FirmamentLoweredToolOp(
+                "cylinder",
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["radius"] = "2",
+                    ["height"] = "20"
+                },
+                RawValue: string.Empty),
+            Placement: null);
+
+        var result = FirmamentSafeSubtractFeatureGraphValidator.ValidateNextBoolean(
+            boolean,
+            new Dictionary<string, FirmamentSafeSubtractFeatureGraphState>(StringComparer.Ordinal)
+            {
+                ["joined"] = FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveOutsideSafeRoot
+            },
+            new Dictionary<string, Aetheris.Kernel.Core.Brep.BrepBody>());
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == KernelDiagnosticCode.ValidationFailed
+            && diagnostic.Source == "firmament.feature-graph.unrecognized-additive-root"
+            && diagnostic.Message.Contains("prior add result is not a recognized bounded orthogonal safe subtract root", StringComparison.Ordinal));
     }
 }

@@ -14,7 +14,8 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
             { "testdata/firmament/examples/boolean_box_cylinder_hole.firmament", "hole", FirmamentLoweredBooleanKind.Subtract },
             { "testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament", "cut", FirmamentLoweredBooleanKind.Subtract },
             { "testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament", "hole_b", FirmamentLoweredBooleanKind.Subtract },
-            { "testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament", "cut_b", FirmamentLoweredBooleanKind.Subtract }
+            { "testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament", "cut_b", FirmamentLoweredBooleanKind.Subtract },
+            { "testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament", "hole", FirmamentLoweredBooleanKind.Subtract }
         };
 
     [Theory]
@@ -42,6 +43,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     [InlineData("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament", "cut", 1, "subtract")]
     [InlineData("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament", "hole_b", 2, "subtract")]
     [InlineData("testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament", "cut_b", 2, "subtract")]
+    [InlineData("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament", "hole", 2, "subtract")]
     public void CanonicalBooleanExamples_Export_Deterministically_WithExpectedMarkers(string fixturePath, string expectedFeatureId, int expectedOpIndex, string expectedKind)
     {
         var first = ExportFixture(fixturePath);
@@ -189,7 +191,6 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "joined", "cannot continue the safe subtract chain rooted at 'hole_a'")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "cavity", "unsupported follow-on tool kind 'sphere'")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch", "unsupported follow-on tool kind 'box'")]
-    [InlineData("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament", "hole", "cannot re-enter the safe subtract family from 'joined'")]
     public void SequentialCompositionOutsideSafeSubset_RemainsRejectedWithoutFallback(string fixturePath, string expectedFeatureId, string expectedMessageFragment)
     {
         var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));

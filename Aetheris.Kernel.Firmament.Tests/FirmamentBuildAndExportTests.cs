@@ -366,18 +366,16 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
-    public void Run_FrictionLabMountingBracketBasic_ProgressesToCoaxialStackConstraint()
+    public void Run_FrictionLabMountingBracketBasic_Builds_And_Exports_After_G8_IndependentHoleSupport()
     {
         var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/mounting-bracket-basic/part.firmament");
         var result = FirmamentBuildAndExport.Run(fullSourcePath);
 
-        Assert.False(result.IsSuccess);
-        Assert.Contains(result.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("Requested boolean feature 'upright_hole' (subtract) could not be executed.", StringComparison.Ordinal));
-        Assert.Contains(result.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("requires coaxial cylinders with matching XY axis centers", StringComparison.Ordinal));
-        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("cannot append a blind analytic hole to an existing safe subtract composition", StringComparison.Ordinal));
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("upright_hole", result.Value.Export.ExportedFeatureId);
+        Assert.Equal("boolean", result.Value.Export.ExportedBodyCategory);
+        Assert.Equal("subtract", result.Value.Export.ExportedFeatureKind);
+        Assert.Contains("MANIFOLD_SOLID_BREP", result.Value.Export.StepText, StringComparison.Ordinal);
     }
 
     [Fact]

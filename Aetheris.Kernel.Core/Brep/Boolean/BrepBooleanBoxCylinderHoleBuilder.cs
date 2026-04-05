@@ -59,7 +59,9 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             ]);
         }
 
-        if (composition.Holes.Count == 2 && composition.Holes.Any(h => h.IsBlind))
+        if (composition.Holes.Count == 2
+            && composition.Holes.Any(h => h.IsBlind)
+            && IsCoaxialHolePair(composition.Holes[0], composition.Holes[1], tolerance))
         {
             if (BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
                 composition.OuterBox,
@@ -79,6 +81,14 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         }
 
         return CreateComposedThroughHoleBody(composition, tolerance);
+    }
+
+    private static bool IsCoaxialHolePair(in SupportedBooleanHole first, in SupportedBooleanHole second, ToleranceContext tolerance)
+    {
+        var deltaX = first.CenterX - second.CenterX;
+        var deltaY = first.CenterY - second.CenterY;
+        return ToleranceMath.AlmostZero(deltaX, tolerance)
+            && ToleranceMath.AlmostZero(deltaY, tolerance);
     }
 
     private static KernelResult<BrepBody> CreateBoundedCylinderRootHoleChainBody(SafeBooleanComposition composition, ToleranceContext tolerance)

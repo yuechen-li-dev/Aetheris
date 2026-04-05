@@ -110,6 +110,59 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
     }
 
     [Fact]
+    public void ValidateNextSubtract_IndependentHoleContinuationOnRecognizedRoot_RejectsUnsupportedAxisFamily()
+    {
+        var composition = new SafeBooleanComposition(
+            new AxisAlignedBoxExtents(-30d, 30d, -15d, 15d, -4d, 44d),
+            [
+                new SupportedBooleanHole(
+                    "hole_a",
+                    new AnalyticSurface(
+                        AnalyticSurfaceKind.Cylinder,
+                        Cylinder: new RecognizedCylinder(
+                            new Point3D(-15d, 0d, 0d),
+                            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+                            0d,
+                            20d,
+                            3.5d)),
+                    -15d,
+                    0d,
+                    new Point3D(-15d, 0d, -4d),
+                    new Point3D(-15d, 0d, 44d),
+                    Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+                    Direction3D.Create(new Vector3D(1d, 0d, 0d)),
+                    3.5d,
+                    3.5d,
+                    SupportedBooleanHoleSpanKind.Through,
+                    -4d,
+                    44d)
+            ],
+            SafeBooleanRootDescriptor.FromBox(new AxisAlignedBoxExtents(-30d, 30d, -15d, 15d, -4d, 44d)),
+            [new AxisAlignedBoxExtents(-30d, 30d, -15d, 15d, -4d, 4d), new AxisAlignedBoxExtents(22d, 30d, -15d, 15d, 4d, 44d)]);
+        var next = new AnalyticSurface(
+            AnalyticSurfaceKind.Cylinder,
+            Cylinder: new RecognizedCylinder(
+                new Point3D(26d, 0d, 18d),
+                Direction3D.Create(new Vector3D(0.2d, 0d, 1d)),
+                0d,
+                20d,
+                3.5d));
+
+        var result = BrepBooleanSafeCompositionGraphValidator.TryValidateNextSubtract(
+            composition,
+            next,
+            ToleranceContext.Default,
+            out _,
+            out var diagnostic);
+
+        Assert.False(result);
+        Assert.NotNull(diagnostic);
+        Assert.Equal(BooleanDiagnosticCode.NotFullySpanning, diagnostic!.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
+        Assert.Contains("does not match the supported subtract span family", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ValidateNextSubtract_SphereAfterExistingHole_FailsWithUnsupportedAnalyticSurfaceDiagnostic()
     {
         var composition = new SafeBooleanComposition(

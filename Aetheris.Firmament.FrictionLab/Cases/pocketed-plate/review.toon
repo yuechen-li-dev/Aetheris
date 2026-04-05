@@ -7,12 +7,12 @@ pain_points[2]:
 proposed_features[2]:
   - "Support pocket-like subtract representability beyond single-box rebuild constraints."
   - "Add feature references for top-face anchored depth cuts."
-reviewer_verdict: "FL2g rerun is unchanged from FL2f: pocket subtract still fails due to box-minus-box rebuild representability limits."
+reviewer_verdict: "FL2j rerun after D4 is unchanged: pocket subtract still fails execution and no STEP artifact is produced."
 previous_status: partial
 current_status: partial
 changed: no
 improved: false
 classification: unchanged_kernel_blocker
-blocker_remaining: "Boolean feature 'pocket' (subtract): box subtraction result is not representable as a single box in M13."
-comparison_to_fl2f: "No status change relative to FL2f; blocker remains BrepBoolean.RebuildResult representability."
-step_artifact_semantic_inspection: "Not applicable: export did not succeed; no STEP artifact generated."
+blocker_remaining: "Boolean feature 'pocket' (subtract): bounded orthogonal pocket family requires subtract box to open to exactly one exterior root face; fully enclosed cavities remain deferred."
+comparison_to_fl2g: "No status change relative to FL2g; blocker remains BrepBoolean.RebuildResult enclosed/open-mouth pocket classification and representability gate."
+step_artifact_semantic_inspection: "Not applicable: export did not succeed; no STEP artifact generated for semantic inspection."

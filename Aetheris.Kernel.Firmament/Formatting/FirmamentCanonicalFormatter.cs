@@ -169,6 +169,11 @@ internal static class FirmamentCanonicalFormatter
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "edges");
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "distance");
                 break;
+            case FirmamentKnownOpKind.Fillet:
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "from");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "edges");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "radius");
+                break;
             case FirmamentKnownOpKind.ExpectExists:
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "target");
                 break;

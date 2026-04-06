@@ -303,6 +303,29 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_BoundedFilletCanonicalInternalCase_Reaches_Narrow_TruthfulRebuildBlocker()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5b-canonical-internal-fillet-lroot.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Source == "firmament.fillet-bounded"
+            && diagnostic.Code == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed
+            && diagnostic.Message.Contains("safe-composition metadata", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Compile_Rejects_BoundedFillet_On_BoxRoot()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5b-invalid-fillet-radius-too-large.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Source == "firmament.fillet-bounded"
+            && diagnostic.Message.Contains("not eligible", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Compile_Mixed_Document_With_Unsupported_Boolean_Fails_Before_Publishing_Success_Artifact()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3d-mixed-primitive-boolean-validation.firmament");

@@ -45,7 +45,8 @@ public enum FirmamentLoweredBooleanKind
     Subtract,
     Intersect,
     Draft,
-    Chamfer
+    Chamfer,
+    Fillet
 }
 
 public enum FirmamentLoweredPrimitiveKind

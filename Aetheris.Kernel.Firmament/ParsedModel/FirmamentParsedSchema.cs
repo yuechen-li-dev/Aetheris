@@ -6,6 +6,8 @@ public sealed record FirmamentParsedSchema(
     FirmamentParsedSchemaProcess Process,
     string? MinimumToolRadiusRaw = null,
     double? MinimumToolRadius = null,
+    string? MinimumWallThicknessRaw = null,
+    double? MinimumWallThickness = null,
     string? PartingPlane = null,
     bool HasGateLocation = false,
     bool GateLocationIsObjectLike = false,

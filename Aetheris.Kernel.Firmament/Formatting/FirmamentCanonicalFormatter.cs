@@ -62,6 +62,10 @@ internal static class FirmamentCanonicalFormatter
         {
             AppendScalarField(builder, 1, "minimum_tool_radius", schema.MinimumToolRadiusRaw);
         }
+        if (schema.MinimumWallThicknessRaw is not null)
+        {
+            AppendScalarField(builder, 1, "minimum_wall_thickness", schema.MinimumWallThicknessRaw);
+        }
 
         if (schema.PartingPlane is not null)
         {

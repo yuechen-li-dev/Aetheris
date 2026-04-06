@@ -1,116 +1,12 @@
-using System.Linq;
 using Aetheris.Kernel.Firmament.Diagnostics;
+using Aetheris.Kernel.Core.Brep.Queries;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentSchemaCncDfmValidationTests
 {
     [Fact]
-    public void Compile_WithoutSchema_DoesNotApply_CncMinimumToolRadiusRule()
-    {
-        const string source = """
-firmament:
-  version: 1
-
-model:
-  name: demo
-  units: mm
-
-ops[2]:
-  -
-    op: box
-    id: base
-    size[3]:
-      6
-      6
-      6
-  -
-    op: subtract
-    id: hole
-    from: base
-    with:
-      op: cylinder
-      radius: 0.5
-      height: 8
-""";
-
-        var result = Compile(source);
-
-        Assert.True(result.Compilation.IsSuccess);
-        Assert.Empty(result.Compilation.Diagnostics);
-        Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains(FirmamentDiagnosticCodes.SchemaCncMinimumToolRadiusViolated.Value, StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void Compile_WithCncSchema_Allows_SubtractCylinderMeeting_MinimumToolRadius()
-    {
-        var result = CompileFixture("testdata/firmament/fixtures/m8c-valid-schema-cnc-minimum-tool-radius.firmament");
-
-        Assert.True(result.Compilation.IsSuccess);
-        Assert.Empty(result.Compilation.Diagnostics);
-    }
-
-    [Fact]
-    public void Compile_WithCncSchema_Rejects_SubtractCylinderBelow_MinimumToolRadius_Deterministically()
-    {
-        var first = CompileFixture("testdata/firmament/fixtures/m8c-invalid-schema-cnc-minimum-tool-radius.firmament");
-        var second = CompileFixture("testdata/firmament/fixtures/m8c-invalid-schema-cnc-minimum-tool-radius.firmament");
-
-        Assert.False(first.Compilation.IsSuccess);
-        Assert.False(second.Compilation.IsSuccess);
-
-        var firstDiagnostic = Assert.Single(first.Compilation.Diagnostics);
-        var secondDiagnostic = Assert.Single(second.Compilation.Diagnostics);
-
-        Assert.Equal(firstDiagnostic.Message, secondDiagnostic.Message);
-        Assert.Contains(FirmamentDiagnosticCodes.SchemaCncMinimumToolRadiusViolated.Value, firstDiagnostic.Message, StringComparison.Ordinal);
-        Assert.Equal(
-            $"[{FirmamentDiagnosticCodes.SchemaCncMinimumToolRadiusViolated.Value}] CNC minimum_tool_radius 2.0 exceeds subtract tool radius 1.0 for feature 'hole'.",
-            firstDiagnostic.Message);
-    }
-
-    [Theory]
-    [InlineData("additive", "printer_resolution: 0.1")]
-    [InlineData("injection_molded", "parting_plane: xy\n  gate_location:\n    x: 0\n    y: 0\n    z: 0\n  draft_angle: 2")]
-    public void Compile_WithNonCncSchema_DoesNotApply_CncMinimumToolRadiusRule(string process, string schemaFields)
-    {
-        var result = Compile($$"""
-firmament:
-  version: 1
-
-model:
-  name: demo
-  units: mm
-
-schema:
-  process: {{process}}
-  {{schemaFields}}
-
-ops[2]:
-  -
-    op: box
-    id: base
-    size[3]:
-      6
-      6
-      6
-  -
-    op: subtract
-    id: hole
-    from: base
-    with:
-      op: cylinder
-      radius: 0.5
-      height: 8
-""");
-
-        Assert.True(result.Compilation.IsSuccess);
-        Assert.Empty(result.Compilation.Diagnostics);
-        Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains(FirmamentDiagnosticCodes.SchemaCncMinimumToolRadiusViolated.Value, StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void Compile_WithCncSchema_DoesNotApply_Rule_ToNonCylinderSubtractTools()
+    public void Compile_WithCncSchema_CanonicalPassBody_Succeeds()
     {
         const string source = """
 firmament:
@@ -122,63 +18,40 @@ model:
 
 schema:
   process: cnc
-  minimum_tool_radius: 2
+  minimum_tool_radius: 0.25
+  minimum_wall_thickness: 0.5
 
-ops[2]:
+ops[1]:
   -
     op: box
     id: base
     size[3]:
       6
-      6
-      6
-  -
-    op: subtract
-    id: pocket
-    from: base
-    with:
-      op: cone
-      bottom_radius: 1.2
-      top_radius: 0.8
-      height: 8
+      4
+      2
 """;
 
         var result = Compile(source);
 
         Assert.True(result.Compilation.IsSuccess);
-        Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains(FirmamentDiagnosticCodes.SchemaCncMinimumToolRadiusViolated.Value, StringComparison.Ordinal));
+        Assert.Empty(result.Compilation.Diagnostics);
     }
 
     [Fact]
-    public void Compile_WithValidCncSchema_Preserves_Failure_Truth_For_Unsupported_Boolean_Execution()
+    public void Compile_WithCncSchema_FailsForInternalCornerToolRadiusViolation()
     {
-        const string baseline = """
-firmament:
-  version: 1
+        var result = CompileFixture("testdata/firmament/fixtures/m8c-invalid-schema-cnc-minimum-tool-radius.firmament");
 
-model:
-  name: demo
-  units: mm
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains(FirmamentDiagnosticCodes.SchemaCncManufacturabilityViolated.Value, diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains(CncManufacturabilityRuleIds.MinimumInternalCornerRadius, diagnostic.Message, StringComparison.Ordinal);
+    }
 
-ops[2]:
-  -
-    op: box
-    id: base
-    size[3]:
-      8
-      8
-      8
-  -
-    op: subtract
-    id: hole
-    from: base
-    with:
-      op: cylinder
-      radius: 2
-      height: 8
-""";
-
-        const string withSchema = """
+    [Fact]
+    public void Compile_WithCncSchema_FailsForWallThicknessViolation()
+    {
+        const string source = """
 firmament:
   version: 1
 
@@ -188,33 +61,26 @@ model:
 
 schema:
   process: cnc
-  minimum_tool_radius: 2
+  minimum_tool_radius: 0.25
+  minimum_wall_thickness: 1
 
-ops[2]:
+ops[1]:
   -
     op: box
-    id: base
+    id: thin
     size[3]:
       8
-      8
-      8
-  -
-    op: subtract
-    id: hole
-    from: base
-    with:
-      op: cylinder
-      radius: 2
-      height: 8
+      0.5
+      2
 """;
 
-        var first = Compile(baseline);
-        var second = Compile(withSchema);
+        var result = Compile(source);
 
-        Assert.True(first.Compilation.IsSuccess);
-        Assert.True(second.Compilation.IsSuccess);
-        Assert.Equal(first.Compilation.Diagnostics, second.Compilation.Diagnostics);
-        Assert.Empty(first.Compilation.Diagnostics);
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains(FirmamentDiagnosticCodes.SchemaCncManufacturabilityViolated.Value, StringComparison.Ordinal)
+            && diagnostic.Message.Contains(CncManufacturabilityRuleIds.MinimumWallThickness, StringComparison.Ordinal)
+            && diagnostic.Message.Contains("required>=1", StringComparison.Ordinal));
     }
 
     private static FirmamentCompileResult Compile(string source)

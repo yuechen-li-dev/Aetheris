@@ -72,13 +72,6 @@ public sealed class FirmamentCompiler
         var validatedDocument = documentCoherenceValidationResult.Value;
         var compiledSchema = FirmamentCompiledSchemaMapper.Map(validatedDocument.Schema);
 
-        var schemaDfmValidationResult = FirmamentSchemaCncDfmValidator.Validate(validatedDocument, compiledSchema);
-        if (!schemaDfmValidationResult.IsSuccess)
-        {
-            return new FirmamentCompileResult(
-                KernelResult<FirmamentCompilationArtifact>.Failure(schemaDfmValidationResult.Diagnostics));
-        }
-
         var primitiveLoweringResult = FirmamentPrimitiveLowerer.Lower(validatedDocument);
         if (!primitiveLoweringResult.IsSuccess)
         {
@@ -91,6 +84,13 @@ public sealed class FirmamentCompiler
         {
             return new FirmamentCompileResult(
                 KernelResult<FirmamentCompilationArtifact>.Failure(primitiveExecutionResult.Diagnostics));
+        }
+
+        var schemaDfmValidationResult = FirmamentSchemaCncDfmValidator.Validate(compiledSchema, primitiveExecutionResult.Value);
+        if (!schemaDfmValidationResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(schemaDfmValidationResult.Diagnostics));
         }
 
         var enclosedVoidValidationResult = FirmamentSchemaEnclosedVoidValidator.Validate(primitiveExecutionResult.Value, compiledSchema);

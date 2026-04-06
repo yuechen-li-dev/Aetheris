@@ -572,6 +572,13 @@ internal static class FirmamentTopLevelParser
         {
             minimumToolRadius = minimumToolRadiusElement.GetDouble();
         }
+        schemaElement.TryGetProperty("minimum_wall_thickness", out var minimumWallThicknessElement);
+        var minimumWallThicknessRaw = minimumWallThicknessElement.ToString();
+        double? minimumWallThickness = null;
+        if (minimumWallThicknessElement.ValueKind == JsonValueKind.Number)
+        {
+            minimumWallThickness = minimumWallThicknessElement.GetDouble();
+        }
 
         string? partingPlane = null;
         if (schemaElement.TryGetProperty("parting_plane", out var partingPlaneElement))
@@ -606,7 +613,7 @@ internal static class FirmamentTopLevelParser
             printerResolution = printerResolutionElement.GetDouble();
         }
 
-        return new FirmamentParsedSchema(true, processRaw, process, minimumToolRadiusRaw, minimumToolRadius, partingPlane, hasGateLocation, gateLocationIsObjectLike, gateLocation, draftAngleRaw, draftAngle, printerResolutionRaw, printerResolution);
+        return new FirmamentParsedSchema(true, processRaw, process, minimumToolRadiusRaw, minimumToolRadius, minimumWallThicknessRaw, minimumWallThickness, partingPlane, hasGateLocation, gateLocationIsObjectLike, gateLocation, draftAngleRaw, draftAngle, printerResolutionRaw, printerResolution);
     }
 
     private static FirmamentParsedSchema? ParseSchemaFromToonSections(IReadOnlyDictionary<string, FirmamentToonSection> sections)
@@ -630,6 +637,13 @@ internal static class FirmamentTopLevelParser
             && TryParseNumeric(minimumToolRadiusRaw, out var minimumToolRadiusValue))
         {
             minimumToolRadius = minimumToolRadiusValue;
+        }
+        schemaSection.Fields.TryGetValue("minimum_wall_thickness", out var minimumWallThicknessRaw);
+        double? minimumWallThickness = null;
+        if (!string.IsNullOrWhiteSpace(minimumWallThicknessRaw)
+            && TryParseNumeric(minimumWallThicknessRaw, out var minimumWallThicknessValue))
+        {
+            minimumWallThickness = minimumWallThicknessValue;
         }
 
         schemaSection.Fields.TryGetValue("parting_plane", out var partingPlane);
@@ -668,7 +682,7 @@ internal static class FirmamentTopLevelParser
             printerResolution = printerResolutionValue;
         }
 
-        return new FirmamentParsedSchema(true, processRaw, process, minimumToolRadiusRaw, minimumToolRadius, partingPlane, hasGateLocation, gateLocationIsObjectLike, gateLocation, draftAngleRaw, draftAngle, printerResolutionRaw, printerResolution);
+        return new FirmamentParsedSchema(true, processRaw, process, minimumToolRadiusRaw, minimumToolRadius, minimumWallThicknessRaw, minimumWallThickness, partingPlane, hasGateLocation, gateLocationIsObjectLike, gateLocation, draftAngleRaw, draftAngle, printerResolutionRaw, printerResolution);
     }
 
     private static FirmamentParsedSchemaProcess ParseSchemaProcess(string? raw)

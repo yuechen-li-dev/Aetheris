@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Core.Brep.Boolean;
 
 namespace Aetheris.Kernel.Core.Brep.Analysis;
 
@@ -27,9 +28,32 @@ public static class BrepEnclosedVoidAnalyzer
             .OrderBy(shellId => shellId.Value)
             .ToArray();
 
+        if (IsCylinderRootThroughHoleArtifact(body, enclosedShellIds))
+        {
+            return new BrepEnclosedVoidFacts(false, 0, []);
+        }
+
         return new BrepEnclosedVoidFacts(
             enclosedShellIds.Length > 0,
             enclosedShellIds.Length,
             enclosedShellIds);
+    }
+
+    private static bool IsCylinderRootThroughHoleArtifact(BrepBody body, IReadOnlyList<ShellId> enclosedShellIds)
+    {
+        if (enclosedShellIds.Count == 0
+            || body.SafeBooleanComposition is not { } composition
+            || composition.RootDescriptor.Kind != SafeBooleanRootKind.Cylinder)
+        {
+            return false;
+        }
+
+        if (composition.Holes.Count != enclosedShellIds.Count)
+        {
+            return false;
+        }
+
+        return composition.Holes.Count > 0
+            && composition.Holes.All(hole => hole.SpanKind == SupportedBooleanHoleSpanKind.Through);
     }
 }

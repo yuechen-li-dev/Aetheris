@@ -240,6 +240,12 @@ public static class BrepBooleanSafeCompositionGraphValidator
             var centerDistance = System.Math.Sqrt((existingDeltaX * existingDeltaX) + (existingDeltaY * existingDeltaY));
             var requiredDistance = existingHole.MaxBoundaryRadius + nextHole.MaxBoundaryRadius;
 
+            if (AreEquivalentCylinderRootThroughHoles(existingHole, nextHole, tolerance))
+            {
+                updatedComposition = composition;
+                return true;
+            }
+
             if (ToleranceMath.AlmostEqual(centerDistance, requiredDistance, tolerance))
             {
                 diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(
@@ -268,6 +274,27 @@ public static class BrepBooleanSafeCompositionGraphValidator
         };
 
         return true;
+    }
+
+    private static bool AreEquivalentCylinderRootThroughHoles(
+        in SupportedBooleanHole existingHole,
+        in SupportedBooleanHole nextHole,
+        ToleranceContext tolerance)
+    {
+        if (existingHole.Surface.Kind != AnalyticSurfaceKind.Cylinder
+            || nextHole.Surface.Kind != AnalyticSurfaceKind.Cylinder
+            || existingHole.SpanKind != SupportedBooleanHoleSpanKind.Through
+            || nextHole.SpanKind != SupportedBooleanHoleSpanKind.Through)
+        {
+            return false;
+        }
+
+        return ToleranceMath.AlmostEqual(existingHole.CenterX, nextHole.CenterX, tolerance)
+            && ToleranceMath.AlmostEqual(existingHole.CenterY, nextHole.CenterY, tolerance)
+            && ToleranceMath.AlmostEqual(existingHole.BottomRadius, nextHole.BottomRadius, tolerance)
+            && ToleranceMath.AlmostEqual(existingHole.TopRadius, nextHole.TopRadius, tolerance)
+            && ToleranceMath.AlmostEqual(existingHole.StartZ, nextHole.StartZ, tolerance)
+            && ToleranceMath.AlmostEqual(existingHole.EndZ, nextHole.EndZ, tolerance);
     }
 
     private static bool TryCreateSupportedHole(

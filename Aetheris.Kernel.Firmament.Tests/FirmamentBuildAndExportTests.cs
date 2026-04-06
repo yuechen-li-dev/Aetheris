@@ -566,6 +566,21 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_FrictionLabFlangeBoltCircle_RemovesOverlapBlocker_AndFailsAtSchemaVoidGate()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/flange-bolt-circle/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.False(result.IsSuccess);
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("overlapping cylinder-root hole chains are not supported", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("[FIRM-SCHEMA-0006]", StringComparison.Ordinal)
+            && diagnostic.Message.Contains("contains 5 fully enclosed internal void", StringComparison.Ordinal)
+            && diagnostic.Message.Contains("bolt_0__cir4", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Run_BoundedPocketFixture_WithSealedCavity_RemainsExplicitlyRejected()
     {
         var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmament/fixtures/m13b-unsupported-sealed-pocket-box.firmament");

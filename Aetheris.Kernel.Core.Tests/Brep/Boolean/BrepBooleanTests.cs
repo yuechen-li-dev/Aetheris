@@ -618,6 +618,24 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_CylinderRootDuplicateBoltHole_IsAcceptedAsNoOp()
+    {
+        var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;
+        var centerBore = BrepPrimitives.CreateCylinder(12d, 24d).Value;
+        var holeA = TransformBody(BrepPrimitives.CreateCylinder(4d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(25d, 0d, 0d)));
+
+        var withCenterBore = BrepBoolean.Subtract(root, centerBore);
+        Assert.True(withCenterBore.IsSuccess);
+        var withHoleA = BrepBoolean.Subtract(withCenterBore.Value, holeA);
+        Assert.True(withHoleA.IsSuccess);
+        var withDuplicateHole = BrepBoolean.Subtract(withHoleA.Value, holeA);
+
+        Assert.True(withDuplicateHole.IsSuccess);
+        Assert.True(BrepBindingValidator.Validate(withDuplicateHole.Value, true).IsSuccess);
+        Assert.Equal(2, withDuplicateHole.Value.ShellRepresentation!.InnerShellIds.Count);
+    }
+
+    [Fact]
     public void Subtract_BoxCylinderRotatedAxis_SucceedsWithinBoundedSubset()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;

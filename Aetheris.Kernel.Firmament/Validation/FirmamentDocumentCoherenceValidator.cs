@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Firmament.Diagnostics;
 using Aetheris.Kernel.Firmament.ParsedModel;
@@ -130,6 +131,11 @@ internal static class FirmamentDocumentCoherenceValidator
                     FirmamentDiagnosticCodes.PatternInvalidFieldValue,
                     $"Pattern op '{patternEntry.OpName}' at index {opIndex} uses unsupported source feature id '{sourceId}'; only 'subtract' boolean features are currently patternable.")
             ]);
+        }
+
+        if (patternEntry.KnownKind == FirmamentKnownOpKind.PatternMirror)
+        {
+            return ExpandMirrorPattern(patternEntry, sourceEntry, opIndex);
         }
 
         if (!int.TryParse(patternEntry.RawFields["count"], NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) || count <= 0)
@@ -317,6 +323,116 @@ internal static class FirmamentDocumentCoherenceValidator
         };
 
         return entry with { RawFields = fields };
+    }
+
+    private static KernelResult<IReadOnlyList<FirmamentParsedOpEntry>> ExpandMirrorPattern(
+        FirmamentParsedOpEntry patternEntry,
+        FirmamentParsedOpEntry sourceEntry,
+        int opIndex)
+    {
+        var plane = patternEntry.RawFields["plane"].Trim();
+        var mirroredFeatureId = $"{sourceEntry.RawFields["id"]}__mir_{plane}";
+        if (!TryGetMirrorAxisScale(plane, out var axisScale))
+        {
+            return KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PatternInvalidFieldValue,
+                    $"Pattern op '{patternEntry.OpName}' at index {opIndex} has invalid field 'plane' value; supported planes are 'xy', 'xz', and 'yz'.")
+            ]);
+        }
+
+        if (!TryCreateMirroredPlacement(sourceEntry.Placement, axisScale, out var mirroredPlacement, out var placementFailure))
+        {
+            return KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PatternInvalidFieldValue,
+                    $"Pattern op '{patternEntry.OpName}' at index {opIndex} uses unsupported source feature id '{sourceEntry.RawFields["id"]}'; {placementFailure}.")
+            ]);
+        }
+
+        var mirroredFields = new Dictionary<string, string>(sourceEntry.RawFields, StringComparer.Ordinal)
+        {
+            ["id"] = mirroredFeatureId
+        };
+
+        var mirrored = sourceEntry with
+        {
+            RawFields = mirroredFields,
+            Placement = mirroredPlacement
+        };
+
+        var chainedMirrored = ChainBooleanReferenceIfNeeded(mirrored, sourceEntry.RawFields["id"]);
+        return KernelResult<IReadOnlyList<FirmamentParsedOpEntry>>.Success([chainedMirrored]);
+    }
+
+    private static bool TryGetMirrorAxisScale(string plane, out Vector3D axisScale)
+    {
+        axisScale = plane switch
+        {
+            "xy" => new Vector3D(1d, 1d, -1d),
+            "xz" => new Vector3D(1d, -1d, 1d),
+            "yz" => new Vector3D(-1d, 1d, 1d),
+            _ => Vector3D.Zero
+        };
+
+        return axisScale != Vector3D.Zero;
+    }
+
+    private static bool TryCreateMirroredPlacement(
+        FirmamentParsedPlacement? sourcePlacement,
+        Vector3D axisScale,
+        out FirmamentParsedPlacement mirroredPlacement,
+        out string failureReason)
+    {
+        mirroredPlacement = null!;
+        failureReason = string.Empty;
+
+        if (sourcePlacement is null)
+        {
+            mirroredPlacement = new FirmamentParsedPlacement(
+                new FirmamentParsedPlacementOriginAnchor(),
+                [0d, 0d, 0d],
+                OnFace: null,
+                CenteredOn: null,
+                AroundAxis: null,
+                RadialOffset: null,
+                AngleDegrees: null,
+                UnknownFields: Array.Empty<string>());
+            return true;
+        }
+
+        if (sourcePlacement.On is not FirmamentParsedPlacementOriginAnchor)
+        {
+            failureReason = "only origin-anchored source placements are mirrorable in M2";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(sourcePlacement.OnFace)
+            || !string.IsNullOrWhiteSpace(sourcePlacement.CenteredOn)
+            || !string.IsNullOrWhiteSpace(sourcePlacement.AroundAxis)
+            || sourcePlacement.RadialOffset is not null
+            || sourcePlacement.AngleDegrees is not null)
+        {
+            failureReason = "only offset-based source placements are mirrorable in M2";
+            return false;
+        }
+
+        if (sourcePlacement.Offset.Count != 3)
+        {
+            failureReason = "source placement offset must have exactly 3 components";
+            return false;
+        }
+
+        mirroredPlacement = sourcePlacement with
+        {
+            Offset =
+            [
+                sourcePlacement.Offset[0] * axisScale.X,
+                sourcePlacement.Offset[1] * axisScale.Y,
+                sourcePlacement.Offset[2] * axisScale.Z
+            ]
+        };
+        return true;
     }
 
     private static bool TryParseNumericVector(string raw, out IReadOnlyList<double> values)

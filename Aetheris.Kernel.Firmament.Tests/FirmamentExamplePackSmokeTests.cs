@@ -19,6 +19,7 @@ public sealed class FirmamentExamplePackSmokeTests
         "testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament",
         "testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament",
         "testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament",
+        "testdata/firmament/examples/p2_mirror_hole_pair.firmament",
         "testdata/firmament/examples/placed_primitive.firmament",
         "testdata/firmament/examples/schema_box_basic.firmament"
     ];
@@ -51,6 +52,7 @@ public sealed class FirmamentExamplePackSmokeTests
     [InlineData("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament", "hole_b", 2, "boolean", "subtract")]
     [InlineData("testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament", "cut_b", 2, "boolean", "subtract")]
     [InlineData("testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament", "cavity", 1, "boolean", "subtract")]
+    [InlineData("testdata/firmament/examples/p2_mirror_hole_pair.firmament", "hole_cut_left__mir_yz", 2, "boolean", "subtract")]
     [InlineData("testdata/firmament/examples/placed_primitive.firmament", "post", 1, "primitive", "cylinder")]
     [InlineData("testdata/firmament/examples/schema_box_basic.firmament", "schema_box", 0, "primitive", "box")]
     public void ExamplePack_GoldenPath_Examples_Export(string fixturePath, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)

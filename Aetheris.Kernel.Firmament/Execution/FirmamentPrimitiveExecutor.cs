@@ -231,7 +231,8 @@ internal static class FirmamentPrimitiveExecutor
 
     private static bool IsPatternGeneratedFeature(string featureId)
         => featureId.Contains("__lin", StringComparison.Ordinal)
-           || featureId.Contains("__cir", StringComparison.Ordinal);
+           || featureId.Contains("__cir", StringComparison.Ordinal)
+           || featureId.Contains("__mir_", StringComparison.Ordinal);
 
     private static KernelResult<FirmamentExecutedPrimitiveBodies> ExecutePrimitive(FirmamentLoweredPrimitive primitive, IReadOnlyDictionary<string, BrepBody> publishedBodies)
     {

@@ -62,6 +62,30 @@ public sealed class FirmamentDocumentCoherenceValidationTests
             diagnostic.Message);
     }
 
+    [Fact]
+    public void Compiler_Rejects_PatternMirror_With_Unsupported_Plane()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/p3_invalid_pattern_mirror_plane.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Equal(
+            $"[{FirmamentDiagnosticCodes.PatternInvalidFieldValue.Value}] Pattern op 'pattern_mirror' at index 2 has invalid field 'plane' value; supported planes are 'xy', 'xz', and 'yz'.",
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public void Compiler_Rejects_PatternMirror_With_NonOrigin_Source_Placement()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/p3_invalid_pattern_mirror_source_placement.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Equal(
+            $"[{FirmamentDiagnosticCodes.PatternInvalidFieldValue.Value}] Pattern op 'pattern_mirror' at index 2 uses unsupported source feature id 'hole_cut'; only origin-anchored source placements are mirrorable in M2.",
+            diagnostic.Message);
+    }
+
     [Theory]
     [InlineData("testdata/firmament/fixtures/m2a-invalid-add-to-missing-id.firmament", "add", "to", "missing")]
     [InlineData("testdata/firmament/fixtures/m2a-invalid-subtract-from-missing-id.firmament", "subtract", "from", "missing")]

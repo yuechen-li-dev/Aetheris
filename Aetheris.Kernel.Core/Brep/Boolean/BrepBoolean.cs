@@ -69,7 +69,7 @@ public sealed record BooleanRebuildData(
     IReadOnlyList<KernelDiagnostic> Diagnostics);
 
 /// <summary>
-/// M13 boolean pipeline with narrow real support for axis-aligned box/box cases that resolve to a single box
+/// bounded boolean pipeline with narrow real support for axis-aligned box/box cases that resolve to a single box
 /// plus the M10k box-minus-Z-aligned-through-cylinder subset that rebuilds to a single box-with-hole solid.
 /// Unsupported and non-solid cases return deterministic NotImplemented diagnostics.
 /// </summary>
@@ -249,7 +249,7 @@ public static class BrepBoolean
             leftRecognized ? leftBox : null,
             rightRecognized ? rightBox : null,
             rightAnalyticRecognized ? analyticSurface : null,
-            $"Boolean {operation}: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).");
+            $"Boolean {operation}: bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).");
     }
 
     private static BooleanIntersectionData ComputeIntersections(BooleanRequest request, BooleanAnalysis analysis)
@@ -372,12 +372,12 @@ public static class BrepBoolean
         {
             if (intersections.IsTouchingOnly)
             {
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: touching-only intersection is non-solid and empty results are not representable in M13.");
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: touching-only intersection is non-solid and empty results are not representable in the bounded boolean family.");
             }
 
             if (intersections.OverlapBox is null)
             {
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: empty intersection result is not representable in M13.");
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: empty intersection result is not representable in the bounded boolean family.");
             }
 
             return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 1, SingleBoxResult: intersections.OverlapBox, SafeCompositionResult: null, UnsupportedReason: null);
@@ -434,7 +434,7 @@ public static class BrepBoolean
 
             if (AxisAlignedBoxExtents.Intersection(left, right) is null)
             {
-                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: disjoint box union is multi-body and not supported in M13.");
+                return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: disjoint box union is multi-body and not supported in the bounded boolean family.");
             }
 
             if (TryClassifyBoundedOrthogonalUnion(left, right, tolerance, out var unionCells, out var unsupportedReason))
@@ -469,7 +469,7 @@ public static class BrepBoolean
 
         if (right.Contains(left, tolerance))
         {
-            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: subtraction fully removes the left box and empty results are not representable in M13.");
+            return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: subtraction fully removes the left box and empty results are not representable in the bounded boolean family.");
         }
 
         if (TrySubtractToSingleBox(left, right, tolerance, out var singleBox))
@@ -498,7 +498,7 @@ public static class BrepBoolean
             return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: pocketUnsupportedReason);
         }
 
-        return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: box subtraction result is not representable as a single box in M13.");
+        return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: box subtraction result is not representable as a single box in the bounded boolean family.");
     }
 
     private static BooleanRebuildData RebuildResult(BooleanRequest request, BooleanClassificationData classification)
@@ -664,7 +664,7 @@ public static class BrepBoolean
         var intersection = AxisAlignedBoxExtents.Intersection(left, right);
         if (intersection is null)
         {
-            unsupportedReason = "Boolean Union: disjoint box union is multi-body and not supported in M13.";
+            unsupportedReason = "Boolean Union: disjoint box union is multi-body and not supported in the bounded boolean family.";
             return false;
         }
 

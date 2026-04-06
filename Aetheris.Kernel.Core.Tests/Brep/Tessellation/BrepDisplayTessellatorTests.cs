@@ -165,7 +165,7 @@ public sealed class BrepDisplayTessellatorTests
     }
 
     [Fact]
-    public void Tessellate_M13BooleanBoxOutput_Succeeds()
+    public void Tessellate_BoundedBooleanBoxOutput_Succeeds()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 4d, 0d, 4d, 0d, 4d)).Value;
         var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(2d, 6d, 1d, 3d, -1d, 2d)).Value;

@@ -381,7 +381,7 @@ public sealed class FirmamentPrimitiveExecutionTests
             && diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' ({expectedKind}) could not be executed.", StringComparison.Ordinal));
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Code == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented
-            && (diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
+            && (diagnostic.Message.Contains("bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
                 || diagnostic.Message.Contains("analytic hole surface kind", StringComparison.Ordinal)
                 || diagnostic.Message.Contains("Boolean feature", StringComparison.Ordinal)));
     }
@@ -390,14 +390,16 @@ public sealed class FirmamentPrimitiveExecutionTests
     [InlineData("testdata/firmament/fixtures/m3b-valid-box-subtract-triangular-prism.firmament", "tri_cut")]
     [InlineData("testdata/firmament/fixtures/m3b-valid-box-subtract-hexagonal-prism.firmament", "hex_cut")]
     [InlineData("testdata/firmament/fixtures/m3b-valid-box-subtract-straight-slot.firmament", "slot_cut")]
-    public void Compile_BoxRoot_PrismSubtract_CanonicalCases_Hit_BoundedKernelLimit(string fixturePath, string featureId)
+    public void Compile_BoxRoot_PrismSubtract_CanonicalCases_Succeed(string fixturePath, string featureId)
     {
         var result = CompileFixture(fixturePath);
 
-        Assert.False(result.Compilation.IsSuccess);
-        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains($"Boolean feature '{featureId}'", StringComparison.Ordinal)
-            && diagnostic.Message.Contains("core M13 boolean rebuild supports box/box and analytic-hole families only", StringComparison.Ordinal));
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.NotNull(result.Compilation.Value.PrimitiveExecutionResult);
+        var execution = result.Compilation.Value.PrimitiveExecutionResult!;
+        Assert.Contains(execution.ExecutedBooleans, executed =>
+            string.Equals(executed.FeatureId, featureId, StringComparison.Ordinal)
+            && executed.Kind == FirmamentLoweredBooleanKind.Subtract);
     }
 
     [Theory]
@@ -423,6 +425,19 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             string.Equals(diagnostic.Source, "firmament.prism-bounded-subtract", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("testdata/firmament/fixtures/m3b-invalid-box-subtract-triangular-prism-short-height.firmament", "through-cut tool") ]
+    [InlineData("testdata/firmament/fixtures/m3b-invalid-box-subtract-hexagonal-prism-out-of-bounds.firmament", "out of bounds") ]
+    public void Compile_PrismSubtract_Rejects_Invalid_BoundedConfigurations(string fixturePath, string expectedMessagePart)
+    {
+        var result = CompileFixture(fixturePath);
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            string.Equals(diagnostic.Source, "firmament.prism-bounded-subtract", StringComparison.Ordinal)
+            && diagnostic.Message.Contains(expectedMessagePart, StringComparison.Ordinal));
     }
 
     [Fact]

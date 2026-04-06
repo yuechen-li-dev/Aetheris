@@ -53,6 +53,7 @@ model:
 schema:
   process: cnc
   minimum_tool_radius: 1
+  minimum_wall_thickness: 1
 
 ops[2]:
   -

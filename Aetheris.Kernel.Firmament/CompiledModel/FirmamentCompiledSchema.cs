@@ -13,7 +13,7 @@ public enum FirmamentCompiledSchemaProcess
 
 public abstract record FirmamentCompiledSchemaPayload;
 
-public sealed record FirmamentCompiledCncSchema(double MinimumToolRadius)
+public sealed record FirmamentCompiledCncSchema(double MinimumToolRadius, double MinimumWallThickness)
     : FirmamentCompiledSchemaPayload;
 
 public sealed record FirmamentCompiledInjectionMoldedSchema(

@@ -17,7 +17,7 @@ internal static class FirmamentCompiledSchemaMapper
         {
             FirmamentParsedSchemaProcess.Cnc => new FirmamentCompiledSchema(
                 FirmamentCompiledSchemaProcess.Cnc,
-                new FirmamentCompiledCncSchema(schema.MinimumToolRadius!.Value)),
+                new FirmamentCompiledCncSchema(schema.MinimumToolRadius!.Value, schema.MinimumWallThickness!.Value)),
             FirmamentParsedSchemaProcess.InjectionMolded => new FirmamentCompiledSchema(
                 FirmamentCompiledSchemaProcess.InjectionMolded,
                 new FirmamentCompiledInjectionMoldedSchema(

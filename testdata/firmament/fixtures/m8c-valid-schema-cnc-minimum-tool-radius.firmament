@@ -7,9 +7,10 @@ model:
 
 schema:
   process: cnc
-  minimum_tool_radius: 2
+  minimum_tool_radius: 0.25
+  minimum_wall_thickness: 0.5
 
-ops[2]:
+ops[1]:
   -
     op: box
     id: base
@@ -17,12 +18,3 @@ ops[2]:
       8
       8
       8
-
-  -
-    op: subtract
-    id: hole
-    from: base
-    with:
-      op: cylinder
-      radius: 2
-      height: 8

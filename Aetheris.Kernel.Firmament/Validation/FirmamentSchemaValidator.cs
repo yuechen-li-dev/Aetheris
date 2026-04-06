@@ -59,6 +59,21 @@ internal static class FirmamentSchemaValidator
             return InvalidFieldValue("minimum_tool_radius", "expected a numeric value greater than 0");
         }
 
+        if (string.IsNullOrWhiteSpace(schema.MinimumWallThicknessRaw))
+        {
+            return MissingField("minimum_wall_thickness");
+        }
+
+        if (schema.MinimumWallThickness is null)
+        {
+            return InvalidFieldTypeOrShape("minimum_wall_thickness", "expected a numeric scalar");
+        }
+
+        if (schema.MinimumWallThickness <= 0)
+        {
+            return InvalidFieldValue("minimum_wall_thickness", "expected a numeric value greater than 0");
+        }
+
         return KernelResult<bool>.Success(true);
     }
 

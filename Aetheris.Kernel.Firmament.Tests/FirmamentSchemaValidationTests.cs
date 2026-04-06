@@ -22,6 +22,7 @@ public sealed class FirmamentSchemaValidationTests
 schema:
   process: cnc
   minimum_tool_radius: 1.5
+  minimum_wall_thickness: 1
 
 {OpsSingleBox}
 """);
@@ -31,6 +32,7 @@ schema:
         Assert.NotNull(schema);
         Assert.Equal("cnc", schema!.ProcessRaw);
         Assert.Equal(1.5d, schema.MinimumToolRadius);
+        Assert.Equal(1d, schema.MinimumWallThickness);
     }
 
     [Fact]
@@ -234,6 +236,7 @@ model:
 schema:
   process: cnc
   minimum_tool_radius: 1
+  minimum_wall_thickness: 1
 
 ops[2]:
   -

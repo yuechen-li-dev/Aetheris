@@ -23,6 +23,7 @@ public sealed class FirmamentCompiledSchemaAttachmentTests
 schema:
   process: cnc
   minimum_tool_radius: 1.5
+  minimum_wall_thickness: 1
 
 {OpsSingleBox}
 """);
@@ -33,6 +34,7 @@ schema:
 
         var payload = Assert.IsType<FirmamentCompiledCncSchema>(compiledSchema.Payload);
         Assert.Equal(1.5d, payload.MinimumToolRadius);
+        Assert.Equal(1d, payload.MinimumWallThickness);
     }
 
     [Fact]
@@ -130,6 +132,7 @@ model:
 schema:
   process: cnc
   minimum_tool_radius: 1
+  minimum_wall_thickness: 1
 
 ops[3]:
   -

@@ -105,10 +105,17 @@ internal static class FirmamentPrimitiveExecutor
                 continue;
             }
 
+            var toolResult = FirmamentBooleanToolBodyFactory.CreateBody(boolean.Tool);
+            if (!toolResult.IsSuccess)
+            {
+                return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(toolResult.Diagnostics);
+            }
+
             var featureGraphValidation = FirmamentSafeSubtractFeatureGraphValidator.ValidateNextBoolean(
                 boolean,
                 featureGraphStates,
-                booleanExecutionBodiesByFeatureId);
+                booleanExecutionBodiesByFeatureId,
+                resolvedToolBody: ResolveValidationToolBody(boolean, baseBody, toolResult.Value, publishedBodiesByFeatureId));
             if (!featureGraphValidation.IsSuccess)
             {
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
@@ -116,12 +123,6 @@ internal static class FirmamentPrimitiveExecutor
                     CreateBooleanExecutionFailureDiagnostic(boolean),
                     .. WithBooleanContext(boolean, featureGraphValidation.Diagnostics)
                 ]);
-            }
-
-            var toolResult = FirmamentBooleanToolBodyFactory.CreateBody(boolean.Tool);
-            if (!toolResult.IsSuccess)
-            {
-                return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(toolResult.Diagnostics);
             }
 
             var canUsePublishedFrameAdditiveExecution = boolean.Kind == FirmamentLoweredBooleanKind.Add
@@ -164,7 +165,7 @@ internal static class FirmamentPrimitiveExecutor
                     return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(placementResult.Diagnostics);
                 }
 
-                var translatedToolBody = TranslateBody(ApplyDefaultToolLocalFrame(boolean.Tool, toolResult.Value), placementResult.Value);
+                var translatedToolBody = PlaceSemanticToolBody(boolean, toolResult.Value, placementResult.Value);
                 booleanResult = ExecuteBoolean(boolean.Kind, baseBody, translatedToolBody);
             }
             else
@@ -401,6 +402,35 @@ internal static class FirmamentPrimitiveExecutor
                         && boundaryAtMaxZ <= cylinder.MaxAxisParameter + ToleranceContext.Default.Linear;
 
         return !coversMin && !coversMax;
+    }
+
+    private static BrepBody? ResolveValidationToolBody(
+        FirmamentLoweredBoolean boolean,
+        BrepBody baseBody,
+        BrepBody toolBody,
+        IReadOnlyDictionary<string, BrepBody> publishedBodiesByFeatureId)
+    {
+        if (!ShouldUseSemanticToolPlacement(boolean, baseBody, toolBody))
+        {
+            return null;
+        }
+
+        var placementResult = FirmamentPlacementResolver.ResolvePlacementTranslation(boolean, publishedBodiesByFeatureId);
+        if (!placementResult.IsSuccess)
+        {
+            return null;
+        }
+
+        return PlaceSemanticToolBody(boolean, toolBody, placementResult.Value);
+    }
+
+    private static BrepBody PlaceSemanticToolBody(FirmamentLoweredBoolean boolean, BrepBody toolBody, Vector3D placementTranslation)
+    {
+        var shouldApplyDefaultToolFrame = string.IsNullOrWhiteSpace(boolean.Placement?.AroundAxis);
+        var localFrameBody = shouldApplyDefaultToolFrame
+            ? ApplyDefaultToolLocalFrame(boolean.Tool, toolBody)
+            : toolBody;
+        return TranslateBody(localFrameBody, placementTranslation);
     }
 
     private static BrepBody TranslateBody(BrepBody body, Vector3D translation)

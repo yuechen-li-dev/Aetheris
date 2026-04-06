@@ -1,0 +1,18 @@
+firmament:
+  version: 1
+
+model:
+  name: m3b_unsupported_cylinder_subtract_straight_slot
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: post
+    radius: 15
+    height: 20
+  -
+    op: subtract
+    id: slot_cut
+    from: post
+    with: { op: straight_slot, length: 12, width: 4, height: 10 }

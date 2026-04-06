@@ -111,17 +111,28 @@ internal static class FirmamentPrimitiveExecutor
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(toolResult.Diagnostics);
             }
 
-            if (IsBoundedPrismTool(boolean.Tool.OpName))
+            if (FirmamentPrismFamilyTools.TryGetDescriptor(boolean.Tool.OpName, out var prismTool))
             {
-                return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
-                [
-                    CreateBooleanExecutionFailureDiagnostic(boolean),
-                    new KernelDiagnostic(
-                        KernelDiagnosticCode.NotImplemented,
-                        KernelDiagnosticSeverity.Error,
-                        $"Boolean feature '{boolean.FeatureId}' ({boolean.Kind.ToString().ToLowerInvariant()}): bounded prism-family booleans are explicitly deferred in M3 implementation mode; standalone primitive execution/export is supported for 'triangular_prism', 'hexagonal_prism', and 'straight_slot' only.",
-                        Source: "firmament")
-                ]);
+                var prismResult = ExecuteBoundedPrismSubtractOnBoxRoot(
+                    boolean,
+                    prismTool,
+                    baseBody,
+                    featureGraphStates);
+                if (!prismResult.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
+                    [
+                        CreateBooleanExecutionFailureDiagnostic(boolean),
+                        .. WithBooleanContext(boolean, prismResult.Diagnostics)
+                    ]);
+                }
+
+                var prismBooleanBody = prismResult.Value;
+                executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, prismBooleanBody));
+                publishedBodiesByFeatureId[boolean.FeatureId] = prismBooleanBody;
+                booleanExecutionBodiesByFeatureId[boolean.FeatureId] = prismBooleanBody;
+                featureGraphStates[boolean.FeatureId] = FirmamentSafeSubtractFeatureGraphState.Other;
+                continue;
             }
 
             var featureGraphValidation = FirmamentSafeSubtractFeatureGraphValidator.ValidateNextBoolean(
@@ -246,11 +257,6 @@ internal static class FirmamentPrimitiveExecutor
         => featureId.Contains("__lin", StringComparison.Ordinal)
            || featureId.Contains("__cir", StringComparison.Ordinal)
            || featureId.Contains("__mir_", StringComparison.Ordinal);
-
-    private static bool IsBoundedPrismTool(string opName)
-        => string.Equals(opName, "triangular_prism", StringComparison.Ordinal)
-           || string.Equals(opName, "hexagonal_prism", StringComparison.Ordinal)
-           || string.Equals(opName, "straight_slot", StringComparison.Ordinal);
 
     private static KernelResult<FirmamentExecutedPrimitiveBodies> ExecutePrimitive(FirmamentLoweredPrimitive primitive, IReadOnlyDictionary<string, BrepBody> publishedBodies)
     {
@@ -389,28 +395,9 @@ internal static class FirmamentPrimitiveExecutor
             return TranslateBody(body, new Vector3D(0d, 0d, height * 0.5d));
         }
 
-        if (string.Equals(tool.OpName, "triangular_prism", StringComparison.Ordinal)
-            && tool.RawFields.TryGetValue("height", out var triangularHeightRaw)
-            && !string.IsNullOrWhiteSpace(triangularHeightRaw))
+        if (FirmamentPrismFamilyTools.IsPrismTool(tool.OpName))
         {
-            var height = FirmamentPrimitiveToolParsing.ParseScalar(triangularHeightRaw);
-            return TranslateBody(body, new Vector3D(0d, 0d, height * 0.5d));
-        }
-
-        if (string.Equals(tool.OpName, "hexagonal_prism", StringComparison.Ordinal)
-            && tool.RawFields.TryGetValue("height", out var hexagonalHeightRaw)
-            && !string.IsNullOrWhiteSpace(hexagonalHeightRaw))
-        {
-            var height = FirmamentPrimitiveToolParsing.ParseScalar(hexagonalHeightRaw);
-            return TranslateBody(body, new Vector3D(0d, 0d, height * 0.5d));
-        }
-
-        if (string.Equals(tool.OpName, "straight_slot", StringComparison.Ordinal)
-            && tool.RawFields.TryGetValue("height", out var slotHeightRaw)
-            && !string.IsNullOrWhiteSpace(slotHeightRaw))
-        {
-            var height = FirmamentPrimitiveToolParsing.ParseScalar(slotHeightRaw);
-            return TranslateBody(body, new Vector3D(0d, 0d, height * 0.5d));
+            return TranslateBody(body, FirmamentPrismFamilyTools.ResolveDefaultFrameTranslation(tool));
         }
 
         return body;
@@ -418,8 +405,12 @@ internal static class FirmamentPrimitiveExecutor
 
     private static bool ShouldUseSemanticToolPlacement(FirmamentLoweredBoolean boolean, BrepBody baseBody, BrepBody toolBody)
     {
-        if (boolean.Placement is null
-            || boolean.Kind != FirmamentLoweredBooleanKind.Subtract)
+        if (boolean.Kind != FirmamentLoweredBooleanKind.Subtract)
+        {
+            return false;
+        }
+
+        if (boolean.Placement is null)
         {
             return false;
         }
@@ -497,6 +488,66 @@ internal static class FirmamentPrimitiveExecutor
             ? ApplyDefaultToolLocalFrame(boolean.Tool, toolBody)
             : toolBody;
         return TranslateBody(localFrameBody, placementTranslation);
+    }
+
+    private static KernelResult<BrepBody> ExecuteBoundedPrismSubtractOnBoxRoot(
+        FirmamentLoweredBoolean boolean,
+        FirmamentPrismToolDescriptor prismTool,
+        BrepBody baseBody,
+        IReadOnlyDictionary<string, FirmamentSafeSubtractFeatureGraphState> featureGraphStates)
+    {
+        if (boolean.Kind != FirmamentLoweredBooleanKind.Subtract)
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.NotImplemented,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded prism-family boolean support accepts subtract only; got '{boolean.Kind.ToString().ToLowerInvariant()}' for tool op '{prismTool.OpName}'.",
+                    Source: "firmament.prism-bounded-subtract")
+            ]);
+        }
+
+        if (!featureGraphStates.TryGetValue(boolean.PrimaryReferenceFeatureId, out var sourceState)
+            || sourceState != FirmamentSafeSubtractFeatureGraphState.BoxRoot)
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded prism-family subtract requires a direct box-root source feature; '{boolean.PrimaryReferenceFeatureId}' is not a supported box root input for tool op '{prismTool.OpName}'.",
+                    Source: "firmament.prism-bounded-subtract")
+            ]);
+        }
+
+        if (boolean.Placement is not null)
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded prism-family subtract on box-root supports default tool placement only; placement directives are not supported for tool op '{prismTool.OpName}'.",
+                    Source: "firmament.prism-bounded-subtract")
+            ]);
+        }
+
+        if (!BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out _, out var reason))
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.NotImplemented,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded prism-family subtract requires an axis-aligned box root from BrepPrimitives.CreateBox(...); failed to recognize source body ({reason}).",
+                    Source: "firmament.prism-bounded-subtract")
+            ]);
+        }
+        
+        return KernelResult<BrepBody>.Failure([
+            new KernelDiagnostic(
+                KernelDiagnosticCode.NotImplemented,
+                KernelDiagnosticSeverity.Error,
+                $"Bounded prism-family subtract on box-root is validated, but execution is currently blocked: core M13 boolean rebuild supports box/box and analytic-hole families only; polyhedral prism tools ('{prismTool.OpName}') are not rebuildable yet.",
+                Source: "firmament.prism-bounded-subtract")
+        ]);
     }
 
     private static BrepBody TranslateBody(BrepBody body, Vector3D translation)

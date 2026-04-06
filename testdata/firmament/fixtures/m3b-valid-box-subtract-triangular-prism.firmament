@@ -1,0 +1,17 @@
+firmament:
+  version: 1
+
+model:
+  name: m3b_valid_box_subtract_triangular_prism
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]: [40, 30, 20]
+  -
+    op: subtract
+    id: tri_cut
+    from: base
+    with: { op: triangular_prism, base_width: 18, base_depth: 10, height: 24 }

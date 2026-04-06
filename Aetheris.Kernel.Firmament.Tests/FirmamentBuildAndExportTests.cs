@@ -259,6 +259,18 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_P2MirrorHolePairExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/p2_mirror_hole_pair.firmament",
+            "p2_mirror_hole_pair.step",
+            "hole_cut_left__mir_yz",
+            2,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
     public void Run_FrictionLabBlindHoleMountBlock_NowBuildsAndExports()
     {
         var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/blind-hole-mount-block/part.firmament");

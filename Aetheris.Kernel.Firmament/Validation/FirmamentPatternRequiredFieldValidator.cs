@@ -25,6 +25,7 @@ internal static class FirmamentPatternRequiredFieldValidator
             {
                 FirmamentKnownOpKind.PatternLinear => ValidateLinear(entry, index),
                 FirmamentKnownOpKind.PatternCircular => ValidateCircular(entry, index),
+                FirmamentKnownOpKind.PatternMirror => ValidateMirror(entry, index),
                 _ => KernelResult<bool>.Success(true)
             };
 
@@ -102,6 +103,27 @@ internal static class FirmamentPatternRequiredFieldValidator
         if (hasStep && !TryParseNumeric(stepRaw!, out _))
         {
             return InvalidFieldTypeOrShape("angle_step_degrees", opIndex, entry.OpName, "expected a numeric scalar value");
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateMirror(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredScalar(entry, "source", opIndex, out var sourceDiagnostic))
+        {
+            return KernelResult<bool>.Failure([sourceDiagnostic!]);
+        }
+
+        if (!TryGetRequiredScalar(entry, "plane", opIndex, out var planeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([planeDiagnostic!]);
+        }
+
+        var plane = entry.RawFields["plane"].Trim();
+        if (plane is not ("xy" or "xz" or "yz"))
+        {
+            return InvalidFieldValue("plane", opIndex, entry.OpName, "supported planes are 'xy', 'xz', and 'yz'");
         }
 
         return KernelResult<bool>.Success(true);

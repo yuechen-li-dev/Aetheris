@@ -164,6 +164,10 @@ internal static class FirmamentCanonicalFormatter
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "angle_degrees");
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "angle_step_degrees");
                 break;
+            case FirmamentKnownOpKind.PatternMirror:
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "source");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "plane");
+                break;
         }
 
         foreach (var pair in entry.RawFields)

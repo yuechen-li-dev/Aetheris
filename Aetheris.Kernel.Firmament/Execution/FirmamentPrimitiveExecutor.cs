@@ -1,3 +1,4 @@
+using System.Globalization;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Brep.Features;
@@ -70,6 +71,26 @@ internal static class FirmamentPrimitiveExecutor
                 executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, draftedBody));
                 publishedBodiesByFeatureId[boolean.FeatureId] = draftedBody;
                 booleanExecutionBodiesByFeatureId[boolean.FeatureId] = draftedBody;
+                featureGraphStates[boolean.FeatureId] = FirmamentSafeSubtractFeatureGraphState.Other;
+                continue;
+            }
+
+            if (boolean.Kind == FirmamentLoweredBooleanKind.Chamfer)
+            {
+                var chamferResult = ExecuteBoundedChamferOnRecognizedOrthogonalRoot(boolean, baseBody, featureGraphStates);
+                if (!chamferResult.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
+                    [
+                        CreateBooleanExecutionFailureDiagnostic(boolean),
+                        .. WithBooleanContext(boolean, chamferResult.Diagnostics)
+                    ]);
+                }
+
+                var chamferedBody = chamferResult.Value;
+                executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, chamferedBody));
+                publishedBodiesByFeatureId[boolean.FeatureId] = chamferedBody;
+                booleanExecutionBodiesByFeatureId[boolean.FeatureId] = chamferedBody;
                 featureGraphStates[boolean.FeatureId] = FirmamentSafeSubtractFeatureGraphState.Other;
                 continue;
             }
@@ -636,6 +657,114 @@ internal static class FirmamentPrimitiveExecutor
         }
 
         return BrepBoundedDraft.DraftAxisAlignedBoxSideFaces(box, angleDegrees, faces);
+    }
+
+    private static KernelResult<BrepBody> ExecuteBoundedChamferOnRecognizedOrthogonalRoot(
+        FirmamentLoweredBoolean boolean,
+        BrepBody baseBody,
+        IReadOnlyDictionary<string, FirmamentSafeSubtractFeatureGraphState> featureGraphStates)
+    {
+        if (!featureGraphStates.TryGetValue(boolean.PrimaryReferenceFeatureId, out var sourceState)
+            || sourceState is not (FirmamentSafeSubtractFeatureGraphState.BoxRoot or FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveSafeRoot))
+        {
+            return KernelResult<BrepBody>.Failure(
+            [
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded chamfer requires a box-root or recognized orthogonal additive root input; '{boolean.PrimaryReferenceFeatureId}' is not eligible.",
+                    Source: "firmament.chamfer-bounded")
+            ]);
+        }
+
+        if (!BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out var box, out var reason))
+        {
+            return KernelResult<BrepBody>.Failure(
+            [
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded chamfer requires an axis-aligned box-like source body; failed to recognize source body ({reason}).",
+                    Source: "firmament.chamfer-bounded")
+            ]);
+        }
+
+        if (!boolean.Tool.RawFields.TryGetValue("distance", out var distanceRaw)
+            || !double.TryParse(distanceRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out var distance)
+            || !double.IsFinite(distance))
+        {
+            return KernelResult<BrepBody>.Failure(
+            [
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    "Bounded chamfer execution expected validated 'distance' scalar.",
+                    Source: "firmament.chamfer-bounded")
+            ]);
+        }
+
+        if (!TryParseChamferEdge(boolean.Tool.RawFields, out var edge, out var edgeError))
+        {
+            return KernelResult<BrepBody>.Failure(
+            [
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded chamfer edges are invalid: {edgeError}.",
+                    Source: "firmament.chamfer-bounded")
+            ]);
+        }
+
+        return BrepBoundedChamfer.ChamferAxisAlignedBoxVerticalEdge(box, edge, distance);
+    }
+
+    private static bool TryParseChamferEdge(
+        IReadOnlyDictionary<string, string> fields,
+        out BrepBoundedChamferEdge edge,
+        out string error)
+    {
+        edge = BrepBoundedChamferEdge.XMinYMin;
+        error = string.Empty;
+
+        if (!fields.TryGetValue("edges", out var edgesRaw) || string.IsNullOrWhiteSpace(edgesRaw))
+        {
+            error = "missing required edges list";
+            return false;
+        }
+
+        var trimmed = edgesRaw.Trim();
+        if (!trimmed.StartsWith("[", StringComparison.Ordinal) || !trimmed.EndsWith("]", StringComparison.Ordinal))
+        {
+            error = "expected array-like edges value";
+            return false;
+        }
+
+        var content = trimmed[1..^1];
+        var tokens = content.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(token => token.Trim().Trim('"'))
+            .Where(token => !string.IsNullOrWhiteSpace(token))
+            .ToArray();
+        if (tokens.Length != 1)
+        {
+            error = "bounded M5a supports exactly one explicit edge token";
+            return false;
+        }
+
+        edge = tokens[0] switch
+        {
+            "x_min_y_min" => BrepBoundedChamferEdge.XMinYMin,
+            "x_min_y_max" => BrepBoundedChamferEdge.XMinYMax,
+            "x_max_y_min" => BrepBoundedChamferEdge.XMaxYMin,
+            "x_max_y_max" => BrepBoundedChamferEdge.XMaxYMax,
+            _ => BrepBoundedChamferEdge.XMinYMin
+        };
+        if (tokens[0] is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"))
+        {
+            error = "supported tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max";
+            return false;
+        }
+
+        return true;
     }
 
     private static bool TryParseDraftFaces(

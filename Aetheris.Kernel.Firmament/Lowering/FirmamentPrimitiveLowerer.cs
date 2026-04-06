@@ -123,6 +123,9 @@ internal static class FirmamentPrimitiveLowerer
                 case FirmamentKnownOpKind.Draft:
                     loweredBooleans.Add(LowerDraft(index, entry));
                     break;
+                case FirmamentKnownOpKind.Chamfer:
+                    loweredBooleans.Add(LowerChamfer(index, entry));
+                    break;
 
                 default:
                     skippedOps.Add(new FirmamentLoweringSkippedOp(
@@ -190,6 +193,18 @@ internal static class FirmamentPrimitiveLowerer
             PrimaryReferenceField: "from",
             PrimaryReferenceFeatureId: entry.RawFields["from"],
             Tool: new FirmamentLoweredToolOp("draft", entry.RawFields, string.Empty),
+            Placement: null);
+    }
+
+    private static FirmamentLoweredBoolean LowerChamfer(int opIndex, FirmamentParsedOpEntry entry)
+    {
+        return new FirmamentLoweredBoolean(
+            OpIndex: opIndex,
+            FeatureId: entry.RawFields["id"],
+            Kind: FirmamentLoweredBooleanKind.Chamfer,
+            PrimaryReferenceField: "from",
+            PrimaryReferenceFeatureId: entry.RawFields["from"],
+            Tool: new FirmamentLoweredToolOp("chamfer", entry.RawFields, string.Empty),
             Placement: null);
     }
 

@@ -566,18 +566,25 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
-    public void Run_FrictionLabFlangeBoltCircle_RemovesOverlapBlocker_AndFailsAtSchemaVoidGate()
+    public void Run_FrictionLabFlangeBoltCircle_RemovesOverlapBlocker_AndAdvancesPastSchemaVoidGate()
     {
         var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/flange-bolt-circle/part.firmament");
+        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/flange-bolt-circle/part.step");
+        if (File.Exists(expectedOutputPath))
+        {
+            File.Delete(expectedOutputPath);
+        }
+
         var result = FirmamentBuildAndExport.Run(fullSourcePath);
 
-        Assert.False(result.IsSuccess);
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.True(File.Exists(result.Value.OutputPath));
+        Assert.EndsWith(Path.Combine("testdata", "firmament", "exports", "part.step"), result.Value.OutputPath, StringComparison.Ordinal);
         Assert.DoesNotContain(result.Diagnostics, diagnostic =>
             diagnostic.Message.Contains("overlapping cylinder-root hole chains are not supported", StringComparison.Ordinal));
-        Assert.Contains(result.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("[FIRM-SCHEMA-0006]", StringComparison.Ordinal)
-            && diagnostic.Message.Contains("contains 5 fully enclosed internal void", StringComparison.Ordinal)
-            && diagnostic.Message.Contains("bolt_0__cir4", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("[FIRM-SCHEMA-0006]", StringComparison.Ordinal));
+        Assert.Contains("BREP_WITH_VOIDS", result.Value.Export.StepText, StringComparison.Ordinal);
     }
 
     [Fact]

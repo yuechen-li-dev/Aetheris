@@ -54,6 +54,26 @@ internal static class FirmamentPrimitiveExecutor
                 continue;
             }
 
+            if (boolean.Kind == FirmamentLoweredBooleanKind.Draft)
+            {
+                var draftResult = ExecuteBoundedDraftOnRecognizedOrthogonalRoot(boolean, baseBody, featureGraphStates);
+                if (!draftResult.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
+                    [
+                        CreateBooleanExecutionFailureDiagnostic(boolean),
+                        .. WithBooleanContext(boolean, draftResult.Diagnostics)
+                    ]);
+                }
+
+                var draftedBody = draftResult.Value;
+                executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, draftedBody));
+                publishedBodiesByFeatureId[boolean.FeatureId] = draftedBody;
+                booleanExecutionBodiesByFeatureId[boolean.FeatureId] = draftedBody;
+                featureGraphStates[boolean.FeatureId] = FirmamentSafeSubtractFeatureGraphState.Other;
+                continue;
+            }
+
             if (IsPatternGeneratedFeature(boolean.FeatureId))
             {
                 var patternToolResult = FirmamentBooleanToolBodyFactory.CreateBody(boolean.Tool);
@@ -550,6 +570,156 @@ internal static class FirmamentPrimitiveExecutor
         ]);
     }
 
+    private static KernelResult<BrepBody> ExecuteBoundedDraftOnRecognizedOrthogonalRoot(
+        FirmamentLoweredBoolean boolean,
+        BrepBody baseBody,
+        IReadOnlyDictionary<string, FirmamentSafeSubtractFeatureGraphState> featureGraphStates)
+    {
+        if (!featureGraphStates.TryGetValue(boolean.PrimaryReferenceFeatureId, out var sourceState)
+            || sourceState is not (FirmamentSafeSubtractFeatureGraphState.BoxRoot
+                or FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveSafeRoot
+                or FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveOutsideSafeRoot))
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded draft requires a box-root or recognized orthogonal additive root input; '{boolean.PrimaryReferenceFeatureId}' is not eligible.",
+                    Source: "firmament.draft-bounded")
+            ]);
+        }
+
+        if (!BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out var box, out var reason))
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded draft requires an axis-aligned box-like source body; failed to recognize source body ({reason}).",
+                    Source: "firmament.draft-bounded")
+            ]);
+        }
+
+        if (!boolean.Tool.RawFields.TryGetValue("pull", out var pullRaw)
+            || !string.Equals(UnquoteScalar(pullRaw), "+z", StringComparison.Ordinal))
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    "Bounded draft supports principal pull direction '+z' only.",
+                    Source: "firmament.draft-bounded")
+            ]);
+        }
+
+        if (!boolean.Tool.RawFields.TryGetValue("angle", out var angleRaw)
+            || !FirmamentPrimitiveToolParsing.TryParseScalar(angleRaw, out var angleDegrees))
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    "Bounded draft execution expected validated 'angle' scalar.",
+                    Source: "firmament.draft-bounded")
+            ]);
+        }
+
+        if (!TryParseDraftFaces(boolean.Tool.RawFields, out var faces, out var faceError))
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded draft faces are invalid: {faceError}.",
+                    Source: "firmament.draft-bounded")
+            ]);
+        }
+
+        return BrepBoundedDraft.DraftAxisAlignedBoxSideFaces(box, angleDegrees, faces);
+    }
+
+    private static bool TryParseDraftFaces(
+        IReadOnlyDictionary<string, string> fields,
+        out BrepBoundedDraftFaces faces,
+        out string error)
+    {
+        faces = BrepBoundedDraftFaces.None;
+        error = string.Empty;
+
+        if (!fields.TryGetValue("faces", out var facesRaw))
+        {
+            error = "missing 'faces' field";
+            return false;
+        }
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(facesRaw);
+            if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array)
+            {
+                error = "expected array";
+                return false;
+            }
+
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind != System.Text.Json.JsonValueKind.String)
+                {
+                    error = "all face entries must be strings";
+                    return false;
+                }
+
+                var token = element.GetString();
+                faces |= token switch
+                {
+                    "x_min" => BrepBoundedDraftFaces.XMin,
+                    "x_max" => BrepBoundedDraftFaces.XMax,
+                    "y_min" => BrepBoundedDraftFaces.YMin,
+                    "y_max" => BrepBoundedDraftFaces.YMax,
+                    _ => BrepBoundedDraftFaces.None
+                };
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            var trimmed = facesRaw.Trim();
+            if (!trimmed.StartsWith("[", StringComparison.Ordinal) || !trimmed.EndsWith("]", StringComparison.Ordinal))
+            {
+                error = "faces must be valid array syntax";
+                return false;
+            }
+
+            foreach (var token in trimmed[1..^1].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parsedToken = token.Trim().Trim('"');
+                faces |= parsedToken switch
+                {
+                    "x_min" => BrepBoundedDraftFaces.XMin,
+                    "x_max" => BrepBoundedDraftFaces.XMax,
+                    "y_min" => BrepBoundedDraftFaces.YMin,
+                    "y_max" => BrepBoundedDraftFaces.YMax,
+                    _ => BrepBoundedDraftFaces.None
+                };
+            }
+        }
+
+        if (faces == BrepBoundedDraftFaces.None)
+        {
+            error = "no supported side faces were selected";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string UnquoteScalar(string raw)
+    {
+        var trimmed = raw.Trim();
+        return trimmed.Length >= 2 && trimmed.StartsWith('"') && trimmed.EndsWith('"')
+            ? trimmed[1..^1]
+            : trimmed;
+    }
+
     private static BrepBody TranslateBody(BrepBody body, Vector3D translation)
     {
         if (translation == Vector3D.Zero) return body;
@@ -611,5 +781,16 @@ internal static class FirmamentPrimitiveToolParsing
         }
 
         return double.Parse(trimmed, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    public static bool TryParseScalar(string raw, out double value)
+    {
+        var trimmed = raw.Trim();
+        if (trimmed.StartsWith("\"", StringComparison.Ordinal) && trimmed.EndsWith("\"", StringComparison.Ordinal) && trimmed.Length >= 2)
+        {
+            trimmed = trimmed[1..^1];
+        }
+
+        return double.TryParse(trimmed, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out value);
     }
 }

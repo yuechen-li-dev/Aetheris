@@ -1,0 +1,26 @@
+firmament:
+  version: 1
+
+model:
+  name: m4-draft-box
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      30
+      20
+  -
+    op: draft
+    id: drafted
+    from: base
+    pull: +z
+    angle: 2
+    faces[4]:
+      x_min
+      x_max
+      y_min
+      y_max

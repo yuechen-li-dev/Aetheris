@@ -111,6 +111,66 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
         """);
 
     [Fact]
+    public void Compiler_Accepts_ValidBoundedDraftShape() =>
+        AssertValidBooleanOp("""
+        firmament:
+          version: 1
+        
+        model:
+          name: demo
+          units: mm
+        
+        ops[2]:
+          -
+            op: box
+            id: base
+            size[3]:
+              40
+              20
+              10
+          -
+            op: draft
+            id: drafted
+            from: base
+            pull: +z
+            angle: 2
+            faces[2]:
+              x_min
+              x_max
+        """);
+
+    [Fact]
+    public void Compiler_Rejects_Draft_UnsupportedPullDirection() =>
+        AssertBooleanFailure(
+            """
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  20
+                  20
+                  20
+              -
+                op: draft
+                id: drafted
+                from: base
+                pull: +x
+                angle: 2
+                faces[1]:
+                  x_min
+            """,
+            FirmamentDiagnosticCodes.BooleanInvalidFieldValue,
+            "Boolean op 'draft' at index 1 has invalid field 'pull'; expected '+z' for bounded M4 draft pull direction.");
+
+    [Fact]
     public void Compiler_Allows_ValidTorusBooleanToolShape_Past_FieldValidation()
     {
         const string source = """

@@ -171,6 +171,63 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             "Boolean op 'draft' at index 1 has invalid field 'pull'; expected '+z' for bounded M4 draft pull direction.");
 
     [Fact]
+    public void Compiler_Accepts_ValidBoundedChamferShape() =>
+        AssertValidBooleanOp("""
+        firmament:
+          version: 1
+        
+        model:
+          name: demo
+          units: mm
+        
+        ops[2]:
+          -
+            op: box
+            id: base
+            size[3]:
+              40
+              20
+              10
+          -
+            op: chamfer
+            id: edge_break
+            from: base
+            edges[1]:
+              x_max_y_max
+            distance: 1.5
+        """);
+
+    [Fact]
+    public void Compiler_Rejects_Chamfer_UnsupportedEdgeToken() =>
+        AssertBooleanFailure(
+            """
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  20
+                  20
+                  20
+              -
+                op: chamfer
+                id: edge_break
+                from: base
+                edges[1]:
+                  curved_edge
+                distance: 1
+            """,
+            FirmamentDiagnosticCodes.BooleanInvalidFieldValue,
+            "Boolean op 'chamfer' at index 1 has invalid field 'edges'; supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max.");
+
+    [Fact]
     public void Compiler_Allows_ValidTorusBooleanToolShape_Past_FieldValidation()
     {
         const string source = """

@@ -29,6 +29,7 @@ internal static class FirmamentBooleanRequiredFieldValidator
                 FirmamentKnownOpKind.Subtract => ValidateBooleanEntry(entry, index, targetFieldName: "from"),
                 FirmamentKnownOpKind.Intersect => ValidateBooleanEntry(entry, index, targetFieldName: "left"),
                 FirmamentKnownOpKind.Draft => ValidateDraftEntry(entry, index),
+                FirmamentKnownOpKind.Chamfer => ValidateChamferEntry(entry, index),
                 _ => KernelResult<bool>.Success(true)
             };
 
@@ -132,6 +133,46 @@ internal static class FirmamentBooleanRequiredFieldValidator
             && !string.Equals(Unquote(directionRaw), "inward", StringComparison.Ordinal))
         {
             return InvalidFieldValue("direction", opIndex, entry.OpName, "expected 'inward' for bounded M4 draft");
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateChamferEntry(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        if (!TryGetRequiredNonEmptyScalar(entry, "from", opIndex, out missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        if (!entry.RawFields.TryGetValue("distance", out var distanceRaw) || string.IsNullOrWhiteSpace(distanceRaw))
+        {
+            return MissingField("distance", opIndex, entry.OpName);
+        }
+
+        if (!TryParseNumeric(distanceRaw, out var distance) || distance <= 0d)
+        {
+            return InvalidFieldValue("distance", opIndex, entry.OpName, "expected a numeric value greater than 0 for bounded M5a chamfer");
+        }
+
+        if (!entry.RawFields.TryGetValue("edges", out var edgesRaw) || string.IsNullOrWhiteSpace(edgesRaw))
+        {
+            return MissingField("edges", opIndex, entry.OpName);
+        }
+
+        if (!TryParseFaceTokens(edgesRaw, out var tokens) || tokens.Count != 1)
+        {
+            return InvalidFieldTypeOrShape("edges", opIndex, entry.OpName, "expected a single-item string array with one explicit edge token");
+        }
+
+        if (tokens[0] is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"))
+        {
+            return InvalidFieldValue("edges", opIndex, entry.OpName, "supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max");
         }
 
         return KernelResult<bool>.Success(true);

@@ -175,6 +175,18 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_M5aChamferBoxEdgeExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/m5a_chamfer_box_edge_basic.firmament",
+            "m5a_chamfer_box_edge_basic.step",
+            "edge_break",
+            1,
+            "boolean",
+            "chamfer");
+    }
+
+    [Fact]
     public void Run_BooleanBoxCylinderHoleExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(

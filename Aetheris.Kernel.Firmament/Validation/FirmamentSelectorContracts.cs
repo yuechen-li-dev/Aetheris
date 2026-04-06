@@ -88,6 +88,7 @@ internal static class FirmamentSelectorContracts
             case FirmamentKnownOpKind.Subtract:
             case FirmamentKnownOpKind.Intersect:
             case FirmamentKnownOpKind.Draft:
+            case FirmamentKnownOpKind.Chamfer:
                 allowedPorts = BooleanAllowedPorts;
                 return true;
             default:
@@ -136,6 +137,7 @@ internal static class FirmamentSelectorContracts
             case FirmamentKnownOpKind.Subtract:
             case FirmamentKnownOpKind.Intersect:
             case FirmamentKnownOpKind.Draft:
+            case FirmamentKnownOpKind.Chamfer:
                 contracts = BooleanPorts;
                 return true;
             default:

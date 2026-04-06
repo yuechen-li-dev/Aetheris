@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+
+model:
+  name: m5a_invalid_chamfer_distance
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      8
+      5
+      10
+  -
+    op: chamfer
+    id: edge_break
+    from: base
+    edges[1]:
+      x_min_y_min
+    distance: 5

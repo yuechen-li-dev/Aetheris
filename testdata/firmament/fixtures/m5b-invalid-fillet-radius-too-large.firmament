@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+
+model:
+  name: m5b_invalid_fillet_box_root
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      30
+      20
+      10
+  -
+    op: fillet
+    id: corner_relief
+    from: base
+    edges[1]:
+      inner_x_max_y_max
+    radius: 5

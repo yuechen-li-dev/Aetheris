@@ -228,6 +228,83 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             "Boolean op 'chamfer' at index 1 has invalid field 'edges'; supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max.");
 
     [Fact]
+    public void Compiler_Allows_ValidBoundedFilletShape_Past_FieldValidation()
+    {
+        const string source = """
+        firmament:
+          version: 1
+        
+        model:
+          name: demo
+          units: mm
+        
+        ops[3]:
+          -
+            op: box
+            id: base
+            size[3]:
+              30
+              20
+              10
+          -
+            op: add
+            id: rib
+            to: base
+            with:
+              op: box
+              size[3]:
+                10
+                10
+                10
+          -
+            op: fillet
+            id: corner_relief
+            from: rib
+            edges[1]:
+              inner_x_max_y_max
+            radius: 1.25
+        """;
+
+        var compiler = new FirmamentCompiler();
+        var result = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("[FIRM-STRUCT-", StringComparison.Ordinal));
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Source == "firmament.fillet-bounded");
+    }
+
+    [Fact]
+    public void Compiler_Rejects_Fillet_UnsupportedEdgeToken() =>
+        AssertBooleanFailure(
+            """
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  20
+                  20
+                  20
+              -
+                op: fillet
+                id: edge_break
+                from: base
+                edges[1]:
+                  x_max_y_max
+                radius: 1
+            """,
+            FirmamentDiagnosticCodes.BooleanInvalidFieldValue,
+            "Boolean op 'fillet' at index 1 has invalid field 'edges'; supported bounded M5b edge tokens are inner_x_min_y_min, inner_x_min_y_max, inner_x_max_y_min, inner_x_max_y_max.");
+
+    [Fact]
     public void Compiler_Allows_ValidTorusBooleanToolShape_Past_FieldValidation()
     {
         const string source = """

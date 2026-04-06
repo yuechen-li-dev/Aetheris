@@ -95,6 +95,26 @@ internal static class FirmamentPrimitiveExecutor
                 continue;
             }
 
+            if (boolean.Kind == FirmamentLoweredBooleanKind.Fillet)
+            {
+                var filletResult = ExecuteBoundedManufacturingFilletOnRecognizedOrthogonalRoot(boolean, baseBody, featureGraphStates);
+                if (!filletResult.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
+                    [
+                        CreateBooleanExecutionFailureDiagnostic(boolean),
+                        .. WithBooleanContext(boolean, filletResult.Diagnostics)
+                    ]);
+                }
+
+                var filletedBody = filletResult.Value;
+                executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, filletedBody));
+                publishedBodiesByFeatureId[boolean.FeatureId] = filletedBody;
+                booleanExecutionBodiesByFeatureId[boolean.FeatureId] = filletedBody;
+                featureGraphStates[boolean.FeatureId] = FirmamentSafeSubtractFeatureGraphState.Other;
+                continue;
+            }
+
             if (IsPatternGeneratedFeature(boolean.FeatureId))
             {
                 var patternToolResult = FirmamentBooleanToolBodyFactory.CreateBody(boolean.Tool);
@@ -761,6 +781,133 @@ internal static class FirmamentPrimitiveExecutor
         if (tokens[0] is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"))
         {
             error = "supported tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static KernelResult<BrepBody> ExecuteBoundedManufacturingFilletOnRecognizedOrthogonalRoot(
+        FirmamentLoweredBoolean boolean,
+        BrepBody baseBody,
+        IReadOnlyDictionary<string, FirmamentSafeSubtractFeatureGraphState> featureGraphStates)
+    {
+        if (!featureGraphStates.TryGetValue(boolean.PrimaryReferenceFeatureId, out var sourceState)
+            || sourceState is not (FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveSafeRoot
+                or FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveOutsideSafeRoot
+                or FirmamentSafeSubtractFeatureGraphState.SafeSubtractComposition))
+        {
+            return KernelResult<BrepBody>.Failure(
+            [
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded M5b fillet requires a recognized orthogonal additive or safe subtract root input; '{boolean.PrimaryReferenceFeatureId}' is not eligible.",
+                    Source: "firmament.fillet-bounded")
+            ]);
+        }
+
+        if (!boolean.Tool.RawFields.TryGetValue("radius", out var radiusRaw)
+            || !double.TryParse(radiusRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius)
+            || !double.IsFinite(radius))
+        {
+            return KernelResult<BrepBody>.Failure(
+            [
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    "Bounded M5b fillet execution expected validated 'radius' scalar.",
+                    Source: "firmament.fillet-bounded")
+            ]);
+        }
+
+        if (!TryParseFilletEdge(boolean.Tool.RawFields, out var edge, out var edgeError))
+        {
+            return KernelResult<BrepBody>.Failure(
+            [
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded fillet edges are invalid: {edgeError}.",
+                    Source: "firmament.fillet-bounded")
+            ]);
+        }
+
+        if (baseBody.SafeBooleanComposition is null)
+        {
+            return KernelResult<BrepBody>.Failure(
+            [
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    "Bounded M5b fillet requires a source body with safe-composition metadata for explicit internal concave edge preflight.",
+                    Source: "firmament.fillet-bounded")
+            ]);
+        }
+
+        var preflight = BrepBoundedManufacturingFilletPreflight.ResolveInternalConcaveVerticalEdge(
+            baseBody.SafeBooleanComposition,
+            edge,
+            radius);
+        if (!preflight.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(preflight.Diagnostics);
+        }
+
+        var selection = preflight.Value;
+        return KernelResult<BrepBody>.Failure(
+        [
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.NotImplemented,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded M5b fillet preflight resolved internal edge at ({selection.EdgeX.ToString("0.###", CultureInfo.InvariantCulture)}, {selection.EdgeY.ToString("0.###", CultureInfo.InvariantCulture)}) with max radius {selection.MaxAllowedRadius.ToString("0.###", CultureInfo.InvariantCulture)}, but truthful cylindrical edge rebuild/export for this bounded family is not implemented yet.",
+                    Source: "firmament.fillet-bounded")
+        ]);
+    }
+
+    private static bool TryParseFilletEdge(
+        IReadOnlyDictionary<string, string> fields,
+        out BrepBoundedManufacturingFilletEdge edge,
+        out string error)
+    {
+        edge = BrepBoundedManufacturingFilletEdge.InnerXMinYMin;
+        error = string.Empty;
+
+        if (!fields.TryGetValue("edges", out var edgesRaw) || string.IsNullOrWhiteSpace(edgesRaw))
+        {
+            error = "missing required edges list";
+            return false;
+        }
+
+        var trimmed = edgesRaw.Trim();
+        if (!trimmed.StartsWith("[", StringComparison.Ordinal) || !trimmed.EndsWith("]", StringComparison.Ordinal))
+        {
+            error = "expected array-like edges value";
+            return false;
+        }
+
+        var tokens = trimmed[1..^1]
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(token => token.Trim().Trim('"'))
+            .Where(token => !string.IsNullOrWhiteSpace(token))
+            .ToArray();
+        if (tokens.Length != 1)
+        {
+            error = "bounded M5b supports exactly one explicit internal edge token";
+            return false;
+        }
+
+        edge = tokens[0] switch
+        {
+            "inner_x_min_y_min" => BrepBoundedManufacturingFilletEdge.InnerXMinYMin,
+            "inner_x_min_y_max" => BrepBoundedManufacturingFilletEdge.InnerXMinYMax,
+            "inner_x_max_y_min" => BrepBoundedManufacturingFilletEdge.InnerXMaxYMin,
+            "inner_x_max_y_max" => BrepBoundedManufacturingFilletEdge.InnerXMaxYMax,
+            _ => BrepBoundedManufacturingFilletEdge.InnerXMinYMin
+        };
+        if (tokens[0] is not ("inner_x_min_y_min" or "inner_x_min_y_max" or "inner_x_max_y_min" or "inner_x_max_y_max"))
+        {
+            error = "supported tokens are inner_x_min_y_min, inner_x_min_y_max, inner_x_max_y_min, inner_x_max_y_max";
             return false;
         }
 

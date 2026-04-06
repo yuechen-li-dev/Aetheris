@@ -687,6 +687,7 @@ internal static class FirmamentDocumentCoherenceValidator
             FirmamentKnownOpKind.Intersect => "left",
             FirmamentKnownOpKind.Draft => "from",
             FirmamentKnownOpKind.Chamfer => "from",
+            FirmamentKnownOpKind.Fillet => "from",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Boolean op kind must map to a feature reference field.")
         };
 

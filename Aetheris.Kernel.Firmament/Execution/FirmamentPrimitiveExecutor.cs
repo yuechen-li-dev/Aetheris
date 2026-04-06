@@ -373,9 +373,18 @@ internal static class FirmamentPrimitiveExecutor
                 && BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(toolBody, ToleranceContext.Default, out _, out _);
         }
 
-        if (!string.Equals(boolean.Tool.OpName, "cylinder", StringComparison.Ordinal))
+        var isCylinderTool = string.Equals(boolean.Tool.OpName, "cylinder", StringComparison.Ordinal);
+        var isConeTool = string.Equals(boolean.Tool.OpName, "cone", StringComparison.Ordinal);
+        if (!isCylinderTool && !isConeTool)
         {
             return false;
+        }
+
+        if (isConeTool)
+        {
+            // Cone tools require real placed-body validation/execution for bounded blind-entry families
+            // (e.g., countersink entry cones); validating unplaced cones collapses them into contained tools.
+            return true;
         }
 
         if (baseBody.SafeBooleanComposition is { Holes.Count: > 0 })

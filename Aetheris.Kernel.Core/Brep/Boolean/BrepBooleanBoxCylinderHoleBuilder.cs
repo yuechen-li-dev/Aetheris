@@ -68,6 +68,22 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             && composition.Holes.Any(h => h.IsBlind)
             && IsCoaxialHolePair(composition.Holes[0], composition.Holes[1], tolerance))
         {
+            if (BrepBooleanCoaxialCountersinkSubtractFamily.TryClassifyPair(
+                composition.OuterBox,
+                composition.Holes[0],
+                composition.Holes[1],
+                tolerance,
+                out var countersinkProfile,
+                out var countersinkDiagnostic))
+            {
+                return CreateSteppedCoaxialCountersinkBody(composition, countersinkProfile);
+            }
+
+            if (countersinkDiagnostic is not null)
+            {
+                return KernelResult<BrepBody>.Failure([countersinkDiagnostic.ToKernelDiagnostic()]);
+            }
+
             if (BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
                 composition.OuterBox,
                 composition.Holes[0],
@@ -638,6 +654,244 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             vertexPoints[topology.SeamTopVertex] = geometryData.SeamTopPoint;
             vertexPoints[topology.SeamBottomVertex] = geometryData.SeamBottomPoint;
         }
+
+        var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints, composition);
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        return validation.IsSuccess
+            ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
+            : KernelResult<BrepBody>.Failure(validation.Diagnostics);
+    }
+
+
+    private static KernelResult<BrepBody> CreateSteppedCoaxialCountersinkBody(
+        SafeBooleanComposition composition,
+        in CoaxialCountersinkSubtractProfile countersinkProfile)
+    {
+        var box = composition.OuterBox;
+        var builder = new TopologyBuilder();
+
+        var v1 = builder.AddVertex();
+        var v2 = builder.AddVertex();
+        var v3 = builder.AddVertex();
+        var v4 = builder.AddVertex();
+        var v5 = builder.AddVertex();
+        var v6 = builder.AddVertex();
+        var v7 = builder.AddVertex();
+        var v8 = builder.AddVertex();
+
+        var e1 = builder.AddEdge(v1, v2);
+        var e2 = builder.AddEdge(v2, v3);
+        var e3 = builder.AddEdge(v3, v4);
+        var e4 = builder.AddEdge(v4, v1);
+        var e5 = builder.AddEdge(v5, v6);
+        var e6 = builder.AddEdge(v6, v7);
+        var e7 = builder.AddEdge(v7, v8);
+        var e8 = builder.AddEdge(v8, v5);
+        var e9 = builder.AddEdge(v1, v5);
+        var e10 = builder.AddEdge(v2, v6);
+        var e11 = builder.AddEdge(v3, v7);
+        var e12 = builder.AddEdge(v4, v8);
+
+        var entryVertex = builder.AddVertex();
+        var transitionVertex = builder.AddVertex();
+        var deepEndVertex = builder.AddVertex();
+        var coneSeamStartVertex = builder.AddVertex();
+        var coneSeamEndVertex = builder.AddVertex();
+        var cylinderSeamStartVertex = builder.AddVertex();
+        var cylinderSeamEndVertex = builder.AddVertex();
+
+        var entryCircle = builder.AddEdge(entryVertex, entryVertex);
+        var transitionCircle = builder.AddEdge(transitionVertex, transitionVertex);
+        var deepEndCircle = builder.AddEdge(deepEndVertex, deepEndVertex);
+        var coneSeam = builder.AddEdge(coneSeamStartVertex, coneSeamEndVertex);
+        var cylinderSeam = builder.AddEdge(cylinderSeamStartVertex, cylinderSeamEndVertex);
+
+        var bottomOuterLoop = AddLoop(builder, [Forward(e1), Forward(e2), Forward(e3), Forward(e4)]);
+        var topOuterLoop = AddLoop(builder, [Forward(e5), Forward(e6), Forward(e7), Forward(e8)]);
+        var bottomLoops = new List<LoopId>(2) { bottomOuterLoop };
+        var topLoops = new List<LoopId>(2) { topOuterLoop };
+
+        if (countersinkProfile.EntryFromTop)
+        {
+            topLoops.Add(AddLoop(builder, [Forward(entryCircle)]));
+            if (countersinkProfile.ContinuationCylinder.SpanKind == SupportedBooleanHoleSpanKind.Through)
+            {
+                bottomLoops.Add(AddLoop(builder, [Reversed(deepEndCircle)]));
+            }
+        }
+        else
+        {
+            bottomLoops.Add(AddLoop(builder, [Reversed(entryCircle)]));
+            if (countersinkProfile.ContinuationCylinder.SpanKind == SupportedBooleanHoleSpanKind.Through)
+            {
+                topLoops.Add(AddLoop(builder, [Forward(deepEndCircle)]));
+            }
+        }
+
+        var bottomFace = builder.AddFace(bottomLoops);
+        var topFace = builder.AddFace(topLoops);
+        var xMinFace = builder.AddFace([AddLoop(builder, [Forward(e1), Forward(e10), Reversed(e5), Reversed(e9)])]);
+        var xMaxFace = builder.AddFace([AddLoop(builder, [Forward(e2), Forward(e11), Reversed(e6), Reversed(e10)])]);
+        var yMaxFace = builder.AddFace([AddLoop(builder, [Forward(e3), Forward(e12), Reversed(e7), Reversed(e11)])]);
+        var yMinFace = builder.AddFace([AddLoop(builder, [Forward(e4), Forward(e9), Reversed(e8), Reversed(e12)])]);
+
+        var countersinkConeFace = builder.AddFace([
+            AddLoop(builder, [Forward(coneSeam), Reversed(entryCircle), Reversed(coneSeam), Forward(transitionCircle)])
+        ]);
+        var continuationCylinderFace = builder.AddFace([
+            AddLoop(builder, [Forward(cylinderSeam), Reversed(transitionCircle), Reversed(cylinderSeam), Forward(deepEndCircle)])
+        ]);
+
+        FaceId? deepBottomFace = null;
+        if (countersinkProfile.ContinuationCylinder.IsBlind)
+        {
+            deepBottomFace = builder.AddFace([AddLoop(builder, [Forward(deepEndCircle)])]);
+        }
+
+        var shellFaces = new List<FaceId>
+        {
+            bottomFace,
+            topFace,
+            xMinFace,
+            xMaxFace,
+            yMaxFace,
+            yMinFace,
+            countersinkConeFace,
+            continuationCylinderFace,
+        };
+        if (deepBottomFace is FaceId deepBottom)
+        {
+            shellFaces.Add(deepBottom);
+        }
+
+        var shell = builder.AddShell(shellFaces);
+        builder.AddBody([shell]);
+
+        var zAxis = Direction3D.Create(new Vector3D(0d, 0d, 1d));
+        var xAxis = Direction3D.Create(new Vector3D(1d, 0d, 0d));
+        var yAxis = Direction3D.Create(new Vector3D(0d, 1d, 0d));
+        var width = box.MaxX - box.MinX;
+        var depth = box.MaxY - box.MinY;
+        var height = box.MaxZ - box.MinZ;
+        var p1 = new Point3D(box.MinX, box.MinY, box.MinZ);
+        var p2 = new Point3D(box.MaxX, box.MinY, box.MinZ);
+        var p3 = new Point3D(box.MaxX, box.MaxY, box.MinZ);
+        var p4 = new Point3D(box.MinX, box.MaxY, box.MinZ);
+        var p5 = new Point3D(box.MinX, box.MinY, box.MaxZ);
+        var p6 = new Point3D(box.MaxX, box.MinY, box.MaxZ);
+        var p7 = new Point3D(box.MaxX, box.MaxY, box.MaxZ);
+        var p8 = new Point3D(box.MinX, box.MaxY, box.MaxZ);
+
+        var entryZ = countersinkProfile.EntryFromTop ? box.MaxZ : box.MinZ;
+        var transitionZ = countersinkProfile.TransitionZ;
+        var deepEndZ = countersinkProfile.ContinuationCylinder.SpanKind == SupportedBooleanHoleSpanKind.Through
+            ? (countersinkProfile.EntryFromTop ? box.MinZ : box.MaxZ)
+            : countersinkProfile.ContinuationEndZ;
+        var center = new Point3D(countersinkProfile.EntryCone.CenterX, countersinkProfile.EntryCone.CenterY, 0d);
+        var entryCenter = new Point3D(center.X, center.Y, entryZ);
+        var transitionCenter = new Point3D(center.X, center.Y, transitionZ);
+        var deepEndCenter = new Point3D(center.X, center.Y, deepEndZ);
+        var seamAxis = countersinkProfile.EntryFromTop
+            ? Direction3D.Create(new Vector3D(0d, 0d, -1d))
+            : Direction3D.Create(new Vector3D(0d, 0d, 1d));
+        var coneSeamStart = entryCenter + (xAxis.ToVector() * countersinkProfile.EntryRadius);
+        var coneSeamEnd = transitionCenter + (xAxis.ToVector() * countersinkProfile.ContinuationRadius);
+        var cylinderSeamStart = coneSeamEnd;
+        var cylinderSeamEnd = deepEndCenter + (xAxis.ToVector() * countersinkProfile.ContinuationRadius);
+
+        var geometry = new BrepGeometryStore();
+        var lineCurves = new[]
+        {
+            (p1, new Vector3D(width, 0d, 0d)),
+            (p2, new Vector3D(0d, depth, 0d)),
+            (p3, new Vector3D(-width, 0d, 0d)),
+            (p4, new Vector3D(0d, -depth, 0d)),
+            (p5, new Vector3D(width, 0d, 0d)),
+            (p6, new Vector3D(0d, depth, 0d)),
+            (p7, new Vector3D(-width, 0d, 0d)),
+            (p8, new Vector3D(0d, -depth, 0d)),
+            (p1, new Vector3D(0d, 0d, height)),
+            (p2, new Vector3D(0d, 0d, height)),
+            (p3, new Vector3D(0d, 0d, height)),
+            (p4, new Vector3D(0d, 0d, height)),
+        };
+        for (var i = 0; i < lineCurves.Length; i++)
+        {
+            geometry.AddCurve(new CurveGeometryId(i + 1), CurveGeometry.FromLine(new Line3Curve(lineCurves[i].Item1, Direction3D.Create(lineCurves[i].Item2))));
+        }
+
+        var entryCurveId = new CurveGeometryId(13);
+        var transitionCurveId = new CurveGeometryId(14);
+        var deepEndCurveId = new CurveGeometryId(15);
+        var coneSeamCurveId = new CurveGeometryId(16);
+        var cylinderSeamCurveId = new CurveGeometryId(17);
+        geometry.AddCurve(entryCurveId, CurveGeometry.FromCircle(new Circle3Curve(entryCenter, zAxis, countersinkProfile.EntryRadius, xAxis)));
+        geometry.AddCurve(transitionCurveId, CurveGeometry.FromCircle(new Circle3Curve(transitionCenter, zAxis, countersinkProfile.ContinuationRadius, xAxis)));
+        geometry.AddCurve(deepEndCurveId, CurveGeometry.FromCircle(new Circle3Curve(deepEndCenter, zAxis, countersinkProfile.ContinuationRadius, xAxis)));
+        geometry.AddCurve(coneSeamCurveId, CurveGeometry.FromLine(new Line3Curve(coneSeamStart, Direction3D.Create(coneSeamEnd - coneSeamStart))));
+        geometry.AddCurve(cylinderSeamCurveId, CurveGeometry.FromLine(new Line3Curve(cylinderSeamStart, seamAxis)));
+
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, box.MinZ), Direction3D.Create(new Vector3D(0d, 0d, -1d)), xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(2), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, box.MaxZ), zAxis, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(3), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, box.MinY, 0d), Direction3D.Create(new Vector3D(0d, -1d, 0d)), xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(4), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(box.MaxX, 0d, 0d), Direction3D.Create(new Vector3D(1d, 0d, 0d)), yAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(5), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, box.MaxY, 0d), Direction3D.Create(new Vector3D(0d, 1d, 0d)), Direction3D.Create(new Vector3D(-1d, 0d, 0d)))));
+        geometry.AddSurface(new SurfaceGeometryId(6), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(box.MinX, 0d, 0d), Direction3D.Create(new Vector3D(-1d, 0d, 0d)), yAxis)));
+
+        var cone = countersinkProfile.EntryCone.Surface.Cone!.Value;
+        var coneOriginParameter = System.Math.Min(cone.MinAxisParameter, cone.MaxAxisParameter);
+        var coneOrigin = cone.PointAtAxisParameter(coneOriginParameter);
+        var coneRadius = cone.RadiusAtAxisParameter(coneOriginParameter);
+        geometry.AddSurface(new SurfaceGeometryId(7), SurfaceGeometry.FromCone(new ConeSurface(coneOrigin, cone.Axis, coneRadius, cone.SemiAngleRadians, countersinkProfile.EntryCone.ReferenceAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(8), SurfaceGeometry.FromCylinder(new CylinderSurface(deepEndCenter, zAxis, countersinkProfile.ContinuationRadius, xAxis)));
+        if (deepBottomFace is not null)
+        {
+            geometry.AddSurface(new SurfaceGeometryId(9), SurfaceGeometry.FromPlane(new PlaneSurface(deepEndCenter, Direction3D.Create(new Vector3D(0d, 0d, countersinkProfile.EntryFromTop ? -1d : 1d)), xAxis)));
+        }
+
+        var bindings = new BrepBindingModel();
+        for (var i = 0; i < 12; i++)
+        {
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(new EdgeId(i + 1), new CurveGeometryId(i + 1), new ParameterInterval(0d, 1d)));
+        }
+
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(entryCircle, entryCurveId, new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(transitionCircle, transitionCurveId, new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(deepEndCircle, deepEndCurveId, new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(coneSeam, coneSeamCurveId, new ParameterInterval(0d, (coneSeamEnd - coneSeamStart).Length)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(cylinderSeam, cylinderSeamCurveId, new ParameterInterval(0d, (cylinderSeamEnd - cylinderSeamStart).Length)));
+
+        bindings.AddFaceBinding(new FaceGeometryBinding(bottomFace, new SurfaceGeometryId(1)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(topFace, new SurfaceGeometryId(2)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(xMinFace, new SurfaceGeometryId(3)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(xMaxFace, new SurfaceGeometryId(4)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(yMaxFace, new SurfaceGeometryId(5)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(yMinFace, new SurfaceGeometryId(6)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(countersinkConeFace, new SurfaceGeometryId(7)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(continuationCylinderFace, new SurfaceGeometryId(8)));
+        if (deepBottomFace is FaceId deepBottomBinding)
+        {
+            bindings.AddFaceBinding(new FaceGeometryBinding(deepBottomBinding, new SurfaceGeometryId(9)));
+        }
+
+        var vertexPoints = new Dictionary<VertexId, Point3D>
+        {
+            [v1] = p1,
+            [v2] = p2,
+            [v3] = p3,
+            [v4] = p4,
+            [v5] = p5,
+            [v6] = p6,
+            [v7] = p7,
+            [v8] = p8,
+            [entryVertex] = coneSeamStart,
+            [transitionVertex] = coneSeamEnd,
+            [deepEndVertex] = cylinderSeamEnd,
+            [coneSeamStartVertex] = coneSeamStart,
+            [coneSeamEndVertex] = coneSeamEnd,
+            [cylinderSeamStartVertex] = cylinderSeamStart,
+            [cylinderSeamEndVertex] = cylinderSeamEnd,
+        };
 
         var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints, composition);
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);

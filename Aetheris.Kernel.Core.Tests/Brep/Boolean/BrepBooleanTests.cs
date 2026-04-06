@@ -66,7 +66,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Intersect: empty intersection result is not representable in M13.", diagnostic.Message);
+        Assert.Equal("Boolean Intersect: empty intersection result is not representable in the bounded boolean family.", diagnostic.Message);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Intersect: touching-only intersection is non-solid and empty results are not representable in M13.", diagnostic.Message);
+        Assert.Equal("Boolean Intersect: touching-only intersection is non-solid and empty results are not representable in the bounded boolean family.", diagnostic.Message);
     }
 
     [Fact]
@@ -256,7 +256,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Union: disjoint box union is multi-body and not supported in M13.", diagnostic.Message);
+        Assert.Equal("Boolean Union: disjoint box union is multi-body and not supported in the bounded boolean family.", diagnostic.Message);
     }
 
     [Fact]
@@ -297,7 +297,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Subtract: subtraction fully removes the left box and empty results are not representable in M13.", diagnostic.Message);
+        Assert.Equal("Boolean Subtract: subtraction fully removes the left box and empty results are not representable in the bounded boolean family.", diagnostic.Message);
     }
 
     [Fact]
@@ -1320,7 +1320,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        Assert.Equal("Boolean Union: bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
     }
 
     [Fact]
@@ -1334,7 +1334,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Intersect: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        Assert.Equal("Boolean Intersect: bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
     }
 
 
@@ -1404,7 +1404,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        Assert.Equal("Boolean Union: bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
     }
 
     [Fact]
@@ -1418,7 +1418,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Intersect: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        Assert.Equal("Boolean Intersect: bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
     }
 
     [Fact]
@@ -1432,7 +1432,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        Assert.Equal("Boolean Union: bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
     }
 
     [Fact]
@@ -1446,7 +1446,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Intersect: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        Assert.Equal("Boolean Intersect: bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
     }
 
     [Fact]
@@ -1509,7 +1509,7 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Union: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+        Assert.Equal("Boolean Union: bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
     }
 
     public static TheoryData<string, BooleanOperation, Transform3D> BoxTorusRepresentativeCases =>
@@ -1549,7 +1549,7 @@ public sealed class BrepBooleanTests
         }
         else
         {
-            Assert.Equal($"Boolean {operation}: M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
+            Assert.Equal($"Boolean {operation}: bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", diagnostic.Message);
         }
     }
 

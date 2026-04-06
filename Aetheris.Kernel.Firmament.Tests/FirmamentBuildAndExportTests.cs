@@ -151,6 +151,42 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_PrismFamilyTriangularSubtractFixture_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/fixtures/m3b-valid-box-subtract-triangular-prism.firmament",
+            "m3b-valid-box-subtract-triangular-prism.step",
+            "tri_cut",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_PrismFamilyHexagonalSubtractFixture_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/fixtures/m3b-valid-box-subtract-hexagonal-prism.firmament",
+            "m3b-valid-box-subtract-hexagonal-prism.step",
+            "hex_cut",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_PrismFamilyStraightSlotSubtractFixture_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/fixtures/m3b-valid-box-subtract-straight-slot.firmament",
+            "m3b-valid-box-subtract-straight-slot.step",
+            "slot_cut",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
     public void Run_BooleanIntersectBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
@@ -737,7 +773,7 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     private static bool HasExpectedMixedPrimitiveFailure(string message)
-        => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
+        => message.Contains("bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
            || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone analytic holes", StringComparison.Ordinal)
            || message.Contains("safe subtract", StringComparison.Ordinal)
            || message.Contains("unsupported follow-on tool kind", StringComparison.Ordinal)

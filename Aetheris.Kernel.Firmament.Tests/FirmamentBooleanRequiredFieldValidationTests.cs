@@ -340,7 +340,7 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
         Assert.DoesNotContain(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("[FIRM-STRUCT-", StringComparison.Ordinal));
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Code == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented
-            && (diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
+            && (diagnostic.Message.Contains("bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
                 || diagnostic.Message.Contains("analytic tool surface kind", StringComparison.Ordinal)));
     }
 

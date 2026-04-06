@@ -591,7 +591,7 @@ internal static class FirmamentPrimitiveExecutor
             ]);
         }
 
-        if (!BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out _, out var reason))
+        if (!BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out var rootBox, out var reason))
         {
             return KernelResult<BrepBody>.Failure([
                 new KernelDiagnostic(
@@ -601,14 +601,41 @@ internal static class FirmamentPrimitiveExecutor
                     Source: "firmament.prism-bounded-subtract")
             ]);
         }
-        
-        return KernelResult<BrepBody>.Failure([
-            new KernelDiagnostic(
-                KernelDiagnosticCode.NotImplemented,
-                KernelDiagnosticSeverity.Error,
-                $"Bounded prism-family subtract on box-root is validated, but execution is currently blocked: core M13 boolean rebuild supports box/box and analytic-hole families only; polyhedral prism tools ('{prismTool.OpName}') are not rebuildable yet.",
-                Source: "firmament.prism-bounded-subtract")
-        ]);
+
+        var toolHeight = prismTool.ResolveHeight(boolean.Tool);
+        var rootHeight = rootBox.MaxZ - rootBox.MinZ;
+        if (toolHeight < rootHeight - ToleranceContext.Default.Linear)
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    $"Bounded prism-family subtract on box-root requires a through-cut tool that spans the full root height ({rootHeight.ToString("G", CultureInfo.InvariantCulture)}). Got height '{toolHeight.ToString("G", CultureInfo.InvariantCulture)}' for tool op '{prismTool.OpName}'.",
+                    Source: "firmament.prism-bounded-subtract")
+            ]);
+        }
+
+        var footprint = FirmamentPrismFamilyTools.ResolveFootprint(prismTool, boolean.Tool)
+            .Select(point => (X: point.X, Y: point.Y))
+            .ToArray();
+
+        foreach (var point in footprint)
+        {
+            var insideX = point.X > rootBox.MinX + ToleranceContext.Default.Linear && point.X < rootBox.MaxX - ToleranceContext.Default.Linear;
+            var insideY = point.Y > rootBox.MinY + ToleranceContext.Default.Linear && point.Y < rootBox.MaxY - ToleranceContext.Default.Linear;
+            if (!insideX || !insideY)
+            {
+                return KernelResult<BrepBody>.Failure([
+                    new KernelDiagnostic(
+                        KernelDiagnosticCode.ValidationFailed,
+                        KernelDiagnosticSeverity.Error,
+                        $"Bounded prism-family subtract on box-root requires the prism footprint to remain strictly inside the source box bounds; tool op '{prismTool.OpName}' is out of bounds.",
+                        Source: "firmament.prism-bounded-subtract")
+                ]);
+            }
+        }
+
+        return BrepBooleanBoxPrismThroughCutBuilder.Build(rootBox, footprint, ToleranceContext.Default);
     }
 
     private static KernelResult<BrepBody> ExecuteBoundedDraftOnRecognizedOrthogonalRoot(

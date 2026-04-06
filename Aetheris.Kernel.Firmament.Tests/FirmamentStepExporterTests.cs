@@ -300,7 +300,7 @@ public sealed class FirmamentStepExporterTests
     }
 
     private static bool HasExpectedMixedPrimitiveFailure(string message)
-        => message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
+        => message.Contains("bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
            || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone analytic holes", StringComparison.Ordinal)
            || message.Contains("safe subtract", StringComparison.Ordinal)
            || message.Contains("unsupported follow-on tool kind", StringComparison.Ordinal)

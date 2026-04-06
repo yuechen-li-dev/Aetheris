@@ -185,7 +185,7 @@ public static class BrepBooleanBoxRecognition
             }
             else
             {
-                reason = "face normals are not axis-aligned as required for M13 boxes.";
+                reason = "face normals are not axis-aligned as required for bounded boolean family boxes.";
                 return false;
             }
         }

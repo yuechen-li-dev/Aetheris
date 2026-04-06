@@ -1,0 +1,6 @@
+case_id: countersink-hole
+verdict: pass
+review_notes:
+  - "Bounded countersink family accepted: one world-Z conical entry plus one coaxial cylindrical continuation."
+  - "STEP export includes both conical and cylindrical analytic faces for the hole."
+reviewer_verdict: "M1 bounded countersink family works for the canonical through countersink case."

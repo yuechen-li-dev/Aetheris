@@ -266,8 +266,8 @@ public sealed class FirmamentBuildAndExportTests
         var first = FirmamentBuildAndExport.Run(fullSourcePath);
         var second = FirmamentBuildAndExport.Run(fullSourcePath);
 
-        Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
+        Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(d => d.Message)));
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
         Assert.NotEmpty(first.Value.Export.StepText);
         Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
         Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.Export.StepText, StringComparison.Ordinal);
@@ -299,6 +299,25 @@ public sealed class FirmamentBuildAndExportTests
             .First();
 
         Assert.Equal(2, topFace.face.LoopIds.Count);
+    }
+
+
+    [Fact]
+    public void Run_FrictionLabCountersinkHole_NowBuildsAndExports()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/countersink-hole/part.firmament");
+
+        var first = FirmamentBuildAndExport.Run(fullSourcePath);
+        var second = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(d => d.Message)));
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
+        Assert.NotEmpty(first.Value.Export.StepText);
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.Contains("CONICAL_SURFACE", first.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", first.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("BREP_WITH_VOIDS", first.Value.Export.StepText, StringComparison.Ordinal);
     }
 
     [Fact]

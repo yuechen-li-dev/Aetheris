@@ -226,7 +226,7 @@ public sealed class BrepBooleanTests
         Assert.True(first.IsSuccess);
 
         var second = BrepBoolean.Union(first.Value, flange);
-        Assert.True(second.IsSuccess);
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
         Assert.True(BrepBindingValidator.Validate(second.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
         Assert.False(BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(second.Value, ToleranceContext.Default, out _, out _));
         Assert.NotNull(second.Value.SafeBooleanComposition);
@@ -418,7 +418,7 @@ public sealed class BrepBooleanTests
         var second = BrepBoolean.Subtract(left, right);
 
         Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
 
         var firstExport = Step242Exporter.ExportBody(first.Value);
         var secondExport = Step242Exporter.ExportBody(second.Value);
@@ -480,7 +480,7 @@ public sealed class BrepBooleanTests
         var second = BrepBoolean.Subtract(root, bore);
 
         Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
         Assert.True(BrepBindingValidator.Validate(first.Value, true).IsSuccess);
 
         var firstExport = Step242Exporter.ExportBody(first.Value);
@@ -751,7 +751,7 @@ public sealed class BrepBooleanTests
         var second = BrepBoolean.Subtract(left, right);
 
         Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
         Assert.Equal(7, first.Value.Topology.Faces.Count());
         Assert.Contains(first.Value.Topology.Faces, face =>
             first.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
@@ -958,8 +958,8 @@ public sealed class BrepBooleanTests
         var second = BrepBoolean.Subtract(first.Value, secondHole);
         var repeated = BrepBoolean.Subtract(first.Value, secondHole);
 
-        Assert.True(second.IsSuccess);
-        Assert.True(repeated.IsSuccess);
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
+        Assert.True(repeated.IsSuccess, string.Join(Environment.NewLine, repeated.Diagnostics.Select(d => d.Message)));
         Assert.Equal(8, second.Value.Topology.Faces.Count());
         Assert.Equal(18, second.Value.Topology.Edges.Count());
         Assert.Equal(16, second.Value.Topology.Vertices.Count());
@@ -989,8 +989,8 @@ public sealed class BrepBooleanTests
         var second = BrepBoolean.Subtract(first.Value, coneHole);
         var repeated = BrepBoolean.Subtract(first.Value, coneHole);
 
-        Assert.True(second.IsSuccess);
-        Assert.True(repeated.IsSuccess);
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
+        Assert.True(repeated.IsSuccess, string.Join(Environment.NewLine, repeated.Diagnostics.Select(d => d.Message)));
         Assert.Equal(8, second.Value.Topology.Faces.Count());
         Assert.Equal(18, second.Value.Topology.Edges.Count());
         Assert.Equal(16, second.Value.Topology.Vertices.Count());
@@ -1093,8 +1093,8 @@ public sealed class BrepBooleanTests
         var second = BrepBoolean.Subtract(first.Value, through);
         var repeated = BrepBoolean.Subtract(first.Value, through);
 
-        Assert.True(second.IsSuccess);
-        Assert.True(repeated.IsSuccess);
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
+        Assert.True(repeated.IsSuccess, string.Join(Environment.NewLine, repeated.Diagnostics.Select(d => d.Message)));
         Assert.True(BrepBindingValidator.Validate(second.Value, true).IsSuccess);
         Assert.Equal(9, second.Value.Topology.Faces.Count());
         Assert.Equal(2, second.Value.SafeBooleanComposition?.Holes.Count);
@@ -1106,6 +1106,54 @@ public sealed class BrepBooleanTests
         Assert.Equal(export.Value, repeatedExport.Value);
         Assert.Contains("CYLINDRICAL_SURFACE", export.Value, StringComparison.Ordinal);
         Assert.Contains("MANIFOLD_SOLID_BREP", export.Value, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void Subtract_ComposedBlindCountersinkThenCoaxialThrough_Succeeds_AsBoundedCountersinkHole()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-35d, 35d, -20d, 20d, -8d, 8d)).Value;
+        var countersink = TransformBody(CreateCone(bottomRadius: 1.75d, topRadius: 3.5d, height: 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 4d)));
+        var through = BrepPrimitives.CreateCylinder(1.75d, 24d).Value;
+
+        var first = BrepBoolean.Subtract(baseBox, countersink);
+        Assert.True(first.IsSuccess);
+
+        var second = BrepBoolean.Subtract(first.Value, through);
+        var repeated = BrepBoolean.Subtract(first.Value, through);
+
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
+        Assert.True(repeated.IsSuccess, string.Join(Environment.NewLine, repeated.Diagnostics.Select(d => d.Message)));
+        Assert.True(BrepBindingValidator.Validate(second.Value, true).IsSuccess);
+        Assert.Equal(8, second.Value.Topology.Faces.Count());
+        Assert.Equal(2, second.Value.SafeBooleanComposition?.Holes.Count);
+
+        var export = Step242Exporter.ExportBody(second.Value);
+        var repeatedExport = Step242Exporter.ExportBody(repeated.Value);
+        Assert.True(export.IsSuccess);
+        Assert.True(repeatedExport.IsSuccess);
+        Assert.Equal(export.Value, repeatedExport.Value);
+        Assert.Contains("CONICAL_SURFACE", export.Value, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", export.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("BREP_WITH_VOIDS", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_ComposedBlindCountersinkThenLargerThrough_ReturnsInvalidCountersinkRadiusOrderingDiagnostic()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-35d, 35d, -20d, 20d, -8d, 8d)).Value;
+        var countersink = TransformBody(CreateCone(bottomRadius: 2.5d, topRadius: 3.5d, height: 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 4d)));
+        var through = BrepPrimitives.CreateCylinder(3.0d, 24d).Value;
+
+        var first = BrepBoolean.Subtract(baseBox, countersink);
+        Assert.True(first.IsSuccess);
+
+        var second = BrepBoolean.Subtract(first.Value, through);
+        Assert.False(second.IsSuccess);
+
+        var diagnostic = Assert.Single(second.Diagnostics);
+        Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
+        Assert.Contains("requires cone transition radius to match continuation-cylinder radius", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1159,7 +1207,7 @@ public sealed class BrepBooleanTests
         var second = BrepBoolean.Subtract(baseBox, containedPocket);
 
         Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(first.Value.ShellRepresentation);
         Assert.Single(first.Value.ShellRepresentation!.InnerShellIds);
         Assert.True(BrepBindingValidator.Validate(first.Value, true).IsSuccess);
@@ -1300,7 +1348,7 @@ public sealed class BrepBooleanTests
         var repeated = BrepBoolean.Subtract(left, right);
 
         Assert.True(result.IsSuccess);
-        Assert.True(repeated.IsSuccess);
+        Assert.True(repeated.IsSuccess, string.Join(Environment.NewLine, repeated.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(result.Value.ShellRepresentation);
         Assert.Single(result.Value.ShellRepresentation!.InnerShellIds);
         Assert.True(BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);

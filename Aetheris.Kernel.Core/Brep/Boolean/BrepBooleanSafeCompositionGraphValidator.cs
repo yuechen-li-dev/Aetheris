@@ -70,6 +70,24 @@ public static class BrepBooleanSafeCompositionGraphValidator
             {
                 if (IsCoaxialHolePair(existingHole, nextHole, tolerance))
                 {
+                    if (BrepBooleanCoaxialCountersinkSubtractFamily.TryClassifyPair(
+                        composition.OuterBox,
+                        existingHole,
+                        nextHole,
+                        tolerance,
+                        out _,
+                        out var countersinkDiagnostic,
+                        nextFeatureId))
+                    {
+                        continue;
+                    }
+
+                    if (countersinkDiagnostic is not null)
+                    {
+                        diagnostic = countersinkDiagnostic;
+                        return false;
+                    }
+
                     if (BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
                         composition.OuterBox,
                         existingHole,

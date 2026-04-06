@@ -184,6 +184,42 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_Executes_TriangularPrism_Primitive_Into_Real_Body()
+    {
+        var result = CompileFixture("testdata/firmament/examples/triangular_prism_basic.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
+        Assert.Equal("tri1", executed.FeatureId);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.TriangularPrism, executed.Kind);
+        Assert.Equal(5, executed.Body.Topology.Faces.Count());
+    }
+
+    [Fact]
+    public void Compile_Executes_HexagonalPrism_Primitive_Into_Real_Body()
+    {
+        var result = CompileFixture("testdata/firmament/examples/hexagonal_prism_basic.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
+        Assert.Equal("hex1", executed.FeatureId);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.HexagonalPrism, executed.Kind);
+        Assert.Equal(8, executed.Body.Topology.Faces.Count());
+    }
+
+    [Fact]
+    public void Compile_Executes_StraightSlot_Primitive_Into_Real_Body()
+    {
+        var result = CompileFixture("testdata/firmament/examples/straight_slot_basic.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
+        Assert.Equal("slot1", executed.FeatureId);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.StraightSlot, executed.Kind);
+        Assert.True(executed.Body.Topology.Faces.Count() >= 10);
+    }
+
+    [Fact]
     public void Compile_Executes_Add_Boolean_Into_Real_Body()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3d-valid-add-exec.firmament");
@@ -258,7 +294,7 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
         Assert.Equal(Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Contains("supports nested tool ops 'box', 'cylinder', 'sphere', 'cone', and 'torus' only", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("supports nested tool ops 'box', 'cylinder', 'sphere', 'cone', 'torus', 'triangular_prism', 'hexagonal_prism', and 'straight_slot' only", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -279,6 +315,20 @@ public sealed class FirmamentPrimitiveExecutionTests
             && (diagnostic.Message.Contains("M13 only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
                 || diagnostic.Message.Contains("analytic hole surface kind", StringComparison.Ordinal)
                 || diagnostic.Message.Contains("Boolean feature", StringComparison.Ordinal)));
+    }
+
+    [Theory]
+    [InlineData("testdata/firmament/fixtures/m3-prism-boolean-triangular-rejected.firmament", "tri_cut")]
+    [InlineData("testdata/firmament/fixtures/m3-prism-boolean-hexagonal-rejected.firmament", "hex_cut")]
+    [InlineData("testdata/firmament/fixtures/m3-prism-boolean-slot-rejected.firmament", "slot_cut")]
+    public void Compile_PrismBooleanTools_AreExplicitlyRejected(string fixturePath, string featureId)
+    {
+        var result = CompileFixture(fixturePath);
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains($"Boolean feature '{featureId}'", StringComparison.Ordinal)
+            && diagnostic.Message.Contains("bounded prism-family booleans are explicitly deferred", StringComparison.Ordinal));
     }
 
     [Fact]

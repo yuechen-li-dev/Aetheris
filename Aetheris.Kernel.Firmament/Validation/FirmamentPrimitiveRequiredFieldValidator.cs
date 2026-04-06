@@ -29,6 +29,9 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
                 FirmamentKnownOpKind.Cone => ValidateCone(entry, index),
                 FirmamentKnownOpKind.Torus => ValidateTorus(entry, index),
                 FirmamentKnownOpKind.Sphere => ValidateSphere(entry, index),
+                FirmamentKnownOpKind.TriangularPrism => ValidateTriangularPrism(entry, index),
+                FirmamentKnownOpKind.HexagonalPrism => ValidateHexagonalPrism(entry, index),
+                FirmamentKnownOpKind.StraightSlot => ValidateStraightSlot(entry, index),
                 _ => KernelResult<bool>.Success(true)
             };
 
@@ -209,6 +212,84 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
         }
 
         return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateTriangularPrism(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        var baseWidth = ValidatePositiveNumericField(entry, "base_width", opIndex);
+        if (!baseWidth.IsSuccess)
+        {
+            return baseWidth;
+        }
+
+        var baseDepth = ValidatePositiveNumericField(entry, "base_depth", opIndex);
+        if (!baseDepth.IsSuccess)
+        {
+            return baseDepth;
+        }
+
+        var heightResult = ValidatePositiveNumericField(entry, "height", opIndex);
+        if (!heightResult.IsSuccess)
+        {
+            return heightResult;
+        }
+
+        return ValidatePlacement(entry, opIndex);
+    }
+
+    private static KernelResult<bool> ValidateHexagonalPrism(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        var acrossFlats = ValidatePositiveNumericField(entry, "across_flats", opIndex);
+        if (!acrossFlats.IsSuccess)
+        {
+            return acrossFlats;
+        }
+
+        var heightResult = ValidatePositiveNumericField(entry, "height", opIndex);
+        if (!heightResult.IsSuccess)
+        {
+            return heightResult;
+        }
+
+        return ValidatePlacement(entry, opIndex);
+    }
+
+    private static KernelResult<bool> ValidateStraightSlot(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        var lengthResult = ValidatePositiveNumericField(entry, "length", opIndex);
+        if (!lengthResult.IsSuccess)
+        {
+            return lengthResult;
+        }
+
+        var widthResult = ValidatePositiveNumericField(entry, "width", opIndex);
+        if (!widthResult.IsSuccess)
+        {
+            return widthResult;
+        }
+
+        var heightResult = ValidatePositiveNumericField(entry, "height", opIndex);
+        if (!heightResult.IsSuccess)
+        {
+            return heightResult;
+        }
+
+        return ValidatePlacement(entry, opIndex);
     }
 
     private static KernelResult<bool> ValidatePlacement(FirmamentParsedOpEntry entry, int opIndex)

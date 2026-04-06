@@ -102,6 +102,21 @@ internal static class FirmamentBooleanRequiredFieldValidator
             return ValidateTorusTool(entry, opIndex, withFields);
         }
 
+        if (string.Equals(withOpRaw, "triangular_prism", StringComparison.Ordinal))
+        {
+            return ValidateTriangularPrismTool(entry, opIndex, withFields);
+        }
+
+        if (string.Equals(withOpRaw, "hexagonal_prism", StringComparison.Ordinal))
+        {
+            return ValidateHexagonalPrismTool(entry, opIndex, withFields);
+        }
+
+        if (string.Equals(withOpRaw, "straight_slot", StringComparison.Ordinal))
+        {
+            return ValidateStraightSlotTool(entry, opIndex, withFields);
+        }
+
         return KernelResult<bool>.Success(true);
     }
 
@@ -204,6 +219,51 @@ internal static class FirmamentBooleanRequiredFieldValidator
         }
 
         return KernelResult<bool>.Success(true);
+    }
+
+    private static KernelResult<bool> ValidateTriangularPrismTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
+    {
+        var baseWidth = ValidatePositiveNumericWithField(entry, opIndex, withFields, "base_width");
+        if (!baseWidth.IsSuccess)
+        {
+            return baseWidth;
+        }
+
+        var baseDepth = ValidatePositiveNumericWithField(entry, opIndex, withFields, "base_depth");
+        if (!baseDepth.IsSuccess)
+        {
+            return baseDepth;
+        }
+
+        return ValidatePositiveNumericWithField(entry, opIndex, withFields, "height");
+    }
+
+    private static KernelResult<bool> ValidateHexagonalPrismTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
+    {
+        var acrossFlats = ValidatePositiveNumericWithField(entry, opIndex, withFields, "across_flats");
+        if (!acrossFlats.IsSuccess)
+        {
+            return acrossFlats;
+        }
+
+        return ValidatePositiveNumericWithField(entry, opIndex, withFields, "height");
+    }
+
+    private static KernelResult<bool> ValidateStraightSlotTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
+    {
+        var length = ValidatePositiveNumericWithField(entry, opIndex, withFields, "length");
+        if (!length.IsSuccess)
+        {
+            return length;
+        }
+
+        var width = ValidatePositiveNumericWithField(entry, opIndex, withFields, "width");
+        if (!width.IsSuccess)
+        {
+            return width;
+        }
+
+        return ValidatePositiveNumericWithField(entry, opIndex, withFields, "height");
     }
 
     private static KernelResult<bool> ValidatePositiveNumericWithField(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields, string fieldName)

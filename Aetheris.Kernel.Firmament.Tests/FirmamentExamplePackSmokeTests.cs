@@ -12,6 +12,9 @@ public sealed class FirmamentExamplePackSmokeTests
         "testdata/firmament/examples/cone_pointed_top_zero.firmament",
         "testdata/firmament/examples/sphere_basic.firmament",
         "testdata/firmament/examples/torus_basic.firmament",
+        "testdata/firmament/examples/triangular_prism_basic.firmament",
+        "testdata/firmament/examples/hexagonal_prism_basic.firmament",
+        "testdata/firmament/examples/straight_slot_basic.firmament",
         "testdata/firmament/examples/box_add_basic.firmament",
         "testdata/firmament/examples/boolean_add_basic.firmament",
         "testdata/firmament/examples/boolean_subtract_basic.firmament",
@@ -45,6 +48,9 @@ public sealed class FirmamentExamplePackSmokeTests
     [InlineData("testdata/firmament/examples/cone_pointed_top_zero.firmament", "pointed1", 0, "primitive", "cone")]
     [InlineData("testdata/firmament/examples/sphere_basic.firmament", "ball", 0, "primitive", "sphere")]
     [InlineData("testdata/firmament/examples/torus_basic.firmament", "donut1", 0, "primitive", "torus")]
+    [InlineData("testdata/firmament/examples/triangular_prism_basic.firmament", "tri1", 0, "primitive", "triangularprism")]
+    [InlineData("testdata/firmament/examples/hexagonal_prism_basic.firmament", "hex1", 0, "primitive", "hexagonalprism")]
+    [InlineData("testdata/firmament/examples/straight_slot_basic.firmament", "slot1", 0, "primitive", "straightslot")]
     [InlineData("testdata/firmament/examples/box_add_basic.firmament", "joined", 1, "boolean", "add")]
     [InlineData("testdata/firmament/examples/boolean_add_basic.firmament", "joined", 2, "boolean", "add")]
     [InlineData("testdata/firmament/examples/boolean_subtract_basic.firmament", "carved", 2, "boolean", "subtract")]

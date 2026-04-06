@@ -75,6 +75,38 @@ internal static class FirmamentPrimitiveLowerer
                             Radius: ParseScalar(entry.RawFields["radius"])),
                         Placement: LowerPlacement(entry.Placement)));
                     break;
+                case FirmamentKnownOpKind.TriangularPrism:
+                    loweredPrimitives.Add(new FirmamentLoweredPrimitive(
+                        OpIndex: index,
+                        FeatureId: entry.RawFields["id"],
+                        Kind: FirmamentLoweredPrimitiveKind.TriangularPrism,
+                        Parameters: new FirmamentLoweredTriangularPrismParameters(
+                            BaseWidth: ParseScalar(entry.RawFields["base_width"]),
+                            BaseDepth: ParseScalar(entry.RawFields["base_depth"]),
+                            Height: ParseScalar(entry.RawFields["height"])),
+                        Placement: LowerPlacement(entry.Placement)));
+                    break;
+                case FirmamentKnownOpKind.HexagonalPrism:
+                    loweredPrimitives.Add(new FirmamentLoweredPrimitive(
+                        OpIndex: index,
+                        FeatureId: entry.RawFields["id"],
+                        Kind: FirmamentLoweredPrimitiveKind.HexagonalPrism,
+                        Parameters: new FirmamentLoweredHexagonalPrismParameters(
+                            AcrossFlats: ParseScalar(entry.RawFields["across_flats"]),
+                            Height: ParseScalar(entry.RawFields["height"])),
+                        Placement: LowerPlacement(entry.Placement)));
+                    break;
+                case FirmamentKnownOpKind.StraightSlot:
+                    loweredPrimitives.Add(new FirmamentLoweredPrimitive(
+                        OpIndex: index,
+                        FeatureId: entry.RawFields["id"],
+                        Kind: FirmamentLoweredPrimitiveKind.StraightSlot,
+                        Parameters: new FirmamentLoweredStraightSlotParameters(
+                            Length: ParseScalar(entry.RawFields["length"]),
+                            Width: ParseScalar(entry.RawFields["width"]),
+                            Height: ParseScalar(entry.RawFields["height"])),
+                        Placement: LowerPlacement(entry.Placement)));
+                    break;
 
                 case FirmamentKnownOpKind.Add:
                     loweredBooleans.Add(LowerBoolean(index, entry, FirmamentLoweredBooleanKind.Add, "to"));

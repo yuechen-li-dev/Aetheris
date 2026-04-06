@@ -1,5 +1,7 @@
+using System.Linq;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
@@ -14,6 +16,126 @@ namespace Aetheris.Kernel.Core.Brep;
 /// </summary>
 public static class BrepPrimitives
 {
+    /// <summary>
+    /// Bounded M3 triangular prism primitive.
+    /// Profile frame is XY, extrusion is world +Z, and the triangle base is centered about origin:
+    /// (-baseWidth/2,-baseDepth/2), (+baseWidth/2,-baseDepth/2), (0,+baseDepth/2).
+    /// Legacy body is centered on Z in [-height/2,+height/2].
+    /// </summary>
+    public static KernelResult<BrepBody> CreateTriangularPrism(double baseWidth, double baseDepth, double height)
+    {
+        var diagnostics = ValidatePositiveFinite((baseWidth, nameof(baseWidth)), (baseDepth, nameof(baseDepth)), (height, nameof(height)));
+        if (diagnostics.Count > 0)
+        {
+            return KernelResult<BrepBody>.Failure(diagnostics);
+        }
+
+        var profile = PolylineProfile2D.Create(
+        [
+            new ProfilePoint2D(-baseWidth * 0.5d, -baseDepth * 0.5d),
+            new ProfilePoint2D(baseWidth * 0.5d, -baseDepth * 0.5d),
+            new ProfilePoint2D(0d, baseDepth * 0.5d),
+        ]);
+        if (!profile.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(profile.Diagnostics);
+        }
+
+        var extrude = BrepExtrude.Create(
+            profile.Value,
+            new ExtrudeFrame3D(new Point3D(0d, 0d, -height * 0.5d), Direction3D.Create(new Vector3D(0d, 0d, 1d)), Direction3D.Create(new Vector3D(1d, 0d, 0d))),
+            height);
+        return extrude;
+    }
+
+    /// <summary>
+    /// Bounded M3 hexagonal prism primitive.
+    /// Profile frame is XY, extrusion is world +Z, regular hexagon centered at origin with across-flats distance.
+    /// Legacy body is centered on Z in [-height/2,+height/2].
+    /// </summary>
+    public static KernelResult<BrepBody> CreateHexagonalPrism(double acrossFlats, double height)
+    {
+        var diagnostics = ValidatePositiveFinite((acrossFlats, nameof(acrossFlats)), (height, nameof(height)));
+        if (diagnostics.Count > 0)
+        {
+            return KernelResult<BrepBody>.Failure(diagnostics);
+        }
+
+        var circumradius = acrossFlats / double.Sqrt(3d);
+        var vertices = Enumerable.Range(0, 6)
+            .Select(index =>
+            {
+                var angle = (double.Pi / 3d) * index;
+                return new ProfilePoint2D(circumradius * double.Cos(angle), circumradius * double.Sin(angle));
+            })
+            .ToArray();
+        var profile = PolylineProfile2D.Create(vertices);
+        if (!profile.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(profile.Diagnostics);
+        }
+
+        var extrude = BrepExtrude.Create(
+            profile.Value,
+            new ExtrudeFrame3D(new Point3D(0d, 0d, -height * 0.5d), Direction3D.Create(new Vector3D(0d, 0d, 1d)), Direction3D.Create(new Vector3D(1d, 0d, 0d))),
+            height);
+        return extrude;
+    }
+
+    /// <summary>
+    /// Bounded M3 straight slot primitive as an obround (capsule) prism.
+    /// Profile frame is XY, extrusion is world +Z, with slot major axis on X and rounded ends approximated by a polyline.
+    /// Legacy body is centered on Z in [-height/2,+height/2].
+    /// </summary>
+    public static KernelResult<BrepBody> CreateStraightSlot(double length, double width, double height)
+    {
+        var diagnostics = ValidatePositiveFinite((length, nameof(length)), (width, nameof(width)), (height, nameof(height)));
+        if (diagnostics.Count > 0)
+        {
+            return KernelResult<BrepBody>.Failure(diagnostics);
+        }
+
+        if (length < width)
+        {
+            return KernelResult<BrepBody>.Failure([
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.InvalidArgument,
+                    KernelDiagnosticSeverity.Error,
+                    $"{nameof(length)} must be greater than or equal to {nameof(width)} for straight slot primitive.")
+            ]);
+        }
+
+        const int semicircleSegments = 8;
+        var halfLength = length * 0.5d;
+        var radius = width * 0.5d;
+        var centerOffset = halfLength - radius;
+        var profileVertices = new List<ProfilePoint2D>(2 * (semicircleSegments + 1));
+
+        for (var i = 0; i <= semicircleSegments; i++)
+        {
+            var t = double.Pi * (i / (double)semicircleSegments) - (double.Pi * 0.5d);
+            profileVertices.Add(new ProfilePoint2D(centerOffset + (radius * double.Cos(t)), radius * double.Sin(t)));
+        }
+
+        for (var i = 0; i <= semicircleSegments; i++)
+        {
+            var t = double.Pi * (i / (double)semicircleSegments) + (double.Pi * 0.5d);
+            profileVertices.Add(new ProfilePoint2D(-centerOffset + (radius * double.Cos(t)), radius * double.Sin(t)));
+        }
+
+        var profile = PolylineProfile2D.Create(profileVertices);
+        if (!profile.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(profile.Diagnostics);
+        }
+
+        var extrude = BrepExtrude.Create(
+            profile.Value,
+            new ExtrudeFrame3D(new Point3D(0d, 0d, -height * 0.5d), Direction3D.Create(new Vector3D(0d, 0d, 1d)), Direction3D.Create(new Vector3D(1d, 0d, 0d))),
+            height);
+        return extrude;
+    }
+
     public static KernelResult<BrepBody> CreateBox(double width, double height, double depth)
     {
         var diagnostics = ValidatePositiveFinite((width, nameof(width)), (height, nameof(height)), (depth, nameof(depth)));

@@ -111,6 +111,19 @@ internal static class FirmamentPrimitiveExecutor
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(toolResult.Diagnostics);
             }
 
+            if (IsBoundedPrismTool(boolean.Tool.OpName))
+            {
+                return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
+                [
+                    CreateBooleanExecutionFailureDiagnostic(boolean),
+                    new KernelDiagnostic(
+                        KernelDiagnosticCode.NotImplemented,
+                        KernelDiagnosticSeverity.Error,
+                        $"Boolean feature '{boolean.FeatureId}' ({boolean.Kind.ToString().ToLowerInvariant()}): bounded prism-family booleans are explicitly deferred in M3 implementation mode; standalone primitive execution/export is supported for 'triangular_prism', 'hexagonal_prism', and 'straight_slot' only.",
+                        Source: "firmament")
+                ]);
+            }
+
             var featureGraphValidation = FirmamentSafeSubtractFeatureGraphValidator.ValidateNextBoolean(
                 boolean,
                 featureGraphStates,
@@ -234,6 +247,11 @@ internal static class FirmamentPrimitiveExecutor
            || featureId.Contains("__cir", StringComparison.Ordinal)
            || featureId.Contains("__mir_", StringComparison.Ordinal);
 
+    private static bool IsBoundedPrismTool(string opName)
+        => string.Equals(opName, "triangular_prism", StringComparison.Ordinal)
+           || string.Equals(opName, "hexagonal_prism", StringComparison.Ordinal)
+           || string.Equals(opName, "straight_slot", StringComparison.Ordinal);
+
     private static KernelResult<FirmamentExecutedPrimitiveBodies> ExecutePrimitive(FirmamentLoweredPrimitive primitive, IReadOnlyDictionary<string, BrepBody> publishedBodies)
     {
         var legacyResult = ExecuteLegacyPrimitive(primitive);
@@ -260,6 +278,9 @@ internal static class FirmamentPrimitiveExecutor
             FirmamentLoweredPrimitiveKind.Box => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredBoxParameters)primitive.Parameters).SizeZ * 0.5d)),
             FirmamentLoweredPrimitiveKind.Cylinder => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredCylinderParameters)primitive.Parameters).Height * 0.5d)),
             FirmamentLoweredPrimitiveKind.Cone => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredConeParameters)primitive.Parameters).Height * 0.5d)),
+            FirmamentLoweredPrimitiveKind.TriangularPrism => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredTriangularPrismParameters)primitive.Parameters).Height * 0.5d)),
+            FirmamentLoweredPrimitiveKind.HexagonalPrism => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredHexagonalPrismParameters)primitive.Parameters).Height * 0.5d)),
+            FirmamentLoweredPrimitiveKind.StraightSlot => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredStraightSlotParameters)primitive.Parameters).Height * 0.5d)),
             _ => body
         };
     }
@@ -273,6 +294,17 @@ internal static class FirmamentPrimitiveExecutor
             FirmamentLoweredPrimitiveKind.Cone => ExecuteCone((FirmamentLoweredConeParameters)primitive.Parameters),
             FirmamentLoweredPrimitiveKind.Torus => BrepPrimitives.CreateTorus(((FirmamentLoweredTorusParameters)primitive.Parameters).MajorRadius, ((FirmamentLoweredTorusParameters)primitive.Parameters).MinorRadius),
             FirmamentLoweredPrimitiveKind.Sphere => BrepPrimitives.CreateSphere(((FirmamentLoweredSphereParameters)primitive.Parameters).Radius),
+            FirmamentLoweredPrimitiveKind.TriangularPrism => BrepPrimitives.CreateTriangularPrism(
+                ((FirmamentLoweredTriangularPrismParameters)primitive.Parameters).BaseWidth,
+                ((FirmamentLoweredTriangularPrismParameters)primitive.Parameters).BaseDepth,
+                ((FirmamentLoweredTriangularPrismParameters)primitive.Parameters).Height),
+            FirmamentLoweredPrimitiveKind.HexagonalPrism => BrepPrimitives.CreateHexagonalPrism(
+                ((FirmamentLoweredHexagonalPrismParameters)primitive.Parameters).AcrossFlats,
+                ((FirmamentLoweredHexagonalPrismParameters)primitive.Parameters).Height),
+            FirmamentLoweredPrimitiveKind.StraightSlot => BrepPrimitives.CreateStraightSlot(
+                ((FirmamentLoweredStraightSlotParameters)primitive.Parameters).Length,
+                ((FirmamentLoweredStraightSlotParameters)primitive.Parameters).Width,
+                ((FirmamentLoweredStraightSlotParameters)primitive.Parameters).Height),
             _ => KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Primitive execution for kind '{primitive.Kind}' is not implemented.")])
         };
     }
@@ -354,6 +386,30 @@ internal static class FirmamentPrimitiveExecutor
             && !string.IsNullOrWhiteSpace(coneHeightRaw))
         {
             var height = FirmamentPrimitiveToolParsing.ParseScalar(coneHeightRaw);
+            return TranslateBody(body, new Vector3D(0d, 0d, height * 0.5d));
+        }
+
+        if (string.Equals(tool.OpName, "triangular_prism", StringComparison.Ordinal)
+            && tool.RawFields.TryGetValue("height", out var triangularHeightRaw)
+            && !string.IsNullOrWhiteSpace(triangularHeightRaw))
+        {
+            var height = FirmamentPrimitiveToolParsing.ParseScalar(triangularHeightRaw);
+            return TranslateBody(body, new Vector3D(0d, 0d, height * 0.5d));
+        }
+
+        if (string.Equals(tool.OpName, "hexagonal_prism", StringComparison.Ordinal)
+            && tool.RawFields.TryGetValue("height", out var hexagonalHeightRaw)
+            && !string.IsNullOrWhiteSpace(hexagonalHeightRaw))
+        {
+            var height = FirmamentPrimitiveToolParsing.ParseScalar(hexagonalHeightRaw);
+            return TranslateBody(body, new Vector3D(0d, 0d, height * 0.5d));
+        }
+
+        if (string.Equals(tool.OpName, "straight_slot", StringComparison.Ordinal)
+            && tool.RawFields.TryGetValue("height", out var slotHeightRaw)
+            && !string.IsNullOrWhiteSpace(slotHeightRaw))
+        {
+            var height = FirmamentPrimitiveToolParsing.ParseScalar(slotHeightRaw);
             return TranslateBody(body, new Vector3D(0d, 0d, height * 0.5d));
         }
 

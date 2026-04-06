@@ -55,6 +55,42 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_TriangularPrismBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/triangular_prism_basic.firmament",
+            "triangular_prism_basic.step",
+            "tri1",
+            0,
+            "primitive",
+            "triangularprism");
+    }
+
+    [Fact]
+    public void Run_HexagonalPrismBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/hexagonal_prism_basic.firmament",
+            "hexagonal_prism_basic.step",
+            "hex1",
+            0,
+            "primitive",
+            "hexagonalprism");
+    }
+
+    [Fact]
+    public void Run_StraightSlotBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/straight_slot_basic.firmament",
+            "straight_slot_basic.step",
+            "slot1",
+            0,
+            "primitive",
+            "straightslot");
+    }
+
+    [Fact]
     public void Run_ConeFrustumBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(

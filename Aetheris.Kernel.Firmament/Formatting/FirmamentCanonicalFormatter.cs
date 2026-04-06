@@ -131,6 +131,20 @@ internal static class FirmamentCanonicalFormatter
             case FirmamentKnownOpKind.Sphere:
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "radius");
                 break;
+            case FirmamentKnownOpKind.TriangularPrism:
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "base_width");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "base_depth");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "height");
+                break;
+            case FirmamentKnownOpKind.HexagonalPrism:
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "across_flats");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "height");
+                break;
+            case FirmamentKnownOpKind.StraightSlot:
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "length");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "width");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "height");
+                break;
             case FirmamentKnownOpKind.Add:
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "to");
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "with");

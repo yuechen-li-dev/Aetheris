@@ -198,4 +198,49 @@ public sealed class BrepPrimitivesTests
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, d => d.Code == KernelDiagnosticCode.InvalidArgument);
     }
+
+    [Fact]
+    public void CreateTriangularPrism_ProducesPlanarPolyhedralBody()
+    {
+        var result = BrepPrimitives.CreateTriangularPrism(8d, 6d, 10d);
+
+        Assert.True(result.IsSuccess);
+        var body = result.Value;
+        Assert.Equal(5, body.Topology.Faces.Count());
+        Assert.All(body.Topology.Faces, face =>
+        {
+            var surface = body.GetFaceSurface(face.Id);
+            Assert.Equal(SurfaceGeometryKind.Plane, surface.Kind);
+        });
+    }
+
+    [Fact]
+    public void CreateHexagonalPrism_ProducesPlanarPolyhedralBody()
+    {
+        var result = BrepPrimitives.CreateHexagonalPrism(10d, 12d);
+
+        Assert.True(result.IsSuccess);
+        var body = result.Value;
+        Assert.Equal(8, body.Topology.Faces.Count());
+        Assert.All(body.Topology.Faces, face =>
+        {
+            var surface = body.GetFaceSurface(face.Id);
+            Assert.Equal(SurfaceGeometryKind.Plane, surface.Kind);
+        });
+    }
+
+    [Fact]
+    public void CreateStraightSlot_ProducesPlanarPolyhedralBody()
+    {
+        var result = BrepPrimitives.CreateStraightSlot(20d, 8d, 6d);
+
+        Assert.True(result.IsSuccess);
+        var body = result.Value;
+        Assert.True(body.Topology.Faces.Count() >= 10);
+        Assert.All(body.Topology.Faces, face =>
+        {
+            var surface = body.GetFaceSurface(face.Id);
+            Assert.Equal(SurfaceGeometryKind.Plane, surface.Kind);
+        });
+    }
 }

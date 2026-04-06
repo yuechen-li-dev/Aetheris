@@ -70,6 +70,11 @@ internal static class FirmamentSelectorContracts
             case FirmamentKnownOpKind.Cylinder:
                 allowedPorts = CylinderAllowedPorts;
                 return true;
+            case FirmamentKnownOpKind.TriangularPrism:
+            case FirmamentKnownOpKind.HexagonalPrism:
+            case FirmamentKnownOpKind.StraightSlot:
+                allowedPorts = BoxAllowedPorts;
+                return true;
             case FirmamentKnownOpKind.Cone:
                 allowedPorts = ConeAllowedPorts;
                 return true;
@@ -111,6 +116,11 @@ internal static class FirmamentSelectorContracts
                 return true;
             case FirmamentKnownOpKind.Cylinder:
                 contracts = CylinderPorts;
+                return true;
+            case FirmamentKnownOpKind.TriangularPrism:
+            case FirmamentKnownOpKind.HexagonalPrism:
+            case FirmamentKnownOpKind.StraightSlot:
+                contracts = BoxPorts;
                 return true;
             case FirmamentKnownOpKind.Cone:
                 contracts = ConePorts;

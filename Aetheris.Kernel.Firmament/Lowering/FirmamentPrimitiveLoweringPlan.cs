@@ -52,7 +52,10 @@ public enum FirmamentLoweredPrimitiveKind
     Cylinder,
     Cone,
     Torus,
-    Sphere
+    Sphere,
+    TriangularPrism,
+    HexagonalPrism,
+    StraightSlot
 }
 
 public abstract record FirmamentLoweredPrimitiveParameters;
@@ -70,6 +73,15 @@ public sealed record FirmamentLoweredTorusParameters(double MajorRadius, double 
     : FirmamentLoweredPrimitiveParameters;
 
 public sealed record FirmamentLoweredSphereParameters(double Radius)
+    : FirmamentLoweredPrimitiveParameters;
+
+public sealed record FirmamentLoweredTriangularPrismParameters(double BaseWidth, double BaseDepth, double Height)
+    : FirmamentLoweredPrimitiveParameters;
+
+public sealed record FirmamentLoweredHexagonalPrismParameters(double AcrossFlats, double Height)
+    : FirmamentLoweredPrimitiveParameters;
+
+public sealed record FirmamentLoweredStraightSlotParameters(double Length, double Width, double Height)
     : FirmamentLoweredPrimitiveParameters;
 
 public sealed record FirmamentLoweredToolOp(

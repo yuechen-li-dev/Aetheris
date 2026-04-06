@@ -126,6 +126,11 @@ internal static class FirmamentTopLevelParser
         }
 
         var parsedSchema = ParseSchemaFromJsonRoot(root);
+        var parsedPmiResult = ParsePmiFromJsonRoot(root);
+        if (!parsedPmiResult.IsSuccess)
+        {
+            return KernelResult<FirmamentParsedDocument>.Failure(parsedPmiResult.Diagnostics);
+        }
 
         return KernelResult<FirmamentParsedDocument>.Success(
             new FirmamentParsedDocument(
@@ -133,7 +138,7 @@ internal static class FirmamentTopLevelParser
                 new FirmamentParsedModelHeader(nameElement.ToString(), unitsElement.ToString()),
                 new FirmamentParsedOpsSection(parsedOpsResult.Value),
                 Schema: parsedSchema,
-                HasPmi: root.TryGetProperty("pmi", out _)));
+                Pmi: parsedPmiResult.Value));
     }
 
     private static KernelResult<FirmamentParsedDocument> ParseFromToon(FirmamentToonTopLevel toon)
@@ -206,6 +211,11 @@ internal static class FirmamentTopLevelParser
         }
 
         var parsedSchema = ParseSchemaFromToonSections(toon.Sections);
+        var parsedPmiResult = ParsePmiFromToonSections(toon.Sections);
+        if (!parsedPmiResult.IsSuccess)
+        {
+            return KernelResult<FirmamentParsedDocument>.Failure(parsedPmiResult.Diagnostics);
+        }
 
         return KernelResult<FirmamentParsedDocument>.Success(
             new FirmamentParsedDocument(
@@ -213,7 +223,7 @@ internal static class FirmamentTopLevelParser
                 new FirmamentParsedModelHeader(name, units),
                 new FirmamentParsedOpsSection(parsedOpsResult.Value),
                 Schema: parsedSchema,
-                HasPmi: toon.Sections.ContainsKey("pmi")));
+                Pmi: parsedPmiResult.Value));
     }
 
     private static KernelResult<IReadOnlyList<FirmamentParsedOpEntry>> ParseJsonOpsEntries(JsonElement opsSection)
@@ -696,6 +706,131 @@ internal static class FirmamentTopLevelParser
         };
     }
 
+    private static KernelResult<FirmamentParsedPmiSection?> ParsePmiFromJsonRoot(JsonElement root)
+    {
+        if (!root.TryGetProperty("pmi", out var pmiSection))
+        {
+            return KernelResult<FirmamentParsedPmiSection?>.Success(null);
+        }
+
+        if (pmiSection.ValueKind != JsonValueKind.Array)
+        {
+            return KernelResult<FirmamentParsedPmiSection?>.Failure([
+                CreateDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    FirmamentDiagnosticCodes.StructureInvalidSectionShape,
+                    "Section 'pmi' must be an array.")
+            ]);
+        }
+
+        var parseEntries = ParsePmiJsonEntries(pmiSection);
+        if (!parseEntries.IsSuccess)
+        {
+            return KernelResult<FirmamentParsedPmiSection?>.Failure(parseEntries.Diagnostics);
+        }
+
+        return KernelResult<FirmamentParsedPmiSection?>.Success(
+            new FirmamentParsedPmiSection(true, parseEntries.Value));
+    }
+
+    private static KernelResult<IReadOnlyList<FirmamentParsedPmiEntry>> ParsePmiJsonEntries(JsonElement pmiSection)
+    {
+        var entries = new List<FirmamentParsedPmiEntry>();
+        var index = 0;
+        foreach (var pmiElement in pmiSection.EnumerateArray())
+        {
+            if (pmiElement.ValueKind != JsonValueKind.Object)
+            {
+                return InvalidPmiEntryShape(index);
+            }
+
+            if (!pmiElement.TryGetProperty("kind", out var kindElement))
+            {
+                return MissingPmiField(index, "kind");
+            }
+
+            var kindRaw = kindElement.ToString().Trim();
+            if (string.IsNullOrWhiteSpace(kindRaw))
+            {
+                return InvalidPmiFieldValue(index, "kind", "expected non-empty scalar.");
+            }
+
+            var rawFields = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var property in pmiElement.EnumerateObject())
+            {
+                rawFields[property.Name] = property.Value.ToString();
+            }
+
+            entries.Add(new FirmamentParsedPmiEntry(kindRaw, ParsePmiKind(kindRaw), rawFields));
+            index++;
+        }
+
+        return KernelResult<IReadOnlyList<FirmamentParsedPmiEntry>>.Success(entries);
+    }
+
+    private static KernelResult<FirmamentParsedPmiSection?> ParsePmiFromToonSections(IReadOnlyDictionary<string, FirmamentToonSection> sections)
+    {
+        if (!sections.TryGetValue("pmi", out var pmiSection))
+        {
+            return KernelResult<FirmamentParsedPmiSection?>.Success(null);
+        }
+
+        if (!pmiSection.IsArrayLike)
+        {
+            return KernelResult<FirmamentParsedPmiSection?>.Failure([
+                CreateDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    FirmamentDiagnosticCodes.StructureInvalidSectionShape,
+                    "Section 'pmi' must be an array.")
+            ]);
+        }
+
+        var parseEntries = ParsePmiToonEntries(pmiSection);
+        if (!parseEntries.IsSuccess)
+        {
+            return KernelResult<FirmamentParsedPmiSection?>.Failure(parseEntries.Diagnostics);
+        }
+
+        return KernelResult<FirmamentParsedPmiSection?>.Success(
+            new FirmamentParsedPmiSection(true, parseEntries.Value));
+    }
+
+    private static KernelResult<IReadOnlyList<FirmamentParsedPmiEntry>> ParsePmiToonEntries(FirmamentToonSection pmiSection)
+    {
+        var entries = new List<FirmamentParsedPmiEntry>();
+        for (var index = 0; index < pmiSection.ArrayEntries.Count; index++)
+        {
+            var entry = pmiSection.ArrayEntries[index];
+            if (!entry.IsObjectLike)
+            {
+                return InvalidPmiEntryShape(index);
+            }
+
+            if (!entry.Fields.TryGetValue("kind", out var kindRaw)
+                || string.IsNullOrWhiteSpace(kindRaw))
+            {
+                return MissingPmiField(index, "kind");
+            }
+
+            var normalizedKind = kindRaw.Trim();
+            entries.Add(new FirmamentParsedPmiEntry(
+                normalizedKind,
+                ParsePmiKind(normalizedKind),
+                new Dictionary<string, string>(entry.Fields, StringComparer.Ordinal)));
+        }
+
+        return KernelResult<IReadOnlyList<FirmamentParsedPmiEntry>>.Success(entries);
+    }
+
+    private static FirmamentParsedPmiKind ParsePmiKind(string raw) =>
+        raw switch
+        {
+            "hole" => FirmamentParsedPmiKind.Hole,
+            "datum" => FirmamentParsedPmiKind.Datum,
+            "note" => FirmamentParsedPmiKind.Note,
+            _ => FirmamentParsedPmiKind.Unknown
+        };
+
     private static bool TryParseStructuredFields(string raw, out IReadOnlyDictionary<string, string> fields)
     {
         fields = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -1044,7 +1179,34 @@ internal static class FirmamentTopLevelParser
             CreateDiagnostic(
                 KernelDiagnosticCode.ValidationFailed,
                 FirmamentDiagnosticCodes.StructureUnknownOpKind,
-                $"Operation entry at index {index} has unknown op kind '{opName}'.")
+            $"Operation entry at index {index} has unknown op kind '{opName}'.")
+        ]);
+
+    private static KernelResult<IReadOnlyList<FirmamentParsedPmiEntry>> InvalidPmiEntryShape(int index) =>
+        KernelResult<IReadOnlyList<FirmamentParsedPmiEntry>>.Failure(
+        [
+            CreateDiagnostic(
+                KernelDiagnosticCode.ValidationFailed,
+                FirmamentDiagnosticCodes.StructureInvalidSectionShape,
+                $"PMI entry at index {index} must be an object with fields.")
+        ]);
+
+    private static KernelResult<IReadOnlyList<FirmamentParsedPmiEntry>> MissingPmiField(int index, string fieldName) =>
+        KernelResult<IReadOnlyList<FirmamentParsedPmiEntry>>.Failure(
+        [
+            CreateDiagnostic(
+                KernelDiagnosticCode.ValidationFailed,
+                FirmamentDiagnosticCodes.StructureMissingRequiredField,
+                $"PMI entry at index {index} is missing required field '{fieldName}'.")
+        ]);
+
+    private static KernelResult<IReadOnlyList<FirmamentParsedPmiEntry>> InvalidPmiFieldValue(int index, string fieldName, string expectation) =>
+        KernelResult<IReadOnlyList<FirmamentParsedPmiEntry>>.Failure(
+        [
+                CreateDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    FirmamentDiagnosticCodes.StructureInvalidSectionShape,
+                    $"PMI entry at index {index} has invalid field '{fieldName}'; {expectation}")
         ]);
 
     private static KernelDiagnostic CreateDiagnostic(KernelDiagnosticCode kernelCode, FirmamentDiagnosticCode firmamentCode, string message) =>

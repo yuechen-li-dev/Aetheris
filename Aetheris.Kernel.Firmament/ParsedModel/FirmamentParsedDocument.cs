@@ -5,7 +5,7 @@ public sealed record FirmamentParsedDocument(
     FirmamentParsedModelHeader Model,
     FirmamentParsedOpsSection Ops,
     FirmamentParsedSchema? Schema,
-    bool HasPmi);
+    FirmamentParsedPmiSection? Pmi);
 
 public sealed record FirmamentParsedHeader(string Version);
 

@@ -69,6 +69,13 @@ public sealed class FirmamentCompiler
                 KernelResult<FirmamentCompilationArtifact>.Failure(documentCoherenceValidationResult.Diagnostics));
         }
 
+        var pmiValidationResult = FirmamentPmiValidator.Validate(documentCoherenceValidationResult.Value);
+        if (!pmiValidationResult.IsSuccess)
+        {
+            return new FirmamentCompileResult(
+                KernelResult<FirmamentCompilationArtifact>.Failure(pmiValidationResult.Diagnostics));
+        }
+
         var validatedDocument = documentCoherenceValidationResult.Value;
         var compiledSchema = FirmamentCompiledSchemaMapper.Map(validatedDocument.Schema);
 

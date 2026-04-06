@@ -38,8 +38,8 @@ public sealed class Step242ExporterTests
 
         var semanticPmi = new[]
         {
-            new Step242SemanticPmiDiameter("hole_a", 8d),
-            new Step242SemanticPmiDiameter("hole_b", 6d)
+            new Step242SemanticPmiHole("hole_a", 8d, null, "through_or_blind_cylindrical", null, null),
+            new Step242SemanticPmiHole("hole_b", 6d, null, "through_or_blind_cylindrical", null, null)
         };
 
         var first = Step242Exporter.ExportBody(boxResult.Value, semanticPmi);

@@ -321,7 +321,7 @@ ops[2]:
                     ClassifiedFields: new Dictionary<string, string>(StringComparer.Ordinal) { ["targetShape"] = "FeatureId" })
             ]),
             Schema: null,
-            HasPmi: false);
+            Pmi: null);
 
         var executionResult = new FirmamentPrimitiveExecutionResult(
             ExecutedPrimitives:

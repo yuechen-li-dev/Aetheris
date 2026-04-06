@@ -1,0 +1,47 @@
+firmament:
+  version: 1
+
+model:
+  name: m7_semantic_pmi_baseline
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      100
+      60
+      20
+
+  -
+    op: subtract
+    id: main_hole
+    from: base
+    with:
+      op: cylinder
+      radius: 5
+      height: 24
+    place:
+      on_face: base.top_face
+      centered_on: base.top_face
+
+pmi[3]:
+  -
+    kind: hole
+    target: main_hole
+    hole_family: through
+    diameter: 10
+    tol_plus: 0.1
+    tol_minus: -0.1
+
+  -
+    kind: datum
+    datum_kind: plane
+    label: A
+    target: base.top_face
+
+  -
+    kind: note
+    target: main_hole
+    text: deburr and break sharp edges

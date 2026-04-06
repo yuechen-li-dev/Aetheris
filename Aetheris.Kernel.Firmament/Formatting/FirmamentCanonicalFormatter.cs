@@ -27,10 +27,10 @@ internal static class FirmamentCanonicalFormatter
         builder.AppendLine();
         AppendOpsSection(builder, document.Ops);
 
-        if (document.HasPmi)
+        if (document.Pmi is not null)
         {
             builder.AppendLine();
-            builder.Append("pmi[0]:\n");
+            AppendPmiSection(builder, document.Pmi);
         }
 
         return builder.ToString();
@@ -104,6 +104,24 @@ internal static class FirmamentCanonicalFormatter
 
             builder.Append(Indent(1)).Append("-\n");
             AppendOpEntry(builder, ops.Entries[index], 2);
+        }
+    }
+
+    private static void AppendPmiSection(StringBuilder builder, FirmamentParsedPmiSection pmi)
+    {
+        builder.Append("pmi[").Append(pmi.Entries.Count.ToString(CultureInfo.InvariantCulture)).Append("]:\n");
+        for (var index = 0; index < pmi.Entries.Count; index++)
+        {
+            if (index > 0)
+            {
+                builder.AppendLine();
+            }
+
+            builder.Append(Indent(1)).Append("-\n");
+            foreach (var field in pmi.Entries[index].RawFields.OrderBy(kvp => kvp.Key, StringComparer.Ordinal))
+            {
+                AppendScalarField(builder, 2, field.Key, field.Value);
+            }
         }
     }
 

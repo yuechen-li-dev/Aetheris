@@ -338,7 +338,7 @@ public sealed class FirmamentFormatterTests
             document.Model.Name,
             document.Model.Units,
             document.Schema is null ? null : CreateSchemaSnapshot(document.Schema),
-            document.HasPmi,
+            document.Pmi is not null,
             document.Ops.Entries.Select(CreateOpSnapshot).ToArray());
     }
 

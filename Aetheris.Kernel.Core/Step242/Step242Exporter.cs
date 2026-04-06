@@ -16,7 +16,7 @@ public static class Step242Exporter
 
     public static KernelResult<string> ExportBody(
         BrepBody body,
-        IReadOnlyList<Step242SemanticPmiDiameter>? semanticPmi,
+        IReadOnlyList<Step242SemanticPmi>? semanticPmi,
         Step242ExportOptions? options = null)
     {
         options ??= new Step242ExportOptions();
@@ -212,37 +212,59 @@ public static class Step242Exporter
         string shapeId,
         string repContextId,
         string lengthUnitId,
-        IReadOnlyList<Step242SemanticPmiDiameter>? semanticPmi)
+        IReadOnlyList<Step242SemanticPmi>? semanticPmi)
     {
         if (semanticPmi is null || semanticPmi.Count == 0)
         {
             return;
         }
 
-        foreach (var diameter in semanticPmi)
+        foreach (var item in semanticPmi)
         {
+            switch (item)
+            {
+                case Step242SemanticPmiHole hole:
+                    EmitHoleSemanticPmi(writer, shapeId, repContextId, lengthUnitId, hole);
+                    break;
+                case Step242SemanticPmiDatum datum:
+                    EmitDatumSemanticPmi(writer, shapeId, datum);
+                    break;
+                case Step242SemanticPmiNote note:
+                    EmitNoteSemanticPmi(writer, shapeId, note);
+                    break;
+            }
+        }
+    }
+
+    private static void EmitHoleSemanticPmi(
+        Step242TextWriter writer,
+        string shapeId,
+        string repContextId,
+        string lengthUnitId,
+        Step242SemanticPmiHole hole)
+    {
             var featureShapeAspectId = writer.AddEntity(
                 "SHAPE_ASPECT",
-                Step242TextWriter.String($"firmament-feature:{diameter.FeatureId}"),
+                Step242TextWriter.String($"firmament-feature:{hole.FeatureId}"),
                 Step242TextWriter.String("supported cylinder through-hole feature"),
                 Step242TextWriter.Ref(shapeId),
                 Step242TextWriter.Enum("FALSE"));
 
             var propertyDefinitionId = writer.AddEntity(
                 "PROPERTY_DEFINITION",
-                Step242TextWriter.String($"diameter:{diameter.FeatureId}"),
+                Step242TextWriter.String($"diameter:{hole.FeatureId}"),
                 Step242TextWriter.String("auto-derived semantic PMI diameter"),
                 Step242TextWriter.Ref(featureShapeAspectId));
 
             var measureItemId = writer.AddEntity(
                 "MEASURE_REPRESENTATION_ITEM",
                 Step242TextWriter.String("diameter"),
-                Step242TextWriter.Number(diameter.Diameter),
+                Step242TextWriter.Number(hole.Diameter),
                 Step242TextWriter.Ref(lengthUnitId));
 
             var representationId = writer.AddEntity(
                 "SHAPE_DIMENSION_REPRESENTATION",
-                Step242TextWriter.String($"diameter:{diameter.FeatureId}"),
+                Step242TextWriter.String($"diameter:{hole.FeatureId}"),
                 Step242TextWriter.List(measureItemId),
                 Step242TextWriter.Ref(repContextId));
 
@@ -250,7 +272,67 @@ public static class Step242Exporter
                 "PROPERTY_DEFINITION_REPRESENTATION",
                 Step242TextWriter.Ref(propertyDefinitionId),
                 Step242TextWriter.Ref(representationId));
+
+        if (hole.Depth.HasValue)
+        {
+            var depthItemId = writer.AddEntity(
+                "MEASURE_REPRESENTATION_ITEM",
+                Step242TextWriter.String("depth"),
+                Step242TextWriter.Number(hole.Depth.Value),
+                Step242TextWriter.Ref(lengthUnitId));
+            var depthRepId = writer.AddEntity(
+                "SHAPE_DIMENSION_REPRESENTATION",
+                Step242TextWriter.String($"depth:{hole.FeatureId}"),
+                Step242TextWriter.List(depthItemId),
+                Step242TextWriter.Ref(repContextId));
+            var depthPropertyDefinitionId = writer.AddEntity(
+                "PROPERTY_DEFINITION",
+                Step242TextWriter.String($"depth:{hole.FeatureId}"),
+                Step242TextWriter.String("semantic PMI depth"),
+                Step242TextWriter.Ref(featureShapeAspectId));
+            writer.AddEntity(
+                "PROPERTY_DEFINITION_REPRESENTATION",
+                Step242TextWriter.Ref(depthPropertyDefinitionId),
+                Step242TextWriter.Ref(depthRepId));
         }
+    }
+
+    private static void EmitDatumSemanticPmi(
+        Step242TextWriter writer,
+        string shapeId,
+        Step242SemanticPmiDatum datum)
+    {
+        var aspectId = writer.AddEntity(
+            "SHAPE_ASPECT",
+            Step242TextWriter.String($"firmament-datum:{datum.Label}"),
+            Step242TextWriter.String($"semantic datum {datum.DatumKind} target={datum.Target}"),
+            Step242TextWriter.Ref(shapeId),
+            Step242TextWriter.Enum("FALSE"));
+
+        writer.AddEntity(
+            "PROPERTY_DEFINITION",
+            Step242TextWriter.String($"datum:{datum.Label}:{datum.FeatureId}"),
+            Step242TextWriter.String($"semantic datum {datum.DatumKind}"),
+            Step242TextWriter.Ref(aspectId));
+    }
+
+    private static void EmitNoteSemanticPmi(
+        Step242TextWriter writer,
+        string shapeId,
+        Step242SemanticPmiNote note)
+    {
+        var aspectId = writer.AddEntity(
+            "SHAPE_ASPECT",
+            Step242TextWriter.String($"firmament-note:{note.FeatureId}"),
+            Step242TextWriter.String($"semantic note target={note.Target}"),
+            Step242TextWriter.Ref(shapeId),
+            Step242TextWriter.Enum("FALSE"));
+
+        writer.AddEntity(
+            "PROPERTY_DEFINITION",
+            Step242TextWriter.String($"note:{note.FeatureId}"),
+            Step242TextWriter.String(note.Text),
+            Step242TextWriter.Ref(aspectId));
     }
 
     private static string BuildPlane(Step242TextWriter writer, PlaneSurface plane)

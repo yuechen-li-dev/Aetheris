@@ -4,6 +4,7 @@ using System.Text.Json;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Firmament.Diagnostics;
+using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Firmament.ParsedModel;
 
 namespace Aetheris.Kernel.Firmament.Validation;
@@ -102,19 +103,9 @@ internal static class FirmamentBooleanRequiredFieldValidator
             return ValidateTorusTool(entry, opIndex, withFields);
         }
 
-        if (string.Equals(withOpRaw, "triangular_prism", StringComparison.Ordinal))
+        if (FirmamentPrismFamilyTools.TryGetDescriptor(withOpRaw, out var prismTool))
         {
-            return ValidateTriangularPrismTool(entry, opIndex, withFields);
-        }
-
-        if (string.Equals(withOpRaw, "hexagonal_prism", StringComparison.Ordinal))
-        {
-            return ValidateHexagonalPrismTool(entry, opIndex, withFields);
-        }
-
-        if (string.Equals(withOpRaw, "straight_slot", StringComparison.Ordinal))
-        {
-            return ValidateStraightSlotTool(entry, opIndex, withFields);
+            return ValidatePrismTool(entry, opIndex, withFields, prismTool);
         }
 
         return KernelResult<bool>.Success(true);
@@ -221,49 +212,32 @@ internal static class FirmamentBooleanRequiredFieldValidator
         return KernelResult<bool>.Success(true);
     }
 
-    private static KernelResult<bool> ValidateTriangularPrismTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
+    private static KernelResult<bool> ValidatePrismTool(
+        FirmamentParsedOpEntry entry,
+        int opIndex,
+        IReadOnlyDictionary<string, string> withFields,
+        FirmamentPrismToolDescriptor prismTool)
     {
-        var baseWidth = ValidatePositiveNumericWithField(entry, opIndex, withFields, "base_width");
-        if (!baseWidth.IsSuccess)
+        foreach (var requiredField in prismTool.RequiredFields)
         {
-            return baseWidth;
+            var requiredResult = ValidatePositiveNumericWithField(entry, opIndex, withFields, requiredField);
+            if (!requiredResult.IsSuccess)
+            {
+                return requiredResult;
+            }
         }
 
-        var baseDepth = ValidatePositiveNumericWithField(entry, opIndex, withFields, "base_depth");
-        if (!baseDepth.IsSuccess)
+        if (prismTool.Kind == FirmamentPrismToolKind.StraightSlot)
         {
-            return baseDepth;
+            _ = TryParseNumeric(withFields["length"], out var length);
+            _ = TryParseNumeric(withFields["width"], out var width);
+            if (length <= width)
+            {
+                return InvalidFieldValue("with.length", opIndex, entry.OpName, "expected a numeric value greater than 'with.width' for straight_slot");
+            }
         }
 
-        return ValidatePositiveNumericWithField(entry, opIndex, withFields, "height");
-    }
-
-    private static KernelResult<bool> ValidateHexagonalPrismTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
-    {
-        var acrossFlats = ValidatePositiveNumericWithField(entry, opIndex, withFields, "across_flats");
-        if (!acrossFlats.IsSuccess)
-        {
-            return acrossFlats;
-        }
-
-        return ValidatePositiveNumericWithField(entry, opIndex, withFields, "height");
-    }
-
-    private static KernelResult<bool> ValidateStraightSlotTool(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields)
-    {
-        var length = ValidatePositiveNumericWithField(entry, opIndex, withFields, "length");
-        if (!length.IsSuccess)
-        {
-            return length;
-        }
-
-        var width = ValidatePositiveNumericWithField(entry, opIndex, withFields, "width");
-        if (!width.IsSuccess)
-        {
-            return width;
-        }
-
-        return ValidatePositiveNumericWithField(entry, opIndex, withFields, "height");
+        return KernelResult<bool>.Success(true);
     }
 
     private static KernelResult<bool> ValidatePositiveNumericWithField(FirmamentParsedOpEntry entry, int opIndex, IReadOnlyDictionary<string, string> withFields, string fieldName)

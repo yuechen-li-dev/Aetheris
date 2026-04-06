@@ -1,0 +1,18 @@
+firmament:
+  version: 1
+
+model:
+  name: m3b_unsupported_cylinder_subtract_triangular_prism
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: post
+    radius: 15
+    height: 20
+  -
+    op: subtract
+    id: tri_cut
+    from: post
+    with: { op: triangular_prism, base_width: 10, base_depth: 6, height: 10 }

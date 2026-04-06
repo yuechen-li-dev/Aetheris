@@ -69,47 +69,9 @@ internal static class FirmamentBooleanToolBodyFactory
                 FirmamentPrimitiveToolParsing.ParseScalar(minorRadiusRaw));
         }
 
-        if (string.Equals(tool.OpName, "triangular_prism", StringComparison.Ordinal))
+        if (FirmamentPrismFamilyTools.IsPrismTool(tool.OpName))
         {
-            if (!tool.RawFields.TryGetValue("base_width", out var baseWidthRaw) || string.IsNullOrWhiteSpace(baseWidthRaw)
-                || !tool.RawFields.TryGetValue("base_depth", out var baseDepthRaw) || string.IsNullOrWhiteSpace(baseDepthRaw)
-                || !tool.RawFields.TryGetValue("height", out var triangularHeightRaw) || string.IsNullOrWhiteSpace(triangularHeightRaw))
-            {
-                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested fields 'with.base_width', 'with.base_depth', and 'with.height' for tool op 'triangular_prism'.")]);
-            }
-
-            return BrepPrimitives.CreateTriangularPrism(
-                FirmamentPrimitiveToolParsing.ParseScalar(baseWidthRaw),
-                FirmamentPrimitiveToolParsing.ParseScalar(baseDepthRaw),
-                FirmamentPrimitiveToolParsing.ParseScalar(triangularHeightRaw));
-        }
-
-        if (string.Equals(tool.OpName, "hexagonal_prism", StringComparison.Ordinal))
-        {
-            if (!tool.RawFields.TryGetValue("across_flats", out var acrossFlatsRaw) || string.IsNullOrWhiteSpace(acrossFlatsRaw)
-                || !tool.RawFields.TryGetValue("height", out var hexagonalHeightRaw) || string.IsNullOrWhiteSpace(hexagonalHeightRaw))
-            {
-                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested fields 'with.across_flats' and 'with.height' for tool op 'hexagonal_prism'.")]);
-            }
-
-            return BrepPrimitives.CreateHexagonalPrism(
-                FirmamentPrimitiveToolParsing.ParseScalar(acrossFlatsRaw),
-                FirmamentPrimitiveToolParsing.ParseScalar(hexagonalHeightRaw));
-        }
-
-        if (string.Equals(tool.OpName, "straight_slot", StringComparison.Ordinal))
-        {
-            if (!tool.RawFields.TryGetValue("length", out var lengthRaw) || string.IsNullOrWhiteSpace(lengthRaw)
-                || !tool.RawFields.TryGetValue("width", out var widthRaw) || string.IsNullOrWhiteSpace(widthRaw)
-                || !tool.RawFields.TryGetValue("height", out var slotHeightRaw) || string.IsNullOrWhiteSpace(slotHeightRaw))
-            {
-                return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Boolean execution expected validated nested fields 'with.length', 'with.width', and 'with.height' for tool op 'straight_slot'.")]);
-            }
-
-            return BrepPrimitives.CreateStraightSlot(
-                FirmamentPrimitiveToolParsing.ParseScalar(lengthRaw),
-                FirmamentPrimitiveToolParsing.ParseScalar(widthRaw),
-                FirmamentPrimitiveToolParsing.ParseScalar(slotHeightRaw));
+            return FirmamentPrismFamilyTools.TryCreateBody(tool);
         }
 
         return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution supports nested tool ops 'box', 'cylinder', 'sphere', 'cone', 'torus', 'triangular_prism', 'hexagonal_prism', and 'straight_slot' only. Got '{tool.OpName}'.")]);

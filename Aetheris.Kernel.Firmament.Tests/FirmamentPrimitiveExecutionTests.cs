@@ -318,17 +318,42 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m3-prism-boolean-triangular-rejected.firmament", "tri_cut")]
-    [InlineData("testdata/firmament/fixtures/m3-prism-boolean-hexagonal-rejected.firmament", "hex_cut")]
-    [InlineData("testdata/firmament/fixtures/m3-prism-boolean-slot-rejected.firmament", "slot_cut")]
-    public void Compile_PrismBooleanTools_AreExplicitlyRejected(string fixturePath, string featureId)
+    [InlineData("testdata/firmament/fixtures/m3b-valid-box-subtract-triangular-prism.firmament", "tri_cut")]
+    [InlineData("testdata/firmament/fixtures/m3b-valid-box-subtract-hexagonal-prism.firmament", "hex_cut")]
+    [InlineData("testdata/firmament/fixtures/m3b-valid-box-subtract-straight-slot.firmament", "slot_cut")]
+    public void Compile_BoxRoot_PrismSubtract_CanonicalCases_Hit_BoundedKernelLimit(string fixturePath, string featureId)
     {
         var result = CompileFixture(fixturePath);
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Message.Contains($"Boolean feature '{featureId}'", StringComparison.Ordinal)
-            && diagnostic.Message.Contains("bounded prism-family booleans are explicitly deferred", StringComparison.Ordinal));
+            && diagnostic.Message.Contains("core M13 boolean rebuild supports box/box and analytic-hole families only", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("testdata/firmament/fixtures/m3b-unsupported-cylinder-subtract-triangular-prism.firmament", "tri_cut", "triangular_prism")]
+    [InlineData("testdata/firmament/fixtures/m3b-unsupported-cylinder-subtract-hexagonal-prism.firmament", "hex_cut", "hexagonal_prism")]
+    [InlineData("testdata/firmament/fixtures/m3b-unsupported-cylinder-subtract-straight-slot.firmament", "slot_cut", "straight_slot")]
+    public void Compile_PrismSubtract_Rejects_NonBoxRoot_Inputs(string fixturePath, string featureId, string toolOp)
+    {
+        var result = CompileFixture(fixturePath);
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains($"Boolean feature '{featureId}'", StringComparison.Ordinal)
+            && diagnostic.Message.Contains("direct box-root source feature", StringComparison.Ordinal)
+            && diagnostic.Message.Contains(toolOp, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Compile_PrismSubtract_Uses_Shared_BoundedPath_Diagnostics()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m3b-unsupported-cylinder-subtract-triangular-prism.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            string.Equals(diagnostic.Source, "firmament.prism-bounded-subtract", StringComparison.Ordinal));
     }
 
     [Fact]

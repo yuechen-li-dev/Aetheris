@@ -28,6 +28,7 @@ internal static class FirmamentBooleanRequiredFieldValidator
                 FirmamentKnownOpKind.Add => ValidateBooleanEntry(entry, index, targetFieldName: "to"),
                 FirmamentKnownOpKind.Subtract => ValidateBooleanEntry(entry, index, targetFieldName: "from"),
                 FirmamentKnownOpKind.Intersect => ValidateBooleanEntry(entry, index, targetFieldName: "left"),
+                FirmamentKnownOpKind.Draft => ValidateDraftEntry(entry, index),
                 _ => KernelResult<bool>.Success(true)
             };
 
@@ -74,6 +75,66 @@ internal static class FirmamentBooleanRequiredFieldValidator
         }
 
         return ValidatePlacement(entry, opIndex);
+    }
+
+    private static KernelResult<bool> ValidateDraftEntry(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        if (!TryGetRequiredNonEmptyScalar(entry, "from", opIndex, out missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        if (!entry.RawFields.TryGetValue("pull", out var pullRaw) || string.IsNullOrWhiteSpace(pullRaw))
+        {
+            return MissingField("pull", opIndex, entry.OpName);
+        }
+
+        if (!string.Equals(Unquote(pullRaw), "+z", StringComparison.Ordinal))
+        {
+            return InvalidFieldValue("pull", opIndex, entry.OpName, "expected '+z' for bounded M4 draft pull direction");
+        }
+
+        if (!entry.RawFields.TryGetValue("angle", out var angleRaw) || string.IsNullOrWhiteSpace(angleRaw))
+        {
+            return MissingField("angle", opIndex, entry.OpName);
+        }
+
+        if (!TryParseNumeric(angleRaw, out var angle) || angle <= 0d || angle >= 10d)
+        {
+            return InvalidFieldValue("angle", opIndex, entry.OpName, "expected a numeric value in (0, 10) degrees for bounded M4 draft");
+        }
+
+        if (!entry.RawFields.TryGetValue("faces", out var facesRaw) || string.IsNullOrWhiteSpace(facesRaw))
+        {
+            return MissingField("faces", opIndex, entry.OpName);
+        }
+
+        if (!TryParseFaceTokens(facesRaw, out var tokens) || tokens.Count == 0)
+        {
+            return InvalidFieldTypeOrShape("faces", opIndex, entry.OpName, "expected a non-empty string array of side face tokens");
+        }
+
+        foreach (var token in tokens)
+        {
+            if (token is not ("x_min" or "x_max" or "y_min" or "y_max"))
+            {
+                return InvalidFieldValue("faces", opIndex, entry.OpName, "supported tokens are x_min, x_max, y_min, y_max only");
+            }
+        }
+
+        if (entry.RawFields.TryGetValue("direction", out var directionRaw)
+            && !string.IsNullOrWhiteSpace(directionRaw)
+            && !string.Equals(Unquote(directionRaw), "inward", StringComparison.Ordinal))
+        {
+            return InvalidFieldValue("direction", opIndex, entry.OpName, "expected 'inward' for bounded M4 draft");
+        }
+
+        return KernelResult<bool>.Success(true);
     }
 
     private static KernelResult<bool> ValidateNestedPrimitiveToolFields(FirmamentParsedOpEntry entry, int opIndex, string withOpRaw, IReadOnlyDictionary<string, string> withFields)
@@ -692,6 +753,68 @@ internal static class FirmamentBooleanRequiredFieldValidator
         {
             return false;
         }
+    }
+
+    private static bool TryParseFaceTokens(string raw, out IReadOnlyList<string> tokens)
+    {
+        tokens = Array.Empty<string>();
+        var trimmed = raw.Trim();
+        if (!trimmed.StartsWith("[", StringComparison.Ordinal) || !trimmed.EndsWith("]", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(trimmed);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+
+            var parsed = new List<string>();
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.String)
+                {
+                    return false;
+                }
+
+                var token = element.GetString();
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    return false;
+                }
+
+                parsed.Add(token);
+            }
+
+            tokens = parsed;
+            return true;
+        }
+        catch (JsonException)
+        {
+            var content = trimmed[1..^1];
+            var split = content.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .Select(token => token.Trim().Trim('"'))
+                .Where(token => !string.IsNullOrWhiteSpace(token))
+                .ToArray();
+            if (split.Length == 0)
+            {
+                return false;
+            }
+
+            tokens = split;
+            return true;
+        }
+    }
+
+    private static string Unquote(string raw)
+    {
+        var trimmed = raw.Trim();
+        return trimmed.Length >= 2 && trimmed.StartsWith('"') && trimmed.EndsWith('"')
+            ? trimmed[1..^1]
+            : trimmed;
     }
 
     private static KernelResult<bool> MissingField(string fieldName, int opIndex, string opName) =>

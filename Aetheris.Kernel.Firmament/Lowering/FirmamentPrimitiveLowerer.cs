@@ -120,6 +120,10 @@ internal static class FirmamentPrimitiveLowerer
                     loweredBooleans.Add(LowerBoolean(index, entry, FirmamentLoweredBooleanKind.Intersect, "left"));
                     break;
 
+                case FirmamentKnownOpKind.Draft:
+                    loweredBooleans.Add(LowerDraft(index, entry));
+                    break;
+
                 default:
                     skippedOps.Add(new FirmamentLoweringSkippedOp(
                         OpIndex: index,
@@ -175,6 +179,18 @@ internal static class FirmamentPrimitiveLowerer
             PrimaryReferenceFeatureId: entry.RawFields[primaryFieldName],
             Tool: tool,
             Placement: LowerPlacement(entry.Placement));
+    }
+
+    private static FirmamentLoweredBoolean LowerDraft(int opIndex, FirmamentParsedOpEntry entry)
+    {
+        return new FirmamentLoweredBoolean(
+            OpIndex: opIndex,
+            FeatureId: entry.RawFields["id"],
+            Kind: FirmamentLoweredBooleanKind.Draft,
+            PrimaryReferenceField: "from",
+            PrimaryReferenceFeatureId: entry.RawFields["from"],
+            Tool: new FirmamentLoweredToolOp("draft", entry.RawFields, string.Empty),
+            Placement: null);
     }
 
     private static FirmamentLoweredToolOp ParseTool(string rawWith)

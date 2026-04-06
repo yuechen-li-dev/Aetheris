@@ -257,6 +257,29 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_Executes_BoundedDraft_On_BoxRoot_Into_Real_Body()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m4-valid-draft-box-exec.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
+        Assert.Equal("drafted", executedBoolean.FeatureId);
+        Assert.Equal(FirmamentLoweredBooleanKind.Draft, executedBoolean.Kind);
+        Assert.Equal(6, executedBoolean.Body.Topology.Faces.Count());
+        Assert.NotEmpty(executedBoolean.Body.Topology.Bodies);
+    }
+
+    [Fact]
+    public void Compile_Rejects_BoundedDraft_On_UnsupportedRoot()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m4-invalid-draft-cylinder-root.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("Bounded draft requires a box-root or recognized orthogonal additive root input", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Compile_Mixed_Document_With_Unsupported_Boolean_Fails_Before_Publishing_Success_Artifact()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3d-mixed-primitive-boolean-validation.firmament");

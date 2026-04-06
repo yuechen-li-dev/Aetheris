@@ -163,6 +163,18 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_M4DraftBoxBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/m4_draft_box_basic.firmament",
+            "m4_draft_box_basic.step",
+            "drafted",
+            1,
+            "boolean",
+            "draft");
+    }
+
+    [Fact]
     public void Run_BooleanBoxCylinderHoleExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(

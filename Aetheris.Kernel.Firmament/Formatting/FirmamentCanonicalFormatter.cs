@@ -157,6 +157,13 @@ internal static class FirmamentCanonicalFormatter
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "left");
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "with");
                 break;
+            case FirmamentKnownOpKind.Draft:
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "from");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "pull");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "angle");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "faces");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "direction");
+                break;
             case FirmamentKnownOpKind.ExpectExists:
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "target");
                 break;

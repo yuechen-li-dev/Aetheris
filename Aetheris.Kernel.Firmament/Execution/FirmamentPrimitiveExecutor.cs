@@ -712,27 +712,14 @@ internal static class FirmamentPrimitiveExecutor
         BrepBody baseBody,
         IReadOnlyDictionary<string, FirmamentSafeSubtractFeatureGraphState> featureGraphStates)
     {
-        if (!featureGraphStates.TryGetValue(boolean.PrimaryReferenceFeatureId, out var sourceState)
-            || sourceState is not (FirmamentSafeSubtractFeatureGraphState.BoxRoot or FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveSafeRoot))
+        if (!featureGraphStates.TryGetValue(boolean.PrimaryReferenceFeatureId, out var sourceState))
         {
             return KernelResult<BrepBody>.Failure(
             [
                 new KernelDiagnostic(
                     KernelDiagnosticCode.ValidationFailed,
                     KernelDiagnosticSeverity.Error,
-                    $"Bounded chamfer requires a box-root or recognized orthogonal additive root input; '{boolean.PrimaryReferenceFeatureId}' is not eligible.",
-                    Source: "firmament.chamfer-bounded")
-            ]);
-        }
-
-        if (!BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out var box, out var reason))
-        {
-            return KernelResult<BrepBody>.Failure(
-            [
-                new KernelDiagnostic(
-                    KernelDiagnosticCode.ValidationFailed,
-                    KernelDiagnosticSeverity.Error,
-                    $"Bounded chamfer requires an axis-aligned box-like source body; failed to recognize source body ({reason}).",
+                    $"Bounded chamfer requires a resolvable source body state; '{boolean.PrimaryReferenceFeatureId}' is not eligible.",
                     Source: "firmament.chamfer-bounded")
             ]);
         }
@@ -765,12 +752,41 @@ internal static class FirmamentPrimitiveExecutor
 
         if (edge.HasValue)
         {
+            if (sourceState is not (FirmamentSafeSubtractFeatureGraphState.BoxRoot or FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveSafeRoot))
+            {
+                return KernelResult<BrepBody>.Failure(
+                [
+                    new KernelDiagnostic(
+                        KernelDiagnosticCode.ValidationFailed,
+                        KernelDiagnosticSeverity.Error,
+                        $"Bounded chamfer edge mode requires a box-root or recognized orthogonal additive root input; '{boolean.PrimaryReferenceFeatureId}' is not eligible.",
+                        Source: "firmament.chamfer-bounded")
+                ]);
+            }
+
+            if (!BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out var box, out var reason))
+            {
+                return KernelResult<BrepBody>.Failure(
+                [
+                    new KernelDiagnostic(
+                        KernelDiagnosticCode.ValidationFailed,
+                        KernelDiagnosticSeverity.Error,
+                        $"Bounded chamfer edge mode requires an axis-aligned box-like source body; failed to recognize source body ({reason}).",
+                        Source: "firmament.chamfer-bounded")
+                ]);
+            }
+
             return BrepBoundedChamfer.ChamferAxisAlignedBoxVerticalEdge(box, edge.Value, distance);
         }
 
         if (corner.HasValue)
         {
-            return BrepBoundedChamfer.ChamferAxisAlignedBoxSingleCorner(box, corner.Value, distance);
+            if (BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out var box, out _))
+            {
+                return BrepBoundedChamfer.ChamferAxisAlignedBoxSingleCorner(box, corner.Value, distance);
+            }
+
+            return BrepBoundedChamfer.ChamferTrustedPolyhedralSingleCorner(baseBody, corner.Value, distance);
         }
 
         return KernelResult<BrepBody>.Failure(

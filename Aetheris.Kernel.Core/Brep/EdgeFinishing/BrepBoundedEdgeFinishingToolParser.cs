@@ -9,10 +9,12 @@ public static class BrepBoundedEdgeFinishingToolParser
     public static bool TryParseChamferSelection(
         IReadOnlyDictionary<string, string> fields,
         out BrepBoundedChamferEdge? edge,
+        out (BrepBoundedChamferEdge First, BrepBoundedChamferEdge Second)? edgePair,
         out BrepBoundedChamferCorner? corner,
         out string error)
     {
         edge = null;
+        edgePair = null;
         corner = null;
         error = string.Empty;
 
@@ -26,12 +28,18 @@ public static class BrepBoundedEdgeFinishingToolParser
 
         if (hasEdges)
         {
-            if (!TryParseChamferEdge(fields, out var parsedEdge, out error))
+            if (!TryParseChamferEdges(fields, out var parsedEdges, out error))
             {
                 return false;
             }
 
-            edge = parsedEdge;
+            if (parsedEdges.Length == 1)
+            {
+                edge = parsedEdges[0];
+                return true;
+            }
+
+            edgePair = (parsedEdges[0], parsedEdges[1]);
             return true;
         }
 
@@ -62,7 +70,28 @@ public static class BrepBoundedEdgeFinishingToolParser
         out BrepBoundedChamferEdge edge,
         out string error)
     {
-        edge = BrepBoundedChamferEdge.XMinYMin;
+        edge = default;
+        if (!TryParseChamferEdges(fields, out var edges, out error))
+        {
+            return false;
+        }
+
+        if (edges.Length != 1)
+        {
+            error = "bounded M5a supports exactly one explicit edge token";
+            return false;
+        }
+
+        edge = edges[0];
+        return true;
+    }
+
+    private static bool TryParseChamferEdges(
+        IReadOnlyDictionary<string, string> fields,
+        out BrepBoundedChamferEdge[] edges,
+        out string error)
+    {
+        edges = [];
         error = string.Empty;
 
         if (!fields.TryGetValue("edges", out var edgesRaw) || string.IsNullOrWhiteSpace(edgesRaw))
@@ -77,27 +106,38 @@ public static class BrepBoundedEdgeFinishingToolParser
             return false;
         }
 
-        if (tokens.Length != 1)
+        if (tokens.Length is < 1 or > 2)
         {
-            error = "bounded M5a supports exactly one explicit edge token";
+            error = "bounded M5a supports either one edge token or a two-edge corner pair";
             return false;
         }
 
-        edge = tokens[0] switch
+        var parsed = new BrepBoundedChamferEdge[tokens.Length];
+        for (var i = 0; i < tokens.Length; i++)
         {
-            "x_min_y_min" => BrepBoundedChamferEdge.XMinYMin,
-            "x_min_y_max" => BrepBoundedChamferEdge.XMinYMax,
-            "x_max_y_min" => BrepBoundedChamferEdge.XMaxYMin,
-            "x_max_y_max" => BrepBoundedChamferEdge.XMaxYMax,
-            _ => BrepBoundedChamferEdge.XMinYMin
-        };
+            parsed[i] = tokens[i] switch
+            {
+                "x_min_y_min" => BrepBoundedChamferEdge.XMinYMin,
+                "x_min_y_max" => BrepBoundedChamferEdge.XMinYMax,
+                "x_max_y_min" => BrepBoundedChamferEdge.XMaxYMin,
+                "x_max_y_max" => BrepBoundedChamferEdge.XMaxYMax,
+                _ => default
+            };
 
-        if (tokens[0] is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"))
+            if (tokens[i] is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"))
+            {
+                error = "supported tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max";
+                return false;
+            }
+        }
+
+        if (parsed.Length == 2 && parsed[0] == parsed[1])
         {
-            error = "supported tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max";
+            error = "two-edge corner pair requires two distinct edge tokens";
             return false;
         }
 
+        edges = parsed;
         return true;
     }
 

@@ -170,14 +170,19 @@ internal static class FirmamentBooleanRequiredFieldValidator
 
         if (hasEdges)
         {
-            if (!TryParseFaceTokens(edgesRaw!, out var edgeTokens) || edgeTokens.Count != 1)
+            if (!TryParseFaceTokens(edgesRaw!, out var edgeTokens) || edgeTokens.Count is < 1 or > 2)
             {
-                return InvalidFieldTypeOrShape("edges", opIndex, entry.OpName, "expected a single-item string array with one explicit edge token");
+                return InvalidFieldTypeOrShape("edges", opIndex, entry.OpName, "expected a string array with one explicit edge token or one two-edge corner pair");
             }
 
-            if (edgeTokens[0] is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"))
+            if (edgeTokens.Any(token => token is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max")))
             {
                 return InvalidFieldValue("edges", opIndex, entry.OpName, "supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max");
+            }
+
+            if (edgeTokens.Count == 2 && string.Equals(edgeTokens[0], edgeTokens[1], StringComparison.Ordinal))
+            {
+                return InvalidFieldValue("edges", opIndex, entry.OpName, "bounded M5a two-edge corner pair requires two distinct edge tokens");
             }
         }
         else

@@ -738,7 +738,7 @@ internal static class FirmamentPrimitiveExecutor
             ]);
         }
 
-        if (!BrepBoundedEdgeFinishingToolParser.TryParseChamferSelection(boolean.Tool.RawFields, out var edge, out var corner, out var edgeError))
+        if (!BrepBoundedEdgeFinishingToolParser.TryParseChamferSelection(boolean.Tool.RawFields, out var edge, out var edgePair, out var corner, out var edgeError))
         {
             return KernelResult<BrepBody>.Failure(
             [
@@ -777,6 +777,18 @@ internal static class FirmamentPrimitiveExecutor
             }
 
             return BrepBoundedChamfer.ChamferAxisAlignedBoxVerticalEdge(box, edge.Value, distance);
+        }
+
+        if (edgePair.HasValue)
+        {
+            return KernelResult<BrepBody>.Failure(
+            [
+                new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    "Bounded chamfer two-edge corner resolution requires a selector family that names two incident edges at one vertex; current bounded edge tokens identify disjoint vertical edges only.",
+                    Source: "firmament.chamfer-bounded")
+            ]);
         }
 
         if (corner.HasValue)

@@ -326,6 +326,16 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_Rejects_BoundedChamfer_SingleCorner_For_NonOrthogonalTriangularPrism()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5a-invalid-chamfer-triangular-prism-nonorth-corner.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("corner resolution rejected", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Compile_BoundedFilletCanonicalInternalCase_Reaches_Narrow_TruthfulRebuildBlocker()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m5b-canonical-internal-fillet-lroot.firmament");

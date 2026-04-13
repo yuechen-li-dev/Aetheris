@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.EdgeFinishing;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.EdgeFinishing;
@@ -16,5 +17,20 @@ public sealed class BrepBoundedChamferCornerJudgmentTests
 
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("No bounded corner-resolution candidate was admissible", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ChamferTrustedPolyhedralSingleCorner_Rejects_NonOrthogonalTriangularPrismCorner_WithExplicitPolicyReason()
+    {
+        var prism = BrepPrimitives.CreateTriangularPrism(baseWidth: 8d, baseDepth: 6d, height: 10d);
+        Assert.True(prism.IsSuccess);
+
+        var result = BrepBoundedChamfer.ChamferTrustedPolyhedralSingleCorner(
+            prism.Value,
+            BrepBoundedChamferCorner.XMaxYMaxZMax,
+            distance: 1d);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("corner resolution rejected", StringComparison.Ordinal));
     }
 }

@@ -1,9 +1,10 @@
 using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 
-namespace Aetheris.Kernel.Core.Brep.Features;
+namespace Aetheris.Kernel.Core.Brep.EdgeFinishing;
 
 /// <summary>
 /// M5a bounded functional chamfer for convex planar-planar external edges on axis-aligned box-like bodies.

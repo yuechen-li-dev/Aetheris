@@ -165,9 +165,13 @@ public static class BrepBoundedChamfer
             return KernelResult<BrepBody>.Failure([Failure($"Bounded concave edge resolution rejected: {reason}", "firmament.chamfer-bounded")]);
         }
 
-        return KernelResult<BrepBody>.Failure([Failure(
-            "Bounded concave edge preflight succeeded, but local loop rewrite construction is not yet implemented for this milestone slice.",
-            "firmament.chamfer-bounded")]);
+        return selected switch
+        {
+            "planar_internal_concave_edge_cut" => CreateTrustedPolyhedralSingleInternalConcaveEdgeChamferBody(sourceBody, preflight.Value, distance),
+            _ => KernelResult<BrepBody>.Failure([Failure(
+                $"Bounded concave edge resolution selected unsupported candidate '{selected}'.",
+                "firmament.chamfer-bounded")])
+        };
     }
 
     private static PolylineProfile2D BuildProfile(AxisAlignedBoxExtents box, BrepBoundedChamferEdge edge, double d)
@@ -221,6 +225,288 @@ public static class BrepBoundedChamfer
 
     private static KernelDiagnostic Failure(string message, string source)
         => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, Source: source);
+
+    private static KernelResult<BrepBody> CreateTrustedPolyhedralSingleInternalConcaveEdgeChamferBody(
+        BrepBody sourceBody,
+        BoundedConcaveChamferSelection selection,
+        double distance)
+    {
+        var cells = sourceBody.SafeBooleanComposition?.OccupiedCells;
+        if (cells is null || cells.Count == 0)
+        {
+            return KernelResult<BrepBody>.Failure([Failure(
+                "Bounded concave chamfer local builder requires occupied-cell root metadata.",
+                "firmament.chamfer-bounded")]);
+        }
+
+        if (!TryBuildOrthogonalFootprintLoop(cells, out var loop, out var loopFailure))
+        {
+            return KernelResult<BrepBody>.Failure([Failure(
+                $"Bounded concave chamfer local builder requires a single coherent orthogonal footprint loop: {loopFailure}",
+                "firmament.chamfer-bounded")]);
+        }
+
+        if (!TryApplySingleCornerChamfer(loop, selection.EdgeX, selection.EdgeY, distance, out var chamferedLoop, out var cornerFailure))
+        {
+            return KernelResult<BrepBody>.Failure([Failure(
+                $"Bounded concave chamfer local builder could not construct the selected internal-edge cut: {cornerFailure}",
+                "firmament.chamfer-bounded")]);
+        }
+
+        var profileResult = PolylineProfile2D.Create(chamferedLoop.Select(point => new ProfilePoint2D(point.X, point.Y)).ToArray());
+        if (!profileResult.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(profileResult.Diagnostics);
+        }
+
+        var frame = new ExtrudeFrame3D(
+            origin: new Point3D(0d, 0d, selection.MinZ),
+            normal: Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            uAxis: Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+        return BrepExtrude.Create(profileResult.Value, frame, selection.MaxZ - selection.MinZ);
+    }
+
+    private static bool TryApplySingleCornerChamfer(
+        IReadOnlyList<(double X, double Y)> loop,
+        double cornerX,
+        double cornerY,
+        double distance,
+        out List<(double X, double Y)> chamferedLoop,
+        out string failure)
+    {
+        chamferedLoop = [];
+        failure = string.Empty;
+        var cornerIndices = Enumerable.Range(0, loop.Count)
+            .Where(index => NearlyEqual(loop[index].X, cornerX) && NearlyEqual(loop[index].Y, cornerY))
+            .ToArray();
+        if (cornerIndices.Length != 1)
+        {
+            failure = "selected internal corner was not uniquely present on the boundary loop";
+            return false;
+        }
+
+        var signedArea = ComputeSignedArea(loop);
+        var isCounterClockwise = signedArea > 0d;
+        var indexToChamfer = cornerIndices[0];
+        if (!IsConcaveCorner(loop, indexToChamfer, isCounterClockwise))
+        {
+            failure = "selected corner is not a local concave corner on this footprint";
+            return false;
+        }
+
+        var prevIndex = (indexToChamfer + loop.Count - 1) % loop.Count;
+        var nextIndex = (indexToChamfer + 1) % loop.Count;
+        var corner = loop[indexToChamfer];
+        var prev = loop[prevIndex];
+        var next = loop[nextIndex];
+
+        var incomingX = prev.X - corner.X;
+        var incomingY = prev.Y - corner.Y;
+        var outgoingX = next.X - corner.X;
+        var outgoingY = next.Y - corner.Y;
+        var incoming = (X: incomingX, Y: incomingY);
+        var outgoing = (X: outgoingX, Y: outgoingY);
+        if (!IsAxisAligned(incoming) || !IsAxisAligned(outgoing))
+        {
+            failure = "selected corner neighborhood is not axis-aligned";
+            return false;
+        }
+
+        var incomingLength = System.Math.Sqrt(incoming.X * incoming.X + incoming.Y * incoming.Y);
+        var outgoingLength = System.Math.Sqrt(outgoing.X * outgoing.X + outgoing.Y * outgoing.Y);
+        if (distance >= incomingLength || distance >= outgoingLength)
+        {
+            failure = "distance exceeds one of the local orthogonal edge spans";
+            return false;
+        }
+
+        var cutA = (corner.X + incoming.X / incomingLength * distance, corner.Y + incoming.Y / incomingLength * distance);
+        var cutB = (corner.X + outgoing.X / outgoingLength * distance, corner.Y + outgoing.Y / outgoingLength * distance);
+
+        for (var i = 0; i < loop.Count; i++)
+        {
+            if (i == indexToChamfer)
+            {
+                chamferedLoop.Add(cutA);
+                chamferedLoop.Add(cutB);
+                continue;
+            }
+
+            chamferedLoop.Add(loop[i]);
+        }
+
+        return true;
+    }
+
+    private static bool TryBuildOrthogonalFootprintLoop(
+        IReadOnlyList<AxisAlignedBoxExtents> cells,
+        out List<(double X, double Y)> loop,
+        out string failure)
+    {
+        loop = [];
+        failure = string.Empty;
+
+        var xCoords = cells.SelectMany(cell => new[] { cell.MinX, cell.MaxX }).Distinct().OrderBy(v => v).ToArray();
+        var yCoords = cells.SelectMany(cell => new[] { cell.MinY, cell.MaxY }).Distinct().OrderBy(v => v).ToArray();
+        if (xCoords.Length < 2 || yCoords.Length < 2)
+        {
+            failure = "occupied-cell grid is degenerate";
+            return false;
+        }
+
+        var occupied = new bool[xCoords.Length - 1, yCoords.Length - 1];
+        for (var xi = 0; xi < xCoords.Length - 1; xi++)
+        {
+            for (var yi = 0; yi < yCoords.Length - 1; yi++)
+            {
+                var cx = 0.5d * (xCoords[xi] + xCoords[xi + 1]);
+                var cy = 0.5d * (yCoords[yi] + yCoords[yi + 1]);
+                occupied[xi, yi] = cells.Any(cell =>
+                    cx > cell.MinX && cx < cell.MaxX &&
+                    cy > cell.MinY && cy < cell.MaxY);
+            }
+        }
+
+        var segments = new List<((double X, double Y) Start, (double X, double Y) End)>();
+        for (var xi = 0; xi < xCoords.Length - 1; xi++)
+        {
+            for (var yi = 0; yi < yCoords.Length - 1; yi++)
+            {
+                if (!occupied[xi, yi])
+                {
+                    continue;
+                }
+
+                var xMin = xCoords[xi];
+                var xMax = xCoords[xi + 1];
+                var yMin = yCoords[yi];
+                var yMax = yCoords[yi + 1];
+
+                if (yi == 0 || !occupied[xi, yi - 1])
+                {
+                    segments.Add(((xMin, yMin), (xMax, yMin)));
+                }
+
+                if (xi == xCoords.Length - 2 || !occupied[xi + 1, yi])
+                {
+                    segments.Add(((xMax, yMin), (xMax, yMax)));
+                }
+
+                if (yi == yCoords.Length - 2 || !occupied[xi, yi + 1])
+                {
+                    segments.Add(((xMax, yMax), (xMin, yMax)));
+                }
+
+                if (xi == 0 || !occupied[xi - 1, yi])
+                {
+                    segments.Add(((xMin, yMax), (xMin, yMin)));
+                }
+            }
+        }
+
+        if (segments.Count == 0)
+        {
+            failure = "occupied-cell boundary extraction produced no perimeter segments";
+            return false;
+        }
+
+        var outgoing = segments.GroupBy(segment => segment.Start).ToDictionary(group => group.Key, group => group.ToList());
+        if (outgoing.Any(entry => entry.Value.Count != 1))
+        {
+            failure = "occupied-cell perimeter is not a single simple loop";
+            return false;
+        }
+
+        var start = segments[0].Start;
+        var current = start;
+        var visited = new HashSet<((double X, double Y) Start, (double X, double Y) End)>();
+        while (true)
+        {
+            loop.Add(current);
+            if (!outgoing.TryGetValue(current, out var nextSegments) || nextSegments.Count != 1)
+            {
+                failure = "occupied-cell perimeter stitching failed";
+                return false;
+            }
+
+            var nextSegment = nextSegments[0];
+            if (!visited.Add(nextSegment))
+            {
+                failure = "occupied-cell perimeter contains repeated segments";
+                return false;
+            }
+
+            current = nextSegment.End;
+            if (NearlyEqual(current.X, start.X) && NearlyEqual(current.Y, start.Y))
+            {
+                break;
+            }
+        }
+
+        if (visited.Count != segments.Count)
+        {
+            failure = "occupied-cell perimeter contains multiple disjoint loops or holes";
+            return false;
+        }
+
+        var normalized = SimplifyCollinear(loop);
+        var area = ComputeSignedArea(normalized);
+        if (area < 0d)
+        {
+            normalized.Reverse();
+        }
+
+        loop = normalized;
+        return loop.Count >= 4;
+    }
+
+    private static bool IsConcaveCorner(IReadOnlyList<(double X, double Y)> loop, int index, bool isCounterClockwise)
+    {
+        var prev = loop[(index + loop.Count - 1) % loop.Count];
+        var current = loop[index];
+        var next = loop[(index + 1) % loop.Count];
+        var cross = (current.X - prev.X) * (next.Y - current.Y) - (current.Y - prev.Y) * (next.X - current.X);
+        return isCounterClockwise ? cross < -1e-9 : cross > 1e-9;
+    }
+
+    private static bool IsAxisAligned((double X, double Y) vector)
+        => NearlyEqual(vector.X, 0d) || NearlyEqual(vector.Y, 0d);
+
+    private static double ComputeSignedArea(IReadOnlyList<(double X, double Y)> loop)
+    {
+        var area = 0d;
+        for (var i = 0; i < loop.Count; i++)
+        {
+            var current = loop[i];
+            var next = loop[(i + 1) % loop.Count];
+            area += current.X * next.Y - next.X * current.Y;
+        }
+
+        return 0.5d * area;
+    }
+
+    private static List<(double X, double Y)> SimplifyCollinear(IReadOnlyList<(double X, double Y)> loop)
+    {
+        var simplified = new List<(double X, double Y)>(loop.Count);
+        for (var i = 0; i < loop.Count; i++)
+        {
+            var prev = loop[(i + loop.Count - 1) % loop.Count];
+            var current = loop[i];
+            var next = loop[(i + 1) % loop.Count];
+            var cross = (current.X - prev.X) * (next.Y - current.Y) - (current.Y - prev.Y) * (next.X - current.X);
+            if (System.Math.Abs(cross) <= 1e-9)
+            {
+                continue;
+            }
+
+            simplified.Add(current);
+        }
+
+        return simplified;
+    }
+
+    private static bool NearlyEqual(double a, double b)
+        => System.Math.Abs(a - b) <= 1e-9;
 
     private static IReadOnlyList<JudgmentCandidate<BrepBoundedConcaveChamferContext>> BuildInternalConcaveEdgeCandidates()
     {

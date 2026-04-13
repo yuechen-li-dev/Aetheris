@@ -382,6 +382,20 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_Executes_BoundedConcaveChamfer_For_CanonicalLRootInternalEdge()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/e7-valid-chamfer-concave-overlap-lroot.firmament");
+
+        Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
+        var executedBoolean = Assert.Single(
+            result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans,
+            executed => executed.FeatureId == "inner_edge_break");
+        Assert.Equal("inner_edge_break", executedBoolean.FeatureId);
+        Assert.Equal(FirmamentLoweredBooleanKind.Chamfer, executedBoolean.Kind);
+        Assert.Equal(11, executedBoolean.Body.Topology.Faces.Count());
+    }
+
+    [Fact]
     public void Compile_Rejects_BoundedConcaveChamfer_When_Source_Has_NoOccupiedCellMetadata()
     {
         var result = CompileFixture("testdata/firmament/fixtures/e7-invalid-chamfer-concave-lroot-not-implemented.firmament");

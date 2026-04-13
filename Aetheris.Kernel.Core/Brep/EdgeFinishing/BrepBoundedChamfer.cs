@@ -17,6 +17,7 @@ namespace Aetheris.Kernel.Core.Brep.EdgeFinishing;
 public static class BrepBoundedChamfer
 {
     private const string PlanarCornerCutCandidate = "planar_corner_cut";
+    private const string PlanarEdgePairCutCandidate = "planar_edge_pair_cut";
     private const string RejectCandidate = "reject";
 
     public static KernelResult<BrepBody> ChamferAxisAlignedBoxSingleCorner(
@@ -196,6 +197,65 @@ public static class BrepBoundedChamfer
                 IsAdmissible: planarCornerGuard,
                 Score: context => context.AllAdjacentFacesOrthogonal ? 200d : 150d,
                 RejectionReason: context => $"requires a convex planar tri-corner with coherent bounded planar cut and manifold safety (orthogonal={context.AllAdjacentFacesOrthogonal}, acuteAngles={context.AcuteFaceAngleCount}, obtuseAngles={context.ObtuseFaceAngleCount})",
+                TieBreakerPriority: 0),
+            new JudgmentCandidate<BrepBoundedChamferCornerContext>(
+                Name: RejectCandidate,
+                IsAdmissible: _ => true,
+                Score: _ => 0d,
+                RejectionReason: _ => "fallback reject candidate",
+                TieBreakerPriority: 99)
+        ];
+    }
+
+    public static KernelResult<BrepBody> ChamferTrustedPolyhedralIncidentEdgePair(
+        BrepBody sourceBody,
+        BrepBoundedChamferIncidentEdgePairSelector selector,
+        double distance)
+    {
+        var contextResult = BrepBoundedChamferCornerContext.TryCreateFromTrustedBody(sourceBody, selector.Corner, distance);
+        if (!contextResult.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(contextResult.Diagnostics);
+        }
+
+        var context = contextResult.Value;
+        var engine = new JudgmentEngine<BrepBoundedChamferCornerContext>();
+        var candidates = BuildIncidentEdgePairCandidates();
+        var judgment = engine.Evaluate(context, candidates);
+        if (!judgment.IsSuccess || !judgment.Selection.HasValue || judgment.Selection.Value.Candidate.Name == RejectCandidate)
+        {
+            var reason = judgment.Rejections.Count == 0
+                ? "No bounded two-edge corner-resolution candidate was admissible."
+                : string.Join(" ", judgment.Rejections.Select(rejection => $"{rejection.CandidateName}: {rejection.Reason}."));
+            return KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer two-edge corner resolution rejected: {reason}", "firmament.chamfer-bounded")]);
+        }
+
+        return judgment.Selection.Value.Candidate.Name switch
+        {
+            PlanarEdgePairCutCandidate => CreateTrustedPolyhedralSingleCornerPlanarChamferBody(sourceBody, context),
+            _ => KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer two-edge corner resolution selected unsupported candidate '{judgment.Selection.Value.Candidate.Name}'.", "firmament.chamfer-bounded")])
+        };
+    }
+
+    private static IReadOnlyList<JudgmentCandidate<BrepBoundedChamferCornerContext>> BuildIncidentEdgePairCandidates()
+    {
+        var planarGuard = When.All<BrepBoundedChamferCornerContext>(
+            context => context.ParticipatingEdgeCount == 3,
+            context => context.IsConvexCorner,
+            context => context.AllFacesPlanar,
+            context => context.AreChamferDistancesEqual,
+            context => context.IsDistanceWithinLocalBounds,
+            context => context.HasCoherentBoundedPlanarCut,
+            context => context.PreservesManifoldTopology,
+            context => context.Corner == BrepBoundedChamferCorner.XMaxYMaxZMax);
+
+        return
+        [
+            new JudgmentCandidate<BrepBoundedChamferCornerContext>(
+                Name: PlanarEdgePairCutCandidate,
+                IsAdmissible: planarGuard,
+                Score: context => context.AllAdjacentFacesOrthogonal ? 180d : 140d,
+                RejectionReason: _ => "requires convex planar corner with coherent bounded planar cut and manifold safety",
                 TieBreakerPriority: 0),
             new JudgmentCandidate<BrepBoundedChamferCornerContext>(
                 Name: RejectCandidate,

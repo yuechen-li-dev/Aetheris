@@ -303,13 +303,25 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
-    public void Compile_BoundedChamfer_CornerIncidentEdgeSelector_Reaches_Explicit_2EdgeGeometryBlocker()
+    public void Compile_Executes_BoundedChamfer_CornerIncidentEdgeSelector_On_BoxRoot_Into_Real_Body()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m5a-valid-chamfer-corner-incident-edge-selector.firmament");
 
+        Assert.True(result.Compilation.IsSuccess);
+        var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
+        Assert.Equal("corner_pair_break", executedBoolean.FeatureId);
+        Assert.Equal(FirmamentLoweredBooleanKind.Chamfer, executedBoolean.Kind);
+        Assert.Equal(7, executedBoolean.Body.Topology.Faces.Count());
+    }
+
+    [Fact]
+    public void Compile_Rejects_BoundedChamfer_CornerIncidentEdgeSelector_When_Distance_TooLarge()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5a-invalid-chamfer-corner-incident-distance-too-large.firmament");
+
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("selector resolved to a valid local incident-edge pair", StringComparison.Ordinal));
+            diagnostic.Message.Contains("two-edge corner resolution rejected", StringComparison.Ordinal));
     }
 
     [Fact]

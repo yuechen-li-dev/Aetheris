@@ -1,0 +1,23 @@
+firmament:
+  version: 1
+
+model:
+  name: m5a_invalid_chamfer_two_edge_corner_selector
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      20
+      20
+      20
+  -
+    op: chamfer
+    id: edge_break
+    from: base
+    edges[1]:
+      x_max_y_max
+      x_max_y_min
+    distance: 1

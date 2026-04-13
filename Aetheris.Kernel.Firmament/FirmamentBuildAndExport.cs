@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Firmament;
 
 public static class FirmamentBuildAndExport
 {
-    public static KernelResult<FirmamentBuildAndExportResult> Run(string sourcePath)
+    public static KernelResult<FirmamentBuildAndExportResult> Run(string sourcePath, string? outputPath = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
 
@@ -17,14 +17,17 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentBuildAndExportResult>.Failure(exportResult.Diagnostics);
         }
 
-        var outputPath = ResolveDefaultOutputPath(fullSourcePath);
-        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-        File.WriteAllText(outputPath, exportResult.Value.StepText, new UTF8Encoding(false));
+        var resolvedOutputPath = string.IsNullOrWhiteSpace(outputPath)
+            ? ResolveDefaultOutputPath(fullSourcePath)
+            : Path.GetFullPath(outputPath);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(resolvedOutputPath)!);
+        File.WriteAllText(resolvedOutputPath, exportResult.Value.StepText, new UTF8Encoding(false));
 
         return KernelResult<FirmamentBuildAndExportResult>.Success(
             new FirmamentBuildAndExportResult(
                 fullSourcePath,
-                outputPath,
+                resolvedOutputPath,
                 exportResult.Value));
     }
 

@@ -15,6 +15,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aetheris.Server", "Aetheris
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aetheris.Server.Tests", "Aetheris.Server.Tests\Aetheris.Server.Tests.csproj", "{03B71CD1-35E4-453D-BFBF-A62314338316}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aetheris.CLI", "Aetheris.CLI\Aetheris.CLI.csproj", "{3E506C1D-AFF7-4FB2-9208-EEFCD1AE12DC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aetheris.CLI.Tests", "Aetheris.CLI.Tests\Aetheris.CLI.Tests.csproj", "{DEBC8B25-C561-4887-B93F-A5164461AB1E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -48,5 +52,13 @@ Global
 		{03B71CD1-35E4-453D-BFBF-A62314338316}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{03B71CD1-35E4-453D-BFBF-A62314338316}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{03B71CD1-35E4-453D-BFBF-A62314338316}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E506C1D-AFF7-4FB2-9208-EEFCD1AE12DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E506C1D-AFF7-4FB2-9208-EEFCD1AE12DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E506C1D-AFF7-4FB2-9208-EEFCD1AE12DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E506C1D-AFF7-4FB2-9208-EEFCD1AE12DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DEBC8B25-C561-4887-B93F-A5164461AB1E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DEBC8B25-C561-4887-B93F-A5164461AB1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DEBC8B25-C561-4887-B93F-A5164461AB1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DEBC8B25-C561-4887-B93F-A5164461AB1E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

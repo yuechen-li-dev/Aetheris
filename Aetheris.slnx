@@ -9,5 +9,7 @@
     <Build />
     <Deploy />
   </Project>
+  <Project Path="Aetheris.CLI/Aetheris.CLI.csproj" />
+  <Project Path="Aetheris.CLI.Tests/Aetheris.CLI.Tests.csproj" />
   <Project Path="Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj" />
 </Solution>

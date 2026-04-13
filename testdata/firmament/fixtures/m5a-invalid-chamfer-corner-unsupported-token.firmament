@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+
+model:
+  name: m5a_invalid_chamfer_corner_token
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      20
+      10
+  -
+    op: chamfer
+    id: corner_break
+    from: base
+    corners[1]:
+      x_min_y_min_z_min
+    distance: 1.5

@@ -6,6 +6,57 @@ namespace Aetheris.Kernel.Core.Brep.EdgeFinishing;
 /// </summary>
 public static class BrepBoundedEdgeFinishingToolParser
 {
+    public static bool TryParseChamferSelection(
+        IReadOnlyDictionary<string, string> fields,
+        out BrepBoundedChamferEdge? edge,
+        out BrepBoundedChamferCorner? corner,
+        out string error)
+    {
+        edge = null;
+        corner = null;
+        error = string.Empty;
+
+        var hasEdges = fields.TryGetValue("edges", out var edgesRaw) && !string.IsNullOrWhiteSpace(edgesRaw);
+        var hasCorners = fields.TryGetValue("corners", out var cornersRaw) && !string.IsNullOrWhiteSpace(cornersRaw);
+        if (hasEdges == hasCorners)
+        {
+            error = "provide exactly one of edges or corners";
+            return false;
+        }
+
+        if (hasEdges)
+        {
+            if (!TryParseChamferEdge(fields, out var parsedEdge, out error))
+            {
+                return false;
+            }
+
+            edge = parsedEdge;
+            return true;
+        }
+
+        var tokens = ParseSingleTokenArray(cornersRaw!, out error);
+        if (tokens is null)
+        {
+            return false;
+        }
+
+        if (tokens.Length != 1)
+        {
+            error = "bounded E2 supports exactly one explicit corner token";
+            return false;
+        }
+
+        if (tokens[0] is not "x_max_y_max_z_max")
+        {
+            error = "supported corner tokens are x_max_y_max_z_max";
+            return false;
+        }
+
+        corner = BrepBoundedChamferCorner.XMaxYMaxZMax;
+        return true;
+    }
+
     public static bool TryParseChamferEdge(
         IReadOnlyDictionary<string, string> fields,
         out BrepBoundedChamferEdge edge,

@@ -751,7 +751,7 @@ internal static class FirmamentPrimitiveExecutor
             ]);
         }
 
-        if (!BrepBoundedEdgeFinishingToolParser.TryParseChamferEdge(boolean.Tool.RawFields, out var edge, out var edgeError))
+        if (!BrepBoundedEdgeFinishingToolParser.TryParseChamferSelection(boolean.Tool.RawFields, out var edge, out var corner, out var edgeError))
         {
             return KernelResult<BrepBody>.Failure(
             [
@@ -763,7 +763,24 @@ internal static class FirmamentPrimitiveExecutor
             ]);
         }
 
-        return BrepBoundedChamfer.ChamferAxisAlignedBoxVerticalEdge(box, edge, distance);
+        if (edge.HasValue)
+        {
+            return BrepBoundedChamfer.ChamferAxisAlignedBoxVerticalEdge(box, edge.Value, distance);
+        }
+
+        if (corner.HasValue)
+        {
+            return BrepBoundedChamfer.ChamferAxisAlignedBoxSingleCorner(box, corner.Value, distance);
+        }
+
+        return KernelResult<BrepBody>.Failure(
+        [
+            new KernelDiagnostic(
+                KernelDiagnosticCode.ValidationFailed,
+                KernelDiagnosticSeverity.Error,
+                "Bounded chamfer expected either one edge or one corner selection token.",
+                Source: "firmament.chamfer-bounded")
+        ]);
     }
 
     private static KernelResult<BrepBody> ExecuteBoundedManufacturingFilletOnRecognizedOrthogonalRoot(

@@ -38,6 +38,7 @@ public static class StepAnalyzer
             ["cone"] = 0,
             ["sphere"] = 0,
             ["torus"] = 0,
+            ["bspline"] = 0,
             ["other"] = 0
         };
 
@@ -56,6 +57,7 @@ public static class StepAnalyzer
                 case SurfaceGeometryKind.Cone: surfaceFamilies["cone"]++; break;
                 case SurfaceGeometryKind.Sphere: surfaceFamilies["sphere"]++; break;
                 case SurfaceGeometryKind.Torus: surfaceFamilies["torus"]++; break;
+                case SurfaceGeometryKind.BSplineSurfaceWithKnots: surfaceFamilies["bspline"]++; break;
                 default: surfaceFamilies["other"]++; break;
             }
         }
@@ -66,11 +68,11 @@ public static class StepAnalyzer
             notes.Add("Bounding box unavailable because one or more vertices did not expose XYZ coordinates.");
         }
 
-        var edgeFaces = BuildEdgeFaceAdjacency(body);
-        var leakyEdges = edgeFaces.Count(kvp => kvp.Value.Count == 1);
-        var nonManifoldEdges = edgeFaces.Count(kvp => kvp.Value.Count != 2);
+        var edgeUseCounts = BuildEdgeFaceIncidenceCounts(body);
+        var leakyEdges = edgeUseCounts.Count(kvp => kvp.Value == 1);
+        var nonManifoldEdges = edgeUseCounts.Count(kvp => kvp.Value != 2);
         var structural = nonManifoldEdges == 0 ? "enclosed-manifold" : (leakyEdges > 0 ? "leaky-or-open" : "non-manifold");
-        var basis = "derived from imported topology edge-to-face adjacency counts";
+        var basis = "derived from imported topology edge-to-face coedge incidence counts";
 
         return new AnalyzeSummary(
             topology.Bodies.Count(),
@@ -114,33 +116,57 @@ public static class StepAnalyzer
 
         if (!body.TryGetFaceSurface(faceId, out var surface) || surface is null)
         {
-            return new FaceDetail(faceId.Value, "unknown", bbox, rep, null, null, null, null, edgeIds);
+            return new FaceDetail(faceId.Value, "unknown", bbox, rep, null, null, null, null, null, null, null, null, null, edgeIds);
         }
 
+        Point3D? anchor = null;
+        Point3D? apex = null;
         Vector3D? normal = null;
         Vector3D? axis = null;
         double? radius = null;
+        double? placementRadius = null;
+        double? majorRadius = null;
+        double? minorRadius = null;
         double? semiAngle = null;
 
         if (surface.Plane is { } plane)
         {
+            anchor = plane.Origin;
             normal = plane.Normal.ToVector();
         }
 
         if (surface.Cylinder is { } cylinder)
         {
+            anchor = cylinder.Origin;
             axis = cylinder.Axis.ToVector();
             radius = cylinder.Radius;
         }
 
         if (surface.Cone is { } cone)
         {
+            anchor = cone.PlacementOrigin;
+            apex = cone.Apex;
             axis = cone.Axis.ToVector();
             semiAngle = cone.SemiAngleRadians;
-            radius = cone.PlacementRadius;
+            placementRadius = cone.PlacementRadius;
         }
 
-        return new FaceDetail(faceId.Value, surface.Kind.ToString(), bbox, rep, normal, axis, radius, semiAngle, edgeIds);
+        if (surface.Sphere is { } sphere)
+        {
+            anchor = sphere.Center;
+            axis = sphere.Axis.ToVector();
+            radius = sphere.Radius;
+        }
+
+        if (surface.Torus is { } torus)
+        {
+            anchor = torus.Center;
+            axis = torus.Axis.ToVector();
+            majorRadius = torus.MajorRadius;
+            minorRadius = torus.MinorRadius;
+        }
+
+        return new FaceDetail(faceId.Value, surface.Kind.ToString(), bbox, rep, anchor, apex, normal, axis, radius, placementRadius, majorRadius, minorRadius, semiAngle, edgeIds);
     }
 
     private static EdgeDetail BuildEdgeDetail(BrepBody body, EdgeId edgeId, ICollection<string> notes)
@@ -151,17 +177,31 @@ public static class StepAnalyzer
         }
 
         var curveType = "unknown";
-        double? length = null;
+        double? parameterRange = null;
+        double? arcLength = null;
         if (body.Bindings.TryGetEdgeBinding(edgeId, out var binding))
         {
             curveType = binding.TrimInterval is null ? "untrimmed" : "trimmed";
-            length = binding.TrimInterval is { } interval ? interval.End - interval.Start : null;
+            parameterRange = binding.TrimInterval is { } interval ? interval.End - interval.Start : null;
 
             if (body.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve) && curve is not null)
             {
                 curveType = curve.Kind == CurveGeometryKind.Unsupported
                     ? $"Unsupported({curve.UnsupportedKind ?? "unknown"})"
                     : curve.Kind.ToString();
+
+                if (binding.TrimInterval is { } trim)
+                {
+                    switch (curve.Kind)
+                    {
+                        case CurveGeometryKind.Line3:
+                            arcLength = double.Abs(trim.End - trim.Start);
+                            break;
+                        case CurveGeometryKind.Circle3 when curve.Circle3 is { } circle:
+                            arcLength = circle.Radius * double.Abs(trim.End - trim.Start);
+                            break;
+                    }
+                }
             }
         }
         else
@@ -176,7 +216,7 @@ public static class StepAnalyzer
             ? faces.Select(id => id.Value).OrderBy(v => v).ToArray()
             : [];
 
-        return new EdgeDetail(edgeId.Value, curveType, edge.StartVertexId.Value, startPoint, edge.EndVertexId.Value, endPoint, adjacentFaces, length);
+        return new EdgeDetail(edgeId.Value, curveType, edge.StartVertexId.Value, startPoint, edge.EndVertexId.Value, endPoint, adjacentFaces, parameterRange, arcLength);
     }
 
     private static VertexDetail BuildVertexDetail(BrepBody body, VertexId vertexId, ICollection<string> notes)
@@ -255,5 +295,34 @@ public static class StepAnalyzer
         }
 
         return edgeFaces;
+    }
+
+    private static Dictionary<EdgeId, int> BuildEdgeFaceIncidenceCounts(BrepBody body)
+    {
+        var edgeCounts = new Dictionary<EdgeId, int>();
+
+        foreach (var face in body.Topology.Faces)
+        {
+            foreach (var loopId in face.LoopIds)
+            {
+                if (!body.Topology.TryGetLoop(loopId, out var loop) || loop is null)
+                {
+                    continue;
+                }
+
+                foreach (var coedgeId in loop.CoedgeIds)
+                {
+                    if (!body.Topology.TryGetCoedge(coedgeId, out var coedge) || coedge is null)
+                    {
+                        continue;
+                    }
+
+                    edgeCounts.TryGetValue(coedge.EdgeId, out var count);
+                    edgeCounts[coedge.EdgeId] = count + 1;
+                }
+            }
+        }
+
+        return edgeCounts;
     }
 }

@@ -17,10 +17,11 @@ namespace Aetheris.Kernel.Core.Brep;
 public static class BrepPrimitives
 {
     /// <summary>
-    /// Bounded M3 triangular prism primitive.
-    /// Profile frame is XY, extrusion is world +Z, and the triangle base is centered about origin:
+    /// Bounded M3 triangular prism primitive with a centered isosceles profile.
+    /// Profile frame is XY, extrusion is world +Z, and the local profile vertices are:
     /// (-baseWidth/2,-baseDepth/2), (+baseWidth/2,-baseDepth/2), (0,+baseDepth/2).
     /// Legacy body is centered on Z in [-height/2,+height/2].
+    /// This primitive is intentionally not a right-triangle contract.
     /// </summary>
     public static KernelResult<BrepBody> CreateTriangularPrism(double baseWidth, double baseDepth, double height)
     {

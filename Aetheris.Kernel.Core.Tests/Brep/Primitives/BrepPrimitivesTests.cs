@@ -1,6 +1,7 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Primitives;
 
@@ -212,6 +213,56 @@ public sealed class BrepPrimitivesTests
             var surface = body.GetFaceSurface(face.Id);
             Assert.Equal(SurfaceGeometryKind.Plane, surface.Kind);
         });
+    }
+
+    [Fact]
+    public void CreateTriangularPrism_UsesCenteredIsoscelesProfileContract()
+    {
+        var result = BrepPrimitives.CreateTriangularPrism(8d, 6d, 10d);
+
+        Assert.True(result.IsSuccess);
+        var step = Step242Exporter.ExportBody(result.Value);
+        Assert.True(step.IsSuccess);
+        var imported = Step242Importer.ImportBody(step.Value);
+        Assert.True(imported.IsSuccess);
+        var body = imported.Value;
+
+        var vertices = body.Topology.Vertices
+            .Select(vertex =>
+            {
+                Assert.True(body.TryGetVertexPoint(vertex.Id, out var point));
+                return point;
+            })
+            .OrderBy(point => point.Z)
+            .ThenBy(point => point.Y)
+            .ThenBy(point => point.X)
+            .ToArray();
+
+        Assert.Equal(6, vertices.Length);
+        Assert.Equal(-4d, vertices.Min(p => p.X), 8);
+        Assert.Equal(4d, vertices.Max(p => p.X), 8);
+        Assert.Equal(-3d, vertices.Min(p => p.Y), 8);
+        Assert.Equal(3d, vertices.Max(p => p.Y), 8);
+        Assert.Equal(-5d, vertices.Min(p => p.Z), 8);
+        Assert.Equal(5d, vertices.Max(p => p.Z), 8);
+
+        var expected = new (double X, double Y, double Z)[]
+        {
+            (-4d, -3d, -5d),
+            (4d, -3d, -5d),
+            (0d, 3d, -5d),
+            (-4d, -3d, 5d),
+            (4d, -3d, 5d),
+            (0d, 3d, 5d),
+        };
+
+        Assert.Equal(expected.Length, vertices.Length);
+        for (var index = 0; index < expected.Length; index++)
+        {
+            Assert.Equal(expected[index].X, vertices[index].X, 8);
+            Assert.Equal(expected[index].Y, vertices[index].Y, 8);
+            Assert.Equal(expected[index].Z, vertices[index].Z, 8);
+        }
     }
 
     [Fact]

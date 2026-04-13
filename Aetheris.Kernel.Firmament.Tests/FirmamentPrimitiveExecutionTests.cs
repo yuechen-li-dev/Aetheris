@@ -303,13 +303,13 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
-    public void Compile_Rejects_BoundedChamfer_TwoEdgeCornerPair_When_Tokens_Do_Not_Name_Incident_VertexEdges()
+    public void Compile_BoundedChamfer_CornerIncidentEdgeSelector_Reaches_Explicit_2EdgeGeometryBlocker()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/m5a-invalid-chamfer-two-edge-corner-selector.firmament");
+        var result = CompileFixture("testdata/firmament/fixtures/m5a-valid-chamfer-corner-incident-edge-selector.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("requires a selector family that names two incident edges at one vertex", StringComparison.Ordinal));
+            diagnostic.Message.Contains("selector resolved to a valid local incident-edge pair", StringComparison.Ordinal));
     }
 
     [Fact]

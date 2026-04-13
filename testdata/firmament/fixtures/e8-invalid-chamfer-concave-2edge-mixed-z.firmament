@@ -1,0 +1,54 @@
+firmament:
+  version: 1
+
+model:
+  name: e8_invalid_chamfer_concave_2edge_mixed_z
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: base
+    size[3]:
+      12
+      4
+      10
+  -
+    op: add
+    id: mid
+    to: base
+    with:
+      op: box
+      size[3]:
+        6
+        2
+        10
+    place:
+      on: origin
+      offset[3]:
+        0
+        4
+        0
+  -
+    op: add
+    id: croot
+    to: mid
+    with:
+      op: box
+      size[3]:
+        12
+        2
+        10
+    place:
+      on: origin
+      offset[3]:
+        0
+        6
+        0
+  -
+    op: chamfer
+    id: inner_pair_interaction
+    from: croot
+    edges[1]:
+      inner_x_min_y_min
+    distance: 1.2

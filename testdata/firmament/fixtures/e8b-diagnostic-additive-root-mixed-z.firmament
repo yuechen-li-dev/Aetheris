@@ -2,10 +2,10 @@ firmament:
   version: 1
 
 model:
-  name: e8_valid_chamfer_concave_2edge_interaction
+  name: e8b_diagnostic_additive_root_mixed_z
   units: mm
 
-ops[4]:
+ops[3]:
   -
     op: box
     id: base
@@ -45,10 +45,3 @@ ops[4]:
         0
         6
         0
-  -
-    op: chamfer
-    id: inner_pair_interaction
-    from: croot
-    edges[1]:
-      inner_x_min_y_min
-    distance: 1.2

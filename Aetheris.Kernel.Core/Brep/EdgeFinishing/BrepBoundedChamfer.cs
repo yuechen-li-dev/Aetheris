@@ -95,6 +95,13 @@ public static class BrepBoundedChamfer
         BrepBoundedChamferEdge edge,
         double distance)
     {
+        if (edge.IsInternalConcaveToken())
+        {
+            return KernelResult<BrepBody>.Failure([Failure(
+                "Bounded chamfer box-edge mode supports only external convex edge tokens; internal concave edge tokens require trusted occupied-cell concave-edge mode.",
+                "firmament.chamfer-bounded")]);
+        }
+
         if (!double.IsFinite(distance) || distance <= 0d)
         {
             return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer distance must be finite and greater than 0.", "firmament.chamfer-bounded")]);
@@ -125,6 +132,42 @@ public static class BrepBoundedChamfer
             normal: Direction3D.Create(new Vector3D(0d, 0d, 1d)),
             uAxis: Direction3D.Create(new Vector3D(1d, 0d, 0d)));
         return BrepExtrude.Create(profile, frame, sizeZ);
+    }
+
+    public static KernelResult<BrepBody> ChamferTrustedPolyhedralSingleInternalConcaveEdge(
+        BrepBody sourceBody,
+        BrepBoundedChamferEdge edge,
+        double distance)
+    {
+        var preflight = BrepBoundedConcaveChamferPreflight.ResolveInternalConcaveVerticalEdge(sourceBody.SafeBooleanComposition, edge, distance);
+        if (!preflight.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(preflight.Diagnostics);
+        }
+
+        var context = new BrepBoundedConcaveChamferContext(
+            IsPlanarPolyhedralSource: sourceBody.Bindings.FaceBindings.All(binding =>
+            {
+                var surface = sourceBody.Geometry.GetSurface(binding.SurfaceGeometryId);
+                return surface.Kind == SurfaceGeometryKind.Plane;
+            }),
+            IsSingleEdgeSelection: true,
+            IsEqualDistance: true,
+            IsBoundedDistance: distance < preflight.Value.MaxAllowedDistance);
+        var engine = new JudgmentEngine<BrepBoundedConcaveChamferContext>();
+        var judgment = engine.Evaluate(context, BuildInternalConcaveEdgeCandidates());
+        var selected = judgment.Selection?.Candidate.Name ?? RejectCandidate;
+        if (!judgment.IsSuccess || selected == RejectCandidate)
+        {
+            var reason = judgment.Rejections.Count == 0
+                ? "No bounded internal concave edge candidate was admissible."
+                : string.Join(" ", judgment.Rejections.Select(rejection => $"{rejection.CandidateName}: {rejection.Reason}."));
+            return KernelResult<BrepBody>.Failure([Failure($"Bounded concave edge resolution rejected: {reason}", "firmament.chamfer-bounded")]);
+        }
+
+        return KernelResult<BrepBody>.Failure([Failure(
+            "Bounded concave edge preflight succeeded, but local loop rewrite construction is not yet implemented for this milestone slice.",
+            "firmament.chamfer-bounded")]);
     }
 
     private static PolylineProfile2D BuildProfile(AxisAlignedBoxExtents box, BrepBoundedChamferEdge edge, double d)
@@ -178,6 +221,31 @@ public static class BrepBoundedChamfer
 
     private static KernelDiagnostic Failure(string message, string source)
         => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, Source: source);
+
+    private static IReadOnlyList<JudgmentCandidate<BrepBoundedConcaveChamferContext>> BuildInternalConcaveEdgeCandidates()
+    {
+        var boundedConcavePlanarGuard = When.All<BrepBoundedConcaveChamferContext>(
+            context => context.IsPlanarPolyhedralSource,
+            context => context.IsSingleEdgeSelection,
+            context => context.IsEqualDistance,
+            context => context.IsBoundedDistance);
+
+        return
+        [
+            new JudgmentCandidate<BrepBoundedConcaveChamferContext>(
+                Name: "planar_internal_concave_edge_cut",
+                IsAdmissible: boundedConcavePlanarGuard,
+                Score: _ => 100d,
+                RejectionReason: _ => "requires planar trusted-polyhedral source with one bounded internal concave edge and equal distance",
+                TieBreakerPriority: 0),
+            new JudgmentCandidate<BrepBoundedConcaveChamferContext>(
+                Name: RejectCandidate,
+                IsAdmissible: _ => true,
+                Score: _ => 0d,
+                RejectionReason: _ => "fallback reject candidate",
+                TieBreakerPriority: 99)
+        ];
+    }
 
     private static IReadOnlyList<JudgmentCandidate<BrepBoundedChamferCornerContext>> BuildCornerCandidates()
     {
@@ -1381,7 +1449,20 @@ public enum BrepBoundedChamferEdge
     XMinYMin,
     XMinYMax,
     XMaxYMin,
-    XMaxYMax
+    XMaxYMax,
+    InnerXMinYMin,
+    InnerXMinYMax,
+    InnerXMaxYMin,
+    InnerXMaxYMax
+}
+
+public static class BrepBoundedChamferEdgeExtensions
+{
+    public static bool IsInternalConcaveToken(this BrepBoundedChamferEdge edge)
+        => edge is BrepBoundedChamferEdge.InnerXMinYMin
+            or BrepBoundedChamferEdge.InnerXMinYMax
+            or BrepBoundedChamferEdge.InnerXMaxYMin
+            or BrepBoundedChamferEdge.InnerXMaxYMax;
 }
 
 public enum BrepBoundedChamferCornerIncidentEdge
@@ -1395,3 +1476,9 @@ public readonly record struct BrepBoundedChamferIncidentEdgePairSelector(
     BrepBoundedChamferCorner Corner,
     BrepBoundedChamferCornerIncidentEdge First,
     BrepBoundedChamferCornerIncidentEdge Second);
+
+internal readonly record struct BrepBoundedConcaveChamferContext(
+    bool IsPlanarPolyhedralSource,
+    bool IsSingleEdgeSelection,
+    bool IsEqualDistance,
+    bool IsBoundedDistance);

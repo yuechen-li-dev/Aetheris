@@ -179,12 +179,17 @@ public static class BrepBoundedEdgeFinishingToolParser
                 "x_min_y_max" => BrepBoundedChamferEdge.XMinYMax,
                 "x_max_y_min" => BrepBoundedChamferEdge.XMaxYMin,
                 "x_max_y_max" => BrepBoundedChamferEdge.XMaxYMax,
+                "inner_x_min_y_min" => BrepBoundedChamferEdge.InnerXMinYMin,
+                "inner_x_min_y_max" => BrepBoundedChamferEdge.InnerXMinYMax,
+                "inner_x_max_y_min" => BrepBoundedChamferEdge.InnerXMaxYMin,
+                "inner_x_max_y_max" => BrepBoundedChamferEdge.InnerXMaxYMax,
                 _ => default
             };
 
-            if (tokens[i] is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"))
+            if (tokens[i] is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"
+                or "inner_x_min_y_min" or "inner_x_min_y_max" or "inner_x_max_y_min" or "inner_x_max_y_max"))
             {
-                error = "supported tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max";
+                error = "supported tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max, inner_x_min_y_min, inner_x_min_y_max, inner_x_max_y_min, inner_x_max_y_max";
                 return false;
             }
         }

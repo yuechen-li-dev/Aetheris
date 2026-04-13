@@ -382,6 +382,17 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_Rejects_BoundedConcaveChamfer_When_Source_Has_NoOccupiedCellMetadata()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/e7-invalid-chamfer-concave-lroot-not-implemented.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Source == "firmament.chamfer-bounded"
+            && diagnostic.Message.Contains("occupied-cell additive-root metadata", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Compile_BoundedFilletCanonicalInternalCase_Reaches_Narrow_TruthfulRebuildBlocker()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m5b-canonical-internal-fillet-lroot.firmament");

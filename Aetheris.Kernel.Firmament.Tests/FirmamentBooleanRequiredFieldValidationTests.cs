@@ -225,7 +225,7 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
                 distance: 1
             """,
             FirmamentDiagnosticCodes.BooleanInvalidFieldValue,
-            "Boolean op 'chamfer' at index 1 has invalid field 'edges'; supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max.");
+            "Boolean op 'chamfer' at index 1 has invalid field 'edges'; supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max, inner_x_min_y_min, inner_x_min_y_max, inner_x_max_y_min, inner_x_max_y_max.");
 
     [Fact]
     public void Compiler_Rejects_ChamferCornerIncidentEdgeSelector_DuplicateEdgeToken() =>

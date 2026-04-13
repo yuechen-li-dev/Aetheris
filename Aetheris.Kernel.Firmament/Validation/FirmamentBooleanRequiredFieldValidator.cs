@@ -217,9 +217,10 @@ internal static class FirmamentBooleanRequiredFieldValidator
                 return InvalidFieldTypeOrShape("edges", opIndex, entry.OpName, "expected a single-item string array with one explicit edge token");
             }
 
-            if (edgeTokens.Any(token => token is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max")))
+            if (edgeTokens.Any(token => token is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"
+                or "inner_x_min_y_min" or "inner_x_min_y_max" or "inner_x_max_y_min" or "inner_x_max_y_max")))
             {
-                return InvalidFieldValue("edges", opIndex, entry.OpName, "supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max");
+                return InvalidFieldValue("edges", opIndex, entry.OpName, "supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max, inner_x_min_y_min, inner_x_min_y_max, inner_x_max_y_min, inner_x_max_y_max");
             }
         }
         else

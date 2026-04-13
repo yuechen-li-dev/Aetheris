@@ -752,6 +752,25 @@ internal static class FirmamentPrimitiveExecutor
 
         if (edge.HasValue)
         {
+            if (edge.Value.IsInternalConcaveToken())
+            {
+                if (sourceState is not (FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveSafeRoot
+                    or FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveOutsideSafeRoot
+                    or FirmamentSafeSubtractFeatureGraphState.SafeSubtractComposition))
+                {
+                    return KernelResult<BrepBody>.Failure(
+                    [
+                        new KernelDiagnostic(
+                            KernelDiagnosticCode.ValidationFailed,
+                            KernelDiagnosticSeverity.Error,
+                            $"Bounded concave chamfer edge mode requires a recognized occupied-cell additive or safe-subtract composition root input; '{boolean.PrimaryReferenceFeatureId}' is not eligible.",
+                            Source: "firmament.chamfer-bounded")
+                    ]);
+                }
+
+                return BrepBoundedChamfer.ChamferTrustedPolyhedralSingleInternalConcaveEdge(baseBody, edge.Value, distance);
+            }
+
             if (sourceState is not (FirmamentSafeSubtractFeatureGraphState.BoxRoot or FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveSafeRoot))
             {
                 return KernelResult<BrepBody>.Failure(

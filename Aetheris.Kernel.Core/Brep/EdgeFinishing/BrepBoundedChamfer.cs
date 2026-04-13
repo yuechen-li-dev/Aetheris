@@ -232,7 +232,7 @@ public static class BrepBoundedChamfer
 
         return judgment.Selection.Value.Candidate.Name switch
         {
-            PlanarEdgePairCutCandidate => CreateTrustedPolyhedralSingleCornerPlanarChamferBody(sourceBody, context),
+            PlanarEdgePairCutCandidate => CreateTrustedPolyhedralIncidentEdgePairPlanarChamferBody(sourceBody, context, selector),
             _ => KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer two-edge corner resolution selected unsupported candidate '{judgment.Selection.Value.Candidate.Name}'.", "firmament.chamfer-bounded")])
         };
     }
@@ -388,6 +388,57 @@ public static class BrepBoundedChamfer
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
     }
 
+    internal static bool TryResolveCornerIncidentEdgesByToken(
+        BrepBody sourceBody,
+        VertexId cornerVertex,
+        Point3D cornerPoint,
+        out Dictionary<BrepBoundedChamferCornerIncidentEdge, Edge> byToken,
+        out string reason)
+    {
+        byToken = new Dictionary<BrepBoundedChamferCornerIncidentEdge, Edge>(3);
+        reason = "could not resolve incident corner edges";
+        var scoreByToken = new Dictionary<BrepBoundedChamferCornerIncidentEdge, double>();
+        const double eps = 1e-8d;
+        foreach (var edge in sourceBody.Topology.Edges.Where(edge => edge.StartVertexId == cornerVertex || edge.EndVertexId == cornerVertex))
+        {
+            var otherVertex = edge.StartVertexId == cornerVertex ? edge.EndVertexId : edge.StartVertexId;
+            if (!BrepBoundedChamferCornerContext.TryResolveVertexPoint(sourceBody, otherVertex, out var otherPoint))
+            {
+                reason = "source body is missing explicit resolvable points for incident edge vertices";
+                return false;
+            }
+
+            var vector = otherPoint - cornerPoint;
+            var candidates = new List<(BrepBoundedChamferCornerIncidentEdge Token, double Score)>(3);
+            if (vector.X < -eps)
+            {
+                candidates.Add((BrepBoundedChamferCornerIncidentEdge.XNegative, -vector.X));
+            }
+
+            if (vector.Y < -eps)
+            {
+                candidates.Add((BrepBoundedChamferCornerIncidentEdge.YNegative, -vector.Y));
+            }
+
+            if (vector.Z < -eps)
+            {
+                candidates.Add((BrepBoundedChamferCornerIncidentEdge.ZNegative, -vector.Z));
+            }
+
+            foreach (var candidate in candidates)
+            {
+                if (!scoreByToken.TryGetValue(candidate.Token, out var existing) || candidate.Score > existing)
+                {
+                    scoreByToken[candidate.Token] = candidate.Score;
+                    byToken[candidate.Token] = edge;
+                }
+            }
+        }
+
+        reason = string.Empty;
+        return true;
+    }
+
     private static FaceId AddFaceWithLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)
     {
         var loopId = builder.AllocateLoopId();
@@ -414,6 +465,152 @@ public static class BrepBoundedChamfer
         public static EdgeUse Reversed(EdgeId edgeId) => new(edgeId, true);
     }
 
+
+    private static KernelResult<BrepBody> CreateTrustedPolyhedralIncidentEdgePairPlanarChamferBody(
+        BrepBody sourceBody,
+        BrepBoundedChamferCornerContext context,
+        BrepBoundedChamferIncidentEdgePairSelector selector)
+    {
+        if (!BrepBoundedChamferCornerContext.TryResolveMaxCornerVertex(sourceBody, out var cornerVertex, out var cornerPoint, out var reason))
+        {
+            return KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer two-edge corner construction rejected: {reason}.", "firmament.chamfer-bounded")]);
+        }
+
+        if (!TryResolveCornerIncidentEdgesByToken(sourceBody, cornerVertex, cornerPoint, out var edgeByToken, out reason))
+        {
+            return KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer two-edge corner construction rejected: {reason}.", "firmament.chamfer-bounded")]);
+        }
+
+        if (!edgeByToken.TryGetValue(selector.First, out var firstEdge)
+            || !edgeByToken.TryGetValue(selector.Second, out var secondEdge))
+        {
+            return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer two-edge corner construction rejected: selected edges were not resolved at the selected corner.", "firmament.chamfer-bounded")]);
+        }
+
+        var selectedEdgeIds = new HashSet<EdgeId> { firstEdge.Id, secondEdge.Id };
+
+        var vertexPoints = sourceBody.Topology.Vertices
+            .Where(vertex => BrepBoundedChamferCornerContext.TryResolveVertexPoint(sourceBody, vertex.Id, out _))
+            .ToDictionary(
+                vertex => VertexToken.FromVertex(vertex.Id),
+                vertex =>
+                {
+                    BrepBoundedChamferCornerContext.TryResolveVertexPoint(sourceBody, vertex.Id, out var point);
+                    return point;
+                });
+        if (vertexPoints.Count != sourceBody.Topology.Vertices.ToArray().Length)
+        {
+            return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer two-edge corner construction requires explicit resolvable points for every source body vertex.", "firmament.chamfer-bounded")]);
+        }
+
+        var splitVertexByIncidentEdge = new Dictionary<EdgeId, VertexToken>(2);
+        foreach (var edgeId in selectedEdgeIds)
+        {
+            var edge = sourceBody.Topology.Edges.First(candidate => candidate.Id == edgeId);
+            var otherVertex = edge.StartVertexId == cornerVertex ? edge.EndVertexId : edge.StartVertexId;
+            var otherToken = VertexToken.FromVertex(otherVertex);
+            var otherPoint = vertexPoints[otherToken];
+            var edgeVector = otherPoint - cornerPoint;
+            var edgeLength = edgeVector.Length;
+            if (!double.IsFinite(edgeLength) || edgeLength <= context.Distance)
+            {
+                return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer two-edge corner construction rejected: corner distance is too large for one or more selected incident edges.", "firmament.chamfer-bounded")]);
+            }
+
+            var splitRatio = (edgeLength - context.Distance) / edgeLength;
+            var splitPoint = cornerPoint + (edgeVector * splitRatio);
+            var splitToken = VertexToken.FromSplitEdge(edge.Id);
+            vertexPoints[splitToken] = splitPoint;
+            splitVertexByIncidentEdge[edge.Id] = splitToken;
+        }
+
+        var rewrittenFaces = new List<IReadOnlyList<VertexToken>>();
+        foreach (var face in sourceBody.Topology.Faces)
+        {
+            if (face.LoopIds.Count != 1 || !sourceBody.Topology.TryGetLoop(face.LoopIds[0], out var loop) || loop is null)
+            {
+                return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer two-edge corner construction currently supports only single-loop planar face participation.", "firmament.chamfer-bounded")]);
+            }
+
+            var cycle = TryGetLoopVertexCycle(sourceBody, loop);
+            if (cycle is null || cycle.Count < 3)
+            {
+                return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer two-edge corner construction failed to resolve a coherent loop cycle from source topology.", "firmament.chamfer-bounded")]);
+            }
+
+            var cornerIndex = cycle.FindIndex(vertexId => vertexId == cornerVertex);
+            if (cornerIndex < 0)
+            {
+                rewrittenFaces.Add(cycle.Select(VertexToken.FromVertex).ToArray());
+                continue;
+            }
+
+            var previousVertex = cycle[(cornerIndex + cycle.Count - 1) % cycle.Count];
+            var nextVertex = cycle[(cornerIndex + 1) % cycle.Count];
+            var previousEdge = sourceBody.Topology.Edges.FirstOrDefault(edge =>
+                (edge.StartVertexId == cornerVertex && edge.EndVertexId == previousVertex)
+                || (edge.EndVertexId == cornerVertex && edge.StartVertexId == previousVertex));
+            var nextEdge = sourceBody.Topology.Edges.FirstOrDefault(edge =>
+                (edge.StartVertexId == cornerVertex && edge.EndVertexId == nextVertex)
+                || (edge.EndVertexId == cornerVertex && edge.StartVertexId == nextVertex));
+            if (previousEdge == default || nextEdge == default)
+            {
+                return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer two-edge corner construction could not resolve local face edges for participating rewrite.", "firmament.chamfer-bounded")]);
+            }
+
+            var hasPreviousSelection = splitVertexByIncidentEdge.TryGetValue(previousEdge.Id, out var splitPrevious);
+            var hasNextSelection = splitVertexByIncidentEdge.TryGetValue(nextEdge.Id, out var splitNext);
+            var rewritten = new List<VertexToken>(cycle.Count + 1);
+            for (var i = 0; i < cycle.Count; i++)
+            {
+                if (i == cornerIndex)
+                {
+                    if (hasPreviousSelection)
+                    {
+                        rewritten.Add(splitPrevious);
+                    }
+
+                    if (!hasPreviousSelection || !hasNextSelection)
+                    {
+                        rewritten.Add(VertexToken.FromVertex(cycle[i]));
+                    }
+
+                    if (hasNextSelection)
+                    {
+                        rewritten.Add(splitNext);
+                    }
+
+                    continue;
+                }
+
+                rewritten.Add(VertexToken.FromVertex(cycle[i]));
+            }
+
+            rewrittenFaces.Add(rewritten);
+        }
+
+        var cutFace = new List<VertexToken>
+        {
+            splitVertexByIncidentEdge[firstEdge.Id],
+            splitVertexByIncidentEdge[secondEdge.Id],
+            VertexToken.FromVertex(cornerVertex)
+        };
+        var interiorPoint = new Point3D(
+            vertexPoints.Values.Average(point => point.X),
+            vertexPoints.Values.Average(point => point.Y),
+            vertexPoints.Values.Average(point => point.Z));
+        OrientCutFaceOutward(cutFace, vertexPoints, interiorPoint);
+        rewrittenFaces.Add(cutFace);
+
+        var localRewriteResult = BuildPolyhedralBodyFromFaces(rewrittenFaces, vertexPoints);
+        if (localRewriteResult.IsSuccess)
+        {
+            return localRewriteResult;
+        }
+
+        return CreateTrustedPolyhedralSingleCornerPlanarChamferBody(sourceBody, context);
+    }
+
     private static KernelResult<BrepBody> CreateTrustedPolyhedralSingleCornerPlanarChamferBody(
         BrepBody sourceBody,
         BrepBoundedChamferCornerContext context)
@@ -432,7 +629,7 @@ public static class BrepBoundedChamfer
                     BrepBoundedChamferCornerContext.TryResolveVertexPoint(sourceBody, vertex.Id, out var point);
                     return point;
                 });
-        if (vertexPoints.Count != sourceBody.Topology.Vertices.Count())
+        if (vertexPoints.Count != sourceBody.Topology.Vertices.ToArray().Length)
         {
             return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer corner construction requires explicit resolvable points for every source body vertex.", "firmament.chamfer-bounded")]);
         }
@@ -993,22 +1190,9 @@ public readonly record struct BrepBoundedChamferCornerContext(
             return KernelResult<bool>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, $"Bounded chamfer corner-edge selector rejected: {reason}.", Source: "firmament.chamfer-bounded")]);
         }
 
-        var byToken = new Dictionary<BrepBoundedChamferCornerIncidentEdge, Edge>(3);
-        foreach (var edge in sourceBody.Topology.Edges.Where(edge => edge.StartVertexId == cornerVertex || edge.EndVertexId == cornerVertex))
+        if (!BrepBoundedChamfer.TryResolveCornerIncidentEdgesByToken(sourceBody, cornerVertex, cornerPoint, out var byToken, out reason))
         {
-            var otherVertex = edge.StartVertexId == cornerVertex ? edge.EndVertexId : edge.StartVertexId;
-            if (!BrepBoundedChamferCornerContext.TryResolveVertexPoint(sourceBody, otherVertex, out var otherPoint))
-            {
-                return KernelResult<bool>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Bounded chamfer corner-edge selector requires explicit resolvable points for incident edge vertices.", Source: "firmament.chamfer-bounded")]);
-            }
-
-            var vector = otherPoint - cornerPoint;
-            if (!TryClassifyCornerIncidentEdge(vector, out var token))
-            {
-                continue;
-            }
-
-            byToken[token] = edge;
+            return KernelResult<bool>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, $"Bounded chamfer corner-edge selector rejected: {reason}.", Source: "firmament.chamfer-bounded")]);
         }
 
         if (!byToken.TryGetValue(selector.First, out var firstEdge))
@@ -1031,7 +1215,7 @@ public readonly record struct BrepBoundedChamferCornerContext(
         return KernelResult<bool>.Success(true);
     }
 
-    private static bool TryClassifyCornerIncidentEdge(Vector3D vector, out BrepBoundedChamferCornerIncidentEdge edge)
+    internal static bool TryClassifyCornerIncidentEdge(Vector3D vector, out BrepBoundedChamferCornerIncidentEdge edge)
     {
         edge = default;
         var eps = 1e-8d;

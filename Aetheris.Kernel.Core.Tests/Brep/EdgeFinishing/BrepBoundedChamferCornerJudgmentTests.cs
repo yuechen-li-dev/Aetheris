@@ -54,6 +54,7 @@ public sealed class BrepBoundedChamferCornerJudgmentTests
         Assert.Equal(7, result.Value.Topology.Faces.Count());
     }
 
+
     [Fact]
     public void ChamferTrustedPolyhedralIncidentEdgePair_Uses_JudgmentEngine_Rejection_Path()
     {

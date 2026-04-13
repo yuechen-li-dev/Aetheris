@@ -1,5 +1,5 @@
 using Aetheris.Kernel.Core.Brep.Boolean;
-using Aetheris.Kernel.Core.Brep.Features;
+using Aetheris.Kernel.Core.Brep.EdgeFinishing;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Features;
 

@@ -1,6 +1,7 @@
 using System.Globalization;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Brep.EdgeFinishing;
 using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
@@ -750,7 +751,7 @@ internal static class FirmamentPrimitiveExecutor
             ]);
         }
 
-        if (!TryParseChamferEdge(boolean.Tool.RawFields, out var edge, out var edgeError))
+        if (!BrepBoundedEdgeFinishingToolParser.TryParseChamferEdge(boolean.Tool.RawFields, out var edge, out var edgeError))
         {
             return KernelResult<BrepBody>.Failure(
             [
@@ -763,55 +764,6 @@ internal static class FirmamentPrimitiveExecutor
         }
 
         return BrepBoundedChamfer.ChamferAxisAlignedBoxVerticalEdge(box, edge, distance);
-    }
-
-    private static bool TryParseChamferEdge(
-        IReadOnlyDictionary<string, string> fields,
-        out BrepBoundedChamferEdge edge,
-        out string error)
-    {
-        edge = BrepBoundedChamferEdge.XMinYMin;
-        error = string.Empty;
-
-        if (!fields.TryGetValue("edges", out var edgesRaw) || string.IsNullOrWhiteSpace(edgesRaw))
-        {
-            error = "missing required edges list";
-            return false;
-        }
-
-        var trimmed = edgesRaw.Trim();
-        if (!trimmed.StartsWith("[", StringComparison.Ordinal) || !trimmed.EndsWith("]", StringComparison.Ordinal))
-        {
-            error = "expected array-like edges value";
-            return false;
-        }
-
-        var content = trimmed[1..^1];
-        var tokens = content.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-            .Select(token => token.Trim().Trim('"'))
-            .Where(token => !string.IsNullOrWhiteSpace(token))
-            .ToArray();
-        if (tokens.Length != 1)
-        {
-            error = "bounded M5a supports exactly one explicit edge token";
-            return false;
-        }
-
-        edge = tokens[0] switch
-        {
-            "x_min_y_min" => BrepBoundedChamferEdge.XMinYMin,
-            "x_min_y_max" => BrepBoundedChamferEdge.XMinYMax,
-            "x_max_y_min" => BrepBoundedChamferEdge.XMaxYMin,
-            "x_max_y_max" => BrepBoundedChamferEdge.XMaxYMax,
-            _ => BrepBoundedChamferEdge.XMinYMin
-        };
-        if (tokens[0] is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"))
-        {
-            error = "supported tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max";
-            return false;
-        }
-
-        return true;
     }
 
     private static KernelResult<BrepBody> ExecuteBoundedManufacturingFilletOnRecognizedOrthogonalRoot(
@@ -848,7 +800,7 @@ internal static class FirmamentPrimitiveExecutor
             ]);
         }
 
-        if (!TryParseFilletEdge(boolean.Tool.RawFields, out var edge, out var edgeError))
+        if (!BrepBoundedEdgeFinishingToolParser.TryParseFilletEdge(boolean.Tool.RawFields, out var edge, out var edgeError))
         {
             return KernelResult<BrepBody>.Failure(
             [
@@ -890,55 +842,6 @@ internal static class FirmamentPrimitiveExecutor
                     $"Bounded M5b fillet preflight resolved internal edge at ({selection.EdgeX.ToString("0.###", CultureInfo.InvariantCulture)}, {selection.EdgeY.ToString("0.###", CultureInfo.InvariantCulture)}) with max radius {selection.MaxAllowedRadius.ToString("0.###", CultureInfo.InvariantCulture)}, but truthful cylindrical edge rebuild/export for this bounded family is not implemented yet.",
                     Source: "firmament.fillet-bounded")
         ]);
-    }
-
-    private static bool TryParseFilletEdge(
-        IReadOnlyDictionary<string, string> fields,
-        out BrepBoundedManufacturingFilletEdge edge,
-        out string error)
-    {
-        edge = BrepBoundedManufacturingFilletEdge.InnerXMinYMin;
-        error = string.Empty;
-
-        if (!fields.TryGetValue("edges", out var edgesRaw) || string.IsNullOrWhiteSpace(edgesRaw))
-        {
-            error = "missing required edges list";
-            return false;
-        }
-
-        var trimmed = edgesRaw.Trim();
-        if (!trimmed.StartsWith("[", StringComparison.Ordinal) || !trimmed.EndsWith("]", StringComparison.Ordinal))
-        {
-            error = "expected array-like edges value";
-            return false;
-        }
-
-        var tokens = trimmed[1..^1]
-            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-            .Select(token => token.Trim().Trim('"'))
-            .Where(token => !string.IsNullOrWhiteSpace(token))
-            .ToArray();
-        if (tokens.Length != 1)
-        {
-            error = "bounded M5b supports exactly one explicit internal edge token";
-            return false;
-        }
-
-        edge = tokens[0] switch
-        {
-            "inner_x_min_y_min" => BrepBoundedManufacturingFilletEdge.InnerXMinYMin,
-            "inner_x_min_y_max" => BrepBoundedManufacturingFilletEdge.InnerXMinYMax,
-            "inner_x_max_y_min" => BrepBoundedManufacturingFilletEdge.InnerXMaxYMin,
-            "inner_x_max_y_max" => BrepBoundedManufacturingFilletEdge.InnerXMaxYMax,
-            _ => BrepBoundedManufacturingFilletEdge.InnerXMinYMin
-        };
-        if (tokens[0] is not ("inner_x_min_y_min" or "inner_x_min_y_max" or "inner_x_max_y_min" or "inner_x_max_y_max"))
-        {
-            error = "supported tokens are inner_x_min_y_min, inner_x_min_y_max, inner_x_max_y_min, inner_x_max_y_max";
-            return false;
-        }
-
-        return true;
     }
 
     private static bool TryParseDraftFaces(

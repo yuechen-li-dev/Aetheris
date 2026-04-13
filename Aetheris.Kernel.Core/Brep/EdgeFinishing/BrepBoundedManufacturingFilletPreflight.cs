@@ -2,7 +2,7 @@ using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
 
-namespace Aetheris.Kernel.Core.Brep.Features;
+namespace Aetheris.Kernel.Core.Brep.EdgeFinishing;
 
 /// <summary>
 /// M5b bounded manufacturing-fillet preflight for explicit internal concave planar vertical edges on

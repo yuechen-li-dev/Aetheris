@@ -52,6 +52,70 @@ public sealed class BrepBoundedChamferCornerJudgmentTests
 
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.Equal(7, result.Value.Topology.Faces.Count());
+        Assert.Equal(15, result.Value.Topology.Edges.Count());
+        Assert.Equal(10, result.Value.Topology.Vertices.Count());
+    }
+
+    [Fact]
+    public void ChamferTrustedPolyhedralIncidentEdgePair_Uses_SelectorDriven_Local_Rewrite_Path()
+    {
+        var box = BrepPrimitives.CreateBox(20d, 20d, 20d);
+        Assert.True(box.IsSuccess);
+
+        var xyResult = BrepBoundedChamfer.ChamferTrustedPolyhedralIncidentEdgePair(
+            box.Value,
+            new BrepBoundedChamferIncidentEdgePairSelector(
+                BrepBoundedChamferCorner.XMaxYMaxZMax,
+                BrepBoundedChamferCornerIncidentEdge.XNegative,
+                BrepBoundedChamferCornerIncidentEdge.YNegative),
+            distance: 1d);
+        var xzResult = BrepBoundedChamfer.ChamferTrustedPolyhedralIncidentEdgePair(
+            box.Value,
+            new BrepBoundedChamferIncidentEdgePairSelector(
+                BrepBoundedChamferCorner.XMaxYMaxZMax,
+                BrepBoundedChamferCornerIncidentEdge.XNegative,
+                BrepBoundedChamferCornerIncidentEdge.ZNegative),
+            distance: 1d);
+
+        Assert.True(xyResult.IsSuccess, string.Join(Environment.NewLine, xyResult.Diagnostics.Select(d => d.Message)));
+        Assert.True(xzResult.IsSuccess, string.Join(Environment.NewLine, xzResult.Diagnostics.Select(d => d.Message)));
+
+        var xyVertices = xyResult.Value.Topology.Vertices
+            .Select(vertex =>
+            {
+                xyResult.Value.TryGetVertexPoint(vertex.Id, out var point);
+                return $"{point.X:F6}|{point.Y:F6}|{point.Z:F6}";
+            })
+            .OrderBy(value => value)
+            .ToArray();
+        var xzVertices = xzResult.Value.Topology.Vertices
+            .Select(vertex =>
+            {
+                xzResult.Value.TryGetVertexPoint(vertex.Id, out var point);
+                return $"{point.X:F6}|{point.Y:F6}|{point.Z:F6}";
+            })
+            .OrderBy(value => value)
+            .ToArray();
+        Assert.NotEqual(string.Join(";", xyVertices), string.Join(";", xzVertices));
+    }
+
+    [Fact]
+    public void ChamferTrustedPolyhedralIncidentEdgePair_Rejects_NonOrthogonalTrustedBody()
+    {
+        var prism = BrepPrimitives.CreateTriangularPrism(baseWidth: 8d, baseDepth: 6d, height: 10d);
+        Assert.True(prism.IsSuccess);
+
+        var result = BrepBoundedChamfer.ChamferTrustedPolyhedralIncidentEdgePair(
+            prism.Value,
+            new BrepBoundedChamferIncidentEdgePairSelector(
+                BrepBoundedChamferCorner.XMaxYMaxZMax,
+                BrepBoundedChamferCornerIncidentEdge.XNegative,
+                BrepBoundedChamferCornerIncidentEdge.YNegative),
+            distance: 1d);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("two-edge corner resolution rejected", StringComparison.Ordinal));
     }
 
 

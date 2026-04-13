@@ -247,6 +247,7 @@ public static class BrepBoundedChamfer
             context => context.IsDistanceWithinLocalBounds,
             context => context.HasCoherentBoundedPlanarCut,
             context => context.PreservesManifoldTopology,
+            context => context.IsTrustedOrthogonalBody,
             context => context.Corner == BrepBoundedChamferCorner.XMaxYMaxZMax);
 
         return
@@ -476,15 +477,9 @@ public static class BrepBoundedChamfer
             return KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer two-edge corner construction rejected: {reason}.", "firmament.chamfer-bounded")]);
         }
 
-        if (!TryResolveCornerIncidentEdgesByToken(sourceBody, cornerVertex, cornerPoint, out var edgeByToken, out reason))
+        if (!TryResolveCanonicalIncidentEdgePair(sourceBody, cornerVertex, cornerPoint, selector, out var firstEdge, out var secondEdge, out reason))
         {
             return KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer two-edge corner construction rejected: {reason}.", "firmament.chamfer-bounded")]);
-        }
-
-        if (!edgeByToken.TryGetValue(selector.First, out var firstEdge)
-            || !edgeByToken.TryGetValue(selector.Second, out var secondEdge))
-        {
-            return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer two-edge corner construction rejected: selected edges were not resolved at the selected corner.", "firmament.chamfer-bounded")]);
         }
 
         var selectedEdgeIds = new HashSet<EdgeId> { firstEdge.Id, secondEdge.Id };
@@ -595,6 +590,11 @@ public static class BrepBoundedChamfer
             splitVertexByIncidentEdge[secondEdge.Id],
             VertexToken.FromVertex(cornerVertex)
         };
+        if (cutFace[0].Equals(cutFace[1]))
+        {
+            return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer two-edge corner construction rejected: selected incident edge pair did not resolve to two distinct local split vertices.", "firmament.chamfer-bounded")]);
+        }
+
         var interiorPoint = new Point3D(
             vertexPoints.Values.Average(point => point.X),
             vertexPoints.Values.Average(point => point.Y),
@@ -608,7 +608,92 @@ public static class BrepBoundedChamfer
             return localRewriteResult;
         }
 
-        return CreateTrustedPolyhedralSingleCornerPlanarChamferBody(sourceBody, context);
+        return KernelResult<BrepBody>.Failure(
+            [
+                Failure(
+                    "Bounded chamfer two-edge corner construction rejected: dedicated local rewrite failed to produce a valid manifold body for the supported canonical subset.",
+                    "firmament.chamfer-bounded"),
+                .. localRewriteResult.Diagnostics
+            ]);
+    }
+
+    private static bool TryResolveCanonicalIncidentEdgePair(
+        BrepBody sourceBody,
+        VertexId cornerVertex,
+        Point3D cornerPoint,
+        BrepBoundedChamferIncidentEdgePairSelector selector,
+        out Edge first,
+        out Edge second,
+        out string reason)
+    {
+        const double eps = 1e-8d;
+        first = default;
+        second = default;
+        reason = "selected edges were not resolved at the selected corner";
+        var incidents = new List<(Edge Edge, Vector3D Vector)>();
+        foreach (var incident in sourceBody.Topology.Edges.Where(candidate => candidate.StartVertexId == cornerVertex || candidate.EndVertexId == cornerVertex))
+        {
+            var otherVertex = incident.StartVertexId == cornerVertex ? incident.EndVertexId : incident.StartVertexId;
+            if (!BrepBoundedChamferCornerContext.TryResolveVertexPoint(sourceBody, otherVertex, out var otherPoint))
+            {
+                reason = "source body is missing explicit resolvable points for incident edge vertices";
+                return false;
+            }
+
+            incidents.Add((incident, otherPoint - cornerPoint));
+        }
+
+        if (incidents.Count < 2)
+        {
+            reason = "selected corner has fewer than two incident edges";
+            return false;
+        }
+
+        static double Score(BrepBoundedChamferCornerIncidentEdge token, Vector3D vector, double eps)
+            => token switch
+            {
+                BrepBoundedChamferCornerIncidentEdge.XNegative when vector.X < -eps => -vector.X,
+                BrepBoundedChamferCornerIncidentEdge.YNegative when vector.Y < -eps => -vector.Y,
+                BrepBoundedChamferCornerIncidentEdge.ZNegative when vector.Z < -eps => -vector.Z,
+                _ => double.NegativeInfinity
+            };
+
+        var candidates = new List<(Edge First, Edge Second, double Score)>();
+        foreach (var firstCandidate in incidents)
+        {
+            var firstScore = Score(selector.First, firstCandidate.Vector, eps);
+            if (!double.IsFinite(firstScore))
+            {
+                continue;
+            }
+
+            foreach (var secondCandidate in incidents)
+            {
+                if (secondCandidate.Edge.Id == firstCandidate.Edge.Id)
+                {
+                    continue;
+                }
+
+                var secondScore = Score(selector.Second, secondCandidate.Vector, eps);
+                if (!double.IsFinite(secondScore))
+                {
+                    continue;
+                }
+
+                candidates.Add((firstCandidate.Edge, secondCandidate.Edge, firstScore + secondScore));
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            reason = "selected incident edge pair did not resolve to two distinct token-matching edges at selected corner";
+            return false;
+        }
+
+        var resolved = candidates.OrderByDescending(candidate => candidate.Score).First();
+        first = resolved.First;
+        second = resolved.Second;
+        return true;
     }
 
     private static KernelResult<BrepBody> CreateTrustedPolyhedralSingleCornerPlanarChamferBody(
@@ -772,7 +857,19 @@ public static class BrepBoundedChamfer
         var edgeIds = new Dictionary<(VertexToken, VertexToken), EdgeId>();
         var edgeEndpoints = new Dictionary<EdgeId, (VertexToken Start, VertexToken End)>();
         var faces = new List<FaceId>(faceCycles.Count);
-        foreach (var cycle in faceCycles)
+        var normalizedFaceCycles = new List<IReadOnlyList<VertexToken>>(faceCycles.Count);
+        for (var faceIndex = 0; faceIndex < faceCycles.Count; faceIndex++)
+        {
+            var normalizedCycle = NormalizeFaceCycle(faceCycles[faceIndex]);
+            if (normalizedCycle is null)
+            {
+                return KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer corner construction produced an invalid face loop at index {faceIndex}.", "firmament.chamfer-bounded")]);
+            }
+
+            normalizedFaceCycles.Add(normalizedCycle);
+        }
+
+        foreach (var cycle in normalizedFaceCycles)
         {
             var edgeUses = new List<EdgeUse>(cycle.Count);
             for (var i = 0; i < cycle.Count; i++)
@@ -822,9 +919,9 @@ public static class BrepBoundedChamfer
         }
 
         var surfaceId = 1;
-        for (var faceIndex = 0; faceIndex < faceCycles.Count; faceIndex++)
+        for (var faceIndex = 0; faceIndex < normalizedFaceCycles.Count; faceIndex++)
         {
-            var cycle = faceCycles[faceIndex];
+            var cycle = normalizedFaceCycles[faceIndex];
             var points = cycle.Select(token => vertexPoints[token]).ToArray();
             if (!TryCreatePlane(points, out var origin, out var normal, out var uAxis))
             {
@@ -842,6 +939,25 @@ public static class BrepBoundedChamfer
         return validation.IsSuccess
             ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
+    }
+
+    private static List<VertexToken>? NormalizeFaceCycle(IReadOnlyList<VertexToken> cycle)
+    {
+        var normalized = new List<VertexToken>(cycle.Count);
+        foreach (var vertex in cycle)
+        {
+            if (normalized.Count == 0 || !normalized[^1].Equals(vertex))
+            {
+                normalized.Add(vertex);
+            }
+        }
+
+        if (normalized.Count > 1 && normalized[0].Equals(normalized[^1]))
+        {
+            normalized.RemoveAt(normalized.Count - 1);
+        }
+
+        return normalized.Count >= 3 ? normalized : null;
     }
 
     private static bool TryCreatePlane(

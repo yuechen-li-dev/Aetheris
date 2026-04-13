@@ -1,6 +1,13 @@
+using System.Text.Json.Serialization;
 using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.CLI;
+
+public sealed record IdRangeSummary(
+    int Min,
+    int Max,
+    int Count,
+    bool Contiguous);
 
 public sealed record AnalyzeSummary(
     int BodyCount,
@@ -11,17 +18,23 @@ public sealed record AnalyzeSummary(
     BoundingBox3D? BoundingBox,
     string StructuralAssessment,
     IReadOnlyDictionary<string, int> SurfaceFamilies,
-    string StructuralAssessmentBasis);
+    string StructuralAssessmentBasis,
+    string LengthUnit,
+    string LengthUnitBasis,
+    IdRangeSummary FaceIds,
+    IdRangeSummary EdgeIds,
+    IdRangeSummary VertexIds);
 
 public sealed record FaceDetail(
     int FaceId,
-    string SurfaceType,
+    string? SurfaceType,
+    string SurfaceStatus,
     BoundingBox3D? BoundingBox,
     Point3D? RepresentativePoint,
     Point3D? AnchorPoint,
     Point3D? Apex,
     Vector3D? PlanarNormal,
-    Vector3D? Axis,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Vector3D? Axis,
     double? Radius,
     double? PlacementRadius,
     double? MajorRadius,
@@ -38,7 +51,8 @@ public sealed record EdgeDetail(
     Point3D? EndVertex,
     IReadOnlyList<int> AdjacentFaceIds,
     double? ParameterRange,
-    double? ArcLength);
+    double? ArcLength,
+    string ArcLengthStatus);
 
 public sealed record VertexDetail(
     int VertexId,

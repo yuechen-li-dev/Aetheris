@@ -35,4 +35,40 @@ public sealed class BrepBoundedChamferCornerJudgmentTests
         Assert.Equal(12, result.Value.Topology.Edges.Count());
         Assert.Equal(8, result.Value.Topology.Vertices.Count());
     }
+
+    [Fact]
+    public void ChamferTrustedPolyhedralIncidentEdgePair_Succeeds_For_Box_Corner_E6()
+    {
+        var box = BrepPrimitives.CreateBox(20d, 20d, 20d);
+        Assert.True(box.IsSuccess);
+
+        var result = BrepBoundedChamfer.ChamferTrustedPolyhedralIncidentEdgePair(
+            box.Value,
+            new BrepBoundedChamferIncidentEdgePairSelector(
+                BrepBoundedChamferCorner.XMaxYMaxZMax,
+                BrepBoundedChamferCornerIncidentEdge.XNegative,
+                BrepBoundedChamferCornerIncidentEdge.YNegative),
+            distance: 1d);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(7, result.Value.Topology.Faces.Count());
+    }
+
+    [Fact]
+    public void ChamferTrustedPolyhedralIncidentEdgePair_Uses_JudgmentEngine_Rejection_Path()
+    {
+        var box = BrepPrimitives.CreateBox(20d, 20d, 20d);
+        Assert.True(box.IsSuccess);
+
+        var result = BrepBoundedChamfer.ChamferTrustedPolyhedralIncidentEdgePair(
+            box.Value,
+            new BrepBoundedChamferIncidentEdgePairSelector(
+                BrepBoundedChamferCorner.XMaxYMaxZMax,
+                BrepBoundedChamferCornerIncidentEdge.XNegative,
+                BrepBoundedChamferCornerIncidentEdge.YNegative),
+            distance: 20d);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("two-edge corner resolution rejected", StringComparison.Ordinal));
+    }
 }

@@ -781,14 +781,7 @@ internal static class FirmamentPrimitiveExecutor
 
         if (incidentEdgePair.HasValue)
         {
-            return KernelResult<BrepBody>.Failure(
-            [
-                new KernelDiagnostic(
-                    KernelDiagnosticCode.ValidationFailed,
-                    KernelDiagnosticSeverity.Error,
-                    "Bounded chamfer two-edge corner selector resolved to a valid local incident-edge pair; geometric 2-edge corner constructor is the next isolated blocker.",
-                    Source: "firmament.chamfer-bounded")
-            ]);
+            return BrepBoundedChamfer.ChamferTrustedPolyhedralIncidentEdgePair(baseBody, incidentEdgePair.Value, distance);
         }
 
         if (corner.HasValue)

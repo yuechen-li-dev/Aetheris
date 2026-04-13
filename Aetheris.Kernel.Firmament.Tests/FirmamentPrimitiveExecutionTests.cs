@@ -303,6 +303,29 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_Executes_BoundedChamfer_SingleCorner_E2_On_BoxRoot_Into_Real_Body()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5a-valid-chamfer-box-corner-e2-exec.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
+        Assert.Equal("corner_break", executedBoolean.FeatureId);
+        Assert.Equal(FirmamentLoweredBooleanKind.Chamfer, executedBoolean.Kind);
+        Assert.Equal(7, executedBoolean.Body.Topology.Faces.Count());
+        Assert.Equal(15, executedBoolean.Body.Topology.Edges.Count());
+    }
+
+    [Fact]
+    public void Compile_Rejects_BoundedChamfer_SingleCorner_For_UnsupportedCornerToken()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5a-invalid-chamfer-corner-unsupported-token.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("supported bounded E2 corner tokens", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Compile_BoundedFilletCanonicalInternalCase_Reaches_Narrow_TruthfulRebuildBlocker()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m5b-canonical-internal-fillet-lroot.firmament");

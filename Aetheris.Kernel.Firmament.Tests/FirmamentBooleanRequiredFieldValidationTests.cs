@@ -228,6 +228,63 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             "Boolean op 'chamfer' at index 1 has invalid field 'edges'; supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max.");
 
     [Fact]
+    public void Compiler_Accepts_ValidBoundedChamferCornerE2Shape() =>
+        AssertValidBooleanOp("""
+        firmament:
+          version: 1
+
+        model:
+          name: demo
+          units: mm
+
+        ops[2]:
+          -
+            op: box
+            id: base
+            size[3]:
+              40
+              20
+              10
+          -
+            op: chamfer
+            id: corner_break
+            from: base
+            corners[1]:
+              x_max_y_max_z_max
+            distance: 1.5
+        """);
+
+    [Fact]
+    public void Compiler_Rejects_Chamfer_UnsupportedCornerToken() =>
+        AssertBooleanFailure(
+            """
+            firmament:
+              version: 1
+
+            model:
+              name: demo
+              units: mm
+
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  20
+                  20
+                  20
+              -
+                op: chamfer
+                id: corner_break
+                from: base
+                corners[1]:
+                  x_min_y_min_z_min
+                distance: 1
+            """,
+            FirmamentDiagnosticCodes.BooleanInvalidFieldValue,
+            "Boolean op 'chamfer' at index 1 has invalid field 'corners'; supported bounded E2 corner tokens are x_max_y_max_z_max.");
+
+    [Fact]
     public void Compiler_Allows_ValidBoundedFilletShape_Past_FieldValidation()
     {
         const string source = """

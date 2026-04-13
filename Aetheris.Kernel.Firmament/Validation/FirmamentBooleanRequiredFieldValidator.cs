@@ -161,19 +161,36 @@ internal static class FirmamentBooleanRequiredFieldValidator
             return InvalidFieldValue("distance", opIndex, entry.OpName, "expected a numeric value greater than 0 for bounded M5a chamfer");
         }
 
-        if (!entry.RawFields.TryGetValue("edges", out var edgesRaw) || string.IsNullOrWhiteSpace(edgesRaw))
+        var hasEdges = entry.RawFields.TryGetValue("edges", out var edgesRaw) && !string.IsNullOrWhiteSpace(edgesRaw);
+        var hasCorners = entry.RawFields.TryGetValue("corners", out var cornersRaw) && !string.IsNullOrWhiteSpace(cornersRaw);
+        if (hasEdges == hasCorners)
         {
-            return MissingField("edges", opIndex, entry.OpName);
+            return InvalidFieldValue("edges", opIndex, entry.OpName, "bounded E2 chamfer requires exactly one selector family: either edges[1] or corners[1]");
         }
 
-        if (!TryParseFaceTokens(edgesRaw, out var tokens) || tokens.Count != 1)
+        if (hasEdges)
         {
-            return InvalidFieldTypeOrShape("edges", opIndex, entry.OpName, "expected a single-item string array with one explicit edge token");
-        }
+            if (!TryParseFaceTokens(edgesRaw!, out var edgeTokens) || edgeTokens.Count != 1)
+            {
+                return InvalidFieldTypeOrShape("edges", opIndex, entry.OpName, "expected a single-item string array with one explicit edge token");
+            }
 
-        if (tokens[0] is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"))
+            if (edgeTokens[0] is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max"))
+            {
+                return InvalidFieldValue("edges", opIndex, entry.OpName, "supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max");
+            }
+        }
+        else
         {
-            return InvalidFieldValue("edges", opIndex, entry.OpName, "supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max");
+            if (!TryParseFaceTokens(cornersRaw!, out var cornerTokens) || cornerTokens.Count != 1)
+            {
+                return InvalidFieldTypeOrShape("corners", opIndex, entry.OpName, "expected a single-item string array with one explicit corner token");
+            }
+
+            if (cornerTokens[0] is not "x_max_y_max_z_max")
+            {
+                return InvalidFieldValue("corners", opIndex, entry.OpName, "supported bounded E2 corner tokens are x_max_y_max_z_max");
+            }
         }
 
         return KernelResult<bool>.Success(true);

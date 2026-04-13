@@ -33,4 +33,26 @@ public sealed class BrepBoundedChamferTests
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("too large", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void ChamferAxisAlignedBoxSingleCorner_Succeeds_ForBoundedCanonicalCorner()
+    {
+        var box = new AxisAlignedBoxExtents(0d, 40d, 0d, 20d, 0d, 10d);
+        var result = BrepBoundedChamfer.ChamferAxisAlignedBoxSingleCorner(box, BrepBoundedChamferCorner.XMaxYMaxZMax, 1.5d);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(7, result.Value.Topology.Faces.Count());
+        Assert.Equal(15, result.Value.Topology.Edges.Count());
+        Assert.Equal(10, result.Value.Topology.Vertices.Count());
+    }
+
+    [Fact]
+    public void ChamferAxisAlignedBoxSingleCorner_Rejects_Distance_Outside_Local_Bounds()
+    {
+        var box = new AxisAlignedBoxExtents(0d, 8d, 0d, 5d, 0d, 4d);
+        var result = BrepBoundedChamfer.ChamferAxisAlignedBoxSingleCorner(box, BrepBoundedChamferCorner.XMaxYMaxZMax, 4d);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("rejected", StringComparison.Ordinal));
+    }
 }

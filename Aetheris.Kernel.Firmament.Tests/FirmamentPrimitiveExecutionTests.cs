@@ -407,6 +407,48 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_Diagnoses_E8_MixedZ_AdditiveRoot_Metadata_As_NonPrismatic()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/e8b-diagnostic-additive-root-mixed-z.firmament");
+
+        Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
+        var croot = Assert.Single(
+            result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans,
+            executed => executed.FeatureId == "croot");
+        var occupiedCells = croot.Body.SafeBooleanComposition?.OccupiedCells;
+        Assert.NotNull(occupiedCells);
+        Assert.NotEmpty(occupiedCells);
+
+        var minZSet = occupiedCells.Select(cell => cell.MinZ).Distinct().OrderBy(z => z).ToArray();
+        var maxZSet = occupiedCells.Select(cell => cell.MaxZ).Distinct().OrderBy(z => z).ToArray();
+        Assert.True(minZSet.Length > 1 || maxZSet.Length > 1);
+    }
+
+    [Fact]
+    public void Compile_Rejects_BoundedConcaveChamfer_For_E8_MixedZ_TwoEdgeFixture()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/e8-invalid-chamfer-concave-2edge-mixed-z.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Source == "firmament.chamfer-bounded"
+            && diagnostic.Message.Contains("mixed-Z occupied cells", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Compile_Executes_BoundedConcaveChamfer_For_E8b_TwoEdgeInteraction_Firmament_Case()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/e8b-valid-chamfer-concave-2edge-interaction.firmament");
+
+        Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
+        var execution = result.Compilation.Value.PrimitiveExecutionResult!;
+        var root = Assert.Single(execution.ExecutedBooleans, executed => executed.FeatureId == "croot");
+        var chamfer = Assert.Single(execution.ExecutedBooleans, executed => executed.FeatureId == "inner_pair_interaction");
+        Assert.Equal(FirmamentLoweredBooleanKind.Chamfer, chamfer.Kind);
+        Assert.NotEqual(root.Body.Topology.Faces.Count(), chamfer.Body.Topology.Faces.Count());
+    }
+
+    [Fact]
     public void Compile_BoundedFilletCanonicalInternalCase_Reaches_Narrow_TruthfulRebuildBlocker()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m5b-canonical-internal-fillet-lroot.firmament");

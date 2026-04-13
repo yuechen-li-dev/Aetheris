@@ -112,6 +112,30 @@ public sealed class BrepBoundedConcaveChamferPreflightTests
             diagnostic.Message.Contains("supports exactly one inferred interacting edge", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void ResolveInternalConcaveVerticalEdge_Rejects_MixedZ_OccupiedCells()
+    {
+        var composition = new SafeBooleanComposition(
+            new AxisAlignedBoxExtents(0d, 12d, 0d, 8d, 0d, 10d),
+            [],
+            SafeBooleanRootDescriptor.FromBox(new AxisAlignedBoxExtents(0d, 12d, 0d, 8d, 0d, 10d)),
+            OccupiedCells:
+            [
+                new AxisAlignedBoxExtents(0d, 12d, 0d, 4d, 0d, 10d),
+                new AxisAlignedBoxExtents(0d, 6d, 4d, 6d, 2d, 10d),
+                new AxisAlignedBoxExtents(0d, 12d, 6d, 8d, 0d, 10d),
+            ]);
+
+        var result = BrepBoundedConcaveChamferPreflight.ResolveInternalConcaveVerticalEdge(
+            composition,
+            BrepBoundedChamferEdge.InnerXMinYMin,
+            distance: 0.8d);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("mixed-Z occupied cells are outside this milestone", StringComparison.Ordinal));
+    }
+
     private static SafeBooleanComposition CreateLRootComposition()
     {
         var cells = new[]

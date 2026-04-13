@@ -260,6 +260,45 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Build_And_Analyze_BoundedConcaveStraightEdgeChamfer_Reports_Enclosed_And_ChangedTopology()
+    {
+        var outputPath = Path.Combine(RepoRoot, "testdata", "firmament", "exports", "cli-concave-edge-chamfer-e7b.step");
+        if (File.Exists(outputPath))
+        {
+            File.Delete(outputPath);
+        }
+
+        var buildStdout = new StringWriter();
+        var buildStderr = new StringWriter();
+        var buildExitCode = Aetheris.CLI.CliRunner.Run(
+            ["build", Path.Combine(RepoRoot, "testdata/firmament/fixtures/e7-valid-chamfer-concave-overlap-lroot.firmament"), "--out", outputPath],
+            buildStdout,
+            buildStderr);
+        Assert.Equal(0, buildExitCode);
+        Assert.True(File.Exists(outputPath), buildStderr.ToString());
+
+        var analyzeStdout = new StringWriter();
+        var analyzeStderr = new StringWriter();
+        var analyzeExitCode = Aetheris.CLI.CliRunner.Run(
+            ["analyze", outputPath, "--json"],
+            analyzeStdout,
+            analyzeStderr);
+        Assert.Equal(0, analyzeExitCode);
+
+        using var doc = JsonDocument.Parse(analyzeStdout.ToString());
+        var summary = doc.RootElement.GetProperty("summary");
+        Assert.Equal("enclosed-manifold", summary.GetProperty("structuralAssessment").GetString());
+        Assert.Equal(11, summary.GetProperty("faceCount").GetInt32());
+        Assert.Equal(27, summary.GetProperty("edgeCount").GetInt32());
+        Assert.Equal(18, summary.GetProperty("vertexCount").GetInt32());
+        var bbox = summary.GetProperty("boundingBox");
+        AssertPoint(bbox.GetProperty("min"), -15d, -10d, 0d);
+        AssertPoint(bbox.GetProperty("max"), 30d, 15d, 10d);
+
+        File.Delete(outputPath);
+    }
+
+    [Fact]
     public void Analyze_Command_Uses_Binding_Missing_Surface_Status_Instead_Of_Unknown_Surface_Type()
     {
         var boxBody = BrepPrimitives.CreateBox(10d, 6d, 4d).Value;

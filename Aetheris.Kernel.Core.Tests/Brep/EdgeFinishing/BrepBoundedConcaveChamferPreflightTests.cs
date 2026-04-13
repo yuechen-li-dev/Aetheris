@@ -23,18 +23,63 @@ public sealed class BrepBoundedConcaveChamferPreflightTests
     }
 
     [Fact]
-    public void ChamferTrustedPolyhedralSingleInternalConcaveEdge_UsesJudgmentAndReturnsExplicitConstructionBlocker()
+    public void ChamferTrustedPolyhedralSingleInternalConcaveEdge_UsesJudgmentAndBuildsLocalChamferForCanonicalLRoot()
     {
         var body = CreateLRootBody();
+        var sourceFaceCount = body.Topology.Faces.Count();
 
         var result = BrepBoundedChamfer.ChamferTrustedPolyhedralSingleInternalConcaveEdge(
             body,
             BrepBoundedChamferEdge.InnerXMaxYMax,
             distance: 1d);
 
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.NotEqual(sourceFaceCount, result.Value.Topology.Faces.Count());
+        Assert.Equal(9, result.Value.Topology.Faces.Count());
+    }
+
+    [Fact]
+    public void ChamferTrustedPolyhedralSingleInternalConcaveEdge_Rejects_MultiConcavityFootprintOutsideBoundedSubset()
+    {
+        var cells = new[]
+        {
+            new AxisAlignedBoxExtents(0d, 2d, 0d, 2d, 0d, 1d),
+            new AxisAlignedBoxExtents(2d, 4d, 0d, 2d, 0d, 1d),
+            new AxisAlignedBoxExtents(0d, 2d, 2d, 4d, 0d, 1d),
+            new AxisAlignedBoxExtents(2d, 4d, 4d, 6d, 0d, 1d),
+            new AxisAlignedBoxExtents(4d, 6d, 4d, 6d, 0d, 1d),
+            new AxisAlignedBoxExtents(4d, 6d, 2d, 4d, 0d, 1d),
+        };
+
+        var composition = new SafeBooleanComposition(
+            new AxisAlignedBoxExtents(0d, 6d, 0d, 6d, 0d, 1d),
+            [],
+            SafeBooleanRootDescriptor.FromBox(new AxisAlignedBoxExtents(0d, 6d, 0d, 6d, 0d, 1d)),
+            OccupiedCells: cells);
+        var built = BrepBooleanOrthogonalUnionBuilder.BuildFromCells(cells);
+        Assert.True(built.IsSuccess);
+        var body = new BrepBody(
+            built.Value.Topology,
+            built.Value.Geometry,
+            built.Value.Bindings,
+            built.Value.Topology.Vertices
+                .Where(v => built.Value.TryGetVertexPoint(v.Id, out _))
+                .ToDictionary(v => v.Id, v =>
+                {
+                    built.Value.TryGetVertexPoint(v.Id, out var point);
+                    return point;
+                }),
+            composition,
+            built.Value.ShellRepresentation);
+
+        var result = BrepBoundedChamfer.ChamferTrustedPolyhedralSingleInternalConcaveEdge(
+            body,
+            BrepBoundedChamferEdge.InnerXMaxYMax,
+            distance: 0.5d);
+
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("local loop rewrite construction is not yet implemented", StringComparison.Ordinal));
+            diagnostic.Message.Contains("single coherent orthogonal footprint loop", StringComparison.Ordinal));
     }
 
     private static SafeBooleanComposition CreateLRootComposition()

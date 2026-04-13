@@ -17,7 +17,11 @@ public static class StepAnalyzer
             throw new InvalidOperationException(string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
         }
 
-        var body = import.Value;
+        return AnalyzeImportedBody(import.Value, fullPath, faceId, edgeId, vertexId);
+    }
+
+    public static AnalyzeResult AnalyzeImportedBody(BrepBody body, string stepPath, int? faceId = null, int? edgeId = null, int? vertexId = null)
+    {
         var notes = new List<string>();
 
         var summary = BuildSummary(body, notes);
@@ -25,7 +29,7 @@ public static class StepAnalyzer
         var edge = edgeId.HasValue ? BuildEdgeDetail(body, new EdgeId(edgeId.Value), notes) : null;
         var vertex = vertexId.HasValue ? BuildVertexDetail(body, new VertexId(vertexId.Value), notes) : null;
 
-        return new AnalyzeResult(fullPath, summary, face, edge, vertex, notes);
+        return new AnalyzeResult(stepPath, summary, face, edge, vertex, notes);
     }
 
     private static AnalyzeSummary BuildSummary(BrepBody body, ICollection<string> notes)
@@ -83,7 +87,12 @@ public static class StepAnalyzer
             bbox,
             structural,
             surfaceFamilies,
-            basis);
+            basis,
+            "mm",
+            "assumed; STEP import length units not yet preserved",
+            BuildIdRange(topology.Faces.Select(f => f.Id.Value)),
+            BuildIdRange(topology.Edges.Select(e => e.Id.Value)),
+            BuildIdRange(topology.Vertices.Select(v => v.Id.Value)));
     }
 
     private static FaceDetail BuildFaceDetail(BrepBody body, FaceId faceId, ICollection<string> notes)
@@ -116,7 +125,7 @@ public static class StepAnalyzer
 
         if (!body.TryGetFaceSurface(faceId, out var surface) || surface is null)
         {
-            return new FaceDetail(faceId.Value, "unknown", bbox, rep, null, null, null, null, null, null, null, null, null, edgeIds);
+            return new FaceDetail(faceId.Value, null, "binding-missing", bbox, rep, null, null, null, null, null, null, null, null, null, edgeIds);
         }
 
         Point3D? anchor = null;
@@ -154,8 +163,8 @@ public static class StepAnalyzer
         if (surface.Sphere is { } sphere)
         {
             anchor = sphere.Center;
-            axis = sphere.Axis.ToVector();
             radius = sphere.Radius;
+            notes.Add($"Face {faceId.Value} is spherical; axis omitted because spheres have no intrinsic axis.");
         }
 
         if (surface.Torus is { } torus)
@@ -166,7 +175,7 @@ public static class StepAnalyzer
             minorRadius = torus.MinorRadius;
         }
 
-        return new FaceDetail(faceId.Value, surface.Kind.ToString(), bbox, rep, anchor, apex, normal, axis, radius, placementRadius, majorRadius, minorRadius, semiAngle, edgeIds);
+        return new FaceDetail(faceId.Value, surface.Kind.ToString(), "bound", bbox, rep, anchor, apex, normal, axis, radius, placementRadius, majorRadius, minorRadius, semiAngle, edgeIds);
     }
 
     private static EdgeDetail BuildEdgeDetail(BrepBody body, EdgeId edgeId, ICollection<string> notes)
@@ -179,6 +188,8 @@ public static class StepAnalyzer
         var curveType = "unknown";
         double? parameterRange = null;
         double? arcLength = null;
+        var arcLengthStatus = "unavailable";
+
         if (body.Bindings.TryGetEdgeBinding(edgeId, out var binding))
         {
             curveType = binding.TrimInterval is null ? "untrimmed" : "trimmed";
@@ -196,17 +207,31 @@ public static class StepAnalyzer
                     {
                         case CurveGeometryKind.Line3:
                             arcLength = double.Abs(trim.End - trim.Start);
+                            arcLengthStatus = "computed";
                             break;
                         case CurveGeometryKind.Circle3 when curve.Circle3 is { } circle:
                             arcLength = circle.Radius * double.Abs(trim.End - trim.Start);
+                            arcLengthStatus = "computed";
+                            break;
+                        default:
+                            arcLengthStatus = "unsupported-for-curve-kind";
                             break;
                     }
                 }
+                else
+                {
+                    arcLengthStatus = "unavailable-no-trim-interval";
+                }
+            }
+            else
+            {
+                arcLengthStatus = "unavailable-curve-missing";
             }
         }
         else
         {
             notes.Add($"Edge {edgeId.Value} has no curve binding, so curve-type and length are limited.");
+            arcLengthStatus = "unavailable-binding-missing";
         }
 
         Point3D? startPoint = body.TryGetVertexPoint(edge.StartVertexId, out var start) ? start : null;
@@ -216,7 +241,7 @@ public static class StepAnalyzer
             ? faces.Select(id => id.Value).OrderBy(v => v).ToArray()
             : [];
 
-        return new EdgeDetail(edgeId.Value, curveType, edge.StartVertexId.Value, startPoint, edge.EndVertexId.Value, endPoint, adjacentFaces, parameterRange, arcLength);
+        return new EdgeDetail(edgeId.Value, curveType, edge.StartVertexId.Value, startPoint, edge.EndVertexId.Value, endPoint, adjacentFaces, parameterRange, arcLength, arcLengthStatus);
     }
 
     private static VertexDetail BuildVertexDetail(BrepBody body, VertexId vertexId, ICollection<string> notes)
@@ -239,6 +264,27 @@ public static class StepAnalyzer
             .ToArray();
 
         return new VertexDetail(vertexId.Value, position, incidentEdges);
+    }
+
+    private static IdRangeSummary BuildIdRange(IEnumerable<int> ids)
+    {
+        var sorted = ids.OrderBy(id => id).ToArray();
+        if (sorted.Length == 0)
+        {
+            return new IdRangeSummary(0, 0, 0, true);
+        }
+
+        var contiguous = true;
+        for (var index = 1; index < sorted.Length; index++)
+        {
+            if (sorted[index] != sorted[index - 1] + 1)
+            {
+                contiguous = false;
+                break;
+            }
+        }
+
+        return new IdRangeSummary(sorted[0], sorted[^1], sorted.Length, contiguous);
     }
 
     private static BoundingBox3D? TryComputeBodyBoundingBox(BrepBody body)

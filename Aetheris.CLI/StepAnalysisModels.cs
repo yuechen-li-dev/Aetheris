@@ -18,9 +18,14 @@ public sealed record FaceDetail(
     string SurfaceType,
     BoundingBox3D? BoundingBox,
     Point3D? RepresentativePoint,
+    Point3D? AnchorPoint,
+    Point3D? Apex,
     Vector3D? PlanarNormal,
     Vector3D? Axis,
     double? Radius,
+    double? PlacementRadius,
+    double? MajorRadius,
+    double? MinorRadius,
     double? SemiAngleRadians,
     IReadOnlyList<int> AdjacentEdgeIds);
 
@@ -32,7 +37,8 @@ public sealed record EdgeDetail(
     int EndVertexId,
     Point3D? EndVertex,
     IReadOnlyList<int> AdjacentFaceIds,
-    double? Length);
+    double? ParameterRange,
+    double? ArcLength);
 
 public sealed record VertexDetail(
     int VertexId,

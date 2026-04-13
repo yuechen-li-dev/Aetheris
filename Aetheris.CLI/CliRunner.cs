@@ -146,7 +146,30 @@ public static class CliRunner
             return 1;
         }
 
-        var analysis = StepAnalyzer.Analyze(stepPath, faceId, edgeId, vertexId);
+        AnalyzeResult analysis;
+        try
+        {
+            analysis = StepAnalyzer.Analyze(stepPath, faceId, edgeId, vertexId);
+        }
+        catch (Exception ex)
+        {
+            if (json)
+            {
+                stdout.WriteLine(JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    stepPath = Path.GetFullPath(stepPath),
+                    error = ex.Message
+                }, JsonOptions));
+            }
+            else
+            {
+                stderr.WriteLine(ex.Message);
+            }
+
+            return 1;
+        }
+
         if (json)
         {
             stdout.WriteLine(JsonSerializer.Serialize(analysis, JsonOptions));
@@ -176,12 +199,12 @@ public static class CliRunner
 
         if (analysis.Face is not null)
         {
-            stdout.WriteLine($"Face {analysis.Face.FaceId}: type={analysis.Face.SurfaceType}, bbox={FormatBox(analysis.Face.BoundingBox)}, point={FormatPoint(analysis.Face.RepresentativePoint)}, normal={FormatVector(analysis.Face.PlanarNormal)}, axis={FormatVector(analysis.Face.Axis)}, radius={FormatDouble(analysis.Face.Radius)}, semiAngleRadians={FormatDouble(analysis.Face.SemiAngleRadians)}, edges=[{string.Join(",", analysis.Face.AdjacentEdgeIds)}]");
+            stdout.WriteLine($"Face {analysis.Face.FaceId}: type={analysis.Face.SurfaceType}, bbox={FormatBox(analysis.Face.BoundingBox)}, point={FormatPoint(analysis.Face.RepresentativePoint)}, anchor={FormatPoint(analysis.Face.AnchorPoint)}, apex={FormatPoint(analysis.Face.Apex)}, normal={FormatVector(analysis.Face.PlanarNormal)}, axis={FormatVector(analysis.Face.Axis)}, radius={FormatDouble(analysis.Face.Radius)}, placementRadius={FormatDouble(analysis.Face.PlacementRadius)}, majorRadius={FormatDouble(analysis.Face.MajorRadius)}, minorRadius={FormatDouble(analysis.Face.MinorRadius)}, semiAngleRadians={FormatDouble(analysis.Face.SemiAngleRadians)}, edges=[{string.Join(",", analysis.Face.AdjacentEdgeIds)}]");
         }
 
         if (analysis.Edge is not null)
         {
-            stdout.WriteLine($"Edge {analysis.Edge.EdgeId}: curve={analysis.Edge.CurveType}, start={analysis.Edge.StartVertexId}:{FormatPoint(analysis.Edge.StartVertex)}, end={analysis.Edge.EndVertexId}:{FormatPoint(analysis.Edge.EndVertex)}, faces=[{string.Join(",", analysis.Edge.AdjacentFaceIds)}], length={FormatDouble(analysis.Edge.Length)}");
+            stdout.WriteLine($"Edge {analysis.Edge.EdgeId}: curve={analysis.Edge.CurveType}, start={analysis.Edge.StartVertexId}:{FormatPoint(analysis.Edge.StartVertex)}, end={analysis.Edge.EndVertexId}:{FormatPoint(analysis.Edge.EndVertex)}, faces=[{string.Join(",", analysis.Edge.AdjacentFaceIds)}], parameterRange={FormatDouble(analysis.Edge.ParameterRange)}, arcLength={FormatDouble(analysis.Edge.ArcLength)}");
         }
 
         if (analysis.Vertex is not null)

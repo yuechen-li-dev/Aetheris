@@ -38,9 +38,9 @@ public static class BrepBoundedConcaveChamferPreflight
                 "firmament.chamfer-bounded")]);
         }
 
-        var minZ = cells[0].MinZ;
-        var maxZ = cells[0].MaxZ;
-        for (var i = 1; i < cells.Count; i++)
+        var minZ = cells.Min(cell => cell.MinZ);
+        var maxZ = cells.Max(cell => cell.MaxZ);
+        for (var i = 0; i < cells.Count; i++)
         {
             if (!NearlyEqual(cells[i].MinZ, minZ) || !NearlyEqual(cells[i].MaxZ, maxZ))
             {
@@ -121,12 +121,30 @@ public static class BrepBoundedConcaveChamferPreflight
                 "firmament.chamfer-bounded")]);
         }
 
+        var interactionInference = InferInteractingCorner(selected.Value, corners, distance);
+        if (interactionInference.Status == ConcaveInteractionInferenceStatus.Ambiguous)
+        {
+            return KernelResult<BoundedConcaveChamferSelection>.Failure([Failure(
+                "Bounded concave chamfer 2-edge interaction inference found multiple nearby concave-edge interactions; this milestone supports exactly one inferred interacting edge.",
+                "firmament.chamfer-bounded")]);
+        }
+
+        if (interactionInference.Corner.HasValue && distance >= interactionInference.Corner.Value.MaxAllowedDistance)
+        {
+            return KernelResult<BoundedConcaveChamferSelection>.Failure([Failure(
+                "Bounded chamfer distance is too large for the inferred interacting internal concave edge; distance must be strictly less than both local bounded neighborhood extents.",
+                "firmament.chamfer-bounded")]);
+        }
+
         return KernelResult<BoundedConcaveChamferSelection>.Success(new BoundedConcaveChamferSelection(
             selected.Value.X,
             selected.Value.Y,
             minZ,
             maxZ,
-            selected.Value.MaxAllowedDistance));
+            selected.Value.MaxAllowedDistance,
+            interactionInference.Corner.HasValue,
+            interactionInference.Corner?.X,
+            interactionInference.Corner?.Y));
     }
 
     private static BoundedConcaveChamferCornerCandidate? SelectCorner(
@@ -149,10 +167,57 @@ public static class BrepBoundedConcaveChamferPreflight
     private static bool NearlyEqual(double a, double b)
         => System.Math.Abs(a - b) <= 1e-9;
 
+    private static InferredConcaveInteraction InferInteractingCorner(
+        BoundedConcaveChamferCornerCandidate selectedCorner,
+        IReadOnlyList<BoundedConcaveChamferCornerCandidate> corners,
+        double distance)
+    {
+        var nearby = corners
+            .Where(candidate => !NearlyEqual(candidate.X, selectedCorner.X) || !NearlyEqual(candidate.Y, selectedCorner.Y))
+            .Where(candidate =>
+            {
+                var sharesX = NearlyEqual(candidate.X, selectedCorner.X);
+                var sharesY = NearlyEqual(candidate.Y, selectedCorner.Y);
+                if (sharesX == sharesY)
+                {
+                    return false;
+                }
+
+                var span = sharesX
+                    ? System.Math.Abs(candidate.Y - selectedCorner.Y)
+                    : System.Math.Abs(candidate.X - selectedCorner.X);
+                return span <= (2d * distance) + 1e-9d;
+            })
+            .OrderBy(candidate => System.Math.Abs(candidate.X - selectedCorner.X) + System.Math.Abs(candidate.Y - selectedCorner.Y))
+            .ToArray();
+
+        if (nearby.Length == 0)
+        {
+            return new InferredConcaveInteraction(ConcaveInteractionInferenceStatus.None, null);
+        }
+
+        if (nearby.Length > 1
+            && NearlyEqual(
+                System.Math.Abs(nearby[0].X - selectedCorner.X) + System.Math.Abs(nearby[0].Y - selectedCorner.Y),
+                System.Math.Abs(nearby[1].X - selectedCorner.X) + System.Math.Abs(nearby[1].Y - selectedCorner.Y)))
+        {
+            return new InferredConcaveInteraction(ConcaveInteractionInferenceStatus.Ambiguous, null);
+        }
+
+        return new InferredConcaveInteraction(ConcaveInteractionInferenceStatus.Unique, nearby[0]);
+    }
+
     private static KernelDiagnostic Failure(string message, string source)
         => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, Source: source);
 
     private readonly record struct BoundedConcaveChamferCornerCandidate(double X, double Y, double MaxAllowedDistance);
+    private readonly record struct InferredConcaveInteraction(ConcaveInteractionInferenceStatus Status, BoundedConcaveChamferCornerCandidate? Corner);
+    private enum ConcaveInteractionInferenceStatus
+    {
+        None,
+        Unique,
+        Ambiguous
+    }
 }
 
 public readonly record struct BoundedConcaveChamferSelection(
@@ -160,4 +225,7 @@ public readonly record struct BoundedConcaveChamferSelection(
     double EdgeY,
     double MinZ,
     double MaxZ,
-    double MaxAllowedDistance);
+    double MaxAllowedDistance,
+    bool HasInteractingEdge,
+    double? InteractingEdgeX,
+    double? InteractingEdgeY);

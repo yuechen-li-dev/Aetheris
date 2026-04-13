@@ -151,7 +151,8 @@ public static class BrepBoundedChamfer
                 var surface = sourceBody.Geometry.GetSurface(binding.SurfaceGeometryId);
                 return surface.Kind == SurfaceGeometryKind.Plane;
             }),
-            IsSingleEdgeSelection: true,
+            IsSingleEdgeSelection: !preflight.Value.HasInteractingEdge,
+            IsTwoEdgeInteractionSelection: preflight.Value.HasInteractingEdge,
             IsEqualDistance: true,
             IsBoundedDistance: distance < preflight.Value.MaxAllowedDistance);
         var engine = new JudgmentEngine<BrepBoundedConcaveChamferContext>();
@@ -168,6 +169,7 @@ public static class BrepBoundedChamfer
         return selected switch
         {
             "planar_internal_concave_edge_cut" => CreateTrustedPolyhedralSingleInternalConcaveEdgeChamferBody(sourceBody, preflight.Value, distance),
+            "planar_concave_edge_pair_cut" => CreateTrustedPolyhedralTwoEdgeInternalConcaveChamferBody(sourceBody, preflight.Value, distance),
             _ => KernelResult<BrepBody>.Failure([Failure(
                 $"Bounded concave edge resolution selected unsupported candidate '{selected}'.",
                 "firmament.chamfer-bounded")])
@@ -250,6 +252,61 @@ public static class BrepBoundedChamfer
         {
             return KernelResult<BrepBody>.Failure([Failure(
                 $"Bounded concave chamfer local builder could not construct the selected internal-edge cut: {cornerFailure}",
+                "firmament.chamfer-bounded")]);
+        }
+
+        var profileResult = PolylineProfile2D.Create(chamferedLoop.Select(point => new ProfilePoint2D(point.X, point.Y)).ToArray());
+        if (!profileResult.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(profileResult.Diagnostics);
+        }
+
+        var frame = new ExtrudeFrame3D(
+            origin: new Point3D(0d, 0d, selection.MinZ),
+            normal: Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            uAxis: Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+        return BrepExtrude.Create(profileResult.Value, frame, selection.MaxZ - selection.MinZ);
+    }
+
+    private static KernelResult<BrepBody> CreateTrustedPolyhedralTwoEdgeInternalConcaveChamferBody(
+        BrepBody sourceBody,
+        BoundedConcaveChamferSelection selection,
+        double distance)
+    {
+        if (!selection.HasInteractingEdge || !selection.InteractingEdgeX.HasValue || !selection.InteractingEdgeY.HasValue)
+        {
+            return KernelResult<BrepBody>.Failure([Failure(
+                "Bounded concave chamfer 2-edge interaction builder requires exactly one inferred interacting internal edge.",
+                "firmament.chamfer-bounded")]);
+        }
+
+        var cells = sourceBody.SafeBooleanComposition?.OccupiedCells;
+        if (cells is null || cells.Count == 0)
+        {
+            return KernelResult<BrepBody>.Failure([Failure(
+                "Bounded concave chamfer local builder requires occupied-cell root metadata.",
+                "firmament.chamfer-bounded")]);
+        }
+
+        if (!TryBuildOrthogonalFootprintLoop(cells, out var loop, out var loopFailure))
+        {
+            return KernelResult<BrepBody>.Failure([Failure(
+                $"Bounded concave chamfer local builder requires a single coherent orthogonal footprint loop: {loopFailure}",
+                "firmament.chamfer-bounded")]);
+        }
+
+        if (!TryApplyTwoEdgeConcaveInteractionChamfer(
+                loop,
+                selection.EdgeX,
+                selection.EdgeY,
+                selection.InteractingEdgeX.Value,
+                selection.InteractingEdgeY.Value,
+                distance,
+                out var chamferedLoop,
+                out var failure))
+        {
+            return KernelResult<BrepBody>.Failure([Failure(
+                $"Bounded concave chamfer local builder could not construct the selected 2-edge internal interaction cut: {failure}",
                 "firmament.chamfer-bounded")]);
         }
 
@@ -460,6 +517,117 @@ public static class BrepBoundedChamfer
         return loop.Count >= 4;
     }
 
+    private static bool TryApplyTwoEdgeConcaveInteractionChamfer(
+        IReadOnlyList<(double X, double Y)> loop,
+        double firstCornerX,
+        double firstCornerY,
+        double secondCornerX,
+        double secondCornerY,
+        double distance,
+        out List<(double X, double Y)> chamferedLoop,
+        out string failure)
+    {
+        chamferedLoop = [];
+        failure = string.Empty;
+        var firstIndices = Enumerable.Range(0, loop.Count)
+            .Where(index => NearlyEqual(loop[index].X, firstCornerX) && NearlyEqual(loop[index].Y, firstCornerY))
+            .ToArray();
+        var secondIndices = Enumerable.Range(0, loop.Count)
+            .Where(index => NearlyEqual(loop[index].X, secondCornerX) && NearlyEqual(loop[index].Y, secondCornerY))
+            .ToArray();
+        var firstIndex = firstIndices.Length == 1 ? firstIndices[0] : -1;
+        var secondIndex = secondIndices.Length == 1 ? secondIndices[0] : -1;
+        if (firstIndex < 0 || secondIndex < 0)
+        {
+            failure = "one or both inferred concave corners were not present on the footprint loop";
+            return false;
+        }
+
+        var delta = (secondIndex - firstIndex + loop.Count) % loop.Count;
+        var adjacentForward = delta == 1;
+        var adjacentBackward = delta == loop.Count - 1;
+        if (!adjacentForward && !adjacentBackward)
+        {
+            failure = "inferred interacting concave edges are not adjacent in a single local corner neighborhood";
+            return false;
+        }
+
+        if (adjacentBackward)
+        {
+            (firstIndex, secondIndex) = (secondIndex, firstIndex);
+            (firstCornerX, secondCornerX) = (secondCornerX, firstCornerX);
+            (firstCornerY, secondCornerY) = (secondCornerY, firstCornerY);
+        }
+
+        var signedArea = ComputeSignedArea(loop);
+        var isCounterClockwise = signedArea > 0d;
+        if (!IsConcaveCorner(loop, firstIndex, isCounterClockwise) || !IsConcaveCorner(loop, secondIndex, isCounterClockwise))
+        {
+            failure = "the selected corner neighborhood does not form two adjacent concave corners";
+            return false;
+        }
+
+        var prevFirstIndex = (firstIndex + loop.Count - 1) % loop.Count;
+        var nextSecondIndex = (secondIndex + 1) % loop.Count;
+        var firstCorner = loop[firstIndex];
+        var secondCorner = loop[secondIndex];
+        var firstPrev = loop[prevFirstIndex];
+        var secondNext = loop[nextSecondIndex];
+        var sharedSpan = (X: secondCorner.X - firstCorner.X, Y: secondCorner.Y - firstCorner.Y);
+        var firstOuterSpan = (X: firstPrev.X - firstCorner.X, Y: firstPrev.Y - firstCorner.Y);
+        var secondOuterSpan = (X: secondNext.X - secondCorner.X, Y: secondNext.Y - secondCorner.Y);
+        if (!IsAxisAligned(sharedSpan) || !IsAxisAligned(firstOuterSpan) || !IsAxisAligned(secondOuterSpan))
+        {
+            failure = "selected 2-edge concave interaction neighborhood is not axis-aligned";
+            return false;
+        }
+
+        var sharedLength = System.Math.Sqrt(sharedSpan.X * sharedSpan.X + sharedSpan.Y * sharedSpan.Y);
+        var firstOuterLength = System.Math.Sqrt(firstOuterSpan.X * firstOuterSpan.X + firstOuterSpan.Y * firstOuterSpan.Y);
+        var secondOuterLength = System.Math.Sqrt(secondOuterSpan.X * secondOuterSpan.X + secondOuterSpan.Y * secondOuterSpan.Y);
+        if (distance >= firstOuterLength || distance >= secondOuterLength || distance >= sharedLength)
+        {
+            failure = "distance exceeds one or more local orthogonal edge spans in the 2-edge concave neighborhood";
+            return false;
+        }
+
+        if (sharedLength > (2d * distance) + 1e-9d)
+        {
+            failure = "local concave edges do not interact for this distance; bounded E8 only supports the intersecting 2-edge interaction class";
+            return false;
+        }
+
+        var firstOuterCut = (firstCorner.X + firstOuterSpan.X / firstOuterLength * distance, firstCorner.Y + firstOuterSpan.Y / firstOuterLength * distance);
+        var firstSharedCut = (firstCorner.X + sharedSpan.X / sharedLength * distance, firstCorner.Y + sharedSpan.Y / sharedLength * distance);
+        var secondSharedCut = (secondCorner.X - sharedSpan.X / sharedLength * distance, secondCorner.Y - sharedSpan.Y / sharedLength * distance);
+        var secondOuterCut = (secondCorner.X + secondOuterSpan.X / secondOuterLength * distance, secondCorner.Y + secondOuterSpan.Y / secondOuterLength * distance);
+        if (!TryIntersectLines(firstOuterCut, firstSharedCut, secondSharedCut, secondOuterCut, out var interactionPoint))
+        {
+            failure = "could not resolve the 2-edge concave chamfer intersection in profile space";
+            return false;
+        }
+
+        for (var i = 0; i < loop.Count; i++)
+        {
+            if (i == firstIndex)
+            {
+                chamferedLoop.Add(firstOuterCut);
+                chamferedLoop.Add(interactionPoint);
+                continue;
+            }
+
+            if (i == secondIndex)
+            {
+                chamferedLoop.Add(secondOuterCut);
+                continue;
+            }
+
+            chamferedLoop.Add(loop[i]);
+        }
+
+        return true;
+    }
+
     private static bool IsConcaveCorner(IReadOnlyList<(double X, double Y)> loop, int index, bool isCounterClockwise)
     {
         var prev = loop[(index + loop.Count - 1) % loop.Count];
@@ -508,22 +676,60 @@ public static class BrepBoundedChamfer
     private static bool NearlyEqual(double a, double b)
         => System.Math.Abs(a - b) <= 1e-9;
 
+    private static bool TryIntersectLines(
+        (double X, double Y) a0,
+        (double X, double Y) a1,
+        (double X, double Y) b0,
+        (double X, double Y) b1,
+        out (double X, double Y) intersection)
+    {
+        intersection = default;
+        var ax = a1.X - a0.X;
+        var ay = a1.Y - a0.Y;
+        var bx = b1.X - b0.X;
+        var by = b1.Y - b0.Y;
+        var denom = ax * by - ay * bx;
+        if (System.Math.Abs(denom) <= 1e-9d)
+        {
+            return false;
+        }
+
+        var dx = b0.X - a0.X;
+        var dy = b0.Y - a0.Y;
+        var t = (dx * by - dy * bx) / denom;
+        intersection = (a0.X + (t * ax), a0.Y + (t * ay));
+        return double.IsFinite(intersection.X) && double.IsFinite(intersection.Y);
+    }
+
     private static IReadOnlyList<JudgmentCandidate<BrepBoundedConcaveChamferContext>> BuildInternalConcaveEdgeCandidates()
     {
-        var boundedConcavePlanarGuard = When.All<BrepBoundedConcaveChamferContext>(
+        var boundedConcaveSingleEdgePlanarGuard = When.All<BrepBoundedConcaveChamferContext>(
             context => context.IsPlanarPolyhedralSource,
             context => context.IsSingleEdgeSelection,
+            context => !context.IsTwoEdgeInteractionSelection,
+            context => context.IsEqualDistance,
+            context => context.IsBoundedDistance);
+        var boundedConcavePairEdgePlanarGuard = When.All<BrepBoundedConcaveChamferContext>(
+            context => context.IsPlanarPolyhedralSource,
+            context => context.IsTwoEdgeInteractionSelection,
+            context => !context.IsSingleEdgeSelection,
             context => context.IsEqualDistance,
             context => context.IsBoundedDistance);
 
         return
         [
             new JudgmentCandidate<BrepBoundedConcaveChamferContext>(
+                Name: "planar_concave_edge_pair_cut",
+                IsAdmissible: boundedConcavePairEdgePlanarGuard,
+                Score: _ => 110d,
+                RejectionReason: _ => "requires planar trusted-polyhedral source with exactly one inferred bounded interacting internal concave edge pair and equal distance",
+                TieBreakerPriority: 0),
+            new JudgmentCandidate<BrepBoundedConcaveChamferContext>(
                 Name: "planar_internal_concave_edge_cut",
-                IsAdmissible: boundedConcavePlanarGuard,
+                IsAdmissible: boundedConcaveSingleEdgePlanarGuard,
                 Score: _ => 100d,
                 RejectionReason: _ => "requires planar trusted-polyhedral source with one bounded internal concave edge and equal distance",
-                TieBreakerPriority: 0),
+                TieBreakerPriority: 1),
             new JudgmentCandidate<BrepBoundedConcaveChamferContext>(
                 Name: RejectCandidate,
                 IsAdmissible: _ => true,
@@ -1766,5 +1972,6 @@ public readonly record struct BrepBoundedChamferIncidentEdgePairSelector(
 internal readonly record struct BrepBoundedConcaveChamferContext(
     bool IsPlanarPolyhedralSource,
     bool IsSingleEdgeSelection,
+    bool IsTwoEdgeInteractionSelection,
     bool IsEqualDistance,
     bool IsBoundedDistance);

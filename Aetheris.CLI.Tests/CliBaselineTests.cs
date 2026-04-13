@@ -216,6 +216,50 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Build_And_Analyze_NonOrthogonalTriangularPrismCornerChamfer_Reports_Enclosed_And_Planar_Cut_Face()
+    {
+        var outputPath = Path.Combine(RepoRoot, "testdata", "firmament", "exports", "cli-triangular-prism-corner-chamfer-e4.step");
+        if (File.Exists(outputPath))
+        {
+            File.Delete(outputPath);
+        }
+
+        var buildStdout = new StringWriter();
+        var buildStderr = new StringWriter();
+        var buildExitCode = Aetheris.CLI.CliRunner.Run(
+            ["build", Path.Combine(RepoRoot, "testdata/firmament/examples/m5a_chamfer_triangular_prism_corner_e4_basic.firmament"), "--out", outputPath],
+            buildStdout,
+            buildStderr);
+        Assert.Equal(0, buildExitCode);
+        Assert.True(File.Exists(outputPath), buildStderr.ToString());
+
+        var analyzeStdout = new StringWriter();
+        var analyzeStderr = new StringWriter();
+        var analyzeExitCode = Aetheris.CLI.CliRunner.Run(
+            ["analyze", outputPath, "--json"],
+            analyzeStdout,
+            analyzeStderr);
+        Assert.Equal(0, analyzeExitCode);
+
+        using var doc = JsonDocument.Parse(analyzeStdout.ToString());
+        var summary = doc.RootElement.GetProperty("summary");
+        Assert.Equal("enclosed-manifold", summary.GetProperty("structuralAssessment").GetString());
+        Assert.Equal(6, summary.GetProperty("faceCount").GetInt32());
+        Assert.Equal(12, summary.GetProperty("edgeCount").GetInt32());
+        Assert.Equal(8, summary.GetProperty("vertexCount").GetInt32());
+        var bbox = summary.GetProperty("boundingBox");
+        AssertPoint(bbox.GetProperty("min"), -5d, -3d, -4d);
+        AssertPoint(bbox.GetProperty("max"), 5d, 3d, 4d);
+
+        var cutFace = AnalyzeFace(outputPath, 6);
+        Assert.Equal("Plane", cutFace.GetProperty("surfaceType").GetString());
+        Assert.Equal("bound", cutFace.GetProperty("surfaceStatus").GetString());
+        Assert.Equal(3, cutFace.GetProperty("adjacentEdgeIds").GetArrayLength());
+
+        File.Delete(outputPath);
+    }
+
+    [Fact]
     public void Analyze_Command_Uses_Binding_Missing_Surface_Status_Instead_Of_Unknown_Surface_Type()
     {
         var boxBody = BrepPrimitives.CreateBox(10d, 6d, 4d).Value;

@@ -20,7 +20,7 @@ public sealed class BrepBoundedChamferCornerJudgmentTests
     }
 
     [Fact]
-    public void ChamferTrustedPolyhedralSingleCorner_Rejects_NonOrthogonalTriangularPrismCorner_WithExplicitPolicyReason()
+    public void ChamferTrustedPolyhedralSingleCorner_Builds_NonOrthogonalTriangularPrismCorner()
     {
         var prism = BrepPrimitives.CreateTriangularPrism(baseWidth: 8d, baseDepth: 6d, height: 10d);
         Assert.True(prism.IsSuccess);
@@ -30,7 +30,9 @@ public sealed class BrepBoundedChamferCornerJudgmentTests
             BrepBoundedChamferCorner.XMaxYMaxZMax,
             distance: 1d);
 
-        Assert.False(result.IsSuccess);
-        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("corner resolution rejected", StringComparison.Ordinal));
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(6, result.Value.Topology.Faces.Count());
+        Assert.Equal(12, result.Value.Topology.Edges.Count());
+        Assert.Equal(8, result.Value.Topology.Vertices.Count());
     }
 }

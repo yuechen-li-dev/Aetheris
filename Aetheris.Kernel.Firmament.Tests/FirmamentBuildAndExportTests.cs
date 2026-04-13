@@ -235,6 +235,18 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Fact]
+    public void Run_M5aChamferTriangularPrismCornerE4Example_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/m5a_chamfer_triangular_prism_corner_e4_basic.firmament",
+            "m5a_chamfer_triangular_prism_corner_e4_basic.step",
+            "corner_break",
+            1,
+            "boolean",
+            "chamfer");
+    }
+
+    [Fact]
     public void Run_BooleanBoxCylinderHoleExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(

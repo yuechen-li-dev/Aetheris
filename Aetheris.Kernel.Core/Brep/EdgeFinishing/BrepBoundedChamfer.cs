@@ -83,9 +83,7 @@ public static class BrepBoundedChamfer
 
         if (!context.IsTrustedOrthogonalBody || !context.HasOrthogonalGeometryConstructor)
         {
-            return KernelResult<BrepBody>.Failure([Failure(
-                "Bounded chamfer corner resolution reached non-orthogonal tri-planar corner policy, but geometry construction is currently bounded to orthogonal box-like corners only.",
-                "firmament.chamfer-bounded")]);
+            return CreateTrustedPolyhedralSingleCornerPlanarChamferBody(sourceBody, context);
         }
 
         return CreateSingleCornerPlanarChamferBody(context);
@@ -355,6 +353,286 @@ public static class BrepBoundedChamfer
         public static EdgeUse Forward(EdgeId edgeId) => new(edgeId, false);
         public static EdgeUse Reversed(EdgeId edgeId) => new(edgeId, true);
     }
+
+    private static KernelResult<BrepBody> CreateTrustedPolyhedralSingleCornerPlanarChamferBody(
+        BrepBody sourceBody,
+        BrepBoundedChamferCornerContext context)
+    {
+        if (!BrepBoundedChamferCornerContext.TryResolveMaxCornerVertex(sourceBody, out var cornerVertex, out var cornerPoint, out var reason))
+        {
+            return KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer corner construction rejected: {reason}.", "firmament.chamfer-bounded")]);
+        }
+
+        var vertexPoints = sourceBody.Topology.Vertices
+            .Where(vertex => BrepBoundedChamferCornerContext.TryResolveVertexPoint(sourceBody, vertex.Id, out _))
+            .ToDictionary(
+                vertex => VertexToken.FromVertex(vertex.Id),
+                vertex =>
+                {
+                    BrepBoundedChamferCornerContext.TryResolveVertexPoint(sourceBody, vertex.Id, out var point);
+                    return point;
+                });
+        if (vertexPoints.Count != sourceBody.Topology.Vertices.Count())
+        {
+            return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer corner construction requires explicit resolvable points for every source body vertex.", "firmament.chamfer-bounded")]);
+        }
+
+        var incidentEdges = sourceBody.Topology.Edges
+            .Where(edge => edge.StartVertexId == cornerVertex || edge.EndVertexId == cornerVertex)
+            .ToArray();
+        if (incidentEdges.Length != 3)
+        {
+            return KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer corner construction requires exactly 3 incident edges at selected corner; found {incidentEdges.Length}.", "firmament.chamfer-bounded")]);
+        }
+
+        var splitVertexByIncidentEdge = new Dictionary<EdgeId, VertexToken>(incidentEdges.Length);
+        foreach (var edge in incidentEdges)
+        {
+            var otherVertex = edge.StartVertexId == cornerVertex ? edge.EndVertexId : edge.StartVertexId;
+            var otherToken = VertexToken.FromVertex(otherVertex);
+            var otherPoint = vertexPoints[otherToken];
+            var edgeVector = otherPoint - cornerPoint;
+            var edgeLength = edgeVector.Length;
+            if (!double.IsFinite(edgeLength) || edgeLength <= context.Distance)
+            {
+                return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer corner construction rejected: corner distance is too large for one or more local incident edges.", "firmament.chamfer-bounded")]);
+            }
+
+            var splitRatio = (edgeLength - context.Distance) / edgeLength;
+            var splitPoint = cornerPoint + (edgeVector * splitRatio);
+            var splitToken = VertexToken.FromSplitEdge(edge.Id);
+            vertexPoints[splitToken] = splitPoint;
+            splitVertexByIncidentEdge[edge.Id] = splitToken;
+        }
+
+        var rewrittenFaces = new List<IReadOnlyList<VertexToken>>();
+        foreach (var face in sourceBody.Topology.Faces)
+        {
+            if (face.LoopIds.Count != 1 || !sourceBody.Topology.TryGetLoop(face.LoopIds[0], out var loop) || loop is null)
+            {
+                return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer corner construction currently supports only single-loop planar face participation.", "firmament.chamfer-bounded")]);
+            }
+
+            var cycle = TryGetLoopVertexCycle(sourceBody, loop);
+            if (cycle is null || cycle.Count < 3)
+            {
+                return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer corner construction failed to resolve a coherent loop cycle from source topology.", "firmament.chamfer-bounded")]);
+            }
+
+            var cornerIndex = cycle.FindIndex(vertexId => vertexId == cornerVertex);
+            if (cornerIndex < 0)
+            {
+                rewrittenFaces.Add(cycle.Select(VertexToken.FromVertex).ToArray());
+                continue;
+            }
+
+            var previousVertex = cycle[(cornerIndex + cycle.Count - 1) % cycle.Count];
+            var nextVertex = cycle[(cornerIndex + 1) % cycle.Count];
+            var previousEdge = sourceBody.Topology.Edges.FirstOrDefault(edge =>
+                (edge.StartVertexId == cornerVertex && edge.EndVertexId == previousVertex)
+                || (edge.EndVertexId == cornerVertex && edge.StartVertexId == previousVertex));
+            var nextEdge = sourceBody.Topology.Edges.FirstOrDefault(edge =>
+                (edge.StartVertexId == cornerVertex && edge.EndVertexId == nextVertex)
+                || (edge.EndVertexId == cornerVertex && edge.StartVertexId == nextVertex));
+            if (previousEdge == default || nextEdge == default
+                || !splitVertexByIncidentEdge.TryGetValue(previousEdge.Id, out var splitPrevious)
+                || !splitVertexByIncidentEdge.TryGetValue(nextEdge.Id, out var splitNext))
+            {
+                return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer corner construction could not resolve split vertices for participating face rewrite.", "firmament.chamfer-bounded")]);
+            }
+
+            var rewritten = new List<VertexToken>(cycle.Count + 1);
+            for (var i = 0; i < cycle.Count; i++)
+            {
+                if (i == cornerIndex)
+                {
+                    rewritten.Add(splitPrevious);
+                    rewritten.Add(splitNext);
+                    continue;
+                }
+
+                rewritten.Add(VertexToken.FromVertex(cycle[i]));
+            }
+
+            rewrittenFaces.Add(rewritten);
+        }
+
+        var cutFace = splitVertexByIncidentEdge.Values.ToList();
+        var interiorPoint = new Point3D(
+            vertexPoints.Values.Average(point => point.X),
+            vertexPoints.Values.Average(point => point.Y),
+            vertexPoints.Values.Average(point => point.Z));
+        OrientCutFaceOutward(cutFace, vertexPoints, interiorPoint);
+        rewrittenFaces.Add(cutFace);
+
+        return BuildPolyhedralBodyFromFaces(rewrittenFaces, vertexPoints);
+    }
+
+    private static List<VertexId>? TryGetLoopVertexCycle(BrepBody body, Loop loop)
+    {
+        var cycle = new List<VertexId>(loop.CoedgeIds.Count);
+        foreach (var coedgeId in loop.CoedgeIds)
+        {
+            if (!body.Topology.TryGetCoedge(coedgeId, out var coedge) || coedge is null
+                || !body.Topology.TryGetEdge(coedge.EdgeId, out var edge) || edge is null)
+            {
+                return null;
+            }
+
+            cycle.Add(coedge.IsReversed ? edge.EndVertexId : edge.StartVertexId);
+        }
+
+        return cycle;
+    }
+
+    private static void OrientCutFaceOutward(
+        List<VertexToken> cutFace,
+        IReadOnlyDictionary<VertexToken, Point3D> vertexPoints,
+        Point3D interiorPoint)
+    {
+        var p0 = vertexPoints[cutFace[0]];
+        var p1 = vertexPoints[cutFace[1]];
+        var p2 = vertexPoints[cutFace[2]];
+        var normal = (p1 - p0).Cross(p2 - p0);
+        if (normal.Dot(interiorPoint - p0) > 0d)
+        {
+            cutFace.Reverse();
+        }
+    }
+
+    private static KernelResult<BrepBody> BuildPolyhedralBodyFromFaces(
+        IReadOnlyList<IReadOnlyList<VertexToken>> faceCycles,
+        IReadOnlyDictionary<VertexToken, Point3D> vertexPoints)
+    {
+        var builder = new TopologyBuilder();
+        var vertexIds = new Dictionary<VertexToken, VertexId>();
+        var usedVertexTokens = faceCycles.SelectMany(cycle => cycle).Distinct().ToArray();
+        foreach (var token in usedVertexTokens)
+        {
+            vertexIds[token] = builder.AddVertex();
+        }
+
+        var edgeIds = new Dictionary<(VertexToken, VertexToken), EdgeId>();
+        var edgeEndpoints = new Dictionary<EdgeId, (VertexToken Start, VertexToken End)>();
+        var faces = new List<FaceId>(faceCycles.Count);
+        foreach (var cycle in faceCycles)
+        {
+            var edgeUses = new List<EdgeUse>(cycle.Count);
+            for (var i = 0; i < cycle.Count; i++)
+            {
+                var start = cycle[i];
+                var end = cycle[(i + 1) % cycle.Count];
+                if (start.Equals(end))
+                {
+                    return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer corner construction produced a degenerate loop edge.", "firmament.chamfer-bounded")]);
+                }
+
+                var key = OrderedEdgeKey(start, end);
+                if (!edgeIds.TryGetValue(key, out var edgeId))
+                {
+                    edgeId = builder.AddEdge(vertexIds[start], vertexIds[end]);
+                    edgeIds[key] = edgeId;
+                    edgeEndpoints[edgeId] = (start, end);
+                }
+
+                var endpoints = edgeEndpoints[edgeId];
+                var isReversed = !(endpoints.Start.Equals(start) && endpoints.End.Equals(end));
+                edgeUses.Add(new EdgeUse(edgeId, isReversed));
+            }
+
+            faces.Add(AddFaceWithLoop(builder, edgeUses));
+        }
+
+        var shell = builder.AddShell(faces);
+        builder.AddBody([shell]);
+
+        var geometry = new BrepGeometryStore();
+        var bindings = new BrepBindingModel();
+        var curveId = 1;
+        foreach (var pair in edgeEndpoints)
+        {
+            var start = vertexPoints[pair.Value.Start];
+            var end = vertexPoints[pair.Value.End];
+            var direction = end - start;
+            if (direction.Length <= 1e-9d)
+            {
+                return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer corner construction produced a zero-length edge.", "firmament.chamfer-bounded")]);
+            }
+
+            var cid = new CurveGeometryId(curveId++);
+            geometry.AddCurve(cid, CurveGeometry.FromLine(new Line3Curve(start, Direction3D.Create(direction))));
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(pair.Key, cid, new ParameterInterval(0d, direction.Length)));
+        }
+
+        var surfaceId = 1;
+        for (var faceIndex = 0; faceIndex < faceCycles.Count; faceIndex++)
+        {
+            var cycle = faceCycles[faceIndex];
+            var points = cycle.Select(token => vertexPoints[token]).ToArray();
+            if (!TryCreatePlane(points, out var origin, out var normal, out var uAxis))
+            {
+                return KernelResult<BrepBody>.Failure([Failure("Bounded chamfer corner construction requires planar non-degenerate face loops.", "firmament.chamfer-bounded")]);
+            }
+
+            var sid = new SurfaceGeometryId(surfaceId++);
+            geometry.AddSurface(sid, SurfaceGeometry.FromPlane(new PlaneSurface(origin, Direction3D.Create(normal), Direction3D.Create(uAxis))));
+            bindings.AddFaceBinding(new FaceGeometryBinding(faces[faceIndex], sid));
+        }
+
+        var builtVertexPoints = vertexIds.ToDictionary(pair => pair.Value, pair => vertexPoints[pair.Key]);
+        var body = new BrepBody(builder.Model, geometry, bindings, builtVertexPoints);
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        return validation.IsSuccess
+            ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
+            : KernelResult<BrepBody>.Failure(validation.Diagnostics);
+    }
+
+    private static bool TryCreatePlane(
+        IReadOnlyList<Point3D> points,
+        out Point3D origin,
+        out Vector3D normal,
+        out Vector3D uAxis)
+    {
+        origin = points[0];
+        normal = default;
+        uAxis = default;
+        for (var i = 1; i < points.Count - 1; i++)
+        {
+            var v1 = points[i] - points[0];
+            var v2 = points[i + 1] - points[0];
+            var cross = v1.Cross(v2);
+            if (!cross.TryNormalize(out var normalized))
+            {
+                continue;
+            }
+
+            if (!v1.TryNormalize(out var u))
+            {
+                continue;
+            }
+
+            normal = normalized;
+            uAxis = u;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static (VertexToken A, VertexToken B) OrderedEdgeKey(VertexToken a, VertexToken b)
+        => a.CompareTo(b) <= 0 ? (a, b) : (b, a);
+
+    private readonly record struct VertexToken(int Kind, int Value) : IComparable<VertexToken>
+    {
+        public static VertexToken FromVertex(VertexId vertexId) => new(0, vertexId.Value);
+        public static VertexToken FromSplitEdge(EdgeId edgeId) => new(1, edgeId.Value);
+
+        public int CompareTo(VertexToken other)
+        {
+            var kindCompare = Kind.CompareTo(other.Kind);
+            return kindCompare != 0 ? kindCompare : Value.CompareTo(other.Value);
+        }
+    }
 }
 
 public readonly record struct BrepBoundedChamferCornerContext(
@@ -486,7 +764,7 @@ public readonly record struct BrepBoundedChamferCornerContext(
             HasOrthogonalGeometryConstructor: allOrthogonal));
     }
 
-    private static bool TryResolveMaxCornerVertex(BrepBody body, out VertexId vertexId, out Point3D point, out string reason)
+    internal static bool TryResolveMaxCornerVertex(BrepBody body, out VertexId vertexId, out Point3D point, out string reason)
     {
         vertexId = default;
         point = default;
@@ -552,7 +830,7 @@ public readonly record struct BrepBoundedChamferCornerContext(
         return false;
     }
 
-    private static bool TryResolveVertexPoint(BrepBody body, VertexId vertexId, out Point3D point)
+    internal static bool TryResolveVertexPoint(BrepBody body, VertexId vertexId, out Point3D point)
     {
         if (body.TryGetVertexPoint(vertexId, out point))
         {
@@ -632,15 +910,8 @@ public readonly record struct BrepBoundedChamferCornerContext(
             return false;
         }
 
-        var cross = edgeVectors[0].Cross(edgeVectors[1]);
-        if (!cross.TryNormalize(out var triNormal))
-        {
-            return false;
-        }
-
-        return faceNormals.Any(normal =>
-            normal.TryNormalize(out var n)
-            && n.Dot(triNormal) > 1e-6d);
+        var triple = edgeVectors[0].Cross(edgeVectors[1]).Dot(edgeVectors[2]);
+        return double.Abs(triple) > 1e-9d;
     }
 }
 

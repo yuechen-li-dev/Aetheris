@@ -326,13 +326,27 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
-    public void Compile_Rejects_BoundedChamfer_SingleCorner_For_NonOrthogonalTriangularPrism()
+    public void Compile_Executes_BoundedChamfer_SingleCorner_For_NonOrthogonalTriangularPrism()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/m5a-invalid-chamfer-triangular-prism-nonorth-corner.firmament");
+        var result = CompileFixture("testdata/firmament/fixtures/m5a-valid-chamfer-triangular-prism-nonorth-corner.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
+        Assert.Equal("corner_break", executedBoolean.FeatureId);
+        Assert.Equal(FirmamentLoweredBooleanKind.Chamfer, executedBoolean.Kind);
+        Assert.Equal(6, executedBoolean.Body.Topology.Faces.Count());
+        Assert.Equal(12, executedBoolean.Body.Topology.Edges.Count());
+    }
+
+    [Fact]
+    public void Compile_Rejects_BoundedChamfer_SingleCorner_For_NonOrthogonalTriangularPrism_When_Distance_TooLarge()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5a-invalid-chamfer-triangular-prism-corner-distance-too-large.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("corner resolution rejected", StringComparison.Ordinal));
+            diagnostic.Message.Contains("corner resolution rejected", StringComparison.Ordinal)
+            || diagnostic.Message.Contains("distance is too large", StringComparison.Ordinal));
     }
 
     [Fact]

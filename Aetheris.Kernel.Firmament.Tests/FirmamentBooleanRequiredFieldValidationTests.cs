@@ -228,6 +228,70 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             "Boolean op 'chamfer' at index 1 has invalid field 'edges'; supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max.");
 
     [Fact]
+    public void Compiler_Rejects_ChamferCornerIncidentEdgeSelector_DuplicateEdgeToken() =>
+        AssertBooleanFailure(
+            """
+            firmament:
+              version: 1
+
+            model:
+              name: demo
+              units: mm
+
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  20
+                  20
+                  20
+              -
+                op: chamfer
+                id: corner_break
+                from: base
+                corners[1]:
+                  x_max_y_max_z_max
+                corner_edges[2]:
+                  x_neg
+                  x_neg
+                distance: 1
+            """,
+            FirmamentDiagnosticCodes.BooleanInvalidFieldValue,
+            "Boolean op 'chamfer' at index 1 has invalid field 'corner_edges'; bounded E5b corner-edge selector requires two distinct incident edge tokens.");
+
+    [Fact]
+    public void Compiler_Rejects_Chamfer_TwoEdge_NonCornerFirst_Selector_Form() =>
+        AssertBooleanFailure(
+            """
+            firmament:
+              version: 1
+
+            model:
+              name: demo
+              units: mm
+
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  20
+                  20
+                  20
+              -
+                op: chamfer
+                id: edge_break
+                from: base
+                edges[2]:
+                  x_max_y_max
+                  x_max_y_min
+                distance: 1
+            """,
+            FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape,
+            "Boolean op 'chamfer' at index 1 has invalid field 'edges'; expected a single-item string array with one explicit edge token.");
+
+    [Fact]
     public void Compiler_Accepts_ValidBoundedChamferCornerE2Shape() =>
         AssertValidBooleanOp("""
         firmament:

@@ -163,26 +163,63 @@ internal static class FirmamentBooleanRequiredFieldValidator
 
         var hasEdges = entry.RawFields.TryGetValue("edges", out var edgesRaw) && !string.IsNullOrWhiteSpace(edgesRaw);
         var hasCorners = entry.RawFields.TryGetValue("corners", out var cornersRaw) && !string.IsNullOrWhiteSpace(cornersRaw);
+        var hasCornerEdges = entry.RawFields.TryGetValue("corner_edges", out var cornerEdgesRaw) && !string.IsNullOrWhiteSpace(cornerEdgesRaw);
+
+        if (hasCornerEdges)
+        {
+            if (hasEdges)
+            {
+                return InvalidFieldValue("corner_edges", opIndex, entry.OpName, "bounded E5b corner-edge selector does not allow edges; use corners[1] with corner_edges[2]");
+            }
+
+            if (!hasCorners)
+            {
+                return MissingField("corners", opIndex, entry.OpName);
+            }
+
+            if (!TryParseFaceTokens(cornersRaw!, out var incidentCornerTokens) || incidentCornerTokens.Count != 1)
+            {
+                return InvalidFieldTypeOrShape("corners", opIndex, entry.OpName, "expected a single-item string array with one explicit corner token");
+            }
+
+            if (incidentCornerTokens[0] is not "x_max_y_max_z_max")
+            {
+                return InvalidFieldValue("corners", opIndex, entry.OpName, "supported bounded E5b corner token is x_max_y_max_z_max");
+            }
+
+            if (!TryParseFaceTokens(cornerEdgesRaw!, out var incidentEdgeTokens) || incidentEdgeTokens.Count != 2)
+            {
+                return InvalidFieldTypeOrShape("corner_edges", opIndex, entry.OpName, "expected a two-item string array with two explicit incident corner-edge tokens");
+            }
+
+            if (incidentEdgeTokens.Any(token => token is not ("x_neg" or "y_neg" or "z_neg")))
+            {
+                return InvalidFieldValue("corner_edges", opIndex, entry.OpName, "supported bounded E5b corner-edge tokens are x_neg, y_neg, z_neg");
+            }
+
+            if (string.Equals(incidentEdgeTokens[0], incidentEdgeTokens[1], StringComparison.Ordinal))
+            {
+                return InvalidFieldValue("corner_edges", opIndex, entry.OpName, "bounded E5b corner-edge selector requires two distinct incident edge tokens");
+            }
+
+            return KernelResult<bool>.Success(true);
+        }
+
         if (hasEdges == hasCorners)
         {
-            return InvalidFieldValue("edges", opIndex, entry.OpName, "bounded E2 chamfer requires exactly one selector family: either edges[1] or corners[1]");
+            return InvalidFieldValue("edges", opIndex, entry.OpName, "bounded E2 chamfer requires exactly one selector family: edges[1], corners[1], or corners[1]+corner_edges[2]");
         }
 
         if (hasEdges)
         {
-            if (!TryParseFaceTokens(edgesRaw!, out var edgeTokens) || edgeTokens.Count is < 1 or > 2)
+            if (!TryParseFaceTokens(edgesRaw!, out var edgeTokens) || edgeTokens.Count != 1)
             {
-                return InvalidFieldTypeOrShape("edges", opIndex, entry.OpName, "expected a string array with one explicit edge token or one two-edge corner pair");
+                return InvalidFieldTypeOrShape("edges", opIndex, entry.OpName, "expected a single-item string array with one explicit edge token");
             }
 
             if (edgeTokens.Any(token => token is not ("x_min_y_min" or "x_min_y_max" or "x_max_y_min" or "x_max_y_max")))
             {
                 return InvalidFieldValue("edges", opIndex, entry.OpName, "supported bounded M5a edge tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max");
-            }
-
-            if (edgeTokens.Count == 2 && string.Equals(edgeTokens[0], edgeTokens[1], StringComparison.Ordinal))
-            {
-                return InvalidFieldValue("edges", opIndex, entry.OpName, "bounded M5a two-edge corner pair requires two distinct edge tokens");
             }
         }
         else

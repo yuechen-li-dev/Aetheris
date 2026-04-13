@@ -913,6 +913,102 @@ public readonly record struct BrepBoundedChamferCornerContext(
         var triple = edgeVectors[0].Cross(edgeVectors[1]).Dot(edgeVectors[2]);
         return double.Abs(triple) > 1e-9d;
     }
+
+    public static KernelResult<bool> ValidateIncidentEdgePairSelector(
+        BrepBody sourceBody,
+        BrepBoundedChamferIncidentEdgePairSelector selector)
+    {
+        if (selector.First == selector.Second)
+        {
+            return KernelResult<bool>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Bounded chamfer corner-edge selector requires two distinct incident edge tokens.", Source: "firmament.chamfer-bounded")]);
+        }
+
+        if (selector.Corner is not BrepBoundedChamferCorner.XMaxYMaxZMax)
+        {
+            return KernelResult<bool>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Bounded chamfer corner-edge selector supports only corner token x_max_y_max_z_max.", Source: "firmament.chamfer-bounded")]);
+        }
+
+        if (!BrepBoundedChamferCornerContext.TryResolveMaxCornerVertex(sourceBody, out var cornerVertex, out var cornerPoint, out var reason))
+        {
+            return KernelResult<bool>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, $"Bounded chamfer corner-edge selector rejected: {reason}.", Source: "firmament.chamfer-bounded")]);
+        }
+
+        var byToken = new Dictionary<BrepBoundedChamferCornerIncidentEdge, Edge>(3);
+        foreach (var edge in sourceBody.Topology.Edges.Where(edge => edge.StartVertexId == cornerVertex || edge.EndVertexId == cornerVertex))
+        {
+            var otherVertex = edge.StartVertexId == cornerVertex ? edge.EndVertexId : edge.StartVertexId;
+            if (!BrepBoundedChamferCornerContext.TryResolveVertexPoint(sourceBody, otherVertex, out var otherPoint))
+            {
+                return KernelResult<bool>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Bounded chamfer corner-edge selector requires explicit resolvable points for incident edge vertices.", Source: "firmament.chamfer-bounded")]);
+            }
+
+            var vector = otherPoint - cornerPoint;
+            if (!TryClassifyCornerIncidentEdge(vector, out var token))
+            {
+                continue;
+            }
+
+            byToken[token] = edge;
+        }
+
+        if (!byToken.TryGetValue(selector.First, out var firstEdge))
+        {
+            return KernelResult<bool>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, $"Bounded chamfer corner-edge selector could not resolve selected incident edge '{selector.First}'.", Source: "firmament.chamfer-bounded")]);
+        }
+
+        if (!byToken.TryGetValue(selector.Second, out var secondEdge))
+        {
+            return KernelResult<bool>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, $"Bounded chamfer corner-edge selector could not resolve selected incident edge '{selector.Second}'.", Source: "firmament.chamfer-bounded")]);
+        }
+
+        var firstIncident = firstEdge.StartVertexId == cornerVertex || firstEdge.EndVertexId == cornerVertex;
+        var secondIncident = secondEdge.StartVertexId == cornerVertex || secondEdge.EndVertexId == cornerVertex;
+        if (!firstIncident || !secondIncident)
+        {
+            return KernelResult<bool>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, "Bounded chamfer corner-edge selector rejected: selected edges do not share the selected corner vertex.", Source: "firmament.chamfer-bounded")]);
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
+
+    private static bool TryClassifyCornerIncidentEdge(Vector3D vector, out BrepBoundedChamferCornerIncidentEdge edge)
+    {
+        edge = default;
+        var eps = 1e-8d;
+        if (vector.Length <= eps)
+        {
+            return false;
+        }
+
+        var absX = double.Abs(vector.X);
+        var absY = double.Abs(vector.Y);
+        var absZ = double.Abs(vector.Z);
+        var dominant = double.Max(absX, double.Max(absY, absZ));
+        if (dominant <= eps)
+        {
+            return false;
+        }
+
+        if (absX >= absY && absX >= absZ && vector.X < 0d)
+        {
+            edge = BrepBoundedChamferCornerIncidentEdge.XNegative;
+            return true;
+        }
+
+        if (absY >= absX && absY >= absZ && vector.Y < 0d)
+        {
+            edge = BrepBoundedChamferCornerIncidentEdge.YNegative;
+            return true;
+        }
+
+        if (absZ >= absX && absZ >= absY && vector.Z < 0d)
+        {
+            edge = BrepBoundedChamferCornerIncidentEdge.ZNegative;
+            return true;
+        }
+
+        return false;
+    }
 }
 
 public enum BrepBoundedChamferCorner
@@ -927,3 +1023,15 @@ public enum BrepBoundedChamferEdge
     XMaxYMin,
     XMaxYMax
 }
+
+public enum BrepBoundedChamferCornerIncidentEdge
+{
+    XNegative,
+    YNegative,
+    ZNegative
+}
+
+public readonly record struct BrepBoundedChamferIncidentEdgePairSelector(
+    BrepBoundedChamferCorner Corner,
+    BrepBoundedChamferCornerIncidentEdge First,
+    BrepBoundedChamferCornerIncidentEdge Second);

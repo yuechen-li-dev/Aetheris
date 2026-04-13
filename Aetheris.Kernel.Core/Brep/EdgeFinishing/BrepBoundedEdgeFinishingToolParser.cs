@@ -9,37 +9,95 @@ public static class BrepBoundedEdgeFinishingToolParser
     public static bool TryParseChamferSelection(
         IReadOnlyDictionary<string, string> fields,
         out BrepBoundedChamferEdge? edge,
-        out (BrepBoundedChamferEdge First, BrepBoundedChamferEdge Second)? edgePair,
+        out BrepBoundedChamferIncidentEdgePairSelector? incidentEdgePair,
         out BrepBoundedChamferCorner? corner,
         out string error)
     {
         edge = null;
-        edgePair = null;
+        incidentEdgePair = null;
         corner = null;
         error = string.Empty;
 
         var hasEdges = fields.TryGetValue("edges", out var edgesRaw) && !string.IsNullOrWhiteSpace(edgesRaw);
         var hasCorners = fields.TryGetValue("corners", out var cornersRaw) && !string.IsNullOrWhiteSpace(cornersRaw);
+        var hasCornerEdges = fields.TryGetValue("corner_edges", out var cornerEdgesRaw) && !string.IsNullOrWhiteSpace(cornerEdgesRaw);
+
+        if (hasCornerEdges)
+        {
+            if (hasEdges)
+            {
+                error = "corner_edges selector mode does not allow edges";
+                return false;
+            }
+
+            if (!hasCorners)
+            {
+                error = "corner_edges selector mode requires exactly one corner token";
+                return false;
+            }
+
+            var cornerTokens = ParseSingleTokenArray(cornersRaw!, out error);
+            if (cornerTokens is null)
+            {
+                return false;
+            }
+
+            if (cornerTokens.Length != 1)
+            {
+                error = "bounded E5b corner-edge selector supports exactly one corner token";
+                return false;
+            }
+
+            if (cornerTokens[0] is not "x_max_y_max_z_max")
+            {
+                error = "supported corner tokens are x_max_y_max_z_max";
+                return false;
+            }
+
+            var edgeTokens = ParseSingleTokenArray(cornerEdgesRaw!, out error);
+            if (edgeTokens is null)
+            {
+                return false;
+            }
+
+            if (edgeTokens.Length != 2)
+            {
+                error = "bounded E5b corner-edge selector requires exactly two incident corner edge tokens";
+                return false;
+            }
+
+            if (!TryParseIncidentCornerEdgeToken(edgeTokens[0], out var first)
+                || !TryParseIncidentCornerEdgeToken(edgeTokens[1], out var second))
+            {
+                error = "supported corner edge tokens are x_neg, y_neg, z_neg";
+                return false;
+            }
+
+            if (first == second)
+            {
+                error = "corner-edge selector requires two distinct incident edge tokens";
+                return false;
+            }
+
+            corner = BrepBoundedChamferCorner.XMaxYMaxZMax;
+            incidentEdgePair = new BrepBoundedChamferIncidentEdgePairSelector(corner.Value, first, second);
+            return true;
+        }
+
         if (hasEdges == hasCorners)
         {
-            error = "provide exactly one of edges or corners";
+            error = "provide exactly one selector family: edges, corners, or corners+corner_edges";
             return false;
         }
 
         if (hasEdges)
         {
-            if (!TryParseChamferEdges(fields, out var parsedEdges, out error))
+            if (!TryParseChamferEdge(fields, out var parsedEdge, out error))
             {
                 return false;
             }
 
-            if (parsedEdges.Length == 1)
-            {
-                edge = parsedEdges[0];
-                return true;
-            }
-
-            edgePair = (parsedEdges[0], parsedEdges[1]);
+            edge = parsedEdge;
             return true;
         }
 
@@ -106,9 +164,9 @@ public static class BrepBoundedEdgeFinishingToolParser
             return false;
         }
 
-        if (tokens.Length is < 1 or > 2)
+        if (tokens.Length != 1)
         {
-            error = "bounded M5a supports either one edge token or a two-edge corner pair";
+            error = "bounded M5a supports exactly one explicit edge token";
             return false;
         }
 
@@ -129,12 +187,6 @@ public static class BrepBoundedEdgeFinishingToolParser
                 error = "supported tokens are x_min_y_min, x_min_y_max, x_max_y_min, x_max_y_max";
                 return false;
             }
-        }
-
-        if (parsed.Length == 2 && parsed[0] == parsed[1])
-        {
-            error = "two-edge corner pair requires two distinct edge tokens";
-            return false;
         }
 
         edges = parsed;
@@ -183,6 +235,19 @@ public static class BrepBoundedEdgeFinishingToolParser
         }
 
         return true;
+    }
+
+    private static bool TryParseIncidentCornerEdgeToken(string token, out BrepBoundedChamferCornerIncidentEdge edge)
+    {
+        edge = token switch
+        {
+            "x_neg" => BrepBoundedChamferCornerIncidentEdge.XNegative,
+            "y_neg" => BrepBoundedChamferCornerIncidentEdge.YNegative,
+            "z_neg" => BrepBoundedChamferCornerIncidentEdge.ZNegative,
+            _ => default
+        };
+
+        return token is "x_neg" or "y_neg" or "z_neg";
     }
 
     private static string[]? ParseSingleTokenArray(string raw, out string error)

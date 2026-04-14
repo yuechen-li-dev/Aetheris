@@ -6,11 +6,12 @@ namespace Aetheris.CLI;
 
 public static class CliRunner
 {
-    private const string TopLevelUsage = "Usage: aetheris <build|analyze> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|analyze|canon> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
+    private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -50,6 +51,7 @@ public static class CliRunner
             {
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
+                "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
                 _ => UnknownCommand(args[0], stderr)
             };
         }
@@ -150,6 +152,175 @@ public static class CliRunner
 
         return 0;
     }
+
+    private static int RunCanon(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0)
+        {
+            stderr.WriteLine(CanonUsage);
+            stderr.WriteLine("Run 'aetheris canon --help' for examples.");
+            return 1;
+        }
+
+        if (IsHelpFlag(args[0]))
+        {
+            WriteCanonHelp(stdout);
+            return 0;
+        }
+
+        if (args[0].StartsWith("-", StringComparison.Ordinal))
+        {
+            stderr.WriteLine("Canon requires <file.step> as the first argument.");
+            stderr.WriteLine(CanonUsage);
+            return 1;
+        }
+
+        var inputPath = args[0];
+        string? outputPath = null;
+        var json = false;
+
+        for (var i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--out" when i + 1 < args.Length:
+                    outputPath = args[++i];
+                    break;
+                case "--out":
+                    stderr.WriteLine("Canon option --out requires a path value.");
+                    stderr.WriteLine(CanonUsage);
+                    return 1;
+                case "--json":
+                    json = true;
+                    break;
+                case "-h":
+                case "--help":
+                    WriteCanonHelp(stdout);
+                    return 0;
+                default:
+                    stderr.WriteLine($"Unknown canon option '{args[i]}'.");
+                    stderr.WriteLine(CanonUsage);
+                    return 1;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(outputPath))
+        {
+            stderr.WriteLine("Canon requires --out <canonical.step>.");
+            stderr.WriteLine(CanonUsage);
+            return 1;
+        }
+
+        var inputFullPath = Path.GetFullPath(inputPath);
+        var outputFullPath = Path.GetFullPath(outputPath);
+
+        if (!File.Exists(inputPath))
+        {
+            return WriteCanonFailure(
+                json,
+                stdout,
+                stderr,
+                inputFullPath,
+                outputFullPath,
+                errorKind: "missing-input",
+                error: $"Input STEP file was not found: {inputFullPath}");
+        }
+
+        string stepText;
+        try
+        {
+            stepText = File.ReadAllText(inputPath);
+        }
+        catch (Exception ex)
+        {
+            return WriteCanonFailure(json, stdout, stderr, inputFullPath, outputFullPath, "io-read-failure", ex.Message);
+        }
+
+        var importResult = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(stepText);
+        if (!importResult.IsSuccess)
+        {
+            return WriteCanonFailure(
+                json,
+                stdout,
+                stderr,
+                inputFullPath,
+                outputFullPath,
+                "import-failure",
+                FormatKernelDiagnostics(importResult.Diagnostics));
+        }
+
+        var exportResult = Aetheris.Kernel.Core.Step242.Step242Exporter.ExportBody(importResult.Value);
+        if (!exportResult.IsSuccess)
+        {
+            return WriteCanonFailure(
+                json,
+                stdout,
+                stderr,
+                inputFullPath,
+                outputFullPath,
+                "export-failure",
+                FormatKernelDiagnostics(exportResult.Diagnostics));
+        }
+
+        try
+        {
+            File.WriteAllText(outputPath, exportResult.Value);
+        }
+        catch (Exception ex)
+        {
+            return WriteCanonFailure(json, stdout, stderr, inputFullPath, outputFullPath, "io-write-failure", ex.Message);
+        }
+
+        if (json)
+        {
+            var topology = importResult.Value.Topology;
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                success = true,
+                inputPath = inputFullPath,
+                outputPath = outputFullPath,
+                bodyCount = topology.Bodies.Count(),
+                shellCount = topology.Shells.Count()
+            }, JsonOptions));
+        }
+        else
+        {
+            stdout.WriteLine($"Canonical STEP written: {outputFullPath}");
+        }
+
+        return 0;
+    }
+
+    private static int WriteCanonFailure(
+        bool json,
+        TextWriter stdout,
+        TextWriter stderr,
+        string inputPath,
+        string outputPath,
+        string errorKind,
+        string error)
+    {
+        if (json)
+        {
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                success = false,
+                inputPath,
+                outputPath,
+                errorKind,
+                error
+            }, JsonOptions));
+        }
+        else
+        {
+            stderr.WriteLine($"Canon failed ({errorKind}): {error}");
+        }
+
+        return 1;
+    }
+
+    private static string FormatKernelDiagnostics(IReadOnlyList<Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> diagnostics) =>
+        string.Join(Environment.NewLine, diagnostics.Select(d => $"[{d.Severity}] {d.Source}: {d.Message}"));
 
     private static int RunAnalyze(string[] args, TextWriter stdout, TextWriter stderr)
     {
@@ -559,7 +730,7 @@ public static class CliRunner
 
     private static int UnknownCommand(string command, TextWriter stderr)
     {
-        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, analyze.");
+        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, analyze, canon.");
         stderr.WriteLine("Run 'aetheris --help' for usage and examples.");
         return 1;
     }
@@ -587,6 +758,7 @@ public static class CliRunner
         stdout.WriteLine("Commands:");
         stdout.WriteLine("  build      Build a .firmament source file into STEP.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
+        stdout.WriteLine("  canon      Import and re-export STEP/AP242 as canonical STEP.");
         stdout.WriteLine();
         stdout.WriteLine("Global options:");
         stdout.WriteLine("  -h, --help       Show help.");
@@ -595,6 +767,7 @@ public static class CliRunner
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris build model.firmament --out model.step");
         stdout.WriteLine("  aetheris analyze model.step --json");
+        stdout.WriteLine("  aetheris canon input.step --out canonical.step --json");
         stdout.WriteLine("  aetheris analyze map model.step --top --rows 40 --cols 60 --json");
         stdout.WriteLine("  aetheris analyze section model.step --xy --offset 2.5 --json");
         stdout.WriteLine();
@@ -672,6 +845,21 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris analyze section part.step --xz --offset 5.0 --json");
+    }
+
+    private static void WriteCanonHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Canonicalize STEP/AP242 through Aetheris import/export.");
+        stdout.WriteLine();
+        stdout.WriteLine(CanonUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Options:");
+        stdout.WriteLine("  --out <path>   Required canonical AP242 output path.");
+        stdout.WriteLine("  --json         Emit machine-readable success/failure JSON.");
+        stdout.WriteLine("  -h, --help     Show this help.");
+        stdout.WriteLine();
+        stdout.WriteLine("Example:");
+        stdout.WriteLine("  aetheris canon input.step --out canonical.step --json");
     }
 
     private static string FormatBox(Aetheris.Kernel.Core.Math.BoundingBox3D? box) =>

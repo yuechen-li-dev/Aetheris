@@ -551,6 +551,71 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Canon_Command_RoundTrips_Supported_Step_Through_Importer_Exporter_Path()
+    {
+        var inputPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var outputPath = Path.Combine(Path.GetTempPath(), $"cli-canon-roundtrip-{Guid.NewGuid():N}.step");
+
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["canon", inputPath, "--out", outputPath], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        Assert.Contains("Canonical STEP written", stdout.ToString(), StringComparison.Ordinal);
+        Assert.True(File.Exists(outputPath));
+
+        var imported = Step242Importer.ImportBody(File.ReadAllText(outputPath));
+        Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(d => d.Message)));
+
+        File.Delete(outputPath);
+    }
+
+    [Fact]
+    public void Canon_Command_Json_Success_Contract_Is_Machine_Friendly()
+    {
+        var inputPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var outputPath = Path.Combine(Path.GetTempPath(), $"cli-canon-json-{Guid.NewGuid():N}.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["canon", inputPath, "--out", outputPath, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var root = doc.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        Assert.Equal(Path.GetFullPath(inputPath), root.GetProperty("inputPath").GetString());
+        Assert.Equal(Path.GetFullPath(outputPath), root.GetProperty("outputPath").GetString());
+        Assert.True(root.GetProperty("bodyCount").GetInt32() >= 1);
+        Assert.True(root.GetProperty("shellCount").GetInt32() >= 1);
+
+        File.Delete(outputPath);
+    }
+
+    [Fact]
+    public void Canon_Command_Json_Failure_Contract_Reports_Missing_Input()
+    {
+        var missingPath = Path.Combine(RepoRoot, "testdata/firmament/exports/not-real.step");
+        var outputPath = Path.Combine(Path.GetTempPath(), $"cli-canon-missing-{Guid.NewGuid():N}.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["canon", missingPath, "--out", outputPath, "--json"], stdout, stderr);
+
+        Assert.Equal(1, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var root = doc.RootElement;
+        Assert.False(root.GetProperty("success").GetBoolean());
+        Assert.Equal("missing-input", root.GetProperty("errorKind").GetString());
+        Assert.Equal(Path.GetFullPath(missingPath), root.GetProperty("inputPath").GetString());
+        Assert.Equal(Path.GetFullPath(outputPath), root.GetProperty("outputPath").GetString());
+        Assert.Contains("not found", root.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Analyze_Command_Treats_Periodic_Seam_Coedge_Incidence_As_Enclosed()
     {
         var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateTorus(6d, 1d).Value, "cli-torus-structure");

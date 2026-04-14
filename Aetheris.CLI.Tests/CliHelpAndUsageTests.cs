@@ -19,14 +19,16 @@ public sealed class CliHelpAndUsageTests
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
         var text = stdout.ToString();
-        Assert.Contains("Usage: aetheris <build|analyze>", text, StringComparison.Ordinal);
+        Assert.Contains("Usage: aetheris <build|analyze|canon>", text, StringComparison.Ordinal);
         Assert.Contains("Commands:", text, StringComparison.Ordinal);
         Assert.Contains("build", text, StringComparison.Ordinal);
         Assert.Contains("analyze", text, StringComparison.Ordinal);
+        Assert.Contains("canon", text, StringComparison.Ordinal);
     }
 
     [Theory]
     [InlineData("build")]
+    [InlineData("canon")]
     [InlineData("analyze")]
     [InlineData("analyze", "map")]
     [InlineData("analyze", "section")]

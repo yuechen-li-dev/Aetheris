@@ -540,6 +540,37 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_Executes_BoundedFillet_ChainedCylindricalTermination_ForCrossRadiusFollowOnPair()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5b-valid-fillet-chained-cross-radius-cylindrical-termination.firmament");
+
+        Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
+        var execution = result.Compilation.Value.PrimitiveExecutionResult!;
+        var second = Assert.Single(execution.ExecutedBooleans, executed => executed.FeatureId == "chained_cross_radius_termination");
+        var cylinderRadii = second.Body.Bindings.FaceBindings
+            .Select(face => second.Body.Geometry.GetSurface(face.SurfaceGeometryId))
+            .Where(surface => surface.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder && surface.Cylinder is not null)
+            .Select(surface => surface.Cylinder!.Value.Radius)
+            .DistinctBy(value => System.Math.Round(value, 6))
+            .ToArray();
+        Assert.Contains(cylinderRadii, value => System.Math.Abs(value - 0.2d) <= 1e-6);
+        Assert.Contains(cylinderRadii, value => System.Math.Abs(value - 0.3d) <= 1e-6);
+    }
+
+    [Fact]
+    public void Compile_Rejects_BoundedFillet_ChainedCylindricalTermination_Attempt_WhenAnchorRadiusIsSmaller()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5b-invalid-fillet-chained-cross-radius-cylindrical-termination-smaller-anchor.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Source == "firmament.fillet-bounded"
+            && diagnostic.Message.Contains("chained_same_radius_fillet_with_cylindrical_termination", StringComparison.Ordinal)
+            && diagnostic.Message.Contains("hasMatchingRadiusVerticalCylinder=False", StringComparison.Ordinal)
+            && diagnostic.Message.Contains("hasLargerRadiusVerticalCylinder=False", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Compile_Mixed_Document_With_Unsupported_Boolean_Fails_Before_Publishing_Success_Artifact()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3d-mixed-primitive-boolean-validation.firmament");

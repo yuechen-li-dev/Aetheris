@@ -1,0 +1,62 @@
+firmament:
+  version: 1
+
+model:
+  name: m5b_valid_fillet_chained_cross_radius_cylindrical_termination
+  units: mm
+
+ops[5]:
+  -
+    op: box
+    id: base
+    size[3]:
+      12
+      4
+      10
+  -
+    op: add
+    id: mid
+    to: base
+    with:
+      op: box
+      size[3]:
+        6
+        2
+        10
+    place:
+      on: origin
+      offset[3]:
+        0
+        2
+        0
+  -
+    op: add
+    id: croot
+    to: mid
+    with:
+      op: box
+      size[3]:
+        12
+        2
+        10
+    place:
+      on: origin
+      offset[3]:
+        0
+        4
+        0
+  -
+    op: fillet
+    id: first_larger_fillet
+    from: croot
+    edges[1]:
+      inner_x_min_y_min
+    radius: 0.3
+  -
+    op: fillet
+    id: chained_cross_radius_termination
+    from: first_larger_fillet
+    edges[2]:
+      inner_x_min_y_min
+      inner_x_min_y_max
+    radius: 0.2

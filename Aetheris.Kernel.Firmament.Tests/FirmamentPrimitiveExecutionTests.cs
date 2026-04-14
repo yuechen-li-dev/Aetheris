@@ -514,15 +514,29 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
-    public void Compile_Rejects_BoundedFillet_ChainedCylindricalTermination_Attempt()
+    public void Compile_Executes_BoundedFillet_ChainedCylindricalTermination_ForSameRadiusFollowOnPair()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/m5b-invalid-fillet-chained-cylindrical-termination.firmament");
+        var result = CompileFixture("testdata/firmament/fixtures/m5b-valid-fillet-chained-cylindrical-termination-followon.firmament");
+
+        Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
+        var execution = result.Compilation.Value.PrimitiveExecutionResult!;
+        var first = Assert.Single(execution.ExecutedBooleans, executed => executed.FeatureId == "first_inner_fillet");
+        var second = Assert.Single(execution.ExecutedBooleans, executed => executed.FeatureId == "chained_termination_followon");
+        Assert.NotEqual(first.Body.Topology.Faces.Count(), second.Body.Topology.Faces.Count());
+        Assert.True(
+            second.Body.Bindings.FaceBindings.Count(face => second.Body.Geometry.GetSurface(face.SurfaceGeometryId).Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder) >= 2);
+    }
+
+    [Fact]
+    public void Compile_Rejects_BoundedFillet_ChainedCylindricalTermination_Attempt_ForMismatchedRadius()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5b-invalid-fillet-chained-cylindrical-termination-mismatched-radius.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Source == "firmament.fillet-bounded"
             && diagnostic.Message.Contains("chained_same_radius_fillet_with_cylindrical_termination", StringComparison.Ordinal)
-            && diagnostic.Message.Contains("supported=False", StringComparison.Ordinal));
+            && diagnostic.Message.Contains("hasMatchingRadiusVerticalCylinder=False", StringComparison.Ordinal));
     }
 
     [Fact]

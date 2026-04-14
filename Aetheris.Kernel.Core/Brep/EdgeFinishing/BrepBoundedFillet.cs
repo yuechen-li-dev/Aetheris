@@ -46,9 +46,7 @@ public static class BrepBoundedFillet
         {
             SingleEdgeCylindricalFilletCandidate => BuildConcaveFilletBody(sourceBody, context),
             ChainedSameRadiusCylindricalFilletCandidate => BuildConcaveFilletBody(sourceBody, context),
-            ChainedSameRadiusCylindricalTerminationCandidate => KernelResult<BrepBody>.Failure([Failure(
-                "Bounded chained same-radius fillet with cylindrical-context termination is recognized but not yet supported; the current local extrusion rewrite cannot preserve neighboring cylindrical context while terminating the chain.",
-                "firmament.fillet-bounded")]),
+            ChainedSameRadiusCylindricalTerminationCandidate => BuildConcaveFilletBody(sourceBody, context),
             _ => KernelResult<BrepBody>.Failure([Failure($"Bounded fillet selected unsupported candidate '{judgment.Selection.Value.Candidate.Name}'.", "firmament.fillet-bounded")])
         };
     }
@@ -88,9 +86,10 @@ public static class BrepBoundedFillet
                     context => context.IsBoundedRadius,
                     context => context.HasLocalChainedInteraction,
                     context => context.HasCylindricalSourceFaces,
+                    context => context.HasMatchingRadiusVerticalCylindricalSourceFace,
                     context => context.IsCylindricalTerminationSupported),
                 Score: context => context.HasCylindricalSourceFaces ? 175d : 0d,
-                RejectionReason: context => $"requires supported chained same-radius cylindrical-context termination context (trusted={context.IsTrustedSource}, count={context.SelectionCount}, concave={context.IsInternalConcave}, bounded={context.IsBoundedRadius}, interacting={context.HasLocalChainedInteraction}, hasCylindricalSourceFaces={context.HasCylindricalSourceFaces}, supported={context.IsCylindricalTerminationSupported})",
+                RejectionReason: context => $"requires supported chained same-radius cylindrical-context termination context (trusted={context.IsTrustedSource}, count={context.SelectionCount}, concave={context.IsInternalConcave}, bounded={context.IsBoundedRadius}, interacting={context.HasLocalChainedInteraction}, hasCylindricalSourceFaces={context.HasCylindricalSourceFaces}, hasMatchingRadiusVerticalCylinder={context.HasMatchingRadiusVerticalCylindricalSourceFace}, supported={context.IsCylindricalTerminationSupported})",
                 TieBreakerPriority: 2),
             new JudgmentCandidate<BrepBoundedFilletContext>(
                 Name: RejectCandidate,
@@ -104,7 +103,7 @@ public static class BrepBoundedFillet
     {
         if (context.SelectionCount == 2 && context.HasLocalChainedInteraction && context.HasCylindricalSourceFaces)
         {
-            return "chained_same_radius_fillet_with_cylindrical_termination: requires supported chained same-radius cylindrical-context termination context (supported=False).";
+            return $"chained_same_radius_fillet_with_cylindrical_termination: requires supported chained same-radius cylindrical-context termination context (hasMatchingRadiusVerticalCylinder={context.HasMatchingRadiusVerticalCylindricalSourceFace}, supported={context.IsCylindricalTerminationSupported}).";
         }
 
         return "No bounded single-edge/chained fillet candidate was admissible.";
@@ -660,6 +659,7 @@ internal readonly record struct BrepBoundedFilletContext(
     bool HasLocalChainedInteraction,
     bool IsPlanarPlanar,
     bool HasCylindricalSourceFaces,
+    bool HasMatchingRadiusVerticalCylindricalSourceFace,
     bool IsCylindricalTerminationSupported,
     bool IsInternalConcave,
     bool IsBoundedRadius,
@@ -685,20 +685,48 @@ internal readonly record struct BrepBoundedFilletContext(
 
         var planar = sourceBody.Bindings.FaceBindings.All(binding => sourceBody.Geometry.GetSurface(binding.SurfaceGeometryId).Kind == SurfaceGeometryKind.Plane);
         var hasCylindricalFaces = sourceBody.Bindings.FaceBindings.Any(binding => sourceBody.Geometry.GetSurface(binding.SurfaceGeometryId).Kind == SurfaceGeometryKind.Cylinder);
+        var hasMatchingRadiusVerticalCylinder = sourceBody.Bindings.FaceBindings.Any(binding =>
+        {
+            var surface = sourceBody.Geometry.GetSurface(binding.SurfaceGeometryId);
+            if (surface.Kind != SurfaceGeometryKind.Cylinder)
+            {
+                return false;
+            }
+
+            if (surface.Cylinder is null)
+            {
+                return false;
+            }
+
+            var cylinder = surface.Cylinder.Value;
+            return NearlyEqual(cylinder.Radius, radius)
+                && NearlyEqual(cylinder.Axis.X, 0d)
+                && NearlyEqual(cylinder.Axis.Y, 0d)
+                && NearlyEqual(System.Math.Abs(cylinder.Axis.Z), 1d);
+        });
         var bounded = radius < selection.MaxAllowedRadius;
+        var cylindricalTerminationSupported =
+            selection.Corners.Count == 2
+            && selection.HasLocalInteraction
+            && hasMatchingRadiusVerticalCylinder
+            && bounded;
         return KernelResult<BrepBoundedFilletContext>.Success(new BrepBoundedFilletContext(
             IsTrustedSource: true,
             SelectionCount: selection.Corners.Count,
             HasLocalChainedInteraction: selection.HasLocalInteraction,
             IsPlanarPlanar: planar,
             HasCylindricalSourceFaces: hasCylindricalFaces,
-            IsCylindricalTerminationSupported: false,
+            HasMatchingRadiusVerticalCylindricalSourceFace: hasMatchingRadiusVerticalCylinder,
+            IsCylindricalTerminationSupported: cylindricalTerminationSupported,
             IsInternalConcave: true,
             IsBoundedRadius: bounded,
             Selection: selection,
             Radius: radius,
             OccupiedCells: occupiedCells));
     }
+
+    private static bool NearlyEqual(double a, double b)
+        => System.Math.Abs(a - b) <= 1e-9;
 
     private static KernelDiagnostic Failure(string message, string source)
         => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, Source: source);

@@ -6,6 +6,12 @@ namespace Aetheris.CLI;
 
 public static class CliRunner
 {
+    private const string TopLevelUsage = "Usage: aetheris <build|analyze> <path> [options]";
+    private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
+    private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
+    private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json";
+    private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -21,8 +27,21 @@ public static class CliRunner
     {
         if (args.Length == 0)
         {
-            stderr.WriteLine("Usage: aetheris <build|analyze> <path> [options]");
+            stderr.WriteLine(TopLevelUsage);
+            stderr.WriteLine("Run 'aetheris --help' for command discovery and examples.");
             return 1;
+        }
+
+        if (IsHelpFlag(args[0]))
+        {
+            WriteTopLevelHelp(stdout);
+            return 0;
+        }
+
+        if (IsVersionFlag(args[0]))
+        {
+            stdout.WriteLine($"aetheris {GetDisplayVersion()}");
+            return 0;
         }
 
         try
@@ -45,7 +64,21 @@ public static class CliRunner
     {
         if (args.Length == 0)
         {
-            stderr.WriteLine("Usage: aetheris build <file.firmament> [--out <path>] [--json]");
+            stderr.WriteLine(BuildUsage);
+            stderr.WriteLine("Run 'aetheris build --help' for examples.");
+            return 1;
+        }
+
+        if (IsHelpFlag(args[0]))
+        {
+            WriteBuildHelp(stdout);
+            return 0;
+        }
+
+        if (args[0].StartsWith("-", StringComparison.Ordinal))
+        {
+            stderr.WriteLine("Build requires <file.firmament> as the first argument.");
+            stderr.WriteLine(BuildUsage);
             return 1;
         }
 
@@ -60,11 +93,20 @@ public static class CliRunner
                 case "--out" when i + 1 < args.Length:
                     outPath = args[++i];
                     break;
+                case "--out":
+                    stderr.WriteLine("Build option --out requires a path value.");
+                    stderr.WriteLine(BuildUsage);
+                    return 1;
                 case "--json":
                     json = true;
                     break;
+                case "-h":
+                case "--help":
+                    WriteBuildHelp(stdout);
+                    return 0;
                 default:
                     stderr.WriteLine($"Unknown build option '{args[i]}'.");
+                    stderr.WriteLine(BuildUsage);
                     return 1;
             }
         }
@@ -113,10 +155,17 @@ public static class CliRunner
     {
         if (args.Length == 0)
         {
-            stderr.WriteLine("Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]");
-            stderr.WriteLine("   or: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json");
-            stderr.WriteLine("   or: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json");
+            stderr.WriteLine(AnalyzeUsage);
+            stderr.WriteLine($"   or: {AnalyzeMapUsage[7..]}");
+            stderr.WriteLine($"   or: {AnalyzeSectionUsage[7..]}");
+            stderr.WriteLine("Run 'aetheris analyze --help' for examples.");
             return 1;
+        }
+
+        if (IsHelpFlag(args[0]))
+        {
+            WriteAnalyzeHelp(stdout);
+            return 0;
         }
 
         if (string.Equals(args[0], "map", StringComparison.Ordinal))
@@ -127,6 +176,13 @@ public static class CliRunner
         if (string.Equals(args[0], "section", StringComparison.Ordinal))
         {
             return RunAnalyzeSection(args.Skip(1).ToArray(), stdout, stderr);
+        }
+
+        if (args[0].StartsWith("-", StringComparison.Ordinal))
+        {
+            stderr.WriteLine("Analyze requires <file.step> as the first argument, or a subcommand ('map' or 'section').");
+            stderr.WriteLine(AnalyzeUsage);
+            return 1;
         }
 
         var stepPath = args[0];
@@ -142,17 +198,34 @@ public static class CliRunner
                 case "--face" when i + 1 < args.Length && int.TryParse(args[++i], out var face):
                     faceId = face;
                     break;
+                case "--face":
+                    stderr.WriteLine("Analyze option --face requires an integer face id.");
+                    stderr.WriteLine(AnalyzeUsage);
+                    return 1;
                 case "--edge" when i + 1 < args.Length && int.TryParse(args[++i], out var edge):
                     edgeId = edge;
                     break;
+                case "--edge":
+                    stderr.WriteLine("Analyze option --edge requires an integer edge id.");
+                    stderr.WriteLine(AnalyzeUsage);
+                    return 1;
                 case "--vertex" when i + 1 < args.Length && int.TryParse(args[++i], out var vertex):
                     vertexId = vertex;
                     break;
+                case "--vertex":
+                    stderr.WriteLine("Analyze option --vertex requires an integer vertex id.");
+                    stderr.WriteLine(AnalyzeUsage);
+                    return 1;
                 case "--json":
                     json = true;
                     break;
+                case "-h":
+                case "--help":
+                    WriteAnalyzeHelp(stdout);
+                    return 0;
                 default:
                     stderr.WriteLine($"Unknown analyze option '{args[i]}'.");
+                    stderr.WriteLine(AnalyzeUsage);
                     return 1;
             }
         }
@@ -202,7 +275,21 @@ public static class CliRunner
     {
         if (args.Length == 0)
         {
-            stderr.WriteLine("Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json");
+            stderr.WriteLine(AnalyzeMapUsage);
+            stderr.WriteLine("Run 'aetheris analyze map --help' for examples.");
+            return 1;
+        }
+
+        if (IsHelpFlag(args[0]))
+        {
+            WriteAnalyzeMapHelp(stdout);
+            return 0;
+        }
+
+        if (args[0].StartsWith("-", StringComparison.Ordinal))
+        {
+            stderr.WriteLine("Analyze map requires <file.step> as the first argument.");
+            stderr.WriteLine(AnalyzeMapUsage);
             return 1;
         }
 
@@ -244,14 +331,27 @@ public static class CliRunner
                 case "--rows" when i + 1 < args.Length && int.TryParse(args[++i], out var parsedRows):
                     rows = parsedRows;
                     break;
+                case "--rows":
+                    stderr.WriteLine("Analyze map option --rows requires an integer value.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
                 case "--cols" when i + 1 < args.Length && int.TryParse(args[++i], out var parsedCols):
                     cols = parsedCols;
                     break;
+                case "--cols":
+                    stderr.WriteLine("Analyze map option --cols requires an integer value.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
                 case "--json":
                     json = true;
                     break;
+                case "-h":
+                case "--help":
+                    WriteAnalyzeMapHelp(stdout);
+                    return 0;
                 default:
                     stderr.WriteLine($"Unknown analyze map option '{args[i]}'.");
+                    stderr.WriteLine(AnalyzeMapUsage);
                     return 1;
             }
         }
@@ -300,7 +400,7 @@ public static class CliRunner
 
         if (!json)
         {
-            stderr.WriteLine("Analyze map currently requires --json output.");
+            stderr.WriteLine("Analyze map currently requires --json output. Re-run with --json.");
             return 1;
         }
 
@@ -312,7 +412,21 @@ public static class CliRunner
     {
         if (args.Length == 0)
         {
-            stderr.WriteLine("Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json");
+            stderr.WriteLine(AnalyzeSectionUsage);
+            stderr.WriteLine("Run 'aetheris analyze section --help' for examples.");
+            return 1;
+        }
+
+        if (IsHelpFlag(args[0]))
+        {
+            WriteAnalyzeSectionHelp(stdout);
+            return 0;
+        }
+
+        if (args[0].StartsWith("-", StringComparison.Ordinal))
+        {
+            stderr.WriteLine("Analyze section requires <file.step> as the first argument.");
+            stderr.WriteLine(AnalyzeSectionUsage);
             return 1;
         }
 
@@ -341,11 +455,20 @@ public static class CliRunner
                 case "--offset" when i + 1 < args.Length && double.TryParse(args[++i], out var parsedOffset):
                     offset = parsedOffset;
                     break;
+                case "--offset":
+                    stderr.WriteLine("Analyze section option --offset requires a numeric value.");
+                    stderr.WriteLine(AnalyzeSectionUsage);
+                    return 1;
                 case "--json":
                     json = true;
                     break;
+                case "-h":
+                case "--help":
+                    WriteAnalyzeSectionHelp(stdout);
+                    return 0;
                 default:
                     stderr.WriteLine($"Unknown analyze section option '{args[i]}'.");
+                    stderr.WriteLine(AnalyzeSectionUsage);
                     return 1;
             }
         }
@@ -364,7 +487,7 @@ public static class CliRunner
 
         if (!json)
         {
-            stderr.WriteLine("Analyze section currently requires --json output.");
+            stderr.WriteLine("Analyze section currently requires --json output. Re-run with --json.");
             return 1;
         }
 
@@ -436,8 +559,119 @@ public static class CliRunner
 
     private static int UnknownCommand(string command, TextWriter stderr)
     {
-        stderr.WriteLine($"Unknown command '{command}'. Expected 'build' or 'analyze'.");
+        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, analyze.");
+        stderr.WriteLine("Run 'aetheris --help' for usage and examples.");
         return 1;
+    }
+
+    private static bool IsHelpFlag(string value) =>
+        string.Equals(value, "--help", StringComparison.Ordinal)
+        || string.Equals(value, "-h", StringComparison.Ordinal);
+
+    private static bool IsVersionFlag(string value) =>
+        string.Equals(value, "--version", StringComparison.Ordinal)
+        || string.Equals(value, "-v", StringComparison.Ordinal);
+
+    private static string GetDisplayVersion()
+    {
+        var version = typeof(CliRunner).Assembly.GetName().Version;
+        return version is null ? "unknown" : version.ToString();
+    }
+
+    private static void WriteTopLevelHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("aetheris - firmament build and STEP analysis CLI");
+        stdout.WriteLine();
+        stdout.WriteLine(TopLevelUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Commands:");
+        stdout.WriteLine("  build      Build a .firmament source file into STEP.");
+        stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
+        stdout.WriteLine();
+        stdout.WriteLine("Global options:");
+        stdout.WriteLine("  -h, --help       Show help.");
+        stdout.WriteLine("  -v, --version    Show CLI version.");
+        stdout.WriteLine();
+        stdout.WriteLine("Examples:");
+        stdout.WriteLine("  aetheris build model.firmament --out model.step");
+        stdout.WriteLine("  aetheris analyze model.step --json");
+        stdout.WriteLine("  aetheris analyze map model.step --top --rows 40 --cols 60 --json");
+        stdout.WriteLine("  aetheris analyze section model.step --xy --offset 2.5 --json");
+        stdout.WriteLine();
+        stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");
+    }
+
+    private static void WriteBuildHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Build .firmament input into STEP output.");
+        stdout.WriteLine();
+        stdout.WriteLine(BuildUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Options:");
+        stdout.WriteLine("  --out <path>   Optional output STEP path.");
+        stdout.WriteLine("  --json         Emit machine-readable success/failure JSON.");
+        stdout.WriteLine("  -h, --help     Show this help.");
+        stdout.WriteLine();
+        stdout.WriteLine("Example:");
+        stdout.WriteLine("  aetheris build part.firmament --out part.step --json");
+    }
+
+    private static void WriteAnalyzeHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Analyze STEP geometry and topology.");
+        stdout.WriteLine();
+        stdout.WriteLine(AnalyzeUsage);
+        stdout.WriteLine($"   or: {AnalyzeMapUsage[7..]}");
+        stdout.WriteLine($"   or: {AnalyzeSectionUsage[7..]}");
+        stdout.WriteLine();
+        stdout.WriteLine("Options (summary mode):");
+        stdout.WriteLine("  --face <id>     Inspect one face.");
+        stdout.WriteLine("  --edge <id>     Inspect one edge.");
+        stdout.WriteLine("  --vertex <id>   Inspect one vertex.");
+        stdout.WriteLine("  --json          Emit machine-readable JSON.");
+        stdout.WriteLine("  -h, --help      Show this help.");
+        stdout.WriteLine();
+        stdout.WriteLine("Rules:");
+        stdout.WriteLine("  - At most one of --face, --edge, --vertex may be supplied.");
+        stdout.WriteLine("  - Use 'aetheris analyze map --help' for orthographic map options.");
+        stdout.WriteLine("  - Use 'aetheris analyze section --help' for section options.");
+        stdout.WriteLine();
+        stdout.WriteLine("Examples:");
+        stdout.WriteLine("  aetheris analyze part.step --json");
+        stdout.WriteLine("  aetheris analyze part.step --face 12 --json");
+        stdout.WriteLine("  aetheris analyze map part.step --right --rows 20 --cols 30 --json");
+        stdout.WriteLine("  aetheris analyze section part.step --yz --offset 1.25 --json");
+    }
+
+    private static void WriteAnalyzeMapHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Analyze STEP body as an orthographic depth/thickness map.");
+        stdout.WriteLine();
+        stdout.WriteLine(AnalyzeMapUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Required:");
+        stdout.WriteLine("  exactly one view: --top | --bottom | --front | --back | --left | --right");
+        stdout.WriteLine("  --rows <N>       Positive integer row count.");
+        stdout.WriteLine("  --cols <N>       Positive integer column count.");
+        stdout.WriteLine("  --json           Required output mode.");
+        stdout.WriteLine();
+        stdout.WriteLine("Example:");
+        stdout.WriteLine("  aetheris analyze map part.step --top --rows 48 --cols 64 --json");
+    }
+
+    private static void WriteAnalyzeSectionHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Analyze STEP body by intersecting a principal section plane.");
+        stdout.WriteLine();
+        stdout.WriteLine(AnalyzeSectionUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Required:");
+        stdout.WriteLine("  exactly one plane: --xy | --xz | --yz");
+        stdout.WriteLine("  --offset <value>  Plane offset along the orthogonal axis.");
+        stdout.WriteLine("  --json            Required output mode.");
+        stdout.WriteLine();
+        stdout.WriteLine("Example:");
+        stdout.WriteLine("  aetheris analyze section part.step --xz --offset 5.0 --json");
     }
 
     private static string FormatBox(Aetheris.Kernel.Core.Math.BoundingBox3D? box) =>

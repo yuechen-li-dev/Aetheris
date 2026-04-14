@@ -1,0 +1,54 @@
+firmament:
+  version: 1
+
+model:
+  name: m5b_valid_fillet_single_edge_pretermination_source
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: base
+    size[3]:
+      12
+      4
+      10
+  -
+    op: add
+    id: mid
+    to: base
+    with:
+      op: box
+      size[3]:
+        6
+        2
+        10
+    place:
+      on: origin
+      offset[3]:
+        0
+        2
+        0
+  -
+    op: add
+    id: croot
+    to: mid
+    with:
+      op: box
+      size[3]:
+        12
+        2
+        10
+    place:
+      on: origin
+      offset[3]:
+        0
+        4
+        0
+  -
+    op: fillet
+    id: first_inner_fillet
+    from: croot
+    edges[1]:
+      inner_x_min_y_min
+    radius: 0.4

@@ -11,14 +11,21 @@ namespace Aetheris.Kernel.Core.Brep.EdgeFinishing;
 /// </summary>
 public static class BrepBoundedManufacturingFilletPreflight
 {
-    public static KernelResult<BoundedManufacturingFilletSelection> ResolveInternalConcaveVerticalEdge(
+    public static KernelResult<BoundedManufacturingFilletSelection> ResolveInternalConcaveVerticalEdges(
         SafeBooleanComposition composition,
-        BrepBoundedManufacturingFilletEdge edge,
+        IReadOnlyList<BrepBoundedManufacturingFilletEdge> edges,
         double radius)
     {
         if (!double.IsFinite(radius) || radius <= 0d)
         {
             return KernelResult<BoundedManufacturingFilletSelection>.Failure([Failure("Bounded fillet radius must be finite and greater than 0.", "firmament.fillet-bounded")]);
+        }
+
+        if (edges.Count is < 1 or > 2)
+        {
+            return KernelResult<BoundedManufacturingFilletSelection>.Failure([Failure(
+                "Bounded M5b/F1 fillet supports one edge token or one two-edge chained token pair only.",
+                "firmament.fillet-bounded")]);
         }
 
         var cells = composition.OccupiedCells;
@@ -95,24 +102,61 @@ public static class BrepBoundedManufacturingFilletPreflight
                 "firmament.fillet-bounded")]);
         }
 
-        var selected = SelectCorner(edge, corners);
-        if (selected is null)
+        var selected = new List<BoundedManufacturingFilletCornerCandidate>(edges.Count);
+        foreach (var edge in edges)
+        {
+            var corner = SelectCorner(edge, corners);
+            if (corner is null)
+            {
+                return KernelResult<BoundedManufacturingFilletSelection>.Failure([Failure(
+                    "Bounded fillet edge token did not resolve to a unique internal concave edge candidate on this source body.",
+                    "firmament.fillet-bounded")]);
+            }
+
+            selected.Add(corner.Value);
+        }
+
+        if (selected.Select(c => (c.X, c.Y)).Distinct().Count() != selected.Count)
         {
             return KernelResult<BoundedManufacturingFilletSelection>.Failure([Failure(
-                "Bounded fillet edge token did not resolve to a unique internal concave edge candidate on this source body.",
+                "Bounded M5b/F1 chained fillet requires edge tokens resolving to distinct local concave corners.",
                 "firmament.fillet-bounded")]);
         }
 
-        if (radius >= selected.Value.MaxAllowedRadius)
+        var maxAllowedRadius = selected.Min(corner => corner.MaxAllowedRadius);
+        if (radius >= maxAllowedRadius)
         {
             return KernelResult<BoundedManufacturingFilletSelection>.Failure([Failure(
                 "Bounded fillet radius is too large for the selected internal concave edge; radius must be strictly less than the local bounded neighborhood extent.",
                 "firmament.fillet-bounded")]);
         }
 
+        var hasLocalInteraction = false;
+        if (selected.Count == 2)
+        {
+            hasLocalInteraction = AreAdjacentCorners(selected[0], selected[1], corners);
+            if (!hasLocalInteraction)
+            {
+                return KernelResult<BoundedManufacturingFilletSelection>.Failure([Failure(
+                    "Bounded M5b/F1 chained fillet currently supports only locally adjacent concave edge pairs.",
+                    "firmament.fillet-bounded")]);
+            }
+        }
+
         return KernelResult<BoundedManufacturingFilletSelection>.Success(
-            new BoundedManufacturingFilletSelection(selected.Value.X, selected.Value.Y, minZ, maxZ, selected.Value.MaxAllowedRadius));
+            new BoundedManufacturingFilletSelection(
+                selected.Select(corner => new BoundedManufacturingFilletCornerSelection(corner.X, corner.Y, corner.MaxAllowedRadius)).ToArray(),
+                minZ,
+                maxZ,
+                maxAllowedRadius,
+                hasLocalInteraction));
     }
+
+    public static KernelResult<BoundedManufacturingFilletSelection> ResolveInternalConcaveVerticalEdge(
+        SafeBooleanComposition composition,
+        BrepBoundedManufacturingFilletEdge edge,
+        double radius)
+        => ResolveInternalConcaveVerticalEdges(composition, [edge], radius);
 
     private static BoundedManufacturingFilletCornerCandidate? SelectCorner(
         BrepBoundedManufacturingFilletEdge edge,
@@ -131,6 +175,36 @@ public static class BrepBoundedManufacturingFilletPreflight
         };
     }
 
+    private static bool AreAdjacentCorners(
+        BoundedManufacturingFilletCornerCandidate first,
+        BoundedManufacturingFilletCornerCandidate second,
+        IReadOnlyList<BoundedManufacturingFilletCornerCandidate> allCorners)
+    {
+        var alignedX = NearlyEqual(first.X, second.X);
+        var alignedY = NearlyEqual(first.Y, second.Y);
+        if (alignedX == alignedY)
+        {
+            return false;
+        }
+
+        if (alignedX)
+        {
+            var low = System.Math.Min(first.Y, second.Y);
+            var high = System.Math.Max(first.Y, second.Y);
+            return !allCorners.Any(corner =>
+                NearlyEqual(corner.X, first.X)
+                && corner.Y > low
+                && corner.Y < high);
+        }
+
+        var minX = System.Math.Min(first.X, second.X);
+        var maxX = System.Math.Max(first.X, second.X);
+        return !allCorners.Any(corner =>
+            NearlyEqual(corner.Y, first.Y)
+            && corner.X > minX
+            && corner.X < maxX);
+    }
+
     private static bool NearlyEqual(double a, double b)
         => System.Math.Abs(a - b) <= 1e-9;
 
@@ -141,10 +215,15 @@ public static class BrepBoundedManufacturingFilletPreflight
 }
 
 public readonly record struct BoundedManufacturingFilletSelection(
-    double EdgeX,
-    double EdgeY,
+    IReadOnlyList<BoundedManufacturingFilletCornerSelection> Corners,
     double MinZ,
     double MaxZ,
+    double MaxAllowedRadius,
+    bool HasLocalInteraction);
+
+public readonly record struct BoundedManufacturingFilletCornerSelection(
+    double EdgeX,
+    double EdgeY,
     double MaxAllowedRadius);
 
 public enum BrepBoundedManufacturingFilletEdge

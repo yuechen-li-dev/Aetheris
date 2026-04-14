@@ -266,14 +266,19 @@ internal static class FirmamentBooleanRequiredFieldValidator
             return MissingField("edges", opIndex, entry.OpName);
         }
 
-        if (!TryParseFaceTokens(edgesRaw, out var tokens) || tokens.Count != 1)
+        if (!TryParseFaceTokens(edgesRaw, out var tokens) || tokens.Count is < 1 or > 2)
         {
-            return InvalidFieldTypeOrShape("edges", opIndex, entry.OpName, "expected a single-item string array with one explicit internal edge token");
+            return InvalidFieldTypeOrShape("edges", opIndex, entry.OpName, "expected a one- or two-item string array with explicit internal edge tokens");
         }
 
-        if (tokens[0] is not ("inner_x_min_y_min" or "inner_x_min_y_max" or "inner_x_max_y_min" or "inner_x_max_y_max"))
+        if (tokens.Any(token => token is not ("inner_x_min_y_min" or "inner_x_min_y_max" or "inner_x_max_y_min" or "inner_x_max_y_max")))
         {
             return InvalidFieldValue("edges", opIndex, entry.OpName, "supported bounded M5b edge tokens are inner_x_min_y_min, inner_x_min_y_max, inner_x_max_y_min, inner_x_max_y_max");
+        }
+
+        if (tokens.Distinct(StringComparer.Ordinal).Count() != tokens.Count)
+        {
+            return InvalidFieldValue("edges", opIndex, entry.OpName, "bounded M5b/F1 chained fillet requires distinct internal edge tokens");
         }
 
         return KernelResult<bool>.Success(true);

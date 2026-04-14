@@ -857,7 +857,7 @@ internal static class FirmamentPrimitiveExecutor
             ]);
         }
 
-        if (!BrepBoundedEdgeFinishingToolParser.TryParseFilletEdge(boolean.Tool.RawFields, out var edge, out var edgeError))
+        if (!BrepBoundedEdgeFinishingToolParser.TryParseFilletEdges(boolean.Tool.RawFields, out var edges, out var edgeError))
         {
             return KernelResult<BrepBody>.Failure(
             [
@@ -887,9 +887,9 @@ internal static class FirmamentPrimitiveExecutor
             composition = recognized;
         }
 
-        var preflight = BrepBoundedManufacturingFilletPreflight.ResolveInternalConcaveVerticalEdge(
+        var preflight = BrepBoundedManufacturingFilletPreflight.ResolveInternalConcaveVerticalEdges(
             composition,
-            edge,
+            edges,
             radius);
         if (!preflight.IsSuccess)
         {

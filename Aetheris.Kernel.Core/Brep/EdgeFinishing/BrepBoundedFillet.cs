@@ -11,11 +11,12 @@ using Aetheris.Kernel.Core.Topology;
 namespace Aetheris.Kernel.Core.Brep.EdgeFinishing;
 
 /// <summary>
-/// F0 bounded single-edge constant-radius fillet builder for one explicit internal concave planar-planar vertical edge.
+/// F0/F1 bounded constant-radius cylindrical fillet builder for explicit internal concave planar-planar vertical edges.
 /// </summary>
 public static class BrepBoundedFillet
 {
     private const string SingleEdgeCylindricalFilletCandidate = "single_edge_cylindrical_fillet";
+    private const string ChainedSameRadiusCylindricalFilletCandidate = "chained_same_radius_cylindrical_fillets";
     private const string RejectCandidate = "reject";
 
     public static KernelResult<BrepBody> FilletTrustedPolyhedralSingleInternalConcaveEdge(
@@ -35,12 +36,17 @@ public static class BrepBoundedFillet
         if (!judgment.IsSuccess || !judgment.Selection.HasValue || judgment.Selection.Value.Candidate.Name == RejectCandidate)
         {
             var reason = judgment.Rejections.Count == 0
-                ? "No bounded single-edge fillet candidate was admissible."
+                ? "No bounded single-edge/chained fillet candidate was admissible."
                 : string.Join(" ", judgment.Rejections.Select(rejection => $"{rejection.CandidateName}: {rejection.Reason}."));
             return KernelResult<BrepBody>.Failure([Failure($"Bounded fillet edge resolution rejected: {reason}", "firmament.fillet-bounded")]);
         }
 
-        return BuildSingleEdgeConcaveFilletBody(sourceBody, context);
+        return judgment.Selection.Value.Candidate.Name switch
+        {
+            SingleEdgeCylindricalFilletCandidate => BuildConcaveFilletBody(sourceBody, context),
+            ChainedSameRadiusCylindricalFilletCandidate => BuildConcaveFilletBody(sourceBody, context),
+            _ => KernelResult<BrepBody>.Failure([Failure($"Bounded fillet selected unsupported candidate '{judgment.Selection.Value.Candidate.Name}'.", "firmament.fillet-bounded")])
+        };
     }
 
     private static IReadOnlyList<JudgmentCandidate<BrepBoundedFilletContext>> BuildCandidates()
@@ -50,22 +56,34 @@ public static class BrepBoundedFillet
                 Name: SingleEdgeCylindricalFilletCandidate,
                 IsAdmissible: When.All<BrepBoundedFilletContext>(
                     context => context.IsTrustedSource,
-                    context => context.IsSingleEdgeSelection,
+                    context => context.SelectionCount == 1,
                     context => context.IsPlanarPlanar,
                     context => context.IsInternalConcave,
                     context => context.IsBoundedRadius),
                 Score: context => context.IsInternalConcave ? 100d : 0d,
-                RejectionReason: context => $"requires trusted single-edge internal concave planar-planar bounded-radius context (trusted={context.IsTrustedSource}, single={context.IsSingleEdgeSelection}, planar={context.IsPlanarPlanar}, concave={context.IsInternalConcave}, bounded={context.IsBoundedRadius})",
+                RejectionReason: context => $"requires trusted single-edge internal concave planar-planar bounded-radius context (trusted={context.IsTrustedSource}, count={context.SelectionCount}, planar={context.IsPlanarPlanar}, concave={context.IsInternalConcave}, bounded={context.IsBoundedRadius})",
                 TieBreakerPriority: 0),
+            new JudgmentCandidate<BrepBoundedFilletContext>(
+                Name: ChainedSameRadiusCylindricalFilletCandidate,
+                IsAdmissible: When.All<BrepBoundedFilletContext>(
+                    context => context.IsTrustedSource,
+                    context => context.SelectionCount == 2,
+                    context => context.IsPlanarPlanar,
+                    context => context.IsInternalConcave,
+                    context => context.IsBoundedRadius,
+                    context => context.HasLocalChainedInteraction),
+                Score: context => context.HasLocalChainedInteraction ? 150d : 0d,
+                RejectionReason: context => $"requires trusted two-edge same-radius chained internal concave planar-planar bounded-radius context (trusted={context.IsTrustedSource}, count={context.SelectionCount}, planar={context.IsPlanarPlanar}, concave={context.IsInternalConcave}, bounded={context.IsBoundedRadius}, interacting={context.HasLocalChainedInteraction})",
+                TieBreakerPriority: 1),
             new JudgmentCandidate<BrepBoundedFilletContext>(
                 Name: RejectCandidate,
                 IsAdmissible: _ => true,
                 Score: _ => -1d,
                 RejectionReason: _ => "bounded single-edge cylindrical fillet candidate is not admissible",
-                TieBreakerPriority: 1)
+                TieBreakerPriority: 2)
         ];
 
-    private static KernelResult<BrepBody> BuildSingleEdgeConcaveFilletBody(BrepBody sourceBody, BrepBoundedFilletContext context)
+    private static KernelResult<BrepBody> BuildConcaveFilletBody(BrepBody sourceBody, BrepBoundedFilletContext context)
     {
         if (!TryBuildOrthogonalFootprintLoop(context.OccupiedCells, out var loop, out var loopFailure))
         {
@@ -74,17 +92,17 @@ public static class BrepBoundedFillet
                 "firmament.fillet-bounded")]);
         }
 
-        if (!TryApplySingleCornerFillet(loop, context.Selection.EdgeX, context.Selection.EdgeY, context.Radius, out var filletedLoop, out var filletFailure))
+        if (!TryApplyCornerFillets(loop, context.Selection.Corners, context.Radius, out var filletedLoop, out var filletFailure))
         {
             return KernelResult<BrepBody>.Failure([Failure(
-                $"Bounded fillet local builder could not construct the selected internal-edge cylindrical cut: {filletFailure}",
+                $"Bounded fillet local builder could not construct the selected internal-edge cylindrical cut chain: {filletFailure}",
                 "firmament.fillet-bounded")]);
         }
 
-        return BuildExtrudedBodyWithSingleArc(filletedLoop, context.Selection.MinZ, context.Selection.MaxZ, context.Radius);
+        return BuildExtrudedBodyWithArcs(filletedLoop, context.Selection.MinZ, context.Selection.MaxZ, context.Radius);
     }
 
-    private static KernelResult<BrepBody> BuildExtrudedBodyWithSingleArc(
+    private static KernelResult<BrepBody> BuildExtrudedBodyWithArcs(
         IReadOnlyList<LoopSegment2D> segments,
         double minZ,
         double maxZ,
@@ -262,10 +280,9 @@ public static class BrepBoundedFillet
         return (startAngle, endAngle);
     }
 
-    private static bool TryApplySingleCornerFillet(
+    private static bool TryApplyCornerFillets(
         IReadOnlyList<(double X, double Y)> loop,
-        double cornerX,
-        double cornerY,
+        IReadOnlyList<BoundedManufacturingFilletCornerSelection> corners,
         double radius,
         out List<LoopSegment2D> filletedLoop,
         out string failure)
@@ -273,58 +290,90 @@ public static class BrepBoundedFillet
         filletedLoop = [];
         failure = string.Empty;
 
-        var cornerIndices = Enumerable.Range(0, loop.Count)
-            .Where(index => NearlyEqual(loop[index].X, cornerX) && NearlyEqual(loop[index].Y, cornerY))
-            .ToArray();
-        if (cornerIndices.Length != 1)
+        if (corners.Count is < 1 or > 2)
         {
-            failure = "selected internal corner was not uniquely present on the boundary loop";
+            failure = "selected bounded fillet corner set must contain one or two corners";
             return false;
         }
 
         var signedArea = ComputeSignedArea(loop);
         var isCounterClockwise = signedArea > 0d;
-        var indexToFillet = cornerIndices[0];
-        if (!IsConcaveCorner(loop, indexToFillet, isCounterClockwise))
+        var cornerDataByIndex = new Dictionary<int, ((double X, double Y) CutA, (double X, double Y) CutB, (double X, double Y) Center)>();
+        foreach (var cornerSelection in corners)
         {
-            failure = "selected corner is not a local concave corner on this footprint";
-            return false;
+            var cornerIndices = Enumerable.Range(0, loop.Count)
+                .Where(index => NearlyEqual(loop[index].X, cornerSelection.EdgeX) && NearlyEqual(loop[index].Y, cornerSelection.EdgeY))
+                .ToArray();
+            if (cornerIndices.Length != 1)
+            {
+                failure = "selected internal corner was not uniquely present on the boundary loop";
+                return false;
+            }
+
+            var indexToFillet = cornerIndices[0];
+            if (!IsConcaveCorner(loop, indexToFillet, isCounterClockwise))
+            {
+                failure = "selected corner is not a local concave corner on this footprint";
+                return false;
+            }
+
+            var prevIndex = (indexToFillet + loop.Count - 1) % loop.Count;
+            var nextIndex = (indexToFillet + 1) % loop.Count;
+            var corner = loop[indexToFillet];
+            var prev = loop[prevIndex];
+            var next = loop[nextIndex];
+
+            var incoming = (X: prev.X - corner.X, Y: prev.Y - corner.Y);
+            var outgoing = (X: next.X - corner.X, Y: next.Y - corner.Y);
+            if (!IsAxisAligned(incoming) || !IsAxisAligned(outgoing))
+            {
+                failure = "selected corner neighborhood is not axis-aligned";
+                return false;
+            }
+
+            var incomingLength = System.Math.Sqrt(incoming.X * incoming.X + incoming.Y * incoming.Y);
+            var outgoingLength = System.Math.Sqrt(outgoing.X * outgoing.X + outgoing.Y * outgoing.Y);
+            if (radius >= incomingLength || radius >= outgoingLength)
+            {
+                failure = "radius exceeds one of the local orthogonal edge spans";
+                return false;
+            }
+
+            var cutA = (corner.X + incoming.X / incomingLength * radius, corner.Y + incoming.Y / incomingLength * radius);
+            var cutB = (corner.X + outgoing.X / outgoingLength * radius, corner.Y + outgoing.Y / outgoingLength * radius);
+            var center = (corner.X + incoming.X / incomingLength * radius + outgoing.X / outgoingLength * radius,
+                corner.Y + incoming.Y / incomingLength * radius + outgoing.Y / outgoingLength * radius);
+            cornerDataByIndex[indexToFillet] = (cutA, cutB, center);
         }
 
-        var prevIndex = (indexToFillet + loop.Count - 1) % loop.Count;
-        var nextIndex = (indexToFillet + 1) % loop.Count;
-        var corner = loop[indexToFillet];
-        var prev = loop[prevIndex];
-        var next = loop[nextIndex];
-
-        var incoming = (X: prev.X - corner.X, Y: prev.Y - corner.Y);
-        var outgoing = (X: next.X - corner.X, Y: next.Y - corner.Y);
-        if (!IsAxisAligned(incoming) || !IsAxisAligned(outgoing))
+        foreach (var index in cornerDataByIndex.Keys)
         {
-            failure = "selected corner neighborhood is not axis-aligned";
-            return false;
+            var nextIndex = (index + 1) % loop.Count;
+            if (!cornerDataByIndex.ContainsKey(nextIndex))
+            {
+                continue;
+            }
+
+            var first = cornerDataByIndex[index].CutB;
+            var second = cornerDataByIndex[nextIndex].CutA;
+            if (LoopSegment2D.Line(first, second).Length <= 1e-8)
+            {
+                failure = "chained corner interaction collapsed an inter-fillet span";
+                return false;
+            }
         }
 
-        var incomingLength = System.Math.Sqrt(incoming.X * incoming.X + incoming.Y * incoming.Y);
-        var outgoingLength = System.Math.Sqrt(outgoing.X * outgoing.X + outgoing.Y * outgoing.Y);
-        if (radius >= incomingLength || radius >= outgoingLength)
-        {
-            failure = "radius exceeds one of the local orthogonal edge spans";
-            return false;
-        }
-
-        var cutA = (corner.X + incoming.X / incomingLength * radius, corner.Y + incoming.Y / incomingLength * radius);
-        var cutB = (corner.X + outgoing.X / outgoingLength * radius, corner.Y + outgoing.Y / outgoingLength * radius);
-        var center = (corner.X + incoming.X / incomingLength * radius + outgoing.X / outgoingLength * radius,
-            corner.Y + incoming.Y / incomingLength * radius + outgoing.Y / outgoingLength * radius);
+        var arcCenters = cornerDataByIndex.Values.ToDictionary(
+            data => (data.CutA, data.CutB),
+            data => data.Center);
 
         var transformed = new List<(double X, double Y)>();
         for (var i = 0; i < loop.Count; i++)
         {
-            if (i == indexToFillet)
+            if (cornerDataByIndex.TryGetValue(i, out var data))
             {
-                transformed.Add(cutA);
-                transformed.Add(cutB);
+                transformed.Add(data.CutA);
+                transformed.Add(data.CutB);
                 continue;
             }
 
@@ -335,8 +384,7 @@ public static class BrepBoundedFillet
         {
             var start = transformed[i];
             var end = transformed[(i + 1) % transformed.Count];
-            if (NearlyEqual(start.X, cutA.Item1) && NearlyEqual(start.Y, cutA.Item2)
-                && NearlyEqual(end.X, cutB.Item1) && NearlyEqual(end.Y, cutB.Item2))
+            if (arcCenters.TryGetValue((start, end), out var center))
             {
                 filletedLoop.Add(LoopSegment2D.Arc(start, end, center, isClockwise: false));
             }
@@ -575,7 +623,8 @@ public static class BrepBoundedFillet
 
 internal readonly record struct BrepBoundedFilletContext(
     bool IsTrustedSource,
-    bool IsSingleEdgeSelection,
+    int SelectionCount,
+    bool HasLocalChainedInteraction,
     bool IsPlanarPlanar,
     bool IsInternalConcave,
     bool IsBoundedRadius,
@@ -603,7 +652,8 @@ internal readonly record struct BrepBoundedFilletContext(
         var bounded = radius < selection.MaxAllowedRadius;
         return KernelResult<BrepBoundedFilletContext>.Success(new BrepBoundedFilletContext(
             IsTrustedSource: true,
-            IsSingleEdgeSelection: true,
+            SelectionCount: selection.Corners.Count,
+            HasLocalChainedInteraction: selection.HasLocalInteraction,
             IsPlanarPlanar: planar,
             IsInternalConcave: true,
             IsBoundedRadius: bounded,

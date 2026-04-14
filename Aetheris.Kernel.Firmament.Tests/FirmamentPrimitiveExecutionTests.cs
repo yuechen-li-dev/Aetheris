@@ -464,6 +464,21 @@ public sealed class FirmamentPrimitiveExecutionTests
             face => fillet.Body.Geometry.GetSurface(face.SurfaceGeometryId).Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder);
     }
 
+    [Fact]
+    public void Compile_BoundedFilletChainedAdjacentPair_Executes_With_MultipleCylindricalFaces()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5b-valid-fillet-concave-chained-adjacent-pair.firmament");
+
+        Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
+        var execution = result.Compilation.Value.PrimitiveExecutionResult!;
+        var root = Assert.Single(execution.ExecutedBooleans, executed => executed.FeatureId == "croot");
+        var fillet = Assert.Single(execution.ExecutedBooleans, executed => executed.FeatureId == "chained_inner_fillet");
+        Assert.Equal(FirmamentLoweredBooleanKind.Fillet, fillet.Kind);
+        Assert.NotEqual(root.Body.Topology.Faces.Count(), fillet.Body.Topology.Faces.Count());
+        Assert.True(
+            fillet.Body.Bindings.FaceBindings.Count(face => fillet.Body.Geometry.GetSurface(face.SurfaceGeometryId).Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder) >= 2);
+    }
+
 
     [Fact]
     public void Compile_Rejects_BoundedFillet_When_Source_Has_NoOccupiedCellMetadata()
@@ -485,6 +500,17 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Source == "firmament.fillet-bounded"
             && diagnostic.Message.Contains("not eligible", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Compile_Rejects_BoundedFillet_ThreeEdgeChain_Request()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5b-invalid-fillet-three-edge-chain.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Source == "firmament"
+            && diagnostic.Message.Contains("one- or two-item string array", StringComparison.Ordinal));
     }
 
     [Fact]

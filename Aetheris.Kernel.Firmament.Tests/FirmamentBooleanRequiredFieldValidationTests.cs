@@ -426,6 +426,38 @@ public sealed class FirmamentBooleanRequiredFieldValidationTests
             "Boolean op 'fillet' at index 1 has invalid field 'edges'; supported bounded M5b edge tokens are inner_x_min_y_min, inner_x_min_y_max, inner_x_max_y_min, inner_x_max_y_max.");
 
     [Fact]
+    public void Compiler_Rejects_Fillet_ThreeEdgeChainShape() =>
+        AssertBooleanFailure(
+            """
+            firmament:
+              version: 1
+            
+            model:
+              name: demo
+              units: mm
+            
+            ops[2]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  20
+                  20
+                  20
+              -
+                op: fillet
+                id: edge_break
+                from: base
+                edges[3]:
+                  inner_x_min_y_min
+                  inner_x_max_y_min
+                  inner_x_max_y_max
+                radius: 1
+            """,
+            FirmamentDiagnosticCodes.BooleanInvalidFieldTypeOrShape,
+            "Boolean op 'fillet' at index 1 has invalid field 'edges'; expected a one- or two-item string array with explicit internal edge tokens.");
+
+    [Fact]
     public void Compiler_Allows_ValidTorusBooleanToolShape_Past_FieldValidation()
     {
         const string source = """

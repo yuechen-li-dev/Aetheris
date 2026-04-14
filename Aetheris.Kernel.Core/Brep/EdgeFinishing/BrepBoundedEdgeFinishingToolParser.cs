@@ -198,12 +198,12 @@ public static class BrepBoundedEdgeFinishingToolParser
         return true;
     }
 
-    public static bool TryParseFilletEdge(
+    public static bool TryParseFilletEdges(
         IReadOnlyDictionary<string, string> fields,
-        out BrepBoundedManufacturingFilletEdge edge,
+        out BrepBoundedManufacturingFilletEdge[] edges,
         out string error)
     {
-        edge = BrepBoundedManufacturingFilletEdge.InnerXMinYMin;
+        edges = [];
         error = string.Empty;
 
         if (!fields.TryGetValue("edges", out var edgesRaw) || string.IsNullOrWhiteSpace(edgesRaw))
@@ -218,27 +218,38 @@ public static class BrepBoundedEdgeFinishingToolParser
             return false;
         }
 
-        if (tokens.Length != 1)
+        if (tokens.Length is < 1 or > 2)
         {
-            error = "bounded M5b supports exactly one explicit internal edge token";
+            error = "bounded M5b/F1 supports either one explicit internal edge token or two explicitly chained internal edge tokens";
             return false;
         }
 
-        edge = tokens[0] switch
+        var parsed = new BrepBoundedManufacturingFilletEdge[tokens.Length];
+        for (var i = 0; i < tokens.Length; i++)
         {
-            "inner_x_min_y_min" => BrepBoundedManufacturingFilletEdge.InnerXMinYMin,
-            "inner_x_min_y_max" => BrepBoundedManufacturingFilletEdge.InnerXMinYMax,
-            "inner_x_max_y_min" => BrepBoundedManufacturingFilletEdge.InnerXMaxYMin,
-            "inner_x_max_y_max" => BrepBoundedManufacturingFilletEdge.InnerXMaxYMax,
-            _ => BrepBoundedManufacturingFilletEdge.InnerXMinYMin
-        };
+            parsed[i] = tokens[i] switch
+            {
+                "inner_x_min_y_min" => BrepBoundedManufacturingFilletEdge.InnerXMinYMin,
+                "inner_x_min_y_max" => BrepBoundedManufacturingFilletEdge.InnerXMinYMax,
+                "inner_x_max_y_min" => BrepBoundedManufacturingFilletEdge.InnerXMaxYMin,
+                "inner_x_max_y_max" => BrepBoundedManufacturingFilletEdge.InnerXMaxYMax,
+                _ => BrepBoundedManufacturingFilletEdge.InnerXMinYMin
+            };
 
-        if (tokens[0] is not ("inner_x_min_y_min" or "inner_x_min_y_max" or "inner_x_max_y_min" or "inner_x_max_y_max"))
+            if (tokens[i] is not ("inner_x_min_y_min" or "inner_x_min_y_max" or "inner_x_max_y_min" or "inner_x_max_y_max"))
+            {
+                error = "supported tokens are inner_x_min_y_min, inner_x_min_y_max, inner_x_max_y_min, inner_x_max_y_max";
+                return false;
+            }
+        }
+
+        if (parsed.Distinct().Count() != parsed.Length)
         {
-            error = "supported tokens are inner_x_min_y_min, inner_x_min_y_max, inner_x_max_y_min, inner_x_max_y_max";
+            error = "bounded M5b/F1 chained edge selection requires distinct edge tokens";
             return false;
         }
 
+        edges = parsed;
         return true;
     }
 

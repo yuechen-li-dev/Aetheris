@@ -1,0 +1,35 @@
+firmament:
+  version: 1
+
+model:
+  name: nist_ctc01_attempt1_cp1
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      800
+      450
+      100
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -100
+  -
+    op: subtract
+    id: major_center_bore
+    from: base
+    with:
+      op: cylinder
+      radius: 50
+      height: 120
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -110

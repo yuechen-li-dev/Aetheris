@@ -1,0 +1,38 @@
+firmament:
+  version: 1
+
+model:
+  name: m5b_valid_fillet_concave_overlap_lroot
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      30
+      20
+      10
+  -
+    op: add
+    id: lroot
+    to: base
+    with:
+      op: box
+      size[3]:
+        20
+        10
+        10
+    place:
+      on: origin
+      offset[3]:
+        20
+        10
+        0
+  -
+    op: fillet
+    id: inner_edge_fillet
+    from: lroot
+    edges[1]:
+      inner_x_max_y_max
+    radius: 1

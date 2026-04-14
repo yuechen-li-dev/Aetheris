@@ -449,15 +449,31 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
-    public void Compile_BoundedFilletCanonicalInternalCase_Reaches_Narrow_TruthfulRebuildBlocker()
+    public void Compile_BoundedFilletCanonicalInternalCase_Executes_With_CylindricalFace()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5b-valid-fillet-concave-overlap-lroot.firmament");
+
+        Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
+        var execution = result.Compilation.Value.PrimitiveExecutionResult!;
+        var root = Assert.Single(execution.ExecutedBooleans, executed => executed.FeatureId == "lroot");
+        var fillet = Assert.Single(execution.ExecutedBooleans, executed => executed.FeatureId == "inner_edge_fillet");
+        Assert.Equal(FirmamentLoweredBooleanKind.Fillet, fillet.Kind);
+        Assert.NotEqual(root.Body.Topology.Faces.Count(), fillet.Body.Topology.Faces.Count());
+        Assert.Contains(
+            fillet.Body.Bindings.FaceBindings,
+            face => fillet.Body.Geometry.GetSurface(face.SurfaceGeometryId).Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder);
+    }
+
+
+    [Fact]
+    public void Compile_Rejects_BoundedFillet_When_Source_Has_NoOccupiedCellMetadata()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m5b-canonical-internal-fillet-lroot.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Source == "firmament.fillet-bounded"
-            && diagnostic.Code == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed
-            && diagnostic.Message.Contains("safe-composition metadata", StringComparison.Ordinal));
+            && diagnostic.Message.Contains("occupied-cell orthogonal additive-root source", StringComparison.Ordinal));
     }
 
     [Fact]

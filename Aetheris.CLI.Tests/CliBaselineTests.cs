@@ -177,6 +177,48 @@ public sealed class CliBaselineTests
         Assert.Equal(2d, torusFace.GetProperty("minorRadius").GetDouble(), 8);
     }
 
+
+    [Fact]
+    public void Build_And_Analyze_BoundedSingleEdgeFillet_Reports_CylindricalSurface_And_Manifoldness()
+    {
+        var outputPath = Path.Combine(RepoRoot, "testdata", "firmament", "exports", "cli-m5b-bounded-single-edge-fillet.step");
+        if (File.Exists(outputPath))
+        {
+            File.Delete(outputPath);
+        }
+
+        var buildStdout = new StringWriter();
+        var buildStderr = new StringWriter();
+        var buildExitCode = Aetheris.CLI.CliRunner.Run(
+            ["build", Path.Combine(RepoRoot, "testdata/firmament/fixtures/m5b-valid-fillet-concave-overlap-lroot.firmament"), "--out", outputPath],
+            buildStdout,
+            buildStderr);
+        Assert.Equal(0, buildExitCode);
+        Assert.True(File.Exists(outputPath), buildStderr.ToString());
+
+        var summary = AnalyzeSummary(outputPath);
+        Assert.Equal("enclosed-manifold", summary.GetProperty("structuralAssessment").GetString());
+        Assert.True(summary.GetProperty("surfaceFamilies").GetProperty("cylinder").GetInt32() >= 1);
+
+        var maxFaceId = summary.GetProperty("faceIds").GetProperty("max").GetInt32();
+        var foundCylinder = false;
+        for (var faceId = 1; faceId <= maxFaceId; faceId++)
+        {
+            var face = AnalyzeFace(outputPath, faceId);
+            if (face.GetProperty("surfaceType").GetString() is not "Cylinder")
+            {
+                continue;
+            }
+
+            foundCylinder = true;
+            Assert.Equal(1d, face.GetProperty("radius").GetDouble(), 8);
+            break;
+        }
+
+        Assert.True(foundCylinder, "Expected at least one cylindrical face in bounded fillet export.");
+        File.Delete(outputPath);
+    }
+
     [Fact]
     public void Build_And_Analyze_TriangularPrism_Example_Reports_IsoscelesContractBounds()
     {

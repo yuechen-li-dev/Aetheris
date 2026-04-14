@@ -87,6 +87,38 @@ public sealed class BrepBoundedFilletTests
     }
 
     [Fact]
+    public void FilletTrustedPolyhedralSingleInternalConcaveEdge_Builds_ChainedCylindricalTermination_IntoLargerRadiusCylindricalContext()
+    {
+        var source = CreatePlanarSourceWithNotchComposition();
+        var firstPreflight = BrepBoundedManufacturingFilletPreflight.ResolveInternalConcaveVerticalEdge(
+            source.SafeBooleanComposition!,
+            BrepBoundedManufacturingFilletEdge.InnerXMaxYMin,
+            radius: 1.5d);
+        Assert.True(firstPreflight.IsSuccess);
+
+        var firstPass = BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(source, firstPreflight.Value, 1.5d);
+        Assert.True(firstPass.IsSuccess, string.Join(Environment.NewLine, firstPass.Diagnostics.Select(d => d.Message)));
+
+        var chainedPreflight = BrepBoundedManufacturingFilletPreflight.ResolveInternalConcaveVerticalEdges(
+            source.SafeBooleanComposition!,
+            [BrepBoundedManufacturingFilletEdge.InnerXMaxYMin, BrepBoundedManufacturingFilletEdge.InnerXMaxYMax],
+            radius: 1d);
+        Assert.True(chainedPreflight.IsSuccess);
+
+        var secondPass = BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(firstPass.Value, chainedPreflight.Value, 1d);
+        Assert.True(secondPass.IsSuccess, string.Join(Environment.NewLine, secondPass.Diagnostics.Select(d => d.Message)));
+
+        var cylinderRadii = secondPass.Value.Bindings.FaceBindings
+            .Select(binding => secondPass.Value.Geometry.GetSurface(binding.SurfaceGeometryId))
+            .Where(surface => surface.Kind == SurfaceGeometryKind.Cylinder && surface.Cylinder is not null)
+            .Select(surface => surface.Cylinder!.Value.Radius)
+            .DistinctBy(value => System.Math.Round(value, 6))
+            .ToArray();
+        Assert.Contains(cylinderRadii, value => System.Math.Abs(value - 1d) <= 1e-6);
+        Assert.Contains(cylinderRadii, value => System.Math.Abs(value - 1.5d) <= 1e-6);
+    }
+
+    [Fact]
     public void FilletTrustedPolyhedralSingleInternalConcaveEdge_Rejects_ChainedCylindricalTermination_ForMismatchedRadius()
     {
         var source = CreatePlanarSourceWithNotchComposition();
@@ -110,7 +142,8 @@ public sealed class BrepBoundedFilletTests
         Assert.Contains(
             secondPass.Diagnostics,
             d => d.Message.Contains("chained_same_radius_fillet_with_cylindrical_termination", StringComparison.Ordinal)
-                && d.Message.Contains("hasMatchingRadiusVerticalCylinder=False", StringComparison.Ordinal));
+                && d.Message.Contains("hasMatchingRadiusVerticalCylinder=False", StringComparison.Ordinal)
+                && d.Message.Contains("hasLargerRadiusVerticalCylinder=False", StringComparison.Ordinal));
     }
 
     private static BrepBody CreatePlanarSourceWithLRootComposition()

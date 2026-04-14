@@ -86,10 +86,10 @@ public static class BrepBoundedFillet
                     context => context.IsBoundedRadius,
                     context => context.HasLocalChainedInteraction,
                     context => context.HasCylindricalSourceFaces,
-                    context => context.HasMatchingRadiusVerticalCylindricalSourceFace,
+                    context => context.HasMatchingRadiusVerticalCylindricalSourceFace || context.HasLargerRadiusVerticalCylindricalSourceFace,
                     context => context.IsCylindricalTerminationSupported),
                 Score: context => context.HasCylindricalSourceFaces ? 175d : 0d,
-                RejectionReason: context => $"requires supported chained same-radius cylindrical-context termination context (trusted={context.IsTrustedSource}, count={context.SelectionCount}, concave={context.IsInternalConcave}, bounded={context.IsBoundedRadius}, interacting={context.HasLocalChainedInteraction}, hasCylindricalSourceFaces={context.HasCylindricalSourceFaces}, hasMatchingRadiusVerticalCylinder={context.HasMatchingRadiusVerticalCylindricalSourceFace}, supported={context.IsCylindricalTerminationSupported})",
+                RejectionReason: context => $"requires supported chained same-radius cylindrical-context termination context (trusted={context.IsTrustedSource}, count={context.SelectionCount}, concave={context.IsInternalConcave}, bounded={context.IsBoundedRadius}, interacting={context.HasLocalChainedInteraction}, hasCylindricalSourceFaces={context.HasCylindricalSourceFaces}, hasMatchingRadiusVerticalCylinder={context.HasMatchingRadiusVerticalCylindricalSourceFace}, hasLargerRadiusVerticalCylinder={context.HasLargerRadiusVerticalCylindricalSourceFace}, supported={context.IsCylindricalTerminationSupported})",
                 TieBreakerPriority: 2),
             new JudgmentCandidate<BrepBoundedFilletContext>(
                 Name: RejectCandidate,
@@ -103,7 +103,7 @@ public static class BrepBoundedFillet
     {
         if (context.SelectionCount == 2 && context.HasLocalChainedInteraction && context.HasCylindricalSourceFaces)
         {
-            return $"chained_same_radius_fillet_with_cylindrical_termination: requires supported chained same-radius cylindrical-context termination context (hasMatchingRadiusVerticalCylinder={context.HasMatchingRadiusVerticalCylindricalSourceFace}, supported={context.IsCylindricalTerminationSupported}).";
+            return $"chained_same_radius_fillet_with_cylindrical_termination: requires supported chained same-radius cylindrical-context termination context (hasMatchingRadiusVerticalCylinder={context.HasMatchingRadiusVerticalCylindricalSourceFace}, hasLargerRadiusVerticalCylinder={context.HasLargerRadiusVerticalCylindricalSourceFace}, supported={context.IsCylindricalTerminationSupported}).";
         }
 
         return "No bounded single-edge/chained fillet candidate was admissible.";
@@ -118,7 +118,8 @@ public static class BrepBoundedFillet
                 "firmament.fillet-bounded")]);
         }
 
-        if (!TryApplyCornerFillets(loop, context.Selection.Corners, context.Radius, out var filletedLoop, out var filletFailure))
+        var verticalCylinders = GetVerticalCylindricalFaceSignatures(sourceBody);
+        if (!TryApplyCornerFillets(loop, context.Selection.Corners, context.Radius, verticalCylinders, out var filletedLoop, out var filletFailure))
         {
             return KernelResult<BrepBody>.Failure([Failure(
                 $"Bounded fillet local builder could not construct the selected internal-edge cylindrical cut chain: {filletFailure}",
@@ -129,7 +130,6 @@ public static class BrepBoundedFillet
             filletedLoop,
             context.Selection.MinZ,
             context.Selection.MaxZ,
-            context.Radius,
             sourceBody.SafeBooleanComposition);
     }
 
@@ -137,7 +137,6 @@ public static class BrepBoundedFillet
         IReadOnlyList<LoopSegment2D> segments,
         double minZ,
         double maxZ,
-        double radius,
         SafeBooleanComposition? safeBooleanComposition)
     {
         var height = maxZ - minZ;
@@ -227,13 +226,14 @@ public static class BrepBoundedFillet
                 var centerTop = new Point3D(segment.Center!.Value.X, segment.Center.Value.Y, maxZ);
                 var startVector = new Vector3D(segment.Start.X - segment.Center.Value.X, segment.Start.Y - segment.Center.Value.Y, 0d);
                 var referenceAxis = Direction3D.Create(startVector);
+                var segmentRadius = System.Math.Sqrt(startVector.X * startVector.X + startVector.Y * startVector.Y);
 
                 var (startAngle, endAngle) = ComputeArcParameterRange(segment.Center.Value, segment.Start, segment.End, segment.IsClockwise);
-                geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromCircle(new Circle3Curve(centerBottom, zAxis, radius, referenceAxis)));
+                geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromCircle(new Circle3Curve(centerBottom, zAxis, segmentRadius, referenceAxis)));
                 bindings.AddEdgeBinding(new EdgeGeometryBinding(bottomEdge, new CurveGeometryId(curveId), new ParameterInterval(startAngle, endAngle)));
                 curveId++;
 
-                geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromCircle(new Circle3Curve(centerTop, zAxis, radius, referenceAxis)));
+                geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromCircle(new Circle3Curve(centerTop, zAxis, segmentRadius, referenceAxis)));
                 bindings.AddEdgeBinding(new EdgeGeometryBinding(topEdge, new CurveGeometryId(curveId), new ParameterInterval(startAngle, endAngle)));
                 curveId++;
             }
@@ -263,7 +263,8 @@ public static class BrepBoundedFillet
                 var center = segment.Center!.Value;
                 var origin = new Point3D(center.X, center.Y, minZ);
                 var referenceAxis = Direction3D.Create(new Vector3D(segment.Start.X - center.X, segment.Start.Y - center.Y, 0d));
-                geometry.AddSurface(new SurfaceGeometryId(surfaceId), SurfaceGeometry.FromCylinder(new CylinderSurface(origin, zAxis, radius, referenceAxis)));
+                var segmentRadius = System.Math.Sqrt((segment.Start.X - center.X) * (segment.Start.X - center.X) + (segment.Start.Y - center.Y) * (segment.Start.Y - center.Y));
+                geometry.AddSurface(new SurfaceGeometryId(surfaceId), SurfaceGeometry.FromCylinder(new CylinderSurface(origin, zAxis, segmentRadius, referenceAxis)));
             }
 
             bindings.AddFaceBinding(new FaceGeometryBinding(sideFaces[i], new SurfaceGeometryId(surfaceId)));
@@ -316,6 +317,7 @@ public static class BrepBoundedFillet
         IReadOnlyList<(double X, double Y)> loop,
         IReadOnlyList<BoundedManufacturingFilletCornerSelection> corners,
         double radius,
+        IReadOnlyList<VerticalCylinderSignature> verticalCylinders,
         out List<LoopSegment2D> filletedLoop,
         out string failure)
     {
@@ -331,6 +333,7 @@ public static class BrepBoundedFillet
         var signedArea = ComputeSignedArea(loop);
         var isCounterClockwise = signedArea > 0d;
         var cornerDataByIndex = new Dictionary<int, ((double X, double Y) CutA, (double X, double Y) CutB, (double X, double Y) Center)>();
+        var preservedLargerRadiusCornerCount = 0;
         foreach (var cornerSelection in corners)
         {
             var cornerIndices = Enumerable.Range(0, loop.Count)
@@ -365,17 +368,41 @@ public static class BrepBoundedFillet
 
             var incomingLength = System.Math.Sqrt(incoming.X * incoming.X + incoming.Y * incoming.Y);
             var outgoingLength = System.Math.Sqrt(outgoing.X * outgoing.X + outgoing.Y * outgoing.Y);
-            if (radius >= incomingLength || radius >= outgoingLength)
+            var incomingUnit = (X: incoming.X / incomingLength, Y: incoming.Y / incomingLength);
+            var outgoingUnit = (X: outgoing.X / outgoingLength, Y: outgoing.Y / outgoingLength);
+            var effectiveRadius = radius;
+            var largerRadiusTermination = TryResolveLargerRadiusTermination(
+                corner,
+                incomingUnit,
+                outgoingUnit,
+                incomingLength,
+                outgoingLength,
+                radius,
+                verticalCylinders,
+                out var largerRadius);
+            if (largerRadiusTermination)
+            {
+                effectiveRadius = largerRadius;
+                preservedLargerRadiusCornerCount++;
+            }
+
+            if (effectiveRadius >= incomingLength || effectiveRadius >= outgoingLength)
             {
                 failure = "radius exceeds one of the local orthogonal edge spans";
                 return false;
             }
 
-            var cutA = (corner.X + incoming.X / incomingLength * radius, corner.Y + incoming.Y / incomingLength * radius);
-            var cutB = (corner.X + outgoing.X / outgoingLength * radius, corner.Y + outgoing.Y / outgoingLength * radius);
-            var center = (corner.X + incoming.X / incomingLength * radius + outgoing.X / outgoingLength * radius,
-                corner.Y + incoming.Y / incomingLength * radius + outgoing.Y / outgoingLength * radius);
+            var cutA = (corner.X + incomingUnit.X * effectiveRadius, corner.Y + incomingUnit.Y * effectiveRadius);
+            var cutB = (corner.X + outgoingUnit.X * effectiveRadius, corner.Y + outgoingUnit.Y * effectiveRadius);
+            var center = (corner.X + incomingUnit.X * effectiveRadius + outgoingUnit.X * effectiveRadius,
+                corner.Y + incomingUnit.Y * effectiveRadius + outgoingUnit.Y * effectiveRadius);
             cornerDataByIndex[indexToFillet] = (cutA, cutB, center);
+        }
+
+        if (preservedLargerRadiusCornerCount > 1)
+        {
+            failure = "cross-radius chained cylindrical termination supports at most one larger-radius cylindrical anchor corner";
+            return false;
         }
 
         foreach (var index in cornerDataByIndex.Keys)
@@ -601,6 +628,65 @@ public static class BrepBoundedFillet
     private static bool NearlyEqual(double a, double b)
         => System.Math.Abs(a - b) <= 1e-9;
 
+    private static IReadOnlyList<VerticalCylinderSignature> GetVerticalCylindricalFaceSignatures(BrepBody body)
+    {
+        var cylinders = new List<VerticalCylinderSignature>();
+        foreach (var binding in body.Bindings.FaceBindings)
+        {
+            if (!body.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var surface) || surface is null || surface.Kind != SurfaceGeometryKind.Cylinder || surface.Cylinder is null)
+            {
+                continue;
+            }
+
+            var cylinder = surface.Cylinder.Value;
+            if (!NearlyEqual(cylinder.Axis.X, 0d)
+                || !NearlyEqual(cylinder.Axis.Y, 0d)
+                || !NearlyEqual(System.Math.Abs(cylinder.Axis.Z), 1d))
+            {
+                continue;
+            }
+
+            cylinders.Add(new VerticalCylinderSignature(cylinder.Origin.X, cylinder.Origin.Y, cylinder.Radius));
+        }
+
+        return cylinders;
+    }
+
+    private static bool TryResolveLargerRadiusTermination(
+        (double X, double Y) corner,
+        (double X, double Y) incomingUnit,
+        (double X, double Y) outgoingUnit,
+        double incomingLength,
+        double outgoingLength,
+        double baseRadius,
+        IReadOnlyList<VerticalCylinderSignature> verticalCylinders,
+        out double largerRadius)
+    {
+        largerRadius = 0d;
+        foreach (var cylinder in verticalCylinders)
+        {
+            if (!double.IsFinite(cylinder.Radius) || cylinder.Radius <= baseRadius + 1e-9)
+            {
+                continue;
+            }
+
+            if (cylinder.Radius >= incomingLength || cylinder.Radius >= outgoingLength)
+            {
+                continue;
+            }
+
+            var centerX = corner.X + incomingUnit.X * cylinder.Radius + outgoingUnit.X * cylinder.Radius;
+            var centerY = corner.Y + incomingUnit.Y * cylinder.Radius + outgoingUnit.Y * cylinder.Radius;
+            if (NearlyEqual(centerX, cylinder.CenterX) && NearlyEqual(centerY, cylinder.CenterY))
+            {
+                largerRadius = cylinder.Radius;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static FaceId AddFaceWithLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)
     {
         var loopId = builder.AllocateLoopId();
@@ -651,6 +737,8 @@ public static class BrepBoundedFillet
         public static LoopSegment2D Arc((double X, double Y) start, (double X, double Y) end, (double X, double Y) center, bool isClockwise)
             => new(LoopSegmentKind.Arc, start, end, center, isClockwise, 0.5d * double.Pi * System.Math.Sqrt((start.X - center.X) * (start.X - center.X) + (start.Y - center.Y) * (start.Y - center.Y)));
     }
+
+    private readonly record struct VerticalCylinderSignature(double CenterX, double CenterY, double Radius);
 }
 
 internal readonly record struct BrepBoundedFilletContext(
@@ -660,6 +748,7 @@ internal readonly record struct BrepBoundedFilletContext(
     bool IsPlanarPlanar,
     bool HasCylindricalSourceFaces,
     bool HasMatchingRadiusVerticalCylindricalSourceFace,
+    bool HasLargerRadiusVerticalCylindricalSourceFace,
     bool IsCylindricalTerminationSupported,
     bool IsInternalConcave,
     bool IsBoundedRadius,
@@ -704,11 +793,25 @@ internal readonly record struct BrepBoundedFilletContext(
                 && NearlyEqual(cylinder.Axis.Y, 0d)
                 && NearlyEqual(System.Math.Abs(cylinder.Axis.Z), 1d);
         });
+        var hasLargerRadiusVerticalCylinder = sourceBody.Bindings.FaceBindings.Any(binding =>
+        {
+            var surface = sourceBody.Geometry.GetSurface(binding.SurfaceGeometryId);
+            if (surface.Kind != SurfaceGeometryKind.Cylinder || surface.Cylinder is null)
+            {
+                return false;
+            }
+
+            var cylinder = surface.Cylinder.Value;
+            return cylinder.Radius > radius + 1e-9
+                && NearlyEqual(cylinder.Axis.X, 0d)
+                && NearlyEqual(cylinder.Axis.Y, 0d)
+                && NearlyEqual(System.Math.Abs(cylinder.Axis.Z), 1d);
+        });
         var bounded = radius < selection.MaxAllowedRadius;
         var cylindricalTerminationSupported =
             selection.Corners.Count == 2
             && selection.HasLocalInteraction
-            && hasMatchingRadiusVerticalCylinder
+            && (hasMatchingRadiusVerticalCylinder || hasLargerRadiusVerticalCylinder)
             && bounded;
         return KernelResult<BrepBoundedFilletContext>.Success(new BrepBoundedFilletContext(
             IsTrustedSource: true,
@@ -717,6 +820,7 @@ internal readonly record struct BrepBoundedFilletContext(
             IsPlanarPlanar: planar,
             HasCylindricalSourceFaces: hasCylindricalFaces,
             HasMatchingRadiusVerticalCylindricalSourceFace: hasMatchingRadiusVerticalCylinder,
+            HasLargerRadiusVerticalCylindricalSourceFace: hasLargerRadiusVerticalCylinder,
             IsCylindricalTerminationSupported: cylindricalTerminationSupported,
             IsInternalConcave: true,
             IsBoundedRadius: bounded,

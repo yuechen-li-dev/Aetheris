@@ -869,20 +869,26 @@ internal static class FirmamentPrimitiveExecutor
             ]);
         }
 
-        if (baseBody.SafeBooleanComposition is null)
+        var composition = baseBody.SafeBooleanComposition;
+        if (composition is null)
         {
-            return KernelResult<BrepBody>.Failure(
-            [
-                new KernelDiagnostic(
-                    KernelDiagnosticCode.ValidationFailed,
-                    KernelDiagnosticSeverity.Error,
-                    "Bounded M5b fillet requires a source body with safe-composition metadata for explicit internal concave edge preflight.",
-                    Source: "firmament.fillet-bounded")
-            ]);
+            if (!BrepBooleanSafeComposition.TryRecognize(baseBody, ToleranceContext.Default, out var recognized, out var reason))
+            {
+                return KernelResult<BrepBody>.Failure(
+                [
+                    new KernelDiagnostic(
+                        KernelDiagnosticCode.ValidationFailed,
+                        KernelDiagnosticSeverity.Error,
+                        $"Bounded M5b fillet requires source safe-composition recognition for explicit internal concave edge preflight; recognition failed ({reason}).",
+                        Source: "firmament.fillet-bounded")
+                ]);
+            }
+
+            composition = recognized;
         }
 
         var preflight = BrepBoundedManufacturingFilletPreflight.ResolveInternalConcaveVerticalEdge(
-            baseBody.SafeBooleanComposition,
+            composition,
             edge,
             radius);
         if (!preflight.IsSuccess)
@@ -891,14 +897,7 @@ internal static class FirmamentPrimitiveExecutor
         }
 
         var selection = preflight.Value;
-        return KernelResult<BrepBody>.Failure(
-        [
-                new KernelDiagnostic(
-                    KernelDiagnosticCode.NotImplemented,
-                    KernelDiagnosticSeverity.Error,
-                    $"Bounded M5b fillet preflight resolved internal edge at ({selection.EdgeX.ToString("0.###", CultureInfo.InvariantCulture)}, {selection.EdgeY.ToString("0.###", CultureInfo.InvariantCulture)}) with max radius {selection.MaxAllowedRadius.ToString("0.###", CultureInfo.InvariantCulture)}, but truthful cylindrical edge rebuild/export for this bounded family is not implemented yet.",
-                    Source: "firmament.fillet-bounded")
-        ]);
+        return BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(baseBody, selection, radius);
     }
 
     private static bool TryParseDraftFaces(

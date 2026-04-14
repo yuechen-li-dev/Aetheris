@@ -17,6 +17,7 @@ public static class BrepBoundedFillet
 {
     private const string SingleEdgeCylindricalFilletCandidate = "single_edge_cylindrical_fillet";
     private const string ChainedSameRadiusCylindricalFilletCandidate = "chained_same_radius_cylindrical_fillets";
+    private const string ChainedSameRadiusCylindricalTerminationCandidate = "chained_same_radius_fillet_with_cylindrical_termination";
     private const string RejectCandidate = "reject";
 
     public static KernelResult<BrepBody> FilletTrustedPolyhedralSingleInternalConcaveEdge(
@@ -36,7 +37,7 @@ public static class BrepBoundedFillet
         if (!judgment.IsSuccess || !judgment.Selection.HasValue || judgment.Selection.Value.Candidate.Name == RejectCandidate)
         {
             var reason = judgment.Rejections.Count == 0
-                ? "No bounded single-edge/chained fillet candidate was admissible."
+                ? BuildRejectReason(context)
                 : string.Join(" ", judgment.Rejections.Select(rejection => $"{rejection.CandidateName}: {rejection.Reason}."));
             return KernelResult<BrepBody>.Failure([Failure($"Bounded fillet edge resolution rejected: {reason}", "firmament.fillet-bounded")]);
         }
@@ -45,6 +46,9 @@ public static class BrepBoundedFillet
         {
             SingleEdgeCylindricalFilletCandidate => BuildConcaveFilletBody(sourceBody, context),
             ChainedSameRadiusCylindricalFilletCandidate => BuildConcaveFilletBody(sourceBody, context),
+            ChainedSameRadiusCylindricalTerminationCandidate => KernelResult<BrepBody>.Failure([Failure(
+                "Bounded chained same-radius fillet with cylindrical-context termination is recognized but not yet supported; the current local extrusion rewrite cannot preserve neighboring cylindrical context while terminating the chain.",
+                "firmament.fillet-bounded")]),
             _ => KernelResult<BrepBody>.Failure([Failure($"Bounded fillet selected unsupported candidate '{judgment.Selection.Value.Candidate.Name}'.", "firmament.fillet-bounded")])
         };
     }
@@ -76,12 +80,35 @@ public static class BrepBoundedFillet
                 RejectionReason: context => $"requires trusted two-edge same-radius chained internal concave planar-planar bounded-radius context (trusted={context.IsTrustedSource}, count={context.SelectionCount}, planar={context.IsPlanarPlanar}, concave={context.IsInternalConcave}, bounded={context.IsBoundedRadius}, interacting={context.HasLocalChainedInteraction})",
                 TieBreakerPriority: 1),
             new JudgmentCandidate<BrepBoundedFilletContext>(
+                Name: ChainedSameRadiusCylindricalTerminationCandidate,
+                IsAdmissible: When.All<BrepBoundedFilletContext>(
+                    context => context.IsTrustedSource,
+                    context => context.SelectionCount == 2,
+                    context => context.IsInternalConcave,
+                    context => context.IsBoundedRadius,
+                    context => context.HasLocalChainedInteraction,
+                    context => context.HasCylindricalSourceFaces,
+                    context => context.IsCylindricalTerminationSupported),
+                Score: context => context.HasCylindricalSourceFaces ? 175d : 0d,
+                RejectionReason: context => $"requires supported chained same-radius cylindrical-context termination context (trusted={context.IsTrustedSource}, count={context.SelectionCount}, concave={context.IsInternalConcave}, bounded={context.IsBoundedRadius}, interacting={context.HasLocalChainedInteraction}, hasCylindricalSourceFaces={context.HasCylindricalSourceFaces}, supported={context.IsCylindricalTerminationSupported})",
+                TieBreakerPriority: 2),
+            new JudgmentCandidate<BrepBoundedFilletContext>(
                 Name: RejectCandidate,
                 IsAdmissible: _ => true,
                 Score: _ => -1d,
                 RejectionReason: _ => "bounded single-edge cylindrical fillet candidate is not admissible",
-                TieBreakerPriority: 2)
+                TieBreakerPriority: 3)
         ];
+
+    private static string BuildRejectReason(BrepBoundedFilletContext context)
+    {
+        if (context.SelectionCount == 2 && context.HasLocalChainedInteraction && context.HasCylindricalSourceFaces)
+        {
+            return "chained_same_radius_fillet_with_cylindrical_termination: requires supported chained same-radius cylindrical-context termination context (supported=False).";
+        }
+
+        return "No bounded single-edge/chained fillet candidate was admissible.";
+    }
 
     private static KernelResult<BrepBody> BuildConcaveFilletBody(BrepBody sourceBody, BrepBoundedFilletContext context)
     {
@@ -99,14 +126,20 @@ public static class BrepBoundedFillet
                 "firmament.fillet-bounded")]);
         }
 
-        return BuildExtrudedBodyWithArcs(filletedLoop, context.Selection.MinZ, context.Selection.MaxZ, context.Radius);
+        return BuildExtrudedBodyWithArcs(
+            filletedLoop,
+            context.Selection.MinZ,
+            context.Selection.MaxZ,
+            context.Radius,
+            sourceBody.SafeBooleanComposition);
     }
 
     private static KernelResult<BrepBody> BuildExtrudedBodyWithArcs(
         IReadOnlyList<LoopSegment2D> segments,
         double minZ,
         double maxZ,
-        double radius)
+        double radius,
+        SafeBooleanComposition? safeBooleanComposition)
     {
         var height = maxZ - minZ;
         if (height <= 0d)
@@ -244,7 +277,7 @@ public static class BrepBoundedFillet
         geometry.AddSurface(new SurfaceGeometryId(surfaceId), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, maxZ), zAxis, xAxis)));
         bindings.AddFaceBinding(new FaceGeometryBinding(topFace, new SurfaceGeometryId(surfaceId)));
 
-        var body = new BrepBody(builder.Model, geometry, bindings);
+        var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints: null, safeBooleanComposition: safeBooleanComposition);
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
         return validation.IsSuccess
             ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
@@ -626,6 +659,8 @@ internal readonly record struct BrepBoundedFilletContext(
     int SelectionCount,
     bool HasLocalChainedInteraction,
     bool IsPlanarPlanar,
+    bool HasCylindricalSourceFaces,
+    bool IsCylindricalTerminationSupported,
     bool IsInternalConcave,
     bool IsBoundedRadius,
     BoundedManufacturingFilletSelection Selection,
@@ -649,12 +684,15 @@ internal readonly record struct BrepBoundedFilletContext(
         }
 
         var planar = sourceBody.Bindings.FaceBindings.All(binding => sourceBody.Geometry.GetSurface(binding.SurfaceGeometryId).Kind == SurfaceGeometryKind.Plane);
+        var hasCylindricalFaces = sourceBody.Bindings.FaceBindings.Any(binding => sourceBody.Geometry.GetSurface(binding.SurfaceGeometryId).Kind == SurfaceGeometryKind.Cylinder);
         var bounded = radius < selection.MaxAllowedRadius;
         return KernelResult<BrepBoundedFilletContext>.Success(new BrepBoundedFilletContext(
             IsTrustedSource: true,
             SelectionCount: selection.Corners.Count,
             HasLocalChainedInteraction: selection.HasLocalInteraction,
             IsPlanarPlanar: planar,
+            HasCylindricalSourceFaces: hasCylindricalFaces,
+            IsCylindricalTerminationSupported: false,
             IsInternalConcave: true,
             IsBoundedRadius: bounded,
             Selection: selection,

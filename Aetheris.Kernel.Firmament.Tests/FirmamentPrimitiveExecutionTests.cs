@@ -514,6 +514,18 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Compile_Rejects_BoundedFillet_ChainedCylindricalTermination_Attempt()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m5b-invalid-fillet-chained-cylindrical-termination.firmament");
+
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
+            diagnostic.Source == "firmament.fillet-bounded"
+            && diagnostic.Message.Contains("chained_same_radius_fillet_with_cylindrical_termination", StringComparison.Ordinal)
+            && diagnostic.Message.Contains("supported=False", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Compile_Mixed_Document_With_Unsupported_Boolean_Fails_Before_Publishing_Success_Artifact()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3d-mixed-primitive-boolean-validation.firmament");

@@ -833,6 +833,27 @@ internal static class FirmamentPrimitiveExecutor
                 or FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveOutsideSafeRoot
                 or FirmamentSafeSubtractFeatureGraphState.SafeSubtractComposition))
         {
+            if (baseBody.SafeBooleanComposition is not null)
+            {
+                sourceState = FirmamentSafeSubtractFeatureGraphState.SafeSubtractComposition;
+            }
+            else
+            {
+                return KernelResult<BrepBody>.Failure(
+                [
+                    new KernelDiagnostic(
+                        KernelDiagnosticCode.ValidationFailed,
+                        KernelDiagnosticSeverity.Error,
+                        $"Bounded M5b fillet requires a recognized orthogonal additive or safe subtract root input; '{boolean.PrimaryReferenceFeatureId}' is not eligible.",
+                        Source: "firmament.fillet-bounded")
+                ]);
+            }
+        }
+
+        if (sourceState is not (FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveSafeRoot
+            or FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveOutsideSafeRoot
+            or FirmamentSafeSubtractFeatureGraphState.SafeSubtractComposition))
+        {
             return KernelResult<BrepBody>.Failure(
             [
                 new KernelDiagnostic(

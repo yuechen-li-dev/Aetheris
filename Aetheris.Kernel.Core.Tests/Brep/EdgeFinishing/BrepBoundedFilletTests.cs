@@ -46,7 +46,7 @@ public sealed class BrepBoundedFilletTests
         var result = BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(source, preflight.Value, 1.5d);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains(result.Diagnostics, d => d.Message.Contains("No bounded single-edge/chained fillet candidate", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("No bounded single-edge/chained fillet candidate was admissible", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -63,6 +63,28 @@ public sealed class BrepBoundedFilletTests
 
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.True(result.Value.Bindings.FaceBindings.Count(binding => result.Value.Geometry.GetSurface(binding.SurfaceGeometryId).Kind == SurfaceGeometryKind.Cylinder) >= 2);
+    }
+
+    [Fact]
+    public void FilletTrustedPolyhedralSingleInternalConcaveEdge_Rejects_ChainedCylindricalTerminationContext_Explicitly()
+    {
+        var source = CreatePlanarSourceWithNotchComposition();
+        var preflight = BrepBoundedManufacturingFilletPreflight.ResolveInternalConcaveVerticalEdges(
+            source.SafeBooleanComposition!,
+            [BrepBoundedManufacturingFilletEdge.InnerXMaxYMin, BrepBoundedManufacturingFilletEdge.InnerXMaxYMax],
+            radius: 1d);
+        Assert.True(preflight.IsSuccess);
+
+        var firstPass = BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(source, preflight.Value, 1d);
+        Assert.True(firstPass.IsSuccess, string.Join(Environment.NewLine, firstPass.Diagnostics.Select(d => d.Message)));
+
+        var secondPass = BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(firstPass.Value, preflight.Value, 1d);
+
+        Assert.False(secondPass.IsSuccess);
+        Assert.Contains(
+            secondPass.Diagnostics,
+            d => d.Message.Contains("chained_same_radius_fillet_with_cylindrical_termination", StringComparison.Ordinal)
+                && d.Message.Contains("supported=False", StringComparison.Ordinal));
     }
 
     private static BrepBody CreatePlanarSourceWithLRootComposition()

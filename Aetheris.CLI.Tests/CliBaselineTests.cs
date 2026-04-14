@@ -230,6 +230,69 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Analyze_Section_Box_XY_At_Midplane_Produces_One_Closed_Line_Loop()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-section-box");
+        using var doc = RunAnalyzeSection(stepPath, "--xy", 0d);
+        var root = doc.RootElement;
+
+        var metadata = root.GetProperty("metadata");
+        Assert.Equal("XY", metadata.GetProperty("planeFamily").GetString());
+        Assert.Equal("z = offset", metadata.GetProperty("offsetEquation").GetString());
+        Assert.Equal("X", metadata.GetProperty("sectionAxisU").GetString());
+        Assert.Equal("Y", metadata.GetProperty("sectionAxisV").GetString());
+
+        var summary = root.GetProperty("summary");
+        Assert.Equal(1, summary.GetProperty("loopCount").GetInt32());
+        Assert.Equal(1, summary.GetProperty("closedLoopCount").GetInt32());
+        Assert.Equal(4, summary.GetProperty("lineSegmentCount").GetInt32());
+        Assert.Equal(0, summary.GetProperty("arcSegmentCount").GetInt32());
+
+        var loop = root.GetProperty("loops")[0];
+        Assert.True(loop.GetProperty("isClosed").GetBoolean());
+        Assert.Equal(4, loop.GetProperty("segments").GetArrayLength());
+    }
+
+    [Fact]
+    public void Analyze_Section_Cylinder_XY_At_Midplane_Produces_Arc_Loop()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateCylinder(5d, 12d).Value, "cli-section-cylinder");
+        using var doc = RunAnalyzeSection(stepPath, "--xy", 0d);
+        var summary = doc.RootElement.GetProperty("summary");
+        Assert.Equal(1, summary.GetProperty("loopCount").GetInt32());
+        Assert.Equal(1, summary.GetProperty("arcSegmentCount").GetInt32());
+        Assert.Equal(0, summary.GetProperty("lineSegmentCount").GetInt32());
+
+        var segment = doc.RootElement.GetProperty("loops")[0].GetProperty("segments")[0];
+        Assert.Equal("arc", segment.GetProperty("kind").GetString());
+        Assert.Equal(5d, segment.GetProperty("radius").GetDouble(), 8);
+        Assert.Equal(2d * double.Pi, segment.GetProperty("sweepRadians").GetDouble(), 8);
+    }
+
+    [Fact]
+    public void Analyze_Section_BoxWithHole_XY_Produces_Multiple_Loops()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        using var doc = RunAnalyzeSection(stepPath, "--xy", 0d);
+        var summary = doc.RootElement.GetProperty("summary");
+        Assert.True(summary.GetProperty("loopCount").GetInt32() >= 2);
+        Assert.True(summary.GetProperty("closedLoopCount").GetInt32() >= 2);
+    }
+
+    [Fact]
+    public void Analyze_Section_Cli_Contract_Returns_Expected_Json_Shape()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(8d, 6d, 4d).Value, "cli-section-contract");
+        using var doc = RunAnalyzeSection(stepPath, "--yz", 0d);
+        var root = doc.RootElement;
+        Assert.True(root.TryGetProperty("metadata", out _));
+        Assert.True(root.TryGetProperty("summary", out _));
+        Assert.True(root.TryGetProperty("loops", out var loops));
+        Assert.True(root.TryGetProperty("notes", out _));
+        Assert.True(loops.GetArrayLength() >= 1);
+    }
+
+    [Fact]
     public void Analyze_Command_Provides_Cylinder_Sphere_And_Torus_Anchors_With_Sphere_Axis_Omitted()
     {
         var cylinderStepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateCylinder(4d, 12d).Value, "cli-cylinder-face-anchor");
@@ -567,6 +630,19 @@ public sealed class CliBaselineTests
         var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(
             ["analyze", "map", stepPath, viewFlag, "--rows", rows.ToString(), "--cols", cols.ToString(), "--json"],
+            stdout,
+            stderr);
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        return JsonDocument.Parse(stdout.ToString());
+    }
+
+    private static JsonDocument RunAnalyzeSection(string stepPath, string planeFlag, double offset)
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(
+            ["analyze", "section", stepPath, planeFlag, "--offset", offset.ToString("G17"), "--json"],
             stdout,
             stderr);
         Assert.Equal(0, exitCode);

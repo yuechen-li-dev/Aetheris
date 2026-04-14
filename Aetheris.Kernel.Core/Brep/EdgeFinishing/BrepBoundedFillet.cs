@@ -5,6 +5,7 @@ using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Judgment;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
 

@@ -1,4 +1,4 @@
-namespace Aetheris.Kernel.Core.Brep.EdgeFinishing;
+namespace Aetheris.Kernel.Core.Judgment;
 
 /// <summary>
 /// Tiny predicate combinator layer for readable bounded decision guards.

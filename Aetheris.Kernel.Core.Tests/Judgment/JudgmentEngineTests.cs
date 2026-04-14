@@ -1,6 +1,6 @@
-using Aetheris.Kernel.Core.Brep.EdgeFinishing;
+using Aetheris.Kernel.Core.Judgment;
 
-namespace Aetheris.Kernel.Core.Tests.Brep.EdgeFinishing;
+namespace Aetheris.Kernel.Core.Tests.Judgment;
 
 public sealed class JudgmentEngineTests
 {

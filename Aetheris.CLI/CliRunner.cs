@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Aetheris.Kernel.Firmament;
 
 namespace Aetheris.CLI;
@@ -10,6 +11,11 @@ public static class CliRunner
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
+
+    static CliRunner()
+    {
+        JsonOptions.Converters.Add(new JsonStringEnumConverter());
+    }
 
     public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
     {
@@ -108,7 +114,13 @@ public static class CliRunner
         if (args.Length == 0)
         {
             stderr.WriteLine("Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]");
+            stderr.WriteLine("   or: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json");
             return 1;
+        }
+
+        if (string.Equals(args[0], "map", StringComparison.Ordinal))
+        {
+            return RunAnalyzeMap(args.Skip(1).ToArray(), stdout, stderr);
         }
 
         var stepPath = args[0];
@@ -177,6 +189,116 @@ public static class CliRunner
         }
 
         WriteSummaryText(analysis, stdout);
+        return 0;
+    }
+
+    private static int RunAnalyzeMap(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0)
+        {
+            stderr.WriteLine("Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json");
+            return 1;
+        }
+
+        var stepPath = args[0];
+        OrthographicView? view = null;
+        var viewOptionCount = 0;
+        int? rows = null;
+        int? cols = null;
+        var json = false;
+
+        for (var i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--top":
+                    view = OrthographicView.Top;
+                    viewOptionCount++;
+                    break;
+                case "--bottom":
+                    view = OrthographicView.Bottom;
+                    viewOptionCount++;
+                    break;
+                case "--front":
+                    view = OrthographicView.Front;
+                    viewOptionCount++;
+                    break;
+                case "--back":
+                    view = OrthographicView.Back;
+                    viewOptionCount++;
+                    break;
+                case "--left":
+                    view = OrthographicView.Left;
+                    viewOptionCount++;
+                    break;
+                case "--right":
+                    view = OrthographicView.Right;
+                    viewOptionCount++;
+                    break;
+                case "--rows" when i + 1 < args.Length && int.TryParse(args[++i], out var parsedRows):
+                    rows = parsedRows;
+                    break;
+                case "--cols" when i + 1 < args.Length && int.TryParse(args[++i], out var parsedCols):
+                    cols = parsedCols;
+                    break;
+                case "--json":
+                    json = true;
+                    break;
+                default:
+                    stderr.WriteLine($"Unknown analyze map option '{args[i]}'.");
+                    return 1;
+            }
+        }
+
+        if (!view.HasValue || viewOptionCount != 1)
+        {
+            stderr.WriteLine("Analyze map requires exactly one orthographic view option (--top|--bottom|--front|--back|--left|--right).");
+            return 1;
+        }
+
+        if (!rows.HasValue || !cols.HasValue)
+        {
+            stderr.WriteLine("Analyze map requires both --rows <N> and --cols <N>.");
+            return 1;
+        }
+
+        if (rows <= 0 || cols <= 0)
+        {
+            stderr.WriteLine("Analyze map requires positive --rows and --cols values.");
+            return 1;
+        }
+
+        OrthographicMapResult map;
+        try
+        {
+            map = StepAnalyzer.AnalyzeMap(stepPath, view.Value, rows.Value, cols.Value);
+        }
+        catch (Exception ex)
+        {
+            if (json)
+            {
+                stdout.WriteLine(JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    stepPath = Path.GetFullPath(stepPath),
+                    error = ex.Message
+                }, JsonOptions));
+            }
+            else
+            {
+                stderr.WriteLine(ex.Message);
+            }
+
+            return 1;
+        }
+
+        if (!json)
+        {
+            stderr.WriteLine("Analyze map currently requires --json output.");
+            return 1;
+        }
+
+        stdout.WriteLine(JsonSerializer.Serialize(map, JsonOptions));
         return 0;
     }
 

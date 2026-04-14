@@ -220,6 +220,44 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Build_And_Analyze_BoundedChainedSameRadiusFillet_Reports_MultipleCylindricalSurfaces_And_Manifoldness()
+    {
+        var outputPath = Path.Combine(RepoRoot, "testdata", "firmament", "exports", "cli-m5b-bounded-chained-fillet.step");
+        if (File.Exists(outputPath))
+        {
+            File.Delete(outputPath);
+        }
+
+        var buildStdout = new StringWriter();
+        var buildStderr = new StringWriter();
+        var buildExitCode = Aetheris.CLI.CliRunner.Run(
+            ["build", Path.Combine(RepoRoot, "testdata/firmament/fixtures/m5b-valid-fillet-concave-chained-adjacent-pair.firmament"), "--out", outputPath],
+            buildStdout,
+            buildStderr);
+        Assert.Equal(0, buildExitCode);
+        Assert.True(File.Exists(outputPath), buildStderr.ToString());
+
+        var summary = AnalyzeSummary(outputPath);
+        Assert.Equal("enclosed-manifold", summary.GetProperty("structuralAssessment").GetString());
+        Assert.True(summary.GetProperty("surfaceFamilies").GetProperty("cylinder").GetInt32() >= 2);
+
+        var maxFaceId = summary.GetProperty("faceIds").GetProperty("max").GetInt32();
+        var cylinderCountAtRadius = 0;
+        for (var faceId = 1; faceId <= maxFaceId; faceId++)
+        {
+            var face = AnalyzeFace(outputPath, faceId);
+            if (face.GetProperty("surfaceType").GetString() is "Cylinder"
+                && Math.Abs(face.GetProperty("radius").GetDouble() - 0.4d) <= 1e-8)
+            {
+                cylinderCountAtRadius++;
+            }
+        }
+
+        Assert.True(cylinderCountAtRadius >= 2, "Expected at least two radius-0.4 cylindrical faces in bounded chained fillet export.");
+        File.Delete(outputPath);
+    }
+
+    [Fact]
     public void Build_And_Analyze_TriangularPrism_Example_Reports_IsoscelesContractBounds()
     {
         var outputPath = Path.Combine(RepoRoot, "testdata", "firmament", "exports", "cli-triangular-prism-contract.step");

@@ -151,6 +151,85 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Analyze_Map_BoxTop_Respects_Grid_And_Reports_DepthThickness()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-map-box-top");
+        using var doc = RunAnalyzeMap(stepPath, "--top", 6, 8);
+        var root = doc.RootElement;
+
+        var metadata = root.GetProperty("metadata");
+        Assert.Equal("Top", metadata.GetProperty("view").GetString());
+        Assert.Equal(6, metadata.GetProperty("rows").GetInt32());
+        Assert.Equal(8, metadata.GetProperty("cols").GetInt32());
+        Assert.Equal("-Z", metadata.GetProperty("rayDirectionAxis").GetString());
+
+        var summary = root.GetProperty("summary");
+        Assert.Equal(48, summary.GetProperty("totalSamples").GetInt32());
+        Assert.Equal(48, summary.GetProperty("hitSamples").GetInt32());
+        Assert.Equal(0d, summary.GetProperty("entryDepthMin").GetDouble(), 8);
+        Assert.Equal(0d, summary.GetProperty("entryDepthMax").GetDouble(), 8);
+        Assert.Equal(4d, summary.GetProperty("thicknessMin").GetDouble(), 8);
+        Assert.Equal(4d, summary.GetProperty("thicknessMax").GetDouble(), 8);
+
+        var grid = root.GetProperty("grid");
+        Assert.Equal(6, grid.GetArrayLength());
+        Assert.Equal(8, grid[0].GetArrayLength());
+        var sample = grid[0][0];
+        Assert.True(sample.GetProperty("hit").GetBoolean());
+        Assert.Equal(4d, sample.GetProperty("thickness").GetDouble(), 8);
+    }
+
+    [Fact]
+    public void Analyze_Map_SphereTop_Reveals_Thickness_Variation_And_Empty_Samples()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateSphere(3d).Value, "cli-map-sphere-top");
+        using var doc = RunAnalyzeMap(stepPath, "--top", 11, 11);
+        var summary = doc.RootElement.GetProperty("summary");
+
+        Assert.True(summary.GetProperty("hitSamples").GetInt32() > 0);
+        Assert.True(summary.GetProperty("emptySamples").GetInt32() > 0);
+        Assert.True(summary.GetProperty("thicknessMax").GetDouble() > summary.GetProperty("thicknessMin").GetDouble());
+    }
+
+    [Fact]
+    public void Analyze_Map_BoxRight_Reports_Coherent_Face_Ids_And_Surface_Types()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-map-box-right");
+        using var doc = RunAnalyzeMap(stepPath, "--right", 5, 7);
+        var summary = doc.RootElement.GetProperty("summary");
+        Assert.Equal(1, summary.GetProperty("visibleFaceIds").GetArrayLength());
+        Assert.Equal(1, summary.GetProperty("visibleSurfaceTypes").GetArrayLength());
+        Assert.Equal("Plane", summary.GetProperty("visibleSurfaceTypes")[0].GetString());
+        foreach (var row in doc.RootElement.GetProperty("grid").EnumerateArray())
+        {
+            foreach (var sample in row.EnumerateArray())
+            {
+                Assert.True(sample.GetProperty("hit").GetBoolean());
+                Assert.True(sample.GetProperty("entryFaceId").GetInt32() > 0);
+                Assert.Equal("Plane", sample.GetProperty("entrySurfaceType").GetString());
+            }
+        }
+    }
+
+    [Fact]
+    public void Analyze_Map_Cli_Contract_Returns_Expected_Json_Shape()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(8d, 8d, 2d).Value, "cli-map-contract");
+        using var doc = RunAnalyzeMap(stepPath, "--front", 4, 5);
+        var root = doc.RootElement;
+
+        Assert.True(root.TryGetProperty("metadata", out _));
+        Assert.True(root.TryGetProperty("summary", out _));
+        Assert.True(root.TryGetProperty("grid", out var grid));
+        Assert.True(root.TryGetProperty("notes", out _));
+        Assert.Equal(4, grid.GetArrayLength());
+        Assert.Equal(5, grid[0].GetArrayLength());
+        Assert.True(grid[0][0].TryGetProperty("entryDepth", out _));
+        Assert.True(grid[0][0].TryGetProperty("entryFaceId", out _));
+        Assert.True(grid[0][0].TryGetProperty("entrySurfaceType", out _));
+    }
+
+    [Fact]
     public void Analyze_Command_Provides_Cylinder_Sphere_And_Torus_Anchors_With_Sphere_Axis_Omitted()
     {
         var cylinderStepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateCylinder(4d, 12d).Value, "cli-cylinder-face-anchor");
@@ -480,6 +559,19 @@ public sealed class CliBaselineTests
         Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(stdout.ToString());
         return doc.RootElement.GetProperty("edge").Clone();
+    }
+
+    private static JsonDocument RunAnalyzeMap(string stepPath, string viewFlag, int rows, int cols)
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(
+            ["analyze", "map", stepPath, viewFlag, "--rows", rows.ToString(), "--cols", cols.ToString(), "--json"],
+            stdout,
+            stderr);
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        return JsonDocument.Parse(stdout.ToString());
     }
 
     private static string ExportPrimitiveToTempStep(BrepBody body, string stem)

@@ -66,3 +66,54 @@ public sealed record AnalyzeResult(
     EdgeDetail? Edge,
     VertexDetail? Vertex,
     IReadOnlyList<string> Notes);
+
+public enum OrthographicView
+{
+    Top,
+    Bottom,
+    Front,
+    Back,
+    Left,
+    Right
+}
+
+public sealed record OrthographicMapMetadata(
+    string SourcePath,
+    BoundingBox3D BoundingBox,
+    OrthographicView View,
+    int Rows,
+    int Cols,
+    string PlaneAxisU,
+    string PlaneAxisV,
+    string RayDirectionAxis,
+    string DepthReference);
+
+public sealed record OrthographicMapSummary(
+    int TotalSamples,
+    int HitSamples,
+    int EmptySamples,
+    double? EntryDepthMin,
+    double? EntryDepthMax,
+    double? ThicknessMin,
+    double? ThicknessMax,
+    IReadOnlyList<int> VisibleFaceIds,
+    IReadOnlyList<string> VisibleSurfaceTypes);
+
+public sealed record OrthographicSample(
+    bool Hit,
+    double PlaneU,
+    double PlaneV,
+    double? EntryDepth,
+    double? ExitDepth,
+    double? Thickness,
+    int? EntryFaceId,
+    string? EntrySurfaceType,
+    Point3D? EntryPoint,
+    Vector3D? EntryNormal,
+    Point3D? ExitPoint);
+
+public sealed record OrthographicMapResult(
+    OrthographicMapMetadata Metadata,
+    OrthographicMapSummary Summary,
+    IReadOnlyList<IReadOnlyList<OrthographicSample>> Grid,
+    IReadOnlyList<string> Notes);

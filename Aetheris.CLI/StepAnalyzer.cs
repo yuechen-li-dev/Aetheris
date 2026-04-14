@@ -1,6 +1,8 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Topology;
 
@@ -30,6 +32,133 @@ public static class StepAnalyzer
         var vertex = vertexId.HasValue ? BuildVertexDetail(body, new VertexId(vertexId.Value), notes) : null;
 
         return new AnalyzeResult(stepPath, summary, face, edge, vertex, notes);
+    }
+
+    public static OrthographicMapResult AnalyzeMap(string stepPath, OrthographicView view, int rows, int cols)
+    {
+        var fullPath = Path.GetFullPath(stepPath);
+        var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));
+        if (!import.IsSuccess)
+        {
+            throw new InvalidOperationException(string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
+        }
+
+        return AnalyzeImportedBodyMap(import.Value, fullPath, view, rows, cols);
+    }
+
+    public static OrthographicMapResult AnalyzeImportedBodyMap(BrepBody body, string stepPath, OrthographicView view, int rows, int cols)
+    {
+        if (rows <= 0 || cols <= 0)
+        {
+            throw new InvalidOperationException("Map rows and cols must be positive integers.");
+        }
+
+        var notes = new List<string>();
+        var bbox = TryComputeBodyBoundingBox(body) ?? throw new InvalidOperationException("Map probe requires body vertex coordinates to compute a bounding box.");
+        var frame = ResolveProjectionFrame(view, bbox);
+        var epsilon = Math.Max(ToleranceContext.Default.Linear * 64d, 1e-5d);
+        var faceSurfaceKinds = BuildFaceSurfaceKinds(body);
+
+        var grid = new List<IReadOnlyList<OrthographicSample>>(rows);
+        var hitSamples = 0;
+        var entryDepths = new List<double>();
+        var thicknesses = new List<double>();
+        var visibleFaceIds = new HashSet<int>();
+        var visibleSurfaceTypes = new HashSet<string>(StringComparer.Ordinal);
+
+        for (var rowIndex = 0; rowIndex < rows; rowIndex++)
+        {
+            var row = new List<OrthographicSample>(cols);
+            var planeV = frame.MinV + ((rowIndex + 0.5d) / rows * frame.RangeV);
+
+            for (var colIndex = 0; colIndex < cols; colIndex++)
+            {
+                var planeU = frame.MinU + ((colIndex + 0.5d) / cols * frame.RangeU);
+                var planePoint = frame.PlaneOrigin + (frame.UAxis * planeU) + (frame.VAxis * planeV);
+                var rayOrigin = planePoint - (frame.RayDirection * epsilon);
+                var ray = new Ray3D(rayOrigin, Direction3D.Create(frame.RayDirection));
+                var cast = BrepSpatialQueries.Raycast(body, ray, RayQueryOptions.Default with { IncludeBackfaces = true });
+                if (!cast.IsSuccess)
+                {
+                    var first = cast.Diagnostics.FirstOrDefault();
+                    var message = first?.Message ?? "unknown raycast error";
+                    throw new InvalidOperationException($"Orthographic map v1 currently supports bodies accepted by BrepSpatialQueries.Raycast ({message}).");
+                }
+
+                var forwardHits = cast.Value
+                    .Where(hit => hit.T >= 0d)
+                    .OrderBy(hit => hit.T)
+                    .ToArray();
+
+                if (forwardHits.Length == 0)
+                {
+                    row.Add(new OrthographicSample(false, planeU, planeV, null, null, null, null, null, null, null, null));
+                    continue;
+                }
+
+                var entry = forwardHits[0];
+                var exit = forwardHits[^1];
+                var entryDepth = Math.Max(0d, entry.T - epsilon);
+                var exitDepth = Math.Max(entryDepth, exit.T - epsilon);
+                var thickness = exitDepth - entryDepth;
+                var faceId = entry.FaceId?.Value;
+                var surfaceType = faceId.HasValue && faceSurfaceKinds.TryGetValue(faceId.Value, out var kind) ? kind : null;
+
+                hitSamples++;
+                entryDepths.Add(entryDepth);
+                thicknesses.Add(thickness);
+                if (faceId.HasValue)
+                {
+                    visibleFaceIds.Add(faceId.Value);
+                }
+
+                if (surfaceType is not null)
+                {
+                    visibleSurfaceTypes.Add(surfaceType);
+                }
+
+                row.Add(new OrthographicSample(
+                    true,
+                    planeU,
+                    planeV,
+                    entryDepth,
+                    exitDepth,
+                    thickness,
+                    faceId,
+                    surfaceType,
+                    entry.Point,
+                    entry.Normal?.ToVector(),
+                    exit.Point));
+            }
+
+            grid.Add(row);
+        }
+
+        var summary = new OrthographicMapSummary(
+            rows * cols,
+            hitSamples,
+            rows * cols - hitSamples,
+            entryDepths.Count == 0 ? null : entryDepths.Min(),
+            entryDepths.Count == 0 ? null : entryDepths.Max(),
+            thicknesses.Count == 0 ? null : thicknesses.Min(),
+            thicknesses.Count == 0 ? null : thicknesses.Max(),
+            visibleFaceIds.OrderBy(v => v).ToArray(),
+            visibleSurfaceTypes.OrderBy(v => v, StringComparer.Ordinal).ToArray());
+
+        var metadata = new OrthographicMapMetadata(
+            stepPath,
+            bbox,
+            view,
+            rows,
+            cols,
+            frame.PlaneAxisU,
+            frame.PlaneAxisV,
+            frame.RayDirectionAxis,
+            frame.DepthReference);
+
+        notes.Add("Depth values are measured from the selected view's projection plane on the near bounding-box side, increasing along ray direction.");
+
+        return new OrthographicMapResult(metadata, summary, grid, notes);
     }
 
     private static AnalyzeSummary BuildSummary(BrepBody body, ICollection<string> notes)
@@ -295,7 +424,33 @@ public static class StepAnalyzer
             .Select(p => p!.Value)
             .ToArray();
 
-        return points.Length == 0 ? null : ComputeBoundingBox(points);
+        if (points.Length > 0)
+        {
+            return ComputeBoundingBox(points);
+        }
+
+        var sphereBounds = new List<BoundingBox3D>();
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.TryGetFaceSurface(face.Id, out var surface)
+                || surface?.Sphere is not { } sphere)
+            {
+                continue;
+            }
+
+            sphereBounds.Add(new BoundingBox3D(
+                new Point3D(sphere.Center.X - sphere.Radius, sphere.Center.Y - sphere.Radius, sphere.Center.Z - sphere.Radius),
+                new Point3D(sphere.Center.X + sphere.Radius, sphere.Center.Y + sphere.Radius, sphere.Center.Z + sphere.Radius)));
+        }
+
+        if (sphereBounds.Count == 0)
+        {
+            return null;
+        }
+
+        return new BoundingBox3D(
+            new Point3D(sphereBounds.Min(b => b.Min.X), sphereBounds.Min(b => b.Min.Y), sphereBounds.Min(b => b.Min.Z)),
+            new Point3D(sphereBounds.Max(b => b.Max.X), sphereBounds.Max(b => b.Max.Y), sphereBounds.Max(b => b.Max.Z)));
     }
 
     private static BoundingBox3D ComputeBoundingBox(IReadOnlyList<Point3D> points)
@@ -370,5 +525,125 @@ public static class StepAnalyzer
         }
 
         return edgeCounts;
+    }
+
+    private static Dictionary<int, string> BuildFaceSurfaceKinds(BrepBody body)
+    {
+        var result = new Dictionary<int, string>();
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.TryGetFaceSurface(face.Id, out var surface) || surface is null)
+            {
+                continue;
+            }
+
+            result[face.Id.Value] = surface.Kind.ToString();
+        }
+
+        return result;
+    }
+
+    private static ProjectionFrame ResolveProjectionFrame(OrthographicView view, BoundingBox3D bbox)
+    {
+        return view switch
+        {
+            OrthographicView.Top => new ProjectionFrame(
+                new Point3D(0d, 0d, bbox.Max.Z),
+                new Vector3D(1d, 0d, 0d),
+                new Vector3D(0d, 1d, 0d),
+                new Vector3D(0d, 0d, -1d),
+                bbox.Min.X,
+                bbox.Max.X,
+                bbox.Min.Y,
+                bbox.Max.Y,
+                "X",
+                "Y",
+                "-Z",
+                $"z={bbox.Max.Z:G17}"),
+            OrthographicView.Bottom => new ProjectionFrame(
+                new Point3D(0d, 0d, bbox.Min.Z),
+                new Vector3D(1d, 0d, 0d),
+                new Vector3D(0d, 1d, 0d),
+                new Vector3D(0d, 0d, 1d),
+                bbox.Min.X,
+                bbox.Max.X,
+                bbox.Min.Y,
+                bbox.Max.Y,
+                "X",
+                "Y",
+                "+Z",
+                $"z={bbox.Min.Z:G17}"),
+            OrthographicView.Front => new ProjectionFrame(
+                new Point3D(0d, bbox.Max.Y, 0d),
+                new Vector3D(1d, 0d, 0d),
+                new Vector3D(0d, 0d, 1d),
+                new Vector3D(0d, -1d, 0d),
+                bbox.Min.X,
+                bbox.Max.X,
+                bbox.Min.Z,
+                bbox.Max.Z,
+                "X",
+                "Z",
+                "-Y",
+                $"y={bbox.Max.Y:G17}"),
+            OrthographicView.Back => new ProjectionFrame(
+                new Point3D(0d, bbox.Min.Y, 0d),
+                new Vector3D(1d, 0d, 0d),
+                new Vector3D(0d, 0d, 1d),
+                new Vector3D(0d, 1d, 0d),
+                bbox.Min.X,
+                bbox.Max.X,
+                bbox.Min.Z,
+                bbox.Max.Z,
+                "X",
+                "Z",
+                "+Y",
+                $"y={bbox.Min.Y:G17}"),
+            OrthographicView.Left => new ProjectionFrame(
+                new Point3D(bbox.Min.X, 0d, 0d),
+                new Vector3D(0d, 1d, 0d),
+                new Vector3D(0d, 0d, 1d),
+                new Vector3D(1d, 0d, 0d),
+                bbox.Min.Y,
+                bbox.Max.Y,
+                bbox.Min.Z,
+                bbox.Max.Z,
+                "Y",
+                "Z",
+                "+X",
+                $"x={bbox.Min.X:G17}"),
+            OrthographicView.Right => new ProjectionFrame(
+                new Point3D(bbox.Max.X, 0d, 0d),
+                new Vector3D(0d, 1d, 0d),
+                new Vector3D(0d, 0d, 1d),
+                new Vector3D(-1d, 0d, 0d),
+                bbox.Min.Y,
+                bbox.Max.Y,
+                bbox.Min.Z,
+                bbox.Max.Z,
+                "Y",
+                "Z",
+                "-X",
+                $"x={bbox.Max.X:G17}"),
+            _ => throw new InvalidOperationException($"Unsupported view '{view}'.")
+        };
+    }
+
+    private readonly record struct ProjectionFrame(
+        Point3D PlaneOrigin,
+        Vector3D UAxis,
+        Vector3D VAxis,
+        Vector3D RayDirection,
+        double MinU,
+        double MaxU,
+        double MinV,
+        double MaxV,
+        string PlaneAxisU,
+        string PlaneAxisV,
+        string RayDirectionAxis,
+        string DepthReference)
+    {
+        public double RangeU => MaxU - MinU;
+        public double RangeV => MaxV - MinV;
     }
 }

@@ -1,6 +1,8 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Step242;
@@ -44,6 +46,60 @@ public static class StepAnalyzer
         }
 
         return AnalyzeImportedBodyMap(import.Value, fullPath, view, rows, cols);
+    }
+
+    public static SectionAnalysisResult AnalyzeSection(string stepPath, SectionPlaneFamily planeFamily, double offset)
+    {
+        var fullPath = Path.GetFullPath(stepPath);
+        var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));
+        if (!import.IsSuccess)
+        {
+            throw new InvalidOperationException(string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
+        }
+
+        return AnalyzeImportedBodySection(import.Value, fullPath, planeFamily, offset);
+    }
+
+    public static SectionAnalysisResult AnalyzeImportedBodySection(BrepBody body, string stepPath, SectionPlaneFamily planeFamily, double offset)
+    {
+        var notes = new List<string>();
+        var bbox = TryComputeBodyBoundingBox(body) ?? throw new InvalidOperationException("Section analyzer requires body vertex coordinates to compute bounding box.");
+        var frame = ResolveSectionFrame(planeFamily, offset);
+        var epsilon = Math.Max(ToleranceContext.Default.Linear * 64d, 1e-6d);
+        var rawSegments = new List<RawSectionSegment>();
+
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.TryGetFaceSurface(face.Id, out var surface) || surface is null)
+            {
+                continue;
+            }
+
+            if (surface.Kind == SurfaceGeometryKind.Plane && surface.Plane is PlaneSurface facePlane)
+            {
+                rawSegments.AddRange(BuildPlanarFaceSectionSegments(body, face, facePlane, frame, epsilon, notes));
+                continue;
+            }
+
+            if (surface.Kind == SurfaceGeometryKind.Cylinder && surface.Cylinder is CylinderSurface cylinder)
+            {
+                rawSegments.AddRange(BuildCylinderFaceSectionSegments(body, face, cylinder, frame, epsilon, notes));
+            }
+        }
+
+        var loops = BuildLoops(rawSegments, epsilon);
+        var metadata = new SectionAnalysisMetadata(
+            stepPath,
+            bbox,
+            planeFamily,
+            offset,
+            frame.FixedAxis,
+            frame.OffsetEquation,
+            frame.AxisU,
+            frame.AxisV,
+            frame.MappingDescription);
+        var summary = BuildSectionSummary(loops);
+        return new SectionAnalysisResult(metadata, summary, loops, notes);
     }
 
     public static OrthographicMapResult AnalyzeImportedBodyMap(BrepBody body, string stepPath, OrthographicView view, int rows, int cols)
@@ -543,6 +599,349 @@ public static class StepAnalyzer
         return result;
     }
 
+    private static IReadOnlyList<RawSectionSegment> BuildPlanarFaceSectionSegments(BrepBody body, Face face, PlaneSurface facePlane, SectionFrame frame, double epsilon, ICollection<string> notes)
+    {
+        var crossDirection = facePlane.Normal.ToVector().Cross(frame.Normal);
+        if (!TryNormalize(crossDirection, out var lineDirection))
+        {
+            return [];
+        }
+
+        if (!TrySolvePlaneIntersectionPoint(facePlane, frame, out var linePoint))
+        {
+            notes.Add($"Skipped planar face {face.Id.Value}: face/section plane intersection is numerically unstable.");
+            return [];
+        }
+
+        var points = new List<Point3D>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var loopId in face.LoopIds)
+        {
+            if (!body.Topology.TryGetLoop(loopId, out var loop) || loop is null)
+            {
+                continue;
+            }
+
+            foreach (var coedgeId in loop.CoedgeIds)
+            {
+                if (!body.Topology.TryGetCoedge(coedgeId, out var coedge) || coedge is null)
+                {
+                    continue;
+                }
+
+                foreach (var point in IntersectEdgeWithSectionPlane(body, coedge.EdgeId, frame, epsilon))
+                {
+                    if (seen.Add(QuantizedPointKey(point, epsilon)))
+                    {
+                        points.Add(point);
+                    }
+                }
+            }
+        }
+
+        if (points.Count < 2)
+        {
+            return [];
+        }
+
+        var ordered = points
+            .Select(point => (Point: point, T: (point - linePoint).Dot(lineDirection)))
+            .OrderBy(item => item.T)
+            .ToArray();
+        if (ordered.Length != 2)
+        {
+            notes.Add($"Skipped planar face {face.Id.Value}: section clipping produced {ordered.Length} intersections (v1 supports 2-point clipping only).");
+            return [];
+        }
+
+        return [RawSectionSegment.Line(ProjectPoint(frame, ordered[0].Point), ProjectPoint(frame, ordered[1].Point))];
+    }
+
+    private static IReadOnlyList<RawSectionSegment> BuildCylinderFaceSectionSegments(BrepBody body, Face face, CylinderSurface cylinder, SectionFrame frame, double epsilon, ICollection<string> notes)
+    {
+        var axisDot = double.Abs(cylinder.Axis.ToVector().Dot(frame.Normal));
+        if (axisDot < 1d - (epsilon * 8d))
+        {
+            notes.Add($"Skipped cylinder face {face.Id.Value}: v1 supports only section planes normal to cylinder axis.");
+            return [];
+        }
+
+        var axisSamples = new List<double>();
+        foreach (var edgeId in body.GetEdges(face.Id))
+        {
+            foreach (var vertexId in body.GetVertices(edgeId))
+            {
+                if (body.TryGetVertexPoint(vertexId, out var point))
+                {
+                    axisSamples.Add((point - Point3D.Origin).Dot(frame.Normal));
+                }
+            }
+        }
+
+        if (axisSamples.Count == 0)
+        {
+            notes.Add($"Skipped cylinder face {face.Id.Value}: no vertex samples to bound finite cylinder extent.");
+            return [];
+        }
+
+        var minAxis = axisSamples.Min() - epsilon;
+        var maxAxis = axisSamples.Max() + epsilon;
+        if (frame.Offset < minAxis || frame.Offset > maxAxis)
+        {
+            return [];
+        }
+
+        var axisOriginCoord = (cylinder.Origin - Point3D.Origin).Dot(frame.Normal);
+        var center3D = cylinder.Origin + (cylinder.Axis.ToVector() * (frame.Offset - axisOriginCoord));
+        var center = ProjectPoint(frame, center3D);
+        var start = new Point2D(center.U + cylinder.Radius, center.V);
+        return [RawSectionSegment.Arc(start, start, center, cylinder.Radius, "ccw", 2d * double.Pi)];
+    }
+
+    private static IReadOnlyList<Point3D> IntersectEdgeWithSectionPlane(BrepBody body, EdgeId edgeId, SectionFrame frame, double epsilon)
+    {
+        if (!body.Bindings.TryGetEdgeBinding(edgeId, out var binding)
+            || !body.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve)
+            || curve is null)
+        {
+            return [];
+        }
+
+        var trim = binding.TrimInterval ?? new ParameterInterval(0d, curve.Kind == CurveGeometryKind.Circle3 ? 2d * double.Pi : 1d);
+        return curve.Kind switch
+        {
+            CurveGeometryKind.Line3 when curve.Line3 is { } line => IntersectLineEdge(line, trim, frame, epsilon),
+            CurveGeometryKind.Circle3 when curve.Circle3 is { } circle => IntersectCircleEdge(circle, trim, frame, epsilon),
+            _ => []
+        };
+    }
+
+    private static IReadOnlyList<Point3D> IntersectLineEdge(Line3Curve line, ParameterInterval trim, SectionFrame frame, double epsilon)
+    {
+        var a = line.Evaluate(trim.Start);
+        var b = line.Evaluate(trim.End);
+        var da = SignedSectionDistance(a, frame);
+        var db = SignedSectionDistance(b, frame);
+        if ((da > epsilon && db > epsilon) || (da < -epsilon && db < -epsilon))
+        {
+            return [];
+        }
+
+        if (double.Abs(da) <= epsilon && double.Abs(db) <= epsilon)
+        {
+            return [];
+        }
+
+        var denom = da - db;
+        if (double.Abs(denom) <= epsilon)
+        {
+            return [];
+        }
+
+        var t = Math.Clamp(da / denom, 0d, 1d);
+        return [a + ((b - a) * t)];
+    }
+
+    private static IReadOnlyList<Point3D> IntersectCircleEdge(Circle3Curve circle, ParameterInterval trim, SectionFrame frame, double epsilon)
+    {
+        var planeDot = double.Abs(circle.Normal.ToVector().Dot(frame.Normal));
+        var centerDistance = SignedSectionDistance(circle.Center, frame);
+        if (planeDot < 1d - (epsilon * 8d) || double.Abs(centerDistance) > epsilon)
+        {
+            return [];
+        }
+
+        return [circle.Evaluate(trim.Start), circle.Evaluate(trim.End)];
+    }
+
+    private static List<SectionLoop> BuildLoops(IReadOnlyList<RawSectionSegment> rawSegments, double epsilon)
+    {
+        var unused = rawSegments.ToList();
+        var loops = new List<SectionLoop>();
+        var nextId = 1;
+        while (unused.Count > 0)
+        {
+            var chain = new List<RawSectionSegment>();
+            var first = unused[0];
+            unused.RemoveAt(0);
+            chain.Add(first);
+            var cursor = first.End;
+
+            while (!first.IsClosed && !PointsClose(cursor, first.Start, epsilon))
+            {
+                var index = FindConnectingSegment(unused, cursor, epsilon, out var reverse);
+                if (index < 0)
+                {
+                    break;
+                }
+
+                var segment = unused[index];
+                unused.RemoveAt(index);
+                if (reverse)
+                {
+                    segment = segment.Reversed();
+                }
+
+                chain.Add(segment);
+                cursor = segment.End;
+            }
+
+            var closed = first.IsClosed || PointsClose(chain[0].Start, chain[^1].End, epsilon);
+            loops.Add(new SectionLoop(nextId++, closed, closed ? ComputeWinding(chain) : null, ComputeBoundingBox2D(chain.SelectMany(segment => segment.Points()).ToArray()), chain.Select(ToSectionSegment).ToArray()));
+        }
+
+        return loops.OrderByDescending(loop => loop.BoundingBox2D is null ? 0d : Area(loop.BoundingBox2D)).ToList();
+    }
+
+    private static SectionAnalysisSummary BuildSectionSummary(IReadOnlyList<SectionLoop> loops)
+    {
+        var segments = loops.SelectMany(loop => loop.Segments).ToArray();
+        var points = segments.SelectMany(segment =>
+        {
+            var result = new List<Point2D> { segment.Start, segment.End };
+            if (segment.Center is not null)
+            {
+                result.Add(segment.Center);
+            }
+
+            return result;
+        }).ToArray();
+
+        return new SectionAnalysisSummary(
+            loops.Count,
+            loops.Count(loop => loop.IsClosed),
+            segments.Count(segment => segment.Kind == "line"),
+            segments.Count(segment => segment.Kind == "arc"),
+            segments.Count(segment => segment.Kind == "unsupported"),
+            ComputeBoundingBox2D(points));
+    }
+
+    private static SectionSegment ToSectionSegment(RawSectionSegment raw) =>
+        raw.Kind switch
+        {
+            RawSectionSegmentKind.Line => new SectionSegment("line", raw.Start, raw.End, null, null, null, null, null),
+            RawSectionSegmentKind.Arc => new SectionSegment("arc", raw.Start, raw.End, raw.Center, raw.Radius, raw.Direction, raw.SweepRadians, null),
+            _ => new SectionSegment("unsupported", raw.Start, raw.End, null, null, null, null, raw.UnsupportedReason ?? "unsupported")
+        };
+
+    private static int FindConnectingSegment(IReadOnlyList<RawSectionSegment> segments, Point2D cursor, double epsilon, out bool reverse)
+    {
+        for (var i = 0; i < segments.Count; i++)
+        {
+            if (PointsClose(segments[i].Start, cursor, epsilon))
+            {
+                reverse = false;
+                return i;
+            }
+
+            if (PointsClose(segments[i].End, cursor, epsilon))
+            {
+                reverse = true;
+                return i;
+            }
+        }
+
+        reverse = false;
+        return -1;
+    }
+
+    private static bool PointsClose(Point2D a, Point2D b, double epsilon)
+    {
+        var du = a.U - b.U;
+        var dv = a.V - b.V;
+        return (du * du) + (dv * dv) <= (epsilon * epsilon * 16d);
+    }
+
+    private static string? ComputeWinding(IReadOnlyList<RawSectionSegment> segments)
+    {
+        var points = segments.Select(segment => segment.Start).ToArray();
+        if (points.Length < 3)
+        {
+            return null;
+        }
+
+        var signedArea2 = 0d;
+        for (var i = 0; i < points.Length; i++)
+        {
+            var a = points[i];
+            var b = points[(i + 1) % points.Length];
+            signedArea2 += (a.U * b.V) - (b.U * a.V);
+        }
+
+        if (double.Abs(signedArea2) <= 1e-12d)
+        {
+            return null;
+        }
+
+        return signedArea2 > 0d ? "ccw" : "cw";
+    }
+
+    private static BoundingBox2D? ComputeBoundingBox2D(IReadOnlyList<Point2D> points)
+    {
+        if (points.Count == 0)
+        {
+            return null;
+        }
+
+        return new BoundingBox2D(
+            new Point2D(points.Min(point => point.U), points.Min(point => point.V)),
+            new Point2D(points.Max(point => point.U), points.Max(point => point.V)));
+    }
+
+    private static double SignedSectionDistance(Point3D point, SectionFrame frame) =>
+        (point - Point3D.Origin).Dot(frame.Normal) - frame.Offset;
+
+    private static string QuantizedPointKey(Point3D point, double epsilon)
+    {
+        var scale = 1d / Math.Max(epsilon, 1e-8d);
+        return $"{Math.Round(point.X * scale):F0}:{Math.Round(point.Y * scale):F0}:{Math.Round(point.Z * scale):F0}";
+    }
+
+    private static Point2D ProjectPoint(SectionFrame frame, Point3D point) =>
+        new((point - Point3D.Origin).Dot(frame.UAxis), (point - Point3D.Origin).Dot(frame.VAxis));
+
+    private static bool TrySolvePlaneIntersectionPoint(PlaneSurface a, SectionFrame b, out Point3D point)
+    {
+        var n1 = a.Normal.ToVector();
+        var n2 = b.Normal;
+        var d1 = n1.Dot(a.Origin - Point3D.Origin);
+        var d2 = b.Offset;
+        var cross = n1.Cross(n2);
+        var denom = cross.Dot(cross);
+        if (denom <= 1e-20d)
+        {
+            point = default;
+            return false;
+        }
+
+        var p = ((n2 * d1) - (n1 * d2)).Cross(cross) * (1d / denom);
+        point = new Point3D(p.X, p.Y, p.Z);
+        return double.IsFinite(point.X) && double.IsFinite(point.Y) && double.IsFinite(point.Z);
+    }
+
+    private static bool TryNormalize(Vector3D vector, out Vector3D normalized)
+    {
+        if (vector.Length <= 1e-20d)
+        {
+            normalized = default;
+            return false;
+        }
+
+        normalized = vector / vector.Length;
+        return true;
+    }
+
+    private static double Area(BoundingBox2D bbox) => Math.Max(0d, (bbox.Max.U - bbox.Min.U) * (bbox.Max.V - bbox.Min.V));
+
+    private static SectionFrame ResolveSectionFrame(SectionPlaneFamily family, double offset) =>
+        family switch
+        {
+            SectionPlaneFamily.XY => new SectionFrame(new Vector3D(0d, 0d, 1d), new Vector3D(1d, 0d, 0d), new Vector3D(0d, 1d, 0d), offset, "Z", "z = offset", "X", "Y", "(u,v) -> (x,y)"),
+            SectionPlaneFamily.XZ => new SectionFrame(new Vector3D(0d, 1d, 0d), new Vector3D(1d, 0d, 0d), new Vector3D(0d, 0d, 1d), offset, "Y", "y = offset", "X", "Z", "(u,v) -> (x,z)"),
+            SectionPlaneFamily.YZ => new SectionFrame(new Vector3D(1d, 0d, 0d), new Vector3D(0d, 1d, 0d), new Vector3D(0d, 0d, 1d), offset, "X", "x = offset", "Y", "Z", "(u,v) -> (y,z)"),
+            _ => throw new InvalidOperationException($"Unsupported section plane family '{family}'.")
+        };
+
     private static ProjectionFrame ResolveProjectionFrame(OrthographicView view, BoundingBox3D bbox)
     {
         return view switch
@@ -645,5 +1044,62 @@ public static class StepAnalyzer
     {
         public double RangeU => MaxU - MinU;
         public double RangeV => MaxV - MinV;
+    }
+
+    private readonly record struct SectionFrame(
+        Vector3D Normal,
+        Vector3D UAxis,
+        Vector3D VAxis,
+        double Offset,
+        string FixedAxis,
+        string OffsetEquation,
+        string AxisU,
+        string AxisV,
+        string MappingDescription);
+
+    private enum RawSectionSegmentKind
+    {
+        Line,
+        Arc,
+        Unsupported
+    }
+
+    private readonly record struct RawSectionSegment(
+        RawSectionSegmentKind Kind,
+        Point2D Start,
+        Point2D End,
+        Point2D? Center,
+        double? Radius,
+        string? Direction,
+        double? SweepRadians,
+        string? UnsupportedReason)
+    {
+        public bool IsClosed =>
+            Kind == RawSectionSegmentKind.Arc
+            && double.Abs(Start.U - End.U) <= 1e-9d
+            && double.Abs(Start.V - End.V) <= 1e-9d
+            && SweepRadians.HasValue
+            && SweepRadians.Value >= (2d * double.Pi) - 1e-9d;
+
+        public static RawSectionSegment Line(Point2D start, Point2D end) =>
+            new(RawSectionSegmentKind.Line, start, end, null, null, null, null, null);
+
+        public static RawSectionSegment Arc(Point2D start, Point2D end, Point2D center, double radius, string direction, double sweepRadians) =>
+            new(RawSectionSegmentKind.Arc, start, end, center, radius, direction, sweepRadians, null);
+
+        public RawSectionSegment Reversed()
+        {
+            var reversedDirection = Direction is null
+                ? null
+                : string.Equals(Direction, "ccw", StringComparison.Ordinal) ? "cw" : "ccw";
+            return this with
+            {
+                Start = End,
+                End = Start,
+                Direction = reversedDirection
+            };
+        }
+
+        public IReadOnlyList<Point2D> Points() => Center is null ? [Start, End] : [Start, End, Center];
     }
 }

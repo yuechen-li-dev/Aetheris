@@ -117,3 +117,60 @@ public sealed record OrthographicMapResult(
     OrthographicMapSummary Summary,
     IReadOnlyList<IReadOnlyList<OrthographicSample>> Grid,
     IReadOnlyList<string> Notes);
+
+public enum SectionPlaneFamily
+{
+    XY,
+    XZ,
+    YZ
+}
+
+public sealed record SectionAnalysisMetadata(
+    string SourcePath,
+    BoundingBox3D BoundingBox,
+    SectionPlaneFamily PlaneFamily,
+    double Offset,
+    string OffsetAxis,
+    string OffsetEquation,
+    string SectionAxisU,
+    string SectionAxisV,
+    string WorldToSectionMapping);
+
+public sealed record SectionAnalysisSummary(
+    int LoopCount,
+    int ClosedLoopCount,
+    int LineSegmentCount,
+    int ArcSegmentCount,
+    int UnsupportedSegmentCount,
+    BoundingBox2D? SectionBoundingBox2D);
+
+public sealed record BoundingBox2D(
+    Point2D Min,
+    Point2D Max);
+
+public sealed record Point2D(
+    double U,
+    double V);
+
+public sealed record SectionSegment(
+    string Kind,
+    Point2D Start,
+    Point2D End,
+    Point2D? Center,
+    double? Radius,
+    string? Direction,
+    double? SweepRadians,
+    string? UnsupportedReason);
+
+public sealed record SectionLoop(
+    int LoopId,
+    bool IsClosed,
+    string? Winding,
+    BoundingBox2D? BoundingBox2D,
+    IReadOnlyList<SectionSegment> Segments);
+
+public sealed record SectionAnalysisResult(
+    SectionAnalysisMetadata Metadata,
+    SectionAnalysisSummary Summary,
+    IReadOnlyList<SectionLoop> Loops,
+    IReadOnlyList<string> Notes);

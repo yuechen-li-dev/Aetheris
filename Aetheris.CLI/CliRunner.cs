@@ -115,12 +115,18 @@ public static class CliRunner
         {
             stderr.WriteLine("Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]");
             stderr.WriteLine("   or: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json");
+            stderr.WriteLine("   or: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json");
             return 1;
         }
 
         if (string.Equals(args[0], "map", StringComparison.Ordinal))
         {
             return RunAnalyzeMap(args.Skip(1).ToArray(), stdout, stderr);
+        }
+
+        if (string.Equals(args[0], "section", StringComparison.Ordinal))
+        {
+            return RunAnalyzeSection(args.Skip(1).ToArray(), stdout, stderr);
         }
 
         var stepPath = args[0];
@@ -299,6 +305,86 @@ public static class CliRunner
         }
 
         stdout.WriteLine(JsonSerializer.Serialize(map, JsonOptions));
+        return 0;
+    }
+
+    private static int RunAnalyzeSection(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0)
+        {
+            stderr.WriteLine("Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json");
+            return 1;
+        }
+
+        var stepPath = args[0];
+        SectionPlaneFamily? plane = null;
+        var planeOptionCount = 0;
+        double? offset = null;
+        var json = false;
+
+        for (var i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--xy":
+                    plane = SectionPlaneFamily.XY;
+                    planeOptionCount++;
+                    break;
+                case "--xz":
+                    plane = SectionPlaneFamily.XZ;
+                    planeOptionCount++;
+                    break;
+                case "--yz":
+                    plane = SectionPlaneFamily.YZ;
+                    planeOptionCount++;
+                    break;
+                case "--offset" when i + 1 < args.Length && double.TryParse(args[++i], out var parsedOffset):
+                    offset = parsedOffset;
+                    break;
+                case "--json":
+                    json = true;
+                    break;
+                default:
+                    stderr.WriteLine($"Unknown analyze section option '{args[i]}'.");
+                    return 1;
+            }
+        }
+
+        if (!plane.HasValue || planeOptionCount != 1)
+        {
+            stderr.WriteLine("Analyze section requires exactly one plane selector (--xy|--xz|--yz).");
+            return 1;
+        }
+
+        if (!offset.HasValue)
+        {
+            stderr.WriteLine("Analyze section requires --offset <value>.");
+            return 1;
+        }
+
+        if (!json)
+        {
+            stderr.WriteLine("Analyze section currently requires --json output.");
+            return 1;
+        }
+
+        SectionAnalysisResult section;
+        try
+        {
+            section = StepAnalyzer.AnalyzeSection(stepPath, plane.Value, offset.Value);
+        }
+        catch (Exception ex)
+        {
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                success = false,
+                stepPath = Path.GetFullPath(stepPath),
+                error = ex.Message
+            }, JsonOptions));
+            return 1;
+        }
+
+        stdout.WriteLine(JsonSerializer.Serialize(section, JsonOptions));
         return 0;
     }
 

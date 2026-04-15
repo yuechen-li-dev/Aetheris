@@ -1,0 +1,17 @@
+{
+  "manifest": { "version": "1" },
+  "assembly": { "name": "occt_nut_bolt_bolt_only", "units": "mm" },
+  "parts": {
+    "bolt": { "kind": "step", "source": "./bolt.step" }
+  },
+  "instances": [
+    {
+      "id": "bolt_1",
+      "part": "bolt",
+      "transform": {
+        "translate": [-7.5, -10.0, 13.0],
+        "rotate_deg_xyz": [180.0, 0.0, -90.0]
+      }
+    }
+  ]
+}

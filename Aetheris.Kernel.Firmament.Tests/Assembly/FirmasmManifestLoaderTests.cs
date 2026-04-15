@@ -215,4 +215,39 @@ public sealed class FirmasmManifestLoaderTests
         Assert.IsType<FirmasmLoadedOpaqueStepPart>(result.Value.LoadedParts["nut"]);
     }
 
+    [Fact]
+    public void Parse_OcctLBracketManifest_IsFlatAndDeduplicated()
+    {
+        var loader = new FirmasmManifestLoader();
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-l-bracket/l-bracket-assembly.firmasm");
+
+        var result = loader.Parse(File.ReadAllText(path));
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(3, result.Value.Parts.Count);
+        Assert.Equal(7, result.Value.Instances.Count);
+        Assert.All(result.Value.Parts.Values, part => Assert.Equal(FirmasmPartKind.Step, part.Kind));
+
+        Assert.Equal(3, result.Value.Instances.Count(instance => instance.Part == "part_001_bolt"));
+        Assert.Equal(3, result.Value.Instances.Count(instance => instance.Part == "part_002_nut"));
+        Assert.Single(result.Value.Instances, instance => instance.Part == "part_003_l_bracket");
+
+        Assert.All(result.Value.Instances, instance => Assert.Equal(3, instance.Transform.Translate.Count));
+        Assert.All(result.Value.Instances, instance => Assert.Equal(3, instance.Transform.RotateDegXyz!.Count));
+    }
+
+    [Fact]
+    public void LoadFromFile_OcctLBracketManifest_LoadsSuccessfully()
+    {
+        var loader = new FirmasmManifestLoader();
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-l-bracket/l-bracket-assembly.firmasm");
+
+        var result = loader.LoadFromFile(path);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(3, result.Value.LoadedParts.Count);
+        Assert.Equal(7, result.Value.Manifest.Instances.Count);
+        Assert.All(result.Value.LoadedParts.Values, loadedPart => Assert.IsType<FirmasmLoadedOpaqueStepPart>(loadedPart));
+    }
+
 }

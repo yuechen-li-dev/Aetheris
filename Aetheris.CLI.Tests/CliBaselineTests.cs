@@ -32,6 +32,52 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Asm_Exec_Command_Executes_OcctNutBolt_And_Returns_Analysis()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var manifestPath = Path.Combine(RepoRoot, "testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(
+            ["asm", "exec", manifestPath, "--json"],
+            stdout,
+            stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
+
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var root = doc.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        Assert.Equal(2, root.GetProperty("partCount").GetInt32());
+        Assert.Equal(2, root.GetProperty("instanceCount").GetInt32());
+        Assert.Equal(2, root.GetProperty("analysis").GetProperty("summary").GetProperty("bodyCount").GetInt32());
+    }
+
+    [Fact]
+    public void Asm_Exec_Command_Executes_As1_Full_Assembly()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var manifestPath = Path.Combine(RepoRoot, "testdata/firmasm/examples/occt-as1/as1-assembly.firmasm");
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(
+            ["asm", "exec", manifestPath, "--json"],
+            stdout,
+            stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
+
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var root = doc.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        Assert.Equal(18, root.GetProperty("instanceCount").GetInt32());
+        Assert.Equal(18, root.GetProperty("analysis").GetProperty("summary").GetProperty("bodyCount").GetInt32());
+        Assert.True(root.GetProperty("analysis").GetProperty("summary").GetProperty("faceCount").GetInt32() > 0);
+    }
+
+    [Fact]
     public void Analyze_Command_Reports_Summary_Facts_And_Discoverability()
     {
         var stdout = new StringWriter();

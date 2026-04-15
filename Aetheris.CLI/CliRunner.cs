@@ -322,6 +322,80 @@ public static class CliRunner
     private static string FormatKernelDiagnostics(IReadOnlyList<Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> diagnostics) =>
         string.Join(Environment.NewLine, diagnostics.Select(d => $"[{d.Severity}] {d.Source}: {d.Message}"));
 
+    private static void WriteAnalyzeFailureJson(TextWriter stdout, string stepPath, Exception exception)
+    {
+        var fullPath = Path.GetFullPath(stepPath);
+        if (exception is not StepAnalysisImportException importFailure)
+        {
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                success = false,
+                stepPath = fullPath,
+                errorKind = "analysis-failure",
+                error = exception.Message
+            }, JsonOptions));
+            return;
+        }
+
+        var multiRootDiagnostic = importFailure.Diagnostics.FirstOrDefault(d => string.Equals(d.Source, "Importer.AssemblyLike.StepMultiRoot", StringComparison.Ordinal));
+        if (multiRootDiagnostic is null)
+        {
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                success = false,
+                stepPath = fullPath,
+                errorKind = "import-failure",
+                error = importFailure.Message,
+                diagnostics = importFailure.Diagnostics.Select(d => new
+                {
+                    code = d.Code.ToString(),
+                    severity = d.Severity.ToString(),
+                    source = d.Source,
+                    message = d.Message
+                })
+            }, JsonOptions));
+            return;
+        }
+
+        var rigidRootCount = CountManifoldSolidRoots(multiRootDiagnostic.Message);
+        stdout.WriteLine(JsonSerializer.Serialize(new
+        {
+            success = false,
+            stepPath = fullPath,
+            errorKind = "assembly-like-step",
+            classification = "assembly-like",
+            rigidRootCount,
+            routeHint = "Use the assembly extraction/import path for this STEP input.",
+            error = importFailure.Message,
+            diagnostics = importFailure.Diagnostics.Select(d => new
+            {
+                code = d.Code.ToString(),
+                severity = d.Severity.ToString(),
+                source = d.Source,
+                message = d.Message
+            })
+        }, JsonOptions));
+    }
+
+    private static int? CountManifoldSolidRoots(string message)
+    {
+        const string token = "detected ";
+        var detectedIndex = message.IndexOf(token, StringComparison.OrdinalIgnoreCase);
+        if (detectedIndex < 0)
+        {
+            return null;
+        }
+
+        var start = detectedIndex + token.Length;
+        var end = message.IndexOf(" MANIFOLD_SOLID_BREP", start, StringComparison.OrdinalIgnoreCase);
+        if (end <= start)
+        {
+            return null;
+        }
+
+        return int.TryParse(message[start..end], out var value) ? value : null;
+    }
+
     private static int RunAnalyze(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0)
@@ -415,20 +489,13 @@ public static class CliRunner
         }
         catch (Exception ex)
         {
-            if (json)
-            {
-                stdout.WriteLine(JsonSerializer.Serialize(new
-                {
-                    success = false,
-                    stepPath = Path.GetFullPath(stepPath),
-                    error = ex.Message
-                }, JsonOptions));
-            }
-            else
+            if (!json)
             {
                 stderr.WriteLine(ex.Message);
+                return 1;
             }
 
+            WriteAnalyzeFailureJson(stdout, stepPath, ex);
             return 1;
         }
 
@@ -552,20 +619,13 @@ public static class CliRunner
         }
         catch (Exception ex)
         {
-            if (json)
-            {
-                stdout.WriteLine(JsonSerializer.Serialize(new
-                {
-                    success = false,
-                    stepPath = Path.GetFullPath(stepPath),
-                    error = ex.Message
-                }, JsonOptions));
-            }
-            else
+            if (!json)
             {
                 stderr.WriteLine(ex.Message);
+                return 1;
             }
 
+            WriteAnalyzeFailureJson(stdout, stepPath, ex);
             return 1;
         }
 
@@ -669,12 +729,7 @@ public static class CliRunner
         }
         catch (Exception ex)
         {
-            stdout.WriteLine(JsonSerializer.Serialize(new
-            {
-                success = false,
-                stepPath = Path.GetFullPath(stepPath),
-                error = ex.Message
-            }, JsonOptions));
+            WriteAnalyzeFailureJson(stdout, stepPath, ex);
             return 1;
         }
 

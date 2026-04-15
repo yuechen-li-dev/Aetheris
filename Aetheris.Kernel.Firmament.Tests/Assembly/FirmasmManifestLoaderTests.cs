@@ -250,4 +250,41 @@ public sealed class FirmasmManifestLoaderTests
         Assert.All(result.Value.LoadedParts.Values, loadedPart => Assert.IsType<FirmasmLoadedOpaqueStepPart>(loadedPart));
     }
 
+    [Fact]
+    public void Parse_OcctAs1Manifest_IsFlatAndDeduplicated()
+    {
+        var loader = new FirmasmManifestLoader();
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-as1/as1-assembly.firmasm");
+
+        var result = loader.Parse(File.ReadAllText(path));
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(5, result.Value.Parts.Count);
+        Assert.Equal(18, result.Value.Instances.Count);
+        Assert.All(result.Value.Parts.Values, part => Assert.Equal(FirmasmPartKind.Step, part.Kind));
+
+        Assert.Equal(6, result.Value.Instances.Count(instance => instance.Part == "part_001_bolt"));
+        Assert.Equal(2, result.Value.Instances.Count(instance => instance.Part == "part_002_l_bracket"));
+        Assert.Equal(8, result.Value.Instances.Count(instance => instance.Part == "part_003_nut"));
+        Assert.Equal(1, result.Value.Instances.Count(instance => instance.Part == "part_004_plate"));
+        Assert.Equal(1, result.Value.Instances.Count(instance => instance.Part == "part_005_rod"));
+
+        Assert.All(result.Value.Instances, instance => Assert.Equal(3, instance.Transform.Translate.Count));
+        Assert.All(result.Value.Instances, instance => Assert.Equal(3, instance.Transform.RotateDegXyz!.Count));
+    }
+
+    [Fact]
+    public void LoadFromFile_OcctAs1Manifest_LoadsSuccessfully()
+    {
+        var loader = new FirmasmManifestLoader();
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-as1/as1-assembly.firmasm");
+
+        var result = loader.LoadFromFile(path);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(5, result.Value.LoadedParts.Count);
+        Assert.Equal(18, result.Value.Manifest.Instances.Count);
+        Assert.All(result.Value.LoadedParts.Values, loadedPart => Assert.IsType<FirmasmLoadedOpaqueStepPart>(loadedPart));
+    }
+
 }

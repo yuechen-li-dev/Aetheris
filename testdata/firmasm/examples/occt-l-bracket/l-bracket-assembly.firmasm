@@ -1,0 +1,67 @@
+{
+  "manifest": { "version": "1" },
+  "assembly": { "name": "occt_l_bracket_assembly", "units": "mm" },
+  "parts": {
+    "part_001_bolt": { "kind": "step", "source": "./_part_001_bolt.step" },
+    "part_002_nut": { "kind": "step", "source": "./_part_002_nut.step" },
+    "part_003_l_bracket": { "kind": "step", "source": "./_part_003_l_bracket.step" }
+  },
+  "instances": [
+    {
+      "id": "bolt_001",
+      "part": "part_001_bolt",
+      "transform": {
+        "translate": [20.0, -50.0, 13.0],
+        "rotate_deg_xyz": [180.0, 0.0, -90.0]
+      }
+    },
+    {
+      "id": "nut_001",
+      "part": "part_002_nut",
+      "transform": {
+        "translate": [30.0, -57.5, -20.0],
+        "rotate_deg_xyz": [180.0, 0.0, 180.0]
+      }
+    },
+    {
+      "id": "bolt_002",
+      "part": "part_001_bolt",
+      "transform": {
+        "translate": [42.5, -62.99038106, 13.0],
+        "rotate_deg_xyz": [180.0, 0.0, -90.0]
+      }
+    },
+    {
+      "id": "nut_002",
+      "part": "part_002_nut",
+      "transform": {
+        "translate": [52.5, -70.49038106, -20.0],
+        "rotate_deg_xyz": [180.0, 0.0, 180.0]
+      }
+    },
+    {
+      "id": "bolt_003",
+      "part": "part_001_bolt",
+      "transform": {
+        "translate": [42.5, -37.00961894, 13.0],
+        "rotate_deg_xyz": [180.0, 0.0, -90.0]
+      }
+    },
+    {
+      "id": "nut_003",
+      "part": "part_002_nut",
+      "transform": {
+        "translate": [52.5, -44.50961894, -20.0],
+        "rotate_deg_xyz": [180.0, 0.0, 180.0]
+      }
+    },
+    {
+      "id": "l_bracket_001",
+      "part": "part_003_l_bracket",
+      "transform": {
+        "translate": [0.0, 0.0, 0.0],
+        "rotate_deg_xyz": [90.0, 0.0, 0.0]
+      }
+    }
+  ]
+}

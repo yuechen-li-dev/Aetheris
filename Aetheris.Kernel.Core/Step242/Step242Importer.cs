@@ -861,6 +861,15 @@ public static class Step242Importer
                 return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(surfaceResult.Diagnostics);
             }
 
+            var recoveryDecision = Step242BsplineSurfaceRecoveryLane.Decide(surfaceToDecode, surfaceResult.Value);
+            if (string.Equals(recoveryDecision.CandidateName, "analytic_cylinder", StringComparison.Ordinal)
+                && recoveryDecision.RecoveredSurface is not null)
+            {
+                return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((
+                    geometryId,
+                    recoveryDecision.RecoveredSurface));
+            }
+
             return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((
                 geometryId,
                 SurfaceGeometry.FromBSplineSurfaceWithKnots(surfaceResult.Value)));

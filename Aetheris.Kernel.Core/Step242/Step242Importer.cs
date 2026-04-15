@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Import;
+using Aetheris.Kernel.Core.Judgment;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
@@ -18,10 +19,13 @@ public static class Step242Importer
     private const double TinyCoedgeGapSnapEps = 2.5e-5d;
     private const double AngleUnwrapEps = 1e-8d;
     private const double ContainmentEps = 1e-8d;
+    private const string PlanarCrossingInsideRecoveryCandidate = "planar_crossing_inside_recover_as_inner";
+    private const string PlanarCrossingInsideRejectCandidate = "planar_crossing_inside_reject";
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleCoedgeGapDiagnostic>?> CoedgeGapDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleCylinderProjectionDiagnostic>?> CylinderProjectionDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleTorusProjectionDiagnostic>?> TorusProjectionDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<PlanarMultiBoundJudgmentDiagnostic>?> PlanarMultiBoundJudgmentDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
@@ -49,6 +53,13 @@ public static class Step242Importer
         var previous = TorusProjectionDiagnosticsSink.Value;
         TorusProjectionDiagnosticsSink.Value = sink;
         return new TorusProjectionDiagnosticsScope(previous);
+    }
+
+    public static IDisposable CapturePlanarMultiBoundJudgmentDiagnostics(ICollection<PlanarMultiBoundJudgmentDiagnostic> sink)
+    {
+        var previous = PlanarMultiBoundJudgmentDiagnosticsSink.Value;
+        PlanarMultiBoundJudgmentDiagnosticsSink.Value = sink;
+        return new PlanarMultiBoundJudgmentDiagnosticsScope(previous);
     }
 
     public static KernelResult<BrepBody> ImportBody(string stepText)
@@ -214,6 +225,7 @@ public static class Step242Importer
                 }
 
                 _ = boundOrientationResult.Value;
+                var isDeclaredOuter = string.Equals(boundEntity.Name, "FACE_OUTER_BOUND", StringComparison.OrdinalIgnoreCase);
 
                 var loopEntityResult = document.TryGetEntity(loopRefResult.Value.TargetId);
                 if (!loopEntityResult.IsSuccess)
@@ -391,7 +403,7 @@ public static class Step242Importer
                     hasDisconnectedCoedgeGap = true;
                 }
 
-                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap));
+                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap, isDeclaredOuter));
             }
 
             var classifyResult = ClassifyAndNormalizeFaceLoops(faceEntity.Id, loopData, bindSurfaceResult.Value.SurfaceGeometry);
@@ -1394,6 +1406,7 @@ public static class Step242Importer
         }
 
         var containedInners = new List<PlanarLoopInfo>();
+        var declaredOuterCount = infosWithSamples.Count(i => i.Info.Loop.IsDeclaredOuter);
 
         foreach (var candidate in infosWithSamples.Where(i => i.Info.Loop.LoopId != outer.Info.Loop.LoopId))
         {
@@ -1412,6 +1425,14 @@ public static class Step242Importer
             if (double.Abs(candidate.Info.SignedArea) <= areaTolerance * 4d
                 || IsPointNearPolygonEdge(candidate.SamplePoint, outer.Info.ProjectedPoints, containmentTolerance * 4d))
             {
+                continue;
+            }
+
+            if (intersectsOuter
+                && containment.OutsideCount == 0
+                && TryRecoverPlanarCrossingInnerWithJudgmentEngine(candidate.Info, outer.Info, containment, intersectionCount, containmentTolerance, loops.Count, declaredOuterCount))
+            {
+                containedInners.Add(candidate.Info);
                 continue;
             }
 
@@ -1836,6 +1857,93 @@ public static class Step242Importer
             ? $"Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}."
             : $"Inner loop could not be normalized: {reason}. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}.";
         return new ContainmentFailure(message, source);
+    }
+
+    private static bool TryRecoverPlanarCrossingInnerWithJudgmentEngine(
+        PlanarLoopInfo inner,
+        PlanarLoopInfo outer,
+        ContainmentEvaluation containment,
+        int intersectionCount,
+        double containmentTolerance,
+        int loopCount,
+        int declaredOuterCount)
+    {
+        var context = BuildPlanarCrossingInsideRecoveryContext(inner, outer, containment, intersectionCount, containmentTolerance, loopCount, declaredOuterCount);
+        var engine = new JudgmentEngine<PlanarCrossingInsideRecoveryContext>();
+        var result = engine.Evaluate(context, BuildPlanarCrossingInsideRecoveryCandidates());
+        var selected = result.Selection?.Candidate.Name ?? PlanarCrossingInsideRejectCandidate;
+        ReportPlanarMultiBoundJudgmentDiagnostic(new PlanarMultiBoundJudgmentDiagnostic(
+            FaceLoopCount: context.LoopCount,
+            OuterLoopId: context.OuterLoopId,
+            InnerLoopId: context.InnerLoopId,
+            OuterArea: context.OuterArea,
+            InnerArea: context.InnerArea,
+            AreaRatio: context.AreaRatio,
+            ContainedVertexCount: context.ContainedVertexCount,
+            VertexCount: context.VertexCount,
+            IntersectionCount: context.IntersectionCount,
+            MinDistanceToOuter: context.MinDistanceToOuter,
+            HasDisconnectedCoedgeGap: context.HasDisconnectedCoedgeGap,
+            HasSingleDeclaredOuterLoop: context.HasSingleDeclaredOuterLoop,
+            SelectedCandidate: selected,
+            CandidateRejections: string.Join(" | ", result.Rejections.Select(rejection => $"{rejection.CandidateName}:{rejection.Reason}"))));
+
+        return string.Equals(selected, PlanarCrossingInsideRecoveryCandidate, StringComparison.Ordinal);
+    }
+
+    private static PlanarCrossingInsideRecoveryContext BuildPlanarCrossingInsideRecoveryContext(
+        PlanarLoopInfo inner,
+        PlanarLoopInfo outer,
+        ContainmentEvaluation containment,
+        int intersectionCount,
+        double containmentTolerance,
+        int loopCount,
+        int declaredOuterCount)
+    {
+        var outerArea = double.Abs(outer.SignedArea);
+        var innerArea = double.Abs(inner.SignedArea);
+        var areaRatio = outerArea <= AreaEps ? 0d : innerArea / outerArea;
+        var hasDisconnectedCoedgeGap = inner.Loop.HasDisconnectedCoedgeGap || outer.Loop.HasDisconnectedCoedgeGap;
+        return new PlanarCrossingInsideRecoveryContext(
+            InnerLoopId: inner.Loop.LoopId.Value,
+            OuterLoopId: outer.Loop.LoopId.Value,
+            LoopCount: loopCount,
+            InnerArea: innerArea,
+            OuterArea: outerArea,
+            AreaRatio: areaRatio,
+            IntersectionCount: intersectionCount,
+            ContainedVertexCount: containment.VertexCount - containment.OutsideCount,
+            VertexCount: containment.VertexCount,
+            MinDistanceToOuter: containment.MinDistanceToOuter,
+            HasDisconnectedCoedgeGap: hasDisconnectedCoedgeGap,
+            HasSingleDeclaredOuterLoop: declaredOuterCount == 1,
+            IsNearBoundaryContact: containment.MinDistanceToOuter <= containmentTolerance * 8d);
+    }
+
+    private static IReadOnlyList<JudgmentCandidate<PlanarCrossingInsideRecoveryContext>> BuildPlanarCrossingInsideRecoveryCandidates()
+    {
+        return
+        [
+            new JudgmentCandidate<PlanarCrossingInsideRecoveryContext>(
+                Name: PlanarCrossingInsideRecoveryCandidate,
+                IsAdmissible: When.All<PlanarCrossingInsideRecoveryContext>(
+                    context => context.LoopCount >= 2,
+                    context => context.IntersectionCount > 0,
+                    context => context.ContainedVertexCount == context.VertexCount,
+                    context => !context.HasDisconnectedCoedgeGap,
+                    context => context.AreaRatio > 0d && context.AreaRatio < 0.98d,
+                    context => context.IsNearBoundaryContact || context.HasSingleDeclaredOuterLoop),
+                Score: context => (100d - context.IntersectionCount) + ((1d - context.AreaRatio) * 10d),
+                RejectionReason: context =>
+                    $"requires bounded planar crossing-all-inside recovery facts (loopCount={context.LoopCount}, intersections={context.IntersectionCount}, contained={context.ContainedVertexCount}/{context.VertexCount}, disconnected={context.HasDisconnectedCoedgeGap}, areaRatio={context.AreaRatio:E6}, nearBoundary={context.IsNearBoundaryContact}, singleDeclaredOuter={context.HasSingleDeclaredOuterLoop})",
+                TieBreakerPriority: 0),
+            new JudgmentCandidate<PlanarCrossingInsideRecoveryContext>(
+                Name: PlanarCrossingInsideRejectCandidate,
+                IsAdmissible: _ => true,
+                Score: _ => -1d,
+                RejectionReason: _ => "bounded planar crossing-all-inside recovery candidate is not admissible",
+                TieBreakerPriority: 1)
+        ];
     }
 
     private static ContainmentEvaluation EvaluateContainment(
@@ -2871,6 +2979,12 @@ public static class Step242Importer
         sink?.Add(diagnostic);
     }
 
+    private static void ReportPlanarMultiBoundJudgmentDiagnostic(PlanarMultiBoundJudgmentDiagnostic diagnostic)
+    {
+        var sink = PlanarMultiBoundJudgmentDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
     private static (double Gap3d, double Gap2d, LoopCoedgeGapClassification Classification) ClassifyCoedgeGap(
         Point3D previousEnd,
         Point3D nextStart,
@@ -2975,6 +3089,22 @@ public static class Step242Importer
         double InitialSignedArea,
         bool FullMajorSpanNearConstantMinorCandidate);
 
+    public sealed record PlanarMultiBoundJudgmentDiagnostic(
+        int FaceLoopCount,
+        int OuterLoopId,
+        int InnerLoopId,
+        double OuterArea,
+        double InnerArea,
+        double AreaRatio,
+        int ContainedVertexCount,
+        int VertexCount,
+        int IntersectionCount,
+        double MinDistanceToOuter,
+        bool HasDisconnectedCoedgeGap,
+        bool HasSingleDeclaredOuterLoop,
+        string SelectedCandidate,
+        string CandidateRejections);
+
     private enum CylinderProjectionDegeneracy
     {
         None = 0,
@@ -3065,6 +3195,14 @@ public static class Step242Importer
         }
     }
 
+    private sealed class PlanarMultiBoundJudgmentDiagnosticsScope(ICollection<PlanarMultiBoundJudgmentDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            PlanarMultiBoundJudgmentDiagnosticsSink.Value = previous;
+        }
+    }
+
     private static KernelResult<T> LoopRoleFailure<T>(string message, string source) =>
         KernelResult<T>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
 
@@ -3097,7 +3235,7 @@ public static class Step242Importer
 
     private static string SourceFor(int _entityId, string stableSource) => stableSource;
 
-    private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples, bool HasDisconnectedCoedgeGap = false);
+    private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples, bool HasDisconnectedCoedgeGap = false, bool IsDeclaredOuter = false);
 
     private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea);
 
@@ -3110,6 +3248,21 @@ public static class Step242Importer
     private sealed record ContainmentEvaluation(int OutsideCount, int VertexCount, double MinDistanceToOuter);
 
     private sealed record ContainmentFailure(string Message, string Source);
+
+    private sealed record PlanarCrossingInsideRecoveryContext(
+        int InnerLoopId,
+        int OuterLoopId,
+        int LoopCount,
+        double InnerArea,
+        double OuterArea,
+        double AreaRatio,
+        int IntersectionCount,
+        int ContainedVertexCount,
+        int VertexCount,
+        double MinDistanceToOuter,
+        bool HasDisconnectedCoedgeGap,
+        bool HasSingleDeclaredOuterLoop,
+        bool IsNearBoundaryContact);
 
     private readonly record struct UvPoint(double X, double Y)
     {

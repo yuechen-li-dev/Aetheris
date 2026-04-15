@@ -173,4 +173,47 @@ public sealed class FirmasmManifestLoaderTests
         Assert.False(result.IsSuccess);
         Assert.Contains("references unknown part 'missing'", Assert.Single(result.Diagnostics).Message, StringComparison.Ordinal);
     }
+
+
+    [Fact]
+    public void LoadFromFile_OcctNutBoltBoltOnly_LoadsSuccessfully()
+    {
+        var loader = new FirmasmManifestLoader();
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-nut-bolt/bolt-only.firmasm");
+
+        var result = loader.LoadFromFile(path);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.IsType<FirmasmLoadedOpaqueStepPart>(result.Value.LoadedParts["bolt"]);
+    }
+
+    [Fact]
+    public void Parse_OcctNutBoltManifest_UsesStepKindsAndRigidTransforms()
+    {
+        var loader = new FirmasmManifestLoader();
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+
+        var result = loader.Parse(File.ReadAllText(path));
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(FirmasmPartKind.Step, result.Value.Parts["bolt"].Kind);
+        Assert.Equal(FirmasmPartKind.Step, result.Value.Parts["nut"].Kind);
+        Assert.All(result.Value.Instances, instance => Assert.Equal(3, instance.Transform.Translate.Count));
+        Assert.All(result.Value.Instances, instance => Assert.Equal(3, instance.Transform.RotateDegXyz!.Count));
+    }
+
+    [Fact]
+    public void LoadFromFile_OcctNutBoltManifest_RejectsUnsupportedNutImportClearly()
+    {
+        var loader = new FirmasmManifestLoader();
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+
+        var result = loader.LoadFromFile(path);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Contains("STEP part 'nut'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("crosses_outer_boundary_with_all_vertices_inside", diagnostic.Message, StringComparison.Ordinal);
+    }
+
 }

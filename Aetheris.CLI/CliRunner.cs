@@ -1,17 +1,19 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aetheris.Kernel.Firmament;
+using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.CLI;
 
 public static class CliRunner
 {
-    private const string TopLevelUsage = "Usage: aetheris <build|analyze|canon> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|analyze|canon|asm> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
+    private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -52,6 +54,7 @@ public static class CliRunner
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
+                "asm" => RunAsm(args.Skip(1).ToArray(), stdout, stderr),
                 _ => UnknownCommand(args[0], stderr)
             };
         }
@@ -509,6 +512,116 @@ public static class CliRunner
         return 0;
     }
 
+    private static int RunAsm(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            WriteAsmHelp(stdout);
+            return args.Length == 0 ? 1 : 0;
+        }
+
+        if (!string.Equals(args[0], "exec", StringComparison.Ordinal))
+        {
+            stderr.WriteLine($"Unknown asm subcommand '{args[0]}'.");
+            stderr.WriteLine(AsmExecUsage);
+            return 1;
+        }
+
+        return RunAsmExec(args.Skip(1).ToArray(), stdout, stderr);
+    }
+
+    private static int RunAsmExec(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0)
+        {
+            stderr.WriteLine(AsmExecUsage);
+            stderr.WriteLine("Run 'aetheris asm --help' for examples.");
+            return 1;
+        }
+
+        if (IsHelpFlag(args[0]))
+        {
+            WriteAsmHelp(stdout);
+            return 0;
+        }
+
+        if (args[0].StartsWith("-", StringComparison.Ordinal))
+        {
+            stderr.WriteLine("Asm exec requires <file.firmasm> as the first argument.");
+            stderr.WriteLine(AsmExecUsage);
+            return 1;
+        }
+
+        var manifestPath = args[0];
+        var json = false;
+        for (var i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--json":
+                    json = true;
+                    break;
+                case "-h":
+                case "--help":
+                    WriteAsmHelp(stdout);
+                    return 0;
+                default:
+                    stderr.WriteLine($"Unknown asm exec option '{args[i]}'.");
+                    stderr.WriteLine(AsmExecUsage);
+                    return 1;
+            }
+        }
+
+        var executor = new FirmasmAssemblyExecutor();
+        var execute = executor.ExecuteFromFile(manifestPath);
+        if (!execute.IsSuccess)
+        {
+            if (json)
+            {
+                stdout.WriteLine(JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    manifestPath = Path.GetFullPath(manifestPath),
+                    diagnostics = execute.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() })
+                }, JsonOptions));
+            }
+            else
+            {
+                stderr.WriteLine("ASM execution failed:");
+                foreach (var diagnostic in execute.Diagnostics)
+                {
+                    stderr.WriteLine($"- [{diagnostic.Severity}] {diagnostic.Source}: {diagnostic.Message}");
+                }
+            }
+
+            return 1;
+        }
+
+        var analysis = StepAnalyzer.AnalyzeImportedBody(execute.Value.ComposedBody, Path.GetFullPath(manifestPath));
+        if (json)
+        {
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                success = true,
+                manifestPath = execute.Value.LoadedAssembly.SourcePath,
+                assemblyName = execute.Value.LoadedAssembly.Manifest.Assembly.Name,
+                partCount = execute.Value.LoadedAssembly.LoadedParts.Count,
+                instanceCount = execute.Value.Instances.Count,
+                bodyCount = execute.Value.ComposedBody.Topology.Bodies.Count(),
+                shellCount = execute.Value.ComposedBody.Topology.Shells.Count(),
+                boundingBox = analysis.Summary.BoundingBox,
+                analysis
+            }, JsonOptions));
+            return 0;
+        }
+
+        stdout.WriteLine($"ASM execution succeeded: {execute.Value.LoadedAssembly.Manifest.Assembly.Name}");
+        stdout.WriteLine($"Parts: {execute.Value.LoadedAssembly.LoadedParts.Count}");
+        stdout.WriteLine($"Instances: {execute.Value.Instances.Count}");
+        stdout.WriteLine($"Bodies: {execute.Value.ComposedBody.Topology.Bodies.Count()}");
+        return 0;
+    }
+
     private static int RunAnalyzeMap(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0)
@@ -785,7 +898,7 @@ public static class CliRunner
 
     private static int UnknownCommand(string command, TextWriter stderr)
     {
-        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, analyze, canon.");
+        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, analyze, canon, asm.");
         stderr.WriteLine("Run 'aetheris --help' for usage and examples.");
         return 1;
     }
@@ -814,6 +927,7 @@ public static class CliRunner
         stdout.WriteLine("  build      Build a .firmament source file into STEP.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
         stdout.WriteLine("  canon      Import and re-export STEP/AP242 as canonical STEP.");
+        stdout.WriteLine("  asm        Execute .firmasm assembly IR into composed world-space geometry.");
         stdout.WriteLine();
         stdout.WriteLine("Global options:");
         stdout.WriteLine("  -h, --help       Show help.");
@@ -823,6 +937,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris build model.firmament --out model.step");
         stdout.WriteLine("  aetheris analyze model.step --json");
         stdout.WriteLine("  aetheris canon input.step --out canonical.step --json");
+        stdout.WriteLine("  aetheris asm exec assembly.firmasm --json");
         stdout.WriteLine("  aetheris analyze map model.step --top --rows 40 --cols 60 --json");
         stdout.WriteLine("  aetheris analyze section model.step --xy --offset 2.5 --json");
         stdout.WriteLine();
@@ -915,6 +1030,20 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris canon input.step --out canonical.step --json");
+    }
+
+    private static void WriteAsmHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Execute flattened .firmasm assemblies as rigidly placed body instances.");
+        stdout.WriteLine();
+        stdout.WriteLine(AsmExecUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Options:");
+        stdout.WriteLine("  --json         Emit machine-readable execution and analyzer JSON.");
+        stdout.WriteLine("  -h, --help     Show this help.");
+        stdout.WriteLine();
+        stdout.WriteLine("Example:");
+        stdout.WriteLine("  aetheris asm exec testdata/firmasm/examples/occt-as1/as1-assembly.firmasm --json");
     }
 
     private static string FormatBox(Aetheris.Kernel.Core.Math.BoundingBox3D? box) =>

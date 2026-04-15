@@ -551,6 +551,49 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Analyze_Command_SingleRootStep_StillReturnsSuccess()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var root = doc.RootElement;
+        Assert.Equal(Path.GetFullPath(stepPath), root.GetProperty("stepPath").GetString());
+        Assert.True(root.TryGetProperty("summary", out _));
+    }
+
+    [Fact]
+    public void Analyze_Command_MultiRootStep_JsonFailure_IsAssemblyLikeAndMachineFriendly()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/OCCT/as1.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(1, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
+
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var root = doc.RootElement;
+        Assert.False(root.GetProperty("success").GetBoolean());
+        Assert.Equal("assembly-like-step", root.GetProperty("errorKind").GetString());
+        Assert.Equal("assembly-like", root.GetProperty("classification").GetString());
+        Assert.True(root.GetProperty("rigidRootCount").GetInt32() > 1);
+        Assert.Contains("assembly extraction/import", root.GetProperty("routeHint").GetString(), StringComparison.OrdinalIgnoreCase);
+
+        var diagnostics = root.GetProperty("diagnostics");
+        Assert.True(diagnostics.GetArrayLength() >= 1);
+        var first = diagnostics[0];
+        Assert.Equal("Importer.AssemblyLike.StepMultiRoot", first.GetProperty("source").GetString());
+    }
+
+    [Fact]
     public void Canon_Command_RoundTrips_Supported_Step_Through_Importer_Exporter_Path()
     {
         var inputPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");

@@ -14,14 +14,8 @@ public static class StepAnalyzer
 {
     public static AnalyzeResult Analyze(string stepPath, int? faceId = null, int? edgeId = null, int? vertexId = null)
     {
-        var fullPath = Path.GetFullPath(stepPath);
-        var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));
-        if (!import.IsSuccess)
-        {
-            throw new InvalidOperationException(string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
-        }
-
-        return AnalyzeImportedBody(import.Value, fullPath, faceId, edgeId, vertexId);
+        var (fullPath, body) = ImportStepBody(stepPath);
+        return AnalyzeImportedBody(body, fullPath, faceId, edgeId, vertexId);
     }
 
     public static AnalyzeResult AnalyzeImportedBody(BrepBody body, string stepPath, int? faceId = null, int? edgeId = null, int? vertexId = null)
@@ -38,26 +32,26 @@ public static class StepAnalyzer
 
     public static OrthographicMapResult AnalyzeMap(string stepPath, OrthographicView view, int rows, int cols)
     {
-        var fullPath = Path.GetFullPath(stepPath);
-        var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));
-        if (!import.IsSuccess)
-        {
-            throw new InvalidOperationException(string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
-        }
-
-        return AnalyzeImportedBodyMap(import.Value, fullPath, view, rows, cols);
+        var (fullPath, body) = ImportStepBody(stepPath);
+        return AnalyzeImportedBodyMap(body, fullPath, view, rows, cols);
     }
 
     public static SectionAnalysisResult AnalyzeSection(string stepPath, SectionPlaneFamily planeFamily, double offset)
+    {
+        var (fullPath, body) = ImportStepBody(stepPath);
+        return AnalyzeImportedBodySection(body, fullPath, planeFamily, offset);
+    }
+
+    private static (string FullPath, BrepBody Body) ImportStepBody(string stepPath)
     {
         var fullPath = Path.GetFullPath(stepPath);
         var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));
         if (!import.IsSuccess)
         {
-            throw new InvalidOperationException(string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
+            throw new StepAnalysisImportException(fullPath, import.Diagnostics);
         }
 
-        return AnalyzeImportedBodySection(import.Value, fullPath, planeFamily, offset);
+        return (fullPath, import.Value);
     }
 
     public static SectionAnalysisResult AnalyzeImportedBodySection(BrepBody body, string stepPath, SectionPlaneFamily planeFamily, double offset)

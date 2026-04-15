@@ -81,19 +81,22 @@ public static class Step242Importer
 
     internal static KernelResult<BrepBody> ImportExactBrepCore(Step242ParsedDocument document)
     {
-        var brepEntityResult = Step242ImportSharedUtilities.RequireSingleEntityByName(
-            document,
-            entityName: "MANIFOLD_SOLID_BREP",
-            missingMessage: "Missing MANIFOLD_SOLID_BREP root entity.",
-            missingSource: "Importer.TopologyRoot",
-            multipleMessage: "Multiple MANIFOLD_SOLID_BREP roots are unsupported in M23 import subset.",
-            multipleSource: "Importer.SingleSolid");
-        if (!brepEntityResult.IsSuccess)
+        var rigidRootClassification = Step242RigidRootClassifier.Classify(document);
+        if (rigidRootClassification.Kind == Step242RigidRootClassificationKind.MissingRigidRoot)
         {
-            return KernelResult<BrepBody>.Failure(brepEntityResult.Diagnostics);
+            return Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>(
+                "Missing MANIFOLD_SOLID_BREP root entity.",
+                "Importer.TopologyRoot");
         }
 
-        var brepEntity = brepEntityResult.Value;
+        if (rigidRootClassification.Kind == Step242RigidRootClassificationKind.AssemblyLikeMultipleRigidRoots)
+        {
+            return Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>(
+                $"STEP input is assembly-like: detected {rigidRootClassification.RigidRoots.Count} MANIFOLD_SOLID_BREP rigid roots. Single-part exact BRep import accepts exactly one rigid root; route this input through assembly extraction/import.",
+                "Importer.AssemblyLike.StepMultiRoot");
+        }
+
+        var brepEntity = rigidRootClassification.SingleRigidRoot;
 
         var shellRefResult = Step242SubsetDecoder.ReadReference(brepEntity, 1, "MANIFOLD_SOLID_BREP shell");
         if (!shellRefResult.IsSuccess)

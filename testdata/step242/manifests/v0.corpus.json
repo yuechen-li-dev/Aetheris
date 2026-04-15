@@ -44,8 +44,8 @@
       "group": "expectedFail",
       "expectedFirstDiagnostic": {
         "code": "NotImplemented",
-        "source": "Importer.SingleSolid",
-        "messagePrefix": "Multiple MANIFOLD_SOLID_BREP roots are unsupported"
+        "source": "Importer.AssemblyLike.StepMultiRoot",
+        "messagePrefix": "STEP input is assembly-like"
       }
     },
     {

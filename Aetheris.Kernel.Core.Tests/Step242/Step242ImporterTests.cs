@@ -91,7 +91,7 @@ public sealed class Step242ImporterTests
     }
 
     [Fact]
-    public void ImportBody_MultipleSolidRoots_ReturnsDeterministicSingleSolidDiagnostic()
+    public void ImportBody_MultipleSolidRoots_ClassifiesInputAsAssemblyLike()
     {
         const string multiRoot = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n#1=MANIFOLD_SOLID_BREP('a',#3);\n#2=MANIFOLD_SOLID_BREP('b',#3);\n#3=CLOSED_SHELL($,());\nENDSEC;\nEND-ISO-10303-21;";
 
@@ -100,8 +100,9 @@ public sealed class Step242ImporterTests
         Assert.False(import.IsSuccess);
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Importer.SingleSolid", diagnostic.Source);
-        Assert.StartsWith("Multiple MANIFOLD_SOLID_BREP", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal("Importer.AssemblyLike.StepMultiRoot", diagnostic.Source);
+        Assert.Contains("assembly-like", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("detected 2 MANIFOLD_SOLID_BREP rigid roots", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

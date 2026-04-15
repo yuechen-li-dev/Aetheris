@@ -2,6 +2,7 @@ using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Step242;
+using System.Text;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
 
@@ -110,5 +111,47 @@ public sealed class Step242HoleSemanticsTests
         Assert.Empty(patch.Positions);
         Assert.Empty(patch.Normals);
         Assert.Empty(patch.TriangleIndices);
+    }
+
+    [Fact]
+    public void ImportBody_OcctNutExtractPlanarMultiBound_ImportsAfterBoundedRecovery()
+    {
+        var import = Step242Importer.ImportBody(ReadNutExtractStepText());
+
+        Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
+        var body = import.Value;
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        Assert.True(validation.IsSuccess, string.Join(Environment.NewLine, validation.Diagnostics.Select(d => d.Message)));
+    }
+
+    [Fact]
+    public void ImportBody_OcctNutExtractPlanarMultiBound_UsesJudgmentEngineRecoveryCandidate()
+    {
+        var diagnostics = new List<Step242Importer.PlanarMultiBoundJudgmentDiagnostic>();
+        using var scope = Step242Importer.CapturePlanarMultiBoundJudgmentDiagnostics(diagnostics);
+
+        var import = Step242Importer.ImportBody(ReadNutExtractStepText());
+
+        Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
+        var selected = diagnostics.Where(d => d.SelectedCandidate == "planar_crossing_inside_recover_as_inner").ToList();
+        Assert.NotEmpty(selected);
+        Assert.All(selected, diagnostic => Assert.Equal(diagnostic.VertexCount, diagnostic.ContainedVertexCount));
+    }
+
+    private static string ReadNutExtractStepText()
+    {
+        var fullPath = Path.GetFullPath(
+            Path.Combine(
+                AppContext.BaseDirectory,
+                "..",
+                "..",
+                "..",
+                "..",
+                "testdata",
+                "firmasm",
+                "examples",
+                "occt-nut-bolt",
+                "_nut_extract.step"));
+        return File.ReadAllText(fullPath, Encoding.UTF8);
     }
 }

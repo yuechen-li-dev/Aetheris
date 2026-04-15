@@ -203,17 +203,16 @@ public sealed class FirmasmManifestLoaderTests
     }
 
     [Fact]
-    public void LoadFromFile_OcctNutBoltManifest_RejectsUnsupportedNutImportClearly()
+    public void LoadFromFile_OcctNutBoltManifest_LoadsSuccessfully()
     {
         var loader = new FirmasmManifestLoader();
         var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
 
         var result = loader.LoadFromFile(path);
 
-        Assert.False(result.IsSuccess);
-        var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Contains("STEP part 'nut'", diagnostic.Message, StringComparison.Ordinal);
-        Assert.Contains("crosses_outer_boundary_with_all_vertices_inside", diagnostic.Message, StringComparison.Ordinal);
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.IsType<FirmasmLoadedOpaqueStepPart>(result.Value.LoadedParts["bolt"]);
+        Assert.IsType<FirmasmLoadedOpaqueStepPart>(result.Value.LoadedParts["nut"]);
     }
 
 }

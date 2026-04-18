@@ -31,6 +31,7 @@ public sealed class CliHelpAndUsageTests
     [InlineData("build")]
     [InlineData("canon")]
     [InlineData("asm")]
+    [InlineData("asm", "export")]
     [InlineData("analyze")]
     [InlineData("analyze", "map")]
     [InlineData("analyze", "section")]
@@ -108,6 +109,23 @@ public sealed class CliHelpAndUsageTests
         Assert.True(string.IsNullOrWhiteSpace(sectionStderr.ToString()));
         using var sectionDoc = JsonDocument.Parse(sectionStdout.ToString());
         Assert.False(sectionDoc.RootElement.GetProperty("success").GetBoolean());
+    }
+
+    [Fact]
+    public void Asm_Export_Missing_Out_Has_Clear_Diagnostic()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var manifestPath = Path.Combine(RepoRoot, "testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(
+            ["asm", "export", manifestPath, "--json"],
+            stdout,
+            stderr);
+
+        Assert.Equal(1, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stdout.ToString()));
+        Assert.Contains("Asm export requires --out <directory>", stderr.ToString(), StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()

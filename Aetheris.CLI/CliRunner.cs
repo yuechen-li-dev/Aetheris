@@ -14,6 +14,7 @@ public static class CliRunner
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
+    private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -520,14 +521,20 @@ public static class CliRunner
             return args.Length == 0 ? 1 : 0;
         }
 
-        if (!string.Equals(args[0], "exec", StringComparison.Ordinal))
+        if (string.Equals(args[0], "exec", StringComparison.Ordinal))
         {
-            stderr.WriteLine($"Unknown asm subcommand '{args[0]}'.");
-            stderr.WriteLine(AsmExecUsage);
-            return 1;
+            return RunAsmExec(args.Skip(1).ToArray(), stdout, stderr);
         }
 
-        return RunAsmExec(args.Skip(1).ToArray(), stdout, stderr);
+        if (string.Equals(args[0], "export", StringComparison.Ordinal))
+        {
+            return RunAsmExport(args.Skip(1).ToArray(), stdout, stderr);
+        }
+
+        stderr.WriteLine($"Unknown asm subcommand '{args[0]}'.");
+        stderr.WriteLine(AsmExecUsage);
+        stderr.WriteLine(AsmExportUsage);
+        return 1;
     }
 
     private static int RunAsmExec(string[] args, TextWriter stdout, TextWriter stderr)
@@ -619,6 +626,113 @@ public static class CliRunner
         stdout.WriteLine($"Parts: {execute.Value.LoadedAssembly.LoadedParts.Count}");
         stdout.WriteLine($"Instances: {execute.Value.Instances.Count}");
         stdout.WriteLine($"Bodies: {execute.Value.ComposedBody.Topology.Bodies.Count()}");
+        return 0;
+    }
+
+    private static int RunAsmExport(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0)
+        {
+            stderr.WriteLine(AsmExportUsage);
+            stderr.WriteLine("Run 'aetheris asm --help' for examples.");
+            return 1;
+        }
+
+        if (IsHelpFlag(args[0]))
+        {
+            WriteAsmHelp(stdout);
+            return 0;
+        }
+
+        if (args[0].StartsWith("-", StringComparison.Ordinal))
+        {
+            stderr.WriteLine("Asm export requires <file.firmasm> as the first argument.");
+            stderr.WriteLine(AsmExportUsage);
+            return 1;
+        }
+
+        var manifestPath = args[0];
+        string? outputDirectory = null;
+        var json = false;
+        for (var i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--out" when i + 1 < args.Length:
+                    outputDirectory = args[++i];
+                    break;
+                case "--out":
+                    stderr.WriteLine("Asm export option --out requires a directory path.");
+                    stderr.WriteLine(AsmExportUsage);
+                    return 1;
+                case "--json":
+                    json = true;
+                    break;
+                case "-h":
+                case "--help":
+                    WriteAsmHelp(stdout);
+                    return 0;
+                default:
+                    stderr.WriteLine($"Unknown asm export option '{args[i]}'.");
+                    stderr.WriteLine(AsmExportUsage);
+                    return 1;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+        {
+            stderr.WriteLine("Asm export requires --out <directory>.");
+            stderr.WriteLine(AsmExportUsage);
+            return 1;
+        }
+
+        var exporter = new FirmasmAssemblyRoundtripExporter();
+        var export = exporter.ExportFromFile(manifestPath, outputDirectory);
+        if (!export.IsSuccess)
+        {
+            if (json)
+            {
+                stdout.WriteLine(JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    manifestPath = Path.GetFullPath(manifestPath),
+                    outputDirectory = Path.GetFullPath(outputDirectory),
+                    diagnostics = export.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() })
+                }, JsonOptions));
+            }
+            else
+            {
+                stderr.WriteLine("ASM export failed:");
+                foreach (var diagnostic in export.Diagnostics)
+                {
+                    stderr.WriteLine($"- [{diagnostic.Severity}] {diagnostic.Source}: {diagnostic.Message}");
+                }
+            }
+
+            return 1;
+        }
+
+        if (json)
+        {
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                success = true,
+                manifestPath = export.Value.SourceManifestPath,
+                outputDirectory = export.Value.OutputDirectory,
+                packageManifestPath = export.Value.PackageManifestPath,
+                nativeAuthority = ".firmasm",
+                exportShape = "step-instance-package",
+                instanceCount = export.Value.InstanceCount,
+                composedBodyCount = export.Value.ComposedBodyCount,
+                exportedInstanceStepCount = export.Value.ExportedInstances.Count
+            }, JsonOptions));
+            return 0;
+        }
+
+        stdout.WriteLine($"ASM export succeeded: {export.Value.SourceManifestPath}");
+        stdout.WriteLine($"Output directory: {export.Value.OutputDirectory}");
+        stdout.WriteLine($"Exported instance STEP files: {export.Value.ExportedInstances.Count}");
+        stdout.WriteLine($"Package manifest: {export.Value.PackageManifestPath}");
         return 0;
     }
 
@@ -927,7 +1041,7 @@ public static class CliRunner
         stdout.WriteLine("  build      Build a .firmament source file into STEP.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
         stdout.WriteLine("  canon      Import and re-export STEP/AP242 as canonical STEP.");
-        stdout.WriteLine("  asm        Execute .firmasm assembly IR into composed world-space geometry.");
+        stdout.WriteLine("  asm        Execute/export .firmasm assembly IR using rigid world-space composition.");
         stdout.WriteLine();
         stdout.WriteLine("Global options:");
         stdout.WriteLine("  -h, --help       Show help.");
@@ -938,6 +1052,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris analyze model.step --json");
         stdout.WriteLine("  aetheris canon input.step --out canonical.step --json");
         stdout.WriteLine("  aetheris asm exec assembly.firmasm --json");
+        stdout.WriteLine("  aetheris asm export assembly.firmasm --out out/assembly-roundtrip --json");
         stdout.WriteLine("  aetheris analyze map model.step --top --rows 40 --cols 60 --json");
         stdout.WriteLine("  aetheris analyze section model.step --xy --offset 2.5 --json");
         stdout.WriteLine();
@@ -1034,16 +1149,19 @@ public static class CliRunner
 
     private static void WriteAsmHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Execute flattened .firmasm assemblies as rigidly placed body instances.");
+        stdout.WriteLine("Execute flattened .firmasm assemblies as rigidly placed body instances, or export STEP interop packages.");
         stdout.WriteLine();
         stdout.WriteLine(AsmExecUsage);
+        stdout.WriteLine($"   or: {AsmExportUsage[7..]}");
         stdout.WriteLine();
         stdout.WriteLine("Options:");
+        stdout.WriteLine("  --out <path>   Required for 'asm export'; output directory for package artifacts.");
         stdout.WriteLine("  --json         Emit machine-readable execution and analyzer JSON.");
         stdout.WriteLine("  -h, --help     Show this help.");
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris asm exec testdata/firmasm/examples/occt-as1/as1-assembly.firmasm --json");
+        stdout.WriteLine("  aetheris asm export testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm --out tmp/nutbolt-export --json");
     }
 
     private static string FormatBox(Aetheris.Kernel.Core.Math.BoundingBox3D? box) =>

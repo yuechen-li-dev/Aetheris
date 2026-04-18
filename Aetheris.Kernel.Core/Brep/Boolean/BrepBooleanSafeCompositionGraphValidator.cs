@@ -1,11 +1,14 @@
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Judgment;
 using Aetheris.Kernel.Core.Numerics;
 
 namespace Aetheris.Kernel.Core.Brep.Boolean;
 
 public static class BrepBooleanSafeCompositionGraphValidator
 {
+    private static readonly IReadOnlyList<JudgmentCandidate<BooleanContinuationContext>> ContinuationCandidates = BuildContinuationCandidates();
+
     public static bool TryValidateNextSubtract(
         SafeBooleanComposition composition,
         AnalyticSurface surface,
@@ -68,62 +71,21 @@ public static class BrepBooleanSafeCompositionGraphValidator
             if (composition.Holes.Count == 1
                 && (existingHole.IsBlind || nextHole.IsBlind))
             {
-                if (IsCoaxialHolePair(existingHole, nextHole, tolerance))
+                if (!TryValidateBlindContinuationCandidate(
+                        composition,
+                        existingHole,
+                        nextHole,
+                        tolerance,
+                        nextFeatureId,
+                        out var skipPairChecks,
+                        out diagnostic))
                 {
-                    if (BrepBooleanCoaxialCountersinkSubtractFamily.TryClassifyPair(
-                        composition.OuterBox,
-                        existingHole,
-                        nextHole,
-                        tolerance,
-                        out _,
-                        out var countersinkDiagnostic,
-                        nextFeatureId))
-                    {
-                        continue;
-                    }
-
-                    if (countersinkDiagnostic is not null)
-                    {
-                        diagnostic = countersinkDiagnostic;
-                        return false;
-                    }
-
-                    if (BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
-                        composition.OuterBox,
-                        existingHole,
-                        nextHole,
-                        tolerance,
-                        out _,
-                        out var steppedDiagnostic,
-                        nextFeatureId))
-                    {
-                        continue;
-                    }
-
-                    if (steppedDiagnostic is not null)
-                    {
-                        diagnostic = steppedDiagnostic;
-                        return false;
-                    }
-                }
-                else if (!SupportsBoundedIndependentHoleContinuationOnRecognizedOrthogonalAdditiveRoot(composition, nextHole, tolerance))
-                {
-                    BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
-                        composition.OuterBox,
-                        existingHole,
-                        nextHole,
-                        tolerance,
-                        out _,
-                        out var steppedDiagnostic,
-                        nextFeatureId);
-                    diagnostic = steppedDiagnostic ?? new BooleanDiagnostic(
-                        BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
-                        BrepBooleanCylinderRecognition.CreateBooleanMessage(
-                            BooleanOperation.Subtract.ToString(),
-                            nextFeatureId,
-                            "independent multi-hole continuation exceeds the bounded family; non-coaxial blind-hole composition is only supported on recognized orthogonal additive roots with world-Z cylinder/cone holes."),
-                        "BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily");
                     return false;
+                }
+
+                if (skipPairChecks)
+                {
+                    continue;
                 }
             }
 
@@ -620,6 +582,219 @@ public static class BrepBooleanSafeCompositionGraphValidator
 
         return nextHole.Surface.Kind is AnalyticSurfaceKind.Cylinder or AnalyticSurfaceKind.Cone;
     }
+
+    private static bool TryValidateBlindContinuationCandidate(
+        SafeBooleanComposition composition,
+        in SupportedBooleanHole existingHole,
+        in SupportedBooleanHole nextHole,
+        ToleranceContext tolerance,
+        string? featureId,
+        out bool skipPairChecks,
+        out BooleanDiagnostic? diagnostic)
+    {
+        skipPairChecks = false;
+        var pairIsCoaxial = IsCoaxialHolePair(existingHole, nextHole, tolerance);
+        var countersinkSupported = false;
+        BooleanDiagnostic? countersinkDiagnostic = null;
+        var stackSupported = false;
+        BooleanDiagnostic? stackDiagnostic = null;
+
+        if (pairIsCoaxial)
+        {
+            countersinkSupported = BrepBooleanCoaxialCountersinkSubtractFamily.TryClassifyPair(
+                composition.OuterBox,
+                existingHole,
+                nextHole,
+                tolerance,
+                out _,
+                out countersinkDiagnostic,
+                featureId);
+            stackSupported = BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
+                composition.OuterBox,
+                existingHole,
+                nextHole,
+                tolerance,
+                out _,
+                out stackDiagnostic,
+                featureId);
+        }
+        else
+        {
+            BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
+                composition.OuterBox,
+                existingHole,
+                nextHole,
+                tolerance,
+                out _,
+                out stackDiagnostic,
+                featureId);
+        }
+
+        var context = new BooleanContinuationContext(
+            Operation: BooleanOperation.Subtract,
+            HasRecognizedSafeCompositionRoot: true,
+            HasRecognizedOrthogonalAdditiveRoot: composition.OccupiedCells is not null && composition.OccupiedCells.Count >= 2,
+            ExistingHole: existingHole,
+            NextHole: nextHole,
+            PairIsCoaxial: pairIsCoaxial,
+            IsCountersinkSupported: countersinkSupported,
+            CountersinkDiagnostic: countersinkDiagnostic,
+            IsSubtractStackSupported: stackSupported,
+            SubtractStackDiagnostic: stackDiagnostic,
+            SupportsIndependentContinuationOnAdditiveRoot: SupportsBoundedIndependentHoleContinuationOnRecognizedOrthogonalAdditiveRoot(composition, nextHole, tolerance));
+
+        var result = new JudgmentEngine<BooleanContinuationContext>().Evaluate(context, ContinuationCandidates);
+        if (!result.IsSuccess)
+        {
+            diagnostic = BuildUnsupportedBlindContinuationDiagnostic(
+                context,
+                featureId,
+                result.Rejections);
+            return false;
+        }
+
+        var selectedFamily = Enum.Parse<BooleanContinuationFamily>(result.Selection!.Value.Candidate.Name, ignoreCase: false);
+        switch (selectedFamily)
+        {
+            case BooleanContinuationFamily.CoaxialCountersinkPair:
+            case BooleanContinuationFamily.CoaxialSubtractStack:
+            case BooleanContinuationFamily.IndependentHolesOnAdditiveRoot:
+                skipPairChecks = true;
+                diagnostic = null;
+                return true;
+            case BooleanContinuationFamily.UnsupportedContinuationFromRecognizedRoot:
+            case BooleanContinuationFamily.UnsupportedGeneral:
+                diagnostic = BuildUnsupportedBlindContinuationDiagnostic(
+                    context,
+                    featureId,
+                    result.Rejections);
+                return false;
+            default:
+                diagnostic = new BooleanDiagnostic(
+                    BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
+                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                        BooleanOperation.Subtract.ToString(),
+                        featureId,
+                        $"blind-hole continuation selected unknown family '{selectedFamily}'."),
+                    "BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily");
+                return false;
+        }
+    }
+
+    private static IReadOnlyList<JudgmentCandidate<BooleanContinuationContext>> BuildContinuationCandidates()
+        =>
+        [
+            new JudgmentCandidate<BooleanContinuationContext>(
+                Name: BooleanContinuationFamily.CoaxialCountersinkPair.ToString(),
+                IsAdmissible: context => context.PairIsCoaxial && context.IsCountersinkSupported,
+                Score: _ => 500d,
+                RejectionReason: context => context.PairIsCoaxial
+                    ? context.CountersinkDiagnostic?.Message ?? "Coaxial countersink continuation predicates were not satisfied."
+                    : "Coaxial countersink continuation requires a coaxial pair."),
+            new JudgmentCandidate<BooleanContinuationContext>(
+                Name: BooleanContinuationFamily.CoaxialSubtractStack.ToString(),
+                IsAdmissible: context => context.PairIsCoaxial && context.IsSubtractStackSupported,
+                Score: _ => 400d,
+                RejectionReason: context => context.PairIsCoaxial
+                    ? context.SubtractStackDiagnostic?.Message ?? "Coaxial subtract-stack continuation predicates were not satisfied."
+                    : "Coaxial subtract-stack continuation requires a coaxial pair."),
+            new JudgmentCandidate<BooleanContinuationContext>(
+                Name: BooleanContinuationFamily.IndependentHolesOnAdditiveRoot.ToString(),
+                IsAdmissible: context => !context.PairIsCoaxial && context.SupportsIndependentContinuationOnAdditiveRoot,
+                Score: _ => 300d,
+                RejectionReason: context => context.PairIsCoaxial
+                    ? "Independent-hole continuation requires a non-coaxial pair."
+                    : "Independent-hole continuation requires a recognized orthogonal additive root with world-Z cylinder/cone holes."),
+            new JudgmentCandidate<BooleanContinuationContext>(
+                Name: BooleanContinuationFamily.UnsupportedContinuationFromRecognizedRoot.ToString(),
+                IsAdmissible: context => context.HasRecognizedSafeCompositionRoot,
+                Score: _ => 100d,
+                RejectionReason: context => context.HasRecognizedSafeCompositionRoot
+                    ? "Supported continuation candidates were rejected for the recognized safe root."
+                    : "Recognized-root unsupported continuation fallback requires safe composition metadata."),
+            new JudgmentCandidate<BooleanContinuationContext>(
+                Name: BooleanContinuationFamily.UnsupportedGeneral.ToString(),
+                IsAdmissible: _ => true,
+                Score: _ => 0d)
+        ];
+
+    private static BooleanDiagnostic BuildUnsupportedBlindContinuationDiagnostic(
+        in BooleanContinuationContext context,
+        string? featureId,
+        IReadOnlyList<JudgmentRejection> rejections)
+    {
+        if (context.PairIsCoaxial)
+        {
+            if (context.CountersinkDiagnostic is not null)
+            {
+                return AppendNearestCandidateDetail(context.CountersinkDiagnostic, rejections);
+            }
+
+            if (context.SubtractStackDiagnostic is not null)
+            {
+                return AppendNearestCandidateDetail(context.SubtractStackDiagnostic, rejections);
+            }
+        }
+
+        if (!context.PairIsCoaxial && context.SubtractStackDiagnostic is not null)
+        {
+            return AppendNearestCandidateDetail(context.SubtractStackDiagnostic, rejections);
+        }
+
+        const string baseReason = "independent multi-hole continuation exceeds the bounded family; non-coaxial blind-hole composition is only supported on recognized orthogonal additive roots with world-Z cylinder/cone holes.";
+        var nearest = rejections.FirstOrDefault(rejection =>
+            rejection.CandidateName != BooleanContinuationFamily.UnsupportedContinuationFromRecognizedRoot.ToString()
+            && rejection.CandidateName != BooleanContinuationFamily.UnsupportedGeneral.ToString());
+        var detail = nearest.CandidateName is null
+            ? baseReason
+            : $"{baseReason} Nearest candidate '{nearest.CandidateName}' rejected: {nearest.Reason}";
+
+        return new BooleanDiagnostic(
+            BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
+            BrepBooleanCylinderRecognition.CreateBooleanMessage(
+                BooleanOperation.Subtract.ToString(),
+                featureId,
+                detail),
+            "BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily");
+    }
+
+    private static BooleanDiagnostic AppendNearestCandidateDetail(BooleanDiagnostic diagnostic, IReadOnlyList<JudgmentRejection> rejections)
+    {
+        var nearest = rejections.FirstOrDefault(rejection =>
+            rejection.CandidateName != BooleanContinuationFamily.UnsupportedContinuationFromRecognizedRoot.ToString()
+            && rejection.CandidateName != BooleanContinuationFamily.UnsupportedGeneral.ToString());
+        if (nearest.CandidateName is null)
+        {
+            return diagnostic;
+        }
+
+        return diagnostic with
+        {
+            Message = $"{diagnostic.Message} Nearest candidate '{nearest.CandidateName}' rejected: {nearest.Reason}"
+        };
+    }
+
+    private enum BooleanContinuationFamily
+    {
+        CoaxialCountersinkPair,
+        CoaxialSubtractStack,
+        IndependentHolesOnAdditiveRoot,
+        UnsupportedContinuationFromRecognizedRoot,
+        UnsupportedGeneral
+    }
+
+    private readonly record struct BooleanContinuationContext(
+        BooleanOperation Operation,
+        bool HasRecognizedSafeCompositionRoot,
+        bool HasRecognizedOrthogonalAdditiveRoot,
+        SupportedBooleanHole ExistingHole,
+        SupportedBooleanHole NextHole,
+        bool PairIsCoaxial,
+        bool IsCountersinkSupported,
+        BooleanDiagnostic? CountersinkDiagnostic,
+        bool IsSubtractStackSupported,
+        BooleanDiagnostic? SubtractStackDiagnostic,
+        bool SupportsIndependentContinuationOnAdditiveRoot);
 
     private static bool ValidateContainedSphereCavity(
         AxisAlignedBoxExtents outerBox,

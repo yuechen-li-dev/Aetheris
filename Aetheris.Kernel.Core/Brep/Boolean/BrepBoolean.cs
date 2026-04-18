@@ -74,8 +74,19 @@ internal enum BooleanTopLevelCase
     UnionWithExistingOrthogonalRoot,
     BoxBoxPlanarOnly,
     SubtractAnalyticHole,
+    SubtractIntersectRecognizedSafeRoot,
     SubtractCylinderRootKeyway,
     UnsupportedFromRecognizedSafeComposition,
+    UnsupportedGeneral,
+}
+
+internal enum BooleanSubtractIntersectFamily
+{
+    SubtractIntersectOrthogonalCellsExistingRoot,
+    SubtractBoxSingleBoxResult,
+    SubtractBoxPocketOnRecognizedRoot,
+    IntersectSupportedBoundedCase,
+    UnsupportedFromRecognizedSafeRoot,
     UnsupportedGeneral,
 }
 
@@ -106,6 +117,20 @@ internal sealed record OrthogonalUnionClassificationContext(
     bool HasPositiveAreaFaceContact,
     IReadOnlyList<AxisAlignedBoxExtents> CandidateCells,
     bool IsConnectedCellUnion);
+
+internal sealed record BooleanSubtractIntersectContext(
+    BooleanOperation Operation,
+    ToleranceContext Tolerance,
+    SafeBooleanComposition LeftSafeComposition,
+    AxisAlignedBoxExtents LeftRootBox,
+    AxisAlignedBoxExtents RightBox,
+    bool LeftHasOccupiedCells,
+    bool HasPositiveVolumeOverlap,
+    bool IsTouchingOnly,
+    bool RightContainsLeft,
+    bool CanSubtractToSingleBox,
+    bool CanSubtractToOrthogonalPocket,
+    string? SubtractPocketUnsupportedReason);
 
 /// <summary>
 /// bounded boolean pipeline with narrow real support for axis-aligned box/box cases that resolve to a single box
@@ -310,6 +335,17 @@ public static class BrepBoolean
                     ? "Analytic-hole candidate only applies to subtract operations."
                     : "Analytic-hole candidate requires a recognized left root (box/safe-composition) and recognized right analytic tool."),
             new JudgmentCandidate<BooleanCaseContext>(
+                Name: BooleanTopLevelCase.SubtractIntersectRecognizedSafeRoot.ToString(),
+                IsAdmissible: context =>
+                    (context.Operation == BooleanOperation.Subtract || context.Operation == BooleanOperation.Intersect)
+                    && context.LeftHasSafeComposition
+                    && context.LeftSafeComposition is not null
+                    && context.LeftSafeComposition.RootDescriptor.Kind == SafeBooleanRootKind.Box
+                    && context.RightRecognizedBox,
+                Score: _ => 250d,
+                RejectionReason: context =>
+                    $"Recognized-safe-root subtract/intersect shell requires subtract/intersect, a recognized safe box root, and a recognized box right operand (op={context.Operation}, hasSafe={context.LeftHasSafeComposition}, rightBox={context.RightRecognizedBox})."),
+            new JudgmentCandidate<BooleanCaseContext>(
                 Name: BooleanTopLevelCase.SubtractCylinderRootKeyway.ToString(),
                 IsAdmissible: context => context.IsCylinderRootCandidate,
                 Score: _ => 200d,
@@ -357,6 +393,7 @@ public static class BrepBoolean
                 null,
                 context.RightAnalyticSurface,
                 null),
+            BooleanTopLevelCase.SubtractIntersectRecognizedSafeRoot => RouteRecognizedSafeRootSubtractIntersectCase(context),
             BooleanTopLevelCase.SubtractCylinderRootKeyway => context.IsCylinderRootKeywaySupported
                 ? new BooleanCaseClassification(
                     BooleanExecutionClass.UnsupportedGeneralCase,
@@ -381,6 +418,151 @@ public static class BrepBoolean
                 BuildUnsupportedSafeCompositionReason(context, candidateResult)),
             _ => CreateUnsupportedGeneralClassification(context),
         };
+    }
+
+    private static BooleanCaseClassification RouteRecognizedSafeRootSubtractIntersectCase(BooleanCaseContext context)
+    {
+        var subtractIntersectContext = BuildBooleanSubtractIntersectContext(context);
+        var selection = new JudgmentEngine<BooleanSubtractIntersectContext>()
+            .Evaluate(subtractIntersectContext, BuildBooleanSubtractIntersectCandidates());
+        if (!selection.IsSuccess)
+        {
+            return new BooleanCaseClassification(
+                BooleanExecutionClass.UnsupportedGeneralCase,
+                context.LeftSafeComposition,
+                subtractIntersectContext.LeftRootBox,
+                subtractIntersectContext.RightBox,
+                null,
+                BuildRecognizedSafeRootSubtractIntersectUnsupportedReason(subtractIntersectContext, selection));
+        }
+
+        var family = Enum.Parse<BooleanSubtractIntersectFamily>(selection.Selection!.Value.Candidate.Name, ignoreCase: false);
+        return family switch
+        {
+            BooleanSubtractIntersectFamily.SubtractIntersectOrthogonalCellsExistingRoot
+            or BooleanSubtractIntersectFamily.SubtractBoxSingleBoxResult
+            or BooleanSubtractIntersectFamily.SubtractBoxPocketOnRecognizedRoot
+            or BooleanSubtractIntersectFamily.IntersectSupportedBoundedCase
+                => new BooleanCaseClassification(
+                    BooleanExecutionClass.PlanarOnly,
+                    context.LeftSafeComposition,
+                    subtractIntersectContext.LeftRootBox,
+                    subtractIntersectContext.RightBox,
+                    null,
+                    null),
+            _ => new BooleanCaseClassification(
+                BooleanExecutionClass.UnsupportedGeneralCase,
+                context.LeftSafeComposition,
+                subtractIntersectContext.LeftRootBox,
+                subtractIntersectContext.RightBox,
+                null,
+                BuildRecognizedSafeRootSubtractIntersectUnsupportedReason(subtractIntersectContext, selection)),
+        };
+    }
+
+    private static BooleanSubtractIntersectContext BuildBooleanSubtractIntersectContext(BooleanCaseContext context)
+    {
+        var leftRootBox = context.LeftSafeComposition!.RootDescriptor.Box;
+        var rightBox = context.RightBox!.Value;
+        var overlap = AxisAlignedBoxExtents.Intersection(leftRootBox, rightBox);
+        var hasPositiveVolumeOverlap = overlap is not null && overlap.Value.HasPositiveVolume(context.Tolerance);
+        var isTouchingOnly = overlap is not null && !hasPositiveVolumeOverlap;
+        var rightContainsLeft = rightBox.Contains(leftRootBox, context.Tolerance);
+
+        var canSubtractToSingleBox = context.Operation == BooleanOperation.Subtract
+            && TrySubtractToSingleBox(leftRootBox, rightBox, context.Tolerance, out _);
+        string? subtractPocketUnsupportedReason = null;
+        var canSubtractToOrthogonalPocket = context.Operation == BooleanOperation.Subtract
+            && TryClassifyBoundedOrthogonalPocketSubtract(leftRootBox, rightBox, context.Tolerance, out _, out subtractPocketUnsupportedReason);
+
+        return new BooleanSubtractIntersectContext(
+            context.Operation,
+            context.Tolerance,
+            context.LeftSafeComposition,
+            leftRootBox,
+            rightBox,
+            context.LeftSafeComposition.OccupiedCells is { Count: > 0 },
+            hasPositiveVolumeOverlap,
+            isTouchingOnly,
+            rightContainsLeft,
+            canSubtractToSingleBox,
+            canSubtractToOrthogonalPocket,
+            subtractPocketUnsupportedReason);
+    }
+
+    private static IReadOnlyList<JudgmentCandidate<BooleanSubtractIntersectContext>> BuildBooleanSubtractIntersectCandidates()
+        =>
+        [
+            new JudgmentCandidate<BooleanSubtractIntersectContext>(
+                Name: BooleanSubtractIntersectFamily.SubtractIntersectOrthogonalCellsExistingRoot.ToString(),
+                IsAdmissible: context => context.LeftHasOccupiedCells
+                    && (context.Operation == BooleanOperation.Subtract || context.Operation == BooleanOperation.Intersect),
+                Score: _ => 450d,
+                RejectionReason: context => context.LeftHasOccupiedCells
+                    ? "Orthogonal occupied-cell subtract/intersect candidate requires subtract or intersect."
+                    : "Orthogonal occupied-cell subtract/intersect candidate requires a recognized additive safe root with occupied cells."),
+            new JudgmentCandidate<BooleanSubtractIntersectContext>(
+                Name: BooleanSubtractIntersectFamily.SubtractBoxSingleBoxResult.ToString(),
+                IsAdmissible: context => context.Operation == BooleanOperation.Subtract
+                    && !context.IsTouchingOnly
+                    && !context.RightContainsLeft
+                    && (!context.HasPositiveVolumeOverlap || context.CanSubtractToSingleBox),
+                Score: _ => 400d,
+                RejectionReason: context => context.Operation != BooleanOperation.Subtract
+                    ? "Single-box subtract candidate requires subtract."
+                    : context.IsTouchingOnly
+                        ? "Single-box subtract candidate rejects touching-only contact."
+                        : context.RightContainsLeft
+                            ? "Single-box subtract candidate rejects full tool containment of the root (empty result)."
+                            : "Single-box subtract candidate requires either no overlap or a subtract result representable as one box."),
+            new JudgmentCandidate<BooleanSubtractIntersectContext>(
+                Name: BooleanSubtractIntersectFamily.SubtractBoxPocketOnRecognizedRoot.ToString(),
+                IsAdmissible: context => context.Operation == BooleanOperation.Subtract
+                    && !context.IsTouchingOnly
+                    && context.HasPositiveVolumeOverlap
+                    && !context.RightContainsLeft
+                    && !context.CanSubtractToSingleBox
+                    && context.CanSubtractToOrthogonalPocket,
+                Score: _ => 300d,
+                RejectionReason: context => context.Operation != BooleanOperation.Subtract
+                    ? "Orthogonal-pocket subtract candidate requires subtract."
+                    : context.SubtractPocketUnsupportedReason
+                        ?? "Orthogonal-pocket subtract candidate rejected because bounded pocket predicates were not satisfied."),
+            new JudgmentCandidate<BooleanSubtractIntersectContext>(
+                Name: BooleanSubtractIntersectFamily.IntersectSupportedBoundedCase.ToString(),
+                IsAdmissible: context => context.Operation == BooleanOperation.Intersect,
+                Score: _ => 200d,
+                RejectionReason: context => context.Operation == BooleanOperation.Intersect
+                    ? "Intersect candidate selected; overlap/emptiness is classified downstream by bounded planar intersection rules."
+                    : "Intersect candidate only applies to intersect operations."),
+            new JudgmentCandidate<BooleanSubtractIntersectContext>(
+                Name: BooleanSubtractIntersectFamily.UnsupportedFromRecognizedSafeRoot.ToString(),
+                IsAdmissible: _ => true,
+                Score: _ => 100d),
+            new JudgmentCandidate<BooleanSubtractIntersectContext>(
+                Name: BooleanSubtractIntersectFamily.UnsupportedGeneral.ToString(),
+                IsAdmissible: _ => true,
+                Score: _ => 0d)
+        ];
+
+    private static string BuildRecognizedSafeRootSubtractIntersectUnsupportedReason(
+        in BooleanSubtractIntersectContext context,
+        JudgmentResult<BooleanSubtractIntersectContext> selection)
+    {
+        var baseReason =
+            $"Boolean {context.Operation}: recognized safe box-root subtract/intersect routing could not match a bounded top-level family.";
+        if (context.Operation == BooleanOperation.Subtract
+            && context.SubtractPocketUnsupportedReason is not null)
+        {
+            baseReason = $"{baseReason} {context.SubtractPocketUnsupportedReason}";
+        }
+
+        var nearest = selection.Rejections.FirstOrDefault(rejection =>
+            rejection.CandidateName != BooleanSubtractIntersectFamily.UnsupportedFromRecognizedSafeRoot.ToString()
+            && rejection.CandidateName != BooleanSubtractIntersectFamily.UnsupportedGeneral.ToString());
+        return nearest.CandidateName is null
+            ? baseReason
+            : $"{baseReason} Nearest candidate '{nearest.CandidateName}' rejected: {nearest.Reason}";
     }
 
     private static BooleanCaseClassification CreateUnsupportedGeneralClassification(BooleanCaseContext context)
@@ -526,6 +708,40 @@ public static class BrepBoolean
         var tolerance = request.Tolerance ?? ToleranceContext.Default;
         var operation = request.Operation;
         var right = intersections.Analysis.RightBox!.Value;
+        string? occupiedUnsupportedReason = null;
+
+        if ((operation == BooleanOperation.Subtract || operation == BooleanOperation.Intersect)
+            && intersections.Analysis.LeftSafeComposition is { OccupiedCells.Count: > 0 } occupiedRootComposition
+            && TryClassifyBoundedOrthogonalSubtractIntersectWithExistingRoot(
+                occupiedRootComposition,
+                right,
+                operation,
+                tolerance,
+                out var occupiedResultComposition,
+                out occupiedUnsupportedReason))
+        {
+            return new BooleanClassificationData(
+                intersections,
+                IsComputed: true,
+                FragmentCount: 1,
+                SingleBoxResult: null,
+                SafeCompositionResult: occupiedResultComposition,
+                UnsupportedReason: null,
+                OrthogonalUnionCells: occupiedResultComposition.OccupiedCells);
+        }
+
+        if ((operation == BooleanOperation.Subtract || operation == BooleanOperation.Intersect)
+            && intersections.Analysis.LeftSafeComposition is { OccupiedCells.Count: > 0 }
+            && occupiedUnsupportedReason is not null)
+        {
+            return new BooleanClassificationData(
+                intersections,
+                IsComputed: true,
+                FragmentCount: 0,
+                SingleBoxResult: null,
+                SafeCompositionResult: null,
+                UnsupportedReason: occupiedUnsupportedReason);
+        }
 
         if (operation == BooleanOperation.Intersect)
         {
@@ -934,6 +1150,151 @@ public static class BrepBoolean
             SafeBooleanRootDescriptor.FromBox(bounds),
             refinedCells);
         return true;
+    }
+
+    private static bool TryClassifyBoundedOrthogonalSubtractIntersectWithExistingRoot(
+        SafeBooleanComposition leftComposition,
+        AxisAlignedBoxExtents right,
+        BooleanOperation operation,
+        ToleranceContext tolerance,
+        out SafeBooleanComposition composition,
+        out string? unsupportedReason)
+    {
+        composition = leftComposition;
+        unsupportedReason = null;
+        if (leftComposition.OccupiedCells is not { Count: > 0 } sourceCells)
+        {
+            unsupportedReason = $"Boolean {operation}: recognized occupied-cell root is required for bounded subtract/intersect refinement.";
+            return false;
+        }
+
+        List<AxisAlignedBoxExtents> outputCells = [];
+        foreach (var cell in sourceCells)
+        {
+            if (operation == BooleanOperation.Intersect)
+            {
+                var intersection = AxisAlignedBoxExtents.Intersection(cell, right);
+                if (intersection is { } overlapCell && overlapCell.HasPositiveVolume(tolerance))
+                {
+                    outputCells.Add(overlapCell);
+                }
+
+                continue;
+            }
+
+            foreach (var fragment in SubtractBoxFromCell(cell, right, tolerance))
+            {
+                outputCells.Add(fragment);
+            }
+        }
+
+        if (outputCells.Count == 0)
+        {
+            unsupportedReason = operation == BooleanOperation.Intersect
+                ? $"Boolean {operation}: empty intersection result is not representable in the bounded boolean family."
+                : $"Boolean {operation}: subtraction fully removes the left body and empty results are not representable in the bounded boolean family.";
+            return false;
+        }
+
+        var bounds = ComputeBoundingBox(outputCells);
+        composition = leftComposition with
+        {
+            OuterBox = bounds,
+            OccupiedCells = outputCells,
+            Root = leftComposition.RootDescriptor.Kind == SafeBooleanRootKind.Box
+                ? SafeBooleanRootDescriptor.FromBox(bounds)
+                : leftComposition.Root,
+        };
+        return true;
+    }
+
+    private static IEnumerable<AxisAlignedBoxExtents> SubtractBoxFromCell(
+        AxisAlignedBoxExtents cell,
+        AxisAlignedBoxExtents tool,
+        ToleranceContext tolerance)
+    {
+        var overlap = AxisAlignedBoxExtents.Intersection(cell, tool);
+        if (overlap is null || !overlap.Value.HasPositiveVolume(tolerance))
+        {
+            yield return cell;
+            yield break;
+        }
+
+        if (tool.Contains(cell, tolerance))
+        {
+            yield break;
+        }
+
+        var cut = overlap.Value;
+        var xSpans = new (double Min, double Max)[]
+        {
+            (cell.MinX, cut.MinX),
+            (cut.MinX, cut.MaxX),
+            (cut.MaxX, cell.MaxX),
+        };
+        var ySpans = new (double Min, double Max)[]
+        {
+            (cell.MinY, cut.MinY),
+            (cut.MinY, cut.MaxY),
+            (cut.MaxY, cell.MaxY),
+        };
+        var zSpans = new (double Min, double Max)[]
+        {
+            (cell.MinZ, cut.MinZ),
+            (cut.MinZ, cut.MaxZ),
+            (cut.MaxZ, cell.MaxZ),
+        };
+
+        for (var xi = 0; xi < xSpans.Length; xi++)
+        {
+            var xSpan = xSpans[xi];
+            if (xSpan.Max - xSpan.Min <= tolerance.Linear)
+            {
+                continue;
+            }
+
+            for (var yi = 0; yi < ySpans.Length; yi++)
+            {
+                var ySpan = ySpans[yi];
+                if (ySpan.Max - ySpan.Min <= tolerance.Linear)
+                {
+                    continue;
+                }
+
+                for (var zi = 0; zi < zSpans.Length; zi++)
+                {
+                    if (xi == 1 && yi == 1 && zi == 1)
+                    {
+                        continue;
+                    }
+
+                    var zSpan = zSpans[zi];
+                    if (zSpan.Max - zSpan.Min <= tolerance.Linear)
+                    {
+                        continue;
+                    }
+
+                    yield return new AxisAlignedBoxExtents(
+                        xSpan.Min,
+                        xSpan.Max,
+                        ySpan.Min,
+                        ySpan.Max,
+                        zSpan.Min,
+                        zSpan.Max);
+                }
+            }
+        }
+    }
+
+    private static AxisAlignedBoxExtents ComputeBoundingBox(IReadOnlyList<AxisAlignedBoxExtents> cells)
+    {
+        var bounds = cells[0];
+        for (var i = 1; i < cells.Count; i++)
+        {
+            bounds = AxisAlignedBoxExtents.Bounding(bounds, cells[i]);
+        }
+
+        return bounds;
     }
 
     private static bool TryValidateOrthogonalCellConnectivity(IReadOnlyList<AxisAlignedBoxExtents> cells, ToleranceContext tolerance)

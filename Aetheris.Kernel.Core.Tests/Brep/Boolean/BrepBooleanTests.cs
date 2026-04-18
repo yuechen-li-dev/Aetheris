@@ -246,6 +246,40 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_FromRecognizedOrthogonalAdditiveRootWithBoxTool_RemainsSupported()
+    {
+        var carrier = BrepPrimitives.CreateBox(6d, 2d, 2d).Value;
+        var toolAdd = TransformBody(BrepPrimitives.CreateBox(1d, 1d, 1d).Value, Transform3D.CreateTranslation(new Vector3D(3d, 0d, 0d)));
+        var shifted = BrepBoolean.Union(carrier, toolAdd);
+        Assert.True(shifted.IsSuccess);
+        Assert.NotNull(shifted.Value.SafeBooleanComposition);
+        Assert.True(shifted.Value.SafeBooleanComposition!.OccupiedCells is { Count: > 0 });
+
+        var subtractTool = BrepPrimitives.CreateBox(3d, 2d, 2d).Value;
+        var result = BrepBoolean.Subtract(shifted.Value, subtractTool);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.True(BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+    }
+
+    [Fact]
+    public void Intersect_FromRecognizedOrthogonalAdditiveRootWithBoxTool_RemainsSupported()
+    {
+        var carrier = BrepPrimitives.CreateBox(6d, 2d, 2d).Value;
+        var toolAdd = TransformBody(BrepPrimitives.CreateBox(1d, 1d, 1d).Value, Transform3D.CreateTranslation(new Vector3D(3d, 0d, 0d)));
+        var shifted = BrepBoolean.Union(carrier, toolAdd);
+        Assert.True(shifted.IsSuccess);
+        Assert.NotNull(shifted.Value.SafeBooleanComposition);
+        Assert.True(shifted.Value.SafeBooleanComposition!.OccupiedCells is { Count: > 0 });
+
+        var intersectTool = BrepPrimitives.CreateBox(3d, 2d, 2d).Value;
+        var result = BrepBoolean.Intersect(shifted.Value, intersectTool);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.True(BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+    }
+
+    [Fact]
     public void Union_DisjointBoxes_ReturnsNotImplemented()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 1d, 0d, 1d, 0d, 1d)).Value;
@@ -1546,7 +1580,7 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void ClassifyBooleanCase_SafeCompositionIntersect_RemainsBoundedUnsupported()
+    public void ClassifyBooleanCase_SafeCompositionIntersectWithBox_UsesRecognizedSafeRootJudgmentPath()
     {
         var root = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
         var holeTool = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(3d, -2d, 6d)));
@@ -1557,12 +1591,28 @@ public sealed class BrepBooleanTests
 
         var classification = BrepBoolean.ClassifyBooleanCase(safeComposition, right, BooleanOperation.Intersect);
 
+        Assert.Equal(BooleanExecutionClass.PlanarOnly, classification.ExecutionClass);
+        Assert.NotNull(classification.LeftSafeComposition);
+        Assert.NotNull(classification.LeftBox);
+        Assert.NotNull(classification.RightBox);
+        Assert.Null(classification.UnsupportedReason);
+    }
+
+    [Fact]
+    public void ClassifyBooleanCase_SafeCompositionSubtractWithContainingBox_ReportsBoundedFamilyRejectDetail()
+    {
+        var root = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-10d, 10d, -10d, 10d, -4d, 4d)).Value;
+        var holeTool = TransformBody(BrepPrimitives.CreateCylinder(2d, 10d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 0d)));
+        var safeCompositionResult = BrepBoolean.Subtract(root, holeTool);
+        Assert.True(safeCompositionResult.IsSuccess);
+
+        var containingTool = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-12d, 12d, -12d, 12d, -6d, 6d)).Value;
+        var classification = BrepBoolean.ClassifyBooleanCase(safeCompositionResult.Value, containingTool, BooleanOperation.Subtract);
+
         Assert.Equal(BooleanExecutionClass.UnsupportedGeneralCase, classification.ExecutionClass);
         Assert.NotNull(classification.UnsupportedReason);
-        Assert.Contains(
-            "sequential safe composition only supports subtracting supported analytic holes",
-            classification.UnsupportedReason!,
-            StringComparison.Ordinal);
+        Assert.Contains("recognized safe box-root subtract/intersect routing", classification.UnsupportedReason!, StringComparison.Ordinal);
+        Assert.NotEmpty(classification.UnsupportedReason);
     }
 
     [Fact]

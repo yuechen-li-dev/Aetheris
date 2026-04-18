@@ -1,4 +1,7 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using System.Globalization;
 
@@ -499,6 +502,45 @@ END-ISO-10303-21;";
         }
     }
 
+    [Fact]
+    public void ExportBody_WhenStoredLineDirectionIsAntiparallel_UsesEndpointDirectionForEdgeCurveLine()
+    {
+        var import = Step242Importer.ImportBody(Step242FixtureCorpus.PlanarFaceWithRectangularHole);
+        Assert.True(import.IsSuccess);
+
+        var bodyWithReversedLine = CloneWithFirstLineDirectionReversed(import.Value);
+        var export = Step242Exporter.ExportBody(bodyWithReversedLine);
+        Assert.True(export.IsSuccess);
+
+        var records = ParseStepEntities(export.Value);
+        AssertLineEdgeCurveDirectionsMatchVertexOrdering(records);
+    }
+
+    [Fact]
+    public void ExportBody_OcctSimpleBracket_ExportImportRoundTrip_Succeeds()
+    {
+        var fixturePath = Path.Combine(
+            Step242CorpusManifestRunner.RepoRoot(),
+            "testdata",
+            "firmasm",
+            "examples",
+            "occt-l-bracket",
+            "_part_003_l_bracket.step");
+        var source = File.ReadAllText(fixturePath);
+
+        var import = Step242Importer.ImportBody(source);
+        Assert.True(import.IsSuccess);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+
+        var roundTrip = Step242Importer.ImportBody(export.Value);
+        Assert.True(roundTrip.IsSuccess);
+        Assert.DoesNotContain(
+            roundTrip.Diagnostics,
+            diagnostic => diagnostic.Message.Contains("EDGE_CURVE line parameterization is opposite to vertex ordering", StringComparison.Ordinal));
+    }
+
 
     private static IReadOnlyList<double> ExtractConicalSurfaceSemiAngles(string stepText)
     {
@@ -718,6 +760,67 @@ END-ISO-10303-21;";
         var start = rhs.LastIndexOf(',') + 1;
         var end = rhs.LastIndexOf(')');
         return double.Parse(rhs[start..end], CultureInfo.InvariantCulture);
+    }
+
+    private static void AssertLineEdgeCurveDirectionsMatchVertexOrdering(StepEntityRecords records)
+    {
+        foreach (var edge in records.EdgeCurves)
+        {
+            if (!records.Lines.TryGetValue(edge.CurveId, out var line))
+            {
+                continue;
+            }
+
+            var start = ResolveVertexPoint(records, edge.StartVertexId);
+            var end = ResolveVertexPoint(records, edge.EndVertexId);
+            var edgeDirection = Normalize((end.X - start.X, end.Y - start.Y, end.Z - start.Z));
+            var lineDirection = Normalize(ResolveDirection(records, line.VectorId));
+            var dot = (edgeDirection.X * lineDirection.X) + (edgeDirection.Y * lineDirection.Y) + (edgeDirection.Z * lineDirection.Z);
+
+            Assert.True(
+                dot > 0d,
+                $"EDGE_CURVE #{edge.EdgeCurveId} uses LINE #{edge.CurveId} with direction opposite to vertex ordering. dot={dot}.");
+        }
+    }
+
+    private static BrepBody CloneWithFirstLineDirectionReversed(BrepBody source)
+    {
+        var firstLineBinding = source.Bindings.EdgeBindings
+            .OrderBy(binding => binding.EdgeId.Value)
+            .First(binding =>
+            {
+                return source.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve)
+                    && curve is not null
+                    && curve.Kind == CurveGeometryKind.Line3
+                    && curve.Line3.HasValue;
+            });
+
+        var lineCurve = source.Geometry.GetCurve(firstLineBinding.CurveGeometryId).Line3!.Value;
+        var reversed = new Line3Curve(
+            lineCurve.Origin,
+            Direction3D.Create(lineCurve.Direction.ToVector() * -1d));
+
+        var geometry = new BrepGeometryStore();
+        foreach (var (curveId, curve) in source.Geometry.Curves.OrderBy(entry => entry.Key.Value))
+        {
+            geometry.AddCurve(
+                curveId,
+                curveId == firstLineBinding.CurveGeometryId ? CurveGeometry.FromLine(reversed) : curve);
+        }
+
+        foreach (var (surfaceId, surface) in source.Geometry.Surfaces.OrderBy(entry => entry.Key.Value))
+        {
+            geometry.AddSurface(surfaceId, surface);
+        }
+
+        return new BrepBody(source.Topology, geometry, source.Bindings);
+    }
+
+    private static (double X, double Y, double Z) Normalize((double X, double Y, double Z) v)
+    {
+        var length = double.Sqrt((v.X * v.X) + (v.Y * v.Y) + (v.Z * v.Z));
+        Assert.True(length > 1e-12d, "Expected non-degenerate vector.");
+        return (v.X / length, v.Y / length, v.Z / length);
     }
 
     private static string FormatPoint((double X, double Y, double Z) p) => $"({p.X}, {p.Y}, {p.Z})";

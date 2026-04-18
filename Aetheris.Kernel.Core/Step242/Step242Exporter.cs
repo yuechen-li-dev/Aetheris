@@ -509,7 +509,7 @@ public static class Step242Exporter
                 var curveDirection = line.Direction.ToVector();
                 if (curveDirection.TryNormalize(out var normalizedCurveDirection))
                 {
-                    var alignment = double.Abs(normalizedCurveDirection.Dot(endpointDirection));
+                    var alignment = normalizedCurveDirection.Dot(endpointDirection);
                     if (alignment >= 0.999999999999d)
                     {
                         direction = normalizedCurveDirection;

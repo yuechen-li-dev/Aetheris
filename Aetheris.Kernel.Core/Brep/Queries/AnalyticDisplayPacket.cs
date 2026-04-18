@@ -30,7 +30,8 @@ public sealed record AnalyticDisplayFaceEntry(
     SurfaceGeometryKind SurfaceKind,
     SurfaceGeometry SurfaceGeometry,
     int LoopCount,
-    AnalyticDisplayFaceDomainHint? DomainHint);
+    AnalyticDisplayFaceDomainHint? DomainHint,
+    IReadOnlyList<Point3D>? PlanarOuterBoundary);
 
 public sealed record AnalyticDisplayFallbackFaceEntry(
     FaceId FaceId,
@@ -82,11 +83,24 @@ public static class AnalyticDisplayPacketBuilder
                     surface.Kind,
                     surface,
                     body.Topology.GetFace(faceId).LoopIds.Count,
-                    TryResolveDomainHint(body, faceId, surface)));
+                    TryResolveDomainHint(body, faceId, surface),
+                    TryResolvePlanarOuterBoundary(body, faceId, surface)));
             }
         }
 
         return new AnalyticDisplayPacket(bodyId, analyticFaces, fallbackFaces);
+    }
+
+    private static IReadOnlyList<Point3D>? TryResolvePlanarOuterBoundary(BrepBody body, FaceId faceId, SurfaceGeometry surface)
+    {
+        if (surface.Kind != SurfaceGeometryKind.Plane || surface.Plane is not PlaneSurface plane)
+        {
+            return null;
+        }
+
+        return AnalyticPlanarFaceDomain.TryGetOuterBoundaryWorld(body, faceId, plane, out var outerBoundary)
+            ? outerBoundary
+            : null;
     }
 
     private static AnalyticDisplayFaceDomainHint? TryResolveDomainHint(BrepBody body, FaceId faceId, SurfaceGeometry surface)

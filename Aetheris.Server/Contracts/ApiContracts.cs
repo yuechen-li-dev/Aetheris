@@ -86,7 +86,8 @@ public sealed record AnalyticDisplayPlaneGeometryDto(
     Point3Dto Origin,
     Vector3Dto Normal,
     Vector3Dto UAxis,
-    Vector3Dto VAxis);
+    Vector3Dto VAxis,
+    IReadOnlyList<Point3Dto>? OuterBoundary);
 
 public sealed record AnalyticDisplayCylinderGeometryDto(
     Point3Dto Origin,

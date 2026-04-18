@@ -206,6 +206,12 @@ describe('buildDisplaySceneData', () => {
               normal: { x: 0, y: 0, z: 1 },
               uAxis: { x: 1, y: 0, z: 0 },
               vAxis: { x: 0, y: 1, z: 0 },
+              outerBoundary: [
+                { x: -1, y: -1, z: 0 },
+                { x: 1, y: -1, z: 0 },
+                { x: 1, y: 1, z: 0 },
+                { x: -1, y: 1, z: 0 },
+              ],
             },
             cylinderGeometry: null,
             coneGeometry: null,
@@ -271,6 +277,12 @@ describe('buildDisplaySceneData', () => {
               normal: { x: 0, y: 0, z: 1 },
               uAxis: { x: 1, y: 0, z: 0 },
               vAxis: { x: 0, y: 1, z: 0 },
+              outerBoundary: [
+                { x: -1, y: -1, z: 0 },
+                { x: 1, y: -1, z: 0 },
+                { x: 1, y: 1, z: 0 },
+                { x: -1, y: 1, z: 0 },
+              ],
             },
             cylinderGeometry: null,
             coneGeometry: null,
@@ -482,6 +494,53 @@ describe('mapAnalyticPacketToRenderData', () => {
     expect(Array.from(first.faces[0].positions)).toEqual(Array.from(second.faces[0].positions));
     expect(Array.from(first.faces[0].normals)).toEqual(Array.from(second.faces[0].normals));
     expect(Array.from(first.faces[0].indices)).toEqual(Array.from(second.faces[0].indices));
+  });
+
+  it('maps planar faces from outerBoundary polygon instead of placeholder quad', () => {
+    const planarPacket = {
+      bodyId: 4,
+      analyticFaces: [
+        {
+          faceId: 401,
+          shellId: 1,
+          shellRole: 'Outer' as const,
+          surfaceGeometryId: 4001,
+          surfaceKind: 'Plane',
+          loopCount: 1,
+          domainHint: null,
+          planeGeometry: {
+            origin: { x: 0, y: 0, z: 0 },
+            normal: { x: 0, y: 0, z: 1 },
+            uAxis: { x: 1, y: 0, z: 0 },
+            vAxis: { x: 0, y: 1, z: 0 },
+            outerBoundary: [
+              { x: -2, y: -1, z: 0 },
+              { x: 3, y: -1, z: 0 },
+              { x: 3, y: 2, z: 0 },
+              { x: 1, y: 2, z: 0 },
+              { x: -2, y: 1, z: 0 },
+            ],
+          },
+          cylinderGeometry: null,
+          coneGeometry: null,
+          sphereGeometry: null,
+          torusGeometry: null,
+        },
+      ],
+      fallbackFaces: [],
+    };
+
+    const mapped = mapAnalyticPacketToRenderData(planarPacket);
+
+    expect(mapped.faces).toHaveLength(1);
+    expect(Array.from(mapped.faces[0].positions)).toEqual([
+      -2, -1, 0,
+      3, -1, 0,
+      3, 2, 0,
+      1, 2, 0,
+      -2, 1, 0,
+    ]);
+    expect(mapped.faces[0].indices.length).toBe(9);
   });
 
   it('is deterministic for the same analytic packet input', () => {

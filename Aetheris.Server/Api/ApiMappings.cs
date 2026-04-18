@@ -85,7 +85,8 @@ public static class ApiMappings
                     ToPointDto(plane.Origin),
                     ToVectorDto(plane.Normal.ToVector()),
                     ToVectorDto(plane.UAxis.ToVector()),
-                    ToVectorDto(plane.VAxis.ToVector())) : null,
+                    ToVectorDto(plane.VAxis.ToVector()),
+                    face.PlanarOuterBoundary?.Select(ToPointDto).ToArray()) : null,
                 face.SurfaceGeometry.Cylinder is { } cylinder ? new AnalyticDisplayCylinderGeometryDto(
                     ToPointDto(cylinder.Origin),
                     ToVectorDto(cylinder.Axis.ToVector()),

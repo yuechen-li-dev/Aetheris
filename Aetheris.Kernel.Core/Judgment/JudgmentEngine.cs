@@ -29,12 +29,14 @@ public readonly record struct JudgmentRejection(string CandidateName, string Rea
 
 public readonly record struct JudgmentSelection<TContext>(JudgmentCandidate<TContext> Candidate, double Score);
 
-public sealed class JudgmentResult<TContext>
+public readonly record struct JudgmentResult<TContext>
 {
-    private JudgmentResult(JudgmentSelection<TContext>? selection, IReadOnlyList<JudgmentRejection> rejections)
+    private static readonly IReadOnlyList<JudgmentRejection> EmptyRejections = Array.Empty<JudgmentRejection>();
+
+    private JudgmentResult(JudgmentSelection<TContext>? selection, IReadOnlyList<JudgmentRejection>? rejections)
     {
         Selection = selection;
-        Rejections = rejections;
+        Rejections = rejections ?? EmptyRejections;
     }
 
     public bool IsSuccess => Selection.HasValue;
@@ -44,7 +46,7 @@ public sealed class JudgmentResult<TContext>
     public IReadOnlyList<JudgmentRejection> Rejections { get; }
 
     public static JudgmentResult<TContext> Success(JudgmentSelection<TContext> selection)
-        => new(selection, []);
+        => new(selection, null);
 
     public static JudgmentResult<TContext> Failure(IReadOnlyList<JudgmentRejection> rejections)
         => new(null, rejections);
@@ -62,9 +64,15 @@ public sealed class JudgmentEngine<TContext>
             return JudgmentResult<TContext>.Failure([new JudgmentRejection("<none>", "No candidates were supplied.")]);
         }
 
-        var rejections = new List<JudgmentRejection>();
+        List<JudgmentRejection>? rejections = null;
         JudgmentSelection<TContext>? best = null;
         var bestIndex = -1;
+
+        static void AddRejection(ref List<JudgmentRejection>? buffer, string candidateName, string reason)
+        {
+            buffer ??= new List<JudgmentRejection>();
+            buffer.Add(new JudgmentRejection(candidateName, reason));
+        }
 
         for (var i = 0; i < candidates.Count; i++)
         {
@@ -72,14 +80,14 @@ public sealed class JudgmentEngine<TContext>
             if (!candidate.IsAdmissible(context))
             {
                 var reason = candidate.RejectionReason?.Invoke(context) ?? "Candidate predicates were not satisfied.";
-                rejections.Add(new JudgmentRejection(candidate.Name, reason));
+                AddRejection(ref rejections, candidate.Name, reason);
                 continue;
             }
 
             var score = candidate.Score(context);
             if (!double.IsFinite(score))
             {
-                rejections.Add(new JudgmentRejection(candidate.Name, "Candidate produced a non-finite score."));
+                AddRejection(ref rejections, candidate.Name, "Candidate produced a non-finite score.");
                 continue;
             }
 
@@ -92,7 +100,7 @@ public sealed class JudgmentEngine<TContext>
 
         return best.HasValue
             ? JudgmentResult<TContext>.Success(best.Value)
-            : JudgmentResult<TContext>.Failure(rejections);
+            : JudgmentResult<TContext>.Failure(rejections is null ? Array.Empty<JudgmentRejection>() : rejections);
     }
 
     private static bool IsBetter(

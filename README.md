@@ -10,6 +10,7 @@ Firmament is a deterministic DSL for generating CAD geometry (STEP AP242) via Ae
 - schema-aware CNC minimum tool radius validation
 - deterministic canonical formatting for supported `.firmament` source
 - STEP AP242 export for the current single-body golden path
+- assembly runtime via `.firmasm` (`asm exec`) and bounded per-instance roundtrip export (`asm export`)
 
 ## 30-second demo
 
@@ -86,12 +87,19 @@ dotnet test Aetheris.Kernel.Core.Tests --filter "Category=SlowCorpus"
 
 ## Docs
 
+- assembly model and contracts (canonical): `docs/assembly.md`
 - overview: `docs/firmament-overview.md`
 - build/export workflow: `docs/firmament-build-workflow.md`
 - selector contracts: `docs/firmament-selectors.md`
 - demo script: `docs/firmament-demo.md`
 
+## Assembly model snapshot
+
+- `.firmasm` is authoritative for assembly semantics in Aetheris.
+- STEP is treated as foreign interop input/output.
+- Multi-root STEP is assembly-like input and must route through assembly extraction/import, not single-part import.
+- Current roundtrip export is intentionally bounded to per-instance STEP + `roundtrip.package.json`.
+
 ## Notes
 
-- This slice keeps the current v1 surface only; it does not add PMI, assemblies, or multi-body export.
-- The repository still contains the broader Aetheris server/client scaffolding, but the Firmament kernel path above is the v1 demo-ready entry point.
+- The repository still contains broader Aetheris server/client scaffolding; the Firmament + CLI paths above are the primary deterministic kernel entry points.

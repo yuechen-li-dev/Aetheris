@@ -1076,7 +1076,7 @@ public static class CliRunner
 
     private static void WriteAnalyzeHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Analyze STEP geometry and topology.");
+        stdout.WriteLine("Analyze part-like STEP geometry and topology.");
         stdout.WriteLine();
         stdout.WriteLine(AnalyzeUsage);
         stdout.WriteLine($"   or: {AnalyzeMapUsage[7..]}");
@@ -1093,6 +1093,7 @@ public static class CliRunner
         stdout.WriteLine("  - At most one of --face, --edge, --vertex may be supplied.");
         stdout.WriteLine("  - Use 'aetheris analyze map --help' for orthographic map options.");
         stdout.WriteLine("  - Use 'aetheris analyze section --help' for section options.");
+        stdout.WriteLine("  - Assembly-like multi-root STEP is rejected here with a route hint to assembly extraction/import.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris analyze part.step --json");
@@ -1134,12 +1135,13 @@ public static class CliRunner
 
     private static void WriteCanonHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Canonicalize STEP/AP242 through Aetheris import/export.");
+        stdout.WriteLine("Canonicalize part-like STEP/AP242 through Aetheris import/export.");
         stdout.WriteLine();
         stdout.WriteLine(CanonUsage);
         stdout.WriteLine();
         stdout.WriteLine("Options:");
         stdout.WriteLine("  --out <path>   Required canonical AP242 output path.");
+        stdout.WriteLine("  (Assembly-like multi-root STEP is not canonicalized by this command.)");
         stdout.WriteLine("  --json         Emit machine-readable success/failure JSON.");
         stdout.WriteLine("  -h, --help     Show this help.");
         stdout.WriteLine();

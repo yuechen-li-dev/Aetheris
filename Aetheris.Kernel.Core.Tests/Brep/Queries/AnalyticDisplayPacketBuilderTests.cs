@@ -25,6 +25,27 @@ public sealed class AnalyticDisplayPacketBuilderTests
         Assert.All(packet.AnalyticFaces, face => Assert.Equal(SurfaceGeometryKind.Plane, face.SurfaceKind));
     }
 
+    [Fact]
+    public void Build_BoxBody_PopulatesPlanarOuterBoundaryWithRealFaceExtent()
+    {
+        var body = BrepPrimitives.CreateBox(2d, 2d, 2d).Value;
+
+        var packet = AnalyticDisplayPacketBuilder.Build(body);
+
+        var planarFacesWithBoundary = packet.AnalyticFaces
+            .Where(face => face.SurfaceKind == SurfaceGeometryKind.Plane && face.PlanarOuterBoundary is { Count: >= 3 })
+            .ToArray();
+
+        Assert.NotEmpty(planarFacesWithBoundary);
+
+        var boundary = planarFacesWithBoundary[0].PlanarOuterBoundary!;
+        Assert.Equal(4, boundary.Count);
+        Assert.Equal(-1d, boundary.Min(vertex => vertex.X), 9);
+        Assert.Equal(1d, boundary.Max(vertex => vertex.X), 9);
+        Assert.Equal(-1d, boundary.Min(vertex => vertex.Y), 9);
+        Assert.Equal(1d, boundary.Max(vertex => vertex.Y), 9);
+    }
+
 
     [Fact]
     public void Build_RotatedPlanarPolygonBody_KeepsNonAxisPlanarPolygonFaceAnalytic()

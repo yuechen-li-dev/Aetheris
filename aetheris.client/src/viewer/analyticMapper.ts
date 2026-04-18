@@ -29,29 +29,124 @@ function normalize(v: [number, number, number]): [number, number, number] {
   return [v[0] / len, v[1] / len, v[2] / len];
 }
 
+function signedArea2d(points: [number, number][]): number {
+  let area = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[(i + 1) % points.length];
+    area += (x1 * y2) - (x2 * y1);
+  }
+
+  return area * 0.5;
+}
+
+function pointInTriangle(point: [number, number], a: [number, number], b: [number, number], c: [number, number]): boolean {
+  const cross1 = ((b[0] - a[0]) * (point[1] - a[1])) - ((b[1] - a[1]) * (point[0] - a[0]));
+  const cross2 = ((c[0] - b[0]) * (point[1] - b[1])) - ((c[1] - b[1]) * (point[0] - b[0]));
+  const cross3 = ((a[0] - c[0]) * (point[1] - c[1])) - ((a[1] - c[1]) * (point[0] - c[0]));
+  const hasNeg = cross1 < -1e-9 || cross2 < -1e-9 || cross3 < -1e-9;
+  const hasPos = cross1 > 1e-9 || cross2 > 1e-9 || cross3 > 1e-9;
+  return !(hasNeg && hasPos);
+}
+
+function triangulateSimplePolygon(points: [number, number][]): number[] | null {
+  if (points.length < 3) {
+    return null;
+  }
+
+  const orientation = Math.sign(signedArea2d(points));
+  if (orientation === 0) {
+    return null;
+  }
+
+  const indices = [...points.keys()];
+  const triangles: number[] = [];
+  let guard = 0;
+  while (indices.length > 3 && guard < points.length * points.length) {
+    let earFound = false;
+    for (let i = 0; i < indices.length; i += 1) {
+      const prev = indices[(i - 1 + indices.length) % indices.length];
+      const curr = indices[i];
+      const next = indices[(i + 1) % indices.length];
+      const a = points[prev];
+      const b = points[curr];
+      const c = points[next];
+      const cross = ((b[0] - a[0]) * (c[1] - a[1])) - ((b[1] - a[1]) * (c[0] - a[0]));
+      if (cross * orientation <= 1e-9) {
+        continue;
+      }
+
+      let hasInteriorPoint = false;
+      for (let j = 0; j < indices.length; j += 1) {
+        const candidate = indices[j];
+        if (candidate === prev || candidate === curr || candidate === next) {
+          continue;
+        }
+
+        if (pointInTriangle(points[candidate], a, b, c)) {
+          hasInteriorPoint = true;
+          break;
+        }
+      }
+
+      if (hasInteriorPoint) {
+        continue;
+      }
+
+      triangles.push(prev, curr, next);
+      indices.splice(i, 1);
+      earFound = true;
+      break;
+    }
+
+    if (!earFound) {
+      return null;
+    }
+
+    guard += 1;
+  }
+
+  if (indices.length === 3) {
+    triangles.push(indices[0], indices[1], indices[2]);
+    return triangles;
+  }
+
+  return null;
+}
+
 function buildPlanePatch(face: AnalyticDisplayFaceDto): RenderFacePatch | null {
   if (!face.planeGeometry) {
     return null;
   }
 
-  const origin = toArray(face.planeGeometry.origin);
-  const normal = normalize(toArray(face.planeGeometry.normal));
-  const uAxis = normalize(toArray(face.planeGeometry.uAxis));
-  const vAxis = normalize(toArray(face.planeGeometry.vAxis));
-  const halfSize = 0.5;
+  const outerBoundary = face.planeGeometry.outerBoundary;
+  if (!outerBoundary || outerBoundary.length < 3) {
+    return null;
+  }
 
-  const corners: [number, number, number][] = [
-    add(add(origin, mul(uAxis, -halfSize)), mul(vAxis, -halfSize)),
-    add(add(origin, mul(uAxis, halfSize)), mul(vAxis, -halfSize)),
-    add(add(origin, mul(uAxis, halfSize)), mul(vAxis, halfSize)),
-    add(add(origin, mul(uAxis, -halfSize)), mul(vAxis, halfSize)),
-  ];
+  const normal = normalize(toArray(face.planeGeometry.normal));
+  const origin = toArray(face.planeGeometry.origin);
+  const uAxis = toArray(face.planeGeometry.uAxis);
+  const vAxis = toArray(face.planeGeometry.vAxis);
+  const points3d = outerBoundary.map(toArray);
+  const points2d: [number, number][] = points3d.map((point) => {
+    const rel: [number, number, number] = [point[0] - origin[0], point[1] - origin[1], point[2] - origin[2]];
+    return [
+      (rel[0] * uAxis[0]) + (rel[1] * uAxis[1]) + (rel[2] * uAxis[2]),
+      (rel[0] * vAxis[0]) + (rel[1] * vAxis[1]) + (rel[2] * vAxis[2]),
+    ];
+  });
+
+  const triangles = triangulateSimplePolygon(points2d);
+  if (!triangles || triangles.length === 0) {
+    return null;
+  }
 
   return {
     faceId: face.faceId,
-    positions: new Float32Array(corners.flat()),
-    normals: new Float32Array([normal, normal, normal, normal].flat()),
-    indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+    positions: new Float32Array(points3d.flat()),
+    normals: new Float32Array(points3d.flatMap(() => normal)),
+    indices: new Uint32Array(triangles),
   };
 }
 

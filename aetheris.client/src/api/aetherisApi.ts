@@ -113,6 +113,7 @@ export interface AnalyticDisplayPlaneGeometryDto {
     normal: Vector3Dto;
     uAxis: Vector3Dto;
     vAxis: Vector3Dto;
+    outerBoundary: Point3Dto[] | null;
 }
 
 export interface AnalyticDisplayCylinderGeometryDto {

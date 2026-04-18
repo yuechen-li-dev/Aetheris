@@ -82,6 +82,45 @@ internal sealed class AnalyticPlanarFaceDomain
         return false;
     }
 
+    internal static bool TryGetOuterBoundaryWorld(BrepBody body, FaceId faceId, PlaneSurface plane, out IReadOnlyList<Point3D> outerBoundary)
+    {
+        outerBoundary = [];
+        if (!body.Topology.TryGetFace(faceId, out var face) || face is null || face.LoopIds.Count == 0)
+        {
+            return false;
+        }
+
+        var loops = new List<(IReadOnlyList<Point3D> Vertices, IReadOnlyList<(double U, double V)> Projected, double Area)>(face.LoopIds.Count);
+        foreach (var loopId in face.LoopIds)
+        {
+            var loop = body.Topology.GetLoop(loopId);
+            if (!TryBuildPolygonLoopDetailed(body, loop, plane, out var vertices, out var projected))
+            {
+                return false;
+            }
+
+            loops.Add((vertices, projected, double.Abs(SignedArea(projected))));
+        }
+
+        var ordered = loops.OrderByDescending(entry => entry.Area).ToArray();
+        if (ordered.Length == 0 || ordered[0].Area <= 1e-9d)
+        {
+            return false;
+        }
+
+        var candidateOuter = ordered[0].Projected;
+        for (var i = 1; i < ordered.Length; i++)
+        {
+            if (!ordered[i].Projected.All(vertex => ContainsPoint(candidateOuter, vertex, ToleranceContext.Default)))
+            {
+                return false;
+            }
+        }
+
+        outerBoundary = ordered[0].Vertices;
+        return true;
+    }
+
     public bool Contains(Point3D point, ToleranceContext tolerance)
     {
         if (_outerPolygon.Count > 0)
@@ -184,12 +223,30 @@ internal sealed class AnalyticPlanarFaceDomain
     private static bool TryBuildPolygonLoop(BrepBody body, Loop loop, PlaneSurface plane, out IReadOnlyList<(double U, double V)> polygon)
     {
         polygon = [];
+        if (!TryBuildPolygonLoopDetailed(body, loop, plane, out _, out var projected))
+        {
+            return false;
+        }
+
+        polygon = projected;
+        return true;
+    }
+
+    private static bool TryBuildPolygonLoopDetailed(
+        BrepBody body,
+        Loop loop,
+        PlaneSurface plane,
+        out IReadOnlyList<Point3D> vertices3d,
+        out IReadOnlyList<(double U, double V)> projected)
+    {
+        vertices3d = [];
+        projected = [];
         if (loop.CoedgeIds.Count < 3)
         {
             return false;
         }
 
-        var segments = new List<(Point3D Start, Point3D End)>(loop.CoedgeIds.Count);
+        var lines = new List<(Point3D Origin, Vector3D Direction)>(loop.CoedgeIds.Count);
         foreach (var coedgeId in loop.CoedgeIds)
         {
             var coedge = body.Topology.GetCoedge(coedgeId);
@@ -200,115 +257,76 @@ internal sealed class AnalyticPlanarFaceDomain
                 return false;
             }
 
-            if (!TryGetCoedgeLineEndpoints(body, coedge, curve.Line3!.Value, out var start, out var end))
+            var line = curve.Line3!.Value;
+            var direction = coedge.IsReversed ? line.Direction.ToVector() * -1d : line.Direction.ToVector();
+            if (direction.Length <= 1e-12d)
             {
                 return false;
             }
 
-            segments.Add((start, end));
+            lines.Add((line.Origin, direction));
         }
 
-        var used = new bool[segments.Count];
-        var vertices = new List<Point3D>(segments.Count + 1) { segments[0].Start, segments[0].End };
-        used[0] = true;
-
-        for (var i = 1; i < segments.Count; i++)
+        var vertices = new List<Point3D>(lines.Count);
+        for (var i = 0; i < lines.Count; i++)
         {
-            var currentEnd = vertices[^1];
-            var nextIndex = -1;
-            var appendVertex = Point3D.Origin;
-
-            for (var candidateIndex = 0; candidateIndex < segments.Count; candidateIndex++)
-            {
-                if (used[candidateIndex])
-                {
-                    continue;
-                }
-
-                var candidate = segments[candidateIndex];
-                if (PointsAlmostEqual(candidate.Start, currentEnd))
-                {
-                    nextIndex = candidateIndex;
-                    appendVertex = candidate.End;
-                    break;
-                }
-
-                if (PointsAlmostEqual(candidate.End, currentEnd))
-                {
-                    nextIndex = candidateIndex;
-                    appendVertex = candidate.Start;
-                    break;
-                }
-            }
-
-            if (nextIndex < 0)
+            var current = lines[i];
+            var next = lines[(i + 1) % lines.Count];
+            var current2d = ProjectToPlane(current.Origin, plane);
+            var next2d = ProjectToPlane(next.Origin, plane);
+            var currentDir2d = (
+                current.Direction.Dot(plane.UAxis.ToVector()),
+                current.Direction.Dot(plane.VAxis.ToVector()));
+            var nextDir2d = (
+                next.Direction.Dot(plane.UAxis.ToVector()),
+                next.Direction.Dot(plane.VAxis.ToVector()));
+            if (!TryIntersectLines2D(current2d, currentDir2d, next2d, nextDir2d, out var intersection2d))
             {
                 return false;
             }
 
-            used[nextIndex] = true;
-            vertices.Add(appendVertex);
+            var point = plane.Origin + (plane.UAxis.ToVector() * intersection2d.U) + (plane.VAxis.ToVector() * intersection2d.V);
+            vertices.Add(point);
         }
 
-        if (!PointsAlmostEqual(vertices[0], vertices[^1]))
-        {
-            return false;
-        }
-
-        vertices.RemoveAt(vertices.Count - 1);
         if (vertices.Count < 3)
         {
             return false;
         }
 
-        var projected = new List<(double U, double V)>(vertices.Count);
+        var uvVertices = new List<(double U, double V)>(vertices.Count);
         foreach (var vertex in vertices)
         {
-            projected.Add(ProjectToPlane(vertex, plane));
+            uvVertices.Add(ProjectToPlane(vertex, plane));
         }
 
-        if (double.Abs(SignedArea(projected)) <= 1e-9d)
+        if (double.Abs(SignedArea(uvVertices)) <= 1e-9d)
         {
             return false;
         }
 
-        polygon = projected;
+        vertices3d = vertices;
+        projected = uvVertices;
         return true;
     }
 
-    private static bool TryGetCoedgeLineEndpoints(BrepBody body, Coedge coedge, Line3Curve line, out Point3D start, out Point3D end)
+    private static bool TryIntersectLines2D(
+        (double U, double V) originA,
+        (double U, double V) directionA,
+        (double U, double V) originB,
+        (double U, double V) directionB,
+        out (double U, double V) intersection)
     {
-        var edge = body.Topology.GetEdge(coedge.EdgeId);
-        var haveStart = body.TryGetVertexPoint(edge.StartVertexId, out var startPoint);
-        var haveEnd = body.TryGetVertexPoint(edge.EndVertexId, out var endPoint);
-        if (!(haveStart && haveEnd))
+        intersection = default;
+        var determinant = (directionA.U * directionB.V) - (directionA.V * directionB.U);
+        if (double.Abs(determinant) <= 1e-12d)
         {
-            if (!body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding))
-            {
-                start = default;
-                end = default;
-                return false;
-            }
-
-            var interval = binding.TrimInterval ?? new ParameterInterval(0d, 1d);
-            var sampled = CurveSampler.SampleLine(line, interval);
-            if (sampled.Count < 2)
-            {
-                start = default;
-                end = default;
-                return false;
-            }
-
-            startPoint = sampled[0];
-            endPoint = sampled[1];
-            if (!binding.OrientedEdgeSense)
-            {
-                (startPoint, endPoint) = (endPoint, startPoint);
-            }
+            return false;
         }
 
-        start = coedge.IsReversed ? endPoint : startPoint;
-        end = coedge.IsReversed ? startPoint : endPoint;
+        var delta = (U: originB.U - originA.U, V: originB.V - originA.V);
+        var t = ((delta.U * directionB.V) - (delta.V * directionB.U)) / determinant;
+        intersection = (originA.U + (directionA.U * t), originA.V + (directionA.V * t));
         return true;
     }
 

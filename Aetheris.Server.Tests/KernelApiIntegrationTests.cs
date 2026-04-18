@@ -150,6 +150,32 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     }
 
     [Fact]
+    public async Task DisplayPrepare_BoxPrimitive_PlanarFaceIncludesOuterBoundaryContract()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var prepared = await PrepareDisplayAsync(document.Data.DocumentId, box.Data!.BodyId);
+
+        Assert.Equal("analytic-only", prepared.Data!.Lane);
+        var planarFace = prepared.Data.AnalyticPacket.AnalyticFaces.FirstOrDefault(face =>
+            face.SurfaceKind == "Plane"
+            && face.PlaneGeometry is not null
+            && face.PlaneGeometry.OuterBoundary is not null
+            && face.PlaneGeometry.OuterBoundary.Count >= 3);
+        Assert.NotNull(planarFace);
+        var vertices = planarFace.PlaneGeometry!.OuterBoundary!;
+        var minX = vertices.Min(vertex => vertex.X);
+        var maxX = vertices.Max(vertex => vertex.X);
+        var minY = vertices.Min(vertex => vertex.Y);
+        var maxY = vertices.Max(vertex => vertex.Y);
+        var minZ = vertices.Min(vertex => vertex.Z);
+        var maxZ = vertices.Max(vertex => vertex.Z);
+        var extent = double.Max(maxX - minX, double.Max(maxY - minY, maxZ - minZ));
+        Assert.True(extent >= 1.9d);
+    }
+
+    [Fact]
     public async Task DisplayPrepare_ImportedUnsupportedBody_PreservesFallbackRouting()
     {
         var document = await CreateDocumentAsync("/api/v1/documents");

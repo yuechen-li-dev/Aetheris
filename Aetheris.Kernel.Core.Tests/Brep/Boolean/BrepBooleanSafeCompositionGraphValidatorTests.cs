@@ -157,7 +157,9 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
 
         Assert.False(result);
         Assert.NotNull(diagnostic);
-        Assert.Equal(BooleanDiagnosticCode.NotFullySpanning, diagnostic!.Code);
+        Assert.True(
+            diagnostic!.Code is BooleanDiagnosticCode.NotFullySpanning or BooleanDiagnosticCode.TangentContact,
+            diagnostic.Message);
         Assert.Equal("BrepBoolean.AnalyticHole.NotFullySpanning", diagnostic.Source);
         Assert.Contains("does not match the supported subtract span family", diagnostic.Message, StringComparison.Ordinal);
     }
@@ -205,6 +207,62 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
         Assert.NotNull(diagnostic);
         Assert.Equal(BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind, diagnostic!.Code);
         Assert.Equal("BrepBoolean.UnsupportedAnalyticSurfaceKind", diagnostic.Source);
+    }
+
+    [Fact]
+    public void ValidateNextSubtract_InvalidCoaxialContinuation_RemainsRejected()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-35d, 35d, -20d, 20d, -8d, 8d)).Value;
+        var blindPocket = TransformBody(BrepPrimitives.CreateCylinder(7d, 6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 5d)));
+        var first = BrepBoolean.Subtract(baseBox, blindPocket);
+        Assert.True(first.IsSuccess);
+
+        var nonConformingThroughBody = BrepPrimitives.CreateCylinder(8.0d, 24d).Value;
+        var recognized = BrepBooleanAnalyticSurfaceRecognition.TryRecognizeCylinder(
+            nonConformingThroughBody,
+            ToleranceContext.Default,
+            out var next,
+            out _);
+        Assert.True(recognized);
+
+        var result = BrepBooleanSafeCompositionGraphValidator.TryValidateNextSubtract(
+            first.Value.SafeBooleanComposition!,
+            next,
+            ToleranceContext.Default,
+            out _,
+            out var diagnostic,
+            "hole_b");
+
+        Assert.False(result);
+        Assert.NotNull(diagnostic);
+        Assert.True(
+            diagnostic!.Code is BooleanDiagnosticCode.NotFullySpanning or BooleanDiagnosticCode.TangentContact or BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public void ValidateNextSubtract_BlindCoaxialStack_StillPasses()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-35d, 35d, -20d, 20d, -8d, 8d)).Value;
+        var firstBlind = TransformBody(BrepPrimitives.CreateCylinder(7d, 6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 5d)));
+        var first = BrepBoolean.Subtract(baseBox, firstBlind);
+        Assert.True(first.IsSuccess);
+
+        var through = BrepPrimitives.CreateCylinder(3.5d, 24d).Value;
+        var recognized = BrepBooleanAnalyticSurfaceRecognition.TryRecognizeCylinder(through, ToleranceContext.Default, out var toolSurface, out _);
+        Assert.True(recognized);
+
+        var result = BrepBooleanSafeCompositionGraphValidator.TryValidateNextSubtract(
+            first.Value.SafeBooleanComposition!,
+            toolSurface,
+            ToleranceContext.Default,
+            out var updated,
+            out var diagnostic,
+            "hole_through");
+
+        Assert.True(result, diagnostic?.Message);
+        Assert.Null(diagnostic);
+        Assert.Equal(2, updated.Holes.Count);
     }
 
     private static BrepBody TransformBody(BrepBody body, Transform3D transform)

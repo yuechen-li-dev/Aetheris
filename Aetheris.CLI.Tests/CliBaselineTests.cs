@@ -78,6 +78,73 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Asm_Export_Command_Exports_OcctNutBolt_RoundtripPackage()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var manifestPath = Path.Combine(RepoRoot, "testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var outputDirectory = CreateTempDirectory();
+
+        try
+        {
+            var exitCode = Aetheris.CLI.CliRunner.Run(
+                ["asm", "export", manifestPath, "--out", outputDirectory, "--json"],
+                stdout,
+                stderr);
+
+            Assert.Equal(0, exitCode);
+            Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
+
+            using var doc = JsonDocument.Parse(stdout.ToString());
+            var root = doc.RootElement;
+            Assert.True(root.GetProperty("success").GetBoolean());
+            Assert.Equal(".firmasm", root.GetProperty("nativeAuthority").GetString());
+            Assert.Equal("step-instance-package", root.GetProperty("exportShape").GetString());
+            Assert.Equal(2, root.GetProperty("instanceCount").GetInt32());
+            Assert.Equal(2, root.GetProperty("exportedInstanceStepCount").GetInt32());
+
+            var packageManifestPath = root.GetProperty("packageManifestPath").GetString();
+            Assert.False(string.IsNullOrWhiteSpace(packageManifestPath));
+            Assert.True(File.Exists(packageManifestPath));
+        }
+        finally
+        {
+            Directory.Delete(outputDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Asm_Export_Command_Exports_As1_RoundtripPackage()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var manifestPath = Path.Combine(RepoRoot, "testdata/firmasm/examples/occt-as1/as1-assembly.firmasm");
+        var outputDirectory = CreateTempDirectory();
+
+        try
+        {
+            var exitCode = Aetheris.CLI.CliRunner.Run(
+                ["asm", "export", manifestPath, "--out", outputDirectory, "--json"],
+                stdout,
+                stderr);
+
+            Assert.Equal(0, exitCode);
+            Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
+
+            using var doc = JsonDocument.Parse(stdout.ToString());
+            var root = doc.RootElement;
+            Assert.True(root.GetProperty("success").GetBoolean());
+            Assert.Equal(18, root.GetProperty("instanceCount").GetInt32());
+            Assert.Equal(18, root.GetProperty("composedBodyCount").GetInt32());
+            Assert.Equal(18, root.GetProperty("exportedInstanceStepCount").GetInt32());
+        }
+        finally
+        {
+            Directory.Delete(outputDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Analyze_Command_Reports_Summary_Facts_And_Discoverability()
     {
         var stdout = new StringWriter();
@@ -825,6 +892,13 @@ public sealed class CliBaselineTests
         Assert.Equal(x, vector.GetProperty("x").GetDouble(), 8);
         Assert.Equal(y, vector.GetProperty("y").GetDouble(), 8);
         Assert.Equal(z, vector.GetProperty("z").GetDouble(), 8);
+    }
+
+    private static string CreateTempDirectory()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"aetheris-cli-asm-export-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(path);
+        return path;
     }
 
     private static string FindRepoRoot()

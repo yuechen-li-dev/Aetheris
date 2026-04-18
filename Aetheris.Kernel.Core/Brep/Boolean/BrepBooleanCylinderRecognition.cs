@@ -47,10 +47,16 @@ public static class BrepBooleanCylinderRecognition
             return false;
         }
 
-        var faceBindings = body.Bindings.FaceBindings.ToArray();
-        if (faceBindings.Length != 3)
+        var profile = BrepRecognitionProfile.Scan(body, tolerance);
+        if (profile.FaceCount != 3)
         {
             reason = "cylinder recognition requires exactly three face bindings.";
+            return false;
+        }
+        
+        if (profile.CylinderFaceCount != 1 || profile.PlaneFaceCount != 2)
+        {
+            reason = "cylinder recognition requires exactly one cylindrical face and two planar cap faces.";
             return false;
         }
 
@@ -60,16 +66,16 @@ public static class BrepBooleanCylinderRecognition
             return false;
         }
 
-        var cylinderBindings = new List<FaceGeometryBinding>(1);
+        CylinderSurface? cylinderSurface = null;
         var planeBindings = new List<(FaceGeometryBinding Binding, PlaneSurface Plane)>(2);
 
-        foreach (var binding in faceBindings)
+        foreach (var binding in body.Bindings.FaceBindings)
         {
             var surface = body.Geometry.GetSurface(binding.SurfaceGeometryId);
             switch (surface.Kind)
             {
                 case SurfaceGeometryKind.Cylinder when surface.Cylinder is CylinderSurface:
-                    cylinderBindings.Add(binding);
+                    cylinderSurface = surface.Cylinder.Value;
                     break;
                 case SurfaceGeometryKind.Plane when surface.Plane is PlaneSurface plane:
                     planeBindings.Add((binding, plane));
@@ -80,14 +86,13 @@ public static class BrepBooleanCylinderRecognition
             }
         }
 
-        if (cylinderBindings.Count != 1 || planeBindings.Count != 2)
+        if (cylinderSurface is null || planeBindings.Count != 2)
         {
             reason = "cylinder recognition requires exactly one cylindrical face and two planar cap faces.";
             return false;
         }
 
-        var cylinderSurface = body.Geometry.GetSurface(cylinderBindings[0].SurfaceGeometryId).Cylinder!.Value;
-        var axis = cylinderSurface.Axis;
+        var axis = cylinderSurface.Value.Axis;
         var axisVector = axis.ToVector();
 
         foreach (var edgeBinding in body.Bindings.EdgeBindings)
@@ -123,7 +128,7 @@ public static class BrepBooleanCylinderRecognition
                 sawNegativeCap = true;
             }
 
-            var centerOffset = plane.Origin - cylinderSurface.Origin;
+            var centerOffset = plane.Origin - cylinderSurface.Value.Origin;
             var axisParameter = centerOffset.Dot(axisVector);
             var radialOffset = centerOffset - (axisVector * axisParameter);
             if (radialOffset.Length > tolerance.Linear)
@@ -149,9 +154,9 @@ public static class BrepBooleanCylinderRecognition
         }
 
         cylinder = new RecognizedCylinder(
-            cylinderSurface.Origin,
+            cylinderSurface.Value.Origin,
             axis,
-            cylinderSurface.Radius,
+            cylinderSurface.Value.Radius,
             axisParameters[0],
             axisParameters[1]);
         return true;

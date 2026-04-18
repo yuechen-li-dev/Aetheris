@@ -106,10 +106,16 @@ public static class BrepBooleanBoxRecognition
             return false;
         }
 
-        var faceBindings = body.Bindings.FaceBindings.ToArray();
-        if (faceBindings.Length != 6)
+        var profile = BrepRecognitionProfile.Scan(body, tolerance);
+        if (profile.FaceCount != 6)
         {
             reason = "box recognition requires exactly six face bindings.";
+            return false;
+        }
+        
+        if (!profile.IsSingleSurface || profile.PrimarySurfaceKind != SurfaceGeometryKind.Plane)
+        {
+            reason = "box recognition requires planar surfaces for all faces.";
             return false;
         }
 
@@ -143,10 +149,10 @@ public static class BrepBooleanBoxRecognition
         var minZ = 0d;
         var maxZ = 0d;
 
-        foreach (var binding in faceBindings)
+        foreach (var binding in body.Bindings.FaceBindings)
         {
             var surface = body.Geometry.GetSurface(binding.SurfaceGeometryId);
-            if (surface.Kind != SurfaceGeometryKind.Plane || surface.Plane is null)
+            if (surface.Plane is null)
             {
                 reason = "box recognition requires planar surfaces for all faces.";
                 return false;

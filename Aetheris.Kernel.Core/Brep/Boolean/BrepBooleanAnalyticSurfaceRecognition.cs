@@ -63,8 +63,14 @@ public static class BrepBooleanAnalyticSurfaceRecognition
         surface = default;
         reason = string.Empty;
 
-        var faceBindings = body.Bindings.FaceBindings.ToArray();
-        if (faceBindings.Length < 2 || faceBindings.Length > 3)
+        var profile = BrepRecognitionProfile.Scan(body, tolerance);
+        if (profile.FaceCount < 2 || profile.FaceCount > 3)
+        {
+            reason = "cone recognition requires one conical face plus one or two planar cap faces.";
+            return false;
+        }
+        
+        if (profile.ConeFaceCount != 1 || profile.PlaneFaceCount is < 1 or > 2)
         {
             reason = "cone recognition requires one conical face plus one or two planar cap faces.";
             return false;
@@ -79,7 +85,7 @@ public static class BrepBooleanAnalyticSurfaceRecognition
         var coneBindings = new List<FaceGeometryBinding>(1);
         var planeBindings = new List<(FaceGeometryBinding Binding, PlaneSurface Plane)>(2);
 
-        foreach (var binding in faceBindings)
+        foreach (var binding in body.Bindings.FaceBindings)
         {
             var currentSurface = body.Geometry.GetSurface(binding.SurfaceGeometryId);
             switch (currentSurface.Kind)
@@ -192,15 +198,28 @@ public static class BrepBooleanAnalyticSurfaceRecognition
         surface = default;
         reason = string.Empty;
 
-        var faceBindings = body.Bindings.FaceBindings.ToArray();
-        if (faceBindings.Length != 1)
+        var profile = BrepRecognitionProfile.Scan(body, _);
+        if (profile.FaceCount != 1 || !profile.IsSingleSurface || profile.PrimarySurfaceKind != SurfaceGeometryKind.Sphere)
         {
             reason = "sphere recognition requires exactly one spherical face.";
             return false;
         }
 
-        var recognizedSurface = body.Geometry.GetSurface(faceBindings[0].SurfaceGeometryId);
-        if (recognizedSurface.Kind != SurfaceGeometryKind.Sphere || recognizedSurface.Sphere is not SphereSurface sphere)
+        FaceGeometryBinding? faceBinding = null;
+        foreach (var binding in body.Bindings.FaceBindings)
+        {
+            faceBinding = binding;
+            break;
+        }
+
+        if (faceBinding is null)
+        {
+            reason = "sphere recognition requires exactly one spherical face.";
+            return false;
+        }
+
+        var recognizedSurface = body.Geometry.GetSurface(faceBinding.Value.SurfaceGeometryId);
+        if (recognizedSurface.Sphere is not SphereSurface sphere)
         {
             reason = "sphere recognition requires a spherical face binding.";
             return false;
@@ -215,15 +234,28 @@ public static class BrepBooleanAnalyticSurfaceRecognition
         surface = default;
         reason = string.Empty;
 
-        var faceBindings = body.Bindings.FaceBindings.ToArray();
-        if (faceBindings.Length != 1)
+        var profile = BrepRecognitionProfile.Scan(body, _);
+        if (profile.FaceCount != 1 || !profile.IsSingleSurface || profile.PrimarySurfaceKind != SurfaceGeometryKind.Torus)
         {
             reason = "torus recognition requires exactly one toroidal face.";
             return false;
         }
 
-        var recognizedSurface = body.Geometry.GetSurface(faceBindings[0].SurfaceGeometryId);
-        if (recognizedSurface.Kind != SurfaceGeometryKind.Torus || recognizedSurface.Torus is not TorusSurface torus)
+        FaceGeometryBinding? faceBinding = null;
+        foreach (var binding in body.Bindings.FaceBindings)
+        {
+            faceBinding = binding;
+            break;
+        }
+
+        if (faceBinding is null)
+        {
+            reason = "torus recognition requires exactly one toroidal face.";
+            return false;
+        }
+
+        var recognizedSurface = body.Geometry.GetSurface(faceBinding.Value.SurfaceGeometryId);
+        if (recognizedSurface.Torus is not TorusSurface torus)
         {
             reason = "torus recognition requires a toroidal face binding.";
             return false;

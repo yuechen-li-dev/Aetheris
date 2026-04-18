@@ -175,10 +175,11 @@ public static class BrepBooleanCylinderRecognition
     {
         profile = default;
         diagnostic = null;
+        var diagnosticContext = new BooleanDiagnosticContext(BooleanOperation.Subtract, featureId);
         if (!TryResolveBoundaryAxisParameter(cylinder.AxisOrigin, cylinder.Axis, box.MinZ, tolerance, out var bottomAtZ)
             || !TryResolveBoundaryAxisParameter(cylinder.AxisOrigin, cylinder.Axis, box.MaxZ, tolerance, out var topAtZ))
         {
-            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the bounded arbitrary-axis subtract subset because the tool axis is nearly parallel to the box top/bottom planes.");
+            diagnostic = CreateAxisNotAlignedDiagnostic(diagnosticContext, "does not match the bounded arbitrary-axis subtract subset because the tool axis is nearly parallel to the box top/bottom planes.");
             return false;
         }
 
@@ -191,8 +192,8 @@ public static class BrepBooleanCylinderRecognition
 
         if (coversBottom && coversTop)
         {
-            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, radialBound, tolerance, out diagnostic, "bottom boundary section", featureId)
-                || !ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, radialBound, tolerance, out diagnostic, "top boundary section", featureId))
+            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, radialBound, tolerance, out diagnostic, "bottom boundary section", diagnosticContext)
+                || !ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, radialBound, tolerance, out diagnostic, "top boundary section", diagnosticContext))
             {
                 return false;
             }
@@ -205,19 +206,19 @@ public static class BrepBooleanCylinderRecognition
         {
             if (!ValidateAxisAlignedZ(cylinder, tolerance))
             {
-                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "currently supports arbitrary-axis cylinder subtract only for through-holes; blind arbitrary-axis cylinder holes remain deferred in this milestone.");
+                diagnostic = CreateNotFullySpanningDiagnostic(diagnosticContext, "currently supports arbitrary-axis cylinder subtract only for through-holes; blind arbitrary-axis cylinder holes remain deferred in this milestone.");
                 return false;
             }
 
             var termination = cylinder.MinCenter.Z < cylinder.MaxCenter.Z ? cylinder.MinCenter : cylinder.MaxCenter;
             if (termination.Z <= (box.MinZ + tolerance.Linear) || termination.Z >= (box.MaxZ - tolerance.Linear))
             {
-                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; cylinder blind holes must terminate strictly inside the box.");
+                diagnostic = CreateNotFullySpanningDiagnostic(diagnosticContext, "does not match the supported subtract span family; cylinder blind holes must terminate strictly inside the box.");
                 return false;
             }
 
-            if (!ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, radialBound, tolerance, out diagnostic, "top boundary section", featureId)
-                || !ValidateCircleInsideBoxFootprint(box, termination.X, termination.Y, cylinder.Radius, tolerance, out diagnostic, "blind bottom circle", featureId))
+            if (!ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, radialBound, tolerance, out diagnostic, "top boundary section", diagnosticContext)
+                || !ValidateCircleInsideBoxFootprint(box, termination.X, termination.Y, cylinder.Radius, tolerance, out diagnostic, "blind bottom circle", diagnosticContext))
             {
                 return false;
             }
@@ -230,19 +231,19 @@ public static class BrepBooleanCylinderRecognition
         {
             if (!ValidateAxisAlignedZ(cylinder, tolerance))
             {
-                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "currently supports arbitrary-axis cylinder subtract only for through-holes; blind arbitrary-axis cylinder holes remain deferred in this milestone.");
+                diagnostic = CreateNotFullySpanningDiagnostic(diagnosticContext, "currently supports arbitrary-axis cylinder subtract only for through-holes; blind arbitrary-axis cylinder holes remain deferred in this milestone.");
                 return false;
             }
 
             var termination = cylinder.MinCenter.Z > cylinder.MaxCenter.Z ? cylinder.MinCenter : cylinder.MaxCenter;
             if (termination.Z <= (box.MinZ + tolerance.Linear) || termination.Z >= (box.MaxZ - tolerance.Linear))
             {
-                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; cylinder blind holes must terminate strictly inside the box.");
+                diagnostic = CreateNotFullySpanningDiagnostic(diagnosticContext, "does not match the supported subtract span family; cylinder blind holes must terminate strictly inside the box.");
                 return false;
             }
 
-            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, radialBound, tolerance, out diagnostic, "bottom boundary section", featureId)
-                || !ValidateCircleInsideBoxFootprint(box, termination.X, termination.Y, cylinder.Radius, tolerance, out diagnostic, "blind bottom circle", featureId))
+            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, radialBound, tolerance, out diagnostic, "bottom boundary section", diagnosticContext)
+                || !ValidateCircleInsideBoxFootprint(box, termination.X, termination.Y, cylinder.Radius, tolerance, out diagnostic, "blind bottom circle", diagnosticContext))
             {
                 return false;
             }
@@ -251,7 +252,7 @@ public static class BrepBooleanCylinderRecognition
             return true;
         }
 
-        diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.");
+        diagnostic = CreateNotFullySpanningDiagnostic(diagnosticContext, "does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.");
         return false;
     }
 
@@ -265,10 +266,11 @@ public static class BrepBooleanCylinderRecognition
     {
         profile = default;
         diagnostic = null;
+        var diagnosticContext = new BooleanDiagnosticContext(BooleanOperation.Subtract, featureId);
         if (!TryResolveBoundaryAxisParameter(cone.AxisOrigin, cone.Axis, box.MinZ, tolerance, out var bottomAxisParameter)
             || !TryResolveBoundaryAxisParameter(cone.AxisOrigin, cone.Axis, box.MaxZ, tolerance, out var topAxisParameter))
         {
-            diagnostic = CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the bounded arbitrary-axis subtract subset because the tool axis is nearly parallel to the box top/bottom planes.");
+            diagnostic = CreateAxisNotAlignedDiagnostic(diagnosticContext, "does not match the bounded arbitrary-axis subtract subset because the tool axis is nearly parallel to the box top/bottom planes.");
             return false;
         }
 
@@ -288,12 +290,12 @@ public static class BrepBooleanCylinderRecognition
             var topRadius = cone.RadiusAtAxisParameter(topAxisParameter);
             if (bottomRadius <= tolerance.Linear || topRadius <= tolerance.Linear)
             {
-                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires non-degenerate circular sections where the cone meets the two box boundary planes. Increase the boundary radii at those planes by moving the apex farther away or changing the cone taper.");
+                diagnostic = CreateDegenerateBoundarySectionDiagnostic(diagnosticContext, "requires non-degenerate circular sections where the cone meets the two box boundary planes. Increase the boundary radii at those planes by moving the apex farther away or changing the cone taper.");
                 return false;
             }
 
-            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, bottomRadius / axisZ, tolerance, out diagnostic, "bottom boundary circle", featureId)
-                || !ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, topRadius / axisZ, tolerance, out diagnostic, "top boundary circle", featureId))
+            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, bottomRadius / axisZ, tolerance, out diagnostic, "bottom boundary circle", diagnosticContext)
+                || !ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, topRadius / axisZ, tolerance, out diagnostic, "top boundary circle", diagnosticContext))
             {
                 return false;
             }
@@ -306,7 +308,7 @@ public static class BrepBooleanCylinderRecognition
         {
             if (!IsAxisAlignedWithWorldZ(cone.Axis, tolerance))
             {
-                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "currently supports arbitrary-axis cone subtract only for through-holes; blind arbitrary-axis cone holes remain deferred in this milestone.");
+                diagnostic = CreateNotFullySpanningDiagnostic(diagnosticContext, "currently supports arbitrary-axis cone subtract only for through-holes; blind arbitrary-axis cone holes remain deferred in this milestone.");
                 return false;
             }
 
@@ -314,7 +316,7 @@ public static class BrepBooleanCylinderRecognition
             var terminationZ = System.Math.Min(cone.MinCenter.Z, cone.MaxCenter.Z);
             if (terminationZ <= (box.MinZ + tolerance.Linear) || terminationZ >= (box.MaxZ - tolerance.Linear))
             {
-                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; cone blind holes must terminate strictly inside the box.");
+                diagnostic = CreateNotFullySpanningDiagnostic(diagnosticContext, "does not match the supported subtract span family; cone blind holes must terminate strictly inside the box.");
                 return false;
             }
 
@@ -322,13 +324,13 @@ public static class BrepBooleanCylinderRecognition
             var endRadius = minEndIsLower ? cone.RadiusAtMinAxisParameter : cone.RadiusAtMaxAxisParameter;
             if (topRadius <= tolerance.Linear || endRadius <= tolerance.Linear)
             {
-                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires non-degenerate entry and bottom sections for supported cone blind holes.");
+                diagnostic = CreateDegenerateBoundarySectionDiagnostic(diagnosticContext, "requires non-degenerate entry and bottom sections for supported cone blind holes.");
                 return false;
             }
 
             var endCenter = minEndIsLower ? cone.MinCenter : cone.MaxCenter;
-            if (!ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, topRadius / axisZ, tolerance, out diagnostic, "top boundary circle", featureId)
-                || !ValidateCircleInsideBoxFootprint(box, endCenter.X, endCenter.Y, endRadius, tolerance, out diagnostic, "blind bottom circle", featureId))
+            if (!ValidateCircleInsideBoxFootprint(box, topCenter.X, topCenter.Y, topRadius / axisZ, tolerance, out diagnostic, "top boundary circle", diagnosticContext)
+                || !ValidateCircleInsideBoxFootprint(box, endCenter.X, endCenter.Y, endRadius, tolerance, out diagnostic, "blind bottom circle", diagnosticContext))
             {
                 return false;
             }
@@ -341,7 +343,7 @@ public static class BrepBooleanCylinderRecognition
         {
             if (!IsAxisAlignedWithWorldZ(cone.Axis, tolerance))
             {
-                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "currently supports arbitrary-axis cone subtract only for through-holes; blind arbitrary-axis cone holes remain deferred in this milestone.");
+                diagnostic = CreateNotFullySpanningDiagnostic(diagnosticContext, "currently supports arbitrary-axis cone subtract only for through-holes; blind arbitrary-axis cone holes remain deferred in this milestone.");
                 return false;
             }
 
@@ -349,7 +351,7 @@ public static class BrepBooleanCylinderRecognition
             var terminationZ = System.Math.Max(cone.MinCenter.Z, cone.MaxCenter.Z);
             if (terminationZ <= (box.MinZ + tolerance.Linear) || terminationZ >= (box.MaxZ - tolerance.Linear))
             {
-                diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; cone blind holes must terminate strictly inside the box.");
+                diagnostic = CreateNotFullySpanningDiagnostic(diagnosticContext, "does not match the supported subtract span family; cone blind holes must terminate strictly inside the box.");
                 return false;
             }
 
@@ -357,13 +359,13 @@ public static class BrepBooleanCylinderRecognition
             var endRadius = maxEndIsHigher ? cone.RadiusAtMaxAxisParameter : cone.RadiusAtMinAxisParameter;
             if (bottomRadius <= tolerance.Linear || endRadius <= tolerance.Linear)
             {
-                diagnostic = CreateDegenerateBoundarySectionDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "requires non-degenerate entry and bottom sections for supported cone blind holes.");
+                diagnostic = CreateDegenerateBoundarySectionDiagnostic(diagnosticContext, "requires non-degenerate entry and bottom sections for supported cone blind holes.");
                 return false;
             }
 
             var endCenter = maxEndIsHigher ? cone.MaxCenter : cone.MinCenter;
-            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, bottomRadius / axisZ, tolerance, out diagnostic, "bottom boundary circle", featureId)
-                || !ValidateCircleInsideBoxFootprint(box, endCenter.X, endCenter.Y, endRadius, tolerance, out diagnostic, "blind bottom circle", featureId))
+            if (!ValidateCircleInsideBoxFootprint(box, bottomCenter.X, bottomCenter.Y, bottomRadius / axisZ, tolerance, out diagnostic, "bottom boundary circle", diagnosticContext)
+                || !ValidateCircleInsideBoxFootprint(box, endCenter.X, endCenter.Y, endRadius, tolerance, out diagnostic, "blind bottom circle", diagnosticContext))
             {
                 return false;
             }
@@ -372,7 +374,7 @@ public static class BrepBooleanCylinderRecognition
             return true;
         }
 
-        diagnostic = CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.");
+        diagnostic = CreateNotFullySpanningDiagnostic(diagnosticContext, "does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.");
         return false;
     }
 
@@ -422,7 +424,7 @@ public static class BrepBooleanCylinderRecognition
         ToleranceContext tolerance,
         out BooleanDiagnostic? diagnostic,
         string circleLabel,
-        string? featureId)
+        in BooleanDiagnosticContext diagnosticContext)
     {
         diagnostic = null;
 
@@ -438,7 +440,7 @@ public static class BrepBooleanCylinderRecognition
             || ToleranceMath.AlmostEqual(maxFootprintY, box.MaxY, tolerance);
         if (tangentContact)
         {
-            diagnostic = CreateTangentContactDiagnostic(BooleanOperation.Subtract.ToString(), featureId, $"has {circleLabel} tangent to a box side wall; tangent analytic-hole cases are rejected to avoid zero-thickness geometry. Move the cone inward or reduce the boundary radius at that plane.");
+            diagnostic = CreateTangentContactDiagnostic(diagnosticContext, $"has {circleLabel} tangent to a box side wall; tangent analytic-hole cases are rejected to avoid zero-thickness geometry. Move the cone inward or reduce the boundary radius at that plane.");
             return false;
         }
 
@@ -447,7 +449,7 @@ public static class BrepBooleanCylinderRecognition
             || minFootprintY < (box.MinY - tolerance.Linear)
             || maxFootprintY > (box.MaxY + tolerance.Linear))
         {
-            diagnostic = CreateRadiusExceedsBoundaryDiagnostic(BooleanOperation.Subtract.ToString(), featureId, $"has {circleLabel} extending outside the box side-wall footprint. Reduce the boundary radius or move the cone center farther inside the box XY boundary.");
+            diagnostic = CreateRadiusExceedsBoundaryDiagnostic(diagnosticContext, $"has {circleLabel} extending outside the box side-wall footprint. Reduce the boundary radius or move the cone center farther inside the box XY boundary.");
             return false;
         }
 
@@ -458,64 +460,67 @@ public static class BrepBooleanCylinderRecognition
         => CreateAxisNotAlignedDiagnostic(operation, null, detail);
 
     public static BooleanDiagnostic CreateAxisNotAlignedDiagnostic(string operation, string? featureId, string detail)
-        => new(
-            BooleanDiagnosticCode.AxisNotAligned,
-            CreateBooleanMessage(operation, featureId, detail),
-            "BrepBoolean.AnalyticHole.AxisNotAligned");
+        => CreateAxisNotAlignedDiagnostic(CreateContext(operation, featureId), detail);
+
+    public static BooleanDiagnostic CreateAxisNotAlignedDiagnostic(in BooleanDiagnosticContext context, string detail)
+        => context.Error(BooleanDiagnosticCode.AxisNotAligned, detail, "BrepBoolean.AnalyticHole.AxisNotAligned");
 
     public static BooleanDiagnostic CreateNotFullySpanningDiagnostic(string operation, string detail)
         => CreateNotFullySpanningDiagnostic(operation, null, detail);
 
     public static BooleanDiagnostic CreateNotFullySpanningDiagnostic(string operation, string? featureId, string detail)
-        => new(
-            BooleanDiagnosticCode.NotFullySpanning,
-            CreateBooleanMessage(operation, featureId, detail),
-            "BrepBoolean.AnalyticHole.NotFullySpanning");
+        => CreateNotFullySpanningDiagnostic(CreateContext(operation, featureId), detail);
+
+    public static BooleanDiagnostic CreateNotFullySpanningDiagnostic(in BooleanDiagnosticContext context, string detail)
+        => context.Error(BooleanDiagnosticCode.NotFullySpanning, detail, "BrepBoolean.AnalyticHole.NotFullySpanning");
 
     public static BooleanDiagnostic CreateDegenerateBoundarySectionDiagnostic(string operation, string? featureId, string detail)
-        => new(
-            BooleanDiagnosticCode.DegenerateBoundarySection,
-            CreateBooleanMessage(operation, featureId, detail),
-            "BrepBoolean.AnalyticHole.DegenerateBoundarySection");
+        => CreateDegenerateBoundarySectionDiagnostic(CreateContext(operation, featureId), detail);
+
+    public static BooleanDiagnostic CreateDegenerateBoundarySectionDiagnostic(in BooleanDiagnosticContext context, string detail)
+        => context.Error(BooleanDiagnosticCode.DegenerateBoundarySection, detail, "BrepBoolean.AnalyticHole.DegenerateBoundarySection");
 
     public static BooleanDiagnostic CreateRadiusExceedsBoundaryDiagnostic(string operation, string detail)
         => CreateRadiusExceedsBoundaryDiagnostic(operation, null, detail);
 
     public static BooleanDiagnostic CreateRadiusExceedsBoundaryDiagnostic(string operation, string? featureId, string detail)
-        => new(
-            BooleanDiagnosticCode.RadiusExceedsBoundary,
-            CreateBooleanMessage(operation, featureId, detail),
-            "BrepBoolean.AnalyticHole.RadiusExceedsBoundary");
+        => CreateRadiusExceedsBoundaryDiagnostic(CreateContext(operation, featureId), detail);
+
+    public static BooleanDiagnostic CreateRadiusExceedsBoundaryDiagnostic(in BooleanDiagnosticContext context, string detail)
+        => context.Error(BooleanDiagnosticCode.RadiusExceedsBoundary, detail, "BrepBoolean.AnalyticHole.RadiusExceedsBoundary");
 
     public static BooleanDiagnostic CreateTangentContactDiagnostic(string operation, string detail)
         => CreateTangentContactDiagnostic(operation, null, detail);
 
     public static BooleanDiagnostic CreateTangentContactDiagnostic(string operation, string? featureId, string detail)
-        => new(
-            BooleanDiagnosticCode.TangentContact,
-            CreateBooleanMessage(operation, featureId, detail),
-            "BrepBoolean.AnalyticHole.TangentContact");
+        => CreateTangentContactDiagnostic(CreateContext(operation, featureId), detail);
+
+    public static BooleanDiagnostic CreateTangentContactDiagnostic(in BooleanDiagnosticContext context, string detail)
+        => context.Error(BooleanDiagnosticCode.TangentContact, detail, "BrepBoolean.AnalyticHole.TangentContact");
 
     public static BooleanDiagnostic CreateMultiBodyResultDiagnostic(string operation, string? featureId, string detail)
-        => new(
-            BooleanDiagnosticCode.MultiBodyResult,
-            CreateBooleanMessage(operation, featureId, detail),
-            "BrepBoolean.AnalyticHole.MultiBodyResult");
+        => CreateMultiBodyResultDiagnostic(CreateContext(operation, featureId), detail);
+
+    public static BooleanDiagnostic CreateMultiBodyResultDiagnostic(in BooleanDiagnosticContext context, string detail)
+        => context.Error(BooleanDiagnosticCode.MultiBodyResult, detail, "BrepBoolean.AnalyticHole.MultiBodyResult");
 
     public static BooleanDiagnostic CreateUnsupportedAnalyticSurfaceKindDiagnostic(string operation, AnalyticSurfaceKind kind)
         => CreateUnsupportedAnalyticSurfaceKindDiagnostic(operation, kind, null);
 
     public static BooleanDiagnostic CreateUnsupportedAnalyticSurfaceKindDiagnostic(string operation, AnalyticSurfaceKind kind, string? featureId)
-        => new(
+        => CreateUnsupportedAnalyticSurfaceKindDiagnostic(CreateContext(operation, featureId), kind);
+
+    public static BooleanDiagnostic CreateUnsupportedAnalyticSurfaceKindDiagnostic(in BooleanDiagnosticContext context, AnalyticSurfaceKind kind)
+        => context.Error(
             BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind,
-            CreateBooleanMessage(operation, featureId, $"does not support analytic tool surface kind '{kind}' in the safe boolean family. Use a cylinder or cone through-hole instead."),
+            $"does not support analytic tool surface kind '{kind}' in the safe boolean family. Use a cylinder or cone through-hole instead.",
             "BrepBoolean.UnsupportedAnalyticSurfaceKind");
 
     public static string CreateBooleanMessage(string operation, string? featureId, string detail)
-    {
-        var subject = string.IsNullOrWhiteSpace(featureId)
-            ? $"Boolean {operation}"
-            : $"Boolean feature '{featureId}' ({operation.ToLowerInvariant()})";
-        return $"{subject} {detail}";
-    }
+        => CreateContext(operation, featureId).FormatMessage(detail);
+
+    private static BooleanDiagnosticContext CreateContext(string operation, string? featureId)
+        => Enum.TryParse<BooleanOperation>(operation, ignoreCase: true, out var parsedOperation)
+            ? new BooleanDiagnosticContext(parsedOperation, featureId)
+            : new BooleanDiagnosticContext(BooleanOperation.Subtract, featureId);
 }

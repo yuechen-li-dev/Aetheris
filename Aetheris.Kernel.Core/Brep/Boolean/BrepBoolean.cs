@@ -141,6 +141,12 @@ public static class BrepBoolean
 {
     internal const string BoxBoxUnionOrthogonalCellsStrictCandidate = "box_box_union_orthogonal_cells_strict";
     internal const string BoxBoxUnionFaceContactCellsCandidate = "box_box_union_face_contact_cells";
+    private static readonly JudgmentEngine<BooleanCaseContext> BooleanCaseJudgmentEngine = new();
+    private static readonly JudgmentEngine<BooleanSubtractIntersectContext> BooleanSubtractIntersectJudgmentEngine = new();
+    private static readonly JudgmentEngine<OrthogonalUnionClassificationContext> OrthogonalUnionJudgmentEngine = new();
+    private static readonly IReadOnlyList<JudgmentCandidate<BooleanCaseContext>> BooleanCaseCandidates = BuildBooleanCaseCandidates();
+    private static readonly IReadOnlyList<JudgmentCandidate<BooleanSubtractIntersectContext>> BooleanSubtractIntersectCandidates = BuildBooleanSubtractIntersectCandidates();
+    private static readonly IReadOnlyList<JudgmentCandidate<OrthogonalUnionClassificationContext>> OrthogonalUnionCandidates = BuildOrthogonalUnionCandidates();
 
     public static KernelResult<BrepBody> Union(BrepBody left, BrepBody right)
         => Execute(new BooleanRequest(left, right, BooleanOperation.Union));
@@ -228,8 +234,7 @@ public static class BrepBoolean
     public static BooleanCaseClassification ClassifyBooleanCase(BrepBody leftBody, BrepBody rightBody, BooleanOperation operation, ToleranceContext? tolerance = null)
     {
         var context = BuildBooleanCaseContext(leftBody, rightBody, operation, tolerance);
-        var candidateResult = new JudgmentEngine<BooleanCaseContext>()
-            .Evaluate(context, BuildBooleanCaseCandidates());
+        var candidateResult = BooleanCaseJudgmentEngine.Evaluate(context, BooleanCaseCandidates);
         if (!candidateResult.IsSuccess)
         {
             return CreateUnsupportedGeneralClassification(context);
@@ -423,8 +428,7 @@ public static class BrepBoolean
     private static BooleanCaseClassification RouteRecognizedSafeRootSubtractIntersectCase(BooleanCaseContext context)
     {
         var subtractIntersectContext = BuildBooleanSubtractIntersectContext(context);
-        var selection = new JudgmentEngine<BooleanSubtractIntersectContext>()
-            .Evaluate(subtractIntersectContext, BuildBooleanSubtractIntersectCandidates());
+        var selection = BooleanSubtractIntersectJudgmentEngine.Evaluate(subtractIntersectContext, BooleanSubtractIntersectCandidates);
         if (!selection.IsSuccess)
         {
             return new BooleanCaseClassification(
@@ -1049,7 +1053,7 @@ public static class BrepBoolean
             cells,
             isConnectedCellUnion);
 
-        var classification = new JudgmentEngine<OrthogonalUnionClassificationContext>().Evaluate(candidateContext, BuildOrthogonalUnionCandidates());
+        var classification = OrthogonalUnionJudgmentEngine.Evaluate(candidateContext, OrthogonalUnionCandidates);
         if (!classification.IsSuccess)
         {
             var closestRejection = classification.Rejections.FirstOrDefault();

@@ -7,6 +7,7 @@ namespace Aetheris.Kernel.Core.Brep.Boolean;
 
 public static class BrepBooleanSafeCompositionGraphValidator
 {
+    private static readonly JudgmentEngine<BooleanContinuationContext> ContinuationJudgmentEngine = new();
     private static readonly IReadOnlyList<JudgmentCandidate<BooleanContinuationContext>> ContinuationCandidates = BuildContinuationCandidates();
 
     public static bool TryValidateNextSubtract(
@@ -643,7 +644,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
             SubtractStackDiagnostic: stackDiagnostic,
             SupportsIndependentContinuationOnAdditiveRoot: SupportsBoundedIndependentHoleContinuationOnRecognizedOrthogonalAdditiveRoot(composition, nextHole, tolerance));
 
-        var result = new JudgmentEngine<BooleanContinuationContext>().Evaluate(context, ContinuationCandidates);
+        var result = ContinuationJudgmentEngine.Evaluate(context, ContinuationCandidates);
         if (!result.IsSuccess)
         {
             diagnostic = BuildUnsupportedBlindContinuationDiagnostic(

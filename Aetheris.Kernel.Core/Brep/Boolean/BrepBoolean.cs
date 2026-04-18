@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Judgment;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
@@ -67,6 +68,34 @@ public sealed record BooleanRebuildData(
     BooleanClassificationData Classification,
     BrepBody? RebuiltBody,
     IReadOnlyList<KernelDiagnostic> Diagnostics);
+
+internal enum BooleanTopLevelCase
+{
+    UnionWithExistingOrthogonalRoot,
+    BoxBoxPlanarOnly,
+    SubtractAnalyticHole,
+    SubtractCylinderRootKeyway,
+    UnsupportedFromRecognizedSafeComposition,
+    UnsupportedGeneral,
+}
+
+internal sealed record BooleanCaseContext(
+    BooleanOperation Operation,
+    ToleranceContext Tolerance,
+    bool LeftRecognizedBox,
+    bool RightRecognizedBox,
+    bool LeftHasSafeComposition,
+    bool RightRecognizedAnalytic,
+    SafeBooleanComposition? LeftSafeComposition,
+    AxisAlignedBoxExtents? LeftBox,
+    AxisAlignedBoxExtents? RightBox,
+    AnalyticSurface? RightAnalyticSurface,
+    bool CanClassifyBoundedOrthogonalUnionWithExistingRoot,
+    SafeBooleanComposition? AdditiveComposition,
+    string? AdditiveUnsupportedReason,
+    bool IsCylinderRootCandidate,
+    bool IsCylinderRootKeywaySupported,
+    string? CylinderRootKeywayUnsupportedReason);
 
 /// <summary>
 /// bounded boolean pipeline with narrow real support for axis-aligned box/box cases that resolve to a single box
@@ -160,96 +189,213 @@ public static class BrepBoolean
 
     public static BooleanCaseClassification ClassifyBooleanCase(BrepBody leftBody, BrepBody rightBody, BooleanOperation operation, ToleranceContext? tolerance = null)
     {
+        var context = BuildBooleanCaseContext(leftBody, rightBody, operation, tolerance);
+        var candidateResult = new JudgmentEngine<BooleanCaseContext>()
+            .Evaluate(context, BuildBooleanCaseCandidates());
+        if (!candidateResult.IsSuccess)
+        {
+            return CreateUnsupportedGeneralClassification(context);
+        }
+
+        return RouteBooleanCaseSelection(context, candidateResult.Selection!.Value.Candidate.Name, candidateResult);
+    }
+
+    private static BooleanCaseContext BuildBooleanCaseContext(BrepBody leftBody, BrepBody rightBody, BooleanOperation operation, ToleranceContext? tolerance)
+    {
         var resolvedTolerance = tolerance ?? ToleranceContext.Default;
-        var leftSafeCompositionRecognized = leftBody.SafeBooleanComposition is not null;
-        var leftSafeComposition = leftSafeCompositionRecognized
-            ? leftBody.SafeBooleanComposition!
-            : null;
         var leftRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(leftBody, resolvedTolerance, out var leftBox, out _);
         var rightRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(rightBody, resolvedTolerance, out var rightBox, out _);
         var rightAnalyticRecognized = BrepBooleanAnalyticSurfaceRecognition.TryRecognizeAnalyticSurface(rightBody, resolvedTolerance, out var analyticSurface, out _);
 
-        if (operation == BooleanOperation.Union
+        var leftSafeCompositionRecognizedFromBody = leftBody.SafeBooleanComposition is not null;
+        var leftSafeComposition = leftSafeCompositionRecognizedFromBody
+            ? leftBody.SafeBooleanComposition!
+            : null;
+        var leftHasSafeComposition = leftSafeCompositionRecognizedFromBody;
+        if (operation == BooleanOperation.Subtract
             && !leftRecognized
-            && leftSafeCompositionRecognized
-            && rightRecognized
-            && leftSafeComposition is not null
-            && TryClassifyBoundedOrthogonalUnionWithExistingRoot(leftSafeComposition, rightBox, resolvedTolerance, out var additiveComposition, out var additiveUnsupportedReason))
-        {
-            return new BooleanCaseClassification(
-                BooleanExecutionClass.PlanarOnly,
-                additiveComposition,
-                additiveComposition.OuterBox,
-                rightBox,
-                null,
-                null);
-        }
-
-        if (leftRecognized && rightRecognized)
-        {
-            return new BooleanCaseClassification(BooleanExecutionClass.PlanarOnly, leftSafeComposition, leftBox, rightBox, null, null);
-        }
-
-        if (operation == BooleanOperation.Subtract && !leftRecognized && !leftSafeCompositionRecognized
+            && !leftHasSafeComposition
             && BrepBooleanSafeComposition.TryRecognize(leftBody, resolvedTolerance, out var recognizedRootComposition, out _))
         {
-            leftSafeCompositionRecognized = true;
             leftSafeComposition = recognizedRootComposition;
+            leftHasSafeComposition = true;
         }
 
-        if (operation == BooleanOperation.Subtract && (leftRecognized || leftSafeCompositionRecognized) && rightAnalyticRecognized)
+        var canClassifyBoundedOrthogonalUnionWithExistingRoot = false;
+        SafeBooleanComposition? additiveComposition = null;
+        string? additiveUnsupportedReason = null;
+        if (operation == BooleanOperation.Union
+            && !leftRecognized
+            && leftHasSafeComposition
+            && rightRecognized
+            && leftSafeComposition is not null)
         {
-            return new BooleanCaseClassification(
-                BooleanExecutionClass.PlanarWithAnalyticHole,
-                leftSafeCompositionRecognized ? leftSafeComposition : new SafeBooleanComposition(leftBox, []),
-                leftRecognized ? leftBox : leftSafeComposition!.OuterBox,
-                null,
-                analyticSurface,
-                null);
-        }
-
-        if (operation == BooleanOperation.Subtract
-            && leftSafeCompositionRecognized
-            && leftSafeComposition is not null
-            && leftSafeComposition.RootDescriptor.Kind == SafeBooleanRootKind.Cylinder
-            && rightRecognized)
-        {
-            if (TryClassifyBoundedCylinderRootKeyway(
-                leftSafeComposition.RootDescriptor,
+            canClassifyBoundedOrthogonalUnionWithExistingRoot = TryClassifyBoundedOrthogonalUnionWithExistingRoot(
+                leftSafeComposition,
                 rightBox,
                 resolvedTolerance,
-                out var keywayUnsupportedReason))
-            {
-                return new BooleanCaseClassification(BooleanExecutionClass.UnsupportedGeneralCase, leftSafeComposition, leftSafeComposition.OuterBox, rightBox, null, null);
-            }
-
-            return new BooleanCaseClassification(
-                BooleanExecutionClass.UnsupportedGeneralCase,
-                leftSafeComposition,
-                leftSafeComposition.OuterBox,
-                rightBox,
-                null,
-                keywayUnsupportedReason ?? "Boolean Subtract: cylinder-root subtract with box tool is outside the bounded keyway family.");
+                out additiveComposition,
+                out additiveUnsupportedReason);
         }
 
-        if (leftSafeCompositionRecognized)
+        var isCylinderRootCandidate = operation == BooleanOperation.Subtract
+            && leftHasSafeComposition
+            && leftSafeComposition is not null
+            && leftSafeComposition.RootDescriptor.Kind == SafeBooleanRootKind.Cylinder
+            && rightRecognized;
+        var isCylinderRootKeywaySupported = false;
+        string? cylinderRootKeywayUnsupportedReason = null;
+        if (isCylinderRootCandidate)
         {
-            return new BooleanCaseClassification(
-                BooleanExecutionClass.UnsupportedGeneralCase,
-                leftSafeComposition,
-                leftRecognized ? leftBox : leftSafeComposition!.OuterBox,
-                rightRecognized ? rightBox : null,
-                rightAnalyticRecognized ? analyticSurface : null,
-                $"Boolean {operation}: sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family.");
+            isCylinderRootKeywaySupported = TryClassifyBoundedCylinderRootKeyway(
+                leftSafeComposition!.RootDescriptor,
+                rightBox,
+                resolvedTolerance,
+                out cylinderRootKeywayUnsupportedReason);
         }
+
+        return new BooleanCaseContext(
+            operation,
+            resolvedTolerance,
+            leftRecognized,
+            rightRecognized,
+            leftHasSafeComposition,
+            rightAnalyticRecognized,
+            leftSafeComposition,
+            leftRecognized ? leftBox : null,
+            rightRecognized ? rightBox : null,
+            rightAnalyticRecognized ? analyticSurface : null,
+            canClassifyBoundedOrthogonalUnionWithExistingRoot,
+            additiveComposition,
+            additiveUnsupportedReason,
+            isCylinderRootCandidate,
+            isCylinderRootKeywaySupported,
+            cylinderRootKeywayUnsupportedReason);
+    }
+
+    private static IReadOnlyList<JudgmentCandidate<BooleanCaseContext>> BuildBooleanCaseCandidates()
+        =>
+        [
+            new JudgmentCandidate<BooleanCaseContext>(
+                Name: BooleanTopLevelCase.UnionWithExistingOrthogonalRoot.ToString(),
+                IsAdmissible: context => context.CanClassifyBoundedOrthogonalUnionWithExistingRoot
+                    && context.AdditiveComposition is not null,
+                Score: _ => 500d,
+                RejectionReason: context => context.AdditiveUnsupportedReason ?? "Union-with-existing-root bounded orthogonal additive candidate did not satisfy admissibility constraints."),
+            new JudgmentCandidate<BooleanCaseContext>(
+                Name: BooleanTopLevelCase.BoxBoxPlanarOnly.ToString(),
+                IsAdmissible: context => context.LeftRecognizedBox && context.RightRecognizedBox,
+                Score: _ => 400d,
+                RejectionReason: _ => "Planar box-box candidate requires both operands to be recognized axis-aligned boxes."),
+            new JudgmentCandidate<BooleanCaseContext>(
+                Name: BooleanTopLevelCase.SubtractAnalyticHole.ToString(),
+                IsAdmissible: context => context.Operation == BooleanOperation.Subtract
+                    && (context.LeftRecognizedBox || context.LeftHasSafeComposition)
+                    && context.RightRecognizedAnalytic,
+                Score: _ => 300d,
+                RejectionReason: context => context.Operation != BooleanOperation.Subtract
+                    ? "Analytic-hole candidate only applies to subtract operations."
+                    : "Analytic-hole candidate requires a recognized left root (box/safe-composition) and recognized right analytic tool."),
+            new JudgmentCandidate<BooleanCaseContext>(
+                Name: BooleanTopLevelCase.SubtractCylinderRootKeyway.ToString(),
+                IsAdmissible: context => context.IsCylinderRootCandidate,
+                Score: _ => 200d,
+                RejectionReason: context => context.CylinderRootKeywayUnsupportedReason
+                    ?? "Cylinder-root keyway candidate requires subtract, a cylinder safe root, and a recognized box tool."),
+            new JudgmentCandidate<BooleanCaseContext>(
+                Name: BooleanTopLevelCase.UnsupportedFromRecognizedSafeComposition.ToString(),
+                IsAdmissible: context => context.LeftHasSafeComposition,
+                Score: _ => 100d,
+                RejectionReason: _ => "Recognized safe-composition fallback is only available when the left operand carries a safe composition."),
+            new JudgmentCandidate<BooleanCaseContext>(
+                Name: BooleanTopLevelCase.UnsupportedGeneral.ToString(),
+                IsAdmissible: _ => true,
+                Score: _ => 0d)
+        ];
+
+    private static BooleanCaseClassification RouteBooleanCaseSelection(
+        BooleanCaseContext context,
+        string selectedCandidateName,
+        JudgmentResult<BooleanCaseContext> candidateResult)
+    {
+        var selectedCase = Enum.Parse<BooleanTopLevelCase>(selectedCandidateName, ignoreCase: false);
+        return selectedCase switch
+        {
+            BooleanTopLevelCase.UnionWithExistingOrthogonalRoot => new BooleanCaseClassification(
+                BooleanExecutionClass.PlanarOnly,
+                context.AdditiveComposition,
+                context.AdditiveComposition!.OuterBox,
+                context.RightBox,
+                null,
+                null),
+            BooleanTopLevelCase.BoxBoxPlanarOnly => new BooleanCaseClassification(
+                BooleanExecutionClass.PlanarOnly,
+                context.LeftHasSafeComposition ? context.LeftSafeComposition : null,
+                context.LeftBox,
+                context.RightBox,
+                null,
+                null),
+            BooleanTopLevelCase.SubtractAnalyticHole => new BooleanCaseClassification(
+                BooleanExecutionClass.PlanarWithAnalyticHole,
+                context.LeftHasSafeComposition
+                    ? context.LeftSafeComposition
+                    : new SafeBooleanComposition(context.LeftBox!.Value, []),
+                context.LeftRecognizedBox ? context.LeftBox : context.LeftSafeComposition!.OuterBox,
+                null,
+                context.RightAnalyticSurface,
+                null),
+            BooleanTopLevelCase.SubtractCylinderRootKeyway => context.IsCylinderRootKeywaySupported
+                ? new BooleanCaseClassification(
+                    BooleanExecutionClass.UnsupportedGeneralCase,
+                    context.LeftSafeComposition,
+                    context.LeftSafeComposition!.OuterBox,
+                    context.RightBox,
+                    null,
+                    null)
+                : new BooleanCaseClassification(
+                    BooleanExecutionClass.UnsupportedGeneralCase,
+                    context.LeftSafeComposition,
+                    context.LeftSafeComposition!.OuterBox,
+                    context.RightBox,
+                    null,
+                    context.CylinderRootKeywayUnsupportedReason ?? "Boolean Subtract: cylinder-root subtract with box tool is outside the bounded keyway family."),
+            BooleanTopLevelCase.UnsupportedFromRecognizedSafeComposition => new BooleanCaseClassification(
+                BooleanExecutionClass.UnsupportedGeneralCase,
+                context.LeftSafeComposition,
+                context.LeftRecognizedBox ? context.LeftBox : context.LeftSafeComposition!.OuterBox,
+                context.RightBox,
+                context.RightAnalyticSurface,
+                BuildUnsupportedSafeCompositionReason(context, candidateResult)),
+            _ => CreateUnsupportedGeneralClassification(context),
+        };
+    }
+
+    private static BooleanCaseClassification CreateUnsupportedGeneralClassification(BooleanCaseContext context)
+    {
+        var reason = $"Boolean {context.Operation}: bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).";
 
         return new BooleanCaseClassification(
             BooleanExecutionClass.UnsupportedGeneralCase,
             null,
-            leftRecognized ? leftBox : null,
-            rightRecognized ? rightBox : null,
-            rightAnalyticRecognized ? analyticSurface : null,
-            $"Boolean {operation}: bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).");
+            context.LeftBox,
+            context.RightBox,
+            context.RightAnalyticSurface,
+            reason);
+    }
+
+    private static string BuildUnsupportedSafeCompositionReason(BooleanCaseContext context, JudgmentResult<BooleanCaseContext> candidateResult)
+    {
+        var baseReason =
+            $"Boolean {context.Operation}: sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family.";
+        if (context.AdditiveUnsupportedReason is not null)
+        {
+            return $"{baseReason} Closest bounded union candidate rejected: {context.AdditiveUnsupportedReason}";
+        }
+
+        var nearestRejection = candidateResult.Rejections.FirstOrDefault(rejection => rejection.CandidateName is not null && rejection.CandidateName != BooleanTopLevelCase.UnsupportedFromRecognizedSafeComposition.ToString());
+        return nearestRejection.CandidateName is null
+            ? baseReason
+            : $"{baseReason} Nearest candidate '{nearestRejection.CandidateName}' rejected: {nearestRejection.Reason}";
     }
 
     private static BooleanIntersectionData ComputeIntersections(BooleanRequest request, BooleanAnalysis analysis)

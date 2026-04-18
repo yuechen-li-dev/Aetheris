@@ -97,6 +97,16 @@ internal sealed record BooleanCaseContext(
     bool IsCylinderRootKeywaySupported,
     string? CylinderRootKeywayUnsupportedReason);
 
+internal sealed record OrthogonalUnionClassificationContext(
+    AxisAlignedBoxExtents Left,
+    AxisAlignedBoxExtents Right,
+    ToleranceContext Tolerance,
+    int SharedAxisSpanCount,
+    bool HasPositiveVolumeOverlap,
+    bool HasPositiveAreaFaceContact,
+    IReadOnlyList<AxisAlignedBoxExtents> CandidateCells,
+    bool IsConnectedCellUnion);
+
 /// <summary>
 /// bounded boolean pipeline with narrow real support for axis-aligned box/box cases that resolve to a single box
 /// plus the M10k box-minus-Z-aligned-through-cylinder subset that rebuilds to a single box-with-hole solid.
@@ -104,6 +114,9 @@ internal sealed record BooleanCaseContext(
 /// </summary>
 public static class BrepBoolean
 {
+    internal const string BoxBoxUnionOrthogonalCellsStrictCandidate = "box_box_union_orthogonal_cells_strict";
+    internal const string BoxBoxUnionFaceContactCellsCandidate = "box_box_union_face_contact_cells";
+
     public static KernelResult<BrepBody> Union(BrepBody left, BrepBody right)
         => Execute(new BooleanRequest(left, right, BooleanOperation.Union));
 
@@ -583,7 +596,7 @@ public static class BrepBoolean
                 return new BooleanClassificationData(intersections, IsComputed: true, FragmentCount: 0, SingleBoxResult: null, SafeCompositionResult: null, UnsupportedReason: $"Boolean {operation}: disjoint box union is multi-body and not supported in the bounded boolean family.");
             }
 
-            if (TryClassifyBoundedOrthogonalUnion(left, right, tolerance, out var unionCells, out var unsupportedReason))
+            if (TryClassifyBoundedOrthogonalUnion(left, right, tolerance, out var unionCells, out var unsupportedReason, out _))
             {
                 var unionBounds = AxisAlignedBoxExtents.Bounding(left, right);
                 return new BooleanClassificationData(
@@ -780,32 +793,12 @@ public static class BrepBoolean
         AxisAlignedBoxExtents right,
         ToleranceContext tolerance,
         out IReadOnlyList<AxisAlignedBoxExtents> occupiedCells,
-        out string? unsupportedReason)
+        out string? unsupportedReason,
+        out string? selectedCandidateName)
     {
         occupiedCells = Array.Empty<AxisAlignedBoxExtents>();
         unsupportedReason = null;
-
-        var sharedAxisSpanCount = 0;
-        if (ToleranceMath.AlmostEqual(left.MinX, right.MinX, tolerance) && ToleranceMath.AlmostEqual(left.MaxX, right.MaxX, tolerance))
-        {
-            sharedAxisSpanCount++;
-        }
-
-        if (ToleranceMath.AlmostEqual(left.MinY, right.MinY, tolerance) && ToleranceMath.AlmostEqual(left.MaxY, right.MaxY, tolerance))
-        {
-            sharedAxisSpanCount++;
-        }
-
-        if (ToleranceMath.AlmostEqual(left.MinZ, right.MinZ, tolerance) && ToleranceMath.AlmostEqual(left.MaxZ, right.MaxZ, tolerance))
-        {
-            sharedAxisSpanCount++;
-        }
-
-        if (sharedAxisSpanCount == 0)
-        {
-            unsupportedReason = "Boolean Union: box union is connected but outside the bounded F1 additive family because the operands do not share a full span on any primary axis.";
-            return false;
-        }
+        selectedCandidateName = null;
 
         var intersection = AxisAlignedBoxExtents.Intersection(left, right);
         if (intersection is null)
@@ -818,42 +811,51 @@ public static class BrepBoolean
         var connectedByFace = IsPositiveAreaFaceContact(left, right, tolerance);
         if (!connectedByVolume && !connectedByFace)
         {
-            unsupportedReason = "Boolean Union: edge-only or point-only contact is non-manifold and outside the bounded F1 additive family.";
+            unsupportedReason = "Boolean Union: boxes do not intersect or touch with positive-area face contact; edge-only/point-only unions are non-manifold.";
             return false;
         }
 
-        var splitX = new[] { left.MinX, left.MaxX, right.MinX, right.MaxX }.Distinct().OrderBy(v => v).ToArray();
-        var splitY = new[] { left.MinY, left.MaxY, right.MinY, right.MaxY }.Distinct().OrderBy(v => v).ToArray();
-        var splitZ = new[] { left.MinZ, left.MaxZ, right.MinZ, right.MaxZ }.Distinct().OrderBy(v => v).ToArray();
-        var cells = new List<AxisAlignedBoxExtents>();
-        for (var ix = 0; ix < splitX.Length - 1; ix++)
-        {
-            for (var iy = 0; iy < splitY.Length - 1; iy++)
-            {
-                for (var iz = 0; iz < splitZ.Length - 1; iz++)
-                {
-                    var candidate = new AxisAlignedBoxExtents(splitX[ix], splitX[ix + 1], splitY[iy], splitY[iy + 1], splitZ[iz], splitZ[iz + 1]);
-                    if (!candidate.HasPositiveVolume(tolerance))
-                    {
-                        continue;
-                    }
-
-                    if (left.Contains(candidate, tolerance) || right.Contains(candidate, tolerance))
-                    {
-                        cells.Add(candidate);
-                    }
-                }
-            }
-        }
-
-        if (cells.Count == 0)
+        if (!TryBuildBoundedOrthogonalUnionCells(left, right, tolerance, out var cells))
         {
             unsupportedReason = "Boolean Union: bounded orthogonal reconstruction produced no occupied cells.";
             return false;
         }
 
+        var sharedAxisSpanCount = CountSharedFullAxisSpans(left, right, tolerance);
+        var isConnectedCellUnion = TryValidateOrthogonalCellConnectivity(cells, tolerance);
+        var candidateContext = new OrthogonalUnionClassificationContext(
+            left,
+            right,
+            tolerance,
+            sharedAxisSpanCount,
+            connectedByVolume,
+            connectedByFace,
+            cells,
+            isConnectedCellUnion);
+
+        var classification = new JudgmentEngine<OrthogonalUnionClassificationContext>().Evaluate(candidateContext, BuildOrthogonalUnionCandidates());
+        if (!classification.IsSuccess)
+        {
+            var closestRejection = classification.Rejections.FirstOrDefault();
+            unsupportedReason = closestRejection.CandidateName is null
+                ? "Boolean Union: union not reconstructible via orthogonal cell decomposition."
+                : $"Boolean Union: candidate '{closestRejection.CandidateName}' rejected: {closestRejection.Reason}";
+            return false;
+        }
+
+        selectedCandidateName = classification.Selection!.Value.Candidate.Name;
         occupiedCells = cells;
         return true;
+    }
+
+    internal static string? ClassifyBoundedOrthogonalUnionCandidateForTesting(
+        AxisAlignedBoxExtents left,
+        AxisAlignedBoxExtents right,
+        ToleranceContext tolerance)
+    {
+        return TryClassifyBoundedOrthogonalUnion(left, right, tolerance, out _, out _, out var selectedCandidateName)
+            ? selectedCandidateName
+            : null;
     }
 
     private static bool TryClassifyBoundedOrthogonalUnionWithExistingRoot(
@@ -962,6 +964,104 @@ public static class BrepBoolean
         }
 
         return visited.Count == cells.Count;
+    }
+
+    private static IReadOnlyList<JudgmentCandidate<OrthogonalUnionClassificationContext>> BuildOrthogonalUnionCandidates()
+        =>
+        [
+            new JudgmentCandidate<OrthogonalUnionClassificationContext>(
+                Name: BoxBoxUnionOrthogonalCellsStrictCandidate,
+                IsAdmissible: context => context.SharedAxisSpanCount > 0
+                    && (context.HasPositiveVolumeOverlap || context.HasPositiveAreaFaceContact)
+                    && context.CandidateCells.Count > 0
+                    && context.IsConnectedCellUnion,
+                Score: context => 200d + context.SharedAxisSpanCount,
+                RejectionReason: context => context.SharedAxisSpanCount == 0
+                    ? "strict candidate requires shared full axis span on at least one primary axis."
+                    : !context.IsConnectedCellUnion
+                        ? "union not reconstructible via orthogonal cell decomposition (cells are disconnected or only edge-connected)."
+                        : "strict orthogonal union candidate predicates were not satisfied."),
+            new JudgmentCandidate<OrthogonalUnionClassificationContext>(
+                Name: BoxBoxUnionFaceContactCellsCandidate,
+                IsAdmissible: context => (context.HasPositiveVolumeOverlap || context.HasPositiveAreaFaceContact)
+                    && context.CandidateCells.Count > 0
+                    && context.IsConnectedCellUnion,
+                Score: context => context.HasPositiveVolumeOverlap ? 125d : 100d,
+                RejectionReason: context =>
+                {
+                    if (!context.HasPositiveVolumeOverlap && !context.HasPositiveAreaFaceContact)
+                    {
+                        return "boxes do not intersect or touch with positive-area face contact.";
+                    }
+
+                    if (context.CandidateCells.Count == 0)
+                    {
+                        return "union not reconstructible via orthogonal cell decomposition (no occupied cells).";
+                    }
+
+                    if (!context.IsConnectedCellUnion)
+                    {
+                        return "ambiguous multi-region union not supported: bounded orthogonal cells are disconnected or only edge-connected.";
+                    }
+
+                    return "face-contact orthogonal cell candidate predicates were not satisfied.";
+                }),
+        ];
+
+    private static int CountSharedFullAxisSpans(AxisAlignedBoxExtents left, AxisAlignedBoxExtents right, ToleranceContext tolerance)
+    {
+        var sharedAxisSpanCount = 0;
+        if (ToleranceMath.AlmostEqual(left.MinX, right.MinX, tolerance) && ToleranceMath.AlmostEqual(left.MaxX, right.MaxX, tolerance))
+        {
+            sharedAxisSpanCount++;
+        }
+
+        if (ToleranceMath.AlmostEqual(left.MinY, right.MinY, tolerance) && ToleranceMath.AlmostEqual(left.MaxY, right.MaxY, tolerance))
+        {
+            sharedAxisSpanCount++;
+        }
+
+        if (ToleranceMath.AlmostEqual(left.MinZ, right.MinZ, tolerance) && ToleranceMath.AlmostEqual(left.MaxZ, right.MaxZ, tolerance))
+        {
+            sharedAxisSpanCount++;
+        }
+
+        return sharedAxisSpanCount;
+    }
+
+    private static bool TryBuildBoundedOrthogonalUnionCells(
+        AxisAlignedBoxExtents left,
+        AxisAlignedBoxExtents right,
+        ToleranceContext tolerance,
+        out IReadOnlyList<AxisAlignedBoxExtents> cells)
+    {
+        cells = Array.Empty<AxisAlignedBoxExtents>();
+        var splitX = new[] { left.MinX, left.MaxX, right.MinX, right.MaxX }.Distinct().OrderBy(v => v).ToArray();
+        var splitY = new[] { left.MinY, left.MaxY, right.MinY, right.MaxY }.Distinct().OrderBy(v => v).ToArray();
+        var splitZ = new[] { left.MinZ, left.MaxZ, right.MinZ, right.MaxZ }.Distinct().OrderBy(v => v).ToArray();
+        var reconstructedCells = new List<AxisAlignedBoxExtents>();
+        for (var ix = 0; ix < splitX.Length - 1; ix++)
+        {
+            for (var iy = 0; iy < splitY.Length - 1; iy++)
+            {
+                for (var iz = 0; iz < splitZ.Length - 1; iz++)
+                {
+                    var candidate = new AxisAlignedBoxExtents(splitX[ix], splitX[ix + 1], splitY[iy], splitY[iy + 1], splitZ[iz], splitZ[iz + 1]);
+                    if (!candidate.HasPositiveVolume(tolerance))
+                    {
+                        continue;
+                    }
+
+                    if (left.Contains(candidate, tolerance) || right.Contains(candidate, tolerance))
+                    {
+                        reconstructedCells.Add(candidate);
+                    }
+                }
+            }
+        }
+
+        cells = reconstructedCells;
+        return reconstructedCells.Count > 0;
     }
 
     private static bool TryClassifyBoundedCylinderRootKeyway(

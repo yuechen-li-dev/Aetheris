@@ -267,10 +267,37 @@ public sealed class BrepBooleanTests
 
         var result = BrepBoolean.Union(left, right);
 
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value.SafeBooleanComposition);
+        Assert.True(result.Value.SafeBooleanComposition!.OccupiedCells is { Count: > 0 });
+        Assert.False(BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(result.Value, ToleranceContext.Default, out _, out _));
+    }
+
+    [Fact]
+    public void Union_FaceContactWithoutSharedFullSpan_Rebuilds_BoundedOrthogonalUnion()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 2d, 0d, 2d, 0d, 2d)).Value;
+        var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(2d, 4d, 0.5d, 1.5d, 0.5d, 1.5d)).Value;
+
+        var result = BrepBoolean.Union(left, right);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value.SafeBooleanComposition);
+        Assert.True(result.Value.SafeBooleanComposition!.OccupiedCells is { Count: > 0 });
+    }
+
+    [Fact]
+    public void Union_EdgeOnlyContact_RemainsRejectedWithClearDiagnostic()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 2d, 0d, 2d, 0d, 2d)).Value;
+        var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(2d, 4d, 2d, 4d, 0d, 2d)).Value;
+
+        var result = BrepBoolean.Union(left, right);
+
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Contains("bounded F1 additive family", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("edge-only/point-only unions are non-manifold", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1461,6 +1488,28 @@ public sealed class BrepBooleanTests
         Assert.NotNull(classification.LeftBox);
         Assert.NotNull(classification.RightBox);
         Assert.Null(classification.RightAnalyticSurface);
+    }
+
+    [Fact]
+    public void ClassifyBoundedOrthogonalUnion_StrictSpanCase_PrefersStrictCandidate()
+    {
+        var left = new AxisAlignedBoxExtents(0d, 2d, 0d, 4d, 0d, 2d);
+        var right = new AxisAlignedBoxExtents(2d, 4d, 0d, 2d, 0d, 2d);
+
+        var candidate = BrepBoolean.ClassifyBoundedOrthogonalUnionCandidateForTesting(left, right, ToleranceContext.Default);
+
+        Assert.Equal(BrepBoolean.BoxBoxUnionOrthogonalCellsStrictCandidate, candidate);
+    }
+
+    [Fact]
+    public void ClassifyBoundedOrthogonalUnion_FaceContactWithoutSharedSpan_UsesFaceContactCandidate()
+    {
+        var left = new AxisAlignedBoxExtents(0d, 2d, 0d, 2d, 0d, 2d);
+        var right = new AxisAlignedBoxExtents(2d, 4d, 0.5d, 1.5d, 0.5d, 1.5d);
+
+        var candidate = BrepBoolean.ClassifyBoundedOrthogonalUnionCandidateForTesting(left, right, ToleranceContext.Default);
+
+        Assert.Equal(BrepBoolean.BoxBoxUnionFaceContactCellsCandidate, candidate);
     }
 
     [Fact]

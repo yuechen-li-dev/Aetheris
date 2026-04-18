@@ -56,10 +56,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             return KernelResult<BrepBody>.Failure([
                 new BooleanDiagnostic(
                     BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind,
-                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
-                        BooleanOperation.Subtract.ToString(),
-                        null,
-                        "safe subtract composition only supports one contained spherical cavity when no prior holes have been accepted."),
+                    new BooleanDiagnosticContext(BooleanOperation.Subtract).FormatMessage("safe subtract composition only supports one contained spherical cavity when no prior holes have been accepted."),
                     "BrepBoolean.AnalyticHole.UnsupportedAnalyticSurfaceKind").ToKernelDiagnostic(),
             ]);
         }
@@ -121,10 +118,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             return KernelResult<BrepBody>.Failure([
                 new BooleanDiagnostic(
                     BooleanDiagnosticCode.NotFullySpanning,
-                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
-                        BooleanOperation.Subtract.ToString(),
-                        null,
-                        "cylinder-root safe rebuild in F3 requires a through-hole cylinder chain."),
+                    new BooleanDiagnosticContext(BooleanOperation.Subtract).FormatMessage("cylinder-root safe rebuild in F3 requires a through-hole cylinder chain."),
                     "BrepBoolean.AnalyticHole.CylinderRootUnsupportedComposition").ToKernelDiagnostic(),
             ]);
         }
@@ -438,10 +432,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             return KernelResult<BrepBody>.Failure([
                 new BooleanDiagnostic(
                     BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
-                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
-                        BooleanOperation.Subtract.ToString(),
-                        null,
-                        "blind-hole continuation exceeds bounded rebuild support; only recognized orthogonal additive roots with world-Z cylinder/cone hole chains are rebuildable in this milestone."),
+                    new BooleanDiagnosticContext(BooleanOperation.Subtract).FormatMessage("blind-hole continuation exceeds bounded rebuild support; only recognized orthogonal additive roots with world-Z cylinder/cone hole chains are rebuildable in this milestone."),
                     "BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily").ToKernelDiagnostic(),
             ]);
         }

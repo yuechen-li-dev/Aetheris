@@ -332,17 +332,17 @@ public static class BrepBoolean
                 RejectionReason: _ => "Planar box-box candidate requires both operands to be recognized axis-aligned boxes."),
             new JudgmentCandidate<BooleanCaseContext>(
                 Name: BooleanTopLevelCase.SubtractAnalyticHole.ToString(),
-                IsAdmissible: context => context.Operation == BooleanOperation.Subtract
+                IsAdmissible: context => BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, out _)
                     && (context.LeftRecognizedBox || context.LeftHasSafeComposition)
                     && context.RightRecognizedAnalytic,
                 Score: _ => 300d,
-                RejectionReason: context => context.Operation != BooleanOperation.Subtract
-                    ? "Analytic-hole candidate only applies to subtract operations."
+                RejectionReason: context => !BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, out var operationReason)
+                    ? $"Analytic-hole candidate {operationReason}"
                     : "Analytic-hole candidate requires a recognized left root (box/safe-composition) and recognized right analytic tool."),
             new JudgmentCandidate<BooleanCaseContext>(
                 Name: BooleanTopLevelCase.SubtractIntersectRecognizedSafeRoot.ToString(),
                 IsAdmissible: context =>
-                    (context.Operation == BooleanOperation.Subtract || context.Operation == BooleanOperation.Intersect)
+                    BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, BooleanOperation.Intersect, out _)
                     && context.LeftHasSafeComposition
                     && context.LeftSafeComposition is not null
                     && context.LeftSafeComposition.RootDescriptor.Kind == SafeBooleanRootKind.Box
@@ -500,20 +500,22 @@ public static class BrepBoolean
             new JudgmentCandidate<BooleanSubtractIntersectContext>(
                 Name: BooleanSubtractIntersectFamily.SubtractIntersectOrthogonalCellsExistingRoot.ToString(),
                 IsAdmissible: context => context.LeftHasOccupiedCells
-                    && (context.Operation == BooleanOperation.Subtract || context.Operation == BooleanOperation.Intersect),
+                    && BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, BooleanOperation.Intersect, out _),
                 Score: _ => 450d,
                 RejectionReason: context => context.LeftHasOccupiedCells
-                    ? "Orthogonal occupied-cell subtract/intersect candidate requires subtract or intersect."
+                    ? !BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, BooleanOperation.Intersect, out var operationReason)
+                        ? $"Orthogonal occupied-cell subtract/intersect candidate {operationReason}"
+                        : "Orthogonal occupied-cell subtract/intersect candidate requires subtract or intersect."
                     : "Orthogonal occupied-cell subtract/intersect candidate requires a recognized additive safe root with occupied cells."),
             new JudgmentCandidate<BooleanSubtractIntersectContext>(
                 Name: BooleanSubtractIntersectFamily.SubtractBoxSingleBoxResult.ToString(),
-                IsAdmissible: context => context.Operation == BooleanOperation.Subtract
+                IsAdmissible: context => BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, out _)
                     && !context.IsTouchingOnly
                     && !context.RightContainsLeft
                     && (!context.HasPositiveVolumeOverlap || context.CanSubtractToSingleBox),
                 Score: _ => 400d,
-                RejectionReason: context => context.Operation != BooleanOperation.Subtract
-                    ? "Single-box subtract candidate requires subtract."
+                RejectionReason: context => !BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, out var operationReason)
+                    ? $"Single-box subtract candidate {operationReason}"
                     : context.IsTouchingOnly
                         ? "Single-box subtract candidate rejects touching-only contact."
                         : context.RightContainsLeft
@@ -521,24 +523,24 @@ public static class BrepBoolean
                             : "Single-box subtract candidate requires either no overlap or a subtract result representable as one box."),
             new JudgmentCandidate<BooleanSubtractIntersectContext>(
                 Name: BooleanSubtractIntersectFamily.SubtractBoxPocketOnRecognizedRoot.ToString(),
-                IsAdmissible: context => context.Operation == BooleanOperation.Subtract
+                IsAdmissible: context => BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, out _)
                     && !context.IsTouchingOnly
                     && context.HasPositiveVolumeOverlap
                     && !context.RightContainsLeft
                     && !context.CanSubtractToSingleBox
                     && context.CanSubtractToOrthogonalPocket,
                 Score: _ => 300d,
-                RejectionReason: context => context.Operation != BooleanOperation.Subtract
-                    ? "Orthogonal-pocket subtract candidate requires subtract."
+                RejectionReason: context => !BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, out var operationReason)
+                    ? $"Orthogonal-pocket subtract candidate {operationReason}"
                     : context.SubtractPocketUnsupportedReason
                         ?? "Orthogonal-pocket subtract candidate rejected because bounded pocket predicates were not satisfied."),
             new JudgmentCandidate<BooleanSubtractIntersectContext>(
                 Name: BooleanSubtractIntersectFamily.IntersectSupportedBoundedCase.ToString(),
-                IsAdmissible: context => context.Operation == BooleanOperation.Intersect,
+                IsAdmissible: context => BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Intersect, out _),
                 Score: _ => 200d,
-                RejectionReason: context => context.Operation == BooleanOperation.Intersect
+                RejectionReason: context => BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Intersect, out _)
                     ? "Intersect candidate selected; overlap/emptiness is classified downstream by bounded planar intersection rules."
-                    : "Intersect candidate only applies to intersect operations."),
+                    : "Intersect candidate requires 'Intersect'."),
             new JudgmentCandidate<BooleanSubtractIntersectContext>(
                 Name: BooleanSubtractIntersectFamily.UnsupportedFromRecognizedSafeRoot.ToString(),
                 IsAdmissible: _ => true,

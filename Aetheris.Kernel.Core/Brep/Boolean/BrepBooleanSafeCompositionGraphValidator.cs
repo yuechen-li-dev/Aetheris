@@ -20,6 +20,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
     {
         updatedComposition = composition;
         diagnostic = null;
+        var diagnosticContext = new BooleanDiagnosticContext(BooleanOperation.Subtract, nextFeatureId);
         var root = composition.RootDescriptor;
 
         if (root.Kind == SafeBooleanRootKind.Cylinder)
@@ -44,10 +45,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
         {
             diagnostic = new BooleanDiagnostic(
                 BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
-                BrepBooleanCylinderRecognition.CreateBooleanMessage(
-                    BooleanOperation.Subtract.ToString(),
-                    nextFeatureId,
-                    "blind-hole continuation exceeds the bounded family; only recognized orthogonal additive roots with world-Z analytic-hole chains are supported for continued blind-hole composition."),
+                diagnosticContext.FormatMessage("blind-hole continuation exceeds the bounded family; only recognized orthogonal additive roots with world-Z analytic-hole chains are supported for continued blind-hole composition."),
                 "BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily");
             return false;
         }
@@ -103,10 +101,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
             {
                 diagnostic = new BooleanDiagnostic(
                     BooleanDiagnosticCode.HoleInterference,
-                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
-                        BooleanOperation.Subtract.ToString(),
-                        nextFeatureId,
-                        $"overlaps previously accepted hole {FormatFeatureRef(existingHole.FeatureId)}; overlapping safe-hole composition is not supported. Separate the hole centers or reduce one of the boundary radii."),
+                    diagnosticContext.FormatMessage($"overlaps previously accepted hole {FormatFeatureRef(existingHole.FeatureId)}; overlapping safe-hole composition is not supported. Separate the hole centers or reduce one of the boundary radii."),
                     "BrepBoolean.AnalyticHole.HoleInterference");
                 return false;
             }
@@ -130,21 +125,20 @@ public static class BrepBooleanSafeCompositionGraphValidator
     {
         updatedComposition = composition;
         diagnostic = null;
+        var diagnosticContext = new BooleanDiagnosticContext(BooleanOperation.Subtract, nextFeatureId);
 
         if (surface.Kind != AnalyticSurfaceKind.Cylinder || surface.Cylinder is not RecognizedCylinder toolCylinder)
         {
             diagnostic = BrepBooleanCylinderRecognition.CreateUnsupportedAnalyticSurfaceKindDiagnostic(
-                BooleanOperation.Subtract.ToString(),
-                surface.Kind,
-                nextFeatureId);
+                diagnosticContext,
+                surface.Kind);
             return false;
         }
 
         if (root.Cylinder is not RecognizedCylinder rootCylinder)
         {
             diagnostic = BrepBooleanCylinderRecognition.CreateAxisNotAlignedDiagnostic(
-                BooleanOperation.Subtract.ToString(),
-                nextFeatureId,
+                diagnosticContext,
                 "cannot resolve recognized cylinder-root descriptor.");
             return false;
         }
@@ -153,8 +147,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
             || !BrepBooleanCylinderRecognition.ValidateAxisAlignedZ(toolCylinder, tolerance))
         {
             diagnostic = BrepBooleanCylinderRecognition.CreateAxisNotAlignedDiagnostic(
-                BooleanOperation.Subtract.ToString(),
-                nextFeatureId,
+                diagnosticContext,
                 "bounded cylinder-root safe subtract supports only world-Z aligned root and center-bore cylinders.");
             return false;
         }
@@ -176,8 +169,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
         if (!spansRoot)
         {
             diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
-                BooleanOperation.Subtract.ToString(),
-                nextFeatureId,
+                diagnosticContext,
                 "is outside the bounded cylinder-root safe subtract family; only through center bores that span both planar caps are supported.");
             return false;
         }
@@ -206,8 +198,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
             || ringOuterDistance > (rootCylinder.Radius - tolerance.Linear))
         {
             diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
-                BooleanOperation.Subtract.ToString(),
-                nextFeatureId,
+                diagnosticContext,
                 isCoaxialCenterBore
                     ? "must remain strictly smaller than the flange root radius in the bounded cylinder-root safe subtract family."
                     : "is outside the bounded cylinder-root safe subtract family; off-axis through-holes must remain strictly inside the outer cylindrical wall.");
@@ -240,10 +231,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
             {
                 diagnostic = new BooleanDiagnostic(
                     BooleanDiagnosticCode.HoleInterference,
-                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
-                        BooleanOperation.Subtract.ToString(),
-                        nextFeatureId,
-                        $"overlaps previously accepted hole {FormatFeatureRef(existingHole.FeatureId)}; overlapping cylinder-root hole chains are not supported."),
+                    diagnosticContext.FormatMessage($"overlaps previously accepted hole {FormatFeatureRef(existingHole.FeatureId)}; overlapping cylinder-root hole chains are not supported."),
                     "BrepBoolean.AnalyticHole.HoleInterference");
                 return false;
             }
@@ -671,12 +659,10 @@ public static class BrepBooleanSafeCompositionGraphValidator
                     result.Rejections);
                 return false;
             default:
+                var diagnosticContext = new BooleanDiagnosticContext(BooleanOperation.Subtract, featureId);
                 diagnostic = new BooleanDiagnostic(
                     BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
-                    BrepBooleanCylinderRecognition.CreateBooleanMessage(
-                        BooleanOperation.Subtract.ToString(),
-                        featureId,
-                        $"blind-hole continuation selected unknown family '{selectedFamily}'."),
+                    diagnosticContext.FormatMessage($"blind-hole continuation selected unknown family '{selectedFamily}'."),
                     "BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily");
                 return false;
         }
@@ -752,10 +738,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
 
         return new BooleanDiagnostic(
             BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
-            BrepBooleanCylinderRecognition.CreateBooleanMessage(
-                BooleanOperation.Subtract.ToString(),
-                featureId,
-                detail),
+            new BooleanDiagnosticContext(BooleanOperation.Subtract, featureId).FormatMessage(detail),
             "BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily");
     }
 

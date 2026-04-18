@@ -1497,6 +1497,44 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void ClassifyBooleanCase_SafeCompositionIntersect_RemainsBoundedUnsupported()
+    {
+        var root = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var holeTool = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(3d, -2d, 6d)));
+        var safeCompositionResult = BrepBoolean.Subtract(root, holeTool);
+        Assert.True(safeCompositionResult.IsSuccess);
+        var safeComposition = safeCompositionResult.Value;
+        var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-8d, 8d, -8d, 8d, -2d, 10d)).Value;
+
+        var classification = BrepBoolean.ClassifyBooleanCase(safeComposition, right, BooleanOperation.Intersect);
+
+        Assert.Equal(BooleanExecutionClass.UnsupportedGeneralCase, classification.ExecutionClass);
+        Assert.NotNull(classification.UnsupportedReason);
+        Assert.Contains(
+            "sequential safe composition only supports subtracting supported analytic holes",
+            classification.UnsupportedReason!,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ClassifyBooleanCase_SafeCompositionUnionOutsideAdditiveFamily_ReportsBoundedCandidateFailure()
+    {
+        var root = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var holeTool = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(3d, -2d, 6d)));
+        var safeCompositionResult = BrepBoolean.Subtract(root, holeTool);
+        Assert.True(safeCompositionResult.IsSuccess);
+        var safeComposition = safeCompositionResult.Value;
+        var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(18d, 30d, 12d, 22d, 0d, 12d)).Value;
+
+        var result = BrepBoolean.Union(safeComposition, right);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Contains("Closest bounded union candidate rejected", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Execute_NonBoxInput_ReturnsDeterministicNotImplementedWithoutThrowing()
     {
         var left = BrepPrimitives.CreateCylinder(1d, 2d).Value;

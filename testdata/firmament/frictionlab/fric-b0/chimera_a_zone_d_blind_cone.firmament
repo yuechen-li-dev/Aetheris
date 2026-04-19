@@ -1,0 +1,19 @@
+firmament:
+  version: 1
+model:
+  name: fric_b0_chimera_a_zone_d_blind_cone
+  units: mm
+ops[2]:
+  -
+    op: box
+    id: chimera_a_root
+    size[3]: [60, 40, 20]
+  -
+    op: subtract
+    id: zone_d_cone_blind
+    from: chimera_a_root
+    with:
+      op: cone
+      bottom_radius: 4.5
+      top_radius: 2.5
+      height: 8

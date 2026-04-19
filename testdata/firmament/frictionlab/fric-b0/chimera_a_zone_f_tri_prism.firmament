@@ -1,0 +1,19 @@
+firmament:
+  version: 1
+model:
+  name: fric_b0_chimera_a_zone_f_tri_prism
+  units: mm
+ops[2]:
+  -
+    op: box
+    id: chimera_a_root
+    size[3]: [60, 40, 20]
+  -
+    op: subtract
+    id: zone_f_tri_prism
+    from: chimera_a_root
+    with:
+      op: triangular_prism
+      base_width: 10
+      base_depth: 8
+      height: 24

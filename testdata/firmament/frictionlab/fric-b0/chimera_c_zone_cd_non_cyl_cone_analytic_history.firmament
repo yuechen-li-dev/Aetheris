@@ -1,0 +1,24 @@
+firmament:
+  version: 1
+model:
+  name: fric_b0_chimera_c_zone_cd_non_cyl_cone_analytic_history
+  units: mm
+ops[3]:
+  -
+    op: box
+    id: chimera_c_root
+    size[3]: [60, 40, 20]
+  -
+    op: subtract
+    id: zone_cd_seed_sphere
+    from: chimera_c_root
+    with:
+      op: sphere
+      radius: 5
+  -
+    op: subtract
+    id: zone_cd_follow_on_prism
+    from: zone_cd_seed_sphere
+    with:
+      op: box
+      size[3]: [10, 10, 24]

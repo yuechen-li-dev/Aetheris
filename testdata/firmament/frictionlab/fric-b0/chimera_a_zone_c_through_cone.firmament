@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+model:
+  name: fric_b0_chimera_a_zone_c_through_cone
+  units: mm
+ops[2]:
+  -
+    op: box
+    id: chimera_a_root
+    size[3]: [60, 40, 20]
+  -
+    op: subtract
+    id: zone_c_cone_through
+    from: chimera_a_root
+    with:
+      op: cone
+      bottom_radius: 5
+      top_radius: 2.5
+      height: 20
+    place:
+      on: origin
+      offset[3]: [18, 0, -10]

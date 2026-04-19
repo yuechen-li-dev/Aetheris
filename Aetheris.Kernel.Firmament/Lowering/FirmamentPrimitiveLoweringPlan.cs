@@ -58,7 +58,8 @@ public enum FirmamentLoweredPrimitiveKind
     Sphere,
     TriangularPrism,
     HexagonalPrism,
-    StraightSlot
+    StraightSlot,
+    RoundedCornerBox
 }
 
 public abstract record FirmamentLoweredPrimitiveParameters;
@@ -85,6 +86,9 @@ public sealed record FirmamentLoweredHexagonalPrismParameters(double AcrossFlats
     : FirmamentLoweredPrimitiveParameters;
 
 public sealed record FirmamentLoweredStraightSlotParameters(double Length, double Width, double Height)
+    : FirmamentLoweredPrimitiveParameters;
+
+public sealed record FirmamentLoweredRoundedCornerBoxParameters(double Width, double Depth, double Height, double CornerRadius)
     : FirmamentLoweredPrimitiveParameters;
 
 public sealed record FirmamentLoweredToolOp(

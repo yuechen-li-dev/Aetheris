@@ -13,6 +13,7 @@ using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.Validation;
+using Aetheris.Kernel.StandardLibrary;
 
 namespace Aetheris.Kernel.Firmament.Execution;
 
@@ -386,6 +387,7 @@ internal static class FirmamentPrimitiveExecutor
             FirmamentLoweredPrimitiveKind.TriangularPrism => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredTriangularPrismParameters)primitive.Parameters).Height * 0.5d)),
             FirmamentLoweredPrimitiveKind.HexagonalPrism => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredHexagonalPrismParameters)primitive.Parameters).Height * 0.5d)),
             FirmamentLoweredPrimitiveKind.StraightSlot => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredStraightSlotParameters)primitive.Parameters).Height * 0.5d)),
+            FirmamentLoweredPrimitiveKind.RoundedCornerBox => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).Height * 0.5d)),
             _ => body
         };
     }
@@ -410,6 +412,11 @@ internal static class FirmamentPrimitiveExecutor
                 ((FirmamentLoweredStraightSlotParameters)primitive.Parameters).Length,
                 ((FirmamentLoweredStraightSlotParameters)primitive.Parameters).Width,
                 ((FirmamentLoweredStraightSlotParameters)primitive.Parameters).Height),
+            FirmamentLoweredPrimitiveKind.RoundedCornerBox => StandardLibraryPrimitives.CreateRoundedCornerBox(
+                ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).Width,
+                ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).Depth,
+                ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).Height,
+                ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).CornerRadius),
             _ => KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Primitive execution for kind '{primitive.Kind}' is not implemented.")])
         };
     }

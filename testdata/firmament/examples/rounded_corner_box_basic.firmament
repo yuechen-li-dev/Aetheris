@@ -1,0 +1,15 @@
+firmament:
+  version: 1
+
+model:
+  name: rounded_corner_box_basic
+  units: mm
+
+ops[1]:
+  -
+    op: rounded_corner_box
+    id: rbox1
+    width: 40
+    depth: 20
+    height: 12
+    corner_radius: 3

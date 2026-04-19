@@ -107,6 +107,18 @@ internal static class FirmamentPrimitiveLowerer
                             Height: ParseScalar(entry.RawFields["height"])),
                         Placement: LowerPlacement(entry.Placement)));
                     break;
+                case FirmamentKnownOpKind.RoundedCornerBox:
+                    loweredPrimitives.Add(new FirmamentLoweredPrimitive(
+                        OpIndex: index,
+                        FeatureId: entry.RawFields["id"],
+                        Kind: FirmamentLoweredPrimitiveKind.RoundedCornerBox,
+                        Parameters: new FirmamentLoweredRoundedCornerBoxParameters(
+                            Width: ParseScalar(entry.RawFields["width"]),
+                            Depth: ParseScalar(entry.RawFields["depth"]),
+                            Height: ParseScalar(entry.RawFields["height"]),
+                            CornerRadius: ParseScalar(entry.RawFields["corner_radius"])),
+                        Placement: LowerPlacement(entry.Placement)));
+                    break;
 
                 case FirmamentKnownOpKind.Add:
                     loweredBooleans.Add(LowerBoolean(index, entry, FirmamentLoweredBooleanKind.Add, "to"));

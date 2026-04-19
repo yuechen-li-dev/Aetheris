@@ -20,6 +20,7 @@ internal static class FirmamentPmiValidator
         var opsByFeatureId = parsedDocument.Ops.Entries
             .Where(entry => entry.RawFields.TryGetValue("id", out _))
             .ToDictionary(entry => entry.RawFields["id"], StringComparer.Ordinal);
+        var seenDatumLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         for (var index = 0; index < parsedDocument.Pmi.Entries.Count; index++)
         {
@@ -27,7 +28,7 @@ internal static class FirmamentPmiValidator
             var result = entry.Kind switch
             {
                 FirmamentParsedPmiKind.Hole => ValidateHole(entry, index, opsByFeatureId),
-                FirmamentParsedPmiKind.Datum => ValidateDatum(entry, index, opsByFeatureId),
+                FirmamentParsedPmiKind.Datum => ValidateDatum(entry, index, opsByFeatureId, seenDatumLabels),
                 FirmamentParsedPmiKind.Note => ValidateNote(entry, index, opsByFeatureId),
                 _ => Fail($"PMI entry at index {index} has unsupported kind '{entry.KindRaw}'. Supported kinds: hole, datum, note.")
             };
@@ -86,7 +87,11 @@ internal static class FirmamentPmiValidator
         return KernelResult<bool>.Success(true);
     }
 
-    private static KernelResult<bool> ValidateDatum(FirmamentParsedPmiEntry entry, int index, IReadOnlyDictionary<string, FirmamentParsedOpEntry> opsByFeatureId)
+    private static KernelResult<bool> ValidateDatum(
+        FirmamentParsedPmiEntry entry,
+        int index,
+        IReadOnlyDictionary<string, FirmamentParsedOpEntry> opsByFeatureId,
+        ISet<string> seenDatumLabels)
     {
         if (!entry.RawFields.TryGetValue("datum_kind", out var datumKind)
             || string.IsNullOrWhiteSpace(datumKind))
@@ -100,6 +105,11 @@ internal static class FirmamentPmiValidator
             return Fail($"PMI datum entry at index {index} is missing required field 'label'.");
         }
 
+        if (!seenDatumLabels.Add(label))
+        {
+            return Fail($"PMI datum entry at index {index} reuses label '{label}'. Datum labels must be unique within a document.");
+        }
+
         if (string.Equals(datumKind, "plane", StringComparison.Ordinal))
         {
             var selectorResult = RequireSelectorTarget(entry, index, opsByFeatureId);
@@ -110,7 +120,9 @@ internal static class FirmamentPmiValidator
 
             var rootKind = opsByFeatureId[selectorResult.Value.FeatureId].KnownKind;
             if (!FirmamentSelectorContracts.TryGetPortContract(rootKind, selectorResult.Value.Port, out var contract)
-                || contract.ResultKind is not (FirmamentSelectorResultKind.Face or FirmamentSelectorResultKind.FaceSet))
+                || contract.ResultKind != FirmamentSelectorResultKind.Face
+                || contract.Cardinality != FirmamentSelectorCardinality.One
+                || !IsPlanarFacePort(rootKind, selectorResult.Value.Port))
             {
                 return Fail($"PMI datum entry at index {index} requires a planar-face selector target for datum_kind 'plane'.");
             }
@@ -236,4 +248,25 @@ internal static class FirmamentPmiValidator
         var normalized = new string(toolRaw.Where(character => !char.IsWhiteSpace(character)).ToArray());
         return normalized.Contains("op:cylinder", StringComparison.Ordinal);
     }
+
+    private static bool IsPlanarFacePort(FirmamentKnownOpKind featureKind, string port)
+        => featureKind switch
+        {
+            FirmamentKnownOpKind.Box
+                or FirmamentKnownOpKind.TriangularPrism
+                or FirmamentKnownOpKind.HexagonalPrism
+                or FirmamentKnownOpKind.StraightSlot
+                or FirmamentKnownOpKind.Add
+                or FirmamentKnownOpKind.Subtract
+                or FirmamentKnownOpKind.Intersect
+                or FirmamentKnownOpKind.Draft
+                or FirmamentKnownOpKind.Chamfer
+                or FirmamentKnownOpKind.Fillet
+                => string.Equals(port, "top_face", StringComparison.Ordinal)
+                || string.Equals(port, "bottom_face", StringComparison.Ordinal),
+            FirmamentKnownOpKind.Cylinder or FirmamentKnownOpKind.Cone
+                => string.Equals(port, "top_face", StringComparison.Ordinal)
+                || string.Equals(port, "bottom_face", StringComparison.Ordinal),
+            _ => false
+        };
 }

@@ -34,18 +34,34 @@ internal static class FirmamentSelectorResolver
             ? cylinderCount
             : TryResolveConeCount(body, port, resultKind, out var coneCount)
                 ? coneCount
-            : TryResolveTorusCount(body, port, resultKind, out var torusCount)
-                ? torusCount
-            : resultKind switch
-            {
-                FirmamentSelectorResultKind.Face or FirmamentSelectorResultKind.FaceSet => body.Topology.Faces.Count(),
-                FirmamentSelectorResultKind.EdgeSet => body.Topology.Edges.Count(),
-                FirmamentSelectorResultKind.VertexSet => body.Topology.Vertices.Count(),
+                : TryResolveTorusCount(body, port, resultKind, out var torusCount)
+                    ? torusCount
+                    : TryResolveBoxLikeCount(body, port, resultKind, out var boxLikeCount)
+                        ? boxLikeCount
+                    : resultKind switch
+                    {
+                        FirmamentSelectorResultKind.Face or FirmamentSelectorResultKind.FaceSet => body.Topology.Faces.Count(),
+                        FirmamentSelectorResultKind.EdgeSet => body.Topology.Edges.Count(),
+                        FirmamentSelectorResultKind.VertexSet => body.Topology.Vertices.Count(),
                 _ => 0
             };
 
         resolution = new FirmamentSelectorResolution(featureId, port, resultKind, count);
         return true;
+    }
+
+    private static bool TryResolveBoxLikeCount(BrepBody body, string port, FirmamentSelectorResultKind resultKind, out int count)
+    {
+        count = port switch
+        {
+            "top_face" => CountFaces(body, surface => surface.Kind == SurfaceGeometryKind.Plane && surface.Plane!.Value.Normal.ToVector().Z > 0.5d),
+            "bottom_face" => CountFaces(body, surface => surface.Kind == SurfaceGeometryKind.Plane && surface.Plane!.Value.Normal.ToVector().Z < -0.5d),
+            "edges" when resultKind == FirmamentSelectorResultKind.EdgeSet => body.Topology.Edges.Count(),
+            "vertices" when resultKind == FirmamentSelectorResultKind.VertexSet => body.Topology.Vertices.Count(),
+            _ => -1
+        };
+
+        return count >= 0;
     }
 
     private static bool TryResolveConeCount(BrepBody body, string port, FirmamentSelectorResultKind resultKind, out int count)

@@ -1,0 +1,28 @@
+firmament:
+  version: 1
+
+model:
+  name: m7e_invalid_pmi_duplicate_datum_label
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: base
+    size[3]:
+      20
+      20
+      10
+
+pmi[2]:
+  -
+    kind: datum
+    datum_kind: plane
+    label: A
+    target: base.top_face
+
+  -
+    kind: datum
+    datum_kind: plane
+    label: A
+    target: base.bottom_face

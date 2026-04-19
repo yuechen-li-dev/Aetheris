@@ -54,7 +54,8 @@ public static class FirmamentStepExporter
                 selectionResult.Value.FeatureId,
                 selectionResult.Value.OpIndex,
                 selectionResult.Value.BodyCategory,
-                selectionResult.Value.FeatureKind));
+                selectionResult.Value.FeatureKind,
+                DatumInspection: BuildDatumInspection(pmiModel.Model)));
     }
 
     private static KernelResult<ExportBodySelection> SelectExportBody(FirmamentPrimitiveExecutionResult? primitiveExecutionResult)
@@ -239,13 +240,14 @@ public static class FirmamentStepExporter
                         && entry.RawFields.TryGetValue("label", out var label))
                     {
                         if (string.Equals(datumKind, "plane", StringComparison.Ordinal)
-                            && targetRaw.Contains(".", StringComparison.Ordinal))
+                            && TryBuildPlanarDatumReference(targetRaw, featureBodies, out var planarReference))
                         {
-                            model = model.AddDatum(new PmiDatumFeature(
-                                $"datum:{label}",
-                                label,
-                                PmiDatumFeatureKind.Planar,
-                                new PmiPlanarFaceReference(featureId, targetRaw)));
+                            if (model.DatumFeatures.Any(existing => string.Equals(existing.Label, label, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                continue;
+                            }
+
+                            model = model.CreatePlanarDatum(label, planarReference);
                         }
                     }
 
@@ -287,6 +289,64 @@ public static class FirmamentStepExporter
         }
 
         return map;
+    }
+
+    private static IReadOnlyList<FirmamentPmiInspectionDatum> BuildDatumInspection(PmiModel model)
+        => model.DatumFeatures
+            .Select(datum => datum.Target is PmiPlanarFaceReference planar
+                ? new FirmamentPmiInspectionDatum(datum.Label, "planar", planar.Selector)
+                : new FirmamentPmiInspectionDatum(datum.Label, datum.Kind.ToString().ToLowerInvariant(), datum.Target.ToString() ?? "unknown"))
+            .ToArray();
+
+    private static bool TryBuildPlanarDatumReference(
+        string targetRaw,
+        IReadOnlyDictionary<string, BrepBody> featureBodies,
+        out PmiPlanarFaceReference planarReference)
+    {
+        planarReference = null!;
+
+        PmiPlanarFaceReference candidate;
+        try
+        {
+            candidate = PmiPlanarFaceReference.FromSelector(targetRaw);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        if (!FirmamentSelectorResolver.TryResolve(targetRaw, featureBodies, FirmamentSelectorResultKind.Face, out var selectorResolution))
+        {
+            return false;
+        }
+
+        if (selectorResolution.Count != 1)
+        {
+            return false;
+        }
+
+        if (!featureBodies.TryGetValue(candidate.FeatureId, out var body))
+        {
+            return false;
+        }
+
+        var planarFaceCount = body.Topology.Faces.Count(face =>
+            body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface is not null
+            && surface.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane);
+
+        if (planarFaceCount <= 0)
+        {
+            return false;
+        }
+
+        if (targetRaw.EndsWith(".side_face", StringComparison.Ordinal) || targetRaw.EndsWith(".surface", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        planarReference = candidate;
+        return true;
     }
 
     private sealed record DerivedPmiPayload(PmiModel Model, IReadOnlyList<Step242SemanticPmiNote> PassthroughNotes);

@@ -72,6 +72,46 @@ public sealed class FirmamentPmiTests
         Assert.Equal("base.top_face", datum.Target);
     }
 
+    [Fact]
+    public void ExplicitDiameterAndLinearDistanceToDatum_AreAuthoredAndInspectable()
+    {
+        var compile = CompileFixture("testdata/firmament/examples/m7_pmi_explicit_dimensions.firmament");
+        Assert.True(compile.Compilation.IsSuccess);
+
+        var export = ExportFixture("testdata/firmament/examples/m7_pmi_explicit_dimensions.firmament");
+        Assert.True(export.IsSuccess);
+
+        Assert.NotNull(export.Value.DimensionInspection);
+        Assert.Contains(export.Value.DimensionInspection!, dimension =>
+            string.Equals(dimension.Kind, nameof(PmiDimensionKind.Diameter), StringComparison.Ordinal)
+            && string.Equals(dimension.Target, "main_hole", StringComparison.Ordinal)
+            && Math.Abs(dimension.Value - 10d) < 1e-9d);
+        Assert.Contains(export.Value.DimensionInspection!, dimension =>
+            string.Equals(dimension.Kind, nameof(PmiDimensionKind.LinearDistanceToDatum), StringComparison.Ordinal)
+            && string.Equals(dimension.Target, "main_hole", StringComparison.Ordinal)
+            && string.Equals(dimension.Datum, "A", StringComparison.Ordinal)
+            && Math.Abs(dimension.Value - 12d) < 1e-9d);
+    }
+
+    [Fact]
+    public void Compile_PmiDimension_LinearDistanceToDatum_MissingDatum_IsRejected()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7e-invalid-pmi-dimension-missing-datum.firmament");
+        Assert.False(result.Compilation.IsSuccess);
+
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains("references missing datum label 'Z'", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Compile_PmiDimension_Diameter_OnNonCylindricalTarget_IsRejected()
+    {
+        var result = CompileFixture("testdata/firmament/fixtures/m7e-invalid-pmi-dimension-invalid-target.firmament");
+        Assert.False(result.Compilation.IsSuccess);
+
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains("dimension_kind 'diameter' target 'base' to be a cylindrical primitive/feature", diagnostic.Message, StringComparison.Ordinal);
+    }
 
     [Fact]
     public void LegacyAutoHoleDemo_BuildsSemanticDiameterDimensions_InKernelPmiModel()
@@ -106,6 +146,18 @@ public sealed class FirmamentPmiTests
         var loweringPlan = Assert.IsType<FirmamentCompilationArtifact>(legacyAutoHole.Compilation.Value).PrimitiveLoweringPlan;
         var model = FirmamentStepExporter.BuildLegacyAutoHolePmiModel(loweringPlan!, selectionFeatureId: "hole_b");
         Assert.Equal(2, model.Dimensions.Count);
+    }
+
+    [Fact]
+    public void IntegrationSanity_ExplicitDimension_Coexists_WithLegacyAutoHoleDimension()
+    {
+        var export = ExportFixture("testdata/firmament/examples/m7_pmi_explicit_and_legacy_coexist.firmament");
+        Assert.True(export.IsSuccess);
+
+        Assert.NotNull(export.Value.DimensionInspection);
+        Assert.Equal(2, export.Value.DimensionInspection!.Count);
+        Assert.Contains(export.Value.DimensionInspection, dimension => string.Equals(dimension.SourceTag, "explicit-dimension", StringComparison.Ordinal));
+        Assert.Contains(export.Value.DimensionInspection, dimension => string.Equals(dimension.SourceTag, "legacy-auto-hole-demo", StringComparison.Ordinal));
     }
 
     private static FirmamentCompileResult CompileFixture(string fixturePath)

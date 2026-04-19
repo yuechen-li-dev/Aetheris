@@ -1,0 +1,47 @@
+firmament:
+  version: 1
+
+model:
+  name: m7_pmi_explicit_dimensions
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      100
+      60
+      20
+
+  -
+    op: subtract
+    id: main_hole
+    from: base
+    with:
+      op: cylinder
+      radius: 5
+      height: 24
+    place:
+      on_face: base.top_face
+      centered_on: base.top_face
+
+pmi[3]:
+  -
+    kind: datum
+    datum_kind: plane
+    label: A
+    target: base.top_face
+
+  -
+    kind: dimension
+    dimension_kind: diameter
+    target: main_hole
+    value: 10
+
+  -
+    kind: dimension
+    dimension_kind: linear_distance_to_datum
+    target: main_hole
+    datum: A
+    value: 12

@@ -55,7 +55,8 @@ public static class FirmamentStepExporter
                 selectionResult.Value.OpIndex,
                 selectionResult.Value.BodyCategory,
                 selectionResult.Value.FeatureKind,
-                DatumInspection: BuildDatumInspection(pmiModel.Model)));
+                DatumInspection: BuildDatumInspection(pmiModel.Model),
+                DimensionInspection: BuildDimensionInspection(pmiModel.Model)));
     }
 
     private static KernelResult<ExportBodySelection> SelectExportBody(FirmamentPrimitiveExecutionResult? primitiveExecutionResult)
@@ -126,23 +127,21 @@ public static class FirmamentStepExporter
         ExportBodySelection selection)
     {
         var explicitPmi = DeriveExplicitPmi(parsedDocument, executionResult);
-        if (explicitPmi.Model.DatumFeatures.Count > 0
-            || explicitPmi.Model.Dimensions.Count > 0
-            || explicitPmi.PassthroughNotes.Count > 0)
-        {
-            return explicitPmi;
-        }
-
         if (loweringPlan is null
             || !string.Equals(selection.BodyCategory, ExportBodyCategoryBoolean, StringComparison.Ordinal)
             || !string.Equals(selection.FeatureKind, "subtract", StringComparison.Ordinal))
         {
-            return new DerivedPmiPayload(PmiModel.Empty(selection.FeatureId), []);
+            return explicitPmi;
         }
 
-        var model = BuildLegacyAutoHolePmiModel(loweringPlan, selection.FeatureId);
+        var legacyModel = BuildLegacyAutoHolePmiModel(loweringPlan, selection.FeatureId);
+        var mergedModel = explicitPmi.Model;
+        foreach (var legacyDimension in legacyModel.Dimensions)
+        {
+            mergedModel = mergedModel.AddDimension(legacyDimension);
+        }
 
-        return new DerivedPmiPayload(model, []);
+        return new DerivedPmiPayload(mergedModel, explicitPmi.PassthroughNotes);
     }
 
 
@@ -201,8 +200,9 @@ public static class FirmamentStepExporter
         var model = PmiModel.Empty(bodyFeatureId);
         var passthroughNotes = new List<Step242SemanticPmiNote>();
 
-        foreach (var entry in parsedDocument.Pmi.Entries)
+        for (var index = 0; index < parsedDocument.Pmi.Entries.Count; index++)
         {
+            var entry = parsedDocument.Pmi.Entries[index];
             if (!entry.RawFields.TryGetValue("target", out var targetRaw))
             {
                 continue;
@@ -226,7 +226,7 @@ public static class FirmamentStepExporter
                         }
 
                         model = model.AddDimension(new PmiDimension(
-                            $"diameter:{featureId}",
+                            $"explicit-diameter:{featureId}:{index}",
                             PmiDimensionKind.Diameter,
                             new PmiCylindricalFeatureReference(featureId, entry.RawFields.TryGetValue("hole_family", out var familyRaw) ? familyRaw : null),
                             null,
@@ -269,6 +269,43 @@ public static class FirmamentStepExporter
                     }
 
                     break;
+                case FirmamentParsedPmiKind.Dimension:
+                    if (!entry.RawFields.TryGetValue("dimension_kind", out var dimensionKindRaw)
+                        || !entry.RawFields.TryGetValue("value", out var valueRaw)
+                        || !double.TryParse(valueRaw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value))
+                    {
+                        break;
+                    }
+
+                    if (string.Equals(dimensionKindRaw, "diameter", StringComparison.Ordinal))
+                    {
+                        model = model.AddDimension(new PmiDimension(
+                            $"explicit-diameter:{featureId}:{index}",
+                            PmiDimensionKind.Diameter,
+                            new PmiCylindricalFeatureReference(featureId, "through_or_blind_cylindrical"),
+                            null,
+                            value,
+                            SourceTag: "explicit-dimension"));
+                    }
+                    else if (string.Equals(dimensionKindRaw, "linear_distance_to_datum", StringComparison.Ordinal)
+                        && entry.RawFields.TryGetValue("datum", out var datumLabel))
+                    {
+                        var datum = model.DatumFeatures.FirstOrDefault(existing => string.Equals(existing.Label, datumLabel, StringComparison.OrdinalIgnoreCase));
+                        if (datum is null || datum.Kind != PmiDatumFeatureKind.Planar)
+                        {
+                            break;
+                        }
+
+                        model = model.AddDimension(new PmiDimension(
+                            $"explicit-linear-distance:{featureId}-to-{datum.Label}:{index}",
+                            PmiDimensionKind.LinearDistanceToDatum,
+                            new PmiCylindricalFeatureReference(featureId, "through_or_blind_cylindrical"),
+                            new PmiDatumReference(datum.DatumId),
+                            value,
+                            SourceTag: "explicit-dimension"));
+                    }
+
+                    break;
             }
         }
 
@@ -297,6 +334,30 @@ public static class FirmamentStepExporter
                 ? new FirmamentPmiInspectionDatum(datum.Label, "planar", planar.Selector)
                 : new FirmamentPmiInspectionDatum(datum.Label, datum.Kind.ToString().ToLowerInvariant(), datum.Target.ToString() ?? "unknown"))
             .ToArray();
+
+    private static IReadOnlyList<FirmamentPmiInspectionDimension> BuildDimensionInspection(PmiModel model)
+        => model.Dimensions.Select(dimension =>
+        {
+            var target = dimension.PrimaryReference switch
+            {
+                PmiCylindricalFeatureReference cylindrical => cylindrical.FeatureId,
+                PmiPlanarFaceReference planar => planar.Selector,
+                PmiDatumReference datum => datum.DatumId,
+                _ => dimension.PrimaryReference.ToString() ?? "unknown"
+            };
+
+            var datumLabel = dimension.SecondaryReference is PmiDatumReference datumReference
+                ? model.DatumFeatures.FirstOrDefault(existing => string.Equals(existing.DatumId, datumReference.DatumId, StringComparison.Ordinal))?.Label
+                    ?? datumReference.DatumId
+                : null;
+
+            return new FirmamentPmiInspectionDimension(
+                dimension.Kind.ToString(),
+                target,
+                datumLabel,
+                dimension.NominalValue,
+                dimension.SourceTag);
+        }).ToArray();
 
     private static bool TryBuildPlanarDatumReference(
         string targetRaw,

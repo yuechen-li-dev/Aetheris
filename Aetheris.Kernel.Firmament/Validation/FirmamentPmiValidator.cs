@@ -21,6 +21,7 @@ internal static class FirmamentPmiValidator
             .Where(entry => entry.RawFields.TryGetValue("id", out _))
             .ToDictionary(entry => entry.RawFields["id"], StringComparer.Ordinal);
         var seenDatumLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var declaredDatumKindsByLabel = BuildDeclaredDatumKindsByLabel(parsedDocument.Pmi.Entries);
 
         for (var index = 0; index < parsedDocument.Pmi.Entries.Count; index++)
         {
@@ -30,7 +31,8 @@ internal static class FirmamentPmiValidator
                 FirmamentParsedPmiKind.Hole => ValidateHole(entry, index, opsByFeatureId),
                 FirmamentParsedPmiKind.Datum => ValidateDatum(entry, index, opsByFeatureId, seenDatumLabels),
                 FirmamentParsedPmiKind.Note => ValidateNote(entry, index, opsByFeatureId),
-                _ => Fail($"PMI entry at index {index} has unsupported kind '{entry.KindRaw}'. Supported kinds: hole, datum, note.")
+                FirmamentParsedPmiKind.Dimension => ValidateDimension(entry, index, opsByFeatureId, declaredDatumKindsByLabel),
+                _ => Fail($"PMI entry at index {index} has unsupported kind '{entry.KindRaw}'. Supported kinds: hole, datum, note, dimension.")
             };
 
             if (!result.IsSuccess)
@@ -173,6 +175,73 @@ internal static class FirmamentPmiValidator
         return KernelResult<bool>.Success(true);
     }
 
+    private static KernelResult<bool> ValidateDimension(
+        FirmamentParsedPmiEntry entry,
+        int index,
+        IReadOnlyDictionary<string, FirmamentParsedOpEntry> opsByFeatureId,
+        IReadOnlyDictionary<string, string> declaredDatumKindsByLabel)
+    {
+        if (!entry.RawFields.TryGetValue("dimension_kind", out var dimensionKind)
+            || string.IsNullOrWhiteSpace(dimensionKind))
+        {
+            return Fail($"PMI dimension entry at index {index} is missing required field 'dimension_kind' (supported: diameter, linear_distance_to_datum).");
+        }
+
+        if (!entry.RawFields.TryGetValue("value", out var valueRaw)
+            || !double.TryParse(valueRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out var nominalValue)
+            || nominalValue <= 0d)
+        {
+            return Fail($"PMI dimension entry at index {index} must declare positive numeric 'value'.");
+        }
+
+        var targetResult = RequireTarget(entry, index, allowSelectorShaped: false, opsByFeatureId);
+        if (!targetResult.IsSuccess)
+        {
+            return KernelResult<bool>.Failure(targetResult.Diagnostics);
+        }
+
+        var targetFeature = targetResult.Value;
+        var normalizedDimensionKind = dimensionKind.Trim();
+
+        if (string.Equals(normalizedDimensionKind, "diameter", StringComparison.Ordinal))
+        {
+            if (!IsSupportedCylindricalDimensionTarget(targetFeature, opsByFeatureId))
+            {
+                return Fail($"PMI dimension entry at index {index} requires dimension_kind 'diameter' target '{targetFeature}' to be a cylindrical primitive/feature.");
+            }
+
+            return KernelResult<bool>.Success(true);
+        }
+
+        if (string.Equals(normalizedDimensionKind, "linear_distance_to_datum", StringComparison.Ordinal))
+        {
+            if (!IsSupportedCylindricalDimensionTarget(targetFeature, opsByFeatureId))
+            {
+                return Fail($"PMI dimension entry at index {index} requires dimension_kind 'linear_distance_to_datum' target '{targetFeature}' to be a cylindrical primitive/feature.");
+            }
+
+            if (!entry.RawFields.TryGetValue("datum", out var datumLabel)
+                || string.IsNullOrWhiteSpace(datumLabel))
+            {
+                return Fail($"PMI dimension entry at index {index} with dimension_kind 'linear_distance_to_datum' is missing required field 'datum'.");
+            }
+
+            if (!declaredDatumKindsByLabel.TryGetValue(datumLabel, out var declaredDatumKind))
+            {
+                return Fail($"PMI dimension entry at index {index} references missing datum label '{datumLabel}'.");
+            }
+
+            if (!string.Equals(declaredDatumKind, "plane", StringComparison.Ordinal))
+            {
+                return Fail($"PMI dimension entry at index {index} requires datum '{datumLabel}' to be planar for dimension_kind 'linear_distance_to_datum'.");
+            }
+
+            return KernelResult<bool>.Success(true);
+        }
+
+        return Fail($"PMI dimension entry at index {index} has unsupported dimension_kind '{dimensionKind}'. Supported: diameter, linear_distance_to_datum.");
+    }
+
     private static KernelResult<string> RequireTarget(FirmamentParsedPmiEntry entry, int index, bool allowSelectorShaped, IReadOnlyDictionary<string, FirmamentParsedOpEntry> opsByFeatureId)
     {
         if (!entry.RawFields.TryGetValue("target", out var targetRaw)
@@ -269,4 +338,35 @@ internal static class FirmamentPmiValidator
                 || string.Equals(port, "bottom_face", StringComparison.Ordinal),
             _ => false
         };
+
+    private static bool IsSupportedCylindricalDimensionTarget(string featureId, IReadOnlyDictionary<string, FirmamentParsedOpEntry> opsByFeatureId)
+    {
+        if (!opsByFeatureId.TryGetValue(featureId, out var targetOp))
+        {
+            return false;
+        }
+
+        return targetOp.KnownKind == FirmamentKnownOpKind.Cylinder
+            || (targetOp.KnownKind == FirmamentKnownOpKind.Subtract
+                && targetOp.RawFields.TryGetValue("with", out var toolRaw)
+                && IsCylinderToolShape(toolRaw));
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildDeclaredDatumKindsByLabel(IReadOnlyList<FirmamentParsedPmiEntry> entries)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in entries.Where(entry => entry.Kind == FirmamentParsedPmiKind.Datum))
+        {
+            if (entry.RawFields.TryGetValue("label", out var label)
+                && !string.IsNullOrWhiteSpace(label)
+                && entry.RawFields.TryGetValue("datum_kind", out var datumKind)
+                && !string.IsNullOrWhiteSpace(datumKind)
+                && !map.ContainsKey(label))
+            {
+                map[label] = datumKind;
+            }
+        }
+
+        return map;
+    }
 }

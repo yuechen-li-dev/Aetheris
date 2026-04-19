@@ -828,6 +828,7 @@ internal static class FirmamentTopLevelParser
             "hole" => FirmamentParsedPmiKind.Hole,
             "datum" => FirmamentParsedPmiKind.Datum,
             "note" => FirmamentParsedPmiKind.Note,
+            "dimension" => FirmamentParsedPmiKind.Dimension,
             _ => FirmamentParsedPmiKind.Unknown
         };
 

@@ -14,5 +14,6 @@ public enum FirmamentParsedPmiKind
     Unknown = 0,
     Hole = 1,
     Datum = 2,
-    Note = 3
+    Note = 3,
+    Dimension = 4
 }

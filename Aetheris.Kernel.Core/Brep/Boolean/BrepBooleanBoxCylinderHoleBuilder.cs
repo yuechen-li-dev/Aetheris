@@ -432,7 +432,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             return KernelResult<BrepBody>.Failure([
                 new BooleanDiagnostic(
                     BooleanDiagnosticCode.UnsupportedBlindHoleComposition,
-                    new BooleanDiagnosticContext(BooleanOperation.Subtract).FormatMessage("blind-hole continuation exceeds bounded rebuild support; only recognized orthogonal additive roots with world-Z cylinder/cone hole chains are rebuildable in this milestone."),
+                    new BooleanDiagnosticContext(BooleanOperation.Subtract).FormatMessage("blind-hole continuation exceeds bounded rebuild support; only recognized orthogonal additive roots (or simple box roots) with world-Z cylinder/cone hole chains are rebuildable in this milestone."),
                     "BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily").ToKernelDiagnostic(),
             ]);
         }
@@ -1334,7 +1334,8 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         SafeBooleanComposition composition,
         ToleranceContext tolerance)
     {
-        if (composition.OccupiedCells is null || composition.OccupiedCells.Count < 2)
+        if ((composition.OccupiedCells is null || composition.OccupiedCells.Count < 2)
+            && composition.RootDescriptor.Kind != SafeBooleanRootKind.Box)
         {
             return false;
         }

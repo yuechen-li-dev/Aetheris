@@ -10,10 +10,12 @@ The current supported boolean subset is intentionally narrow and family-specific
 - box − cone through-hole
 - box − cylinder blind hole
 - box − cone blind hole
+- box − box blind pocket and opposite-face through-slot (bounded orthogonal pocket family)
 - box − sphere cavity
 - rotated cylinder through-hole
-- safe-family composition for the currently supported through-hole family
+- safe-family composition for supported analytic-hole families, including independent world-Z multi-hole continuation on simple box roots
 - recognized safe box-root subtract with bounded prismatic through-cut tools (triangular/hexagonal/slot profiles) when the root has no prior subtract history
+- face-contact orthogonal unions even when no axis has full-span equality (bounded connected-cell family)
 
 ## Current deferred boolean pile
 
@@ -27,6 +29,7 @@ The following items remain deferred:
 - broad add/intersect expansion outside the current narrow box-box subset
 - general BRep booleans
 - bounded mixed analytic-hole + prismatic continuation rebuild path on safe box roots (recognition now exists; bounded reconstruction remains deferred)
+- safe-composition prismatic blind-pocket continuation (recognition-classification gap + bounded reconstruction path still deferred)
 
 ## Known blocker: rotated cone through-hole
 

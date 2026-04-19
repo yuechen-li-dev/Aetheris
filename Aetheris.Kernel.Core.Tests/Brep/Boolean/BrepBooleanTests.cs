@@ -363,17 +363,31 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Subtract_NonSingleBoxResult_ReturnsNotImplemented()
+    public void Subtract_ThroughSlotTwoMouthPocket_RebuildsBoundedOrthogonalPocket()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 4d, 0d, 4d, 0d, 4d)).Value;
         var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(1d, 3d, 1d, 3d, 0d, 4d)).Value;
 
         var result = BrepBoolean.Subtract(left, right);
 
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.Value.SafeBooleanComposition?.OccupiedCells);
+        Assert.NotEmpty(result.Value.SafeBooleanComposition!.OccupiedCells!);
+        Assert.True(BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+    }
+
+    [Fact]
+    public void Subtract_TwoAdjacentMouthOpening_RemainsRejected()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 8d, 0d, 8d, 0d, 8d)).Value;
+        var right = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(0d, 4d, 0d, 4d, 2d, 7d)).Value;
+
+        var result = BrepBoolean.Subtract(left, right);
+
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Boolean Subtract: bounded orthogonal pocket family requires a single pocket mouth; through-slots and multi-face openings remain deferred.", diagnostic.Message);
+        Assert.Equal("Boolean Subtract: bounded orthogonal pocket family only supports a single mouth or one opposite-face through-slot; broader multi-face openings remain deferred.", diagnostic.Message);
     }
 
     [Fact]
@@ -902,6 +916,22 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_BoxConeBlindBottomEntry_ReturnsClosedTopHole()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
+        var blind = TransformBody(CreateCone(bottomRadius: 2d, topRadius: 4d, height: 8d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 0d)));
+
+        var result = BrepBoolean.Subtract(left, blind);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.True(BrepBindingValidator.Validate(result.Value, true).IsSuccess);
+        Assert.NotNull(result.Value.SafeBooleanComposition);
+        var composition = result.Value.SafeBooleanComposition!;
+        Assert.Single(composition.Holes);
+        Assert.Equal(SupportedBooleanHoleSpanKind.BlindFromBottom, composition.Holes[0].SpanKind);
+    }
+
+    [Fact]
     public void Subtract_BoxCylinderBlindRotatedAxis_ReturnsDeferredArbitraryAxisBlindDiagnostic()
     {
         var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
@@ -1075,7 +1105,7 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Subtract_ComposedThroughThenBlindCylinder_OnPrimitiveRoot_ReturnsBoundedBlindContinuationDiagnostic()
+    public void Subtract_ComposedThroughThenBlindCylinder_OnPrimitiveRoot_Succeeds()
     {
         var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, 0d, 12d)).Value;
         var firstHole = TransformBody(BrepPrimitives.CreateCylinder(4d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(-7d, 0d, 6d)));
@@ -1085,9 +1115,8 @@ public sealed class BrepBooleanTests
         Assert.True(first.IsSuccess);
 
         var result = BrepBoolean.Subtract(first.Value, blind);
-        Assert.False(result.IsSuccess);
-        var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Equal("BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily", diagnostic.Source);
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(2, result.Value.SafeBooleanComposition?.Holes.Count);
     }
 
     [Fact]
@@ -1229,10 +1258,8 @@ public sealed class BrepBooleanTests
         Assert.True(first.IsSuccess);
         var second = BrepBoolean.Subtract(first.Value, offsetThrough);
 
-        Assert.False(second.IsSuccess);
-        var diagnostic = Assert.Single(second.Diagnostics);
-        Assert.Equal("BrepBoolean.AnalyticHole.AxisNotAligned", diagnostic.Source);
-        Assert.Contains("requires coaxial cylinders", diagnostic.Message, StringComparison.Ordinal);
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(2, second.Value.SafeBooleanComposition?.Holes.Count);
     }
 
     [Fact]
@@ -1257,6 +1284,40 @@ public sealed class BrepBooleanTests
         var export = Step242Exporter.ExportBody(second.Value);
         Assert.True(export.IsSuccess);
         Assert.Contains("MANIFOLD_SOLID_BREP", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_SimpleBoxRoot_WithIndependentThroughHoles_Succeeds()
+    {
+        var root = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-30d, 30d, -20d, 20d, -8d, 8d)).Value;
+        var holeA = TransformBody(BrepPrimitives.CreateCylinder(3d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(-12d, -4d, 0d)));
+        var holeB = TransformBody(BrepPrimitives.CreateCylinder(2.5d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(10d, 6d, 0d)));
+
+        var first = BrepBoolean.Subtract(root, holeA);
+        Assert.True(first.IsSuccess);
+        var second = BrepBoolean.Subtract(first.Value, holeB);
+
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(2, second.Value.SafeBooleanComposition?.Holes.Count);
+        Assert.True(BrepBindingValidator.Validate(second.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+    }
+
+    [Fact]
+    public void Subtract_SimpleBoxRoot_WithUnsupportedIndependentHoleOrientation_RemainsRejected()
+    {
+        var root = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-30d, 30d, -20d, 20d, -8d, 8d)).Value;
+        var holeA = TransformBody(BrepPrimitives.CreateCylinder(3d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(-12d, 0d, 0d)));
+        var rotatedHole = TransformBody(
+            BrepPrimitives.CreateCylinder(2.5d, 24d).Value,
+            Transform3D.CreateRotationX(System.Math.PI / 2d) * Transform3D.CreateTranslation(new Vector3D(0d, 0d, 0d)));
+
+        var first = BrepBoolean.Subtract(root, holeA);
+        Assert.True(first.IsSuccess);
+        var second = BrepBoolean.Subtract(first.Value, rotatedHole);
+
+        Assert.False(second.IsSuccess);
+        var diagnostic = Assert.Single(second.Diagnostics);
+        Assert.Contains("does not match the bounded", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

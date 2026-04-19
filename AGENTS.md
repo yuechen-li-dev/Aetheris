@@ -1,6 +1,6 @@
 # AGENTS.md
 
-- Use Aetheris.CLI to inspect and validate parts/assemblies during development; run `aetheris --help` and subcommand `--help` to discover available capabilities before making assumptions.
+- Use Aetheris.CLI to inspect and validate parts/assemblies during development as ground-truth inspection tool. If `aetheris` is not available on PATH, build/run it via dotnet (for example `dotnet run --project Aetheris.CLI -- --help` and corresponding subcommand help) before making assumptions about current capabilities.
 
 - Update documentation opportunistically during development and surface any inconsistencies or friction immediately; do not defer doc fixes, as the system is evolving rapidly and drift must be corrected in-place.
 

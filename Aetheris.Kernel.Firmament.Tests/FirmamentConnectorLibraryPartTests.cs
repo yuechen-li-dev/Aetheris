@@ -46,7 +46,7 @@ public sealed class FirmamentConnectorLibraryPartTests
     }
 
     [Fact]
-    public void ConnectorPart_With_SlotCut_Composition_Reveals_Next_Bounded_Blocker()
+    public void ConnectorPart_With_SlotCut_Composition_Reveals_Narrower_MixedRebuild_Blocker()
     {
         var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/composed_part_with_slot.firmament");
 
@@ -59,7 +59,7 @@ public sealed class FirmamentConnectorLibraryPartTests
         Assert.Contains(
             compile.Compilation.Diagnostics,
             diagnostic => diagnostic.Source == "BrepBoolean.RebuildResult"
-                && diagnostic.Message.Contains("bounded prismatic subtract continuation currently requires a recognized safe box root without existing analytic-hole/open-slot subtractions", StringComparison.Ordinal));
+                && diagnostic.Message.Contains("bounded mixed analytic+prismatic subtract continuation is recognized but bounded reconstruction for this mixed family is not implemented yet", StringComparison.Ordinal));
     }
 
     [Fact]

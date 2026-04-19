@@ -13,7 +13,7 @@ The current supported boolean subset is intentionally narrow and family-specific
 - box − sphere cavity
 - rotated cylinder through-hole
 - safe-family composition for the currently supported through-hole family
-- recognized safe box-root subtract with bounded prismatic through-cut tools (triangular/hexagonal/slot profiles) when the root has no prior analytic-hole/open-slot subtract history
+- recognized safe box-root subtract with bounded prismatic through-cut tools (triangular/hexagonal/slot profiles) when the root has no prior subtract history
 
 ## Current deferred boolean pile
 
@@ -26,7 +26,7 @@ The following items remain deferred:
 - torus booleans
 - broad add/intersect expansion outside the current narrow box-box subset
 - general BRep booleans
-- prismatic continuation from safe roots that already contain analytic-hole/open-slot subtract history
+- bounded mixed analytic-hole + prismatic continuation rebuild path on safe box roots (recognition now exists; bounded reconstruction remains deferred)
 
 ## Known blocker: rotated cone through-hole
 

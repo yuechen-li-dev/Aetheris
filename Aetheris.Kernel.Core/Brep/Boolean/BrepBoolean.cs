@@ -1771,7 +1771,13 @@ public static class BrepBoolean
 
         if (leftComposition.Holes.Count > 0 || (leftComposition.OpenSlots?.Count ?? 0) > 0)
         {
-            unsupportedReason = "Boolean Subtract: bounded prismatic subtract continuation currently requires a recognized safe box root without existing analytic-hole/open-slot subtractions.";
+            if (!SupportsBoundedAnalyticHistoryForPrismaticContinuation(leftComposition, tolerance, out var historyReason))
+            {
+                unsupportedReason = historyReason;
+                return false;
+            }
+
+            unsupportedReason = "Boolean Subtract: bounded mixed analytic+prismatic subtract continuation is recognized but bounded reconstruction for this mixed family is not implemented yet.";
             return false;
         }
 
@@ -1793,6 +1799,42 @@ public static class BrepBoolean
             }
         }
 
+        return true;
+    }
+
+    private static bool SupportsBoundedAnalyticHistoryForPrismaticContinuation(
+        SafeBooleanComposition composition,
+        ToleranceContext tolerance,
+        out string unsupportedReason)
+    {
+        unsupportedReason = "Boolean Subtract: bounded prismatic subtract continuation currently requires prior subtract history to stay inside supported analytic-hole/open-slot families.";
+        if (composition.OpenSlots is { Count: > 0 })
+        {
+            return false;
+        }
+
+        foreach (var hole in composition.Holes)
+        {
+            if (hole.SpanKind != SupportedBooleanHoleSpanKind.Through)
+            {
+                return false;
+            }
+
+            if (hole.Surface.Kind is not (AnalyticSurfaceKind.Cylinder or AnalyticSurfaceKind.Cone))
+            {
+                return false;
+            }
+
+            var axis = hole.Axis.ToVector();
+            if (!ToleranceMath.AlmostZero(axis.X, tolerance)
+                || !ToleranceMath.AlmostZero(axis.Y, tolerance)
+                || !ToleranceMath.AlmostEqual(System.Math.Abs(axis.Z), 1d, tolerance))
+            {
+                return false;
+            }
+        }
+
+        unsupportedReason = string.Empty;
         return true;
     }
 

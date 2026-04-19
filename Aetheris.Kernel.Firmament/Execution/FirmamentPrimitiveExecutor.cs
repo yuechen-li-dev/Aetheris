@@ -521,9 +521,16 @@ internal static class FirmamentPrimitiveExecutor
 
         var isCylinderTool = string.Equals(boolean.Tool.OpName, "cylinder", StringComparison.Ordinal);
         var isConeTool = string.Equals(boolean.Tool.OpName, "cone", StringComparison.Ordinal);
-        if (!isCylinderTool && !isConeTool)
+        var isSphereTool = string.Equals(boolean.Tool.OpName, "sphere", StringComparison.Ordinal);
+        if (!isCylinderTool && !isConeTool && !isSphereTool)
         {
             return false;
+        }
+
+        if (isSphereTool)
+        {
+            return !string.IsNullOrWhiteSpace(boolean.Placement.OnFace)
+                && BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out _, out _);
         }
 
         if (isConeTool)
@@ -534,6 +541,12 @@ internal static class FirmamentPrimitiveExecutor
         }
 
         if (baseBody.SafeBooleanComposition is { Holes.Count: > 0 })
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(boolean.Placement.OnFace)
+            && BrepBooleanCylinderRecognition.TryRecognizeCylinder(baseBody, ToleranceContext.Default, out _, out _))
         {
             return true;
         }

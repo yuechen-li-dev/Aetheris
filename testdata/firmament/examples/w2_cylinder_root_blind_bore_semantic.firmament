@@ -1,0 +1,29 @@
+firmament:
+  version: 1
+
+model:
+  name: w2_cylinder_root_blind_bore_semantic
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: flange
+    radius: 40
+    height: 12
+
+  -
+    op: subtract
+    id: blind_bore
+    from: flange
+    with:
+      op: cylinder
+      radius: 12
+      height: 8
+    place:
+      on: origin
+      on_face: flange.top_face
+      offset[3]:
+        0
+        0
+        -8

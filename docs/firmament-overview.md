@@ -83,4 +83,4 @@ The current implementation does **not** claim support for:
 - arbitrary orientation systems or generalized transforms
 - a broad manufacturing-intelligence or full DFM engine
 
-For concrete examples, see `testdata/firmament/examples/`. For the practical golden path, see `docs/firmament-build-workflow.md`.
+For concrete examples, see `testdata/firmament/examples/`. For selector/semantic naming contracts, see `docs/firmament-selectors.md`. For executable placement rules, see `docs/firmament-placement-semantics.md`. For the practical golden path, see `docs/firmament-build-workflow.md`.

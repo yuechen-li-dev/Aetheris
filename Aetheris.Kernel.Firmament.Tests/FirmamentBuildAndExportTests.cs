@@ -306,6 +306,30 @@ public sealed class FirmamentBuildAndExportTests
             "subtract");
     }
 
+
+    [Fact]
+    public void Run_W2CylinderRootBlindBoreSemanticExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/w2_cylinder_root_blind_bore_semantic.firmament",
+            "w2_cylinder_root_blind_bore_semantic.step",
+            "blind_bore",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_W2BoxSphereExteriorOpeningPocketSemanticExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/w2_box_sphere_exterior_opening_pocket_semantic.firmament",
+            "w2_box_sphere_exterior_opening_pocket_semantic.step",
+            "pocket",
+            1,
+            "boolean",
+            "subtract");
+    }
     [Fact]
     public void Run_RibbedSupportF1Example_Writes_Default_Export_Artifact()
     {

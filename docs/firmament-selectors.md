@@ -1,6 +1,13 @@
-# Firmament Selector Contracts
+# Firmament Selector Contracts + Primitive Semantic Naming (current v1 reality)
 
-This document describes the selector surface that is implemented today.
+This document is the source-of-truth summary for the selector/semantic naming surface that is implemented **today**.
+
+It answers two practical questions:
+
+1. which primitive/feature semantic names are legal (`feature.port`), and
+2. what those names currently mean in executable placement/selection behavior.
+
+---
 
 ## Selector shapes
 
@@ -11,11 +18,13 @@ Firmament currently accepts these target/anchor shapes:
 
 There is no implemented selector chaining or multi-hop traversal.
 
-## Contract-level selector ports
+---
 
-### Primitive features
+## Primitive semantic names (ports)
 
-#### `box`
+The table below documents the current contract ports for primitives involved in common authoring flows (including Wave 2.1 examples).
+
+### `box`
 
 - `top_face` → result kind `Face`, cardinality `One`
 - `bottom_face` → result kind `Face`, cardinality `One`
@@ -23,7 +32,9 @@ There is no implemented selector chaining or multi-hop traversal.
 - `edges` → result kind `EdgeSet`, cardinality `Many`
 - `vertices` → result kind `VertexSet`, cardinality `Many`
 
-#### `cylinder`
+Authoring note: box face naming is world-Z semantic (`top_face` means positive-Z planar face, `bottom_face` negative-Z planar face), not arbitrary CAD-face ordering.
+
+### `cylinder`
 
 - `top_face` → `Face`, `One`
 - `bottom_face` → `Face`, `One`
@@ -32,7 +43,7 @@ There is no implemented selector chaining or multi-hop traversal.
 - `edges` → `EdgeSet`, `Many`
 - `vertices` → `VertexSet`, `Many`
 
-Current verified primitive-body topology for `cylinder` is:
+Current verified primitive-body topology for canonical cylinder bodies:
 
 - `top_face` = 1 planar cap face
 - `bottom_face` = 1 planar cap face
@@ -41,9 +52,19 @@ Current verified primitive-body topology for `cylinder` is:
 - `edges` = 3 total edges (2 circular + 1 seam)
 - `vertices` = 4 total vertices
 
-#### `cone`
+### `sphere`
 
-Implemented selector surface for the v1 `cone` primitive remains:
+- `surface` → `Face`, `One`
+
+Current verified primitive-body topology for canonical sphere bodies:
+
+- `surface` = 1 spherical face
+- `edges` = 0
+- `vertices` = 0
+
+`top_face`/`bottom_face` are **not** legal sphere ports.
+
+### `cone` (included for placement parity with cylinder)
 
 - `top_face` → `Face`, `One`
 - `bottom_face` → `Face`, `One`
@@ -52,45 +73,13 @@ Implemented selector surface for the v1 `cone` primitive remains:
 - `edges` → `EdgeSet`, `Many`
 - `vertices` → `VertexSet`, `Many`
 
-Current verified primitive-body topology for `cone` is conditional on the radii:
+Pointed-cone cap selectors remain contract-legal but can resolve to zero runtime topology when that cap is absent.
 
-- frustum cone (`bottom_radius > 0`, `top_radius > 0`, unequal)
-  - `top_face` = 1 planar cap face
-  - `bottom_face` = 1 planar cap face
-  - `side_face` = 1 conical face
-  - `circular_edges` = 2 circular cap edges
-  - `edges` = 3 total edges (2 circular + 1 seam)
-  - `vertices` = 4 total vertices
-- pointed cone with `top_radius = 0`
-  - `top_face` = 0
-  - `bottom_face` = 1 planar cap face
-  - `side_face` = 1 conical face
-  - `circular_edges` = 1 circular base edge
-  - `edges` = 2 total edges (1 circular + 1 seam)
-  - `vertices` = 3 total vertices
-- pointed cone with `bottom_radius = 0`
-  - `top_face` = 1 planar cap face
-  - `bottom_face` = 0
-  - `side_face` = 1 conical face
-  - `circular_edges` = 1 circular base edge
-  - `edges` = 2 total edges (1 circular + 1 seam)
-  - `vertices` = 3 total vertices
+---
 
-Selectors on the missing cap remain legal source ports for `cone`, but truthfully resolve to zero runtime topology elements in the pointed case.
+## Boolean-feature semantic names
 
-#### `sphere`
-
-- `surface` → `Face`, `One`
-
-Current verified primitive-body topology for `sphere` is:
-
-- `surface` = 1 spherical face
-- `edges` = 0 (not part of the truthful selector contract)
-- `vertices` = 0 (not part of the truthful selector contract)
-
-### Boolean features
-
-Current boolean roots (`add`, `subtract`, `intersect`) share this contract surface:
+Current boolean outputs (`add`, `subtract`, `intersect`, plus bounded draft/chamfer/fillet outputs in selector contracts) share:
 
 - `top_face` → `Face`, `One`
 - `bottom_face` → `Face`, `One`
@@ -98,35 +87,48 @@ Current boolean roots (`add`, `subtract`, `intersect`) share this contract surfa
 - `edges` → `EdgeSet`, `Many`
 - `vertices` → `VertexSet`, `Many`
 
-## Result kinds and cardinality
+---
 
-The current selector contract metadata distinguishes:
+## Placement-relevant meaning of names
 
-- result kinds: `Face`, `FaceSet`, `EdgeSet`, `VertexSet`
-- cardinality: `One`, `Many`
+For placement anchors (`place.on`, `place.on_face`, `place.centered_on`) the resolver currently uses representative geometry points and centroids:
 
-These are attached at compile time for legal selector-shaped targets.
+- face/face-set ports → representative face points then centroid,
+- edge-set ports → edge endpoint points then centroid,
+- vertex-set ports → vertex points then centroid.
 
-## What is topology-backed today
+Important implication: names such as `on_face` vs `centered_on` are currently ergonomic aliases over the same anchor extraction behavior, not different mating solvers.
 
-Selectors are still intentionally narrow.
+---
 
-Today they are backed by current runtime/body topology checks such as:
+## Around-axis selector rule (P1)
 
-- face count
-- edge count
-- vertex count
-- placement-anchor extraction from representative face/edge/vertex points
+`place.around_axis` expects a selector that resolves a cylindrical/conical axis through `side_face`.
 
-This is enough for current validation and placement flows, but it is not a generalized semantic selector system.
+Canonical examples:
 
-## Not supported yet
+- `flange.side_face` where `flange` is a cylinder
+- `cone_1.side_face` where `cone_1` is a cone
 
-The current implementation does **not** support:
+Using non-axis ports (for example `top_face`, `edges`, `vertices`) for `around_axis` is rejected.
 
-- selector chaining such as `a.top_face.edges`
-- multi-hop traversal across derived topology
-- richer topology naming guarantees beyond current feature contracts and runtime checks
-- arbitrary semantic resolution detached from current executed bodies
+---
 
-Selectors must start from a source feature id, which remains the language-stable identity.
+## What is still not guaranteed
+
+Even with semantic names, this is still a bounded selector system.
+
+Not supported yet:
+
+- selector chaining (`a.top_face.edges`)
+- topology-stable persistent naming across arbitrary modeling edits
+- generalized semantic traversal detached from current executed bodies
+
+---
+
+## Wave 2.1 canonical references
+
+For concrete authoring of semantic placement with subtract tools:
+
+- `testdata/firmament/examples/w2_cylinder_root_blind_bore_semantic.firmament`
+- `testdata/firmament/examples/w2_box_sphere_exterior_opening_pocket_semantic.firmament`

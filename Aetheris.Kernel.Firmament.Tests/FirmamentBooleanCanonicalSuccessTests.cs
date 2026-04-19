@@ -189,8 +189,9 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-overlapping-composed-holes.firmament", "hole_b", "overlaps previously accepted hole")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", "hole_b", "would be tangent to previously accepted hole")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "joined", "cannot continue the safe subtract chain rooted at 'hole_a'")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "cavity", "unsupported follow-on tool kind 'sphere'")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch", "unsupported follow-on tool kind 'box'")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "cavity", "analytic tool surface kind 'Sphere'")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch", "bounded top-level family")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-straight-slot.firmament", "slot_b", "bounded mixed through-void builder rejects tangent/edge-grazing analytic-prismatic interactions")]
     public void SequentialCompositionOutsideSafeSubset_RemainsRejectedWithoutFallback(string fixturePath, string expectedFeatureId, string expectedMessageFragment)
     {
         var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
@@ -391,7 +392,6 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
         => message.Contains("bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
            || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone analytic holes", StringComparison.Ordinal)
            || message.Contains("safe subtract", StringComparison.Ordinal)
-           || message.Contains("unsupported follow-on tool kind", StringComparison.Ordinal)
            || message.Contains("Boolean feature", StringComparison.Ordinal)
            || message.Contains("analytic hole surface kind", StringComparison.Ordinal)
            || message.Contains("fully enclosed spherical cavity", StringComparison.Ordinal);

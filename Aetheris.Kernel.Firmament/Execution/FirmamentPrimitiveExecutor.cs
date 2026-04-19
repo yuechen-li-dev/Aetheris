@@ -457,6 +457,13 @@ internal static class FirmamentPrimitiveExecutor
                 : FirmamentSafeSubtractFeatureGraphState.BoundedOrthogonalAdditiveOutsideSafeRoot;
         }
 
+        if (boolean.Kind == FirmamentLoweredBooleanKind.Subtract
+            && validatedResultState == FirmamentSafeSubtractFeatureGraphState.Other
+            && BrepBooleanSafeComposition.TryRecognize(resultBody, tolerance, out _, out _))
+        {
+            return FirmamentSafeSubtractFeatureGraphState.SafeSubtractComposition;
+        }
+
         return validatedResultState;
     }
 

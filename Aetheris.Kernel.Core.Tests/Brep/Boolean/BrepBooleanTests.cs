@@ -1610,10 +1610,8 @@ public sealed class BrepBooleanTests
         var containingTool = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-12d, 12d, -12d, 12d, -6d, 6d)).Value;
         var classification = BrepBoolean.ClassifyBooleanCase(safeCompositionResult.Value, containingTool, BooleanOperation.Subtract);
 
-        Assert.Equal(BooleanExecutionClass.UnsupportedGeneralCase, classification.ExecutionClass);
-        Assert.NotNull(classification.UnsupportedReason);
-        Assert.Contains("recognized safe box-root subtract/intersect routing", classification.UnsupportedReason!, StringComparison.Ordinal);
-        Assert.NotEmpty(classification.UnsupportedReason);
+        Assert.Equal(BooleanExecutionClass.PlanarOnly, classification.ExecutionClass);
+        Assert.Null(classification.UnsupportedReason);
     }
 
     [Fact]
@@ -1695,6 +1693,40 @@ public sealed class BrepBooleanTests
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Contains("bounded mixed through-void builder", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MixedThroughVoid_BlindThenPrismaticContainingFootprint_Succeeds()
+    {
+        var root = BrepPrimitives.CreateBox(20d, 20d, 20d).Value;
+        var blindHoleTool = TransformBody(BrepPrimitives.CreateCylinder(2d, 8d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
+        var withBlindHole = BrepBoolean.Subtract(root, blindHoleTool);
+        Assert.True(withBlindHole.IsSuccess);
+        Assert.Equal(SupportedBooleanHoleSpanKind.BlindFromTop, Assert.Single(withBlindHole.Value.SafeBooleanComposition!.Holes).SpanKind);
+
+        var slotTool = StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 24d, 4d).Value;
+        var result = BrepBoolean.Subtract(withBlindHole.Value, slotTool);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.Value.SafeBooleanComposition?.ThroughVoids);
+        Assert.Single(result.Value.SafeBooleanComposition!.ThroughVoids!.PrismaticVoids);
+        Assert.Empty(result.Value.SafeBooleanComposition.ThroughVoids.AnalyticVoids);
+    }
+
+    [Fact]
+    public void MixedThroughVoid_BlindThenPrismaticPartialOverlap_RemainsRejected()
+    {
+        var root = BrepPrimitives.CreateBox(20d, 20d, 20d).Value;
+        var blindHoleTool = TransformBody(BrepPrimitives.CreateCylinder(2.5d, 8d).Value, Transform3D.CreateTranslation(new Vector3D(6.5d, 0d, 6d)));
+        var withBlindHole = BrepBoolean.Subtract(root, blindHoleTool);
+        Assert.True(withBlindHole.IsSuccess);
+
+        var slotTool = StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 24d, 4d).Value;
+        var result = BrepBoolean.Subtract(withBlindHole.Value, slotTool);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Contains("requires prior subtract history to stay inside supported analytic-hole/open-slot families", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

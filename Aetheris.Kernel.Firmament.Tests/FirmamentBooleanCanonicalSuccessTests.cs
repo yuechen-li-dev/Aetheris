@@ -190,7 +190,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", "hole_b", "would be tangent to previously accepted hole")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "joined", "cannot continue the safe subtract chain rooted at 'hole_a'")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "cavity", "analytic tool surface kind 'Sphere'")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch", "bounded top-level family")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch", "bounded mixed through-void builder rejects tangent/edge-grazing analytic-prismatic interactions")]
     [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-straight-slot.firmament", "slot_b", "bounded mixed through-void builder rejects tangent/edge-grazing analytic-prismatic interactions")]
     public void SequentialCompositionOutsideSafeSubset_RemainsRejectedWithoutFallback(string fixturePath, string expectedFeatureId, string expectedMessageFragment)
     {

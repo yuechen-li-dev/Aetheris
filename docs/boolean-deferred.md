@@ -11,7 +11,9 @@ The current supported boolean subset is intentionally narrow and family-specific
 - box − cylinder blind hole
 - box − cone blind hole
 - box − box blind pocket and opposite-face through-slot (bounded orthogonal pocket family)
-- box − sphere cavity
+- box − sphere cavity (single-sphere only): fully enclosed cavity and one-sided top/bottom exterior-opening spherical pocket
+- cylinder-root − coaxial center bore (through)
+- cylinder-root − coaxial blind bore from top/bottom (single-bore bounded family)
 - rotated cylinder through-hole
 - safe-family composition for supported analytic-hole families, including independent world-Z multi-hole continuation on simple box roots
 - recognized safe box-root subtract with bounded prismatic through-cut tools (triangular/hexagonal/slot profiles) when the root has no prior subtract history
@@ -30,6 +32,7 @@ The following items remain deferred:
 - general BRep booleans
 - bounded mixed analytic-hole + prismatic continuation rebuild path on safe box roots (recognition now exists; bounded reconstruction remains deferred)
 - safe-composition prismatic blind-pocket continuation (recognition-classification gap + bounded reconstruction path still deferred)
+- multi-sphere and mixed sphere+prismatic continuation in one subtract chain
 
 ## Known blocker: rotated cone through-hole
 

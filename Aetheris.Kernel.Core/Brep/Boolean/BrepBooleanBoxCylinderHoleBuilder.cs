@@ -40,7 +40,22 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             && composition.Holes[0].Surface.Kind == AnalyticSurfaceKind.Sphere
             && composition.Holes[0].Surface.Sphere is RecognizedSphere sphere)
         {
-            return CreateComposedContainedSphereCavityBody(composition.OuterBox, sphere);
+            if (composition.Holes[0].SpanKind == SupportedBooleanHoleSpanKind.Contained)
+            {
+                return CreateComposedContainedSphereCavityBody(composition.OuterBox, sphere);
+            }
+
+            if (composition.Holes[0].SpanKind is SupportedBooleanHoleSpanKind.BlindFromTop or SupportedBooleanHoleSpanKind.BlindFromBottom)
+            {
+                return CreateComposedSphereOpeningCavityBody(composition.OuterBox, sphere, composition.Holes[0], composition);
+            }
+
+            return KernelResult<BrepBody>.Failure([
+                new BooleanDiagnostic(
+                    BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind,
+                    new BooleanDiagnosticContext(BooleanOperation.Subtract).FormatMessage("bounded sphere subtract supports only contained or one-sided exterior-opening spherical cavities."),
+                    "BrepBoolean.AnalyticHole.UnsupportedAnalyticSurfaceKind").ToKernelDiagnostic(),
+            ]);
         }
 
         if (composition.Holes.Count == 1
@@ -56,7 +71,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             return KernelResult<BrepBody>.Failure([
                 new BooleanDiagnostic(
                     BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind,
-                    new BooleanDiagnosticContext(BooleanOperation.Subtract).FormatMessage("safe subtract composition only supports one contained spherical cavity when no prior holes have been accepted."),
+                    new BooleanDiagnosticContext(BooleanOperation.Subtract).FormatMessage("safe subtract composition supports exactly one spherical cavity operation and does not support mixed sphere continuation with other tools."),
                     "BrepBoolean.AnalyticHole.UnsupportedAnalyticSurfaceKind").ToKernelDiagnostic(),
             ]);
         }
@@ -123,6 +138,25 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             ]);
         }
 
+        if (composition.Holes.Any(hole => hole.IsBlind))
+        {
+            var blindHoles = composition.Holes.Where(hole => hole.IsBlind).ToArray();
+            if (blindHoles.Length != 1
+                || composition.Holes.Count != 1
+                || !ToleranceMath.AlmostZero(blindHoles[0].CenterX, tolerance)
+                || !ToleranceMath.AlmostZero(blindHoles[0].CenterY, tolerance))
+            {
+                return KernelResult<BrepBody>.Failure([
+                    new BooleanDiagnostic(
+                        BooleanDiagnosticCode.HoleInterference,
+                        new BooleanDiagnosticContext(BooleanOperation.Subtract).FormatMessage("bounded cylinder-root blind-bore rebuild supports only one coaxial blind bore in this milestone."),
+                        "BrepBoolean.AnalyticHole.HoleInterference").ToKernelDiagnostic(),
+                ]);
+            }
+
+            return CreateCylinderRootBlindBoreBody(rootCylinder, blindHoles[0], composition);
+        }
+
         var rootCenter = new Point3D(
             (rootCylinder.MinCenter.X + rootCylinder.MaxCenter.X) * 0.5d,
             (rootCylinder.MinCenter.Y + rootCylinder.MaxCenter.Y) * 0.5d,
@@ -156,6 +190,101 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
     }
 
+    private static KernelResult<BrepBody> CreateCylinderRootBlindBoreBody(
+        in RecognizedCylinder rootCylinder,
+        in SupportedBooleanHole hole,
+        SafeBooleanComposition composition)
+    {
+        var entryFromTop = hole.SpanKind == SupportedBooleanHoleSpanKind.BlindFromTop;
+        var rootHeight = rootCylinder.Height;
+        var halfHeight = rootHeight * 0.5d;
+        var rootMinZ = System.Math.Min(rootCylinder.MinCenter.Z, rootCylinder.MaxCenter.Z);
+        var rootMaxZ = System.Math.Max(rootCylinder.MinCenter.Z, rootCylinder.MaxCenter.Z);
+        var rootCenterZ = (rootMinZ + rootMaxZ) * 0.5d;
+
+        var entryZ = entryFromTop ? rootMaxZ : rootMinZ;
+        var blindBottomZ = hole.EndZ;
+        var entryLocalZ = entryZ - rootCenterZ;
+        var blindBottomLocalZ = blindBottomZ - rootCenterZ;
+
+        var builder = new TopologyBuilder();
+        var seamStart = builder.AddVertex();
+        var seamEnd = builder.AddVertex();
+        var topVertex = builder.AddVertex();
+        var bottomVertex = builder.AddVertex();
+        var boreEntryVertex = builder.AddVertex();
+        var boreBottomVertex = builder.AddVertex();
+        var boreSeamEntry = builder.AddVertex();
+        var boreSeamBottom = builder.AddVertex();
+
+        var outerSeam = builder.AddEdge(seamStart, seamEnd);
+        var topCircle = builder.AddEdge(topVertex, topVertex);
+        var bottomCircle = builder.AddEdge(bottomVertex, bottomVertex);
+        var boreEntryCircle = builder.AddEdge(boreEntryVertex, boreEntryVertex);
+        var boreBottomCircle = builder.AddEdge(boreBottomVertex, boreBottomVertex);
+        var boreSeam = builder.AddEdge(boreSeamEntry, boreSeamBottom);
+
+        var outerSideFace = builder.AddFace([AddLoop(builder, [Forward(outerSeam), Forward(topCircle), Reversed(outerSeam), Reversed(bottomCircle)])]);
+        var topFace = entryFromTop
+            ? builder.AddFace([AddLoop(builder, [Reversed(topCircle)]), AddLoop(builder, [Forward(boreEntryCircle)])])
+            : builder.AddFace([AddLoop(builder, [Reversed(topCircle)])]);
+        var bottomFace = entryFromTop
+            ? builder.AddFace([AddLoop(builder, [Forward(bottomCircle)])])
+            : builder.AddFace([AddLoop(builder, [Forward(bottomCircle)]), AddLoop(builder, [Reversed(boreEntryCircle)])]);
+        var boreWallFace = builder.AddFace([AddLoop(builder, [Forward(boreSeam), Reversed(boreEntryCircle), Reversed(boreSeam), Forward(boreBottomCircle)])]);
+        var boreBottomFace = builder.AddFace([AddLoop(builder, [Forward(boreBottomCircle)])]);
+
+        var shell = builder.AddShell([outerSideFace, topFace, bottomFace, boreWallFace, boreBottomFace]);
+        builder.AddBody([shell]);
+
+        var geometry = new BrepGeometryStore();
+        var zAxis = Direction3D.Create(new Vector3D(0d, 0d, 1d));
+        var xAxis = Direction3D.Create(new Vector3D(1d, 0d, 0d));
+        var yAxis = Direction3D.Create(new Vector3D(0d, 1d, 0d));
+        var downAxis = Direction3D.Create(new Vector3D(0d, 0d, -1d));
+
+        geometry.AddCurve(new CurveGeometryId(1), CurveGeometry.FromLine(new Line3Curve(new Point3D(rootCylinder.Radius, 0d, -halfHeight), zAxis)));
+        geometry.AddCurve(new CurveGeometryId(2), CurveGeometry.FromCircle(new Circle3Curve(new Point3D(0d, 0d, halfHeight), zAxis, rootCylinder.Radius, xAxis)));
+        geometry.AddCurve(new CurveGeometryId(3), CurveGeometry.FromCircle(new Circle3Curve(new Point3D(0d, 0d, -halfHeight), zAxis, rootCylinder.Radius, xAxis)));
+        geometry.AddCurve(new CurveGeometryId(4), CurveGeometry.FromCircle(new Circle3Curve(new Point3D(0d, 0d, entryLocalZ), zAxis, hole.BottomRadius, xAxis)));
+        geometry.AddCurve(new CurveGeometryId(5), CurveGeometry.FromCircle(new Circle3Curve(new Point3D(0d, 0d, blindBottomLocalZ), zAxis, hole.BottomRadius, xAxis)));
+        geometry.AddCurve(new CurveGeometryId(6), CurveGeometry.FromLine(new Line3Curve(new Point3D(hole.BottomRadius, 0d, System.Math.Min(entryLocalZ, blindBottomLocalZ)), zAxis)));
+
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(0d, 0d, -halfHeight), zAxis, rootCylinder.Radius, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(2), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, halfHeight), zAxis, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(3), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, -halfHeight), downAxis, yAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(4), SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(0d, 0d, System.Math.Min(entryLocalZ, blindBottomLocalZ)), zAxis, hole.BottomRadius, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(5), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, blindBottomLocalZ), entryFromTop ? zAxis : downAxis, xAxis)));
+
+        var bindings = new BrepBindingModel();
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(outerSeam, new CurveGeometryId(1), new ParameterInterval(0d, rootHeight)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(topCircle, new CurveGeometryId(2), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(bottomCircle, new CurveGeometryId(3), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(boreEntryCircle, new CurveGeometryId(4), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(boreBottomCircle, new CurveGeometryId(5), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(boreSeam, new CurveGeometryId(6), new ParameterInterval(0d, System.Math.Abs(entryLocalZ - blindBottomLocalZ))));
+
+        bindings.AddFaceBinding(new FaceGeometryBinding(outerSideFace, new SurfaceGeometryId(1)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(topFace, new SurfaceGeometryId(2)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(bottomFace, new SurfaceGeometryId(3)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(boreWallFace, new SurfaceGeometryId(4)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(boreBottomFace, new SurfaceGeometryId(5)));
+
+        var localBody = new BrepBody(builder.Model, geometry, bindings);
+        var translated = TranslateBody(localBody, new Vector3D(0d, 0d, rootCenterZ));
+        var bodyWithComposition = new BrepBody(
+            translated.Topology,
+            translated.Geometry,
+            translated.Bindings,
+            GetVertexPoints(translated),
+            composition,
+            translated.ShellRepresentation);
+        var validation = BrepBindingValidator.Validate(bodyWithComposition, requireAllEdgeAndFaceBindings: true);
+        return validation.IsSuccess
+            ? KernelResult<BrepBody>.Success(bodyWithComposition, validation.Diagnostics)
+            : KernelResult<BrepBody>.Failure(validation.Diagnostics);
+    }
+
     private static KernelResult<BrepBody> CreateComposedContainedSphereCavityBody(AxisAlignedBoxExtents outerBox, in RecognizedSphere sphere)
     {
         var outer = BrepBooleanBoxRecognition.CreateBoxFromExtents(outerBox);
@@ -174,6 +303,146 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         var validation = BrepBindingValidator.Validate(merged, requireAllEdgeAndFaceBindings: true);
         return validation.IsSuccess
             ? KernelResult<BrepBody>.Success(merged, validation.Diagnostics)
+            : KernelResult<BrepBody>.Failure(validation.Diagnostics);
+    }
+
+    private static KernelResult<BrepBody> CreateComposedSphereOpeningCavityBody(
+        AxisAlignedBoxExtents outerBox,
+        in RecognizedSphere sphere,
+        in SupportedBooleanHole hole,
+        SafeBooleanComposition composition)
+    {
+        if (hole.SpanKind is not (SupportedBooleanHoleSpanKind.BlindFromTop or SupportedBooleanHoleSpanKind.BlindFromBottom))
+        {
+            return KernelResult<BrepBody>.Failure([
+                new BooleanDiagnostic(
+                    BooleanDiagnosticCode.UnsupportedAnalyticSurfaceKind,
+                    new BooleanDiagnosticContext(BooleanOperation.Subtract).FormatMessage("sphere opening builder requires BlindFromTop or BlindFromBottom span classification."),
+                    "BrepBoolean.AnalyticHole.UnsupportedAnalyticSurfaceKind").ToKernelDiagnostic(),
+            ]);
+        }
+
+        var openingPlaneZ = hole.SpanKind == SupportedBooleanHoleSpanKind.BlindFromTop ? outerBox.MaxZ : outerBox.MinZ;
+        var delta = openingPlaneZ - sphere.Center.Z;
+        var openingRadius = System.Math.Sqrt(System.Math.Max(0d, (sphere.Radius * sphere.Radius) - (delta * delta)));
+
+        var builder = new TopologyBuilder();
+        var v1 = builder.AddVertex();
+        var v2 = builder.AddVertex();
+        var v3 = builder.AddVertex();
+        var v4 = builder.AddVertex();
+        var v5 = builder.AddVertex();
+        var v6 = builder.AddVertex();
+        var v7 = builder.AddVertex();
+        var v8 = builder.AddVertex();
+        var openingVertex = builder.AddVertex();
+
+        var e1 = builder.AddEdge(v1, v2);
+        var e2 = builder.AddEdge(v2, v3);
+        var e3 = builder.AddEdge(v3, v4);
+        var e4 = builder.AddEdge(v4, v1);
+        var e5 = builder.AddEdge(v5, v6);
+        var e6 = builder.AddEdge(v6, v7);
+        var e7 = builder.AddEdge(v7, v8);
+        var e8 = builder.AddEdge(v8, v5);
+        var e9 = builder.AddEdge(v1, v5);
+        var e10 = builder.AddEdge(v2, v6);
+        var e11 = builder.AddEdge(v3, v7);
+        var e12 = builder.AddEdge(v4, v8);
+        var openingCircle = builder.AddEdge(openingVertex, openingVertex);
+
+        var bottomLoops = new List<LoopId> { AddLoop(builder, [Forward(e1), Forward(e2), Forward(e3), Forward(e4)]) };
+        var topLoops = new List<LoopId> { AddLoop(builder, [Forward(e5), Forward(e6), Forward(e7), Forward(e8)]) };
+        if (hole.SpanKind == SupportedBooleanHoleSpanKind.BlindFromTop)
+        {
+            topLoops.Add(AddLoop(builder, [Forward(openingCircle)]));
+        }
+        else
+        {
+            bottomLoops.Add(AddLoop(builder, [Reversed(openingCircle)]));
+        }
+
+        var bottomFace = builder.AddFace(bottomLoops);
+        var topFace = builder.AddFace(topLoops);
+        var xMinFace = builder.AddFace([AddLoop(builder, [Forward(e1), Forward(e10), Reversed(e5), Reversed(e9)])]);
+        var xMaxFace = builder.AddFace([AddLoop(builder, [Forward(e2), Forward(e11), Reversed(e6), Reversed(e10)])]);
+        var yMaxFace = builder.AddFace([AddLoop(builder, [Forward(e3), Forward(e12), Reversed(e7), Reversed(e11)])]);
+        var yMinFace = builder.AddFace([AddLoop(builder, [Forward(e4), Forward(e9), Reversed(e8), Reversed(e12)])]);
+        var sphereFace = builder.AddFace([AddLoop(builder, [Forward(openingCircle)])]);
+
+        var shell = builder.AddShell([bottomFace, topFace, xMinFace, xMaxFace, yMaxFace, yMinFace, sphereFace]);
+        builder.AddBody([shell]);
+
+        var geometry = new BrepGeometryStore();
+        var p1 = new Point3D(outerBox.MinX, outerBox.MinY, outerBox.MinZ);
+        var p2 = new Point3D(outerBox.MaxX, outerBox.MinY, outerBox.MinZ);
+        var p3 = new Point3D(outerBox.MaxX, outerBox.MaxY, outerBox.MinZ);
+        var p4 = new Point3D(outerBox.MinX, outerBox.MaxY, outerBox.MinZ);
+        var p5 = new Point3D(outerBox.MinX, outerBox.MinY, outerBox.MaxZ);
+        var p6 = new Point3D(outerBox.MaxX, outerBox.MinY, outerBox.MaxZ);
+        var p7 = new Point3D(outerBox.MaxX, outerBox.MaxY, outerBox.MaxZ);
+        var p8 = new Point3D(outerBox.MinX, outerBox.MaxY, outerBox.MaxZ);
+
+        var zAxis = Direction3D.Create(new Vector3D(0d, 0d, 1d));
+        var xAxis = Direction3D.Create(new Vector3D(1d, 0d, 0d));
+        var yAxis = Direction3D.Create(new Vector3D(0d, 1d, 0d));
+        var downAxis = Direction3D.Create(new Vector3D(0d, 0d, -1d));
+        var width = outerBox.MaxX - outerBox.MinX;
+        var depth = outerBox.MaxY - outerBox.MinY;
+        var height = outerBox.MaxZ - outerBox.MinZ;
+
+        var lineCurves = new[]
+        {
+            (p1, new Vector3D(width, 0d, 0d)), (p2, new Vector3D(0d, depth, 0d)), (p3, new Vector3D(-width, 0d, 0d)), (p4, new Vector3D(0d, -depth, 0d)),
+            (p5, new Vector3D(width, 0d, 0d)), (p6, new Vector3D(0d, depth, 0d)), (p7, new Vector3D(-width, 0d, 0d)), (p8, new Vector3D(0d, -depth, 0d)),
+            (p1, new Vector3D(0d, 0d, height)), (p2, new Vector3D(0d, 0d, height)), (p3, new Vector3D(0d, 0d, height)), (p4, new Vector3D(0d, 0d, height)),
+        };
+        for (var i = 0; i < lineCurves.Length; i++)
+        {
+            geometry.AddCurve(new CurveGeometryId(i + 1), CurveGeometry.FromLine(new Line3Curve(lineCurves[i].Item1, Direction3D.Create(lineCurves[i].Item2))));
+        }
+
+        geometry.AddCurve(new CurveGeometryId(13), CurveGeometry.FromCircle(new Circle3Curve(new Point3D(sphere.Center.X, sphere.Center.Y, openingPlaneZ), zAxis, openingRadius, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, outerBox.MinZ), downAxis, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(2), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, outerBox.MaxZ), zAxis, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(3), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, outerBox.MinY, 0d), Direction3D.Create(new Vector3D(0d, -1d, 0d)), xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(4), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(outerBox.MaxX, 0d, 0d), Direction3D.Create(new Vector3D(1d, 0d, 0d)), yAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(5), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, outerBox.MaxY, 0d), Direction3D.Create(new Vector3D(0d, 1d, 0d)), Direction3D.Create(new Vector3D(-1d, 0d, 0d)))));
+        geometry.AddSurface(new SurfaceGeometryId(6), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(outerBox.MinX, 0d, 0d), Direction3D.Create(new Vector3D(-1d, 0d, 0d)), yAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(7), SurfaceGeometry.FromSphere(new SphereSurface(sphere.Center, zAxis, sphere.Radius, xAxis)));
+
+        var bindings = new BrepBindingModel();
+        for (var i = 0; i < 12; i++)
+        {
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(new EdgeId(i + 1), new CurveGeometryId(i + 1), new ParameterInterval(0d, 1d)));
+        }
+
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(openingCircle, new CurveGeometryId(13), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(bottomFace, new SurfaceGeometryId(1)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(topFace, new SurfaceGeometryId(2)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(xMinFace, new SurfaceGeometryId(3)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(xMaxFace, new SurfaceGeometryId(4)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(yMaxFace, new SurfaceGeometryId(5)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(yMinFace, new SurfaceGeometryId(6)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(sphereFace, new SurfaceGeometryId(7)));
+
+        var vertexPoints = new Dictionary<VertexId, Point3D>
+        {
+            [v1] = p1,
+            [v2] = p2,
+            [v3] = p3,
+            [v4] = p4,
+            [v5] = p5,
+            [v6] = p6,
+            [v7] = p7,
+            [v8] = p8,
+            [openingVertex] = new Point3D(sphere.Center.X + openingRadius, sphere.Center.Y, openingPlaneZ),
+        };
+
+        var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints, composition);
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        return validation.IsSuccess
+            ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
     }
 
@@ -1307,6 +1576,20 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         }
 
         return new BrepBody(body.Topology, translatedGeometry, body.Bindings, vertexPoints, body.SafeBooleanComposition, body.ShellRepresentation);
+    }
+
+    private static IReadOnlyDictionary<VertexId, Point3D> GetVertexPoints(BrepBody body)
+    {
+        var points = new Dictionary<VertexId, Point3D>();
+        foreach (var vertex in body.Topology.Vertices)
+        {
+            if (body.TryGetVertexPoint(vertex.Id, out var point))
+            {
+                points[vertex.Id] = point;
+            }
+        }
+
+        return points;
     }
 
     private static LoopId AddLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)

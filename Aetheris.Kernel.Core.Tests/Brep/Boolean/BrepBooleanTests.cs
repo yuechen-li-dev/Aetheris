@@ -624,6 +624,51 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Subtract_CylinderRootBlindBoreFromTop_Coaxial_Succeeds()
+    {
+        var root = BrepPrimitives.CreateCylinder(20d, 40d).Value;
+        var bore = TransformBody(BrepPrimitives.CreateCylinder(6d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 10d)));
+
+        var result = BrepBoolean.Subtract(root, bore);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.True(BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        Assert.NotNull(result.Value.SafeBooleanComposition);
+        Assert.Single(result.Value.SafeBooleanComposition!.Holes);
+        Assert.Equal(SupportedBooleanHoleSpanKind.BlindFromTop, result.Value.SafeBooleanComposition.Holes[0].SpanKind);
+    }
+
+    [Fact]
+    public void Subtract_CylinderRootBlindBoreFromBottom_Coaxial_Succeeds()
+    {
+        var root = BrepPrimitives.CreateCylinder(20d, 40d).Value;
+        var bore = TransformBody(BrepPrimitives.CreateCylinder(6d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, -10d)));
+
+        var result = BrepBoolean.Subtract(root, bore);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.True(BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        Assert.NotNull(result.Value.SafeBooleanComposition);
+        Assert.Single(result.Value.SafeBooleanComposition!.Holes);
+        Assert.Equal(SupportedBooleanHoleSpanKind.BlindFromBottom, result.Value.SafeBooleanComposition.Holes[0].SpanKind);
+    }
+
+    [Fact]
+    public void Subtract_CylinderRootBlindBoreNonCoaxial_ReturnsExplicitDiagnostic()
+    {
+        var root = BrepPrimitives.CreateCylinder(20d, 40d).Value;
+        var bore = TransformBody(BrepPrimitives.CreateCylinder(6d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(3d, 0d, 10d)));
+
+        var result = BrepBoolean.Subtract(root, bore);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("BrepBoolean.AnalyticHole.AxisNotAligned", diagnostic.Source);
+        Assert.Contains("coaxial centerline alignment", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Subtract_CylinderRootOffsetHoleThenCenterBore_Succeeds()
     {
         var root = BrepPrimitives.CreateCylinder(40d, 12d).Value;
@@ -1484,6 +1529,24 @@ public sealed class BrepBooleanTests
         Assert.Contains("SPHERICAL_SURFACE", export.Value, StringComparison.Ordinal);
         Assert.Contains("BREP_WITH_VOIDS", export.Value, StringComparison.Ordinal);
         Assert.DoesNotContain("MANIFOLD_SOLID_BREP", export.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Subtract_BoxSphereExteriorTopOpening_RebuildsSphericalPocket()
+    {
+        var left = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-20d, 20d, -15d, 15d, -6d, 6d)).Value;
+        var right = TransformBody(BrepPrimitives.CreateSphere(6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 4d)));
+
+        var result = BrepBoolean.Subtract(left, right);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.True(BrepBindingValidator.Validate(result.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        Assert.NotNull(result.Value.SafeBooleanComposition);
+        Assert.Single(result.Value.SafeBooleanComposition!.Holes);
+        Assert.Equal(SupportedBooleanHoleSpanKind.BlindFromTop, result.Value.SafeBooleanComposition.Holes[0].SpanKind);
+        Assert.Contains(result.Value.Topology.Faces, face =>
+            result.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+            && surface?.Kind == SurfaceGeometryKind.Sphere);
     }
 
     [Fact]

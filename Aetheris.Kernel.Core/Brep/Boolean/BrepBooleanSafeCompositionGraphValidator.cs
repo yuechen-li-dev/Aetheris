@@ -519,7 +519,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
         in SupportedBooleanHole nextHole,
         ToleranceContext tolerance)
     {
-        if (composition.OccupiedCells is null || composition.OccupiedCells.Count < 2)
+        if (!SupportsIndependentHoleContinuationRoot(composition))
         {
             return false;
         }
@@ -554,7 +554,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
         in SupportedBooleanHole nextHole,
         ToleranceContext tolerance)
     {
-        if (composition.OccupiedCells is null || composition.OccupiedCells.Count < 2)
+        if (!SupportsIndependentHoleContinuationRoot(composition))
         {
             return false;
         }
@@ -622,7 +622,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
         var context = new BooleanContinuationContext(
             Operation: BooleanOperation.Subtract,
             HasRecognizedSafeCompositionRoot: true,
-            HasRecognizedOrthogonalAdditiveRoot: composition.OccupiedCells is not null && composition.OccupiedCells.Count >= 2,
+            HasRecognizedOrthogonalAdditiveRoot: SupportsIndependentHoleContinuationRoot(composition),
             ExistingHole: existingHole,
             NextHole: nextHole,
             PairIsCoaxial: pairIsCoaxial,
@@ -691,7 +691,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
                 Score: _ => 300d,
                 RejectionReason: context => context.PairIsCoaxial
                     ? "Independent-hole continuation requires a non-coaxial pair."
-                    : "Independent-hole continuation requires a recognized orthogonal additive root with world-Z cylinder/cone holes."),
+                    : "Independent-hole continuation requires a recognized orthogonal additive root (or simple box root) with world-Z cylinder/cone holes."),
             new JudgmentCandidate<BooleanContinuationContext>(
                 Name: BooleanContinuationFamily.UnsupportedContinuationFromRecognizedRoot.ToString(),
                 IsAdmissible: context => context.HasRecognizedSafeCompositionRoot,
@@ -728,7 +728,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
             return AppendNearestCandidateDetail(context.SubtractStackDiagnostic, rejections);
         }
 
-        const string baseReason = "independent multi-hole continuation exceeds the bounded family; non-coaxial blind-hole composition is only supported on recognized orthogonal additive roots with world-Z cylinder/cone holes.";
+        const string baseReason = "independent multi-hole continuation exceeds the bounded family; non-coaxial blind-hole composition is only supported on recognized orthogonal additive roots (or simple box roots) with world-Z cylinder/cone holes.";
         var nearest = rejections.FirstOrDefault(rejection =>
             rejection.CandidateName != BooleanContinuationFamily.UnsupportedContinuationFromRecognizedRoot.ToString()
             && rejection.CandidateName != BooleanContinuationFamily.UnsupportedGeneral.ToString());
@@ -757,6 +757,10 @@ public static class BrepBooleanSafeCompositionGraphValidator
             Message = $"{diagnostic.Message} Nearest candidate '{nearest.CandidateName}' rejected: {nearest.Reason}"
         };
     }
+
+    private static bool SupportsIndependentHoleContinuationRoot(SafeBooleanComposition composition)
+        => (composition.OccupiedCells is { Count: >= 2 })
+           || composition.RootDescriptor.Kind == SafeBooleanRootKind.Box;
 
     private enum BooleanContinuationFamily
     {

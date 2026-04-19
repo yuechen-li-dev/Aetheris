@@ -1688,9 +1688,16 @@ public static class BrepBoolean
             return false;
         }
 
-        if (mouthTouchCount > 1)
+        var opensAlongX = touchesMinX && touchesMaxX;
+        var opensAlongY = touchesMinY && touchesMaxY;
+        var opensAlongZ = touchesMinZ && touchesMaxZ;
+        var oppositePairOpeningCount = (opensAlongX ? 1 : 0) + (opensAlongY ? 1 : 0) + (opensAlongZ ? 1 : 0);
+
+        if (mouthTouchCount > 2
+            || oppositePairOpeningCount > 1
+            || (mouthTouchCount == 2 && oppositePairOpeningCount == 0))
         {
-            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket family requires a single pocket mouth; through-slots and multi-face openings remain deferred.";
+            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket family only supports a single mouth or one opposite-face through-slot; broader multi-face openings remain deferred.";
             return false;
         }
 
@@ -1710,6 +1717,12 @@ public static class BrepBoolean
             return false;
         }
 
+        if ((touchesMinX ^ touchesMaxX) && !HasStrictThickness(sideWallPositiveX + sideWallNegativeX))
+        {
+            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket family requires strictly positive wall/floor thickness; tangent or zero-thickness side walls are unsupported.";
+            return false;
+        }
+
         if ((touchesMinY || touchesMaxY) && (!HasStrictThickness(sideWallPositiveX)
             || !HasStrictThickness(sideWallNegativeX)
             || !HasStrictThickness(sideWallPositiveZ)
@@ -1719,10 +1732,22 @@ public static class BrepBoolean
             return false;
         }
 
+        if ((touchesMinY ^ touchesMaxY) && !HasStrictThickness(sideWallPositiveY + sideWallNegativeY))
+        {
+            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket family requires strictly positive wall/floor thickness; tangent or zero-thickness side walls are unsupported.";
+            return false;
+        }
+
         if ((touchesMinZ || touchesMaxZ) && (!HasStrictThickness(sideWallPositiveX)
             || !HasStrictThickness(sideWallNegativeX)
             || !HasStrictThickness(sideWallPositiveY)
             || !HasStrictThickness(sideWallNegativeY)))
+        {
+            unsupportedReason = "Boolean Subtract: bounded orthogonal pocket family requires strictly positive wall/floor thickness; tangent or zero-thickness side walls are unsupported.";
+            return false;
+        }
+
+        if ((touchesMinZ ^ touchesMaxZ) && !HasStrictThickness(sideWallPositiveZ + sideWallNegativeZ))
         {
             unsupportedReason = "Boolean Subtract: bounded orthogonal pocket family requires strictly positive wall/floor thickness; tangent or zero-thickness side walls are unsupported.";
             return false;

@@ -1665,6 +1665,22 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void Unsupported_MixedSubtract_Reveals_RebuildBoundary()
+    {
+        var root = BrepPrimitives.CreateBox(20d, 20d, 20d).Value;
+        var holeTool = BrepPrimitives.CreateCylinder(3d, 24d).Value;
+        var withHole = BrepBoolean.Subtract(root, holeTool);
+        Assert.True(withHole.IsSuccess);
+
+        var slotTool = TransformBody(StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 10d, 4d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, -5d)));
+        var result = BrepBoolean.Subtract(withHole.Value, slotTool);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Contains("bounded mixed analytic+prismatic subtract continuation is recognized but bounded reconstruction for this mixed family is not implemented yet", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Execute_NonBoxInput_ReturnsDeterministicNotImplementedWithoutThrowing()
     {
         var left = BrepPrimitives.CreateCylinder(1d, 2d).Value;

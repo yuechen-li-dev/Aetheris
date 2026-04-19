@@ -1,0 +1,12 @@
+firmament:
+  version: 1
+
+model:
+  name: library_part_cube_with_hole_basic
+  units: mm
+
+ops[1]:
+  -
+    op: library_part
+    id: lib_part_1
+    part: standard_library/cube_with_cylindrical_hole

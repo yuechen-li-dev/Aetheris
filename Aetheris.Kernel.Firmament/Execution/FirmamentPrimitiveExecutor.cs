@@ -11,6 +11,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Firmament.Connectors;
 using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.Validation;
 using Aetheris.Kernel.StandardLibrary;
@@ -417,6 +418,8 @@ internal static class FirmamentPrimitiveExecutor
                 ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).Depth,
                 ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).Height,
                 ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).CornerRadius),
+            FirmamentLoweredPrimitiveKind.LibraryPart => FirmamentPartLibraryConnector.ResolvePart(
+                ((FirmamentLoweredLibraryPartParameters)primitive.Parameters).PartReference),
             _ => KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Primitive execution for kind '{primitive.Kind}' is not implemented.")])
         };
     }

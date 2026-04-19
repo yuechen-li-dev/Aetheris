@@ -59,7 +59,8 @@ public enum FirmamentLoweredPrimitiveKind
     TriangularPrism,
     HexagonalPrism,
     StraightSlot,
-    RoundedCornerBox
+    RoundedCornerBox,
+    LibraryPart
 }
 
 public abstract record FirmamentLoweredPrimitiveParameters;
@@ -102,3 +103,6 @@ public sealed record FirmamentLoweringSkippedOp(
     FirmamentKnownOpKind KnownKind,
     FirmamentOpFamily Family,
     string Reason);
+
+public sealed record FirmamentLoweredLibraryPartParameters(string PartReference)
+    : FirmamentLoweredPrimitiveParameters;

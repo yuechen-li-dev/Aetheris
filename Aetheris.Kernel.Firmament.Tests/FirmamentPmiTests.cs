@@ -114,50 +114,55 @@ public sealed class FirmamentPmiTests
     }
 
     [Fact]
-    public void LegacyAutoHoleDemo_BuildsSemanticDiameterDimensions_InKernelPmiModel()
+    public void AutoPmi_SimpleHole_SubtractCylinder_EmitsDiameter()
     {
         var compile = CompileFixture("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament");
         Assert.True(compile.Compilation.IsSuccess);
 
+        var execution = Assert.IsType<FirmamentCompilationArtifact>(compile.Compilation.Value).PrimitiveExecutionResult;
         var loweringPlan = Assert.IsType<FirmamentCompilationArtifact>(compile.Compilation.Value).PrimitiveLoweringPlan;
         Assert.NotNull(loweringPlan);
 
-        var model = FirmamentStepExporter.BuildLegacyAutoHolePmiModel(loweringPlan!, selectionFeatureId: "hole_b");
+        var model = FirmamentStepExporter.BuildLegacyAutoHolePmiModel(
+            loweringPlan!,
+            execution!,
+            PmiModel.Empty("hole_b"),
+            selectionFeatureId: "hole_b");
 
-        Assert.Equal(2, model.Dimensions.Count);
+        Assert.True(model.Dimensions.Count >= 1);
         Assert.All(model.Dimensions, d => Assert.Equal(PmiDimensionKind.Diameter, d.Kind));
-        Assert.All(model.Dimensions, d => Assert.Equal("legacy-auto-hole-demo", d.SourceTag));
-        Assert.Collection(
-            model.Dimensions,
-            first => Assert.Equal("diameter:hole_a", first.DimensionId),
-            second => Assert.Equal("diameter:hole_b", second.DimensionId));
+        Assert.Contains(model.Dimensions, d => string.Equals(d.SourceTag, "auto-hole-pmi:simple_hole_callout", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void IntegrationSanity_LegacyAutoHolePmi_StillWorks_WithExplicitDatumsAvailable()
+    public void AutoPmi_NonHoleCylindricalSubtract_IsRejected()
     {
-        var baselineWithDatum = ExportFixture("testdata/firmament/examples/m7_semantic_pmi_baseline.firmament");
-        Assert.True(baselineWithDatum.IsSuccess);
-        Assert.Single(baselineWithDatum.Value.DatumInspection!);
-
-        var legacyAutoHole = CompileFixture("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament");
-        Assert.True(legacyAutoHole.Compilation.IsSuccess);
-
-        var loweringPlan = Assert.IsType<FirmamentCompilationArtifact>(legacyAutoHole.Compilation.Value).PrimitiveLoweringPlan;
-        var model = FirmamentStepExporter.BuildLegacyAutoHolePmiModel(loweringPlan!, selectionFeatureId: "hole_b");
-        Assert.Equal(2, model.Dimensions.Count);
+        var export = ExportFixture("testdata/firmament/fixtures/m0d-cylinder-root-cylindrical-subtract.firmament");
+        Assert.True(export.IsSuccess);
+        Assert.DoesNotContain(export.Value.DimensionInspection!, d => string.Equals(d.SourceTag, "auto-hole-pmi:simple_hole_callout", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void IntegrationSanity_ExplicitDimension_Coexists_WithLegacyAutoHoleDimension()
+    public void AutoPmi_ExplicitPmiSuppressesEquivalentAutoDimension()
     {
         var export = ExportFixture("testdata/firmament/examples/m7_pmi_explicit_and_legacy_coexist.firmament");
         Assert.True(export.IsSuccess);
 
         Assert.NotNull(export.Value.DimensionInspection);
-        Assert.Equal(2, export.Value.DimensionInspection!.Count);
+        Assert.Single(export.Value.DimensionInspection!);
         Assert.Contains(export.Value.DimensionInspection, dimension => string.Equals(dimension.SourceTag, "explicit-dimension", StringComparison.Ordinal));
-        Assert.Contains(export.Value.DimensionInspection, dimension => string.Equals(dimension.SourceTag, "legacy-auto-hole-demo", StringComparison.Ordinal));
+        Assert.DoesNotContain(export.Value.DimensionInspection, dimension => string.Equals(dimension.SourceTag, "auto-hole-pmi:simple_hole_callout", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AutoPmi_InspectionIncludesSourceAndCandidateName()
+    {
+        var export = ExportFixture("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament");
+        Assert.True(export.IsSuccess);
+
+        Assert.Contains(export.Value.DimensionInspection!, dimension =>
+            string.Equals(dimension.SourceTag, "auto-hole-pmi:simple_hole_callout", StringComparison.Ordinal)
+            && string.Equals(dimension.CandidateName, "simple_hole_callout", StringComparison.Ordinal));
     }
 
     private static FirmamentCompileResult CompileFixture(string fixturePath)

@@ -1,5 +1,8 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Judgment;
+using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Pmi;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Step242;
@@ -15,6 +18,9 @@ public static class FirmamentStepExporter
 {
     public const string LastExecutedGeometricBodyPolicy = "last-executed-geometric-body";
     public const string LastExecutedGeometricBodySelectionReason = "Select the last successfully executed primitive or boolean body in source order; validation ops are never export bodies.";
+    private const string AutoHolePmiSourceTag = "auto-hole-pmi";
+    private static readonly JudgmentEngine<PmiAutoHoleContext> AutoHoleJudgmentEngine = new();
+    private static readonly IReadOnlyList<JudgmentCandidate<PmiAutoHoleContext>> AutoHoleCandidates = BuildAutoHoleCandidates();
 
     public static KernelResult<FirmamentStepExportResult> Export(FirmamentCompileRequest request)
     {
@@ -128,13 +134,14 @@ public static class FirmamentStepExporter
     {
         var explicitPmi = DeriveExplicitPmi(parsedDocument, executionResult);
         if (loweringPlan is null
+            || executionResult is null
             || !string.Equals(selection.BodyCategory, ExportBodyCategoryBoolean, StringComparison.Ordinal)
             || !string.Equals(selection.FeatureKind, "subtract", StringComparison.Ordinal))
         {
             return explicitPmi;
         }
 
-        var legacyModel = BuildLegacyAutoHolePmiModel(loweringPlan, selection.FeatureId);
+        var legacyModel = BuildLegacyAutoHolePmiModel(loweringPlan, executionResult, explicitPmi.Model, selection.FeatureId);
         var mergedModel = explicitPmi.Model;
         foreach (var legacyDimension in legacyModel.Dimensions)
         {
@@ -144,32 +151,42 @@ public static class FirmamentStepExporter
         return new DerivedPmiPayload(mergedModel, explicitPmi.PassthroughNotes);
     }
 
-
-    internal static PmiModel BuildLegacyAutoHolePmiModel(FirmamentPrimitiveLoweringPlan loweringPlan, string selectionFeatureId)
+    internal static PmiModel BuildLegacyAutoHolePmiModel(
+        FirmamentPrimitiveLoweringPlan loweringPlan,
+        FirmamentPrimitiveExecutionResult executionResult,
+        PmiModel explicitPmiModel,
+        string selectionFeatureId)
     {
         ArgumentNullException.ThrowIfNull(loweringPlan);
+        ArgumentNullException.ThrowIfNull(executionResult);
+        ArgumentNullException.ThrowIfNull(explicitPmiModel);
 
         var booleansByFeatureId = loweringPlan.Booleans.ToDictionary(boolean => boolean.FeatureId, StringComparer.Ordinal);
+        var executedBooleansByFeatureId = executionResult.ExecutedBooleans.ToDictionary(boolean => boolean.FeatureId, StringComparer.Ordinal);
+        var opIndexByFeatureId = loweringPlan.Booleans.ToDictionary(boolean => boolean.FeatureId, boolean => boolean.OpIndex, StringComparer.Ordinal);
         var currentFeatureId = selectionFeatureId;
-        var derived = new List<(int OpIndex, PmiDimension Item)>();
+        var derived = new List<(int OpIndex, PmiDimension Item, string CandidateName)>();
 
         while (booleansByFeatureId.TryGetValue(currentFeatureId, out var boolean)
             && boolean.Kind == FirmamentLoweredBooleanKind.Subtract)
         {
-            if (string.Equals(boolean.Tool.OpName, "cylinder", StringComparison.Ordinal)
-                && boolean.Tool.RawFields.TryGetValue("radius", out var radiusRaw)
-                && !string.IsNullOrWhiteSpace(radiusRaw))
+            if (!executedBooleansByFeatureId.TryGetValue(boolean.FeatureId, out var executed)
+                || (executed.SemanticSafeComposition ?? executed.Body.SafeBooleanComposition) is not { } composition)
             {
-                var radius = FirmamentPrimitiveToolParsing.ParseScalar(radiusRaw);
-                derived.Add((
-                    boolean.OpIndex,
-                    new PmiDimension(
-                        $"diameter:{boolean.FeatureId}",
-                        PmiDimensionKind.Diameter,
-                        new PmiCylindricalFeatureReference(boolean.FeatureId, "through_or_blind_cylindrical"),
-                        null,
-                        radius * 2d,
-                        SourceTag: "legacy-auto-hole-demo")));
+                currentFeatureId = boolean.PrimaryReferenceFeatureId;
+                continue;
+            }
+
+            var hasExplicitDiameter = HasExplicitEquivalentDiameter(explicitPmiModel, boolean.FeatureId);
+            var context = BuildAutoHoleContext(boolean, composition, opIndexByFeatureId, hasExplicitDiameter);
+            var selection = AutoHoleJudgmentEngine.Evaluate(context, AutoHoleCandidates);
+            if (selection.IsSuccess)
+            {
+                var candidateName = selection.Selection!.Value.Candidate.Name;
+                foreach (var dimension in BuildAutoHoleDimensions(context, candidateName))
+                {
+                    derived.Add((boolean.OpIndex, dimension, candidateName));
+                }
             }
 
             currentFeatureId = boolean.PrimaryReferenceFeatureId;
@@ -356,8 +373,129 @@ public static class FirmamentStepExporter
                 target,
                 datumLabel,
                 dimension.NominalValue,
-                dimension.SourceTag);
+                dimension.SourceTag,
+                ExtractCandidateName(dimension.SourceTag));
         }).ToArray();
+
+    private static IReadOnlyList<JudgmentCandidate<PmiAutoHoleContext>> BuildAutoHoleCandidates()
+        =>
+        [
+            new JudgmentCandidate<PmiAutoHoleContext>(
+                Name: "counterbore_callout",
+                IsAdmissible: context => context.IsSubtract
+                    && context.IsFromRecognizedFeature
+                    && !context.IsAmbiguous
+                    && !context.HasExplicitPmi
+                    && context.Recognition is { Kind: HoleFeatureKind.Counterbore },
+                Score: _ => 300d,
+                RejectionReason: BuildRejectionReason),
+            new JudgmentCandidate<PmiAutoHoleContext>(
+                Name: "countersink_callout",
+                IsAdmissible: context => context.IsSubtract
+                    && context.IsFromRecognizedFeature
+                    && !context.IsAmbiguous
+                    && !context.HasExplicitPmi
+                    && context.Recognition is { Kind: HoleFeatureKind.Countersink },
+                Score: _ => 250d,
+                RejectionReason: BuildRejectionReason),
+            new JudgmentCandidate<PmiAutoHoleContext>(
+                Name: "simple_hole_callout",
+                IsAdmissible: context => context.IsSubtract
+                    && context.IsFromRecognizedFeature
+                    && !context.IsAmbiguous
+                    && !context.HasExplicitPmi
+                    && context.Recognition is { Kind: HoleFeatureKind.SimpleHole },
+                Score: _ => 200d,
+                RejectionReason: BuildRejectionReason),
+            new JudgmentCandidate<PmiAutoHoleContext>(
+                Name: "reject_non_hole",
+                IsAdmissible: _ => true,
+                Score: _ => 0d)
+        ];
+
+    private static string BuildRejectionReason(PmiAutoHoleContext context)
+        => context.RejectionReason
+            ?? (context.HasExplicitPmi ? "explicit PMI already exists for this feature." : "hole-family predicates were not satisfied.");
+
+    private static PmiAutoHoleContext BuildAutoHoleContext(
+        FirmamentLoweredBoolean boolean,
+        SafeBooleanComposition composition,
+        IReadOnlyDictionary<string, int> opIndexByFeatureId,
+        bool hasExplicitPmi)
+    {
+        var recognized = BrepBooleanHoleFeatureRecognition.TryRecognizeFeature(
+            composition,
+            boolean.FeatureId,
+            opIndexByFeatureId,
+            ToleranceContext.Default,
+            out var recognition,
+            out var isAmbiguous,
+            out var reason);
+
+        return new PmiAutoHoleContext(
+            Operation: BooleanOperation.Subtract,
+            IsSubtract: boolean.Kind == FirmamentLoweredBooleanKind.Subtract,
+            IsFromRecognizedFeature: recognized,
+            Recognition: recognized ? recognition : null,
+            IsAmbiguous: isAmbiguous,
+            HasExplicitPmi: hasExplicitPmi,
+            RejectionReason: reason);
+    }
+
+    private static IEnumerable<PmiDimension> BuildAutoHoleDimensions(PmiAutoHoleContext context, string candidateName)
+    {
+        if (context.Recognition is not { } recognition)
+        {
+            yield break;
+        }
+
+        if (string.Equals(candidateName, "simple_hole_callout", StringComparison.Ordinal))
+        {
+            yield return CreateAutoDiameterDimension(recognition.FeatureId, "simple", recognition.PrimaryHole.BottomRadius * 2d, candidateName);
+            yield break;
+        }
+
+        if (string.Equals(candidateName, "counterbore_callout", StringComparison.Ordinal)
+            && recognition.SecondaryHole is { } secondary)
+        {
+            yield return CreateAutoDiameterDimension(recognition.FeatureId, "counterbore_entry", recognition.PrimaryHole.TopRadius * 2d, candidateName);
+            yield return CreateAutoDiameterDimension(recognition.FeatureId, "counterbore_deep", secondary.BottomRadius * 2d, candidateName);
+            yield break;
+        }
+
+        if (string.Equals(candidateName, "countersink_callout", StringComparison.Ordinal))
+        {
+            yield return CreateAutoDiameterDimension(recognition.FeatureId, "countersink", recognition.PrimaryHole.TopRadius * 2d, candidateName);
+        }
+    }
+
+    private static PmiDimension CreateAutoDiameterDimension(string featureId, string semanticFamily, double diameter, string candidateName)
+        => new(
+            $"auto-diameter:{featureId}:{semanticFamily}",
+            PmiDimensionKind.Diameter,
+            new PmiCylindricalFeatureReference(featureId, semanticFamily),
+            null,
+            diameter,
+            SourceTag: $"{AutoHolePmiSourceTag}:{candidateName}");
+
+    private static bool HasExplicitEquivalentDiameter(PmiModel explicitPmiModel, string featureId)
+        => explicitPmiModel.Dimensions.Any(dimension =>
+            dimension.Kind == PmiDimensionKind.Diameter
+            && dimension.PrimaryReference is PmiCylindricalFeatureReference cylinder
+            && string.Equals(cylinder.FeatureId, featureId, StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(dimension.SourceTag)
+            && dimension.SourceTag.StartsWith("explicit-", StringComparison.Ordinal));
+
+    private static string? ExtractCandidateName(string? sourceTag)
+    {
+        if (string.IsNullOrWhiteSpace(sourceTag)
+            || !sourceTag.StartsWith($"{AutoHolePmiSourceTag}:", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return sourceTag[(AutoHolePmiSourceTag.Length + 1)..];
+    }
 
     private static bool TryBuildPlanarDatumReference(
         string targetRaw,
@@ -411,6 +549,14 @@ public static class FirmamentStepExporter
     }
 
     private sealed record DerivedPmiPayload(PmiModel Model, IReadOnlyList<Step242SemanticPmiNote> PassthroughNotes);
+    private readonly record struct PmiAutoHoleContext(
+        BooleanOperation Operation,
+        bool IsSubtract,
+        bool IsFromRecognizedFeature,
+        HoleFeatureRecognition? Recognition,
+        bool IsAmbiguous,
+        bool HasExplicitPmi,
+        string? RejectionReason);
 
     private sealed record ExportBodySelection(
         int OpIndex,

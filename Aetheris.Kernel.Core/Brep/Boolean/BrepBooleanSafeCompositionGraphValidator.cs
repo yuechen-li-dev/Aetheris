@@ -165,33 +165,70 @@ public static class BrepBooleanSafeCompositionGraphValidator
         var rootMaxZ = System.Math.Max(rootCylinder.MinCenter.Z, rootCylinder.MaxCenter.Z);
         var toolMinZ = System.Math.Min(toolCylinder.MinCenter.Z, toolCylinder.MaxCenter.Z);
         var toolMaxZ = System.Math.Max(toolCylinder.MinCenter.Z, toolCylinder.MaxCenter.Z);
-        var spansRoot = toolMinZ <= (rootMinZ + tolerance.Linear) && toolMaxZ >= (rootMaxZ - tolerance.Linear);
-        if (!spansRoot)
-        {
-            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
-                diagnosticContext,
-                "is outside the bounded cylinder-root safe subtract family; only through center bores that span both planar caps are supported.");
-            return false;
-        }
-
         var deltaX = toolCenter.X - rootCenter.X;
         var deltaY = toolCenter.Y - rootCenter.Y;
         var radialDistance = System.Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
         var isCoaxialCenterBore = ToleranceMath.AlmostZero(radialDistance, tolerance);
+        var spansRoot = toolMinZ <= (rootMinZ + tolerance.Linear) && toolMaxZ >= (rootMaxZ - tolerance.Linear);
+        var entersFromTop = toolMaxZ >= (rootMaxZ - tolerance.Linear) && toolMinZ > (rootMinZ + tolerance.Linear);
+        var entersFromBottom = toolMinZ <= (rootMinZ + tolerance.Linear) && toolMaxZ < (rootMaxZ - tolerance.Linear);
+        var isBlind = entersFromTop || entersFromBottom;
+        if (!spansRoot && !isBlind)
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
+                diagnosticContext,
+                "is outside the bounded cylinder-root safe subtract family; supported tools are either through bores or one-sided blind bores from top/bottom.");
+            return false;
+        }
+
+        if (isBlind && !isCoaxialCenterBore)
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateAxisNotAlignedDiagnostic(
+                diagnosticContext,
+                "bounded cylinder-root blind bores require coaxial centerline alignment with the root axis.");
+            return false;
+        }
+
+        if (isBlind && composition.Holes.Count > 0)
+        {
+            diagnostic = new BooleanDiagnostic(
+                BooleanDiagnosticCode.HoleInterference,
+                diagnosticContext.FormatMessage("bounded cylinder-root blind bores currently support only one bore; mixed/multi-bore cylinder-root chains remain deferred."),
+                "BrepBoolean.AnalyticHole.HoleInterference");
+            return false;
+        }
+
+        var spanKind = spansRoot
+            ? SupportedBooleanHoleSpanKind.Through
+            : entersFromTop
+                ? SupportedBooleanHoleSpanKind.BlindFromTop
+                : SupportedBooleanHoleSpanKind.BlindFromBottom;
+        var startZ = spansRoot
+            ? rootMinZ
+            : entersFromTop
+                ? rootMaxZ
+                : rootMinZ;
+        var endZ = spansRoot
+            ? rootMaxZ
+            : entersFromTop
+                ? toolMinZ
+                : toolMaxZ;
+        var startCenter = new Point3D(toolCenter.X, toolCenter.Y, startZ);
+        var endCenter = new Point3D(toolCenter.X, toolCenter.Y, endZ);
         var nextHole = new SupportedBooleanHole(
             nextFeatureId,
             surface,
             toolCenter.X,
             toolCenter.Y,
-            new Point3D(toolCenter.X, toolCenter.Y, rootMinZ),
-            new Point3D(toolCenter.X, toolCenter.Y, rootMaxZ),
+            startCenter,
+            endCenter,
             toolCylinder.Axis,
             Direction3D.Create(new Vector3D(1d, 0d, 0d)),
             toolCylinder.Radius,
             toolCylinder.Radius,
-            SupportedBooleanHoleSpanKind.Through,
-            rootMinZ,
-            rootMaxZ);
+            spanKind,
+            startZ,
+            endZ);
 
         var ringOuterDistance = radialDistance + toolCylinder.Radius;
         if (ToleranceMath.AlmostEqual(ringOuterDistance, rootCylinder.Radius, tolerance)
@@ -329,7 +366,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
                 return true;
 
             case AnalyticSurfaceKind.Sphere when surface.Sphere is RecognizedSphere sphere:
-                if (!ValidateContainedSphereCavity(outerBox, sphere, tolerance, out diagnostic, featureId))
+                if (!TryValidateBoundedSphereSubtract(outerBox, sphere, tolerance, out var spanKind, out var startCenter, out var endCenter, out diagnostic, featureId))
                 {
                     hole = default;
                     return false;
@@ -350,15 +387,15 @@ public static class BrepBooleanSafeCompositionGraphValidator
                     surface,
                     sphere.Center.X,
                     sphere.Center.Y,
-                    sphere.Center,
-                    sphere.Center,
+                    startCenter,
+                    endCenter,
                     Direction3D.Create(new Vector3D(0d, 0d, 1d)),
                     Direction3D.Create(new Vector3D(1d, 0d, 0d)),
                     sphere.Radius,
                     sphere.Radius,
-                    SupportedBooleanHoleSpanKind.Through,
-                    outerBox.MinZ,
-                    outerBox.MaxZ);
+                    spanKind,
+                    startCenter.Z,
+                    endCenter.Z);
                 return true;
 
             case AnalyticSurfaceKind.Sphere:
@@ -784,13 +821,19 @@ public static class BrepBooleanSafeCompositionGraphValidator
         BooleanDiagnostic? SubtractStackDiagnostic,
         bool SupportsIndependentContinuationOnAdditiveRoot);
 
-    private static bool ValidateContainedSphereCavity(
+    private static bool TryValidateBoundedSphereSubtract(
         AxisAlignedBoxExtents outerBox,
         in RecognizedSphere sphere,
         ToleranceContext tolerance,
+        out SupportedBooleanHoleSpanKind spanKind,
+        out Point3D startCenter,
+        out Point3D endCenter,
         out BooleanDiagnostic? diagnostic,
         string? featureId)
     {
+        spanKind = SupportedBooleanHoleSpanKind.Contained;
+        startCenter = sphere.Center;
+        endCenter = sphere.Center;
         diagnostic = null;
 
         var minX = sphere.Center.X - sphere.Radius;
@@ -800,6 +843,13 @@ public static class BrepBooleanSafeCompositionGraphValidator
         var minZ = sphere.Center.Z - sphere.Radius;
         var maxZ = sphere.Center.Z + sphere.Radius;
 
+        var topCrosses = maxZ > (outerBox.MaxZ + tolerance.Linear);
+        var bottomCrosses = minZ < (outerBox.MinZ - tolerance.Linear);
+        var sideCrosses =
+            minX < (outerBox.MinX - tolerance.Linear)
+            || maxX > (outerBox.MaxX + tolerance.Linear)
+            || minY < (outerBox.MinY - tolerance.Linear)
+            || maxY > (outerBox.MaxY + tolerance.Linear);
         var tangentContact =
             ToleranceMath.AlmostEqual(minX, outerBox.MinX, tolerance)
             || ToleranceMath.AlmostEqual(maxX, outerBox.MaxX, tolerance)
@@ -816,12 +866,14 @@ public static class BrepBooleanSafeCompositionGraphValidator
             return false;
         }
 
-        if (minX < (outerBox.MinX - tolerance.Linear)
-            || maxX > (outerBox.MaxX + tolerance.Linear)
-            || minY < (outerBox.MinY - tolerance.Linear)
-            || maxY > (outerBox.MaxY + tolerance.Linear)
-            || minZ < (outerBox.MinZ - tolerance.Linear)
-            || maxZ > (outerBox.MaxZ + tolerance.Linear))
+        var crossesTopOrBottomCount = (topCrosses ? 1 : 0) + (bottomCrosses ? 1 : 0);
+        if (!sideCrosses && !topCrosses && !bottomCrosses)
+        {
+            spanKind = SupportedBooleanHoleSpanKind.Contained;
+            return true;
+        }
+
+        if (sideCrosses || crossesTopOrBottomCount != 1)
         {
             diagnostic = BrepBooleanCylinderRecognition.CreateRadiusExceedsBoundaryDiagnostic(
                 BooleanOperation.Subtract.ToString(),
@@ -830,6 +882,54 @@ public static class BrepBooleanSafeCompositionGraphValidator
             return false;
         }
 
-        return true;
+        if (topCrosses)
+        {
+            var planeZ = outerBox.MaxZ;
+            var delta = planeZ - sphere.Center.Z;
+            if (ToleranceMath.AlmostEqual(System.Math.Abs(delta), sphere.Radius, tolerance))
+            {
+                diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(
+                    BooleanOperation.Subtract.ToString(),
+                    featureId,
+                    "is tangent to the exterior top plane; degenerate spherical opening is unsupported.");
+                return false;
+            }
+
+            var openingRadius = System.Math.Sqrt(System.Math.Max(0d, (sphere.Radius * sphere.Radius) - (delta * delta)));
+            if (!ValidateCircleInsideBoxFootprint(outerBox, sphere.Center.X, sphere.Center.Y, openingRadius, tolerance, out diagnostic, "sphere opening section", featureId))
+            {
+                return false;
+            }
+
+            spanKind = SupportedBooleanHoleSpanKind.BlindFromTop;
+            startCenter = new Point3D(sphere.Center.X, sphere.Center.Y, outerBox.MaxZ);
+            endCenter = new Point3D(sphere.Center.X, sphere.Center.Y, sphere.Center.Z - sphere.Radius);
+            return true;
+        }
+
+        {
+            var planeZ = outerBox.MinZ;
+            var delta = sphere.Center.Z - planeZ;
+            if (ToleranceMath.AlmostEqual(System.Math.Abs(delta), sphere.Radius, tolerance))
+            {
+                diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(
+                    BooleanOperation.Subtract.ToString(),
+                    featureId,
+                    "is tangent to the exterior bottom plane; degenerate spherical opening is unsupported.");
+                return false;
+            }
+
+            var openingRadius = System.Math.Sqrt(System.Math.Max(0d, (sphere.Radius * sphere.Radius) - (delta * delta)));
+            if (!ValidateCircleInsideBoxFootprint(outerBox, sphere.Center.X, sphere.Center.Y, openingRadius, tolerance, out diagnostic, "sphere opening section", featureId))
+            {
+                return false;
+            }
+
+            spanKind = SupportedBooleanHoleSpanKind.BlindFromBottom;
+            startCenter = new Point3D(sphere.Center.X, sphere.Center.Y, outerBox.MinZ);
+            endCenter = new Point3D(sphere.Center.X, sphere.Center.Y, sphere.Center.Z + sphere.Radius);
+            return true;
+        }
     }
+
 }

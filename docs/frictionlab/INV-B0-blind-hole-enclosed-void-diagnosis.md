@@ -76,6 +76,6 @@ No enclosed-void checker defect was required to explain the result.
 ## 6) Recommended follow-up
 
 1. Reclassify FRIC-B0 `zone_b_blind_cyl` from “blind-hole” to “contained cavity” in pressure-test reporting.
-2. Add a true exterior-opening blind-hole fixture variant for FRIC-B0 using explicit `place.on_face` semantics.
+2. ✅ Completed in FRIC-B0.1: `testdata/firmament/frictionlab/fric-b0/chimera_a_zone_b_blind_cyl.firmament` now uses explicit `place.on_face` semantics for a true exterior-opening blind hole.
 3. Keep `FIRM-SCHEMA-0006` expectation for the current fixture under `default` as a guardrail.
 4. Optional tooling follow-up: extend `aetheris analyze` importer path to accept `BREP_WITH_VOIDS` roots so enclosed-void artifacts can be inspected directly via CLI.

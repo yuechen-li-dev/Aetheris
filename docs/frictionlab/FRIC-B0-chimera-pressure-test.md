@@ -4,9 +4,9 @@ Date: 2026-04-19 (UTC)
 
 ## Mission state
 
-**Meaningful progression**.
+**Success (FRIC-B0.1 corrective pass)**.
 
-This pressure-test milestone intentionally prioritizes boundary extraction over feature completion. The run produced a high-density rejection map, and isolated a key upstream blocker: feature-graph gating currently prevents most mixed analytic+prismatic follow-on probes from reaching the `BrepBooleanBoxMixedThroughVoidBuilder` family.
+FRIC-B0 established a boundary map; FRIC-B0.1 corrects one misclassified datapoint (`zone_b_blind_cyl`) that INV-B0 proved was a contained cavity fixture bug. The corrected fixture now models a true exterior-opening blind hole and updates only the affected matrix row.
 
 ## Source-of-truth inspection (code + CLI)
 
@@ -40,7 +40,7 @@ Intent: stress through vs blind, family kind spread, and mixed continuation atte
 Zones:
 
 - `zone_a_through_cyl` (baseline through cylinder)
-- `zone_b_blind_cyl`
+- `zone_b_blind_cyl` (corrected in FRIC-B0.1 to explicit exterior-face blind-hole placement; prior variant was contained cavity)
 - `zone_c_cone_through`
 - `zone_d_cone_blind`
 - `zone_e_slot_through`
@@ -84,13 +84,21 @@ Zones:
    - Produced per-zone success/failure evidence with exact diagnostics.
 4. `python3` aggregation over `artifacts/fric-b0/*.json`
    - Clustered diagnostics into blocker classes used below.
+5. `dotnet run --project Aetheris.CLI -- build testdata/firmament/frictionlab/fric-b0/chimera_a_zone_b_blind_cyl.firmament --json` (pre-fix capture)
+   - Confirmed old fixture behavior in INV-B0 context: rejected with `[FIRM-SCHEMA-0006]` enclosed-void diagnostic.
+6. Updated `chimera_a_zone_b_blind_cyl.firmament` to use explicit `place.on_face: chimera_a_root.top_face` blind-hole placement.
+   - Converted semantics from contained internal cavity to exterior-opening blind hole.
+7. `dotnet run --project Aetheris.CLI -- build testdata/firmament/frictionlab/fric-b0/chimera_a_zone_b_blind_cyl.firmament --out artifacts/fric-b0.1/zone_b_blind_cyl_new.step --json`
+   - Corrected case builds successfully under process `default`.
+8. `dotnet run --project Aetheris.CLI -- analyze artifacts/fric-b0.1/zone_b_blind_cyl_new.step --json`
+   - Confirms single-shell manifold body (no enclosed void shell), consistent with an exterior-opening blind hole.
 
 ## Per-zone result matrix
 
 | Chimera | Zone | Operation attempted | Result | Exact diagnostic (source) | Blocker class | Recommendation |
 |---|---|---|---|---|---|---|
 | A | `zone_a_through_cyl` | `subtract(box, cylinder through)` | Pass | n/a | Supported baseline | Safe to generalize now (already in family) |
-| A | `zone_b_blind_cyl` | `subtract(box, cylinder blind)` | Reject | `[FIRM-SCHEMA-0006] ... fully enclosed internal void(s) ... not allowed for process 'default'` (`firmament`) | Process/schema sealed-void guard | **Must remain rejected** (unless process semantics change) |
+| A | `zone_b_blind_cyl` | `subtract(box, cylinder blind from exterior face)` | Pass | n/a | Supported one-sided blind-hole family (after fixture correction) | Keep accepted; this row is now valid evidence for exterior-opening blind hole behavior |
 | A | `zone_c_cone_through` | `subtract(box, cone through)` | Pass | n/a | Supported baseline | Safe to generalize now (already in family) |
 | A | `zone_d_cone_blind` | `subtract(box, cone blind)` | Reject | `... does not match the supported subtract span family ...` (`BrepBoolean.AnalyticHole.NotFullySpanning`) | Non-through analytic continuation boundary | Generalizable later with new bounded representation |
 | A | `zone_e_slot_through` | `subtract(box, slot_cut through)` | Pass | n/a | Supported prismatic through-cut family | Safe to generalize now (already in family) |
@@ -127,7 +135,7 @@ Zones:
    - Signature: `FIRM-SCHEMA-0006` fully enclosed internal voids disallowed in process `default`.
    - Effect: catches certain blind-hole outcomes before/alongside geometric family checks.
 
-INV-B0 follow-up (2026-04-19): `zone_b_blind_cyl` is fixture-contained (no exterior-face placement), so this rejection is expected enclosed-cavity policy behavior rather than a blind-hole misclassification.
+INV-B0 follow-up (2026-04-19): the previous `zone_b_blind_cyl` fixture revision was contained (no exterior-face placement), so that historical rejection was enclosed-cavity policy behavior rather than blind-hole misclassification. FRIC-B0.1 replaces that fixture with explicit top-face placement and the zone now passes as a true exterior-opening blind hole.
 
 ## Required boundary classification synthesis
 

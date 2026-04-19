@@ -256,11 +256,6 @@ public static class BrepBoolean
         var leftRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(leftBody, resolvedTolerance, out var leftBox, out _);
         var rightRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(rightBody, resolvedTolerance, out var rightBox, out _);
         var rightRecognizedPrismaticTool = BrepBooleanPrismaticToolRecognition.TryRecognize(rightBody, resolvedTolerance, out var rightPrismaticTool, out _);
-        if (rightRecognized)
-        {
-            rightRecognizedPrismaticTool = false;
-            rightPrismaticTool = null!;
-        }
         var rightAnalyticRecognized = BrepBooleanAnalyticSurfaceRecognition.TryRecognizeAnalyticSurface(rightBody, resolvedTolerance, out var analyticSurface, out _);
 
         var leftSafeCompositionRecognizedFromBody = leftBody.SafeBooleanComposition is not null;
@@ -275,6 +270,19 @@ public static class BrepBoolean
         {
             leftSafeComposition = recognizedRootComposition;
             leftHasSafeComposition = true;
+        }
+
+        if (rightRecognized && rightRecognizedPrismaticTool)
+        {
+            var supportsBoxPrismaticContinuation = operation == BooleanOperation.Subtract
+                && leftHasSafeComposition
+                && leftSafeComposition is { RootDescriptor.Kind: SafeBooleanRootKind.Box }
+                && (leftSafeComposition.Holes.Count > 0 || (leftSafeComposition.OpenSlots?.Count ?? 0) > 0);
+            if (!supportsBoxPrismaticContinuation)
+            {
+                rightRecognizedPrismaticTool = false;
+                rightPrismaticTool = null!;
+            }
         }
 
         var canClassifyBoundedOrthogonalUnionWithExistingRoot = false;
@@ -1787,10 +1795,16 @@ public static class BrepBoolean
             return false;
         }
 
+        if (leftComposition.ThroughVoids is { PrismaticVoids.Count: > 0 })
+        {
+            unsupportedReason = "Boolean Subtract: bounded prismatic subtract continuation does not yet support prior prismatic/open-slot through-void history.";
+            return false;
+        }
+
         var hasPriorSubtractHistory = leftComposition.Holes.Count > 0 || (leftComposition.OpenSlots?.Count ?? 0) > 0;
         if (hasPriorSubtractHistory)
         {
-            if (!SupportsBoundedAnalyticHistoryForPrismaticContinuation(leftComposition, tolerance, out var historyReason))
+            if (!SupportsBoundedAnalyticHistoryForPrismaticContinuation(leftComposition, prismTool.Footprint, tolerance, out var historyReason))
             {
                 unsupportedReason = historyReason;
                 return false;
@@ -1836,6 +1850,7 @@ public static class BrepBoolean
 
     private static bool SupportsBoundedAnalyticHistoryForPrismaticContinuation(
         SafeBooleanComposition composition,
+        IReadOnlyList<(double X, double Y)> prismaticFootprint,
         ToleranceContext tolerance,
         out string unsupportedReason)
     {
@@ -1847,11 +1862,6 @@ public static class BrepBoolean
 
         foreach (var hole in composition.Holes)
         {
-            if (hole.SpanKind != SupportedBooleanHoleSpanKind.Through)
-            {
-                return false;
-            }
-
             if (hole.Surface.Kind is not (AnalyticSurfaceKind.Cylinder or AnalyticSurfaceKind.Cone))
             {
                 return false;
@@ -1861,6 +1871,28 @@ public static class BrepBoolean
             if (!ToleranceMath.AlmostZero(axis.X, tolerance)
                 || !ToleranceMath.AlmostZero(axis.Y, tolerance)
                 || !ToleranceMath.AlmostEqual(System.Math.Abs(axis.Z), 1d, tolerance))
+            {
+                return false;
+            }
+
+            if (hole.SpanKind == SupportedBooleanHoleSpanKind.Through)
+            {
+                continue;
+            }
+
+            if (hole.SpanKind is not (SupportedBooleanHoleSpanKind.BlindFromTop or SupportedBooleanHoleSpanKind.BlindFromBottom))
+            {
+                return false;
+            }
+
+            var center = (X: hole.CenterX, Y: hole.CenterY);
+            if (!BrepBooleanPrismaticFootprintContainment.TryComputeContainmentMargin(center, prismaticFootprint, tolerance, out var minEdgeDistance))
+            {
+                return false;
+            }
+
+            var requiredMargin = hole.MaxBoundaryRadius + (2d * tolerance.Linear);
+            if (minEdgeDistance < requiredMargin)
             {
                 return false;
             }

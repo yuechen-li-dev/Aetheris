@@ -4,9 +4,13 @@ Date: 2026-04-19 (UTC)
 
 ## Mission state
 
-**Success (FRIC-B0.1 corrective pass)**.
+**Success (FRIC-B0.2 bounded boolean-engine generalization pass)**.
 
-FRIC-B0 established a boundary map; FRIC-B0.1 corrects one misclassified datapoint (`zone_b_blind_cyl`) that INV-B0 proved was a contained cavity fixture bug. The corrected fixture now models a true exterior-opening blind hole and updates only the affected matrix row.
+FRIC-B0 established a boundary map; FRIC-B0.1 corrected one misclassified datapoint (`zone_b_blind_cyl`). FRIC-B0.2 then generalized the bounded prismatic-continuation rule for safe box-root subtract chains:
+
+- allow prior exterior-opening blind analytic history when prismatic footprint containment has strict radial margin,
+- preserve recognized safe-subtract graph state after successful non-analytic subtracts when safe composition metadata remains valid,
+- keep unsupported-builder families bounded out (non-box roots, open-slot/prismatic through-void continuation, tangent/grazing degeneracy, unsupported analytic continuation families).
 
 ## Source-of-truth inspection (code + CLI)
 
@@ -92,6 +96,12 @@ Zones:
    - Corrected case builds successfully under process `default`.
 8. `dotnet run --project Aetheris.CLI -- analyze artifacts/fric-b0.1/zone_b_blind_cyl_new.step --json`
    - Confirms single-shell manifold body (no enclosed void shell), consistent with an exterior-opening blind hole.
+9. `dotnet run --project Aetheris.CLI --no-build -- build testdata/firmament/frictionlab/fric-b0/chimera_c_zone_cf_mixed_prismatic_baseline_blocked.firmament --json`
+   - Now passes after FRIC-B0.2 bounded continuation generalization.
+10. `dotnet run --project Aetheris.CLI --no-build -- build testdata/firmament/frictionlab/fric-b0/chimera_a_zone_h_partial_overlap.firmament --json`
+    - Now reaches kernel interaction classifier and rejects with tangent/edge-grazing containment diagnostic (instead of upstream tool-kind gate).
+11. `dotnet run --project Aetheris.CLI --no-build -- build testdata/firmament/frictionlab/fric-b0/chimera_c_zone_cc_open_slot_history.firmament --json`
+    - Remains rejected by explicit “prior prismatic/open-slot through-void history unsupported” boundary.
 
 ## Per-zone result matrix
 
@@ -104,7 +114,7 @@ Zones:
 | A | `zone_e_slot_through` | `subtract(box, slot_cut through)` | Pass | n/a | Supported prismatic through-cut family | Safe to generalize now (already in family) |
 | A | `zone_f_tri_prism` | `subtract(box, triangular_prism through)` | Pass | n/a | Supported prismatic family | Safe to generalize now (already in family) |
 | A | `zone_g_box_prism` | `subtract(box, box through)` | Pass | n/a | Supported prismatic family | Safe to generalize now (already in family) |
-| A | `zone_h_partial_overlap_slot` | `subtract(box→analytic history, box prism)` | Reject | `unsupported follow-on tool kind 'box' ... Only nested cylinder or cone...` (`firmament.feature-graph.unsupported-follow-on-kind`) | Root/history feature-graph gate | Safe to generalize now (remove/relax gate for bounded prismatic continuation candidates) |
+| A | `zone_h_partial_overlap_slot` | `subtract(box→analytic history, box prism)` | Reject | `... rejects tangent/edge-grazing analytic-prismatic interactions ...` (`BrepBooleanBoxMixedThroughVoidBuilder.Build`) | Kernel interaction-class rejection (now reached after gate relaxation) | Correctly remains rejected (partial-overlap/tangent class stays bounded out) |
 | A | `zone_i_hole_right` | second analytic hole in chain | Reject | `blind-hole continuation exceeds the bounded family...` (`BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily`) | Analytic continuation + span classification fragility | Generalizable later with stronger bounded history/span model |
 | A | `zone_j_grazing_prism` | analytic then edge-grazing prism | Reject | `unsupported follow-on tool kind 'box' ...` (`firmament.feature-graph.unsupported-follow-on-kind`) | Upstream gate prevents interaction classification | Generalizable later with new bounded representation (after gate relaxation + interaction classifier exposure) |
 | B | `zone_ba_through_cyl` | `subtract(cylinder, through cylinder)` | Pass | n/a | Supported cylinder-root bore family | Safe to generalize now (already in family) |
@@ -112,10 +122,10 @@ Zones:
 | B | `zone_bc_prismatic_slot` | `subtract(cylinder, straight_slot)` | Reject | `sequential safe composition only supports subtracting supported analytic holes...` (`BrepBoolean.RebuildResult`) | Non-box root prismatic continuation boundary | Generalizable later with new bounded representation |
 | B | `zone_bd_box_prism` | `subtract(cylinder, box)` | Pass | n/a | Routed as bounded orthogonal pocket candidate | Safe now within narrow admissible overlap cases |
 | C | `zone_cb_second_analytic_hole` | second analytic follow-on | Reject | `blind-hole continuation exceeds the bounded family...` (`BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily`) | History-span continuation fragility | Generalizable later with new bounded representation |
-| C | `zone_cc_follow_on_prism` | open-slot history then prism | Reject | `... bounded orthogonal pocket family requires a single pocket mouth... through-slots ... deferred.` (`BrepBoolean.RebuildResult`) | Open-slot history + mouth-count boundary | Generalizable later with new bounded representation |
+| C | `zone_cc_follow_on_prism` | open-slot/prismatic through-void history then prism | Reject | `... prismatic subtract continuation does not yet support prior prismatic/open-slot through-void history.` (`BrepBoolean.RebuildResult`) | Open-slot/prismatic-through-void history boundary | **Must remain rejected** for this milestone (no continuation builder yet) |
 | C | `zone_cd_follow_on_prism` | sphere-history then prism | Reject | `bounded boolean family only supports recognized axis-aligned boxes ...` (`BrepBoolean.RebuildResult`) | Non-safe-root follow-on boundary | **Must remain rejected** (for current bounded family) |
 | C | `zone_ce_hole_2` | multi-analytic history continuation | Reject | `blind-hole continuation exceeds the bounded family...` (`BrepBoolean.AnalyticHole.BlindContinuationOutsideBoundedFamily`) | Mixed-count/history continuation limit | Generalizable later with new bounded representation |
-| C | `zone_cf_mixed_prismatic_attempt` | analytic then prismatic mixed baseline | Reject | `unsupported follow-on tool kind 'box' ...` (`firmament.feature-graph.unsupported-follow-on-kind`) | Upstream gate blocks mixed-through-void kernel path | Safe to generalize now (gate should permit bounded prismatic candidates for deeper classifier routing) |
+| C | `zone_cf_mixed_prismatic_attempt` | analytic then prismatic mixed baseline | Pass | n/a | Bounded mixed continuation (containment class) now routed and rebuilt | Improved by FRIC-B0.2 generalized continuation rule |
 
 ## Failure clusters
 

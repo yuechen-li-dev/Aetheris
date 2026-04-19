@@ -142,6 +142,71 @@ public sealed class FirmamentPmiTests
         Assert.DoesNotContain(export.Value.DimensionInspection!, d => string.Equals(d.SourceTag, "auto-hole-pmi:simple_hole_callout", StringComparison.Ordinal));
     }
 
+
+    [Fact]
+    public void AutoPmi_Counterbore_SubtractStack_EmitsBoundedCounterboreDimensions()
+    {
+        var export = ExportFixture("testdata/firmament/fixtures/m0e-auto-pmi-counterbore-success.firmament");
+        Assert.True(export.IsSuccess, string.Join(Environment.NewLine, export.Diagnostics.Select(d => d.Message)));
+
+        Assert.NotNull(export.Value.DimensionInspection);
+        var autoDimensions = export.Value.DimensionInspection!
+            .Where(d => string.Equals(d.SourceTag, "auto-hole-pmi:counterbore_callout", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.Equal(2, autoDimensions.Length);
+        Assert.All(autoDimensions, dimension =>
+        {
+            Assert.Equal(nameof(PmiDimensionKind.Diameter), dimension.Kind);
+            Assert.Equal("counterbore_through", dimension.Target);
+            Assert.Equal("counterbore_callout", dimension.CandidateName);
+        });
+
+        Assert.Contains(autoDimensions, d => Math.Abs(d.Value - 14d) < 1e-9d);
+        Assert.Contains(autoDimensions, d => Math.Abs(d.Value - 7d) < 1e-9d);
+    }
+
+    [Fact]
+    public void AutoPmi_Countersink_SubtractStack_EmitsBoundedCountersinkDimensions()
+    {
+        var export = ExportFixture("testdata/firmament/fixtures/m0e-auto-pmi-countersink-success.firmament");
+        Assert.True(export.IsSuccess, string.Join(Environment.NewLine, export.Diagnostics.Select(d => d.Message)));
+
+        Assert.NotNull(export.Value.DimensionInspection);
+        var autoDimensions = export.Value.DimensionInspection!
+            .Where(d => string.Equals(d.SourceTag, "auto-hole-pmi:countersink_callout", StringComparison.Ordinal))
+            .ToArray();
+
+        var dimension = Assert.Single(autoDimensions);
+        Assert.Equal(nameof(PmiDimensionKind.Diameter), dimension.Kind);
+        Assert.Equal("countersink_through", dimension.Target);
+        Assert.Equal("countersink_callout", dimension.CandidateName);
+        Assert.True(dimension.Value > 0d);
+    }
+
+    [Fact]
+    public void AutoPmi_CounterboreLikePartialCylinderSubtract_IsRejected()
+    {
+        var export = ExportFixture("testdata/firmament/fixtures/m0d-cylinder-root-cylindrical-subtract.firmament");
+        Assert.True(export.IsSuccess, string.Join(Environment.NewLine, export.Diagnostics.Select(d => d.Message)));
+
+        Assert.NotNull(export.Value.DimensionInspection);
+        Assert.DoesNotContain(export.Value.DimensionInspection!, dimension =>
+            !string.IsNullOrWhiteSpace(dimension.SourceTag)
+            && dimension.SourceTag.StartsWith("auto-hole-pmi:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AutoPmi_CountersinkLikeConeOnlySubtract_IsRejected()
+    {
+        var export = ExportFixture("testdata/firmament/fixtures/m0e-auto-pmi-countersink-reject-cone-only.firmament");
+        Assert.True(export.IsSuccess, string.Join(Environment.NewLine, export.Diagnostics.Select(d => d.Message)));
+
+        Assert.NotNull(export.Value.DimensionInspection);
+        Assert.DoesNotContain(export.Value.DimensionInspection!, dimension =>
+            !string.IsNullOrWhiteSpace(dimension.SourceTag)
+            && dimension.SourceTag.StartsWith("auto-hole-pmi:", StringComparison.Ordinal));
+    }
     [Fact]
     public void AutoPmi_ExplicitPmiSuppressesEquivalentAutoDimension()
     {

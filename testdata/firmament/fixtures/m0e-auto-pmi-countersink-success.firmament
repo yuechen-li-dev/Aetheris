@@ -1,0 +1,46 @@
+firmament:
+  version: 1
+
+model:
+  name: m0e_auto_pmi_countersink_success
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: plate
+    size[3]:
+      70
+      40
+      16
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -2
+
+  -
+    op: subtract
+    id: countersink_entry
+    from: plate
+    with:
+      op: cone
+      bottom_radius: 1.75
+      top_radius: 3.5
+      height: 4
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        6
+
+  -
+    op: subtract
+    id: countersink_through
+    from: countersink_entry
+    with:
+      op: cylinder
+      radius: 1.75
+      height: 26

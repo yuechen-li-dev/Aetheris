@@ -32,6 +32,7 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
                 FirmamentKnownOpKind.TriangularPrism => ValidateTriangularPrism(entry, index),
                 FirmamentKnownOpKind.HexagonalPrism => ValidateHexagonalPrism(entry, index),
                 FirmamentKnownOpKind.StraightSlot => ValidateStraightSlot(entry, index),
+                FirmamentKnownOpKind.RoundedCornerBox => ValidateRoundedCornerBox(entry, index),
                 _ => KernelResult<bool>.Success(true)
             };
 
@@ -259,6 +260,49 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
         if (!heightResult.IsSuccess)
         {
             return heightResult;
+        }
+
+        return ValidatePlacement(entry, opIndex);
+    }
+
+    private static KernelResult<bool> ValidateRoundedCornerBox(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        var width = ValidatePositiveNumericField(entry, "width", opIndex);
+        if (!width.IsSuccess)
+        {
+            return width;
+        }
+
+        var depth = ValidatePositiveNumericField(entry, "depth", opIndex);
+        if (!depth.IsSuccess)
+        {
+            return depth;
+        }
+
+        var height = ValidatePositiveNumericField(entry, "height", opIndex);
+        if (!height.IsSuccess)
+        {
+            return height;
+        }
+
+        var cornerRadius = ValidateNonNegativeNumericField(entry, "corner_radius", opIndex);
+        if (!cornerRadius.IsSuccess)
+        {
+            return cornerRadius;
+        }
+
+        var widthValue = ParseRequiredNumeric(entry.RawFields["width"]);
+        var depthValue = ParseRequiredNumeric(entry.RawFields["depth"]);
+        var radiusValue = ParseRequiredNumeric(entry.RawFields["corner_radius"]);
+        var maxAllowedRadius = double.Min(widthValue, depthValue) * 0.5d;
+        if (radiusValue > maxAllowedRadius)
+        {
+            return InvalidFieldValue("corner_radius", opIndex, entry.OpName, "expected a numeric value less than or equal to min(width, depth) / 2");
         }
 
         return ValidatePlacement(entry, opIndex);

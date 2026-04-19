@@ -220,6 +220,23 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Firmament_Routes_RoundedCornerBox_Through_Correct_Seam()
+    {
+        var result = CompileFixture("testdata/firmament/examples/rounded_corner_box_basic.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var plan = result.Compilation.Value.PrimitiveLoweringPlan!;
+        var lowered = Assert.Single(plan.Primitives);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.RoundedCornerBox, lowered.Kind);
+        Assert.Equal("rbox1", lowered.FeatureId);
+
+        var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
+        Assert.Equal("rbox1", executed.FeatureId);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.RoundedCornerBox, executed.Kind);
+        Assert.True(executed.Body.Topology.Faces.Count() >= 10);
+    }
+
+    [Fact]
     public void Compile_Executes_Add_Boolean_Into_Real_Body()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3d-valid-add-exec.firmament");

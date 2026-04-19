@@ -30,6 +30,8 @@ Other combinations may fail and are intentionally not supported yet.
 - `p1_blind_hole_on_face_semantic.firmament` — minimal semantic placement subset example using `place.on_face` for a blind-hole tool placement.
 - `p1_flange_radial_hole_semantic.firmament` — minimal semantic placement subset example using `place.around_axis` + `place.radial_offset` for flange radial hole placement.
 - `p1_bracket_rib_on_face_semantic.firmament` — minimal semantic placement subset example using `place.on_face` for bracket rib authoring ergonomics.
+- `w2_cylinder_root_blind_bore_semantic.firmament` — Wave 2.1 canonical cylinder-root blind-bore example (`subtract(cylinder_root, cylinder)` with top-entry coaxial blind bore) authored with semantic `place.on_face`; helper export path: `testdata/firmament/exports/w2_cylinder_root_blind_bore_semantic.step`.
+- `w2_box_sphere_exterior_opening_pocket_semantic.firmament` — Wave 2.1 canonical exterior-opening spherical pocket example (`subtract(box, sphere)` with one-sided opening at `top_face`) authored with semantic `place.on_face`; helper export path: `testdata/firmament/exports/w2_box_sphere_exterior_opening_pocket_semantic.step`.
 - `p2_linear_hole_row.firmament` — minimal built-in `pattern_linear` example for repeated hole rows.
 - `p2_flange_bolt_circle_pattern.firmament` — minimal built-in `pattern_circular` bolt-circle example for flange holes.
 - `p2_mirror_hole_pair.firmament` — bounded `pattern_mirror` example for principal-plane mirrored hole placement.

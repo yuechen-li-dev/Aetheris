@@ -1,0 +1,30 @@
+firmament:
+  version: 1
+
+model:
+  name: w2_box_sphere_exterior_opening_pocket_semantic
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      30
+      12
+
+  -
+    op: subtract
+    id: pocket
+    from: base
+    with:
+      op: sphere
+      radius: 5
+    place:
+      on: origin
+      on_face: base.top_face
+      offset[3]:
+        0
+        0
+        -2

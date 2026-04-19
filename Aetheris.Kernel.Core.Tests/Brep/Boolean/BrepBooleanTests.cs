@@ -1663,6 +1663,63 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
+    public void ClassifyBooleanCase_RoundedCornerRoot_PrismaticSubtract_RecognizesPolygonalSafeRoot()
+    {
+        var root = StandardLibraryPrimitives.CreateRoundedCornerBox(24d, 18d, 20d, 4d).Value;
+        var tool = StandardLibraryPrimitives.CreateSlotCut(10d, 4d, 24d, 2d).Value;
+
+        var classification = BrepBoolean.ClassifyBooleanCase(root, tool, BooleanOperation.Subtract);
+
+        Assert.Equal(BooleanExecutionClass.PlanarOnly, classification.ExecutionClass);
+        Assert.NotNull(classification.LeftSafeComposition);
+        Assert.Equal(SafeBooleanRootKind.PolygonalExtrusion, classification.LeftSafeComposition!.RootDescriptor.Kind);
+        Assert.NotNull(classification.RightPrismaticTool);
+        Assert.Null(classification.UnsupportedReason);
+    }
+
+    [Fact]
+    public void PolygonalRoot_PrismaticSubtract_Succeeds()
+    {
+        var root = StandardLibraryPrimitives.CreateRoundedCornerBox(24d, 18d, 20d, 4d).Value;
+        var tool = StandardLibraryPrimitives.CreateSlotCut(10d, 4d, 24d, 2d).Value;
+
+        var result = BrepBoolean.Subtract(root, tool);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.Value.SafeBooleanComposition?.ThroughVoids);
+        Assert.Equal(SafeBooleanRootKind.PolygonalExtrusion, result.Value.SafeBooleanComposition!.RootDescriptor.Kind);
+        Assert.Single(result.Value.SafeBooleanComposition.ThroughVoids!.PrismaticVoids);
+    }
+
+    [Fact]
+    public void PolygonalRoot_PrismaticSubtract_OutsidePolygonButInsideAabb_RemainsRejected()
+    {
+        var root = StandardLibraryPrimitives.CreateRoundedCornerBox(24d, 18d, 20d, 4d).Value;
+        var cornerBiasedTool = TransformBody(
+            StandardLibraryPrimitives.CreateSlotCut(3d, 3d, 24d, 1.5d).Value,
+            Transform3D.CreateTranslation(new Vector3D(10.2d, 7.2d, 0d)));
+
+        var result = BrepBoolean.Subtract(root, cornerBiasedTool);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Contains("polygonal root footprint", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PolygonalRoot_PrismaticSubtract_ShortTool_RemainsRejected()
+    {
+        var root = StandardLibraryPrimitives.CreateRoundedCornerBox(24d, 18d, 20d, 4d).Value;
+        var shortTool = StandardLibraryPrimitives.CreateSlotCut(10d, 4d, 8d, 2d).Value;
+
+        var result = BrepBoolean.Subtract(root, shortTool);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Contains("through-cut tool", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MixedThroughVoid_AnalyticPlusSlot_Succeeds()
     {
         var root = BrepPrimitives.CreateBox(20d, 20d, 20d).Value;

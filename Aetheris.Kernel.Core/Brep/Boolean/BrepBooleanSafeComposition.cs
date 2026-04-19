@@ -70,12 +70,14 @@ public enum SafeBooleanRootKind
 {
     Box,
     Cylinder,
+    PolygonalExtrusion,
 }
 
 public readonly record struct SafeBooleanRootDescriptor(
     SafeBooleanRootKind Kind,
     AxisAlignedBoxExtents Box,
-    RecognizedCylinder? Cylinder = null)
+    RecognizedCylinder? Cylinder = null,
+    IReadOnlyList<(double X, double Y)>? PolygonFootprint = null)
 {
     public static SafeBooleanRootDescriptor FromBox(AxisAlignedBoxExtents box)
         => new(SafeBooleanRootKind.Box, box);
@@ -96,6 +98,9 @@ public readonly record struct SafeBooleanRootDescriptor(
             cylinder);
     }
 
+    public static SafeBooleanRootDescriptor FromPolygonalExtrusion(in RecognizedPrismaticProfile profile)
+        => new(SafeBooleanRootKind.PolygonalExtrusion, profile.Bounds, Cylinder: null, PolygonFootprint: profile.Footprint);
+
     public SafeBooleanRootDescriptor Translate(Vector3D translation)
     {
         var translatedBox = new AxisAlignedBoxExtents(
@@ -114,7 +119,16 @@ public readonly record struct SafeBooleanRootDescriptor(
                 cylinder with { AxisOrigin = cylinder.AxisOrigin + translation });
         }
 
-        return new SafeBooleanRootDescriptor(Kind, translatedBox);
+        if (Kind == SafeBooleanRootKind.PolygonalExtrusion && PolygonFootprint is { Count: > 0 } footprint)
+        {
+            return new SafeBooleanRootDescriptor(
+                Kind,
+                translatedBox,
+                Cylinder: null,
+                PolygonFootprint: footprint.Select(point => (point.X + translation.X, point.Y + translation.Y)).ToArray());
+        }
+
+        return new SafeBooleanRootDescriptor(Kind, translatedBox, PolygonFootprint: PolygonFootprint);
     }
 }
 
@@ -191,6 +205,13 @@ public static class BrepBooleanSafeComposition
             && BrepBooleanCylinderRecognition.ValidateAxisAlignedZ(cylinder, tolerance))
         {
             var root = SafeBooleanRootDescriptor.FromCylinder(cylinder);
+            composition = new SafeBooleanComposition(root.Box, [], root);
+            return true;
+        }
+
+        if (BrepBooleanPrismaticProfileRecognition.TryRecognize(body, tolerance, out var profile, out reason))
+        {
+            var root = SafeBooleanRootDescriptor.FromPolygonalExtrusion(profile);
             composition = new SafeBooleanComposition(root.Box, [], root);
             return true;
         }

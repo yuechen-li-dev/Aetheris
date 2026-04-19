@@ -276,7 +276,7 @@ public static class BrepBoolean
         {
             var supportsBoxPrismaticContinuation = operation == BooleanOperation.Subtract
                 && leftHasSafeComposition
-                && leftSafeComposition is { RootDescriptor.Kind: SafeBooleanRootKind.Box }
+                && leftSafeComposition is { RootDescriptor.Kind: SafeBooleanRootKind.Box or SafeBooleanRootKind.PolygonalExtrusion }
                 && (leftSafeComposition.Holes.Count > 0 || (leftSafeComposition.OpenSlots?.Count ?? 0) > 0);
             if (!supportsBoxPrismaticContinuation)
             {
@@ -367,7 +367,9 @@ public static class BrepBoolean
                     BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, BooleanOperation.Intersect, out _)
                     && ((context.LeftHasSafeComposition
                             && context.LeftSafeComposition is not null
-                            && context.LeftSafeComposition.RootDescriptor.Kind == SafeBooleanRootKind.Box)
+                            && (context.LeftSafeComposition.RootDescriptor.Kind == SafeBooleanRootKind.Box
+                                || (context.Operation == BooleanOperation.Subtract
+                                    && context.LeftSafeComposition.RootDescriptor.Kind == SafeBooleanRootKind.PolygonalExtrusion)))
                         || context.LeftRecognizedBox)
                     && (context.RightRecognizedBox
                         || (context.Operation == BooleanOperation.Subtract && context.RightPrismaticTool is not null)),
@@ -1010,7 +1012,12 @@ public static class BrepBoolean
                     : new BooleanRebuildData(classification, RebuiltBody: null, Diagnostics: rebuiltMixed.Diagnostics);
             }
 
-            var rebuiltPrismSubtract = BrepBooleanBoxPrismThroughCutBuilder.Build(leftComposition.RootDescriptor.Box, prismaticTool.Footprint, request.Tolerance ?? ToleranceContext.Default);
+            KernelResult<BrepBody> rebuiltPrismSubtract = leftComposition.RootDescriptor.Kind switch
+            {
+                SafeBooleanRootKind.PolygonalExtrusion when leftComposition.RootDescriptor.PolygonFootprint is { Count: > 2 } polygonFootprint
+                    => BrepBooleanPolygonalPrismThroughCutBuilder.Build(polygonFootprint, leftComposition.RootDescriptor.Box, prismaticTool.Footprint),
+                _ => BrepBooleanBoxPrismThroughCutBuilder.Build(leftComposition.RootDescriptor.Box, prismaticTool.Footprint, request.Tolerance ?? ToleranceContext.Default),
+            };
             if (!rebuiltPrismSubtract.IsSuccess)
             {
                 return new BooleanRebuildData(classification, RebuiltBody: null, Diagnostics: rebuiltPrismSubtract.Diagnostics);
@@ -1789,9 +1796,10 @@ public static class BrepBoolean
         out string? unsupportedReason)
     {
         unsupportedReason = null;
-        if (leftComposition.RootDescriptor.Kind != SafeBooleanRootKind.Box)
+        var rootKind = leftComposition.RootDescriptor.Kind;
+        if (rootKind is not (SafeBooleanRootKind.Box or SafeBooleanRootKind.PolygonalExtrusion))
         {
-            unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires a recognized safe box root.";
+            unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires a recognized safe box or polygonal-extrusion root.";
             return false;
         }
 
@@ -1815,17 +1823,66 @@ public static class BrepBoolean
         if (!hasPriorSubtractHistory
             && (prismTool.Bounds.MinZ > root.MinZ + tolerance.Linear || prismTool.Bounds.MaxZ < root.MaxZ - tolerance.Linear))
         {
-            unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires a through-cut tool that spans the full box root height.";
+            unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires a through-cut tool that spans the full root height.";
             return false;
         }
 
-        foreach (var point in prismTool.Footprint)
+        if (rootKind == SafeBooleanRootKind.Box)
         {
-            var insideX = point.X > root.MinX + tolerance.Linear && point.X < root.MaxX - tolerance.Linear;
-            var insideY = point.Y > root.MinY + tolerance.Linear && point.Y < root.MaxY - tolerance.Linear;
-            if (!insideX || !insideY)
+            foreach (var point in prismTool.Footprint)
             {
-                unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires footprint vertices strictly inside the box-root XY bounds.";
+                var insideX = point.X > root.MinX + tolerance.Linear && point.X < root.MaxX - tolerance.Linear;
+                var insideY = point.Y > root.MinY + tolerance.Linear && point.Y < root.MaxY - tolerance.Linear;
+                if (!insideX || !insideY)
+                {
+                    unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires footprint vertices strictly inside the box-root XY bounds.";
+                    return false;
+                }
+            }
+        }
+        else if (leftComposition.RootDescriptor.PolygonFootprint is { Count: > 2 } rootFootprint)
+        {
+            if (!TryValidatePolygonalRootContainment(prismTool.Footprint, rootFootprint, tolerance, out unsupportedReason))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires polygonal roots to carry a valid footprint.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryValidatePolygonalRootContainment(
+        IReadOnlyList<(double X, double Y)> toolFootprint,
+        IReadOnlyList<(double X, double Y)> rootFootprint,
+        ToleranceContext tolerance,
+        out string unsupportedReason)
+    {
+        unsupportedReason = string.Empty;
+        foreach (var point in toolFootprint)
+        {
+            if (!BrepBooleanPrismaticFootprintContainment.TryComputeContainmentMargin(point, rootFootprint, tolerance, out var edgeDistance)
+                || edgeDistance <= tolerance.Linear)
+            {
+                unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires footprint vertices strictly inside the polygonal root footprint.";
+                return false;
+            }
+        }
+
+        for (var i = 0; i < toolFootprint.Count; i++)
+        {
+            var next = (i + 1) % toolFootprint.Count;
+            var midpoint = (
+                X: 0.5d * (toolFootprint[i].X + toolFootprint[next].X),
+                Y: 0.5d * (toolFootprint[i].Y + toolFootprint[next].Y));
+            if (!BrepBooleanPrismaticFootprintContainment.TryComputeContainmentMargin(midpoint, rootFootprint, tolerance, out var edgeDistance)
+                || edgeDistance <= tolerance.Linear)
+            {
+                unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires tool edges to remain inside the polygonal root footprint.";
                 return false;
             }
         }

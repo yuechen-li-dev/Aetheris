@@ -1,0 +1,29 @@
+firmament:
+  version: 1
+
+model:
+  name: composed_part_with_slot
+  units: mm
+
+ops[2]:
+  -
+    op: library_part
+    id: lib_part_1
+    part: standard_library/cube_with_cylindrical_hole
+
+  -
+    op: subtract
+    id: slot_carve
+    from: lib_part_1
+    with:
+      op: slot_cut
+      length: 16
+      width: 8
+      height: 10
+      corner_radius: 4
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -5

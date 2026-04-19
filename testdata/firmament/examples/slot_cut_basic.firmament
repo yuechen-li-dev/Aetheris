@@ -1,0 +1,15 @@
+firmament:
+  version: 1
+
+model:
+  name: slot_cut_basic
+  units: mm
+
+ops[1]:
+  -
+    op: slot_cut
+    id: slot_cut_1
+    length: 36
+    width: 12
+    height: 10
+    corner_radius: 6

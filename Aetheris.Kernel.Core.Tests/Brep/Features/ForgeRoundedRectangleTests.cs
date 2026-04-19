@@ -34,4 +34,14 @@ public sealed class ForgeRoundedRectangleTests
         Assert.True(result.Value.Topology.Faces.Count() >= 10);
         Assert.True(result.Value.Topology.Edges.Count() >= 24);
     }
+
+    [Fact]
+    public void SlotCut_StandardLibrary_Succeeds()
+    {
+        var result = StandardLibraryPrimitives.CreateSlotCut(length: 40d, width: 12d, height: 10d, cornerRadius: 6d);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.Topology.Faces.Count() >= 10);
+        Assert.True(result.Value.Topology.Edges.Count() >= 24);
+    }
 }

@@ -74,6 +74,6 @@ internal static class FirmamentBooleanToolBodyFactory
             return FirmamentPrismFamilyTools.TryCreateBody(tool);
         }
 
-        return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution supports nested tool ops 'box', 'cylinder', 'sphere', 'cone', 'torus', 'triangular_prism', 'hexagonal_prism', and 'straight_slot' only. Got '{tool.OpName}'.")]);
+        return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Boolean execution supports nested tool ops 'box', 'cylinder', 'sphere', 'cone', 'torus', 'triangular_prism', 'hexagonal_prism', 'straight_slot', and 'slot_cut' only. Got '{tool.OpName}'.")]);
     }
 }

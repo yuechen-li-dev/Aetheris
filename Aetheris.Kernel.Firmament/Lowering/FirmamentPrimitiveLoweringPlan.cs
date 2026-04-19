@@ -60,6 +60,7 @@ public enum FirmamentLoweredPrimitiveKind
     HexagonalPrism,
     StraightSlot,
     RoundedCornerBox,
+    SlotCut,
     LibraryPart
 }
 
@@ -90,6 +91,9 @@ public sealed record FirmamentLoweredStraightSlotParameters(double Length, doubl
     : FirmamentLoweredPrimitiveParameters;
 
 public sealed record FirmamentLoweredRoundedCornerBoxParameters(double Width, double Depth, double Height, double CornerRadius)
+    : FirmamentLoweredPrimitiveParameters;
+
+public sealed record FirmamentLoweredSlotCutParameters(double Length, double Width, double Height, double CornerRadius)
     : FirmamentLoweredPrimitiveParameters;
 
 public sealed record FirmamentLoweredToolOp(

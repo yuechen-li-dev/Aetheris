@@ -173,6 +173,12 @@ internal static class FirmamentCanonicalFormatter
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "height");
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "corner_radius");
                 break;
+            case FirmamentKnownOpKind.SlotCut:
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "length");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "width");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "height");
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "corner_radius");
+                break;
             case FirmamentKnownOpKind.LibraryPart:
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "part");
                 break;

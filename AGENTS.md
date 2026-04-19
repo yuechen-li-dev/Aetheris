@@ -1,5 +1,9 @@
 # AGENTS.md
 
+- Use Aetheris.CLI to inspect and validate parts/assemblies during development; run `aetheris --help` and subcommand `--help` to discover available capabilities before making assumptions.
+
+- Update documentation opportunistically during development and surface any inconsistencies or friction immediately; do not defer doc fixes, as the system is evolving rapidly and drift must be corrected in-place.
+
 ## Convergence rule
 
 Every substantial task must end in exactly one of three states:

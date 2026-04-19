@@ -1,0 +1,19 @@
+firmament:
+  version: 1
+model:
+  name: fric_b0_chimera_b_cylinder_root_baseline
+  units: mm
+ops[2]:
+  -
+    op: cylinder
+    id: chimera_b_root
+    radius: 25
+    height: 20
+  -
+    op: subtract
+    id: zone_ba_through_cyl
+    from: chimera_b_root
+    with:
+      op: cylinder
+      radius: 7
+      height: 30

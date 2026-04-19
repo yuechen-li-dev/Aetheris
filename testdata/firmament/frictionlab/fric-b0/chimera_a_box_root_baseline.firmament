@@ -1,0 +1,20 @@
+firmament:
+  version: 1
+
+model:
+  name: fric_b0_chimera_a_box_root_baseline
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: chimera_a_root
+    size[3]: [60, 40, 20]
+  -
+    op: subtract
+    id: zone_a_through_cyl
+    from: chimera_a_root
+    with: { op: cylinder, radius: 5, height: 30 }
+    place:
+      on: origin
+      offset[3]: [-18, 0, 0]

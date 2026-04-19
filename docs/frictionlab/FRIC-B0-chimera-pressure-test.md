@@ -127,6 +127,8 @@ Zones:
    - Signature: `FIRM-SCHEMA-0006` fully enclosed internal voids disallowed in process `default`.
    - Effect: catches certain blind-hole outcomes before/alongside geometric family checks.
 
+INV-B0 follow-up (2026-04-19): `zone_b_blind_cyl` is fixture-contained (no exterior-face placement), so this rejection is expected enclosed-cavity policy behavior rather than a blind-hole misclassification.
+
 ## Required boundary classification synthesis
 
 ### Safe to generalize now
@@ -163,4 +165,3 @@ None. No architecture-broadening patches were applied.
 - Do **not** attempt broad general CSG or arbitrary multi-family booleans.
 - Do **not** remove tangent/grazing rejection boundaries.
 - Do **not** expand non-box-root mixed prismatic support before a bounded representation and explicit reconstruction lane exist.
-

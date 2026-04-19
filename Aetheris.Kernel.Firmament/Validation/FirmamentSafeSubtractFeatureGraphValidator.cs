@@ -39,10 +39,10 @@ internal static class FirmamentSafeSubtractFeatureGraphValidator
 
             if (!usesSupportedSafeHoleTool)
             {
-                return Failure(
-                    KernelDiagnosticCode.ValidationFailed,
-                    $"Boolean feature '{boolean.FeatureId}' (subtract) uses unsupported follow-on tool kind '{boolean.Tool.OpName}' after safe subtract composition began on '{boolean.PrimaryReferenceFeatureId}'. Only nested cylinder or cone through-hole tools are supported in that chain.",
-                    "firmament.feature-graph.unsupported-follow-on-kind");
+                return KernelResult<FirmamentSafeSubtractFeatureGraphValidation>.Success(
+                    new FirmamentSafeSubtractFeatureGraphValidation(
+                        WasValidated: false,
+                        ResultState: FirmamentSafeSubtractFeatureGraphState.Other));
             }
 
             return ValidateSupportedSafeSubtract(boolean, executionBodiesByFeatureId, tolerance, resolvedToolBody);

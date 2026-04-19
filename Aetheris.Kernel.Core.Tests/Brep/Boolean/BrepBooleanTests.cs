@@ -9,6 +9,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.StandardLibrary;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Boolean;
 
@@ -1631,6 +1632,36 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Contains("Closest bounded union candidate rejected", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RecognizedSafeRoot_PrismaticSubtract_Succeeds()
+    {
+        var boxA = BrepPrimitives.CreateBox(20d, 20d, 20d).Value;
+        var boxB = TransformBody(BrepPrimitives.CreateBox(20d, 20d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(10d, 10d, 0d)));
+        var union = BrepBoolean.Union(boxA, boxB);
+        Assert.True(union.IsSuccess);
+        Assert.True(union.Value.SafeBooleanComposition?.OccupiedCells?.Count > 0);
+
+        var tool = StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 24d, 4d).Value;
+        var result = BrepBoolean.Subtract(union.Value, tool);
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public void Unsupported_PrismaticSubtract_RemainsRejected()
+    {
+        var root = BrepPrimitives.CreateBox(20d, 20d, 20d).Value;
+        var safeRoot = BrepBoolean.Union(root, TransformBody(BrepPrimitives.CreateBox(20d, 20d, 20d).Value, Transform3D.CreateTranslation(new Vector3D(10d, 10d, 0d))));
+        Assert.True(safeRoot.IsSuccess);
+
+        var shortTool = StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 10d, 4d).Value;
+        var result = BrepBoolean.Subtract(safeRoot.Value, shortTool);
+
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Contains("through-cut tool", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -175,40 +175,6 @@ internal static class FirmamentPrimitiveExecutor
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(toolResult.Diagnostics);
             }
 
-            if (FirmamentPrismFamilyTools.TryGetDescriptor(boolean.Tool.OpName, out var prismTool))
-            {
-                var canUseBoundedPrismPath =
-                    boolean.Kind == FirmamentLoweredBooleanKind.Subtract
-                    && boolean.Placement is null
-                    && featureGraphStates.TryGetValue(boolean.PrimaryReferenceFeatureId, out var sourceState)
-                    && sourceState == FirmamentSafeSubtractFeatureGraphState.BoxRoot;
-
-                var allowGeneralBooleanFallback = prismTool.Kind == FirmamentPrismToolKind.SlotCut;
-                if (canUseBoundedPrismPath || !allowGeneralBooleanFallback)
-                {
-                    var prismResult = ExecuteBoundedPrismSubtractOnBoxRoot(
-                        boolean,
-                        prismTool,
-                        baseBody,
-                        featureGraphStates);
-                    if (!prismResult.IsSuccess)
-                    {
-                        return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
-                        [
-                            CreateBooleanExecutionFailureDiagnostic(boolean),
-                            .. WithBooleanContext(boolean, prismResult.Diagnostics)
-                        ]);
-                    }
-
-                    var prismBooleanBody = prismResult.Value;
-                    executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, prismBooleanBody));
-                    publishedBodiesByFeatureId[boolean.FeatureId] = prismBooleanBody;
-                    booleanExecutionBodiesByFeatureId[boolean.FeatureId] = prismBooleanBody;
-                    featureGraphStates[boolean.FeatureId] = FirmamentSafeSubtractFeatureGraphState.Other;
-                    continue;
-                }
-            }
-
             var featureGraphValidation = FirmamentSafeSubtractFeatureGraphValidator.ValidateNextBoolean(
                 boolean,
                 featureGraphStates,

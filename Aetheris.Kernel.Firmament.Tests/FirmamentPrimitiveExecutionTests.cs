@@ -682,18 +682,17 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m3b-unsupported-cylinder-subtract-triangular-prism.firmament", "tri_cut", "triangular_prism")]
-    [InlineData("testdata/firmament/fixtures/m3b-unsupported-cylinder-subtract-hexagonal-prism.firmament", "hex_cut", "hexagonal_prism")]
-    [InlineData("testdata/firmament/fixtures/m3b-unsupported-cylinder-subtract-straight-slot.firmament", "slot_cut", "straight_slot")]
-    public void Compile_PrismSubtract_Rejects_NonBoxRoot_Inputs(string fixturePath, string featureId, string toolOp)
+    [InlineData("testdata/firmament/fixtures/m3b-unsupported-cylinder-subtract-triangular-prism.firmament", "tri_cut")]
+    [InlineData("testdata/firmament/fixtures/m3b-unsupported-cylinder-subtract-hexagonal-prism.firmament", "hex_cut")]
+    [InlineData("testdata/firmament/fixtures/m3b-unsupported-cylinder-subtract-straight-slot.firmament", "slot_cut")]
+    public void Compile_PrismSubtract_Rejects_NonBoxRoot_Inputs(string fixturePath, string featureId)
     {
         var result = CompileFixture(fixturePath);
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
             diagnostic.Message.Contains($"Boolean feature '{featureId}'", StringComparison.Ordinal)
-            && diagnostic.Message.Contains("direct box-root source feature", StringComparison.Ordinal)
-            && diagnostic.Message.Contains(toolOp, StringComparison.Ordinal));
+            && diagnostic.Message.Contains("sequential safe composition only supports subtracting supported analytic holes", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -703,19 +702,19 @@ public sealed class FirmamentPrimitiveExecutionTests
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
-            string.Equals(diagnostic.Source, "firmament.prism-bounded-subtract", StringComparison.Ordinal));
+            string.Equals(diagnostic.Source, "BrepBoolean.RebuildResult", StringComparison.Ordinal));
     }
 
     [Theory]
     [InlineData("testdata/firmament/fixtures/m3b-invalid-box-subtract-triangular-prism-short-height.firmament", "through-cut tool") ]
-    [InlineData("testdata/firmament/fixtures/m3b-invalid-box-subtract-hexagonal-prism-out-of-bounds.firmament", "out of bounds") ]
+    [InlineData("testdata/firmament/fixtures/m3b-invalid-box-subtract-hexagonal-prism-out-of-bounds.firmament", "strictly inside the box-root XY bounds") ]
     public void Compile_PrismSubtract_Rejects_Invalid_BoundedConfigurations(string fixturePath, string expectedMessagePart)
     {
         var result = CompileFixture(fixturePath);
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
-            string.Equals(diagnostic.Source, "firmament.prism-bounded-subtract", StringComparison.Ordinal)
+            string.Equals(diagnostic.Source, "BrepBoolean.RebuildResult", StringComparison.Ordinal)
             && diagnostic.Message.Contains(expectedMessagePart, StringComparison.Ordinal));
     }
 

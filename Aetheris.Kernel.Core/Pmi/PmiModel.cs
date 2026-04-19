@@ -14,6 +14,31 @@ public sealed record PmiModel(
     public PmiModel AddDatum(PmiDatumFeature datum)
         => this with { DatumFeatures = DatumFeatures.Concat([datum]).ToArray() };
 
+    public PmiModel CreatePlanarDatum(string label, PmiPlanarFaceReference reference)
+    {
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            throw new ArgumentException("Datum label is required.", nameof(label));
+        }
+
+        ArgumentNullException.ThrowIfNull(reference);
+        if (!reference.IsValid)
+        {
+            throw new ArgumentException("Planar datum reference must include non-empty feature id and selector.", nameof(reference));
+        }
+
+        if (DatumFeatures.Any(existing => string.Equals(existing.Label, label, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException($"Datum label '{label}' already exists in this PMI model.");
+        }
+
+        return AddDatum(new PmiDatumFeature(
+            $"datum:{label}",
+            label,
+            PmiDatumFeatureKind.Planar,
+            reference));
+    }
+
     public PmiModel AddDimension(PmiDimension dimension)
         => this with { Dimensions = Dimensions.Concat([dimension]).ToArray() };
 }
@@ -48,7 +73,29 @@ public abstract record PmiSemanticReference;
 /// <summary>
 /// Semantic reference to a planar target selected from a feature context.
 /// </summary>
-public sealed record PmiPlanarFaceReference(string FeatureId, string Selector) : PmiSemanticReference;
+public sealed record PmiPlanarFaceReference(string FeatureId, string Selector) : PmiSemanticReference
+{
+    public bool IsValid => !string.IsNullOrWhiteSpace(FeatureId) && !string.IsNullOrWhiteSpace(Selector);
+
+    public static PmiPlanarFaceReference FromSelector(string selectorTarget)
+    {
+        if (string.IsNullOrWhiteSpace(selectorTarget))
+        {
+            throw new ArgumentException("Selector target must be non-empty.", nameof(selectorTarget));
+        }
+
+        var separatorIndex = selectorTarget.IndexOf('.', StringComparison.Ordinal);
+        if (separatorIndex <= 0 || separatorIndex >= selectorTarget.Length - 1)
+        {
+            throw new ArgumentException(
+                "Selector target must be shaped as 'feature.port'.",
+                nameof(selectorTarget));
+        }
+
+        var featureId = selectorTarget[..separatorIndex];
+        return new PmiPlanarFaceReference(featureId, selectorTarget);
+    }
+}
 
 /// <summary>
 /// Semantic reference to a cylindrical/hole-like feature.

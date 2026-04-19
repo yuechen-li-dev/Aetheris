@@ -6,20 +6,36 @@ namespace Aetheris.Kernel.Core.Tests.Pmi;
 public sealed class PmiModelTests
 {
     [Fact]
-    public void PmiModel_CanDeclarePlanarDatumFeature()
+    public void CreatePlanarDatum_Succeeds()
     {
         var model = PmiModel.Empty("part_main")
-            .AddDatum(new PmiDatumFeature(
-                "datum:A",
+            .CreatePlanarDatum(
                 "A",
-                PmiDatumFeatureKind.Planar,
-                new PmiPlanarFaceReference("base", "base.top")));
+                PmiPlanarFaceReference.FromSelector("base.top_face"));
 
         var datum = Assert.Single(model.DatumFeatures);
         Assert.Equal("A", datum.Label);
         Assert.Equal(PmiDatumFeatureKind.Planar, datum.Kind);
         var planar = Assert.IsType<PmiPlanarFaceReference>(datum.Target);
-        Assert.Equal("base.top", planar.Selector);
+        Assert.Equal("base.top_face", planar.Selector);
+    }
+
+    [Fact]
+    public void CreatePlanarDatum_DuplicateLabel_Fails()
+    {
+        var model = PmiModel.Empty("part_main")
+            .CreatePlanarDatum("A", PmiPlanarFaceReference.FromSelector("base.top_face"));
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            model.CreatePlanarDatum("a", PmiPlanarFaceReference.FromSelector("base.bottom_face")));
+
+        Assert.Contains("already exists", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CreatePlanarDatum_NonPlanar_Fails()
+    {
+        Assert.Throws<ArgumentException>(() => PmiPlanarFaceReference.FromSelector("main_hole"));
     }
 
     [Fact]

@@ -46,32 +46,28 @@ public sealed class FirmamentConnectorLibraryPartTests
     }
 
     [Fact]
-    public void ConnectorPart_With_SlotCut_Composition_Reveals_Narrower_MixedRebuild_Blocker()
+    public void ConnectorPart_With_SlotCut_Composition_Succeeds()
     {
         var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/composed_part_with_slot.firmament");
 
         var compile = FirmamentCorpusHarness.Compile(source);
 
-        Assert.False(compile.Compilation.IsSuccess);
-        Assert.Contains(
+        Assert.True(compile.Compilation.IsSuccess);
+        Assert.DoesNotContain(
             compile.Compilation.Diagnostics,
-            diagnostic => diagnostic.Message.Contains("Requested boolean feature 'slot_carve' (subtract) could not be executed.", StringComparison.Ordinal));
-        Assert.Contains(
-            compile.Compilation.Diagnostics,
-            diagnostic => diagnostic.Source == "BrepBoolean.RebuildResult"
-                && diagnostic.Message.Contains("bounded mixed analytic+prismatic subtract continuation is recognized but bounded reconstruction for this mixed family is not implemented yet", StringComparison.Ordinal));
+            diagnostic => diagnostic.Message.Contains("slot_carve", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void Firmament_Composed_Model_Export_Reveals_Same_Blocker()
+    public void Firmament_Composed_Model_Export_Succeeds()
     {
         var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/composed_part_with_slot.firmament");
 
         var compile = FirmamentCorpusHarness.Compile(source);
-        Assert.False(compile.Compilation.IsSuccess);
+        Assert.True(compile.Compilation.IsSuccess);
 
         var export = FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
-        Assert.False(export.IsSuccess);
+        Assert.True(export.IsSuccess);
     }
 
     [Fact]

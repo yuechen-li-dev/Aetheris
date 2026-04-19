@@ -760,12 +760,16 @@ public static class BrepBoolean
             && intersections.Analysis.RightPrismaticTool is { } prismaticTool
             && TryClassifyBoundedPrismaticThroughCutSubtract(leftCompositionForPrismatic, prismaticTool, tolerance, out _))
         {
+            var throughVoids = BuildThroughVoidSetForPrismaticContinuation(leftCompositionForPrismatic, prismaticTool);
             return new BooleanClassificationData(
                 intersections,
                 IsComputed: true,
                 FragmentCount: 1,
                 SingleBoxResult: null,
-                SafeCompositionResult: null,
+                SafeCompositionResult: leftCompositionForPrismatic with
+                {
+                    ThroughVoids = throughVoids,
+                },
                 UnsupportedReason: null,
                 PrismaticThroughCutTool: prismaticTool);
         }
@@ -990,10 +994,24 @@ public static class BrepBoolean
         if (classification.PrismaticThroughCutTool is { } prismaticTool
             && classification.Intersections.Analysis.LeftSafeComposition is { } leftComposition)
         {
+            if (leftComposition.Holes.Count == 1)
+            {
+                var rebuiltMixed = BrepBooleanBoxMixedThroughVoidBuilder.Build(leftComposition, prismaticTool, request.Tolerance ?? ToleranceContext.Default);
+                return rebuiltMixed.IsSuccess
+                    ? new BooleanRebuildData(classification, rebuiltMixed.Value, rebuiltMixed.Diagnostics)
+                    : new BooleanRebuildData(classification, RebuiltBody: null, Diagnostics: rebuiltMixed.Diagnostics);
+            }
+
             var rebuiltPrismSubtract = BrepBooleanBoxPrismThroughCutBuilder.Build(leftComposition.RootDescriptor.Box, prismaticTool.Footprint, request.Tolerance ?? ToleranceContext.Default);
-            return rebuiltPrismSubtract.IsSuccess
-                ? new BooleanRebuildData(classification, rebuiltPrismSubtract.Value, rebuiltPrismSubtract.Diagnostics)
-                : new BooleanRebuildData(classification, RebuiltBody: null, Diagnostics: rebuiltPrismSubtract.Diagnostics);
+            if (!rebuiltPrismSubtract.IsSuccess)
+            {
+                return new BooleanRebuildData(classification, RebuiltBody: null, Diagnostics: rebuiltPrismSubtract.Diagnostics);
+            }
+
+            var rebuiltBody = classification.SafeCompositionResult is null
+                ? rebuiltPrismSubtract.Value
+                : CopyWithSafeComposition(rebuiltPrismSubtract.Value, classification.SafeCompositionResult);
+            return new BooleanRebuildData(classification, rebuiltBody, rebuiltPrismSubtract.Diagnostics);
         }
 
         if (classification.SafeCompositionResult is not null)
@@ -1769,20 +1787,19 @@ public static class BrepBoolean
             return false;
         }
 
-        if (leftComposition.Holes.Count > 0 || (leftComposition.OpenSlots?.Count ?? 0) > 0)
+        var hasPriorSubtractHistory = leftComposition.Holes.Count > 0 || (leftComposition.OpenSlots?.Count ?? 0) > 0;
+        if (hasPriorSubtractHistory)
         {
             if (!SupportsBoundedAnalyticHistoryForPrismaticContinuation(leftComposition, tolerance, out var historyReason))
             {
                 unsupportedReason = historyReason;
                 return false;
             }
-
-            unsupportedReason = "Boolean Subtract: bounded mixed analytic+prismatic subtract continuation is recognized but bounded reconstruction for this mixed family is not implemented yet.";
-            return false;
         }
 
         var root = leftComposition.RootDescriptor.Box;
-        if (prismTool.Bounds.MinZ > root.MinZ + tolerance.Linear || prismTool.Bounds.MaxZ < root.MaxZ - tolerance.Linear)
+        if (!hasPriorSubtractHistory
+            && (prismTool.Bounds.MinZ > root.MinZ + tolerance.Linear || prismTool.Bounds.MaxZ < root.MaxZ - tolerance.Linear))
         {
             unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires a through-cut tool that spans the full box root height.";
             return false;
@@ -1800,6 +1817,21 @@ public static class BrepBoolean
         }
 
         return true;
+    }
+
+    private static SupportedThroughVoidSet BuildThroughVoidSetForPrismaticContinuation(
+        SafeBooleanComposition composition,
+        SupportedPrismaticSubtractTool prismaticTool)
+    {
+        var analyticVoids = composition.Holes
+            .Where(hole => hole.SpanKind == SupportedBooleanHoleSpanKind.Through
+                && hole.Surface.Kind is (AnalyticSurfaceKind.Cylinder or AnalyticSurfaceKind.Cone))
+            .ToArray();
+        var prismaticVoids = new[]
+        {
+            new SupportedPrismaticThroughVoid(prismaticTool.Bounds, prismaticTool.Footprint),
+        };
+        return new SupportedThroughVoidSet(analyticVoids, prismaticVoids);
     }
 
     private static bool SupportsBoundedAnalyticHistoryForPrismaticContinuation(

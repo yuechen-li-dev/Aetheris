@@ -16,6 +16,7 @@ public sealed class FirmamentExamplePackSmokeTests
         "testdata/firmament/examples/hexagonal_prism_basic.firmament",
         "testdata/firmament/examples/straight_slot_basic.firmament",
         "testdata/firmament/examples/rounded_corner_box_basic.firmament",
+        "testdata/firmament/examples/library_part_cube_with_hole_basic.firmament",
         "testdata/firmament/examples/box_add_basic.firmament",
         "testdata/firmament/examples/boolean_add_basic.firmament",
         "testdata/firmament/examples/boolean_subtract_basic.firmament",
@@ -53,6 +54,7 @@ public sealed class FirmamentExamplePackSmokeTests
     [InlineData("testdata/firmament/examples/hexagonal_prism_basic.firmament", "hex1", 0, "primitive", "hexagonalprism")]
     [InlineData("testdata/firmament/examples/straight_slot_basic.firmament", "slot1", 0, "primitive", "straightslot")]
     [InlineData("testdata/firmament/examples/rounded_corner_box_basic.firmament", "rbox1", 0, "primitive", "roundedcornerbox")]
+    [InlineData("testdata/firmament/examples/library_part_cube_with_hole_basic.firmament", "lib_part_1", 0, "primitive", "librarypart")]
     [InlineData("testdata/firmament/examples/box_add_basic.firmament", "joined", 1, "boolean", "add")]
     [InlineData("testdata/firmament/examples/boolean_add_basic.firmament", "joined", 2, "boolean", "add")]
     [InlineData("testdata/firmament/examples/boolean_subtract_basic.firmament", "carved", 2, "boolean", "subtract")]

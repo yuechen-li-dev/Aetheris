@@ -33,6 +33,7 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
                 FirmamentKnownOpKind.HexagonalPrism => ValidateHexagonalPrism(entry, index),
                 FirmamentKnownOpKind.StraightSlot => ValidateStraightSlot(entry, index),
                 FirmamentKnownOpKind.RoundedCornerBox => ValidateRoundedCornerBox(entry, index),
+                FirmamentKnownOpKind.LibraryPart => ValidateLibraryPart(entry, index),
                 _ => KernelResult<bool>.Success(true)
             };
 
@@ -308,6 +309,27 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
         return ValidatePlacement(entry, opIndex);
     }
 
+
+    private static KernelResult<bool> ValidateLibraryPart(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        if (!TryGetRequiredNonEmptyScalar(entry, "part", opIndex, out var partDiagnostic))
+        {
+            return KernelResult<bool>.Failure([partDiagnostic!]);
+        }
+
+        var placementResult = ValidatePlacement(entry, opIndex);
+        if (!placementResult.IsSuccess)
+        {
+            return placementResult;
+        }
+
+        return KernelResult<bool>.Success(true);
+    }
     private static KernelResult<bool> ValidateStraightSlot(FirmamentParsedOpEntry entry, int opIndex)
     {
         if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))

@@ -173,6 +173,9 @@ internal static class FirmamentCanonicalFormatter
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "height");
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "corner_radius");
                 break;
+            case FirmamentKnownOpKind.LibraryPart:
+                EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "part");
+                break;
             case FirmamentKnownOpKind.Add:
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "to");
                 EmitIfPresent(builder, entry.RawFields, emitted, indentLevel, "with");

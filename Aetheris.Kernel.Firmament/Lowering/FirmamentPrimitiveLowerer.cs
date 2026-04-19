@@ -120,6 +120,15 @@ internal static class FirmamentPrimitiveLowerer
                         Placement: LowerPlacement(entry.Placement)));
                     break;
 
+                case FirmamentKnownOpKind.LibraryPart:
+                    loweredPrimitives.Add(new FirmamentLoweredPrimitive(
+                        OpIndex: index,
+                        FeatureId: entry.RawFields["id"],
+                        Kind: FirmamentLoweredPrimitiveKind.LibraryPart,
+                        Parameters: new FirmamentLoweredLibraryPartParameters(entry.RawFields["part"]),
+                        Placement: LowerPlacement(entry.Placement)));
+                    break;
+
                 case FirmamentKnownOpKind.Add:
                     loweredBooleans.Add(LowerBoolean(index, entry, FirmamentLoweredBooleanKind.Add, "to"));
                     break;

@@ -29,7 +29,8 @@ public sealed record BooleanAnalysis(
     AxisAlignedBoxExtents? LeftBox,
     AxisAlignedBoxExtents? RightBox,
     AnalyticSurface? RightAnalyticSurface,
-    string? UnsupportedReason);
+    string? UnsupportedReason,
+    SupportedPrismaticSubtractTool? RightPrismaticTool = null);
 
 public enum BooleanExecutionClass
 {
@@ -45,7 +46,8 @@ public sealed record BooleanCaseClassification(
     AxisAlignedBoxExtents? RightBox,
     AnalyticSurface? RightAnalyticSurface,
     string? UnsupportedReason,
-    BooleanDiagnostic? Diagnostic = null);
+    BooleanDiagnostic? Diagnostic = null,
+    SupportedPrismaticSubtractTool? RightPrismaticTool = null);
 
 public sealed record BooleanIntersectionData(
     BooleanAnalysis Analysis,
@@ -62,7 +64,8 @@ public sealed record BooleanClassificationData(
     SafeBooleanComposition? SafeCompositionResult,
     string? UnsupportedReason,
     IReadOnlyList<AxisAlignedBoxExtents>? OrthogonalUnionCells = null,
-    BooleanDiagnostic? Diagnostic = null);
+    BooleanDiagnostic? Diagnostic = null,
+    SupportedPrismaticSubtractTool? PrismaticThroughCutTool = null);
 
 public sealed record BooleanRebuildData(
     BooleanClassificationData Classification,
@@ -83,6 +86,7 @@ internal enum BooleanTopLevelCase
 internal enum BooleanSubtractIntersectFamily
 {
     SubtractIntersectOrthogonalCellsExistingRoot,
+    SubtractPrismaticThroughCutOnRecognizedRoot,
     SubtractBoxSingleBoxResult,
     SubtractBoxPocketOnRecognizedRoot,
     IntersectSupportedBoundedCase,
@@ -100,6 +104,7 @@ internal sealed record BooleanCaseContext(
     SafeBooleanComposition? LeftSafeComposition,
     AxisAlignedBoxExtents? LeftBox,
     AxisAlignedBoxExtents? RightBox,
+    SupportedPrismaticSubtractTool? RightPrismaticTool,
     AnalyticSurface? RightAnalyticSurface,
     bool CanClassifyBoundedOrthogonalUnionWithExistingRoot,
     SafeBooleanComposition? AdditiveComposition,
@@ -123,7 +128,8 @@ internal sealed record BooleanSubtractIntersectContext(
     ToleranceContext Tolerance,
     SafeBooleanComposition LeftSafeComposition,
     AxisAlignedBoxExtents LeftRootBox,
-    AxisAlignedBoxExtents RightBox,
+    AxisAlignedBoxExtents? RightBox,
+    SupportedPrismaticSubtractTool? RightPrismaticTool,
     bool LeftHasOccupiedCells,
     bool HasPositiveVolumeOverlap,
     bool IsTouchingOnly,
@@ -228,7 +234,8 @@ public static class BrepBoolean
             classification.LeftBox,
             classification.RightBox,
             classification.RightAnalyticSurface,
-            classification.UnsupportedReason);
+            classification.UnsupportedReason,
+            classification.RightPrismaticTool);
     }
 
     public static BooleanCaseClassification ClassifyBooleanCase(BrepBody leftBody, BrepBody rightBody, BooleanOperation operation, ToleranceContext? tolerance = null)
@@ -248,6 +255,12 @@ public static class BrepBoolean
         var resolvedTolerance = tolerance ?? ToleranceContext.Default;
         var leftRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(leftBody, resolvedTolerance, out var leftBox, out _);
         var rightRecognized = BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(rightBody, resolvedTolerance, out var rightBox, out _);
+        var rightRecognizedPrismaticTool = BrepBooleanPrismaticToolRecognition.TryRecognize(rightBody, resolvedTolerance, out var rightPrismaticTool, out _);
+        if (rightRecognized)
+        {
+            rightRecognizedPrismaticTool = false;
+            rightPrismaticTool = null!;
+        }
         var rightAnalyticRecognized = BrepBooleanAnalyticSurfaceRecognition.TryRecognizeAnalyticSurface(rightBody, resolvedTolerance, out var analyticSurface, out _);
 
         var leftSafeCompositionRecognizedFromBody = leftBody.SafeBooleanComposition is not null;
@@ -307,6 +320,7 @@ public static class BrepBoolean
             leftSafeComposition,
             leftRecognized ? leftBox : null,
             rightRecognized ? rightBox : null,
+            rightRecognizedPrismaticTool ? rightPrismaticTool : null,
             rightAnalyticRecognized ? analyticSurface : null,
             canClassifyBoundedOrthogonalUnionWithExistingRoot,
             additiveComposition,
@@ -343,13 +357,15 @@ public static class BrepBoolean
                 Name: BooleanTopLevelCase.SubtractIntersectRecognizedSafeRoot.ToString(),
                 IsAdmissible: context =>
                     BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, BooleanOperation.Intersect, out _)
-                    && context.LeftHasSafeComposition
-                    && context.LeftSafeComposition is not null
-                    && context.LeftSafeComposition.RootDescriptor.Kind == SafeBooleanRootKind.Box
-                    && context.RightRecognizedBox,
+                    && ((context.LeftHasSafeComposition
+                            && context.LeftSafeComposition is not null
+                            && context.LeftSafeComposition.RootDescriptor.Kind == SafeBooleanRootKind.Box)
+                        || context.LeftRecognizedBox)
+                    && (context.RightRecognizedBox
+                        || (context.Operation == BooleanOperation.Subtract && context.RightPrismaticTool is not null)),
                 Score: _ => 250d,
                 RejectionReason: context =>
-                    $"Recognized-safe-root subtract/intersect shell requires subtract/intersect, a recognized safe box root, and a recognized box right operand (op={context.Operation}, hasSafe={context.LeftHasSafeComposition}, rightBox={context.RightRecognizedBox})."),
+                    $"Recognized-safe-root subtract/intersect shell requires subtract/intersect, a recognized safe box root, and a recognized bounded right operand (box or subtract-prismatic tool) (op={context.Operation}, hasSafe={context.LeftHasSafeComposition}, rightBox={context.RightRecognizedBox}, rightPrismatic={(context.RightPrismaticTool is not null)})."),
             new JudgmentCandidate<BooleanCaseContext>(
                 Name: BooleanTopLevelCase.SubtractCylinderRootKeyway.ToString(),
                 IsAdmissible: context => context.IsCylinderRootCandidate,
@@ -420,7 +436,8 @@ public static class BrepBoolean
                 context.LeftRecognizedBox ? context.LeftBox : context.LeftSafeComposition!.OuterBox,
                 context.RightBox,
                 context.RightAnalyticSurface,
-                BuildUnsupportedSafeCompositionReason(context, candidateResult)),
+                BuildUnsupportedSafeCompositionReason(context, candidateResult),
+                RightPrismaticTool: context.RightPrismaticTool),
             _ => CreateUnsupportedGeneralClassification(context),
         };
     }
@@ -437,55 +454,70 @@ public static class BrepBoolean
                 subtractIntersectContext.LeftRootBox,
                 subtractIntersectContext.RightBox,
                 null,
-                BuildRecognizedSafeRootSubtractIntersectUnsupportedReason(subtractIntersectContext, selection));
+                BuildRecognizedSafeRootSubtractIntersectUnsupportedReason(subtractIntersectContext, selection),
+                RightPrismaticTool: subtractIntersectContext.RightPrismaticTool);
         }
 
         var family = Enum.Parse<BooleanSubtractIntersectFamily>(selection.Selection!.Value.Candidate.Name, ignoreCase: false);
         return family switch
         {
             BooleanSubtractIntersectFamily.SubtractIntersectOrthogonalCellsExistingRoot
+            or BooleanSubtractIntersectFamily.SubtractPrismaticThroughCutOnRecognizedRoot
             or BooleanSubtractIntersectFamily.SubtractBoxSingleBoxResult
             or BooleanSubtractIntersectFamily.SubtractBoxPocketOnRecognizedRoot
             or BooleanSubtractIntersectFamily.IntersectSupportedBoundedCase
                 => new BooleanCaseClassification(
                     BooleanExecutionClass.PlanarOnly,
-                    context.LeftSafeComposition,
+                    subtractIntersectContext.LeftSafeComposition,
                     subtractIntersectContext.LeftRootBox,
                     subtractIntersectContext.RightBox,
                     null,
-                    null),
+                    null,
+                    RightPrismaticTool: subtractIntersectContext.RightPrismaticTool),
             _ => new BooleanCaseClassification(
                 BooleanExecutionClass.UnsupportedGeneralCase,
-                context.LeftSafeComposition,
+                subtractIntersectContext.LeftSafeComposition,
                 subtractIntersectContext.LeftRootBox,
                 subtractIntersectContext.RightBox,
                 null,
-                BuildRecognizedSafeRootSubtractIntersectUnsupportedReason(subtractIntersectContext, selection)),
+                BuildRecognizedSafeRootSubtractIntersectUnsupportedReason(subtractIntersectContext, selection),
+                RightPrismaticTool: subtractIntersectContext.RightPrismaticTool),
         };
     }
 
     private static BooleanSubtractIntersectContext BuildBooleanSubtractIntersectContext(BooleanCaseContext context)
     {
-        var leftRootBox = context.LeftSafeComposition!.RootDescriptor.Box;
-        var rightBox = context.RightBox!.Value;
-        var overlap = AxisAlignedBoxExtents.Intersection(leftRootBox, rightBox);
+        var leftComposition = context.LeftSafeComposition
+            ?? new SafeBooleanComposition(context.LeftBox!.Value, [], SafeBooleanRootDescriptor.FromBox(context.LeftBox.Value));
+        var leftRootBox = leftComposition.RootDescriptor.Box;
+        var rightBox = context.RightBox;
+        var rightPrismaticTool = context.RightPrismaticTool;
+        var rightBounds = rightBox ?? rightPrismaticTool?.Bounds;
+        if (rightBounds is null)
+        {
+            rightBounds = leftComposition.RootDescriptor.Box;
+        }
+        var overlap = AxisAlignedBoxExtents.Intersection(leftRootBox, rightBounds.Value);
         var hasPositiveVolumeOverlap = overlap is not null && overlap.Value.HasPositiveVolume(context.Tolerance);
         var isTouchingOnly = overlap is not null && !hasPositiveVolumeOverlap;
-        var rightContainsLeft = rightBox.Contains(leftRootBox, context.Tolerance);
+        var rightContainsLeft = rightBounds.Value.Contains(leftRootBox, context.Tolerance);
 
         var canSubtractToSingleBox = context.Operation == BooleanOperation.Subtract
-            && TrySubtractToSingleBox(leftRootBox, rightBox, context.Tolerance, out _);
+            && rightBox is not null
+            && TrySubtractToSingleBox(leftRootBox, rightBox.Value, context.Tolerance, out _);
         string? subtractPocketUnsupportedReason = null;
         var canSubtractToOrthogonalPocket = context.Operation == BooleanOperation.Subtract
-            && TryClassifyBoundedOrthogonalPocketSubtract(leftRootBox, rightBox, context.Tolerance, out _, out subtractPocketUnsupportedReason);
+            && rightBox is not null
+            && TryClassifyBoundedOrthogonalPocketSubtract(leftRootBox, rightBox.Value, context.Tolerance, out _, out subtractPocketUnsupportedReason);
 
         return new BooleanSubtractIntersectContext(
             context.Operation,
             context.Tolerance,
-            context.LeftSafeComposition,
+            leftComposition,
             leftRootBox,
             rightBox,
-            context.LeftSafeComposition.OccupiedCells is { Count: > 0 },
+            rightPrismaticTool,
+            leftComposition.OccupiedCells is { Count: > 0 },
             hasPositiveVolumeOverlap,
             isTouchingOnly,
             rightContainsLeft,
@@ -507,6 +539,14 @@ public static class BrepBoolean
                         ? $"Orthogonal occupied-cell subtract/intersect candidate {operationReason}"
                         : "Orthogonal occupied-cell subtract/intersect candidate requires subtract or intersect."
                     : "Orthogonal occupied-cell subtract/intersect candidate requires a recognized additive safe root with occupied cells."),
+            new JudgmentCandidate<BooleanSubtractIntersectContext>(
+                Name: BooleanSubtractIntersectFamily.SubtractPrismaticThroughCutOnRecognizedRoot.ToString(),
+                IsAdmissible: context => BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, out _)
+                    && context.RightPrismaticTool is not null,
+                Score: _ => 425d,
+                RejectionReason: context => !BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, out var operationReason)
+                    ? $"Prismatic subtract candidate {operationReason}"
+                    : "Prismatic subtract candidate requires a recognized bounded prismatic subtract tool."),
             new JudgmentCandidate<BooleanSubtractIntersectContext>(
                 Name: BooleanSubtractIntersectFamily.SubtractBoxSingleBoxResult.ToString(),
                 IsAdmissible: context => BooleanGuards.RequireOperation(context.Operation, BooleanOperation.Subtract, out _)
@@ -601,17 +641,18 @@ public static class BrepBoolean
 
     private static BooleanIntersectionData ComputeIntersections(BooleanRequest request, BooleanAnalysis analysis)
     {
-        if (analysis.LeftBox is null || (analysis.RightBox is null && analysis.RightAnalyticSurface is null))
+        var rightBounds = analysis.RightBox ?? analysis.RightPrismaticTool?.Bounds;
+        if (analysis.LeftBox is null || (rightBounds is null && analysis.RightAnalyticSurface is null))
         {
             return new BooleanIntersectionData(analysis, IsComputed: true, CandidatePairCount: 0, OverlapBox: null, IsTouchingOnly: false);
         }
 
-        if (analysis.RightBox is null)
+        if (rightBounds is null)
         {
             return new BooleanIntersectionData(analysis, IsComputed: true, CandidatePairCount: 1, OverlapBox: null, IsTouchingOnly: false);
         }
 
-        var overlap = AxisAlignedBoxExtents.Intersection(analysis.LeftBox.Value, analysis.RightBox.Value);
+        var overlap = AxisAlignedBoxExtents.Intersection(analysis.LeftBox.Value, rightBounds.Value);
         var tolerance = request.Tolerance ?? ToleranceContext.Default;
         var isTouchingOnly = overlap is not null && !overlap.Value.HasPositiveVolume(tolerance);
         var overlapBox = overlap is not null && overlap.Value.HasPositiveVolume(tolerance)
@@ -713,6 +754,41 @@ public static class BrepBoolean
         var left = intersections.Analysis.LeftBox!.Value;
         var tolerance = request.Tolerance ?? ToleranceContext.Default;
         var operation = request.Operation;
+        string? prismaticUnsupportedReason = null;
+        if (operation == BooleanOperation.Subtract
+            && intersections.Analysis.LeftSafeComposition is { } leftCompositionForPrismatic
+            && intersections.Analysis.RightPrismaticTool is { } prismaticTool
+            && TryClassifyBoundedPrismaticThroughCutSubtract(leftCompositionForPrismatic, prismaticTool, tolerance, out _))
+        {
+            return new BooleanClassificationData(
+                intersections,
+                IsComputed: true,
+                FragmentCount: 1,
+                SingleBoxResult: null,
+                SafeCompositionResult: null,
+                UnsupportedReason: null,
+                PrismaticThroughCutTool: prismaticTool);
+        }
+        else if (operation == BooleanOperation.Subtract
+            && intersections.Analysis.RightPrismaticTool is not null
+            && intersections.Analysis.LeftSafeComposition is not null)
+        {
+            TryClassifyBoundedPrismaticThroughCutSubtract(intersections.Analysis.LeftSafeComposition, intersections.Analysis.RightPrismaticTool, tolerance, out prismaticUnsupportedReason);
+        }
+
+        if (operation == BooleanOperation.Subtract
+            && intersections.Analysis.RightPrismaticTool is not null
+            && prismaticUnsupportedReason is not null)
+        {
+            return new BooleanClassificationData(
+                intersections,
+                IsComputed: true,
+                FragmentCount: 0,
+                SingleBoxResult: null,
+                SafeCompositionResult: null,
+                UnsupportedReason: prismaticUnsupportedReason);
+        }
+
         var right = intersections.Analysis.RightBox!.Value;
         string? occupiedUnsupportedReason = null;
 
@@ -909,6 +985,15 @@ public static class BrepBoolean
                 ? rebuiltOrthogonalUnion.Value
                 : CopyWithSafeComposition(rebuiltOrthogonalUnion.Value, classification.SafeCompositionResult);
             return new BooleanRebuildData(classification, rebuiltBody, rebuiltOrthogonalUnion.Diagnostics);
+        }
+
+        if (classification.PrismaticThroughCutTool is { } prismaticTool
+            && classification.Intersections.Analysis.LeftSafeComposition is { } leftComposition)
+        {
+            var rebuiltPrismSubtract = BrepBooleanBoxPrismThroughCutBuilder.Build(leftComposition.RootDescriptor.Box, prismaticTool.Footprint, request.Tolerance ?? ToleranceContext.Default);
+            return rebuiltPrismSubtract.IsSuccess
+                ? new BooleanRebuildData(classification, rebuiltPrismSubtract.Value, rebuiltPrismSubtract.Diagnostics)
+                : new BooleanRebuildData(classification, RebuiltBody: null, Diagnostics: rebuiltPrismSubtract.Diagnostics);
         }
 
         if (classification.SafeCompositionResult is not null)
@@ -1670,6 +1755,46 @@ public static class BrepBoolean
 
     private static bool PositiveOverlap(double minA, double maxA, double minB, double maxB, ToleranceContext tolerance)
         => (System.Math.Min(maxA, maxB) - System.Math.Max(minA, minB)) > tolerance.Linear;
+
+    private static bool TryClassifyBoundedPrismaticThroughCutSubtract(
+        SafeBooleanComposition leftComposition,
+        SupportedPrismaticSubtractTool prismTool,
+        ToleranceContext tolerance,
+        out string? unsupportedReason)
+    {
+        unsupportedReason = null;
+        if (leftComposition.RootDescriptor.Kind != SafeBooleanRootKind.Box)
+        {
+            unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires a recognized safe box root.";
+            return false;
+        }
+
+        if (leftComposition.Holes.Count > 0 || (leftComposition.OpenSlots?.Count ?? 0) > 0)
+        {
+            unsupportedReason = "Boolean Subtract: bounded prismatic subtract continuation currently requires a recognized safe box root without existing analytic-hole/open-slot subtractions.";
+            return false;
+        }
+
+        var root = leftComposition.RootDescriptor.Box;
+        if (prismTool.Bounds.MinZ > root.MinZ + tolerance.Linear || prismTool.Bounds.MaxZ < root.MaxZ - tolerance.Linear)
+        {
+            unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires a through-cut tool that spans the full box root height.";
+            return false;
+        }
+
+        foreach (var point in prismTool.Footprint)
+        {
+            var insideX = point.X > root.MinX + tolerance.Linear && point.X < root.MaxX - tolerance.Linear;
+            var insideY = point.Y > root.MinY + tolerance.Linear && point.Y < root.MaxY - tolerance.Linear;
+            if (!insideX || !insideY)
+            {
+                unsupportedReason = "Boolean Subtract: bounded prismatic subtract family requires footprint vertices strictly inside the box-root XY bounds.";
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private static KernelResult<BrepBody> ValidateOutput(BrepBody body, IReadOnlyList<KernelDiagnostic> diagnostics)
     {

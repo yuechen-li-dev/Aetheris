@@ -326,6 +326,7 @@ internal static class FirmamentPmiValidator
                 or FirmamentKnownOpKind.HexagonalPrism
                 or FirmamentKnownOpKind.StraightSlot
                 or FirmamentKnownOpKind.RoundedCornerBox
+                or FirmamentKnownOpKind.SlotCut
                 or FirmamentKnownOpKind.LibraryPart
                 or FirmamentKnownOpKind.Add
                 or FirmamentKnownOpKind.Subtract

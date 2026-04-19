@@ -74,6 +74,7 @@ internal static class FirmamentSelectorContracts
             case FirmamentKnownOpKind.HexagonalPrism:
             case FirmamentKnownOpKind.StraightSlot:
             case FirmamentKnownOpKind.RoundedCornerBox:
+            case FirmamentKnownOpKind.SlotCut:
             case FirmamentKnownOpKind.LibraryPart:
                 allowedPorts = BoxAllowedPorts;
                 return true;
@@ -126,6 +127,7 @@ internal static class FirmamentSelectorContracts
             case FirmamentKnownOpKind.HexagonalPrism:
             case FirmamentKnownOpKind.StraightSlot:
             case FirmamentKnownOpKind.RoundedCornerBox:
+            case FirmamentKnownOpKind.SlotCut:
             case FirmamentKnownOpKind.LibraryPart:
                 contracts = BoxPorts;
                 return true;

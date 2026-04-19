@@ -237,6 +237,23 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Fact]
+    public void Firmament_Routes_SlotCut_Through_Correct_Seam()
+    {
+        var result = CompileFixture("testdata/firmament/examples/slot_cut_basic.firmament");
+
+        Assert.True(result.Compilation.IsSuccess);
+        var plan = result.Compilation.Value.PrimitiveLoweringPlan!;
+        var lowered = Assert.Single(plan.Primitives);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.SlotCut, lowered.Kind);
+        Assert.Equal("slot_cut_1", lowered.FeatureId);
+
+        var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
+        Assert.Equal("slot_cut_1", executed.FeatureId);
+        Assert.Equal(FirmamentLoweredPrimitiveKind.SlotCut, executed.Kind);
+        Assert.True(executed.Body.Topology.Faces.Count() >= 10);
+    }
+
+    [Fact]
     public void Compile_Executes_Add_Boolean_Into_Real_Body()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m3d-valid-add-exec.firmament");
@@ -625,7 +642,7 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
         Assert.Equal(Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Contains("supports nested tool ops 'box', 'cylinder', 'sphere', 'cone', 'torus', 'triangular_prism', 'hexagonal_prism', and 'straight_slot' only", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("supports nested tool ops 'box', 'cylinder', 'sphere', 'cone', 'torus', 'triangular_prism', 'hexagonal_prism', 'straight_slot', and 'slot_cut' only", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Theory]

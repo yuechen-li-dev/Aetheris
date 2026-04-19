@@ -33,6 +33,7 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
                 FirmamentKnownOpKind.HexagonalPrism => ValidateHexagonalPrism(entry, index),
                 FirmamentKnownOpKind.StraightSlot => ValidateStraightSlot(entry, index),
                 FirmamentKnownOpKind.RoundedCornerBox => ValidateRoundedCornerBox(entry, index),
+                FirmamentKnownOpKind.SlotCut => ValidateSlotCut(entry, index),
                 FirmamentKnownOpKind.LibraryPart => ValidateLibraryPart(entry, index),
                 _ => KernelResult<bool>.Success(true)
             };
@@ -330,6 +331,7 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
 
         return KernelResult<bool>.Success(true);
     }
+
     private static KernelResult<bool> ValidateStraightSlot(FirmamentParsedOpEntry entry, int opIndex)
     {
         if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))
@@ -353,6 +355,53 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
         if (!heightResult.IsSuccess)
         {
             return heightResult;
+        }
+
+        return ValidatePlacement(entry, opIndex);
+    }
+
+    private static KernelResult<bool> ValidateSlotCut(FirmamentParsedOpEntry entry, int opIndex)
+    {
+        if (!TryGetRequiredNonEmptyScalar(entry, "id", opIndex, out var missingOrTypeDiagnostic))
+        {
+            return KernelResult<bool>.Failure([missingOrTypeDiagnostic!]);
+        }
+
+        var lengthResult = ValidatePositiveNumericField(entry, "length", opIndex);
+        if (!lengthResult.IsSuccess)
+        {
+            return lengthResult;
+        }
+
+        var widthResult = ValidatePositiveNumericField(entry, "width", opIndex);
+        if (!widthResult.IsSuccess)
+        {
+            return widthResult;
+        }
+
+        var heightResult = ValidatePositiveNumericField(entry, "height", opIndex);
+        if (!heightResult.IsSuccess)
+        {
+            return heightResult;
+        }
+
+        var cornerRadiusResult = ValidateNonNegativeNumericField(entry, "corner_radius", opIndex);
+        if (!cornerRadiusResult.IsSuccess)
+        {
+            return cornerRadiusResult;
+        }
+
+        var length = ParseRequiredNumeric(entry.RawFields["length"]);
+        var width = ParseRequiredNumeric(entry.RawFields["width"]);
+        if (length <= width)
+        {
+            return InvalidFieldValue("length", opIndex, entry.OpName, "expected a numeric value greater than 'width' for slot_cut");
+        }
+
+        var cornerRadius = ParseRequiredNumeric(entry.RawFields["corner_radius"]);
+        if (cornerRadius > width * 0.5d)
+        {
+            return InvalidFieldValue("corner_radius", opIndex, entry.OpName, "expected a numeric value less than or equal to width / 2 for slot_cut");
         }
 
         return ValidatePlacement(entry, opIndex);

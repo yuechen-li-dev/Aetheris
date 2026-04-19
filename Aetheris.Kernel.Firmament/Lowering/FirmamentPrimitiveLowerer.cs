@@ -119,6 +119,18 @@ internal static class FirmamentPrimitiveLowerer
                             CornerRadius: ParseScalar(entry.RawFields["corner_radius"])),
                         Placement: LowerPlacement(entry.Placement)));
                     break;
+                case FirmamentKnownOpKind.SlotCut:
+                    loweredPrimitives.Add(new FirmamentLoweredPrimitive(
+                        OpIndex: index,
+                        FeatureId: entry.RawFields["id"],
+                        Kind: FirmamentLoweredPrimitiveKind.SlotCut,
+                        Parameters: new FirmamentLoweredSlotCutParameters(
+                            Length: ParseScalar(entry.RawFields["length"]),
+                            Width: ParseScalar(entry.RawFields["width"]),
+                            Height: ParseScalar(entry.RawFields["height"]),
+                            CornerRadius: ParseScalar(entry.RawFields["corner_radius"])),
+                        Placement: LowerPlacement(entry.Placement)));
+                    break;
 
                 case FirmamentKnownOpKind.LibraryPart:
                     loweredPrimitives.Add(new FirmamentLoweredPrimitive(

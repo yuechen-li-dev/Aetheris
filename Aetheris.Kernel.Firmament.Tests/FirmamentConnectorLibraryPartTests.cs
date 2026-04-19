@@ -46,9 +46,39 @@ public sealed class FirmamentConnectorLibraryPartTests
     }
 
     [Fact]
+    public void ConnectorPart_Then_Op_Composition_Reveals_BoundedSubtract_Blocker()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/composed_part_with_slot.firmament");
+
+        var compile = FirmamentCorpusHarness.Compile(source);
+
+        Assert.False(compile.Compilation.IsSuccess);
+        Assert.Contains(
+            compile.Compilation.Diagnostics,
+            diagnostic => diagnostic.Message.Contains("Requested boolean feature 'slot_carve' (subtract) could not be executed.", StringComparison.Ordinal));
+        Assert.Contains(
+            compile.Compilation.Diagnostics,
+            diagnostic => diagnostic.Source == "BrepBoolean.RebuildResult"
+                && diagnostic.Message.Contains("sequential safe composition only supports subtracting supported analytic holes", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Firmament_Composed_Model_Export_Reveals_Same_Blocker()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/composed_part_with_slot.firmament");
+
+        var compile = FirmamentCorpusHarness.Compile(source);
+        Assert.False(compile.Compilation.IsSuccess);
+
+        var export = FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+        Assert.False(export.IsSuccess);
+    }
+
+    [Fact]
     public void LaneConnectorResponsibility_Is_Not_Blurred()
     {
         Assert.False(FirmamentLaneOperationCatalog.IsLaneRoutedOperation(FirmamentKnownOpKind.LibraryPart));
         Assert.True(FirmamentLaneOperationCatalog.IsLaneRoutedOperation(FirmamentKnownOpKind.RoundedCornerBox));
+        Assert.True(FirmamentLaneOperationCatalog.IsLaneRoutedOperation(FirmamentKnownOpKind.SlotCut));
     }
 }

@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Firmament.Lowering;
+using Aetheris.Kernel.StandardLibrary;
 
 namespace Aetheris.Kernel.Firmament.Execution;
 
@@ -11,7 +12,8 @@ internal enum FirmamentPrismToolKind
 {
     TriangularPrism,
     HexagonalPrism,
-    StraightSlot
+    StraightSlot,
+    SlotCut
 }
 
 internal sealed record FirmamentPrismToolDescriptor(
@@ -95,12 +97,38 @@ internal static class FirmamentPrismFamilyTools
             return profileVertices;
         });
 
+    private static readonly FirmamentPrismToolDescriptor SlotCutDescriptor = new(
+        FirmamentPrismToolKind.SlotCut,
+        "slot_cut",
+        ["length", "width", "height", "corner_radius"],
+        static tool => StandardLibraryPrimitives.CreateSlotCut(
+            FirmamentPrimitiveToolParsing.ParseScalar(tool.RawFields["length"]),
+            FirmamentPrimitiveToolParsing.ParseScalar(tool.RawFields["width"]),
+            FirmamentPrimitiveToolParsing.ParseScalar(tool.RawFields["height"]),
+            FirmamentPrimitiveToolParsing.ParseScalar(tool.RawFields["corner_radius"])),
+        static tool => FirmamentPrimitiveToolParsing.ParseScalar(tool.RawFields["height"]),
+        static tool =>
+        {
+            var profile = Forge.ForgeRoundedRectangleProfile.Create(
+                FirmamentPrimitiveToolParsing.ParseScalar(tool.RawFields["length"]),
+                FirmamentPrimitiveToolParsing.ParseScalar(tool.RawFields["width"]),
+                FirmamentPrimitiveToolParsing.ParseScalar(tool.RawFields["corner_radius"]));
+            if (!profile.IsSuccess)
+            {
+                return [];
+            }
+
+            var polyline = profile.Value.ToPolylineProfile();
+            return polyline.IsSuccess ? polyline.Value.Vertices.ToArray() : [];
+        });
+
     private static readonly IReadOnlyDictionary<string, FirmamentPrismToolDescriptor> DescriptorsByOpName =
         new Dictionary<string, FirmamentPrismToolDescriptor>(StringComparer.Ordinal)
         {
             [TriangularPrismDescriptor.OpName] = TriangularPrismDescriptor,
             [HexagonalPrismDescriptor.OpName] = HexagonalPrismDescriptor,
-            [StraightSlotDescriptor.OpName] = StraightSlotDescriptor
+            [StraightSlotDescriptor.OpName] = StraightSlotDescriptor,
+            [SlotCutDescriptor.OpName] = SlotCutDescriptor
         };
 
     public static bool TryGetDescriptor(string opName, out FirmamentPrismToolDescriptor descriptor)

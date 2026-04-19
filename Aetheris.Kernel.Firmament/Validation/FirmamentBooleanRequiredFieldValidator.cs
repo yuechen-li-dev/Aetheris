@@ -445,6 +445,22 @@ internal static class FirmamentBooleanRequiredFieldValidator
             }
         }
 
+        if (prismTool.Kind == FirmamentPrismToolKind.SlotCut)
+        {
+            _ = TryParseNumeric(withFields["length"], out var length);
+            _ = TryParseNumeric(withFields["width"], out var width);
+            _ = TryParseNumeric(withFields["corner_radius"], out var cornerRadius);
+            if (length <= width)
+            {
+                return InvalidFieldValue("with.length", opIndex, entry.OpName, "expected a numeric value greater than 'with.width' for slot_cut");
+            }
+
+            if (cornerRadius > width * 0.5d)
+            {
+                return InvalidFieldValue("with.corner_radius", opIndex, entry.OpName, "expected a numeric value less than or equal to with.width / 2 for slot_cut");
+            }
+        }
+
         return KernelResult<bool>.Success(true);
     }
 

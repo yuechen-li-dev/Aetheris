@@ -177,26 +177,36 @@ internal static class FirmamentPrimitiveExecutor
 
             if (FirmamentPrismFamilyTools.TryGetDescriptor(boolean.Tool.OpName, out var prismTool))
             {
-                var prismResult = ExecuteBoundedPrismSubtractOnBoxRoot(
-                    boolean,
-                    prismTool,
-                    baseBody,
-                    featureGraphStates);
-                if (!prismResult.IsSuccess)
-                {
-                    return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
-                    [
-                        CreateBooleanExecutionFailureDiagnostic(boolean),
-                        .. WithBooleanContext(boolean, prismResult.Diagnostics)
-                    ]);
-                }
+                var canUseBoundedPrismPath =
+                    boolean.Kind == FirmamentLoweredBooleanKind.Subtract
+                    && boolean.Placement is null
+                    && featureGraphStates.TryGetValue(boolean.PrimaryReferenceFeatureId, out var sourceState)
+                    && sourceState == FirmamentSafeSubtractFeatureGraphState.BoxRoot;
 
-                var prismBooleanBody = prismResult.Value;
-                executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, prismBooleanBody));
-                publishedBodiesByFeatureId[boolean.FeatureId] = prismBooleanBody;
-                booleanExecutionBodiesByFeatureId[boolean.FeatureId] = prismBooleanBody;
-                featureGraphStates[boolean.FeatureId] = FirmamentSafeSubtractFeatureGraphState.Other;
-                continue;
+                var allowGeneralBooleanFallback = prismTool.Kind == FirmamentPrismToolKind.SlotCut;
+                if (canUseBoundedPrismPath || !allowGeneralBooleanFallback)
+                {
+                    var prismResult = ExecuteBoundedPrismSubtractOnBoxRoot(
+                        boolean,
+                        prismTool,
+                        baseBody,
+                        featureGraphStates);
+                    if (!prismResult.IsSuccess)
+                    {
+                        return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
+                        [
+                            CreateBooleanExecutionFailureDiagnostic(boolean),
+                            .. WithBooleanContext(boolean, prismResult.Diagnostics)
+                        ]);
+                    }
+
+                    var prismBooleanBody = prismResult.Value;
+                    executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, prismBooleanBody));
+                    publishedBodiesByFeatureId[boolean.FeatureId] = prismBooleanBody;
+                    booleanExecutionBodiesByFeatureId[boolean.FeatureId] = prismBooleanBody;
+                    featureGraphStates[boolean.FeatureId] = FirmamentSafeSubtractFeatureGraphState.Other;
+                    continue;
+                }
             }
 
             var featureGraphValidation = FirmamentSafeSubtractFeatureGraphValidator.ValidateNextBoolean(
@@ -389,6 +399,7 @@ internal static class FirmamentPrimitiveExecutor
             FirmamentLoweredPrimitiveKind.HexagonalPrism => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredHexagonalPrismParameters)primitive.Parameters).Height * 0.5d)),
             FirmamentLoweredPrimitiveKind.StraightSlot => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredStraightSlotParameters)primitive.Parameters).Height * 0.5d)),
             FirmamentLoweredPrimitiveKind.RoundedCornerBox => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).Height * 0.5d)),
+            FirmamentLoweredPrimitiveKind.SlotCut => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredSlotCutParameters)primitive.Parameters).Height * 0.5d)),
             _ => body
         };
     }
@@ -418,6 +429,11 @@ internal static class FirmamentPrimitiveExecutor
                 ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).Depth,
                 ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).Height,
                 ((FirmamentLoweredRoundedCornerBoxParameters)primitive.Parameters).CornerRadius),
+            FirmamentLoweredPrimitiveKind.SlotCut => StandardLibraryPrimitives.CreateSlotCut(
+                ((FirmamentLoweredSlotCutParameters)primitive.Parameters).Length,
+                ((FirmamentLoweredSlotCutParameters)primitive.Parameters).Width,
+                ((FirmamentLoweredSlotCutParameters)primitive.Parameters).Height,
+                ((FirmamentLoweredSlotCutParameters)primitive.Parameters).CornerRadius),
             FirmamentLoweredPrimitiveKind.LibraryPart => FirmamentPartLibraryConnector.ResolvePart(
                 ((FirmamentLoweredLibraryPartParameters)primitive.Parameters).PartReference),
             _ => KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, $"Primitive execution for kind '{primitive.Kind}' is not implemented.")])

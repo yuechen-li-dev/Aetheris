@@ -16,4 +16,15 @@ public static class StandardLibraryPrimitives
 
         return ForgeAtomics.ExtrudeCentered(profile.Value, height);
     }
+
+    public static KernelResult<BrepBody> CreateSlotCut(double length, double width, double height, double cornerRadius, int cornerSegments = 8)
+    {
+        var profile = ForgeAtomics.RoundedRectangle(length, width, cornerRadius, cornerSegments);
+        if (!profile.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(profile.Diagnostics);
+        }
+
+        return ForgeAtomics.ExtrudeCentered(profile.Value, height);
+    }
 }

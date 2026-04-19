@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Pmi;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Diagnostics;
@@ -39,7 +40,8 @@ public static class FirmamentStepExporter
             return KernelResult<FirmamentStepExportResult>.Failure(selectionResult.Diagnostics);
         }
 
-        var semanticPmi = DeriveSemanticPmi(artifact.ParsedDocument, artifact.PrimitiveLoweringPlan, artifact.PrimitiveExecutionResult, selectionResult.Value);
+        var pmiModel = DerivePmiModel(artifact.ParsedDocument, artifact.PrimitiveLoweringPlan, artifact.PrimitiveExecutionResult, selectionResult.Value);
+        var semanticPmi = PmiStep242Adapter.ToStep242SemanticPmi(pmiModel.Model, pmiModel.PassthroughNotes);
         var stepResult = Step242Exporter.ExportBody(selectionResult.Value.Body, semanticPmi);
         if (!stepResult.IsSuccess)
         {
@@ -116,14 +118,16 @@ public static class FirmamentStepExporter
     private const string ExportBodyCategoryPrimitive = "primitive";
     private const string ExportBodyCategoryBoolean = "boolean";
 
-    private static IReadOnlyList<Step242SemanticPmi> DeriveSemanticPmi(
+    private static DerivedPmiPayload DerivePmiModel(
         FirmamentParsedDocument? parsedDocument,
         FirmamentPrimitiveLoweringPlan? loweringPlan,
         FirmamentPrimitiveExecutionResult? executionResult,
         ExportBodySelection selection)
     {
         var explicitPmi = DeriveExplicitPmi(parsedDocument, executionResult);
-        if (explicitPmi.Count > 0)
+        if (explicitPmi.Model.DatumFeatures.Count > 0
+            || explicitPmi.Model.Dimensions.Count > 0
+            || explicitPmi.PassthroughNotes.Count > 0)
         {
             return explicitPmi;
         }
@@ -132,12 +136,22 @@ public static class FirmamentStepExporter
             || !string.Equals(selection.BodyCategory, ExportBodyCategoryBoolean, StringComparison.Ordinal)
             || !string.Equals(selection.FeatureKind, "subtract", StringComparison.Ordinal))
         {
-            return [];
+            return new DerivedPmiPayload(PmiModel.Empty(selection.FeatureId), []);
         }
 
+        var model = BuildLegacyAutoHolePmiModel(loweringPlan, selection.FeatureId);
+
+        return new DerivedPmiPayload(model, []);
+    }
+
+
+    internal static PmiModel BuildLegacyAutoHolePmiModel(FirmamentPrimitiveLoweringPlan loweringPlan, string selectionFeatureId)
+    {
+        ArgumentNullException.ThrowIfNull(loweringPlan);
+
         var booleansByFeatureId = loweringPlan.Booleans.ToDictionary(boolean => boolean.FeatureId, StringComparer.Ordinal);
-        var currentFeatureId = selection.FeatureId;
-        var derived = new List<(int OpIndex, Step242SemanticPmiHole Item)>();
+        var currentFeatureId = selectionFeatureId;
+        var derived = new List<(int OpIndex, PmiDimension Item)>();
 
         while (booleansByFeatureId.TryGetValue(currentFeatureId, out var boolean)
             && boolean.Kind == FirmamentLoweredBooleanKind.Subtract)
@@ -147,29 +161,44 @@ public static class FirmamentStepExporter
                 && !string.IsNullOrWhiteSpace(radiusRaw))
             {
                 var radius = FirmamentPrimitiveToolParsing.ParseScalar(radiusRaw);
-                derived.Add((boolean.OpIndex, new Step242SemanticPmiHole(boolean.FeatureId, radius * 2d, null, "through_or_blind_cylindrical", null, null)));
+                derived.Add((
+                    boolean.OpIndex,
+                    new PmiDimension(
+                        $"diameter:{boolean.FeatureId}",
+                        PmiDimensionKind.Diameter,
+                        new PmiCylindricalFeatureReference(boolean.FeatureId, "through_or_blind_cylindrical"),
+                        null,
+                        radius * 2d,
+                        SourceTag: "legacy-auto-hole-demo")));
             }
 
             currentFeatureId = boolean.PrimaryReferenceFeatureId;
         }
 
-        return derived
-            .OrderBy(item => item.OpIndex)
-            .Select(item => item.Item)
-            .ToArray();
+        var model = PmiModel.Empty(selectionFeatureId);
+        foreach (var dimension in derived.OrderBy(item => item.OpIndex).Select(item => item.Item))
+        {
+            model = model.AddDimension(dimension);
+        }
+
+        return model;
     }
 
-    private static IReadOnlyList<Step242SemanticPmi> DeriveExplicitPmi(
+    private static DerivedPmiPayload DeriveExplicitPmi(
         FirmamentParsedDocument? parsedDocument,
         FirmamentPrimitiveExecutionResult? executionResult)
     {
         if (parsedDocument?.Pmi is null || parsedDocument.Pmi.Entries.Count == 0 || executionResult is null)
         {
-            return [];
+            return new DerivedPmiPayload(PmiModel.Empty("unspecified"), []);
         }
 
         var featureBodies = BuildFeatureBodyMap(executionResult);
-        var resolved = new List<Step242SemanticPmi>();
+        var bodyFeatureId = executionResult.ExecutedBooleans.OrderByDescending(b => b.OpIndex).Select(b => b.FeatureId).FirstOrDefault()
+            ?? executionResult.ExecutedPrimitives.OrderByDescending(p => p.OpIndex).Select(p => p.FeatureId).FirstOrDefault()
+            ?? "unspecified";
+        var model = PmiModel.Empty(bodyFeatureId);
+        var passthroughNotes = new List<Step242SemanticPmiNote>();
 
         foreach (var entry in parsedDocument.Pmi.Entries)
         {
@@ -195,13 +224,13 @@ public static class FirmamentStepExporter
                             depth = parsedDepth;
                         }
 
-                        resolved.Add(new Step242SemanticPmiHole(
-                            featureId,
+                        model = model.AddDimension(new PmiDimension(
+                            $"diameter:{featureId}",
+                            PmiDimensionKind.Diameter,
+                            new PmiCylindricalFeatureReference(featureId, entry.RawFields.TryGetValue("hole_family", out var familyRaw) ? familyRaw : null),
+                            null,
                             diameter,
-                            depth,
-                            entry.RawFields.TryGetValue("hole_family", out var familyRaw) ? familyRaw : null,
-                            entry.RawFields.TryGetValue("tol_plus", out var tolPlusRaw) && double.TryParse(tolPlusRaw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var tolPlus) ? tolPlus : null,
-                            entry.RawFields.TryGetValue("tol_minus", out var tolMinusRaw) && double.TryParse(tolMinusRaw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var tolMinus) ? tolMinus : null));
+                            SourceTag: depth.HasValue ? "explicit-hole-depth-provided" : "explicit-hole"));
                     }
 
                     break;
@@ -209,7 +238,15 @@ public static class FirmamentStepExporter
                     if (entry.RawFields.TryGetValue("datum_kind", out var datumKind)
                         && entry.RawFields.TryGetValue("label", out var label))
                     {
-                        resolved.Add(new Step242SemanticPmiDatum(featureId, datumKind, label, targetRaw));
+                        if (string.Equals(datumKind, "plane", StringComparison.Ordinal)
+                            && targetRaw.Contains(".", StringComparison.Ordinal))
+                        {
+                            model = model.AddDatum(new PmiDatumFeature(
+                                $"datum:{label}",
+                                label,
+                                PmiDatumFeatureKind.Planar,
+                                new PmiPlanarFaceReference(featureId, targetRaw)));
+                        }
                     }
 
                     break;
@@ -226,14 +263,14 @@ public static class FirmamentStepExporter
                             }
                         }
 
-                        resolved.Add(new Step242SemanticPmiNote(featureId, targetRaw, text));
+                        passthroughNotes.Add(new Step242SemanticPmiNote(featureId, targetRaw, text));
                     }
 
                     break;
             }
         }
 
-        return resolved;
+        return new DerivedPmiPayload(model, passthroughNotes);
     }
 
     private static IReadOnlyDictionary<string, BrepBody> BuildFeatureBodyMap(FirmamentPrimitiveExecutionResult executionResult)
@@ -251,6 +288,8 @@ public static class FirmamentStepExporter
 
         return map;
     }
+
+    private sealed record DerivedPmiPayload(PmiModel Model, IReadOnlyList<Step242SemanticPmiNote> PassthroughNotes);
 
     private sealed record ExportBodySelection(
         int OpIndex,

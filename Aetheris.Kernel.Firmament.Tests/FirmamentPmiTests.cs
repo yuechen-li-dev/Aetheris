@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Pmi;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
 
@@ -39,6 +40,27 @@ public sealed class FirmamentPmiTests
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
         Assert.Contains("unknown selector root feature 'missing'", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void LegacyAutoHoleDemo_BuildsSemanticDiameterDimensions_InKernelPmiModel()
+    {
+        var compile = CompileFixture("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament");
+        Assert.True(compile.Compilation.IsSuccess);
+
+        var loweringPlan = Assert.IsType<FirmamentCompilationArtifact>(compile.Compilation.Value).PrimitiveLoweringPlan;
+        Assert.NotNull(loweringPlan);
+
+        var model = FirmamentStepExporter.BuildLegacyAutoHolePmiModel(loweringPlan!, selectionFeatureId: "hole_b");
+
+        Assert.Equal(2, model.Dimensions.Count);
+        Assert.All(model.Dimensions, d => Assert.Equal(PmiDimensionKind.Diameter, d.Kind));
+        Assert.All(model.Dimensions, d => Assert.Equal("legacy-auto-hole-demo", d.SourceTag));
+        Assert.Collection(
+            model.Dimensions,
+            first => Assert.Equal("diameter:hole_a", first.DimensionId),
+            second => Assert.Equal("diameter:hole_b", second.DimensionId));
     }
 
     private static FirmamentCompileResult CompileFixture(string fixturePath)

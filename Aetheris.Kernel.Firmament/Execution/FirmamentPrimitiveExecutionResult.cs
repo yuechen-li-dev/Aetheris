@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament.Execution;
@@ -17,4 +18,5 @@ public sealed record FirmamentExecutedBoolean(
     int OpIndex,
     string FeatureId,
     FirmamentLoweredBooleanKind Kind,
-    BrepBody Body);
+    BrepBody Body,
+    SafeBooleanComposition? SemanticSafeComposition = null);

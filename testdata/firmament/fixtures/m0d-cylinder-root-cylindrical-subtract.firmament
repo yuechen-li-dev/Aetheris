@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+
+model:
+  name: m0d-cylinder-root-cylindrical-subtract
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: base
+    radius: 8
+    height: 24
+
+  -
+    op: subtract
+    id: inner_cut
+    from: base
+    with:
+      op: cylinder
+      radius: 4
+      height: 30

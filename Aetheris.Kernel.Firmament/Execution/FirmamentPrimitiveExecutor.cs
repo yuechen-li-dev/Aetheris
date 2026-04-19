@@ -216,6 +216,8 @@ internal static class FirmamentPrimitiveExecutor
             var usedPublishedFrameAdditiveExecution = false;
             var useSemanticToolPlacement = !canUsePublishedFrameAdditiveExecution
                 && ShouldUseSemanticToolPlacement(boolean, baseBody, toolResult.Value);
+            BrepBody? toolBodyUsedForBoolean = null;
+            Vector3D deferredPlacementTranslation = Vector3D.Zero;
 
             KernelResult<BrepBody> booleanResult;
             if (canUsePublishedFrameAdditiveExecution)
@@ -232,6 +234,7 @@ internal static class FirmamentPrimitiveExecutor
                 }
 
                 var translatedToolBody = TranslateBody(ApplyDefaultToolLocalFrame(boolean.Tool, toolResult.Value), placementResult.Value);
+                toolBodyUsedForBoolean = translatedToolBody;
                 booleanResult = ExecuteBoolean(boolean.Kind, publishedBaseBody, translatedToolBody);
 
                 if (booleanResult.IsSuccess)
@@ -240,6 +243,7 @@ internal static class FirmamentPrimitiveExecutor
                 }
                 else
                 {
+                    toolBodyUsedForBoolean = toolResult.Value;
                     booleanResult = ExecuteBoolean(boolean.Kind, baseBody, toolResult.Value);
                 }
             }
@@ -252,10 +256,12 @@ internal static class FirmamentPrimitiveExecutor
                 }
 
                 var translatedToolBody = PlaceSemanticToolBody(boolean, toolResult.Value, placementResult.Value);
+                toolBodyUsedForBoolean = translatedToolBody;
                 booleanResult = ExecuteBoolean(boolean.Kind, baseBody, translatedToolBody);
             }
             else
             {
+                toolBodyUsedForBoolean = toolResult.Value;
                 booleanResult = ExecuteBoolean(boolean.Kind, baseBody, toolResult.Value);
             }
 
@@ -277,10 +283,12 @@ internal static class FirmamentPrimitiveExecutor
                     return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(placementResult.Diagnostics);
                 }
 
+                deferredPlacementTranslation = placementResult.Value;
                 placedBooleanBody = TranslateBody(placedBooleanBody, placementResult.Value);
             }
 
-            executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, placedBooleanBody));
+            var semanticSafeComposition = TryBuildSemanticSafeComposition(boolean, baseBody, toolBodyUsedForBoolean, deferredPlacementTranslation);
+            executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, placedBooleanBody, semanticSafeComposition));
             publishedBodiesByFeatureId[boolean.FeatureId] = placedBooleanBody;
             booleanExecutionBodiesByFeatureId[boolean.FeatureId] = placedBooleanBody;
             featureGraphStates[boolean.FeatureId] = DetermineBooleanFeatureGraphState(
@@ -319,6 +327,35 @@ internal static class FirmamentPrimitiveExecutor
         => featureId.Contains("__lin", StringComparison.Ordinal)
            || featureId.Contains("__cir", StringComparison.Ordinal)
            || featureId.Contains("__mir_", StringComparison.Ordinal);
+
+    private static SafeBooleanComposition? TryBuildSemanticSafeComposition(
+        FirmamentLoweredBoolean boolean,
+        BrepBody baseBody,
+        BrepBody? toolBodyUsedForBoolean,
+        Vector3D deferredPlacementTranslation)
+    {
+        if (boolean.Kind != FirmamentLoweredBooleanKind.Subtract || toolBodyUsedForBoolean is null)
+        {
+            return null;
+        }
+
+        if (!BrepBooleanSafeComposition.TryRecognize(baseBody, ToleranceContext.Default, out var composition, out _)
+            || !BrepBooleanAnalyticSurfaceRecognition.TryRecognizeAnalyticSurface(toolBodyUsedForBoolean, ToleranceContext.Default, out var analyticSurface, out _)
+            || !BrepBooleanSafeCompositionGraphValidator.TryValidateNextSubtract(
+                composition,
+                analyticSurface,
+                ToleranceContext.Default,
+                out var updated,
+                out _,
+                boolean.FeatureId))
+        {
+            return null;
+        }
+
+        return deferredPlacementTranslation == Vector3D.Zero
+            ? updated
+            : updated.Translate(deferredPlacementTranslation);
+    }
 
     private static KernelResult<FirmamentExecutedPrimitiveBodies> ExecutePrimitive(FirmamentLoweredPrimitive primitive, IReadOnlyDictionary<string, BrepBody> publishedBodies)
     {

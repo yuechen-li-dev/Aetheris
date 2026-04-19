@@ -21,4 +21,5 @@ public sealed record FirmamentPmiInspectionDimension(
     string Target,
     string? Datum,
     double Value,
-    string? SourceTag);
+    string? SourceTag,
+    string? CandidateName = null);

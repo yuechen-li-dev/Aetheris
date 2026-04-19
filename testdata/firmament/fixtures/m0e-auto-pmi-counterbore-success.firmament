@@ -1,0 +1,45 @@
+firmament:
+  version: 1
+
+model:
+  name: m0e_auto_pmi_counterbore_success
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: plate
+    size[3]:
+      70
+      40
+      16
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -5
+
+  -
+    op: subtract
+    id: counterbore_pocket
+    from: plate
+    with:
+      op: cylinder
+      radius: 7
+      height: 6
+
+  -
+    op: subtract
+    id: counterbore_through
+    from: counterbore_pocket
+    with:
+      op: cylinder
+      radius: 3.5
+      height: 26
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -10

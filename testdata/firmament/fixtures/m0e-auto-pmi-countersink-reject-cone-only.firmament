@@ -1,0 +1,25 @@
+firmament:
+  version: 1
+
+model:
+  name: m0e_auto_pmi_countersink_reject_cone_only
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: plate
+    size[3]:
+      40
+      30
+      12
+
+  -
+    op: subtract
+    id: cone_hole
+    from: plate
+    with:
+      op: cone
+      bottom_radius: 3
+      top_radius: 5
+      height: 20

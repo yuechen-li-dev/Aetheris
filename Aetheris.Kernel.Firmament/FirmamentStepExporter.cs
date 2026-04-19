@@ -465,8 +465,29 @@ public static class FirmamentStepExporter
 
         if (string.Equals(candidateName, "countersink_callout", StringComparison.Ordinal))
         {
-            yield return CreateAutoDiameterDimension(recognition.FeatureId, "countersink", recognition.PrimaryHole.TopRadius * 2d, candidateName);
+            var countersinkDiameter = ResolveCountersinkEntryDiameter(recognition) * 2d;
+            yield return CreateAutoDiameterDimension(recognition.FeatureId, "countersink", countersinkDiameter, candidateName);
         }
+    }
+
+    private static double ResolveCountersinkEntryDiameter(HoleFeatureRecognition recognition)
+    {
+        static double ResolveEntryRadius(in SupportedBooleanHole hole)
+            => hole.Surface.Kind == AnalyticSurfaceKind.Cone
+                ? System.Math.Max(hole.TopRadius, hole.BottomRadius)
+                : hole.TopRadius;
+
+        if (recognition.PrimaryHole.Surface.Kind == AnalyticSurfaceKind.Cone)
+        {
+            return ResolveEntryRadius(recognition.PrimaryHole);
+        }
+
+        if (recognition.SecondaryHole is { } secondary)
+        {
+            return ResolveEntryRadius(secondary);
+        }
+
+        return ResolveEntryRadius(recognition.PrimaryHole);
     }
 
     private static PmiDimension CreateAutoDiameterDimension(string featureId, string semanticFamily, double diameter, string candidateName)

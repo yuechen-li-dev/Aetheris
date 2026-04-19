@@ -1665,7 +1665,7 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Unsupported_MixedSubtract_Reveals_RebuildBoundary()
+    public void MixedThroughVoid_AnalyticPlusSlot_Succeeds()
     {
         var root = BrepPrimitives.CreateBox(20d, 20d, 20d).Value;
         var holeTool = BrepPrimitives.CreateCylinder(3d, 24d).Value;
@@ -1675,9 +1675,26 @@ public sealed class BrepBooleanTests
         var slotTool = TransformBody(StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 10d, 4d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, -5d)));
         var result = BrepBoolean.Subtract(withHole.Value, slotTool);
 
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value.SafeBooleanComposition?.ThroughVoids);
+        Assert.Single(result.Value.SafeBooleanComposition!.ThroughVoids!.PrismaticVoids);
+        Assert.Empty(result.Value.SafeBooleanComposition.ThroughVoids.AnalyticVoids);
+    }
+
+    [Fact]
+    public void MixedThroughVoid_UnsupportedInteraction_Rejects()
+    {
+        var root = BrepPrimitives.CreateBox(20d, 20d, 20d).Value;
+        var holeTool = TransformBody(BrepPrimitives.CreateCylinder(3d, 24d).Value, Transform3D.CreateTranslation(new Vector3D(6d, 0d, 0d)));
+        var withHole = BrepBoolean.Subtract(root, holeTool);
+        Assert.True(withHole.IsSuccess);
+
+        var slotTool = TransformBody(StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 10d, 4d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, -5d)));
+        var result = BrepBoolean.Subtract(withHole.Value, slotTool);
+
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Contains("bounded mixed analytic+prismatic subtract continuation is recognized but bounded reconstruction for this mixed family is not implemented yet", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("bounded mixed through-void builder", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

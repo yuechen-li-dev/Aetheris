@@ -31,7 +31,7 @@ The following items remain deferred:
 - broad add/intersect expansion outside the current narrow box-box subset
 - general BRep booleans
 - bounded mixed analytic-hole + prismatic continuation rebuild path on safe box roots (recognition now exists; bounded reconstruction remains deferred)
-- safe-composition prismatic blind-pocket continuation (recognition-classification gap + bounded reconstruction path still deferred)
+- safe-composition prismatic blind-pocket continuation (explicitly rejected with deterministic diagnostic: bounded analytic+orthogonal reconstruction path still deferred)
 - multi-sphere and mixed sphere+prismatic continuation in one subtract chain
 
 ## Known blocker: rotated cone through-hole

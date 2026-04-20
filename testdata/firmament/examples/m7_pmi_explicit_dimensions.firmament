@@ -24,7 +24,6 @@ ops[2]:
       height: 24
     place:
       on_face: base.top_face
-      centered_on: base.top_face
 
 pmi[3]:
   -

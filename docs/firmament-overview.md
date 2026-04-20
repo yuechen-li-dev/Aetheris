@@ -15,7 +15,7 @@ Firmament currently supports these source-level concepts:
 - primitive features: `box`, `cylinder`, `sphere`
 - boolean features: `add`, `subtract`, `intersect`
 - validation ops: `expect_exists`, `expect_selectable`, `expect_manifold`
-- placement blocks with legacy `place.on` + `offset[3]` and minimal P1 semantic placement (`on_face`, `centered_on`, `around_axis`, `radial_offset`)
+- placement blocks with a unified model: semantic-first `on_face` anchors plus explicit `on` + `offset[3]` fallback (`centered_on` remains a compatibility alias), and optional axis placement (`around_axis`, `radial_offset`, `angle_degrees`)
 - selector-shaped references rooted at a source feature id
 - optional schema blocks for `cnc`, `additive`, and `injection_molded`
 - first schema-aware CNC DFM validation for `minimum_tool_radius` on subtract-with-cylinder inputs
@@ -49,14 +49,11 @@ Validation ops check feature existence, selector selectability, and manifold exp
 
 ### Placement
 
-Placement currently supports two small models:
+Placement currently supports one coherent model with two input styles:
 
-- `place.on: origin`
-- `place.on: feature_id.port`
-- `offset[3]` numeric translation
-- `place.on_face: feature_id.port`
-- `place.centered_on: feature_id.port`
-- `place.around_axis: feature_id.port` (+ optional `place.radial_offset` and `place.angle_degrees`)
+- semantic anchor: `place.on_face: feature_id.port` (`place.centered_on` accepted as a compatibility alias and normalized to `on_face`)
+- explicit spatial fallback: `place.on: origin|feature_id.port` with `offset[3]`
+- optional radial placement: `place.around_axis: feature_id.port` (+ optional `place.radial_offset` and `place.angle_degrees`)
 
 This is intentionally narrow. It lowers deterministically into selector anchor extraction + axis/radial translation and does not introduce a general frame system or constraint solver.
 

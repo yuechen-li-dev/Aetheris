@@ -16,9 +16,8 @@ public sealed record FirmamentLoweredPrimitive(
 
 public sealed record FirmamentLoweredPlacement(
     FirmamentLoweredPlacementAnchor? On,
+    bool UsesSemanticAnchor,
     IReadOnlyList<double> Offset,
-    string? OnFace,
-    string? CenteredOn,
     string? AroundAxis,
     double? RadialOffset,
     double? AngleDegrees,

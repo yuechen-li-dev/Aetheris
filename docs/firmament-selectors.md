@@ -91,13 +91,13 @@ Current boolean outputs (`add`, `subtract`, `intersect`, plus bounded draft/cham
 
 ## Placement-relevant meaning of names
 
-For placement anchors (`place.on`, `place.on_face`, `place.centered_on`) the resolver currently uses representative geometry points and centroids:
+For placement anchors (`place.on`, `place.on_face`, and compatibility alias `place.centered_on`) the resolver uses one shared anchor extraction path with representative geometry points and centroids:
 
 - face/face-set ports → representative face points then centroid,
 - edge-set ports → edge endpoint points then centroid,
 - vertex-set ports → vertex points then centroid.
 
-Important implication: names such as `on_face` vs `centered_on` are currently ergonomic aliases over the same anchor extraction behavior, not different mating solvers.
+Important implication: `centered_on` is a compatibility alias of `on_face`, not a different mating solver. Canonical formatting normalizes alias usage to `on_face`.
 
 ---
 

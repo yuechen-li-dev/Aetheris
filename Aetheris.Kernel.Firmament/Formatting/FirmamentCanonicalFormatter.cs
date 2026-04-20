@@ -270,14 +270,45 @@ internal static class FirmamentCanonicalFormatter
     private static void AppendPlacement(StringBuilder builder, int indentLevel, FirmamentParsedPlacement placement)
     {
         builder.Append(Indent(indentLevel)).Append("place:\n");
-        var onValue = placement.On switch
+        var explicitAnchor = placement.On switch
         {
             FirmamentParsedPlacementOriginAnchor => "origin",
             FirmamentParsedPlacementSelectorAnchor selector => selector.Selector,
+            null => null,
             _ => throw new InvalidOperationException("Unknown placement anchor.")
         };
+        var semanticAnchor = !string.IsNullOrWhiteSpace(placement.OnFace)
+            ? placement.OnFace
+            : placement.CenteredOn;
 
-        AppendScalarField(builder, indentLevel + 1, "on", onValue);
+        if (!string.IsNullOrWhiteSpace(semanticAnchor))
+        {
+            AppendScalarField(builder, indentLevel + 1, "on_face", semanticAnchor!);
+        }
+        else if (!string.IsNullOrWhiteSpace(explicitAnchor))
+        {
+            AppendScalarField(builder, indentLevel + 1, "on", explicitAnchor!);
+        }
+        else if (string.IsNullOrWhiteSpace(placement.AroundAxis))
+        {
+            AppendScalarField(builder, indentLevel + 1, "on", "origin");
+        }
+
+        if (!string.IsNullOrWhiteSpace(placement.AroundAxis))
+        {
+            AppendScalarField(builder, indentLevel + 1, "around_axis", placement.AroundAxis!);
+        }
+
+        if (placement.RadialOffset is not null)
+        {
+            AppendScalarField(builder, indentLevel + 1, "radial_offset", FormatNumber(placement.RadialOffset.Value));
+        }
+
+        if (placement.AngleDegrees is not null)
+        {
+            AppendScalarField(builder, indentLevel + 1, "angle_degrees", FormatNumber(placement.AngleDegrees.Value));
+        }
+
         builder.Append(Indent(indentLevel + 1))
             .Append("offset[")
             .Append(placement.Offset.Count.ToString(CultureInfo.InvariantCulture))

@@ -58,6 +58,49 @@ public sealed class FirmamentPlacementValidationTests
     }
 
     [Fact]
+    public void Placement_Alias_Conflict_Between_OnFace_And_CenteredOn_Is_Rejected()
+    {
+        const string source = """
+firmament:
+  version: 1
+
+model:
+  name: placement_alias_conflict
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      20
+      20
+      10
+
+  -
+    op: box
+    id: rib
+    size[3]:
+      2
+      2
+      2
+    place:
+      on_face: base.top_face
+      centered_on: base.bottom_face
+      offset[3]:
+        0
+        0
+        0
+""";
+
+        var result = CompileSource(source);
+        Assert.False(result.Compilation.IsSuccess);
+        var diagnostic = Assert.Single(result.Compilation.Diagnostics);
+        Assert.Contains(FirmamentDiagnosticCodes.PlacementInvalidSemanticCombination.Value, diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("compatibility alias", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Primitive_With_Sphere_Surface_PlaceAnchor_Is_Valid()
     {
         var result = CompileFixture("testdata/firmament/fixtures/m7b-valid-placement-selector-anchor-sphere.firmament");
@@ -256,6 +299,11 @@ public sealed class FirmamentPlacementValidationTests
     private static FirmamentCompileResult CompileFixture(string fixturePath)
     {
         var source = FirmamentCorpusHarness.ReadFixtureText(fixturePath);
+        return CompileSource(source);
+    }
+
+    private static FirmamentCompileResult CompileSource(string source)
+    {
         var compiler = new FirmamentCompiler();
         return compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
     }

@@ -10,22 +10,23 @@ For primitives, note there is still primitive-specific default publish framing i
 
 ---
 
-## 2) Placement keys and mode split
+## 2) Placement keys in one unified model
 
 Supported keys:
 
 - `on`
 - `offset[3]`
 - `on_face`
-- `centered_on`
 - `around_axis`
 - `radial_offset`
 - `angle_degrees`
 
-Mode behavior:
+Unified behavior:
 
-- legacy mode (no semantic keys): `on` + `offset[3]` required,
-- semantic mode (any semantic key present): `on` optional, `offset[3]` defaults to zero if omitted/malformed,
+- semantic anchor placement prefers `on_face`,
+- explicit spatial fallback uses `on` + `offset[3]`,
+- `centered_on` is a compatibility alias of `on_face`,
+- if both `on_face` and `centered_on` are present they must match exactly,
 - `radial_offset` requires `around_axis`.
 
 ---
@@ -34,11 +35,10 @@ Mode behavior:
 
 Base anchor point is resolved in this strict precedence:
 
-1. `on_face`
-2. `centered_on`
-3. `on`
-4. if none above and `around_axis` exists: axis origin
-5. otherwise world origin `(0,0,0)`
+1. canonical semantic anchor (`on_face`, or `centered_on` alias normalized to `on_face`)
+2. `on` fallback anchor
+3. if none above and `around_axis` exists: axis origin
+4. otherwise world origin `(0,0,0)`
 
 ---
 
@@ -122,4 +122,4 @@ Reference: `testdata/firmament/examples/w2_box_sphere_exterior_opening_pocket_se
 - Using contained sphere placement when you intended an exterior-opening pocket.
 - Tangent/grazing placement (zero-thickness boundary conditions) instead of strict overlap.
 - Assuming `offset` is face-local; it is world XYZ.
-- Assuming `on_face` and `centered_on` are distinct mating semantics; currently they share anchor extraction behavior.
+- Authoring both `on_face` and `centered_on` with different selectors (now rejected as ambiguous).

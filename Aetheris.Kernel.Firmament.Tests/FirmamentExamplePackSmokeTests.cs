@@ -95,6 +95,22 @@ public sealed class FirmamentExamplePackSmokeTests
         Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
     }
 
+    [Theory]
+    [InlineData("testdata/firmament/examples/p1_blind_hole_on_face_semantic.firmament")]
+    [InlineData("testdata/firmament/examples/p1_flange_radial_hole_semantic.firmament")]
+    [InlineData("testdata/firmament/examples/w2_cylinder_root_blind_bore_semantic.firmament")]
+    [InlineData("testdata/firmament/examples/w2_box_sphere_exterior_opening_pocket_semantic.firmament")]
+    [InlineData("testdata/firmament/examples/placed_primitive.firmament")]
+    public void CanonicalExamples_StillBuild(string fixturePath)
+    {
+        var compileResult = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
+        Assert.True(compileResult.Compilation.IsSuccess);
+
+        var exportResult = ExportFixture(fixturePath);
+        Assert.True(exportResult.IsSuccess);
+        Assert.Contains("ISO-10303-21", exportResult.Value.StepText, StringComparison.Ordinal);
+    }
+
     private static Aetheris.Kernel.Core.Results.KernelResult<FirmamentStepExportResult> ExportFixture(string fixturePath) =>
         FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(FirmamentCorpusHarness.ReadFixtureText(fixturePath))));
 }

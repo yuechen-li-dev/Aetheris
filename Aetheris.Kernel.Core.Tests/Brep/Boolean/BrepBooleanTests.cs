@@ -1851,7 +1851,7 @@ public sealed class BrepBooleanTests
         var withHole = BrepBoolean.Subtract(root, holeTool);
         Assert.True(withHole.IsSuccess);
 
-        var slotTool = TransformBody(StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 10d, 4d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, -5d)));
+        var slotTool = StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 24d, 4d).Value;
         var result = BrepBoolean.Subtract(withHole.Value, slotTool);
 
         Assert.True(result.IsSuccess);
@@ -1868,7 +1868,7 @@ public sealed class BrepBooleanTests
         var withHole = BrepBoolean.Subtract(root, holeTool);
         Assert.True(withHole.IsSuccess);
 
-        var slotTool = TransformBody(StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 10d, 4d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, -5d)));
+        var slotTool = StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 24d, 4d).Value;
         var result = BrepBoolean.Subtract(withHole.Value, slotTool);
 
         Assert.False(result.IsSuccess);
@@ -1877,7 +1877,7 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void MixedThroughVoid_BlindThenPrismaticContainingFootprint_Succeeds()
+    public void BlindPocketContinuation_UnsupportedCase_Rejects()
     {
         var root = BrepPrimitives.CreateBox(20d, 20d, 20d).Value;
         var blindHoleTool = TransformBody(BrepPrimitives.CreateCylinder(2d, 8d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 6d)));
@@ -1885,13 +1885,12 @@ public sealed class BrepBooleanTests
         Assert.True(withBlindHole.IsSuccess);
         Assert.Equal(SupportedBooleanHoleSpanKind.BlindFromTop, Assert.Single(withBlindHole.Value.SafeBooleanComposition!.Holes).SpanKind);
 
-        var slotTool = StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 24d, 4d).Value;
+        var slotTool = StandardLibraryPrimitives.CreateSlotCut(16d, 8d, 8d, 4d).Value;
         var result = BrepBoolean.Subtract(withBlindHole.Value, slotTool);
 
-        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
-        Assert.NotNull(result.Value.SafeBooleanComposition?.ThroughVoids);
-        Assert.Single(result.Value.SafeBooleanComposition!.ThroughVoids!.PrismaticVoids);
-        Assert.Empty(result.Value.SafeBooleanComposition.ThroughVoids.AnalyticVoids);
+        Assert.False(result.IsSuccess);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Contains("blind-pocket continuation", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

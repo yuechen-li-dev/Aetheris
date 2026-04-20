@@ -1834,7 +1834,17 @@ public static class BrepBoolean
             return false;
         }
 
+        var root = leftComposition.RootDescriptor.Box;
+        var isThroughCut = prismTool.Bounds.MinZ <= (root.MinZ + tolerance.Linear)
+            && prismTool.Bounds.MaxZ >= (root.MaxZ - tolerance.Linear);
+
         var hasPriorSubtractHistory = leftComposition.Holes.Count > 0 || (leftComposition.OpenSlots?.Count ?? 0) > 0;
+        if (hasPriorSubtractHistory && !isThroughCut)
+        {
+            unsupportedReason = "Boolean Subtract: bounded prismatic blind-pocket continuation on safe compositions is deferred pending a bounded analytic-plus-orthogonal reconstruction path.";
+            return false;
+        }
+
         if (hasPriorSubtractHistory)
         {
             if (!SupportsBoundedAnalyticHistoryForPrismaticContinuation(leftComposition, prismTool.Footprint, tolerance, out var historyReason))
@@ -1844,7 +1854,6 @@ public static class BrepBoolean
             }
         }
 
-        var root = leftComposition.RootDescriptor.Box;
         if (!hasPriorSubtractHistory
             && (prismTool.Bounds.MinZ > root.MinZ + tolerance.Linear || prismTool.Bounds.MaxZ < root.MaxZ - tolerance.Linear))
         {

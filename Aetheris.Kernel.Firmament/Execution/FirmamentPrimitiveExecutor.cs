@@ -529,7 +529,7 @@ internal static class FirmamentPrimitiveExecutor
 
         if (isSphereTool)
         {
-            return !string.IsNullOrWhiteSpace(boolean.Placement.OnFace)
+            return boolean.Placement.UsesSemanticAnchor
                 && BrepBooleanBoxRecognition.TryRecognizeAxisAlignedBox(baseBody, ToleranceContext.Default, out _, out _);
         }
 
@@ -545,13 +545,13 @@ internal static class FirmamentPrimitiveExecutor
             return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(boolean.Placement.OnFace)
+        if (boolean.Placement.UsesSemanticAnchor
             && BrepBooleanCylinderRecognition.TryRecognizeCylinder(baseBody, ToleranceContext.Default, out _, out _))
         {
             return true;
         }
 
-        if (string.IsNullOrWhiteSpace(boolean.Placement.OnFace))
+        if (!boolean.Placement.UsesSemanticAnchor)
         {
             return false;
         }

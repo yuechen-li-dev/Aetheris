@@ -197,12 +197,11 @@ place:
     0
 ```
 
-Semantic placement subset (P1):
+Semantic-first placement form:
 
 ```
 place:
   on_face: base.top_face
-  centered_on: flange.top_face
   around_axis: flange.side_face
   radial_offset: 20
   angle_degrees: 30
@@ -213,7 +212,9 @@ place:
 ```
 
 Rules:
-- Supported semantic fields are exactly: `on_face`, `centered_on`, `around_axis`, `radial_offset`, `angle_degrees`.
+- Supported semantic fields are exactly: `on_face`, `centered_on` (compatibility alias), `around_axis`, `radial_offset`, `angle_degrees`.
+- Canonical output normalizes semantic anchors to `on_face`.
+- If both `on_face` and `centered_on` are provided, they must match.
 - `radial_offset` requires `around_axis`.
 - Unknown placement semantic keys are rejected.
 - This is a minimal ergonomics subset; it is **not** a general frame/constraint language.

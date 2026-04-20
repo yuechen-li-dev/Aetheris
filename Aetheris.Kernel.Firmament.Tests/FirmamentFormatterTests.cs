@@ -325,6 +325,39 @@ public sealed class FirmamentFormatterTests
         Assert.NotEmpty(result.Formatting.Diagnostics);
     }
 
+    [Fact]
+    public void OnFace_And_CenteredOn_Canonicalization()
+    {
+        const string source = """
+        firmament:
+          version: 1
+        
+        model:
+          name: demo
+          units: mm
+        
+        ops[1]:
+          -
+            op: box
+            id: rib
+            size[3]:
+              3
+              3
+              3
+            place:
+              centered_on: base.top_face
+              offset[3]:
+                0
+                0
+                1
+        """;
+
+        var result = Format(source);
+        Assert.True(result.Formatting.IsSuccess);
+        Assert.Contains("on_face: base.top_face", result.Formatting.Value.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("centered_on:", result.Formatting.Value.Text, StringComparison.Ordinal);
+    }
+
     private static FirmamentFormatResult Format(string source)
     {
         var formatter = new FirmamentFormatter();
@@ -375,9 +408,15 @@ public sealed class FirmamentFormatterTests
                 {
                     FirmamentParsedPlacementOriginAnchor => "origin",
                     FirmamentParsedPlacementSelectorAnchor selector => selector.Selector,
+                    null => null,
                     _ => throw new InvalidOperationException("Unknown placement anchor.")
                 },
-                entry.Placement.Offset.Select(value => value.ToString("G", CultureInfo.InvariantCulture)).ToArray());
+                entry.Placement.Offset.Select(value => value.ToString("G", CultureInfo.InvariantCulture)).ToArray(),
+                entry.Placement.OnFace,
+                entry.Placement.CenteredOn,
+                entry.Placement.AroundAxis,
+                entry.Placement.RadialOffset?.ToString("G", CultureInfo.InvariantCulture),
+                entry.Placement.AngleDegrees?.ToString("G", CultureInfo.InvariantCulture));
 
         return new FirmamentOpMeaningSnapshot(entry.KnownKind, entry.Family, fields, placement);
     }
@@ -438,5 +477,12 @@ public sealed class FirmamentFormatterTests
 
     private sealed record FirmamentFieldMeaningSnapshot(string Name, string Value);
 
-    private sealed record FirmamentPlacementMeaningSnapshot(string On, IReadOnlyList<string> Offset);
+    private sealed record FirmamentPlacementMeaningSnapshot(
+        string? On,
+        IReadOnlyList<string> Offset,
+        string? OnFace,
+        string? CenteredOn,
+        string? AroundAxis,
+        string? RadialOffset,
+        string? AngleDegrees);
 }

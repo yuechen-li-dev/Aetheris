@@ -19,10 +19,9 @@ internal static class FirmamentPlacementResolver
     {
         if (primitive.Placement is null) return KernelResult<Vector3D>.Success(Vector3D.Zero);
 
-        var semanticAnchorResult = ResolveSemanticAnchorPoint(primitive.Placement, featureBodies);
-        if (!semanticAnchorResult.IsSuccess) return KernelResult<Vector3D>.Failure(semanticAnchorResult.Diagnostics);
-
-        var baseAnchorPoint = semanticAnchorResult.Value;
+        var anchorResult = ResolveAnchorPoint(primitive.Placement, featureBodies);
+        if (!anchorResult.IsSuccess) return KernelResult<Vector3D>.Failure(anchorResult.Diagnostics);
+        var baseAnchorPoint = anchorResult.Value;
         if (!string.IsNullOrWhiteSpace(primitive.Placement.AroundAxis))
         {
             var axisResult = ResolveAxisFromSelector(primitive.Placement.AroundAxis!, featureBodies);
@@ -42,9 +41,9 @@ internal static class FirmamentPlacementResolver
     public static KernelResult<Vector3D> ResolvePlacementTranslation(FirmamentLoweredBoolean booleanOp, IReadOnlyDictionary<string, BrepBody> featureBodies)
     {
         if (booleanOp.Placement is null) return KernelResult<Vector3D>.Success(Vector3D.Zero);
-        var semanticAnchorResult = ResolveSemanticAnchorPoint(booleanOp.Placement, featureBodies);
-        if (!semanticAnchorResult.IsSuccess) return KernelResult<Vector3D>.Failure(semanticAnchorResult.Diagnostics);
-        var baseAnchorPoint = semanticAnchorResult.Value;
+        var anchorResult = ResolveAnchorPoint(booleanOp.Placement, featureBodies);
+        if (!anchorResult.IsSuccess) return KernelResult<Vector3D>.Failure(anchorResult.Diagnostics);
+        var baseAnchorPoint = anchorResult.Value;
         if (!string.IsNullOrWhiteSpace(booleanOp.Placement.AroundAxis))
         {
             var axisResult = ResolveAxisFromSelector(booleanOp.Placement.AroundAxis!, featureBodies);
@@ -58,18 +57,8 @@ internal static class FirmamentPlacementResolver
         return KernelResult<Vector3D>.Success((baseAnchorPoint - Point3D.Origin) + ResolveOffset(o));
     }
 
-    private static KernelResult<Point3D> ResolveSemanticAnchorPoint(FirmamentLoweredPlacement placement, IReadOnlyDictionary<string, BrepBody> featureBodies)
+    private static KernelResult<Point3D> ResolveAnchorPoint(FirmamentLoweredPlacement placement, IReadOnlyDictionary<string, BrepBody> featureBodies)
     {
-        if (!string.IsNullOrWhiteSpace(placement.OnFace))
-        {
-            return ResolveAnchorPoint(new FirmamentLoweredPlacementSelectorAnchor(placement.OnFace!), featureBodies);
-        }
-
-        if (!string.IsNullOrWhiteSpace(placement.CenteredOn))
-        {
-            return ResolveAnchorPoint(new FirmamentLoweredPlacementSelectorAnchor(placement.CenteredOn!), featureBodies);
-        }
-
         if (placement.On is not null)
         {
             return ResolveAnchorPoint(placement.On, featureBodies);
@@ -77,9 +66,9 @@ internal static class FirmamentPlacementResolver
 
         if (!string.IsNullOrWhiteSpace(placement.AroundAxis))
         {
-            var axis = ResolveAxisFromSelector(placement.AroundAxis!, featureBodies);
-            if (!axis.IsSuccess) return KernelResult<Point3D>.Failure(axis.Diagnostics);
-            return KernelResult<Point3D>.Success(axis.Value.Origin);
+            var axisResult = ResolveAxisFromSelector(placement.AroundAxis!, featureBodies);
+            if (!axisResult.IsSuccess) return KernelResult<Point3D>.Failure(axisResult.Diagnostics);
+            return KernelResult<Point3D>.Success(axisResult.Value.Origin);
         }
 
         return KernelResult<Point3D>.Success(Point3D.Origin);

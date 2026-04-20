@@ -1,6 +1,7 @@
 # Firmament Example Pack
 
 This directory contains small canonical Firmament examples for the current v1 surface.
+Placement examples use canonical `place.on_face` for semantic anchors; `place.centered_on` remains accepted as a compatibility alias but is normalized by formatter output.
 
 These examples represent the currently supported boolean subset.
 Other combinations may fail and are intentionally not supported yet.

@@ -485,6 +485,16 @@ internal static class FirmamentPrimitiveRequiredFieldValidator
             return KernelResult<bool>.Failure([semanticSelectorError]);
         }
 
+        if (!string.IsNullOrWhiteSpace(entry.Placement.OnFace)
+            && !string.IsNullOrWhiteSpace(entry.Placement.CenteredOn)
+            && !string.Equals(entry.Placement.OnFace, entry.Placement.CenteredOn, StringComparison.Ordinal))
+        {
+            return KernelResult<bool>.Failure([
+                CreateDiagnostic(
+                    FirmamentDiagnosticCodes.PlacementInvalidSemanticCombination,
+                    $"Primitive op '{entry.OpName}' at index {opIndex} has ambiguous placement semantics; 'place.centered_on' is a compatibility alias of 'place.on_face' and must match it when both are present.")]);
+        }
+
         if (entry.Placement.RadialOffset is not null && string.IsNullOrWhiteSpace(entry.Placement.AroundAxis))
         {
             return KernelResult<bool>.Failure([

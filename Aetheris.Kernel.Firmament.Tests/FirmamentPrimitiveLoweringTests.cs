@@ -305,6 +305,59 @@ public sealed class FirmamentPrimitiveLoweringTests
     }
 
     [Fact]
+    public void SemanticPlacement_And_OnOffset_Lower_To_Coherent_Result()
+    {
+        const string source = """
+firmament:
+  version: 1
+
+model:
+  name: placement_c0_lowering_unification
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      20
+      20
+      10
+
+  -
+    op: box
+    id: semantic
+    size[3]:
+      4
+      4
+      4
+    place:
+      on_face: base.top_face
+      offset[3]:
+        1
+        2
+        3
+""";
+
+        var semanticResult = Compile(source);
+        Assert.True(semanticResult.Compilation.IsSuccess);
+        var semantic = semanticResult.Compilation.Value.PrimitiveLoweringPlan!.Primitives.Single(p => p.FeatureId == "semantic");
+        var semanticAnchor = Assert.IsType<FirmamentLoweredPlacementSelectorAnchor>(semantic.Placement!.On);
+        Assert.Equal("base.top_face", semanticAnchor.Selector);
+        Assert.Equal(new[] { 1d, 2d, 3d }, semantic.Placement.Offset);
+
+        var explicitResult = Compile(source.Replace("on_face", "on", StringComparison.Ordinal));
+        Assert.True(explicitResult.Compilation.IsSuccess);
+        var explicitPlacement = explicitResult.Compilation.Value.PrimitiveLoweringPlan!.Primitives.Single(p => p.FeatureId == "semantic").Placement!;
+        var explicitAnchor = Assert.IsType<FirmamentLoweredPlacementSelectorAnchor>(explicitPlacement.On);
+        Assert.Equal("base.top_face", explicitAnchor.Selector);
+        Assert.Equal(semantic.Placement.Offset, explicitPlacement.Offset);
+        Assert.Equal(semantic.Placement.AroundAxis, explicitPlacement.AroundAxis);
+        Assert.Equal(semantic.Placement.RadialOffset, explicitPlacement.RadialOffset);
+        Assert.Equal(semantic.Placement.AngleDegrees, explicitPlacement.AngleDegrees);
+    }
+
+    [Fact]
     public void Compile_Validation_Family_Ops_Remain_Explicitly_NonLowered()
     {
         var result = Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m3b-mixed-primitive-boolean-validation.firmament"));

@@ -185,7 +185,9 @@ internal static class FirmamentPrimitiveLowerer
             return null;
         }
 
-        FirmamentLoweredPlacementAnchor? loweredAnchor = placement.On switch
+        var canonicalAnchor = ResolveCanonicalPlacementAnchor(placement);
+        var usesSemanticAnchor = !string.IsNullOrWhiteSpace(placement.OnFace) || !string.IsNullOrWhiteSpace(placement.CenteredOn);
+        FirmamentLoweredPlacementAnchor? loweredAnchor = canonicalAnchor switch
         {
             FirmamentParsedPlacementOriginAnchor => new FirmamentLoweredPlacementOriginAnchor(),
             FirmamentParsedPlacementSelectorAnchor selector => new FirmamentLoweredPlacementSelectorAnchor(selector.Selector),
@@ -193,13 +195,27 @@ internal static class FirmamentPrimitiveLowerer
         };
         return new FirmamentLoweredPlacement(
             loweredAnchor,
+            usesSemanticAnchor,
             placement.Offset,
-            placement.OnFace,
-            placement.CenteredOn,
             placement.AroundAxis,
             placement.RadialOffset,
             placement.AngleDegrees,
             placement.UnknownFields);
+    }
+
+    private static FirmamentParsedPlacementAnchor? ResolveCanonicalPlacementAnchor(FirmamentParsedPlacement placement)
+    {
+        if (!string.IsNullOrWhiteSpace(placement.OnFace))
+        {
+            return new FirmamentParsedPlacementSelectorAnchor(placement.OnFace!);
+        }
+
+        if (!string.IsNullOrWhiteSpace(placement.CenteredOn))
+        {
+            return new FirmamentParsedPlacementSelectorAnchor(placement.CenteredOn!);
+        }
+
+        return placement.On;
     }
 
     private static FirmamentLoweredBoolean LowerBoolean(

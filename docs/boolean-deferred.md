@@ -32,6 +32,7 @@ The following items remain deferred:
 - general BRep booleans
 - bounded mixed analytic-hole + prismatic continuation rebuild path on safe box roots (recognition now exists; bounded reconstruction remains deferred)
 - safe-composition prismatic blind-pocket continuation (explicitly rejected with deterministic diagnostic: bounded analytic+orthogonal reconstruction path still deferred)
+- Wave 2a design note captured in `docs/frictionlab/W2A-boolean-mixed-blind-void-design.md` (2026-04-20); implementation remains deferred until bounded non-overlap mixed blind lane is scheduled.
 - multi-sphere and mixed sphere+prismatic continuation in one subtract chain
 
 ## Known blocker: rotated cone through-hole

@@ -14,7 +14,21 @@ public static class StepAnalyzer
 {
 
 public sealed record VolumeBoundingBox(Point3D Min, Point3D Max);
-public sealed record VolumeAnalysisResult(string InputPath, bool Success, double Volume, string LengthUnit, string VolumeUnit, VolumeBoundingBox BoundingBox, string Method, IReadOnlyList<string> Notes);
+public sealed record VolumeAnalysisResult(
+    string InputPath,
+    bool Success,
+    double Volume,
+    string LengthUnit,
+    string VolumeUnit,
+    VolumeBoundingBox BoundingBox,
+    string Method,
+    bool Exact,
+    bool Approximate,
+    int? Resolution,
+    Point3D? VoxelSize,
+    int? OccupiedCount,
+    int? TotalCount,
+    IReadOnlyList<string> Notes);
 
     public static AnalyzeResult Analyze(string stepPath, int? faceId = null, int? edgeId = null, int? vertexId = null)
     {
@@ -46,7 +60,7 @@ public sealed record VolumeAnalysisResult(string InputPath, bool Success, double
         return AnalyzeImportedBodySection(body, fullPath, planeFamily, offset);
     }
 
-    public static VolumeAnalysisResult AnalyzeVolume(string stepPath)
+    public static VolumeAnalysisResult AnalyzeVolume(string stepPath, bool approximate = false, int? resolution = null)
     {
         var (fullPath, body) = ImportStepBody(stepPath);
         var notes = new List<string>();
@@ -57,6 +71,16 @@ public sealed record VolumeAnalysisResult(string InputPath, bool Success, double
             throw new InvalidOperationException("Volume analysis requires explicit shell-role representation.");
         }
 
+        if (approximate)
+        {
+            if (!resolution.HasValue)
+            {
+                throw new InvalidOperationException("Approximate volume mode requires explicit --resolution <N>.");
+            }
+
+            return ComputeApproximateVoxelVolume(stepPath, body, bbox, resolution.Value);
+        }
+
         var sphereFaces = body.Topology.Faces.Where(f => body.TryGetFaceSurface(f.Id, out var sf) && sf?.Sphere is not null).ToArray();
         if (body.Topology.Faces.Count() == 1 && sphereFaces.Length == 1)
         {
@@ -65,7 +89,7 @@ public sealed record VolumeAnalysisResult(string InputPath, bool Success, double
             var radius = sph!.Sphere!.Value.Radius;
             var vol = 4d/3d*double.Pi*radius*radius*radius;
             notes.Add("Exact analytic sphere volume from spherical face radius.");
-            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-sphere", notes);
+            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-sphere", true, false, null, null, null, null, notes);
         }
 
         var cylFaces = body.Topology.Faces.Where(f => body.TryGetFaceSurface(f.Id, out var sf) && sf?.Cylinder is not null).ToArray();
@@ -85,17 +109,89 @@ public sealed record VolumeAnalysisResult(string InputPath, bool Success, double
                 throw new InvalidOperationException("Cylinder volume analysis could not resolve finite axial span from vertices.");
             var h=max-min; var vol=double.Pi*cyl.Radius*cyl.Radius*h;
             notes.Add("Exact analytic cylinder volume from cylinder radius and cap-span derived from bound vertices.");
-            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-cylinder", notes);
+            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-cylinder", true, false, null, null, null, null, notes);
         }
 
         var shellVolume = TryComputePlanarClosedShellVolume(body, shells, out var planarVolume, out var planarFailureReason);
         if (shellVolume)
         {
             notes.Add("Exact closed-shell volume from oriented planar-face triangulation and signed tetrahedral accumulation.");
-            return new VolumeAnalysisResult(stepPath, true, planarVolume, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "planar-closed-shell", notes);
+            return new VolumeAnalysisResult(stepPath, true, planarVolume, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "planar-closed-shell", true, false, null, null, null, null, notes);
         }
 
         throw new InvalidOperationException(planarFailureReason ?? "Volume analysis currently supports canonical sphere, single-lateral-face cylinder, and enclosed planar closed-shell bodies only.");
+    }
+
+    private static VolumeAnalysisResult ComputeApproximateVoxelVolume(string stepPath, BrepBody body, BoundingBox3D bbox, int resolution)
+    {
+        if (resolution is < 8 or > 512)
+        {
+            throw new InvalidOperationException("Approximate volume resolution must be an integer between 8 and 512.");
+        }
+
+        var dx = bbox.Max.X - bbox.Min.X;
+        var dy = bbox.Max.Y - bbox.Min.Y;
+        var dz = bbox.Max.Z - bbox.Min.Z;
+        if (dx <= 0d || dy <= 0d || dz <= 0d)
+        {
+            throw new InvalidOperationException("Approximate volume requires a non-degenerate body bounding box.");
+        }
+
+        var longest = double.Max(dx, double.Max(dy, dz));
+        var nx = int.Max(1, (int)double.Round(resolution * (dx / longest), MidpointRounding.AwayFromZero));
+        var ny = int.Max(1, (int)double.Round(resolution * (dy / longest), MidpointRounding.AwayFromZero));
+        var nz = int.Max(1, (int)double.Round(resolution * (dz / longest), MidpointRounding.AwayFromZero));
+        var cell = new Point3D(dx / nx, dy / ny, dz / nz);
+        var cellVolume = cell.X * cell.Y * cell.Z;
+        var total = nx * ny * nz;
+        var occupied = 0;
+
+        for (var ix = 0; ix < nx; ix++)
+        for (var iy = 0; iy < ny; iy++)
+        for (var iz = 0; iz < nz; iz++)
+        {
+            var sample = new Point3D(
+                bbox.Min.X + (ix + 0.5d) * cell.X,
+                bbox.Min.Y + (iy + 0.5d) * cell.Y,
+                bbox.Min.Z + (iz + 0.5d) * cell.Z);
+            var containment = BrepSpatialQueries.ClassifyPoint(body, sample);
+            if (!containment.IsSuccess)
+            {
+                throw new InvalidOperationException($"Approximate volume classification is unsupported for this body ({containment.Diagnostics.FirstOrDefault().Message}).");
+            }
+
+            if (containment.Value == PointContainment.Unknown)
+            {
+                throw new InvalidOperationException("Approximate volume classification is unsupported for this body (point containment returned unknown).");
+            }
+
+            if (containment.Value is PointContainment.Inside or PointContainment.Boundary)
+            {
+                occupied++;
+            }
+        }
+
+        var volume = occupied * cellVolume;
+        return new VolumeAnalysisResult(
+            stepPath,
+            true,
+            volume,
+            "model-unit",
+            "model-unit^3",
+            new VolumeBoundingBox(bbox.Min, bbox.Max),
+            "voxel-approximation",
+            false,
+            true,
+            resolution,
+            cell,
+            occupied,
+            total,
+            new[]
+            {
+                "Approximate volume mode: deterministic center-point voxel sampling over the body axis-aligned bounding box.",
+                "Resolution means samples along the longest bounding-box axis; other axis counts are derived proportionally.",
+                "Estimated result is not exact and should be used for comparison/localization only."
+            });
     }
 
     private static bool TryComputePlanarClosedShellVolume(BrepBody body, BrepBodyShellRepresentation shells, out double volume, out string? failureReason)

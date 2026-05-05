@@ -710,6 +710,74 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void AnalyzeVolume_ApproximateModeRequiresResolution()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--approximate"], stdout, stderr);
+        Assert.Equal(1, exitCode);
+        Assert.Contains("--resolution", stderr.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("700")]
+    [InlineData("-2")]
+    public void AnalyzeVolume_Approximate_ResolutionValidation(string resolution)
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--approximate", "--resolution", resolution, "--json"], stdout, stderr);
+        Assert.Equal(1, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        Assert.Contains("between 8 and 512", doc.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnalyzeVolume_ApproximateBoxVolume_IsClose()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-volume-approx-box");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--approximate", "--resolution", "32", "--json"], stdout, stderr);
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var root = doc.RootElement;
+        Assert.True(root.GetProperty("approximate").GetBoolean());
+        Assert.False(root.GetProperty("exact").GetBoolean());
+        Assert.Equal("voxel-approximation", root.GetProperty("method").GetString());
+        Assert.InRange(root.GetProperty("volume").GetDouble(), 239d, 241d);
+    }
+
+    [Fact]
+    public void AnalyzeVolume_ApproximateCurvedMixedVolume_FailsClearlyWhenContainmentUnsupported()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--approximate", "--resolution", "48", "--json"], stdout, stderr);
+        Assert.Equal(1, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        Assert.Contains("unsupported", doc.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnalyzeVolume_JsonContractIncludesApproximationMetadata()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--approximate", "--resolution", "64", "--json"], stdout, stderr);
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var root = doc.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        Assert.True(root.GetProperty("approximate").GetBoolean());
+        Assert.False(root.GetProperty("exact").GetBoolean());
+        Assert.Equal(64, root.GetProperty("resolution").GetInt32());
+        Assert.True(root.TryGetProperty("voxelSize", out _));
+        Assert.True(root.TryGetProperty("occupiedCount", out _));
+        Assert.True(root.TryGetProperty("totalCount", out _));
+    }
+
+    [Fact]
     public void Analyze_Command_Returns_Structured_Json_Failure()
     {
         var stdout = new StringWriter();

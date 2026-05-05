@@ -28,6 +28,9 @@ public sealed record VolumeAnalysisResult(
     Point3D? VoxelSize,
     int? OccupiedCount,
     int? TotalCount,
+    int? UnknownCount,
+    double? UnknownRatio,
+    string? UnknownPolicy,
     IReadOnlyList<string> Notes);
 
     public static AnalyzeResult Analyze(string stepPath, int? faceId = null, int? edgeId = null, int? vertexId = null)
@@ -89,7 +92,7 @@ public sealed record VolumeAnalysisResult(
             var radius = sph!.Sphere!.Value.Radius;
             var vol = 4d/3d*double.Pi*radius*radius*radius;
             notes.Add("Exact analytic sphere volume from spherical face radius.");
-            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-sphere", true, false, null, null, null, null, notes);
+            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-sphere", true, false, null, null, null, null, null, null, null, notes);
         }
 
         var cylFaces = body.Topology.Faces.Where(f => body.TryGetFaceSurface(f.Id, out var sf) && sf?.Cylinder is not null).ToArray();
@@ -109,14 +112,14 @@ public sealed record VolumeAnalysisResult(
                 throw new InvalidOperationException("Cylinder volume analysis could not resolve finite axial span from vertices.");
             var h=max-min; var vol=double.Pi*cyl.Radius*cyl.Radius*h;
             notes.Add("Exact analytic cylinder volume from cylinder radius and cap-span derived from bound vertices.");
-            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-cylinder", true, false, null, null, null, null, notes);
+            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-cylinder", true, false, null, null, null, null, null, null, null, notes);
         }
 
         var shellVolume = TryComputePlanarClosedShellVolume(body, shells, out var planarVolume, out var planarFailureReason);
         if (shellVolume)
         {
             notes.Add("Exact closed-shell volume from oriented planar-face triangulation and signed tetrahedral accumulation.");
-            return new VolumeAnalysisResult(stepPath, true, planarVolume, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "planar-closed-shell", true, false, null, null, null, null, notes);
+            return new VolumeAnalysisResult(stepPath, true, planarVolume, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "planar-closed-shell", true, false, null, null, null, null, null, null, null, notes);
         }
 
         throw new InvalidOperationException(planarFailureReason ?? "Volume analysis currently supports canonical sphere, single-lateral-face cylinder, and enclosed planar closed-shell bodies only.");
@@ -145,6 +148,7 @@ public sealed record VolumeAnalysisResult(
         var cellVolume = cell.X * cell.Y * cell.Z;
         var total = nx * ny * nz;
         var occupied = 0;
+        var unknown = 0;
 
         for (var ix = 0; ix < nx; ix++)
         for (var iy = 0; iy < ny; iy++)
@@ -157,12 +161,14 @@ public sealed record VolumeAnalysisResult(
             var containment = BrepSpatialQueries.ClassifyPoint(body, sample);
             if (!containment.IsSuccess)
             {
-                throw new InvalidOperationException($"Approximate volume classification is unsupported for this body ({containment.Diagnostics.FirstOrDefault().Message}).");
+                var diag = containment.Diagnostics.FirstOrDefault()?.Message ?? "no diagnostic provided";
+                throw new InvalidOperationException($"Approximate volume classification is unsupported for this body ({diag}).");
             }
 
             if (containment.Value == PointContainment.Unknown)
             {
-                throw new InvalidOperationException("Approximate volume classification is unsupported for this body (point containment returned unknown).");
+                unknown++;
+                continue;
             }
 
             if (containment.Value is PointContainment.Inside or PointContainment.Boundary)
@@ -172,6 +178,17 @@ public sealed record VolumeAnalysisResult(
         }
 
         var volume = occupied * cellVolume;
+        var unknownRatio = total > 0 ? (double)unknown / total : 0d;
+        var notes = new List<string>
+        {
+            "Approximate volume mode: deterministic center-point voxel sampling over the body axis-aligned bounding box.",
+            "Resolution means samples along the longest bounding-box axis; other axis counts are derived proportionally.",
+            "Estimated result is not exact and should be used for comparison/localization only."
+        };
+        if (unknown > 0)
+        {
+            notes.Add($"Unknown containment samples were conservatively treated as outside ({unknown}/{total}, ratio={unknownRatio:G6}).");
+        }
         return new VolumeAnalysisResult(
             stepPath,
             true,
@@ -186,12 +203,10 @@ public sealed record VolumeAnalysisResult(
             cell,
             occupied,
             total,
-            new[]
-            {
-                "Approximate volume mode: deterministic center-point voxel sampling over the body axis-aligned bounding box.",
-                "Resolution means samples along the longest bounding-box axis; other axis counts are derived proportionally.",
-                "Estimated result is not exact and should be used for comparison/localization only."
-            });
+            unknown,
+            unknownRatio,
+            "conservative-outside",
+            notes);
     }
 
     private static bool TryComputePlanarClosedShellVolume(BrepBody body, BrepBodyShellRepresentation shells, out double volume, out string? failureReason)

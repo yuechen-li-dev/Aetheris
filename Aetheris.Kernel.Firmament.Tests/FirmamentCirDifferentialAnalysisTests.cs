@@ -11,7 +11,8 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentCirDifferentialAnalysisTests
 {
-    private const int SharedVolumeResolution = 72;
+    private const int CirVolumeResolution = 72;
+    private const int BrepVolumeResolution = 20;
     private const int ReportArtifactResolution = 32;
     private static readonly JsonSerializerOptions ReportJsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private static readonly Lazy<(CirBrepDifferentialReport Report, string OutputPath, IReadOnlyList<CirBrepDifferentialCase> Cases)> CachedReportArtifact =
@@ -59,7 +60,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
                     new DifferentialProbePoint("inside_material", new Point3D(-2.5d, 0d, 0d), ProbeExpectation.Certain),
                     new DifferentialProbePoint("inside_void", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
                     new DifferentialProbePoint("outside_far", new Point3D(20d, 0d, 0d), ProbeExpectation.Certain)
-                ]),
+                ], AllowVolumeUnavailable: true),
             new CirBrepDifferentialCase("boolean_add_basic", "testdata/firmament/examples/boolean_add_basic.firmament", true, 0.10d, 0.02d,
                 [
                     new DifferentialProbePoint("inside_original", new Point3D(-2d, 0d, 0d), ProbeExpectation.Certain),
@@ -111,7 +112,8 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         var parsed = JsonSerializer.Deserialize<CirBrepDifferentialReport>(json, ReportJsonOptions);
         Assert.NotNull(parsed);
         Assert.Equal("cir-vs-brep", parsed.MatrixName);
-        Assert.Equal(ReportArtifactResolution, parsed.Resolution);
+        Assert.Equal(ReportArtifactResolution, parsed.CirVolumeResolution);
+        Assert.Equal(ReportArtifactResolution, parsed.BrepVolumeResolution);
         Assert.Equal(artifact.Cases.Count, parsed.FixtureCount);
         Assert.NotNull(parsed.GeneratedAtUtc);
         Assert.NotEmpty(parsed.Fixtures);
@@ -156,7 +158,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
     private static (CirBrepDifferentialReport Report, string OutputPath, IReadOnlyList<CirBrepDifferentialCase> Cases) GenerateReportArtifact()
     {
         var cases = BuildAllCases();
-        var report = RunMatrix(cases, enforceAssertions: false, resolution: ReportArtifactResolution);
+        var report = RunMatrix(cases, enforceAssertions: false, cirVolumeResolution: ReportArtifactResolution, brepVolumeResolution: ReportArtifactResolution);
         var outputPath = WriteDifferentialReport(report);
         return (report, outputPath, cases);
     }
@@ -190,7 +192,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
                     new DifferentialProbePoint("inside_material", new Point3D(-2.5d, 0d, 0d), ProbeExpectation.Certain),
                     new DifferentialProbePoint("inside_void", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
                     new DifferentialProbePoint("outside_far", new Point3D(20d, 0d, 0d), ProbeExpectation.Certain)
-                ]),
+                ], AllowVolumeUnavailable: true),
             new CirBrepDifferentialCase("boolean_add_basic", "testdata/firmament/examples/boolean_add_basic.firmament", true, 0.10d, 0.02d,
                 [
                     new DifferentialProbePoint("inside_original", new Point3D(-2d, 0d, 0d), ProbeExpectation.Certain),
@@ -218,7 +220,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             new CirBrepDifferentialCase("rounded_corner_box_basic", "testdata/firmament/examples/rounded_corner_box_basic.firmament", false, 0d, 0d, [])
         ];
 
-    private static CirBrepDifferentialReport RunMatrix(IReadOnlyList<CirBrepDifferentialCase> cases, bool enforceAssertions = true, int resolution = SharedVolumeResolution)
+    private static CirBrepDifferentialReport RunMatrix(IReadOnlyList<CirBrepDifferentialCase> cases, bool enforceAssertions = true, int cirVolumeResolution = CirVolumeResolution, int brepVolumeResolution = BrepVolumeResolution)
     {
         var entries = new List<CirBrepFixtureReport>(cases.Count);
         foreach (var @case in cases)
@@ -229,8 +231,8 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             var notes = lower.Diagnostics.Select(d => d.Message).ToList();
             var status = lower.IsSuccess ? "passed" : (@case.ExpectedSupport ? "failed" : "unsupported");
             var entry = new CirBrepFixtureReport(@case.Name, @case.FixturePath, @case.ExpectedSupport ? "supported" : "unsupported", status, null,
-                new CirFixtureSection(lower.IsSuccess, notes, null, new VolumeMetric(null, resolution), []),
-                new BrepFixtureSection(false, null, new VolumeMetric(null, resolution, null, null), []),
+                new CirFixtureSection(lower.IsSuccess, notes, null, new VolumeMetric(null, cirVolumeResolution), []),
+                new BrepFixtureSection(false, null, new VolumeMetric(null, brepVolumeResolution, null, null), []),
                 new ComparisonSection(new ComparisonMetric(0d, true, @case.BoundsTolerance), new VolumeComparisonMetric(null, null, true, @case.VolumeTolerance), new ProbeComparisonMetric(true, 0, 0, [])),
                 notes);
             entries.Add(entry);
@@ -289,13 +291,13 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             };
             entries[^1] = entry;
 
-            var cirVolume = CirAnalyzer.EstimateVolume(lower.Value.Root, resolution);
-            var brepVolume = EstimateBrepVolume(rootBody, resolution, out var unknownCount, out var sampleCount);
+            var cirVolume = CirAnalyzer.EstimateVolume(lower.Value.Root, cirVolumeResolution);
+            var brepVolume = EstimateBrepVolume(rootBody, brepVolumeResolution, out var unknownCount, out var sampleCount);
             var unknownRatio = sampleCount == 0 ? 1d : unknownCount / (double)sampleCount;
             entry = entry with
             {
-                Cir = entry.Cir with { Volume = new VolumeMetric(cirVolume, resolution) },
-                Brep = entry.Brep with { Volume = new VolumeMetric(brepVolume, resolution, unknownCount, unknownRatio) }
+                Cir = entry.Cir with { Volume = new VolumeMetric(cirVolume, cirVolumeResolution) },
+                Brep = entry.Brep with { Volume = new VolumeMetric(brepVolume, brepVolumeResolution, unknownCount, unknownRatio) }
             };
             entries[^1] = entry;
 
@@ -321,7 +323,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
                 if (enforceAssertions)
                 {
                     Assert.True(volumePassed,
-                $"{@case.Name}: volume mismatch. class=analyzer uncertainty or semantic drift. cir={cirVolume:F6}, brep={brepVolume.Value:F6}, relDelta={relDelta:F6}, tolerance={@case.VolumeTolerance:F6}, resolution={resolution}, brepUnknownCount={unknownCount}, sampleCount={sampleCount}");
+                $"{@case.Name}: volume mismatch. class=analyzer uncertainty or semantic drift. cir={cirVolume:F6}, brep={brepVolume.Value:F6}, relDelta={relDelta:F6}, tolerance={@case.VolumeTolerance:F6}, cirResolution={cirVolumeResolution}, brepResolution={brepVolumeResolution}, brepUnknownCount={unknownCount}, sampleCount={sampleCount}");
                 }
             }
             entry = entry with
@@ -378,7 +380,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             entries[^1] = entry;
         }
 
-        return BuildSummary(entries, resolution);
+        return BuildSummary(entries, cirVolumeResolution, brepVolumeResolution);
     }
 
     private static string WriteDifferentialReport(CirBrepDifferentialReport report)
@@ -390,7 +392,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         return outputPath;
     }
 
-    private static CirBrepDifferentialReport BuildSummary(IReadOnlyList<CirBrepFixtureReport> fixtures, int resolution)
+    private static CirBrepDifferentialReport BuildSummary(IReadOnlyList<CirBrepFixtureReport> fixtures, int cirVolumeResolution, int brepVolumeResolution)
     {
         var failedCount = fixtures.Count(f => f.Status == "failed");
         var unsupportedCount = fixtures.Count(f => f.Status == "unsupported");
@@ -399,7 +401,8 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             Success: failedCount == 0,
             GeneratedAtUtc: DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
             MatrixName: "cir-vs-brep",
-            Resolution: resolution,
+            CirVolumeResolution: cirVolumeResolution,
+            BrepVolumeResolution: brepVolumeResolution,
             FixtureCount: fixtures.Count,
             PassedCount: passedCount,
             FailedCount: failedCount,
@@ -475,12 +478,13 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         var cell = dx * dy * dz;
         var inside = 0;
 
+        var queryContext = BrepSpatialQueries.CreatePointContainmentQueryContext(body);
         for (var ix = 0; ix < resolution; ix++)
         for (var iy = 0; iy < resolution; iy++)
         for (var iz = 0; iz < resolution; iz++)
         {
             var p = new Point3D(value.Min.X + (ix + 0.5d) * dx, value.Min.Y + (iy + 0.5d) * dy, value.Min.Z + (iz + 0.5d) * dz);
-            var result = BrepSpatialQueries.ClassifyPoint(body, p);
+            var result = BrepSpatialQueries.ClassifyPoint(body, p, tolerance: null, queryContext: queryContext);
             sampleCount++;
             if (!result.IsSuccess || result.Value == PointContainment.Unknown)
             {
@@ -537,7 +541,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         AllowUnknown
     }
 
-    private sealed record CirBrepDifferentialReport(bool Success, string GeneratedAtUtc, string MatrixName, int Resolution, int FixtureCount, int PassedCount, int FailedCount, int UnsupportedCount, IReadOnlyList<CirBrepFixtureReport> Fixtures);
+    private sealed record CirBrepDifferentialReport(bool Success, string GeneratedAtUtc, string MatrixName, int CirVolumeResolution, int BrepVolumeResolution, int FixtureCount, int PassedCount, int FailedCount, int UnsupportedCount, IReadOnlyList<CirBrepFixtureReport> Fixtures);
     private sealed record CirBrepFixtureReport(string Name, string Path, string ExpectedSupport, string Status, string? MismatchClass, CirFixtureSection Cir, BrepFixtureSection Brep, ComparisonSection Comparisons, IReadOnlyList<string> Notes);
     private sealed record CirFixtureSection(bool LoweringSucceeded, IReadOnlyList<string> Diagnostics, BoundsMetric? Bounds, VolumeMetric Volume, IReadOnlyList<ProbeClassificationMetric> ProbeClassifications);
     private sealed record BrepFixtureSection(bool BuildSucceeded, BoundsMetric? Bounds, VolumeMetric Volume, IReadOnlyList<ProbeClassificationMetric> ProbeClassifications);

@@ -15,6 +15,21 @@ namespace Aetheris.Kernel.Core.Brep.Queries;
 /// </summary>
 public static class BrepSpatialQueries
 {
+    public sealed class PointContainmentQueryContext
+    {
+        private readonly object? analyticRayProvider;
+
+        internal PointContainmentQueryContext(object? analyticRayProvider, string providerUnavailableReason)
+        {
+            this.analyticRayProvider = analyticRayProvider;
+            ProviderUnavailableReason = providerUnavailableReason;
+        }
+
+        internal string ProviderUnavailableReason { get; }
+
+        internal object? TryGetProviderObject() => analyticRayProvider;
+    }
+
     private static readonly JudgmentEngine<PointContainmentContext> PointContainmentJudgmentEngine = new();
     private static readonly IReadOnlyList<JudgmentCandidate<PointContainmentContext>> PointContainmentCandidates =
     [
@@ -60,10 +75,17 @@ public static class BrepSpatialQueries
         BrepBody body,
         Point3D point,
         ToleranceContext? tolerance = null)
+        => ClassifyPoint(body, point, tolerance, queryContext: null);
+
+    public static KernelResult<PointContainment> ClassifyPoint(
+        BrepBody body,
+        Point3D point,
+        ToleranceContext? tolerance,
+        PointContainmentQueryContext? queryContext)
     {
         var context = tolerance ?? ToleranceContext.Default;
         var resolvedPrimitive = TryResolvePrimitive(body, out var primitive, out var primitiveDiagnostic);
-        var containmentContext = BuildPointContainmentContext(body, point, context, resolvedPrimitive, primitive, primitiveDiagnostic);
+        var containmentContext = BuildPointContainmentContext(body, point, context, resolvedPrimitive, primitive, primitiveDiagnostic, queryContext);
         var selection = PointContainmentJudgmentEngine.Evaluate(containmentContext, PointContainmentCandidates);
         if (!selection.IsSuccess)
         {
@@ -81,6 +103,13 @@ public static class BrepSpatialQueries
         };
     }
 
+    public static PointContainmentQueryContext CreatePointContainmentQueryContext(BrepBody body, ToleranceContext? tolerance = null)
+    {
+        var context = tolerance ?? ToleranceContext.Default;
+        _ = TryCreateAnalyticRayProvider(body, context, out var provider, out var unavailableReason);
+        return new PointContainmentQueryContext(provider, unavailableReason);
+    }
+
     private static PointContainment ClassifyPrimitive(PrimitiveDescriptor primitive, Point3D point, ToleranceContext context) =>
         primitive.Kind switch
         {
@@ -96,10 +125,23 @@ public static class BrepSpatialQueries
         ToleranceContext tolerance,
         bool resolvedPrimitive,
         PrimitiveDescriptor primitive,
-        KernelDiagnostic primitiveDiagnostic)
+        KernelDiagnostic primitiveDiagnostic,
+        PointContainmentQueryContext? queryContext)
     {
         var hasPrimitive = resolvedPrimitive && primitive.Kind is PrimitiveKind.Box or PrimitiveKind.Cylinder or PrimitiveKind.Sphere;
-        var analyticProvider = TryCreateAnalyticRayProvider(body, tolerance, out var provider, out var unavailableReason);
+        AnalyticRayProvider? provider;
+        string unavailableReason;
+        bool analyticProvider;
+        if (queryContext is not null)
+        {
+            provider = queryContext.TryGetProviderObject() as AnalyticRayProvider;
+            unavailableReason = queryContext.ProviderUnavailableReason;
+            analyticProvider = provider is not null;
+        }
+        else
+        {
+            analyticProvider = TryCreateAnalyticRayProvider(body, tolerance, out provider, out unavailableReason);
+        }
         return new PointContainmentContext(
             point,
             new BoundingBox3D(point, point),
@@ -536,7 +578,7 @@ public static class BrepSpatialQueries
     {
         var context = tolerance ?? ToleranceContext.Default;
         var resolvedPrimitive = TryResolvePrimitive(body, out var primitive, out var primitiveDiagnostic);
-        var containmentContext = BuildPointContainmentContext(body, point, context, resolvedPrimitive, primitive, primitiveDiagnostic);
+        var containmentContext = BuildPointContainmentContext(body, point, context, resolvedPrimitive, primitive, primitiveDiagnostic, queryContext: null);
         var classification = ClassifyByMultiAxisRayConsensus(body, containmentContext, out var rays);
         return new ContainmentConsensusTrace(classification, containmentContext.AnalyticRayProvider is not null, "multi_axis_ray_consensus", rays);
     }

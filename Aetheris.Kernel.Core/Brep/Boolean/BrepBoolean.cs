@@ -1021,6 +1021,20 @@ public static class BrepBoolean
                 ]);
         }
 
+        if (classification.SafeCompositionResult is { BlindPrismaticPocket: not null } mixedBlindComposition
+            && mixedBlindComposition.Holes.Count > 0)
+        {
+            return new BooleanRebuildData(
+                classification,
+                RebuiltBody: null,
+                Diagnostics:
+                [
+                    CreateNotImplemented(
+                        "Boolean Subtract: bounded mixed blind-pocket continuation classification succeeded, but rebuild is deferred until dedicated mixed materialization can preserve both analytic-hole and blind-pocket geometry.",
+                        source: "BrepBooleanBoxMixedBlindPocketBuilder.Build"),
+                ]);
+        }
+
         if (classification.OrthogonalUnionCells is not null)
         {
             var rebuiltOrthogonalUnion = BrepBooleanOrthogonalUnionBuilder.BuildFromCells(classification.OrthogonalUnionCells);

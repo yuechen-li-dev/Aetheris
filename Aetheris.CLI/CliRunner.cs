@@ -495,7 +495,7 @@ public static class CliRunner
         {
             if (!json)
             {
-                stderr.WriteLine(ex.Message);
+                WriteAnalyzeFailureText(stderr, stepPath, ex);
                 return 1;
             }
 
@@ -967,18 +967,19 @@ public static class CliRunner
     private static void WriteSummaryText(AnalyzeResult analysis, TextWriter stdout)
     {
         var summary = analysis.Summary;
-        stdout.WriteLine($"STEP: {analysis.StepPath}");
+        stdout.WriteLine($"Input file: {analysis.StepPath}");
+        stdout.WriteLine("Success: yes");
+        stdout.WriteLine($"Structural assessment: {summary.StructuralAssessment} ({summary.StructuralAssessmentBasis})");
+        stdout.WriteLine($"Length unit: {summary.LengthUnit} ({summary.LengthUnitBasis})");
         stdout.WriteLine($"Bodies: {summary.BodyCount}");
         stdout.WriteLine($"Shells: {summary.ShellCount}");
+        stdout.WriteLine($"Bounding box: {FormatBox(summary.BoundingBox)}");
         stdout.WriteLine($"Faces: {summary.FaceCount}");
         stdout.WriteLine($"Edges: {summary.EdgeCount}");
         stdout.WriteLine($"Vertices: {summary.VertexCount}");
-        stdout.WriteLine($"BoundingBox: {FormatBox(summary.BoundingBox)}");
-        stdout.WriteLine($"Structure: {summary.StructuralAssessment} ({summary.StructuralAssessmentBasis})");
-        stdout.WriteLine($"LengthUnit: {summary.LengthUnit} ({summary.LengthUnitBasis})");
-        stdout.WriteLine($"FaceIds: min={summary.FaceIds.Min}, max={summary.FaceIds.Max}, count={summary.FaceIds.Count}, contiguous={summary.FaceIds.Contiguous}");
-        stdout.WriteLine($"EdgeIds: min={summary.EdgeIds.Min}, max={summary.EdgeIds.Max}, count={summary.EdgeIds.Count}, contiguous={summary.EdgeIds.Contiguous}");
-        stdout.WriteLine($"VertexIds: min={summary.VertexIds.Min}, max={summary.VertexIds.Max}, count={summary.VertexIds.Count}, contiguous={summary.VertexIds.Contiguous}");
+        stdout.WriteLine($"Face IDs: min={summary.FaceIds.Min}, max={summary.FaceIds.Max}, count={summary.FaceIds.Count}, contiguous={summary.FaceIds.Contiguous}");
+        stdout.WriteLine($"Edge IDs: min={summary.EdgeIds.Min}, max={summary.EdgeIds.Max}, count={summary.EdgeIds.Count}, contiguous={summary.EdgeIds.Contiguous}");
+        stdout.WriteLine($"Vertex IDs: min={summary.VertexIds.Min}, max={summary.VertexIds.Max}, count={summary.VertexIds.Count}, contiguous={summary.VertexIds.Contiguous}");
         stdout.WriteLine("Surface Families:");
         foreach (var family in summary.SurfaceFamilies)
         {
@@ -1007,6 +1008,41 @@ public static class CliRunner
             {
                 stdout.WriteLine($"  - {note}");
             }
+        }
+    }
+
+    private static void WriteAnalyzeFailureText(TextWriter stderr, string stepPath, Exception exception)
+    {
+        var fullPath = Path.GetFullPath(stepPath);
+        if (exception is not StepAnalysisImportException importFailure)
+        {
+            stderr.WriteLine($"Analyze failed for: {fullPath}");
+            stderr.WriteLine($"Reason: {exception.Message}");
+            return;
+        }
+
+        var multiRootDiagnostic = importFailure.Diagnostics.FirstOrDefault(d => string.Equals(d.Source, "Importer.AssemblyLike.StepMultiRoot", StringComparison.Ordinal));
+        if (multiRootDiagnostic is not null)
+        {
+            var rigidRootCount = CountManifoldSolidRoots(multiRootDiagnostic.Message);
+            stderr.WriteLine($"Input file: {fullPath}");
+            stderr.WriteLine("Success: no");
+            stderr.WriteLine("Classification: assembly-like STEP (multi-root manifold solids).");
+            if (rigidRootCount.HasValue)
+            {
+                stderr.WriteLine($"Detected manifold-solid roots: {rigidRootCount.Value}");
+            }
+
+            stderr.WriteLine("Guidance: Use the assembly extraction/import workflow for this STEP input.");
+            stderr.WriteLine($"Reason: {multiRootDiagnostic.Message}");
+            return;
+        }
+
+        stderr.WriteLine($"Analyze failed for: {fullPath}");
+        stderr.WriteLine("Reason: STEP import failure.");
+        foreach (var diagnostic in importFailure.Diagnostics)
+        {
+            stderr.WriteLine($"- [{diagnostic.Severity}] {diagnostic.Source}: {diagnostic.Message}");
         }
     }
 
@@ -1049,6 +1085,7 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris build model.firmament --out model.step");
+        stdout.WriteLine("  aetheris analyze model.step");
         stdout.WriteLine("  aetheris analyze model.step --json");
         stdout.WriteLine("  aetheris canon input.step --out canonical.step --json");
         stdout.WriteLine("  aetheris asm exec assembly.firmasm --json");
@@ -1086,7 +1123,7 @@ public static class CliRunner
         stdout.WriteLine("  --face <id>     Inspect one face.");
         stdout.WriteLine("  --edge <id>     Inspect one edge.");
         stdout.WriteLine("  --vertex <id>   Inspect one vertex.");
-        stdout.WriteLine("  --json          Emit machine-readable JSON.");
+        stdout.WriteLine("  --json          Emit machine-readable JSON (default output is human-readable text).");
         stdout.WriteLine("  -h, --help      Show this help.");
         stdout.WriteLine();
         stdout.WriteLine("Rules:");
@@ -1096,7 +1133,9 @@ public static class CliRunner
         stdout.WriteLine("  - Assembly-like multi-root STEP is rejected here with a route hint to assembly extraction/import.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
+        stdout.WriteLine("  aetheris analyze part.step");
         stdout.WriteLine("  aetheris analyze part.step --json");
+        stdout.WriteLine("  aetheris analyze part.step --face 12");
         stdout.WriteLine("  aetheris analyze part.step --face 12 --json");
         stdout.WriteLine("  aetheris analyze map part.step --right --rows 20 --cols 30 --json");
         stdout.WriteLine("  aetheris analyze section part.step --yz --offset 1.25 --json");

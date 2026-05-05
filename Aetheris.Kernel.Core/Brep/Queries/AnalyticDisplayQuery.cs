@@ -68,64 +68,83 @@ public static class AnalyticDisplayQuery
 
     public static bool TryIntersectFace(BrepBody body, FaceId faceId, Ray3D ray, out AnalyticRayHit hit, double maxDistance = 1e6d, ToleranceContext? tolerance = null)
     {
+        var hits = new List<AnalyticRayHit>(2);
+        CollectIntersectFaceHits(body, faceId, ray, hits, maxDistance, tolerance);
+        if (hits.Count == 0)
+        {
+            hit = default;
+            return false;
+        }
+
+        hit = hits.OrderBy(h => h.Distance).First();
+        return true;
+    }
+
+    public static void CollectIntersectFaceHits(BrepBody body, FaceId faceId, Ray3D ray, List<AnalyticRayHit> hits, double maxDistance = 1e6d, ToleranceContext? tolerance = null)
+    {
         var context = tolerance ?? ToleranceContext.Default;
-        hit = default;
 
         if (!AnalyticDisplaySupportPolicy.TryGetSupportedSurface(body, faceId, out var surface, out _))
         {
-            return false;
+            return;
         }
 
         var bodyId = body.Topology.Bodies.OrderBy(b => b.Id.Value).FirstOrDefault()?.Id ?? BodyId.Invalid;
 
-        return surface.Kind switch
+        switch (surface.Kind)
         {
-            SurfaceGeometryKind.Plane when surface.Plane is PlaneSurface plane => TryIntersectPlane(body, bodyId, faceId, plane, ray, maxDistance, context, out hit),
-            SurfaceGeometryKind.Sphere when surface.Sphere is SphereSurface sphere => TryIntersectSphere(bodyId, faceId, sphere, ray, maxDistance, context, out hit),
-            SurfaceGeometryKind.Cylinder when surface.Cylinder is CylinderSurface cylinder => TryIntersectCylinder(body, bodyId, faceId, cylinder, ray, maxDistance, context, out hit),
-            SurfaceGeometryKind.Cone when surface.Cone is ConeSurface cone => TryIntersectCone(body, bodyId, faceId, cone, ray, maxDistance, context, out hit),
-            SurfaceGeometryKind.Torus when surface.Torus is TorusSurface torus => TryIntersectTorus(bodyId, faceId, torus, ray, maxDistance, context, out hit),
-            _ => false,
-        };
+            case SurfaceGeometryKind.Plane when surface.Plane is PlaneSurface plane:
+                TryIntersectPlane(body, bodyId, faceId, plane, ray, maxDistance, context, hits);
+                break;
+            case SurfaceGeometryKind.Sphere when surface.Sphere is SphereSurface sphere:
+                TryIntersectSphere(bodyId, faceId, sphere, ray, maxDistance, context, hits);
+                break;
+            case SurfaceGeometryKind.Cylinder when surface.Cylinder is CylinderSurface cylinder:
+                TryIntersectCylinder(body, bodyId, faceId, cylinder, ray, maxDistance, context, hits);
+                break;
+            case SurfaceGeometryKind.Cone when surface.Cone is ConeSurface cone:
+                TryIntersectCone(body, bodyId, faceId, cone, ray, maxDistance, context, hits);
+                break;
+            case SurfaceGeometryKind.Torus when surface.Torus is TorusSurface torus:
+                TryIntersectTorus(bodyId, faceId, torus, ray, maxDistance, context, hits);
+                break;
+        }
     }
 
-    private static bool TryIntersectPlane(BrepBody body, BodyId bodyId, FaceId faceId, PlaneSurface plane, Ray3D ray, double maxDistance, ToleranceContext tolerance, out AnalyticRayHit hit)
+    private static void TryIntersectPlane(BrepBody body, BodyId bodyId, FaceId faceId, PlaneSurface plane, Ray3D ray, double maxDistance, ToleranceContext tolerance, List<AnalyticRayHit> hits)
     {
-        hit = default;
         var denom = plane.Normal.ToVector().Dot(ray.Direction.ToVector());
         if (ToleranceMath.AlmostZero(denom, tolerance))
         {
-            return false;
+            return;
         }
 
         var t = (plane.Origin - ray.Origin).Dot(plane.Normal.ToVector()) / denom;
         if (t < -tolerance.Linear)
         {
-            return false;
+            return;
         }
 
         t = ToleranceMath.ClampToZero(t, tolerance.Linear);
         if (t > maxDistance + tolerance.Linear)
         {
-            return false;
+            return;
         }
 
         var point = ray.PointAt(t);
         if (!IsPointOnPlaneFaceDomain(body, faceId, plane, point, tolerance))
         {
-            return false;
+            return;
         }
 
         var local = point - plane.Origin;
         var u = local.Dot(plane.UAxis.ToVector());
         var v = local.Dot(plane.VAxis.ToVector());
-        hit = new AnalyticRayHit(true, t, point, plane.Normal, bodyId, faceId, SurfaceGeometryKind.Plane, u, v);
-        return true;
+        hits.Add(new AnalyticRayHit(true, t, point, plane.Normal, bodyId, faceId, SurfaceGeometryKind.Plane, u, v));
     }
 
-    private static bool TryIntersectSphere(BodyId bodyId, FaceId faceId, SphereSurface sphere, Ray3D ray, double maxDistance, ToleranceContext tolerance, out AnalyticRayHit hit)
+    private static void TryIntersectSphere(BodyId bodyId, FaceId faceId, SphereSurface sphere, Ray3D ray, double maxDistance, ToleranceContext tolerance, List<AnalyticRayHit> hits)
     {
-        hit = default;
         var oc = ray.Origin - sphere.Center;
         var d = ray.Direction.ToVector();
         var b = 2d * oc.Dot(d);
@@ -133,30 +152,28 @@ public static class AnalyticDisplayQuery
         var discriminant = (b * b) - (4d * c);
         if (discriminant < -tolerance.Linear)
         {
-            return false;
+            return;
         }
 
         var root = double.Sqrt(double.Max(discriminant, 0d));
         var t1 = (-b - root) / 2d;
         var t2 = (-b + root) / 2d;
-        var t = PickNearestPositive(t1, t2, tolerance, maxDistance);
-        if (double.IsNaN(t))
+        foreach (var t in new[] { t1, t2 }
+                     .Where(t => t >= -tolerance.Linear && t <= maxDistance + tolerance.Linear)
+                     .Select(t => ToleranceMath.ClampToZero(t, tolerance.Linear))
+                     .OrderBy(t => t))
         {
-            return false;
+            var point = ray.PointAt(t);
+            var normal = Direction3D.Create(point - sphere.Center);
+            var local = point - sphere.Center;
+            var u = double.Atan2(local.Dot(sphere.YAxis.ToVector()), local.Dot(sphere.XAxis.ToVector()));
+            var v = double.Asin(local.Dot(sphere.Axis.ToVector()) / sphere.Radius);
+            hits.Add(new AnalyticRayHit(true, t, point, normal, bodyId, faceId, SurfaceGeometryKind.Sphere, u, v));
         }
-
-        var point = ray.PointAt(t);
-        var normal = Direction3D.Create(point - sphere.Center);
-        var local = point - sphere.Center;
-        var u = double.Atan2(local.Dot(sphere.YAxis.ToVector()), local.Dot(sphere.XAxis.ToVector()));
-        var v = double.Asin(local.Dot(sphere.Axis.ToVector()) / sphere.Radius);
-        hit = new AnalyticRayHit(true, t, point, normal, bodyId, faceId, SurfaceGeometryKind.Sphere, u, v);
-        return true;
     }
 
-    private static bool TryIntersectCylinder(BrepBody body, BodyId bodyId, FaceId faceId, CylinderSurface cylinder, Ray3D ray, double maxDistance, ToleranceContext tolerance, out AnalyticRayHit hit)
+    private static void TryIntersectCylinder(BrepBody body, BodyId bodyId, FaceId faceId, CylinderSurface cylinder, Ray3D ray, double maxDistance, ToleranceContext tolerance, List<AnalyticRayHit> hits)
     {
-        hit = default;
         var axis = cylinder.Axis.ToVector();
         var delta = ray.Origin - cylinder.Origin;
         var direction = ray.Direction.ToVector();
@@ -172,13 +189,13 @@ public static class AnalyticDisplayQuery
 
         if (ToleranceMath.AlmostZero(a, tolerance))
         {
-            return false;
+            return;
         }
 
         var disc = (b * b) - (4d * a * c);
         if (disc < -tolerance.Linear)
         {
-            return false;
+            return;
         }
 
         var root = double.Sqrt(double.Max(disc, 0d));
@@ -190,7 +207,7 @@ public static class AnalyticDisplayQuery
 
         if (candidates.Length == 0)
         {
-            return false;
+            return;
         }
 
         ResolveAxialBounds(body, faceId, cylinder.Axis, cylinder.Origin, out var minV, out var maxV);
@@ -216,16 +233,12 @@ public static class AnalyticDisplayQuery
             }
 
             var u = double.Atan2(radial.Dot(cylinder.YAxis.ToVector()), radial.Dot(cylinder.XAxis.ToVector()));
-            hit = new AnalyticRayHit(true, t, point, normal, bodyId, faceId, SurfaceGeometryKind.Cylinder, u, axial);
-            return true;
+            hits.Add(new AnalyticRayHit(true, t, point, normal, bodyId, faceId, SurfaceGeometryKind.Cylinder, u, axial));
         }
-
-        return false;
     }
 
-    private static bool TryIntersectCone(BrepBody body, BodyId bodyId, FaceId faceId, ConeSurface cone, Ray3D ray, double maxDistance, ToleranceContext tolerance, out AnalyticRayHit hit)
+    private static void TryIntersectCone(BrepBody body, BodyId bodyId, FaceId faceId, ConeSurface cone, Ray3D ray, double maxDistance, ToleranceContext tolerance, List<AnalyticRayHit> hits)
     {
-        hit = default;
         var axis = cone.Axis.ToVector();
         var tan = double.Tan(cone.SemiAngleRadians);
         var tanSquared = tan * tan;
@@ -244,13 +257,13 @@ public static class AnalyticDisplayQuery
 
         if (ToleranceMath.AlmostZero(a, tolerance))
         {
-            return false;
+            return;
         }
 
         var disc = (b * b) - (4d * a * c);
         if (disc < -tolerance.Linear)
         {
-            return false;
+            return;
         }
 
         var root = double.Sqrt(double.Max(disc, 0d));
@@ -262,7 +275,7 @@ public static class AnalyticDisplayQuery
 
         if (candidates.Length == 0)
         {
-            return false;
+            return;
         }
 
         ResolveAxialBounds(body, faceId, cone.Axis, cone.Apex, out var minV, out var maxV);
@@ -297,27 +310,22 @@ public static class AnalyticDisplayQuery
             }
 
             var u = double.Atan2(radial.Dot(cone.ReferenceAxis.ToVector().Cross(axis)), radial.Dot(cone.ReferenceAxis.ToVector()));
-            hit = new AnalyticRayHit(true, t, point, normal, bodyId, faceId, SurfaceGeometryKind.Cone, u, v);
-            return true;
+            hits.Add(new AnalyticRayHit(true, t, point, normal, bodyId, faceId, SurfaceGeometryKind.Cone, u, v));
         }
-
-        return false;
     }
 
-    private static bool TryIntersectTorus(BodyId bodyId, FaceId faceId, TorusSurface torus, Ray3D ray, double maxDistance, ToleranceContext tolerance, out AnalyticRayHit hit)
+    private static void TryIntersectTorus(BodyId bodyId, FaceId faceId, TorusSurface torus, Ray3D ray, double maxDistance, ToleranceContext tolerance, List<AnalyticRayHit> hits)
     {
-        hit = default;
-
         if (!TryIntersectBoundingSphere(ray, torus.Center, torus.MajorRadius + torus.MinorRadius, out var near, out var far, tolerance))
         {
-            return false;
+            return;
         }
 
         near = double.Max(0d, near);
         far = double.Min(maxDistance, far);
         if (far < near)
         {
-            return false;
+            return;
         }
 
         const int samples = 512;
@@ -355,7 +363,7 @@ public static class AnalyticDisplayQuery
 
         if (!bestT.HasValue)
         {
-            return false;
+            return;
         }
 
         var t = ToleranceMath.ClampToZero(bestT.Value, tolerance.Linear);
@@ -370,8 +378,7 @@ public static class AnalyticDisplayQuery
         var radial = double.Sqrt((x * x) + (y * y));
         var v = double.Atan2(z, radial - torus.MajorRadius);
 
-        hit = new AnalyticRayHit(true, t, point, normal, bodyId, faceId, SurfaceGeometryKind.Torus, u, v);
-        return true;
+        hits.Add(new AnalyticRayHit(true, t, point, normal, bodyId, faceId, SurfaceGeometryKind.Torus, u, v));
     }
 
     private static bool IsPointOnPlaneFaceDomain(BrepBody body, FaceId faceId, PlaneSurface plane, Point3D point, ToleranceContext tolerance)

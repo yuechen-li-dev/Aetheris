@@ -749,14 +749,15 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
-    public void AnalyzeVolume_ApproximateCurvedMixedVolume_FailsClearlyWhenContainmentUnsupported()
+    public void AnalyzeVolume_ApproximateCurvedMixedVolume_ReturnsNumericEstimate()
     {
         var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_cylinder_hole.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--approximate", "--resolution", "48", "--json"], stdout, stderr);
-        Assert.Equal(1, exitCode);
+        Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(stdout.ToString());
-        Assert.Contains("unsupported", doc.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(doc.RootElement.GetProperty("volume").GetDouble() > 0d);
     }
 
     [Fact]

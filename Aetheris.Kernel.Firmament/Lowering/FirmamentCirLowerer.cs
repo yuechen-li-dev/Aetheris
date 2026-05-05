@@ -26,6 +26,7 @@ internal static class FirmamentCirLowerer
                 continue;
             }
 
+            node = ApplyDefaultPrimitiveLocalFrame(primitive, node);
             nodesByFeature[primitive.FeatureId] = ApplyPlacement(node, primitive.Placement, primitive.OpIndex, primitive.FeatureId, nodesByFeature, diagnostics);
         }
 
@@ -123,6 +124,30 @@ internal static class FirmamentCirLowerer
     {
         diagnostics.Add(new(primitive.OpIndex, primitive.FeatureId, $"Unsupported primitive for CIR-M1: {primitive.Kind}."));
         return null;
+    }
+
+
+    private static CirNode ApplyDefaultPrimitiveLocalFrame(FirmamentLoweredPrimitive primitive, CirNode node)
+    {
+        var zShift = primitive switch
+        {
+            { Kind: FirmamentLoweredPrimitiveKind.Box, Parameters: FirmamentLoweredBoxParameters box } => box.SizeZ * 0.5d,
+            { Kind: FirmamentLoweredPrimitiveKind.Cylinder, Parameters: FirmamentLoweredCylinderParameters cylinder } => cylinder.Height * 0.5d,
+            { Kind: FirmamentLoweredPrimitiveKind.Cone, Parameters: FirmamentLoweredConeParameters cone } => cone.Height * 0.5d,
+            { Kind: FirmamentLoweredPrimitiveKind.TriangularPrism, Parameters: FirmamentLoweredTriangularPrismParameters prism } => prism.Height * 0.5d,
+            { Kind: FirmamentLoweredPrimitiveKind.HexagonalPrism, Parameters: FirmamentLoweredHexagonalPrismParameters prism } => prism.Height * 0.5d,
+            { Kind: FirmamentLoweredPrimitiveKind.StraightSlot, Parameters: FirmamentLoweredStraightSlotParameters slot } => slot.Height * 0.5d,
+            { Kind: FirmamentLoweredPrimitiveKind.RoundedCornerBox, Parameters: FirmamentLoweredRoundedCornerBoxParameters rounded } => rounded.Height * 0.5d,
+            { Kind: FirmamentLoweredPrimitiveKind.SlotCut, Parameters: FirmamentLoweredSlotCutParameters slotCut } => slotCut.Height * 0.5d,
+            _ => 0d
+        };
+
+        if (Math.Abs(zShift) <= 1e-12d)
+        {
+            return node;
+        }
+
+        return new CirTransformNode(node, Transform3D.CreateTranslation(new Vector3D(0d, 0d, zShift)));
     }
 
     private static CirNode BuildBox(string sizeRaw)

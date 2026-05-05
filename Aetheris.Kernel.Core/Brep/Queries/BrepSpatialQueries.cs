@@ -75,6 +75,7 @@ public static class BrepSpatialQueries
         return selection.Selection!.Value.Candidate.Name switch
         {
             "primitive_analytic" => KernelResult<PointContainment>.Success(ClassifyPrimitive(containmentContext.Primitive, point, context), BuildSelectionDiagnostics(selection, containmentContext)),
+            "multi_axis_ray_consensus" => KernelResult<PointContainment>.Success(ClassifyByMultiAxisRayConsensus(body, containmentContext), BuildSelectionDiagnostics(selection, containmentContext)),
             "unknown" => KernelResult<PointContainment>.Success(PointContainment.Unknown, BuildSelectionDiagnostics(selection, containmentContext)),
             _ => KernelResult<PointContainment>.Success(PointContainment.Unknown, BuildSelectionDiagnostics(selection, containmentContext))
         };
@@ -98,6 +99,7 @@ public static class BrepSpatialQueries
         KernelDiagnostic primitiveDiagnostic)
     {
         var hasPrimitive = resolvedPrimitive && primitive.Kind is PrimitiveKind.Box or PrimitiveKind.Cylinder or PrimitiveKind.Sphere;
+        var planarProvider = TryCreatePlanarRayProvider(body, tolerance, out var provider, out var unavailableReason);
         return new PointContainmentContext(
             point,
             new BoundingBox3D(point, point),
@@ -105,10 +107,11 @@ public static class BrepSpatialQueries
             hasPrimitive,
             primitive,
             primitiveDiagnostic with { Severity = KernelDiagnosticSeverity.Warning },
-            GenericRayHitProviderAvailable: false,
+            GenericRayHitProviderAvailable: planarProvider,
+            PlanarRayProvider: provider,
             BoundaryFirstUnavailableReason: "Boundary-first containment is scaffolded but no trusted trimmed-face boundary distance query is available yet.",
             PlanarClosedShellUnavailableReason: "Planar closed-shell exact containment is scaffolded but not enabled in this milestone.",
-            MultiAxisRayConsensusUnavailableReason: "Deterministic six-axis ray consensus requires a generic ray-hit provider, which is not available yet.");
+            MultiAxisRayConsensusUnavailableReason: unavailableReason);
     }
 
     private static IReadOnlyList<KernelDiagnostic> BuildSelectionDiagnostics(JudgmentResult<PointContainmentContext> selection, PointContainmentContext context)
@@ -138,6 +141,7 @@ public static class BrepSpatialQueries
         PrimitiveDescriptor Primitive,
         KernelDiagnostic PrimitiveDiagnostic,
         bool GenericRayHitProviderAvailable,
+        PlanarRayProvider? PlanarRayProvider,
         string BoundaryFirstUnavailableReason,
         string PlanarClosedShellUnavailableReason,
         string MultiAxisRayConsensusUnavailableReason);
@@ -496,6 +500,94 @@ public static class BrepSpatialQueries
         return PointContainment.Inside;
     }
 
+
+    private static PointContainment ClassifyByMultiAxisRayConsensus(BrepBody body, PointContainmentContext context)
+    {
+        if (context.PlanarRayProvider is null)
+        {
+            return PointContainment.Unknown;
+        }
+
+        var dirs = new[] { Direction3D.Create(new Vector3D(1d,0d,0d)), Direction3D.Create(new Vector3D(-1d,0d,0d)), Direction3D.Create(new Vector3D(0d,1d,0d)), Direction3D.Create(new Vector3D(0d,-1d,0d)), Direction3D.Create(new Vector3D(0d,0d,1d)), Direction3D.Create(new Vector3D(0d,0d,-1d)) };
+        var votes = new List<PointContainment>();
+        foreach (var dir in dirs)
+        {
+            var hits = context.PlanarRayProvider.Collect(new Ray3D(context.Point, dir));
+            if (hits.Any(h => h.Domain.Classification == FaceDomainClassification.OnBoundary)) return PointContainment.Boundary;
+            if (hits.Any(h => h.Quality != PlanarHitQuality.Clean)) continue;
+            var count = hits.Count(h => h.T > context.Tolerance.Linear);
+            votes.Add((count % 2) == 1 ? PointContainment.Inside : PointContainment.Outside);
+        }
+
+        if (votes.Count < 3) return PointContainment.Unknown;
+        return votes.All(v=>v==votes[0]) ? votes[0] : PointContainment.Unknown;
+    }
+
+    private static bool TryCreatePlanarRayProvider(BrepBody body, ToleranceContext tolerance, out PlanarRayProvider? provider, out string reason)
+    {
+        provider = null;
+        var planarFaces = new List<(FaceId FaceId, PlaneSurface Plane)>();
+        foreach (var binding in body.Bindings.FaceBindings)
+        {
+            var surface = body.Geometry.GetSurface(binding.SurfaceGeometryId);
+            if (surface.Kind != SurfaceGeometryKind.Plane || surface.Plane is null)
+            {
+                reason = "Generic planar ray-hit provider requires all faces to be planar in this milestone.";
+                return false;
+            }
+            planarFaces.Add((binding.FaceId, surface.Plane.Value));
+        }
+
+        if (planarFaces.Count == 0)
+        {
+            reason = "Body has no bound faces.";
+            return false;
+        }
+
+        provider = new PlanarRayProvider(body, planarFaces, tolerance);
+        reason = "available";
+        return true;
+    }
+
+    private enum PlanarHitQuality { Clean, BoundaryHit, Ambiguous, NearTangent, UnsupportedSurface, DuplicateOrCoincident }
+    private sealed record PlanarRayHit(double T, Point3D Point, FaceId FaceId, SurfaceGeometryKind SurfaceKind, Direction3D Normal, FaceDomainQueryResult Domain, PlanarHitQuality Quality);
+    private sealed class PlanarRayProvider(BrepBody body, IReadOnlyList<(FaceId FaceId, PlaneSurface Plane)> faces, ToleranceContext tolerance)
+    {
+        public IReadOnlyList<PlanarRayHit> Collect(Ray3D ray)
+        {
+            var hits = new List<PlanarRayHit>();
+            foreach (var (faceId, plane) in faces)
+            {
+                var denom = plane.Normal.ToVector().Dot(ray.Direction.ToVector());
+                if (double.Abs(denom) <= tolerance.Linear) continue;
+                var t = (plane.Origin - ray.Origin).Dot(plane.Normal.ToVector()) / denom;
+                if (t < -tolerance.Linear) continue;
+                var c = ToleranceMath.ClampToZero(t, tolerance.Linear);
+                var p = ray.PointAt(c);
+                var domain = FaceDomainQuery.TryClassifyPointOnFace(body, faceId, p, tolerance);
+                if (domain.Classification == FaceDomainClassification.Outside) continue;
+                var q = domain.Classification switch
+                {
+                    FaceDomainClassification.Inside => PlanarHitQuality.Clean,
+                    FaceDomainClassification.OnBoundary => PlanarHitQuality.BoundaryHit,
+                    FaceDomainClassification.Unsupported => PlanarHitQuality.UnsupportedSurface,
+                    _ => PlanarHitQuality.Ambiguous
+                };
+                hits.Add(new PlanarRayHit(c, p, faceId, SurfaceGeometryKind.Plane, plane.Normal, domain, q));
+            }
+
+            var ordered = hits.OrderBy(h=>h.T).ToList();
+            for (int i=1;i<ordered.Count;i++)
+            {
+                if (ToleranceMath.AlmostEqual(ordered[i-1].T, ordered[i].T, tolerance))
+                {
+                    ordered[i-1] = ordered[i-1] with { Quality = PlanarHitQuality.DuplicateOrCoincident };
+                    ordered[i] = ordered[i] with { Quality = PlanarHitQuality.DuplicateOrCoincident };
+                }
+            }
+            return ordered;
+        }
+    }
     private static bool TryResolvePrimitive(BrepBody body, out PrimitiveDescriptor descriptor, out KernelDiagnostic diagnostic)
     {
         descriptor = default;

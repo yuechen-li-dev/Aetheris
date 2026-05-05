@@ -12,7 +12,7 @@ public static class CliRunner
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
-    private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--json]";
+    private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
@@ -534,8 +534,10 @@ public static class CliRunner
             return 0;
         }
 
-        var json = args.Contains("--json", StringComparer.Ordinal);
         var stepPath = args[0];
+        var json = false;
+        var approximate = false;
+        int? resolution = null;
         if (stepPath.StartsWith("-", StringComparison.Ordinal))
         {
             stderr.WriteLine("Analyze volume requires <file.step> as the first argument.");
@@ -543,15 +545,41 @@ public static class CliRunner
             return 1;
         }
 
-        if (args.Any(a => a.StartsWith("--box", StringComparison.Ordinal)))
+        for (var i = 1; i < args.Length; i++)
         {
-            stderr.WriteLine("Analyze volume sub-box probing is deferred: exact bounded clipping against an axis-aligned sub-box is not available yet.");
+            switch (args[i])
+            {
+                case "--json":
+                    json = true;
+                    break;
+                case "--approximate":
+                    approximate = true;
+                    break;
+                case "--resolution" when i + 1 < args.Length && int.TryParse(args[++i], out var parsed):
+                    resolution = parsed;
+                    break;
+                case "--resolution":
+                    stderr.WriteLine("Analyze volume option --resolution requires an integer value.");
+                    return 1;
+                case var _ when args[i].StartsWith("--box", StringComparison.Ordinal):
+                    stderr.WriteLine("Analyze volume sub-box probing is deferred: exact bounded clipping against an axis-aligned sub-box is not available yet.");
+                    return 1;
+                default:
+                    stderr.WriteLine($"Unknown analyze volume option '{args[i]}'.");
+                    stderr.WriteLine(AnalyzeVolumeUsage);
+                    return 1;
+            }
+        }
+
+        if (approximate && !resolution.HasValue)
+        {
+            stderr.WriteLine("Analyze volume approximate mode requires --resolution <N>.");
             return 1;
         }
 
         try
         {
-            var result = StepAnalyzer.AnalyzeVolume(stepPath);
+            var result = StepAnalyzer.AnalyzeVolume(stepPath, approximate, resolution);
             if (json)
             {
                 stdout.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
@@ -565,6 +593,20 @@ public static class CliRunner
                 stdout.WriteLine($"Volume unit: {result.VolumeUnit}");
                 stdout.WriteLine($"Bounding box: min=({result.BoundingBox.Min.X:G17},{result.BoundingBox.Min.Y:G17},{result.BoundingBox.Min.Z:G17}), max=({result.BoundingBox.Max.X:G17},{result.BoundingBox.Max.Y:G17},{result.BoundingBox.Max.Z:G17})");
                 stdout.WriteLine($"Method: {result.Method}");
+                stdout.WriteLine($"Exact: {result.Exact}");
+                stdout.WriteLine($"Approximate: {result.Approximate}");
+                if (result.Resolution.HasValue)
+                {
+                    stdout.WriteLine($"Resolution: {result.Resolution.Value}");
+                }
+                if (result.VoxelSize is { } voxelSize)
+                {
+                    stdout.WriteLine($"Voxel size: ({voxelSize.X:G17},{voxelSize.Y:G17},{voxelSize.Z:G17})");
+                }
+                if (result.OccupiedCount.HasValue && result.TotalCount.HasValue)
+                {
+                    stdout.WriteLine($"Occupied voxels: {result.OccupiedCount.Value}/{result.TotalCount.Value}");
+                }
                 foreach (var n in result.Notes) stdout.WriteLine($"Note: {n}");
             }
             return 0;
@@ -1246,14 +1288,18 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Options:");
         stdout.WriteLine("  --json         Emit machine-readable JSON output.");
+        stdout.WriteLine("  --approximate  Compute explicit voxel-based approximate volume.");
+        stdout.WriteLine("  --resolution   Required with --approximate. Integer samples along longest bbox axis.");
         stdout.WriteLine();
         stdout.WriteLine("Notes:");
         stdout.WriteLine("  - Exact whole-body volume currently supports canonical spheres and single-lateral-face cylinders.");
+        stdout.WriteLine("  - Approximate mode is opt-in and deterministic (center-point voxel occupancy sampling).");
         stdout.WriteLine("  - Exact sub-box volume clipping (--box ...) is deferred in ANALYZE-P1.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris analyze volume part.step");
         stdout.WriteLine("  aetheris analyze volume part.step --json");
+        stdout.WriteLine("  aetheris analyze volume part.step --approximate --resolution 64 --json");
     }
 
     private static void WriteCanonHelp(TextWriter stdout)

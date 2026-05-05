@@ -786,6 +786,49 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void AnalyzeCompare_IdenticalFile_HasZeroDeltas()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "compare", stepPath, stepPath, "--json"], stdout, stderr);
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var root = doc.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        Assert.Equal(0d, root.GetProperty("bboxComparison").GetProperty("minDelta").GetProperty("x").GetDouble(), 8);
+        Assert.Equal(0, root.GetProperty("topologyComparison").GetProperty("faceCount").GetProperty("delta").GetInt32());
+    }
+
+    [Fact]
+    public void AnalyzeCompare_DifferentFiles_ShowsNonZeroDifferences()
+    {
+        var refPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var candPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_subtract_basic.step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "compare", refPath, candPath, "--json"], stdout, stderr);
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var root = doc.RootElement;
+        Assert.NotEqual(0d, root.GetProperty("bboxComparison").GetProperty("maxDelta").GetProperty("x").GetDouble(), 8);
+        Assert.True(root.GetProperty("surfaceFamilyComparison").TryGetProperty("plane", out _));
+    }
+
+    [Fact]
+    public void AnalyzeCompare_FailureSide_IsStructured()
+    {
+        var refPath = Path.Combine(RepoRoot, "testdata/firmament/exports/does-not-exist.step");
+        var candPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "compare", refPath, candPath, "--json"], stdout, stderr);
+        Assert.Equal(1, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var root = doc.RootElement;
+        Assert.False(root.GetProperty("success").GetBoolean());
+        Assert.False(root.GetProperty("reference").GetProperty("success").GetBoolean());
+        Assert.True(root.GetProperty("candidate").GetProperty("success").GetBoolean());
+    }
+
+    [Fact]
     public void Analyze_Command_Returns_Structured_Json_Failure()
     {
         var stdout = new StringWriter();

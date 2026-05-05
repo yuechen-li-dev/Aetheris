@@ -681,6 +681,25 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Analyze_Command_Default_Output_Is_Human_Readable_Summary()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", stepPath], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
+        var text = stdout.ToString();
+        Assert.Contains("Structural assessment:", text, StringComparison.Ordinal);
+        Assert.Contains("Faces:", text, StringComparison.Ordinal);
+        Assert.Contains("Edges:", text, StringComparison.Ordinal);
+        Assert.Contains("Vertices:", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("{\"stepPath\":", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Analyze_Command_MultiRootStep_JsonFailure_IsAssemblyLikeAndMachineFriendly()
     {
         var stepPath = Path.Combine(RepoRoot, "testdata/step242/OCCT/as1.step");
@@ -704,6 +723,22 @@ public sealed class CliBaselineTests
         Assert.True(diagnostics.GetArrayLength() >= 1);
         var first = diagnostics[0];
         Assert.Equal("Importer.AssemblyLike.StepMultiRoot", first.GetProperty("source").GetString());
+    }
+
+    [Fact]
+    public void Analyze_Command_MultiRootStep_Default_Output_Has_AssemblyLike_Guidance()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/OCCT/as1.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", stepPath], stdout, stderr);
+
+        Assert.Equal(1, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stdout.ToString()));
+        var text = stderr.ToString();
+        Assert.Contains("assembly-like STEP", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("assembly extraction/import workflow", text, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

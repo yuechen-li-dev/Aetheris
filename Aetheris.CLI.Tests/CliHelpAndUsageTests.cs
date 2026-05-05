@@ -51,6 +51,20 @@ public sealed class CliHelpAndUsageTests
     }
 
     [Fact]
+    public void Analyze_Help_Explains_Default_Text_And_Json_Mode()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "--help"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
+        var text = stdout.ToString();
+        Assert.Contains("default output is human-readable text", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Analyze_Map_Missing_Cols_Has_Clear_Diagnostic()
     {
         var stdout = new StringWriter();

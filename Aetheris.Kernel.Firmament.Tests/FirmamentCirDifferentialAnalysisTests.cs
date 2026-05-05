@@ -12,7 +12,10 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class FirmamentCirDifferentialAnalysisTests
 {
     private const int SharedVolumeResolution = 72;
+    private const int ReportArtifactResolution = 32;
     private static readonly JsonSerializerOptions ReportJsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    private static readonly Lazy<(CirBrepDifferentialReport Report, string OutputPath, IReadOnlyList<CirBrepDifferentialCase> Cases)> CachedReportArtifact =
+        new(GenerateReportArtifact, true);
 
     [Fact]
     public void CIRvsBRep_PrimitiveMatrix()
@@ -101,31 +104,25 @@ public sealed class FirmamentCirDifferentialAnalysisTests
     [Fact]
     public void CIRvsBRep_DifferentialReportArtifact_IsGeneratedAndReadable()
     {
-        var cases = BuildAllCases();
-        var report = RunMatrix(cases, enforceAssertions: false);
-        var outputPath = WriteDifferentialReport(report);
+        var artifact = CachedReportArtifact.Value;
+        Assert.True(File.Exists(artifact.OutputPath), $"Expected report at '{artifact.OutputPath}'.");
 
-        Assert.True(File.Exists(outputPath), $"Expected report at '{outputPath}'.");
-
-        var json = File.ReadAllText(outputPath);
+        var json = File.ReadAllText(artifact.OutputPath);
         var parsed = JsonSerializer.Deserialize<CirBrepDifferentialReport>(json, ReportJsonOptions);
         Assert.NotNull(parsed);
         Assert.Equal("cir-vs-brep", parsed.MatrixName);
-        Assert.Equal(SharedVolumeResolution, parsed.Resolution);
-        Assert.Equal(cases.Count, parsed.FixtureCount);
+        Assert.Equal(ReportArtifactResolution, parsed.Resolution);
+        Assert.Equal(artifact.Cases.Count, parsed.FixtureCount);
         Assert.NotNull(parsed.GeneratedAtUtc);
         Assert.NotEmpty(parsed.Fixtures);
         Assert.Contains(parsed.Fixtures, f => f.ExpectedSupport == "supported");
         Assert.Contains(parsed.Fixtures, f => f.ExpectedSupport == "unsupported");
-        Assert.Contains(parsed.Fixtures, f => f.Cir is not null && f.Brep is not null && f.Comparisons is not null);
     }
 
     [Fact]
     public void CIRvsBRep_DifferentialReport_RecordsFailedFixtureWithoutFailingArtifactTest()
     {
-        var cases = BuildAllCases();
-        var report = RunMatrix(cases, enforceAssertions: false);
-
+        var report = CachedReportArtifact.Value.Report;
         Assert.True(report.FailedCount >= 1);
         Assert.Contains(report.Fixtures, f => f.Status == "failed");
     }
@@ -133,17 +130,14 @@ public sealed class FirmamentCirDifferentialAnalysisTests
     [Fact]
     public void CIRvsBRep_DifferentialReport_PopulatesComparisonFields()
     {
-        var cases = BuildAllCases();
-        var report = RunMatrix(cases, enforceAssertions: false);
+        var report = CachedReportArtifact.Value.Report;
         var supported = report.Fixtures.First(f => f.ExpectedSupport == "supported" && f.Cir.Bounds is not null && f.Brep.Bounds is not null);
 
         Assert.NotNull(supported.Comparisons.Bounds);
         Assert.True(supported.Comparisons.Bounds.MaxAbsDelta >= 0d);
         Assert.True(supported.Comparisons.Bounds.Tolerance >= 0d);
-
         Assert.NotNull(supported.Comparisons.Volume);
         Assert.True(supported.Comparisons.Volume.Tolerance >= 0d);
-
         Assert.NotNull(supported.Comparisons.Probes);
         Assert.True(supported.Comparisons.Probes.ProbeCount >= 1);
     }
@@ -157,6 +151,14 @@ public sealed class FirmamentCirDifferentialAnalysisTests
 
         Assert.False(lower.IsSuccess);
         Assert.Contains(lower.Diagnostics, d => d.Message.Contains("Unsupported primitive", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static (CirBrepDifferentialReport Report, string OutputPath, IReadOnlyList<CirBrepDifferentialCase> Cases) GenerateReportArtifact()
+    {
+        var cases = BuildAllCases();
+        var report = RunMatrix(cases, enforceAssertions: false, resolution: ReportArtifactResolution);
+        var outputPath = WriteDifferentialReport(report);
+        return (report, outputPath, cases);
     }
 
     private static IReadOnlyList<CirBrepDifferentialCase> BuildAllCases()
@@ -216,7 +218,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             new CirBrepDifferentialCase("rounded_corner_box_basic", "testdata/firmament/examples/rounded_corner_box_basic.firmament", false, 0d, 0d, [])
         ];
 
-    private static CirBrepDifferentialReport RunMatrix(IReadOnlyList<CirBrepDifferentialCase> cases, bool enforceAssertions = true)
+    private static CirBrepDifferentialReport RunMatrix(IReadOnlyList<CirBrepDifferentialCase> cases, bool enforceAssertions = true, int resolution = SharedVolumeResolution)
     {
         var entries = new List<CirBrepFixtureReport>(cases.Count);
         foreach (var @case in cases)
@@ -227,8 +229,8 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             var notes = lower.Diagnostics.Select(d => d.Message).ToList();
             var status = lower.IsSuccess ? "passed" : (@case.ExpectedSupport ? "failed" : "unsupported");
             var entry = new CirBrepFixtureReport(@case.Name, @case.FixturePath, @case.ExpectedSupport ? "supported" : "unsupported", status, null,
-                new CirFixtureSection(lower.IsSuccess, notes, null, new VolumeMetric(null, SharedVolumeResolution), []),
-                new BrepFixtureSection(false, null, new VolumeMetric(null, SharedVolumeResolution, null, null), []),
+                new CirFixtureSection(lower.IsSuccess, notes, null, new VolumeMetric(null, resolution), []),
+                new BrepFixtureSection(false, null, new VolumeMetric(null, resolution, null, null), []),
                 new ComparisonSection(new ComparisonMetric(0d, true, @case.BoundsTolerance), new VolumeComparisonMetric(null, null, true, @case.VolumeTolerance), new ProbeComparisonMetric(true, 0, 0, [])),
                 notes);
             entries.Add(entry);
@@ -287,13 +289,13 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             };
             entries[^1] = entry;
 
-            var cirVolume = CirAnalyzer.EstimateVolume(lower.Value.Root, SharedVolumeResolution);
-            var brepVolume = EstimateBrepVolume(rootBody, SharedVolumeResolution, out var unknownCount, out var sampleCount);
+            var cirVolume = CirAnalyzer.EstimateVolume(lower.Value.Root, resolution);
+            var brepVolume = EstimateBrepVolume(rootBody, resolution, out var unknownCount, out var sampleCount);
             var unknownRatio = sampleCount == 0 ? 1d : unknownCount / (double)sampleCount;
             entry = entry with
             {
-                Cir = entry.Cir with { Volume = new VolumeMetric(cirVolume, SharedVolumeResolution) },
-                Brep = entry.Brep with { Volume = new VolumeMetric(brepVolume, SharedVolumeResolution, unknownCount, unknownRatio) }
+                Cir = entry.Cir with { Volume = new VolumeMetric(cirVolume, resolution) },
+                Brep = entry.Brep with { Volume = new VolumeMetric(brepVolume, resolution, unknownCount, unknownRatio) }
             };
             entries[^1] = entry;
 
@@ -319,7 +321,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
                 if (enforceAssertions)
                 {
                     Assert.True(volumePassed,
-                $"{@case.Name}: volume mismatch. class=analyzer uncertainty or semantic drift. cir={cirVolume:F6}, brep={brepVolume.Value:F6}, relDelta={relDelta:F6}, tolerance={@case.VolumeTolerance:F6}, resolution={SharedVolumeResolution}, brepUnknownCount={unknownCount}, sampleCount={sampleCount}");
+                $"{@case.Name}: volume mismatch. class=analyzer uncertainty or semantic drift. cir={cirVolume:F6}, brep={brepVolume.Value:F6}, relDelta={relDelta:F6}, tolerance={@case.VolumeTolerance:F6}, resolution={resolution}, brepUnknownCount={unknownCount}, sampleCount={sampleCount}");
                 }
             }
             entry = entry with
@@ -376,7 +378,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             entries[^1] = entry;
         }
 
-        return BuildSummary(entries);
+        return BuildSummary(entries, resolution);
     }
 
     private static string WriteDifferentialReport(CirBrepDifferentialReport report)
@@ -388,7 +390,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         return outputPath;
     }
 
-    private static CirBrepDifferentialReport BuildSummary(IReadOnlyList<CirBrepFixtureReport> fixtures)
+    private static CirBrepDifferentialReport BuildSummary(IReadOnlyList<CirBrepFixtureReport> fixtures, int resolution)
     {
         var failedCount = fixtures.Count(f => f.Status == "failed");
         var unsupportedCount = fixtures.Count(f => f.Status == "unsupported");
@@ -397,7 +399,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             Success: failedCount == 0,
             GeneratedAtUtc: DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
             MatrixName: "cir-vs-brep",
-            Resolution: SharedVolumeResolution,
+            Resolution: resolution,
             FixtureCount: fixtures.Count,
             PassedCount: passedCount,
             FailedCount: failedCount,

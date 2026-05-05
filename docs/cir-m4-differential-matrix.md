@@ -27,7 +27,8 @@ For each supported fixture case:
 
 ## Tolerances and resolution
 
-- Shared volume resolution: `72`.
+- Matrix assertion resolution: `72` (used by primitive/boolean/placement drift-sensitive matrix tests).
+- Report artifact smoke-test resolution: `32` (used by focused artifact schema/runtime tests).
 - Bounds tolerances are case-specific (`0.001` to `0.02`) to allow finite numeric drift while catching semantic frame drift.
 - Volume relative tolerance is case-specific (`0.02` to `0.20`) with larger tolerance on placement/boolean cases where classification and voxel discretization amplify uncertainty.
 
@@ -101,6 +102,20 @@ Per fixture fields include:
 - CIR section: lowering success/diagnostics, bounds, volume metric
 - BRep section: build success, bounds, approximate volume, unknown ratio
 - comparison section: bounds/volume/probe pass-fail placeholders for deterministic schema consumption
+
+### CIR-M5.2 runtime stabilization notes
+
+- The focused report tests share one generated report artifact via a cached in-process helper, so the matrix is generated once per test run instead of once per test method.
+- Focused artifact tests run at resolution `32` to keep runtime practical while preserving enriched report semantics and fixture-status coverage (`supported`, `unsupported`, and `failed` entries).
+- Drift-sensitive matrix tests continue to use resolution `72`; use those when validating deeper differential behavior instead of report plumbing.
+
+Run focused artifact/runtime tests:
+
+`dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj --filter "CIRvsBRep_DifferentialReportArtifact_IsGeneratedAndReadable|CIRvsBRep_DifferentialReport_RecordsFailedFixtureWithoutFailingArtifactTest|CIRvsBRep_DifferentialReport_PopulatesComparisonFields" -v minimal`
+
+Run deeper matrix assertions separately:
+
+`dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj --filter "CIRvsBRep_PrimitiveMatrix|CIRvsBRep_BooleanMatrix|CIRvsBRep_PlacementMatrix" -v minimal`
 
 ### CIR-M5.1 report semantics and stability contract
 

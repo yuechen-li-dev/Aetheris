@@ -49,17 +49,23 @@ public sealed class FaceDomainQueryTests
     }
 
     [Fact]
-    public void CurvedFace_Unsupported_ReturnsStructuredReason()
+    public void CylinderFace_PointOnSurfaceWithinTrim_ReturnsInsideOrAmbiguous()
     {
         var cylinder = BrepPrimitives.CreateCylinder(2d, 6d).Value;
         var faceId = cylinder.Topology.Faces.Single(f => cylinder.GetFaceSurface(f.Id).Kind == SurfaceGeometryKind.Cylinder).Id;
 
         var result = FaceDomainQuery.TryClassifyPointOnFace(cylinder, faceId, new Point3D(2d, 0d, 0d));
 
-        Assert.False(result.IsSuccess);
+        Assert.Equal("FaceDomainQuery.Cylinder", result.Source);
+        Assert.Contains(result.Classification, new[] { FaceDomainClassification.Inside, FaceDomainClassification.Ambiguous });
+    }
+
+    [Fact]
+    public void TorusFace_Unsupported_ReturnsStructuredReason()
+    {
+        var torus = BrepPrimitives.CreateTorus(4d, 1d).Value;
+        var faceId = torus.Topology.Faces.First().Id;
+        var result = FaceDomainQuery.TryClassifyPointOnFace(torus, faceId, new Point3D(5d, 0d, 0d));
         Assert.Equal(FaceDomainClassification.Unsupported, result.Classification);
-        Assert.True(result.UnsupportedSurface);
-        Assert.Contains("not implemented", result.Reason, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("FaceDomainQuery.UnsupportedCylinder", result.Source);
     }
 }

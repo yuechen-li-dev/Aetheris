@@ -770,6 +770,40 @@ public static class BrepBoolean
             && intersections.Analysis.RightPrismaticTool is { } prismaticTool
             && TryClassifyBoundedPrismaticThroughCutSubtract(leftCompositionForPrismatic, prismaticTool, tolerance, out _))
         {
+            var isThroughCut = prismaticTool.Bounds.MinZ <= (leftCompositionForPrismatic.RootDescriptor.Box.MinZ + tolerance.Linear)
+                && prismaticTool.Bounds.MaxZ >= (leftCompositionForPrismatic.RootDescriptor.Box.MaxZ - tolerance.Linear);
+            if (!isThroughCut)
+            {
+                if (!TryClassifyBoundedOrthogonalPocketSubtract(
+                        leftCompositionForPrismatic.RootDescriptor.Box,
+                        prismaticTool.Bounds,
+                        tolerance,
+                        out var mixedPocketCells,
+                        out var mixedBlindUnsupported))
+                {
+                    return new BooleanClassificationData(
+                        intersections,
+                        IsComputed: true,
+                        FragmentCount: 0,
+                        SingleBoxResult: null,
+                        SafeCompositionResult: null,
+                        UnsupportedReason: mixedBlindUnsupported);
+                }
+
+                return new BooleanClassificationData(
+                    intersections,
+                    IsComputed: true,
+                    FragmentCount: 1,
+                    SingleBoxResult: null,
+                    SafeCompositionResult: leftCompositionForPrismatic with
+                    {
+                        OccupiedCells = mixedPocketCells,
+                        BlindPrismaticPocket = new SupportedBlindPrismaticPocket(prismaticTool.Bounds, prismaticTool.Footprint),
+                    },
+                    UnsupportedReason: null,
+                    OrthogonalUnionCells: mixedPocketCells);
+            }
+
             var throughVoids = BuildThroughVoidSetForPrismaticContinuation(leftCompositionForPrismatic, prismaticTool);
             return new BooleanClassificationData(
                 intersections,
@@ -1833,6 +1867,11 @@ public static class BrepBoolean
             unsupportedReason = "Boolean Subtract: bounded prismatic subtract continuation does not yet support prior prismatic/open-slot through-void history.";
             return false;
         }
+        if (leftComposition.BlindPrismaticPocket is not null)
+        {
+            unsupportedReason = "Boolean Subtract: bounded mixed blind-pocket continuation supports exactly one blind prismatic pocket.";
+            return false;
+        }
 
         var root = leftComposition.RootDescriptor.Box;
         var isThroughCut = prismTool.Bounds.MinZ <= (root.MinZ + tolerance.Linear)
@@ -1841,8 +1880,19 @@ public static class BrepBoolean
         var hasPriorSubtractHistory = leftComposition.Holes.Count > 0 || (leftComposition.OpenSlots?.Count ?? 0) > 0;
         if (hasPriorSubtractHistory && !isThroughCut)
         {
-            unsupportedReason = "Boolean Subtract: bounded prismatic blind-pocket continuation on safe compositions is deferred pending a bounded analytic-plus-orthogonal reconstruction path.";
-            return false;
+            if (leftComposition.RootDescriptor.Kind != SafeBooleanRootKind.Box)
+            {
+                unsupportedReason = "Boolean Subtract: bounded mixed blind-pocket continuation currently supports only recognized safe box roots.";
+                return false;
+            }
+
+            if (!SupportsStrictNonOverlapMixedBlindPocketContinuation(leftComposition, prismTool, tolerance, out unsupportedReason))
+            {
+                return false;
+            }
+
+            unsupportedReason = string.Empty;
+            return true;
         }
 
         if (hasPriorSubtractHistory)
@@ -1985,6 +2035,56 @@ public static class BrepBoolean
             var requiredMargin = hole.MaxBoundaryRadius + (2d * tolerance.Linear);
             if (minEdgeDistance < requiredMargin)
             {
+                return false;
+            }
+        }
+
+        unsupportedReason = string.Empty;
+        return true;
+    }
+
+    private static bool SupportsStrictNonOverlapMixedBlindPocketContinuation(
+        SafeBooleanComposition composition,
+        SupportedPrismaticSubtractTool prismaticTool,
+        ToleranceContext tolerance,
+        out string unsupportedReason)
+    {
+        unsupportedReason = "Boolean Subtract: bounded mixed blind-pocket continuation requires supported analytic cylinder/cone history.";
+        if (composition.OpenSlots is { Count: > 0 })
+        {
+            return false;
+        }
+
+        foreach (var hole in composition.Holes)
+        {
+            if (hole.Surface.Kind is not (AnalyticSurfaceKind.Cylinder or AnalyticSurfaceKind.Cone))
+            {
+                return false;
+            }
+
+            if (hole.SpanKind is not (SupportedBooleanHoleSpanKind.Through or SupportedBooleanHoleSpanKind.BlindFromTop or SupportedBooleanHoleSpanKind.BlindFromBottom))
+            {
+                return false;
+            }
+
+            if (!PositiveOverlap(hole.StartZ, hole.EndZ, prismaticTool.Bounds.MinZ, prismaticTool.Bounds.MaxZ, tolerance)
+                && !PositiveOverlap(hole.EndZ, hole.StartZ, prismaticTool.Bounds.MinZ, prismaticTool.Bounds.MaxZ, tolerance))
+            {
+                continue;
+            }
+
+            if (!BrepBooleanPrismaticFootprintContainment.TryComputeContainmentMargin((hole.CenterX, hole.CenterY), prismaticTool.Footprint, tolerance, out var edgeDistance))
+            {
+                unsupportedReason = "Boolean Subtract: bounded mixed blind-pocket continuation rejected due to ambiguous analytic-pocket clearance classification.";
+                return false;
+            }
+
+            var signedClearance = edgeDistance - hole.MaxBoundaryRadius;
+            if (signedClearance <= tolerance.Linear)
+            {
+                unsupportedReason = signedClearance < -tolerance.Linear
+                    ? "Boolean Subtract: bounded mixed blind-pocket continuation requires strict non-overlap between analytic holes and pocket volume."
+                    : "Boolean Subtract: bounded mixed blind-pocket continuation rejected: tangent/edge-grazing analytic-pocket boundary contact.";
                 return false;
             }
         }

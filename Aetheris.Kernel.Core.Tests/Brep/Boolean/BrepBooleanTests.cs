@@ -1890,7 +1890,7 @@ public sealed class BrepBooleanTests
 
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.Contains("blind-pocket continuation", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("bounded orthogonal pocket family", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

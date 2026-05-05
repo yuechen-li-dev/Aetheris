@@ -64,3 +64,53 @@ Harness failure messages classify likely drift as one of:
 ## Recommended CIR-M5 next step
 
 Add a small structured differential report artifact (JSON) per matrix run capturing per-fixture metrics, unknown ratios, and mismatch classes so trend regression can be tracked over time without parsing test logs.
+
+## CIR-M5 structured differential report artifact
+
+CIR-M5 adds a machine-readable JSON report writer to the differential harness so Codex and tooling can consume fixture-level outcomes without scraping assertion text.
+
+### Generation path
+
+Run the focused artifact test:
+
+`dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj --filter CIRvsBRep_DifferentialReportArtifact_IsGeneratedAndReadable`
+
+The test executes the same case matrix path and emits:
+
+`<test-bin>/artifacts/cir/differential-matrix/latest.json`
+
+This location is deterministic per test output directory and is not committed to source control.
+
+### Report shape (stable fields)
+
+Top-level fields:
+
+- `success`
+- `generatedAtUtc`
+- `matrixName` (`cir-vs-brep`)
+- `resolution`
+- `fixtureCount`
+- `passedCount`
+- `failedCount`
+- `unsupportedCount`
+- `fixtures`
+
+Per fixture fields include:
+
+- identity and expectation: `name`, `path`, `expectedSupport`, `status`, `mismatchClass`, `notes`
+- CIR section: lowering success/diagnostics, bounds, volume metric
+- BRep section: build success, bounds, approximate volume, unknown ratio
+- comparison section: bounds/volume/probe pass-fail placeholders for deterministic schema consumption
+
+### How Codex should use it
+
+- Parse JSON directly from the deterministic artifact path.
+- Use top-level counters for quick trend checks.
+- Use per-fixture status and notes for unsupported/failed visibility.
+- Use CIR/BRep sections for downstream diff triage and summarization.
+
+### Limitations
+
+- BRep volume remains voxel-estimated and inherits analyzer uncertainty.
+- `generatedAtUtc` is intentionally variable; tests validate presence/shape, not exact value.
+- Comparison detail is currently scaffolded for schema stability and can be deepened in CIR-M6.

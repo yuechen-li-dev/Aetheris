@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Numerics;
 
 namespace Aetheris.Kernel.Core.Cir;
 
@@ -24,6 +25,20 @@ public readonly record struct CirTapeInstruction(
 public readonly record struct CirTapeBoxPayload(double Width, double Height, double Depth, Transform3D InverseTransform);
 public readonly record struct CirTapeCylinderPayload(double Radius, double Height, Transform3D InverseTransform);
 public readonly record struct CirTapeSpherePayload(double Radius, Transform3D InverseTransform);
+
+public readonly record struct FieldInterval(double MinValue, double MaxValue)
+{
+    public bool IsDefinitelyInside(ToleranceContext tolerance) => MaxValue < -tolerance.Linear;
+    public bool IsDefinitelyOutside(ToleranceContext tolerance) => MinValue > tolerance.Linear;
+    public bool IsMixed(ToleranceContext tolerance) => !IsDefinitelyInside(tolerance) && !IsDefinitelyOutside(tolerance);
+}
+
+public enum CirRegionClassification
+{
+    Inside,
+    Outside,
+    Mixed,
+}
 
 /// <summary>
 /// Linear MIR/runtime representation for CIR point evaluation.
@@ -97,6 +112,67 @@ public sealed class CirTape
         return slots[OutputSlot];
     }
 
+    public FieldInterval EvaluateInterval(CirBounds region)
+    {
+        var slots = new FieldInterval[SlotCount];
+
+        foreach (var instruction in Instructions)
+        {
+            switch (instruction.OpCode)
+            {
+                case CirTapeOpCode.EvalBox:
+                    slots[instruction.DestSlot] = EvaluateBoxInterval(region, BoxPayloads[instruction.PayloadIndex]);
+                    break;
+                case CirTapeOpCode.EvalCylinder:
+                    slots[instruction.DestSlot] = EvaluateCylinderInterval(region, CylinderPayloads[instruction.PayloadIndex]);
+                    break;
+                case CirTapeOpCode.EvalSphere:
+                    slots[instruction.DestSlot] = EvaluateSphereInterval(region, SpherePayloads[instruction.PayloadIndex]);
+                    break;
+                case CirTapeOpCode.Min:
+                {
+                    var a = slots[instruction.InputA];
+                    var b = slots[instruction.InputB];
+                    slots[instruction.DestSlot] = new FieldInterval(double.Min(a.MinValue, b.MinValue), double.Min(a.MaxValue, b.MaxValue));
+                    break;
+                }
+                case CirTapeOpCode.Max:
+                {
+                    var a = slots[instruction.InputA];
+                    var b = slots[instruction.InputB];
+                    slots[instruction.DestSlot] = new FieldInterval(double.Max(a.MinValue, b.MinValue), double.Max(a.MaxValue, b.MaxValue));
+                    break;
+                }
+                case CirTapeOpCode.Neg:
+                {
+                    var a = slots[instruction.InputA];
+                    slots[instruction.DestSlot] = new FieldInterval(-a.MaxValue, -a.MinValue);
+                    break;
+                }
+                default:
+                    throw new InvalidOperationException($"Unsupported CIR tape opcode: {instruction.OpCode}.");
+            }
+        }
+
+        return slots[OutputSlot];
+    }
+
+    public CirRegionClassification ClassifyRegion(CirBounds region, ToleranceContext tolerance)
+    {
+        var interval = EvaluateInterval(region);
+        if (interval.IsDefinitelyInside(tolerance))
+        {
+            return CirRegionClassification.Inside;
+        }
+
+        if (interval.IsDefinitelyOutside(tolerance))
+        {
+            return CirRegionClassification.Outside;
+        }
+
+        return CirRegionClassification.Mixed;
+    }
+
     private static double EvaluateBox(Point3D point, CirTapeBoxPayload payload)
     {
         point = payload.InverseTransform.Apply(point);
@@ -131,6 +207,114 @@ public sealed class CirTape
     {
         point = payload.InverseTransform.Apply(point);
         return double.Sqrt((point.X * point.X) + (point.Y * point.Y) + (point.Z * point.Z)) - payload.Radius;
+    }
+
+    private static FieldInterval EvaluateBoxInterval(CirBounds region, CirTapeBoxPayload payload)
+    {
+        var local = TransformBounds(region, payload.InverseTransform);
+        var hx = payload.Width * 0.5d;
+        var hy = payload.Height * 0.5d;
+        var hz = payload.Depth * 0.5d;
+        return EvaluateBoundedBoxSdfInterval(local, hx, hy, hz);
+    }
+
+    private static FieldInterval EvaluateCylinderInterval(CirBounds region, CirTapeCylinderPayload payload)
+    {
+        var local = TransformBounds(region, payload.InverseTransform);
+        var dr = RadiusInterval(local, payload.Radius);
+        var dz = AxisAbsDistanceInterval(local.Min.Z, local.Max.Z, payload.Height * 0.5d);
+        return CombineExtrudedSdf(dr, dz);
+    }
+
+    private static FieldInterval EvaluateSphereInterval(CirBounds region, CirTapeSpherePayload payload)
+    {
+        var local = TransformBounds(region, payload.InverseTransform);
+        var distanceMin = MinDistanceToAabbOrigin(local);
+        var distanceMax = MaxDistanceToAabbOrigin(local);
+        return new FieldInterval(distanceMin - payload.Radius, distanceMax - payload.Radius);
+    }
+
+    private static CirBounds TransformBounds(CirBounds bounds, Transform3D transform)
+    {
+        var corners = GetCorners(bounds);
+        var transformed = corners.Select(transform.Apply).ToArray();
+        return new CirBounds(
+            new Point3D(transformed.Min(p => p.X), transformed.Min(p => p.Y), transformed.Min(p => p.Z)),
+            new Point3D(transformed.Max(p => p.X), transformed.Max(p => p.Y), transformed.Max(p => p.Z)));
+    }
+
+    private static Point3D[] GetCorners(CirBounds b) =>
+    [
+        new Point3D(b.Min.X, b.Min.Y, b.Min.Z),
+        new Point3D(b.Min.X, b.Min.Y, b.Max.Z),
+        new Point3D(b.Min.X, b.Max.Y, b.Min.Z),
+        new Point3D(b.Min.X, b.Max.Y, b.Max.Z),
+        new Point3D(b.Max.X, b.Min.Y, b.Min.Z),
+        new Point3D(b.Max.X, b.Min.Y, b.Max.Z),
+        new Point3D(b.Max.X, b.Max.Y, b.Min.Z),
+        new Point3D(b.Max.X, b.Max.Y, b.Max.Z),
+    ];
+
+    private static FieldInterval EvaluateBoundedBoxSdfInterval(CirBounds local, double hx, double hy, double hz)
+    {
+        var dx = AxisAbsDistanceInterval(local.Min.X, local.Max.X, hx);
+        var dy = AxisAbsDistanceInterval(local.Min.Y, local.Max.Y, hy);
+        var dz = AxisAbsDistanceInterval(local.Min.Z, local.Max.Z, hz);
+        return CombineExtrudedSdf(dx, dy, dz);
+    }
+
+    private static FieldInterval CombineExtrudedSdf(params FieldInterval[] components)
+    {
+        var outsideTerms = components.Select(c => new FieldInterval(double.Max(c.MinValue, 0d), double.Max(c.MaxValue, 0d))).ToArray();
+        var outsideMin = double.Sqrt(outsideTerms.Sum(t => t.MinValue * t.MinValue));
+        var outsideMax = double.Sqrt(outsideTerms.Sum(t => t.MaxValue * t.MaxValue));
+        var insideMin = double.Min(components.Max(c => c.MinValue), 0d);
+        var insideMax = double.Min(components.Max(c => c.MaxValue), 0d);
+        return new FieldInterval(outsideMin + insideMin, outsideMax + insideMax);
+    }
+
+    private static FieldInterval RadiusInterval(CirBounds bounds, double radius)
+    {
+        var minR = MinDistanceToRectOrigin(bounds.Min.X, bounds.Max.X, bounds.Min.Y, bounds.Max.Y);
+        var maxR = MaxDistanceToRectOrigin(bounds.Min.X, bounds.Max.X, bounds.Min.Y, bounds.Max.Y);
+        return new FieldInterval(minR - radius, maxR - radius);
+    }
+
+    private static FieldInterval AxisAbsDistanceInterval(double min, double max, double halfExtent)
+    {
+        var absMin = MinAbsInInterval(min, max);
+        var absMax = MaxAbsInInterval(min, max);
+        return new FieldInterval(absMin - halfExtent, absMax - halfExtent);
+    }
+
+    private static double MinAbsInInterval(double min, double max)
+        => (min <= 0d && max >= 0d) ? 0d : double.Min(double.Abs(min), double.Abs(max));
+
+    private static double MaxAbsInInterval(double min, double max)
+        => double.Max(double.Abs(min), double.Abs(max));
+
+    private static double MinDistanceToAabbOrigin(CirBounds bounds)
+        => double.Sqrt((MinAbsInInterval(bounds.Min.X, bounds.Max.X) * MinAbsInInterval(bounds.Min.X, bounds.Max.X))
+            + (MinAbsInInterval(bounds.Min.Y, bounds.Max.Y) * MinAbsInInterval(bounds.Min.Y, bounds.Max.Y))
+            + (MinAbsInInterval(bounds.Min.Z, bounds.Max.Z) * MinAbsInInterval(bounds.Min.Z, bounds.Max.Z)));
+
+    private static double MaxDistanceToAabbOrigin(CirBounds bounds)
+        => double.Sqrt((MaxAbsInInterval(bounds.Min.X, bounds.Max.X) * MaxAbsInInterval(bounds.Min.X, bounds.Max.X))
+            + (MaxAbsInInterval(bounds.Min.Y, bounds.Max.Y) * MaxAbsInInterval(bounds.Min.Y, bounds.Max.Y))
+            + (MaxAbsInInterval(bounds.Min.Z, bounds.Max.Z) * MaxAbsInInterval(bounds.Min.Z, bounds.Max.Z)));
+
+    private static double MinDistanceToRectOrigin(double minX, double maxX, double minY, double maxY)
+    {
+        var minAbsX = MinAbsInInterval(minX, maxX);
+        var minAbsY = MinAbsInInterval(minY, maxY);
+        return double.Sqrt((minAbsX * minAbsX) + (minAbsY * minAbsY));
+    }
+
+    private static double MaxDistanceToRectOrigin(double minX, double maxX, double minY, double maxY)
+    {
+        var maxAbsX = MaxAbsInInterval(minX, maxX);
+        var maxAbsY = MaxAbsInInterval(minY, maxY);
+        return double.Sqrt((maxAbsX * maxAbsX) + (maxAbsY * maxAbsY));
     }
 }
 

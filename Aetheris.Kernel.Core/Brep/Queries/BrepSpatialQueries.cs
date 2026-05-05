@@ -501,10 +501,55 @@ public static class BrepSpatialQueries
     }
 
 
-    private static PointContainment ClassifyByMultiAxisRayConsensus(BrepBody body, PointContainmentContext context)
+    internal sealed record ContainmentRayHitTrace(
+        double T,
+        int FaceId,
+        string SurfaceKind,
+        string DomainClassification,
+        string HitQuality,
+        bool SeamDuplicateRisk,
+        bool NearEdge,
+        bool NearVertex,
+        string DomainSource,
+        string DomainReason);
+
+    internal sealed record ContainmentRayTrace(
+        string Axis,
+        int RawHitCount,
+        int CleanHitCount,
+        int DuplicateOrCoincidentCount,
+        bool HasSeamRisk,
+        bool HasBoundaryHit,
+        bool HasAmbiguousHit,
+        bool Admissible,
+        string? InadmissibleReason,
+        string? Vote,
+        IReadOnlyList<ContainmentRayHitTrace> Hits);
+
+    internal sealed record ContainmentConsensusTrace(
+        PointContainment FinalClassification,
+        bool ProviderAvailable,
+        string? Candidate,
+        IReadOnlyList<ContainmentRayTrace> Rays);
+
+    internal static ContainmentConsensusTrace TraceMultiAxisConsensus(BrepBody body, Point3D point, ToleranceContext? tolerance = null)
     {
+        var context = tolerance ?? ToleranceContext.Default;
+        var resolvedPrimitive = TryResolvePrimitive(body, out var primitive, out var primitiveDiagnostic);
+        var containmentContext = BuildPointContainmentContext(body, point, context, resolvedPrimitive, primitive, primitiveDiagnostic);
+        var classification = ClassifyByMultiAxisRayConsensus(body, containmentContext, out var rays);
+        return new ContainmentConsensusTrace(classification, containmentContext.AnalyticRayProvider is not null, "multi_axis_ray_consensus", rays);
+    }
+
+    private static PointContainment ClassifyByMultiAxisRayConsensus(BrepBody body, PointContainmentContext context)
+        => ClassifyByMultiAxisRayConsensus(body, context, out _);
+
+    private static PointContainment ClassifyByMultiAxisRayConsensus(BrepBody body, PointContainmentContext context, out IReadOnlyList<ContainmentRayTrace> rayTraces)
+    {
+        var traces = new List<ContainmentRayTrace>();
         if (context.AnalyticRayProvider is null)
         {
+            rayTraces = traces;
             return PointContainment.Unknown;
         }
 
@@ -513,14 +558,65 @@ public static class BrepSpatialQueries
         foreach (var dir in dirs)
         {
             var hits = context.AnalyticRayProvider.Collect(new Ray3D(context.Point, dir));
-            if (hits.Any(h => h.Domain.Classification == FaceDomainClassification.OnBoundary)) return PointContainment.Boundary;
-            if (hits.Any(h => h.Quality != AnalyticHitQuality.Clean)) continue;
+            if (hits.Any(h => h.Domain.Classification == FaceDomainClassification.OnBoundary))
+            {
+                traces.Add(BuildTrace(dir, hits, admissible: false, "boundary-hit", vote: null));
+                rayTraces = traces;
+                return PointContainment.Boundary;
+            }
+            if (hits.Any(h => h.Quality is AnalyticHitQuality.Ambiguous or AnalyticHitQuality.UnsupportedSurface or AnalyticHitQuality.SeamDuplicateRisk))
+            {
+                traces.Add(BuildTrace(dir, hits, admissible: false, "ambiguous-or-unsupported-hit", vote: null));
+                continue;
+            }
+            if (hits.Any(h => h.Quality == AnalyticHitQuality.DuplicateOrCoincident))
+            {
+                traces.Add(BuildTrace(dir, hits, admissible: false, "duplicate-or-coincident-hit", vote: null));
+                continue;
+            }
             var count = hits.Count(h => h.T > context.Tolerance.Linear);
-            votes.Add((count % 2) == 1 ? PointContainment.Inside : PointContainment.Outside);
+            var vote = (count % 2) == 1 ? PointContainment.Inside : PointContainment.Outside;
+            votes.Add(vote);
+            traces.Add(BuildTrace(dir, hits, admissible: true, null, vote.ToString()));
         }
 
+        rayTraces = traces;
         if (votes.Count < 3) return PointContainment.Unknown;
         return votes.All(v=>v==votes[0]) ? votes[0] : PointContainment.Unknown;
+
+        static string Axis(Direction3D d) => d switch
+        {
+            _ when d.X > 0.5d => "+X",
+            _ when d.X < -0.5d => "-X",
+            _ when d.Y > 0.5d => "+Y",
+            _ when d.Y < -0.5d => "-Y",
+            _ when d.Z > 0.5d => "+Z",
+            _ => "-Z"
+        };
+
+        static ContainmentRayTrace BuildTrace(Direction3D direction, IReadOnlyList<AnalyticRayHit> hits, bool admissible, string? inadmissibleReason, string? vote)
+            => new(
+                Axis(direction),
+                hits.Count,
+                hits.Count(h => h.Quality == AnalyticHitQuality.Clean),
+                hits.Count(h => h.Quality == AnalyticHitQuality.DuplicateOrCoincident),
+                hits.Any(h => h.Quality == AnalyticHitQuality.SeamDuplicateRisk),
+                hits.Any(h => h.Quality == AnalyticHitQuality.BoundaryHit),
+                hits.Any(h => h.Quality == AnalyticHitQuality.Ambiguous),
+                admissible,
+                inadmissibleReason,
+                vote,
+                hits.Select(h => new ContainmentRayHitTrace(
+                    h.T,
+                    h.FaceId.Value,
+                    h.SurfaceKind.ToString(),
+                    h.Domain.Classification.ToString(),
+                    h.Quality.ToString(),
+                    h.Domain.SeamDuplicateRisk,
+                    h.Domain.NearEdge,
+                    h.Domain.NearVertex,
+                    h.Domain.Source,
+                    h.Domain.Reason)).ToList());
     }
 
     private static bool TryCreateAnalyticRayProvider(BrepBody body, ToleranceContext tolerance, out AnalyticRayProvider? provider, out string reason)

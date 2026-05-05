@@ -4,12 +4,14 @@ using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
+using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Queries;
 
 public sealed class BrepSpatialQueriesPointClassificationTests
 {
+    private static readonly string RepoRoot = FindRepoRoot();
     [Fact]
     public void Box_ClassifyPoint_CoversInsideOutsideBoundaryAndNearBoundaryTolerance()
     {
@@ -90,5 +92,47 @@ public sealed class BrepSpatialQueriesPointClassificationTests
         Assert.Equal(PointContainment.Unknown, result.Value);
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("supports primitive", StringComparison.Ordinal));
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("strategy selected: unknown", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void BoxMinusCylinder_ClassifyPoint_OutsideAndBoundaryishRemainConservative()
+    {
+        var body = ImportFixtureBody("testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var outside = BrepSpatialQueries.ClassifyPoint(body, new Point3D(8d, 0d, 0d)).Value;
+        Assert.True(outside is PointContainment.Outside or PointContainment.Unknown);
+
+        var boundaryish = BrepSpatialQueries.ClassifyPoint(body, new Point3D(3d, 0d, 0d)).Value;
+        Assert.True(boundaryish is PointContainment.Boundary or PointContainment.Unknown);
+    }
+
+    [Fact]
+    public void BoxMinusCylinder_DiagnosticTrace_CapturesRayConsensusDetails()
+    {
+        var body = ImportFixtureBody("testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var trace = BrepSpatialQueries.TraceMultiAxisConsensus(body, new Point3D(0d, 0d, 0d));
+        Assert.True(trace.ProviderAvailable);
+        Assert.Equal(6, trace.Rays.Count);
+        Assert.Contains(trace.Rays, r => r.Admissible);
+        Assert.All(trace.Rays, r => Assert.False(string.IsNullOrWhiteSpace(r.Axis)));
+    }
+
+    private static BrepBody ImportFixtureBody(string relativePath)
+    {
+        var fullPath = Path.Combine(RepoRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));
+        Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
+        return import.Value;
+    }
+
+    private static string FindRepoRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (!string.IsNullOrWhiteSpace(dir))
+        {
+            if (File.Exists(Path.Combine(dir, "Aetheris.sln"))) return dir;
+            dir = Directory.GetParent(dir)?.FullName ?? string.Empty;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root.");
     }
 }

@@ -10,7 +10,8 @@ public sealed record SafeBooleanComposition(
     SafeBooleanRootDescriptor? Root = null,
     IReadOnlyList<AxisAlignedBoxExtents>? OccupiedCells = null,
     IReadOnlyList<SupportedCylinderOpenSlot>? OpenSlots = null,
-    SupportedThroughVoidSet? ThroughVoids = null)
+    SupportedThroughVoidSet? ThroughVoids = null,
+    SupportedBlindPrismaticPocket? BlindPrismaticPocket = null)
 {
     public SafeBooleanRootDescriptor RootDescriptor => Root ?? SafeBooleanRootDescriptor.FromBox(OuterBox);
 
@@ -36,7 +37,8 @@ public sealed record SafeBooleanComposition(
                 cell.MinZ + translation.Z,
                 cell.MaxZ + translation.Z)).ToArray(),
             OpenSlots?.Select(slot => slot.Translate(translation)).ToArray(),
-            ThroughVoids?.Translate(translation));
+            ThroughVoids?.Translate(translation),
+            BlindPrismaticPocket?.Translate(translation));
     }
 }
 
@@ -55,6 +57,22 @@ public readonly record struct SupportedPrismaticThroughVoid(
     IReadOnlyList<(double X, double Y)> Footprint)
 {
     public SupportedPrismaticThroughVoid Translate(Vector3D translation)
+        => new(
+            new AxisAlignedBoxExtents(
+                Bounds.MinX + translation.X,
+                Bounds.MaxX + translation.X,
+                Bounds.MinY + translation.Y,
+                Bounds.MaxY + translation.Y,
+                Bounds.MinZ + translation.Z,
+                Bounds.MaxZ + translation.Z),
+            Footprint.Select(point => (point.X + translation.X, point.Y + translation.Y)).ToArray());
+}
+
+public readonly record struct SupportedBlindPrismaticPocket(
+    AxisAlignedBoxExtents Bounds,
+    IReadOnlyList<(double X, double Y)> Footprint)
+{
+    public SupportedBlindPrismaticPocket Translate(Vector3D translation)
         => new(
             new AxisAlignedBoxExtents(
                 Bounds.MinX + translation.X,

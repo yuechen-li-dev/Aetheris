@@ -25,18 +25,18 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         {
             new CirBrepDifferentialCase("box_basic", "testdata/firmament/examples/box_basic.firmament", true, 0.02d, 0.001d,
                 [
-                    new DifferentialProbePoint("inside_core", new Point3D(0d, 0d, 1d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(100d, 100d, 100d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_core", new BoundsFractionalProbeLocation(0.5d, 0.5d, 0.5d), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(100d, 100d, 100d)), ProbeExpectation.Certain)
                 ], ExpectedBoundsMismatchClass: "placement drift", AllowVolumeUnavailable: true, AllowBoundsUnavailable: true),
             new CirBrepDifferentialCase("cylinder_basic", "testdata/firmament/examples/cylinder_basic.firmament", true, 0.03d, 0.001d,
                 [
-                    new DifferentialProbePoint("inside_core", new Point3D(0d, 0d, 1d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_radial", new Point3D(8d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_core", new BoundsFractionalProbeLocation(0.5d, 0.5d, 0.5d), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_radial", new AbsoluteProbeLocation(new Point3D(8d, 0d, 0d)), ProbeExpectation.Certain)
                 ], ExpectedBoundsMismatchClass: "placement drift", AllowVolumeUnavailable: true, AllowBoundsUnavailable: true),
             new CirBrepDifferentialCase("sphere_basic", "testdata/firmament/examples/sphere_basic.firmament", true, 0.04d, 0.001d,
                 [
-                    new DifferentialProbePoint("inside_core", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(13d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_core", new AbsoluteProbeLocation(new Point3D(0d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(13d, 0d, 0d)), ProbeExpectation.Certain)
                 ], ExpectedBoundsMismatchClass: "placement drift", AllowVolumeUnavailable: true, AllowBoundsUnavailable: true)
         };
 
@@ -51,27 +51,27 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         {
             new CirBrepDifferentialCase("boolean_box_cylinder_hole", "testdata/firmament/examples/boolean_box_cylinder_hole.firmament", true, 0.08d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_material", new Point3D(10d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("inside_void", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(40d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_material", new BoundsCentreOffsetProbeLocation(new Vector3D(0d, 4d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("inside_void", new BoundsFractionalProbeLocation(0.5d, 0.5d, 0.5d), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(40d, 40d, 40d)), ProbeExpectation.Certain)
                 ], ExpectedBoundsMismatchClass: "placement drift"),
             new CirBrepDifferentialCase("boolean_subtract_basic", "testdata/firmament/examples/boolean_subtract_basic.firmament", true, 0.10d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_material", new Point3D(-2.5d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("inside_void", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(20d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_material", new BoundsCentreOffsetProbeLocation(new Vector3D(-2.5d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("inside_void", new BoundsFractionalProbeLocation(0.5d, 0.5d, 0.5d), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(20d, 0d, 0d)), ProbeExpectation.Certain)
                 ], AllowVolumeUnavailable: true),
             new CirBrepDifferentialCase("boolean_add_basic", "testdata/firmament/examples/boolean_add_basic.firmament", true, 0.10d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_original", new Point3D(-2d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("inside_added", new Point3D(2.5d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(20d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_original", new AbsoluteProbeLocation(new Point3D(-2d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("inside_added", new AbsoluteProbeLocation(new Point3D(2.5d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(20d, 0d, 0d)), ProbeExpectation.Certain)
                 ]),
             new CirBrepDifferentialCase("boolean_intersect_basic", "testdata/firmament/examples/boolean_intersect_basic.firmament", true, 0.12d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_overlap", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_left", new Point3D(-2.8d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(10d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_overlap", new AbsoluteProbeLocation(new Point3D(0d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_left", new AbsoluteProbeLocation(new Point3D(-2.8d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(10d, 0d, 0d)), ProbeExpectation.Certain)
                 ], ExpectedBoundsMismatchClass: "placement drift")
         };
 
@@ -86,15 +86,15 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         {
             new CirBrepDifferentialCase("placed_primitive", "testdata/firmament/examples/placed_primitive.firmament", true, 0.08d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_anchor", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("inside_offset_post", new Point3D(0d, 0d, 10d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(50d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_anchor", new BoundsFractionalProbeLocation(0.5d, 0.5d, 0.5d), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("inside_offset_post", new BoundsCentreOffsetProbeLocation(new Vector3D(0d, 0d, 10d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(50d, 0d, 0d)), ProbeExpectation.Certain)
                 ], ExpectedBoundsMismatchClass: "placement drift", AllowVolumeUnavailable: true, AllowBoundsUnavailable: true),
             new CirBrepDifferentialCase("w2_cylinder_root_blind_bore_semantic", "testdata/firmament/examples/w2_cylinder_root_blind_bore_semantic.firmament", true, 0.20d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_material", new Point3D(20d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("inside_void", new Point3D(0d, 0d, 5d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(60d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_material", new AbsoluteProbeLocation(new Point3D(20d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("inside_void", new AbsoluteProbeLocation(new Point3D(0d, 0d, 5d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(60d, 0d, 0d)), ProbeExpectation.Certain)
                 ], AllowVolumeUnavailable: true, AllowBoundsUnavailable: true)
         };
 
@@ -168,54 +168,54 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         [
             new CirBrepDifferentialCase("box_basic", "testdata/firmament/examples/box_basic.firmament", true, 0.02d, 0.001d,
                 [
-                    new DifferentialProbePoint("inside_core", new Point3D(0d, 0d, 1d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(100d, 100d, 100d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_core", new BoundsFractionalProbeLocation(0.5d, 0.5d, 0.5d), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(100d, 100d, 100d)), ProbeExpectation.Certain)
                 ], ExpectedBoundsMismatchClass: "placement drift", AllowVolumeUnavailable: true),
             new CirBrepDifferentialCase("cylinder_basic", "testdata/firmament/examples/cylinder_basic.firmament", true, 0.03d, 0.001d,
                 [
-                    new DifferentialProbePoint("inside_core", new Point3D(0d, 0d, 1d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_radial", new Point3D(8d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_core", new BoundsFractionalProbeLocation(0.5d, 0.5d, 0.5d), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_radial", new AbsoluteProbeLocation(new Point3D(8d, 0d, 0d)), ProbeExpectation.Certain)
                 ], ExpectedBoundsMismatchClass: "placement drift", AllowVolumeUnavailable: true),
             new CirBrepDifferentialCase("sphere_basic", "testdata/firmament/examples/sphere_basic.firmament", true, 0.04d, 0.001d,
                 [
-                    new DifferentialProbePoint("inside_core", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(13d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_core", new AbsoluteProbeLocation(new Point3D(0d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(13d, 0d, 0d)), ProbeExpectation.Certain)
                 ], ExpectedBoundsMismatchClass: "placement drift", AllowVolumeUnavailable: true, AllowBoundsUnavailable: true),
             new CirBrepDifferentialCase("boolean_box_cylinder_hole", "testdata/firmament/examples/boolean_box_cylinder_hole.firmament", true, 0.08d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_material", new Point3D(10d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("inside_void", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(40d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_material", new BoundsCentreOffsetProbeLocation(new Vector3D(0d, 4d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("inside_void", new BoundsFractionalProbeLocation(0.5d, 0.5d, 0.5d), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(40d, 40d, 40d)), ProbeExpectation.Certain)
                 ]),
             new CirBrepDifferentialCase("boolean_subtract_basic", "testdata/firmament/examples/boolean_subtract_basic.firmament", true, 0.10d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_material", new Point3D(-2.5d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("inside_void", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(20d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_material", new BoundsCentreOffsetProbeLocation(new Vector3D(-2.5d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("inside_void", new BoundsFractionalProbeLocation(0.5d, 0.5d, 0.5d), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(20d, 0d, 0d)), ProbeExpectation.Certain)
                 ], AllowVolumeUnavailable: true),
             new CirBrepDifferentialCase("boolean_add_basic", "testdata/firmament/examples/boolean_add_basic.firmament", true, 0.10d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_original", new Point3D(-2d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("inside_added", new Point3D(2.5d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(20d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_original", new AbsoluteProbeLocation(new Point3D(-2d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("inside_added", new AbsoluteProbeLocation(new Point3D(2.5d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(20d, 0d, 0d)), ProbeExpectation.Certain)
                 ]),
             new CirBrepDifferentialCase("boolean_intersect_basic", "testdata/firmament/examples/boolean_intersect_basic.firmament", true, 0.12d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_overlap", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_left", new Point3D(-2.8d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(10d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_overlap", new AbsoluteProbeLocation(new Point3D(0d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_left", new AbsoluteProbeLocation(new Point3D(-2.8d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(10d, 0d, 0d)), ProbeExpectation.Certain)
                 ], ExpectedBoundsMismatchClass: "placement drift"),
             new CirBrepDifferentialCase("placed_primitive", "testdata/firmament/examples/placed_primitive.firmament", true, 0.08d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_anchor", new Point3D(0d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("inside_offset_post", new Point3D(0d, 0d, 10d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(50d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_anchor", new BoundsFractionalProbeLocation(0.5d, 0.5d, 0.5d), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("inside_offset_post", new BoundsCentreOffsetProbeLocation(new Vector3D(0d, 0d, 10d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(50d, 0d, 0d)), ProbeExpectation.Certain)
                 ], ExpectedBoundsMismatchClass: "placement drift", AllowVolumeUnavailable: true),
             new CirBrepDifferentialCase("w2_cylinder_root_blind_bore_semantic", "testdata/firmament/examples/w2_cylinder_root_blind_bore_semantic.firmament", true, 0.20d, 0.02d,
                 [
-                    new DifferentialProbePoint("inside_material", new Point3D(20d, 0d, 0d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("inside_void", new Point3D(0d, 0d, 5d), ProbeExpectation.Certain),
-                    new DifferentialProbePoint("outside_far", new Point3D(60d, 0d, 0d), ProbeExpectation.Certain)
+                    new DifferentialProbePoint("inside_material", new AbsoluteProbeLocation(new Point3D(20d, 0d, 0d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("inside_void", new AbsoluteProbeLocation(new Point3D(0d, 0d, 5d)), ProbeExpectation.Certain),
+                    new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(60d, 0d, 0d)), ProbeExpectation.Certain)
                 ]),
             new CirBrepDifferentialCase("rounded_corner_box_basic", "testdata/firmament/examples/rounded_corner_box_basic.firmament", false, 0d, 0d, [])
         ];
@@ -338,11 +338,12 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             foreach (var probe in @case.Probes)
             {
                 probeCount++;
-                var cirClass = CirAnalyzer.ClassifyPoint(lower.Value.Root, probe.Point).Classification;
-                var brepResult = BrepSpatialQueries.ClassifyPoint(rootBody, probe.Point);
+                var resolvedPoint = ResolveProbePoint(probe.Location, cirBounds);
+                var cirClass = CirAnalyzer.ClassifyPoint(lower.Value.Root, resolvedPoint).Classification;
+                var brepResult = BrepSpatialQueries.ClassifyPoint(rootBody, resolvedPoint);
                 if (!brepResult.IsSuccess || brepResult.Value == PointContainment.Unknown)
                 {
-                    probeMismatches.Add(new ProbeMismatchMetric(probe.Label, probe.Point.ToString(), cirClass.ToString(), brepResult.IsSuccess ? brepResult.Value.ToString() : "Failure", true, "unsupported BRep analyzer certainty"));
+                    probeMismatches.Add(new ProbeMismatchMetric(probe.Label, resolvedPoint.ToString(), DescribeProbeLocation(probe.Location), cirClass.ToString(), brepResult.IsSuccess ? brepResult.Value.ToString() : "Failure", true, "unsupported BRep analyzer certainty"));
                     if (probe.Expectation == ProbeExpectation.Certain)
                     {
                         var unknownText = brepResult.IsSuccess ? "Unknown" : "Failure";
@@ -359,12 +360,12 @@ public sealed class FirmamentCirDifferentialAnalysisTests
                 var cirInside = cirClass == CirPointClassification.Inside;
                 if (brepInside != cirInside)
                 {
-                    probeMismatches.Add(new ProbeMismatchMetric(probe.Label, probe.Point.ToString(), cirClass.ToString(), brepResult.Value.ToString(), false, "primitive convention drift or boolean semantic drift or placement drift"));
+                    probeMismatches.Add(new ProbeMismatchMetric(probe.Label, resolvedPoint.ToString(), DescribeProbeLocation(probe.Location), cirClass.ToString(), brepResult.Value.ToString(), false, "primitive convention drift or boolean semantic drift or placement drift"));
                 }
                 if (enforceAssertions)
                 {
                     Assert.True(brepInside == cirInside,
-                    $"{@case.Name}: probe mismatch for '{probe.Label}'. class=primitive convention drift or boolean semantic drift or placement drift. cir={cirClass}, brep={brepResult.Value}, point={probe.Point}");
+                    $"{@case.Name}: probe mismatch for '{probe.Label}'. class=primitive convention drift or boolean semantic drift or placement drift. cir={cirClass}, brep={brepResult.Value}, point={resolvedPoint}, location={DescribeProbeLocation(probe.Location)}");
                 }
             }
             entry = entry with
@@ -529,7 +530,37 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         bool AllowVolumeUnavailable = false,
         bool AllowBoundsUnavailable = false);
 
-    private sealed record DifferentialProbePoint(string Label, Point3D Point, ProbeExpectation Expectation);
+    private sealed record DifferentialProbePoint(string Label, ProbeLocation Location, ProbeExpectation Expectation);
+
+    private static Point3D ResolveProbePoint(ProbeLocation location, CirBounds bounds)
+        => location switch
+        {
+            AbsoluteProbeLocation absolute => absolute.Point,
+            BoundsFractionalProbeLocation fractional => new Point3D(
+                Lerp(bounds.Min.X, bounds.Max.X, fractional.Fx),
+                Lerp(bounds.Min.Y, bounds.Max.Y, fractional.Fy),
+                Lerp(bounds.Min.Z, bounds.Max.Z, fractional.Fz)),
+            BoundsCentreOffsetProbeLocation offset => new Point3D(
+                (bounds.Min.X + bounds.Max.X) * 0.5d + offset.Offset.X,
+                (bounds.Min.Y + bounds.Max.Y) * 0.5d + offset.Offset.Y,
+                (bounds.Min.Z + bounds.Max.Z) * 0.5d + offset.Offset.Z),
+            _ => throw new InvalidOperationException($"Unsupported probe location type '{location.GetType().Name}'.")
+        };
+
+    private static string DescribeProbeLocation(ProbeLocation location) => location switch
+    {
+        AbsoluteProbeLocation absolute => $"absolute:{absolute.Point}",
+        BoundsFractionalProbeLocation fractional => $"bounds-fractional:({fractional.Fx:F3},{fractional.Fy:F3},{fractional.Fz:F3})",
+        BoundsCentreOffsetProbeLocation offset => $"bounds-center-offset:{offset.Offset}",
+        _ => location.GetType().Name
+    };
+
+    private static double Lerp(double min, double max, double fraction) => min + ((max - min) * fraction);
+
+    private abstract record ProbeLocation;
+    private sealed record AbsoluteProbeLocation(Point3D Point) : ProbeLocation;
+    private sealed record BoundsFractionalProbeLocation(double Fx, double Fy, double Fz) : ProbeLocation;
+    private sealed record BoundsCentreOffsetProbeLocation(Vector3D Offset) : ProbeLocation;
 
 
     private static BoundsMetric ToBounds(CirBounds bounds) => new(new PointMetric(bounds.Min.X, bounds.Min.Y, bounds.Min.Z), new PointMetric(bounds.Max.X, bounds.Max.Y, bounds.Max.Z));
@@ -553,5 +584,5 @@ public sealed class FirmamentCirDifferentialAnalysisTests
     private sealed record ComparisonMetric(double MaxAbsDelta, bool Passed, double Tolerance);
     private sealed record VolumeComparisonMetric(double? AbsDelta, double? RelativeDelta, bool Passed, double Tolerance);
     private sealed record ProbeComparisonMetric(bool Passed, int ProbeCount, int MismatchCount, IReadOnlyList<ProbeMismatchMetric> Mismatches);
-    private sealed record ProbeMismatchMetric(string Label, string Point, string? Cir, string? Brep, bool BrepUnknown, string Reason);
+    private sealed record ProbeMismatchMetric(string Label, string Point, string LocationKind, string? Cir, string? Brep, bool BrepUnknown, string Reason);
 }

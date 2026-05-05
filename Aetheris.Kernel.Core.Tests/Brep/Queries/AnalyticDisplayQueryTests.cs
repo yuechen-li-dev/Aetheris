@@ -127,6 +127,23 @@ public sealed class AnalyticDisplayQueryTests
     }
 
     [Fact]
+    public void CylinderRay_ReturnsEntryAndExitHits()
+    {
+        var cylinder = BrepPrimitives.CreateCylinder(2d, 6d).Value;
+        var sideFaceId = FindFaceByKind(cylinder, SurfaceGeometryKind.Cylinder);
+        var ray = new Ray3D(new Point3D(3d, 0d, 0d), Direction3D.Create(new Vector3D(-1d, 0d, 0d)));
+        var hits = new List<AnalyticRayHit>();
+
+        AnalyticDisplayQuery.CollectIntersectFaceHits(cylinder, sideFaceId, ray, hits);
+
+        Assert.Equal(2, hits.Count);
+        Assert.Equal(1d, hits[0].Distance, 12);
+        Assert.Equal(5d, hits[1].Distance, 12);
+        Assert.Equal(new Point3D(2d, 0d, 0d), hits[0].Position);
+        Assert.Equal(new Point3D(-2d, 0d, 0d), hits[1].Position);
+    }
+
+    [Fact]
     public void Cone_Side_HitMissAndNormal()
     {
         var cone = BrepRevolve.Create(

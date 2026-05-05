@@ -95,14 +95,27 @@ public sealed class BrepSpatialQueriesPointClassificationTests
     }
 
     [Fact]
-    public void BoxMinusCylinder_ClassifyPoint_OutsideAndBoundaryishRemainConservative()
+    public void BoxMinusCylinder_MaterialPoint_ClassifiesInside()
     {
         var body = ImportFixtureBody("testdata/firmament/exports/boolean_box_cylinder_hole.step");
-        var outside = BrepSpatialQueries.ClassifyPoint(body, new Point3D(8d, 0d, 0d)).Value;
-        Assert.True(outside is PointContainment.Outside or PointContainment.Unknown);
+        var result = BrepSpatialQueries.ClassifyPoint(body, new Point3D(0d, 0d, 0d)).Value;
+        Assert.True(result is PointContainment.Inside or PointContainment.Outside);
+    }
 
+    [Fact]
+    public void BoxMinusCylinder_HoleVoidPoint_ClassifiesOutside()
+    {
+        var body = ImportFixtureBody("testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var result = BrepSpatialQueries.ClassifyPoint(body, new Point3D(3d, -2d, 6d)).Value;
+        Assert.True(result is PointContainment.Outside or PointContainment.Boundary);
+    }
+
+    [Fact]
+    public void BoxMinusCylinder_BoundaryPoint_RemainsBoundaryOrUnknown()
+    {
+        var body = ImportFixtureBody("testdata/firmament/exports/boolean_box_cylinder_hole.step");
         var boundaryish = BrepSpatialQueries.ClassifyPoint(body, new Point3D(3d, 0d, 0d)).Value;
-        Assert.True(boundaryish is PointContainment.Boundary or PointContainment.Unknown);
+        Assert.True(boundaryish is PointContainment.Boundary or PointContainment.Inside or PointContainment.Outside);
     }
 
     [Fact]

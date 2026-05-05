@@ -654,18 +654,22 @@ public static class BrepSpatialQueries
             var hits = new List<AnalyticRayHit>();
             foreach (var (faceId, surface) in faces)
             {
-                if (!AnalyticDisplayQuery.TryIntersectFace(body, faceId, ray, out var hit, tolerance: tolerance)) continue;
-                var domain = FaceDomainQuery.TryClassifyPointOnFace(body, faceId, hit.Position, tolerance);
-                if (domain.Classification is FaceDomainClassification.Outside) continue;
-                var q = domain.Classification switch
+                var faceHits = new List<Aetheris.Kernel.Core.Brep.Queries.AnalyticRayHit>(2);
+                AnalyticDisplayQuery.CollectIntersectFaceHits(body, faceId, ray, faceHits, tolerance: tolerance);
+                foreach (var hit in faceHits)
                 {
-                    FaceDomainClassification.Inside => domain.SeamDuplicateRisk ? AnalyticHitQuality.SeamDuplicateRisk : AnalyticHitQuality.Clean,
-                    FaceDomainClassification.OnBoundary => AnalyticHitQuality.BoundaryHit,
-                    FaceDomainClassification.Unsupported => AnalyticHitQuality.UnsupportedSurface,
-                    FaceDomainClassification.Ambiguous => AnalyticHitQuality.Ambiguous,
-                    _ => AnalyticHitQuality.Ambiguous
-                };
-                hits.Add(new AnalyticRayHit(hit.Distance, hit.Position, faceId, surface.Kind, hit.Normal, domain, q));
+                    var domain = FaceDomainQuery.TryClassifyPointOnFace(body, faceId, hit.Position, tolerance);
+                    if (domain.Classification is FaceDomainClassification.Outside) continue;
+                    var q = domain.Classification switch
+                    {
+                        FaceDomainClassification.Inside => domain.SeamDuplicateRisk ? AnalyticHitQuality.SeamDuplicateRisk : AnalyticHitQuality.Clean,
+                        FaceDomainClassification.OnBoundary => AnalyticHitQuality.BoundaryHit,
+                        FaceDomainClassification.Unsupported => AnalyticHitQuality.UnsupportedSurface,
+                        FaceDomainClassification.Ambiguous => AnalyticHitQuality.Ambiguous,
+                        _ => AnalyticHitQuality.Ambiguous
+                    };
+                    hits.Add(new AnalyticRayHit(hit.Distance, hit.Position, faceId, surface.Kind, hit.Normal, domain, q));
+                }
             }
 
             var ordered = hits.OrderBy(h=>h.T).ToList();

@@ -166,6 +166,70 @@ internal sealed class AnalyticPlanarFaceDomain
         return true;
     }
 
+
+    public bool IsNearBoundary(Point3D point, ToleranceContext tolerance, out double boundaryDistance, out bool nearVertex)
+    {
+        boundaryDistance = double.PositiveInfinity;
+        nearVertex = false;
+        var sqTol = tolerance.Linear * tolerance.Linear;
+
+        if (_outerPolygon.Count > 0)
+        {
+            var uv = ProjectToPlane(point, _plane);
+            foreach (var polygon in EnumerateAllPolygons())
+            {
+                for (var i = 0; i < polygon.Count; i++)
+                {
+                    var a = polygon[i];
+                    var b = polygon[(i + 1) % polygon.Count];
+                    var d2 = DistancePointToSegmentSquared(uv, a, b);
+                    if (d2 < boundaryDistance * boundaryDistance)
+                    {
+                        boundaryDistance = double.Sqrt(d2);
+                    }
+
+                    if (d2 <= sqTol)
+                    {
+                        nearVertex = nearVertex || DistancePointToPointSquared(uv, a) <= sqTol || DistancePointToPointSquared(uv, b) <= sqTol;
+                        return true;
+                    }
+                }
+            }
+
+            if (!double.IsFinite(boundaryDistance))
+            {
+                boundaryDistance = double.PositiveInfinity;
+            }
+
+            return false;
+        }
+
+        if (_singleCircularBoundary.HasValue)
+        {
+            var radial = point - _singleCircularBoundary.Value.Center;
+            var height = radial.Dot(_plane.Normal.ToVector());
+            var inPlaneRadial = radial - (_plane.Normal.ToVector() * height);
+            var distance = double.Abs(double.Sqrt(inPlaneRadial.Dot(inPlaneRadial)) - _singleCircularBoundary.Value.Radius);
+            boundaryDistance = distance;
+            return distance <= tolerance.Linear;
+        }
+
+        return false;
+    }
+
+    private IEnumerable<IReadOnlyList<(double U, double V)>> EnumerateAllPolygons()
+    {
+        if (_outerPolygon.Count > 0)
+        {
+            yield return _outerPolygon;
+        }
+
+        foreach (var hole in _innerPolygons)
+        {
+            yield return hole;
+        }
+    }
+
     private static bool TryBuildPolygonLoops(
         BrepBody body,
         Face face,
@@ -415,6 +479,13 @@ internal sealed class AnalyticPlanarFaceDomain
         var dU = point.U - closestU;
         var dV = point.V - closestV;
         return (dU * dU) + (dV * dV);
+    }
+
+    private static double DistancePointToPointSquared((double U, double V) a, (double U, double V) b)
+    {
+        var du = a.U - b.U;
+        var dv = a.V - b.V;
+        return (du * du) + (dv * dv);
     }
 
     private static double SignedArea(IReadOnlyList<(double U, double V)> polygon)

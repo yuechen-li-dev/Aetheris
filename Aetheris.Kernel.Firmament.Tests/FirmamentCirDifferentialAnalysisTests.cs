@@ -19,11 +19,12 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         var brep = compile.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans.Single(b => b.FeatureId == "hole").Body;
         var cirVolume = CirAnalyzer.EstimateVolume(cir.Value.Root, 72);
         var brepVolume = EstimateBrepVolume(brep, 72);
-        Assert.InRange(Math.Abs(cirVolume - brepVolume) / brepVolume, 0d, 0.08d);
+        Assert.True(brepVolume.HasValue && brepVolume.Value > 1e-9d);
+        Assert.InRange(Math.Abs(cirVolume - brepVolume.Value) / brepVolume.Value, 0d, 0.08d);
     }
 
     [Fact]
-    public void CIRvsBRep_SemanticPlacementFixture_Comparison()
+    public void CIRvsBRep_SemanticPlacementFixture_Comparison_Passes()
     {
         var fixture = "testdata/firmament/examples/w2_cylinder_root_blind_bore_semantic.firmament";
         var compile = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixture));
@@ -32,7 +33,14 @@ public sealed class FirmamentCirDifferentialAnalysisTests
 
         var brep = compile.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans.Single(b => b.FeatureId == "blind_bore").Body;
         var cirBounds = cir.Value.Root.Bounds;
-                var probes = new[] { new Point3D(0d, 0d, 5d), new Point3D(30d, 0d, 0d), new Point3D(0d, 0d, -20d) };
+        var cirVolume = CirAnalyzer.EstimateVolume(cir.Value.Root, 64);
+        var brepVolume = EstimateBrepVolume(brep, 64);
+        if (brepVolume.HasValue && brepVolume.Value > 1e-9d)
+        {
+            Assert.InRange(Math.Abs(cirVolume - brepVolume.Value) / brepVolume.Value, 0d, 0.2d);
+        }
+
+        var probes = new[] { new Point3D(0d, 0d, 5d), new Point3D(30d, 0d, 0d), new Point3D(0d, 0d, -20d) };
         foreach (var probe in probes)
         {
             var cirClass = CirAnalyzer.ClassifyPoint(cir.Value.Root, probe).Classification;
@@ -44,19 +52,25 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         }
     }
 
-    private static double EstimateBrepVolume(BrepBody body, int resolution)
+    private static double? EstimateBrepVolume(BrepBody body, int resolution)
     {
-        var bounds = ComputeBoundsFromVertices(body)!.Value;
-        var dx = (bounds.Max.X - bounds.Min.X) / resolution;
-        var dy = (bounds.Max.Y - bounds.Min.Y) / resolution;
-        var dz = (bounds.Max.Z - bounds.Min.Z) / resolution;
+        var bounds = ComputeBoundsFromVertices(body);
+        if (!bounds.HasValue)
+        {
+            return null;
+        }
+
+        var value = bounds.Value;
+        var dx = (value.Max.X - value.Min.X) / resolution;
+        var dy = (value.Max.Y - value.Min.Y) / resolution;
+        var dz = (value.Max.Z - value.Min.Z) / resolution;
         var cell = dx * dy * dz;
         var inside = 0;
         for (var ix = 0; ix < resolution; ix++)
         for (var iy = 0; iy < resolution; iy++)
         for (var iz = 0; iz < resolution; iz++)
         {
-            var p = new Point3D(bounds.Min.X + (ix + 0.5d) * dx, bounds.Min.Y + (iy + 0.5d) * dy, bounds.Min.Z + (iz + 0.5d) * dz);
+            var p = new Point3D(value.Min.X + (ix + 0.5d) * dx, value.Min.Y + (iy + 0.5d) * dy, value.Min.Z + (iz + 0.5d) * dz);
             var result = BrepSpatialQueries.ClassifyPoint(body, p);
             if (result.IsSuccess && result.Value == PointContainment.Inside)
             {

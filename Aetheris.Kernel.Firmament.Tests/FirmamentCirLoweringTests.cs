@@ -40,7 +40,7 @@ public sealed class FirmamentCirLoweringTests
     }
 
     [Fact]
-    public void FirmamentCirLowerer_OnFacePlacement_Succeeds_ForBoundedCase()
+    public void FirmamentCirLowerer_OnFacePlacement_UsesSharedAnchor()
     {
         var compile = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/w2_cylinder_root_blind_bore_semantic.firmament"));
         var lower = FirmamentCirLowerer.Lower(compile.Compilation.Value.PrimitiveLoweringPlan!);
@@ -57,6 +57,15 @@ public sealed class FirmamentCirLoweringTests
         Assert.Contains(lower.Diagnostics, d => d.Message.Contains("around-axis", StringComparison.OrdinalIgnoreCase));
     }
 
+
+    [Fact]
+    public void FirmamentCirLowerer_UnsupportedGeneratedTopologySelector_FailsClearly()
+    {
+        var compile = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m7c-valid-selector-vertices-edges-anchors.firmament"));
+        var lower = FirmamentCirLowerer.Lower(compile.Compilation.Value.PrimitiveLoweringPlan!);
+        Assert.False(lower.IsSuccess);
+        Assert.Contains(lower.Diagnostics, d => d.Message.Contains("supports only authored '.top_face' and '.bottom_face'", StringComparison.Ordinal));
+    }
     [Fact]
     public void FirmamentCirLowerer_UnsupportedOp_FailsClearly()
     {

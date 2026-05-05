@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Firmament.ParsedModel;
+using Aetheris.Kernel.Firmament.Execution;
 
 namespace Aetheris.Kernel.Firmament.Lowering;
 
@@ -194,14 +195,13 @@ internal static class FirmamentCirLowerer
             return null;
         }
 
-        if (!string.Equals(port, "top_face", StringComparison.Ordinal))
+        if (!FirmamentPlacementAnchorSemantics.TryResolveAuthoredFaceAnchorFromBounds(port, referencedNode.Bounds.Min, referencedNode.Bounds.Max, out var anchor))
         {
-            diagnostics.Add(new(opIndex, featureId, $"CIR-M2 placement supports only '.top_face' selectors; got '{selector}'."));
+            diagnostics.Add(new(opIndex, featureId, $"CIR-M3 supports only authored '.top_face' and '.bottom_face' placement selectors; got '{selector}'."));
             return null;
         }
 
-        var bounds = referencedNode.Bounds;
-        return new Point3D((bounds.Min.X + bounds.Max.X) * 0.5d, (bounds.Min.Y + bounds.Max.Y) * 0.5d, bounds.Max.Z);
+        return anchor;
     }
 
 }

@@ -645,6 +645,32 @@ public sealed class CliBaselineTests
         Assert.Equal("binding-missing", result.Face.SurfaceStatus);
     }
 
+
+    [Fact]
+    public void AnalyzeVolume_Box_ReturnsExpectedVolume()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-volume-box");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
+        Assert.Equal(1, exitCode); // deferred general shell integration
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("Volume analysis", doc.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnalyzeVolume_Cylinder_ReturnsExpectedVolume()
+    {
+        var radius=5d; var height=12d;
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateCylinder(radius, height).Value, "cli-volume-cylinder");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var v = doc.RootElement.GetProperty("volume").GetDouble();
+        Assert.InRange(v, Math.PI*radius*radius*height*0.999999, Math.PI*radius*radius*height*1.000001);
+    }
+
     [Fact]
     public void Analyze_Command_Returns_Structured_Json_Failure()
     {

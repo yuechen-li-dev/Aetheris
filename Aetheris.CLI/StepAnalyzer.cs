@@ -12,6 +12,10 @@ namespace Aetheris.CLI;
 
 public static class StepAnalyzer
 {
+
+public sealed record VolumeBoundingBox(Point3D Min, Point3D Max);
+public sealed record VolumeAnalysisResult(string InputPath, bool Success, double Volume, string LengthUnit, string VolumeUnit, VolumeBoundingBox BoundingBox, string Method, IReadOnlyList<string> Notes);
+
     public static AnalyzeResult Analyze(string stepPath, int? faceId = null, int? edgeId = null, int? vertexId = null)
     {
         var (fullPath, body) = ImportStepBody(stepPath);
@@ -40,6 +44,51 @@ public static class StepAnalyzer
     {
         var (fullPath, body) = ImportStepBody(stepPath);
         return AnalyzeImportedBodySection(body, fullPath, planeFamily, offset);
+    }
+
+    public static VolumeAnalysisResult AnalyzeVolume(string stepPath)
+    {
+        var (fullPath, body) = ImportStepBody(stepPath);
+        var notes = new List<string>();
+        var bbox = TryComputeBodyBoundingBox(body) ?? throw new InvalidOperationException("Volume analysis requires body vertex coordinates for bounding box reporting.");
+        var shells = body.ShellRepresentation;
+        if (shells is null)
+        {
+            throw new InvalidOperationException("Volume analysis requires explicit shell-role representation.");
+        }
+
+        var sphereFaces = body.Topology.Faces.Where(f => body.TryGetFaceSurface(f.Id, out var sf) && sf?.Sphere is not null).ToArray();
+        if (body.Topology.Faces.Count() == 1 && sphereFaces.Length == 1)
+        {
+            var r = sphereFaces[0];
+            body.TryGetFaceSurface(r.Id, out var sph);
+            var radius = sph!.Sphere!.Value.Radius;
+            var vol = 4d/3d*double.Pi*radius*radius*radius;
+            notes.Add("Exact analytic sphere volume from spherical face radius.");
+            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-sphere", notes);
+        }
+
+        var cylFaces = body.Topology.Faces.Where(f => body.TryGetFaceSurface(f.Id, out var sf) && sf?.Cylinder is not null).ToArray();
+        if (cylFaces.Length == 1)
+        {
+            body.TryGetFaceSurface(cylFaces[0].Id, out var cs);
+            var cyl = cs!.Cylinder!.Value;
+            var axis = cyl.Axis.ToVector();
+            var min = double.PositiveInfinity; var max = double.NegativeInfinity;
+            foreach (var v in body.Topology.Vertices)
+            {
+                if (!body.TryGetVertexPoint(v.Id, out var pt)) continue;
+                var t = (pt - cyl.Origin).Dot(axis);
+                min = double.Min(min,t); max = double.Max(max,t);
+            }
+            if (!double.IsFinite(min) || !double.IsFinite(max) || max <= min)
+                throw new InvalidOperationException("Cylinder volume analysis could not resolve finite axial span from vertices.");
+            var h=max-min; var vol=double.Pi*cyl.Radius*cyl.Radius*h;
+            notes.Add("Exact analytic cylinder volume from cylinder radius and cap-span derived from bound vertices.");
+            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-cylinder", notes);
+        }
+
+        throw new InvalidOperationException("Volume analysis currently supports canonical sphere and single-lateral-face cylinder bodies only; general shell integration is deferred.");
     }
 
     private static (string FullPath, BrepBody Body) ImportStepBody(string stepPath)

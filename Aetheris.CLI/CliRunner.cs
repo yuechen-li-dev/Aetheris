@@ -12,6 +12,7 @@ public static class CliRunner
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
+    private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--json]";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
@@ -407,6 +408,7 @@ public static class CliRunner
             stderr.WriteLine(AnalyzeUsage);
             stderr.WriteLine($"   or: {AnalyzeMapUsage[7..]}");
             stderr.WriteLine($"   or: {AnalyzeSectionUsage[7..]}");
+            stderr.WriteLine($"   or: {AnalyzeVolumeUsage[7..]}");
             stderr.WriteLine("Run 'aetheris analyze --help' for examples.");
             return 1;
         }
@@ -427,9 +429,14 @@ public static class CliRunner
             return RunAnalyzeSection(args.Skip(1).ToArray(), stdout, stderr);
         }
 
+        if (string.Equals(args[0], "volume", StringComparison.Ordinal))
+        {
+            return RunAnalyzeVolume(args.Skip(1).ToArray(), stdout, stderr);
+        }
+
         if (args[0].StartsWith("-", StringComparison.Ordinal))
         {
-            stderr.WriteLine("Analyze requires <file.step> as the first argument, or a subcommand ('map' or 'section').");
+            stderr.WriteLine("Analyze requires <file.step> as the first argument, or a subcommand ('map', 'section', or 'volume').");
             stderr.WriteLine(AnalyzeUsage);
             return 1;
         }
@@ -511,6 +518,63 @@ public static class CliRunner
 
         WriteSummaryText(analysis, stdout);
         return 0;
+    }
+
+    private static int RunAnalyzeVolume(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0)
+        {
+            stderr.WriteLine(AnalyzeVolumeUsage);
+            return 1;
+        }
+
+        if (IsHelpFlag(args[0]))
+        {
+            WriteAnalyzeVolumeHelp(stdout);
+            return 0;
+        }
+
+        var json = args.Contains("--json", StringComparer.Ordinal);
+        var stepPath = args[0];
+        if (stepPath.StartsWith("-", StringComparison.Ordinal))
+        {
+            stderr.WriteLine("Analyze volume requires <file.step> as the first argument.");
+            stderr.WriteLine(AnalyzeVolumeUsage);
+            return 1;
+        }
+
+        if (args.Any(a => a.StartsWith("--box", StringComparison.Ordinal)))
+        {
+            stderr.WriteLine("Analyze volume sub-box probing is deferred: exact bounded clipping against an axis-aligned sub-box is not available yet.");
+            return 1;
+        }
+
+        try
+        {
+            var result = StepAnalyzer.AnalyzeVolume(stepPath);
+            if (json)
+            {
+                stdout.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+            }
+            else
+            {
+                stdout.WriteLine($"Input: {result.InputPath}");
+                stdout.WriteLine("Success: true");
+                stdout.WriteLine($"Volume: {result.Volume:G17}");
+                stdout.WriteLine($"Length unit: {result.LengthUnit}");
+                stdout.WriteLine($"Volume unit: {result.VolumeUnit}");
+                stdout.WriteLine($"Bounding box: min=({result.BoundingBox.Min.X:G17},{result.BoundingBox.Min.Y:G17},{result.BoundingBox.Min.Z:G17}), max=({result.BoundingBox.Max.X:G17},{result.BoundingBox.Max.Y:G17},{result.BoundingBox.Max.Z:G17})");
+                stdout.WriteLine($"Method: {result.Method}");
+                foreach (var n in result.Notes) stdout.WriteLine($"Note: {n}");
+            }
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            if (json) WriteAnalyzeFailureJson(stdout, stepPath, ex);
+            else WriteAnalyzeFailureText(stderr, stepPath, ex);
+            return 1;
+        }
     }
 
     private static int RunAsm(string[] args, TextWriter stdout, TextWriter stderr)
@@ -1092,6 +1156,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris asm export assembly.firmasm --out out/assembly-roundtrip --json");
         stdout.WriteLine("  aetheris analyze map model.step --top --rows 40 --cols 60 --json");
         stdout.WriteLine("  aetheris analyze section model.step --xy --offset 2.5 --json");
+        stdout.WriteLine("  aetheris analyze volume model.step --json");
         stdout.WriteLine();
         stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");
     }
@@ -1130,6 +1195,7 @@ public static class CliRunner
         stdout.WriteLine("  - At most one of --face, --edge, --vertex may be supplied.");
         stdout.WriteLine("  - Use 'aetheris analyze map --help' for orthographic map options.");
         stdout.WriteLine("  - Use 'aetheris analyze section --help' for section options.");
+        stdout.WriteLine("  - Use 'aetheris analyze volume --help' for volume options.");
         stdout.WriteLine("  - Assembly-like multi-root STEP is rejected here with a route hint to assembly extraction/import.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
@@ -1170,6 +1236,24 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris analyze section part.step --xz --offset 5.0 --json");
+    }
+
+    private static void WriteAnalyzeVolumeHelp(TextWriter stdout)
+    {
+        stdout.WriteLine(AnalyzeVolumeUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Analyze STEP body volume using kernel B-rep topology/geometry.");
+        stdout.WriteLine();
+        stdout.WriteLine("Options:");
+        stdout.WriteLine("  --json         Emit machine-readable JSON output.");
+        stdout.WriteLine();
+        stdout.WriteLine("Notes:");
+        stdout.WriteLine("  - Exact whole-body volume currently supports canonical spheres and single-lateral-face cylinders.");
+        stdout.WriteLine("  - Exact sub-box volume clipping (--box ...) is deferred in ANALYZE-P1.");
+        stdout.WriteLine();
+        stdout.WriteLine("Examples:");
+        stdout.WriteLine("  aetheris analyze volume part.step");
+        stdout.WriteLine("  aetheris analyze volume part.step --json");
     }
 
     private static void WriteCanonHelp(TextWriter stdout)

@@ -102,15 +102,25 @@ Per fixture fields include:
 - BRep section: build success, bounds, approximate volume, unknown ratio
 - comparison section: bounds/volume/probe pass-fail placeholders for deterministic schema consumption
 
+### CIR-M5.1 report semantics and stability contract
+
+- The artifact-generation test is **reporting-only** and must pass even when CIR-vs-BRep semantic drift exists.
+- Drift belongs in fixture data (`status=failed`, `mismatchClass`, probe mismatches, volume deltas), not as an artifact-test failure.
+- Matrix assertion tests remain drift-sensitive and continue to fail when unexpected disagreement appears.
+
 ### How Codex should use it
 
 - Parse JSON directly from the deterministic artifact path.
 - Use top-level counters for quick trend checks.
-- Use per-fixture status and notes for unsupported/failed visibility.
-- Use CIR/BRep sections for downstream diff triage and summarization.
+- Use per-fixture `status` and `mismatchClass` to distinguish unsupported fixtures from supported-but-drifted fixtures.
+- For supported failed fixtures, read `comparisons.bounds`, `comparisons.volume`, and `comparisons.probes` first:
+  - bounds: `maxAbsDelta`, `tolerance`, `passed`
+  - volume: `absDelta`, `relativeDelta`, `tolerance`, `passed`, plus BRep `unknownCount`/`unknownRatio`
+  - probes: `probeCount`, `mismatchCount`, structured mismatch entries with CIR/BRep classification and BRep-unknown indicator
+- Use notes/diagnostics as secondary evidence when a fixture is failed/unsupported.
 
 ### Limitations
 
 - BRep volume remains voxel-estimated and inherits analyzer uncertainty.
 - `generatedAtUtc` is intentionally variable; tests validate presence/shape, not exact value.
-- Comparison detail is currently scaffolded for schema stability and can be deepened in CIR-M6.
+- Comparison detail is now populated for bounds/volume/probes in CIR-M5.1; future work should focus on classification taxonomy tightening rather than placeholder fields.

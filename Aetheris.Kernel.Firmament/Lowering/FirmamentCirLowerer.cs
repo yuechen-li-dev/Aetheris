@@ -25,7 +25,7 @@ internal static class FirmamentCirLowerer
                 continue;
             }
 
-            nodesByFeature[primitive.FeatureId] = ApplyPlacement(node, primitive.Placement, primitive.OpIndex, primitive.FeatureId, diagnostics);
+            nodesByFeature[primitive.FeatureId] = ApplyPlacement(node, primitive.Placement, primitive.OpIndex, primitive.FeatureId, nodesByFeature, diagnostics);
         }
 
         foreach (var boolean in plan.Booleans.OrderBy(b => b.OpIndex))
@@ -48,7 +48,7 @@ internal static class FirmamentCirLowerer
                 continue;
             }
 
-            rhs = ApplyPlacement(rhs, boolean.Placement, boolean.OpIndex, boolean.FeatureId, diagnostics);
+            rhs = ApplyPlacement(rhs, boolean.Placement, boolean.OpIndex, boolean.FeatureId, nodesByFeature, diagnostics);
             var composed = boolean.Kind switch
             {
                 FirmamentLoweredBooleanKind.Add => new CirUnionNode(lhs, rhs),
@@ -129,25 +129,79 @@ internal static class FirmamentCirLowerer
         return new CirBoxNode(parts[0], parts[1], parts[2]);
     }
 
-    private static CirNode ApplyPlacement(CirNode node, FirmamentLoweredPlacement? placement, int opIndex, string featureId, List<CirLoweringDiagnostic> diagnostics)
+    private static CirNode ApplyPlacement(CirNode node, FirmamentLoweredPlacement? placement, int opIndex, string featureId, IReadOnlyDictionary<string, CirNode> loweredFeatures, List<CirLoweringDiagnostic> diagnostics)
     {
-        if (placement is null || placement.Offset.Count == 0)
+        if (placement is null)
         {
             return node;
         }
 
-        if (placement.On is not null and not FirmamentLoweredPlacementOriginAnchor)
-        {
-            diagnostics.Add(new(opIndex, featureId, "Only origin placement anchor is supported in CIR-M1."));
-            return node;
-        }
-
-        if (placement.Offset.Count != 3)
+        if (placement.Offset.Count != 0 && placement.Offset.Count != 3)
         {
             diagnostics.Add(new(opIndex, featureId, "Placement offset must have exactly 3 components."));
             return node;
         }
 
-        return new CirTransformNode(node, Transform3D.CreateTranslation(new Vector3D(placement.Offset[0], placement.Offset[1], placement.Offset[2])));
+        var anchor = ResolvePlacementAnchor(placement, loweredFeatures, opIndex, featureId, diagnostics);
+        if (anchor is null)
+        {
+            return node;
+        }
+
+        var offset = placement.Offset.Count == 3 ? new Vector3D(placement.Offset[0], placement.Offset[1], placement.Offset[2]) : Vector3D.Zero;
+        var translation = (anchor.Value - Point3D.Origin) + offset;
+        if (translation.LengthSquared <= 1e-24d)
+        {
+            return node;
+        }
+
+        return new CirTransformNode(node, Transform3D.CreateTranslation(translation));
     }
+
+
+    private static Point3D? ResolvePlacementAnchor(FirmamentLoweredPlacement placement, IReadOnlyDictionary<string, CirNode> loweredFeatures, int opIndex, string featureId, List<CirLoweringDiagnostic> diagnostics)
+    {
+        if (placement.On is null || placement.On is FirmamentLoweredPlacementOriginAnchor)
+        {
+            return Point3D.Origin;
+        }
+
+        if (placement.AroundAxis is not null || placement.RadialOffset is not null || placement.AngleDegrees is not null)
+        {
+            diagnostics.Add(new(opIndex, featureId, "CIR-M2 does not support around-axis placement semantics."));
+            return null;
+        }
+
+        if (placement.On is not FirmamentLoweredPlacementSelectorAnchor selectorAnchor)
+        {
+            diagnostics.Add(new(opIndex, featureId, "Unsupported placement anchor shape for CIR-M2."));
+            return null;
+        }
+
+        var selector = selectorAnchor.Selector;
+        var split = selector.IndexOf('.', StringComparison.Ordinal);
+        if (split <= 0 || split >= selector.Length - 1)
+        {
+            diagnostics.Add(new(opIndex, featureId, $"Placement selector '{selector}' is not selector-shaped."));
+            return null;
+        }
+
+        var referencedFeature = selector[..split];
+        var port = selector[(split + 1)..];
+        if (!loweredFeatures.TryGetValue(referencedFeature, out var referencedNode))
+        {
+            diagnostics.Add(new(opIndex, featureId, $"Placement selector '{selector}' references unknown feature '{referencedFeature}' for CIR lowering."));
+            return null;
+        }
+
+        if (!string.Equals(port, "top_face", StringComparison.Ordinal))
+        {
+            diagnostics.Add(new(opIndex, featureId, $"CIR-M2 placement supports only '.top_face' selectors; got '{selector}'."));
+            return null;
+        }
+
+        var bounds = referencedNode.Bounds;
+        return new Point3D((bounds.Min.X + bounds.Max.X) * 0.5d, (bounds.Min.Y + bounds.Max.Y) * 0.5d, bounds.Max.Z);
+    }
+
 }

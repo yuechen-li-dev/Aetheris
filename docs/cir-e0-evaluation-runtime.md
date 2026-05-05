@@ -2,6 +2,8 @@
 
 Status: **Design milestone only** (no production code changes).
 
+> CIR-E1.1 framing note (May 5, 2026): the linear `CirTape` introduced in E1 is now the intended runtime/MIR direction for serious CIR evaluation paths. `CirNode` remains intentionally in place as a semantic prototype/builder surface, a compatibility lowering source, and an oracle for parity tests while lowering/execution paths are still converging.
+
 ## 1) Current CIR evaluation limitations
 
 Current CIR is intentionally a semantic tree with `CirNode.Evaluate(point)` dispatch per node kind and recursive composition (`min/max` for boolean ops). This is correct for representation but has runtime limits for dense sampling workloads. Specifically:
@@ -165,7 +167,7 @@ So analogy is useful at planner/orchestration level (deterministic inspectable p
 A staged model:
 
 1. **Tier A**: current recursive interpreter (`CirNode.Evaluate`) remains baseline oracle.
-2. **Tier B**: tape interpreter (flat arrays/spans, no recursion) for hot point loops and better tracing.
+2. **Tier B**: tape interpreter (flat arrays/spans, no recursion for core primitives/booleans) for hot point loops and better tracing.
 3. **Tier C**: compiled delegate (`Func<Point3D,double>` or struct evaluator) emitted from tape via expression trees or generated methods; rely on .NET JIT.
 4. **Tier D**: region-specialized reduced tape (after interval pruning), interpreted first, optionally compiled if repeatedly reused.
 5. **Tier E**: custom/native JIT explicitly deferred (anti-goal for near-term milestones).
@@ -216,6 +218,7 @@ First implementation target recommendation: **approximate volume path**, because
 Key risks:
 
 - **Dual-kernel drift**: recursive and tape evaluators diverge semantically.
+- **Transitional transform recursion**: E1 `EvalTransform` currently stores inverse transform payload + child node and calls recursive child evaluation; keeping this too long can hide hot-path recursion costs and delay true flat-tape execution guarantees.
 - **Bad interval math**: optimistic bounds cause incorrect pruning.
 - **Runtime monster**: over-abstraction before B-tier tape value is proven.
 - **Performance illusions**: synthetic wins without end-to-end analyzer improvement.
@@ -248,3 +251,48 @@ Definition of done for CIR-E1:
 - tape point evaluation parity checked against recursive evaluator on existing CIR fixtures,
 - no behavioral change required yet in external CLI paths,
 - first-pass trace output showing instruction execution and selected evaluation tier.
+
+## 13) CIR-E1.1 tape-first runtime framing (transition policy)
+
+### 13.1 What changed in framing
+
+- M0/M1 used tree-first framing to prove semantics quickly (`CirNode` primitives/booleans/transforms).
+- After E1, runtime framing is tape-first: `CirTape` is the intended MIR/runtime substrate for evaluation-centric workloads.
+- Tree-to-tape lowering remains a first-class adapter during transition and for backward compatibility.
+
+### 13.2 `CirNode` role during transition
+
+`CirNode` is retained deliberately for three roles:
+
+1. convenience semantic builder/prototype surface,
+2. compatibility source for deterministic lowering to tape,
+3. recursive oracle used by parity/differential tests.
+
+This is not a deprecation notice for `CirNode`; it is an execution-path reframing.
+
+### 13.3 Transform caveat (E1 transitional behavior)
+
+E1 `EvalTransform` is correct but not fully flat:
+
+- lowering emits transform payload (inverse transform) and retains a child `CirNode` reference,
+- tape execution evaluates the transformed point by recursively calling `Child.Evaluate(...)`.
+
+Why acceptable for E1:
+
+- preserves correctness and deterministic parity while tape infrastructure lands,
+- avoids premature broad refactor of transform/subtree lowering policy.
+
+Why transitional:
+
+- this leaves recursion in the runtime hot path,
+- it weakens the “all execution is explicit in tape instructions” goal,
+- it complicates future interval/pruning/compiled-delegate tiers that assume flat instruction ownership.
+
+E2 direction:
+
+- flatten transform execution into tape-native instruction flow (or equivalent frame model) so transformed children no longer require recursive node calls at runtime.
+
+### 13.4 Lowering target policy going forward
+
+- New evaluation/runtime lowerers should target tape directly where feasible.
+- Tree-lowering adapters remain valid for migration and parity, but are no longer the conceptual end-state runtime.

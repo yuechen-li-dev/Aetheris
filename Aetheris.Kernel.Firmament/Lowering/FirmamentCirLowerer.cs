@@ -49,6 +49,7 @@ internal static class FirmamentCirLowerer
                 continue;
             }
 
+            rhs = ApplyDefaultToolLocalFrame(boolean.Tool, rhs);
             rhs = ApplyPlacement(rhs, boolean.Placement, boolean.OpIndex, boolean.FeatureId, nodesByFeature, diagnostics);
             var composed = boolean.Kind switch
             {
@@ -128,6 +129,44 @@ internal static class FirmamentCirLowerer
     {
         var parts = sizeRaw.Trim('[', ']').Split(',').Select(p => double.Parse(p.Trim())).ToArray();
         return new CirBoxNode(parts[0], parts[1], parts[2]);
+    }
+
+    private static CirNode ApplyDefaultToolLocalFrame(FirmamentLoweredToolOp tool, CirNode node)
+    {
+        var zShift = ResolveDefaultToolFrameZShift(tool);
+        if (!zShift.HasValue || Math.Abs(zShift.Value) <= 1e-12d)
+        {
+            return node;
+        }
+
+        return new CirTransformNode(node, Transform3D.CreateTranslation(new Vector3D(0d, 0d, zShift.Value)));
+    }
+
+    private static double? ResolveDefaultToolFrameZShift(FirmamentLoweredToolOp tool)
+    {
+        if (string.Equals(tool.OpName, "box", StringComparison.Ordinal)
+            && tool.RawFields.TryGetValue("size", out var boxSizeRaw)
+            && !string.IsNullOrWhiteSpace(boxSizeRaw))
+        {
+            var box = FirmamentPrimitiveToolParsing.ParseBox(boxSizeRaw);
+            return box.SizeZ * 0.5d;
+        }
+
+        if (string.Equals(tool.OpName, "cylinder", StringComparison.Ordinal)
+            && tool.RawFields.TryGetValue("height", out var cylinderHeightRaw)
+            && !string.IsNullOrWhiteSpace(cylinderHeightRaw))
+        {
+            return FirmamentPrimitiveToolParsing.ParseScalar(cylinderHeightRaw) * 0.5d;
+        }
+
+        if (string.Equals(tool.OpName, "cone", StringComparison.Ordinal)
+            && tool.RawFields.TryGetValue("height", out var coneHeightRaw)
+            && !string.IsNullOrWhiteSpace(coneHeightRaw))
+        {
+            return FirmamentPrimitiveToolParsing.ParseScalar(coneHeightRaw) * 0.5d;
+        }
+
+        return null;
     }
 
     private static CirNode ApplyPlacement(CirNode node, FirmamentLoweredPlacement? placement, int opIndex, string featureId, IReadOnlyDictionary<string, CirNode> loweredFeatures, List<CirLoweringDiagnostic> diagnostics)

@@ -19,11 +19,11 @@ ops[2]:
       op: slot_cut
       length: 16
       width: 8
-      height: 10
+      height: 20
       corner_radius: 4
     place:
       on: origin
       offset[3]:
         0
         0
-        -5
+        -10

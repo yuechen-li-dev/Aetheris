@@ -10,7 +10,6 @@ public enum CirTapeOpCode
     Min,
     Max,
     Neg,
-    EvalTransform,
 }
 
 public readonly record struct CirTapeInstruction(
@@ -22,11 +21,9 @@ public readonly record struct CirTapeInstruction(
     CirNodeKind SourceKind,
     int LoweringIndex);
 
-public readonly record struct CirTapeBoxPayload(double Width, double Height, double Depth);
-public readonly record struct CirTapeCylinderPayload(double Radius, double Height);
-public readonly record struct CirTapeSpherePayload(double Radius);
-public readonly record struct CirTapeTransformPayload(Transform3D InverseTransform);
-public readonly record struct CirTapeTransformEvalPayload(CirNode Child, Transform3D InverseTransform);
+public readonly record struct CirTapeBoxPayload(double Width, double Height, double Depth, Transform3D InverseTransform);
+public readonly record struct CirTapeCylinderPayload(double Radius, double Height, Transform3D InverseTransform);
+public readonly record struct CirTapeSpherePayload(double Radius, Transform3D InverseTransform);
 
 /// <summary>
 /// Linear MIR/runtime representation for CIR point evaluation.
@@ -39,8 +36,6 @@ public sealed class CirTape
         IReadOnlyList<CirTapeBoxPayload> boxes,
         IReadOnlyList<CirTapeCylinderPayload> cylinders,
         IReadOnlyList<CirTapeSpherePayload> spheres,
-        IReadOnlyList<CirTapeTransformPayload> transforms,
-        IReadOnlyList<CirTapeTransformEvalPayload> transformEvals,
         int outputSlot,
         int slotCount)
     {
@@ -48,8 +43,6 @@ public sealed class CirTape
         BoxPayloads = boxes;
         CylinderPayloads = cylinders;
         SpherePayloads = spheres;
-        TransformPayloads = transforms;
-        TransformEvalPayloads = transformEvals;
         OutputSlot = outputSlot;
         SlotCount = slotCount;
     }
@@ -58,8 +51,6 @@ public sealed class CirTape
     public IReadOnlyList<CirTapeBoxPayload> BoxPayloads { get; }
     public IReadOnlyList<CirTapeCylinderPayload> CylinderPayloads { get; }
     public IReadOnlyList<CirTapeSpherePayload> SpherePayloads { get; }
-    public IReadOnlyList<CirTapeTransformPayload> TransformPayloads { get; }
-    public IReadOnlyList<CirTapeTransformEvalPayload> TransformEvalPayloads { get; }
     public int OutputSlot { get; }
     public int SlotCount { get; }
 
@@ -98,12 +89,6 @@ public sealed class CirTape
                 case CirTapeOpCode.Neg:
                     slots[instruction.DestSlot] = -slots[instruction.InputA];
                     break;
-                case CirTapeOpCode.EvalTransform:
-                {
-                    var payload = TransformEvalPayloads[instruction.PayloadIndex];
-                    slots[instruction.DestSlot] = payload.Child.Evaluate(payload.InverseTransform.Apply(point));
-                    break;
-                }
                 default:
                     throw new InvalidOperationException($"Unsupported CIR tape opcode: {instruction.OpCode}.");
             }
@@ -114,6 +99,7 @@ public sealed class CirTape
 
     private static double EvaluateBox(Point3D point, CirTapeBoxPayload payload)
     {
+        point = payload.InverseTransform.Apply(point);
         var hx = payload.Width * 0.5d;
         var hy = payload.Height * 0.5d;
         var hz = payload.Depth * 0.5d;
@@ -130,6 +116,7 @@ public sealed class CirTape
 
     private static double EvaluateCylinder(Point3D point, CirTapeCylinderPayload payload)
     {
+        point = payload.InverseTransform.Apply(point);
         var radial = double.Sqrt((point.X * point.X) + (point.Y * point.Y));
         var dr = radial - payload.Radius;
         var dz = double.Abs(point.Z) - (payload.Height * 0.5d);
@@ -140,8 +127,11 @@ public sealed class CirTape
         return outside + inside;
     }
 
-    private static double EvaluateSphere(Point3D point, CirTapeSpherePayload payload) =>
-        double.Sqrt((point.X * point.X) + (point.Y * point.Y) + (point.Z * point.Z)) - payload.Radius;
+    private static double EvaluateSphere(Point3D point, CirTapeSpherePayload payload)
+    {
+        point = payload.InverseTransform.Apply(point);
+        return double.Sqrt((point.X * point.X) + (point.Y * point.Y) + (point.Z * point.Z)) - payload.Radius;
+    }
 }
 
 public static class CirTapeLowerer
@@ -154,67 +144,62 @@ public static class CirTapeLowerer
         ArgumentNullException.ThrowIfNull(node);
 
         var state = new LoweringState();
-        var outputSlot = LowerNode(node, state);
+        var outputSlot = LowerNode(node, Transform3D.Identity, state);
 
         return new CirTape(
             state.Instructions,
             state.BoxPayloads,
             state.CylinderPayloads,
             state.SpherePayloads,
-            state.TransformPayloads,
-            state.TransformEvalPayloads,
             outputSlot,
             state.NextSlot);
     }
 
-    private static int LowerNode(CirNode node, LoweringState state)
+    private static int LowerNode(CirNode node, Transform3D accumulatedInverse, LoweringState state)
     {
         switch (node)
         {
             case CirBoxNode box:
             {
                 var payloadIndex = state.BoxPayloads.Count;
-                state.BoxPayloads.Add(new CirTapeBoxPayload(box.Width, box.Height, box.Depth));
+                state.BoxPayloads.Add(new CirTapeBoxPayload(box.Width, box.Height, box.Depth, accumulatedInverse));
                 return state.Emit(CirTapeOpCode.EvalBox, -1, -1, payloadIndex, node.Kind);
             }
             case CirCylinderNode cylinder:
             {
                 var payloadIndex = state.CylinderPayloads.Count;
-                state.CylinderPayloads.Add(new CirTapeCylinderPayload(cylinder.Radius, cylinder.Height));
+                state.CylinderPayloads.Add(new CirTapeCylinderPayload(cylinder.Radius, cylinder.Height, accumulatedInverse));
                 return state.Emit(CirTapeOpCode.EvalCylinder, -1, -1, payloadIndex, node.Kind);
             }
             case CirSphereNode sphere:
             {
                 var payloadIndex = state.SpherePayloads.Count;
-                state.SpherePayloads.Add(new CirTapeSpherePayload(sphere.Radius));
+                state.SpherePayloads.Add(new CirTapeSpherePayload(sphere.Radius, accumulatedInverse));
                 return state.Emit(CirTapeOpCode.EvalSphere, -1, -1, payloadIndex, node.Kind);
             }
             case CirUnionNode union:
             {
-                var left = LowerNode(union.Left, state);
-                var right = LowerNode(union.Right, state);
+                var left = LowerNode(union.Left, accumulatedInverse, state);
+                var right = LowerNode(union.Right, accumulatedInverse, state);
                 return state.Emit(CirTapeOpCode.Min, left, right, -1, node.Kind);
             }
             case CirSubtractNode subtract:
             {
-                var left = LowerNode(subtract.Left, state);
-                var right = LowerNode(subtract.Right, state);
+                var left = LowerNode(subtract.Left, accumulatedInverse, state);
+                var right = LowerNode(subtract.Right, accumulatedInverse, state);
                 var negRight = state.Emit(CirTapeOpCode.Neg, right, -1, -1, node.Kind);
                 return state.Emit(CirTapeOpCode.Max, left, negRight, -1, node.Kind);
             }
             case CirIntersectNode intersect:
             {
-                var left = LowerNode(intersect.Left, state);
-                var right = LowerNode(intersect.Right, state);
+                var left = LowerNode(intersect.Left, accumulatedInverse, state);
+                var right = LowerNode(intersect.Right, accumulatedInverse, state);
                 return state.Emit(CirTapeOpCode.Max, left, right, -1, node.Kind);
             }
             case CirTransformNode transform:
             {
-                var payloadIndex = state.TransformEvalPayloads.Count;
-                // CIR-E1 transitional caveat: transform execution keeps a child-node reference and
-                // performs recursive child evaluation. E2 is expected to flatten this into pure tape ops.
-                state.TransformEvalPayloads.Add(new CirTapeTransformEvalPayload(transform.Child, transform.Transform.Inverse()));
-                return state.Emit(CirTapeOpCode.EvalTransform, -1, -1, payloadIndex, node.Kind);
+                var nextAccumulatedInverse = accumulatedInverse * transform.Transform.Inverse();
+                return LowerNode(transform.Child, nextAccumulatedInverse, state);
             }
             default:
                 throw new InvalidOperationException($"Unsupported CIR node kind for tape lowering: {node.Kind}.");
@@ -227,8 +212,6 @@ public static class CirTapeLowerer
         public List<CirTapeBoxPayload> BoxPayloads { get; } = new();
         public List<CirTapeCylinderPayload> CylinderPayloads { get; } = new();
         public List<CirTapeSpherePayload> SpherePayloads { get; } = new();
-        public List<CirTapeTransformPayload> TransformPayloads { get; } = new();
-        public List<CirTapeTransformEvalPayload> TransformEvalPayloads { get; } = new();
         public int NextSlot { get; private set; }
 
         public int Emit(CirTapeOpCode opCode, int inputA, int inputB, int payloadIndex, CirNodeKind sourceKind)

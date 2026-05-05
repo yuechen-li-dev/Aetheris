@@ -7,12 +7,22 @@ namespace Aetheris.CLI;
 
 public static class CliRunner
 {
+    private sealed record CompareSideResult(
+        bool Success,
+        string StepPath,
+        AnalyzeResult? Analysis,
+        StepAnalyzer.VolumeAnalysisResult? Volume,
+        string? ErrorKind,
+        string? Error,
+        string? Classification = null,
+        int? RigidRootCount = null);
     private const string TopLevelUsage = "Usage: aetheris <build|analyze|canon|asm> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
+    private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
@@ -409,6 +419,7 @@ public static class CliRunner
             stderr.WriteLine($"   or: {AnalyzeMapUsage[7..]}");
             stderr.WriteLine($"   or: {AnalyzeSectionUsage[7..]}");
             stderr.WriteLine($"   or: {AnalyzeVolumeUsage[7..]}");
+            stderr.WriteLine($"   or: {AnalyzeCompareUsage[7..]}");
             stderr.WriteLine("Run 'aetheris analyze --help' for examples.");
             return 1;
         }
@@ -433,10 +444,14 @@ public static class CliRunner
         {
             return RunAnalyzeVolume(args.Skip(1).ToArray(), stdout, stderr);
         }
+        if (string.Equals(args[0], "compare", StringComparison.Ordinal))
+        {
+            return RunAnalyzeCompare(args.Skip(1).ToArray(), stdout, stderr);
+        }
 
         if (args[0].StartsWith("-", StringComparison.Ordinal))
         {
-            stderr.WriteLine("Analyze requires <file.step> as the first argument, or a subcommand ('map', 'section', or 'volume').");
+            stderr.WriteLine("Analyze requires <file.step> as the first argument, or a subcommand ('map', 'section', 'volume', or 'compare').");
             stderr.WriteLine(AnalyzeUsage);
             return 1;
         }
@@ -518,6 +533,99 @@ public static class CliRunner
 
         WriteSummaryText(analysis, stdout);
         return 0;
+    }
+
+    private static int RunAnalyzeCompare(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            stdout.WriteLine(AnalyzeCompareUsage);
+            return args.Length == 0 ? 1 : 0;
+        }
+
+        if (args.Length < 2)
+        {
+            stderr.WriteLine("Analyze compare requires <reference.step> and <candidate.step>.");
+            stderr.WriteLine(AnalyzeCompareUsage);
+            return 1;
+        }
+
+        var referencePath = args[0];
+        var candidatePath = args[1];
+        var json = false;
+        var approximateVolume = false;
+        int? resolution = null;
+        for (var i = 2; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--json":
+                    json = true;
+                    break;
+                case "--approximate-volume":
+                    approximateVolume = true;
+                    break;
+                case "--resolution" when i + 1 < args.Length && int.TryParse(args[++i], out var parsed):
+                    resolution = parsed;
+                    break;
+                case "--resolution":
+                    stderr.WriteLine("Analyze compare option --resolution requires an integer value.");
+                    return 1;
+                default:
+                    stderr.WriteLine($"Unknown analyze compare option '{args[i]}'.");
+                    stderr.WriteLine(AnalyzeCompareUsage);
+                    return 1;
+            }
+        }
+
+        if (approximateVolume && !resolution.HasValue)
+        {
+            stderr.WriteLine("Analyze compare approximate volume mode requires --resolution <N>.");
+            return 1;
+        }
+
+        var reference = AnalyzeCompareSide(referencePath, approximateVolume, resolution);
+        var candidate = AnalyzeCompareSide(candidatePath, approximateVolume, resolution);
+
+        var bboxComparison = CompareBoundingBoxes(reference.Analysis?.Summary.BoundingBox, candidate.Analysis?.Summary.BoundingBox);
+        var topologyComparison = CompareCounts(reference.Analysis, candidate.Analysis, s => s.FaceCount, s => s.EdgeCount, s => s.VertexCount, s => s.ShellCount, s => s.BodyCount);
+        var surfaceComparison = CompareSurfaceFamilies(reference.Analysis?.Summary.SurfaceFamilies, candidate.Analysis?.Summary.SurfaceFamilies);
+        var volumeComparison = CompareVolumes(reference.Volume, candidate.Volume, approximateVolume, resolution);
+        var success = reference.Success && candidate.Success;
+
+        if (json)
+        {
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                success,
+                reference,
+                candidate,
+                bboxComparison,
+                topologyComparison,
+                surfaceFamilyComparison = surfaceComparison,
+                volumeComparison,
+                notes = new[] { approximateVolume ? "Volume comparison uses explicit voxel approximation when exact fails per-side." : "Volume comparison uses exact path only." }
+            }, JsonOptions));
+            return success ? 0 : 1;
+        }
+
+        stdout.WriteLine("Files:");
+        stdout.WriteLine($"  Reference: {reference.StepPath}");
+        stdout.WriteLine($"  Candidate: {candidate.StepPath}");
+        stdout.WriteLine("Status:");
+        stdout.WriteLine($"  Reference success: {reference.Success}");
+        stdout.WriteLine($"  Candidate success: {candidate.Success}");
+        if (!string.IsNullOrWhiteSpace(reference.ErrorKind)) stdout.WriteLine($"  Reference error: {reference.ErrorKind}: {reference.Error}");
+        if (!string.IsNullOrWhiteSpace(candidate.ErrorKind)) stdout.WriteLine($"  Candidate error: {candidate.ErrorKind}: {candidate.Error}");
+        stdout.WriteLine("Bounding box:");
+        stdout.WriteLine($"  Comparison: {JsonSerializer.Serialize(bboxComparison, JsonOptions)}");
+        stdout.WriteLine("Counts:");
+        stdout.WriteLine($"  Comparison: {JsonSerializer.Serialize(topologyComparison, JsonOptions)}");
+        stdout.WriteLine("Surface families:");
+        stdout.WriteLine($"  Comparison: {JsonSerializer.Serialize(surfaceComparison, JsonOptions)}");
+        stdout.WriteLine("Volume:");
+        stdout.WriteLine($"  Comparison: {JsonSerializer.Serialize(volumeComparison, JsonOptions)}");
+        return success ? 0 : 1;
     }
 
     private static int RunAnalyzeVolume(string[] args, TextWriter stdout, TextWriter stderr)
@@ -629,6 +737,103 @@ public static class CliRunner
             else WriteAnalyzeFailureText(stderr, stepPath, ex);
             return 1;
         }
+    }
+
+    private static CompareSideResult AnalyzeCompareSide(string stepPath, bool approximateVolume, int? resolution)
+    {
+        var fullPath = Path.GetFullPath(stepPath);
+        try
+        {
+            var analysis = StepAnalyzer.Analyze(stepPath);
+            StepAnalyzer.VolumeAnalysisResult? volume = null;
+            try
+            {
+                volume = StepAnalyzer.AnalyzeVolume(stepPath, false, null);
+            }
+            catch
+            {
+                if (approximateVolume && resolution.HasValue)
+                {
+                    volume = StepAnalyzer.AnalyzeVolume(stepPath, true, resolution.Value);
+                }
+            }
+
+            return new CompareSideResult(true, fullPath, analysis, volume, null, null);
+        }
+        catch (Exception ex)
+        {
+            var errorKind = "analysis-failure";
+            string? classification = null;
+            int? rigidRootCount = null;
+            if (ex is StepAnalysisImportException importFailure)
+            {
+                var multiRootDiagnostic = importFailure.Diagnostics.FirstOrDefault(d => string.Equals(d.Source, "Importer.AssemblyLike.StepMultiRoot", StringComparison.Ordinal));
+                if (multiRootDiagnostic is not null)
+                {
+                    errorKind = "assembly-like-step";
+                    classification = "assembly-like";
+                    rigidRootCount = CountManifoldSolidRoots(multiRootDiagnostic.Message);
+                }
+                else
+                {
+                    errorKind = "import-failure";
+                }
+            }
+
+            return new CompareSideResult(false, fullPath, null, null, errorKind, ex.Message, classification, rigidRootCount);
+        }
+    }
+
+    private static object CompareBoundingBoxes(Aetheris.Kernel.Core.Math.BoundingBox3D? reference, Aetheris.Kernel.Core.Math.BoundingBox3D? candidate)
+    {
+        if (reference is null || candidate is null) return new { available = false };
+        var minDx = candidate.Value.Min.X - reference.Value.Min.X;
+        var minDy = candidate.Value.Min.Y - reference.Value.Min.Y;
+        var minDz = candidate.Value.Min.Z - reference.Value.Min.Z;
+        var maxDx = candidate.Value.Max.X - reference.Value.Max.X;
+        var maxDy = candidate.Value.Max.Y - reference.Value.Max.Y;
+        var maxDz = candidate.Value.Max.Z - reference.Value.Max.Z;
+        return new { available = true, minDelta = new { x = minDx, y = minDy, z = minDz }, maxDelta = new { x = maxDx, y = maxDy, z = maxDz } };
+    }
+
+    private static object CompareCounts(AnalyzeResult? reference, AnalyzeResult? candidate, params Func<AnalyzeSummary, int>[] selectors)
+    {
+        if (reference is null || candidate is null) return new { available = false };
+        var names = new[] { "faceCount", "edgeCount", "vertexCount", "shellCount", "bodyCount" };
+        var map = new Dictionary<string, object>(StringComparer.Ordinal);
+        for (var i = 0; i < selectors.Length; i++)
+        {
+            var r = selectors[i](reference.Summary);
+            var c = selectors[i](candidate.Summary);
+            map[names[i]] = new { reference = r, candidate = c, delta = c - r, absDelta = Math.Abs(c - r) };
+        }
+        return map;
+    }
+
+    private static object CompareSurfaceFamilies(IReadOnlyDictionary<string, int>? reference, IReadOnlyDictionary<string, int>? candidate)
+    {
+        if (reference is null || candidate is null) return new { available = false };
+        var keys = reference.Keys.Concat(candidate.Keys).Distinct(StringComparer.Ordinal).OrderBy(k => k, StringComparer.Ordinal);
+        return keys.ToDictionary(k => k, k => new { reference = reference.GetValueOrDefault(k), candidate = candidate.GetValueOrDefault(k), delta = candidate.GetValueOrDefault(k) - reference.GetValueOrDefault(k), absDelta = Math.Abs(candidate.GetValueOrDefault(k) - reference.GetValueOrDefault(k)) });
+    }
+
+    private static object CompareVolumes(StepAnalyzer.VolumeAnalysisResult? reference, StepAnalyzer.VolumeAnalysisResult? candidate, bool approximateVolume, int? resolution)
+    {
+        if (reference is null || candidate is null) return new { available = false, approximateVolumeRequested = approximateVolume, resolution };
+        var delta = candidate.Volume - reference.Volume;
+        var relativeDelta = Math.Abs(reference.Volume) > 1e-12 ? delta / reference.Volume : (double?)null;
+        return new
+        {
+            available = true,
+            method = $"{reference.Method} vs {candidate.Method}",
+            approximateVolumeRequested = approximateVolume,
+            resolution,
+            reference = new { reference.Volume, reference.Method, reference.UnknownCount, reference.TotalCount },
+            candidate = new { candidate.Volume, candidate.Method, candidate.UnknownCount, candidate.TotalCount },
+            delta,
+            absDelta = Math.Abs(delta),
+            relativeDelta
+        };
     }
 
     private static int RunAsm(string[] args, TextWriter stdout, TextWriter stderr)

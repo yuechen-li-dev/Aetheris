@@ -69,7 +69,7 @@ public sealed record VolumeAnalysisResult(string InputPath, bool Success, double
         }
 
         var cylFaces = body.Topology.Faces.Where(f => body.TryGetFaceSurface(f.Id, out var sf) && sf?.Cylinder is not null).ToArray();
-        if (cylFaces.Length == 1)
+        if (cylFaces.Length == 1 && body.Topology.Faces.Count() == 3)
         {
             body.TryGetFaceSurface(cylFaces[0].Id, out var cs);
             var cyl = cs!.Cylinder!.Value;
@@ -88,7 +88,263 @@ public sealed record VolumeAnalysisResult(string InputPath, bool Success, double
             return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-cylinder", notes);
         }
 
-        throw new InvalidOperationException("Volume analysis currently supports canonical sphere and single-lateral-face cylinder bodies only; general shell integration is deferred.");
+        var shellVolume = TryComputePlanarClosedShellVolume(body, shells, out var planarVolume, out var planarFailureReason);
+        if (shellVolume)
+        {
+            notes.Add("Exact closed-shell volume from oriented planar-face triangulation and signed tetrahedral accumulation.");
+            return new VolumeAnalysisResult(stepPath, true, planarVolume, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "planar-closed-shell", notes);
+        }
+
+        throw new InvalidOperationException(planarFailureReason ?? "Volume analysis currently supports canonical sphere, single-lateral-face cylinder, and enclosed planar closed-shell bodies only.");
+    }
+
+    private static bool TryComputePlanarClosedShellVolume(BrepBody body, BrepBodyShellRepresentation shells, out double volume, out string? failureReason)
+    {
+        volume = 0d;
+        failureReason = null;
+
+        if (body.Topology.Bodies.Count() != 1)
+        {
+            failureReason = "Volume analysis requires a single-body enclosed shell representation (assembly-like/multi-root STEP is unsupported for volume).";
+            return false;
+        }
+
+        var shellIds = shells.OrderedShellIds;
+        if (shellIds.Count == 0)
+        {
+            failureReason = "Volume analysis requires at least one shell in shell representation.";
+            return false;
+        }
+
+        var totalSigned = 0d;
+        foreach (var shellId in shellIds)
+        {
+            if (!body.Topology.TryGetShell(shellId, out var shell) || shell is null)
+            {
+                failureReason = $"Volume analysis shell {shellId.Value} is missing from topology.";
+                return false;
+            }
+
+            foreach (var faceId in shell.FaceIds)
+            {
+                if (!body.Topology.TryGetFace(faceId, out var face) || face is null)
+                {
+                    failureReason = $"Volume analysis face {faceId.Value} is missing from topology.";
+                    return false;
+                }
+
+                if (!body.TryGetFaceSurface(faceId, out var surface) || surface is null)
+                {
+                    failureReason = $"Volume analysis face {faceId.Value} is missing bound surface geometry.";
+                    return false;
+                }
+
+                if (surface.Kind != SurfaceGeometryKind.Plane || surface.Plane is not PlaneSurface plane)
+                {
+                    failureReason = $"Volume analysis encountered unsupported non-planar face {faceId.Value} ({surface.Kind}); curved trimmed-shell integration remains deferred.";
+                    return false;
+                }
+
+                var faceSignedVolume = 0d;
+                foreach (var loopId in face.LoopIds)
+                {
+                    var loopVertices = TryBuildOrientedLoopVertices(body, loopId, out var loopFailureReason);
+                    if (loopVertices is null)
+                    {
+                        failureReason = loopFailureReason;
+                        return false;
+                    }
+
+                    if (loopVertices.Count < 3)
+                    {
+                        continue;
+                    }
+
+                    var triangles = TriangulateLoopOnPlane(loopVertices, plane, out var triangulationFailureReason);
+                    if (triangles is null)
+                    {
+                        failureReason = triangulationFailureReason;
+                        return false;
+                    }
+
+                    foreach (var triangle in triangles)
+                    {
+                        faceSignedVolume += SignedTetraVolume(triangle.A, triangle.B, triangle.C);
+                    }
+                }
+
+                totalSigned += faceSignedVolume;
+            }
+        }
+
+        volume = double.Abs(totalSigned);
+        return true;
+    }
+
+    private static IReadOnlyList<Point3D>? TryBuildOrientedLoopVertices(BrepBody body, LoopId loopId, out string? failureReason)
+    {
+        failureReason = null;
+        if (!body.Topology.TryGetLoop(loopId, out var loop) || loop is null)
+        {
+            failureReason = $"Volume analysis loop {loopId.Value} is missing from topology.";
+            return null;
+        }
+
+        var vertices = new List<Point3D>(loop.CoedgeIds.Count);
+        foreach (var coedgeId in loop.CoedgeIds)
+        {
+            if (!body.Topology.TryGetCoedge(coedgeId, out var coedge) || coedge is null)
+            {
+                failureReason = $"Volume analysis coedge {coedgeId.Value} is missing from topology.";
+                return null;
+            }
+
+            if (!body.Topology.TryGetEdge(coedge.EdgeId, out var edge) || edge is null)
+            {
+                failureReason = $"Volume analysis edge {coedge.EdgeId.Value} is missing from topology.";
+                return null;
+            }
+
+            var vertexId = coedge.IsReversed ? edge.EndVertexId : edge.StartVertexId;
+            if (!body.TryGetVertexPoint(vertexId, out var point))
+            {
+                failureReason = $"Volume analysis loop {loopId.Value} is missing vertex coordinate for vertex {vertexId.Value}.";
+                return null;
+            }
+
+            vertices.Add(point);
+        }
+
+        return vertices;
+    }
+
+    private static IReadOnlyList<(Point3D A, Point3D B, Point3D C)>? TriangulateLoopOnPlane(
+        IReadOnlyList<Point3D> vertices,
+        PlaneSurface plane,
+        out string? failureReason)
+    {
+        failureReason = null;
+        var origin = plane.Origin;
+        var u = plane.UAxis.ToVector();
+        var v = plane.VAxis.ToVector();
+        var normal = plane.Normal.ToVector();
+
+        var indices = Enumerable.Range(0, vertices.Count).ToList();
+        var uv = vertices.Select(p =>
+        {
+            var delta = p - origin;
+            return new Point2D(delta.Dot(u), delta.Dot(v));
+        }).ToArray();
+
+        var area = SignedArea2D(indices.Select(i => uv[i]).ToArray());
+        if (double.Abs(area) <= 1e-12d)
+        {
+            failureReason = "Volume analysis loop triangulation failed: degenerate planar loop area.";
+            return null;
+        }
+
+        var ccw = area > 0d;
+        var triangles = new List<(Point3D A, Point3D B, Point3D C)>();
+        var guard = 0;
+        while (indices.Count > 3 && guard++ < vertices.Count * vertices.Count)
+        {
+            var earFound = false;
+            for (var i = 0; i < indices.Count; i++)
+            {
+                var iPrev = indices[(i - 1 + indices.Count) % indices.Count];
+                var iCurr = indices[i];
+                var iNext = indices[(i + 1) % indices.Count];
+                if (!IsEar(uv, indices, iPrev, iCurr, iNext, ccw))
+                {
+                    continue;
+                }
+
+                var a = vertices[iPrev];
+                var b = vertices[iCurr];
+                var c = vertices[iNext];
+                var triNormalDot = (b - a).Cross(c - a).Dot(normal);
+                triangles.Add(triNormalDot >= 0d ? (a, b, c) : (a, c, b));
+                indices.RemoveAt(i);
+                earFound = true;
+                break;
+            }
+
+            if (!earFound)
+            {
+                failureReason = "Volume analysis loop triangulation failed: non-simple or numerically unstable planar loop.";
+                return null;
+            }
+        }
+
+        if (indices.Count == 3)
+        {
+            var a = vertices[indices[0]];
+            var b = vertices[indices[1]];
+            var c = vertices[indices[2]];
+            var triNormalDot = (b - a).Cross(c - a).Dot(normal);
+            triangles.Add(triNormalDot >= 0d ? (a, b, c) : (a, c, b));
+        }
+
+        return triangles;
+    }
+
+    private static bool IsEar(Point2D[] uv, List<int> polygon, int iPrev, int iCurr, int iNext, bool ccw)
+    {
+        var a = uv[iPrev];
+        var b = uv[iCurr];
+        var c = uv[iNext];
+        var cross = Cross2D(a, b, c);
+        if (ccw ? cross <= 1e-12d : cross >= -1e-12d)
+        {
+            return false;
+        }
+
+        foreach (var candidate in polygon)
+        {
+            if (candidate == iPrev || candidate == iCurr || candidate == iNext)
+            {
+                continue;
+            }
+
+            if (PointInTriangle(uv[candidate], a, b, c))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static double SignedArea2D(IReadOnlyList<Point2D> points)
+    {
+        var sum = 0d;
+        for (var i = 0; i < points.Count; i++)
+        {
+            var p = points[i];
+            var q = points[(i + 1) % points.Count];
+            sum += (p.U * q.V) - (q.U * p.V);
+        }
+
+        return 0.5d * sum;
+    }
+
+    private static double Cross2D(Point2D a, Point2D b, Point2D c) => ((b.U - a.U) * (c.V - a.V)) - ((b.V - a.V) * (c.U - a.U));
+    private static bool PointInTriangle(Point2D p, Point2D a, Point2D b, Point2D c)
+    {
+        var c1 = Cross2D(a, b, p);
+        var c2 = Cross2D(b, c, p);
+        var c3 = Cross2D(c, a, p);
+        var hasNeg = (c1 < -1e-12d) || (c2 < -1e-12d) || (c3 < -1e-12d);
+        var hasPos = (c1 > 1e-12d) || (c2 > 1e-12d) || (c3 > 1e-12d);
+        return !(hasNeg && hasPos);
+    }
+
+    private static double SignedTetraVolume(Point3D a, Point3D b, Point3D c)
+    {
+        var av = new Vector3D(a.X, a.Y, a.Z);
+        var bv = new Vector3D(b.X, b.Y, b.Z);
+        var cv = new Vector3D(c.X, c.Y, c.Z);
+        return av.Dot(bv.Cross(cv)) / 6d;
     }
 
     private static (string FullPath, BrepBody Body) ImportStepBody(string stepPath)

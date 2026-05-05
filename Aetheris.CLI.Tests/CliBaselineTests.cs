@@ -652,10 +652,24 @@ public sealed class CliBaselineTests
         var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-volume-box");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
-        Assert.Equal(1, exitCode); // deferred general shell integration
+        Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(stdout.ToString());
-        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("Volume analysis", doc.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("planar-closed-shell", doc.RootElement.GetProperty("method").GetString());
+        Assert.Equal(240d, doc.RootElement.GetProperty("volume").GetDouble(), 8);
+    }
+
+    [Fact]
+    public void AnalyzeVolume_BoxMinusBox_PlanarBoolean_ReturnsExpectedVolume()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_subtract_basic.step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("planar-closed-shell", doc.RootElement.GetProperty("method").GetString());
+        Assert.Equal(18d, doc.RootElement.GetProperty("volume").GetDouble(), 8);
     }
 
     [Fact]
@@ -669,6 +683,30 @@ public sealed class CliBaselineTests
         using var doc = JsonDocument.Parse(stdout.ToString());
         var v = doc.RootElement.GetProperty("volume").GetDouble();
         Assert.InRange(v, Math.PI*radius*radius*height*0.999999, Math.PI*radius*radius*height*1.000001);
+    }
+
+    [Fact]
+    public void AnalyzeVolume_AssemblyLikeStep_FailsClearly()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/OCCT/as1.step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
+        Assert.Equal(1, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("assembly-like", doc.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnalyzeVolume_MixedCurvedTrimmedBody_FailsClearly()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
+        Assert.Equal(1, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("unsupported non-planar face", doc.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

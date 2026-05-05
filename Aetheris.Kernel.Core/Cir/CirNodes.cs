@@ -3,7 +3,7 @@ using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Kernel.Core.Cir;
 
-internal sealed record CirBoxNode(double Width, double Height, double Depth) : CirNode(CirNodeKind.Box)
+public sealed record CirBoxNode(double Width, double Height, double Depth) : CirNode(CirNodeKind.Box)
 {
     public override CirBounds Bounds => new(new Point3D(-Width * 0.5d, -Height * 0.5d, -Depth * 0.5d), new Point3D(Width * 0.5d, Height * 0.5d, Depth * 0.5d));
 
@@ -24,7 +24,7 @@ internal sealed record CirBoxNode(double Width, double Height, double Depth) : C
     }
 }
 
-internal sealed record CirCylinderNode(double Radius, double Height) : CirNode(CirNodeKind.Cylinder)
+public sealed record CirCylinderNode(double Radius, double Height) : CirNode(CirNodeKind.Cylinder)
 {
     public override CirBounds Bounds => new(new Point3D(-Radius, -Radius, -Height * 0.5d), new Point3D(Radius, Radius, Height * 0.5d));
 
@@ -41,32 +41,32 @@ internal sealed record CirCylinderNode(double Radius, double Height) : CirNode(C
     }
 }
 
-internal sealed record CirSphereNode(double Radius) : CirNode(CirNodeKind.Sphere)
+public sealed record CirSphereNode(double Radius) : CirNode(CirNodeKind.Sphere)
 {
     public override CirBounds Bounds => new(new Point3D(-Radius, -Radius, -Radius), new Point3D(Radius, Radius, Radius));
 
     public override double Evaluate(Point3D point) => double.Sqrt((point.X * point.X) + (point.Y * point.Y) + (point.Z * point.Z)) - Radius;
 }
 
-internal sealed record CirUnionNode(CirNode Left, CirNode Right) : CirNode(CirNodeKind.Union)
+public sealed record CirUnionNode(CirNode Left, CirNode Right) : CirNode(CirNodeKind.Union)
 {
     public override CirBounds Bounds => CirBounds.Union(Left.Bounds, Right.Bounds);
     public override double Evaluate(Point3D point) => double.Min(Left.Evaluate(point), Right.Evaluate(point));
 }
 
-internal sealed record CirSubtractNode(CirNode Left, CirNode Right) : CirNode(CirNodeKind.Subtract)
+public sealed record CirSubtractNode(CirNode Left, CirNode Right) : CirNode(CirNodeKind.Subtract)
 {
     public override CirBounds Bounds => Left.Bounds;
     public override double Evaluate(Point3D point) => double.Max(Left.Evaluate(point), -Right.Evaluate(point));
 }
 
-internal sealed record CirIntersectNode(CirNode Left, CirNode Right) : CirNode(CirNodeKind.Intersect)
+public sealed record CirIntersectNode(CirNode Left, CirNode Right) : CirNode(CirNodeKind.Intersect)
 {
     public override CirBounds Bounds => CirBounds.Union(Left.Bounds, Right.Bounds);
     public override double Evaluate(Point3D point) => double.Max(Left.Evaluate(point), Right.Evaluate(point));
 }
 
-internal sealed record CirTransformNode(CirNode Child, Transform3D Transform) : CirNode(CirNodeKind.Transform)
+public sealed record CirTransformNode(CirNode Child, Transform3D Transform) : CirNode(CirNodeKind.Transform)
 {
     public override CirBounds Bounds
     {
@@ -101,7 +101,7 @@ internal sealed record CirTransformNode(CirNode Child, Transform3D Transform) : 
     private Point3D TransformPoint(Point3D p) => Transform.Apply(p);
 }
 
-internal static class CirVolumeEstimator
+public static class CirVolumeEstimator
 {
     public static double EstimateVolume(CirNode node, int resolution)
     {

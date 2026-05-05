@@ -44,6 +44,17 @@ public sealed class BrepSpatialQueriesPointClassificationTests
     }
 
     [Fact]
+    public void PrimitiveBody_ClassifyPoint_UsesJudgmentShellAndReportsSelectedCandidate()
+    {
+        var box = BrepPrimitives.CreateBox(2d, 2d, 2d).Value;
+        var result = BrepSpatialQueries.ClassifyPoint(box, Point3D.Origin);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(PointContainment.Inside, result.Value);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("strategy selected: primitive_analytic", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void UnsupportedBody_ClassifyPoint_ReturnsUnknownWithDiagnostic()
     {
         var body = new BrepBody(new TopologyModel(), new BrepGeometryStore(), new BrepBindingModel());
@@ -53,5 +64,6 @@ public sealed class BrepSpatialQueriesPointClassificationTests
         Assert.True(result.IsSuccess);
         Assert.Equal(PointContainment.Unknown, result.Value);
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("supports primitive", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("strategy selected: unknown", StringComparison.Ordinal));
     }
 }

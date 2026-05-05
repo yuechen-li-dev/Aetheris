@@ -68,11 +68,7 @@ public sealed record VolumeAnalysisResult(
         var (fullPath, body) = ImportStepBody(stepPath);
         var notes = new List<string>();
         var bbox = TryComputeBodyBoundingBox(body) ?? throw new InvalidOperationException("Volume analysis requires body vertex coordinates for bounding box reporting.");
-        var shells = body.ShellRepresentation;
-        if (shells is null)
-        {
-            throw new InvalidOperationException("Volume analysis requires explicit shell-role representation.");
-        }
+        var shells = ResolveShellRepresentationForVolume(body);
 
         if (approximate)
         {
@@ -123,6 +119,29 @@ public sealed record VolumeAnalysisResult(
         }
 
         throw new InvalidOperationException(planarFailureReason ?? "Volume analysis currently supports canonical sphere, single-lateral-face cylinder, and enclosed planar closed-shell bodies only.");
+    }
+
+
+    private static BrepBodyShellRepresentation ResolveShellRepresentationForVolume(BrepBody body)
+    {
+        if (body.ShellRepresentation is { } shells)
+        {
+            return shells;
+        }
+
+        var bodies = body.Topology.Bodies.OrderBy(candidate => candidate.Id.Value).ToArray();
+        if (bodies.Length != 1)
+        {
+            throw new InvalidOperationException("Volume analysis requires explicit shell-role representation for multi-body topology.");
+        }
+
+        var shellIds = bodies[0].ShellIds.OrderBy(shellId => shellId.Value).ToArray();
+        if (shellIds.Length == 1)
+        {
+            return new BrepBodyShellRepresentation(shellIds[0], []);
+        }
+
+        throw new InvalidOperationException("Volume analysis requires explicit shell-role representation for multi-shell bodies.");
     }
 
     private static VolumeAnalysisResult ComputeApproximateVoxelVolume(string stepPath, BrepBody body, BoundingBox3D bbox, int resolution)

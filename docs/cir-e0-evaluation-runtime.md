@@ -270,27 +270,24 @@ Definition of done for CIR-E1:
 
 This is not a deprecation notice for `CirNode`; it is an execution-path reframing.
 
-### 13.3 Transform caveat (E1 transitional behavior)
+### 13.3 Transform handling after CIR-E2
 
-E1 `EvalTransform` is correct but not fully flat:
+CIR-E2 removes the transitional recursive transform escape hatch from tape evaluation.
 
-- lowering emits transform payload (inverse transform) and retains a child `CirNode` reference,
-- tape execution evaluates the transformed point by recursively calling `Child.Evaluate(...)`.
+Chosen strategy: **Option B (baked local inverse transform per primitive payload)**.
 
-Why acceptable for E1:
+- lowering carries an accumulated inverse transform while traversing the tree,
+- `CirTransformNode` composes that accumulator and lowers only its child (no emitted transform opcode),
+- primitive tape payloads (`EvalBox`/`EvalCylinder`/`EvalSphere`) now store the accumulated inverse transform,
+- tape execution applies that payload transform before primitive SDF evaluation.
 
-- preserves correctness and deterministic parity while tape infrastructure lands,
-- avoids premature broad refactor of transform/subtree lowering policy.
+Resulting runtime shape:
 
-Why transitional:
+- tape remains straight-line SSA for current node kinds,
+- transform evaluation is fully self-contained in tape data/instructions,
+- tape point evaluation no longer calls `CirNode.Evaluate` for supported nodes.
 
-- this leaves recursion in the runtime hot path,
-- it weakens the “all execution is explicit in tape instructions” goal,
-- it complicates future interval/pruning/compiled-delegate tiers that assume flat instruction ownership.
-
-E2 direction:
-
-- flatten transform execution into tape-native instruction flow (or equivalent frame model) so transformed children no longer require recursive node calls at runtime.
+This preserves deterministic lowering and prepares interval evaluation and later bytecode/register compaction work by keeping execution ownership inside tape runtime data.
 
 ### 13.4 Lowering target policy going forward
 

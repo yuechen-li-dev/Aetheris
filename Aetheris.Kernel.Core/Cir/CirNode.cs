@@ -29,5 +29,8 @@ public abstract record CirNode(CirNodeKind Kind)
 {
     public abstract CirBounds Bounds { get; }
 
+    /// <summary>
+    /// Semantic/oracle evaluator retained during the CIR-E1 transition while tape-first runtime paths mature.
+    /// </summary>
     public abstract double Evaluate(Point3D point);
 }

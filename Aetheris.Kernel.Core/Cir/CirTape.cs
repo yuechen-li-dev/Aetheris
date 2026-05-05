@@ -28,6 +28,10 @@ public readonly record struct CirTapeSpherePayload(double Radius);
 public readonly record struct CirTapeTransformPayload(Transform3D InverseTransform);
 public readonly record struct CirTapeTransformEvalPayload(CirNode Child, Transform3D InverseTransform);
 
+/// <summary>
+/// Linear MIR/runtime representation for CIR point evaluation.
+/// During transition, this is the intended execution form while <see cref="CirNode"/> remains the semantic builder/oracle.
+/// </summary>
 public sealed class CirTape
 {
     public CirTape(
@@ -142,6 +146,9 @@ public sealed class CirTape
 
 public static class CirTapeLowerer
 {
+    /// <summary>
+    /// Deterministically lowers semantic <see cref="CirNode"/> trees into runtime <see cref="CirTape"/>.
+    /// </summary>
     public static CirTape Lower(CirNode node)
     {
         ArgumentNullException.ThrowIfNull(node);
@@ -204,6 +211,8 @@ public static class CirTapeLowerer
             case CirTransformNode transform:
             {
                 var payloadIndex = state.TransformEvalPayloads.Count;
+                // CIR-E1 transitional caveat: transform execution keeps a child-node reference and
+                // performs recursive child evaluation. E2 is expected to flatten this into pure tape ops.
                 state.TransformEvalPayloads.Add(new CirTapeTransformEvalPayload(transform.Child, transform.Transform.Inverse()));
                 return state.Emit(CirTapeOpCode.EvalTransform, -1, -1, payloadIndex, node.Kind);
             }

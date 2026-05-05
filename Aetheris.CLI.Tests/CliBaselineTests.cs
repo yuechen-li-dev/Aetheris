@@ -746,6 +746,7 @@ public sealed class CliBaselineTests
         Assert.False(root.GetProperty("exact").GetBoolean());
         Assert.Equal("voxel-approximation", root.GetProperty("method").GetString());
         Assert.InRange(root.GetProperty("volume").GetDouble(), 239d, 241d);
+        Assert.Equal("conservative-outside", root.GetProperty("unknownPolicy").GetString());
     }
 
     [Fact]
@@ -758,6 +759,9 @@ public sealed class CliBaselineTests
         using var doc = JsonDocument.Parse(stdout.ToString());
         Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
         Assert.True(doc.RootElement.GetProperty("volume").GetDouble() > 0d);
+        Assert.True(doc.RootElement.TryGetProperty("unknownCount", out _));
+        Assert.True(doc.RootElement.TryGetProperty("unknownRatio", out _));
+        Assert.Equal("conservative-outside", doc.RootElement.GetProperty("unknownPolicy").GetString());
     }
 
     [Fact]
@@ -776,6 +780,9 @@ public sealed class CliBaselineTests
         Assert.True(root.TryGetProperty("voxelSize", out _));
         Assert.True(root.TryGetProperty("occupiedCount", out _));
         Assert.True(root.TryGetProperty("totalCount", out _));
+        Assert.True(root.TryGetProperty("unknownCount", out _));
+        Assert.True(root.TryGetProperty("unknownRatio", out _));
+        Assert.Equal("conservative-outside", root.GetProperty("unknownPolicy").GetString());
     }
 
     [Fact]

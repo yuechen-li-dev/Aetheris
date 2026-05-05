@@ -607,6 +607,18 @@ public static class CliRunner
                 {
                     stdout.WriteLine($"Occupied voxels: {result.OccupiedCount.Value}/{result.TotalCount.Value}");
                 }
+                if (result.UnknownCount.HasValue && result.TotalCount.HasValue)
+                {
+                    stdout.WriteLine($"Unknown samples: {result.UnknownCount.Value}/{result.TotalCount.Value}");
+                }
+                if (!string.IsNullOrWhiteSpace(result.UnknownPolicy))
+                {
+                    stdout.WriteLine($"Unknown policy: {result.UnknownPolicy}");
+                }
+                if (result.UnknownCount.GetValueOrDefault() > 0)
+                {
+                    stdout.WriteLine("Warning: unknown containment samples were conservatively excluded from occupied volume (outside policy), so the estimate may be an under-estimate.");
+                }
                 foreach (var n in result.Notes) stdout.WriteLine($"Note: {n}");
             }
             return 0;

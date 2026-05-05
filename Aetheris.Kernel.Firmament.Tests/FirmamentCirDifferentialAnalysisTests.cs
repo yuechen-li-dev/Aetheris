@@ -115,7 +115,37 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         Assert.Equal(cases.Count, parsed.FixtureCount);
         Assert.NotNull(parsed.GeneratedAtUtc);
         Assert.NotEmpty(parsed.Fixtures);
+        Assert.Contains(parsed.Fixtures, f => f.ExpectedSupport == "supported");
+        Assert.Contains(parsed.Fixtures, f => f.ExpectedSupport == "unsupported");
         Assert.Contains(parsed.Fixtures, f => f.Cir is not null && f.Brep is not null && f.Comparisons is not null);
+    }
+
+    [Fact]
+    public void CIRvsBRep_DifferentialReport_RecordsFailedFixtureWithoutFailingArtifactTest()
+    {
+        var cases = BuildAllCases();
+        var report = RunMatrix(cases, enforceAssertions: false);
+
+        Assert.True(report.FailedCount >= 1);
+        Assert.Contains(report.Fixtures, f => f.Status == "failed");
+    }
+
+    [Fact]
+    public void CIRvsBRep_DifferentialReport_PopulatesComparisonFields()
+    {
+        var cases = BuildAllCases();
+        var report = RunMatrix(cases, enforceAssertions: false);
+        var supported = report.Fixtures.First(f => f.ExpectedSupport == "supported" && f.Cir.Bounds is not null && f.Brep.Bounds is not null);
+
+        Assert.NotNull(supported.Comparisons.Bounds);
+        Assert.True(supported.Comparisons.Bounds.MaxAbsDelta >= 0d);
+        Assert.True(supported.Comparisons.Bounds.Tolerance >= 0d);
+
+        Assert.NotNull(supported.Comparisons.Volume);
+        Assert.True(supported.Comparisons.Volume.Tolerance >= 0d);
+
+        Assert.NotNull(supported.Comparisons.Probes);
+        Assert.True(supported.Comparisons.Probes.ProbeCount >= 1);
     }
 
     [Fact]
@@ -199,7 +229,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             var entry = new CirBrepFixtureReport(@case.Name, @case.FixturePath, @case.ExpectedSupport ? "supported" : "unsupported", status, null,
                 new CirFixtureSection(lower.IsSuccess, notes, null, new VolumeMetric(null, SharedVolumeResolution), []),
                 new BrepFixtureSection(false, null, new VolumeMetric(null, SharedVolumeResolution, null, null), []),
-                new ComparisonSection(new ComparisonMetric(0d, true), new VolumeComparisonMetric(null, null, true), new ProbeComparisonMetric(true, [])),
+                new ComparisonSection(new ComparisonMetric(0d, true, @case.BoundsTolerance), new VolumeComparisonMetric(null, null, true, @case.VolumeTolerance), new ProbeComparisonMetric(true, 0, 0, [])),
                 notes);
             entries.Add(entry);
 
@@ -232,7 +262,9 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             };
             entries[^1] = entry;
 
+            var boundsMaxAbsDelta = ComputeBoundsMaxAbsDelta(cirBounds, brepBounds!.Value);
             var boundsMismatch = FindBoundsMismatch(@case, cirBounds, brepBounds!.Value);
+            var boundsPassed = boundsMismatch is null || @case.ExpectedBoundsMismatchClass is not null;
             if (boundsMismatch is not null)
             {
                 if (@case.ExpectedBoundsMismatchClass is null)
@@ -248,6 +280,12 @@ public sealed class FirmamentCirDifferentialAnalysisTests
                     Assert.Contains($"class={@case.ExpectedBoundsMismatchClass}", boundsMismatch, StringComparison.Ordinal);
                 }
             }
+            entry = entry with
+            {
+                Comparisons = entry.Comparisons with { Bounds = new ComparisonMetric(boundsMaxAbsDelta, boundsPassed, @case.BoundsTolerance) },
+                MismatchClass = boundsMismatch is not null ? (@case.ExpectedBoundsMismatchClass ?? "placement drift") : entry.MismatchClass
+            };
+            entries[^1] = entry;
 
             var cirVolume = CirAnalyzer.EstimateVolume(lower.Value.Root, SharedVolumeResolution);
             var brepVolume = EstimateBrepVolume(rootBody, SharedVolumeResolution, out var unknownCount, out var sampleCount);
@@ -259,10 +297,14 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             };
             entries[^1] = entry;
 
+            double? absDelta = null;
+            double? relDelta = null;
+            var volumePassed = true;
             if (!brepVolume.HasValue || brepVolume.Value <= 1e-9d)
             {
                 if (!@case.AllowVolumeUnavailable)
                 {
+                    volumePassed = false;
                     if (enforceAssertions)
                     {
                         Assert.Fail($"{@case.Name}: BRep approximate volume unavailable. class=analyzer uncertainty. unknownRatio={(sampleCount == 0 ? 1d : unknownCount / (double)sampleCount):F6}");
@@ -271,20 +313,32 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             }
             else
             {
-                var relativeDelta = Math.Abs(cirVolume - brepVolume.Value) / brepVolume.Value;
+                absDelta = Math.Abs(cirVolume - brepVolume.Value);
+                relDelta = absDelta.Value / brepVolume.Value;
+                volumePassed = relDelta <= @case.VolumeTolerance;
                 if (enforceAssertions)
                 {
-                    Assert.True(relativeDelta <= @case.VolumeTolerance,
-                $"{@case.Name}: volume mismatch. class=analyzer uncertainty or semantic drift. cir={cirVolume:F6}, brep={brepVolume.Value:F6}, relDelta={relativeDelta:F6}, tolerance={@case.VolumeTolerance:F6}, resolution={SharedVolumeResolution}, brepUnknownCount={unknownCount}, sampleCount={sampleCount}");
+                    Assert.True(volumePassed,
+                $"{@case.Name}: volume mismatch. class=analyzer uncertainty or semantic drift. cir={cirVolume:F6}, brep={brepVolume.Value:F6}, relDelta={relDelta:F6}, tolerance={@case.VolumeTolerance:F6}, resolution={SharedVolumeResolution}, brepUnknownCount={unknownCount}, sampleCount={sampleCount}");
                 }
             }
+            entry = entry with
+            {
+                Comparisons = entry.Comparisons with { Volume = new VolumeComparisonMetric(absDelta, relDelta, volumePassed, @case.VolumeTolerance) },
+                MismatchClass = !volumePassed ? (entry.MismatchClass ?? "analyzer uncertainty or semantic drift") : entry.MismatchClass
+            };
+            entries[^1] = entry;
 
+            var probeMismatches = new List<ProbeMismatchMetric>();
+            var probeCount = 0;
             foreach (var probe in @case.Probes)
             {
+                probeCount++;
                 var cirClass = CirAnalyzer.ClassifyPoint(lower.Value.Root, probe.Point).Classification;
                 var brepResult = BrepSpatialQueries.ClassifyPoint(rootBody, probe.Point);
                 if (!brepResult.IsSuccess || brepResult.Value == PointContainment.Unknown)
                 {
+                    probeMismatches.Add(new ProbeMismatchMetric(probe.Label, probe.Point.ToString(), cirClass.ToString(), brepResult.IsSuccess ? brepResult.Value.ToString() : "Failure", true, "unsupported BRep analyzer certainty"));
                     if (probe.Expectation == ProbeExpectation.Certain)
                     {
                         var unknownText = brepResult.IsSuccess ? "Unknown" : "Failure";
@@ -299,12 +353,27 @@ public sealed class FirmamentCirDifferentialAnalysisTests
 
                 var brepInside = brepResult.Value == PointContainment.Inside;
                 var cirInside = cirClass == CirPointClassification.Inside;
+                if (brepInside != cirInside)
+                {
+                    probeMismatches.Add(new ProbeMismatchMetric(probe.Label, probe.Point.ToString(), cirClass.ToString(), brepResult.Value.ToString(), false, "primitive convention drift or boolean semantic drift or placement drift"));
+                }
                 if (enforceAssertions)
                 {
                     Assert.True(brepInside == cirInside,
                     $"{@case.Name}: probe mismatch for '{probe.Label}'. class=primitive convention drift or boolean semantic drift or placement drift. cir={cirClass}, brep={brepResult.Value}, point={probe.Point}");
                 }
             }
+            entry = entry with
+            {
+                Comparisons = entry.Comparisons with { Probes = new ProbeComparisonMetric(probeMismatches.Count == 0, probeCount, probeMismatches.Count, probeMismatches) },
+                MismatchClass = probeMismatches.Count > 0 ? (entry.MismatchClass ?? probeMismatches[0].Reason) : entry.MismatchClass,
+                Status = (@case.ExpectedSupport && (entry.Comparisons.Bounds.Passed && entry.Comparisons.Volume.Passed && probeMismatches.Count == 0)) ? "passed" : entry.Status
+            };
+            if (@case.ExpectedSupport && (!entry.Comparisons.Bounds.Passed || !entry.Comparisons.Volume.Passed || probeMismatches.Count > 0))
+            {
+                entry = entry with { Status = "failed" };
+            }
+            entries[^1] = entry;
         }
 
         return BuildSummary(entries);
@@ -367,6 +436,24 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         }
 
         return null;
+    }
+
+    private static double ComputeBoundsMaxAbsDelta(CirBounds cirBounds, BoundingBox3D brepBounds)
+    {
+        var cirExtent = cirBounds.Max - cirBounds.Min;
+        var brepExtent = brepBounds.Max - brepBounds.Min;
+        return new[]
+        {
+            Math.Abs(cirBounds.Min.X - brepBounds.Min.X),
+            Math.Abs(cirBounds.Min.Y - brepBounds.Min.Y),
+            Math.Abs(cirBounds.Min.Z - brepBounds.Min.Z),
+            Math.Abs(cirBounds.Max.X - brepBounds.Max.X),
+            Math.Abs(cirBounds.Max.Y - brepBounds.Max.Y),
+            Math.Abs(cirBounds.Max.Z - brepBounds.Max.Z),
+            Math.Abs(cirExtent.X - brepExtent.X),
+            Math.Abs(cirExtent.Y - brepExtent.Y),
+            Math.Abs(cirExtent.Z - brepExtent.Z)
+        }.Max();
     }
 
     private static double? EstimateBrepVolume(BrepBody body, int resolution, out int unknownCount, out int sampleCount)
@@ -456,7 +543,8 @@ public sealed class FirmamentCirDifferentialAnalysisTests
     private sealed record PointMetric(double X, double Y, double Z);
     private sealed record VolumeMetric(double? Value, int Resolution, int? UnknownCount = null, double? UnknownRatio = null);
     private sealed record ProbeClassificationMetric(string Label, string Point, string? Cir, string? Brep, bool Passed);
-    private sealed record ComparisonMetric(double MaxAbsDelta, bool Passed);
-    private sealed record VolumeComparisonMetric(double? AbsDelta, double? RelativeDelta, bool Passed);
-    private sealed record ProbeComparisonMetric(bool Passed, IReadOnlyList<string> Mismatches);
+    private sealed record ComparisonMetric(double MaxAbsDelta, bool Passed, double Tolerance);
+    private sealed record VolumeComparisonMetric(double? AbsDelta, double? RelativeDelta, bool Passed, double Tolerance);
+    private sealed record ProbeComparisonMetric(bool Passed, int ProbeCount, int MismatchCount, IReadOnlyList<ProbeMismatchMetric> Mismatches);
+    private sealed record ProbeMismatchMetric(string Label, string Point, string? Cir, string? Brep, bool BrepUnknown, string Reason);
 }

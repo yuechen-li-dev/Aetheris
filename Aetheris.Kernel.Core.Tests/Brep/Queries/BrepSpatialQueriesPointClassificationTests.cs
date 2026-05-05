@@ -1,4 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.EdgeFinishing;
+using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
@@ -52,6 +54,29 @@ public sealed class BrepSpatialQueriesPointClassificationTests
         Assert.True(result.IsSuccess);
         Assert.Equal(PointContainment.Inside, result.Value);
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("strategy selected: primitive_analytic", StringComparison.Ordinal));
+    }
+
+    
+    [Fact]
+    public void PlanarNonPrimitiveShell_ClassifyPoint_UsesMultiAxisConsensus()
+    {
+        var box = new AxisAlignedBoxExtents(-2d, 2d, -2d, 2d, -2d, 2d);
+        var chamfered = BrepBoundedChamfer.ChamferAxisAlignedBoxSingleCorner(box, BrepBoundedChamferCorner.XMaxYMaxZMax, 0.5d).Value;
+
+        var inside = BrepSpatialQueries.ClassifyPoint(chamfered, new Point3D(0d, 0d, 0d));
+        var outside = BrepSpatialQueries.ClassifyPoint(chamfered, new Point3D(3d, 3d, 3d));
+
+        Assert.Equal(PointContainment.Inside, inside.Value);
+        Assert.Equal(PointContainment.Outside, outside.Value);
+        Assert.Contains(inside.Diagnostics, d => d.Message.Contains("strategy selected: multi_axis_ray_consensus", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void PlanarBoundaryPoint_IsNotMisclassifiedInsideOutside()
+    {
+        var box = BrepPrimitives.CreateBox(2d, 2d, 2d).Value;
+        var result = BrepSpatialQueries.ClassifyPoint(box, new Point3D(1d, 1d, 0d));
+        Assert.Equal(PointContainment.Boundary, result.Value);
     }
 
     [Fact]

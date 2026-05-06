@@ -28,6 +28,36 @@ internal enum FacePatchRetentionStatus
     Unsupported
 }
 
+internal enum RetainedRegionLoopKind
+{
+    OuterBoundary,
+    InnerTrim,
+    MouthTrim,
+    CapTrim,
+    SeamTrim,
+    Deferred,
+    Unsupported
+}
+
+internal enum RetainedRegionLoopStatus
+{
+    ExactReady,
+    SpecialCaseReady,
+    Deferred,
+    Unsupported
+}
+
+internal sealed record RetainedRegionLoopDescriptor(
+    RetainedRegionLoopKind LoopKind,
+    TrimCurveFamily TrimCurveFamily,
+    TrimCapabilityClassification TrimCapability,
+    SurfacePatchFamily SourceSurfaceFamily,
+    SurfacePatchFamily OppositeSurfaceFamily,
+    FacePatchOrientationRole OrientationHint,
+    FacePatchRetentionRole RetentionRole,
+    RetainedRegionLoopStatus Status,
+    string Diagnostic);
+
 internal sealed record FacePatchCandidate(
     SourceSurfaceDescriptor SourceSurface,
     FacePatchDescriptor ProposedPatch,
@@ -38,6 +68,9 @@ internal sealed record FacePatchCandidate(
     FacePatchRetentionStatus RetentionStatus,
     string RetentionReason,
     IReadOnlyList<SurfacePatchFamily> OppositeFamilies,
+    IReadOnlyList<RetainedRegionLoopDescriptor> RetainedRegionLoops,
+    RetainedRegionLoopStatus LoopReadiness,
+    string LoopDiagnostic,
     IReadOnlyList<string> Diagnostics);
 
 internal sealed record FacePatchCandidateGenerationResult(
@@ -81,6 +114,9 @@ internal static class FacePatchCandidateGenerator
                     FacePatchRetentionStatus.Deferred,
                     "retention-not-applicable: CIR-F8.4 retention classification applies to subtract roots only.",
                     [],
+                    [],
+                    RetainedRegionLoopStatus.Deferred,
+                    "loop-retention-not-applicable: retained-region loop scaffolding applies to subtract roots with classified retention only.",
                     ["retention-not-applicable: non-subtract root leaves candidate retention unclassified."]));
             }
 
@@ -104,6 +140,9 @@ internal static class FacePatchCandidateGenerator
 
             var readiness = EvaluateReadiness(trim);
             var (retentionRole, retentionStatus, retentionReason) = EvaluateRetention(isBase, trim, relevantOther.Count);
+            var loopDescriptors = BuildRetainedRegionLoops(source, relevantOther, retentionRole, retentionStatus, isBase);
+            var loopReadiness = EvaluateLoopReadiness(loopDescriptors);
+            var loopDiagnostic = BuildLoopDiagnostic(loopDescriptors, retentionStatus);
             var candidateDiagnostics = new List<string>();
             if (trim is null)
             {
@@ -135,15 +174,18 @@ internal static class FacePatchCandidateGenerator
             candidateDiagnostics.Add($"retention-role: {retentionRole}");
             candidateDiagnostics.Add($"retention-status: {retentionStatus}");
             candidateDiagnostics.Add(retentionReason);
+            candidateDiagnostics.Add($"loop-readiness: {loopReadiness}");
+            candidateDiagnostics.Add(loopDiagnostic);
+            candidateDiagnostics.AddRange(loopDescriptors.Select(l => l.Diagnostic));
 
             var orientation = isBase ? source.OrientationRole : FacePatchOrientationRole.Reversed;
             var patchRole = isBase ? "base-boundary-retained-outside-tool" : "tool-boundary-retained-inside-base";
             var patch = new FacePatchDescriptor(source, [], [], orientation, patchRole, []);
-            candidates.Add(new FacePatchCandidate(source, patch, role, readiness, trim, retentionRole, retentionStatus, retentionReason, oppositeFamilies, candidateDiagnostics));
+            candidates.Add(new FacePatchCandidate(source, patch, role, readiness, trim, retentionRole, retentionStatus, retentionReason, oppositeFamilies, loopDescriptors, loopReadiness, loopDiagnostic, candidateDiagnostics));
         }
 
         diagnostics.Add("topology-assembly-not-implemented: dry-run emits candidate descriptors only and does not emit BRep topology.");
-        diagnostics.Add("retention-region-deferred: subtract retention roles are classified, but retained trim loops and topology assembly are deferred in CIR-F8.4.");
+        diagnostics.Add("topology-assembly-not-implemented: retained-region loop scaffolding emits descriptor diagnostics only; no BRep loops/coedges/edges/vertices are created.");
 
         var success = extraction.IsSuccess && candidates.Count > 0;
         return new(success, candidates, extraction.Descriptors, trimSummaries, extraction.Diagnostics, deferred.Distinct().ToArray(), diagnostics, TopologyAssemblyImplemented: false);
@@ -230,4 +272,103 @@ internal static class FacePatchCandidateGenerator
 
     private static (SurfacePatchFamily, SurfacePatchFamily) Normalize(SurfacePatchFamily a, SurfacePatchFamily b)
         => a <= b ? (a, b) : (b, a);
+
+    private static IReadOnlyList<RetainedRegionLoopDescriptor> BuildRetainedRegionLoops(
+        SourceSurfaceDescriptor source,
+        IReadOnlyList<SourceSurfaceDescriptor> opposite,
+        FacePatchRetentionRole retentionRole,
+        FacePatchRetentionStatus retentionStatus,
+        bool isBase)
+    {
+        if (retentionRole is FacePatchRetentionRole.NotApplicable or FacePatchRetentionRole.RetentionDeferred)
+        {
+            return [];
+        }
+
+        if (retentionStatus != FacePatchRetentionStatus.KnownTrimmedSurface && retentionStatus != FacePatchRetentionStatus.Deferred)
+        {
+            return [];
+        }
+
+        var loops = new List<RetainedRegionLoopDescriptor>();
+        foreach (var other in opposite)
+        {
+            var trim = TrimCapabilityMatrix.Evaluate(source.Family, other.Family);
+            var loopKind = DetermineLoopKind(source.Family, isBase, trim.Classification);
+            var status = trim.Classification switch
+            {
+                TrimCapabilityClassification.ExactSupported => RetainedRegionLoopStatus.ExactReady,
+                TrimCapabilityClassification.SpecialCaseOnly => RetainedRegionLoopStatus.SpecialCaseReady,
+                TrimCapabilityClassification.Deferred => RetainedRegionLoopStatus.Deferred,
+                _ => RetainedRegionLoopStatus.Unsupported
+            };
+
+            var families = trim.CurveFamilies.Count == 0 ? [TrimCurveFamily.Unsupported] : trim.CurveFamilies;
+            foreach (var curveFamily in families)
+            {
+                loops.Add(new RetainedRegionLoopDescriptor(
+                    loopKind,
+                    curveFamily,
+                    trim.Classification,
+                    source.Family,
+                    other.Family,
+                    isBase ? source.OrientationRole : FacePatchOrientationRole.Reversed,
+                    retentionRole,
+                    status,
+                    BuildPerLoopDiagnostic(source.Family, other.Family, curveFamily, status, trim.Reason)));
+            }
+        }
+
+        return loops;
+    }
+
+    private static RetainedRegionLoopKind DetermineLoopKind(SurfacePatchFamily sourceFamily, bool isBase, TrimCapabilityClassification classification)
+    {
+        if (classification == TrimCapabilityClassification.Deferred) return RetainedRegionLoopKind.Deferred;
+        if (classification == TrimCapabilityClassification.Unsupported) return RetainedRegionLoopKind.Unsupported;
+        if (isBase) return RetainedRegionLoopKind.InnerTrim;
+        return sourceFamily == SurfacePatchFamily.Cylindrical || sourceFamily == SurfacePatchFamily.Spherical
+            ? RetainedRegionLoopKind.MouthTrim
+            : RetainedRegionLoopKind.InnerTrim;
+    }
+
+    private static RetainedRegionLoopStatus EvaluateLoopReadiness(IReadOnlyList<RetainedRegionLoopDescriptor> loops)
+    {
+        if (loops.Count == 0) return RetainedRegionLoopStatus.Deferred;
+        if (loops.Any(l => l.Status == RetainedRegionLoopStatus.ExactReady)) return RetainedRegionLoopStatus.ExactReady;
+        if (loops.Any(l => l.Status == RetainedRegionLoopStatus.SpecialCaseReady)) return RetainedRegionLoopStatus.SpecialCaseReady;
+        if (loops.Any(l => l.Status == RetainedRegionLoopStatus.Deferred)) return RetainedRegionLoopStatus.Deferred;
+        return RetainedRegionLoopStatus.Unsupported;
+    }
+
+    private static string BuildLoopDiagnostic(IReadOnlyList<RetainedRegionLoopDescriptor> loops, FacePatchRetentionStatus retentionStatus)
+    {
+        if (loops.Count == 0)
+        {
+            return retentionStatus == FacePatchRetentionStatus.Deferred
+                ? "loop-scaffold-deferred: retention is deferred, so retained-region loop descriptors are not emitted."
+                : "loop-scaffold-empty: no retained-region loops were generated for this candidate.";
+        }
+
+        if (loops.All(l => l.Status == RetainedRegionLoopStatus.Deferred))
+        {
+            return "loop-scaffold-deferred: trim matrix marks all retained-region loops deferred.";
+        }
+
+        if (loops.Any(l => l.Status == RetainedRegionLoopStatus.SpecialCaseReady) && !loops.Any(l => l.Status == RetainedRegionLoopStatus.ExactReady))
+        {
+            return "loop-scaffold-special-case-ready: retained-region loop types are known with special-case restrictions; exact parameter solving remains deferred.";
+        }
+
+        return "loop-scaffold-ready: retained-region loop types are known; exact curve parameters and topology assembly remain deferred.";
+    }
+
+    private static string BuildPerLoopDiagnostic(SurfacePatchFamily source, SurfacePatchFamily opposite, TrimCurveFamily family, RetainedRegionLoopStatus status, string reason)
+        => status switch
+        {
+            RetainedRegionLoopStatus.ExactReady => $"loop-exact-ready: {source}/{opposite} uses {family} trim family; parameters deferred ({reason})",
+            RetainedRegionLoopStatus.SpecialCaseReady => $"loop-special-case-ready: {source}/{opposite} uses {family} trim family with restrictions ({reason})",
+            RetainedRegionLoopStatus.Deferred => $"loop-deferred: {source}/{opposite} trim loop remains deferred ({reason})",
+            _ => $"loop-unsupported: {source}/{opposite} trim loop unsupported ({reason})"
+        };
 }

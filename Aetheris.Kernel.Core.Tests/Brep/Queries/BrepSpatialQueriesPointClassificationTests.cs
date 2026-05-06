@@ -142,7 +142,7 @@ public sealed class BrepSpatialQueriesPointClassificationTests
         var dir = AppContext.BaseDirectory;
         while (!string.IsNullOrWhiteSpace(dir))
         {
-            if (File.Exists(Path.Combine(dir, "Aetheris.sln"))) return dir;
+            if (File.Exists(Path.Combine(dir, "Aetheris.slnx"))) return dir;
             dir = Directory.GetParent(dir)?.FullName ?? string.Empty;
         }
 

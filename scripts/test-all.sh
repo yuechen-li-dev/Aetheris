@@ -3,6 +3,7 @@ set -euo pipefail
 
 DOTNET_BIN="${DOTNET_BIN:-dotnet}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PRIMARY_TFM="${AETHERIS_PRIMARY_TFM:-net10.0}"
 
 run() {
   printf '+'
@@ -15,20 +16,11 @@ run() {
 
 cd "$REPO_ROOT"
 
-run_test() {
-  local test_project="$1"
-  shift || true
-  run "$DOTNET_BIN" test "$test_project" --logger "console;verbosity=minimal" "$@"
-}
-
 if [ "$#" -gt 0 ]; then
-  TEST_PROJECTS=("$@")
-  for test_project in "${TEST_PROJECTS[@]}"; do
-    run_test "$test_project"
+  for test_project in "$@"; do
+    run "$DOTNET_BIN" test "$test_project" -f "$PRIMARY_TFM" --logger "console;verbosity=minimal"
   done
   exit 0
 fi
 
-run_test "Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj"
-run_test "Aetheris.Server.Tests/Aetheris.Server.Tests.csproj"
-run_test "Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj" --filter "Category!=SlowCorpus"
+run "$DOTNET_BIN" test Aetheris.slnx -f "$PRIMARY_TFM" --logger "console;verbosity=minimal" --filter "Category!=SlowCorpus"

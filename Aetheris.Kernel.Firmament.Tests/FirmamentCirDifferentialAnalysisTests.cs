@@ -66,7 +66,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
                     new DifferentialProbePoint("inside_original", new AbsoluteProbeLocation(new Point3D(-2d, 0d, 0d)), ProbeExpectation.Certain),
                     new DifferentialProbePoint("inside_added", new AbsoluteProbeLocation(new Point3D(2.5d, 0d, 0d)), ProbeExpectation.Certain),
                     new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(20d, 0d, 0d)), ProbeExpectation.Certain)
-                ]),
+                ], ExpectedBoundsMismatchClass: "frame convention"),
             new CirBrepDifferentialCase("boolean_intersect_basic", "testdata/firmament/examples/boolean_intersect_basic.firmament", true, 0.12d, 0.02d,
                 [
                     new DifferentialProbePoint("inside_overlap", new AbsoluteProbeLocation(new Point3D(0d, 0d, 0d)), ProbeExpectation.Certain),
@@ -198,7 +198,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
                     new DifferentialProbePoint("inside_original", new AbsoluteProbeLocation(new Point3D(-2d, 0d, 0d)), ProbeExpectation.Certain),
                     new DifferentialProbePoint("inside_added", new AbsoluteProbeLocation(new Point3D(2.5d, 0d, 0d)), ProbeExpectation.Certain),
                     new DifferentialProbePoint("outside_far", new AbsoluteProbeLocation(new Point3D(20d, 0d, 0d)), ProbeExpectation.Certain)
-                ]),
+                ], ExpectedBoundsMismatchClass: "frame convention"),
             new CirBrepDifferentialCase("boolean_intersect_basic", "testdata/firmament/examples/boolean_intersect_basic.firmament", true, 0.12d, 0.02d,
                 [
                     new DifferentialProbePoint("inside_overlap", new AbsoluteProbeLocation(new Point3D(0d, 0d, 0d)), ProbeExpectation.Certain),
@@ -419,15 +419,18 @@ public sealed class FirmamentCirDifferentialAnalysisTests
     {
         var cirExtent = cirBounds.Max - cirBounds.Min;
         var brepExtent = brepBounds.Max - brepBounds.Min;
+        var boundsCoordinateMismatchClass = string.Equals(@case.ExpectedBoundsMismatchClass, "frame convention", StringComparison.Ordinal)
+            ? "frame convention"
+            : "placement drift";
 
         var checks = new (string metric, double cir, double brep, string mismatchClass)[]
         {
-            ("bounds.min.x", cirBounds.Min.X, brepBounds.Min.X, "placement drift"),
-            ("bounds.min.y", cirBounds.Min.Y, brepBounds.Min.Y, "placement drift"),
-            ("bounds.min.z", cirBounds.Min.Z, brepBounds.Min.Z, "placement drift"),
-            ("bounds.max.x", cirBounds.Max.X, brepBounds.Max.X, "placement drift"),
-            ("bounds.max.y", cirBounds.Max.Y, brepBounds.Max.Y, "placement drift"),
-            ("bounds.max.z", cirBounds.Max.Z, brepBounds.Max.Z, "placement drift"),
+            ("bounds.min.x", cirBounds.Min.X, brepBounds.Min.X, boundsCoordinateMismatchClass),
+            ("bounds.min.y", cirBounds.Min.Y, brepBounds.Min.Y, boundsCoordinateMismatchClass),
+            ("bounds.min.z", cirBounds.Min.Z, brepBounds.Min.Z, boundsCoordinateMismatchClass),
+            ("bounds.max.x", cirBounds.Max.X, brepBounds.Max.X, boundsCoordinateMismatchClass),
+            ("bounds.max.y", cirBounds.Max.Y, brepBounds.Max.Y, boundsCoordinateMismatchClass),
+            ("bounds.max.z", cirBounds.Max.Z, brepBounds.Max.Z, boundsCoordinateMismatchClass),
             ("bounds.extent.x", cirExtent.X, brepExtent.X, "primitive convention drift"),
             ("bounds.extent.y", cirExtent.Y, brepExtent.Y, "primitive convention drift"),
             ("bounds.extent.z", cirExtent.Z, brepExtent.Z, "primitive convention drift")

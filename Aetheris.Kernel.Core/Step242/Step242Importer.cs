@@ -3227,8 +3227,8 @@ public static class Step242Importer
     private static KernelResult<double> FailureCircleTrimAngle(string message, string source) =>
         Step242ImportSharedUtilities.ValidationFailure<double>(message, source);
 
-    private static KernelResult<ParameterInterval> FailureEllipseTrim(string message, string source) =>
-        Step242ImportSharedUtilities.ValidationFailure<ParameterInterval>(message, source);
+    private static KernelResult<ParameterInterval> FailureEllipseTrim(string message, string? source) =>
+        Step242ImportSharedUtilities.ValidationFailure<ParameterInterval>(message, source ?? "Importer.Geometry.EllipseTrim");
 
     private static KernelResult<double> FailureEllipseTrimAngle(string message, string source) =>
         Step242ImportSharedUtilities.ValidationFailure<double>(message, source);

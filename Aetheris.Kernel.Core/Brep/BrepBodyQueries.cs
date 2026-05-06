@@ -31,7 +31,7 @@ public static class BrepBodyQueries
     public static IReadOnlyList<ShellId> GetShellIds(this BrepBody body, BodyId bodyId)
     {
         return body.TryGetShellIds(bodyId, out var shellIds)
-            ? shellIds
+            ? shellIds!
             : throw CreateMissingTopologyException("body", bodyId);
     }
 
@@ -50,7 +50,7 @@ public static class BrepBodyQueries
     public static IReadOnlyList<FaceId> GetFaceIds(this BrepBody body, ShellId shellId)
     {
         return body.TryGetFaceIds(shellId, out var faceIds)
-            ? faceIds
+            ? faceIds!
             : throw CreateMissingTopologyException("shell", shellId);
     }
 
@@ -69,7 +69,7 @@ public static class BrepBodyQueries
     public static IReadOnlyList<LoopId> GetLoopIds(this BrepBody body, FaceId faceId)
     {
         return body.TryGetLoopIds(faceId, out var loopIds)
-            ? loopIds
+            ? loopIds!
             : throw CreateMissingTopologyException("face", faceId);
     }
 
@@ -88,7 +88,7 @@ public static class BrepBodyQueries
     public static IReadOnlyList<CoedgeId> GetCoedgeIds(this BrepBody body, LoopId loopId)
     {
         return body.TryGetCoedgeIds(loopId, out var coedgeIds)
-            ? coedgeIds
+            ? coedgeIds!
             : throw CreateMissingTopologyException("loop", loopId);
     }
 

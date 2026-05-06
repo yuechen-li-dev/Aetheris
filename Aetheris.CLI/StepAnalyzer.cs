@@ -290,6 +290,12 @@ public sealed record VolumeAnalysisResult(
                         continue;
                     }
 
+                    var loopSignedArea = ComputeSignedLoopAreaOnPlane(loopVertices, plane);
+                    if (double.Abs(loopSignedArea) <= 1e-12d)
+                    {
+                        continue;
+                    }
+
                     var triangles = TriangulateLoopOnPlane(loopVertices, plane, out var triangulationFailureReason);
                     if (triangles is null)
                     {
@@ -297,9 +303,10 @@ public sealed record VolumeAnalysisResult(
                         return false;
                     }
 
+                    var loopOrientationSign = loopSignedArea >= 0d ? 1d : -1d;
                     foreach (var triangle in triangles)
                     {
-                        faceSignedVolume += SignedTetraVolume(triangle.A, triangle.B, triangle.C);
+                        faceSignedVolume += loopOrientationSign * SignedTetraVolume(triangle.A, triangle.B, triangle.C);
                     }
                 }
 
@@ -345,7 +352,31 @@ public sealed record VolumeAnalysisResult(
             vertices.Add(point);
         }
 
-        return vertices;
+        if (vertices.Count == 0)
+        {
+            return vertices;
+        }
+
+        static bool NearlyEqual(Point3D a, Point3D b)
+            => double.Abs(a.X - b.X) <= 1e-9d && double.Abs(a.Y - b.Y) <= 1e-9d && double.Abs(a.Z - b.Z) <= 1e-9d;
+
+        var normalized = new List<Point3D>(vertices.Count);
+        foreach (var vertex in vertices)
+        {
+            if (normalized.Count > 0 && NearlyEqual(normalized[^1], vertex))
+            {
+                continue;
+            }
+
+            normalized.Add(vertex);
+        }
+
+        if (normalized.Count > 1 && NearlyEqual(normalized[0], normalized[^1]))
+        {
+            normalized.RemoveAt(normalized.Count - 1);
+        }
+
+        return normalized;
     }
 
     private static IReadOnlyList<(Point3D A, Point3D B, Point3D C)>? TriangulateLoopOnPlane(
@@ -456,6 +487,19 @@ public sealed record VolumeAnalysisResult(
         }
 
         return 0.5d * sum;
+    }
+
+    private static double ComputeSignedLoopAreaOnPlane(IReadOnlyList<Point3D> vertices, PlaneSurface plane)
+    {
+        var origin = plane.Origin;
+        var u = plane.UAxis.ToVector();
+        var v = plane.VAxis.ToVector();
+        var uv = vertices.Select(p =>
+        {
+            var delta = p - origin;
+            return new Point2D(delta.Dot(u), delta.Dot(v));
+        }).ToArray();
+        return SignedArea2D(uv);
     }
 
     private static double Cross2D(Point2D a, Point2D b, Point2D c) => ((b.U - a.U) * (c.V - a.V)) - ((b.V - a.V) * (c.U - a.U));

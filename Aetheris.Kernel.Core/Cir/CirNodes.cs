@@ -48,6 +48,19 @@ public sealed record CirSphereNode(double Radius) : CirNode(CirNodeKind.Sphere)
     public override double Evaluate(Point3D point) => double.Sqrt((point.X * point.X) + (point.Y * point.Y) + (point.Z * point.Z)) - Radius;
 }
 
+public sealed record CirTorusNode(double MajorRadius, double MinorRadius) : CirNode(CirNodeKind.Torus)
+{
+    public override CirBounds Bounds => new(
+        new Point3D(-(MajorRadius + MinorRadius), -(MajorRadius + MinorRadius), -MinorRadius),
+        new Point3D(MajorRadius + MinorRadius, MajorRadius + MinorRadius, MinorRadius));
+
+    public override double Evaluate(Point3D point)
+    {
+        var qx = double.Sqrt((point.X * point.X) + (point.Y * point.Y)) - MajorRadius;
+        return double.Sqrt((qx * qx) + (point.Z * point.Z)) - MinorRadius;
+    }
+}
+
 public sealed record CirUnionNode(CirNode Left, CirNode Right) : CirNode(CirNodeKind.Union)
 {
     public override CirBounds Bounds => CirBounds.Union(Left.Bounds, Right.Bounds);

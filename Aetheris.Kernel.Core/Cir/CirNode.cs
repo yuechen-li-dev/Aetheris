@@ -7,6 +7,7 @@ public enum CirNodeKind
     Box,
     Cylinder,
     Sphere,
+    Torus,
     Union,
     Subtract,
     Intersect,

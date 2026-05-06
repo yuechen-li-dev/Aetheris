@@ -8,6 +8,7 @@ public enum CirTapeOpCode
     EvalBox,
     EvalCylinder,
     EvalSphere,
+    EvalTorus,
     Min,
     Max,
     Neg,
@@ -25,6 +26,7 @@ public readonly record struct CirTapeInstruction(
 public readonly record struct CirTapeBoxPayload(double Width, double Height, double Depth, Transform3D InverseTransform);
 public readonly record struct CirTapeCylinderPayload(double Radius, double Height, Transform3D InverseTransform);
 public readonly record struct CirTapeSpherePayload(double Radius, Transform3D InverseTransform);
+public readonly record struct CirTapeTorusPayload(double MajorRadius, double MinorRadius, Transform3D InverseTransform);
 
 public readonly record struct FieldInterval(double MinValue, double MaxValue)
 {
@@ -51,6 +53,7 @@ public sealed class CirTape
         IReadOnlyList<CirTapeBoxPayload> boxes,
         IReadOnlyList<CirTapeCylinderPayload> cylinders,
         IReadOnlyList<CirTapeSpherePayload> spheres,
+        IReadOnlyList<CirTapeTorusPayload> toruses,
         int outputSlot,
         int slotCount)
     {
@@ -58,6 +61,7 @@ public sealed class CirTape
         BoxPayloads = boxes;
         CylinderPayloads = cylinders;
         SpherePayloads = spheres;
+        TorusPayloads = toruses;
         OutputSlot = outputSlot;
         SlotCount = slotCount;
     }
@@ -66,6 +70,7 @@ public sealed class CirTape
     public IReadOnlyList<CirTapeBoxPayload> BoxPayloads { get; }
     public IReadOnlyList<CirTapeCylinderPayload> CylinderPayloads { get; }
     public IReadOnlyList<CirTapeSpherePayload> SpherePayloads { get; }
+    public IReadOnlyList<CirTapeTorusPayload> TorusPayloads { get; }
     public int OutputSlot { get; }
     public int SlotCount { get; }
 
@@ -93,6 +98,12 @@ public sealed class CirTape
                 {
                     var payload = SpherePayloads[instruction.PayloadIndex];
                     slots[instruction.DestSlot] = EvaluateSphere(point, payload);
+                    break;
+                }
+                case CirTapeOpCode.EvalTorus:
+                {
+                    var payload = TorusPayloads[instruction.PayloadIndex];
+                    slots[instruction.DestSlot] = EvaluateTorus(point, payload);
                     break;
                 }
                 case CirTapeOpCode.Min:
@@ -128,6 +139,9 @@ public sealed class CirTape
                     break;
                 case CirTapeOpCode.EvalSphere:
                     slots[instruction.DestSlot] = EvaluateSphereInterval(region, SpherePayloads[instruction.PayloadIndex]);
+                    break;
+                case CirTapeOpCode.EvalTorus:
+                    slots[instruction.DestSlot] = EvaluateTorusInterval(region, TorusPayloads[instruction.PayloadIndex]);
                     break;
                 case CirTapeOpCode.Min:
                 {
@@ -209,6 +223,14 @@ public sealed class CirTape
         return double.Sqrt((point.X * point.X) + (point.Y * point.Y) + (point.Z * point.Z)) - payload.Radius;
     }
 
+    private static double EvaluateTorus(Point3D point, CirTapeTorusPayload payload)
+    {
+        point = payload.InverseTransform.Apply(point);
+        var radial = double.Sqrt((point.X * point.X) + (point.Y * point.Y));
+        var qx = radial - payload.MajorRadius;
+        return double.Sqrt((qx * qx) + (point.Z * point.Z)) - payload.MinorRadius;
+    }
+
     private static FieldInterval EvaluateBoxInterval(CirBounds region, CirTapeBoxPayload payload)
     {
         var local = TransformBounds(region, payload.InverseTransform);
@@ -232,6 +254,19 @@ public sealed class CirTape
         var distanceMin = MinDistanceToAabbOrigin(local);
         var distanceMax = MaxDistanceToAabbOrigin(local);
         return new FieldInterval(distanceMin - payload.Radius, distanceMax - payload.Radius);
+    }
+
+    private static FieldInterval EvaluateTorusInterval(CirBounds region, CirTapeTorusPayload payload)
+    {
+        var local = TransformBounds(region, payload.InverseTransform);
+        var radial = RadiusInterval(local, payload.MajorRadius);
+        var qMin = MinAbsInInterval(radial.MinValue, radial.MaxValue);
+        var qMax = MaxAbsInInterval(radial.MinValue, radial.MaxValue);
+        var zMinAbs = MinAbsInInterval(local.Min.Z, local.Max.Z);
+        var zMaxAbs = MaxAbsInInterval(local.Min.Z, local.Max.Z);
+        var minD = double.Sqrt((qMin * qMin) + (zMinAbs * zMinAbs));
+        var maxD = double.Sqrt((qMax * qMax) + (zMaxAbs * zMaxAbs));
+        return new FieldInterval(minD - payload.MinorRadius, maxD - payload.MinorRadius);
     }
 
     private static CirBounds TransformBounds(CirBounds bounds, Transform3D transform)
@@ -335,6 +370,7 @@ public static class CirTapeLowerer
             state.BoxPayloads,
             state.CylinderPayloads,
             state.SpherePayloads,
+            state.TorusPayloads,
             outputSlot,
             state.NextSlot);
     }
@@ -360,6 +396,12 @@ public static class CirTapeLowerer
                 var payloadIndex = state.SpherePayloads.Count;
                 state.SpherePayloads.Add(new CirTapeSpherePayload(sphere.Radius, accumulatedInverse));
                 return state.Emit(CirTapeOpCode.EvalSphere, -1, -1, payloadIndex, node.Kind);
+            }
+            case CirTorusNode torus:
+            {
+                var payloadIndex = state.TorusPayloads.Count;
+                state.TorusPayloads.Add(new CirTapeTorusPayload(torus.MajorRadius, torus.MinorRadius, accumulatedInverse));
+                return state.Emit(CirTapeOpCode.EvalTorus, -1, -1, payloadIndex, node.Kind);
             }
             case CirUnionNode union:
             {
@@ -396,6 +438,7 @@ public static class CirTapeLowerer
         public List<CirTapeBoxPayload> BoxPayloads { get; } = new();
         public List<CirTapeCylinderPayload> CylinderPayloads { get; } = new();
         public List<CirTapeSpherePayload> SpherePayloads { get; } = new();
+        public List<CirTapeTorusPayload> TorusPayloads { get; } = new();
         public int NextSlot { get; private set; }
 
         public int Emit(CirTapeOpCode opCode, int inputA, int inputB, int payloadIndex, CirNodeKind sourceKind)

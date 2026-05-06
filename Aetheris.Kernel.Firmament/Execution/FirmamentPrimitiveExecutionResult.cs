@@ -6,7 +6,8 @@ namespace Aetheris.Kernel.Firmament.Execution;
 
 public sealed record FirmamentPrimitiveExecutionResult(
     IReadOnlyList<FirmamentExecutedPrimitive> ExecutedPrimitives,
-    IReadOnlyList<FirmamentExecutedBoolean> ExecutedBooleans);
+    IReadOnlyList<FirmamentExecutedBoolean> ExecutedBooleans,
+    NativeGeometryState NativeGeometryState);
 
 public sealed record FirmamentExecutedPrimitive(
     int OpIndex,

@@ -328,7 +328,14 @@ ops[2]:
             [
                 new FirmamentExecutedPrimitive(0, "base", FirmamentLoweredPrimitiveKind.Box, BuildNonManifoldBody())
             ],
-            ExecutedBooleans: []);
+            ExecutedBooleans: [],
+            NativeGeometryState: new NativeGeometryState(
+                NativeGeometryExecutionMode.BRepActive,
+                NativeGeometryMaterializationAuthority.BRepAuthoritative,
+                BuildNonManifoldBody(),
+                null,
+                new NativeGeometryReplayLog([]),
+                []));
 
         var validationExecution = FirmamentValidationExecutor.Execute(parsedDocument, executionResult);
 

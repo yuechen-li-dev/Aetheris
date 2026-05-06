@@ -254,11 +254,21 @@ internal static class FirmamentPrimitiveExecutor
 
             if (!booleanResult.IsSuccess)
             {
-                return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(
-                [
-                    CreateBooleanExecutionFailureDiagnostic(boolean),
-                    .. WithBooleanContext(boolean, booleanResult.Diagnostics)
-                ]);
+                var fallbackReplayLog = BuildReplayLog(loweringPlan, resolvedPlacementByOpIndex);
+                var fallForward = TryBuildCirOnlyFallback(loweringPlan, fallbackReplayLog, boolean, booleanResult.Diagnostics);
+                if (fallForward.IsSuccess)
+                {
+                    return KernelResult<FirmamentPrimitiveExecutionResult>.Success(
+                        new FirmamentPrimitiveExecutionResult(executedPrimitives, executedBooleans, fallForward.Value));
+                }
+
+                var failureDiagnostics = new List<KernelDiagnostic>
+                {
+                    CreateBooleanExecutionFailureDiagnostic(boolean)
+                };
+                failureDiagnostics.AddRange(WithBooleanContext(boolean, booleanResult.Diagnostics));
+                failureDiagnostics.AddRange(fallForward.Diagnostics);
+                return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(failureDiagnostics);
             }
 
             var placedBooleanBody = booleanResult.Value;
@@ -345,6 +355,66 @@ internal static class FirmamentPrimitiveExecutor
             analysis.Volume.Resolution);
 
         return new NativeGeometryCirMirrorState(CirMirrorStatus.Available, summary, []);
+    }
+
+    private static KernelResult<NativeGeometryState> TryBuildCirOnlyFallback(
+        FirmamentPrimitiveLoweringPlan loweringPlan,
+        NativeGeometryReplayLog replayLog,
+        FirmamentLoweredBoolean failedBoolean,
+        IReadOnlyList<KernelDiagnostic> brepDiagnostics)
+    {
+        if (ClassifyFallForwardEligibility(failedBoolean, brepDiagnostics) != NativeGeometryTransitionReasonCategory.MaterializationUnsupported)
+        {
+            return KernelResult<NativeGeometryState>.Failure([]);
+        }
+
+        var cirLower = FirmamentCirLowerer.Lower(loweringPlan);
+        if (!cirLower.IsSuccess)
+        {
+            var loweredDiagnostics = cirLower.Diagnostics.Select(d => d with
+            {
+                Message = $"CIR fallback lowering failed after unsupported BRep materialization for '{failedBoolean.FeatureId}': {d.Message}"
+            }).ToArray();
+            return KernelResult<NativeGeometryState>.Failure(loweredDiagnostics);
+        }
+
+        var nativeState = new NativeGeometryState(
+            NativeGeometryExecutionMode.CirOnly,
+            NativeGeometryMaterializationAuthority.CirIntentOnly,
+            null,
+            failedBoolean.FeatureId,
+            replayLog,
+            [
+                new NativeGeometryTransitionEvent(
+                    NativeGeometryExecutionMode.BRepActive,
+                    NativeGeometryExecutionMode.CirOnly,
+                    failedBoolean.FeatureId,
+                    failedBoolean.OpIndex,
+                    NativeGeometryTransitionReasonCategory.MaterializationUnsupported,
+                    $"BRep materialization unsupported for boolean '{failedBoolean.FeatureId}'; transitioned to CirOnly intent execution.")
+            ],
+            BuildCirMirrorState(loweringPlan));
+
+        return KernelResult<NativeGeometryState>.Success(nativeState);
+    }
+
+    private static NativeGeometryTransitionReasonCategory ClassifyFallForwardEligibility(FirmamentLoweredBoolean failedBoolean, IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        var isBoundedCandidate = failedBoolean.Kind == FirmamentLoweredBooleanKind.Subtract
+            && string.Equals(failedBoolean.Tool.OpName, "sphere", StringComparison.Ordinal)
+            && diagnostics.Any(d => d.Code == KernelDiagnosticCode.NotImplemented
+                && string.Equals(d.Source, "BrepBoolean.AnalyticHole.TangentContact", StringComparison.Ordinal));
+        if (isBoundedCandidate)
+        {
+            return NativeGeometryTransitionReasonCategory.MaterializationUnsupported;
+        }
+
+        if (diagnostics.Any(d => d.Code == KernelDiagnosticCode.ValidationFailed))
+        {
+            return NativeGeometryTransitionReasonCategory.InvalidIntent;
+        }
+
+        return NativeGeometryTransitionReasonCategory.AnalyzerUncertainty;
     }
     private static IReadOnlyList<KernelDiagnostic> WithBooleanContext(FirmamentLoweredBoolean boolean, IReadOnlyList<KernelDiagnostic> diagnostics)
         => diagnostics.Select(diagnostic =>

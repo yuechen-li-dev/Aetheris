@@ -176,6 +176,47 @@ public sealed partial class NativeGeometryStateTests
         Assert.False(op.ResolvedPlacement.IsResolved);
         Assert.False(string.IsNullOrWhiteSpace(op.ResolvedPlacement.Diagnostic));
     }
+
+    [Fact]
+    public void FallForward_EligibleUnsupportedBRep_TransitionsToCirOnly()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament"));
+        Assert.True(result.Compilation.IsSuccess);
+
+        var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
+        Assert.Equal(NativeGeometryExecutionMode.CirOnly, state.ExecutionMode);
+        Assert.Equal(NativeGeometryMaterializationAuthority.CirIntentOnly, state.MaterializationAuthority);
+        Assert.Null(state.MaterializedBody);
+        Assert.Contains(state.TransitionEvents, e =>
+            e.FromMode == NativeGeometryExecutionMode.BRepActive
+            && e.ToMode == NativeGeometryExecutionMode.CirOnly
+            && e.ReasonCategory == NativeGeometryTransitionReasonCategory.MaterializationUnsupported);
+        Assert.NotNull(state.CirIntentRootReference);
+    }
+
+    [Fact]
+    public void FallForward_CirOnly_CanAnalyze()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament"));
+        var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
+        Assert.Equal(NativeGeometryExecutionMode.CirOnly, state.ExecutionMode);
+        Assert.Equal(CirMirrorStatus.Available, state.CirMirror.Status);
+        Assert.NotNull(state.CirMirror.Summary);
+        Assert.True(state.CirMirror.Summary!.EstimatedVolume > 0d);
+    }
+
+    [Fact]
+    public void FallForward_InvalidIntent_DoesNotTransition()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/p1-invalid-unsupported-placement-semantic.firmament"));
+        Assert.False(result.Compilation.IsSuccess);
+    }
+
+    [Fact]
+    public void FallForward_UnsupportedCIRLowering_DoesNotTransition()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10n-unsupported-box-subtract-torus.firmament"));
+        Assert.False(result.Compilation.IsSuccess);
+        Assert.DoesNotContain(result.Compilation.Diagnostics, d => d.Message.Contains("CIR fallback lowering failed", StringComparison.Ordinal));
+    }
 }
-
-

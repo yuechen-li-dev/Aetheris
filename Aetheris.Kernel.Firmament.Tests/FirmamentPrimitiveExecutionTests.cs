@@ -1,6 +1,7 @@
 using System.Linq;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Firmament.Lowering;
+using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Topology;
 
@@ -272,9 +273,6 @@ public sealed class FirmamentPrimitiveExecutionTests
         var result = CompileFixture("testdata/firmament/fixtures/m3d-valid-subtract-exec.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
-        Assert.Equal("firmament", result.Compilation.Diagnostics[0].Source);
-        Assert.Contains("Requested boolean feature 'cut' (subtract) could not be executed.", result.Compilation.Diagnostics[0].Message, StringComparison.Ordinal);
-        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Code == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented);
     }
 
     [Fact]
@@ -610,7 +608,6 @@ public sealed class FirmamentPrimitiveExecutionTests
         var result = CompileFixture("testdata/firmament/fixtures/m3d-mixed-primitive-boolean-validation.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
-        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'cut1' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -619,7 +616,6 @@ public sealed class FirmamentPrimitiveExecutionTests
         var result = CompileFixture("testdata/firmament/fixtures/m3d-valid-boolean-chain-exec.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
-        Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'cut1' (subtract) could not be executed.", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament.Tests;
@@ -142,7 +143,6 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
 
 
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament", "tangent_cavity")]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "leaking_cavity")]
     public void BoxSphereSubtract_OutsideProvenSubset_RemainsUnsupported(string fixturePath, string expectedFeatureId)
     {
@@ -159,6 +159,14 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     }
 
     [Fact]
+    public void BoxSphereSubtract_TangentBoundary_FallsForwardToCirOnly()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament"));
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.Equal(NativeGeometryExecutionMode.CirOnly, result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState.ExecutionMode);
+    }
+
+    [Fact]
     public void BoxSphereSubtract_ContainedCavity_Succeeds_WithoutFallback()
     {
         var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament"));
@@ -172,7 +180,6 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     }
 
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament", "BrepBoolean.AnalyticHole.TangentContact", "tangent to a box boundary plane")]
     [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "BrepBoolean.AnalyticHole.RadiusExceedsBoundary", "must remain strictly contained inside the box")]
     public void BoxSphereSubtract_Diagnostics_ArePropagated_WithSpecificSources(string fixturePath, string expectedSource, string expectedMessageFragment)
     {

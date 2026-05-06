@@ -4,6 +4,10 @@
 
 - Update documentation opportunistically during development and surface any inconsistencies or friction immediately; do not defer doc fixes, as the system is evolving rapidly and drift must be corrected in-place.
 
+- Aetheris introduce utility scoring as a first class concept within its JudgmentEngine to use when appropriate.
+  - When a subsystem must select among multiple bounded strategies, prefer JudgmentEngine so admissibility, scoring, tie-breaking, and rejection reasons are explicit.
+  - Do not use JudgmentEngine for simple deterministic transformations, ordinary enum dispatch, null checks, or reductions where no competing interpretation exists.
+
 ## Convergence rule
 
 Every substantial task must end in exactly one of three states:

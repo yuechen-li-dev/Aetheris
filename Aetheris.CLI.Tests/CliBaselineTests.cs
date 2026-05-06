@@ -649,14 +649,14 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeVolume_Box_ReturnsExpectedVolume()
     {
-        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-volume-box");
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
         Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(stdout.ToString());
         Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("planar-closed-shell", doc.RootElement.GetProperty("method").GetString());
-        Assert.Equal(240d, doc.RootElement.GetProperty("volume").GetDouble(), 8);
+        Assert.Equal(14400d, doc.RootElement.GetProperty("volume").GetDouble(), 8);
     }
 
     [Fact]

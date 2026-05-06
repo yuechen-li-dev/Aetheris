@@ -143,21 +143,21 @@
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e1-tg",
     "path": "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e1-tg.stp",
     "sizeBytes": 2120356,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "importer-representation",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "NotImplemented",
+      "source": "Importer.Representation.Unsupported",
+      "messagePrefix": "Unsupported tessellation-only STEP geometry"
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 10083,
-      "edges": 10083,
-      "faces": 3361
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
     },
-    "canonicalSha256": "02272208c101eede63651658006f4b483dbabe4d7148654a12dc9e01f8509b19"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e2",

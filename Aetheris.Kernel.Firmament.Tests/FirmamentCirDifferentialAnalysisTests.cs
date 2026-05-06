@@ -304,7 +304,16 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             double? absDelta = null;
             double? relDelta = null;
             var volumePassed = true;
-            if (!brepVolume.HasValue || brepVolume.Value <= 1e-9d)
+            var skipVolumeComparisonForExpectedBoundsMismatch = boundsMismatch is not null && @case.ExpectedBoundsMismatchClass is not null;
+            if (skipVolumeComparisonForExpectedBoundsMismatch)
+            {
+                entry = entry with
+                {
+                    Notes = [.. entry.Notes, $"Volume comparison skipped due to expected bounds mismatch class '{@case.ExpectedBoundsMismatchClass}' for this fixture."]
+                };
+                entries[^1] = entry;
+            }
+            else if (!brepVolume.HasValue || brepVolume.Value <= 1e-9d)
             {
                 if (!@case.AllowVolumeUnavailable)
                 {

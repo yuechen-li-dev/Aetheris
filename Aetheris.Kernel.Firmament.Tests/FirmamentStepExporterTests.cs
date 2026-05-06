@@ -1,6 +1,7 @@
 using System.Linq;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -260,61 +261,17 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void CirOnly_BoxMinusBox_ExportSucceedsAfterRematerialization()
     {
-        var compiler = new FirmamentCompiler();
-        var source = """
-firmament:
-  version: 1
-
-model:
-  name: cir_box_box_remat
-  units: mm
-
-ops[2]:
-  -
-    op: box
-    id: base
-    size[3]:
-      20
-      20
-      10
-
-  -
-    op: subtract
-    id: carved
-    from: base
-    with:
-      op: box
-      size[3]:
-        6
-        20
-        10
-    place:
-      on: origin
-      offset[3]:
-        7
-        0
-        0
-""";
-        var compiled = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
-        Assert.True(compiled.Compilation.IsSuccess);
-
-        var artifact = compiled.Compilation.Value;
-        var execution = artifact.PrimitiveExecutionResult!;
-        var cirOnlyState = execution.NativeGeometryState with
-        {
-            ExecutionMode = NativeGeometryExecutionMode.CirOnly,
-            MaterializationAuthority = NativeGeometryMaterializationAuthority.PendingRematerialization,
-            MaterializedBody = null,
-            CirIntentRootReference = "carved"
-        };
-
-        var cirOnlyArtifact = artifact with
-        {
-            PrimitiveExecutionResult = execution with { NativeGeometryState = cirOnlyState }
-        };
+        var plan = new FirmamentPrimitiveLoweringPlan(
+            [new FirmamentLoweredPrimitive(0, "base", FirmamentLoweredPrimitiveKind.Box, new FirmamentLoweredBoxParameters(20, 20, 10), null)],
+            [new FirmamentLoweredBoolean(1, "notch", FirmamentLoweredBooleanKind.Subtract, "from", "base", new FirmamentLoweredToolOp("box", new Dictionary<string, string> { { "op", "box" }, { "size", "[6,20,10]" } }, "op box size=[6,20,10]"), new FirmamentLoweredPlacement(new FirmamentLoweredPlacementOriginAnchor(), true, [7d, 0d, 0d], null, null, null, []))],
+            []);
+        var cirOnlyState = new NativeGeometryState(NativeGeometryExecutionMode.CirOnly, NativeGeometryMaterializationAuthority.PendingRematerialization, null, "notch", new NativeGeometryReplayLog([]), [], new NativeGeometryCirMirrorState(CirMirrorStatus.NotAttempted, null, []));
+        var cirOnlyArtifact = new FirmamentCompilationArtifact(
+            PrimitiveLoweringPlan: plan,
+            PrimitiveExecutionResult: new FirmamentPrimitiveExecutionResult([], [], cirOnlyState));
 
         var export = FirmamentStepExporter.Export(cirOnlyArtifact);
-        Assert.True(export.IsSuccess);
+        Assert.True(export.IsSuccess, string.Join(" | ", export.Diagnostics.Select(d => d.Message)));
         Assert.Contains("PRODUCT_DEFINITION", export.Value.StepText, StringComparison.Ordinal);
     }
 
@@ -633,7 +590,7 @@ ops[2]:
         Assert.True(compile.Compilation.IsSuccess);
 
         var export = FirmamentStepExporter.Export(compile.Compilation.Value);
-        Assert.True(export.IsSuccess);
+        Assert.True(export.IsSuccess, string.Join(" | ", export.Diagnostics.Select(d => d.Message)));
         Assert.Equal(FirmamentStepExporter.LastExecutedGeometricBodyPolicy, export.Value.ExportBodyPolicy);
         Assert.Equal(FirmamentStepExporter.LastExecutedGeometricBodySelectionReason, export.Value.ExportBodySelectionReason);
         Assert.Equal("cap", export.Value.ExportedFeatureId);

@@ -57,7 +57,7 @@ public sealed class CirBrepMaterializerTests
 
         var remat = NativeGeometryRematerializer.TryRematerialize(plan, state);
 
-        Assert.True(remat.IsSuccess);
+        Assert.True(remat.IsSuccess, string.Join(" | ", remat.Diagnostics.Select(d => d.Message)));
         Assert.Equal(NativeGeometryExecutionMode.BRepActive, remat.Value.ExecutionMode);
         Assert.NotNull(remat.Value.MaterializedBody);
         Assert.Contains(remat.Value.TransitionEvents, e => e.FromMode == NativeGeometryExecutionMode.CirOnly && e.ToMode == NativeGeometryExecutionMode.BRepActive);
@@ -72,7 +72,7 @@ public sealed class CirBrepMaterializerTests
 
         var remat = NativeGeometryRematerializer.TryRematerialize(plan, state);
 
-        Assert.True(remat.IsSuccess);
+        Assert.True(remat.IsSuccess, string.Join(" | ", remat.Diagnostics.Select(d => d.Message)));
         Assert.Equal(NativeGeometryExecutionMode.BRepActive, remat.Value.ExecutionMode);
         Assert.Equal(NativeGeometryMaterializationAuthority.BRepAuthoritative, remat.Value.MaterializationAuthority);
         Assert.NotNull(remat.Value.MaterializedBody);

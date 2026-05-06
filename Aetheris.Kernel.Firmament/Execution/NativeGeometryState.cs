@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Kernel.Firmament.Execution;
 
@@ -45,10 +46,36 @@ public sealed record NativeGeometryReplayOperation(
     string? PlacementSummary,
     string? MetadataReference);
 
+public enum CirMirrorStatus
+{
+    NotAttempted,
+    Available,
+    Unsupported,
+    Failed
+}
+
+public sealed record NativeGeometryCirMirrorDiagnostics(
+    string Message,
+    int? OpIndex,
+    string? FeatureId);
+
+public sealed record NativeGeometryCirMirrorSummary(
+    Point3D Min,
+    Point3D Max,
+    double EstimatedVolume,
+    bool VolumeApproximate,
+    int? DenseResolution);
+
+public sealed record NativeGeometryCirMirrorState(
+    CirMirrorStatus Status,
+    NativeGeometryCirMirrorSummary? Summary,
+    IReadOnlyList<NativeGeometryCirMirrorDiagnostics> Diagnostics);
+
 public sealed record NativeGeometryState(
     NativeGeometryExecutionMode ExecutionMode,
     NativeGeometryMaterializationAuthority MaterializationAuthority,
     BrepBody? MaterializedBody,
     string? CirIntentRootReference,
     NativeGeometryReplayLog ReplayLog,
-    IReadOnlyList<NativeGeometryTransitionEvent> TransitionEvents);
+    IReadOnlyList<NativeGeometryTransitionEvent> TransitionEvents,
+    NativeGeometryCirMirrorState CirMirror);

@@ -69,7 +69,8 @@ public sealed class NativeGeometryStateTests
                 "cut1",
                 7,
                 NativeGeometryTransitionReasonCategory.MaterializationUnsupported,
-                "future fallback path")]);
+                "future fallback path")],
+            new NativeGeometryCirMirrorState(CirMirrorStatus.NotAttempted, null, []));
 
         var failed = cirOnly with { ExecutionMode = NativeGeometryExecutionMode.Failed, MaterializationAuthority = NativeGeometryMaterializationAuthority.PendingRematerialization };
 
@@ -77,4 +78,54 @@ public sealed class NativeGeometryStateTests
         Assert.Equal(NativeGeometryExecutionMode.Failed, failed.ExecutionMode);
         Assert.Null(cirOnly.MaterializedBody);
     }
+
+
+    [Fact]
+    public void NativeGeometryState_CirMirror_BoxBasic_Available()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/box_basic.firmament"));
+        var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
+
+        Assert.Equal(NativeGeometryExecutionMode.BRepActive, state.ExecutionMode);
+        Assert.Equal(NativeGeometryMaterializationAuthority.BRepAuthoritative, state.MaterializationAuthority);
+        Assert.Equal(CirMirrorStatus.Available, state.CirMirror.Status);
+        Assert.NotNull(state.CirMirror.Summary);
+        Assert.True(state.CirMirror.Summary!.EstimatedVolume > 0d);
+    }
+
+    [Fact]
+    public void NativeGeometryState_CirMirror_BoxMinusCylinder_Available()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/boolean_box_cylinder_hole.firmament"));
+        var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
+
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.Equal(CirMirrorStatus.Available, state.CirMirror.Status);
+        Assert.NotNull(state.CirMirror.Summary);
+    }
+
+    [Fact]
+    public void NativeGeometryState_CirMirror_Unsupported_DoesNotFailProduction()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/rounded_corner_box_basic.firmament"));
+        var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
+
+        Assert.True(result.Compilation.IsSuccess);
+        Assert.Equal(CirMirrorStatus.Unsupported, state.CirMirror.Status);
+        Assert.NotEmpty(state.CirMirror.Diagnostics);
+    }
+
+
+    [Fact]
+    public void StateBackedDifferential_UsesNativeGeometryState()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/box_basic.firmament"));
+        var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
+
+        var differential = NativeGeometryStateDifferentialHelper.CompareBoundsAndVolumeFromState(state);
+
+        Assert.True(differential.Success);
+        Assert.True(differential.CirEstimatedVolume > 0d);
+    }
+
 }

@@ -10,12 +10,34 @@ internal enum FacePatchCandidateReadiness
     Unsupported
 }
 
+internal enum FacePatchRetentionRole
+{
+    NotApplicable,
+    BaseBoundaryRetainedOutsideTool,
+    ToolBoundaryRetainedInsideBase,
+    DiscardedInterior,
+    RetentionDeferred,
+    Unsupported
+}
+
+internal enum FacePatchRetentionStatus
+{
+    KnownWholeSurface,
+    KnownTrimmedSurface,
+    Deferred,
+    Unsupported
+}
+
 internal sealed record FacePatchCandidate(
     SourceSurfaceDescriptor SourceSurface,
     FacePatchDescriptor ProposedPatch,
     string CandidateRole,
     FacePatchCandidateReadiness Readiness,
     TrimCapabilityResult? TrimCapability,
+    FacePatchRetentionRole RetentionRole,
+    FacePatchRetentionStatus RetentionStatus,
+    string RetentionReason,
+    IReadOnlyList<SurfacePatchFamily> OppositeFamilies,
     IReadOnlyList<string> Diagnostics);
 
 internal sealed record FacePatchCandidateGenerationResult(
@@ -46,7 +68,24 @@ internal static class FacePatchCandidateGenerator
 
         if (root is not CirSubtractNode subtract)
         {
-            diagnostics.Add("unsupported-node-shape: face patch dry-run currently supports subtract-tree analysis only.");
+            foreach (var source in extraction.Descriptors)
+            {
+                var patch = new FacePatchDescriptor(source, [], [], source.OrientationRole, "non-subtract-candidate", []);
+                candidates.Add(new FacePatchCandidate(
+                    source,
+                    patch,
+                    "non-subtract-candidate",
+                    FacePatchCandidateReadiness.RetentionDeferred,
+                    null,
+                    FacePatchRetentionRole.NotApplicable,
+                    FacePatchRetentionStatus.Deferred,
+                    "retention-not-applicable: CIR-F8.4 retention classification applies to subtract roots only.",
+                    [],
+                    ["retention-not-applicable: non-subtract root leaves candidate retention unclassified."]));
+            }
+
+            diagnostics.Add("unsupported-node-shape: face patch dry-run currently supports subtract-tree retention classification only.");
+            diagnostics.Add("topology-assembly-not-implemented: dry-run emits candidate descriptors only and does not emit BRep topology.");
             return new(false, candidates, extraction.Descriptors, trimSummaries, extraction.Diagnostics, deferred, diagnostics, TopologyAssemblyImplemented: false);
         }
 
@@ -57,11 +96,14 @@ internal static class FacePatchCandidateGenerator
 
         foreach (var source in extraction.Descriptors)
         {
-            var role = IsFromNode(source, subtract.Left) ? "base-surface-candidate" : "tool-surface-candidate";
-            var relevantOther = role == "base-surface-candidate" ? right.Descriptors : left.Descriptors;
+            var isBase = IsFromNode(source, subtract.Left);
+            var role = isBase ? "base-surface-candidate" : "tool-surface-candidate";
+            var relevantOther = isBase ? right.Descriptors : left.Descriptors;
+            var oppositeFamilies = relevantOther.Select(d => d.Family).Distinct().ToArray();
             var trim = EvaluateBestTrim(source, relevantOther);
 
             var readiness = EvaluateReadiness(trim);
+            var (retentionRole, retentionStatus, retentionReason) = EvaluateRetention(isBase, trim, relevantOther.Count);
             var candidateDiagnostics = new List<string>();
             if (trim is null)
             {
@@ -84,21 +126,55 @@ internal static class FacePatchCandidateGenerator
                     candidateDiagnostics.Add($"trim-capability-special-case: {trim.Reason}");
                 }
 
-                if (readiness == FacePatchCandidateReadiness.ExactReady)
+                if (retentionStatus == FacePatchRetentionStatus.KnownTrimmedSurface)
                 {
-                    candidateDiagnostics.Add("retention-classification-deferred: exact trim capability found, but retained/discarded patch boundaries are not classified in CIR-F8.3.");
+                    candidateDiagnostics.Add("retention-region-deferred: retention role is known and trim capability is available, but retained-loop assembly is deferred.");
                 }
             }
 
-            var patch = new FacePatchDescriptor(source, [], [], source.OrientationRole, role, []);
-            candidates.Add(new FacePatchCandidate(source, patch, role, readiness, trim, candidateDiagnostics));
+            candidateDiagnostics.Add($"retention-role: {retentionRole}");
+            candidateDiagnostics.Add($"retention-status: {retentionStatus}");
+            candidateDiagnostics.Add(retentionReason);
+
+            var orientation = isBase ? source.OrientationRole : FacePatchOrientationRole.Reversed;
+            var patchRole = isBase ? "base-boundary-retained-outside-tool" : "tool-boundary-retained-inside-base";
+            var patch = new FacePatchDescriptor(source, [], [], orientation, patchRole, []);
+            candidates.Add(new FacePatchCandidate(source, patch, role, readiness, trim, retentionRole, retentionStatus, retentionReason, oppositeFamilies, candidateDiagnostics));
         }
 
         diagnostics.Add("topology-assembly-not-implemented: dry-run emits candidate descriptors only and does not emit BRep topology.");
-        diagnostics.Add("retention-classification-deferred: boolean retention mapping is intentionally deferred in CIR-F8.3.");
+        diagnostics.Add("retention-region-deferred: subtract retention roles are classified, but retained trim loops and topology assembly are deferred in CIR-F8.4.");
 
         var success = extraction.IsSuccess && candidates.Count > 0;
         return new(success, candidates, extraction.Descriptors, trimSummaries, extraction.Diagnostics, deferred.Distinct().ToArray(), diagnostics, TopologyAssemblyImplemented: false);
+    }
+
+    private static (FacePatchRetentionRole Role, FacePatchRetentionStatus Status, string Reason) EvaluateRetention(bool isBaseSide, TrimCapabilityResult? trim, int oppositeCount)
+    {
+        if (oppositeCount == 0)
+        {
+            return (FacePatchRetentionRole.Unsupported, FacePatchRetentionStatus.Unsupported, "retention-unsupported: subtract side has no opposite source surfaces to classify against.");
+        }
+
+        var role = isBaseSide
+            ? FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool
+            : FacePatchRetentionRole.ToolBoundaryRetainedInsideBase;
+
+        if (trim is null)
+        {
+            return (role, FacePatchRetentionStatus.Deferred, "retention-deferred: subtract retention rule is known, but trim capability against opposite surfaces is unavailable.");
+        }
+
+        return trim.Classification switch
+        {
+            TrimCapabilityClassification.ExactSupported or TrimCapabilityClassification.SpecialCaseOnly
+                => (role, FacePatchRetentionStatus.KnownTrimmedSurface, "retention-known-trimmed: subtract retention role is known and pair trim capability is available; retained region loops are not assembled yet."),
+            TrimCapabilityClassification.Deferred
+                => (role, FacePatchRetentionStatus.Deferred, $"retention-trim-deferred: retention role is known but trim policy is deferred ({trim.Reason})"),
+            TrimCapabilityClassification.Unsupported
+                => (FacePatchRetentionRole.Unsupported, FacePatchRetentionStatus.Unsupported, $"retention-unsupported: subtract retention role cannot be applied due to unsupported trim pairing ({trim.Reason})"),
+            _ => (FacePatchRetentionRole.RetentionDeferred, FacePatchRetentionStatus.Deferred, "retention-deferred: subtract retention classification unresolved.")
+        };
     }
 
     private static IReadOnlyList<TrimCapabilityResult> ComputeUniqueTrimSummaries(IReadOnlyList<SourceSurfaceDescriptor> left, IReadOnlyList<SourceSurfaceDescriptor> right)

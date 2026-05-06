@@ -32,7 +32,7 @@ public sealed class BrepCncManufacturabilitySchemaTests
         var result = BrepCncManufacturabilitySchema.Evaluate(body, new CncManufacturabilitySchemaInput(0.75d, 0.5d));
 
         Assert.False(result.IsPass);
-        var violation = Assert.Single(result.Issues.Where(issue => issue.Kind == CncManufacturabilityIssueKind.Violation && issue.RuleId == CncManufacturabilityRuleIds.MinimumInternalCornerRadius));
+        var violation = Assert.Single(result.Issues, issue => issue.Kind == CncManufacturabilityIssueKind.Violation && issue.RuleId == CncManufacturabilityRuleIds.MinimumInternalCornerRadius);
         Assert.Equal(0d, violation.MeasuredValue);
         Assert.Equal(0.75d, violation.RequiredThreshold);
         Assert.StartsWith("edge:", violation.Location, StringComparison.Ordinal);

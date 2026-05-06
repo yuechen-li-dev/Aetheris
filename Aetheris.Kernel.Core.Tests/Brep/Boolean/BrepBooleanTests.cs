@@ -180,6 +180,8 @@ public sealed class BrepBooleanTests
             Assert.True(body.Value.Bindings.TryGetEdgeBinding(edge.Id, out var binding));
             Assert.NotNull(binding.TrimInterval);
             Assert.True(body.Value.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve));
+            Assert.NotNull(curve);
+            Assert.NotNull(curve.Line3);
             Assert.Equal(CurveGeometryKind.Line3, curve.Kind);
 
             Assert.True(body.Value.TryGetVertexPoint(edge.StartVertexId, out var startVertexPoint));
@@ -189,7 +191,7 @@ public sealed class BrepBooleanTests
             Assert.Equal(0d, binding.TrimInterval!.Value.Start, 6);
             Assert.Equal(expectedLength, binding.TrimInterval.Value.End, 6);
 
-            var line = curve.Line3!.Value;
+            var line = curve.Line3.Value;
             var startParameter = binding.OrientedEdgeSense ? binding.TrimInterval.Value.Start : binding.TrimInterval.Value.End;
             var endParameter = binding.OrientedEdgeSense ? binding.TrimInterval.Value.End : binding.TrimInterval.Value.Start;
             var startFromCurve = line.Evaluate(startParameter);
@@ -1970,12 +1972,13 @@ public sealed class BrepBooleanTests
         => body.Topology.Faces
             .Where(face =>
             {
-                if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface.Kind != SurfaceGeometryKind.Plane)
+                if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null || surface.Kind != SurfaceGeometryKind.Plane)
                 {
                     return false;
                 }
 
-                var plane = surface.Plane!.Value;
+                Assert.NotNull(surface.Plane);
+                var plane = surface.Plane.Value;
                 var normal = plane.Normal.ToVector();
                 return (normalX is null || System.Math.Abs(normal.X - normalX.Value) <= 1e-6d)
                     && (normalY is null || System.Math.Abs(normal.Y - normalY.Value) <= 1e-6d)

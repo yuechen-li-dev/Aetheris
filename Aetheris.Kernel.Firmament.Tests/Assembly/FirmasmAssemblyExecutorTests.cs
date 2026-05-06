@@ -59,6 +59,6 @@ public sealed class FirmasmAssemblyExecutorTests
 
         Assert.Equal(2, minByInstance.Length);
         Assert.NotEqual(minByInstance[0].MinX, minByInstance[1].MinX);
-        Assert.True(minByInstance.Any(x => Math.Abs(x.MinX) > 1e-3d));
+        Assert.Contains(minByInstance, x => Math.Abs(x.MinX) > 1e-3d);
     }
 }

@@ -1038,7 +1038,9 @@ public static class BrepBoundedChamfer
             return KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer two-edge corner construction rejected: {reason}.", "firmament.chamfer-bounded")]);
         }
 
-        if (!TryResolveCanonicalIncidentEdgePair(sourceBody, cornerVertex, cornerPoint, selector, out var firstEdge, out var secondEdge, out reason))
+        if (!TryResolveCanonicalIncidentEdgePair(sourceBody, cornerVertex, cornerPoint, selector, out var firstEdge, out var secondEdge, out reason)
+            || firstEdge is null
+            || secondEdge is null)
         {
             return KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer two-edge corner construction rejected: {reason}.", "firmament.chamfer-bounded")]);
         }
@@ -1183,8 +1185,8 @@ public static class BrepBoundedChamfer
         VertexId cornerVertex,
         Point3D cornerPoint,
         BrepBoundedChamferIncidentEdgePairSelector selector,
-        out Edge first,
-        out Edge second,
+        out Edge? first,
+        out Edge? second,
         out string reason)
     {
         const double eps = 1e-8d;

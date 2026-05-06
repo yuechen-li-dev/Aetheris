@@ -79,9 +79,17 @@ public sealed class CirTapeEvaluationTests
         Assert.Equal(first.BoxPayloads, second.BoxPayloads);
         Assert.Equal(first.CylinderPayloads, second.CylinderPayloads);
         Assert.Equal(first.SpherePayloads, second.SpherePayloads);
+        Assert.Equal(first.TorusPayloads, second.TorusPayloads);
 
         var probe = new Point3D(1.25d, -0.5d, 2d);
         Assert.Equal(first.Evaluate(probe), second.Evaluate(probe), 12);
+    }
+
+    [Fact]
+    public void Tape_Torus_MatchesRecursiveEvaluate()
+    {
+        var node = new CirTransformNode(new CirTorusNode(6d, 2d), Transform3D.CreateTranslation(new Vector3D(1d, 0d, 0.5d)));
+        AssertTapeMatches(node, new Point3D(7d, 0d, 0.5d), new Point3D(1d, 0d, 0.5d), new Point3D(1d, 0d, 2.5d));
     }
 
     private static void AssertTapeMatches(CirNode node, params Point3D[] points)

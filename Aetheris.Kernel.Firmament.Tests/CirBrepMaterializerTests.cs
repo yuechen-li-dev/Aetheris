@@ -60,6 +60,18 @@ public sealed class CirBrepMaterializerTests
     }
 
     [Fact]
+    public void CirMaterializer_BoxMinusTorus_FailsWithPreciseUnsupported()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirTorusNode(8, 2));
+        var replay = BuildReplay("torus");
+        var result = CirBrepMaterializer.TryMaterialize(new CirBrepMaterializer.CirBrepMaterializerContext(root, replay));
+        Assert.False(result.IsSuccess);
+        Assert.Equal("subtract_box_torus", result.SelectedStrategy);
+        Assert.Equal("materialization-unsupported", result.UnsupportedReason);
+        Assert.Contains("recognized", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void CirOnly_BoxMinusCylinder_RematerializesToBRepActive()
     {
         var plan = BuildBoxMinusCylinderPlan();

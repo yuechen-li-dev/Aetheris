@@ -11,8 +11,9 @@ internal static class CirBrepMaterializer
 {
     internal const string BoxMinusCylinderPattern = "subtract(box,cylinder)";
     internal const string BoxMinusBoxPattern = "subtract(box,box)";
+    internal const string BoxMinusTorusPattern = "subtract(box,torus)";
     private static readonly JudgmentEngine<CirBrepMaterializerContext> Engine = new();
-    private static readonly ICirBrepMaterializerStrategy[] Registry = [new SubtractBoxCylinderStrategy(), new SubtractBoxBoxStrategy()];
+    private static readonly ICirBrepMaterializerStrategy[] Registry = [new SubtractBoxCylinderStrategy(), new SubtractBoxBoxStrategy(), new SubtractBoxTorusUnsupportedStrategy()];
 
     internal static CirBrepMaterializationResult TryMaterialize(CirNode root) => TryMaterialize(new CirBrepMaterializerContext(root, null));
 
@@ -82,6 +83,19 @@ internal static class CirBrepMaterializer
         }
     }
 
+    private sealed class SubtractBoxTorusUnsupportedStrategy : ICirBrepMaterializerStrategy
+    {
+        public string Name => "subtract_box_torus";
+        public bool IsAdmissible(CirBrepMaterializerContext context) => TryMatchTorus(context, out _);
+        public string RejectionReason(CirBrepMaterializerContext context) => TryMatchTorus(context, out var reason) ? "admissible" : reason;
+        public double Score(CirBrepMaterializerContext context) => context.ReplayLog is null ? 0.5d : 3d;
+        public CirBrepMaterializationResult Materialize(CirBrepMaterializerContext context)
+        {
+            if (!TryMatchTorus(context, out var reason)) return new(false, null, BoxMinusTorusPattern, "strategy-no-longer-admissible", [], reason, Name, []);
+            return new(false, null, BoxMinusTorusPattern, "materialization-unsupported", [], "Replay-guided pattern subtract(box,torus) recognized, but no exact CIR→BRep torus subtract materializer exists yet.", Name, []);
+        }
+    }
+
     private sealed record Match(CirBoxNode LeftBox, Vector3D LeftTranslation, Vector3D RightTranslation, CirCylinderNode? Cylinder, CirBoxNode? RightBox);
     private static bool TryMatch(CirBrepMaterializerContext context, bool cylinder, out Match? match, out string reason)
     {
@@ -104,6 +118,14 @@ internal static class CirBrepMaterializer
         if (!op.OperationKind.StartsWith("boolean:subtract", StringComparison.OrdinalIgnoreCase)) { reason = $"Replay/CIR mismatch: expected latest replay operation boolean:subtract, got '{op.OperationKind}'."; return false; }
         if (!string.IsNullOrWhiteSpace(op.ToolKind) && !string.Equals(op.ToolKind, expectedToolKind, StringComparison.OrdinalIgnoreCase)) { reason = $"Replay/CIR mismatch: expected replay tool kind '{expectedToolKind}', got '{op.ToolKind}'."; return false; }
         reason = "matched"; return true;
+    }
+
+    private static bool TryMatchTorus(CirBrepMaterializerContext context, out string reason)
+    {
+        if (context.Root is not CirSubtractNode s) { reason = "CIR root is not subtract."; return false; }
+        if (!TryUnwrapTranslation(s.Left, out var lnode, out _) || lnode is not CirBoxNode) { reason = "Subtract lhs must be translated/untranslated box with translation-only transforms."; return false; }
+        if (!TryUnwrapTranslation(s.Right, out var rnode, out _) || rnode is not CirTorusNode) { reason = "Subtract rhs must be translated/untranslated torus."; return false; }
+        return ReplayMatches(context, "torus", out reason);
     }
 
     private static CirBrepMaterializationResult Failed(string pattern, string message, IReadOnlyList<KernelDiagnostic> d) => new(false, null, pattern, "materialize-failed", d, message, null, []);

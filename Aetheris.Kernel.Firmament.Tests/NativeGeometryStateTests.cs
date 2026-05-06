@@ -213,7 +213,7 @@ public sealed partial class NativeGeometryStateTests
     }
 
     [Fact]
-    public void FallForward_UnsupportedCIRLowering_DoesNotTransition()
+    public void FallForward_BoxMinusTorus_DoesNotMaskUpstreamCompileFailure()
     {
         var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10n-unsupported-box-subtract-torus.firmament"));
         Assert.False(result.Compilation.IsSuccess);

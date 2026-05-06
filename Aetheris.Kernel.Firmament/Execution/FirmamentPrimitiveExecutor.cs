@@ -42,7 +42,7 @@ internal static class FirmamentPrimitiveExecutor
 
             executedPrimitives.Add(new FirmamentExecutedPrimitive(primitive.OpIndex, primitive.FeatureId, primitive.Kind, bodyResult.Value.Published));
             publishedBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.Published;
-            booleanExecutionBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.LegacyForBoolean;
+            booleanExecutionBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.Published;
             featureGraphStates[primitive.FeatureId] = primitive.Kind switch
             {
                 FirmamentLoweredPrimitiveKind.Box => FirmamentSafeSubtractFeatureGraphState.BoxRoot,

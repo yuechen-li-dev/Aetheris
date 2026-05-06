@@ -239,8 +239,9 @@ internal static class FirmamentPrimitiveExecutor
             }
             else
             {
-                toolBodyUsedForBoolean = toolResult.Value;
-                booleanResult = ExecuteBoolean(boolean.Kind, baseBody, toolResult.Value);
+                var frameAdjustedToolBody = ApplyDefaultToolLocalFrame(boolean.Tool, toolResult.Value);
+                toolBodyUsedForBoolean = frameAdjustedToolBody;
+                booleanResult = ExecuteBoolean(boolean.Kind, baseBody, frameAdjustedToolBody);
             }
 
             if (!booleanResult.IsSuccess)

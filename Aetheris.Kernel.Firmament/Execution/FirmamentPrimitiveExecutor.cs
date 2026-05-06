@@ -42,7 +42,7 @@ internal static class FirmamentPrimitiveExecutor
 
             executedPrimitives.Add(new FirmamentExecutedPrimitive(primitive.OpIndex, primitive.FeatureId, primitive.Kind, bodyResult.Value.Published));
             publishedBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.Published;
-            booleanExecutionBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.Published;
+            booleanExecutionBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.LegacyForBoolean;
             featureGraphStates[primitive.FeatureId] = primitive.Kind switch
             {
                 FirmamentLoweredPrimitiveKind.Box => FirmamentSafeSubtractFeatureGraphState.BoxRoot,
@@ -239,9 +239,8 @@ internal static class FirmamentPrimitiveExecutor
             }
             else
             {
-                var frameAdjustedToolBody = ApplyDefaultToolLocalFrame(boolean.Tool, toolResult.Value);
-                toolBodyUsedForBoolean = frameAdjustedToolBody;
-                booleanResult = ExecuteBoolean(boolean.Kind, baseBody, frameAdjustedToolBody);
+                toolBodyUsedForBoolean = toolResult.Value;
+                booleanResult = ExecuteBoolean(boolean.Kind, baseBody, toolResult.Value);
             }
 
             if (!booleanResult.IsSuccess)

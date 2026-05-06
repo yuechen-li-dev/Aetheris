@@ -40,7 +40,7 @@ public static class FirmamentStepExporter
     {
         ArgumentNullException.ThrowIfNull(artifact);
 
-        var selectionResult = SelectExportBody(artifact.PrimitiveExecutionResult);
+        var selectionResult = SelectExportBody(artifact.PrimitiveExecutionResult, artifact.PrimitiveLoweringPlan);
         if (!selectionResult.IsSuccess)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(selectionResult.Diagnostics);
@@ -65,7 +65,7 @@ public static class FirmamentStepExporter
                 DimensionInspection: BuildDimensionInspection(pmiModel.Model)));
     }
 
-    private static KernelResult<ExportBodySelection> SelectExportBody(FirmamentPrimitiveExecutionResult? primitiveExecutionResult)
+    private static KernelResult<ExportBodySelection> SelectExportBody(FirmamentPrimitiveExecutionResult? primitiveExecutionResult, FirmamentPrimitiveLoweringPlan? loweringPlan)
     {
         if (primitiveExecutionResult is null)
         {
@@ -73,6 +73,16 @@ public static class FirmamentStepExporter
         }
         if (primitiveExecutionResult.NativeGeometryState.ExecutionMode == NativeGeometryExecutionMode.CirOnly)
         {
+            if (loweringPlan is not null)
+            {
+                var remat = NativeGeometryRematerializer.TryRematerialize(loweringPlan, primitiveExecutionResult.NativeGeometryState);
+                if (remat.IsSuccess && remat.Value.MaterializedBody is not null)
+                {
+                    var fallbackOpIndex = primitiveExecutionResult.NativeGeometryState.ReplayLog.Operations.LastOrDefault()?.OpIndex ?? -1;
+                    return KernelResult<ExportBodySelection>.Success(new ExportBodySelection(fallbackOpIndex, remat.Value.CirIntentRootReference ?? "cir-rematerialized", ExportBodyCategoryBoolean, "subtract", remat.Value.MaterializedBody));
+                }
+            }
+
             var cirFeature = primitiveExecutionResult.NativeGeometryState.CirIntentRootReference ?? "unspecified";
             return Failure($"Firmament STEP export is unavailable for CirOnly state. Model remains valid and analyzable in CIR, but exact BRep/AP242 materialization is unavailable for feature '{cirFeature}' without a CIR→BRep materializer.");
         }

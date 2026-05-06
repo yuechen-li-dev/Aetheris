@@ -1,5 +1,6 @@
 using System.Linq;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Firmament.Lowering;
 
@@ -265,7 +266,7 @@ public sealed class FirmamentStepExporterTests
             [new FirmamentLoweredPrimitive(0, "base", FirmamentLoweredPrimitiveKind.Box, new FirmamentLoweredBoxParameters(20, 20, 10), null)],
             [new FirmamentLoweredBoolean(1, "notch", FirmamentLoweredBooleanKind.Subtract, "from", "base", new FirmamentLoweredToolOp("box", new Dictionary<string, string> { { "op", "box" }, { "size", "[6,20,10]" } }, "op box size=[6,20,10]"), new FirmamentLoweredPlacement(new FirmamentLoweredPlacementOriginAnchor(), true, [7d, 0d, 0d], null, null, null, []))],
             []);
-        var cirOnlyState = new NativeGeometryState(NativeGeometryExecutionMode.CirOnly, NativeGeometryMaterializationAuthority.PendingRematerialization, null, "notch", new NativeGeometryReplayLog([]), [], new NativeGeometryCirMirrorState(CirMirrorStatus.NotAttempted, null, []));
+        var cirOnlyState = new NativeGeometryState(NativeGeometryExecutionMode.CirOnly, NativeGeometryMaterializationAuthority.PendingRematerialization, null, "notch", BuildReplayLogForBoxMinusBox(), [], new NativeGeometryCirMirrorState(CirMirrorStatus.NotAttempted, null, []));
         var cirOnlyArtifact = new FirmamentCompilationArtifact(
             PrimitiveLoweringPlan: plan,
             PrimitiveExecutionResult: new FirmamentPrimitiveExecutionResult([], [], cirOnlyState));
@@ -362,6 +363,13 @@ public sealed class FirmamentStepExporterTests
         Assert.Contains(first.Diagnostics, diagnostic => HasExpectedMixedPrimitiveFailure(diagnostic.Message));
         Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
     }
+
+
+    private static NativeGeometryReplayLog BuildReplayLogForBoxMinusBox()
+        => new([
+            new NativeGeometryReplayOperation(0, "base", "primitive:box", null, null, null, null, new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.None, null, null, Vector3D.Zero, Vector3D.Zero, true, null), null),
+            new NativeGeometryReplayOperation(1, "notch", "boolean:subtract", "base", "box", "tool", null, new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.None, null, null, Vector3D.Zero, Vector3D.Zero, true, null), null)
+        ]);
 
     private static bool HasExpectedMixedPrimitiveFailure(string message)
         => message.Contains("bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)

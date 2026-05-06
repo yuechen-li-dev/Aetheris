@@ -47,6 +47,36 @@ internal enum RetainedRegionLoopStatus
     Unsupported
 }
 
+internal enum RetainedRegionLoopGroupKind
+{
+    NotApplicable,
+    OuterBoundaryGroup,
+    InnerTrimGroup,
+    MouthTrimGroup,
+    CapTrimGroup,
+    SeamTrimGroup,
+    DeferredGroup,
+    UnsupportedGroup
+}
+
+internal enum RetainedRegionLoopGroupReadiness
+{
+    NotApplicable,
+    ExactReady,
+    SpecialCaseReady,
+    Deferred,
+    Unsupported
+}
+
+internal enum RetainedRegionLoopOrientationPolicy
+{
+    UseCandidateOrientation,
+    ReverseForToolCavity,
+    SurfaceNatural,
+    Deferred,
+    Unsupported
+}
+
 internal sealed record RetainedRegionLoopDescriptor(
     RetainedRegionLoopKind LoopKind,
     TrimCurveFamily TrimCurveFamily,
@@ -57,6 +87,14 @@ internal sealed record RetainedRegionLoopDescriptor(
     FacePatchRetentionRole RetentionRole,
     RetainedRegionLoopStatus Status,
     string Diagnostic);
+
+internal sealed record RetainedRegionLoopGroup(
+    RetainedRegionLoopGroupKind GroupKind,
+    RetainedRegionLoopGroupReadiness Readiness,
+    RetainedRegionLoopOrientationPolicy OrientationPolicy,
+    string OrderingKey,
+    IReadOnlyList<RetainedRegionLoopDescriptor> Loops,
+    IReadOnlyList<string> Diagnostics);
 
 internal sealed record FacePatchCandidate(
     SourceSurfaceDescriptor SourceSurface,
@@ -69,6 +107,7 @@ internal sealed record FacePatchCandidate(
     string RetentionReason,
     IReadOnlyList<SurfacePatchFamily> OppositeFamilies,
     IReadOnlyList<RetainedRegionLoopDescriptor> RetainedRegionLoops,
+    IReadOnlyList<RetainedRegionLoopGroup> RetainedRegionLoopGroups,
     RetainedRegionLoopStatus LoopReadiness,
     string LoopDiagnostic,
     IReadOnlyList<string> Diagnostics);
@@ -115,6 +154,7 @@ internal static class FacePatchCandidateGenerator
                     "retention-not-applicable: CIR-F8.4 retention classification applies to subtract roots only.",
                     [],
                     [],
+                    [],
                     RetainedRegionLoopStatus.Deferred,
                     "loop-retention-not-applicable: retained-region loop scaffolding applies to subtract roots with classified retention only.",
                     ["retention-not-applicable: non-subtract root leaves candidate retention unclassified."]));
@@ -143,6 +183,7 @@ internal static class FacePatchCandidateGenerator
             var loopDescriptors = BuildRetainedRegionLoops(source, relevantOther, retentionRole, retentionStatus, isBase);
             var loopReadiness = EvaluateLoopReadiness(loopDescriptors);
             var loopDiagnostic = BuildLoopDiagnostic(loopDescriptors, retentionStatus);
+            var loopGroups = BuildRetainedRegionLoopGroups(source, loopDescriptors, retentionRole, retentionStatus, isBase);
             var candidateDiagnostics = new List<string>();
             if (trim is null)
             {
@@ -176,12 +217,13 @@ internal static class FacePatchCandidateGenerator
             candidateDiagnostics.Add(retentionReason);
             candidateDiagnostics.Add($"loop-readiness: {loopReadiness}");
             candidateDiagnostics.Add(loopDiagnostic);
+            candidateDiagnostics.AddRange(loopGroups.Select(g => $"loop-group: {g.GroupKind}/{g.Readiness}/{g.OrientationPolicy} key={g.OrderingKey}"));
             candidateDiagnostics.AddRange(loopDescriptors.Select(l => l.Diagnostic));
 
             var orientation = isBase ? source.OrientationRole : FacePatchOrientationRole.Reversed;
             var patchRole = isBase ? "base-boundary-retained-outside-tool" : "tool-boundary-retained-inside-base";
             var patch = new FacePatchDescriptor(source, [], [], orientation, patchRole, []);
-            candidates.Add(new FacePatchCandidate(source, patch, role, readiness, trim, retentionRole, retentionStatus, retentionReason, oppositeFamilies, loopDescriptors, loopReadiness, loopDiagnostic, candidateDiagnostics));
+            candidates.Add(new FacePatchCandidate(source, patch, role, readiness, trim, retentionRole, retentionStatus, retentionReason, oppositeFamilies, loopDescriptors, loopGroups, loopReadiness, loopDiagnostic, candidateDiagnostics));
         }
 
         diagnostics.Add("topology-assembly-not-implemented: dry-run emits candidate descriptors only and does not emit BRep topology.");
@@ -371,4 +413,87 @@ internal static class FacePatchCandidateGenerator
             RetainedRegionLoopStatus.Deferred => $"loop-deferred: {source}/{opposite} trim loop remains deferred ({reason})",
             _ => $"loop-unsupported: {source}/{opposite} trim loop unsupported ({reason})"
         };
+
+    private static IReadOnlyList<RetainedRegionLoopGroup> BuildRetainedRegionLoopGroups(
+        SourceSurfaceDescriptor source,
+        IReadOnlyList<RetainedRegionLoopDescriptor> loops,
+        FacePatchRetentionRole retentionRole,
+        FacePatchRetentionStatus retentionStatus,
+        bool isBase)
+    {
+        if (retentionRole == FacePatchRetentionRole.NotApplicable)
+        {
+            return [new RetainedRegionLoopGroup(
+                RetainedRegionLoopGroupKind.NotApplicable,
+                RetainedRegionLoopGroupReadiness.NotApplicable,
+                RetainedRegionLoopOrientationPolicy.Deferred,
+                $"{source.Family}|not-applicable|0",
+                [],
+                ["loop-group-not-applicable: retained-loop grouping only applies to subtract retention candidates."])];
+        }
+
+        if (loops.Count == 0)
+        {
+            return retentionStatus == FacePatchRetentionStatus.Deferred
+                ? [new RetainedRegionLoopGroup(RetainedRegionLoopGroupKind.DeferredGroup, RetainedRegionLoopGroupReadiness.Deferred, RetainedRegionLoopOrientationPolicy.Deferred, $"{source.Family}|deferred-empty|0", [], ["loop-group-deferred: no loop descriptors emitted because retention is deferred."])]
+                : [];
+        }
+
+        var orderedLoops = loops
+            .OrderBy(l => l.SourceSurfaceFamily)
+            .ThenBy(l => l.OppositeSurfaceFamily)
+            .ThenBy(l => l.LoopKind)
+            .ThenBy(l => l.Status)
+            .ThenBy(l => l.TrimCurveFamily)
+            .ToArray();
+
+        var groups = orderedLoops
+            .GroupBy(l => MapGroupKind(l.LoopKind))
+            .Select(g =>
+            {
+                var groupLoops = g.ToArray();
+                var readiness = EvaluateGroupReadiness(groupLoops);
+                var orientation = EvaluateOrientationPolicy(isBase, readiness);
+                var key = $"{source.Family}|{retentionRole}|{g.Key}|{readiness}|{orientation}|{groupLoops.Length}";
+                return new RetainedRegionLoopGroup(g.Key, readiness, orientation, key, groupLoops,
+                    [BuildGroupDiagnostic(g.Key, readiness, orientation)]);
+            })
+            .OrderBy(g => g.OrderingKey, StringComparer.Ordinal)
+            .ToArray();
+
+        return groups;
+    }
+
+    private static RetainedRegionLoopGroupKind MapGroupKind(RetainedRegionLoopKind kind)
+        => kind switch
+        {
+            RetainedRegionLoopKind.OuterBoundary => RetainedRegionLoopGroupKind.OuterBoundaryGroup,
+            RetainedRegionLoopKind.InnerTrim => RetainedRegionLoopGroupKind.InnerTrimGroup,
+            RetainedRegionLoopKind.MouthTrim => RetainedRegionLoopGroupKind.MouthTrimGroup,
+            RetainedRegionLoopKind.CapTrim => RetainedRegionLoopGroupKind.CapTrimGroup,
+            RetainedRegionLoopKind.SeamTrim => RetainedRegionLoopGroupKind.SeamTrimGroup,
+            RetainedRegionLoopKind.Deferred => RetainedRegionLoopGroupKind.DeferredGroup,
+            _ => RetainedRegionLoopGroupKind.UnsupportedGroup
+        };
+
+    private static RetainedRegionLoopGroupReadiness EvaluateGroupReadiness(IReadOnlyList<RetainedRegionLoopDescriptor> loops)
+    {
+        if (loops.Any(l => l.Status == RetainedRegionLoopStatus.Unsupported)) return RetainedRegionLoopGroupReadiness.Unsupported;
+        if (loops.Any(l => l.Status == RetainedRegionLoopStatus.Deferred)) return RetainedRegionLoopGroupReadiness.Deferred;
+        if (loops.Any(l => l.Status == RetainedRegionLoopStatus.SpecialCaseReady)) return RetainedRegionLoopGroupReadiness.SpecialCaseReady;
+        return RetainedRegionLoopGroupReadiness.ExactReady;
+    }
+
+    private static RetainedRegionLoopOrientationPolicy EvaluateOrientationPolicy(bool isBase, RetainedRegionLoopGroupReadiness readiness)
+    {
+        if (readiness == RetainedRegionLoopGroupReadiness.Unsupported) return RetainedRegionLoopOrientationPolicy.Unsupported;
+        if (readiness == RetainedRegionLoopGroupReadiness.Deferred) return RetainedRegionLoopOrientationPolicy.Deferred;
+        return isBase ? RetainedRegionLoopOrientationPolicy.UseCandidateOrientation : RetainedRegionLoopOrientationPolicy.ReverseForToolCavity;
+    }
+
+    private static string BuildGroupDiagnostic(
+        RetainedRegionLoopGroupKind kind,
+        RetainedRegionLoopGroupReadiness readiness,
+        RetainedRegionLoopOrientationPolicy orientation)
+        => $"loop-group-{kind.ToString().ToLowerInvariant()}: readiness={readiness}; orientation-policy={orientation}; topology assembly remains deferred.";
 }

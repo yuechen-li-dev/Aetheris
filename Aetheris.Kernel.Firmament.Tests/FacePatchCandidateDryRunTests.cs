@@ -6,54 +6,65 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class FacePatchCandidateDryRunTests
 {
     [Fact]
-    public void FacePatchDryRun_BoxMinusCylinder_ReportsExactTrimReady()
+    public void Retention_BoxMinusCylinder_ClassifiesBaseAndToolRoles()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
 
         var result = FacePatchCandidateGenerator.Generate(root);
 
         Assert.True(result.IsSuccess);
-        Assert.Contains(result.SourceSurfaces, d => d.Family == SurfacePatchFamily.Planar);
-        Assert.Contains(result.SourceSurfaces, d => d.Family == SurfacePatchFamily.Cylindrical);
-        Assert.Contains(result.TrimCapabilitySummaries, t =>
-            (t.FamilyA == SurfacePatchFamily.Planar && t.FamilyB == SurfacePatchFamily.Cylindrical)
-            || (t.FamilyA == SurfacePatchFamily.Cylindrical && t.FamilyB == SurfacePatchFamily.Planar));
-        Assert.Contains(result.Candidates, c => c.Readiness == FacePatchCandidateReadiness.ExactReady);
+        Assert.Contains(result.Candidates, c => c.CandidateRole == "base-surface-candidate" && c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool);
+        Assert.Contains(result.Candidates, c => c.SourceSurface.Family == SurfacePatchFamily.Cylindrical && c.RetentionRole == FacePatchRetentionRole.ToolBoundaryRetainedInsideBase);
+        Assert.Contains(result.Candidates, c => c.RetentionStatus == FacePatchRetentionStatus.KnownTrimmedSurface);
         Assert.False(result.TopologyAssemblyImplemented);
     }
 
     [Fact]
-    public void FacePatchDryRun_BoxMinusSphere_ReportsPlanarSphericalCircleExact()
+    public void Retention_BoxMinusSphere_ReportsSphericalToolRetainedInsideBase()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(3));
 
         var result = FacePatchCandidateGenerator.Generate(root);
 
         Assert.True(result.IsSuccess);
-        Assert.Contains(result.SourceSurfaces, d => d.Family == SurfacePatchFamily.Spherical);
+        Assert.Contains(result.Candidates, c =>
+            c.SourceSurface.Family == SurfacePatchFamily.Spherical
+            && c.RetentionRole == FacePatchRetentionRole.ToolBoundaryRetainedInsideBase
+            && c.RetentionStatus == FacePatchRetentionStatus.KnownTrimmedSurface);
         Assert.Contains(result.TrimCapabilitySummaries, t =>
             ((t.FamilyA == SurfacePatchFamily.Planar && t.FamilyB == SurfacePatchFamily.Spherical)
              || (t.FamilyA == SurfacePatchFamily.Spherical && t.FamilyB == SurfacePatchFamily.Planar))
             && t.Classification == TrimCapabilityClassification.ExactSupported
             && t.CurveFamilies.Contains(TrimCurveFamily.Circle));
-        Assert.DoesNotContain(result.Candidates, c => c.Readiness == FacePatchCandidateReadiness.Unsupported);
+        Assert.DoesNotContain(result.Candidates, c => c.Diagnostics.Any(d => d.Contains("generic unsupported", StringComparison.OrdinalIgnoreCase)));
     }
 
     [Fact]
-    public void FacePatchDryRun_BoxMinusTorus_ReportsDeferredTrim()
+    public void Retention_BoxMinusTorus_ReportsKnownRoleButTrimDeferred()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirTorusNode(4, 1));
 
         var result = FacePatchCandidateGenerator.Generate(root);
 
         Assert.True(result.IsSuccess);
-        Assert.Contains(result.SourceSurfaces, d => d.Family == SurfacePatchFamily.Toroidal);
-        Assert.Contains(result.TrimCapabilitySummaries, t =>
-            ((t.FamilyA == SurfacePatchFamily.Planar && t.FamilyB == SurfacePatchFamily.Toroidal)
-             || (t.FamilyA == SurfacePatchFamily.Toroidal && t.FamilyB == SurfacePatchFamily.Planar))
-            && t.Classification == TrimCapabilityClassification.Deferred);
-        Assert.Contains(result.Candidates, c => c.Readiness == FacePatchCandidateReadiness.TrimDeferred);
+        Assert.Contains(result.Candidates, c =>
+            c.SourceSurface.Family == SurfacePatchFamily.Toroidal
+            && c.RetentionRole == FacePatchRetentionRole.ToolBoundaryRetainedInsideBase
+            && c.Readiness == FacePatchCandidateReadiness.TrimDeferred
+            && c.RetentionStatus == FacePatchRetentionStatus.Deferred);
         Assert.Contains(result.Candidates.SelectMany(c => c.Diagnostics), d => d.Contains("quartic/algebraic", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Retention_NonSubtract_IsDeferredOrNotApplicable()
+    {
+        var root = new CirUnionNode(new CirBoxNode(10, 10, 10), new CirSphereNode(2));
+
+        var result = FacePatchCandidateGenerator.Generate(root);
+
+        Assert.False(result.IsSuccess);
+        Assert.All(result.Candidates, c => Assert.Equal(FacePatchRetentionRole.NotApplicable, c.RetentionRole));
+        Assert.All(result.Candidates, c => Assert.Equal(FacePatchRetentionStatus.Deferred, c.RetentionStatus));
     }
 
     [Fact]

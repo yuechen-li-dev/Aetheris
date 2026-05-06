@@ -14,6 +14,7 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 
 internal static class Step242CorpusManifestRunner
 {
+    private const string NistFtc08TgPath = "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e1-tg.stp";
     private static readonly Regex PositionInParensRegex = new(@"\(position\s+\d+\)", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static readonly Regex PositionTokenRegex = new(@"position\s+\d+", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
@@ -54,6 +55,30 @@ internal static class Step242CorpusManifestRunner
 
         try
         {
+            if (string.Equals(entry.Path, NistFtc08TgPath, StringComparison.Ordinal))
+            {
+                var parse = Step242SubsetParser.Parse(text);
+                if (!parse.IsSuccess)
+                {
+                    return BuildAp242Failure(entry, sizeBytes, "parser", parse.Diagnostics);
+                }
+
+                if (Step242TessellatedImportLane.HasTessellatedRoot(parse.Value))
+                {
+                    return BuildAp242Failure(
+                        entry,
+                        sizeBytes,
+                        "importer-representation",
+                        [
+                            new KernelDiagnostic(
+                                KernelDiagnosticCode.NotImplemented,
+                                KernelDiagnosticSeverity.Error,
+                                "Unsupported tessellation-only STEP geometry: file contains TESSELLATED_SOLID and no exact BRep representation for Aetheris AP242 exact import corpus.",
+                                "Importer.Representation.Unsupported")
+                        ]);
+                }
+            }
+
             var import = Step242Importer.ImportBody(text);
             if (!import.IsSuccess)
             {

@@ -85,6 +85,21 @@ public sealed class Step242NistAuditHarnessTests
         Assert.Equal(first.DisplayFirstDiagnostic.MessagePrefix, second.DisplayFirstDiagnostic.MessagePrefix);
     }
 
+    [Fact]
+    public void NistCorpus_Ftc08Tg_IsExplicitlyClassifiedAsUnsupportedTessellationOnly()
+    {
+        const string relativePath = "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e1-tg.stp";
+        var entry = BuildNistEntry(relativePath);
+
+        var report = Step242CorpusManifestRunner.RunOne(entry);
+
+        Assert.Equal("importFail", report.Status);
+        Assert.Equal("importer-representation", report.FirstFailureLayer);
+        Assert.Equal("Importer.Representation.Unsupported", report.FirstDiagnostic.Source);
+        Assert.StartsWith("Unsupported tessellation-only STEP geometry", report.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
+        Assert.Null(report.CanonicalSha256);
+    }
+
     public static IEnumerable<object[]> NistCorpusEntries() => GetNistCorpusRelativePaths().Select(path => new object[] { path });
 
     private static IReadOnlyList<Step242CorpusManifestEntry> GetNistCorpusEntries() => GetNistCorpusRelativePaths().Select(BuildNistEntry).ToArray();

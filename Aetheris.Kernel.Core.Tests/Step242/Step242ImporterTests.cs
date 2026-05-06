@@ -118,23 +118,18 @@ public sealed class Step242ImporterTests
     }
 
     [Fact]
-    public void NistFtc08Tg_TessellatedVariant_ImportsDeterministically()
+    public void NistFtc08Tg_TessellatedVariant_IsClassifiedAsUnsupportedForExactBrepCorpus()
     {
         var text = LoadFixture("testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e1-tg.stp");
+        var parse = Step242SubsetParser.Parse(text);
+        Assert.True(parse.IsSuccess);
 
-        var first = Step242Importer.ImportBody(text);
-        var second = Step242Importer.ImportBody(text);
-
-        Assert.True(first.IsSuccess, string.Join(" | ", first.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
-        Assert.True(second.IsSuccess, string.Join(" | ", second.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
-
-        Assert.Equal(first.Value.Topology.Vertices.Count(), second.Value.Topology.Vertices.Count());
-        Assert.Equal(first.Value.Topology.Edges.Count(), second.Value.Topology.Edges.Count());
-        Assert.Equal(first.Value.Topology.Faces.Count(), second.Value.Topology.Faces.Count());
-
-        var tessellation = BrepDisplayTessellator.Tessellate(first.Value);
-        Assert.True(tessellation.IsSuccess);
-        Assert.NotEmpty(tessellation.Value.FacePatches);
+        var import = Step242ExactBRepImportLane.ImportExactBrep(parse.Value);
+        Assert.False(import.IsSuccess);
+        var diagnostic = Assert.Single(import.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Importer.TopologyRoot", diagnostic.Source);
+        Assert.StartsWith("Missing MANIFOLD_SOLID_BREP", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

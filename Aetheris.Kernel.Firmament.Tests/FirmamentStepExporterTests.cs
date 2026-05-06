@@ -226,6 +226,16 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
+    public void Export_CirOnlyState_Fails_Clearly_Without_Materializer()
+    {
+        var export = ExportFixture("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament");
+        Assert.False(export.IsSuccess);
+        Assert.Contains(export.Diagnostics, d => d.Message.Contains("unavailable for CirOnly state", StringComparison.Ordinal));
+        Assert.Contains(export.Diagnostics, d => d.Message.Contains("valid and analyzable in CIR", StringComparison.Ordinal));
+        Assert.Contains(export.Diagnostics, d => d.Message.Contains("CIR→BRep materializer", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Export_AddThenSubtract_ReentrySafeRootFixture_Succeeds_Deterministically_Without_Fallback()
     {
         var first = ExportFixture("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament");
@@ -262,8 +272,12 @@ public sealed class FirmamentStepExporterTests
         Assert.False(first.IsSuccess);
         Assert.False(second.IsSuccess);
         Assert.Equal(first.Diagnostics, second.Diagnostics);
-        Assert.Contains(first.Diagnostics, diagnostic => diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}'", StringComparison.Ordinal));
-        Assert.Contains(first.Diagnostics, diagnostic => HasExpectedMixedPrimitiveFailure(diagnostic.Message));
+        Assert.Contains(first.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}'", StringComparison.Ordinal)
+            || diagnostic.Message.Contains("unavailable for CirOnly state", StringComparison.Ordinal));
+        Assert.Contains(first.Diagnostics, diagnostic =>
+            HasExpectedMixedPrimitiveFailure(diagnostic.Message)
+            || diagnostic.Message.Contains("CIR→BRep materializer", StringComparison.Ordinal));
         Assert.DoesNotContain(first.Diagnostics, diagnostic => diagnostic.Message.Contains("requires at least one executed primitive or boolean body", StringComparison.Ordinal));
     }
 

@@ -71,6 +71,11 @@ public static class FirmamentStepExporter
         {
             return Failure("Firmament STEP export requires a completed primitive execution result.");
         }
+        if (primitiveExecutionResult.NativeGeometryState.ExecutionMode == NativeGeometryExecutionMode.CirOnly)
+        {
+            var cirFeature = primitiveExecutionResult.NativeGeometryState.CirIntentRootReference ?? "unspecified";
+            return Failure($"Firmament STEP export is unavailable for CirOnly state. Model remains valid and analyzable in CIR, but exact BRep/AP242 materialization is unavailable for feature '{cirFeature}' without a CIR→BRep materializer.");
+        }
 
         ExportBodySelection? selected = null;
 

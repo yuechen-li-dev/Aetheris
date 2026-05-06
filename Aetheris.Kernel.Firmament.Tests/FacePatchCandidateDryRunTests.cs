@@ -6,6 +6,22 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class FacePatchCandidateDryRunTests
 {
     [Fact]
+    public void LoopGrouping_BoxMinusCylinder_GroupsBaseAndToolLoops()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+
+        var result = FacePatchCandidateGenerator.Generate(root);
+
+        var baseCandidates = result.Candidates.Where(c => c.CandidateRole == "base-surface-candidate" && c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool).ToArray();
+        var toolCandidate = Assert.Single(result.Candidates, c => c.SourceSurface.Family == SurfacePatchFamily.Cylindrical && c.RetentionRole == FacePatchRetentionRole.ToolBoundaryRetainedInsideBase);
+        Assert.NotEmpty(baseCandidates);
+        Assert.All(baseCandidates, c => Assert.NotEmpty(c.RetainedRegionLoopGroups));
+        Assert.All(baseCandidates.SelectMany(c => c.RetainedRegionLoopGroups), g => Assert.Equal(RetainedRegionLoopOrientationPolicy.UseCandidateOrientation, g.OrientationPolicy));
+        Assert.All(toolCandidate.RetainedRegionLoopGroups.Where(g => g.Readiness is RetainedRegionLoopGroupReadiness.ExactReady or RetainedRegionLoopGroupReadiness.SpecialCaseReady), g => Assert.Equal(RetainedRegionLoopOrientationPolicy.ReverseForToolCavity, g.OrientationPolicy));
+        Assert.False(result.TopologyAssemblyImplemented);
+    }
+
+    [Fact]
     public void LoopScaffold_BoxMinusCylinder_ProducesTrimLoopDescriptors()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
@@ -41,6 +57,7 @@ public sealed class FacePatchCandidateDryRunTests
             && t.Classification == TrimCapabilityClassification.ExactSupported
             && t.CurveFamilies.Contains(TrimCurveFamily.Circle));
         Assert.Contains(result.Candidates, c => c.SourceSurface.Family == SurfacePatchFamily.Spherical && c.RetainedRegionLoops.Any(l => l.TrimCurveFamily == TrimCurveFamily.Circle && l.Status == RetainedRegionLoopStatus.ExactReady));
+        Assert.Contains(result.Candidates, c => c.SourceSurface.Family == SurfacePatchFamily.Spherical && c.RetainedRegionLoopGroups.Any(g => g.OrientationPolicy == RetainedRegionLoopOrientationPolicy.ReverseForToolCavity && g.Readiness == RetainedRegionLoopGroupReadiness.ExactReady));
         Assert.DoesNotContain(result.Candidates, c => c.Diagnostics.Any(d => d.Contains("generic unsupported", StringComparison.OrdinalIgnoreCase)));
     }
 
@@ -74,6 +91,19 @@ public sealed class FacePatchCandidateDryRunTests
         Assert.All(result.Candidates, c => Assert.Equal(FacePatchRetentionRole.NotApplicable, c.RetentionRole));
         Assert.All(result.Candidates, c => Assert.Equal(FacePatchRetentionStatus.Deferred, c.RetentionStatus));
         Assert.All(result.Candidates, c => Assert.Empty(c.RetainedRegionLoops));
+        Assert.All(result.Candidates, c => Assert.True(c.RetainedRegionLoopGroups.Count == 0 || c.RetainedRegionLoopGroups.Any(g => g.GroupKind == RetainedRegionLoopGroupKind.NotApplicable)));
+    }
+
+    [Fact]
+    public void LoopGrouping_DeterministicOrdering()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var first = FacePatchCandidateGenerator.Generate(root);
+        var second = FacePatchCandidateGenerator.Generate(root);
+
+        var firstKeys = first.Candidates.SelectMany(c => c.RetainedRegionLoopGroups.Select(g => g.OrderingKey)).ToArray();
+        var secondKeys = second.Candidates.SelectMany(c => c.RetainedRegionLoopGroups.Select(g => g.OrderingKey)).ToArray();
+        Assert.Equal(firstKeys, secondKeys);
     }
 
     [Fact]

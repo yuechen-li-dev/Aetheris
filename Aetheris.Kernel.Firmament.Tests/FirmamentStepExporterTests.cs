@@ -1,3 +1,4 @@
+using System.Linq;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Execution;
 
@@ -251,9 +252,72 @@ public sealed class FirmamentStepExporterTests
         };
 
         var export = FirmamentStepExporter.Export(cirOnlyArtifact);
+        Assert.True(export.IsSuccess, string.Join(" | ", export.Diagnostics.Select(d => d.Message)));
+        Assert.Contains("PRODUCT_DEFINITION", export.Value.StepText, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void CirOnly_BoxMinusBox_ExportSucceedsAfterRematerialization()
+    {
+        var compiler = new FirmamentCompiler();
+        var source = """
+firmament:
+  version: 1
+
+model:
+  name: cir_box_box_remat
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      20
+      20
+      10
+
+  -
+    op: subtract
+    id: carved
+    from: base
+    with:
+      op: box
+      size[3]:
+        6
+        20
+        10
+    place:
+      on: origin
+      offset[3]:
+        7
+        0
+        0
+""";
+        var compiled = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+        Assert.True(compiled.Compilation.IsSuccess);
+
+        var artifact = compiled.Compilation.Value;
+        var execution = artifact.PrimitiveExecutionResult!;
+        var cirOnlyState = execution.NativeGeometryState with
+        {
+            ExecutionMode = NativeGeometryExecutionMode.CirOnly,
+            MaterializationAuthority = NativeGeometryMaterializationAuthority.PendingRematerialization,
+            MaterializedBody = null,
+            CirIntentRootReference = "carved"
+        };
+
+        var cirOnlyArtifact = artifact with
+        {
+            PrimitiveExecutionResult = execution with { NativeGeometryState = cirOnlyState }
+        };
+
+        var export = FirmamentStepExporter.Export(cirOnlyArtifact);
         Assert.True(export.IsSuccess);
         Assert.Contains("PRODUCT_DEFINITION", export.Value.StepText, StringComparison.Ordinal);
     }
+
     [Fact]
     public void Export_CirOnlyState_Fails_Clearly_Without_Materializer()
     {

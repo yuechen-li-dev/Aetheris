@@ -11,6 +11,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Firmament.Analysis;
 using Aetheris.Kernel.Firmament.Connectors;
 using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.Validation;
@@ -293,12 +294,49 @@ internal static class FirmamentPrimitiveExecutor
             materializedBody,
             null,
             replayLog,
-            []);
+            [],
+            BuildCirMirrorState(loweringPlan));
 
         return KernelResult<FirmamentPrimitiveExecutionResult>.Success(new FirmamentPrimitiveExecutionResult(executedPrimitives, executedBooleans, nativeState));
     }
 
 
+
+
+    private static NativeGeometryCirMirrorState BuildCirMirrorState(FirmamentPrimitiveLoweringPlan loweringPlan)
+    {
+        var lower = FirmamentCirLowerer.Lower(loweringPlan);
+        if (!lower.IsSuccess)
+        {
+            return new NativeGeometryCirMirrorState(
+                CirMirrorStatus.Unsupported,
+                null,
+                lower.Diagnostics.Select(d => new NativeGeometryCirMirrorDiagnostics(d.Message, null, d.Source)).ToArray());
+        }
+
+        var analysis = CirNativeAnalysisService.AnalyzeNode(lower.Value.Root, denseResolution: 28);
+        if (!analysis.Success || analysis.Bounds is null || analysis.Volume is null)
+        {
+            var diagnostics = analysis.Diagnostics
+                .Select(d => new NativeGeometryCirMirrorDiagnostics(d.Message, d.OpIndex, d.FeatureId))
+                .ToList();
+            if (!analysis.Success && diagnostics.Count == 0)
+            {
+                diagnostics.Add(new NativeGeometryCirMirrorDiagnostics("CIR mirror analysis failed.", null, null));
+            }
+
+            return new NativeGeometryCirMirrorState(CirMirrorStatus.Failed, null, diagnostics);
+        }
+
+        var summary = new NativeGeometryCirMirrorSummary(
+            analysis.Bounds.Min,
+            analysis.Bounds.Max,
+            analysis.Volume.EstimatedVolume,
+            analysis.Volume.Approximate,
+            analysis.Volume.Resolution);
+
+        return new NativeGeometryCirMirrorState(CirMirrorStatus.Available, summary, []);
+    }
     private static IReadOnlyList<KernelDiagnostic> WithBooleanContext(FirmamentLoweredBoolean boolean, IReadOnlyList<KernelDiagnostic> diagnostics)
         => diagnostics.Select(diagnostic =>
         {

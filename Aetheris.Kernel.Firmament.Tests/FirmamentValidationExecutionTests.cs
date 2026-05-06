@@ -335,7 +335,8 @@ ops[2]:
                 BuildNonManifoldBody(),
                 null,
                 new NativeGeometryReplayLog([]),
-                []));
+                [],
+                new NativeGeometryCirMirrorState(CirMirrorStatus.NotAttempted, null, [])));
 
         var validationExecution = FirmamentValidationExecutor.Execute(parsedDocument, executionResult);
 

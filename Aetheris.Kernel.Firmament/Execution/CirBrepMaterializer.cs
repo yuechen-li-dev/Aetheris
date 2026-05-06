@@ -9,6 +9,7 @@ namespace Aetheris.Kernel.Firmament.Execution;
 internal static class CirBrepMaterializer
 {
     internal const string BoxMinusCylinderPattern = "subtract(box,cylinder)";
+    internal const string BoxMinusBoxPattern = "subtract(box,box)";
 
     internal static CirBrepMaterializationResult TryMaterialize(CirNode root)
     {
@@ -16,29 +17,38 @@ internal static class CirBrepMaterializer
 
         if (root is not CirSubtractNode subtract)
         {
-            return Unsupported("Root CIR node must be subtract.", "root-not-subtract");
+            return Unsupported(BoxMinusCylinderPattern, "Root CIR node must be subtract.", "root-not-subtract");
         }
 
-        if (!TryUnwrapTranslation(subtract.Left, out var boxNode, out var boxTranslation) || boxNode is not CirBoxNode box)
+        if (!TryUnwrapTranslation(subtract.Left, out var leftNode, out var leftTranslation) || leftNode is not CirBoxNode leftBox)
         {
-            return Unsupported("Subtract lhs must be a translated/untranslated box node.", "lhs-not-box");
+            return Unsupported(BoxMinusCylinderPattern, "Subtract lhs must be a translated/untranslated box node.", "lhs-not-box");
         }
 
-        if (!TryUnwrapTranslation(subtract.Right, out var cylinderNode, out var cylinderTranslation) || cylinderNode is not CirCylinderNode cylinder)
+        return subtract.Right switch
         {
-            return Unsupported("Subtract rhs must be a translated/untranslated cylinder node.", "rhs-not-cylinder");
-        }
+            CirCylinderNode cylinder => TryMaterializeBoxMinusCylinder(leftBox, leftTranslation, cylinder, Vector3D.Zero),
+            CirTransformNode transformedCylinder when TryUnwrapTranslation(transformedCylinder, out var cylinderNode, out var cylinderTranslation) && cylinderNode is CirCylinderNode cylinder
+                => TryMaterializeBoxMinusCylinder(leftBox, leftTranslation, cylinder, cylinderTranslation),
+            CirBoxNode rightBox => TryMaterializeBoxMinusBox(leftBox, leftTranslation, rightBox, Vector3D.Zero),
+            CirTransformNode transformedBox when TryUnwrapTranslation(transformedBox, out var rightNode, out var rightTranslation) && rightNode is CirBoxNode rightBox
+                => TryMaterializeBoxMinusBox(leftBox, leftTranslation, rightBox, rightTranslation),
+            _ => Unsupported(BoxMinusCylinderPattern, "Subtract rhs must be a translated/untranslated cylinder or box node.", "rhs-unsupported")
+        };
+    }
 
+    private static CirBrepMaterializationResult TryMaterializeBoxMinusCylinder(CirBoxNode box, Vector3D boxTranslation, CirCylinderNode cylinder, Vector3D cylinderTranslation)
+    {
         var boxResult = BrepPrimitives.CreateBox(box.Width, box.Height, box.Depth);
         if (!boxResult.IsSuccess)
         {
-            return Failed("Failed to create BRep box primitive.", boxResult.Diagnostics);
+            return Failed(BoxMinusCylinderPattern, "Failed to create BRep box primitive.", boxResult.Diagnostics);
         }
 
         var cylinderResult = BrepPrimitives.CreateCylinder(cylinder.Radius, cylinder.Height);
         if (!cylinderResult.IsSuccess)
         {
-            return Failed("Failed to create BRep cylinder primitive.", cylinderResult.Diagnostics);
+            return Failed(BoxMinusCylinderPattern, "Failed to create BRep cylinder primitive.", cylinderResult.Diagnostics);
         }
 
         var placedBox = TranslateBody(boxResult.Value, boxTranslation);
@@ -46,28 +56,57 @@ internal static class CirBrepMaterializer
         var subtractResult = BrepBoolean.Subtract(placedBox, placedCylinder);
         if (!subtractResult.IsSuccess)
         {
-            return Failed("Failed to boolean subtract box/cylinder during CIR rematerialization.", subtractResult.Diagnostics);
+            return Failed(BoxMinusCylinderPattern, "Failed to boolean subtract box/cylinder during CIR rematerialization.", subtractResult.Diagnostics);
         }
 
         return new CirBrepMaterializationResult(true, subtractResult.Value, BoxMinusCylinderPattern, null, [], "matched-box-minus-cylinder");
     }
 
+    private static CirBrepMaterializationResult TryMaterializeBoxMinusBox(CirBoxNode leftBox, Vector3D leftTranslation, CirBoxNode rightBox, Vector3D rightTranslation)
+    {
+        var leftBoxResult = BrepPrimitives.CreateBox(leftBox.Width, leftBox.Height, leftBox.Depth);
+        if (!leftBoxResult.IsSuccess)
+        {
+            return Failed(BoxMinusBoxPattern, "Failed to create lhs BRep box primitive.", leftBoxResult.Diagnostics);
+        }
+
+        var rightBoxResult = BrepPrimitives.CreateBox(rightBox.Width, rightBox.Height, rightBox.Depth);
+        if (!rightBoxResult.IsSuccess)
+        {
+            return Failed(BoxMinusBoxPattern, "Failed to create rhs BRep box primitive.", rightBoxResult.Diagnostics);
+        }
+
+        var placedLeft = TranslateBody(leftBoxResult.Value, leftTranslation);
+        var placedRight = TranslateBody(rightBoxResult.Value, rightTranslation);
+        var subtractResult = BrepBoolean.Subtract(placedLeft, placedRight);
+        if (!subtractResult.IsSuccess)
+        {
+            return Failed(BoxMinusBoxPattern, "Failed to boolean subtract box/box during CIR rematerialization.", subtractResult.Diagnostics);
+        }
+
+        return new CirBrepMaterializationResult(true, subtractResult.Value, BoxMinusBoxPattern, null, [], "matched-box-minus-box");
+    }
+
     private static bool TryUnwrapTranslation(CirNode node, out CirNode unwrapped, out Vector3D translation)
     {
-        if (node is CirTransformNode transformNode)
+        var total = Vector3D.Zero;
+        var current = node;
+
+        while (current is CirTransformNode transformNode)
         {
-            if (!TryExtractPureTranslation(transformNode.Transform, out translation))
+            if (!TryExtractPureTranslation(transformNode.Transform, out var localTranslation))
             {
                 unwrapped = node;
+                translation = Vector3D.Zero;
                 return false;
             }
 
-            unwrapped = transformNode.Child;
-            return true;
+            total += localTranslation;
+            current = transformNode.Child;
         }
 
-        translation = Vector3D.Zero;
-        unwrapped = node;
+        translation = total;
+        unwrapped = current;
         return true;
     }
 
@@ -111,11 +150,11 @@ internal static class CirBrepMaterializer
         return FirmamentPrimitiveExecutionTranslation.TranslateBody(body, translation);
     }
 
-    private static CirBrepMaterializationResult Unsupported(string diagnostic, string reason)
-        => new(false, null, BoxMinusCylinderPattern, reason, [], diagnostic);
+    private static CirBrepMaterializationResult Unsupported(string pattern, string diagnostic, string reason)
+        => new(false, null, pattern, reason, [], diagnostic);
 
-    private static CirBrepMaterializationResult Failed(string diagnostic, IReadOnlyList<Core.Diagnostics.KernelDiagnostic> diagnostics)
-        => new(false, null, BoxMinusCylinderPattern, "materialize-failed", diagnostics, diagnostic);
+    private static CirBrepMaterializationResult Failed(string pattern, string diagnostic, IReadOnlyList<Core.Diagnostics.KernelDiagnostic> diagnostics)
+        => new(false, null, pattern, "materialize-failed", diagnostics, diagnostic);
 }
 
 internal sealed record CirBrepMaterializationResult(

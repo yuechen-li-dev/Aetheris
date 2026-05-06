@@ -23,7 +23,7 @@ internal static class NativeGeometryRematerializer
             return KernelResult<NativeGeometryState>.Failure(lowered.Diagnostics);
         }
 
-        var materialized = CirBrepMaterializer.TryMaterialize(lowered.Value.Root);
+        var materialized = CirBrepMaterializer.TryMaterialize(new CirBrepMaterializer.CirBrepMaterializerContext(lowered.Value.Root, state.ReplayLog));
         if (!materialized.IsSuccess || materialized.Body is null)
         {
             var diagnostics = materialized.Diagnostics.Count > 0

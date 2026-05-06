@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Firmament.Execution;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -225,6 +226,34 @@ public sealed class FirmamentStepExporterTests
         Assert.Contains("BREP_WITH_VOIDS", first.Value.StepText, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void CirOnly_BoxMinusCylinder_ExportSucceedsAfterRematerialization()
+    {
+        var compiler = new FirmamentCompiler();
+        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var compiled = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+        Assert.True(compiled.Compilation.IsSuccess);
+
+        var artifact = compiled.Compilation.Value;
+        var execution = artifact.PrimitiveExecutionResult!;
+        var cirOnlyState = execution.NativeGeometryState with
+        {
+            ExecutionMode = NativeGeometryExecutionMode.CirOnly,
+            MaterializationAuthority = NativeGeometryMaterializationAuthority.PendingRematerialization,
+            MaterializedBody = null,
+            CirIntentRootReference = "hole1"
+        };
+
+        var cirOnlyArtifact = artifact with
+        {
+            PrimitiveExecutionResult = execution with { NativeGeometryState = cirOnlyState }
+        };
+
+        var export = FirmamentStepExporter.Export(cirOnlyArtifact);
+        Assert.True(export.IsSuccess);
+        Assert.Contains("PRODUCT_DEFINITION", export.Value.StepText, StringComparison.Ordinal);
+    }
     [Fact]
     public void Export_CirOnlyState_Fails_Clearly_Without_Materializer()
     {

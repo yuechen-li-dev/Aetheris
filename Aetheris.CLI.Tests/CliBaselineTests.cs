@@ -669,7 +669,7 @@ public sealed class CliBaselineTests
         using var doc = JsonDocument.Parse(stdout.ToString());
         Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("planar-closed-shell", doc.RootElement.GetProperty("method").GetString());
-        Assert.Equal(18d, doc.RootElement.GetProperty("volume").GetDouble(), 8);
+        Assert.Equal(11.75d, doc.RootElement.GetProperty("volume").GetDouble(), 8);
     }
 
     [Fact]

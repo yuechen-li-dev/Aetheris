@@ -30,6 +30,7 @@ internal static class FirmamentPrimitiveExecutor
         var publishedBodiesByFeatureId = new Dictionary<string, BrepBody>(StringComparer.Ordinal);
         var booleanExecutionBodiesByFeatureId = new Dictionary<string, BrepBody>(StringComparer.Ordinal);
         var featureGraphStates = new Dictionary<string, FirmamentSafeSubtractFeatureGraphState>(StringComparer.Ordinal);
+        var resolvedPlacementByOpIndex = new Dictionary<int, NativeGeometryResolvedPlacement>();
 
         var tolerance = ToleranceContext.Default;
 
@@ -42,6 +43,7 @@ internal static class FirmamentPrimitiveExecutor
             }
 
             executedPrimitives.Add(new FirmamentExecutedPrimitive(primitive.OpIndex, primitive.FeatureId, primitive.Kind, bodyResult.Value.Published));
+            resolvedPlacementByOpIndex[primitive.OpIndex] = BuildResolvedPlacement(primitive.Placement, bodyResult.Value.PlacementTranslation);
             publishedBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.Published;
             booleanExecutionBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.LegacyForBoolean;
             featureGraphStates[primitive.FeatureId] = primitive.Kind switch
@@ -76,6 +78,7 @@ internal static class FirmamentPrimitiveExecutor
                 publishedBodiesByFeatureId[boolean.FeatureId] = draftedBody;
                 booleanExecutionBodiesByFeatureId[boolean.FeatureId] = draftedBody;
                 featureGraphStates[boolean.FeatureId] = FirmamentSafeSubtractFeatureGraphState.Other;
+                resolvedPlacementByOpIndex[boolean.OpIndex] = BuildResolvedPlacement(boolean.Placement, Vector3D.Zero);
                 continue;
             }
 
@@ -96,6 +99,7 @@ internal static class FirmamentPrimitiveExecutor
                 publishedBodiesByFeatureId[boolean.FeatureId] = chamferedBody;
                 booleanExecutionBodiesByFeatureId[boolean.FeatureId] = chamferedBody;
                 featureGraphStates[boolean.FeatureId] = FirmamentSafeSubtractFeatureGraphState.Other;
+                resolvedPlacementByOpIndex[boolean.OpIndex] = BuildResolvedPlacement(boolean.Placement, Vector3D.Zero);
                 continue;
             }
 
@@ -116,6 +120,7 @@ internal static class FirmamentPrimitiveExecutor
                 publishedBodiesByFeatureId[boolean.FeatureId] = filletedBody;
                 booleanExecutionBodiesByFeatureId[boolean.FeatureId] = filletedBody;
                 featureGraphStates[boolean.FeatureId] = FirmamentSafeSubtractFeatureGraphState.Other;
+                resolvedPlacementByOpIndex[boolean.OpIndex] = BuildResolvedPlacement(boolean.Placement, Vector3D.Zero);
                 continue;
             }
 
@@ -167,6 +172,7 @@ internal static class FirmamentPrimitiveExecutor
                     patternGraphValidation.Value.ResultState,
                     patternBooleanBody,
                     tolerance);
+                resolvedPlacementByOpIndex[boolean.OpIndex] = BuildResolvedPlacement(boolean.Placement, patternPlacementResult.Value);
                 continue;
             }
 
@@ -212,6 +218,7 @@ internal static class FirmamentPrimitiveExecutor
                     return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(placementResult.Diagnostics);
                 }
 
+                deferredPlacementTranslation = placementResult.Value;
                 var translatedToolBody = TranslateBody(ApplyDefaultToolLocalFrame(boolean.Tool, toolResult.Value), placementResult.Value);
                 toolBodyUsedForBoolean = translatedToolBody;
                 booleanResult = ExecuteBoolean(boolean.Kind, publishedBaseBody, translatedToolBody);
@@ -234,6 +241,7 @@ internal static class FirmamentPrimitiveExecutor
                     return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(placementResult.Diagnostics);
                 }
 
+                deferredPlacementTranslation = placementResult.Value;
                 var translatedToolBody = PlaceSemanticToolBody(boolean, toolResult.Value, placementResult.Value);
                 toolBodyUsedForBoolean = translatedToolBody;
                 booleanResult = ExecuteBoolean(boolean.Kind, baseBody, translatedToolBody);
@@ -275,9 +283,10 @@ internal static class FirmamentPrimitiveExecutor
                 featureGraphValidation.Value.ResultState,
                 placedBooleanBody,
                 tolerance);
+            resolvedPlacementByOpIndex[boolean.OpIndex] = BuildResolvedPlacement(boolean.Placement, deferredPlacementTranslation);
         }
 
-        var replayLog = BuildReplayLog(loweringPlan);
+        var replayLog = BuildReplayLog(loweringPlan, resolvedPlacementByOpIndex);
         BrepBody? materializedBody = null;
         if (executedBooleans.Count > 0)
         {
@@ -359,7 +368,7 @@ internal static class FirmamentPrimitiveExecutor
             Source: "firmament");
 
 
-    private static NativeGeometryReplayLog BuildReplayLog(FirmamentPrimitiveLoweringPlan loweringPlan)
+    private static NativeGeometryReplayLog BuildReplayLog(FirmamentPrimitiveLoweringPlan loweringPlan, IReadOnlyDictionary<int, NativeGeometryResolvedPlacement> resolvedPlacementByOpIndex)
     {
         var replayOps = new List<NativeGeometryReplayOperation>(loweringPlan.Primitives.Count + loweringPlan.Booleans.Count);
 
@@ -373,6 +382,7 @@ internal static class FirmamentPrimitiveExecutor
                 null,
                 null,
                 SummarizePlacement(p.Placement),
+                ResolveReplayPlacement(p.OpIndex, p.Placement, resolvedPlacementByOpIndex),
                 null)));
 
         replayOps.AddRange(loweringPlan.Booleans
@@ -385,6 +395,7 @@ internal static class FirmamentPrimitiveExecutor
                 b.Tool.OpName,
                 b.Tool.RawFields.TryGetValue("id", out var toolId) ? toolId : null,
                 SummarizePlacement(b.Placement),
+                ResolveReplayPlacement(b.OpIndex, b.Placement, resolvedPlacementByOpIndex),
                 b.Tool.RawValue)));
 
         return new NativeGeometryReplayLog(replayOps.OrderBy(o => o.OpIndex).ToArray());
@@ -410,6 +421,57 @@ internal static class FirmamentPrimitiveExecutor
 
         return $"on={anchor};offset={offset};semantic={placement.UsesSemanticAnchor}";
     }
+
+    private static NativeGeometryResolvedPlacement ResolveReplayPlacement(
+        int opIndex,
+        FirmamentLoweredPlacement? placement,
+        IReadOnlyDictionary<int, NativeGeometryResolvedPlacement> resolvedPlacementByOpIndex)
+    {
+        if (resolvedPlacementByOpIndex.TryGetValue(opIndex, out var resolved))
+        {
+            return resolved;
+        }
+
+        return BuildResolvedPlacement(placement, Vector3D.Zero);
+    }
+
+    private static NativeGeometryResolvedPlacement BuildResolvedPlacement(FirmamentLoweredPlacement? placement, Vector3D translation)
+    {
+        if (placement is null)
+        {
+            return new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.None, null, null, Vector3D.Zero, Vector3D.Zero, true, null);
+        }
+
+        var offset = placement.Offset.Count == 3
+            ? new Vector3D(placement.Offset[0], placement.Offset[1], placement.Offset[2])
+            : Vector3D.Zero;
+
+        if (!string.IsNullOrWhiteSpace(placement.AroundAxis))
+        {
+            return new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.AroundAxis, null, null, offset, translation, false, "Around-axis placement replay facts are deferred in CIR-F2.5.");
+        }
+
+        if (placement.On is FirmamentLoweredPlacementSelectorAnchor selectorAnchor)
+        {
+            var i = selectorAnchor.Selector.IndexOf('.', StringComparison.Ordinal);
+            if (i <= 0 || i >= selectorAnchor.Selector.Length - 1)
+            {
+                return new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.Unsupported, null, null, offset, translation, false, $"Unsupported placement selector '{selectorAnchor.Selector}' for replay facts.");
+            }
+
+            return new NativeGeometryResolvedPlacement(
+                NativeGeometryPlacementKind.OnFace,
+                selectorAnchor.Selector[..i],
+                selectorAnchor.Selector[(i + 1)..],
+                offset,
+                translation,
+                true,
+                null);
+        }
+
+        return new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.Offset, null, null, offset, translation, true, null);
+    }
+
     private static bool IsPatternGeneratedFeature(string featureId)
         => featureId.Contains("__lin", StringComparison.Ordinal)
            || featureId.Contains("__cir", StringComparison.Ordinal)
@@ -460,7 +522,7 @@ internal static class FirmamentPrimitiveExecutor
         }
 
         var publishedBody = TranslateBody(defaultFrameBody, placementResult.Value);
-        return KernelResult<FirmamentExecutedPrimitiveBodies>.Success(new FirmamentExecutedPrimitiveBodies(publishedBody, legacyResult.Value));
+        return KernelResult<FirmamentExecutedPrimitiveBodies>.Success(new FirmamentExecutedPrimitiveBodies(publishedBody, legacyResult.Value, placementResult.Value));
     }
 
     private static BrepBody ApplyDefaultLocalFrame(FirmamentLoweredPrimitive primitive, BrepBody body)
@@ -1202,7 +1264,7 @@ internal static class FirmamentPrimitiveExecutor
     }
 }
 
-internal sealed record FirmamentExecutedPrimitiveBodies(BrepBody Published, BrepBody LegacyForBoolean);
+internal sealed record FirmamentExecutedPrimitiveBodies(BrepBody Published, BrepBody LegacyForBoolean, Vector3D PlacementTranslation);
 
 internal static class FirmamentPrimitiveToolParsing
 {

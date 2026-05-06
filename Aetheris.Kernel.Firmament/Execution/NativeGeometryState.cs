@@ -36,6 +36,24 @@ public sealed record NativeGeometryTransitionEvent(
 public sealed record NativeGeometryReplayLog(
     IReadOnlyList<NativeGeometryReplayOperation> Operations);
 
+public enum NativeGeometryPlacementKind
+{
+    None,
+    Offset,
+    OnFace,
+    AroundAxis,
+    Unsupported
+}
+
+public readonly record struct NativeGeometryResolvedPlacement(
+    NativeGeometryPlacementKind Kind,
+    string? AnchorFeatureId,
+    string? AnchorPort,
+    Vector3D Offset,
+    Vector3D Translation,
+    bool IsResolved,
+    string? Diagnostic);
+
 public sealed record NativeGeometryReplayOperation(
     int OpIndex,
     string FeatureId,
@@ -44,6 +62,7 @@ public sealed record NativeGeometryReplayOperation(
     string? ToolKind,
     string? ToolId,
     string? PlacementSummary,
+    NativeGeometryResolvedPlacement ResolvedPlacement,
     string? MetadataReference);
 
 public enum CirMirrorStatus

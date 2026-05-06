@@ -1,8 +1,9 @@
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.Execution;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
-public sealed class NativeGeometryStateTests
+public sealed partial class NativeGeometryStateTests
 {
     [Fact]
     public void NativeGeometryState_BoxBasic_IsBRepActive()
@@ -128,4 +129,53 @@ public sealed class NativeGeometryStateTests
         Assert.True(differential.CirEstimatedVolume > 0d);
     }
 
+    [Fact]
+    public void ReplayPlacement_None_IsResolvedZero()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/box_basic.firmament"));
+        var op = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState.ReplayLog.Operations.Single(o => o.FeatureId == "base");
+
+        Assert.Equal(NativeGeometryPlacementKind.None, op.ResolvedPlacement.Kind);
+        Assert.Equal(Vector3D.Zero, op.ResolvedPlacement.Translation);
+        Assert.True(op.ResolvedPlacement.IsResolved);
+    }
+
+    [Fact]
+    public void ReplayPlacement_Offset_CapturesTranslation()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/boolean_add_basic.firmament"));
+        var op = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState.ReplayLog.Operations.Single(o => o.FeatureId == "shifted");
+
+        Assert.Equal(NativeGeometryPlacementKind.Offset, op.ResolvedPlacement.Kind);
+        Assert.Equal(new Vector3D(3d, 0d, 0d), op.ResolvedPlacement.Offset);
+        Assert.Equal(new Vector3D(3d, 0d, 0d), op.ResolvedPlacement.Translation);
+        Assert.True(op.ResolvedPlacement.IsResolved);
+    }
+
+    [Fact]
+    public void ReplayPlacement_OnFace_CapturesAnchorAndTranslation()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/p1_blind_hole_on_face_semantic.firmament"));
+        var op = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState.ReplayLog.Operations.Single(o => o.FeatureId == "blind_hole_tool");
+
+        Assert.Equal(NativeGeometryPlacementKind.OnFace, op.ResolvedPlacement.Kind);
+        Assert.Equal("base", op.ResolvedPlacement.AnchorFeatureId);
+        Assert.Equal("top_face", op.ResolvedPlacement.AnchorPort);
+        Assert.True(op.ResolvedPlacement.Translation.Z > 0d);
+        Assert.True(op.ResolvedPlacement.IsResolved);
+    }
+
+    [Fact]
+    public void ReplayPlacement_Unsupported_DoesNotFailProduction()
+    {
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/p1_flange_radial_hole_semantic.firmament"));
+        Assert.True(result.Compilation.IsSuccess);
+
+        var op = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState.ReplayLog.Operations.Single(o => o.FeatureId == "radial_hole_tool");
+        Assert.Equal(NativeGeometryPlacementKind.AroundAxis, op.ResolvedPlacement.Kind);
+        Assert.False(op.ResolvedPlacement.IsResolved);
+        Assert.False(string.IsNullOrWhiteSpace(op.ResolvedPlacement.Diagnostic));
+    }
 }
+
+

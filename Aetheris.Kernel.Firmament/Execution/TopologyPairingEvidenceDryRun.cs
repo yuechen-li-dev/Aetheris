@@ -13,6 +13,7 @@ internal enum TopologyPairingReadiness
 
 internal enum PlannedCoedgePairingKind
 {
+    SharedTrimIdentity,
     SharedTrimCurve,
     SameSurfaceDeferred,
     UnpairedBoundary,
@@ -29,6 +30,14 @@ internal enum LoopClosureStatus
     NotApplicable
 }
 
+internal readonly record struct InternalTrimIdentityToken(
+    string OperationKey,
+    string SurfaceAKey,
+    string SurfaceBKey,
+    TrimCurveFamily TrimFamily,
+    string InteractionRole,
+    string OrderingKey);
+
 internal sealed record PlannedEdgeUse(
     string SourceFaceKey,
     string SourceLoopKey,
@@ -39,6 +48,7 @@ internal sealed record PlannedEdgeUse(
     RetainedRegionLoopOrientationPolicy OrientationPolicy,
     string OrderingKey,
     TopologyPairingReadiness Readiness,
+    InternalTrimIdentityToken? IdentityToken,
     IReadOnlyList<string> Diagnostics);
 
 internal sealed record PlannedCoedgePairing(
@@ -93,7 +103,7 @@ internal static class TopologyPairingEvidenceGenerator
             .Concat(closure.Select(c => c.Readiness))
             .ToArray());
 
-        diagnostics.Add("judgment-engine-not-used: CIR-F8.8 pairing currently has deterministic single-candidate matching keyed by trim-family + complementary surface families + adjacency hints.");
+        diagnostics.Add("judgment-engine-not-used: CIR-F8.9 token pairing is a deterministic identity-group map/reduce; no competing bounded strategies required.");
         return new(edgeUses.Count > 0, readiness, edgeUses, pairings, closure, diagnostics.Distinct().ToArray(), TopologyEmissionImplemented: false);
     }
 
@@ -113,8 +123,9 @@ internal static class TopologyPairingEvidenceGenerator
             {
                 var readiness = MapStatus(descriptor.Status);
                 var key = $"{face.OrderingKey}|{loop.OrderingKey}|{descriptor.TrimCurveFamily}|{descriptor.SourceSurfaceFamily}|{descriptor.OppositeSurfaceFamily}|{descriptor.LoopKind}";
-                list.Add(new PlannedEdgeUse(face.OrderingKey, loop.OrderingKey, loop.GroupKind, descriptor.SourceSurfaceFamily, descriptor.OppositeSurfaceFamily, descriptor.TrimCurveFamily, loop.OrientationPolicy, key, readiness,
-                    [$"edge-use-created: trim={descriptor.TrimCurveFamily} source={descriptor.SourceSurfaceFamily} opposite={descriptor.OppositeSurfaceFamily} orientation={loop.OrientationPolicy}.", descriptor.Diagnostic]));
+                var token = BuildIdentityToken(face, loop, descriptor, out var tokenDiagnostic);
+                list.Add(new PlannedEdgeUse(face.OrderingKey, loop.OrderingKey, loop.GroupKind, descriptor.SourceSurfaceFamily, descriptor.OppositeSurfaceFamily, descriptor.TrimCurveFamily, loop.OrientationPolicy, key, readiness, token,
+                    [$"edge-use-created: trim={descriptor.TrimCurveFamily} source={descriptor.SourceSurfaceFamily} opposite={descriptor.OppositeSurfaceFamily} orientation={loop.OrientationPolicy}.", descriptor.Diagnostic, tokenDiagnostic]));
             }
         }
 
@@ -125,44 +136,80 @@ internal static class TopologyPairingEvidenceGenerator
     {
         var list = new List<PlannedCoedgePairing>();
         var used = new HashSet<string>(StringComparer.Ordinal);
-        for (var i = 0; i < edgeUses.Count; i++)
+        var tokenGroups = edgeUses.Where(e => e.IdentityToken is not null)
+            .GroupBy(e => e.IdentityToken!.Value.OrderingKey, StringComparer.Ordinal)
+            .OrderBy(g => g.Key, StringComparer.Ordinal);
+
+        foreach (var group in tokenGroups)
         {
-            var a = edgeUses[i];
-            if (used.Contains(a.OrderingKey)) continue;
-
-            var matches = edgeUses.Where((b, bi) => bi != i && !used.Contains(b.OrderingKey)
-                && b.TrimCurveFamily == a.TrimCurveFamily
-                && b.SourceSurfaceFamily == a.OppositeSurfaceFamily
-                && b.OppositeSurfaceFamily == a.SourceSurfaceFamily
-                && adjacencies.Any(adj => adj.TrimCurveFamily == a.TrimCurveFamily
-                    && ((adj.SourceFaceA == a.SourceFaceKey && adj.SourceFaceB == b.SourceFaceKey) || (adj.SourceFaceA == b.SourceFaceKey && adj.SourceFaceB == a.SourceFaceKey))))
-                .OrderBy(b => b.OrderingKey, StringComparer.Ordinal)
-                .ToArray();
-
-            if (matches.Length == 1)
+            var matches = group.OrderBy(e => e.OrderingKey, StringComparer.Ordinal).ToArray();
+            if (matches.Length > 2)
             {
-                var b = matches[0];
+                var reason = $"pairing-deferred-ambiguous-token: token={group.Key} has multiplicity={matches.Length}; arbitrary coedge pairing rejected.";
+                diagnostics.Add(reason);
+                foreach (var m in matches)
+                {
+                    used.Add(m.OrderingKey);
+                    list.Add(new PlannedCoedgePairing(m, m, PlannedCoedgePairingKind.Deferred, TopologyPairingReadiness.Deferred, reason, $"{m.OrderingKey}<->deferred", [reason]));
+                }
+            }
+            else if (matches.Length == 2)
+            {
+                var a = matches[0];
+                var b = matches[1];
                 used.Add(a.OrderingKey);
                 used.Add(b.OrderingKey);
-                var readiness = ReduceReadiness([a.Readiness, b.Readiness]);
-                var key = $"{a.OrderingKey}<->{b.OrderingKey}";
-                list.Add(new PlannedCoedgePairing(a, b, PlannedCoedgePairingKind.SharedTrimCurve, readiness,
-                    "pair-ready: shared trim-family and complementary source/opposite families with adjacency hint.", key,
-                    ["pair-ready: deterministic coedge pairing evidence produced."]));
-            }
-            else
-            {
-                var reason = matches.Length > 1
-                    ? $"pairing-deferred-ambiguous: edge-use={a.OrderingKey} has {matches.Length} matching candidates; missing one-to-one identity/provenance key."
-                    : $"pairing-deferred-missing-identity: edge-use={a.OrderingKey} has no deterministic complementary match with adjacency evidence.";
-                diagnostics.Add(reason);
-                var key = $"{a.OrderingKey}<->deferred";
-                list.Add(new PlannedCoedgePairing(a, a, PlannedCoedgePairingKind.Deferred, TopologyPairingReadiness.Deferred, reason, key, [reason]));
-                used.Add(a.OrderingKey);
+                var readiness = a.Readiness == TopologyPairingReadiness.ExactReady && b.Readiness == TopologyPairingReadiness.ExactReady
+                    ? TopologyPairingReadiness.ExactReady
+                    : TopologyPairingReadiness.SpecialCaseReady;
+                var evidence = $"pair-ready-token-match: matching internal trim identity token {group.Key}.";
+                diagnostics.Add(evidence);
+                list.Add(new PlannedCoedgePairing(a, b, PlannedCoedgePairingKind.SharedTrimIdentity, readiness, evidence, $"{a.OrderingKey}<->{b.OrderingKey}", [evidence]));
             }
         }
 
+        foreach (var a in edgeUses.Where(e => !used.Contains(e.OrderingKey)))
+        {
+            var reason = a.IdentityToken is null
+                ? $"pairing-deferred-missing-identity: edge-use={a.OrderingKey} has no internal trim identity token."
+                : $"pairing-token-mismatch: edge-use={a.OrderingKey} has internal trim identity token but no matching pair token.";
+            diagnostics.Add(reason);
+            list.Add(new PlannedCoedgePairing(a, a, PlannedCoedgePairingKind.Deferred, TopologyPairingReadiness.Deferred, reason, $"{a.OrderingKey}<->deferred", [reason]));
+        }
+
         return list.OrderBy(p => p.OrderingKey, StringComparer.Ordinal).ToList();
+    }
+
+    private static InternalTrimIdentityToken? BuildIdentityToken(PlannedFacePatch face, PlannedLoop loop, RetainedRegionLoopDescriptor descriptor, out string diagnostic)
+    {
+        if (descriptor.TrimCapability is TrimCapabilityClassification.Deferred or TrimCapabilityClassification.Unsupported
+            || descriptor.Status is RetainedRegionLoopStatus.Deferred or RetainedRegionLoopStatus.Unsupported)
+        {
+            diagnostic = "identity-token-missing-deferred-trim: trim capability/status is deferred or unsupported.";
+            return null;
+        }
+
+        if (descriptor.TrimCurveFamily is TrimCurveFamily.Unsupported or TrimCurveFamily.AlgebraicImplicit)
+        {
+            diagnostic = "identity-token-missing-trim-family: trim curve family is deferred algebraic/unsupported.";
+            return null;
+        }
+
+        var provenance = face.SourceCandidate.SourceSurface.Provenance;
+        if (string.IsNullOrWhiteSpace(provenance))
+        {
+            diagnostic = "identity-token-missing-provenance: source surface provenance unavailable.";
+            return null;
+        }
+
+        var surfaceA = $"{descriptor.SourceSurfaceFamily}:{provenance}";
+        var surfaceB = $"{descriptor.OppositeSurfaceFamily}:{descriptor.LoopKind}";
+        var canonical = new[] { surfaceA, surfaceB }.OrderBy(s => s, StringComparer.Ordinal).ToArray();
+        var operationKey = face.SourceCandidate.SourceSurface.ReplayOpIndex?.ToString() ?? "op:unknown";
+        var interactionRole = face.SourceCandidate.RetentionRole.ToString();
+        var orderingKey = $"{operationKey}|{canonical[0]}|{canonical[1]}|{descriptor.TrimCurveFamily}|{interactionRole}|{loop.GroupKind}";
+        diagnostic = $"identity-token-created: {orderingKey}";
+        return new InternalTrimIdentityToken(operationKey, canonical[0], canonical[1], descriptor.TrimCurveFamily, interactionRole, orderingKey);
     }
 
     private static List<LoopClosureEvidence> BuildClosureEvidence(IReadOnlyList<PlannedFacePatch> faces, List<string> diagnostics)

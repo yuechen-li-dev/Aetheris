@@ -276,7 +276,26 @@ internal static class FirmamentPrimitiveExecutor
                 tolerance);
         }
 
-        return KernelResult<FirmamentPrimitiveExecutionResult>.Success(new FirmamentPrimitiveExecutionResult(executedPrimitives, executedBooleans));
+        var replayLog = BuildReplayLog(loweringPlan);
+        BrepBody? materializedBody = null;
+        if (executedBooleans.Count > 0)
+        {
+            materializedBody = executedBooleans.OrderBy(b => b.OpIndex).Last().Body;
+        }
+        else if (executedPrimitives.Count > 0)
+        {
+            materializedBody = executedPrimitives.OrderBy(p => p.OpIndex).Last().Body;
+        }
+
+        var nativeState = new NativeGeometryState(
+            NativeGeometryExecutionMode.BRepActive,
+            NativeGeometryMaterializationAuthority.BRepAuthoritative,
+            materializedBody,
+            null,
+            replayLog,
+            []);
+
+        return KernelResult<FirmamentPrimitiveExecutionResult>.Success(new FirmamentPrimitiveExecutionResult(executedPrimitives, executedBooleans, nativeState));
     }
 
 
@@ -301,6 +320,58 @@ internal static class FirmamentPrimitiveExecutor
             $"Requested boolean feature '{boolean.FeatureId}' ({boolean.Kind.ToString().ToLowerInvariant()}) could not be executed.",
             Source: "firmament");
 
+
+    private static NativeGeometryReplayLog BuildReplayLog(FirmamentPrimitiveLoweringPlan loweringPlan)
+    {
+        var replayOps = new List<NativeGeometryReplayOperation>(loweringPlan.Primitives.Count + loweringPlan.Booleans.Count);
+
+        replayOps.AddRange(loweringPlan.Primitives
+            .OrderBy(p => p.OpIndex)
+            .Select(p => new NativeGeometryReplayOperation(
+                p.OpIndex,
+                p.FeatureId,
+                $"primitive:{p.Kind.ToString().ToLowerInvariant()}",
+                null,
+                null,
+                null,
+                SummarizePlacement(p.Placement),
+                null)));
+
+        replayOps.AddRange(loweringPlan.Booleans
+            .OrderBy(b => b.OpIndex)
+            .Select(b => new NativeGeometryReplayOperation(
+                b.OpIndex,
+                b.FeatureId,
+                $"boolean:{b.Kind.ToString().ToLowerInvariant()}",
+                b.PrimaryReferenceFeatureId,
+                b.Tool.OpName,
+                b.Tool.RawFields.TryGetValue("id", out var toolId) ? toolId : null,
+                SummarizePlacement(b.Placement),
+                b.Tool.RawValue)));
+
+        return new NativeGeometryReplayLog(replayOps.OrderBy(o => o.OpIndex).ToArray());
+    }
+
+    private static string? SummarizePlacement(FirmamentLoweredPlacement? placement)
+    {
+        if (placement is null)
+        {
+            return null;
+        }
+
+        var anchor = placement.On switch
+        {
+            FirmamentLoweredPlacementOriginAnchor => "origin",
+            FirmamentLoweredPlacementSelectorAnchor selector => selector.Selector,
+            _ => "unknown"
+        };
+
+        var offset = placement.Offset.Count == 3
+            ? $"[{placement.Offset[0]},{placement.Offset[1]},{placement.Offset[2]}]"
+            : "[]";
+
+        return $"on={anchor};offset={offset};semantic={placement.UsesSemanticAnchor}";
+    }
     private static bool IsPatternGeneratedFeature(string featureId)
         => featureId.Contains("__lin", StringComparison.Ordinal)
            || featureId.Contains("__cir", StringComparison.Ordinal)

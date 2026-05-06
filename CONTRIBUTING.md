@@ -28,7 +28,7 @@
   dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --logger "console;verbosity=minimal"
   ```
 
-- Use `Aetheris.sln` for solution-oriented automation and editor compatibility with .NET 8; do not rely on `Aetheris.slnx` as the routine automation entrypoint.
+- Use `Aetheris.slnx` as the canonical solution file. Default automation should target `net10.0`; use `net8.0` only for explicit fallback validation.
 
 ## Kernel discipline
 

@@ -27,7 +27,7 @@ ops[3]:
     place:
       on: origin
       offset[3]:
-        3
+        2
         0
         0
 
@@ -38,6 +38,6 @@ ops[3]:
     with:
       op: box
       size[3]:
-        3
-        2
-        2
+        1
+        1
+        1

@@ -130,4 +130,40 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         Assert.False(result.Success);
         Assert.Contains(result.Diagnostics, d => d.Contains("supports only rectangular untrimmed", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void PlanarPayloadBuilder_RejectsNonPlanarSource()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", Transform3D.Identity, "cir:sphere", nameof(CirSphereNode), 0, FacePatchOrientationRole.Forward);
+        var success = PlanarPatchPayloadBuilder.TryBuildRectanglePayload(source, out _, out var diagnostic);
+        Assert.False(success);
+        Assert.Contains("not planar", diagnostic, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PlanarPayloadBuilder_RejectsDescriptorWithoutRectangleGeometry()
+    {
+        var extraction = SourceSurfaceExtractor.Extract(new CirBoxNode(10, 6, 4));
+        var top = Assert.Single(extraction.Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+
+        var success = PlanarPatchPayloadBuilder.TryBuildRectanglePayload(top, out _, out var diagnostic);
+        Assert.False(success);
+        Assert.Contains("does not encode bounded rectangle corners", diagnostic, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_FromRealDescriptor_RespectsReadinessGate()
+    {
+        var extraction = SourceSurfaceExtractor.Extract(new CirBoxNode(10, 6, 4));
+        var top = Assert.Single(extraction.Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var ready = PlanarPatchPayloadBuilder.TryBuildRectanglePayload(top, out var payload, out var payloadDiagnostic);
+        Assert.False(ready);
+        Assert.Contains("rejected", payloadDiagnostic, StringComparison.OrdinalIgnoreCase);
+
+        var patch = new FacePatchDescriptor(top with { ParameterPayloadReference = payload }, [], [], FacePatchOrientationRole.Forward, "outer", []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.Deferred, [EmissionBlockingReason.TopologyPlanning], [], 1, 1, 0, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Contains("no readiness, no emission", StringComparison.OrdinalIgnoreCase));
+    }
 }

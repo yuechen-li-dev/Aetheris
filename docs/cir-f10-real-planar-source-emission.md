@@ -52,3 +52,5 @@ Current descriptor payload role strings (`top`, `bottom`, `left`, ...) are insuf
 ## Recommended next step
 
 Extend the source-surface evidence contract for box planar faces with deterministic bounded geometry fields (corners or equivalent local frame/extents) so the payload builder can produce `rect3d:` without inference/fabrication.
+
+- CIR-F10.1 follow-up: box face descriptors now include bounded planar corner geometry so real-source planar payload derivation can produce rect3d without relying on role tokens.

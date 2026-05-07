@@ -53,11 +53,19 @@ internal enum FacePatchOrientationRole
 internal sealed record SourceSurfaceDescriptor(
     SurfacePatchFamily Family,
     string? ParameterPayloadReference,
+    BoundedPlanarPatchGeometry? BoundedPlanarGeometry,
     Transform3D Transform,
     string Provenance,
     string? OwningCirNodeKind,
     int? ReplayOpIndex,
     FacePatchOrientationRole OrientationRole);
+
+internal readonly record struct BoundedPlanarPatchGeometry(
+    Point3D Corner00,
+    Point3D Corner10,
+    Point3D Corner11,
+    Point3D Corner01,
+    Vector3D Normal);
 
 internal sealed record TrimCurveDescriptor(
     TrimCurveFamily Family,
@@ -257,9 +265,18 @@ internal static class PlanarPatchPayloadBuilder
             return true;
         }
 
+        if (source.BoundedPlanarGeometry is { } bounded)
+        {
+            payload = $"rect3d:{FormatPoint(bounded.Corner00)};{FormatPoint(bounded.Corner10)};{FormatPoint(bounded.Corner11)};{FormatPoint(bounded.Corner01)}";
+            diagnostic = "payload-derivation-succeeded: derived rect3d payload from bounded planar source geometry.";
+            return true;
+        }
+
         diagnostic = $"payload-derivation-rejected: planar source payload '{source.ParameterPayloadReference}' does not encode bounded rectangle corners; descriptor needs explicit rectangle geometry.";
         return false;
     }
+
+    private static string FormatPoint(Point3D p) => $"{p.X:G17},{p.Y:G17},{p.Z:G17}";
 }
 
 internal sealed record SurfaceMaterializationResult(

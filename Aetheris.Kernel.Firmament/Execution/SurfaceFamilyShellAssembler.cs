@@ -61,6 +61,11 @@ internal static class SurfaceFamilyShellAssembler
             ? $"emitted-identity-token-match-candidates: found {matched.Length} emitted topology candidate(s) matching dry-run shared trim identity tokens."
             : "emitted-identity-token-match-candidates-missing: no emitted topology entries matched dry-run shared trim identity tokens.");
 
+        var tokenAnalysis = EmittedTokenPairingAnalyzer.Analyze(planarSet.Entries.Where(e => e.Emitted).Select(e => e.IdentityMap ?? EmittedTopologyIdentityMap.Empty)
+            .Concat(cylindricalEmission?.IdentityMap is null ? [] : [cylindricalEmission.IdentityMap]));
+        diagnostics.Add($"token-pairing-summary: safe-pairs={tokenAnalysis.SafePairs.Count}; missing-mates={tokenAnalysis.MissingMateGroups.Count}; ambiguous={tokenAnalysis.AmbiguousGroups.Count}; null-token-entries={tokenAnalysis.NullTokenEntries.Count}.");
+        diagnostics.AddRange(tokenAnalysis.Diagnostics.Take(8));
+
         if (dryRun.Readiness != ShellClosureReadiness.ReadyForAssemblyEvidence)
         {
             diagnostics.Add("readiness-gate-rejected: no shell-readiness, no assembly.");

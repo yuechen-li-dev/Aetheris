@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Cir;
+using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Kernel.Firmament.Execution;
 
@@ -86,6 +87,15 @@ internal sealed record RetainedRegionLoopDescriptor(
     FacePatchOrientationRole OrientationHint,
     FacePatchRetentionRole RetentionRole,
     RetainedRegionLoopStatus Status,
+    string Diagnostic,
+    RetainedCircularLoopGeometry? CircularGeometry);
+
+internal readonly record struct RetainedCircularLoopGeometry(
+    Point3D Center,
+    Vector3D Normal,
+    double Radius,
+    RetainedRegionLoopOrientationPolicy OrientationPolicy,
+    string OrderingToken,
     string Diagnostic);
 
 internal sealed record RetainedRegionLoopGroup(
@@ -357,7 +367,10 @@ internal static class FacePatchCandidateGenerator
                     isBase ? source.OrientationRole : FacePatchOrientationRole.Reversed,
                     retentionRole,
                     status,
-                    BuildPerLoopDiagnostic(source.Family, other.Family, curveFamily, status, trim.Reason)));
+                    BuildPerLoopDiagnostic(source.Family, other.Family, curveFamily, status, trim.Reason),
+                    RetainedLoopGeometryBinder.TryBindCircularLoop(source, other, curveFamily, status, isBase, out var circularDiagnostic, out var circular)
+                        ? circular
+                        : null));
             }
         }
 
@@ -496,4 +509,96 @@ internal static class FacePatchCandidateGenerator
         RetainedRegionLoopGroupReadiness readiness,
         RetainedRegionLoopOrientationPolicy orientation)
         => $"loop-group-{kind.ToString().ToLowerInvariant()}: readiness={readiness}; orientation-policy={orientation}; topology assembly remains deferred.";
+}
+
+internal static class RetainedLoopGeometryBinder
+{
+    internal static bool TryBindCircularLoop(
+        SourceSurfaceDescriptor source,
+        SourceSurfaceDescriptor opposite,
+        TrimCurveFamily trimFamily,
+        RetainedRegionLoopStatus loopStatus,
+        bool isBase,
+        out string diagnostic,
+        out RetainedCircularLoopGeometry? circular)
+    {
+        circular = null;
+        if (trimFamily != TrimCurveFamily.Circle)
+        {
+            diagnostic = "loop-geometry-bind-skipped: trim family is not circle.";
+            return false;
+        }
+
+        if (loopStatus is RetainedRegionLoopStatus.Deferred or RetainedRegionLoopStatus.Unsupported)
+        {
+            diagnostic = "loop-geometry-bind-skipped: loop status is deferred/unsupported.";
+            return false;
+        }
+
+        if (source.Family != SurfacePatchFamily.Planar || opposite.Family != SurfacePatchFamily.Cylindrical)
+        {
+            diagnostic = "loop-geometry-bind-skipped: CIR-F10.5 supports only planar source with cylindrical opposite.";
+            return false;
+        }
+
+        if (source.BoundedPlanarGeometry is not { } planar)
+        {
+            diagnostic = "loop-geometry-bind-deferred: planar source lacks bounded planar geometry for canonical normal/plane evidence.";
+            return false;
+        }
+
+        var planeNormal = planar.Normal;
+        var axisDirection = opposite.Transform.Apply(new Vector3D(0d, 0d, 1d));
+        if (planeNormal.Length <= 1e-12 || axisDirection.Length <= 1e-12)
+        {
+            diagnostic = "loop-geometry-bind-deferred: degenerate plane normal or cylinder axis evidence.";
+            return false;
+        }
+
+        var normal = Direction3D.Create(planeNormal).ToVector();
+        var axis = Direction3D.Create(axisDirection).ToVector();
+        var parallel = Math.Abs(normal.Dot(axis));
+        if (Math.Abs(1d - parallel) > 1e-9)
+        {
+            diagnostic = "loop-geometry-bind-deferred: planar/cylindrical circular binding requires plane normal parallel to cylinder axis.";
+            return false;
+        }
+
+        var axisPoint = opposite.Transform.Apply(Point3D.Origin);
+        var planePoint = planar.Kind == BoundedPlanarPatchGeometryKind.Circle ? planar.Center : planar.Corner00;
+        var denom = normal.Dot(axis);
+        if (Math.Abs(denom) < 1e-12)
+        {
+            diagnostic = "loop-geometry-bind-deferred: plane/axis intersection numerically unstable.";
+            return false;
+        }
+
+        var t = normal.Dot(planePoint - axisPoint) / denom;
+        var center = axisPoint + (axis * t);
+        if (!TryReadCylindricalRadiusEvidence(opposite, out var radius))
+        {
+            diagnostic = "loop-geometry-bind-deferred: cylindrical source descriptor does not yet carry canonical radius evidence.";
+            return false;
+        }
+
+        if (radius <= 1e-12)
+        {
+            diagnostic = "loop-geometry-bind-deferred: cylindrical radius evidence is degenerate.";
+            return false;
+        }
+
+        var orientationPolicy = isBase ? RetainedRegionLoopOrientationPolicy.ReverseForToolCavity : RetainedRegionLoopOrientationPolicy.UseCandidateOrientation;
+        var token = $"{source.Provenance}|{opposite.Provenance}|circle|{orientationPolicy}";
+        circular = new RetainedCircularLoopGeometry(center, normal, radius, orientationPolicy, token, "loop-geometry-bind-ready: canonical planar/cylindrical inner-circle geometry bound.");
+        diagnostic = circular.Value.Diagnostic;
+        return true;
+    }
+
+    private static bool TryReadCylindricalRadiusEvidence(SourceSurfaceDescriptor opposite, out double radius)
+    {
+        radius = 0d;
+        if (opposite.ParameterPayloadReference is null) return false;
+        if (!opposite.ParameterPayloadReference.StartsWith("radius:", StringComparison.Ordinal)) return false;
+        return double.TryParse(opposite.ParameterPayloadReference[7..], out radius);
+    }
 }

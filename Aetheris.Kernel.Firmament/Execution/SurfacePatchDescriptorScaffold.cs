@@ -233,6 +233,35 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
     }
 }
 
+internal static class PlanarPatchPayloadBuilder
+{
+    internal static bool TryBuildRectanglePayload(SourceSurfaceDescriptor source, out string? payload, out string diagnostic)
+    {
+        payload = null;
+        if (source.Family != SurfacePatchFamily.Planar)
+        {
+            diagnostic = $"payload-derivation-rejected: source family '{source.Family}' is not planar.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(source.ParameterPayloadReference))
+        {
+            diagnostic = "payload-derivation-rejected: source descriptor missing rectangle geometry payload reference.";
+            return false;
+        }
+
+        if (source.ParameterPayloadReference.StartsWith("rect3d:", StringComparison.Ordinal))
+        {
+            payload = source.ParameterPayloadReference;
+            diagnostic = "payload-derivation-succeeded: source descriptor already provides bounded rect3d payload.";
+            return true;
+        }
+
+        diagnostic = $"payload-derivation-rejected: planar source payload '{source.ParameterPayloadReference}' does not encode bounded rectangle corners; descriptor needs explicit rectangle geometry.";
+        return false;
+    }
+}
+
 internal sealed record SurfaceMaterializationResult(
     bool Success,
     BrepBody? Body,

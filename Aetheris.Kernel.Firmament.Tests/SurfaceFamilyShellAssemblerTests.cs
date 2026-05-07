@@ -51,6 +51,7 @@ public sealed class SurfaceFamilyShellAssemblerTests
         Assert.Contains(result.Diagnostics, d => d.Contains("planar-inner-circle-token", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Diagnostics, d => d.Contains("cylindrical-seam-role-tagged", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Diagnostics, d => d.Contains("token-match-candidates", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("token-pairing-summary", StringComparison.OrdinalIgnoreCase));
         Assert.False(result.FullShellAssembled);
     }
 

@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Cir;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Brep;
@@ -160,6 +161,22 @@ internal sealed record SurfaceFamilyMaterializerEvaluation(
 
 internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
 {
+    internal sealed record PlanarPatchSetEntry(
+        FacePatchCandidate Candidate,
+        SurfaceMaterializationResult? Emission,
+        bool Emitted,
+        IReadOnlyList<string> Diagnostics);
+
+    internal sealed record PlanarPatchSetMaterializationResult(
+        bool Success,
+        IReadOnlyList<BrepBody> EmittedBodies,
+        int EmittedCount,
+        int SkippedCount,
+        bool FullMaterialization,
+        IReadOnlyList<PlanarPatchSetEntry> Entries,
+        IReadOnlyList<string> RemainingBlockers,
+        IReadOnlyList<string> Diagnostics);
+
     internal enum PlanarLoopSupportStatus
     {
         Supported,
@@ -275,6 +292,109 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         if (circles.Count > 1) return new(false, null, SurfacePatchFamily.Planar, false, ["inner-circle-unsupported: multiple inner loops are unsupported in CIR-F10.7."]);
 
         return EmitRectangleWithInnerCircleBody(outer, circles[0]);
+    }
+
+    internal PlanarPatchSetMaterializationResult EmitSupportedPlanarPatches(CirNode root, NativeGeometryReplayLog? replayLog = null)
+    {
+        var generation = FacePatchCandidateGenerator.Generate(root, replayLog);
+        var entries = new List<PlanarPatchSetEntry>();
+        var emittedBodies = new List<BrepBody>();
+        var diagnostics = new List<string> { "scope-note: partial planar patch set only; no shell assembly attempted." };
+        var blockers = new List<string> { "remaining-blocker: cylindrical side surface emission not implemented (CylindricalSurfaceMaterializer topology emission pending)." };
+
+        foreach (var candidate in generation.Candidates)
+        {
+            if (candidate.RetentionRole != FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool)
+            {
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, ["skipped-candidate: retention role is not base-boundary retained outside tool."]));
+                continue;
+            }
+
+            if (candidate.SourceSurface.Family != SurfacePatchFamily.Planar)
+            {
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, ["skipped-non-planar-candidate: planar patch set emitter supports planar family only."]));
+                continue;
+            }
+
+            if (candidate.Readiness is FacePatchCandidateReadiness.RetentionDeferred or FacePatchCandidateReadiness.TrimDeferred or FacePatchCandidateReadiness.Unsupported)
+            {
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, [$"skipped-candidate-readiness: {candidate.Readiness}."]));
+                continue;
+            }
+
+            var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+            var retainedCircles = candidate.RetainedRegionLoops
+                .Where(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null && l.Status == RetainedRegionLoopStatus.ExactReady)
+                .Select(l => l.CircularGeometry!.Value)
+                .ToArray();
+            SurfaceMaterializationResult? emission = null;
+            if (retainedCircles.Length == 0)
+            {
+                if (candidate.SourceSurface.BoundedPlanarGeometry is not { Kind: BoundedPlanarPatchGeometryKind.Rectangle })
+                {
+                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, ["skipped-missing-rectangular-geometry: rectangular bounded planar geometry is required."]));
+                    continue;
+                }
+
+                if (!PlanarPatchPayloadBuilder.TryBuildRectanglePayload(candidate.SourceSurface, out var rectanglePayload, out var payloadDiagnostic))
+                {
+                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, [$"skipped-missing-rectangular-geometry: {payloadDiagnostic}"]));
+                    continue;
+                }
+
+                var normalizedSource = candidate.SourceSurface with { ParameterPayloadReference = rectanglePayload };
+                var normalizedPatch = candidate.ProposedPatch with { SourceSurface = normalizedSource };
+                emission = Emit(normalizedPatch, readiness);
+                if (!emission.Success)
+                {
+                    entries.Add(new PlanarPatchSetEntry(candidate, emission, false, emission.Diagnostics));
+                    continue;
+                }
+
+                emittedBodies.Add(emission.Body!);
+                entries.Add(new PlanarPatchSetEntry(candidate, emission, true, ["emitted-untrimmed-planar-patch: retained planar rectangle emitted without inner loops."]));
+                continue;
+            }
+
+            if (retainedCircles.Length > 1)
+            {
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, ["skipped-multiple-inner-loops: multiple retained circular loops are unsupported in CIR-F10.8."]));
+                continue;
+            }
+
+            var normalizedTrimmedSource = candidate.SourceSurface;
+            if (!PlanarPatchPayloadBuilder.TryBuildRectanglePayload(candidate.SourceSurface, out var trimmedPayload, out _))
+            {
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, ["skipped-missing-rectangular-geometry: bounded rectangular payload derivation failed for trimmed planar patch."]));
+                continue;
+            }
+
+            normalizedTrimmedSource = normalizedTrimmedSource with { ParameterPayloadReference = trimmedPayload };
+            emission = EmitRectangleWithInnerCircle(new RectWithInnerCircleEmissionRequest(normalizedTrimmedSource, retainedCircles[0], null, readiness));
+            if (!emission.Success)
+            {
+                entries.Add(new PlanarPatchSetEntry(candidate, emission, false, emission.Diagnostics));
+                continue;
+            }
+
+            emittedBodies.Add(emission.Body!);
+            entries.Add(new PlanarPatchSetEntry(candidate, emission, true, ["emitted-inner-circle-planar-patch: retained planar rectangle emitted with one canonical inner circular loop."]));
+        }
+
+        var emittedCount = entries.Count(e => e.Emitted);
+        var skippedCount = entries.Count - emittedCount;
+        diagnostics.Add($"planar-patch-set-summary: emitted={emittedCount} skipped={skippedCount} total={entries.Count}");
+        diagnostics.Add("full-materialization: false (planar subset only).");
+        diagnostics.AddRange(generation.Diagnostics);
+        return new PlanarPatchSetMaterializationResult(
+            Success: emittedCount > 0,
+            EmittedBodies: emittedBodies,
+            EmittedCount: emittedCount,
+            SkippedCount: skippedCount,
+            FullMaterialization: false,
+            Entries: entries,
+            RemainingBlockers: blockers,
+            Diagnostics: diagnostics.Distinct().ToArray());
     }
 
     private static SurfaceMaterializationResult EmitRectangleWithInnerCircleBody(BoundedPlanarPatchGeometry rect, RetainedCircularLoopGeometry inner)

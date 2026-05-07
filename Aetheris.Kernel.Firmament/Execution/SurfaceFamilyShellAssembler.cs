@@ -52,6 +52,10 @@ internal static class SurfaceFamilyShellAssembler
         diagnostics.Add(emittedEntries.Any(e => e.Role == EmittedTopologyRole.CylindricalSeam)
             ? "emitted-identity-cylindrical-seam-role-tagged: cylindrical seam metadata is available."
             : "emitted-identity-cylindrical-seam-role-missing: cylindrical seam metadata not found.");
+        var cylBoundaryEntries = emittedEntries.Where(e => e.Role is EmittedTopologyRole.CylindricalTopBoundary or EmittedTopologyRole.CylindricalBottomBoundary).ToArray();
+        diagnostics.Add(cylBoundaryEntries.Any(e => e.TrimIdentityToken is not null)
+            ? "emitted-identity-cylindrical-boundary-token-attached: cylindrical boundary token evidence is present."
+            : "emitted-identity-cylindrical-boundary-token-missing: cylindrical boundary emitted without token evidence.");
         var matched = emittedEntries.Where(e => e.TrimIdentityToken is { } tok && pairedTokens.Contains(tok.OrderingKey)).ToArray();
         diagnostics.Add(matched.Length > 0
             ? $"emitted-identity-token-match-candidates: found {matched.Length} emitted topology candidate(s) matching dry-run shared trim identity tokens."

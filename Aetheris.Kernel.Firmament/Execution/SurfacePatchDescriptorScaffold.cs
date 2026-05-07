@@ -325,7 +325,9 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
 
             var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
             var retainedCircles = candidate.RetainedRegionLoops
-                .Where(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null && l.Status == RetainedRegionLoopStatus.ExactReady)
+                .Where(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim
+                    && l.CircularGeometry is not null
+                    && (l.Status == RetainedRegionLoopStatus.ExactReady || l.Status == RetainedRegionLoopStatus.SpecialCaseReady))
                 .Select(l => l.CircularGeometry!.Value)
                 .ToArray();
             SurfaceMaterializationResult? emission = null;
@@ -333,7 +335,7 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             {
                 if (candidate.SourceSurface.BoundedPlanarGeometry is not { Kind: BoundedPlanarPatchGeometryKind.Rectangle })
                 {
-                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-missing-rectangular-geometry: rectangular bounded planar geometry is required.", "skipped-missing-retained-circle-geometry: no exact-ready canonical retained circular loop geometry found for this candidate."]));
+                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-missing-rectangular-geometry: rectangular bounded planar geometry is required.", "skipped-missing-retained-circle-geometry: no exact-ready/special-case-ready canonical retained circular loop geometry found for this candidate."]));
                     continue;
                 }
 

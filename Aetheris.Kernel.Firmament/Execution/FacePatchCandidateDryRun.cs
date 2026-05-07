@@ -358,6 +358,7 @@ internal static class FacePatchCandidateGenerator
             var families = trim.CurveFamilies.Count == 0 ? [TrimCurveFamily.Unsupported] : trim.CurveFamilies;
             foreach (var curveFamily in families)
             {
+                var bound = RetainedLoopGeometryBinder.TryBindCircularLoop(source, other, curveFamily, status, isBase, out var circularDiagnostic, out var circular);
                 loops.Add(new RetainedRegionLoopDescriptor(
                     loopKind,
                     curveFamily,
@@ -367,10 +368,8 @@ internal static class FacePatchCandidateGenerator
                     isBase ? source.OrientationRole : FacePatchOrientationRole.Reversed,
                     retentionRole,
                     status,
-                    BuildPerLoopDiagnostic(source.Family, other.Family, curveFamily, status, trim.Reason),
-                    RetainedLoopGeometryBinder.TryBindCircularLoop(source, other, curveFamily, status, isBase, out var circularDiagnostic, out var circular)
-                        ? circular
-                        : null));
+                    $"{BuildPerLoopDiagnostic(source.Family, other.Family, curveFamily, status, trim.Reason)} | binder-opposite={other.Provenance} | {(bound ? "loop-geometry-bind-success" : "loop-geometry-bind-skip")}: {circularDiagnostic}",
+                    bound ? circular : null));
             }
         }
 

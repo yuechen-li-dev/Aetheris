@@ -253,7 +253,9 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         var hasCanonicalInnerEvidence = generation.Candidates.Any(c =>
             c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool
             && c.SourceSurface.Family == SurfacePatchFamily.Planar
-            && c.RetainedRegionLoops.Any(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null && l.Status == RetainedRegionLoopStatus.ExactReady));
+            && c.RetainedRegionLoops.Any(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim
+                && l.CircularGeometry is not null
+                && (l.Status == RetainedRegionLoopStatus.ExactReady || l.Status == RetainedRegionLoopStatus.SpecialCaseReady)));
         var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
         if (hasCanonicalInnerEvidence)
         {
@@ -294,7 +296,9 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         var hasInner = generation.Candidates.Any(c =>
             c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool
             && c.SourceSurface.Family == SurfacePatchFamily.Planar
-            && c.RetainedRegionLoops.Any(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null && l.Status == RetainedRegionLoopStatus.ExactReady));
+            && c.RetainedRegionLoops.Any(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim
+                && l.CircularGeometry is not null
+                && (l.Status == RetainedRegionLoopStatus.ExactReady || l.Status == RetainedRegionLoopStatus.SpecialCaseReady)));
         var innerEntries = result.Entries.SelectMany(e => e.IdentityMap?.Entries ?? []).Where(e => e.Role == EmittedTopologyRole.InnerCircularTrim && e.Kind == EmittedTopologyKind.Edge).ToArray();
         if (hasInner)
         {
@@ -316,7 +320,9 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         var hasInner = generation.Candidates.Any(c =>
             c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool
             && c.SourceSurface.Family == SurfacePatchFamily.Planar
-            && c.RetainedRegionLoops.Any(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null && l.Status == RetainedRegionLoopStatus.ExactReady));
+            && c.RetainedRegionLoops.Any(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim
+                && l.CircularGeometry is not null
+                && (l.Status == RetainedRegionLoopStatus.ExactReady || l.Status == RetainedRegionLoopStatus.SpecialCaseReady)));
         if (hasInner) Assert.Contains(result.Entries, e => e.IdentityMap is not null && e.IdentityMap.Entries.Any(x => x.Role == EmittedTopologyRole.InnerCircularTrim));
     }
 
@@ -324,10 +330,10 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void PlanarPatchSet_BoxMinusCylinder_NoInnerCircleTokenWhenNoRetainedCircleEvidence()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 12));
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirTorusNode(4, 1));
         var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
         Assert.DoesNotContain(result.Entries.SelectMany(e => e.IdentityMap?.Entries ?? []), e => e.Role == EmittedTopologyRole.InnerCircularTrim && e.TrimIdentityToken is not null);
-        Assert.Contains(result.Entries, e => e.Emitted && e.Diagnostics.Any(d => d.Contains("emitted-untrimmed-planar-patch", StringComparison.OrdinalIgnoreCase)));
+        Assert.Contains(result.Entries, e => !e.Emitted && e.Diagnostics.Any(d => d.Contains("skipped-candidate-readiness", StringComparison.OrdinalIgnoreCase)));
     }
 
     [Fact]
@@ -621,4 +627,69 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         Assert.False(success);
         Assert.Contains("does not encode bounded rectangle corners", diagnostic, StringComparison.OrdinalIgnoreCase);
     }
+    [Fact]
+    public void PlanarPatchSet_BoxMinusCylinder_EmitsInnerCircleToken_FromRealEvidence()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+
+        var emittedInnerEntries = result.Entries
+            .Where(e => e.Emitted)
+            .SelectMany(e => e.IdentityMap?.Entries ?? [])
+            .Where(e => e.Role == EmittedTopologyRole.InnerCircularTrim)
+            .ToArray();
+
+        Assert.NotEmpty(emittedInnerEntries);
+        Assert.Contains(emittedInnerEntries, e => e.TrimIdentityToken is not null);
+        Assert.Contains(result.Entries.SelectMany(e => e.Diagnostics), d => d.Contains("emitted-inner-circle-planar-patch", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Entries.SelectMany(e => e.Candidate.Diagnostics), d => d.Contains("loop-geometry-bind-success", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarPatchSet_BoxMinusCylinder_EmittedInnerCirclePatchHasTwoLoops()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        var innerCircleEntry = result.Entries.First(e => e.Emitted && e.IdentityMap?.Entries.Any(x => x.Role == EmittedTopologyRole.InnerCircularTrim) == true);
+
+        var body = innerCircleEntry.Emission!.Body!;
+        var face = Assert.Single(body.Topology.Faces);
+        Assert.Equal(2, face.LoopIds.Count);
+        Assert.Contains(innerCircleEntry.Candidate.RetainedRegionLoops, l => l.CircularGeometry is not null && l.LoopKind == RetainedRegionLoopKind.InnerTrim);
+    }
+
+    [Fact]
+    public void ShellAssembler_SeesMatchingPlanarAndCylindricalTokens_AfterPromotion()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = SurfaceFamilyShellAssembler.TryAssembleBoxMinusCylinder(root);
+
+        Assert.False(result.FullShellAssembled);
+        Assert.Contains(result.Diagnostics, d => d.Contains("emitted-identity-planar-inner-circle-token-attached", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("cylindrical", StringComparison.OrdinalIgnoreCase) && d.Contains("token", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("match-candidates", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void RetainedLoopBinding_BaseSidePlanarCandidate_UsesCylindricalEvidence()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var candidate = FacePatchCandidateGenerator.Generate(root)
+            .Candidates
+            .First(c => c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool && c.SourceSurface.Family == SurfacePatchFamily.Planar);
+
+        var circle = Assert.Single(candidate.RetainedRegionLoops.Where(l => l.OppositeSurfaceFamily == SurfacePatchFamily.Cylindrical && l.CircularGeometry is not null));
+        Assert.Equal(2d, circle.CircularGeometry!.Value.Radius, 8);
+        Assert.Contains(candidate.Diagnostics, d => d.Contains("loop-geometry-bind-success", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void UnsafeCandidatesStillSkipPrecisely()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirTorusNode(4, 1));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        Assert.Contains(result.Entries.SelectMany(e => e.Diagnostics), d => d.Contains("skipped-candidate-readiness", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Entries.SelectMany(e => e.Candidate.Diagnostics), d => d.Contains("trim-capability-deferred", StringComparison.OrdinalIgnoreCase));
+    }
+
 }

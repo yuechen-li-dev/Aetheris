@@ -60,12 +60,28 @@ internal sealed record SourceSurfaceDescriptor(
     int? ReplayOpIndex,
     FacePatchOrientationRole OrientationRole);
 
+internal enum BoundedPlanarPatchGeometryKind
+{
+    Rectangle,
+    Circle
+}
+
 internal readonly record struct BoundedPlanarPatchGeometry(
+    BoundedPlanarPatchGeometryKind Kind,
     Point3D Corner00,
     Point3D Corner10,
     Point3D Corner11,
     Point3D Corner01,
-    Vector3D Normal);
+    Point3D Center,
+    Vector3D Normal,
+    double Radius)
+{
+    internal static BoundedPlanarPatchGeometry CreateRectangle(Point3D corner00, Point3D corner10, Point3D corner11, Point3D corner01, Vector3D normal)
+        => new(BoundedPlanarPatchGeometryKind.Rectangle, corner00, corner10, corner11, corner01, Point3D.Origin, normal, 0d);
+
+    internal static BoundedPlanarPatchGeometry CreateCircle(Point3D center, Vector3D normal, double radius)
+        => new(BoundedPlanarPatchGeometryKind.Circle, Point3D.Origin, Point3D.Origin, Point3D.Origin, Point3D.Origin, center, normal, radius);
+}
 
 internal sealed record TrimCurveDescriptor(
     TrimCurveFamily Family,
@@ -267,6 +283,12 @@ internal static class PlanarPatchPayloadBuilder
 
         if (source.BoundedPlanarGeometry is { } bounded)
         {
+            if (bounded.Kind == BoundedPlanarPatchGeometryKind.Circle)
+            {
+                diagnostic = "payload-derivation-rejected: PlanarPatchPayloadBuilder currently supports rectangular planar payloads only; circular planar cap emission is deferred.";
+                return false;
+            }
+
             payload = $"rect3d:{FormatPoint(bounded.Corner00)};{FormatPoint(bounded.Corner10)};{FormatPoint(bounded.Corner11)};{FormatPoint(bounded.Corner01)}";
             diagnostic = "payload-derivation-succeeded: derived rect3d payload from bounded planar source geometry.";
             return true;

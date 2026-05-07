@@ -165,6 +165,7 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         FacePatchCandidate Candidate,
         SurfaceMaterializationResult? Emission,
         bool Emitted,
+        EmittedTopologyIdentityMap? IdentityMap,
         IReadOnlyList<string> Diagnostics);
 
     internal sealed record PlanarPatchSetMaterializationResult(
@@ -306,19 +307,19 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         {
             if (candidate.RetentionRole != FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, ["skipped-candidate: retention role is not base-boundary retained outside tool."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-candidate: retention role is not base-boundary retained outside tool."]));
                 continue;
             }
 
             if (candidate.SourceSurface.Family != SurfacePatchFamily.Planar)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, ["skipped-non-planar-candidate: planar patch set emitter supports planar family only."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-non-planar-candidate: planar patch set emitter supports planar family only."]));
                 continue;
             }
 
             if (candidate.Readiness is FacePatchCandidateReadiness.RetentionDeferred or FacePatchCandidateReadiness.TrimDeferred or FacePatchCandidateReadiness.Unsupported)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, [$"skipped-candidate-readiness: {candidate.Readiness}."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, [$"skipped-candidate-readiness: {candidate.Readiness}."]));
                 continue;
             }
 
@@ -332,13 +333,13 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             {
                 if (candidate.SourceSurface.BoundedPlanarGeometry is not { Kind: BoundedPlanarPatchGeometryKind.Rectangle })
                 {
-                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, ["skipped-missing-rectangular-geometry: rectangular bounded planar geometry is required."]));
+                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-missing-rectangular-geometry: rectangular bounded planar geometry is required."]));
                     continue;
                 }
 
                 if (!PlanarPatchPayloadBuilder.TryBuildRectanglePayload(candidate.SourceSurface, out var rectanglePayload, out var payloadDiagnostic))
                 {
-                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, [$"skipped-missing-rectangular-geometry: {payloadDiagnostic}"]));
+                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, [$"skipped-missing-rectangular-geometry: {payloadDiagnostic}"]));
                     continue;
                 }
 
@@ -347,25 +348,25 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
                 emission = Emit(normalizedPatch, readiness);
                 if (!emission.Success)
                 {
-                    entries.Add(new PlanarPatchSetEntry(candidate, emission, false, emission.Diagnostics));
+                    entries.Add(new PlanarPatchSetEntry(candidate, emission, false, emission.IdentityMap, emission.Diagnostics));
                     continue;
                 }
 
                 emittedBodies.Add(emission.Body!);
-                entries.Add(new PlanarPatchSetEntry(candidate, emission, true, ["emitted-untrimmed-planar-patch: retained planar rectangle emitted without inner loops."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, emission, true, emission.IdentityMap, ["emitted-untrimmed-planar-patch: retained planar rectangle emitted without inner loops."]));
                 continue;
             }
 
             if (retainedCircles.Length > 1)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, ["skipped-multiple-inner-loops: multiple retained circular loops are unsupported in CIR-F10.8."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-multiple-inner-loops: multiple retained circular loops are unsupported in CIR-F10.8."]));
                 continue;
             }
 
             var normalizedTrimmedSource = candidate.SourceSurface;
             if (!PlanarPatchPayloadBuilder.TryBuildRectanglePayload(candidate.SourceSurface, out var trimmedPayload, out _))
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, ["skipped-missing-rectangular-geometry: bounded rectangular payload derivation failed for trimmed planar patch."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-missing-rectangular-geometry: bounded rectangular payload derivation failed for trimmed planar patch."]));
                 continue;
             }
 
@@ -373,12 +374,12 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             emission = EmitRectangleWithInnerCircle(new RectWithInnerCircleEmissionRequest(normalizedTrimmedSource, retainedCircles[0], null, readiness));
             if (!emission.Success)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, emission, false, emission.Diagnostics));
+                entries.Add(new PlanarPatchSetEntry(candidate, emission, false, emission.IdentityMap, emission.Diagnostics));
                 continue;
             }
 
             emittedBodies.Add(emission.Body!);
-            entries.Add(new PlanarPatchSetEntry(candidate, emission, true, ["emitted-inner-circle-planar-patch: retained planar rectangle emitted with one canonical inner circular loop."]));
+            entries.Add(new PlanarPatchSetEntry(candidate, emission, true, emission.IdentityMap, ["emitted-inner-circle-planar-patch: retained planar rectangle emitted with one canonical inner circular loop."]));
         }
 
         var emittedCount = entries.Count(e => e.Emitted);
@@ -432,13 +433,23 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         for (var i = 0; i < 4; i++) bindings.AddEdgeBinding(new EdgeGeometryBinding(e[i], new CurveGeometryId(i + 1), new ParameterInterval(0d, 1d)));
         bindings.AddEdgeBinding(new EdgeGeometryBinding(e[4], new CurveGeometryId(5), new ParameterInterval(0d, 2d * double.Pi)));
         bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(1)));
+        InternalTrimIdentityToken? innerToken = string.IsNullOrWhiteSpace(inner.OrderingToken)
+            ? (InternalTrimIdentityToken?)null
+            : new InternalTrimIdentityToken("emitted:planar", inner.OrderingToken, inner.OrderingToken, TrimCurveFamily.Circle, "inner-trim", $"planar-inner:{inner.OrderingToken}");
+        var identityEntries = new List<EmittedTopologyIdentityEntry>
+        {
+            new($"loop:{outerLoopId.Value}", EmittedTopologyKind.Loop, null, EmittedTopologyRole.OuterBoundary, "follow-face-boundary", ["outer boundary intentionally unmapped/internal-only."]),
+            new($"edge:{e[4].Value}", EmittedTopologyKind.Edge, innerToken, EmittedTopologyRole.InnerCircularTrim, "reverse-for-tool-cavity", [innerToken is null ? "inner circular trim token missing from retained loop evidence; token not fabricated." : "inner circular trim token attached from retained loop evidence."]),
+            new($"coedge:{innerCoedgeId.Value}", EmittedTopologyKind.Coedge, innerToken, EmittedTopologyRole.InnerCircularTrim, "reverse-for-tool-cavity", [innerToken is null ? "inner circular trim token missing from retained loop evidence; coedge left unmapped." : "inner circular trim token attached on emitted coedge."]),
+            new($"loop:{innerLoopId.Value}", EmittedTopologyKind.Loop, innerToken, EmittedTopologyRole.InnerCircularTrim, "reverse-for-tool-cavity", [innerToken is null ? "inner circular trim token missing from retained loop evidence; loop identity recorded without token." : "inner circular trim token attached on emitted inner loop."])
+        };
         return new(true, new BrepBody(builder.Model, geometry, bindings), SurfacePatchFamily.Planar, true,
         [
             "inner-loop-emitted: one circular inner loop emitted from canonical retained loop geometry.",
             "orientation-policy-applied: inner loop coedge orientation follows face-bound convention for cavity loops.",
             "topology-emitted: planar trimmed face emitted as one face with outer rectangle then inner circle.",
             "scope-note: full shell/solid assembly not attempted."
-        ]);
+        ], new EmittedTopologyIdentityMap(identityEntries));
     }
 
     private static SurfaceMaterializationResult EmitRectangleBody(IReadOnlyList<Point3D> p)
@@ -628,7 +639,41 @@ internal sealed record SurfaceMaterializationResult(
     BrepBody? Body,
     SurfacePatchFamily EmittedSurfaceFamily,
     bool TopologyEmissionImplemented,
+    IReadOnlyList<string> Diagnostics,
+    EmittedTopologyIdentityMap? IdentityMap = null);
+
+internal enum EmittedTopologyKind
+{
+    Edge,
+    Coedge,
+    Loop,
+    Face,
+    Seam
+}
+
+internal enum EmittedTopologyRole
+{
+    OuterBoundary,
+    InnerCircularTrim,
+    CylindricalTopBoundary,
+    CylindricalBottomBoundary,
+    CylindricalSeam,
+    Unmapped
+}
+
+internal sealed record EmittedTopologyIdentityEntry(
+    string LocalTopologyKey,
+    EmittedTopologyKind Kind,
+    InternalTrimIdentityToken? TrimIdentityToken,
+    EmittedTopologyRole Role,
+    string OrientationPolicy,
     IReadOnlyList<string> Diagnostics);
+
+internal sealed record EmittedTopologyIdentityMap(
+    IReadOnlyList<EmittedTopologyIdentityEntry> Entries)
+{
+    internal static readonly EmittedTopologyIdentityMap Empty = new([]);
+}
 
 internal sealed class CylindricalSurfaceMaterializer : ISurfaceFamilyMaterializer
 {
@@ -737,12 +782,27 @@ internal sealed class CylindricalSurfaceMaterializer : ISurfaceFamilyMaterialize
         {
             return new(false, null, SurfacePatchFamily.Cylindrical, false, ["cylindrical-wall-emission-failed: emitted cylindrical wall topology failed BRep binding validation."]);
         }
+        InternalTrimIdentityToken? topToken = null;
+        InternalTrimIdentityToken? bottomToken = null;
+        foreach (var loop in mouthLoops)
+        {
+            if (loop.CircularGeometry is not { } circular || string.IsNullOrWhiteSpace(circular.OrderingToken)) continue;
+            var token = new InternalTrimIdentityToken("emitted:cylindrical", circular.OrderingToken, circular.OrderingToken, TrimCurveFamily.Circle, loop.LoopKind.ToString(), $"cyl-loop:{circular.OrderingToken}");
+            if (circular.OrientationPolicy == RetainedRegionLoopOrientationPolicy.UseCandidateOrientation) topToken ??= token;
+            else bottomToken ??= token;
+        }
+        var cylIdentity = new EmittedTopologyIdentityMap(
+        [
+            new($"edge:{seamEdge.Value}", EmittedTopologyKind.Seam, null, EmittedTopologyRole.CylindricalSeam, "self-closure-forward-reverse", ["cylindrical seam role tagged for self-closure evidence."]),
+            new($"edge:{topCircleEdge.Value}", EmittedTopologyKind.Edge, topToken, EmittedTopologyRole.CylindricalTopBoundary, "follow-mouth-loop", [topToken is null ? "cylindrical top boundary token missing or ambiguous in retained loop evidence." : "cylindrical top boundary token attached from retained loop evidence."]),
+            new($"edge:{bottomCircleEdge.Value}", EmittedTopologyKind.Edge, bottomToken, EmittedTopologyRole.CylindricalBottomBoundary, "follow-mouth-loop", [bottomToken is null ? "cylindrical bottom boundary token missing or ambiguous in retained loop evidence." : "cylindrical bottom boundary token attached from retained loop evidence."])
+        ]);
         return new(true, body, SurfacePatchFamily.Cylindrical, true,
         [
             "cylindrical-wall-emitted: retained cylindrical wall patch emitted as one cylindrical face.",
             "seam-convention-applied: side face uses cylinder primitive seam strategy (one seam edge used forward/reversed).",
             "scope-note: full shell/solid assembly not attempted."
-        ]);
+        ], cylIdentity);
     }
 
     private static Direction3D BuildReferenceAxis(Direction3D normal)

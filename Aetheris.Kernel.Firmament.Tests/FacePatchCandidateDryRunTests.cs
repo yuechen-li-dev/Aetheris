@@ -130,7 +130,7 @@ public sealed class FacePatchCandidateDryRunTests
     }
 
     [Fact]
-    public void RetainedLoopBinding_PlanarCylinder_RealPipeline_DefersWithoutRadiusEvidence()
+    public void RetainedLoopBinding_BoxMinusCylinder_RealPipeline_BindsInnerCircle()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
         var result = FacePatchCandidateGenerator.Generate(root);
@@ -142,15 +142,15 @@ public sealed class FacePatchCandidateDryRunTests
             .Select(l => l.CircularGeometry!.Value)
             .ToArray();
 
-        Assert.Empty(bound);
-        Assert.Contains(result.Candidates.SelectMany(c => c.RetainedRegionLoops).Select(l => l.Diagnostic), d => d.Contains("loop-special-case-ready", StringComparison.OrdinalIgnoreCase));
+        Assert.NotEmpty(bound);
+        Assert.Contains(bound.Select(b => b.Diagnostic), d => d.Contains("canonical planar/cylindrical inner-circle geometry bound", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void RetainedLoopBinding_PlanarCylinder_CreatesInnerCircleGeometry_WithManualRadiusEvidence()
+    public void RetainedLoopBinding_PlanarCylinder_CreatesInnerCircleGeometry_WithCylindricalEvidence()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, null, BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(-1, -1, 0), new Point3D(1, -1, 0), new Point3D(1, 1, 0), new Point3D(-1, 1, 0), new Vector3D(0, 0, 1)), Transform3D.Identity, "source", nameof(CirBoxNode), 1, FacePatchOrientationRole.Forward);
-        var opposite = new SourceSurfaceDescriptor(SurfacePatchFamily.Cylindrical, "radius:2", null, Transform3D.Identity, "tool", nameof(CirCylinderNode), 2, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, null, BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(-1, -1, 0), new Point3D(1, -1, 0), new Point3D(1, 1, 0), new Point3D(-1, 1, 0), new Vector3D(0, 0, 1)), null, Transform3D.Identity, "source", nameof(CirBoxNode), 1, FacePatchOrientationRole.Forward);
+        var opposite = new SourceSurfaceDescriptor(SurfacePatchFamily.Cylindrical, "side", null, new CylindricalSurfaceGeometryEvidence(new Point3D(0, 0, -4), new Vector3D(0, 0, 8), 2d, 8d, new Point3D(0, 0, -4), new Point3D(0, 0, 4)), Transform3D.Identity, "tool", nameof(CirCylinderNode), 2, FacePatchOrientationRole.Forward);
 
         var ok = RetainedLoopGeometryBinder.TryBindCircularLoop(source, opposite, TrimCurveFamily.Circle, RetainedRegionLoopStatus.SpecialCaseReady, isBase: true, out _, out var circular);
 
@@ -167,12 +167,13 @@ public sealed class FacePatchCandidateDryRunTests
             SurfacePatchFamily.Planar,
             null,
             BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(1, 1, 0), new Point3D(0, 1, 0), new Vector3D(0, 0, 1)),
+            null,
             Transform3D.Identity,
             "source",
             nameof(CirBoxNode),
             1,
             FacePatchOrientationRole.Forward);
-        var opposite = new SourceSurfaceDescriptor(SurfacePatchFamily.Cylindrical, null, null, Transform3D.CreateRotationX(Math.PI * 0.5d), "tool", nameof(CirCylinderNode), 2, FacePatchOrientationRole.Forward);
+        var opposite = new SourceSurfaceDescriptor(SurfacePatchFamily.Cylindrical, null, null, null, Transform3D.CreateRotationX(Math.PI * 0.5d), "tool", nameof(CirCylinderNode), 2, FacePatchOrientationRole.Forward);
 
         var ok = RetainedLoopGeometryBinder.TryBindCircularLoop(source, opposite, TrimCurveFamily.Circle, RetainedRegionLoopStatus.ExactReady, isBase: true, out var diagnostic, out var circular);
 
@@ -184,8 +185,8 @@ public sealed class FacePatchCandidateDryRunTests
     [Fact]
     public void RetainedLoopBinding_DoesNotBypassReadiness()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, null, BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(1, 1, 0), new Point3D(0, 1, 0), new Vector3D(0, 0, 1)), Transform3D.Identity, "source", nameof(CirBoxNode), 1, FacePatchOrientationRole.Forward);
-        var opposite = new SourceSurfaceDescriptor(SurfacePatchFamily.Cylindrical, null, null, Transform3D.Identity, "tool", nameof(CirCylinderNode), 2, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, null, BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(1, 1, 0), new Point3D(0, 1, 0), new Vector3D(0, 0, 1)), null, Transform3D.Identity, "source", nameof(CirBoxNode), 1, FacePatchOrientationRole.Forward);
+        var opposite = new SourceSurfaceDescriptor(SurfacePatchFamily.Cylindrical, null, null, null, Transform3D.Identity, "tool", nameof(CirCylinderNode), 2, FacePatchOrientationRole.Forward);
 
         var ok = RetainedLoopGeometryBinder.TryBindCircularLoop(source, opposite, TrimCurveFamily.Circle, RetainedRegionLoopStatus.Deferred, isBase: true, out _, out var circular);
 

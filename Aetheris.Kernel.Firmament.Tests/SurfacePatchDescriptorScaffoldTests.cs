@@ -11,7 +11,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     public void SourceSurfaceDescriptor_Box_ProducesSixPlanarDescriptors()
     {
         var descriptors = Enumerable.Range(0, 6)
-            .Select(i => new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, $"box-face-{i}", null, Transform3D.Identity, "cir:box", nameof(Aetheris.Kernel.Core.Cir.CirBoxNode), 0, FacePatchOrientationRole.Forward))
+            .Select(i => new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, $"box-face-{i}", null, null, Transform3D.Identity, "cir:box", nameof(Aetheris.Kernel.Core.Cir.CirBoxNode), 0, FacePatchOrientationRole.Forward))
             .ToArray();
 
         Assert.Equal(6, descriptors.Length);
@@ -22,9 +22,9 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void SourceSurfaceDescriptor_Cylinder_ProducesCylindricalAndPlanarDescriptors()
     {
-        var side = new SourceSurfaceDescriptor(SurfacePatchFamily.Cylindrical, "side", null, Transform3D.Identity, "cir:cylinder:side", nameof(Aetheris.Kernel.Core.Cir.CirCylinderNode), 1, FacePatchOrientationRole.Forward);
-        var top = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "cap-top", null, Transform3D.Identity, "cir:cylinder:cap-top", nameof(Aetheris.Kernel.Core.Cir.CirCylinderNode), 1, FacePatchOrientationRole.Forward);
-        var bottom = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "cap-bottom", null, Transform3D.Identity, "cir:cylinder:cap-bottom", nameof(Aetheris.Kernel.Core.Cir.CirCylinderNode), 1, FacePatchOrientationRole.Reversed);
+        var side = new SourceSurfaceDescriptor(SurfacePatchFamily.Cylindrical, "side", null, null, Transform3D.Identity, "cir:cylinder:side", nameof(Aetheris.Kernel.Core.Cir.CirCylinderNode), 1, FacePatchOrientationRole.Forward);
+        var top = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "cap-top", null, null, Transform3D.Identity, "cir:cylinder:cap-top", nameof(Aetheris.Kernel.Core.Cir.CirCylinderNode), 1, FacePatchOrientationRole.Forward);
+        var bottom = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "cap-bottom", null, null, Transform3D.Identity, "cir:cylinder:cap-bottom", nameof(Aetheris.Kernel.Core.Cir.CirCylinderNode), 1, FacePatchOrientationRole.Reversed);
 
         Assert.Equal(SurfacePatchFamily.Cylindrical, side.Family);
         Assert.Equal(SurfacePatchFamily.Planar, top.Family);
@@ -34,14 +34,14 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void SourceSurfaceDescriptor_Sphere_ProducesSphericalDescriptor()
     {
-        var sphere = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", null, Transform3D.Identity, "cir:sphere", nameof(Aetheris.Kernel.Core.Cir.CirSphereNode), 2, FacePatchOrientationRole.Forward);
+        var sphere = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", null, null, Transform3D.Identity, "cir:sphere", nameof(Aetheris.Kernel.Core.Cir.CirSphereNode), 2, FacePatchOrientationRole.Forward);
         Assert.Equal(SurfacePatchFamily.Spherical, sphere.Family);
     }
 
     [Fact]
     public void SourceSurfaceDescriptor_Torus_ProducesToroidalDescriptorUnsupportedMaterializer()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Toroidal, "torus", null, Transform3D.Identity, "cir:torus", nameof(Aetheris.Kernel.Core.Cir.CirTorusNode), 3, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Toroidal, "torus", null, null, Transform3D.Identity, "cir:torus", nameof(Aetheris.Kernel.Core.Cir.CirTorusNode), 3, FacePatchOrientationRole.Forward);
         var patch = new FacePatchDescriptor(source, [], [], FacePatchOrientationRole.Forward, "tool-surface", []);
 
         var eval = SurfaceFamilyMaterializerRegistry.Evaluate(patch);
@@ -53,7 +53,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void SurfaceFamilyRegistry_SelectsPlanarForPlanarPatch()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "plane", null, Transform3D.Identity, "cir:box", nameof(Aetheris.Kernel.Core.Cir.CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "plane", null, null, Transform3D.Identity, "cir:box", nameof(Aetheris.Kernel.Core.Cir.CirBoxNode), 0, FacePatchOrientationRole.Forward);
         var trim = new TrimCurveDescriptor(TrimCurveFamily.Line, "edge-0", "loop:outer", 0, new ParameterInterval(0, 1), TrimCurveCapability.ExactSupported);
         var patch = new FacePatchDescriptor(source, [trim], [], FacePatchOrientationRole.Forward, "outer", []);
 
@@ -66,7 +66,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void SurfaceFamilyRegistry_RejectsWrongFamilyWithReasons()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", null, Transform3D.Identity, "cir:sphere", nameof(Aetheris.Kernel.Core.Cir.CirSphereNode), 4, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", null, null, Transform3D.Identity, "cir:sphere", nameof(Aetheris.Kernel.Core.Cir.CirSphereNode), 4, FacePatchOrientationRole.Forward);
         var patch = new FacePatchDescriptor(source, [], [], FacePatchOrientationRole.Forward, "outer", []);
 
         var eval = SurfaceFamilyMaterializerRegistry.Evaluate(patch);
@@ -79,7 +79,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void PlanarSurfaceMaterializer_UntrimmedBoxFace_EmitsPlanarTopology()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:-1,-1,0;1,-1,0;1,1,0;-1,1,0", null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:-1,-1,0;1,-1,0;1,1,0;-1,1,0", null, null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
         var patch = new FacePatchDescriptor(source, [], [], FacePatchOrientationRole.Forward, "outer", []);
         var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
 
@@ -96,7 +96,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void PlanarSurfaceMaterializer_RejectsDeferredReadiness()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:0,0,0;1,0,0;1,1,0;0,1,0", null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:0,0,0;1,0,0;1,1,0;0,1,0", null, null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
         var patch = new FacePatchDescriptor(source, [], [], FacePatchOrientationRole.Forward, "outer", []);
         var readiness = new MaterializationReadinessReport(true, EmissionReadiness.Deferred, [EmissionBlockingReason.TopologyPlanning], [], 1, 1, 1, 0, 0, 0, 0, [], false);
 
@@ -109,7 +109,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void PlanarSurfaceMaterializer_RejectsNonPlanarPatch()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", null, Transform3D.Identity, "cir:sphere", nameof(CirSphereNode), 0, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", null, null, Transform3D.Identity, "cir:sphere", nameof(CirSphereNode), 0, FacePatchOrientationRole.Forward);
         var patch = new FacePatchDescriptor(source, [], [], FacePatchOrientationRole.Forward, "outer", []);
         var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
 
@@ -121,7 +121,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void PlanarSurfaceMaterializer_RejectsTrimmedCircularPatch()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:0,0,0;1,0,0;1,1,0;0,1,0", null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:0,0,0;1,0,0;1,1,0;0,1,0", null, null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
         var trim = new TrimCurveDescriptor(TrimCurveFamily.Circle, "circle", "outer", 0, new ParameterInterval(0, 2 * double.Pi), TrimCurveCapability.ExactSupported);
         var patch = new FacePatchDescriptor(source, [trim], [], FacePatchOrientationRole.Forward, "outer", []);
         var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
@@ -146,7 +146,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void PlanarSurfaceMaterializer_TrimmedCircularInnerLoop_RespectsPolicy()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:-2,-2,0;2,-2,0;2,2,0;-2,2,0", null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:-2,-2,0;2,-2,0;2,2,0;-2,2,0", null, null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
         var inner = new TrimCurveDescriptor(TrimCurveFamily.Circle, "inner-circle", "inner", 1, new ParameterInterval(0, 2 * double.Pi), TrimCurveCapability.ExactSupported);
         var patch = new FacePatchDescriptor(source, [], [[inner]], FacePatchOrientationRole.Forward, "outer", []);
         var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
@@ -161,7 +161,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void PlanarSurfaceMaterializer_RejectsMultipleInnerLoops()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:-2,-2,0;2,-2,0;2,2,0;-2,2,0", null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:-2,-2,0;2,-2,0;2,2,0;-2,2,0", null, null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
         var innerA = new TrimCurveDescriptor(TrimCurveFamily.Circle, "inner-circle-a", "inner", 1, new ParameterInterval(0, 2 * double.Pi), TrimCurveCapability.ExactSupported);
         var innerB = new TrimCurveDescriptor(TrimCurveFamily.Circle, "inner-circle-b", "inner", 2, new ParameterInterval(0, 2 * double.Pi), TrimCurveCapability.ExactSupported);
         var patch = new FacePatchDescriptor(source, [], [[innerA], [innerB]], FacePatchOrientationRole.Forward, "outer", []);
@@ -177,7 +177,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void PlanarPayloadBuilder_RejectsNonPlanarSource()
     {
-        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", null, Transform3D.Identity, "cir:sphere", nameof(CirSphereNode), 0, FacePatchOrientationRole.Forward);
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", null, null, Transform3D.Identity, "cir:sphere", nameof(CirSphereNode), 0, FacePatchOrientationRole.Forward);
         var success = PlanarPatchPayloadBuilder.TryBuildRectanglePayload(source, out _, out var diagnostic);
         Assert.False(success);
         Assert.Contains("not planar", diagnostic, StringComparison.OrdinalIgnoreCase);
@@ -232,6 +232,31 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         Assert.Equal(new Point3D(2, -3, -3), bottom.BoundedPlanarGeometry!.Value.Center);
         Assert.Equal(5d, top.BoundedPlanarGeometry!.Value.Radius, 8);
         Assert.Equal(5d, bottom.BoundedPlanarGeometry!.Value.Radius, 8);
+    }
+
+    [Fact]
+    public void SourceSurfaceExtractor_CylinderSide_HasCylindricalEvidence()
+    {
+        var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(5, 20));
+        var side = Assert.Single(extraction.Descriptors.Where(d => d.Family == SurfacePatchFamily.Cylindrical));
+        var evidence = Assert.IsType<CylindricalSurfaceGeometryEvidence>(side.CylindricalGeometryEvidence!.Value);
+        Assert.Equal(new Point3D(0, 0, -10), evidence.AxisOrigin);
+        Assert.Equal(5d, evidence.Radius, 8);
+        Assert.Equal(20d, evidence.Height, 8);
+        Assert.Equal(new Point3D(0, 0, -10), evidence.BottomCenter);
+        Assert.Equal(new Point3D(0, 0, 10), evidence.TopCenter);
+    }
+
+    [Fact]
+    public void SourceSurfaceExtractor_CylinderSide_TranslationTransform_PreservesEvidence()
+    {
+        var extraction = SourceSurfaceExtractor.Extract(new CirTransformNode(new CirCylinderNode(5, 20), Transform3D.CreateTranslation(new Vector3D(2, -3, 7))));
+        var side = Assert.Single(extraction.Descriptors.Where(d => d.Family == SurfacePatchFamily.Cylindrical));
+        var evidence = Assert.IsType<CylindricalSurfaceGeometryEvidence>(side.CylindricalGeometryEvidence!.Value);
+        Assert.Equal(new Point3D(2, -3, -3), evidence.AxisOrigin);
+        Assert.Equal(new Point3D(2, -3, -3), evidence.BottomCenter);
+        Assert.Equal(new Point3D(2, -3, 17), evidence.TopCenter);
+        Assert.Equal(5d, evidence.Radius, 8);
     }
 
     [Fact]
@@ -355,7 +380,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     [Fact]
     public void PlanarPayloadBuilder_RejectsDescriptorWithoutBoundedGeometry()
     {
-        var roleOnly = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "top", null, Transform3D.Identity, "cir:box:top", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var roleOnly = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "top", null, null, Transform3D.Identity, "cir:box:top", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
         var success = PlanarPatchPayloadBuilder.TryBuildRectanglePayload(roleOnly, out _, out var diagnostic);
         Assert.False(success);
         Assert.Contains("does not encode bounded rectangle corners", diagnostic, StringComparison.OrdinalIgnoreCase);

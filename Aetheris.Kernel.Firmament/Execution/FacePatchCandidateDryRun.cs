@@ -564,7 +564,13 @@ internal static class RetainedLoopGeometryBinder
             return false;
         }
 
-        var axisPoint = opposite.Transform.Apply(Point3D.Origin);
+        if (opposite.CylindricalGeometryEvidence is not { } cylindrical)
+        {
+            diagnostic = "loop-geometry-bind-deferred: cylindrical source descriptor does not yet carry canonical cylindrical geometry evidence.";
+            return false;
+        }
+
+        var axisPoint = cylindrical.AxisOrigin;
         var planePoint = planar.Kind == BoundedPlanarPatchGeometryKind.Circle ? planar.Center : planar.Corner00;
         var denom = normal.Dot(axis);
         if (Math.Abs(denom) < 1e-12)
@@ -575,11 +581,7 @@ internal static class RetainedLoopGeometryBinder
 
         var t = normal.Dot(planePoint - axisPoint) / denom;
         var center = axisPoint + (axis * t);
-        if (!TryReadCylindricalRadiusEvidence(opposite, out var radius))
-        {
-            diagnostic = "loop-geometry-bind-deferred: cylindrical source descriptor does not yet carry canonical radius evidence.";
-            return false;
-        }
+        var radius = cylindrical.Radius;
 
         if (radius <= 1e-12)
         {
@@ -594,11 +596,4 @@ internal static class RetainedLoopGeometryBinder
         return true;
     }
 
-    private static bool TryReadCylindricalRadiusEvidence(SourceSurfaceDescriptor opposite, out double radius)
-    {
-        radius = 0d;
-        if (opposite.ParameterPayloadReference is null) return false;
-        if (!opposite.ParameterPayloadReference.StartsWith("radius:", StringComparison.Ordinal)) return false;
-        return double.TryParse(opposite.ParameterPayloadReference[7..], out radius);
-    }
 }

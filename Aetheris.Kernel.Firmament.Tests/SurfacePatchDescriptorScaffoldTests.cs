@@ -137,10 +137,10 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         var policy = PlanarSurfaceMaterializer.GetLoopEmissionPolicy();
         Assert.True(policy.SupportsOuterRectangle);
         Assert.True(policy.SupportsOuterCircle);
-        Assert.False(policy.SupportsInnerCircle);
+        Assert.True(policy.SupportsInnerCircle);
         Assert.False(policy.SupportsMultipleInnerLoops);
-        Assert.Equal(PlanarSurfaceMaterializer.PlanarLoopSupportStatus.Deferred, policy.Status);
-        Assert.Contains("inner circular loop emission deferred", policy.Diagnostic, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(PlanarSurfaceMaterializer.PlanarLoopSupportStatus.Supported, policy.Status);
+        Assert.Contains("supports one rectangular outer loop plus one canonical retained inner circular loop", policy.Diagnostic, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -152,10 +152,9 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
 
         var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
-
         Assert.False(result.Success);
         Assert.Null(result.Body);
-        Assert.Contains(result.Diagnostics, d => d.Contains("inner circular loop emission deferred", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("bounded rectangle-with-inner-circle emission path", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -171,6 +170,65 @@ public sealed class SurfacePatchDescriptorScaffoldTests
 
         Assert.False(result.Success);
         Assert.Null(result.Body);
+        Assert.Contains(result.Diagnostics, d => d.Contains("multiple inner loops", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_RectangleWithInnerCircle_FromRealBoxCylinderEvidence_EmitsTrimmedFace()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var generation = FacePatchCandidateGenerator.Generate(root);
+        var candidate = generation.Candidates.First(c =>
+            c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool
+            && c.SourceSurface.BoundedPlanarGeometry is { Kind: BoundedPlanarPatchGeometryKind.Rectangle }
+            && c.RetainedRegionLoops.Count(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null) == 1);
+        var inner = candidate.RetainedRegionLoops.Single(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null).CircularGeometry!.Value;
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+
+        var result = new PlanarSurfaceMaterializer().EmitRectangleWithInnerCircle(new(candidate.SourceSurface, inner, null, readiness));
+        Assert.True(result.Success);
+        Assert.NotNull(result.Body);
+        Assert.Single(result.Body!.Topology.Faces);
+        Assert.Equal(2, result.Body.Topology.Loops.Count());
+        Assert.Equal(5, result.Body.Topology.Edges.Count());
+        var face = result.Body.Topology.Faces.Single();
+        Assert.Equal(2, face.LoopIds.Count);
+        var edgeBinding = result.Body.Bindings.EdgeBindings.Single(b => b.TrimInterval?.End == 2d * double.Pi);
+        Assert.True(result.Body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve));
+        Assert.Equal(CurveGeometryKind.Circle3, curve!.Kind);
+        Assert.Contains(result.Diagnostics, d => d.Contains("inner loop", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_RectangleWithInnerCircle_RejectsDeferredReadiness()
+    {
+        var source = SourceSurfaceExtractor.Extract(new CirBoxNode(10, 10, 10)).Descriptors.First(d => d.BoundedPlanarGeometry?.Kind == BoundedPlanarPatchGeometryKind.Rectangle);
+        var circle = new RetainedCircularLoopGeometry(new Point3D(0, 0, 0), new Vector3D(0, 0, 1), 1d, RetainedRegionLoopOrientationPolicy.ReverseForToolCavity, "token", "diag");
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.Deferred, [EmissionBlockingReason.TopologyPlanning], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().EmitRectangleWithInnerCircle(new(source, circle, null, readiness));
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Contains("no readiness, no emission", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_RectangleWithInnerCircle_RejectsMissingInnerCircleGeometry()
+    {
+        var source = SourceSurfaceExtractor.Extract(new CirBoxNode(10, 10, 10)).Descriptors.First(d => d.BoundedPlanarGeometry?.Kind == BoundedPlanarPatchGeometryKind.Rectangle);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().EmitRectangleWithInnerCircle(new(source, null, null, readiness));
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Contains("inner-circle-missing", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_RectangleWithInnerCircle_RejectsMultipleInnerLoops()
+    {
+        var source = SourceSurfaceExtractor.Extract(new CirBoxNode(10, 10, 10)).Descriptors.First(d => d.BoundedPlanarGeometry?.Kind == BoundedPlanarPatchGeometryKind.Rectangle);
+        var circleA = new RetainedCircularLoopGeometry(new Point3D(0, 0, 0), new Vector3D(0, 0, 1), 1d, RetainedRegionLoopOrientationPolicy.ReverseForToolCavity, "a", "diag");
+        var circleB = new RetainedCircularLoopGeometry(new Point3D(1, 0, 0), new Vector3D(0, 0, 1), 1d, RetainedRegionLoopOrientationPolicy.ReverseForToolCavity, "b", "diag");
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().EmitRectangleWithInnerCircle(new(source, null, [circleA, circleB], readiness));
+        Assert.False(result.Success);
         Assert.Contains(result.Diagnostics, d => d.Contains("multiple inner loops", StringComparison.OrdinalIgnoreCase));
     }
 

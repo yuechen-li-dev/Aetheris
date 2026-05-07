@@ -83,17 +83,17 @@ internal static class SourceSurfaceExtractor
             case CirTransformNode transformNode:
                 Visit(transformNode.Child, Transform3D.Compose(accumulated, transformNode.Transform), descriptors, diagnostics, unsupported, replayLog);
                 return;
-            case CirBoxNode:
-                AddBoxDescriptors(accumulated, descriptors, replayLog, nameof(CirBoxNode));
+            case CirBoxNode box:
+                AddBoxDescriptors(box, accumulated, descriptors, replayLog, nameof(CirBoxNode));
                 return;
             case CirCylinderNode:
                 AddCylinderDescriptors(accumulated, descriptors, replayLog, nameof(CirCylinderNode));
                 return;
             case CirSphereNode:
-                descriptors.Add(CreateDescriptor(SurfacePatchFamily.Spherical, "sphere", accumulated, node, replayLog, FacePatchOrientationRole.Forward));
+                descriptors.Add(CreateDescriptor(SurfacePatchFamily.Spherical, "sphere", null, accumulated, node, replayLog, FacePatchOrientationRole.Forward));
                 return;
             case CirTorusNode:
-                descriptors.Add(CreateDescriptor(SurfacePatchFamily.Toroidal, "torus", accumulated, node, replayLog, FacePatchOrientationRole.Forward));
+                descriptors.Add(CreateDescriptor(SurfacePatchFamily.Toroidal, "torus", null, accumulated, node, replayLog, FacePatchOrientationRole.Forward));
                 diagnostics.Add(new("torus-materialization-deferred", "Toroidal source surface extracted; downstream materialization remains deferred."));
                 return;
             case CirSubtractNode subtract:
@@ -114,34 +114,47 @@ internal static class SourceSurfaceExtractor
         }
     }
 
-    private static void AddBoxDescriptors(Transform3D transform, List<SourceSurfaceDescriptor> descriptors, NativeGeometryReplayLog? replayLog, string owningKind)
+    private static void AddBoxDescriptors(CirBoxNode box, Transform3D transform, List<SourceSurfaceDescriptor> descriptors, NativeGeometryReplayLog? replayLog, string owningKind)
     {
-        var roles = new[] { "top", "bottom", "left", "right", "front", "back" };
-        foreach (var role in roles)
-        {
-            descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, role, transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
-        }
+        var hx = box.Width * 0.5d;
+        var hy = box.Height * 0.5d;
+        var hz = box.Depth * 0.5d;
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "top", CreateBoundedPatch(transform, new(-hx, -hy, hz), new(hx, -hy, hz), new(hx, hy, hz), new(-hx, hy, hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "bottom", CreateBoundedPatch(transform, new(-hx, hy, -hz), new(hx, hy, -hz), new(hx, -hy, -hz), new(-hx, -hy, -hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "left", CreateBoundedPatch(transform, new(-hx, -hy, -hz), new(-hx, hy, -hz), new(-hx, hy, hz), new(-hx, -hy, hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "right", CreateBoundedPatch(transform, new(hx, -hy, hz), new(hx, hy, hz), new(hx, hy, -hz), new(hx, -hy, -hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "front", CreateBoundedPatch(transform, new(-hx, hy, -hz), new(hx, hy, -hz), new(hx, hy, hz), new(-hx, hy, hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "back", CreateBoundedPatch(transform, new(-hx, -hy, hz), new(hx, -hy, hz), new(hx, -hy, -hz), new(-hx, -hy, -hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
     }
 
     private static void AddCylinderDescriptors(Transform3D transform, List<SourceSurfaceDescriptor> descriptors, NativeGeometryReplayLog? replayLog, string owningKind)
     {
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Cylindrical, "side", transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Forward, owningKind));
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-top", transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Forward, owningKind));
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-bottom", transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Reversed, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Cylindrical, "side", null, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-top", null, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-bottom", null, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Reversed, owningKind));
     }
 
     
-    private static SourceSurfaceDescriptor CreateDescriptor(SurfacePatchFamily family, string provenanceRole, Transform3D transform, CirNodeKind nodeKind, NativeGeometryReplayLog? replayLog, FacePatchOrientationRole orientation, string owningKind)
+    private static BoundedPlanarPatchGeometry CreateBoundedPatch(Transform3D transform, Point3D c00, Point3D c10, Point3D c11, Point3D c01)
     {
-        var op = replayLog?.Operations.LastOrDefault();
-        var placementSuffix = op is null ? "" : $"|placement:{op.ResolvedPlacement.Kind}";
-        return new SourceSurfaceDescriptor(family, provenanceRole, transform, $"cir:{nodeKind.ToString().ToLowerInvariant()}:{provenanceRole}{placementSuffix}", owningKind, op?.OpIndex, orientation);
+        var w00 = transform.Apply(c00);
+        var w10 = transform.Apply(c10);
+        var w11 = transform.Apply(c11);
+        var w01 = transform.Apply(c01);
+        return new(w00, w10, w11, w01, (w10 - w00).Cross(w01 - w00));
     }
 
-    private static SourceSurfaceDescriptor CreateDescriptor(SurfacePatchFamily family, string provenanceRole, Transform3D transform, CirNode node, NativeGeometryReplayLog? replayLog, FacePatchOrientationRole orientation, string? owningKind = null)
+    private static SourceSurfaceDescriptor CreateDescriptor(SurfacePatchFamily family, string provenanceRole, BoundedPlanarPatchGeometry? boundedPlanarGeometry, Transform3D transform, CirNodeKind nodeKind, NativeGeometryReplayLog? replayLog, FacePatchOrientationRole orientation, string owningKind)
     {
         var op = replayLog?.Operations.LastOrDefault();
         var placementSuffix = op is null ? "" : $"|placement:{op.ResolvedPlacement.Kind}";
-        return new SourceSurfaceDescriptor(family, provenanceRole, transform, $"cir:{node.Kind.ToString().ToLowerInvariant()}:{provenanceRole}{placementSuffix}", owningKind ?? node.GetType().Name, op?.OpIndex, orientation);
+        return new SourceSurfaceDescriptor(family, provenanceRole, boundedPlanarGeometry, transform, $"cir:{nodeKind.ToString().ToLowerInvariant()}:{provenanceRole}{placementSuffix}", owningKind, op?.OpIndex, orientation);
+    }
+
+    private static SourceSurfaceDescriptor CreateDescriptor(SurfacePatchFamily family, string provenanceRole, BoundedPlanarPatchGeometry? boundedPlanarGeometry, Transform3D transform, CirNode node, NativeGeometryReplayLog? replayLog, FacePatchOrientationRole orientation, string? owningKind = null)
+    {
+        var op = replayLog?.Operations.LastOrDefault();
+        var placementSuffix = op is null ? "" : $"|placement:{op.ResolvedPlacement.Kind}";
+        return new SourceSurfaceDescriptor(family, provenanceRole, boundedPlanarGeometry, transform, $"cir:{node.Kind.ToString().ToLowerInvariant()}:{provenanceRole}{placementSuffix}", owningKind ?? node.GetType().Name, op?.OpIndex, orientation);
     }
 }

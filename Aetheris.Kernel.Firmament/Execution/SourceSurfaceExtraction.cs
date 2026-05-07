@@ -86,8 +86,8 @@ internal static class SourceSurfaceExtractor
             case CirBoxNode box:
                 AddBoxDescriptors(box, accumulated, descriptors, replayLog, nameof(CirBoxNode));
                 return;
-            case CirCylinderNode:
-                AddCylinderDescriptors(accumulated, descriptors, replayLog, nameof(CirCylinderNode));
+            case CirCylinderNode cylinder:
+                AddCylinderDescriptors(cylinder, accumulated, descriptors, replayLog, diagnostics, nameof(CirCylinderNode));
                 return;
             case CirSphereNode:
                 descriptors.Add(CreateDescriptor(SurfacePatchFamily.Spherical, "sphere", null, accumulated, node, replayLog, FacePatchOrientationRole.Forward));
@@ -127,11 +127,23 @@ internal static class SourceSurfaceExtractor
         descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "back", CreateBoundedPatch(transform, new(-hx, -hy, hz), new(hx, -hy, hz), new(hx, -hy, -hz), new(-hx, -hy, -hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
     }
 
-    private static void AddCylinderDescriptors(Transform3D transform, List<SourceSurfaceDescriptor> descriptors, NativeGeometryReplayLog? replayLog, string owningKind)
+    private static void AddCylinderDescriptors(CirCylinderNode cylinder, Transform3D transform, List<SourceSurfaceDescriptor> descriptors, NativeGeometryReplayLog? replayLog, List<SourceSurfaceExtractionDiagnostic> diagnostics, string owningKind)
     {
         descriptors.Add(CreateDescriptor(SurfacePatchFamily.Cylindrical, "side", null, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Forward, owningKind));
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-top", null, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Forward, owningKind));
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-bottom", null, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Reversed, owningKind));
+        var topCap = TryCreateCircularCapGeometry(cylinder, transform, isTopCap: true, out var topDiagnostic);
+        var bottomCap = TryCreateCircularCapGeometry(cylinder, transform, isTopCap: false, out var bottomDiagnostic);
+        if (topDiagnostic is not null)
+        {
+            diagnostics.Add(topDiagnostic);
+        }
+
+        if (bottomDiagnostic is not null)
+        {
+            diagnostics.Add(bottomDiagnostic);
+        }
+
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-top", topCap, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-bottom", bottomCap, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Reversed, owningKind));
     }
 
     
@@ -141,7 +153,34 @@ internal static class SourceSurfaceExtractor
         var w10 = transform.Apply(c10);
         var w11 = transform.Apply(c11);
         var w01 = transform.Apply(c01);
-        return new(w00, w10, w11, w01, (w10 - w00).Cross(w01 - w00));
+        return BoundedPlanarPatchGeometry.CreateRectangle(w00, w10, w11, w01, (w10 - w00).Cross(w01 - w00));
+    }
+
+    private static BoundedPlanarPatchGeometry? TryCreateCircularCapGeometry(CirCylinderNode cylinder, Transform3D transform, bool isTopCap, out SourceSurfaceExtractionDiagnostic? diagnostic)
+    {
+        diagnostic = null;
+        var z = (isTopCap ? 1d : -1d) * cylinder.Height * 0.5d;
+        var localCenter = new Point3D(0d, 0d, z);
+        var localNormal = new Vector3D(0d, 0d, isTopCap ? 1d : -1d);
+        var localRadialX = new Vector3D(cylinder.Radius, 0d, 0d);
+        var localRadialY = new Vector3D(0d, cylinder.Radius, 0d);
+
+        var worldCenter = transform.Apply(localCenter);
+        var worldNormal = transform.Apply(localNormal);
+        var worldRadialX = transform.Apply(localRadialX);
+        var worldRadialY = transform.Apply(localRadialY);
+        var radiusX = worldRadialX.Length;
+        var radiusY = worldRadialY.Length;
+        var tolerance = 1e-9;
+        if (double.Abs(radiusX - radiusY) > tolerance)
+        {
+            diagnostic = new SourceSurfaceExtractionDiagnostic(
+                "cylinder-cap-circular-geometry-deferred",
+                "Cylinder cap transformed with non-uniform radial scaling/shear; circular bounded planar geometry omitted under current model.");
+            return null;
+        }
+
+        return BoundedPlanarPatchGeometry.CreateCircle(worldCenter, worldNormal, radiusX);
     }
 
     private static SourceSurfaceDescriptor CreateDescriptor(SurfacePatchFamily family, string provenanceRole, BoundedPlanarPatchGeometry? boundedPlanarGeometry, Transform3D transform, CirNodeKind nodeKind, NativeGeometryReplayLog? replayLog, FacePatchOrientationRole orientation, string owningKind)

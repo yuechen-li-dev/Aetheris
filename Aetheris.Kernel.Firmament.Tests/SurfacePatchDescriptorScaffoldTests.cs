@@ -151,10 +151,70 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         Assert.All(planar, d =>
         {
             var g = d.BoundedPlanarGeometry!.Value;
+            Assert.Equal(BoundedPlanarPatchGeometryKind.Rectangle, g.Kind);
             Assert.True((g.Corner10 - g.Corner00).Length > 0d);
             Assert.True((g.Corner01 - g.Corner00).Length > 0d);
             Assert.True(g.Normal.Length > 0d);
         });
+    }
+
+    [Fact]
+    public void SourceSurfaceExtractor_CylinderCaps_HaveCircularBoundedGeometry()
+    {
+        var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(5, 20));
+        Assert.Single(extraction.Descriptors.Where(d => d.Family == SurfacePatchFamily.Cylindrical));
+        var caps = extraction.Descriptors.Where(d => d.Family == SurfacePatchFamily.Planar && d.ParameterPayloadReference is "cap-top" or "cap-bottom").ToArray();
+        Assert.Equal(2, caps.Length);
+
+        var top = Assert.Single(caps.Where(c => c.ParameterPayloadReference == "cap-top"));
+        var bottom = Assert.Single(caps.Where(c => c.ParameterPayloadReference == "cap-bottom"));
+        Assert.Equal(BoundedPlanarPatchGeometryKind.Circle, top.BoundedPlanarGeometry!.Value.Kind);
+        Assert.Equal(BoundedPlanarPatchGeometryKind.Circle, bottom.BoundedPlanarGeometry!.Value.Kind);
+        Assert.Equal(new Point3D(0, 0, 10), top.BoundedPlanarGeometry!.Value.Center);
+        Assert.Equal(new Point3D(0, 0, -10), bottom.BoundedPlanarGeometry!.Value.Center);
+        Assert.True(top.BoundedPlanarGeometry!.Value.Normal.Z > 0);
+        Assert.True(bottom.BoundedPlanarGeometry!.Value.Normal.Z < 0);
+        Assert.Equal(5d, top.BoundedPlanarGeometry!.Value.Radius, 8);
+        Assert.Equal(5d, bottom.BoundedPlanarGeometry!.Value.Radius, 8);
+    }
+
+    [Fact]
+    public void SourceSurfaceExtractor_CylinderCaps_RespectTranslationTransform()
+    {
+        var node = new CirTransformNode(new CirCylinderNode(5, 20), Transform3D.CreateTranslation(new Vector3D(2, -3, 7)));
+        var extraction = SourceSurfaceExtractor.Extract(node);
+        var top = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-top"));
+        var bottom = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-bottom"));
+        Assert.Equal(new Point3D(2, -3, 17), top.BoundedPlanarGeometry!.Value.Center);
+        Assert.Equal(new Point3D(2, -3, -3), bottom.BoundedPlanarGeometry!.Value.Center);
+        Assert.Equal(5d, top.BoundedPlanarGeometry!.Value.Radius, 8);
+        Assert.Equal(5d, bottom.BoundedPlanarGeometry!.Value.Radius, 8);
+    }
+
+    [Fact]
+    public void PlanarPayloadBuilder_RejectsCircularCapGeometry()
+    {
+        var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(3, 8));
+        var top = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-top"));
+        var success = PlanarPatchPayloadBuilder.TryBuildRectanglePayload(top, out _, out var diagnostic);
+        Assert.False(success);
+        Assert.Contains("circular planar cap emission is deferred", diagnostic, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_DoesNotEmitCircularCapYet()
+    {
+        var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(3, 8));
+        var top = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-top"));
+        var ready = PlanarPatchPayloadBuilder.TryBuildRectanglePayload(top, out var payload, out _);
+        Assert.False(ready);
+        Assert.Null(payload);
+
+        var patch = new FacePatchDescriptor(top, [], [], FacePatchOrientationRole.Forward, "outer", []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
+        Assert.False(result.Success);
+        Assert.Null(result.Body);
     }
 
     [Fact]

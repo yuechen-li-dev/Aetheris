@@ -182,9 +182,17 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             return new(false, null, SurfacePatchFamily.Planar, false, ["planar-f9-limited-scope: supports only rectangular untrimmed planar patches."]);
         }
 
+        if (TryBuildCircularEmissionInput(patch.SourceSurface, out var circle, out var circleDiagnostic))
+        {
+            return EmitCircularBody(circle!.Value);
+        }
+
         if (!TryParseRectanglePayload(patch.SourceSurface.ParameterPayloadReference, out var points, out var parseReason))
         {
-            return new(false, null, SurfacePatchFamily.Planar, false, [$"planar-f9-payload-invalid: {parseReason}"]);
+            return new(false, null, SurfacePatchFamily.Planar, false, [
+                $"planar-f9-payload-invalid: {parseReason}",
+                $"planar-f10.3-circle-evaluation: {circleDiagnostic}"
+            ]);
         }
 
         return EmitRectangleBody(points!);
@@ -225,6 +233,77 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
 
         return new(true, new BrepBody(builder.Model, geometry, bindings), SurfacePatchFamily.Planar, true,
             ["topology-emitted: planar rectangular patch emitted as a minimal single-face body."]);
+    }
+
+    private readonly record struct CircularPatchEmissionInput(Point3D Center, Vector3D Normal, double Radius);
+
+
+    private static SurfaceMaterializationResult EmitCircularBody(CircularPatchEmissionInput circle)
+    {
+        var builder = new TopologyBuilder();
+        var vertex = builder.AddVertex();
+        var edge = builder.AddEdge(vertex, vertex);
+
+        var loopId = builder.AllocateLoopId();
+        var coedgeId = builder.AllocateCoedgeId();
+        builder.AddCoedge(new Coedge(coedgeId, edge, loopId, coedgeId, coedgeId, IsReversed: false));
+        builder.AddLoop(new Loop(loopId, [coedgeId]));
+
+        var face = builder.AddFace([loopId]);
+        var shell = builder.AddShell([face]);
+        builder.AddBody([shell]);
+
+        var normal = Direction3D.Create(circle.Normal);
+        var xAxis = BuildReferenceAxis(normal);
+
+        var geometry = new BrepGeometryStore();
+        geometry.AddCurve(new CurveGeometryId(1), CurveGeometry.FromCircle(new Circle3Curve(circle.Center, normal, circle.Radius, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromPlane(new PlaneSurface(circle.Center, normal, xAxis)));
+
+        var bindings = new BrepBindingModel();
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(edge, new CurveGeometryId(1), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(1)));
+
+        return new(true, new BrepBody(builder.Model, geometry, bindings), SurfacePatchFamily.Planar, true,
+            [
+                "readiness-gate-accepted: no readiness, no emission rule satisfied for circular planar patch.",
+                "circular-geometry-accepted: bounded planar circle center/normal/radius consumed.",
+                "topology-emitted: planar circular patch emitted as a minimal single-face body with one circular outer loop."
+            ]);
+    }
+
+    private static bool TryBuildCircularEmissionInput(SourceSurfaceDescriptor source, out CircularPatchEmissionInput? input, out string diagnostic)
+    {
+        input = null;
+        if (source.BoundedPlanarGeometry is not { } bounded || bounded.Kind != BoundedPlanarPatchGeometryKind.Circle)
+        {
+            diagnostic = "no-circle-bounded-geometry";
+            return false;
+        }
+
+        if (bounded.Radius <= 0d || !double.IsFinite(bounded.Radius))
+        {
+            diagnostic = "invalid-circle-radius";
+            return false;
+        }
+
+        if (bounded.Normal.Length <= 1e-12d)
+        {
+            diagnostic = "invalid-circle-normal";
+            return false;
+        }
+
+        input = new CircularPatchEmissionInput(bounded.Center, bounded.Normal, bounded.Radius);
+        diagnostic = "ok";
+        return true;
+    }
+
+    private static Direction3D BuildReferenceAxis(Direction3D normal)
+    {
+        var n = normal.ToVector();
+        var seed = double.Abs(n.Z) < 0.95d ? new Vector3D(0d, 0d, 1d) : new Vector3D(0d, 1d, 0d);
+        var projected = seed - (n * seed.Dot(n));
+        return Direction3D.TryCreate(projected, out var axis) ? axis : Direction3D.Create(new Vector3D(1d, 0d, 0d));
     }
 
     private static bool TryParseRectanglePayload(string? payload, out IReadOnlyList<Point3D>? points, out string reason)

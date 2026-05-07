@@ -202,13 +202,74 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     }
 
     [Fact]
-    public void PlanarSurfaceMaterializer_DoesNotEmitCircularCapYet()
+    public void PlanarSurfaceMaterializer_CylinderTopCap_FromSourceSurface_EmitsCircularTopology()
     {
         var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(3, 8));
         var top = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-top"));
-        var ready = PlanarPatchPayloadBuilder.TryBuildRectanglePayload(top, out var payload, out _);
-        Assert.False(ready);
-        Assert.Null(payload);
+
+        var patch = new FacePatchDescriptor(top, [], [], FacePatchOrientationRole.Forward, "outer", []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Body);
+        Assert.Single(result.Body!.Topology.Faces);
+        Assert.Single(result.Body.Topology.Loops);
+        Assert.Single(result.Body.Topology.Edges);
+        Assert.Single(result.Body.Topology.Vertices);
+        var edge = Assert.Single(result.Body.Topology.Edges);
+        Assert.Equal(edge.StartVertexId, edge.EndVertexId);
+        var edgeBinding = Assert.Single(result.Body.Bindings.EdgeBindings);
+        Assert.Equal(0d, edgeBinding.TrimInterval!.Value.Start);
+        Assert.Equal(2d * double.Pi, edgeBinding.TrimInterval!.Value.End);
+        Assert.True(result.Body.Geometry.TryGetCurve(edgeBinding.CurveGeometryId, out var curve));
+        Assert.Equal(CurveGeometryKind.Circle3, curve!.Kind);
+        Assert.Contains(result.Diagnostics, d => d.Contains("circular", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_CylinderBottomCap_FromSourceSurface_EmitsCircularTopology()
+    {
+        var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(3, 8));
+        var bottom = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-bottom"));
+
+        var patch = new FacePatchDescriptor(bottom, [], [], FacePatchOrientationRole.Reversed, "outer", []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Body);
+        var surfaceBinding = Assert.Single(result.Body!.Bindings.FaceBindings);
+        Assert.True(result.Body.Geometry.TryGetSurface(surfaceBinding.SurfaceGeometryId, out var surface));
+        Assert.Equal(SurfaceGeometryKind.Plane, surface!.Kind);
+        Assert.True(surface.Plane!.Value.Normal.Z < 0d);
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_RejectsCircularCap_WhenReadinessDeferred()
+    {
+        var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(3, 8));
+        var top = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-top"));
+
+        var patch = new FacePatchDescriptor(top, [], [], FacePatchOrientationRole.Forward, "outer", []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.Deferred, [EmissionBlockingReason.TopologyPlanning], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
+
+        Assert.False(result.Success);
+        Assert.Null(result.Body);
+        Assert.Contains(result.Diagnostics, d => d.Contains("no readiness, no emission", StringComparison.OrdinalIgnoreCase));
+    }
+
+
+    [Fact]
+    public void SourceSurfaceExtractor_DefersShearedCylinderCapCircularGeometry_AndEmitterRejectsMissingCircle()
+    {
+        var nonUniformScale = Transform3D.CreateScale(new Vector3D(2d, 1d, 1d));
+        var extraction = SourceSurfaceExtractor.Extract(new CirTransformNode(new CirCylinderNode(3, 8), nonUniformScale));
+        var top = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-top"));
+
+        Assert.Null(top.BoundedPlanarGeometry);
+        Assert.Contains(extraction.Diagnostics, d => d.Code == "cylinder-cap-circular-geometry-deferred");
 
         var patch = new FacePatchDescriptor(top, [], [], FacePatchOrientationRole.Forward, "outer", []);
         var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);

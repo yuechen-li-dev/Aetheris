@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Cir;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.Execution;
 
 namespace Aetheris.Kernel.Firmament.Tests;
@@ -126,5 +127,69 @@ public sealed class FacePatchCandidateDryRunTests
 
         Assert.False(result.TopologyAssemblyImplemented);
         Assert.Contains(result.Diagnostics, d => d.Contains("topology-assembly-not-implemented", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RetainedLoopBinding_PlanarCylinder_RealPipeline_DefersWithoutRadiusEvidence()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = FacePatchCandidateGenerator.Generate(root);
+
+        var bound = result.Candidates
+            .Where(c => c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool)
+            .SelectMany(c => c.RetainedRegionLoops)
+            .Where(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.TrimCurveFamily == TrimCurveFamily.Circle && l.CircularGeometry is not null)
+            .Select(l => l.CircularGeometry!.Value)
+            .ToArray();
+
+        Assert.Empty(bound);
+        Assert.Contains(result.Candidates.SelectMany(c => c.RetainedRegionLoops).Select(l => l.Diagnostic), d => d.Contains("loop-special-case-ready", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void RetainedLoopBinding_PlanarCylinder_CreatesInnerCircleGeometry_WithManualRadiusEvidence()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, null, BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(-1, -1, 0), new Point3D(1, -1, 0), new Point3D(1, 1, 0), new Point3D(-1, 1, 0), new Vector3D(0, 0, 1)), Transform3D.Identity, "source", nameof(CirBoxNode), 1, FacePatchOrientationRole.Forward);
+        var opposite = new SourceSurfaceDescriptor(SurfacePatchFamily.Cylindrical, "radius:2", null, Transform3D.Identity, "tool", nameof(CirCylinderNode), 2, FacePatchOrientationRole.Forward);
+
+        var ok = RetainedLoopGeometryBinder.TryBindCircularLoop(source, opposite, TrimCurveFamily.Circle, RetainedRegionLoopStatus.SpecialCaseReady, isBase: true, out _, out var circular);
+
+        Assert.True(ok);
+        Assert.NotNull(circular);
+        Assert.Equal(2d, circular.Value.Radius, 9);
+        Assert.Equal(RetainedRegionLoopOrientationPolicy.ReverseForToolCavity, circular.Value.OrientationPolicy);
+    }
+
+    [Fact]
+    public void RetainedLoopBinding_RequiresPerpendicularPlaneCylinder()
+    {
+        var source = new SourceSurfaceDescriptor(
+            SurfacePatchFamily.Planar,
+            null,
+            BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(1, 1, 0), new Point3D(0, 1, 0), new Vector3D(0, 0, 1)),
+            Transform3D.Identity,
+            "source",
+            nameof(CirBoxNode),
+            1,
+            FacePatchOrientationRole.Forward);
+        var opposite = new SourceSurfaceDescriptor(SurfacePatchFamily.Cylindrical, null, null, Transform3D.CreateRotationX(Math.PI * 0.5d), "tool", nameof(CirCylinderNode), 2, FacePatchOrientationRole.Forward);
+
+        var ok = RetainedLoopGeometryBinder.TryBindCircularLoop(source, opposite, TrimCurveFamily.Circle, RetainedRegionLoopStatus.ExactReady, isBase: true, out var diagnostic, out var circular);
+
+        Assert.False(ok);
+        Assert.Null(circular);
+        Assert.Contains("requires plane normal parallel", diagnostic, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void RetainedLoopBinding_DoesNotBypassReadiness()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, null, BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(0, 0, 0), new Point3D(1, 0, 0), new Point3D(1, 1, 0), new Point3D(0, 1, 0), new Vector3D(0, 0, 1)), Transform3D.Identity, "source", nameof(CirBoxNode), 1, FacePatchOrientationRole.Forward);
+        var opposite = new SourceSurfaceDescriptor(SurfacePatchFamily.Cylindrical, null, null, Transform3D.Identity, "tool", nameof(CirCylinderNode), 2, FacePatchOrientationRole.Forward);
+
+        var ok = RetainedLoopGeometryBinder.TryBindCircularLoop(source, opposite, TrimCurveFamily.Circle, RetainedRegionLoopStatus.Deferred, isBase: true, out _, out var circular);
+
+        Assert.False(ok);
+        Assert.Null(circular);
     }
 }

@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Cir;
@@ -317,6 +318,16 @@ public sealed class SurfacePatchDescriptorScaffoldTests
             && c.SourceSurface.Family == SurfacePatchFamily.Planar
             && c.RetainedRegionLoops.Any(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null && l.Status == RetainedRegionLoopStatus.ExactReady));
         if (hasInner) Assert.Contains(result.Entries, e => e.IdentityMap is not null && e.IdentityMap.Entries.Any(x => x.Role == EmittedTopologyRole.InnerCircularTrim));
+    }
+
+
+    [Fact]
+    public void PlanarPatchSet_BoxMinusCylinder_NoInnerCircleTokenWhenNoRetainedCircleEvidence()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 12));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        Assert.DoesNotContain(result.Entries.SelectMany(e => e.IdentityMap?.Entries ?? []), e => e.Role == EmittedTopologyRole.InnerCircularTrim && e.TrimIdentityToken is not null);
+        Assert.Contains(result.Entries, e => e.Emitted && e.Diagnostics.Any(d => d.Contains("emitted-untrimmed-planar-patch", StringComparison.OrdinalIgnoreCase)));
     }
 
     [Fact]

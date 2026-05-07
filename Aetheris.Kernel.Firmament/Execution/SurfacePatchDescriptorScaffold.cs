@@ -307,7 +307,7 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         {
             if (candidate.RetentionRole != FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-candidate: retention role is not base-boundary retained outside tool."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, [$"skipped-candidate-role: retention role {candidate.RetentionRole} is not base-boundary retained outside tool."]));
                 continue;
             }
 
@@ -333,7 +333,7 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             {
                 if (candidate.SourceSurface.BoundedPlanarGeometry is not { Kind: BoundedPlanarPatchGeometryKind.Rectangle })
                 {
-                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-missing-rectangular-geometry: rectangular bounded planar geometry is required."]));
+                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-missing-rectangular-geometry: rectangular bounded planar geometry is required.", "skipped-missing-retained-circle-geometry: no exact-ready canonical retained circular loop geometry found for this candidate."]));
                     continue;
                 }
 
@@ -359,14 +359,14 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
 
             if (retainedCircles.Length > 1)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-multiple-inner-loops: multiple retained circular loops are unsupported in CIR-F10.8."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, [$"skipped-multiple-inner-loops: found {retainedCircles.Length} exact-ready retained circular loops; only one is supported in CIR-F10.8."]));
                 continue;
             }
 
             var normalizedTrimmedSource = candidate.SourceSurface;
             if (!PlanarPatchPayloadBuilder.TryBuildRectanglePayload(candidate.SourceSurface, out var trimmedPayload, out _))
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-missing-rectangular-geometry: bounded rectangular payload derivation failed for trimmed planar patch."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-missing-rectangular-geometry: bounded rectangular payload derivation failed for trimmed planar patch.", "skipped-inner-circle-evidence-unusable: canonical inner loop evidence existed, but rectangle payload normalization failed."]));
                 continue;
             }
 
@@ -379,7 +379,14 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             }
 
             emittedBodies.Add(emission.Body!);
-            entries.Add(new PlanarPatchSetEntry(candidate, emission, true, emission.IdentityMap, ["emitted-inner-circle-planar-patch: retained planar rectangle emitted with one canonical inner circular loop."]));
+            var innerTokenPresent = emission.IdentityMap?.Entries.Any(x => x.Role == EmittedTopologyRole.InnerCircularTrim && x.TrimIdentityToken is not null) == true;
+            entries.Add(new PlanarPatchSetEntry(candidate, emission, true, emission.IdentityMap,
+            [
+                "emitted-inner-circle-planar-patch: retained planar rectangle emitted with one canonical inner circular loop.",
+                innerTokenPresent
+                    ? "emitted-identity-token-attached: inner circular trim token attached on emitted planar topology."
+                    : "emitted-identity-token-missing: inner circular trim topology emitted but token evidence was unavailable."
+            ]));
         }
 
         var emittedCount = entries.Count(e => e.Emitted);

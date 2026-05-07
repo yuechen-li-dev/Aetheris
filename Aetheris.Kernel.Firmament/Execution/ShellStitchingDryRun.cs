@@ -14,8 +14,39 @@ internal enum StitchingOrientationCompatibility
 {
     Compatible,
     Incompatible,
-    Deferred
+    Deferred,
+    NotApplicable
 }
+
+internal enum SeamKind
+{
+    CylindricalSelfSeam,
+    NoSeamRequired,
+    SeamDeferred,
+    Unsupported
+}
+
+internal enum OrientationCompatibilityStatus
+{
+    Compatible,
+    Deferred,
+    Incompatible,
+    NotApplicable
+}
+
+internal sealed record SeamClosureEvidence(
+    string PatchKey,
+    SeamKind SeamKind,
+    ShellClosureReadiness Readiness,
+    string Evidence,
+    IReadOnlyList<string> Diagnostics);
+
+internal sealed record OrientationCompatibilityEvidence(
+    string PairKey,
+    OrientationCompatibilityStatus OrientationStatus,
+    ShellClosureReadiness Readiness,
+    string Evidence,
+    IReadOnlyList<string> Diagnostics);
 
 internal sealed record PlannedShellPatch(
     string SourceCandidateKey,
@@ -46,6 +77,8 @@ internal sealed record ShellStitchingDryRunResult(
     ShellClosureReadiness Readiness,
     IReadOnlyList<PlannedShellPatch> PlannedPatches,
     IReadOnlyList<PlannedShellEdgePair> PlannedPairs,
+    IReadOnlyList<SeamClosureEvidence> SeamClosureEvidence,
+    IReadOnlyList<OrientationCompatibilityEvidence> OrientationEvidence,
     IReadOnlyList<UnpairedBoundaryEvidence> UnpairedBoundaries,
     IReadOnlyList<string> Diagnostics,
     bool ShellAssemblyImplemented);
@@ -75,15 +108,19 @@ internal static class ShellStitchingDryRunPlanner
         };
 
         var patches = BuildPatches(planar, cylindricalCandidate, cylindricalEmission, diagnostics);
+        var seamEvidence = BuildSeamEvidence(patches, diagnostics);
         var pairs = BuildPairs(pairing, diagnostics);
-        var unpaired = BuildUnpaired(pairing, pairs, diagnostics);
+        var orientationEvidence = BuildOrientationEvidence(pairs, diagnostics);
+        var unpaired = BuildUnpaired(pairing, pairs, seamEvidence, diagnostics);
 
-        var readiness = ResolveReadiness(patches, pairs, unpaired);
+        var readiness = ResolveReadiness(patches, pairs, orientationEvidence, seamEvidence, unpaired);
         return new ShellStitchingDryRunResult(
             Success: patches.Count > 0,
             Readiness: readiness,
             PlannedPatches: patches,
             PlannedPairs: pairs,
+            SeamClosureEvidence: seamEvidence,
+            OrientationEvidence: orientationEvidence,
             UnpairedBoundaries: unpaired,
             Diagnostics: diagnostics.Distinct().ToArray(),
             ShellAssemblyImplemented: false);
@@ -128,6 +165,37 @@ internal static class ShellStitchingDryRunPlanner
         return patches.OrderBy(p => p.SourceCandidateKey, StringComparer.Ordinal).ToList();
     }
 
+
+    private static List<SeamClosureEvidence> BuildSeamEvidence(IReadOnlyList<PlannedShellPatch> patches, List<string> diagnostics)
+    {
+        var seam = new List<SeamClosureEvidence>();
+        foreach (var patch in patches.OrderBy(p => p.SourceCandidateKey, StringComparer.Ordinal))
+        {
+            if (patch.SurfaceFamily != SurfacePatchFamily.Cylindrical)
+            {
+                seam.Add(new SeamClosureEvidence(patch.SourceCandidateKey, SeamKind.NoSeamRequired, ShellClosureReadiness.NotApplicable,
+                    "seam-not-applicable: planar patches do not require cylindrical self-seam closure evidence.", []));
+                continue;
+            }
+
+            var hasConvention = patch.Diagnostics.Any(d => d.Contains("seam-convention-applied", StringComparison.OrdinalIgnoreCase));
+            if (hasConvention)
+            {
+                var evidence = "seam-self-closed: cylindrical patch reports side seam forward/reversed coedge convention.";
+                seam.Add(new SeamClosureEvidence(patch.SourceCandidateKey, SeamKind.CylindricalSelfSeam, ShellClosureReadiness.ReadyForAssemblyEvidence, evidence, [evidence]));
+                diagnostics.Add($"seam-accounted-self-closure: patch={patch.SourceCandidateKey}");
+            }
+            else
+            {
+                var evidence = "seam-closure-deferred-missing-metadata: cylindrical patch diagnostics did not expose seam forward/reversed convention evidence.";
+                seam.Add(new SeamClosureEvidence(patch.SourceCandidateKey, SeamKind.SeamDeferred, ShellClosureReadiness.Deferred, evidence, [evidence]));
+                diagnostics.Add($"seam-closure-deferred: patch={patch.SourceCandidateKey} missing seam convention evidence");
+            }
+        }
+
+        return seam;
+    }
+
     private static List<PlannedShellEdgePair> BuildPairs(TopologyPairingEvidenceResult pairing, List<string> diagnostics)
     {
         var pairs = new List<PlannedShellEdgePair>();
@@ -156,7 +224,37 @@ internal static class ShellStitchingDryRunPlanner
         return pairs;
     }
 
-    private static List<UnpairedBoundaryEvidence> BuildUnpaired(TopologyPairingEvidenceResult pairing, IReadOnlyList<PlannedShellEdgePair> pairs, List<string> diagnostics)
+
+    private static List<OrientationCompatibilityEvidence> BuildOrientationEvidence(IReadOnlyList<PlannedShellEdgePair> pairs, List<string> diagnostics)
+    {
+        var evidence = new List<OrientationCompatibilityEvidence>();
+        foreach (var pair in pairs.OrderBy(p => p.EdgeToken, StringComparer.Ordinal))
+        {
+            var status = pair.OrientationCompatibility switch
+            {
+                StitchingOrientationCompatibility.Compatible => OrientationCompatibilityStatus.Compatible,
+                StitchingOrientationCompatibility.Incompatible => OrientationCompatibilityStatus.Incompatible,
+                StitchingOrientationCompatibility.Deferred => OrientationCompatibilityStatus.Deferred,
+                _ => OrientationCompatibilityStatus.NotApplicable
+            };
+
+            var msg = status switch
+            {
+                OrientationCompatibilityStatus.Compatible => "orientation-compatible: paired planar/cylindrical circular boundaries expose complementary loop orientation policies.",
+                OrientationCompatibilityStatus.Incompatible => "orientation-incompatible: paired boundaries expose non-complementary orientation policies.",
+                OrientationCompatibilityStatus.Deferred => "orientation-deferred: pairing exists but orientation compatibility cannot be proven from current policy evidence.",
+                _ => "orientation-not-applicable"
+            };
+            evidence.Add(new OrientationCompatibilityEvidence(pair.EdgeToken, status,
+                status == OrientationCompatibilityStatus.Compatible ? ShellClosureReadiness.ReadyForAssemblyEvidence : ShellClosureReadiness.Deferred,
+                msg, [msg]));
+            diagnostics.Add($"orientation-{status.ToString().ToLowerInvariant()}: pair={pair.EdgeToken}");
+        }
+
+        return evidence;
+    }
+
+    private static List<UnpairedBoundaryEvidence> BuildUnpaired(TopologyPairingEvidenceResult pairing, IReadOnlyList<PlannedShellEdgePair> pairs, IReadOnlyList<SeamClosureEvidence> seamEvidence, List<string> diagnostics)
     {
         var pairedTokens = pairs.Select(p => p.EdgeToken).ToHashSet(StringComparer.Ordinal);
         var unpaired = new List<UnpairedBoundaryEvidence>();
@@ -165,6 +263,14 @@ internal static class ShellStitchingDryRunPlanner
             var token = edge.IdentityToken?.OrderingKey;
             if (token is not null && pairedTokens.Contains(token))
             {
+                continue;
+            }
+
+            var isCylindrical = edge.SourceSurfaceFamily == SurfacePatchFamily.Cylindrical;
+            var hasAccountedSeam = seamEvidence.Any(s => s.SeamKind == SeamKind.CylindricalSelfSeam);
+            if (isCylindrical && hasAccountedSeam)
+            {
+                diagnostics.Add($"unpaired-reclassified-expected-seam: patch={edge.SourceFaceKey} loop={edge.SourceLoopKey}");
                 continue;
             }
 
@@ -179,12 +285,14 @@ internal static class ShellStitchingDryRunPlanner
         return unpaired;
     }
 
-    private static ShellClosureReadiness ResolveReadiness(IReadOnlyList<PlannedShellPatch> patches, IReadOnlyList<PlannedShellEdgePair> pairs, IReadOnlyList<UnpairedBoundaryEvidence> unpaired)
+    private static ShellClosureReadiness ResolveReadiness(IReadOnlyList<PlannedShellPatch> patches, IReadOnlyList<PlannedShellEdgePair> pairs, IReadOnlyList<OrientationCompatibilityEvidence> orientation, IReadOnlyList<SeamClosureEvidence> seamEvidence, IReadOnlyList<UnpairedBoundaryEvidence> unpaired)
     {
         if (patches.Count == 0) return ShellClosureReadiness.NotApplicable;
         if (patches.Any(p => p.Readiness == ShellClosureReadiness.Unsupported)) return ShellClosureReadiness.Unsupported;
         if (unpaired.Count > 0) return ShellClosureReadiness.Deferred;
-        if (pairs.Count > 0 && pairs.All(p => p.OrientationCompatibility == StitchingOrientationCompatibility.Compatible))
+        if (seamEvidence.Any(s => s.Readiness is ShellClosureReadiness.Deferred or ShellClosureReadiness.Unsupported)) return ShellClosureReadiness.Deferred;
+        if (orientation.Any(o => o.OrientationStatus is OrientationCompatibilityStatus.Deferred or OrientationCompatibilityStatus.Incompatible)) return ShellClosureReadiness.Deferred;
+        if (pairs.Count > 0 && orientation.Count > 0 && orientation.All(o => o.OrientationStatus == OrientationCompatibilityStatus.Compatible))
         {
             return ShellClosureReadiness.ReadyForAssemblyEvidence;
         }

@@ -233,6 +233,58 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     }
 
     [Fact]
+    public void PlanarPatchSet_BoxMinusCylinder_EmitsSupportedPlanarPatches()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        Assert.True(result.Success);
+        Assert.True(result.EmittedCount > 0);
+        Assert.False(result.FullMaterialization);
+        Assert.Contains(result.Diagnostics, d => d.Contains("partial planar patch set", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.RemainingBlockers, d => d.Contains("cylindrical side surface emission", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarPatchSet_BoxMinusCylinder_IncludesInnerCirclePatchWhenEvidenceExists()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var generation = FacePatchCandidateGenerator.Generate(root);
+        var hasCanonicalInnerEvidence = generation.Candidates.Any(c =>
+            c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool
+            && c.SourceSurface.Family == SurfacePatchFamily.Planar
+            && c.RetainedRegionLoops.Any(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null && l.Status == RetainedRegionLoopStatus.ExactReady));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        if (hasCanonicalInnerEvidence)
+        {
+            Assert.Contains(result.Entries, e => e.Emitted && e.Emission?.Body?.Topology.Loops.Count() == 2);
+        }
+        else
+        {
+            Assert.DoesNotContain(result.Entries, e => e.Emitted && e.Emission?.Body?.Topology.Loops.Count() == 2);
+        }
+    }
+
+    [Fact]
+    public void PlanarPatchSet_SkipsCylindricalToolCandidate()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        Assert.Contains(result.Entries, e =>
+            !e.Emitted
+            && e.Candidate.SourceSurface.Family == SurfacePatchFamily.Cylindrical
+            && e.Diagnostics.Any(d => d.Contains("retention role", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void PlanarPatchSet_DoesNotClaimShellAssembly()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        Assert.False(result.FullMaterialization);
+        Assert.Contains(result.Diagnostics, d => d.Contains("no shell assembly attempted", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void PlanarPayloadBuilder_RejectsNonPlanarSource()
     {
         var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", null, null, Transform3D.Identity, "cir:sphere", nameof(CirSphereNode), 0, FacePatchOrientationRole.Forward);

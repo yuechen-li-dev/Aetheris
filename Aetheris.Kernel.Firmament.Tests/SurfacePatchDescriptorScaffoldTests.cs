@@ -132,6 +132,49 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     }
 
     [Fact]
+    public void PlanarSurfaceMaterializer_ReportsInnerCircularLoopPolicy()
+    {
+        var policy = PlanarSurfaceMaterializer.GetLoopEmissionPolicy();
+        Assert.True(policy.SupportsOuterRectangle);
+        Assert.True(policy.SupportsOuterCircle);
+        Assert.False(policy.SupportsInnerCircle);
+        Assert.False(policy.SupportsMultipleInnerLoops);
+        Assert.Equal(PlanarSurfaceMaterializer.PlanarLoopSupportStatus.Deferred, policy.Status);
+        Assert.Contains("inner circular loop emission deferred", policy.Diagnostic, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_TrimmedCircularInnerLoop_RespectsPolicy()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:-2,-2,0;2,-2,0;2,2,0;-2,2,0", null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var inner = new TrimCurveDescriptor(TrimCurveFamily.Circle, "inner-circle", "inner", 1, new ParameterInterval(0, 2 * double.Pi), TrimCurveCapability.ExactSupported);
+        var patch = new FacePatchDescriptor(source, [], [[inner]], FacePatchOrientationRole.Forward, "outer", []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+
+        var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
+
+        Assert.False(result.Success);
+        Assert.Null(result.Body);
+        Assert.Contains(result.Diagnostics, d => d.Contains("inner circular loop emission deferred", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_RejectsMultipleInnerLoops()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:-2,-2,0;2,-2,0;2,2,0;-2,2,0", null, Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var innerA = new TrimCurveDescriptor(TrimCurveFamily.Circle, "inner-circle-a", "inner", 1, new ParameterInterval(0, 2 * double.Pi), TrimCurveCapability.ExactSupported);
+        var innerB = new TrimCurveDescriptor(TrimCurveFamily.Circle, "inner-circle-b", "inner", 2, new ParameterInterval(0, 2 * double.Pi), TrimCurveCapability.ExactSupported);
+        var patch = new FacePatchDescriptor(source, [], [[innerA], [innerB]], FacePatchOrientationRole.Forward, "outer", []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+
+        var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
+
+        Assert.False(result.Success);
+        Assert.Null(result.Body);
+        Assert.Contains(result.Diagnostics, d => d.Contains("multiple inner loops", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void PlanarPayloadBuilder_RejectsNonPlanarSource()
     {
         var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", null, Transform3D.Identity, "cir:sphere", nameof(CirSphereNode), 0, FacePatchOrientationRole.Forward);

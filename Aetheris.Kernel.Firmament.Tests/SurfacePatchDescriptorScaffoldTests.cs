@@ -285,6 +285,62 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     }
 
     [Fact]
+    public void CylindricalSurfaceMaterializer_BoxMinusCylinder_ToolWall_FromRealEvidence_EmitsTopology()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var generation = FacePatchCandidateGenerator.Generate(root);
+        var candidate = generation.Candidates.Single(c =>
+            c.SourceSurface.Family == SurfacePatchFamily.Cylindrical
+            && c.RetentionRole == FacePatchRetentionRole.ToolBoundaryRetainedInsideBase);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new CylindricalSurfaceMaterializer().EmitRetainedWall(new(candidate, readiness));
+        Assert.True(result.Success);
+        Assert.NotNull(result.Body);
+        Assert.Single(result.Body!.Topology.Faces);
+        Assert.Single(result.Body.Bindings.FaceBindings);
+        var faceBinding = result.Body.Bindings.FaceBindings.Single();
+        Assert.True(result.Body.Geometry.TryGetSurface(faceBinding.SurfaceGeometryId, out var surface));
+        Assert.Equal(SurfaceGeometryKind.Cylinder, surface!.Kind);
+        Assert.Single(result.Body.Topology.Loops);
+        Assert.Equal(3, result.Body.Topology.Edges.Count());
+        Assert.Contains(result.Diagnostics, d => d.Contains("cylindrical-wall-emitted", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void CylindricalSurfaceMaterializer_RejectsDeferredReadiness()
+    {
+        var candidate = FacePatchCandidateGenerator.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)))
+            .Candidates.Single(c => c.SourceSurface.Family == SurfacePatchFamily.Cylindrical);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.Deferred, [EmissionBlockingReason.TopologyPlanning], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new CylindricalSurfaceMaterializer().EmitRetainedWall(new(candidate, readiness));
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Contains("readiness-gate-rejected", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void CylindricalSurfaceMaterializer_RejectsMissingCylindricalEvidence()
+    {
+        var candidate = FacePatchCandidateGenerator.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)))
+            .Candidates.Single(c => c.SourceSurface.Family == SurfacePatchFamily.Cylindrical);
+        candidate = candidate with { SourceSurface = candidate.SourceSurface with { CylindricalGeometryEvidence = null } };
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new CylindricalSurfaceMaterializer().EmitRetainedWall(new(candidate, readiness));
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Contains("cylindrical-evidence-missing", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void CylindricalSurfaceMaterializer_RejectsBaseSideOrNonCylindricalCandidate()
+    {
+        var candidate = FacePatchCandidateGenerator.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)))
+            .Candidates.First(c => c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new CylindricalSurfaceMaterializer().EmitRetainedWall(new(candidate, readiness));
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Contains("not cylindrical", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void PlanarPayloadBuilder_RejectsNonPlanarSource()
     {
         var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", null, null, Transform3D.Identity, "cir:sphere", nameof(CirSphereNode), 0, FacePatchOrientationRole.Forward);

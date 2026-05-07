@@ -285,6 +285,41 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     }
 
     [Fact]
+    public void EmittedIdentity_PlanarInnerCircle_CarriesTrimToken()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        var generation = FacePatchCandidateGenerator.Generate(root);
+        var hasInner = generation.Candidates.Any(c =>
+            c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool
+            && c.SourceSurface.Family == SurfacePatchFamily.Planar
+            && c.RetainedRegionLoops.Any(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null && l.Status == RetainedRegionLoopStatus.ExactReady));
+        var innerEntries = result.Entries.SelectMany(e => e.IdentityMap?.Entries ?? []).Where(e => e.Role == EmittedTopologyRole.InnerCircularTrim && e.Kind == EmittedTopologyKind.Edge).ToArray();
+        if (hasInner)
+        {
+            Assert.NotEmpty(innerEntries);
+            Assert.Contains(innerEntries, e => e.TrimIdentityToken is not null || e.Diagnostics.Any(d => d.Contains("missing", StringComparison.OrdinalIgnoreCase)));
+        }
+        else
+        {
+            Assert.Empty(innerEntries);
+        }
+    }
+
+    [Fact]
+    public void EmittedIdentity_PlanarPatchSet_PropagatesInnerCircleToken()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        var generation = FacePatchCandidateGenerator.Generate(root);
+        var hasInner = generation.Candidates.Any(c =>
+            c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool
+            && c.SourceSurface.Family == SurfacePatchFamily.Planar
+            && c.RetainedRegionLoops.Any(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null && l.Status == RetainedRegionLoopStatus.ExactReady));
+        if (hasInner) Assert.Contains(result.Entries, e => e.IdentityMap is not null && e.IdentityMap.Entries.Any(x => x.Role == EmittedTopologyRole.InnerCircularTrim));
+    }
+
+    [Fact]
     public void CylindricalSurfaceMaterializer_BoxMinusCylinder_ToolWall_FromRealEvidence_EmitsTopology()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
@@ -338,6 +373,30 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         var result = new CylindricalSurfaceMaterializer().EmitRetainedWall(new(candidate, readiness));
         Assert.False(result.Success);
         Assert.Contains(result.Diagnostics, d => d.Contains("not cylindrical", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void EmittedIdentity_CylindricalWall_CarriesBoundaryTokensOrPreciseDiagnostics()
+    {
+        var candidate = FacePatchCandidateGenerator.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)))
+            .Candidates.Single(c => c.SourceSurface.Family == SurfacePatchFamily.Cylindrical);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new CylindricalSurfaceMaterializer().EmitRetainedWall(new(candidate, readiness));
+        var entries = result.IdentityMap!.Entries;
+        Assert.Contains(entries, e => e.Role == EmittedTopologyRole.CylindricalTopBoundary);
+        Assert.Contains(entries, e => e.Role == EmittedTopologyRole.CylindricalBottomBoundary);
+        Assert.All(entries.Where(e => e.Role is EmittedTopologyRole.CylindricalTopBoundary or EmittedTopologyRole.CylindricalBottomBoundary),
+            e => Assert.True(e.TrimIdentityToken is not null || e.Diagnostics.Any(d => d.Contains("missing", StringComparison.OrdinalIgnoreCase))));
+    }
+
+    [Fact]
+    public void EmittedIdentity_CylindricalSeam_IsRoleTagged()
+    {
+        var candidate = FacePatchCandidateGenerator.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)))
+            .Candidates.Single(c => c.SourceSurface.Family == SurfacePatchFamily.Cylindrical);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new CylindricalSurfaceMaterializer().EmitRetainedWall(new(candidate, readiness));
+        Assert.Contains(result.IdentityMap!.Entries, e => e.Role == EmittedTopologyRole.CylindricalSeam && e.Kind == EmittedTopologyKind.Seam);
     }
 
     [Fact]

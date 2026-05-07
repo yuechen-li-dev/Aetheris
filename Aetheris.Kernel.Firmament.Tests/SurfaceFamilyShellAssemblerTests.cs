@@ -42,4 +42,22 @@ public sealed class SurfaceFamilyShellAssemblerTests
         Assert.True(result.PlanarPatchCount > 0);
         Assert.True(result.CylindricalPatchConsumed);
     }
+
+    [Fact]
+    public void ShellAssembler_CanSeeTokenMatchedEmittedTopologyCandidates()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 12));
+        var result = SurfaceFamilyShellAssembler.TryAssembleBoxMinusCylinder(root);
+        Assert.Contains(result.Diagnostics, d => d.Contains("token-match-candidates", StringComparison.OrdinalIgnoreCase));
+        Assert.False(result.FullShellAssembled);
+    }
+
+    [Fact]
+    public void EmittedIdentity_DoesNotExposeUserFacingTopologyNames()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 12));
+        var result = SurfaceFamilyShellAssembler.TryAssembleBoxMinusCylinder(root);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Contains("firmament selector", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Contains("user-facing topology names", StringComparison.OrdinalIgnoreCase));
+    }
 }

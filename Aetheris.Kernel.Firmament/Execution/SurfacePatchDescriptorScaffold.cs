@@ -54,6 +54,7 @@ internal sealed record SourceSurfaceDescriptor(
     SurfacePatchFamily Family,
     string? ParameterPayloadReference,
     BoundedPlanarPatchGeometry? BoundedPlanarGeometry,
+    CylindricalSurfaceGeometryEvidence? CylindricalGeometryEvidence,
     Transform3D Transform,
     string Provenance,
     string? OwningCirNodeKind,
@@ -82,6 +83,14 @@ internal readonly record struct BoundedPlanarPatchGeometry(
     internal static BoundedPlanarPatchGeometry CreateCircle(Point3D center, Vector3D normal, double radius)
         => new(BoundedPlanarPatchGeometryKind.Circle, Point3D.Origin, Point3D.Origin, Point3D.Origin, Point3D.Origin, center, normal, radius);
 }
+
+internal readonly record struct CylindricalSurfaceGeometryEvidence(
+    Point3D AxisOrigin,
+    Vector3D AxisDirection,
+    double Radius,
+    double Height,
+    Point3D BottomCenter,
+    Point3D TopCenter);
 
 internal sealed record TrimCurveDescriptor(
     TrimCurveFamily Family,

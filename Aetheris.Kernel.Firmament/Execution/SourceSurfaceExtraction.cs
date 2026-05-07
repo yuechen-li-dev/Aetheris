@@ -90,10 +90,10 @@ internal static class SourceSurfaceExtractor
                 AddCylinderDescriptors(cylinder, accumulated, descriptors, replayLog, diagnostics, nameof(CirCylinderNode));
                 return;
             case CirSphereNode:
-                descriptors.Add(CreateDescriptor(SurfacePatchFamily.Spherical, "sphere", null, accumulated, node, replayLog, FacePatchOrientationRole.Forward));
+                descriptors.Add(CreateDescriptor(SurfacePatchFamily.Spherical, "sphere", null, null, accumulated, node, replayLog, FacePatchOrientationRole.Forward));
                 return;
             case CirTorusNode:
-                descriptors.Add(CreateDescriptor(SurfacePatchFamily.Toroidal, "torus", null, accumulated, node, replayLog, FacePatchOrientationRole.Forward));
+                descriptors.Add(CreateDescriptor(SurfacePatchFamily.Toroidal, "torus", null, null, accumulated, node, replayLog, FacePatchOrientationRole.Forward));
                 diagnostics.Add(new("torus-materialization-deferred", "Toroidal source surface extracted; downstream materialization remains deferred."));
                 return;
             case CirSubtractNode subtract:
@@ -119,17 +119,23 @@ internal static class SourceSurfaceExtractor
         var hx = box.Width * 0.5d;
         var hy = box.Height * 0.5d;
         var hz = box.Depth * 0.5d;
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "top", CreateBoundedPatch(transform, new(-hx, -hy, hz), new(hx, -hy, hz), new(hx, hy, hz), new(-hx, hy, hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "bottom", CreateBoundedPatch(transform, new(-hx, hy, -hz), new(hx, hy, -hz), new(hx, -hy, -hz), new(-hx, -hy, -hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "left", CreateBoundedPatch(transform, new(-hx, -hy, -hz), new(-hx, hy, -hz), new(-hx, hy, hz), new(-hx, -hy, hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "right", CreateBoundedPatch(transform, new(hx, -hy, hz), new(hx, hy, hz), new(hx, hy, -hz), new(hx, -hy, -hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "front", CreateBoundedPatch(transform, new(-hx, hy, -hz), new(hx, hy, -hz), new(hx, hy, hz), new(-hx, hy, hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "back", CreateBoundedPatch(transform, new(-hx, -hy, hz), new(hx, -hy, hz), new(hx, -hy, -hz), new(-hx, -hy, -hz)), transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "top", CreateBoundedPatch(transform, new(-hx, -hy, hz), new(hx, -hy, hz), new(hx, hy, hz), new(-hx, hy, hz)), null, transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "bottom", CreateBoundedPatch(transform, new(-hx, hy, -hz), new(hx, hy, -hz), new(hx, -hy, -hz), new(-hx, -hy, -hz)), null, transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "left", CreateBoundedPatch(transform, new(-hx, -hy, -hz), new(-hx, hy, -hz), new(-hx, hy, hz), new(-hx, -hy, hz)), null, transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "right", CreateBoundedPatch(transform, new(hx, -hy, hz), new(hx, hy, hz), new(hx, hy, -hz), new(hx, -hy, -hz)), null, transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "front", CreateBoundedPatch(transform, new(-hx, hy, -hz), new(hx, hy, -hz), new(hx, hy, hz), new(-hx, hy, hz)), null, transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "back", CreateBoundedPatch(transform, new(-hx, -hy, hz), new(hx, -hy, hz), new(hx, -hy, -hz), new(-hx, -hy, -hz)), null, transform, CirNodeKind.Box, replayLog, FacePatchOrientationRole.Forward, owningKind));
     }
 
     private static void AddCylinderDescriptors(CirCylinderNode cylinder, Transform3D transform, List<SourceSurfaceDescriptor> descriptors, NativeGeometryReplayLog? replayLog, List<SourceSurfaceExtractionDiagnostic> diagnostics, string owningKind)
     {
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Cylindrical, "side", null, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        var sideEvidence = TryCreateCylindricalSideGeometryEvidence(cylinder, transform, out var sideDiagnostic);
+        if (sideDiagnostic is not null)
+        {
+            diagnostics.Add(sideDiagnostic);
+        }
+
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Cylindrical, "side", null, sideEvidence, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Forward, owningKind));
         var topCap = TryCreateCircularCapGeometry(cylinder, transform, isTopCap: true, out var topDiagnostic);
         var bottomCap = TryCreateCircularCapGeometry(cylinder, transform, isTopCap: false, out var bottomDiagnostic);
         if (topDiagnostic is not null)
@@ -142,8 +148,8 @@ internal static class SourceSurfaceExtractor
             diagnostics.Add(bottomDiagnostic);
         }
 
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-top", topCap, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Forward, owningKind));
-        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-bottom", bottomCap, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Reversed, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-top", topCap, null, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Forward, owningKind));
+        descriptors.Add(CreateDescriptor(SurfacePatchFamily.Planar, "cap-bottom", bottomCap, null, transform, CirNodeKind.Cylinder, replayLog, FacePatchOrientationRole.Reversed, owningKind));
     }
 
     
@@ -183,17 +189,45 @@ internal static class SourceSurfaceExtractor
         return BoundedPlanarPatchGeometry.CreateCircle(worldCenter, worldNormal, radiusX);
     }
 
-    private static SourceSurfaceDescriptor CreateDescriptor(SurfacePatchFamily family, string provenanceRole, BoundedPlanarPatchGeometry? boundedPlanarGeometry, Transform3D transform, CirNodeKind nodeKind, NativeGeometryReplayLog? replayLog, FacePatchOrientationRole orientation, string owningKind)
+    private static CylindricalSurfaceGeometryEvidence? TryCreateCylindricalSideGeometryEvidence(CirCylinderNode cylinder, Transform3D transform, out SourceSurfaceExtractionDiagnostic? diagnostic)
     {
-        var op = replayLog?.Operations.LastOrDefault();
-        var placementSuffix = op is null ? "" : $"|placement:{op.ResolvedPlacement.Kind}";
-        return new SourceSurfaceDescriptor(family, provenanceRole, boundedPlanarGeometry, transform, $"cir:{nodeKind.ToString().ToLowerInvariant()}:{provenanceRole}{placementSuffix}", owningKind, op?.OpIndex, orientation);
+        diagnostic = null;
+        var localBottom = new Point3D(0d, 0d, -cylinder.Height * 0.5d);
+        var localTop = new Point3D(0d, 0d, cylinder.Height * 0.5d);
+        var worldBottom = transform.Apply(localBottom);
+        var worldTop = transform.Apply(localTop);
+        var axis = worldTop - worldBottom;
+        var height = axis.Length;
+        if (height <= 1e-12d)
+        {
+            diagnostic = new("cylinder-side-geometry-deferred", "Cylinder side transformed to degenerate axis span; cylindrical geometry evidence omitted.");
+            return null;
+        }
+
+        var worldRadialX = transform.Apply(new Vector3D(cylinder.Radius, 0d, 0d));
+        var worldRadialY = transform.Apply(new Vector3D(0d, cylinder.Radius, 0d));
+        var radiusX = worldRadialX.Length;
+        var radiusY = worldRadialY.Length;
+        if (double.Abs(radiusX - radiusY) > 1e-9d)
+        {
+            diagnostic = new("cylinder-side-geometry-deferred", "Cylinder side transformed with non-uniform radial scaling/shear; canonical circular cylindrical evidence omitted.");
+            return null;
+        }
+
+        return new CylindricalSurfaceGeometryEvidence(worldBottom, axis, radiusX, height, worldBottom, worldTop);
     }
 
-    private static SourceSurfaceDescriptor CreateDescriptor(SurfacePatchFamily family, string provenanceRole, BoundedPlanarPatchGeometry? boundedPlanarGeometry, Transform3D transform, CirNode node, NativeGeometryReplayLog? replayLog, FacePatchOrientationRole orientation, string? owningKind = null)
+    private static SourceSurfaceDescriptor CreateDescriptor(SurfacePatchFamily family, string provenanceRole, BoundedPlanarPatchGeometry? boundedPlanarGeometry, CylindricalSurfaceGeometryEvidence? cylindricalGeometryEvidence, Transform3D transform, CirNodeKind nodeKind, NativeGeometryReplayLog? replayLog, FacePatchOrientationRole orientation, string owningKind)
     {
         var op = replayLog?.Operations.LastOrDefault();
         var placementSuffix = op is null ? "" : $"|placement:{op.ResolvedPlacement.Kind}";
-        return new SourceSurfaceDescriptor(family, provenanceRole, boundedPlanarGeometry, transform, $"cir:{node.Kind.ToString().ToLowerInvariant()}:{provenanceRole}{placementSuffix}", owningKind ?? node.GetType().Name, op?.OpIndex, orientation);
+        return new SourceSurfaceDescriptor(family, provenanceRole, boundedPlanarGeometry, cylindricalGeometryEvidence, transform, $"cir:{nodeKind.ToString().ToLowerInvariant()}:{provenanceRole}{placementSuffix}", owningKind, op?.OpIndex, orientation);
+    }
+
+    private static SourceSurfaceDescriptor CreateDescriptor(SurfacePatchFamily family, string provenanceRole, BoundedPlanarPatchGeometry? boundedPlanarGeometry, CylindricalSurfaceGeometryEvidence? cylindricalGeometryEvidence, Transform3D transform, CirNode node, NativeGeometryReplayLog? replayLog, FacePatchOrientationRole orientation, string? owningKind = null)
+    {
+        var op = replayLog?.Operations.LastOrDefault();
+        var placementSuffix = op is null ? "" : $"|placement:{op.ResolvedPlacement.Kind}";
+        return new SourceSurfaceDescriptor(family, provenanceRole, boundedPlanarGeometry, cylindricalGeometryEvidence, transform, $"cir:{node.Kind.ToString().ToLowerInvariant()}:{provenanceRole}{placementSuffix}", owningKind ?? node.GetType().Name, op?.OpIndex, orientation);
     }
 }

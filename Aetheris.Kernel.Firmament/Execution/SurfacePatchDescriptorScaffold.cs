@@ -188,11 +188,17 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         => new(
             SupportsOuterRectangle: true,
             SupportsOuterCircle: true,
-            SupportsInnerCircle: false,
+            SupportsInnerCircle: true,
             SupportsMultipleInnerLoops: false,
-            InnerLoopOrientation: InnerLoopOrientationPolicy.Deferred,
-            Status: PlanarLoopSupportStatus.Deferred,
-            Diagnostic: "PlanarSurfaceMaterializer inner circular loop emission deferred: trim-loop geometry descriptors do not yet carry canonical circle/topology bindings for safe inner-loop BRep emission.");
+            InnerLoopOrientation: InnerLoopOrientationPolicy.FollowFaceBoundConvention,
+            Status: PlanarLoopSupportStatus.Supported,
+            Diagnostic: "PlanarSurfaceMaterializer supports one rectangular outer loop plus one canonical retained inner circular loop.");
+
+    internal sealed record RectWithInnerCircleEmissionRequest(
+        SourceSurfaceDescriptor Source,
+        RetainedCircularLoopGeometry? InnerCircle,
+        IReadOnlyList<RetainedCircularLoopGeometry>? InnerCircles,
+        MaterializationReadinessReport Readiness);
 
     public SurfaceMaterializerAdmissibility Evaluate(FacePatchDescriptor patch)
     {
@@ -228,12 +234,7 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
                 ]);
             }
 
-            var policy = GetLoopEmissionPolicy();
-            return new(false, null, SurfacePatchFamily.Planar, false,
-            [
-                "planar-trimmed-loop-rejected: one outer loop + one inner circular loop requested.",
-                policy.Diagnostic
-            ]);
+            return new(false, null, SurfacePatchFamily.Planar, false, ["planar-trimmed-loop-rejected: use bounded rectangle-with-inner-circle emission path requiring canonical retained circular loop geometry evidence."]);
         }
 
         if (patch.OuterLoop.Count > 0)
@@ -255,6 +256,69 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         }
 
         return EmitRectangleBody(points!);
+    }
+
+    internal SurfaceMaterializationResult EmitRectangleWithInnerCircle(RectWithInnerCircleEmissionRequest request)
+    {
+        if (request.Readiness.OverallReadiness is EmissionReadiness.NotApplicable or EmissionReadiness.Deferred or EmissionReadiness.Unsupported)
+        {
+            return new(false, null, SurfacePatchFamily.Planar, false, ["readiness-gate-rejected: no readiness, no emission."]);
+        }
+
+        if (request.Source.BoundedPlanarGeometry is not { Kind: BoundedPlanarPatchGeometryKind.Rectangle } outer)
+        {
+            return new(false, null, SurfacePatchFamily.Planar, false, ["outer-rectangle-missing: bounded planar rectangle geometry is required."]);
+        }
+
+        var circles = request.InnerCircles ?? (request.InnerCircle is { } one ? [one] : []);
+        if (circles.Count == 0) return new(false, null, SurfacePatchFamily.Planar, false, ["inner-circle-missing: canonical retained circular loop geometry evidence is required."]);
+        if (circles.Count > 1) return new(false, null, SurfacePatchFamily.Planar, false, ["inner-circle-unsupported: multiple inner loops are unsupported in CIR-F10.7."]);
+
+        return EmitRectangleWithInnerCircleBody(outer, circles[0]);
+    }
+
+    private static SurfaceMaterializationResult EmitRectangleWithInnerCircleBody(BoundedPlanarPatchGeometry rect, RetainedCircularLoopGeometry inner)
+    {
+        var p = new[] { rect.Corner00, rect.Corner10, rect.Corner11, rect.Corner01 };
+        var builder = new TopologyBuilder();
+        var v = new[] { builder.AddVertex(), builder.AddVertex(), builder.AddVertex(), builder.AddVertex(), builder.AddVertex() };
+        var e = new[] { builder.AddEdge(v[0], v[1]), builder.AddEdge(v[1], v[2]), builder.AddEdge(v[2], v[3]), builder.AddEdge(v[3], v[0]), builder.AddEdge(v[4], v[4]) };
+
+        var outerLoopId = builder.AllocateLoopId();
+        var outerCoedgeIds = new[] { builder.AllocateCoedgeId(), builder.AllocateCoedgeId(), builder.AllocateCoedgeId(), builder.AllocateCoedgeId() };
+        for (var i = 0; i < 4; i++) builder.AddCoedge(new Coedge(outerCoedgeIds[i], e[i], outerLoopId, outerCoedgeIds[(i + 1) % 4], outerCoedgeIds[(i + 3) % 4], IsReversed: false));
+        builder.AddLoop(new Loop(outerLoopId, outerCoedgeIds));
+
+        var innerLoopId = builder.AllocateLoopId();
+        var innerCoedgeId = builder.AllocateCoedgeId();
+        builder.AddCoedge(new Coedge(innerCoedgeId, e[4], innerLoopId, innerCoedgeId, innerCoedgeId, IsReversed: true));
+        builder.AddLoop(new Loop(innerLoopId, [innerCoedgeId]));
+
+        var face = builder.AddFace([outerLoopId, innerLoopId]);
+        var shell = builder.AddShell([face]);
+        builder.AddBody([shell]);
+
+        var normal = Direction3D.Create(rect.Normal);
+        var xAxis = Direction3D.Create(p[1] - p[0]);
+        var geometry = new BrepGeometryStore();
+        geometry.AddCurve(new CurveGeometryId(1), CurveGeometry.FromLine(new Line3Curve(p[0], Direction3D.Create(p[1] - p[0]))));
+        geometry.AddCurve(new CurveGeometryId(2), CurveGeometry.FromLine(new Line3Curve(p[1], Direction3D.Create(p[2] - p[1]))));
+        geometry.AddCurve(new CurveGeometryId(3), CurveGeometry.FromLine(new Line3Curve(p[2], Direction3D.Create(p[3] - p[2]))));
+        geometry.AddCurve(new CurveGeometryId(4), CurveGeometry.FromLine(new Line3Curve(p[3], Direction3D.Create(p[0] - p[3]))));
+        geometry.AddCurve(new CurveGeometryId(5), CurveGeometry.FromCircle(new Circle3Curve(inner.Center, Direction3D.Create(inner.Normal), inner.Radius, BuildReferenceAxis(Direction3D.Create(inner.Normal)))));
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromPlane(new PlaneSurface(p[0], normal, xAxis)));
+
+        var bindings = new BrepBindingModel();
+        for (var i = 0; i < 4; i++) bindings.AddEdgeBinding(new EdgeGeometryBinding(e[i], new CurveGeometryId(i + 1), new ParameterInterval(0d, 1d)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(e[4], new CurveGeometryId(5), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(1)));
+        return new(true, new BrepBody(builder.Model, geometry, bindings), SurfacePatchFamily.Planar, true,
+        [
+            "inner-loop-emitted: one circular inner loop emitted from canonical retained loop geometry.",
+            "orientation-policy-applied: inner loop coedge orientation follows face-bound convention for cavity loops.",
+            "topology-emitted: planar trimmed face emitted as one face with outer rectangle then inner circle.",
+            "scope-note: full shell/solid assembly not attempted."
+        ]);
     }
 
     private static SurfaceMaterializationResult EmitRectangleBody(IReadOnlyList<Point3D> p)

@@ -1,6 +1,10 @@
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Judgment;
+using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Firmament.Execution;
 
@@ -136,7 +140,105 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
 
         return new(true, "admissible", 10d);
     }
+
+    internal SurfaceMaterializationResult Emit(FacePatchDescriptor patch, MaterializationReadinessReport readiness)
+    {
+        if (patch.SourceSurface.Family != SurfacePatchFamily.Planar)
+        {
+            return new(false, null, SurfacePatchFamily.Unsupported, false, ["unsupported-surface-family: PlanarSurfaceMaterializer only supports planar source patches."]);
+        }
+
+        if (readiness.OverallReadiness is EmissionReadiness.NotApplicable or EmissionReadiness.Deferred or EmissionReadiness.Unsupported)
+        {
+            return new(false, null, SurfacePatchFamily.Planar, false, ["readiness-gate-rejected: no readiness, no emission."]);
+        }
+
+        if (patch.InnerLoops.Count > 0 || patch.OuterLoop.Count > 0)
+        {
+            return new(false, null, SurfacePatchFamily.Planar, false, ["planar-f9-limited-scope: supports only rectangular untrimmed planar patches."]);
+        }
+
+        if (!TryParseRectanglePayload(patch.SourceSurface.ParameterPayloadReference, out var points, out var parseReason))
+        {
+            return new(false, null, SurfacePatchFamily.Planar, false, [$"planar-f9-payload-invalid: {parseReason}"]);
+        }
+
+        return EmitRectangleBody(points!);
+    }
+
+    private static SurfaceMaterializationResult EmitRectangleBody(IReadOnlyList<Point3D> p)
+    {
+        var builder = new TopologyBuilder();
+        var v = new[] { builder.AddVertex(), builder.AddVertex(), builder.AddVertex(), builder.AddVertex() };
+        var e = new[] { builder.AddEdge(v[0], v[1]), builder.AddEdge(v[1], v[2]), builder.AddEdge(v[2], v[3]), builder.AddEdge(v[3], v[0]) };
+        var loopId = builder.AllocateLoopId();
+        var coedgeIds = new[] { builder.AllocateCoedgeId(), builder.AllocateCoedgeId(), builder.AllocateCoedgeId(), builder.AllocateCoedgeId() };
+        for (var i = 0; i < 4; i++)
+        {
+            var next = coedgeIds[(i + 1) % 4];
+            var prev = coedgeIds[(i + 3) % 4];
+            builder.AddCoedge(new Coedge(coedgeIds[i], e[i], loopId, next, prev, IsReversed: false));
+        }
+
+        builder.AddLoop(new Loop(loopId, coedgeIds));
+        var face = builder.AddFace([loopId]);
+        var shell = builder.AddShell([face]);
+        builder.AddBody([shell]);
+
+        var geometry = new BrepGeometryStore();
+        geometry.AddCurve(new CurveGeometryId(1), CurveGeometry.FromLine(new Line3Curve(p[0], Direction3D.Create(p[1] - p[0]))));
+        geometry.AddCurve(new CurveGeometryId(2), CurveGeometry.FromLine(new Line3Curve(p[1], Direction3D.Create(p[2] - p[1]))));
+        geometry.AddCurve(new CurveGeometryId(3), CurveGeometry.FromLine(new Line3Curve(p[2], Direction3D.Create(p[3] - p[2]))));
+        geometry.AddCurve(new CurveGeometryId(4), CurveGeometry.FromLine(new Line3Curve(p[3], Direction3D.Create(p[0] - p[3]))));
+
+        var normal = Direction3D.Create((p[1] - p[0]).Cross(p[3] - p[0]));
+        var xAxis = Direction3D.Create(p[1] - p[0]);
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromPlane(new PlaneSurface(p[0], normal, xAxis)));
+
+        var bindings = new BrepBindingModel();
+        for (var i = 0; i < 4; i++) bindings.AddEdgeBinding(new EdgeGeometryBinding(e[i], new CurveGeometryId(i + 1), new ParameterInterval(0d, 1d)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(1)));
+
+        return new(true, new BrepBody(builder.Model, geometry, bindings), SurfacePatchFamily.Planar, true,
+            ["topology-emitted: planar rectangular patch emitted as a minimal single-face body."]);
+    }
+
+    private static bool TryParseRectanglePayload(string? payload, out IReadOnlyList<Point3D>? points, out string reason)
+    {
+        points = null;
+        reason = "missing rectangular payload.";
+        if (string.IsNullOrWhiteSpace(payload) || !payload.StartsWith("rect3d:", StringComparison.Ordinal)) return false;
+        var segments = payload[7..].Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (segments.Length != 4)
+        {
+            reason = "rect3d payload must contain exactly 4 points.";
+            return false;
+        }
+
+        var parsed = new List<Point3D>(4);
+        foreach (var segment in segments)
+        {
+            var xyz = segment.Split(',', StringSplitOptions.TrimEntries);
+            if (xyz.Length != 3 || !double.TryParse(xyz[0], out var x) || !double.TryParse(xyz[1], out var y) || !double.TryParse(xyz[2], out var z))
+            {
+                reason = "rect3d point values must be numeric x,y,z triples.";
+                return false;
+            }
+            parsed.Add(new Point3D(x, y, z));
+        }
+
+        points = parsed;
+        reason = "ok";
+        return true;
+    }
 }
+
+internal sealed record SurfaceMaterializationResult(
+    bool Success,
+    BrepBody? Body,
+    SurfacePatchFamily EmittedSurfaceFamily,
+    bool TopologyEmissionImplemented,
+    IReadOnlyList<string> Diagnostics);
 
 internal sealed class CylindricalSurfaceMaterializer : ISurfaceFamilyMaterializer
 {

@@ -44,10 +44,12 @@ public sealed class SurfaceFamilyShellAssemblerTests
     }
 
     [Fact]
-    public void ShellAssembler_CanSeeTokenMatchedEmittedTopologyCandidates()
+    public void ShellAssembler_SeesMatchingPlanarAndCylindricalEmittedTokens()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 12));
         var result = SurfaceFamilyShellAssembler.TryAssembleBoxMinusCylinder(root);
+        Assert.Contains(result.Diagnostics, d => d.Contains("planar-inner-circle-token", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("cylindrical-seam-role-tagged", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Diagnostics, d => d.Contains("token-match-candidates", StringComparison.OrdinalIgnoreCase));
         Assert.False(result.FullShellAssembled);
     }

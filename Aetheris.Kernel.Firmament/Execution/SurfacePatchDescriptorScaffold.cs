@@ -632,6 +632,10 @@ internal sealed record SurfaceMaterializationResult(
 
 internal sealed class CylindricalSurfaceMaterializer : ISurfaceFamilyMaterializer
 {
+    internal sealed record RetainedWallEmissionRequest(
+        FacePatchCandidate Candidate,
+        MaterializationReadinessReport Readiness);
+
     public SurfacePatchFamily Family => SurfacePatchFamily.Cylindrical;
     public string Name => "surface_family_cylindrical";
     public SurfaceMaterializerAdmissibility Evaluate(FacePatchDescriptor patch)
@@ -639,6 +643,115 @@ internal sealed class CylindricalSurfaceMaterializer : ISurfaceFamilyMaterialize
             && patch.OuterLoop.All(t => t.Capability == TrimCurveCapability.ExactSupported)
             ? new(true, "admissible", 9d)
             : new(false, "Requires cylindrical source and exact-supported trims.", 0d);
+
+    internal SurfaceMaterializationResult EmitRetainedWall(RetainedWallEmissionRequest request)
+    {
+        var candidate = request.Candidate;
+        if (request.Readiness.OverallReadiness is EmissionReadiness.NotApplicable or EmissionReadiness.Deferred or EmissionReadiness.Unsupported)
+        {
+            return new(false, null, SurfacePatchFamily.Cylindrical, false, ["readiness-gate-rejected: no readiness, no emission."]);
+        }
+
+        if (candidate.SourceSurface.Family != SurfacePatchFamily.Cylindrical)
+        {
+            return new(false, null, SurfacePatchFamily.Unsupported, false, ["candidate-rejected: source family is not cylindrical."]);
+        }
+
+        if (candidate.RetentionRole != FacePatchRetentionRole.ToolBoundaryRetainedInsideBase)
+        {
+            return new(false, null, SurfacePatchFamily.Cylindrical, false, ["candidate-rejected: candidate is not tool-side retained cylindrical patch."]);
+        }
+
+        if (candidate.SourceSurface.CylindricalGeometryEvidence is not { } evidence)
+        {
+            return new(false, null, SurfacePatchFamily.Cylindrical, false, ["cylindrical-evidence-missing: canonical cylindrical geometry evidence is required."]);
+        }
+
+        if (evidence.Radius <= 1e-12d || evidence.Height <= 1e-12d)
+        {
+            return new(false, null, SurfacePatchFamily.Cylindrical, false, ["cylindrical-span-missing: cylindrical radius/height evidence is degenerate."]);
+        }
+
+        var mouthLoops = candidate.RetainedRegionLoops
+            .Where(l => l.LoopKind == RetainedRegionLoopKind.MouthTrim && l.TrimCurveFamily == TrimCurveFamily.Circle)
+            .ToArray();
+        if (mouthLoops.Length == 0)
+        {
+            return new(false, null, SurfacePatchFamily.Cylindrical, false, ["cylindrical-loop-evidence-missing: required circular mouth-trim loop evidence is absent."]);
+        }
+
+        if (candidate.LoopReadiness is RetainedRegionLoopStatus.Deferred or RetainedRegionLoopStatus.Unsupported)
+        {
+            return new(false, null, SurfacePatchFamily.Cylindrical, false, [$"cylindrical-loop-readiness-rejected: loop readiness is {candidate.LoopReadiness}."]);
+        }
+
+        var axisDirection = evidence.AxisDirection;
+        if (axisDirection.Length <= 1e-12d)
+        {
+            return new(false, null, SurfacePatchFamily.Cylindrical, false, ["unsupported-transform-noncanonical: cylinder axis direction is degenerate."]);
+        }
+
+        var axis = Direction3D.Create(axisDirection);
+        var isCanonical = double.Abs(double.Abs(axis.ToVector().Dot(new Vector3D(0d, 0d, 1d))) - 1d) <= 1e-9d;
+        if (!isCanonical)
+        {
+            return new(false, null, SurfacePatchFamily.Cylindrical, false, ["unsupported-transform-noncanonical: bounded cylindrical wall emission currently supports translation-safe canonical axis only."]);
+        }
+
+        var builder = new TopologyBuilder();
+        var seamStart = builder.AddVertex();
+        var seamEnd = builder.AddVertex();
+        var topVertex = builder.AddVertex();
+        var bottomVertex = builder.AddVertex();
+        var seamEdge = builder.AddEdge(seamStart, seamEnd);
+        var topCircleEdge = builder.AddEdge(topVertex, topVertex);
+        var bottomCircleEdge = builder.AddEdge(bottomVertex, bottomVertex);
+        var loopId = builder.AllocateLoopId();
+        var coedgeIds = new[] { builder.AllocateCoedgeId(), builder.AllocateCoedgeId(), builder.AllocateCoedgeId(), builder.AllocateCoedgeId() };
+        builder.AddCoedge(new Coedge(coedgeIds[0], seamEdge, loopId, coedgeIds[1], coedgeIds[3], IsReversed: false));
+        builder.AddCoedge(new Coedge(coedgeIds[1], topCircleEdge, loopId, coedgeIds[2], coedgeIds[0], IsReversed: false));
+        builder.AddCoedge(new Coedge(coedgeIds[2], seamEdge, loopId, coedgeIds[3], coedgeIds[1], IsReversed: true));
+        builder.AddCoedge(new Coedge(coedgeIds[3], bottomCircleEdge, loopId, coedgeIds[0], coedgeIds[2], IsReversed: true));
+        builder.AddLoop(new Loop(loopId, coedgeIds));
+        var face = builder.AddFace([loopId]);
+        var shell = builder.AddShell([face]);
+        builder.AddBody([shell]);
+
+        var geometry = new BrepGeometryStore();
+        var topCenter = evidence.TopCenter;
+        var bottomCenter = evidence.BottomCenter;
+        var xAxis = BuildReferenceAxis(axis);
+        geometry.AddCurve(new CurveGeometryId(1), CurveGeometry.FromLine(new Line3Curve(new Point3D(bottomCenter.X + evidence.Radius, bottomCenter.Y, bottomCenter.Z), axis)));
+        geometry.AddCurve(new CurveGeometryId(2), CurveGeometry.FromCircle(new Circle3Curve(topCenter, axis, evidence.Radius, xAxis)));
+        geometry.AddCurve(new CurveGeometryId(3), CurveGeometry.FromCircle(new Circle3Curve(bottomCenter, axis, evidence.Radius, xAxis)));
+        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromCylinder(new CylinderSurface(bottomCenter, axis, evidence.Radius, xAxis)));
+        var bindings = new BrepBindingModel();
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(seamEdge, new CurveGeometryId(1), new ParameterInterval(0d, evidence.Height)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(topCircleEdge, new CurveGeometryId(2), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddEdgeBinding(new EdgeGeometryBinding(bottomCircleEdge, new CurveGeometryId(3), new ParameterInterval(0d, 2d * double.Pi)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(1)));
+
+        var body = new BrepBody(builder.Model, geometry, bindings);
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        if (!validation.IsSuccess)
+        {
+            return new(false, null, SurfacePatchFamily.Cylindrical, false, ["cylindrical-wall-emission-failed: emitted cylindrical wall topology failed BRep binding validation."]);
+        }
+        return new(true, body, SurfacePatchFamily.Cylindrical, true,
+        [
+            "cylindrical-wall-emitted: retained cylindrical wall patch emitted as one cylindrical face.",
+            "seam-convention-applied: side face uses cylinder primitive seam strategy (one seam edge used forward/reversed).",
+            "scope-note: full shell/solid assembly not attempted."
+        ]);
+    }
+
+    private static Direction3D BuildReferenceAxis(Direction3D normal)
+    {
+        var n = normal.ToVector();
+        var seed = double.Abs(n.Z) < 0.95d ? new Vector3D(0d, 0d, 1d) : new Vector3D(0d, 1d, 0d);
+        var projected = seed - (n * seed.Dot(n));
+        return Direction3D.TryCreate(projected, out var axis) ? axis : Direction3D.Create(new Vector3D(1d, 0d, 0d));
+    }
 }
 
 internal sealed class ConicalSurfaceMaterializer : ISurfaceFamilyMaterializer

@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Cir;
 using Aetheris.Kernel.Firmament.Execution;
 
 namespace Aetheris.Kernel.Firmament.Tests;
@@ -73,5 +74,60 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         Assert.True(eval.IsSuccess);
         Assert.Equal("surface_family_spherical", eval.Selected?.Name);
         Assert.Contains(eval.Rejections, r => r.CandidateName == "surface_family_planar" && r.Reason.Contains("mismatch", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_UntrimmedBoxFace_EmitsPlanarTopology()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:-1,-1,0;1,-1,0;1,1,0;-1,1,0", Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var patch = new FacePatchDescriptor(source, [], [], FacePatchOrientationRole.Forward, "outer", []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+
+        var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Body);
+        Assert.Single(result.Body!.Topology.Faces);
+        Assert.Single(result.Body.Topology.Loops);
+        Assert.Equal(4, result.Body.Topology.Edges.Count());
+        Assert.Equal(4, result.Body.Topology.Vertices.Count());
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_RejectsDeferredReadiness()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:0,0,0;1,0,0;1,1,0;0,1,0", Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var patch = new FacePatchDescriptor(source, [], [], FacePatchOrientationRole.Forward, "outer", []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.Deferred, [EmissionBlockingReason.TopologyPlanning], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+
+        var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
+        Assert.False(result.Success);
+        Assert.Null(result.Body);
+        Assert.Contains(result.Diagnostics, d => d.Contains("no readiness, no emission", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_RejectsNonPlanarPatch()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Spherical, "sphere", Transform3D.Identity, "cir:sphere", nameof(CirSphereNode), 0, FacePatchOrientationRole.Forward);
+        var patch = new FacePatchDescriptor(source, [], [], FacePatchOrientationRole.Forward, "outer", []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+
+        var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Contains("only supports planar", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_RejectsTrimmedCircularPatch()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "rect3d:0,0,0;1,0,0;1,1,0;0,1,0", Transform3D.Identity, "cir:box:face", nameof(CirBoxNode), 0, FacePatchOrientationRole.Forward);
+        var trim = new TrimCurveDescriptor(TrimCurveFamily.Circle, "circle", "outer", 0, new ParameterInterval(0, 2 * double.Pi), TrimCurveCapability.ExactSupported);
+        var patch = new FacePatchDescriptor(source, [trim], [], FacePatchOrientationRole.Forward, "outer", []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+
+        var result = new PlanarSurfaceMaterializer().Emit(patch, readiness);
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Contains("supports only rectangular untrimmed", StringComparison.OrdinalIgnoreCase));
     }
 }

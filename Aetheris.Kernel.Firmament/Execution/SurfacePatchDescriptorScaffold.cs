@@ -151,8 +151,39 @@ internal sealed record SurfaceFamilyMaterializerEvaluation(
 
 internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
 {
+    internal enum PlanarLoopSupportStatus
+    {
+        Supported,
+        Deferred
+    }
+
+    internal enum InnerLoopOrientationPolicy
+    {
+        FollowFaceBoundConvention,
+        Deferred
+    }
+
+    internal sealed record PlanarLoopEmissionPolicy(
+        bool SupportsOuterRectangle,
+        bool SupportsOuterCircle,
+        bool SupportsInnerCircle,
+        bool SupportsMultipleInnerLoops,
+        InnerLoopOrientationPolicy InnerLoopOrientation,
+        PlanarLoopSupportStatus Status,
+        string Diagnostic);
+
     public SurfacePatchFamily Family => SurfacePatchFamily.Planar;
     public string Name => "surface_family_planar";
+
+    internal static PlanarLoopEmissionPolicy GetLoopEmissionPolicy()
+        => new(
+            SupportsOuterRectangle: true,
+            SupportsOuterCircle: true,
+            SupportsInnerCircle: false,
+            SupportsMultipleInnerLoops: false,
+            InnerLoopOrientation: InnerLoopOrientationPolicy.Deferred,
+            Status: PlanarLoopSupportStatus.Deferred,
+            Diagnostic: "PlanarSurfaceMaterializer inner circular loop emission deferred: trim-loop geometry descriptors do not yet carry canonical circle/topology bindings for safe inner-loop BRep emission.");
 
     public SurfaceMaterializerAdmissibility Evaluate(FacePatchDescriptor patch)
     {
@@ -177,7 +208,26 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             return new(false, null, SurfacePatchFamily.Planar, false, ["readiness-gate-rejected: no readiness, no emission."]);
         }
 
-        if (patch.InnerLoops.Count > 0 || patch.OuterLoop.Count > 0)
+        if (patch.InnerLoops.Count > 0)
+        {
+            if (patch.InnerLoops.Count > 1)
+            {
+                return new(false, null, SurfacePatchFamily.Planar, false,
+                [
+                    "planar-trimmed-loop-rejected: multiple inner loops are unsupported in CIR-F10.4 scope.",
+                    "PlanarSurfaceMaterializer inner circular loop emission deferred: multiple inner loops are explicitly out of scope for bounded planar policy milestone."
+                ]);
+            }
+
+            var policy = GetLoopEmissionPolicy();
+            return new(false, null, SurfacePatchFamily.Planar, false,
+            [
+                "planar-trimmed-loop-rejected: one outer loop + one inner circular loop requested.",
+                policy.Diagnostic
+            ]);
+        }
+
+        if (patch.OuterLoop.Count > 0)
         {
             return new(false, null, SurfacePatchFamily.Planar, false, ["planar-f9-limited-scope: supports only rectangular untrimmed planar patches."]);
         }

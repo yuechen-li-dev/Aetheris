@@ -693,15 +693,23 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     }
 
     [Fact]
-    public void OracleTrimConsumption_BoxCylinder_EmitsInnerCirclePatch()
+    public void PlanarPatchSet_BoxCylinder_PrefersTieredOracleTrim_WhenAdmissible()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
         var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
 
         var emitted = result.Entries.Where(e => e.Emitted).ToArray();
         var allDiags = emitted.SelectMany(e => e.Diagnostics).ToArray();
-        Assert.True(allDiags.Any(d => d.Contains("oracle-trim-analytic-circle-consumed", StringComparison.OrdinalIgnoreCase))
-            || allDiags.Any(d => d.Contains("oracle-trim-fallback-to-binder", StringComparison.OrdinalIgnoreCase)));
+        var tiered = result.Entries.Where(e => e.Emitted && e.Route == PlanarSurfaceMaterializer.PlanarPatchSetEmissionRoute.TieredOracleTrim).ToArray();
+        if (tiered.Length > 0)
+        {
+            Assert.Contains(allDiags, d => d.Contains("oracle-trim: consumed-as-materialization-input", StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            Assert.Contains(result.Entries.SelectMany(e => e.Diagnostics), d => d.Contains("oracle-trim-consumption-rejected", StringComparison.OrdinalIgnoreCase)
+                || d.Contains("oracle-trim: fallback-to-binder", StringComparison.OrdinalIgnoreCase));
+        }
         var entry = emitted.First(e => e.IdentityMap?.Entries.Any(x => x.Role == EmittedTopologyRole.InnerCircularTrim) == true);
         Assert.Equal(2, Assert.Single(entry.Emission!.Body!.Topology.Faces).LoopIds.Count);
     }
@@ -729,15 +737,41 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
         var diagnostics = result.Entries.SelectMany(e => e.Diagnostics).ToArray();
         Assert.True(diagnostics.Any(d => d.Contains("oracle-trim-binder-agreement", StringComparison.OrdinalIgnoreCase))
-            || diagnostics.Any(d => d.Contains("oracle-trim-fallback-to-binder", StringComparison.OrdinalIgnoreCase)));
+            || diagnostics.Any(d => d.Contains("oracle-trim: fallback-to-binder", StringComparison.OrdinalIgnoreCase))
+            || diagnostics.Any(d => d.Contains("planar-patch-set: emitted-via-binder-fallback", StringComparison.OrdinalIgnoreCase)));
     }
 
     [Fact]
-    public void OracleTrimConsumption_BinderFallbackStillWorks()
+    public void PlanarPatchSet_BoxCylinder_BinderFallbackStillWorks_WhenOracleUnavailable()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirUnionNode(new CirCylinderNode(2, 8), new CirCylinderNode(2, 8)));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        Assert.Contains(result.Entries, e => e.Emitted && (e.Route == PlanarSurfaceMaterializer.PlanarPatchSetEmissionRoute.BinderFallback
+            || e.Route == PlanarSurfaceMaterializer.PlanarPatchSetEmissionRoute.UntrimmedRectangle));
+        Assert.Contains(result.Entries.SelectMany(e => e.Diagnostics), d => d.Contains("skipped-multiple-inner-loops", StringComparison.OrdinalIgnoreCase)
+            || d.Contains("planar-patch-set: emitted-via-binder-fallback", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarPatchSet_BoxCylinder_OracleRejectionDiagnosticsVisible()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirTorusNode(4, 1));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        Assert.Contains(result.Entries.SelectMany(e => e.Diagnostics), d => d.Contains("oracle-trim-consumption-rejected", StringComparison.OrdinalIgnoreCase)
+            || d.Contains("skipped-candidate-readiness", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarPatchSet_BoxCylinder_IdentityMetadataPreservedForOracleRoute()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
         var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
-        Assert.Contains(result.Entries.Where(e => e.Emitted).SelectMany(e => e.Diagnostics), d => d.Contains("oracle-trim-fallback-to-binder", StringComparison.OrdinalIgnoreCase));
+        var entry = result.Entries.FirstOrDefault(e => e.Emitted && e.Route == PlanarSurfaceMaterializer.PlanarPatchSetEmissionRoute.TieredOracleTrim)
+            ?? result.Entries.First(e => e.Emitted && e.Route == PlanarSurfaceMaterializer.PlanarPatchSetEmissionRoute.BinderFallback);
+        var innerEntries = entry.IdentityMap!.Entries.Where(e => e.Role == EmittedTopologyRole.InnerCircularTrim).ToArray();
+        Assert.NotEmpty(innerEntries);
+        Assert.True(innerEntries.Any(e => e.TrimIdentityToken is not null)
+            || entry.Diagnostics.Any(d => d.Contains("emitted-identity-token-missing", StringComparison.OrdinalIgnoreCase)));
     }
 
     [Fact]

@@ -324,14 +324,83 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             }
 
             var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
-            var retainedCircles = candidate.RetainedRegionLoops
+            var retainedLoops = candidate.RetainedRegionLoops
                 .Where(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim
-                    && l.CircularGeometry is not null
                     && (l.Status == RetainedRegionLoopStatus.ExactReady || l.Status == RetainedRegionLoopStatus.SpecialCaseReady))
-                .Select(l => l.CircularGeometry!.Value)
                 .ToArray();
+            var retainedCircles = retainedLoops.Where(l => l.CircularGeometry is not null).Select(l => l.CircularGeometry!.Value).ToArray();
+            var entryDiagnostics = new List<string>();
+            var oracleCircles = new List<RetainedCircularLoopGeometry>();
+            foreach (var loop in retainedLoops)
+            {
+                if (!loop.OracleTrimStrongEvidence)
+                {
+                    if (loop.OracleTrimRepresentation is not null)
+                    {
+                        entryDiagnostics.Add("oracle-trim-consumption-rejected: broad/deferred oracle evidence is not materialization-grade.");
+                    }
+
+                    continue;
+                }
+
+                if (loop.OracleTrimRoutingDiagnostic != "oracle-trim: selected-opposite-field-used")
+                {
+                    entryDiagnostics.Add("oracle-trim-consumption-rejected: selected-opposite-field routing confirmation missing.");
+                    continue;
+                }
+
+                var oracle = loop.OracleTrimRepresentation;
+                if (oracle is null)
+                {
+                    continue;
+                }
+
+                if (oracle.Kind != TieredTrimRepresentationKind.AnalyticCircle)
+                {
+                    entryDiagnostics.Add("oracle-trim-consumption-rejected: numerical-only/deferred oracle representation is not consumable.");
+                    continue;
+                }
+
+                if (!oracle.AcceptedInternalAnalyticCandidate || oracle.ExactStepExported || oracle.BRepTopologyEmitted)
+                {
+                    entryDiagnostics.Add("oracle-trim-consumption-rejected: strong oracle flags do not satisfy materialization constraints.");
+                    continue;
+                }
+
+                if (OracleTrimLoopGeometryConverter.TryConvertAnalyticCircle(candidate.SourceSurface, oracle, loop.CircularGeometry?.OrderingToken, out var converted, out var convertedDiagnostics))
+                {
+                    oracleCircles.Add(converted);
+                    entryDiagnostics.AddRange(convertedDiagnostics);
+                    entryDiagnostics.Add("oracle-trim-analytic-circle-consumed: converted analytic-circle evidence was admitted for inner-loop emission.");
+                }
+                else
+                {
+                    entryDiagnostics.AddRange(convertedDiagnostics);
+                    entryDiagnostics.Add("oracle-trim-consumption-rejected: uv-to-world conversion unsafe.");
+                }
+            }
+
+            if (retainedCircles.Length == 1 && oracleCircles.Count == 1)
+            {
+                var binder = retainedCircles[0];
+                var oracle = oracleCircles[0];
+                var centerDelta = (binder.Center - oracle.Center).Length;
+                var radiusDelta = Math.Abs(binder.Radius - oracle.Radius);
+                if (centerDelta <= 1e-4 && radiusDelta <= 1e-4)
+                {
+                    entryDiagnostics.Add("oracle-trim-binder-agreement: binder and oracle circles agree within tolerance.");
+                }
+                else
+                {
+                    entryDiagnostics.Add($"oracle-trim-binder-mismatch: centerDelta={centerDelta:G6} radiusDelta={radiusDelta:G6}; conservative skip applied.");
+                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, entryDiagnostics));
+                    continue;
+                }
+            }
+
+            var chosenCircles = oracleCircles.Count > 0 ? oracleCircles.ToArray() : retainedCircles;
             SurfaceMaterializationResult? emission = null;
-            if (retainedCircles.Length == 0)
+            if (chosenCircles.Length == 0)
             {
                 if (candidate.SourceSurface.BoundedPlanarGeometry is not { Kind: BoundedPlanarPatchGeometryKind.Rectangle })
                 {
@@ -359,9 +428,9 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
                 continue;
             }
 
-            if (retainedCircles.Length > 1)
+            if (chosenCircles.Length > 1)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, [$"skipped-multiple-inner-loops: found {retainedCircles.Length} exact-ready retained circular loops; only one is supported in CIR-F10.8."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, [$"skipped-multiple-inner-loops: found {chosenCircles.Length} exact-ready retained circular loops; only one is supported in CIR-F10.8."]));
                 continue;
             }
 
@@ -373,7 +442,7 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             }
 
             normalizedTrimmedSource = normalizedTrimmedSource with { ParameterPayloadReference = trimmedPayload };
-            emission = EmitRectangleWithInnerCircle(new RectWithInnerCircleEmissionRequest(normalizedTrimmedSource, retainedCircles[0], null, readiness));
+            emission = EmitRectangleWithInnerCircle(new RectWithInnerCircleEmissionRequest(normalizedTrimmedSource, chosenCircles[0], null, readiness));
             if (!emission.Success)
             {
                 entries.Add(new PlanarPatchSetEntry(candidate, emission, false, emission.IdentityMap, emission.Diagnostics));
@@ -384,6 +453,7 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             var innerTokenPresent = emission.IdentityMap?.Entries.Any(x => x.Role == EmittedTopologyRole.InnerCircularTrim && x.TrimIdentityToken is not null) == true;
             entries.Add(new PlanarPatchSetEntry(candidate, emission, true, emission.IdentityMap,
             [
+                ..entryDiagnostics,
                 "emitted-inner-circle-planar-patch: retained planar rectangle emitted with one canonical inner circular loop.",
                 innerTokenPresent
                     ? "emitted-identity-token-attached: inner circular trim token attached on emitted planar topology."

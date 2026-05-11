@@ -692,4 +692,73 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         Assert.Contains(result.Entries.SelectMany(e => e.Candidate.Diagnostics), d => d.Contains("trim-capability-deferred", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void OracleTrimConsumption_BoxCylinder_EmitsInnerCirclePatch()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+
+        var emitted = result.Entries.Where(e => e.Emitted).ToArray();
+        var allDiags = emitted.SelectMany(e => e.Diagnostics).ToArray();
+        Assert.True(allDiags.Any(d => d.Contains("oracle-trim-analytic-circle-consumed", StringComparison.OrdinalIgnoreCase))
+            || allDiags.Any(d => d.Contains("oracle-trim-fallback-to-binder", StringComparison.OrdinalIgnoreCase)));
+        var entry = emitted.First(e => e.IdentityMap?.Entries.Any(x => x.Role == EmittedTopologyRole.InnerCircularTrim) == true);
+        Assert.Equal(2, Assert.Single(entry.Emission!.Body!.Topology.Faces).LoopIds.Count);
+    }
+
+    [Fact]
+    public void OracleTrimConsumption_RequiresStrongEvidence()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirUnionNode(new CirCylinderNode(2, 8), new CirCylinderNode(2, 8)));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        Assert.DoesNotContain(result.Entries.SelectMany(e => e.Diagnostics), d => d.Contains("oracle-trim-analytic-circle-consumed", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void OracleTrimConsumption_RejectsNumericalOnly()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirTorusNode(4, 1));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        Assert.DoesNotContain(result.Entries.Where(e => e.Emitted).SelectMany(e => e.Diagnostics), d => d.Contains("oracle-trim-analytic-circle-consumed", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void OracleTrimConsumption_BinderOracleAgreementDiagnosed()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        var diagnostics = result.Entries.SelectMany(e => e.Diagnostics).ToArray();
+        Assert.True(diagnostics.Any(d => d.Contains("oracle-trim-binder-agreement", StringComparison.OrdinalIgnoreCase))
+            || diagnostics.Any(d => d.Contains("oracle-trim-fallback-to-binder", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void OracleTrimConsumption_BinderFallbackStillWorks()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        Assert.Contains(result.Entries.Where(e => e.Emitted).SelectMany(e => e.Diagnostics), d => d.Contains("oracle-trim-fallback-to-binder", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void OracleTrimConsumption_UvToWorldNonCircularRejected()
+    {
+        var source = new SourceSurfaceDescriptor(
+            SurfacePatchFamily.Planar,
+            "top",
+            BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(4,1,0), new Point3D(0,1,0), new Vector3D(0,0,1)),
+            null,
+            Transform3D.Identity,
+            "synthetic",
+            nameof(CirBoxNode),
+            null,
+            FacePatchOrientationRole.Forward);
+        var rep = new TieredTrimCurveRepresentation(TieredTrimRepresentationKind.AnalyticCircle, TieredTrimExportCapability.ElementaryCurveCandidate,
+            new AnalyticCircleTrimData(2, 0.5, 0.25, 0, 0, 16), null, null,
+            new TrimSurfaceIntersectionProvenance(null, null, null, null, [], null, RestrictedContourSnapRouteKind.AnalyticCircle, []), true, false, false, []);
+        var ok = OracleTrimLoopGeometryConverter.TryConvertAnalyticCircle(source, rep, "tok", out _, out var diagnostics);
+        Assert.False(ok);
+        Assert.Contains(diagnostics, d => d.Contains("non-uniform uv/world scale", StringComparison.OrdinalIgnoreCase));
+    }
+
 }

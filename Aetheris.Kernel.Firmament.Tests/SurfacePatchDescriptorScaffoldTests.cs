@@ -775,6 +775,34 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     }
 
     [Fact]
+    public void OracleAdmissibility_BoxCylinder_ExplainsCurrentPolicy()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var candidate = FacePatchCandidateGenerator.Generate(root).Candidates
+            .First(c => c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool && c.SourceSurface.Family == SurfacePatchFamily.Planar);
+        var loop = candidate.RetainedRegionLoops.First(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.OracleTrimRepresentation is not null);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+
+        var result = PlanarSurfaceMaterializer.OracleTrimMaterializationAdmissibility.Evaluate(candidate.SourceSurface, loop.OracleTrimRepresentation!, readiness, loop.CircularGeometry?.OrderingToken);
+        Assert.True(result.Admissible || result.Blocker != PlanarSurfaceMaterializer.OracleTrimMaterializationBlocker.None);
+    }
+
+    [Fact]
+    public void OracleAdmissibility_RejectsNumericalOnly()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "top",
+            BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(-3,-3,0), new Point3D(3,-3,0), new Point3D(3,3,0), new Point3D(-3,3,0), new Vector3D(0,0,1)),
+            null, Transform3D.Identity, "synthetic", nameof(CirBoxNode), null, FacePatchOrientationRole.Forward);
+        var num = new TieredTrimCurveRepresentation(TieredTrimRepresentationKind.NumericalOnly, TieredTrimExportCapability.NumericalOnlyNotExportable,
+            null, null, new NumericalTrimContourData(1, [], true, SurfaceTrimContourChainStatus.ClosedLoop, []),
+            new TrimSurfaceIntersectionProvenance(null, null, null, null, [], 1, RestrictedContourSnapRouteKind.NumericalOnly, []), false, false, false, []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = PlanarSurfaceMaterializer.OracleTrimMaterializationAdmissibility.Evaluate(source, num, readiness, "tok");
+        Assert.False(result.Admissible);
+        Assert.Equal(PlanarSurfaceMaterializer.OracleTrimMaterializationBlocker.NumericalOnly, result.Blocker);
+    }
+
+    [Fact]
     public void PlanarSurfaceMaterializer_TieredAnalyticCircle_EmitsInnerLoop()
     {
         var source = new SourceSurfaceDescriptor(
@@ -869,6 +897,39 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         var ok = OracleTrimLoopGeometryConverter.TryConvertAnalyticCircle(source, rep, "tok", out _, out var diagnostics);
         Assert.False(ok);
         Assert.Contains(diagnostics, d => d.Contains("non-uniform uv/world scale", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void OracleAdmissibility_RejectsNonUniformUvWorldScale()
+    {
+        var source = new SourceSurfaceDescriptor(
+            SurfacePatchFamily.Planar,
+            "top",
+            BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(0,0,0), new Point3D(4,0,0), new Point3D(4,1,0), new Point3D(0,1,0), new Vector3D(0,0,1)),
+            null, Transform3D.Identity, "synthetic", nameof(CirBoxNode), null, FacePatchOrientationRole.Forward);
+        var rep = new TieredTrimCurveRepresentation(TieredTrimRepresentationKind.AnalyticCircle, TieredTrimExportCapability.ElementaryCurveCandidate,
+            new AnalyticCircleTrimData(2, 0.5, 0.25, 0, 0, 16), null, null,
+            new TrimSurfaceIntersectionProvenance(null, null, null, null, [], null, RestrictedContourSnapRouteKind.AnalyticCircle, []), true, false, false, []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var emission = new PlanarSurfaceMaterializer().EmitRectangleWithTieredInnerCircle(new(source, rep, "tok", readiness));
+        Assert.False(emission.Success);
+        Assert.Contains(emission.Diagnostics, d => d.Contains("non-uniform", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void OracleAdmissibility_RejectsMissingIdentityIfRequired()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "top",
+            BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(-3,-3,0), new Point3D(3,-3,0), new Point3D(3,3,0), new Point3D(-3,3,0), new Vector3D(0,0,1)),
+            null, Transform3D.Identity, "synthetic", nameof(CirBoxNode), null, FacePatchOrientationRole.Forward);
+        var rep = new TieredTrimCurveRepresentation(TieredTrimRepresentationKind.AnalyticCircle, TieredTrimExportCapability.ElementaryCurveCandidate,
+            new AnalyticCircleTrimData(0, 0, 1, 0, 0, 8), null, null,
+            new TrimSurfaceIntersectionProvenance(null, null, null, null, [], null, RestrictedContourSnapRouteKind.AnalyticCircle, []), true, false, false, []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = PlanarSurfaceMaterializer.OracleTrimMaterializationAdmissibility.Evaluate(source, rep, readiness, null);
+        Assert.True(result.Admissible);
+        Assert.False(result.IdentityTokenSatisfied);
+        Assert.Contains(result.Diagnostics, d => d.Contains("identity-token-missing", StringComparison.OrdinalIgnoreCase));
     }
 
 }

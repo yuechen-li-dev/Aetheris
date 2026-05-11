@@ -7,6 +7,89 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class SurfaceRestrictedFieldTests
 {
     [Fact]
+    public void RestrictedFieldGrid_BoxFaceVsCylinder_HasMixedCells()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 20));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
+
+        var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(17, 17));
+        Assert.Equal(17 * 17, grid.Counts.SampleCount);
+        Assert.Equal(16 * 16, grid.Counts.CellCount);
+        Assert.True(grid.Counts.MixedCellCount > 0 || grid.Counts.BoundaryCellCount > 0);
+        Assert.True(grid.Counts.InsideCellCount > 0);
+        Assert.True(grid.Counts.OutsideCellCount > 0);
+        Assert.Contains("contour-extraction-not-implemented", grid.Diagnostics);
+    }
+
+    [Fact]
+    public void RestrictedFieldGrid_BoxFaceVsSphere_HasMixedCells()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
+
+        var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(17, 17));
+        Assert.True(grid.Counts.MixedCellCount > 0 || grid.Counts.BoundaryCellCount > 0);
+    }
+
+    [Fact]
+    public void RestrictedFieldGrid_BoxFaceVsTorus_SamplesAndReportsMixedOrDeferred()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(12, 12, 12), new CirTorusNode(4, 1));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
+
+        var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(17, 17));
+        Assert.Equal(17 * 17, grid.Counts.SampleCount);
+        Assert.True(grid.Counts.MixedCellCount >= 0);
+        Assert.Contains("export-materialization-unchanged", grid.Diagnostics);
+    }
+
+    [Fact]
+    public void RestrictedFieldGrid_DeterministicOrdering()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
+
+        var a = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(17, 17));
+        var b = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(17, 17));
+        Assert.Equal(a.Counts, b.Counts);
+        Assert.Equal(a.Samples.Select(s => (s.I, s.J, s.Sample.Value, s.Sample.SignClassification)), b.Samples.Select(s => (s.I, s.J, s.Sample.Value, s.Sample.SignClassification)));
+        Assert.Equal(a.Cells.Select(c => (c.CellI, c.CellJ, c.Classification)), b.Cells.Select(c => (c.CellI, c.CellJ, c.Classification)));
+    }
+
+    [Theory]
+    [InlineData(1, 17)]
+    [InlineData(17, 1)]
+    public void RestrictedFieldGrid_InvalidResolution_Rejected(int u, int v)
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(u, v)));
+    }
+
+    [Fact]
+    public void RestrictedFieldGrid_CellClassificationPolicy()
+    {
+        static RestrictedFieldGridSample Sample(int i, int j, RestrictedFieldSignClassification sign, double value = 1d)
+            => new(i, j, i, j, new RestrictedFieldSample(i, j, Point3D.Origin, value, sign, ["evaluation-available"]));
+
+        var inside = RestrictedFieldGridSampler.ClassifyCell([Sample(0,0,RestrictedFieldSignClassification.InsideOpposite,-1), Sample(1,0,RestrictedFieldSignClassification.InsideOpposite,-1), Sample(0,1,RestrictedFieldSignClassification.InsideOpposite,-1), Sample(1,1,RestrictedFieldSignClassification.InsideOpposite,-1)]);
+        var outside = RestrictedFieldGridSampler.ClassifyCell([Sample(0,0,RestrictedFieldSignClassification.OutsideOpposite,1), Sample(1,0,RestrictedFieldSignClassification.OutsideOpposite,1), Sample(0,1,RestrictedFieldSignClassification.OutsideOpposite,1), Sample(1,1,RestrictedFieldSignClassification.OutsideOpposite,1)]);
+        var mixed = RestrictedFieldGridSampler.ClassifyCell([Sample(0,0,RestrictedFieldSignClassification.InsideOpposite,-1), Sample(1,0,RestrictedFieldSignClassification.OutsideOpposite,1), Sample(0,1,RestrictedFieldSignClassification.InsideOpposite,-1), Sample(1,1,RestrictedFieldSignClassification.OutsideOpposite,1)]);
+        var boundary = RestrictedFieldGridSampler.ClassifyCell([Sample(0,0,RestrictedFieldSignClassification.Boundary,0), Sample(1,0,RestrictedFieldSignClassification.Boundary,0), Sample(0,1,RestrictedFieldSignClassification.Boundary,0), Sample(1,1,RestrictedFieldSignClassification.Boundary,0)]);
+
+        Assert.Equal(RestrictedFieldCellClassification.Inside, inside);
+        Assert.Equal(RestrictedFieldCellClassification.Outside, outside);
+        Assert.Equal(RestrictedFieldCellClassification.Mixed, mixed);
+        Assert.Equal(RestrictedFieldCellClassification.Boundary, boundary);
+    }
+
+    [Fact]
     public void RestrictedField_BoxFaceVsCylinder_EvaluatesDeterministically()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 20));

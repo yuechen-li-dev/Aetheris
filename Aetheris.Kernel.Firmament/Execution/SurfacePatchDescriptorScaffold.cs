@@ -632,9 +632,9 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         var identityEntries = new List<EmittedTopologyIdentityEntry>
         {
             new($"loop:{outerLoopId.Value}", EmittedTopologyKind.Loop, null, EmittedTopologyRole.OuterBoundary, "follow-face-boundary", ["outer boundary intentionally unmapped/internal-only."]),
-            new($"edge:{e[4].Value}", EmittedTopologyKind.Edge, innerToken, EmittedTopologyRole.InnerCircularTrim, "reverse-for-tool-cavity", [innerToken is null ? "inner circular trim token missing from retained loop evidence; token not fabricated." : "inner circular trim token attached from retained loop evidence."]),
-            new($"coedge:{innerCoedgeId.Value}", EmittedTopologyKind.Coedge, innerToken, EmittedTopologyRole.InnerCircularTrim, "reverse-for-tool-cavity", [innerToken is null ? "inner circular trim token missing from retained loop evidence; coedge left unmapped." : "inner circular trim token attached on emitted coedge."]),
-            new($"loop:{innerLoopId.Value}", EmittedTopologyKind.Loop, innerToken, EmittedTopologyRole.InnerCircularTrim, "reverse-for-tool-cavity", [innerToken is null ? "inner circular trim token missing from retained loop evidence; loop identity recorded without token." : "inner circular trim token attached on emitted inner loop."])
+            new($"edge:{e[4].Value}", EmittedTopologyKind.Edge, innerToken, EmittedTopologyRole.InnerCircularTrim, "reverse-for-tool-cavity", [innerToken is null ? "inner circular trim token missing from retained loop evidence; token not fabricated." : "inner circular trim token attached from retained loop evidence."], new EmittedTopologyReference("emitted:planar-inner-circle", $"edge:{e[4].Value}", face.Value.ToString(), innerLoopId.Value.ToString(), e[4].Value.ToString(), innerCoedgeId.Value.ToString(), v[4].Value.ToString(), ["topology-ref: planar-inner-circle attached", "topology-ref-face-id: attached", "topology-ref-loop-id: attached", "topology-ref-edge-id: attached", "topology-ref-coedge-id: attached"])),
+            new($"coedge:{innerCoedgeId.Value}", EmittedTopologyKind.Coedge, innerToken, EmittedTopologyRole.InnerCircularTrim, "reverse-for-tool-cavity", [innerToken is null ? "inner circular trim token missing from retained loop evidence; coedge left unmapped." : "inner circular trim token attached on emitted coedge."], new EmittedTopologyReference("emitted:planar-inner-circle", $"coedge:{innerCoedgeId.Value}", face.Value.ToString(), innerLoopId.Value.ToString(), e[4].Value.ToString(), innerCoedgeId.Value.ToString(), v[4].Value.ToString(), ["topology-ref: planar-inner-circle attached", "topology-ref-face-id: attached", "topology-ref-loop-id: attached", "topology-ref-edge-id: attached", "topology-ref-coedge-id: attached"])),
+            new($"loop:{innerLoopId.Value}", EmittedTopologyKind.Loop, innerToken, EmittedTopologyRole.InnerCircularTrim, "reverse-for-tool-cavity", [innerToken is null ? "inner circular trim token missing from retained loop evidence; loop identity recorded without token." : "inner circular trim token attached on emitted inner loop."], new EmittedTopologyReference("emitted:planar-inner-circle", $"loop:{innerLoopId.Value}", face.Value.ToString(), innerLoopId.Value.ToString(), e[4].Value.ToString(), innerCoedgeId.Value.ToString(), v[4].Value.ToString(), ["topology-ref: planar-inner-circle attached", "topology-ref-face-id: attached", "topology-ref-loop-id: attached", "topology-ref-edge-id: attached", "topology-ref-coedge-id: attached"]))
         };
         return new(true, new BrepBody(builder.Model, geometry, bindings), SurfacePatchFamily.Planar, true,
         [
@@ -860,6 +860,17 @@ internal sealed record EmittedTopologyIdentityEntry(
     InternalTrimIdentityToken? TrimIdentityToken,
     EmittedTopologyRole Role,
     string OrientationPolicy,
+    IReadOnlyList<string> Diagnostics,
+    EmittedTopologyReference? TopologyReference = null);
+
+internal sealed record EmittedTopologyReference(
+    string PatchKey,
+    string LocalTopologyKey,
+    string? FaceId,
+    string? LoopId,
+    string? EdgeId,
+    string? CoedgeId,
+    string? VertexId,
     IReadOnlyList<string> Diagnostics);
 
 internal sealed record EmittedTopologyIdentityMap(
@@ -986,9 +997,9 @@ internal sealed class CylindricalSurfaceMaterializer : ISurfaceFamilyMaterialize
         }
         var cylIdentity = new EmittedTopologyIdentityMap(
         [
-            new($"edge:{seamEdge.Value}", EmittedTopologyKind.Seam, null, EmittedTopologyRole.CylindricalSeam, "self-closure-forward-reverse", ["cylindrical seam role tagged for self-closure evidence."]),
-            new($"edge:{topCircleEdge.Value}", EmittedTopologyKind.Edge, topToken, EmittedTopologyRole.CylindricalTopBoundary, "follow-mouth-loop", [topToken is null ? "cylindrical top boundary token missing or ambiguous in retained loop evidence." : "cylindrical top boundary token attached from retained loop evidence."]),
-            new($"edge:{bottomCircleEdge.Value}", EmittedTopologyKind.Edge, bottomToken, EmittedTopologyRole.CylindricalBottomBoundary, "follow-mouth-loop", [bottomToken is null ? "cylindrical bottom boundary token missing or ambiguous in retained loop evidence." : "cylindrical bottom boundary token attached from retained loop evidence."])
+            new($"edge:{seamEdge.Value}", EmittedTopologyKind.Seam, null, EmittedTopologyRole.CylindricalSeam, "self-closure-forward-reverse", ["cylindrical seam role tagged for self-closure evidence."], new EmittedTopologyReference(candidate.SourceSurface.Provenance, $"edge:{seamEdge.Value}", face.Value.ToString(), loopId.Value.ToString(), seamEdge.Value.ToString(), coedgeIds[0].Value.ToString(), seamStart.Value.ToString(), ["topology-ref: cylindrical-seam attached", "topology-ref-face-id: attached", "topology-ref-loop-id: attached", "topology-ref-edge-id: attached", "topology-ref-coedge-id: attached"])),
+            new($"edge:{topCircleEdge.Value}", EmittedTopologyKind.Edge, topToken, EmittedTopologyRole.CylindricalTopBoundary, "follow-mouth-loop", [topToken is null ? "cylindrical top boundary token missing or ambiguous in retained loop evidence." : "cylindrical top boundary token attached from retained loop evidence."], new EmittedTopologyReference(candidate.SourceSurface.Provenance, $"edge:{topCircleEdge.Value}", face.Value.ToString(), loopId.Value.ToString(), topCircleEdge.Value.ToString(), coedgeIds[1].Value.ToString(), topVertex.Value.ToString(), ["topology-ref: cylindrical-boundary attached", "topology-ref-face-id: attached", "topology-ref-loop-id: attached", "topology-ref-edge-id: attached", "topology-ref-coedge-id: attached"])),
+            new($"edge:{bottomCircleEdge.Value}", EmittedTopologyKind.Edge, bottomToken, EmittedTopologyRole.CylindricalBottomBoundary, "follow-mouth-loop", [bottomToken is null ? "cylindrical bottom boundary token missing or ambiguous in retained loop evidence." : "cylindrical bottom boundary token attached from retained loop evidence."], new EmittedTopologyReference(candidate.SourceSurface.Provenance, $"edge:{bottomCircleEdge.Value}", face.Value.ToString(), loopId.Value.ToString(), bottomCircleEdge.Value.ToString(), coedgeIds[3].Value.ToString(), bottomVertex.Value.ToString(), ["topology-ref: cylindrical-boundary attached", "topology-ref-face-id: attached", "topology-ref-loop-id: attached", "topology-ref-edge-id: attached", "topology-ref-coedge-id: attached"]))
         ]);
         return new(true, body, SurfacePatchFamily.Cylindrical, true,
         [

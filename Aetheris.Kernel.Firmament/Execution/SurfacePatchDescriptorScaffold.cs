@@ -218,6 +218,12 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         IReadOnlyList<RetainedCircularLoopGeometry>? InnerCircles,
         MaterializationReadinessReport Readiness);
 
+    internal sealed record RectWithTieredInnerCircleEmissionRequest(
+        SourceSurfaceDescriptor Source,
+        TieredTrimCurveRepresentation InnerTrim,
+        string? OrderingToken,
+        MaterializationReadinessReport Readiness);
+
     public SurfaceMaterializerAdmissibility Evaluate(FacePatchDescriptor patch)
     {
         if (patch.SourceSurface.Family != SurfacePatchFamily.Planar) return new(false, "Source surface family mismatch.", 0d);
@@ -293,6 +299,65 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         if (circles.Count > 1) return new(false, null, SurfacePatchFamily.Planar, false, ["inner-circle-unsupported: multiple inner loops are unsupported in CIR-F10.7."]);
 
         return EmitRectangleWithInnerCircleBody(outer, circles[0]);
+    }
+
+
+    internal SurfaceMaterializationResult EmitRectangleWithTieredInnerCircle(RectWithTieredInnerCircleEmissionRequest request)
+    {
+        var diagnostics = new List<string>();
+
+        if (request.Readiness.OverallReadiness is EmissionReadiness.NotApplicable or EmissionReadiness.Deferred or EmissionReadiness.Unsupported)
+        {
+            return new(false, null, SurfacePatchFamily.Planar, false, ["readiness-gate-rejected: no readiness, no emission.", "tiered-trim-consumption-rejected: readiness is not evidence-ready for BRep planar inner-loop emission."]);
+        }
+
+        var trim = request.InnerTrim;
+        if (trim.Kind != TieredTrimRepresentationKind.AnalyticCircle)
+        {
+            return new(false, null, SurfacePatchFamily.Planar, false, ["tiered-trim-consumption-rejected: wrong representation kind; analytic-circle is required for bounded planar inner-loop emission."]);
+        }
+
+        if (!trim.AcceptedInternalAnalyticCandidate)
+        {
+            return new(false, null, SurfacePatchFamily.Planar, false, ["tiered-trim-consumption-rejected: analytic candidate was not accepted internally."]);
+        }
+
+        if (trim.Circle is null)
+        {
+            return new(false, null, SurfacePatchFamily.Planar, false, ["tiered-trim-consumption-rejected: analytic-circle payload missing."]);
+        }
+
+        if (trim.ExactStepExported || trim.BRepTopologyEmitted)
+        {
+            return new(false, null, SurfacePatchFamily.Planar, false, ["tiered-trim-consumption-rejected: representation flags violate bounded intake contract (step/topology already emitted)."]);
+        }
+
+        if (trim.Kind is TieredTrimRepresentationKind.NumericalOnly or TieredTrimRepresentationKind.Deferred or TieredTrimRepresentationKind.Unsupported)
+        {
+            return new(false, null, SurfacePatchFamily.Planar, false, ["tiered-trim-consumption-rejected: numerical-only/deferred/unsupported tiered trim is not materialization-grade for this path."]);
+        }
+
+        diagnostics.Add("tiered-trim-analytic-circle-admitted: admissibility constraints satisfied for bounded planar inner-loop emission.");
+
+        if (!OracleTrimLoopGeometryConverter.TryConvertAnalyticCircle(request.Source, trim, request.OrderingToken, out var converted, out var conversionDiagnostics))
+        {
+            diagnostics.AddRange(conversionDiagnostics);
+            if (conversionDiagnostics.Any(d => d.Contains("non-uniform uv/world scale", StringComparison.OrdinalIgnoreCase)))
+            {
+                diagnostics.Add("tiered-trim-consumption-rejected: uv-to-world conversion rejected due non-uniform scale.");
+            }
+
+            return new(false, null, SurfacePatchFamily.Planar, false, diagnostics);
+        }
+
+        diagnostics.AddRange(conversionDiagnostics);
+        diagnostics.Add("tiered-trim-uv-world-conversion-succeeded: retained circular loop geometry produced from tiered trim.");
+
+        var emission = EmitRectangleWithInnerCircle(new RectWithInnerCircleEmissionRequest(request.Source, converted, null, request.Readiness));
+        diagnostics.Add("tiered-trim-planar-emission-route: existing rectangle-with-inner-circle topology path invoked.");
+        diagnostics.Add("scope-note: no shell assembly attempted.");
+        diagnostics.Add("scope-note: no STEP export performed.");
+        return emission with { Diagnostics = emission.Diagnostics.Concat(diagnostics).Distinct().ToArray() };
     }
 
     internal PlanarPatchSetMaterializationResult EmitSupportedPlanarPatches(CirNode root, NativeGeometryReplayLog? replayLog = null)

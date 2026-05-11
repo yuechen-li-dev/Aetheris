@@ -166,6 +166,7 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         SurfaceMaterializationResult? Emission,
         bool Emitted,
         EmittedTopologyIdentityMap? IdentityMap,
+        PlanarPatchSetEmissionRoute Route,
         IReadOnlyList<string> Diagnostics);
 
     internal sealed record PlanarPatchSetMaterializationResult(
@@ -177,6 +178,14 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         IReadOnlyList<PlanarPatchSetEntry> Entries,
         IReadOnlyList<string> RemainingBlockers,
         IReadOnlyList<string> Diagnostics);
+
+    internal enum PlanarPatchSetEmissionRoute
+    {
+        TieredOracleTrim,
+        BinderFallback,
+        UntrimmedRectangle,
+        Skipped
+    }
 
     internal enum PlanarLoopSupportStatus
     {
@@ -372,19 +381,19 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         {
             if (candidate.RetentionRole != FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, [$"skipped-candidate-role: retention role {candidate.RetentionRole} is not base-boundary retained outside tool."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, PlanarPatchSetEmissionRoute.Skipped, [$"skipped-candidate-role: retention role {candidate.RetentionRole} is not base-boundary retained outside tool."]));
                 continue;
             }
 
             if (candidate.SourceSurface.Family != SurfacePatchFamily.Planar)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-non-planar-candidate: planar patch set emitter supports planar family only."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, PlanarPatchSetEmissionRoute.Skipped, ["skipped-non-planar-candidate: planar patch set emitter supports planar family only."]));
                 continue;
             }
 
             if (candidate.Readiness is FacePatchCandidateReadiness.RetentionDeferred or FacePatchCandidateReadiness.TrimDeferred or FacePatchCandidateReadiness.Unsupported)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, [$"skipped-candidate-readiness: {candidate.Readiness}."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, PlanarPatchSetEmissionRoute.Skipped, [$"skipped-candidate-readiness: {candidate.Readiness}."]));
                 continue;
             }
 
@@ -460,25 +469,26 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
                 else
                 {
                     entryDiagnostics.Add($"oracle-trim-binder-mismatch: centerDelta={centerDelta:G6} radiusDelta={radiusDelta:G6}; conservative skip applied.");
-                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, entryDiagnostics));
+                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, PlanarPatchSetEmissionRoute.Skipped, entryDiagnostics));
                     continue;
                 }
             }
 
-            var chosenCircles = oracleCircles.Count > 0 ? oracleCircles.ToArray() : retainedCircles;
-            if (oracleCandidateLoops.Any() && oracleCircles.Count == 0 && retainedCircles.Length > 0) entryDiagnostics.Add("oracle-trim-fallback-to-binder: oracle evidence unavailable/rejected; using binder-derived retained circular geometry.");
+            var chosenCircles = retainedCircles;
+            var route = PlanarPatchSetEmissionRoute.BinderFallback;
+            if (oracleCandidateLoops.Any() && oracleCircles.Count == 0 && retainedCircles.Length > 0) entryDiagnostics.Add("oracle-trim: fallback-to-binder:oracle-unavailable-or-rejected");
             SurfaceMaterializationResult? emission = null;
             if (chosenCircles.Length == 0)
             {
                 if (candidate.SourceSurface.BoundedPlanarGeometry is not { Kind: BoundedPlanarPatchGeometryKind.Rectangle })
                 {
-                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-missing-rectangular-geometry: rectangular bounded planar geometry is required.", "skipped-missing-retained-circle-geometry: no exact-ready/special-case-ready canonical retained circular loop geometry found for this candidate."]));
+                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, PlanarPatchSetEmissionRoute.Skipped, ["skipped-missing-rectangular-geometry: rectangular bounded planar geometry is required.", "skipped-missing-retained-circle-geometry: no exact-ready/special-case-ready canonical retained circular loop geometry found for this candidate."]));
                     continue;
                 }
 
                 if (!PlanarPatchPayloadBuilder.TryBuildRectanglePayload(candidate.SourceSurface, out var rectanglePayload, out var payloadDiagnostic))
                 {
-                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, [$"skipped-missing-rectangular-geometry: {payloadDiagnostic}"]));
+                    entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, PlanarPatchSetEmissionRoute.Skipped, [$"skipped-missing-rectangular-geometry: {payloadDiagnostic}"]));
                     continue;
                 }
 
@@ -487,39 +497,62 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
                 emission = Emit(normalizedPatch, readiness);
                 if (!emission.Success)
                 {
-                    entries.Add(new PlanarPatchSetEntry(candidate, emission, false, emission.IdentityMap, emission.Diagnostics));
+                    entries.Add(new PlanarPatchSetEntry(candidate, emission, false, emission.IdentityMap, PlanarPatchSetEmissionRoute.Skipped, emission.Diagnostics));
                     continue;
                 }
 
                 emittedBodies.Add(emission.Body!);
-                entries.Add(new PlanarPatchSetEntry(candidate, emission, true, emission.IdentityMap, ["emitted-untrimmed-planar-patch: retained planar rectangle emitted without inner loops."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, emission, true, emission.IdentityMap, PlanarPatchSetEmissionRoute.UntrimmedRectangle, ["emitted-untrimmed-planar-patch: retained planar rectangle emitted without inner loops."]));
                 continue;
             }
 
             if (chosenCircles.Length > 1)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, [$"skipped-multiple-inner-loops: found {chosenCircles.Length} exact-ready retained circular loops; only one is supported in CIR-F10.8."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, PlanarPatchSetEmissionRoute.Skipped, [$"skipped-multiple-inner-loops: found {chosenCircles.Length} exact-ready retained circular loops; only one is supported in CIR-F10.8."]));
                 continue;
             }
 
             var normalizedTrimmedSource = candidate.SourceSurface;
             if (!PlanarPatchPayloadBuilder.TryBuildRectanglePayload(candidate.SourceSurface, out var trimmedPayload, out _))
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, ["skipped-missing-rectangular-geometry: bounded rectangular payload derivation failed for trimmed planar patch.", "skipped-inner-circle-evidence-unusable: canonical inner loop evidence existed, but rectangle payload normalization failed."]));
+                entries.Add(new PlanarPatchSetEntry(candidate, null, false, null, PlanarPatchSetEmissionRoute.Skipped, ["skipped-missing-rectangular-geometry: bounded rectangular payload derivation failed for trimmed planar patch.", "skipped-inner-circle-evidence-unusable: canonical inner loop evidence existed, but rectangle payload normalization failed."]));
                 continue;
             }
 
             normalizedTrimmedSource = normalizedTrimmedSource with { ParameterPayloadReference = trimmedPayload };
-            emission = EmitRectangleWithInnerCircle(new RectWithInnerCircleEmissionRequest(normalizedTrimmedSource, chosenCircles[0], null, readiness));
+            if (oracleCircles.Count == 1)
+            {
+                var oracleLoop = oracleCandidateLoops.First(l => l.OracleTrimStrongEvidence && l.OracleTrimRepresentation is not null);
+                emission = EmitRectangleWithTieredInnerCircle(new RectWithTieredInnerCircleEmissionRequest(normalizedTrimmedSource, oracleLoop.OracleTrimRepresentation!, oracleLoop.CircularGeometry?.OrderingToken, readiness));
+                if (emission.Success)
+                {
+                    route = PlanarPatchSetEmissionRoute.TieredOracleTrim;
+                    entryDiagnostics.Add("planar-patch-set: emitted-via-tiered-oracle-trim");
+                    entryDiagnostics.Add("oracle-trim: consumed-as-materialization-input");
+                }
+                else
+                {
+                    entryDiagnostics.AddRange(emission.Diagnostics.Select(d => $"oracle-trim-route-diagnostic: {d}"));
+                    entryDiagnostics.Add("oracle-trim: fallback-to-binder:oracle-emission-rejected");
+                    emission = null;
+                }
+            }
+
+            if (emission is null)
+            {
+                emission = EmitRectangleWithInnerCircle(new RectWithInnerCircleEmissionRequest(normalizedTrimmedSource, chosenCircles[0], null, readiness));
+                route = PlanarPatchSetEmissionRoute.BinderFallback;
+                entryDiagnostics.Add("planar-patch-set: emitted-via-binder-fallback");
+            }
             if (!emission.Success)
             {
-                entries.Add(new PlanarPatchSetEntry(candidate, emission, false, emission.IdentityMap, emission.Diagnostics));
+                entries.Add(new PlanarPatchSetEntry(candidate, emission, false, emission.IdentityMap, PlanarPatchSetEmissionRoute.Skipped, emission.Diagnostics));
                 continue;
             }
 
             emittedBodies.Add(emission.Body!);
             var innerTokenPresent = emission.IdentityMap?.Entries.Any(x => x.Role == EmittedTopologyRole.InnerCircularTrim && x.TrimIdentityToken is not null) == true;
-            entries.Add(new PlanarPatchSetEntry(candidate, emission, true, emission.IdentityMap,
+            entries.Add(new PlanarPatchSetEntry(candidate, emission, true, emission.IdentityMap, route,
             [
                 ..entryDiagnostics,
                 "emitted-inner-circle-planar-patch: retained planar rectangle emitted with one canonical inner circular loop.",

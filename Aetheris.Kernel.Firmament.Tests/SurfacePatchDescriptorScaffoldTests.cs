@@ -741,6 +741,82 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     }
 
     [Fact]
+    public void PlanarSurfaceMaterializer_TieredAnalyticCircle_EmitsInnerLoop()
+    {
+        var source = new SourceSurfaceDescriptor(
+            SurfacePatchFamily.Planar,
+            "top",
+            BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(-5,-5,0), new Point3D(5,-5,0), new Point3D(5,5,0), new Point3D(-5,5,0), new Vector3D(0,0,1)),
+            null,
+            Transform3D.Identity,
+            "synthetic",
+            nameof(CirBoxNode),
+            null,
+            FacePatchOrientationRole.Forward);
+        var rep = new TieredTrimCurveRepresentation(TieredTrimRepresentationKind.AnalyticCircle, TieredTrimExportCapability.ElementaryCurveCandidate,
+            new AnalyticCircleTrimData(0, 0, 2, 0, 0, 16), null, null,
+            new TrimSurfaceIntersectionProvenance(null, null, null, null, [], null, RestrictedContourSnapRouteKind.AnalyticCircle, []), true, false, false, []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+
+        var result = new PlanarSurfaceMaterializer().EmitRectangleWithTieredInnerCircle(new(source, rep, "tiered-token", readiness));
+        Assert.True(result.Success);
+        Assert.NotNull(result.Body);
+        var face = Assert.Single(result.Body!.Topology.Faces);
+        Assert.Equal(2, face.LoopIds.Count);
+        Assert.Contains(result.Diagnostics, d => d.Contains("tiered-trim-analytic-circle-admitted", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("tiered-trim-planar-emission-route", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("no shell assembly attempted", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("no STEP export performed", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.IdentityMap!.Entries, e => e.Role == EmittedTopologyRole.InnerCircularTrim && e.Kind == EmittedTopologyKind.Edge);
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_TieredAnalyticCircle_PreservesIdentityMetadata()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "top",
+            BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(-3,-3,0), new Point3D(3,-3,0), new Point3D(3,3,0), new Point3D(-3,3,0), new Vector3D(0,0,1)),
+            null, Transform3D.Identity, "synthetic", nameof(CirBoxNode), null, FacePatchOrientationRole.Forward);
+        var rep = new TieredTrimCurveRepresentation(TieredTrimRepresentationKind.AnalyticCircle, TieredTrimExportCapability.ElementaryCurveCandidate,
+            new AnalyticCircleTrimData(0, 0, 1, 0, 0, 8), null, null,
+            new TrimSurfaceIntersectionProvenance(null, null, null, null, [], null, RestrictedContourSnapRouteKind.AnalyticCircle, []), true, false, false, []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().EmitRectangleWithTieredInnerCircle(new(source, rep, "token-identity", readiness));
+        Assert.True(result.Success);
+        Assert.Contains(result.IdentityMap!.Entries, e => e.Role == EmittedTopologyRole.InnerCircularTrim && e.TrimIdentityToken?.SurfaceAKey == "token-identity");
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_TieredTrim_RejectsNumericalOnly()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "top",
+            BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(-3,-3,0), new Point3D(3,-3,0), new Point3D(3,3,0), new Point3D(-3,3,0), new Vector3D(0,0,1)),
+            null, Transform3D.Identity, "synthetic", nameof(CirBoxNode), null, FacePatchOrientationRole.Forward);
+        var num = new TieredTrimCurveRepresentation(TieredTrimRepresentationKind.NumericalOnly, TieredTrimExportCapability.NumericalOnlyNotExportable,
+            null, null, new NumericalTrimContourData(1, [], true, SurfaceTrimContourChainStatus.ClosedLoop, []),
+            new TrimSurfaceIntersectionProvenance(null, null, null, null, [], 1, RestrictedContourSnapRouteKind.NumericalOnly, []), false, false, false, []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().EmitRectangleWithTieredInnerCircle(new(source, num, null, readiness));
+        Assert.False(result.Success);
+        Assert.Null(result.Body);
+        Assert.Contains(result.Diagnostics, d => d.Contains("wrong representation kind", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PlanarSurfaceMaterializer_TieredTrim_RejectsWrongKind()
+    {
+        var source = new SourceSurfaceDescriptor(SurfacePatchFamily.Planar, "top",
+            BoundedPlanarPatchGeometry.CreateRectangle(new Point3D(-3,-3,0), new Point3D(3,-3,0), new Point3D(3,3,0), new Point3D(-3,3,0), new Vector3D(0,0,1)),
+            null, Transform3D.Identity, "synthetic", nameof(CirBoxNode), null, FacePatchOrientationRole.Forward);
+        var line = new TieredTrimCurveRepresentation(TieredTrimRepresentationKind.AnalyticLine, TieredTrimExportCapability.ElementaryCurveCandidate,
+            null, new AnalyticLineTrimData(0,0,1,0,0,0,4), null,
+            new TrimSurfaceIntersectionProvenance(null, null, null, null, [], null, RestrictedContourSnapRouteKind.AnalyticLine, []), true, false, false, []);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().EmitRectangleWithTieredInnerCircle(new(source, line, null, readiness));
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Contains("wrong representation kind", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void OracleTrimConsumption_UvToWorldNonCircularRejected()
     {
         var source = new SourceSurfaceDescriptor(

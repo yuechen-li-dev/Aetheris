@@ -65,6 +65,7 @@ internal static class MaterializationReadinessAnalyzer
         {
             SummarizeSource(source),
             SummarizeCandidates(candidates),
+            SummarizeTrimOracle(candidates),
             SummarizeTopology(topology),
             SummarizePairing(pairing)
         };
@@ -196,6 +197,30 @@ internal static class MaterializationReadinessAnalyzer
         });
     }
 
+
+    private static ReadinessLayerSummary SummarizeTrimOracle(FacePatchCandidateGenerationResult candidates)
+    {
+        var reps = candidates.Candidates.SelectMany(c => c.RetainedRegionLoops).Select(l => l.OracleTrimRepresentation).Where(r => r is not null).ToArray();
+        var diagnostics = new List<string>();
+        diagnostics.Add(reps.Length == 0 ? "trim-oracle: no-tiered-trim-representations-attached" : $"trim-oracle: attached={reps.Length}");
+        diagnostics.AddRange(reps.SelectMany(r => r!.Diagnostics).Select(d => $"trim-oracle: {d}"));
+        diagnostics.AddRange(reps.Where(r => r!.Circle is not null).Select(_ => "trim-oracle: analytic-circle-candidate"));
+        diagnostics.AddRange(reps.Where(r => r!.NumericalContour is not null).Select(_ => "trim-oracle: numerical-contour-present"));
+        diagnostics.AddRange(reps.Where(r => r!.ExportCapability == TieredTrimExportCapability.ElementaryCurveCandidate).Select(_ => "trim-oracle: elementary-export-candidate-not-exported"));
+        diagnostics.AddRange(reps.Select(_ => "trim-oracle: b-rep-topology-not-emitted"));
+        diagnostics.AddRange(reps.Select(_ => "trim-oracle: exact-step-export-false"));
+
+        return new ReadinessLayerSummary("trim-oracle-evidence",
+            reps.Length == 0 ? EmissionReadiness.Deferred : EmissionReadiness.EvidenceReadyForEmission,
+            reps.Length == 0 ? [EmissionBlockingReason.TrimCapability] : [EmissionBlockingReason.None],
+            diagnostics.Distinct().ToArray(),
+            new Dictionary<string, int>
+            {
+                ["trim-oracle-representations"] = reps.Length,
+                ["analytic-circle"] = reps.Count(r => r!.Circle is not null),
+                ["numerical-contours"] = reps.Count(r => r!.NumericalContour is not null)
+            });
+    }
     private static EmissionReadiness Reduce(IEnumerable<EmissionReadiness> values)
     {
         var arr = values.ToArray();

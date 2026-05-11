@@ -90,7 +90,9 @@ internal sealed record RetainedRegionLoopDescriptor(
     string OppositeSurfaceProvenance,
     string Diagnostic,
     RetainedCircularLoopGeometry? CircularGeometry,
-    TieredTrimCurveRepresentation? OracleTrimRepresentation);
+    TieredTrimCurveRepresentation? OracleTrimRepresentation,
+    bool OracleTrimStrongEvidence,
+    string OracleTrimRoutingDiagnostic);
 
 internal readonly record struct RetainedCircularLoopGeometry(
     Point3D Center,
@@ -377,7 +379,9 @@ internal static class FacePatchCandidateGenerator
                     other.Provenance,
                     $"{BuildPerLoopDiagnostic(source.Family, other.Family, curveFamily, status, trim.Reason)} | binder-opposite={other.Provenance} | {(bound ? "loop-geometry-bind-success" : "loop-geometry-bind-skip")}: {circularDiagnostic}",
                     bound ? circular : null,
-                    null));
+                    null,
+                    false,
+                    "oracle-trim: not-integrated"));
             }
         }
 

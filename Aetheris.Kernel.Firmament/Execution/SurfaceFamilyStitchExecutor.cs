@@ -118,10 +118,22 @@ internal static class SurfaceFamilyStitchExecutor
                 continue;
             }
 
+            var entryA = byKey[candidate.EntryA.LocalTopologyKey];
+            var entryB = byKey[candidate.EntryB.LocalTopologyKey];
+            if (entryA.TopologyReference is not { EdgeId: not null } aRef || entryB.TopologyReference is not { EdgeId: not null } bRef)
+            {
+                deferredCount++;
+                opDiagnostics.Add("candidate-deferred-topology-contract-blocker: emitted identity entries are missing concrete topology references required for stitch mutation safety.");
+                operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey, [candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey], SurfaceFamilyStitchExecutionStatus.Deferred, opDiagnostics));
+                continue;
+            }
+
+            opDiagnostics.Add("stitch-executor: candidate topology refs ready");
+            opDiagnostics.Add($"stitch-executor: candidate edge refs ready a={aRef.EdgeId} b={bRef.EdgeId}");
             unsupported = true;
             deferredCount++;
-            opDiagnostics.Add("candidate-deferred-topology-contract-blocker: emitted identity entries currently provide edge-local keys only; concrete coedge/loop/face ids are required for safe shared-edge stitch mutation.");
-            opDiagnostics.Add("candidate-deferred-topology-remap-blocker: bounded patch bodies are independent Brep bodies and CIR-BREP-T3 has no safe cross-body topology id remap contract.");
+            opDiagnostics.Add("candidate-deferred-mutation-not-implemented: topology refs ready but CIR-BREP-T4 does not mutate/merge topology.");
+            opDiagnostics.Add("candidate-deferred-topology-remap-blocker: bounded patch bodies are independent Brep bodies and stitch remap/mutation implementation is deferred.");
             operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey, [candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey], SurfaceFamilyStitchExecutionStatus.Unsupported, opDiagnostics));
         }
 
@@ -131,7 +143,7 @@ internal static class SurfaceFamilyStitchExecutor
 
         if (unsupported)
         {
-            diagnostics.Add("shared-edge-merge-unsupported: blocked by missing concrete coedge/loop/face identity contract and cross-body remap support.");
+            diagnostics.Add("shared-edge-merge-unsupported: topology refs can be ready, but stitch mutation/remap remains deferred.");
             return Build(false, SurfaceFamilyStitchExecutionStatus.Unsupported, null, appliedCount, deferredCount, operations, diagnostics);
         }
 

@@ -201,6 +201,54 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     }
 
     [Fact]
+    public void EmittedTopologyRefs_PlanarInnerCircle_HasConcreteIds()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var generation = FacePatchCandidateGenerator.Generate(root);
+        var candidate = generation.Candidates.First(c => c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool
+            && c.SourceSurface.BoundedPlanarGeometry is { Kind: BoundedPlanarPatchGeometryKind.Rectangle }
+            && c.RetainedRegionLoops.Any(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null));
+        var inner = candidate.RetainedRegionLoops.First(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim && l.CircularGeometry is not null).CircularGeometry!.Value;
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new PlanarSurfaceMaterializer().EmitRectangleWithInnerCircle(new(candidate.SourceSurface, inner, null, readiness));
+        var entry = result.IdentityMap!.Entries.First(e => e.Role == EmittedTopologyRole.InnerCircularTrim && e.Kind == EmittedTopologyKind.Edge);
+        Assert.NotNull(entry.TopologyReference);
+        Assert.False(string.IsNullOrWhiteSpace(entry.TopologyReference!.FaceId));
+        Assert.False(string.IsNullOrWhiteSpace(entry.TopologyReference.LoopId));
+        Assert.False(string.IsNullOrWhiteSpace(entry.TopologyReference.EdgeId));
+        Assert.False(string.IsNullOrWhiteSpace(entry.TopologyReference.CoedgeId));
+        Assert.Contains(entry.TopologyReference.Diagnostics, d => d.Contains("planar-inner-circle attached", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void EmittedTopologyRefs_PlanarPatchSet_PropagatesConcreteIds()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        var entry = result.Entries
+            .Where(e => e.Emitted && e.IdentityMap is not null)
+            .SelectMany(e => e.IdentityMap!.Entries)
+            .FirstOrDefault(e => e.Role == EmittedTopologyRole.InnerCircularTrim && e.TopologyReference is not null);
+        Assert.NotNull(entry);
+        Assert.False(string.IsNullOrWhiteSpace(entry!.TopologyReference!.EdgeId));
+    }
+
+    [Fact]
+    public void EmittedTopologyRefs_CylindricalWall_BoundaryRefsPresent()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var generation = FacePatchCandidateGenerator.Generate(root);
+        var candidate = generation.Candidates.Single(c => c.SourceSurface.Family == SurfacePatchFamily.Cylindrical && c.RetentionRole == FacePatchRetentionRole.ToolBoundaryRetainedInsideBase);
+        var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
+        var result = new CylindricalSurfaceMaterializer().EmitRetainedWall(new(candidate, readiness));
+        var boundaries = result.IdentityMap!.Entries.Where(e => e.Role is EmittedTopologyRole.CylindricalTopBoundary or EmittedTopologyRole.CylindricalBottomBoundary).ToArray();
+        Assert.Equal(2, boundaries.Length);
+        Assert.All(boundaries, b => Assert.NotNull(b.TopologyReference));
+        Assert.All(boundaries, b => Assert.False(string.IsNullOrWhiteSpace(b.TopologyReference!.FaceId)));
+        Assert.All(boundaries, b => Assert.False(string.IsNullOrWhiteSpace(b.TopologyReference!.EdgeId)));
+    }
+
+    [Fact]
     public void PlanarSurfaceMaterializer_RectangleWithInnerCircle_RejectsDeferredReadiness()
     {
         var source = SourceSurfaceExtractor.Extract(new CirBoxNode(10, 10, 10)).Descriptors.First(d => d.BoundedPlanarGeometry?.Kind == BoundedPlanarPatchGeometryKind.Rectangle);

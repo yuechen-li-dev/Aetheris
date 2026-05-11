@@ -22,9 +22,19 @@ public sealed class SurfaceFamilyStitchExecutorTests
         if (result.AppliedCandidateCount == 0)
         {
             Assert.True(
-                result.Diagnostics.Any(d => d.Contains("shared-edge-merge-unsupported", StringComparison.Ordinal))
+                result.Operations.SelectMany(o => o.Diagnostics).Any(d => d.Contains("candidate topology refs ready", StringComparison.Ordinal))
+                || result.Diagnostics.Any(d => d.Contains("shared-edge-merge-unsupported", StringComparison.Ordinal))
                 || result.Diagnostics.Any(d => d.Contains("no-stitch-candidate-no-mutation", StringComparison.Ordinal)));
         }
+    }
+
+    [Fact]
+    public void EmittedTopologyRefs_CylindricalSeam_RefsOrDiagnosticsPresent()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var cylindrical = EmitCylinder(root);
+        var seam = cylindrical!.IdentityMap!.Entries.Single(e => e.Role == EmittedTopologyRole.CylindricalSeam);
+        Assert.True(seam.TopologyReference is not null || seam.Diagnostics.Any(d => d.Contains("missing", StringComparison.OrdinalIgnoreCase)));
     }
 
     [Fact]

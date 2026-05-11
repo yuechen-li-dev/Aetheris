@@ -87,8 +87,12 @@ internal sealed record RetainedRegionLoopDescriptor(
     FacePatchOrientationRole OrientationHint,
     FacePatchRetentionRole RetentionRole,
     RetainedRegionLoopStatus Status,
+    string OppositeSurfaceProvenance,
     string Diagnostic,
-    RetainedCircularLoopGeometry? CircularGeometry);
+    RetainedCircularLoopGeometry? CircularGeometry,
+    TieredTrimCurveRepresentation? OracleTrimRepresentation,
+    bool OracleTrimStrongEvidence,
+    string OracleTrimRoutingDiagnostic);
 
 internal readonly record struct RetainedCircularLoopGeometry(
     Point3D Center,
@@ -171,7 +175,9 @@ internal static class FacePatchCandidateGenerator
             }
 
             diagnostics.Add("unsupported-node-shape: face patch dry-run currently supports subtract-tree retention classification only.");
-            diagnostics.Add("topology-assembly-not-implemented: dry-run emits candidate descriptors only and does not emit BRep topology.");
+            candidates = RetainedLoopTrimOracleIntegrator.Attach(root, candidates, diagnostics);
+
+        diagnostics.Add("topology-assembly-not-implemented: dry-run emits candidate descriptors only and does not emit BRep topology.");
             return new(false, candidates, extraction.Descriptors, trimSummaries, extraction.Diagnostics, deferred, diagnostics, TopologyAssemblyImplemented: false);
         }
 
@@ -235,6 +241,8 @@ internal static class FacePatchCandidateGenerator
             var patch = new FacePatchDescriptor(source, [], [], orientation, patchRole, []);
             candidates.Add(new FacePatchCandidate(source, patch, role, readiness, trim, retentionRole, retentionStatus, retentionReason, oppositeFamilies, loopDescriptors, loopGroups, loopReadiness, loopDiagnostic, candidateDiagnostics));
         }
+
+        candidates = RetainedLoopTrimOracleIntegrator.Attach(root, candidates, diagnostics);
 
         diagnostics.Add("topology-assembly-not-implemented: dry-run emits candidate descriptors only and does not emit BRep topology.");
         diagnostics.Add("topology-assembly-not-implemented: retained-region loop scaffolding emits descriptor diagnostics only; no BRep loops/coedges/edges/vertices are created.");
@@ -368,8 +376,12 @@ internal static class FacePatchCandidateGenerator
                     isBase ? source.OrientationRole : FacePatchOrientationRole.Reversed,
                     retentionRole,
                     status,
+                    other.Provenance,
                     $"{BuildPerLoopDiagnostic(source.Family, other.Family, curveFamily, status, trim.Reason)} | binder-opposite={other.Provenance} | {(bound ? "loop-geometry-bind-success" : "loop-geometry-bind-skip")}: {circularDiagnostic}",
-                    bound ? circular : null));
+                    bound ? circular : null,
+                    null,
+                    false,
+                    "oracle-trim: not-integrated"));
             }
         }
 

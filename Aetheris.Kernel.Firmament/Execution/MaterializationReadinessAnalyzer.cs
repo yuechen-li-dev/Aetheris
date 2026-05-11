@@ -65,6 +65,7 @@ internal static class MaterializationReadinessAnalyzer
         {
             SummarizeSource(source),
             SummarizeCandidates(candidates),
+            SummarizeTrimOracle(candidates),
             SummarizeTopology(topology),
             SummarizePairing(pairing)
         };
@@ -196,6 +197,32 @@ internal static class MaterializationReadinessAnalyzer
         });
     }
 
+
+    private static ReadinessLayerSummary SummarizeTrimOracle(FacePatchCandidateGenerationResult candidates)
+    {
+        var reps = candidates.Candidates.SelectMany(c => c.RetainedRegionLoops).Select(l => l.OracleTrimRepresentation).Where(r => r is not null).ToArray();
+        var diagnostics = new List<string>();
+        diagnostics.Add(reps.Length == 0 ? "oracle-trim: no-tiered-trim-representations-attached" : $"oracle-trim: attached={reps.Length}");
+        diagnostics.AddRange(reps.SelectMany(r => r!.Diagnostics).Select(d => d.StartsWith("oracle-trim:", StringComparison.Ordinal) ? d : $"oracle-trim: {d}"));
+        diagnostics.AddRange(reps.Where(r => r!.Circle is not null).Select(_ => "oracle-trim: analytic-circle-candidate"));
+        diagnostics.AddRange(reps.Where(r => r!.NumericalContour is not null).Select(_ => "oracle-trim: numerical-contour-present"));
+        diagnostics.AddRange(reps.Where(r => r!.ExportCapability == TieredTrimExportCapability.ElementaryCurveCandidate).Select(_ => "oracle-trim: elementary-export-candidate-not-exported"));
+        diagnostics.AddRange(reps.Select(_ => "oracle-trim: b-rep-topology-not-emitted"));
+        diagnostics.AddRange(reps.Select(_ => "oracle-trim: exact-step-export-false"));
+
+        return new ReadinessLayerSummary("trim-oracle-evidence",
+            reps.Length == 0 ? EmissionReadiness.Deferred : EmissionReadiness.EvidenceReadyForEmission,
+            reps.Length == 0 ? [EmissionBlockingReason.TrimCapability] : [EmissionBlockingReason.None],
+            diagnostics.Distinct().ToArray(),
+            new Dictionary<string, int>
+            {
+                ["trim-oracle-representations"] = reps.Length,
+                ["strong-trim-oracle"] = candidates.Candidates.SelectMany(c => c.RetainedRegionLoops).Count(l => l.OracleTrimStrongEvidence),
+                ["broad-or-deferred-trim-oracle"] = candidates.Candidates.SelectMany(c => c.RetainedRegionLoops).Count(l => !l.OracleTrimStrongEvidence && l.OracleTrimRepresentation is not null),
+                ["analytic-circle"] = reps.Count(r => r!.Circle is not null),
+                ["numerical-contours"] = reps.Count(r => r!.NumericalContour is not null)
+            });
+    }
     private static EmissionReadiness Reduce(IEnumerable<EmissionReadiness> values)
     {
         var arr = values.ToArray();

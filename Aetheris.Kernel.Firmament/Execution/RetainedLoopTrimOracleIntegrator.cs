@@ -30,8 +30,23 @@ internal static class RetainedLoopTrimOracleIntegrator
                 var matches = oppositeSet.Where(o => o.Provenance == loop.OppositeSurfaceProvenance && o.Family == loop.OppositeSurfaceFamily).ToArray();
                 if (matches.Length == 1)
                 {
-                    var oracle = BuildLoopRepresentation(subtract, source, sourceSide);
-                    loops.Add(loop with { OracleTrimRepresentation = oracle, OracleTrimStrongEvidence = true, OracleTrimRoutingDiagnostic = "oracle-trim: specific-opposite-selected" });
+                    var selected = matches[0];
+                    var build = SelectedOppositeFieldBuilder.TryBuild(selected);
+                    if (build.Status == SelectedOppositeFieldBuildStatus.Success && build.Node is not null)
+                    {
+                        var oracle = BuildLoopRepresentation(source, build.Node, "selected-opposite-field-used");
+                        loops.Add(loop with { OracleTrimRepresentation = oracle, OracleTrimStrongEvidence = true, OracleTrimRoutingDiagnostic = "oracle-trim: selected-opposite-field-used" });
+                    }
+                    else
+                    {
+                        loops.Add(loop with
+                        {
+                            OracleTrimRepresentation = null,
+                            OracleTrimStrongEvidence = false,
+                            OracleTrimRoutingDiagnostic = $"oracle-trim: selected-opposite-field-deferred:{build.Diagnostic}"
+                        });
+                    }
+
                     continue;
                 }
 
@@ -43,7 +58,7 @@ internal static class RetainedLoopTrimOracleIntegrator
 
                 var familyMatches = oppositeSet.Where(o => o.Family == loop.OppositeSurfaceFamily).ToArray();
                 var routing = familyMatches.Length > 0 ? "oracle-trim: broad-opposite-field-only" : "oracle-trim: missing-opposite-source";
-                var oracleBroad = familyMatches.Length > 0 ? BuildLoopRepresentation(subtract, source, sourceSide) : null;
+                var oracleBroad = familyMatches.Length > 0 ? BuildLoopRepresentation(source, sourceSide == SubtractOperandSide.Left ? subtract.Right : subtract.Left, "broad-opposite-field-only") : null;
                 loops.Add(loop with { OracleTrimRepresentation = oracleBroad, OracleTrimStrongEvidence = false, OracleTrimRoutingDiagnostic = routing });
             }
 
@@ -67,9 +82,9 @@ internal static class RetainedLoopTrimOracleIntegrator
         return next;
     }
 
-    private static TieredTrimCurveRepresentation BuildLoopRepresentation(CirSubtractNode root, SourceSurfaceDescriptor source, SubtractOperandSide sourceSide)
+    private static TieredTrimCurveRepresentation BuildLoopRepresentation(SourceSurfaceDescriptor source, CirNode opposite, string routing)
     {
-        var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, sourceSide);
+        var field = SurfaceRestrictedFieldFactory.ForSourceAndOpposite(source, opposite, routing);
         var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(65, 65));
         var extraction = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);
         var stitched = SurfaceTrimContourStitcher.Stitch(extraction);

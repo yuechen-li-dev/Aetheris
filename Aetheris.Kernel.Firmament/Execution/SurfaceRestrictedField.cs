@@ -86,6 +86,13 @@ internal static class SurfaceRestrictedFieldFactory
 {
     internal static SurfaceRestrictedField ForSubtractSource(CirSubtractNode root, SourceSurfaceDescriptor source, SubtractOperandSide side)
     {
+        var opposite = side == SubtractOperandSide.Left ? root.Right : root.Left;
+        var routing = side == SubtractOperandSide.Left ? "opposite-operand-selected:right" : "opposite-operand-selected:left";
+        return ForSourceAndOpposite(source, opposite, routing);
+    }
+
+    internal static SurfaceRestrictedField ForSourceAndOpposite(SourceSurfaceDescriptor source, CirNode opposite, string routingDiagnostic)
+    {
         var diagnostics = new List<string>();
         if (!TryBuildPlanarRectangle(source, out var parameterization, out var parameterizationDiagnostic))
         {
@@ -96,8 +103,7 @@ internal static class SurfaceRestrictedFieldFactory
 
         diagnostics.Add("planar-rectangle-parameterization-constructed");
 
-        var opposite = side == SubtractOperandSide.Left ? root.Right : root.Left;
-        diagnostics.Add(side == SubtractOperandSide.Left ? "opposite-operand-selected:right" : "opposite-operand-selected:left");
+        diagnostics.Add(routingDiagnostic);
 
         try
         {

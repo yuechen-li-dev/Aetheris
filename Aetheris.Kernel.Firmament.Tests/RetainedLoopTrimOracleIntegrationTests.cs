@@ -6,36 +6,42 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class RetainedLoopTrimOracleIntegrationTests
 {
     [Fact]
-    public void OracleTrimRouting_BoxCylinder_SelectsSpecificOpposite()
+    public void OracleTrimSelectedField_BoxCylinder_UsesSelectedCylinderField()
     {
         var result = FacePatchCandidateGenerator.Generate(new CirSubtractNode(new CirBoxNode(10,10,10), new CirCylinderNode(2,20)));
         var loop = result.Candidates.SelectMany(c => c.RetainedRegionLoops).First(l => l.OracleTrimRepresentation is not null && l.OracleTrimStrongEvidence);
-        Assert.Equal("oracle-trim: specific-opposite-selected", loop.OracleTrimRoutingDiagnostic);
+        Assert.Equal("oracle-trim: selected-opposite-field-used", loop.OracleTrimRoutingDiagnostic);
         Assert.Equal(TieredTrimRepresentationKind.AnalyticCircle, loop.OracleTrimRepresentation!.Kind);
         Assert.False(loop.OracleTrimRepresentation.ExactStepExported);
         Assert.False(loop.OracleTrimRepresentation.BRepTopologyEmitted);
     }
 
     [Fact]
-    public void OracleTrimRouting_BoxSphere_SelectsSpecificOpposite()
+    public void OracleTrimSelectedField_CylinderMatchesBroadSimpleCase()
+    {
+        var result = FacePatchCandidateGenerator.Generate(new CirSubtractNode(new CirBoxNode(10,10,10), new CirCylinderNode(2,20)));
+        var loop = result.Candidates.SelectMany(c => c.RetainedRegionLoops).First(l => l.OracleTrimStrongEvidence);
+        Assert.NotNull(loop.OracleTrimRepresentation?.Circle);
+        Assert.True(loop.OracleTrimRepresentation!.Circle!.RadiusUV > 0d);
+    }
+
+    [Fact]
+    public void OracleTrimSelectedField_BoxSphere_DefersOrUsesSelectedSphereField()
     {
         var result = FacePatchCandidateGenerator.Generate(new CirSubtractNode(new CirBoxNode(10,10,10), new CirSphereNode(6)));
-        Assert.Contains(result.Candidates.SelectMany(c => c.RetainedRegionLoops), l => l.OracleTrimRoutingDiagnostic == "oracle-trim: specific-opposite-selected");
+        Assert.Contains(result.Candidates.SelectMany(c => c.RetainedRegionLoops), l => l.OracleTrimRoutingDiagnostic.Contains("selected-opposite-field-deferred:selected-opposite-field: sphere-geometry-missing", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Candidates.SelectMany(c => c.RetainedRegionLoops), l => l.OracleTrimStrongEvidence && l.OppositeSurfaceFamily == SurfacePatchFamily.Spherical);
     }
 
     [Fact]
-    public void OracleTrimRouting_BoxTorus_NoGenericExactness()
+    public void OracleTrimSelectedField_BoxTorus_DefersOrUsesSelectedTorusFieldWithoutGenericExactness()
     {
         var result = FacePatchCandidateGenerator.Generate(new CirSubtractNode(new CirBoxNode(12,12,12), new CirTorusNode(4,1)));
-        var oracle = result.Candidates.SelectMany(c => c.RetainedRegionLoops).Select(l => l.OracleTrimRepresentation).FirstOrDefault(r => r is not null);
-        Assert.NotNull(oracle);
-        Assert.False(oracle!.ExactStepExported);
-        Assert.False(oracle.BRepTopologyEmitted);
-        Assert.Contains(oracle.Diagnostics, d => d.Contains("torus-generic-exactness-not-claimed", StringComparison.Ordinal));
+        Assert.Contains(result.Candidates.SelectMany(c => c.RetainedRegionLoops), l => l.OracleTrimRoutingDiagnostic.Contains("selected-opposite-field-deferred:selected-opposite-field: torus-geometry-missing", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void OracleTrimRouting_MultipleOpposites_Defers()
+    public void OracleTrimSelectedField_MultipleOpposites_StillDefers()
     {
         var root = new CirSubtractNode(new CirBoxNode(10,10,10), new CirUnionNode(new CirCylinderNode(2,20), new CirCylinderNode(2,20)));
         var result = FacePatchCandidateGenerator.Generate(root);
@@ -43,19 +49,12 @@ public sealed class RetainedLoopTrimOracleIntegrationTests
     }
 
     [Fact]
-    public void OracleTrimRouting_MissingOpposite_Diagnosed()
-    {
-        var loop = new RetainedRegionLoopDescriptor(RetainedRegionLoopKind.InnerTrim, TrimCurveFamily.Circle, TrimCapabilityClassification.ExactSupported, SurfacePatchFamily.Planar, SurfacePatchFamily.Spherical,
-            FacePatchOrientationRole.Forward, FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool, RetainedRegionLoopStatus.ExactReady, "missing", "diag", null, null, false, "oracle-trim: missing-opposite-source");
-        Assert.Equal("oracle-trim: missing-opposite-source", loop.OracleTrimRoutingDiagnostic);
-    }
-
-    [Fact]
-    public void MaterializationReadiness_TrimOracleLayer_DistinguishesStrongVsBroad()
+    public void MaterializationReadiness_ReportsSelectedFieldVsDeferred()
     {
         var report = MaterializationReadinessAnalyzer.Analyze(new CirSubtractNode(new CirBoxNode(10,10,10), new CirCylinderNode(2,20)));
         var layer = report.LayerSummaries.Single(l => l.LayerName == "trim-oracle-evidence");
         Assert.True(layer.Counts.ContainsKey("strong-trim-oracle"));
-        Assert.True(layer.Diagnostics.Any(d => d.StartsWith("oracle-trim:", StringComparison.Ordinal)));
+        Assert.True(layer.Counts.ContainsKey("selected-field-deferred-trim-oracle"));
+        Assert.True(layer.Counts.ContainsKey("broad-only-trim-oracle"));
     }
 }

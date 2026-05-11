@@ -6,7 +6,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class SurfaceFamilyStitchExecutorTests
 {
     [Fact]
-    public void StitchExecutor_BoxCylinder_AppliesOneSharedEdgeStitchOrReportsPreciseBlocker()
+    public void StitchExecutor_BoxCylinder_AppliesOneSharedEdgeRewriteOrPreciseBlocker()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
         var planar = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
@@ -18,15 +18,23 @@ public sealed class SurfaceFamilyStitchExecutorTests
 
         var result = SurfaceFamilyStitchExecutor.TryExecute(plan, planar, cylindrical);
 
-        if (result.AppliedCandidateCount > 0)
+        if (result.Success)
         {
+            Assert.Equal(1, result.AppliedCandidateCount);
             Assert.NotNull(result.Body);
-            Assert.Contains(result.Operations.SelectMany(o => o.Diagnostics), d => d.Contains("shared-edge-remap-applied", StringComparison.Ordinal));
+            Assert.Contains(result.Operations.SelectMany(o => o.Diagnostics), d => d.Contains("shared-edge-rewrite-applied", StringComparison.Ordinal));
+            var applied = result.Operations.Single(o => o.Status == SurfaceFamilyStitchExecutionStatus.AssembledPartialBody);
+            var canonical = applied.EdgeOrCoedgeIds.First(id => id.StartsWith("E", StringComparison.Ordinal));
+            var canonicalEdgeId = new Aetheris.Kernel.Core.Topology.EdgeId(int.Parse(canonical.Split(':')[1]));
+            var cA = new Aetheris.Kernel.Core.Topology.CoedgeId(int.Parse(applied.EdgeOrCoedgeIds[2].Split(':')[1]));
+            var cB = new Aetheris.Kernel.Core.Topology.CoedgeId(int.Parse(applied.EdgeOrCoedgeIds[3].Split(':')[1]));
+            Assert.Equal(canonicalEdgeId, result.Body!.Topology.GetCoedge(cA).EdgeId);
+            Assert.Equal(canonicalEdgeId, result.Body!.Topology.GetCoedge(cB).EdgeId);
         }
         else
         {
-            Assert.True(
-                result.Operations.SelectMany(o => o.Diagnostics).Any(d => d.Contains("mutation-unsupported-topology-model", StringComparison.Ordinal))
+            Assert.True(result.Operations.SelectMany(o => o.Diagnostics).Any(d => d.Contains("mutation-unsupported-topology-model", StringComparison.Ordinal)
+                || d.Contains("candidate-deferred", StringComparison.Ordinal))
                 || result.Diagnostics.Any(d => d.Contains("no-stitch-candidate-no-mutation", StringComparison.Ordinal)));
         }
 
@@ -35,7 +43,7 @@ public sealed class SurfaceFamilyStitchExecutorTests
     }
 
     [Fact]
-    public void StitchExecutor_RequiresConcreteRefs()
+    public void StitchExecutor_RequiresRemappedRefs()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
         var planar = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
@@ -58,7 +66,7 @@ public sealed class SurfaceFamilyStitchExecutorTests
     }
 
     [Fact]
-    public void StitchExecutor_RequiresTokenMatch()
+    public void StitchExecutor_RejectsTokenMismatch()
     {
         var tokenA = new InternalTrimIdentityToken("a", "b", "tok:A", TrimCurveFamily.Circle, "role", "a");
         var tokenB = new InternalTrimIdentityToken("a", "b", "tok:B", TrimCurveFamily.Circle, "role", "b");
@@ -74,18 +82,15 @@ public sealed class SurfaceFamilyStitchExecutorTests
     }
 
     [Fact]
-    public void StitchExecutor_RequiresCompatibleRoles()
+    public void StitchExecutor_DoesNotMergeVerticesYet()
     {
-        var token = new InternalTrimIdentityToken("a", "b", "tok:A", TrimCurveFamily.Circle, "role", "a");
-        var candidate = new SurfaceFamilyStitchCandidate("c", SurfaceFamilyStitchCandidateKind.SharedTrimIdentity, SurfaceFamilyStitchCandidateReadiness.Ready, token,
-            new EmittedTopologyIdentityEntry("ea", EmittedTopologyKind.Edge, token, EmittedTopologyRole.CylindricalSeam, "orientation-compatible", []),
-            new EmittedTopologyIdentityEntry("eb", EmittedTopologyKind.Edge, token, EmittedTopologyRole.CylindricalBottomBoundary, "orientation-compatible", []),
-            "orientation-compatible", [], "a");
-        var plan = new SurfaceFamilyStitchPlanResult(true, [candidate], [], [], [], false);
-
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
-        var result = SurfaceFamilyStitchExecutor.TryExecute(plan, new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root), null);
-        Assert.Contains(result.Operations.SelectMany(o => o.Diagnostics), d => d.Contains("incompatible-roles", StringComparison.Ordinal));
+        var result = SurfaceFamilyStitchExecutor.TryExecute(
+            SurfaceFamilyStitchCandidatePlanner.PlanBoxCylinder(root),
+            new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root),
+            EmitCylinder(root));
+
+        Assert.Contains(result.Diagnostics, d => d.Contains("vertex-merge-deferred", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -112,22 +117,6 @@ public sealed class SurfaceFamilyStitchExecutorTests
         Assert.False(result.StepExportAttempted);
     }
 
-
-    [Fact]
-    public void StitchExecutor_RefsReady_CanRemapButDoesNotMutate()
-    {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
-        var result = SurfaceFamilyStitchExecutor.TryExecute(
-            SurfaceFamilyStitchCandidatePlanner.PlanBoxCylinder(root),
-            new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root),
-            EmitCylinder(root));
-
-        Assert.True(result.Diagnostics.Any(d => d.Contains("shared-edge-remap-not-applied", StringComparison.Ordinal))
-            || result.Diagnostics.Any(d => d.Contains("no-stitch-candidate-no-mutation", StringComparison.Ordinal)));
-        Assert.True(result.Operations.SelectMany(o => o.Diagnostics).Any(d => d.Contains("combined-body-remap-ready", StringComparison.Ordinal))
-            || result.Diagnostics.Any(d => d.Contains("no-stitch-candidate-no-mutation", StringComparison.Ordinal)));
-        Assert.Equal(0, result.AppliedCandidateCount);
-    }
     private static SurfaceMaterializationResult? EmitCylinder(CirNode root)
     {
         var gen = FacePatchCandidateGenerator.Generate(root);

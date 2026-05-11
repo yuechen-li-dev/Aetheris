@@ -41,7 +41,7 @@ internal static class SurfaceFamilyStitchExecutor
         {
             "stitch-execution-started: bounded stitch executor entered.",
             "step-export-not-attempted: bounded stitch execution does not invoke STEP export.",
-            "full-shell-not-claimed: bounded stitch execution does not prove shell closure in CIR-BREP-T3."
+            "full-shell-not-claimed: bounded stitch execution does not prove shell closure in CIR-BREP-T5."
         };
 
         if (plan is null)
@@ -57,7 +57,7 @@ internal static class SurfaceFamilyStitchExecutor
         }
 
         var operations = new List<AppliedStitchOperation>();
-        var ready = plan.Candidates.Where(c => c.Readiness == SurfaceFamilyStitchCandidateReadiness.Ready).ToArray();
+        var ready = plan.Candidates.Where(c => c.Readiness == SurfaceFamilyStitchCandidateReadiness.Ready).OrderBy(c => c.OrderingKey, StringComparer.Ordinal).ToArray();
         if (ready.Length == 0)
         {
             diagnostics.Add("no-stitch-candidate-no-mutation: stitch plan has candidates, but none are readiness=Ready.");
@@ -69,26 +69,37 @@ internal static class SurfaceFamilyStitchExecutor
             .ToArray();
         var byKey = emitted.GroupBy(e => e.LocalTopologyKey, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
-        var unsupported = false;
         var deferredCount = 0;
         var appliedCount = 0;
+        var attemptedMutation = false;
 
         foreach (var candidate in ready)
         {
             var opDiagnostics = new List<string>();
-            if (candidate.Kind != SurfaceFamilyStitchCandidateKind.SharedTrimIdentity)
+            if (candidate.Kind != SurfaceFamilyStitchCandidateKind.SharedTrimIdentity || candidate.EntryA is null || candidate.EntryB is null)
             {
                 deferredCount++;
-                opDiagnostics.Add($"candidate-deferred-unsupported-kind: {candidate.Kind}.");
+                opDiagnostics.Add("candidate-deferred-shared-trim-identity-required: candidate kind and entries must be SharedTrimIdentity with both entries present.");
                 operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA?.LocalTopologyKey ?? "null", candidate.EntryB?.LocalTopologyKey ?? "null", [], SurfaceFamilyStitchExecutionStatus.Deferred, opDiagnostics));
                 continue;
             }
 
-            if (candidate.EntryA is null || candidate.EntryB is null)
+            if (!string.Equals(candidate.EntryA.TrimIdentityToken?.OrderingKey, candidate.EntryB.TrimIdentityToken?.OrderingKey, StringComparison.Ordinal))
             {
                 deferredCount++;
-                opDiagnostics.Add("candidate-deferred-missing-topology-entry: stitch candidate missing EntryA/EntryB.");
-                operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA?.LocalTopologyKey ?? "null", candidate.EntryB?.LocalTopologyKey ?? "null", [], SurfaceFamilyStitchExecutionStatus.Deferred, opDiagnostics));
+                opDiagnostics.Add("candidate-deferred-token-mismatch: entry trim identity tokens do not match.");
+                operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey, [], SurfaceFamilyStitchExecutionStatus.Deferred, opDiagnostics));
+                continue;
+            }
+
+            var roles = new[] { candidate.EntryA.Role, candidate.EntryB.Role };
+            var hasCompatibleRoles = roles.Contains(EmittedTopologyRole.InnerCircularTrim)
+                && (roles.Contains(EmittedTopologyRole.CylindricalTopBoundary) || roles.Contains(EmittedTopologyRole.CylindricalBottomBoundary));
+            if (!hasCompatibleRoles)
+            {
+                deferredCount++;
+                opDiagnostics.Add("candidate-deferred-incompatible-roles: expected InnerCircularTrim paired with CylindricalTopBoundary or CylindricalBottomBoundary.");
+                operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey, [], SurfaceFamilyStitchExecutionStatus.Deferred, opDiagnostics));
                 continue;
             }
 
@@ -97,15 +108,6 @@ internal static class SurfaceFamilyStitchExecutor
             {
                 deferredCount++;
                 opDiagnostics.Add($"candidate-deferred-orientation-policy: {candidate.OrientationPolicy}.");
-                operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey, [], SurfaceFamilyStitchExecutionStatus.Deferred, opDiagnostics));
-                continue;
-            }
-
-            if (plan.AmbiguousItems.Any(a => a.Contains(candidate.Token?.OrderingKey ?? string.Empty, StringComparison.Ordinal))
-                || plan.DeferredItems.Any(a => a.Contains(candidate.Token?.OrderingKey ?? string.Empty, StringComparison.Ordinal)))
-            {
-                deferredCount++;
-                opDiagnostics.Add("candidate-deferred-ambiguous-or-missing-mate: associated token has deferred/ambiguous pairing diagnostics.");
                 operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey, [], SurfaceFamilyStitchExecutionStatus.Deferred, opDiagnostics));
                 continue;
             }
@@ -120,34 +122,51 @@ internal static class SurfaceFamilyStitchExecutor
 
             var entryA = byKey[candidate.EntryA.LocalTopologyKey];
             var entryB = byKey[candidate.EntryB.LocalTopologyKey];
-            if (entryA.TopologyReference is not { EdgeId: not null } aRef || entryB.TopologyReference is not { EdgeId: not null } bRef)
+            if (entryA.TopologyReference is not { FaceId: not null, LoopId: not null, EdgeId: not null, CoedgeId: not null } aRef
+                || entryB.TopologyReference is not { FaceId: not null, LoopId: not null, EdgeId: not null, CoedgeId: not null } bRef)
             {
                 deferredCount++;
-                opDiagnostics.Add("candidate-deferred-topology-contract-blocker: emitted identity entries are missing concrete topology references required for stitch mutation safety.");
+                opDiagnostics.Add("candidate-deferred-topology-contract-blocker: concrete face/loop/edge/coedge refs are required for mutation.");
                 operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey, [candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey], SurfaceFamilyStitchExecutionStatus.Deferred, opDiagnostics));
                 continue;
             }
 
-            opDiagnostics.Add("stitch-executor: candidate topology refs ready");
-            opDiagnostics.Add($"stitch-executor: candidate edge refs ready a={aRef.EdgeId} b={bRef.EdgeId}");
-            unsupported = true;
+            attemptedMutation = true;
+            opDiagnostics.Add("ready-candidate-selected: bounded T5 picked deterministic first ready candidate.");
+            opDiagnostics.Add($"topology-refs-resolved: a(face={aRef.FaceId},loop={aRef.LoopId},edge={aRef.EdgeId},coedge={aRef.CoedgeId}) b(face={bRef.FaceId},loop={bRef.LoopId},edge={bRef.EdgeId},coedge={bRef.CoedgeId}).");
+            opDiagnostics.Add("body-remap-started: evaluating whether emitted patch bodies can be safely copied/remapped into one combined body.");
+            var remapInputs = planarPatches.Entries.Where(e => e.Emission is { Success: true, Body: not null }).Select(e => e.Emission!).ToList();
+            if (cylindricalPatch is { Success: true, Body: not null }) remapInputs.Add(cylindricalPatch);
+            var remapMaps = planarPatches.Entries.Where(e => e.IdentityMap is not null).Select(e => e.IdentityMap!).Concat(cylindricalPatch?.IdentityMap is null ? [] : [cylindricalPatch.IdentityMap]).ToArray();
+            var remap = CombinedPatchBodyRemapper.TryCombine(remapInputs, remapMaps);
+            if (remap.Success)
+            {
+                opDiagnostics.Add("stitch-executor: combined-body-remap-ready");
+                opDiagnostics.Add("stitch-executor: shared-edge-mutation-not-implemented");
+                operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey, [aRef.EdgeId, bRef.EdgeId, aRef.CoedgeId, bRef.CoedgeId], SurfaceFamilyStitchExecutionStatus.Unsupported, opDiagnostics));
+                deferredCount++;
+                break;
+            }
+
+            opDiagnostics.AddRange(remap.Diagnostics);
+            opDiagnostics.Add("mutation-unsupported-topology-model: combined-body remap not ready; shared-edge mutation remains blocked.");
+            operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey, [aRef.EdgeId, bRef.EdgeId, aRef.CoedgeId, bRef.CoedgeId], SurfaceFamilyStitchExecutionStatus.Unsupported, opDiagnostics));
             deferredCount++;
-            opDiagnostics.Add("candidate-deferred-mutation-not-implemented: topology refs ready but CIR-BREP-T4 does not mutate/merge topology.");
-            opDiagnostics.Add("candidate-deferred-topology-remap-blocker: bounded patch bodies are independent Brep bodies and stitch remap/mutation implementation is deferred.");
-            operations.Add(new AppliedStitchOperation(candidate.CandidateId, candidate.Token?.OrderingKey ?? "null", candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey, [candidate.EntryA.LocalTopologyKey, candidate.EntryB.LocalTopologyKey], SurfaceFamilyStitchExecutionStatus.Unsupported, opDiagnostics));
+            break;
         }
 
         diagnostics.Add($"ready-candidates-processed: {ready.Length}.");
         diagnostics.Add($"stitch-applied-count: {appliedCount}.");
         diagnostics.Add($"stitch-deferred-count: {deferredCount}.");
+        if (ready.Length > 1) diagnostics.Add("bounded-scope-single-candidate: CIR-BREP-T5 processes at most one ready candidate deterministically.");
 
-        if (unsupported)
+        if (attemptedMutation)
         {
-            diagnostics.Add("shared-edge-merge-unsupported: topology refs can be ready, but stitch mutation/remap remains deferred.");
+            diagnostics.Add("shared-edge-remap-not-applied: topology mutation blocked by missing safe remap capability for emitted-body merge.");
             return Build(false, SurfaceFamilyStitchExecutionStatus.Unsupported, null, appliedCount, deferredCount, operations, diagnostics);
         }
 
-        return Build(appliedCount > 0, appliedCount > 0 ? SurfaceFamilyStitchExecutionStatus.AssembledPartialBody : SurfaceFamilyStitchExecutionStatus.Deferred, null, appliedCount, deferredCount, operations, diagnostics);
+        return Build(false, SurfaceFamilyStitchExecutionStatus.Deferred, null, appliedCount, deferredCount, operations, diagnostics);
     }
 
     private static SurfaceFamilyStitchExecutionResult Build(bool success, SurfaceFamilyStitchExecutionStatus status, BrepBody? body, int applied, int deferred, IReadOnlyList<AppliedStitchOperation> operations, IReadOnlyList<string> diagnostics)

@@ -233,6 +233,52 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         string? OrderingToken,
         MaterializationReadinessReport Readiness);
 
+    internal enum OracleTrimMaterializationBlocker
+    {
+        None,
+        ReadinessBlocked,
+        MissingPlanarRectangle,
+        WrongKind,
+        NotAcceptedAnalyticCandidate,
+        NumericalOnly,
+        ExactStepAlreadyExportedUnexpected,
+        BRepAlreadyEmittedUnexpected,
+        MissingIdentityToken,
+        Unknown
+    }
+
+    internal sealed record OracleTrimMaterializationAdmissibilityResult(
+        bool Admissible,
+        PlanarPatchSetEmissionRoute Route,
+        OracleTrimMaterializationBlocker Blocker,
+        string ExactnessTier,
+        bool ConversionSafetyRequired,
+        bool IdentityTokenSatisfied,
+        IReadOnlyList<string> Diagnostics);
+
+    internal static class OracleTrimMaterializationAdmissibility
+    {
+        internal static OracleTrimMaterializationAdmissibilityResult Evaluate(SourceSurfaceDescriptor planarSource, TieredTrimCurveRepresentation trim, MaterializationReadinessReport readiness, string? orderingToken)
+        {
+            var diagnostics = new List<string>();
+            if (readiness.OverallReadiness is EmissionReadiness.NotApplicable or EmissionReadiness.Deferred or EmissionReadiness.Unsupported)
+                return new(false, PlanarPatchSetEmissionRoute.BinderFallback, OracleTrimMaterializationBlocker.ReadinessBlocked, "none", true, orderingToken is not null, ["tiered-trim-consumption-rejected: readiness is not evidence-ready for BRep planar inner-loop emission."]);
+            if (planarSource.BoundedPlanarGeometry is not { Kind: BoundedPlanarPatchGeometryKind.Rectangle })
+                return new(false, PlanarPatchSetEmissionRoute.BinderFallback, OracleTrimMaterializationBlocker.MissingPlanarRectangle, "none", true, orderingToken is not null, ["tiered-trim-consumption-rejected: bounded rectangular planar geometry is required."]);
+            if (trim.Kind != TieredTrimRepresentationKind.AnalyticCircle)
+                return new(false, PlanarPatchSetEmissionRoute.BinderFallback, trim.Kind is TieredTrimRepresentationKind.NumericalOnly or TieredTrimRepresentationKind.Deferred or TieredTrimRepresentationKind.Unsupported ? OracleTrimMaterializationBlocker.NumericalOnly : OracleTrimMaterializationBlocker.WrongKind, "numerical-or-non-circle", true, orderingToken is not null, ["tiered-trim-consumption-rejected: wrong representation kind; analytic-circle is required for bounded planar inner-loop emission."]);
+            if (!trim.AcceptedInternalAnalyticCandidate || trim.Circle is null)
+                return new(false, PlanarPatchSetEmissionRoute.BinderFallback, OracleTrimMaterializationBlocker.NotAcceptedAnalyticCandidate, "analytic-candidate-only", true, orderingToken is not null, ["tiered-trim-consumption-rejected: analytic candidate was not accepted internally."]);
+            if (trim.ExactStepExported)
+                return new(false, PlanarPatchSetEmissionRoute.BinderFallback, OracleTrimMaterializationBlocker.ExactStepAlreadyExportedUnexpected, "analytic-circle", true, orderingToken is not null, ["tiered-trim-consumption-rejected: representation flags violate bounded intake contract (step already exported)."]);
+            if (trim.BRepTopologyEmitted)
+                return new(false, PlanarPatchSetEmissionRoute.BinderFallback, OracleTrimMaterializationBlocker.BRepAlreadyEmittedUnexpected, "analytic-circle", true, orderingToken is not null, ["tiered-trim-consumption-rejected: representation flags violate bounded intake contract (topology already emitted)."]);
+            if (orderingToken is null) diagnostics.Add("tiered-trim-identity-token-missing: oracle route allowed but emitted identity token may be unavailable.");
+            diagnostics.Add("tiered-trim-analytic-circle-admitted: admissibility constraints satisfied for bounded planar inner-loop emission.");
+            return new(true, PlanarPatchSetEmissionRoute.TieredOracleTrim, OracleTrimMaterializationBlocker.None, "analytic-circle", true, orderingToken is not null, diagnostics);
+        }
+    }
+
     public SurfaceMaterializerAdmissibility Evaluate(FacePatchDescriptor patch)
     {
         if (patch.SourceSurface.Family != SurfacePatchFamily.Planar) return new(false, "Source surface family mismatch.", 0d);
@@ -314,41 +360,12 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
     internal SurfaceMaterializationResult EmitRectangleWithTieredInnerCircle(RectWithTieredInnerCircleEmissionRequest request)
     {
         var diagnostics = new List<string>();
+        var admissibility = OracleTrimMaterializationAdmissibility.Evaluate(request.Source, request.InnerTrim, request.Readiness, request.OrderingToken);
+        if (!admissibility.Admissible)
+            return new(false, null, SurfacePatchFamily.Planar, false, admissibility.Diagnostics.ToArray());
+        diagnostics.AddRange(admissibility.Diagnostics);
 
-        if (request.Readiness.OverallReadiness is EmissionReadiness.NotApplicable or EmissionReadiness.Deferred or EmissionReadiness.Unsupported)
-        {
-            return new(false, null, SurfacePatchFamily.Planar, false, ["readiness-gate-rejected: no readiness, no emission.", "tiered-trim-consumption-rejected: readiness is not evidence-ready for BRep planar inner-loop emission."]);
-        }
-
-        var trim = request.InnerTrim;
-        if (trim.Kind != TieredTrimRepresentationKind.AnalyticCircle)
-        {
-            return new(false, null, SurfacePatchFamily.Planar, false, ["tiered-trim-consumption-rejected: wrong representation kind; analytic-circle is required for bounded planar inner-loop emission."]);
-        }
-
-        if (!trim.AcceptedInternalAnalyticCandidate)
-        {
-            return new(false, null, SurfacePatchFamily.Planar, false, ["tiered-trim-consumption-rejected: analytic candidate was not accepted internally."]);
-        }
-
-        if (trim.Circle is null)
-        {
-            return new(false, null, SurfacePatchFamily.Planar, false, ["tiered-trim-consumption-rejected: analytic-circle payload missing."]);
-        }
-
-        if (trim.ExactStepExported || trim.BRepTopologyEmitted)
-        {
-            return new(false, null, SurfacePatchFamily.Planar, false, ["tiered-trim-consumption-rejected: representation flags violate bounded intake contract (step/topology already emitted)."]);
-        }
-
-        if (trim.Kind is TieredTrimRepresentationKind.NumericalOnly or TieredTrimRepresentationKind.Deferred or TieredTrimRepresentationKind.Unsupported)
-        {
-            return new(false, null, SurfacePatchFamily.Planar, false, ["tiered-trim-consumption-rejected: numerical-only/deferred/unsupported tiered trim is not materialization-grade for this path."]);
-        }
-
-        diagnostics.Add("tiered-trim-analytic-circle-admitted: admissibility constraints satisfied for bounded planar inner-loop emission.");
-
-        if (!OracleTrimLoopGeometryConverter.TryConvertAnalyticCircle(request.Source, trim, request.OrderingToken, out var converted, out var conversionDiagnostics))
+        if (!OracleTrimLoopGeometryConverter.TryConvertAnalyticCircle(request.Source, request.InnerTrim, request.OrderingToken, out var converted, out var conversionDiagnostics))
         {
             diagnostics.AddRange(conversionDiagnostics);
             if (conversionDiagnostics.Any(d => d.Contains("non-uniform uv/world scale", StringComparison.OrdinalIgnoreCase)))
@@ -430,16 +447,11 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
                 {
                     continue;
                 }
-
-                if (oracle.Kind != TieredTrimRepresentationKind.AnalyticCircle)
+                var admissibility = OracleTrimMaterializationAdmissibility.Evaluate(candidate.SourceSurface, oracle, readiness, loop.CircularGeometry?.OrderingToken);
+                if (!admissibility.Admissible)
                 {
-                    entryDiagnostics.Add("oracle-trim-consumption-rejected: numerical-only/deferred oracle representation is not consumable.");
-                    continue;
-                }
-
-                if (!oracle.AcceptedInternalAnalyticCandidate || oracle.ExactStepExported || oracle.BRepTopologyEmitted)
-                {
-                    entryDiagnostics.Add("oracle-trim-consumption-rejected: strong oracle flags do not satisfy materialization constraints.");
+                    entryDiagnostics.AddRange(admissibility.Diagnostics.Select(d => $"oracle-trim-route-diagnostic: {d}"));
+                    entryDiagnostics.Add($"oracle-trim-admissibility-blocker: {admissibility.Blocker}");
                     continue;
                 }
 
@@ -447,6 +459,7 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
                 {
                     oracleCircles.Add(converted);
                     entryDiagnostics.AddRange(convertedDiagnostics);
+                    entryDiagnostics.AddRange(admissibility.Diagnostics);
                     entryDiagnostics.Add("oracle-trim-analytic-circle-consumed: converted analytic-circle evidence was admitted for inner-loop emission.");
                 }
                 else

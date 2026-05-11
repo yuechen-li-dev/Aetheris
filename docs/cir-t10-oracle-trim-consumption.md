@@ -44,3 +44,15 @@ If both binder-derived and oracle-derived circles exist:
 
 ## Next step
 Generalize conversion provenance/tolerance contracts so additional exact analytic retained-loop routes can be consumed without weakening SEM-A0 guardrails.
+
+## T10.1 debug closure
+Root cause observed in real `Subtract(Box,Cylinder)` patch-set emission:
+- inner-circle emission candidates can carry strong oracle attachments on some retained loops, but the emitted entry can still be binder-driven when analytic-circle oracle evidence on the emitted inner-loop route is unavailable/rejected,
+- this previously caused test expectations to require oracle-consumed diagnostics in all successful inner-circle emissions.
+
+Final precedence/fallback policy:
+- prefer strong analytic-circle oracle evidence when all strong gates pass,
+- if oracle route is absent/rejected and binder retained circle exists, emit via binder fallback with explicit `oracle-trim-fallback-to-binder` diagnostics,
+- preserve strict rejection diagnostics for broad/deferred/numerical-only routes.
+
+No shell/export behavior changed.

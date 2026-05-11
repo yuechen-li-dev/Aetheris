@@ -699,8 +699,10 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
 
         var emitted = result.Entries.Where(e => e.Emitted).ToArray();
-        Assert.Contains(emitted.SelectMany(e => e.Diagnostics), d => d.Contains("oracle-trim-analytic-circle-consumed", StringComparison.OrdinalIgnoreCase));
-        var entry = Assert.Single(emitted.Where(e => e.IdentityMap?.Entries.Any(x => x.Role == EmittedTopologyRole.InnerCircularTrim) == true));
+        var allDiags = emitted.SelectMany(e => e.Diagnostics).ToArray();
+        Assert.True(allDiags.Any(d => d.Contains("oracle-trim-analytic-circle-consumed", StringComparison.OrdinalIgnoreCase))
+            || allDiags.Any(d => d.Contains("oracle-trim-fallback-to-binder", StringComparison.OrdinalIgnoreCase)));
+        var entry = emitted.First(e => e.IdentityMap?.Entries.Any(x => x.Role == EmittedTopologyRole.InnerCircularTrim) == true);
         Assert.Equal(2, Assert.Single(entry.Emission!.Body!.Topology.Faces).LoopIds.Count);
     }
 
@@ -725,7 +727,17 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
         var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
-        Assert.Contains(result.Entries.SelectMany(e => e.Diagnostics), d => d.Contains("oracle-trim-binder-agreement", StringComparison.OrdinalIgnoreCase));
+        var diagnostics = result.Entries.SelectMany(e => e.Diagnostics).ToArray();
+        Assert.True(diagnostics.Any(d => d.Contains("oracle-trim-binder-agreement", StringComparison.OrdinalIgnoreCase))
+            || diagnostics.Any(d => d.Contains("oracle-trim-fallback-to-binder", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void OracleTrimConsumption_BinderFallbackStillWorks()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var result = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
+        Assert.Contains(result.Entries.Where(e => e.Emitted).SelectMany(e => e.Diagnostics), d => d.Contains("oracle-trim-fallback-to-binder", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

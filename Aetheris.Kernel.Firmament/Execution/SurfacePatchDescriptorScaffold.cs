@@ -324,14 +324,16 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             }
 
             var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
-            var retainedLoops = candidate.RetainedRegionLoops
-                .Where(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim
-                    && (l.Status == RetainedRegionLoopStatus.ExactReady || l.Status == RetainedRegionLoopStatus.SpecialCaseReady))
+            var oracleCandidateLoops = candidate.RetainedRegionLoops
+                .Where(l => l.LoopKind == RetainedRegionLoopKind.InnerTrim)
+                .ToArray();
+            var retainedLoops = oracleCandidateLoops
+                .Where(l => l.Status == RetainedRegionLoopStatus.ExactReady || l.Status == RetainedRegionLoopStatus.SpecialCaseReady)
                 .ToArray();
             var retainedCircles = retainedLoops.Where(l => l.CircularGeometry is not null).Select(l => l.CircularGeometry!.Value).ToArray();
             var entryDiagnostics = new List<string>();
             var oracleCircles = new List<RetainedCircularLoopGeometry>();
-            foreach (var loop in retainedLoops)
+            foreach (var loop in oracleCandidateLoops)
             {
                 if (!loop.OracleTrimStrongEvidence)
                 {
@@ -399,6 +401,7 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
             }
 
             var chosenCircles = oracleCircles.Count > 0 ? oracleCircles.ToArray() : retainedCircles;
+            if (oracleCandidateLoops.Any() && oracleCircles.Count == 0 && retainedCircles.Length > 0) entryDiagnostics.Add("oracle-trim-fallback-to-binder: oracle evidence unavailable/rejected; using binder-derived retained circular geometry.");
             SurfaceMaterializationResult? emission = null;
             if (chosenCircles.Length == 0)
             {

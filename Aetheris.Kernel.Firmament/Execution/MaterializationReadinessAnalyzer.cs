@@ -218,6 +218,8 @@ internal static class MaterializationReadinessAnalyzer
             {
                 ["trim-oracle-representations"] = reps.Length,
                 ["strong-trim-oracle"] = candidates.Candidates.SelectMany(c => c.RetainedRegionLoops).Count(l => l.OracleTrimStrongEvidence),
+                ["selected-field-deferred-trim-oracle"] = candidates.Candidates.SelectMany(c => c.RetainedRegionLoops).Count(l => l.OracleTrimRoutingDiagnostic.StartsWith("oracle-trim: selected-opposite-field-deferred:", StringComparison.Ordinal)),
+                ["broad-only-trim-oracle"] = candidates.Candidates.SelectMany(c => c.RetainedRegionLoops).Count(l => l.OracleTrimRoutingDiagnostic == "oracle-trim: broad-opposite-field-only"),
                 ["broad-or-deferred-trim-oracle"] = candidates.Candidates.SelectMany(c => c.RetainedRegionLoops).Count(l => !l.OracleTrimStrongEvidence && l.OracleTrimRepresentation is not null),
                 ["analytic-circle"] = reps.Count(r => r!.Circle is not null),
                 ["numerical-contours"] = reps.Count(r => r!.NumericalContour is not null)

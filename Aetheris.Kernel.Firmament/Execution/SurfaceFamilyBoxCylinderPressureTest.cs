@@ -116,8 +116,27 @@ internal static class SurfaceFamilyBoxCylinderPressureTest
             ["DeferredStitchCandidateCount"] = exec.DeferredCandidateCount
         }));
 
-        stages.Add(new("DuplicateEdgeCleanup", SurfaceFamilyPressureStageStatus.Deferred, ["duplicate-edge-cleanup-not-implemented: diagnostic-only stage in X0.1."], new Dictionary<string, int>()));
-        blockers.Add(Block("DuplicateEdgeCleanup", "duplicate-edge-cleanup-not-implemented", "Duplicate/unreferenced edge cleanup is intentionally deferred.", "Implement bounded unreferenced duplicate-edge cleanup after rewrite stability is validated."));
+        var cleanupPlan = DuplicateEdgeCleanupPlanner.Plan(exec, exec.Body ?? remap.CombinedBody);
+        tokenCounts["DuplicateCleanupCandidateCount"] = cleanupPlan.Candidates.Count(c => c.Status == DuplicateEdgeCleanupStatus.CleanupCandidate);
+        tokenCounts["DuplicateCleanupDeferredCount"] = cleanupPlan.Candidates.Count(c => c.Status == DuplicateEdgeCleanupStatus.Deferred);
+        tokenCounts["BoundaryShellBlockerCount"] = cleanupPlan.BoundaryClassifications.Count(c => c.Classification == BoundaryEdgeClassificationKind.ShellClosureBlocker);
+        tokenCounts["BoundaryAmbiguousCount"] = cleanupPlan.BoundaryClassifications.Count(c => c.Classification == BoundaryEdgeClassificationKind.Ambiguous);
+        var cleanupStatus = cleanupPlan.Success ? SurfaceFamilyPressureStageStatus.Succeeded : SurfaceFamilyPressureStageStatus.Deferred;
+        stages.Add(new("DuplicateEdgeCleanup", cleanupStatus, cleanupPlan.Diagnostics, new Dictionary<string, int>
+        {
+            ["DuplicateCleanupCandidateCount"] = tokenCounts["DuplicateCleanupCandidateCount"],
+            ["DuplicateCleanupDeferredCount"] = tokenCounts["DuplicateCleanupDeferredCount"],
+            ["BoundaryShellBlockerCount"] = tokenCounts["BoundaryShellBlockerCount"],
+            ["BoundaryAmbiguousCount"] = tokenCounts["BoundaryAmbiguousCount"]
+        }));
+        if (!cleanupPlan.Success)
+        {
+            blockers.Add(Block("DuplicateEdgeCleanup", "duplicate-edge-cleanup-planning-blocked", "Duplicate-edge cleanup planning could not classify stitch duplicates safely.", "Provide canonical/duplicate stitch metadata and rerun bounded duplicate-edge planning."));
+        }
+        else
+        {
+            blockers.Add(Block("DuplicateEdgeCleanup", "duplicate-edge-cleanup-mutation-deferred", "Duplicate-edge cleanup candidates identified; mutation intentionally deferred in X1.", "Implement bounded remove-unused-duplicate-edge mutation only after topology/binding safety contract is validated."));
+        }
 
         stages.Add(new("VertexMergePlanning", SurfaceFamilyPressureStageStatus.Deferred, ["vertex-merge-needed-analysis-only: no vertex merge mutation in X0.1."], new Dictionary<string, int>()));
         blockers.Add(Block("VertexMergePlanning", "vertex-merge-needed", "Vertex merge planning indicates deferred endpoint consolidation work.", "Define and validate bounded vertex merge contract before shell-closure claims."));

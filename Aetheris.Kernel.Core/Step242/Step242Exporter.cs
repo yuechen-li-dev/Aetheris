@@ -28,15 +28,19 @@ public static class Step242Exporter
             return Failure("Only single-body export is supported.", "Topology.Bodies");
         }
 
-        var shellIds = bodyNodes[0].ShellIds.OrderBy(s => s.Value).ToArray();
+        var rootDecision = StepSolidRootExportPlanner.Decide(body);
         var shellRepresentation = body.ShellRepresentation;
+        if (rootDecision.Kind == StepSolidRootExportKind.Unsupported)
+        {
+            var plannerReason = rootDecision.Evaluations
+                .FirstOrDefault(e => e.PolicyName == "UnsupportedShellTopologyPolicy")?
+                .Diagnostics.FirstOrDefault() ?? "Unsupported shell topology for STEP solid root export.";
+            return Failure(plannerReason, "Topology.Shells");
+        }
+
         if (shellRepresentation is null)
         {
-            if (shellIds.Length != 1)
-            {
-                return Failure("Multi-shell export requires an explicit BrepBody shell representation.", "Topology.Shells");
-            }
-
+            var shellIds = bodyNodes[0].ShellIds.OrderBy(s => s.Value).ToArray();
             shellRepresentation = new BrepBodyShellRepresentation(shellIds[0], []);
         }
 
@@ -60,7 +64,7 @@ public static class Step242Exporter
         }
 
         string brepId;
-        if (shellRepresentation.InnerShellIds.Count == 0)
+        if (rootDecision.Kind == StepSolidRootExportKind.ManifoldSolidBrep)
         {
             brepId = writer.AddEntity("MANIFOLD_SOLID_BREP", Step242TextWriter.String(options.ProductName), Step242TextWriter.Ref(outerClosedShellId));
         }

@@ -233,7 +233,7 @@ public sealed class FirmamentStepExporterTests
 
 
     [Fact]
-    public void CirOnly_BoxMinusCylinder_ExportSucceedsAfterRematerialization()
+    public void FirmamentStepExporter_CirOnlyBoxCylinder_ExportsViaSemanticRecovery()
     {
         var compiler = new FirmamentCompiler();
         var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
@@ -257,7 +257,38 @@ public sealed class FirmamentStepExporterTests
 
         var export = FirmamentStepExporter.Export(cirOnlyArtifact);
         Assert.True(export.IsSuccess, string.Join(" | ", export.Diagnostics.Select(d => d.Message)));
-        Assert.Contains("PRODUCT_DEFINITION", export.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("ISO-10303-21", export.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", export.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("ADVANCED_FACE", export.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", export.Value.StepText, StringComparison.Ordinal);
+
+        var remat = NativeGeometryRematerializer.TryRematerialize(artifact.PrimitiveLoweringPlan!, cirOnlyState);
+        Assert.True(remat.IsSuccess, string.Join(" | ", remat.Diagnostics.Select(d => d.Message)));
+        Assert.Contains(remat.Value.TransitionEvents, e => e.Message.Contains("semantic recovery policy", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FirmamentStepExporter_CirOnlyTranslatedBoxCylinder_ExportsViaSemanticRecovery()
+    {
+        var plan = new FirmamentPrimitiveLoweringPlan(
+            [new FirmamentLoweredPrimitive(0, "base", FirmamentLoweredPrimitiveKind.Box, new FirmamentLoweredBoxParameters(20, 20, 10), new FirmamentLoweredPlacement(new FirmamentLoweredPlacementOriginAnchor(), true, [4d, 1d, 3d], null, null, null, []))],
+            [new FirmamentLoweredBoolean(1, "hole", FirmamentLoweredBooleanKind.Subtract, "from", "base", new FirmamentLoweredToolOp("cylinder", new Dictionary<string, string> { { "op", "cylinder" }, { "radius", "3" }, { "height", "20" } }, "op cylinder radius=3 height=20"), new FirmamentLoweredPlacement(new FirmamentLoweredPlacementOriginAnchor(), true, [4d, 1d, 3d], null, null, null, []))],
+            []);
+        var cirOnlyState = new NativeGeometryState(NativeGeometryExecutionMode.CirOnly, NativeGeometryMaterializationAuthority.PendingRematerialization, null, "hole", BuildReplayLogForTranslatedBoxMinusCylinder(), [], new NativeGeometryCirMirrorState(CirMirrorStatus.NotAttempted, null, []));
+        var cirOnlyArtifact = new FirmamentCompilationArtifact(
+            PrimitiveLoweringPlan: plan,
+            PrimitiveExecutionResult: new FirmamentPrimitiveExecutionResult([], [], cirOnlyState));
+
+        var export = FirmamentStepExporter.Export(cirOnlyArtifact);
+        Assert.True(export.IsSuccess, string.Join(" | ", export.Diagnostics.Select(d => d.Message)));
+        Assert.Contains("ISO-10303-21", export.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", export.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("ADVANCED_FACE", export.Value.StepText, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", export.Value.StepText, StringComparison.Ordinal);
+
+        var remat = NativeGeometryRematerializer.TryRematerialize(plan, cirOnlyState);
+        Assert.True(remat.IsSuccess, string.Join(" | ", remat.Diagnostics.Select(d => d.Message)));
+        Assert.Contains(remat.Value.TransitionEvents, e => e.Message.Contains("semantic recovery policy", StringComparison.Ordinal));
     }
 
 
@@ -279,13 +310,36 @@ public sealed class FirmamentStepExporterTests
     }
 
     [Fact]
-    public void Export_CirOnlyState_Fails_Clearly_Without_Materializer()
+    public void FirmamentStepExporter_CirOnlyUnsupportedBoxSphere_FailsClearly()
     {
-        var export = ExportFixture("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament");
+        var compiler = new FirmamentCompiler();
+        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament");
+        var compiled = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
+        Assert.True(compiled.Compilation.IsSuccess);
+
+        var artifact = compiled.Compilation.Value;
+        var execution = artifact.PrimitiveExecutionResult!;
+        var cirOnlyState = execution.NativeGeometryState with
+        {
+            ExecutionMode = NativeGeometryExecutionMode.CirOnly,
+            MaterializationAuthority = NativeGeometryMaterializationAuthority.PendingRematerialization,
+            MaterializedBody = null
+        };
+        var cirOnlyArtifact = artifact with
+        {
+            PrimitiveExecutionResult = execution with { NativeGeometryState = cirOnlyState }
+        };
+
+        var export = FirmamentStepExporter.Export(cirOnlyArtifact);
         Assert.False(export.IsSuccess);
         Assert.Contains(export.Diagnostics, d => d.Message.Contains("unavailable for CirOnly state", StringComparison.Ordinal));
         Assert.Contains(export.Diagnostics, d => d.Message.Contains("valid and analyzable in CIR", StringComparison.Ordinal));
         Assert.Contains(export.Diagnostics, d => d.Message.Contains("CIR→BRep materializer", StringComparison.Ordinal));
+
+        var remat = NativeGeometryRematerializer.TryRematerialize(artifact.PrimitiveLoweringPlan!, cirOnlyState);
+        Assert.False(remat.IsSuccess);
+        Assert.Contains(remat.Diagnostics, d => d.Message.Contains("selectedPolicy='none'", StringComparison.Ordinal));
+        Assert.DoesNotContain(remat.Diagnostics, d => d.Message.Contains("semantic recovery policy", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -371,6 +425,11 @@ public sealed class FirmamentStepExporterTests
         => new([
             new NativeGeometryReplayOperation(0, "base", "primitive:box", null, null, null, null, new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.None, null, null, Vector3D.Zero, Vector3D.Zero, true, null), null),
             new NativeGeometryReplayOperation(1, "notch", "boolean:subtract", "base", "box", "tool", null, new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.None, null, null, Vector3D.Zero, Vector3D.Zero, true, null), null)
+        ]);
+    private static NativeGeometryReplayLog BuildReplayLogForTranslatedBoxMinusCylinder()
+        => new([
+            new NativeGeometryReplayOperation(0, "base", "primitive:box", null, null, null, null, new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.Offset, null, null, Vector3D.Zero, new Vector3D(4d, 1d, 3d), true, null), null),
+            new NativeGeometryReplayOperation(1, "hole", "boolean:subtract", "base", "cylinder", "tool", null, new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.Offset, null, null, Vector3D.Zero, new Vector3D(4d, 1d, 3d), true, null), null)
         ]);
 
     private static bool HasExpectedMixedPrimitiveFailure(string message)

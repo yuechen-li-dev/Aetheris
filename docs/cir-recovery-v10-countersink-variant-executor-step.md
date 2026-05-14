@@ -37,3 +37,8 @@ We added `CountersinkVariant` to the `HoleRecoveryPolicy` JudgmentEngine lane an
 2. Add `CountersinkVariant` bounded recognition for `Subtract(Subtract(Box,Cylinder),Cone)` with strict coaxial/entry/depth/radius checks.
 3. Extend `HoleRecoveryExecutor` with cone subtract path using existing `BrepPrimitives.CreateCone` + `BrepBoolean.Subtract`.
 4. Add countersink STEP smoke asserting `CONICAL_SURFACE`, `CYLINDRICAL_SURFACE`, and no `BREP_WITH_VOIDS`.
+
+
+## Status update
+
+Superseded in part by `docs/cir-recovery-v11-countersink-cone-execution-step.md`, which resolves the prior cone-primitive blocker for a bounded countersink shape.

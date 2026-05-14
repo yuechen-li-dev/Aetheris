@@ -2,6 +2,7 @@ using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
 
@@ -51,6 +52,12 @@ public static class HoleRecoveryExecutor
         {
             diagnostics.Add("Blind-hole plan accepted for bounded execution.");
             return ExecuteBlind(plan, diagnostics);
+        }
+
+        if (plan.HoleKind == HoleKind.Countersink && (plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief || plan.DepthKind == HoleDepthKind.BlindWithEntryRelief))
+        {
+            diagnostics.Add("Countersink plan accepted for bounded execution.");
+            return ExecuteCountersink(plan, diagnostics);
         }
 
         if (plan.HoleKind != HoleKind.Counterbore || plan.DepthKind != HoleDepthKind.ThroughWithEntryRelief)
@@ -201,6 +208,65 @@ public static class HoleRecoveryExecutor
         diagnostics.Add("Blind subtract succeeded.");
         diagnostics.Add("Result BRep body produced.");
         return new(HoleRecoveryExecutionStatus.Succeeded, sub.Value, diagnostics);
+    }
+
+    private static HoleRecoveryExecutionResult ExecuteCountersink(HoleRecoveryPlan plan, List<string> diagnostics)
+    {
+        if (plan.HostKind != HoleHostKind.RectangularBox || plan.Axis != HoleAxisKind.Z || plan.ProfileStack.Count != 2)
+        {
+            diagnostics.Add("Countersink plan rejected: host/axis/profile mismatch.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        var coneSeg = plan.ProfileStack[0];
+        var cylSeg = plan.ProfileStack[1];
+        if (coneSeg.SegmentKind != HoleProfileSegmentKind.Conical || cylSeg.SegmentKind != HoleProfileSegmentKind.Cylindrical)
+        {
+            diagnostics.Add("Countersink plan rejected: expected conical then cylindrical profile segments.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        var boxResult = BrepPrimitives.CreateBox(plan.HostSizeX, plan.HostSizeY, plan.HostSizeZ);
+        var cylResult = BrepPrimitives.CreateCylinder(cylSeg.RadiusStart, double.Max(plan.ThroughLength, plan.HostSizeZ));
+        if (!boxResult.IsSuccess || !cylResult.IsSuccess)
+        {
+            diagnostics.Add("Countersink primitive construction failed for host/cylinder.");
+            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+        }
+
+        var boxBody = TranslateBody(boxResult.Value, plan.HostTranslation);
+        var cylBody = TranslateBody(cylResult.Value, plan.ToolTranslation);
+        diagnostics.Add("cylinder subtract invoked.");
+        var firstSub = BrepBoolean.Subtract(boxBody, cylBody);
+        if (!firstSub.IsSuccess || firstSub.Value is null)
+        {
+            diagnostics.Add("cylinder subtract failed.");
+            return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
+        }
+        diagnostics.Add("cylinder subtract succeeded.");
+
+        var coneHeight = coneSeg.DepthEnd - coneSeg.DepthStart;
+        var coneResult = FirmamentPrimitiveExecutor.ExecuteCone(new FirmamentLoweredConeParameters(coneSeg.RadiusEnd, coneSeg.RadiusStart, coneHeight));
+        if (!coneResult.IsSuccess)
+        {
+            diagnostics.Add("cone primitive construction failed.");
+            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+        }
+
+        var entryTopZ = plan.HostTranslation.Z + (plan.HostSizeZ * 0.5d);
+        var coneCenterZ = entryTopZ - (coneHeight * 0.5d);
+        var coneBody = TranslateBody(coneResult.Value, new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, coneCenterZ));
+        diagnostics.Add("cone subtract invoked.");
+        var secondSub = BrepBoolean.Subtract(firstSub.Value, coneBody);
+        if (!secondSub.IsSuccess || secondSub.Value is null)
+        {
+            diagnostics.Add("cone subtract failed.");
+            return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
+        }
+
+        diagnostics.Add("cone subtract succeeded.");
+        diagnostics.Add("Result BRep body produced.");
+        return new(HoleRecoveryExecutionStatus.Succeeded, secondSub.Value, diagnostics);
     }
 
     private static BrepBody TranslateBody(BrepBody body, Vector3D translation)

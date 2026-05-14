@@ -85,38 +85,62 @@ public static class Step242Importer
         if (rigidRootClassification.Kind == Step242RigidRootClassificationKind.MissingRigidRoot)
         {
             return Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>(
-                "Missing MANIFOLD_SOLID_BREP root entity.",
+                "Missing MANIFOLD_SOLID_BREP or BREP_WITH_VOIDS root entity.",
                 "Importer.TopologyRoot");
         }
 
         if (rigidRootClassification.Kind == Step242RigidRootClassificationKind.AssemblyLikeMultipleRigidRoots)
         {
             return Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>(
-                $"STEP input is assembly-like: detected {rigidRootClassification.RigidRoots.Count} MANIFOLD_SOLID_BREP rigid roots. Single-part exact BRep import accepts exactly one rigid root; route this input through assembly extraction/import.",
+                $"STEP input is assembly-like: detected {rigidRootClassification.RigidRoots.Count} exact BRep rigid roots (MANIFOLD_SOLID_BREP/BREP_WITH_VOIDS). Single-part exact BRep import accepts exactly one rigid root; route this input through assembly extraction/import.",
                 "Importer.AssemblyLike.StepMultiRoot");
         }
 
         var brepEntity = rigidRootClassification.SingleRigidRoot;
+        var shellRoleDiagnostics = new List<KernelDiagnostic>();
+        var shellFaceEntityIds = new List<IReadOnlyList<int>>();
 
-        var shellRefResult = Step242SubsetDecoder.ReadReference(brepEntity, 1, "MANIFOLD_SOLID_BREP shell");
-        if (!shellRefResult.IsSuccess)
+        var isBrepWithVoids = string.Equals(brepEntity.Name, "BREP_WITH_VOIDS", StringComparison.OrdinalIgnoreCase);
+        var outerShellRefResult = Step242SubsetDecoder.ReadReference(brepEntity, 1, isBrepWithVoids ? "BREP_WITH_VOIDS outer shell" : "MANIFOLD_SOLID_BREP shell");
+        if (!outerShellRefResult.IsSuccess)
         {
-            return KernelResult<BrepBody>.Failure(shellRefResult.Diagnostics);
+            return KernelResult<BrepBody>.Failure(outerShellRefResult.Diagnostics);
         }
 
-        var shellEntityResult = document.TryGetEntity(shellRefResult.Value.TargetId, "CLOSED_SHELL");
-        if (!shellEntityResult.IsSuccess)
+        var outerShellFacesResult = ReadShellFaceIds(document, outerShellRefResult.Value.TargetId, "outer", shellRoleDiagnostics);
+        if (!outerShellFacesResult.IsSuccess)
         {
-            return KernelResult<BrepBody>.Failure(shellEntityResult.Diagnostics);
+            return KernelResult<BrepBody>.Failure(outerShellFacesResult.Diagnostics);
         }
 
-        var faceRefsResult = Step242SubsetDecoder.ReadReferenceList(shellEntityResult.Value, 1, "CLOSED_SHELL faces");
-        if (!faceRefsResult.IsSuccess)
+        shellFaceEntityIds.Add(outerShellFacesResult.Value);
+
+        if (isBrepWithVoids)
         {
-            return KernelResult<BrepBody>.Failure(faceRefsResult.Diagnostics);
+            var voidShellRefsResult = Step242SubsetDecoder.ReadReferenceList(brepEntity, 2, "BREP_WITH_VOIDS void shells");
+            if (!voidShellRefsResult.IsSuccess)
+            {
+                return KernelResult<BrepBody>.Failure(voidShellRefsResult.Diagnostics);
+            }
+
+            if (voidShellRefsResult.Value.Count == 0)
+            {
+                return Step242ImportSharedUtilities.ValidationFailure<BrepBody>("BREP_WITH_VOIDS must reference at least one void shell.", "Importer.TopologyRoot.BrepWithVoids");
+            }
+
+            foreach (var voidShellRef in voidShellRefsResult.Value)
+            {
+                var voidShellFacesResult = ReadShellFaceIds(document, voidShellRef.TargetId, "void", shellRoleDiagnostics);
+                if (!voidShellFacesResult.IsSuccess)
+                {
+                    return KernelResult<BrepBody>.Failure(voidShellFacesResult.Diagnostics);
+                }
+
+                shellFaceEntityIds.Add(voidShellFacesResult.Value);
+            }
         }
 
-        var faceEntityIds = faceRefsResult.Value.Select(r => r.TargetId).ToList();
+        var faceEntityIds = shellFaceEntityIds.SelectMany(ids => ids).ToList();
         AppendSupportedOrphanPlanarFaces(document, faceEntityIds);
 
         var builder = new TopologyBuilder();
@@ -130,6 +154,7 @@ public static class Step242Importer
         var nextCurveGeometryId = 1;
         var nextSurfaceGeometryId = 1;
         var faceIds = new List<FaceId>();
+        var faceEntityToFaceId = new Dictionary<int, FaceId>();
 
         foreach (var faceEntityId in faceEntityIds)
         {
@@ -425,6 +450,7 @@ public static class Step242Importer
 
             var faceId = builder.AddFace(faceLoopIds);
             faceIds.Add(faceId);
+            faceEntityToFaceId[faceEntityId] = faceId;
 
             var (surfaceGeometryId, surfaceGeometry) = bindSurfaceResult.Value;
             nextSurfaceGeometryId++;
@@ -437,17 +463,95 @@ public static class Step242Importer
             builder.AddCoedge(coedge);
         }
 
-        var shellId = builder.AddShell(faceIds);
-        builder.AddBody([shellId]);
+        var shellIds = new List<ShellId>(shellFaceEntityIds.Count);
+        var assignedFaceIds = new HashSet<FaceId>();
+        var referencedFaceIds = new HashSet<FaceId>(
+            shellFaceEntityIds
+                .SelectMany(faceSet => faceSet)
+                .Where(faceEntityToFaceId.ContainsKey)
+                .Select(faceEntityId => faceEntityToFaceId[faceEntityId]));
+        foreach (var shellFaceSet in shellFaceEntityIds)
+        {
+            var shellFaceIds = new List<FaceId>(shellFaceSet.Count);
+            foreach (var shellFaceEntityId in shellFaceSet)
+            {
+                if (!faceEntityToFaceId.TryGetValue(shellFaceEntityId, out var shellFaceId))
+                {
+                    return Failure($"Shell references unknown face entity #{shellFaceEntityId}.", "Importer.TopologyRoot.BrepWithVoids");
+                }
 
-        var body = new BrepBody(builder.Model, geometry, bindings, vertexMap.Values.ToDictionary(entry => entry.VertexId, entry => entry.Point));
+                shellFaceIds.Add(shellFaceId);
+                assignedFaceIds.Add(shellFaceId);
+            }
+
+            if (shellIds.Count == 0)
+            {
+                foreach (var faceId in faceIds)
+                {
+                    if (assignedFaceIds.Contains(faceId) || referencedFaceIds.Contains(faceId))
+                    {
+                        continue;
+                    }
+
+                    shellFaceIds.Add(faceId);
+                    assignedFaceIds.Add(faceId);
+                }
+            }
+
+            shellIds.Add(builder.AddShell(shellFaceIds));
+        }
+
+        builder.AddBody(shellIds);
+
+        BrepBodyShellRepresentation? shellRepresentation = null;
+        if (shellIds.Count > 0)
+        {
+            shellRepresentation = new BrepBodyShellRepresentation(shellIds[0], shellIds.Skip(1).ToArray());
+        }
+
+        var body = new BrepBody(builder.Model, geometry, bindings, vertexMap.Values.ToDictionary(entry => entry.VertexId, entry => entry.Point), shellRepresentation: shellRepresentation);
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
         if (!validation.IsSuccess)
         {
             return KernelResult<BrepBody>.Failure(validation.Diagnostics);
         }
 
-        return KernelResult<BrepBody>.Success(body, validation.Diagnostics);
+        return KernelResult<BrepBody>.Success(body, validation.Diagnostics.Concat(shellRoleDiagnostics).ToArray());
+    }
+
+    private static KernelResult<IReadOnlyList<int>> ReadShellFaceIds(Step242ParsedDocument document, int shellEntityId, string role, ICollection<KernelDiagnostic> diagnostics)
+    {
+        var shellEntityResult = document.TryGetEntity(shellEntityId);
+        if (!shellEntityResult.IsSuccess)
+        {
+            return KernelResult<IReadOnlyList<int>>.Failure(shellEntityResult.Diagnostics);
+        }
+
+        var shellEntity = shellEntityResult.Value;
+        if (string.Equals(shellEntity.Name, "ORIENTED_CLOSED_SHELL", StringComparison.OrdinalIgnoreCase))
+        {
+            var orientedRefResult = Step242SubsetDecoder.ReadReference(shellEntity, 1, "ORIENTED_CLOSED_SHELL shell");
+            if (!orientedRefResult.IsSuccess)
+            {
+                return KernelResult<IReadOnlyList<int>>.Failure(orientedRefResult.Diagnostics);
+            }
+
+            diagnostics.Add(new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Info, $"Resolved oriented {role} shell reference #{shellEntity.Id} -> #{orientedRefResult.Value.TargetId}.", "Importer.TopologyRoot.BrepWithVoids"));
+            return ReadShellFaceIds(document, orientedRefResult.Value.TargetId, role, diagnostics);
+        }
+
+        if (!string.Equals(shellEntity.Name, "CLOSED_SHELL", StringComparison.OrdinalIgnoreCase))
+        {
+            return Step242ImportSharedUtilities.NotImplementedFailure<IReadOnlyList<int>>($"Unsupported {role} shell entity '{shellEntity.Name}' (expected CLOSED_SHELL or ORIENTED_CLOSED_SHELL).", "Importer.TopologyRoot.BrepWithVoids");
+        }
+
+        var faceRefsResult = Step242SubsetDecoder.ReadReferenceList(shellEntity, 1, $"CLOSED_SHELL {role} faces");
+        if (!faceRefsResult.IsSuccess)
+        {
+            return KernelResult<IReadOnlyList<int>>.Failure(faceRefsResult.Diagnostics);
+        }
+
+        return KernelResult<IReadOnlyList<int>>.Success(faceRefsResult.Value.Select(r => r.TargetId).ToArray());
     }
 
     private static void AppendSupportedOrphanPlanarFaces(Step242ParsedDocument document, IList<int> faceEntityIds)

@@ -87,7 +87,7 @@ public sealed class Step242ImporterTests
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("Importer.TopologyRoot", diagnostic.Source);
-        Assert.StartsWith("Missing MANIFOLD_SOLID_BREP", diagnostic.Message, StringComparison.Ordinal);
+        Assert.StartsWith("Missing MANIFOLD_SOLID_BREP or BREP_WITH_VOIDS", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public sealed class Step242ImporterTests
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("Importer.AssemblyLike.StepMultiRoot", diagnostic.Source);
         Assert.Contains("assembly-like", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("detected 2 MANIFOLD_SOLID_BREP rigid roots", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("detected 2 exact BRep rigid roots", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class Step242ImporterTests
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("Importer.TopologyRoot", diagnostic.Source);
-        Assert.StartsWith("Missing MANIFOLD_SOLID_BREP", diagnostic.Message, StringComparison.Ordinal);
+        Assert.StartsWith("Missing MANIFOLD_SOLID_BREP or BREP_WITH_VOIDS", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

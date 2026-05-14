@@ -18,17 +18,18 @@ internal static class Step242RigidRootClassifier
 {
     internal static Step242RigidRootClassification Classify(Step242ParsedDocument document)
     {
-        var manifoldSolidRoots = document.Entities
-            .Where(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase))
+        var supportedRigidRoots = document.Entities
+            .Where(e => string.Equals(e.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(e.Name, "BREP_WITH_VOIDS", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        var kind = manifoldSolidRoots.Count switch
+        var kind = supportedRigidRoots.Count switch
         {
             0 => Step242RigidRootClassificationKind.MissingRigidRoot,
             1 => Step242RigidRootClassificationKind.PartLikeSingleRigidRoot,
             _ => Step242RigidRootClassificationKind.AssemblyLikeMultipleRigidRoots
         };
 
-        return new Step242RigidRootClassification(kind, manifoldSolidRoots);
+        return new Step242RigidRootClassification(kind, supportedRigidRoots);
     }
 }

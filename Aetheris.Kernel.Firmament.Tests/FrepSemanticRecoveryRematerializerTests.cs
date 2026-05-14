@@ -16,7 +16,7 @@ public sealed class FrepSemanticRecoveryRematerializerTests
 
         Assert.True(result.Succeeded);
         Assert.NotNull(result.Body);
-        Assert.Equal(nameof(ThroughHoleRecoveryPolicy), result.SelectedPolicy);
+        Assert.Equal(nameof(HoleRecoveryPolicy), result.SelectedPolicy);
         Assert.Contains(result.Diagnostics, d => d.Contains("planner ran", StringComparison.Ordinal));
         Assert.Contains(result.Diagnostics, d => d.Contains("executor succeeded", StringComparison.Ordinal));
     }
@@ -32,7 +32,7 @@ public sealed class FrepSemanticRecoveryRematerializerTests
 
         Assert.True(result.Succeeded);
         Assert.NotNull(result.Body);
-        Assert.Equal(nameof(ThroughHoleRecoveryPolicy), result.SelectedPolicy);
+        Assert.Equal(nameof(HoleRecoveryPolicy), result.SelectedPolicy);
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class FrepSemanticRecoveryRematerializerTests
         Assert.Null(result.Body);
         Assert.Equal(FrepMaterializerDecisionStatus.Selected, result.Decision.Status);
         Assert.Equal(nameof(CirOnlyFallbackPolicy), result.SelectedPolicy);
-        Assert.Contains(result.Diagnostics, d => d.Contains("selected policy was not ThroughHoleRecoveryPolicy", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, d => d.Contains("selected policy was not HoleRecoveryPolicy", StringComparison.Ordinal));
     }
 
 
@@ -58,7 +58,7 @@ public sealed class FrepSemanticRecoveryRematerializerTests
         Assert.False(result.Succeeded);
         Assert.Null(result.Body);
         Assert.Equal(nameof(CirOnlyFallbackPolicy), result.SelectedPolicy);
-        Assert.Contains(result.Diagnostics, d => d.Contains("selected policy was not ThroughHoleRecoveryPolicy", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, d => d.Contains("selected policy was not HoleRecoveryPolicy", StringComparison.Ordinal));
     }
 
     [Fact]

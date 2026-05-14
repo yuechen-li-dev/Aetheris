@@ -8,7 +8,7 @@ internal sealed record FrepSemanticRecoveryResult(
     bool Attempted,
     bool Succeeded,
     string? SelectedPolicy,
-    ThroughHoleRecoveryPlan? Plan,
+    HoleRecoveryPlan? Plan,
     ThroughHoleRecoveryExecutionStatus ExecutionStatus,
     BrepBody? Body,
     IReadOnlyList<string> Diagnostics,
@@ -38,22 +38,30 @@ internal static class FrepSemanticRecoveryRematerializer
         }
 
         diagnostics.Add($"selected policy: {decision.SelectedPolicyName}");
-        if (!string.Equals(decision.SelectedPolicyName, nameof(ThroughHoleRecoveryPolicy), StringComparison.Ordinal))
+        if (!string.Equals(decision.SelectedPolicyName, nameof(HoleRecoveryPolicy), StringComparison.Ordinal))
         {
-            diagnostics.Add("selected policy was not ThroughHoleRecoveryPolicy");
+            diagnostics.Add("selected policy was not HoleRecoveryPolicy");
             return new(true, false, decision.SelectedPolicyName, null, ThroughHoleRecoveryExecutionStatus.Failed, null, diagnostics, decision);
         }
 
         var selectedEval = decision.Evaluations.Single(e => string.Equals(e.PolicyName, decision.SelectedPolicyName, StringComparison.Ordinal));
-        if (selectedEval.Plan is not ThroughHoleRecoveryPlan plan)
+        if (selectedEval.Plan is not HoleRecoveryPlan plan)
         {
-            diagnostics.Add("selected policy did not provide through-hole plan");
+            diagnostics.Add("selected policy did not provide hole-recovery plan");
             diagnostics.Add("selected policy is non-executable for exact BRep recovery");
             return new(true, false, decision.SelectedPolicyName, null, ThroughHoleRecoveryExecutionStatus.Failed, null, diagnostics, decision);
         }
 
-        diagnostics.Add("through-hole plan extracted");
-        var execution = ThroughHoleRecoveryExecutor.Execute(plan);
+        diagnostics.Add("hole-recovery plan extracted");
+        if (!ThroughHoleRecoveryPlanAdapter.TryConvert(plan, out var throughPlan) || throughPlan is null)
+        {
+            diagnostics.Add("hole plan conversion to through-hole executor contract failed");
+            diagnostics.Add("selected hole variant is currently non-executable");
+            return new(true, false, decision.SelectedPolicyName, plan, ThroughHoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics, decision);
+        }
+
+        diagnostics.Add("hole plan converted to through-hole executor contract");
+        var execution = ThroughHoleRecoveryExecutor.Execute(throughPlan);
         diagnostics.AddRange(execution.Diagnostics);
         if (execution.Status != ThroughHoleRecoveryExecutionStatus.Succeeded || execution.Body is null)
         {

@@ -9,7 +9,7 @@ public sealed class FrepMaterializerPolicyCatalogTests
     public void Catalog_Default_IncludesThroughHolePolicy()
     {
         var policies = FrepMaterializerPolicyCatalog.Default();
-        Assert.Contains(policies, p => p.Name == nameof(ThroughHoleRecoveryPolicy));
+        Assert.Contains(policies, p => p.Name == nameof(HoleRecoveryPolicy));
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public sealed class FrepMaterializerPolicyCatalogTests
         var decision = FrepMaterializerPlanner.Decide(context, FrepMaterializerPolicyCatalog.Default());
 
         Assert.Equal(FrepMaterializerDecisionStatus.Selected, decision.Status);
-        Assert.Equal(nameof(ThroughHoleRecoveryPolicy), decision.SelectedPolicyName);
+        Assert.Equal(nameof(HoleRecoveryPolicy), decision.SelectedPolicyName);
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed class FrepMaterializerPolicyCatalogTests
     {
         var snapshot = FrepMaterializerPolicyCatalog.SnapshotDefault();
 
-        Assert.Equal(new[] { nameof(ThroughHoleRecoveryPolicy), nameof(CirOnlyFallbackPolicy) }, snapshot.PolicyNames);
+        Assert.Equal(new[] { nameof(HoleRecoveryPolicy), nameof(CirOnlyFallbackPolicy) }, snapshot.PolicyNames);
         Assert.Contains(snapshot.Diagnostics, d => d.Contains("default catalog built", StringComparison.Ordinal));
     }
 }

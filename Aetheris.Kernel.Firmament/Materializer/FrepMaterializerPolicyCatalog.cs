@@ -19,7 +19,7 @@ public static class FrepMaterializerPolicyCatalog
 {
     private static readonly IReadOnlyList<FrepMaterializerPolicyRegistration> DefaultRegistrationsValue =
     [
-        new(new ThroughHoleRecoveryPolicy(), FrepMaterializerPolicyCategory.SemanticExact, "Canonical rectangular-box minus cylindrical through-hole exact BRep recovery."),
+        new(new HoleRecoveryPolicy(), FrepMaterializerPolicyCategory.SemanticExact, "Composable semantic hole-family policy with through-hole variant exact BRep recovery."),
         new(new CirOnlyFallbackPolicy(), FrepMaterializerPolicyCategory.CirOnlyFallback, "Intent-preserving fallback when no exact semantic BRep policy is admissible.")
     ];
 

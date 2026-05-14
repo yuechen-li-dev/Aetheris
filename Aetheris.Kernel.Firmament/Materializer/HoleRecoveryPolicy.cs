@@ -21,7 +21,7 @@ public sealed record HoleRecoveryVariantEvaluation(
 public sealed class HoleRecoveryPolicy : IFrepMaterializerPolicy
 {
     private static readonly JudgmentEngine<FrepMaterializerContext> VariantEngine = new();
-    private readonly IReadOnlyList<IHoleRecoveryVariant> _variants = [new ThroughHoleVariant(), new CounterboreVariant()];
+    private readonly IReadOnlyList<IHoleRecoveryVariant> _variants = [new ThroughHoleVariant(), new BlindHoleVariant(), new CounterboreVariant()];
     public string Name => nameof(HoleRecoveryPolicy);
 
     public FrepMaterializerPolicyEvaluation Evaluate(FrepMaterializerContext context)
@@ -77,6 +77,131 @@ internal sealed class ThroughHoleVariant : IHoleRecoveryVariant
 }
 
 
+
+
+internal sealed class BlindHoleVariant : IHoleRecoveryVariant
+{
+    private const double Score = 1050d;
+    public string Name => nameof(BlindHoleVariant);
+
+    public HoleRecoveryVariantEvaluation Evaluate(FrepMaterializerContext context)
+    {
+        var recognition = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(context.Root, context.ReplayLog, context.SourceLabel));
+        if (recognition.Success)
+        {
+            return new(Name, false, 0d, null, ["blind-hole", "rectangular-box-host"], ["UnsupportedThroughHole"], ["BlindHoleVariant rejected: recognizer admitted through-hole span."]);
+        }
+
+        if (recognition.Reason is not CirBoxCylinderRecognitionReason.UnsupportedNotThroughHole)
+        {
+            return new(Name, false, 0d, null, ["blind-hole", "rectangular-box-host"], [recognition.Diagnostic, $"recognizer-reason:{recognition.Reason}"], recognition.Diagnostics);
+        }
+
+        if (!TryBuildBlindPlan(context.Root, out var plan, out var diagnostics, out var rejection))
+        {
+            return new(Name, false, 0d, null, ["blind-hole", "rectangular-box-host"], [rejection], diagnostics);
+        }
+
+        var evidence = new List<string> { "blind-hole", "rectangular-box-host", "cylindrical-profile-segment", "strict-clearance", "z-axis", "closed-bottom" };
+        return new(Name, true, Score, plan, evidence, Array.Empty<string>(), diagnostics);
+    }
+
+    private static bool TryBuildBlindPlan(CirNode root, out HoleRecoveryPlan plan, out List<string> diagnostics, out string rejection)
+    {
+        diagnostics = ["BlindHoleVariant evaluated."];
+        rejection = string.Empty;
+        plan = null!;
+        if (root is not CirSubtractNode subtract)
+        {
+            rejection = "UnsupportedRootNotSubtract";
+            diagnostics.Add("Blind-hole requires Subtract(Box, Cylinder). ");
+            return false;
+        }
+
+        if (subtract.Left is CirSubtractNode or CirUnionNode or CirIntersectNode || subtract.Right is CirSubtractNode or CirUnionNode or CirIntersectNode)
+        {
+            rejection = "UnsupportedNestedOrComposite";
+            diagnostics.Add("Nested/composite booleans are unsupported for blind-hole V8.");
+            return false;
+        }
+
+        if (!CounterboreVariant.TryUnwrapTranslation(subtract.Left, out var left, out var hostT) || left is not CirBoxNode box)
+        {
+            rejection = "UnsupportedHostNotBoxOrTransform";
+            diagnostics.Add("Blind-hole host must be box with translation-only transform.");
+            return false;
+        }
+
+        if (!CounterboreVariant.TryUnwrapTranslation(subtract.Right, out var right, out var toolT) || right is not CirCylinderNode cyl)
+        {
+            rejection = "UnsupportedToolNotCylinderOrTransform";
+            diagnostics.Add("Blind-hole tool must be cylinder with translation-only transform.");
+            return false;
+        }
+
+        var tol = Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
+        var boxMinZ = hostT.Z - (box.Depth * 0.5d);
+        var boxMaxZ = hostT.Z + (box.Depth * 0.5d);
+        var cylMinZ = toolT.Z - (cyl.Height * 0.5d);
+        var cylMaxZ = toolT.Z + (cyl.Height * 0.5d);
+
+        var entersTop = Math.Abs(cylMaxZ - boxMaxZ) <= tol;
+        var entersBottom = Math.Abs(cylMinZ - boxMinZ) <= tol;
+        if (!entersTop && !entersBottom)
+        {
+            rejection = "UnsupportedMissingEntryFace";
+            diagnostics.Add("Blind-hole cylinder must intersect exactly one entry face.");
+            return false;
+        }
+
+        if (entersTop && entersBottom)
+        {
+            rejection = "UnsupportedThroughFullDepth";
+            diagnostics.Add("Blind-hole cylinder intersects both entry faces (through-hole). ");
+            return false;
+        }
+
+        var bottomInside = entersTop ? (cylMinZ > boxMinZ + tol) : (cylMaxZ < boxMaxZ - tol);
+        if (!bottomInside)
+        {
+            rejection = "UnsupportedBottomOutsideHost";
+            diagnostics.Add("Blind-hole bottom cap is outside host bounds.");
+            return false;
+        }
+
+        var halfW = box.Width * 0.5d;
+        var halfH = box.Height * 0.5d;
+        var dx = toolT.X - hostT.X;
+        var dy = toolT.Y - hostT.Y;
+        var cxm = dx + halfW - cyl.Radius;
+        var cxp = halfW - dx - cyl.Radius;
+        var cym = dy + halfH - cyl.Radius;
+        var cyp = halfH - dy - cyl.Radius;
+        if (cxm <= tol || cxp <= tol || cym <= tol || cyp <= tol)
+        {
+            rejection = "UnsupportedTangentOrOutsideClearance";
+            diagnostics.Add("Blind-hole cylinder radius must satisfy strict XY clearance.");
+            return false;
+        }
+
+        var depth = entersTop ? (boxMaxZ - cylMinZ) : (cylMaxZ - boxMinZ);
+        diagnostics.Add($"Blind entry face detected: {(entersTop ? "Top(+Z)" : "Bottom(-Z)")}.");
+        diagnostics.Add($"Blind depth computed: {depth:R}.");
+        diagnostics.Add("Blind-hole plan produced.");
+
+        plan = new HoleRecoveryPlan(HoleHostKind.RectangularBox, HoleAxisKind.Z, HoleKind.Blind, HoleDepthKind.Blind, HoleEntryFeatureKind.Plain, HoleExitFeatureKind.ClosedBottom,
+            depth, box.Width, box.Height, box.Depth, hostT, toolT,
+            [new(HoleProfileSegmentKind.Cylindrical, cyl.Radius, cyl.Radius, 0d, depth)],
+            [new(HoleSurfacePatchRole.EntryFace, "Cylinder intersects one host entry face with circular profile."),
+             new(HoleSurfacePatchRole.HostRetainedPlanarFaces, "Host planar faces are retained after blind-hole subtraction."),
+             new(HoleSurfacePatchRole.CylindricalWall, "One cylindrical blind wall patch is expected."),
+             new(HoleSurfacePatchRole.BlindBottomCap, "One circular blind bottom cap patch is expected.")],
+            [new(HoleTrimCurveRole.CircularRimTrim, "Circular trims on entry rim and blind bottom are expected.")],
+            FrepMaterializerCapability.ExactBRep,
+            diagnostics.ToArray());
+        return true;
+    }
+}
 internal sealed class CounterboreVariant : IHoleRecoveryVariant
 {
     private const double Score = 1100d;
@@ -170,7 +295,7 @@ internal sealed class CounterboreVariant : IHoleRecoveryVariant
         return new(Name, true, Score, plan, evidence, Array.Empty<string>(), ["CounterboreVariant admitted canonical nested subtract pattern."]);
     }
 
-    private static bool TryUnwrapTranslation(Aetheris.Kernel.Core.Cir.CirNode node, out Aetheris.Kernel.Core.Cir.CirNode unwrapped, out Aetheris.Kernel.Core.Math.Vector3D translation)
+    internal static bool TryUnwrapTranslation(Aetheris.Kernel.Core.Cir.CirNode node, out Aetheris.Kernel.Core.Cir.CirNode unwrapped, out Aetheris.Kernel.Core.Math.Vector3D translation)
     {
         unwrapped = node;
         translation = Aetheris.Kernel.Core.Math.Vector3D.Zero;

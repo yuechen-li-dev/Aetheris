@@ -47,9 +47,15 @@ public static class HoleRecoveryExecutor
             return new((HoleRecoveryExecutionStatus)through.Status, through.Body, diagnostics);
         }
 
+        if (plan.HoleKind == HoleKind.Blind && plan.DepthKind == HoleDepthKind.Blind)
+        {
+            diagnostics.Add("Blind-hole plan accepted for bounded execution.");
+            return ExecuteBlind(plan, diagnostics);
+        }
+
         if (plan.HoleKind != HoleKind.Counterbore || plan.DepthKind != HoleDepthKind.ThroughWithEntryRelief)
         {
-            diagnostics.Add("Plan rejected: only bounded counterbore ThroughWithEntryRelief is supported.");
+            diagnostics.Add("Plan rejected: only bounded blind-hole and counterbore are supported.");
             return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
@@ -137,6 +143,64 @@ public static class HoleRecoveryExecutor
         diagnostics.Add("Second subtract succeeded.");
         diagnostics.Add("Result BRep body produced.");
         return new(HoleRecoveryExecutionStatus.Succeeded, secondSubtract.Value, diagnostics);
+    }
+
+
+    private static HoleRecoveryExecutionResult ExecuteBlind(HoleRecoveryPlan plan, List<string> diagnostics)
+    {
+        if (plan.HostKind != HoleHostKind.RectangularBox || plan.Axis != HoleAxisKind.Z || plan.ProfileStack.Count != 1)
+        {
+            diagnostics.Add("Blind plan rejected: host/axis/profile mismatch.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        var seg = plan.ProfileStack[0];
+        if (seg.SegmentKind != HoleProfileSegmentKind.Cylindrical)
+        {
+            diagnostics.Add("Blind plan rejected: profile segment must be cylindrical.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        var depth = seg.DepthEnd - seg.DepthStart;
+        if (depth <= Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear)
+        {
+            diagnostics.Add("Blind plan rejected: depth must be positive.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        var boxResult = BrepPrimitives.CreateBox(plan.HostSizeX, plan.HostSizeY, plan.HostSizeZ);
+        if (!boxResult.IsSuccess)
+        {
+            diagnostics.Add("Blind-hole box primitive construction failed.");
+            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+        }
+
+        var toolResult = BrepPrimitives.CreateCylinder(seg.RadiusStart, depth);
+        if (!toolResult.IsSuccess)
+        {
+            diagnostics.Add("Blind-hole cylinder primitive construction failed.");
+            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+        }
+
+        var boxBody = TranslateBody(boxResult.Value, plan.HostTranslation);
+        var entryTopZ = plan.HostTranslation.Z + (plan.HostSizeZ * 0.5d);
+        var entryBottomZ = plan.HostTranslation.Z - (plan.HostSizeZ * 0.5d);
+        var touchTop = Math.Abs((plan.ToolTranslation.Z + (depth * 0.5d)) - entryTopZ) <= Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
+        var centerZ = touchTop ? entryTopZ - (depth * 0.5d) : entryBottomZ + (depth * 0.5d);
+        var toolBody = TranslateBody(toolResult.Value, new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, centerZ));
+        diagnostics.Add($"Blind cylinder constructed with entry side {(touchTop ? "top(+Z)" : "bottom(-Z)")}.");
+
+        var sub = BrepBoolean.Subtract(boxBody, toolBody);
+        diagnostics.Add("Blind subtract invoked.");
+        if (!sub.IsSuccess || sub.Value is null)
+        {
+            diagnostics.Add("Blind subtract failed.");
+            return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
+        }
+
+        diagnostics.Add("Blind subtract succeeded.");
+        diagnostics.Add("Result BRep body produced.");
+        return new(HoleRecoveryExecutionStatus.Succeeded, sub.Value, diagnostics);
     }
 
     private static BrepBody TranslateBody(BrepBody body, Vector3D translation)

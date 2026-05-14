@@ -6,8 +6,9 @@ using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Judgment;
 using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Firmament.Execution;
 
-namespace Aetheris.Kernel.Firmament.Execution;
+namespace Aetheris.Kernel.Firmament.Diagnostics;
 
 /// <summary>
 /// CIR-F8.1 scaffold: descriptor-first path toward surface-family materialization.

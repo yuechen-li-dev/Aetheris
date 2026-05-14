@@ -1,4 +1,5 @@
-namespace Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Execution;
+namespace Aetheris.Kernel.Firmament.Diagnostics;
 
 internal enum SurfaceFeatureDryRunStatus
 {

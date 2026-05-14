@@ -8,6 +8,8 @@ using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Diagnostics;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.Diagnostics;
 using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.ParsedModel;
 using Aetheris.Kernel.Firmament.Validation;

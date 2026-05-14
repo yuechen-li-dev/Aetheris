@@ -3,6 +3,8 @@ using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Cir;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.Diagnostics;
 using Aetheris.Kernel.Firmament.Lowering;
 using System.Globalization;
 using System.Text.Json;

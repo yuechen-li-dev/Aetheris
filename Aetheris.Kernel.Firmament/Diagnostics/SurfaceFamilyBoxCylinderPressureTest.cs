@@ -1,8 +1,9 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Cir;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Firmament.Execution;
 
-namespace Aetheris.Kernel.Firmament.Execution;
+namespace Aetheris.Kernel.Firmament.Diagnostics;
 
 internal enum SurfaceFamilyPressureSeverity { Info, Warning, Blocking, Fatal }
 internal enum SurfaceFamilyPressureStageStatus { Succeeded, Skipped, Deferred, Failed }

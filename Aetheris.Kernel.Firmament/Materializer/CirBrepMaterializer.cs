@@ -4,8 +4,9 @@ using Aetheris.Kernel.Core.Cir;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Judgment;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Firmament.Execution;
 
-namespace Aetheris.Kernel.Firmament.Execution;
+namespace Aetheris.Kernel.Firmament.Materializer;
 
 internal static class CirBrepMaterializer
 {

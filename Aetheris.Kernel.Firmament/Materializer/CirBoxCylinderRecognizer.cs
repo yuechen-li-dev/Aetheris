@@ -1,8 +1,9 @@
 using Aetheris.Kernel.Core.Cir;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
+using Aetheris.Kernel.Firmament.Execution;
 
-namespace Aetheris.Kernel.Firmament.Execution;
+namespace Aetheris.Kernel.Firmament.Materializer;
 
 internal enum CirBoxCylinderRecognitionReason
 {

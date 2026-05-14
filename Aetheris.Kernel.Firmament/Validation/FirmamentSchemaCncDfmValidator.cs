@@ -6,6 +6,8 @@ using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Firmament.CompiledModel;
 using Aetheris.Kernel.Firmament.Diagnostics;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Validation;
 

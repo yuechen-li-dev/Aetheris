@@ -1,5 +1,7 @@
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.Diagnostics;
 using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.Mapping;
 using Aetheris.Kernel.Firmament.Parsing;

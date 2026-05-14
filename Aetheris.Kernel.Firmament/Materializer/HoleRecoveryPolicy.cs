@@ -81,7 +81,7 @@ internal sealed class ThroughHoleVariant : IHoleRecoveryVariant
 
 internal sealed class BlindHoleVariant : IHoleRecoveryVariant
 {
-    private const double Score = 1050d;
+    private const double Score = 900d;
     public string Name => nameof(BlindHoleVariant);
 
     public HoleRecoveryVariantEvaluation Evaluate(FrepMaterializerContext context)
@@ -89,7 +89,12 @@ internal sealed class BlindHoleVariant : IHoleRecoveryVariant
         var recognition = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(context.Root, context.ReplayLog, context.SourceLabel));
         if (recognition.Success)
         {
-            return new(Name, false, 0d, null, ["blind-hole", "rectangular-box-host"], ["UnsupportedThroughHole"], ["BlindHoleVariant rejected: recognizer admitted through-hole span."]);
+            var throughDiagnostics = new List<string>(recognition.Diagnostics)
+            {
+                "Blind-hole variant evaluated and rejected: recognizer admitted through-hole span.",
+                "through-hole rejected as not blind."
+            };
+            return new(Name, false, 0d, null, ["blind-hole", "rectangular-box-host"], ["UnsupportedThroughHole", "NotBlindThroughSpan"], throughDiagnostics);
         }
 
         if (recognition.Reason is not CirBoxCylinderRecognitionReason.UnsupportedNotThroughHole)
@@ -129,6 +134,7 @@ internal sealed class BlindHoleVariant : IHoleRecoveryVariant
         {
             rejection = "UnsupportedHostNotBoxOrTransform";
             diagnostics.Add("Blind-hole host must be box with translation-only transform.");
+            diagnostics.Add("unsupported transform rejected.");
             return false;
         }
 
@@ -136,6 +142,7 @@ internal sealed class BlindHoleVariant : IHoleRecoveryVariant
         {
             rejection = "UnsupportedToolNotCylinderOrTransform";
             diagnostics.Add("Blind-hole tool must be cylinder with translation-only transform.");
+            diagnostics.Add("unsupported transform rejected.");
             return false;
         }
 
@@ -147,10 +154,12 @@ internal sealed class BlindHoleVariant : IHoleRecoveryVariant
 
         var entersTop = Math.Abs(cylMaxZ - boxMaxZ) <= tol;
         var entersBottom = Math.Abs(cylMinZ - boxMinZ) <= tol;
+        diagnostics.Add($"translated geometry normalized: hostT=({hostT.X:R},{hostT.Y:R},{hostT.Z:R}), toolT=({toolT.X:R},{toolT.Y:R},{toolT.Z:R}).");
         if (!entersTop && !entersBottom)
         {
             rejection = "UnsupportedMissingEntryFace";
             diagnostics.Add("Blind-hole cylinder must intersect exactly one entry face.");
+            diagnostics.Add("entry face not reached; blind-hole rejected.");
             return false;
         }
 
@@ -158,6 +167,7 @@ internal sealed class BlindHoleVariant : IHoleRecoveryVariant
         {
             rejection = "UnsupportedThroughFullDepth";
             diagnostics.Add("Blind-hole cylinder intersects both entry faces (through-hole). ");
+            diagnostics.Add("through-hole rejected as not blind.");
             return false;
         }
 
@@ -166,6 +176,7 @@ internal sealed class BlindHoleVariant : IHoleRecoveryVariant
         {
             rejection = "UnsupportedBottomOutsideHost";
             diagnostics.Add("Blind-hole bottom cap is outside host bounds.");
+            diagnostics.Add("opposite face reached or exceeded; blind-hole rejected as near-through or through.");
             return false;
         }
 
@@ -181,11 +192,15 @@ internal sealed class BlindHoleVariant : IHoleRecoveryVariant
         {
             rejection = "UnsupportedTangentOrOutsideClearance";
             diagnostics.Add("Blind-hole cylinder radius must satisfy strict XY clearance.");
+            diagnostics.Add("tangent/grazing radius rejected.");
             return false;
         }
 
         var depth = entersTop ? (boxMaxZ - cylMinZ) : (cylMaxZ - boxMinZ);
-        diagnostics.Add($"Blind entry face detected: {(entersTop ? "Top(+Z)" : "Bottom(-Z)")}.");
+        diagnostics.Add($"Blind entry face detected: {(entersTop ? "top(+Z)" : "bottom(-Z)")}.");
+        diagnostics.Add("entry face reached.");
+        diagnostics.Add("blind bottom inside host.");
+        diagnostics.Add("opposite face not reached.");
         diagnostics.Add($"Blind depth computed: {depth:R}.");
         diagnostics.Add("Blind-hole plan produced.");
 

@@ -68,3 +68,5 @@ Stable rejection/defer diagnostics remain for:
 ## Recommended V9
 
 Generalize bounded blind-hole coverage to additional entry-side and transform compositions with explicit admissibility/score tuning and shape-lab updates before any generic stack executor work.
+
+> V9 note: follow-up hardening for entry-side, translation, tolerance, and transform-rejection coverage is tracked in `docs/cir-recovery-v9-blind-hole-hardening.md`.

@@ -4,10 +4,10 @@ namespace Aetheris.Kernel.Firmament.Materializer;
 
 public enum HoleHostKind { RectangularBox, Unsupported }
 public enum HoleAxisKind { Z, Unsupported }
-public enum HoleKind { Through, Blind, Counterbore, Unsupported }
+public enum HoleKind { Through, Blind, Counterbore, Countersink, Unsupported }
 public enum HoleDepthKind { Through, Blind, ThroughWithEntryRelief, Unsupported }
 public enum HoleProfileSegmentKind { Cylindrical, Conical, Chamfer, ThreadDeferred, Unsupported }
-public enum HoleEntryFeatureKind { Plain, Counterbore, Unsupported }
+public enum HoleEntryFeatureKind { Plain, Counterbore, Countersink, Unsupported }
 public enum HoleExitFeatureKind { Plain, ClosedBottom, Unsupported }
 public enum HoleSurfacePatchRole { EntryFace, ExitFace, HostRetainedPlanarFaces, CylindricalWall, BlindBottomCap, CounterboreFloorAnnulus, CounterboreWall }
 public enum HoleTrimCurveRole { CircularRimTrim, Deferred }

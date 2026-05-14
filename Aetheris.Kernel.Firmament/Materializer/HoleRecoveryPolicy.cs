@@ -21,7 +21,7 @@ public sealed record HoleRecoveryVariantEvaluation(
 public sealed class HoleRecoveryPolicy : IFrepMaterializerPolicy
 {
     private static readonly JudgmentEngine<FrepMaterializerContext> VariantEngine = new();
-    private readonly IReadOnlyList<IHoleRecoveryVariant> _variants = [new ThroughHoleVariant(), new BlindHoleVariant(), new CounterboreVariant()];
+    private readonly IReadOnlyList<IHoleRecoveryVariant> _variants = [new ThroughHoleVariant(), new BlindHoleVariant(), new CounterboreVariant(), new CountersinkVariant()];
     public string Name => nameof(HoleRecoveryPolicy);
 
     public FrepMaterializerPolicyEvaluation Evaluate(FrepMaterializerContext context)
@@ -46,6 +46,30 @@ public sealed class HoleRecoveryPolicy : IFrepMaterializerPolicy
         diagnostics.Add($"Selected hole variant: {selected.VariantName}.");
         diagnostics.Add("Hole recovery plan produced.");
         return FrepMaterializerPolicyEvaluation.Admitted(Name, selected.Score, FrepMaterializerCapability.ExactBRep, evidence, diagnostics, selected.Plan);
+    }
+}
+
+internal sealed class CountersinkVariant : IHoleRecoveryVariant
+{
+    public string Name => nameof(CountersinkVariant);
+
+    public HoleRecoveryVariantEvaluation Evaluate(FrepMaterializerContext context)
+    {
+        var diagnostics = new List<string>
+        {
+            "CountersinkVariant evaluated.",
+            "Blocked: CIR currently has no cone primitive node (only Box/Cylinder/Sphere/Torus plus booleans/transforms).",
+            "Unsupported bounded countersink recognition until cone primitive exists in CIR tree."
+        };
+
+        return new(
+            Name,
+            false,
+            0d,
+            null,
+            ["countersink", "rectangular-box-host"],
+            ["UnsupportedMissingConePrimitiveInCir"],
+            diagnostics);
     }
 }
 

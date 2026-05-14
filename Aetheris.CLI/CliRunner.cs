@@ -372,7 +372,7 @@ public static class CliRunner
             return;
         }
 
-        var rigidRootCount = CountManifoldSolidRoots(multiRootDiagnostic.Message);
+        var rigidRootCount = CountExactBrepRigidRoots(multiRootDiagnostic.Message);
         stdout.WriteLine(JsonSerializer.Serialize(new
         {
             success = false,
@@ -392,7 +392,7 @@ public static class CliRunner
         }, JsonOptions));
     }
 
-    private static int? CountManifoldSolidRoots(string message)
+    private static int? CountExactBrepRigidRoots(string message)
     {
         const string token = "detected ";
         var detectedIndex = message.IndexOf(token, StringComparison.OrdinalIgnoreCase);
@@ -402,13 +402,14 @@ public static class CliRunner
         }
 
         var start = detectedIndex + token.Length;
-        var end = message.IndexOf(" MANIFOLD_SOLID_BREP", start, StringComparison.OrdinalIgnoreCase);
-        if (end <= start)
+        var countSlice = message[start..];
+        var digits = new string(countSlice.TakeWhile(char.IsDigit).ToArray());
+        if (digits.Length == 0)
         {
             return null;
         }
 
-        return int.TryParse(message[start..end], out var value) ? value : null;
+        return int.TryParse(digits, out var value) ? value : null;
     }
 
     private static int RunAnalyze(string[] args, TextWriter stdout, TextWriter stderr)
@@ -772,7 +773,7 @@ public static class CliRunner
                 {
                     errorKind = "assembly-like-step";
                     classification = "assembly-like";
-                    rigidRootCount = CountManifoldSolidRoots(multiRootDiagnostic.Message);
+                    rigidRootCount = CountExactBrepRigidRoots(multiRootDiagnostic.Message);
                 }
                 else
                 {
@@ -1347,13 +1348,13 @@ public static class CliRunner
         var multiRootDiagnostic = importFailure.Diagnostics.FirstOrDefault(d => string.Equals(d.Source, "Importer.AssemblyLike.StepMultiRoot", StringComparison.Ordinal));
         if (multiRootDiagnostic is not null)
         {
-            var rigidRootCount = CountManifoldSolidRoots(multiRootDiagnostic.Message);
+            var rigidRootCount = CountExactBrepRigidRoots(multiRootDiagnostic.Message);
             stderr.WriteLine($"Input file: {fullPath}");
             stderr.WriteLine("Success: no");
-            stderr.WriteLine("Classification: assembly-like STEP (multi-root manifold solids).");
+            stderr.WriteLine("Classification: assembly-like STEP (multi-root exact BRep solids).");
             if (rigidRootCount.HasValue)
             {
-                stderr.WriteLine($"Detected manifold-solid roots: {rigidRootCount.Value}");
+                stderr.WriteLine($"Detected exact BRep rigid roots: {rigidRootCount.Value}");
             }
 
             stderr.WriteLine("Guidance: Use the assembly extraction/import workflow for this STEP input.");

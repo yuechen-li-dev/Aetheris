@@ -44,7 +44,7 @@ public sealed class Step242InnerShellExportTests
     }
 
     [Fact]
-    public void ExportBody_InnerShellRepresentation_ImportRoundTrip_IsExplicitlyUnsupportedInCurrentSubset()
+    public void ExportBody_InnerShellRepresentation_ImportRoundTrip_PreservesShellRepresentation()
     {
         var body = CreateSyntheticBodyWithInnerShell();
         var export = Step242Exporter.ExportBody(body);
@@ -53,10 +53,9 @@ public sealed class Step242InnerShellExportTests
 
         var import = Step242Importer.ImportBody(export.Value);
 
-        Assert.False(import.IsSuccess);
-        var diagnostic = Assert.Single(import.Diagnostics);
-        Assert.Equal("Importer.TopologyRoot", diagnostic.Source);
-        Assert.StartsWith("Missing MANIFOLD_SOLID_BREP", diagnostic.Message, StringComparison.Ordinal);
+        Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+        Assert.NotNull(import.Value.ShellRepresentation);
+        Assert.Single(import.Value.ShellRepresentation!.InnerShellIds);
     }
 
     [Fact]

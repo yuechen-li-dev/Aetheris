@@ -28,6 +28,11 @@ public sealed class HoleRecoveryPolicy : IFrepMaterializerPolicy
     {
         var traces = _variants.Select(v => v.Evaluate(context)).ToArray();
         var diagnostics = new List<string> {$"{Name} evaluated.", $"Variants evaluated: {traces.Length}."};
+        diagnostics.AddRange(traces.Select(t => $"Variant considered: {t.VariantName}; admissible={t.Admissible}."));
+        diagnostics.AddRange(traces.Where(t => !t.Admissible)
+            .SelectMany(t => t.RejectionReasons.Select(r => $"Variant rejected: {t.VariantName}; reason={r}.")));
+        diagnostics.AddRange(traces.Where(t => !t.Admissible && t.RejectionReasons.Count == 0)
+            .Select(t => $"Variant rejected: {t.VariantName}; reason=NoReasonProvided."));
         diagnostics.AddRange(traces.SelectMany(t => t.Diagnostics.Select(d => $"variant:{t.VariantName}:{d}")));
 
         var candidates = traces.Select((t, i) => new JudgmentCandidate<FrepMaterializerContext>(t.VariantName, _ => t.Admissible, _ => t.Score, _ => t.RejectionReasons.Count == 0 ? "variant rejected" : string.Join(" | ", t.RejectionReasons), i)).ToArray();
@@ -35,6 +40,7 @@ public sealed class HoleRecoveryPolicy : IFrepMaterializerPolicy
         if (!judgment.IsSuccess)
         {
             var reasons = traces.SelectMany(t => t.RejectionReasons.Select(r => $"{t.VariantName}:{r}")).ToArray();
+            diagnostics.Add("Fallback selected: no hole variant admitted.");
             diagnostics.Add("No admissible hole variant.");
             return FrepMaterializerPolicyEvaluation.Rejected(Name, traces.SelectMany(t => t.Evidence).Append("semantic-hole-family").ToArray(), diagnostics, reasons);
         }
@@ -44,6 +50,11 @@ public sealed class HoleRecoveryPolicy : IFrepMaterializerPolicy
         var evidence = new List<string> { "semantic-hole-family", $"selected-variant:{selected.VariantName}" };
         evidence.AddRange(selected.Evidence);
         diagnostics.Add($"Selected hole variant: {selected.VariantName}.");
+        diagnostics.Add($"Produced plan kind: {selected.Plan?.HoleKind}/{selected.Plan?.DepthKind}.");
+        if (selected.Plan is not null)
+        {
+            diagnostics.Add($"Profile stack summary: {string.Join(",", selected.Plan.ProfileStack.Select(s => s.SegmentKind))}.");
+        }
         diagnostics.Add("Hole recovery plan produced.");
         return FrepMaterializerPolicyEvaluation.Admitted(Name, selected.Score, FrepMaterializerCapability.ExactBRep, evidence, diagnostics, selected.Plan);
     }

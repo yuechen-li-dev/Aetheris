@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Cir;
 using Aetheris.Kernel.Core.Judgment;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
@@ -20,7 +21,7 @@ public sealed record HoleRecoveryVariantEvaluation(
 public sealed class HoleRecoveryPolicy : IFrepMaterializerPolicy
 {
     private static readonly JudgmentEngine<FrepMaterializerContext> VariantEngine = new();
-    private readonly IReadOnlyList<IHoleRecoveryVariant> _variants = [new ThroughHoleVariant()];
+    private readonly IReadOnlyList<IHoleRecoveryVariant> _variants = [new ThroughHoleVariant(), new CounterboreVariant()];
     public string Name => nameof(HoleRecoveryPolicy);
 
     public FrepMaterializerPolicyEvaluation Evaluate(FrepMaterializerContext context)
@@ -73,6 +74,131 @@ internal sealed class ThroughHoleVariant : IHoleRecoveryVariant
         evidence.Add(recognition.Reason == CirBoxCylinderRecognitionReason.ReplayMismatch ? "replay-diagnostic" : "replay-consistent");
         return new(Name, true, Score, plan, evidence, Array.Empty<string>(), recognition.Diagnostics);
     }
+}
+
+
+internal sealed class CounterboreVariant : IHoleRecoveryVariant
+{
+    private const double Score = 1100d;
+    public string Name => nameof(CounterboreVariant);
+
+    public HoleRecoveryVariantEvaluation Evaluate(FrepMaterializerContext context)
+    {
+        if (context.Root is not CirSubtractNode outerSubtract)
+        {
+            return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], ["UnsupportedRootNotNestedSubtract"], ["Root must be nested subtract for counterbore."]);
+        }
+
+        if (outerSubtract.Left is not CirSubtractNode innerSubtract)
+        {
+            return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], ["UnsupportedCounterboreShape"], ["Counterbore requires Subtract(Subtract(host,small),large) structure."]);
+        }
+
+        var hostRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(innerSubtract.Left, innerSubtract.Right), context.ReplayLog, context.SourceLabel));
+        if (!hostRec.Success || hostRec.Value is null)
+        {
+            return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], [hostRec.Diagnostic, $"small-recognizer-reason:{hostRec.Reason}"], hostRec.Diagnostics);
+        }
+
+        var shallowRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(innerSubtract.Left, outerSubtract.Right), context.ReplayLog, context.SourceLabel));
+        if (shallowRec.Success)
+        {
+            return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], ["UnsupportedLargeCylinderThroughFullDepth"], ["Large cylinder spans full host depth and is not a counterbore relief."]);
+        }
+
+        if (shallowRec.Reason is not CirBoxCylinderRecognitionReason.UnsupportedNotThroughHole)
+        {
+            return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], [shallowRec.Diagnostic, $"large-recognizer-reason:{shallowRec.Reason}"], shallowRec.Diagnostics);
+        }
+
+        if (!TryUnwrapTranslation(outerSubtract.Right, out var largeNode, out var largeTranslation) || largeNode is not CirCylinderNode largeCylinder)
+        {
+            return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], ["UnsupportedLargeTool"], ["Counterbore relief tool must be cylindrical with translation-only transform."]);
+        }
+
+        var host = hostRec.Value;
+        var tol = Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
+        if (Math.Abs(largeTranslation.X - host.CylinderTranslation.X) > tol || Math.Abs(largeTranslation.Y - host.CylinderTranslation.Y) > tol)
+        {
+            return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], ["UnsupportedNonCoaxialCylinders"], ["Counterbore relief cylinder must be coaxial with through cylinder in XY."]);
+        }
+
+        if (largeCylinder.Radius <= host.CylinderRadius + tol)
+        {
+            return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], ["UnsupportedLargeRadiusNotGreaterThanSmall"], ["Counterbore relief radius must be greater than through radius."]);
+        }
+
+        var boxMinZ = host.BoxTranslation.Z - (host.BoxDepth * 0.5d);
+        var boxMaxZ = host.BoxTranslation.Z + (host.BoxDepth * 0.5d);
+        var largeMinZ = largeTranslation.Z - (largeCylinder.Height * 0.5d);
+        var largeMaxZ = largeTranslation.Z + (largeCylinder.Height * 0.5d);
+        var touchesEntry = Math.Abs(largeMinZ - boxMinZ) <= tol || Math.Abs(largeMaxZ - boxMaxZ) <= tol;
+        if (!touchesEntry)
+        {
+            return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], ["UnsupportedMissingEntryFace"], ["Counterbore relief must enter from a host entry face."]);
+        }
+
+        var floorDepth = Math.Min(largeCylinder.Height, host.BoxDepth);
+        var evidence = new List<string> { "counterbore", "rectangular-box-host", "coaxial-cylinders", "entry-relief", "through-core", "planned-exact-no-executor" };
+        var plan = new HoleRecoveryPlan(
+            HoleHostKind.RectangularBox,
+            HoleAxisKind.Z,
+            HoleKind.Counterbore,
+            HoleDepthKind.ThroughWithEntryRelief,
+            HoleEntryFeatureKind.Counterbore,
+            HoleExitFeatureKind.Plain,
+            host.ThroughLength,
+            host.BoxWidth,
+            host.BoxHeight,
+            host.BoxDepth,
+            host.BoxTranslation,
+            host.CylinderTranslation,
+            [
+                new(HoleProfileSegmentKind.Cylindrical, largeCylinder.Radius, largeCylinder.Radius, 0d, floorDepth),
+                new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength)
+            ],
+            [
+                new(HoleSurfacePatchRole.HostRetainedPlanarFaces, "Host planar faces are retained after counterbore subtraction."),
+                new(HoleSurfacePatchRole.CounterboreFloorAnnulus, "Counterbore relief floor annulus is expected."),
+                new(HoleSurfacePatchRole.CounterboreWall, "Larger-radius shallow cylindrical wall patch is expected."),
+                new(HoleSurfacePatchRole.CylindricalWall, "Smaller-radius through cylindrical wall patch is expected.")
+            ],
+            [new(HoleTrimCurveRole.CircularRimTrim, "Circular trims at counterbore rim and through core transitions are expected.")],
+            FrepMaterializerCapability.ExactBRep,
+            ["Counterbore variant plan produced; executor support pending."]);
+
+        return new(Name, true, Score, plan, evidence, Array.Empty<string>(), ["CounterboreVariant admitted canonical nested subtract pattern."]);
+    }
+
+    private static bool TryUnwrapTranslation(Aetheris.Kernel.Core.Cir.CirNode node, out Aetheris.Kernel.Core.Cir.CirNode unwrapped, out Aetheris.Kernel.Core.Math.Vector3D translation)
+    {
+        unwrapped = node;
+        translation = Aetheris.Kernel.Core.Math.Vector3D.Zero;
+        while (unwrapped is Aetheris.Kernel.Core.Cir.CirTransformNode transformNode)
+        {
+            var origin = transformNode.Transform.Apply(Aetheris.Kernel.Core.Math.Point3D.Origin);
+            var x = transformNode.Transform.Apply(new Aetheris.Kernel.Core.Math.Point3D(1d, 0d, 0d));
+            var y = transformNode.Transform.Apply(new Aetheris.Kernel.Core.Math.Point3D(0d, 1d, 0d));
+            var z = transformNode.Transform.Apply(new Aetheris.Kernel.Core.Math.Point3D(0d, 0d, 1d));
+            const double eps = 1e-9d;
+            if (!NearlyEqual(x - origin, new Aetheris.Kernel.Core.Math.Vector3D(1d, 0d, 0d), eps)
+                || !NearlyEqual(y - origin, new Aetheris.Kernel.Core.Math.Vector3D(0d, 1d, 0d), eps)
+                || !NearlyEqual(z - origin, new Aetheris.Kernel.Core.Math.Vector3D(0d, 0d, 1d), eps))
+            {
+                unwrapped = node;
+                translation = Aetheris.Kernel.Core.Math.Vector3D.Zero;
+                return false;
+            }
+
+            translation += origin - Aetheris.Kernel.Core.Math.Point3D.Origin;
+            unwrapped = transformNode.Child;
+        }
+
+        return true;
+    }
+
+    private static bool NearlyEqual(Aetheris.Kernel.Core.Math.Vector3D a, Aetheris.Kernel.Core.Math.Vector3D b, double eps)
+        => Math.Abs(a.X - b.X) <= eps && Math.Abs(a.Y - b.Y) <= eps && Math.Abs(a.Z - b.Z) <= eps;
 }
 
 internal static class ThroughHoleRecoveryPlanAdapter

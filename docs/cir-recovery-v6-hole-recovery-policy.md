@@ -47,3 +47,8 @@ To add counterbore/countersink/blind-hole:
 - No new BRep executor algorithms
 - No STEP exporter behavior changes
 - No public CLI/API surface changes
+
+
+## Update note (V7A)
+
+`HoleRecoveryPolicy` now composes multiple hole-family variants (`ThroughHoleVariant`, `CounterboreVariant`) via JudgmentEngine, preserving the same policy-level integration boundary.

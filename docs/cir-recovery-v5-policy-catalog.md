@@ -17,7 +17,7 @@ Catalog-side metadata uses `FrepMaterializerPolicyCategory`:
 - `CirOnlyFallback`
 
 ## Default policy list (deterministic order)
-1. `ThroughHoleRecoveryPolicy` (`SemanticExact`)
+1. `HoleRecoveryPolicy` (`SemanticExact`)
 2. `CirOnlyFallbackPolicy` (`CirOnlyFallback`)
 
 ## Fallback behavior

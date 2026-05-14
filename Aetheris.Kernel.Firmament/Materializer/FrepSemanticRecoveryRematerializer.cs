@@ -9,7 +9,7 @@ internal sealed record FrepSemanticRecoveryResult(
     bool Succeeded,
     string? SelectedPolicy,
     HoleRecoveryPlan? Plan,
-    ThroughHoleRecoveryExecutionStatus ExecutionStatus,
+    HoleRecoveryExecutionStatus ExecutionStatus,
     BrepBody? Body,
     IReadOnlyList<string> Diagnostics,
     FrepMaterializerDecision Decision);
@@ -34,14 +34,14 @@ internal static class FrepSemanticRecoveryRematerializer
         if (decision.Status != FrepMaterializerDecisionStatus.Selected)
         {
             diagnostics.Add("no admissible policy");
-            return new(true, false, null, null, ThroughHoleRecoveryExecutionStatus.Failed, null, diagnostics, decision);
+            return new(true, false, null, null, HoleRecoveryExecutionStatus.Failed, null, diagnostics, decision);
         }
 
         diagnostics.Add($"selected policy: {decision.SelectedPolicyName}");
         if (!string.Equals(decision.SelectedPolicyName, nameof(HoleRecoveryPolicy), StringComparison.Ordinal))
         {
             diagnostics.Add("selected policy was not HoleRecoveryPolicy");
-            return new(true, false, decision.SelectedPolicyName, null, ThroughHoleRecoveryExecutionStatus.Failed, null, diagnostics, decision);
+            return new(true, false, decision.SelectedPolicyName, null, HoleRecoveryExecutionStatus.Failed, null, diagnostics, decision);
         }
 
         var selectedEval = decision.Evaluations.Single(e => string.Equals(e.PolicyName, decision.SelectedPolicyName, StringComparison.Ordinal));
@@ -49,21 +49,15 @@ internal static class FrepSemanticRecoveryRematerializer
         {
             diagnostics.Add("selected policy did not provide hole-recovery plan");
             diagnostics.Add("selected policy is non-executable for exact BRep recovery");
-            return new(true, false, decision.SelectedPolicyName, null, ThroughHoleRecoveryExecutionStatus.Failed, null, diagnostics, decision);
+            return new(true, false, decision.SelectedPolicyName, null, HoleRecoveryExecutionStatus.Failed, null, diagnostics, decision);
         }
 
         diagnostics.Add("hole-recovery plan extracted");
-        if (!ThroughHoleRecoveryPlanAdapter.TryConvert(plan, out var throughPlan) || throughPlan is null)
-        {
-            diagnostics.Add("hole plan conversion to through-hole executor contract failed");
-            diagnostics.Add("selected hole variant is currently non-executable");
-            return new(true, false, decision.SelectedPolicyName, plan, ThroughHoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics, decision);
-        }
-
-        diagnostics.Add("hole plan converted to through-hole executor contract");
-        var execution = ThroughHoleRecoveryExecutor.Execute(throughPlan);
+        diagnostics.Add("hole-family plan extracted");
+        diagnostics.Add("rematerializer executing hole-family plan via HoleRecoveryExecutor");
+        var execution = HoleRecoveryExecutor.Execute(plan);
         diagnostics.AddRange(execution.Diagnostics);
-        if (execution.Status != ThroughHoleRecoveryExecutionStatus.Succeeded || execution.Body is null)
+        if (execution.Status != HoleRecoveryExecutionStatus.Succeeded || execution.Body is null)
         {
             diagnostics.Add("executor failed");
             return new(true, false, decision.SelectedPolicyName, plan, execution.Status, null, diagnostics, decision);

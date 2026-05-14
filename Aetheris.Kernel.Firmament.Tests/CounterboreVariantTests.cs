@@ -41,14 +41,14 @@ public sealed class CounterboreVariantTests
     }
 
     [Fact]
-    public void Rematerializer_CounterborePlan_DoesNotFalseSucceedWithoutExecutor()
+    public void Rematerializer_CounterborePlan_ExecutesWithHoleRecoveryExecutor()
     {
         var result = FrepSemanticRecoveryRematerializer.TryRecover(BuildCanonicalCounterbore());
-        Assert.False(result.Succeeded);
-        Assert.Null(result.Body);
-        Assert.Equal(ThroughHoleRecoveryExecutionStatus.UnsupportedPlan, result.ExecutionStatus);
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Body);
+        Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.ExecutionStatus);
         Assert.Contains(result.Diagnostics, d => d.Contains("selected policy: HoleRecoveryPolicy", StringComparison.Ordinal));
-        Assert.Contains(result.Diagnostics, d => d.Contains("non-executable", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, d => d.Contains("Second subtract succeeded", StringComparison.Ordinal));
     }
 
 

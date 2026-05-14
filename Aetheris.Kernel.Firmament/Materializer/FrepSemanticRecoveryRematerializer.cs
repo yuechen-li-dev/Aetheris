@@ -16,7 +16,6 @@ internal sealed record FrepSemanticRecoveryResult(
 
 internal static class FrepSemanticRecoveryRematerializer
 {
-    private static readonly ThroughHoleRecoveryPolicy ThroughHolePolicy = new();
 
     internal static FrepSemanticRecoveryResult TryRecover(
         CirNode root,
@@ -26,7 +25,10 @@ internal static class FrepSemanticRecoveryRematerializer
         ArgumentNullException.ThrowIfNull(root);
 
         var diagnostics = new List<string> { "semantic recovery attempted", "planner ran" };
-        var decision = FrepMaterializerPlanner.Decide(new FrepMaterializerContext(root, replayLog, sourceLabel), [ThroughHolePolicy]);
+        var catalogSnapshot = FrepMaterializerPolicyCatalog.SnapshotDefault();
+        diagnostics.AddRange(catalogSnapshot.Diagnostics);
+
+        var decision = FrepMaterializerPlanner.Decide(new FrepMaterializerContext(root, replayLog, sourceLabel), FrepMaterializerPolicyCatalog.Default());
         diagnostics.AddRange(decision.Diagnostics);
 
         if (decision.Status != FrepMaterializerDecisionStatus.Selected)
@@ -46,6 +48,7 @@ internal static class FrepSemanticRecoveryRematerializer
         if (selectedEval.Plan is not ThroughHoleRecoveryPlan plan)
         {
             diagnostics.Add("selected policy did not provide through-hole plan");
+            diagnostics.Add("selected policy is non-executable for exact BRep recovery");
             return new(true, false, decision.SelectedPolicyName, null, ThroughHoleRecoveryExecutionStatus.Failed, null, diagnostics, decision);
         }
 

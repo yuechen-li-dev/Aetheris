@@ -338,7 +338,7 @@ public sealed class FirmamentStepExporterTests
 
         var remat = NativeGeometryRematerializer.TryRematerialize(artifact.PrimitiveLoweringPlan!, cirOnlyState);
         Assert.False(remat.IsSuccess);
-        Assert.Contains(remat.Diagnostics, d => d.Message.Contains("selectedPolicy='none'", StringComparison.Ordinal));
+        Assert.Contains(remat.Diagnostics, d => d.Message.Contains("selectedPolicy='CirOnlyFallbackPolicy'", StringComparison.Ordinal));
         Assert.DoesNotContain(remat.Diagnostics, d => d.Message.Contains("semantic recovery policy", StringComparison.Ordinal));
     }
 

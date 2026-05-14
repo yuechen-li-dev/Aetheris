@@ -31,20 +31,29 @@ public sealed record FrepMaterializerPolicyEvaluation(
     FrepMaterializerCapability Capability,
     IReadOnlyList<string> Evidence,
     IReadOnlyList<string> RejectionReasons,
-    IReadOnlyList<string> Diagnostics)
+    IReadOnlyList<string> Diagnostics,
+    object? Plan = null)
 {
     public static FrepMaterializerPolicyEvaluation Admitted(
         string policyName,
         double score,
         FrepMaterializerCapability capability,
         IReadOnlyList<string>? evidence = null,
-        IReadOnlyList<string>? diagnostics = null)
-        => new(policyName, true, score, capability, evidence ?? Array.Empty<string>(), Array.Empty<string>(), diagnostics ?? Array.Empty<string>());
+        IReadOnlyList<string>? diagnostics = null,
+        object? plan = null)
+        => new(policyName, true, score, capability, evidence ?? Array.Empty<string>(), Array.Empty<string>(), diagnostics ?? Array.Empty<string>(), plan);
 
     public static FrepMaterializerPolicyEvaluation Rejected(
         string policyName,
         params string[] rejectionReasons)
         => new(policyName, false, 0d, FrepMaterializerCapability.Unsupported, Array.Empty<string>(), rejectionReasons, Array.Empty<string>());
+
+    public static FrepMaterializerPolicyEvaluation Rejected(
+        string policyName,
+        IReadOnlyList<string>? evidence = null,
+        IReadOnlyList<string>? diagnostics = null,
+        params string[] rejectionReasons)
+        => new(policyName, false, 0d, FrepMaterializerCapability.Unsupported, evidence ?? Array.Empty<string>(), rejectionReasons, diagnostics ?? Array.Empty<string>());
 }
 
 public enum FrepMaterializerDecisionStatus

@@ -41,4 +41,4 @@ No lowering plan or execution-state dependency is required in V1A.
 
 ## Next milestone
 
-CIR-RECOVERY-V1B should add a first production semantic policy (`BoxCylinderThroughHolePolicy`) that emits diagnostic-rich evaluation only (or bounded exact path if explicitly scoped), while preserving existing behavior gates.
+CIR-RECOVERY-V1B should add a first production semantic policy (`ThroughHoleRecoveryPolicy`) with an internal box+cylinder specialization that emits a diagnostic-rich semantic plan, while preserving existing behavior gates.

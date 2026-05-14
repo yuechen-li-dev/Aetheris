@@ -2,8 +2,9 @@ using Aetheris.Kernel.Core.Cir;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Firmament.Lowering;
+using Aetheris.Kernel.Firmament.Execution;
 
-namespace Aetheris.Kernel.Firmament.Execution;
+namespace Aetheris.Kernel.Firmament.Materializer;
 
 internal static class NativeGeometryRematerializer
 {

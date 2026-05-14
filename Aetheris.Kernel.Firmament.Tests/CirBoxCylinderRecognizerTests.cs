@@ -2,6 +2,8 @@ using Aetheris.Kernel.Core.Cir;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 

@@ -3,6 +3,8 @@ using Aetheris.FrictionLab;
 using Aetheris.Kernel.Core.Cir;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.Diagnostics;
 using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.StandardLibrary;
 

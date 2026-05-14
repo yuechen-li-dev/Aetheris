@@ -1,6 +1,8 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.Diagnostics;
 using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.ParsedModel;
 

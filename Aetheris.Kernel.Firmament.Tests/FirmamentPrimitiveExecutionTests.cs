@@ -2,6 +2,8 @@ using System.Linq;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.Diagnostics;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Topology;
 

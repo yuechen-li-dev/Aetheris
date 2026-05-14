@@ -4,6 +4,8 @@ using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Firmament.ParsedModel;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.Diagnostics;
 
 namespace Aetheris.Kernel.Firmament.Lowering;
 

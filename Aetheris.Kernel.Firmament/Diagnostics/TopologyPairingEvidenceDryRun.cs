@@ -1,6 +1,7 @@
 using Aetheris.Kernel.Core.Cir;
+using Aetheris.Kernel.Firmament.Execution;
 
-namespace Aetheris.Kernel.Firmament.Execution;
+namespace Aetheris.Kernel.Firmament.Diagnostics;
 
 internal enum TopologyPairingReadiness
 {

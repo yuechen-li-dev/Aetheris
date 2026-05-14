@@ -106,6 +106,8 @@ internal static class FirmamentCirLowerer
             "sphere" when boolean.Tool.RawFields.TryGetValue("radius", out var sr) => new CirSphereNode(double.Parse(sr)),
             "torus" when boolean.Tool.RawFields.TryGetValue("major_radius", out var major) && boolean.Tool.RawFields.TryGetValue("minor_radius", out var minor)
                 => new CirTorusNode(double.Parse(major), double.Parse(minor)),
+            "cone" when boolean.Tool.RawFields.TryGetValue("bottom_radius", out var br) && boolean.Tool.RawFields.TryGetValue("top_radius", out var tr) && boolean.Tool.RawFields.TryGetValue("height", out var ch)
+                => new CirConeNode(double.Parse(br), double.Parse(tr), double.Parse(ch)),
             _ => UnsupportedTool(boolean, diagnostics)
         };
     }
@@ -122,6 +124,7 @@ internal static class FirmamentCirLowerer
         { Kind: FirmamentLoweredPrimitiveKind.Cylinder, Parameters: FirmamentLoweredCylinderParameters cylinder } => new CirCylinderNode(cylinder.Radius, cylinder.Height),
         { Kind: FirmamentLoweredPrimitiveKind.Sphere, Parameters: FirmamentLoweredSphereParameters sphere } => new CirSphereNode(sphere.Radius),
         { Kind: FirmamentLoweredPrimitiveKind.Torus, Parameters: FirmamentLoweredTorusParameters torus } => new CirTorusNode(torus.MajorRadius, torus.MinorRadius),
+        { Kind: FirmamentLoweredPrimitiveKind.Cone, Parameters: FirmamentLoweredConeParameters cone } => new CirConeNode(cone.BottomRadius, cone.TopRadius, cone.Height),
         _ => UnsupportedPrimitive(primitive, diagnostics)
     };
 

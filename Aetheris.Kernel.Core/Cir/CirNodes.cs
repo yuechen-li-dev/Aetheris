@@ -41,6 +41,80 @@ public sealed record CirCylinderNode(double Radius, double Height) : CirNode(Cir
     }
 }
 
+
+
+public sealed record CirConeNode : CirNode
+{
+    public CirConeNode(double bottomRadius, double topRadius, double height) : base(CirNodeKind.Cone)
+    {
+        if (height <= 0d || double.IsNaN(height) || double.IsInfinity(height))
+        {
+            throw new ArgumentOutOfRangeException(nameof(height), "Cone height must be finite and > 0.");
+        }
+
+        if (bottomRadius < 0d || double.IsNaN(bottomRadius) || double.IsInfinity(bottomRadius))
+        {
+            throw new ArgumentOutOfRangeException(nameof(bottomRadius), "Cone bottom radius must be finite and >= 0.");
+        }
+
+        if (topRadius < 0d || double.IsNaN(topRadius) || double.IsInfinity(topRadius))
+        {
+            throw new ArgumentOutOfRangeException(nameof(topRadius), "Cone top radius must be finite and >= 0.");
+        }
+
+        if (bottomRadius <= 0d && topRadius <= 0d)
+        {
+            throw new ArgumentOutOfRangeException(nameof(topRadius), "At least one cone radius must be > 0.");
+        }
+
+        BottomRadius = bottomRadius;
+        TopRadius = topRadius;
+        Height = height;
+    }
+
+    public double BottomRadius { get; }
+    public double TopRadius { get; }
+    public double Height { get; }
+
+    public override CirBounds Bounds
+    {
+        get
+        {
+            var r = double.Max(BottomRadius, TopRadius);
+            var hz = Height * 0.5d;
+            return new CirBounds(new Point3D(-r, -r, -hz), new Point3D(r, r, hz));
+        }
+    }
+
+    public override double Evaluate(Point3D point) => EvaluateFiniteCone(point, BottomRadius, TopRadius, Height);
+
+    internal static double EvaluateFiniteCone(Point3D point, double bottomRadius, double topRadius, double height)
+    {
+        var hz = height * 0.5d;
+        var qx = double.Sqrt((point.X * point.X) + (point.Y * point.Y));
+        var qy = point.Z;
+
+        var k1x = topRadius;
+        var k1y = hz;
+        var k2x = topRadius - bottomRadius;
+        var k2y = height;
+
+        var caX = qx - double.Min(qx, qy < 0d ? bottomRadius : topRadius);
+        var caY = double.Abs(qy) - hz;
+
+        var dotNumerator = ((k1x - qx) * k2x) + ((k1y - qy) * k2y);
+        var dotDenominator = (k2x * k2x) + (k2y * k2y);
+        var h = dotDenominator <= 1e-18d ? 0d : Clamp(dotNumerator / dotDenominator, 0d, 1d);
+
+        var cbX = qx - k1x + (k2x * h);
+        var cbY = qy - k1y + (k2y * h);
+
+        var s = (cbX < 0d && caY < 0d) ? -1d : 1d;
+        return s * double.Sqrt(double.Min((caX * caX) + (caY * caY), (cbX * cbX) + (cbY * cbY)));
+    }
+
+    private static double Clamp(double value, double min, double max) => value < min ? min : value > max ? max : value;
+}
 public sealed record CirSphereNode(double Radius) : CirNode(CirNodeKind.Sphere)
 {
     public override CirBounds Bounds => new(new Point3D(-Radius, -Radius, -Radius), new Point3D(Radius, Radius, Radius));

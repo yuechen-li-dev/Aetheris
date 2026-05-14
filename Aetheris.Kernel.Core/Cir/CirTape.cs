@@ -9,6 +9,7 @@ public enum CirTapeOpCode
     EvalCylinder,
     EvalSphere,
     EvalTorus,
+    EvalCone,
     Min,
     Max,
     Neg,
@@ -27,6 +28,7 @@ public readonly record struct CirTapeBoxPayload(double Width, double Height, dou
 public readonly record struct CirTapeCylinderPayload(double Radius, double Height, Transform3D InverseTransform);
 public readonly record struct CirTapeSpherePayload(double Radius, Transform3D InverseTransform);
 public readonly record struct CirTapeTorusPayload(double MajorRadius, double MinorRadius, Transform3D InverseTransform);
+public readonly record struct CirTapeConePayload(double BottomRadius, double TopRadius, double Height, Transform3D InverseTransform);
 
 public readonly record struct FieldInterval(double MinValue, double MaxValue)
 {
@@ -54,6 +56,7 @@ public sealed class CirTape
         IReadOnlyList<CirTapeCylinderPayload> cylinders,
         IReadOnlyList<CirTapeSpherePayload> spheres,
         IReadOnlyList<CirTapeTorusPayload> toruses,
+        IReadOnlyList<CirTapeConePayload> cones,
         int outputSlot,
         int slotCount)
     {
@@ -62,6 +65,7 @@ public sealed class CirTape
         CylinderPayloads = cylinders;
         SpherePayloads = spheres;
         TorusPayloads = toruses;
+        ConePayloads = cones;
         OutputSlot = outputSlot;
         SlotCount = slotCount;
     }
@@ -71,6 +75,7 @@ public sealed class CirTape
     public IReadOnlyList<CirTapeCylinderPayload> CylinderPayloads { get; }
     public IReadOnlyList<CirTapeSpherePayload> SpherePayloads { get; }
     public IReadOnlyList<CirTapeTorusPayload> TorusPayloads { get; }
+    public IReadOnlyList<CirTapeConePayload> ConePayloads { get; }
     public int OutputSlot { get; }
     public int SlotCount { get; }
 
@@ -104,6 +109,12 @@ public sealed class CirTape
                 {
                     var payload = TorusPayloads[instruction.PayloadIndex];
                     slots[instruction.DestSlot] = EvaluateTorus(point, payload);
+                    break;
+                }
+                case CirTapeOpCode.EvalCone:
+                {
+                    var payload = ConePayloads[instruction.PayloadIndex];
+                    slots[instruction.DestSlot] = EvaluateCone(point, payload);
                     break;
                 }
                 case CirTapeOpCode.Min:
@@ -142,6 +153,9 @@ public sealed class CirTape
                     break;
                 case CirTapeOpCode.EvalTorus:
                     slots[instruction.DestSlot] = EvaluateTorusInterval(region, TorusPayloads[instruction.PayloadIndex]);
+                    break;
+                case CirTapeOpCode.EvalCone:
+                    slots[instruction.DestSlot] = EvaluateConeInterval(region, ConePayloads[instruction.PayloadIndex]);
                     break;
                 case CirTapeOpCode.Min:
                 {
@@ -231,6 +245,12 @@ public sealed class CirTape
         return double.Sqrt((qx * qx) + (point.Z * point.Z)) - payload.MinorRadius;
     }
 
+    private static double EvaluateCone(Point3D point, CirTapeConePayload payload)
+    {
+        point = payload.InverseTransform.Apply(point);
+        return CirConeNode.EvaluateFiniteCone(point, payload.BottomRadius, payload.TopRadius, payload.Height);
+    }
+
     private static FieldInterval EvaluateBoxInterval(CirBounds region, CirTapeBoxPayload payload)
     {
         var local = TransformBounds(region, payload.InverseTransform);
@@ -267,6 +287,22 @@ public sealed class CirTape
         var minD = double.Sqrt((qMin * qMin) + (zMinAbs * zMinAbs));
         var maxD = double.Sqrt((qMax * qMax) + (zMaxAbs * zMaxAbs));
         return new FieldInterval(minD - payload.MinorRadius, maxD - payload.MinorRadius);
+    }
+
+    private static FieldInterval EvaluateConeInterval(CirBounds region, CirTapeConePayload payload)
+    {
+        var local = TransformBounds(region, payload.InverseTransform);
+        var corners = GetCorners(local);
+        var min = double.PositiveInfinity;
+        var max = double.NegativeInfinity;
+        foreach (var c in corners)
+        {
+            var value = CirConeNode.EvaluateFiniteCone(c, payload.BottomRadius, payload.TopRadius, payload.Height);
+            min = double.Min(min, value);
+            max = double.Max(max, value);
+        }
+
+        return new FieldInterval(min, max);
     }
 
     private static CirBounds TransformBounds(CirBounds bounds, Transform3D transform)
@@ -371,6 +407,7 @@ public static class CirTapeLowerer
             state.CylinderPayloads,
             state.SpherePayloads,
             state.TorusPayloads,
+            state.ConePayloads,
             outputSlot,
             state.NextSlot);
     }
@@ -402,6 +439,12 @@ public static class CirTapeLowerer
                 var payloadIndex = state.TorusPayloads.Count;
                 state.TorusPayloads.Add(new CirTapeTorusPayload(torus.MajorRadius, torus.MinorRadius, accumulatedInverse));
                 return state.Emit(CirTapeOpCode.EvalTorus, -1, -1, payloadIndex, node.Kind);
+            }
+            case CirConeNode cone:
+            {
+                var payloadIndex = state.ConePayloads.Count;
+                state.ConePayloads.Add(new CirTapeConePayload(cone.BottomRadius, cone.TopRadius, cone.Height, accumulatedInverse));
+                return state.Emit(CirTapeOpCode.EvalCone, -1, -1, payloadIndex, node.Kind);
             }
             case CirUnionNode union:
             {
@@ -439,6 +482,7 @@ public static class CirTapeLowerer
         public List<CirTapeCylinderPayload> CylinderPayloads { get; } = new();
         public List<CirTapeSpherePayload> SpherePayloads { get; } = new();
         public List<CirTapeTorusPayload> TorusPayloads { get; } = new();
+        public List<CirTapeConePayload> ConePayloads { get; } = new();
         public int NextSlot { get; private set; }
 
         public int Emit(CirTapeOpCode opCode, int inputA, int inputB, int payloadIndex, CirNodeKind sourceKind)

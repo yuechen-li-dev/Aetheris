@@ -43,8 +43,22 @@ public sealed class FrepSemanticRecoveryRematerializerTests
 
         Assert.False(result.Succeeded);
         Assert.Null(result.Body);
-        Assert.Equal(FrepMaterializerDecisionStatus.NoAdmissiblePolicy, result.Decision.Status);
-        Assert.Contains(result.Diagnostics, d => d.Contains("no admissible policy", StringComparison.Ordinal));
+        Assert.Equal(FrepMaterializerDecisionStatus.Selected, result.Decision.Status);
+        Assert.Equal(nameof(CirOnlyFallbackPolicy), result.SelectedPolicy);
+        Assert.Contains(result.Diagnostics, d => d.Contains("selected policy was not ThroughHoleRecoveryPolicy", StringComparison.Ordinal));
+    }
+
+
+    [Fact]
+    public void CirOnlyFallback_DoesNotProduceBrepSuccess()
+    {
+        var root = new CirSubtractNode(new CirBoxNode(20d, 10d, 8d), new CirSphereNode(2d));
+        var result = FrepSemanticRecoveryRematerializer.TryRecover(root);
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Body);
+        Assert.Equal(nameof(CirOnlyFallbackPolicy), result.SelectedPolicy);
+        Assert.Contains(result.Diagnostics, d => d.Contains("selected policy was not ThroughHoleRecoveryPolicy", StringComparison.Ordinal));
     }
 
     [Fact]

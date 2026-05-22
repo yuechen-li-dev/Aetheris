@@ -62,8 +62,9 @@ public static class HoleRecoveryExecutor
 
         if (plan.HoleKind == HoleKind.Stepped && plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief)
         {
-            diagnostics.Add("Stepped-hole plan recognized; bounded repeated-subtract execution started.");
-            return ExecuteStepped(plan, diagnostics);
+            diagnostics.Add("Stepped-hole plan recognized but execution deferred: plan does not encode entry-side polarity for medium/large tiers, and production route cannot be proven equivalent to FrictionLab route.");
+            diagnostics.Add("Deferred reason: missing-stepped-entry-side-polarity.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
         if (plan.HoleKind != HoleKind.Counterbore || plan.DepthKind != HoleDepthKind.ThroughWithEntryRelief)
@@ -219,7 +220,9 @@ public static class HoleRecoveryExecutor
         }
 
         diagnostics.Add("Stepped subtract small succeeded.");
-        var entryFaceZ = plan.HostTranslation.Z - (plan.HostSizeZ * 0.5d);
+        var entryFaceZ = plan.HostTranslation.Z + (plan.HostSizeZ * 0.5d);
+        diagnostics.Add($"Stepped entry face resolved to top(+Z) at z={entryFaceZ:0.###}.");
+        diagnostics.Add($"Stepped route geometry: box=({plan.HostSizeX:0.###},{plan.HostSizeY:0.###},{plan.HostSizeZ:0.###})@({plan.HostTranslation.X:0.###},{plan.HostTranslation.Y:0.###},{plan.HostTranslation.Z:0.###}); small(r={small.RadiusStart:0.###},h={throughHeight:0.###},z=[{(plan.ToolTranslation.Z - (throughHeight * 0.5d)):0.###},{(plan.ToolTranslation.Z + (throughHeight * 0.5d)):0.###}]); medium(r={medium.RadiusStart:0.###},h={mediumDepth:0.###}); large(r={large.RadiusStart:0.###},h={largeDepth:0.###}).");
         var mediumCenter = new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, entryFaceZ + (mediumDepth * 0.5d));
         var mediumResult = BrepPrimitives.CreateCylinder(medium.RadiusStart, mediumDepth);
         if (!mediumResult.IsSuccess)
@@ -232,7 +235,7 @@ public static class HoleRecoveryExecutor
         var mediumSubtract = BrepBoolean.Subtract(smallSubtract.Value, TranslateBody(mediumResult.Value, mediumCenter));
         if (!mediumSubtract.IsSuccess || mediumSubtract.Value is null)
         {
-            diagnostics.Add("Stepped subtract medium failed.");
+            diagnostics.Add($"Stepped subtract medium failed at center=({mediumCenter.X:0.###},{mediumCenter.Y:0.###},{mediumCenter.Z:0.###}) z=[{(mediumCenter.Z - (mediumDepth * 0.5d)):0.###},{(mediumCenter.Z + (mediumDepth * 0.5d)):0.###}].");
             return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
         }
 
@@ -249,7 +252,7 @@ public static class HoleRecoveryExecutor
         var largeSubtract = BrepBoolean.Subtract(mediumSubtract.Value, TranslateBody(largeResult.Value, largeCenter));
         if (!largeSubtract.IsSuccess || largeSubtract.Value is null)
         {
-            diagnostics.Add("Stepped subtract large failed.");
+            diagnostics.Add($"Stepped subtract large failed at center=({largeCenter.X:0.###},{largeCenter.Y:0.###},{largeCenter.Z:0.###}) z=[{(largeCenter.Z - (largeDepth * 0.5d)):0.###},{(largeCenter.Z + (largeDepth * 0.5d)):0.###}].");
             return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
         }
 

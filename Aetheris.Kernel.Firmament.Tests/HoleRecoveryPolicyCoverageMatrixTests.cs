@@ -105,6 +105,13 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         Assert.Equal(expectedDepthKind, plan.DepthKind);
         Assert.Equal(expectedCapability, eval.Capability);
         var exec = HoleRecoveryExecutor.Execute(plan);
+        if (plan.HoleKind == HoleKind.Stepped)
+        {
+            Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
+            Assert.Contains(exec.Diagnostics, d => d.Contains("missing-stepped-entry-side-polarity", StringComparison.Ordinal));
+            return;
+        }
+
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
         Assert.NotNull(exec.Body);
     }
@@ -121,6 +128,13 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         Assert.Equal(expectedDepthKind, plan.DepthKind);
         Assert.Equal(expectedCapability, eval.Capability);
         var exec = HoleRecoveryExecutor.Execute(plan);
+        if (plan.HoleKind == HoleKind.Stepped)
+        {
+            Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
+            Assert.Contains(exec.Diagnostics, d => d.Contains("missing-stepped-entry-side-polarity", StringComparison.Ordinal));
+            return;
+        }
+
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
         Assert.NotNull(exec.Body);
         var step = Step242Exporter.ExportBody(exec.Body!);

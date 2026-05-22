@@ -42,3 +42,11 @@ Stepped STEP smoke now runs via executor-produced body and existing `Step242Expo
 
 ## Remaining limits
 Support remains intentionally bounded to the canonical three-level coaxial Z-axis stepped-hole family.
+
+## A4.1 reconciliation update (lab vs production)
+- **Finding:** FrictionLab repeated-subtract success was demonstrated on a lab geometry route that is not semantically equivalent to the current production `HoleRecoveryPlan` contract.
+- FrictionLab route explicitly constructs medium/large tier Z placement in tool-building code (fixed signed translation), while production stepped plan only carries depth magnitudes and no explicit entry-side polarity for each relief tier.
+- Because `SteppedHoleVariant` currently admits both entry faces (`boxMinZ` and `boxMaxZ`) and does not encode which face was used, `HoleRecoveryExecutor` cannot safely reconstruct the exact lab route from plan data alone.
+- **Decision (Outcome B):** stepped execution is restored to **deferred** in production with explicit diagnostic:
+  - `missing-stepped-entry-side-polarity`
+- Through/blind/counterbore/countersink execution paths remain unchanged.

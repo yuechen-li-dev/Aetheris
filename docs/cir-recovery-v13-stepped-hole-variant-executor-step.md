@@ -31,6 +31,11 @@ Stepped execution is reverted to deferred in production pending plan/executor co
 - Executor now returns `UnsupportedPlan` with `missing-stepped-entry-side-polarity` instead of attempting non-equivalent stepped Boolean execution.
 - STEP smoke for stepped is therefore intentionally deferred in production until that contract gap is closed.
 
+## V13.2 placement-contract hardening update
+- `HoleProfileSegment` now carries explicit tier placement semantics (`AnchorSide`, `DepthFromAnchor`, `ZMin`, `ZMax`, `IsThrough`) for stepped tiers.
+- Stepped plans now populate those fields directly from host/tool geometry, so medium/large entry-side polarity is no longer implicit.
+- Production execution remains intentionally deferred with `stepped-execution-route-disabled-until-v13.3` while route re-enable is held for the next milestone.
+
 ## Non-goals
 No generic N-level stack executor, no threaded-hole support, no STEP exporter changes, no public API changes.
 

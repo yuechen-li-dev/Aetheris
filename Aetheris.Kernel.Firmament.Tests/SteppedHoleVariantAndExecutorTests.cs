@@ -21,24 +21,48 @@ public sealed class SteppedHoleVariantAndExecutorTests
     }
 
     [Fact]
-    public void SteppedHoleExecutor_CurrentPostValidatorBehavior()
+    public void SteppedHoleExecutor_CanonicalSteppedHole_ProducesBrepBody()
     {
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped())).Plan!;
         var exec = HoleRecoveryExecutor.Execute(plan);
-        Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
-        Assert.Null(exec.Body);
-        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped plan validated", StringComparison.Ordinal));
+        Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
+        Assert.NotNull(exec.Body);
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped plan shape validated", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped repeated-subtract route selected", StringComparison.Ordinal));
         Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract small invoked", StringComparison.Ordinal));
-        Assert.Contains(exec.Diagnostics, d => d.Contains("SteppedHoleExecutionDeferredPostValidator", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract small succeeded", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract medium succeeded", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract large succeeded", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Result BRep body produced", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void SteppedHoleStepSmoke_IfExecutionSucceeds()
+    public void SteppedHoleStepSmoke_CanonicalSteppedHole_ExportsStep()
     {
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped())).Plan!;
         var exec = HoleRecoveryExecutor.Execute(plan);
-        Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
+        Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
+        var step = Step242Exporter.ExportBody(exec.Body!);
+        Assert.True(step.IsSuccess);
+        Assert.Contains("ISO-10303-21", step.Value, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", step.Value, StringComparison.Ordinal);
+        Assert.Contains("ADVANCED_FACE", step.Value, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", step.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("BREP_WITH_VOIDS", step.Value, StringComparison.Ordinal);
         Assert.Contains(exec.Diagnostics, d => d.Contains("No STEP export attempted", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SteppedHole_InvalidPlanShape_RejectsBeforeBoolean()
+    {
+        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped()));
+        var plan = Assert.IsType<HoleRecoveryPlan>(eval.Plan);
+        var invalid = plan with { ProfileStack = [plan.ProfileStack[0], plan.ProfileStack[2]] };
+        var exec = HoleRecoveryExecutor.Execute(invalid);
+        Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
+        Assert.Null(exec.Body);
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped plan rejected before Boolean", StringComparison.Ordinal));
+        Assert.DoesNotContain(exec.Diagnostics, d => d.Contains("Stepped subtract", StringComparison.Ordinal));
     }
 
     [Fact] public void SteppedHoleVariant_DoesNotStealCounterbore() => Assert.Contains("selected-variant:CounterboreVariant", new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildCounterbore())).Evidence);

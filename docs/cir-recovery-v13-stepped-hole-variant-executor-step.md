@@ -23,28 +23,17 @@ Counterbore remains the 2-level shape. Stepped-hole admission requires 3 levels,
 - profile stack: large shallow cylinder, medium depth cylinder, small through cylinder
 - expected annular transition floors and circular transition trims.
 
-## V13.1 blocker characterization
-Observed production failure: repeated overlapping coaxial subtracts on the canonical stepped stack produce `BooleanFailed` in current exact Boolean path.
+## A4 productionization update
+Stepped execution is now production-enabled for the bounded canonical route selected by A3.1:
 
-Characterization summary:
-- baseline order (`small -> medium -> large`) fails,
-- failure aligns with overlapping/coincident coaxial tool topology handling,
-- no bounded deterministic safe alternative route was promoted in this milestone,
-- unioned-tool route is explicitly deferred (not enabled in production without dedicated stability coverage).
+- deterministic order: `small -> medium -> large`,
+- bounded pre-boolean shape validation,
+- per-stage subtract diagnostics,
+- successful completion now returns `Succeeded` + produced `BrepBody`.
 
-## A2 execution policy update
-After A1/A1.1 validator admission fix, stepped execution is now probed in `HoleRecoveryExecutor`, but production remains deferred due to downstream subtract-stage blocker diagnostics.
+If a subtract stage fails, executor now returns `BooleanFailed` for that stage with explicit stage diagnostics.
 
-Execution route:
-- create host box,
-- subtract small through cylinder,
-- subtract medium depth cylinder,
-- subtract large shallow cylinder,
-- if any subtract stage fails (or probe is not yet production-hardened), return deferred unsupported status with explicit blocker diagnostics.
-
-Diagnostics now record stepped plan validation and each subtract invocation/success.
-
-STEP smoke coverage confirms exporter compatibility using existing `Step242Exporter.ExportBody(...)` behavior only.
+STEP smoke coverage now executes for stepped-hole via the recovered body and confirms manifold/non-void export markers using unchanged `Step242Exporter.ExportBody(...)` behavior.
 
 ## Non-goals
 No generic N-level stack executor, no threaded-hole support, no STEP exporter changes, no public API changes.

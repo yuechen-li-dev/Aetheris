@@ -19,7 +19,7 @@ This milestone adds matrix-style test coverage and diagnostics trace assertions.
 - BlindHoleTop -> `BlindHoleVariant`, `HoleKind.Blind`, executable.
 - BlindHoleBottom -> `BlindHoleVariant`, `HoleKind.Blind`, executable.
 - Countersink -> `CountersinkVariant`, `HoleKind.Countersink`, executable.
-- SteppedHole -> `SteppedHoleVariant`, `HoleKind.Stepped`, executable.
+- SteppedHole -> `SteppedHoleVariant`, `HoleKind.Stepped`, executable (A4 repeated-subtract production route) and manifold/non-void in STEP smoke assertions.
 
 ### Unsupported/fallback rows
 - BoxSphere -> no variant admits; fallback/reject path.

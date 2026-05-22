@@ -105,14 +105,6 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         Assert.Equal(expectedDepthKind, plan.DepthKind);
         Assert.Equal(expectedCapability, eval.Capability);
         var exec = HoleRecoveryExecutor.Execute(plan);
-        if (expectedHoleKind == HoleKind.Stepped)
-        {
-            Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
-            Assert.Null(exec.Body);
-            Assert.Contains(exec.Diagnostics, d => d.Contains("SteppedHoleExecutionDeferredPostValidator", StringComparison.Ordinal));
-            return;
-        }
-
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
         Assert.NotNull(exec.Body);
     }
@@ -129,14 +121,8 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         Assert.Equal(expectedDepthKind, plan.DepthKind);
         Assert.Equal(expectedCapability, eval.Capability);
         var exec = HoleRecoveryExecutor.Execute(plan);
-        if (expectedHoleKind == HoleKind.Stepped)
-        {
-            Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
-            Assert.Null(exec.Body);
-            Assert.Contains(exec.Diagnostics, d => d.Contains("No STEP export attempted", StringComparison.Ordinal));
-            return;
-        }
-
+        Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
+        Assert.NotNull(exec.Body);
         var step = Step242Exporter.ExportBody(exec.Body!);
         Assert.True(step.IsSuccess);
         Assert.Contains("MANIFOLD_SOLID_BREP", step.Value, StringComparison.Ordinal);

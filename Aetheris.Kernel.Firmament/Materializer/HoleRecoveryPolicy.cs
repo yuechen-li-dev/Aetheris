@@ -21,7 +21,7 @@ public sealed record HoleRecoveryVariantEvaluation(
 public sealed class HoleRecoveryPolicy : IFrepMaterializerPolicy
 {
     private static readonly JudgmentEngine<FrepMaterializerContext> VariantEngine = new();
-    private readonly IReadOnlyList<IHoleRecoveryVariant> _variants = [new ThroughHoleVariant(), new BlindHoleVariant(), new CounterboreVariant(), new CountersinkVariant()];
+    private readonly IReadOnlyList<IHoleRecoveryVariant> _variants = [new ThroughHoleVariant(), new BlindHoleVariant(), new CounterboreVariant(), new CountersinkVariant(), new SteppedHoleVariant()];
     public string Name => nameof(HoleRecoveryPolicy);
 
     public FrepMaterializerPolicyEvaluation Evaluate(FrepMaterializerContext context)
@@ -467,6 +467,100 @@ internal sealed class CounterboreVariant : IHoleRecoveryVariant
         => Math.Abs(a.X - b.X) <= eps && Math.Abs(a.Y - b.Y) <= eps && Math.Abs(a.Z - b.Z) <= eps;
 }
 
+
+
+internal sealed class SteppedHoleVariant : IHoleRecoveryVariant
+{
+    private const double Score = 1150d;
+    public string Name => nameof(SteppedHoleVariant);
+
+    public HoleRecoveryVariantEvaluation Evaluate(FrepMaterializerContext context)
+    {
+        var diagnostics = new List<string> { "SteppedHoleVariant evaluated." };
+        if (context.Root is not CirSubtractNode outer || outer.Left is not CirSubtractNode middle || middle.Left is not CirSubtractNode inner)
+        {
+            diagnostics.Add("stepped shape requires Subtract(Subtract(Subtract(Box,Small),Medium),Large). ");
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedSteppedShape"], diagnostics);
+        }
+
+        var hostRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(inner.Left, inner.Right), context.ReplayLog, context.SourceLabel));
+        if (!hostRec.Success || hostRec.Value is null)
+        {
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], [hostRec.Diagnostic, $"small-recognizer-reason:{hostRec.Reason}"], hostRec.Diagnostics);
+        }
+
+        if (!CounterboreVariant.TryUnwrapTranslation(middle.Right, out var mediumNode, out var mediumT) || mediumNode is not CirCylinderNode medium)
+        {
+            diagnostics.Add("medium segment tool must be cylindrical with translation-only transform.");
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedMediumTool"], diagnostics);
+        }
+
+        if (!CounterboreVariant.TryUnwrapTranslation(outer.Right, out var largeNode, out var largeT) || largeNode is not CirCylinderNode large)
+        {
+            diagnostics.Add("large segment tool must be cylindrical with translation-only transform.");
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedLargeTool"], diagnostics);
+        }
+
+        var host = hostRec.Value;
+        var tol = Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
+        diagnostics.Add("three cylindrical levels detected.");
+        if (Math.Abs(mediumT.X - host.CylinderTranslation.X) > tol || Math.Abs(mediumT.Y - host.CylinderTranslation.Y) > tol || Math.Abs(largeT.X - host.CylinderTranslation.X) > tol || Math.Abs(largeT.Y - host.CylinderTranslation.Y) > tol)
+        {
+            diagnostics.Add("cylinders not coaxial in XY.");
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedNonCoaxialCylinders"], diagnostics);
+        }
+        diagnostics.Add("cylinders coaxial in XY.");
+
+        if (!(large.Radius > medium.Radius + tol && medium.Radius > host.CylinderRadius + tol))
+        {
+            diagnostics.Add("radius ordering invalid: require large > medium > small.");
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedRadiusOrderingInvalid"], diagnostics);
+        }
+        diagnostics.Add("radius ordering validated.");
+
+        var boxMinZ = host.BoxTranslation.Z - (host.BoxDepth * 0.5d);
+        var boxMaxZ = host.BoxTranslation.Z + (host.BoxDepth * 0.5d);
+        bool TouchesEntry(Aetheris.Kernel.Core.Math.Vector3D t, double h) => Math.Abs((t.Z - h * 0.5d) - boxMinZ) <= tol || Math.Abs((t.Z + h * 0.5d) - boxMaxZ) <= tol;
+        if (!TouchesEntry(mediumT, medium.Height) || !TouchesEntry(largeT, large.Height))
+        {
+            diagnostics.Add("medium/large segment missing entry face.");
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedMissingEntryFace"], diagnostics);
+        }
+
+        var mediumThrough = medium.Height >= host.BoxDepth - tol;
+        var largeThrough = large.Height >= host.BoxDepth - tol;
+        if (mediumThrough || largeThrough)
+        {
+            diagnostics.Add("medium or large segment through full depth unsupported.");
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedDepthOrderingInvalid"], diagnostics);
+        }
+
+        if (!(large.Height + tol < medium.Height && medium.Height + tol < host.ThroughLength))
+        {
+            diagnostics.Add("depth ordering invalid: require large < medium < small-through.");
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedDepthOrderingInvalid"], diagnostics);
+        }
+        diagnostics.Add("depth ordering validated.");
+
+        var halfW = host.BoxWidth * 0.5d; var halfH = host.BoxHeight * 0.5d;
+        var dx = largeT.X - host.BoxTranslation.X; var dy = largeT.Y - host.BoxTranslation.Y;
+        if ((dx + halfW - large.Radius) <= tol || (halfW - dx - large.Radius) <= tol || (dy + halfH - large.Radius) <= tol || (halfH - dy - large.Radius) <= tol)
+        {
+            diagnostics.Add("largest radius tangent/grazing/oversized.");
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedLargestRadiusClearance"], diagnostics);
+        }
+
+        diagnostics.Add("entry side detected.");
+        diagnostics.Add("Stepped plan produced.");
+        var plan = new HoleRecoveryPlan(HoleHostKind.RectangularBox, HoleAxisKind.Z, HoleKind.Stepped, HoleDepthKind.ThroughWithEntryRelief, HoleEntryFeatureKind.Stepped, HoleExitFeatureKind.Plain,
+            host.ThroughLength, host.BoxWidth, host.BoxHeight, host.BoxDepth, host.BoxTranslation, host.CylinderTranslation,
+            [new(HoleProfileSegmentKind.Cylindrical, large.Radius, large.Radius, 0d, large.Height), new(HoleProfileSegmentKind.Cylindrical, medium.Radius, medium.Radius, 0d, medium.Height), new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength)],
+            [new(HoleSurfacePatchRole.HostRetainedPlanarFaces, "Host planar faces are retained after stepped-hole subtraction."), new(HoleSurfacePatchRole.CylindricalWall, "Large cylindrical wall patch is expected."), new(HoleSurfacePatchRole.CylindricalWall, "Medium cylindrical wall patch is expected."), new(HoleSurfacePatchRole.CylindricalWall, "Small through cylindrical wall patch is expected."), new(HoleSurfacePatchRole.SteppedTransitionFloorAnnulus, "Annular floor between large and medium is expected."), new(HoleSurfacePatchRole.SteppedTransitionFloorAnnulus, "Annular floor between medium and small is expected.")],
+            [new(HoleTrimCurveRole.CircularRimTrim, "Circular entry/transition/exit rim trims are expected.")], FrepMaterializerCapability.ExactBRep, diagnostics.ToArray());
+
+        return new(Name, true, Score, plan, ["stepped-hole", "rectangular-box-host", "coaxial-cylinders", "three-level-stack", "entry-relief", "semantic-profile-stack"], Array.Empty<string>(), diagnostics);
+    }
+}
 internal static class ThroughHoleRecoveryPlanAdapter
 {
     internal static bool TryConvert(HoleRecoveryPlan plan, out ThroughHoleRecoveryPlan? through)

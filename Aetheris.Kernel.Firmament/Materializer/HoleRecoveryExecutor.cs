@@ -60,6 +60,18 @@ public static class HoleRecoveryExecutor
             return ExecuteCountersink(plan, diagnostics);
         }
 
+        if (plan.HoleKind == HoleKind.Stepped && plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief)
+        {
+            diagnostics.Add("Stepped-hole plan recognized, execution characterization started.");
+            diagnostics.Add("Stepped plan geometry validated; attempting overlapping-coaxial-cylinder execution was characterized as unsupported in V13.1.");
+            diagnostics.Add("Attempt characterization: subtract order [small->medium->large] fails with BooleanFailed.");
+            diagnostics.Add("Attempt characterization: alternative subtract orders are not promoted to production due to unstable/coincident topology risk.");
+            diagnostics.Add("Attempt characterization: unioned stepped tool route is deferred; no bounded safe deterministic route established.");
+            diagnostics.Add("SteppedHoleExecutionUnsupportedOverlappingCoaxialTools");
+            diagnostics.Add("No STEP export attempted by hole executor for deferred stepped execution.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
         if (plan.HoleKind != HoleKind.Counterbore || plan.DepthKind != HoleDepthKind.ThroughWithEntryRelief)
         {
             diagnostics.Add("Plan rejected: only bounded blind-hole and counterbore are supported.");
@@ -269,6 +281,7 @@ public static class HoleRecoveryExecutor
         return new(HoleRecoveryExecutionStatus.Succeeded, secondSub.Value, diagnostics);
     }
 
-    private static BrepBody TranslateBody(BrepBody body, Vector3D translation)
+
+        private static BrepBody TranslateBody(BrepBody body, Vector3D translation)
         => translation == Vector3D.Zero ? body : FirmamentPrimitiveExecutionTranslation.TranslateBody(body, translation);
 }

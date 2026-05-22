@@ -265,6 +265,31 @@ public sealed class BrepBooleanSafeCompositionGraphValidatorTests
         Assert.Equal(2, updated.Holes.Count);
     }
 
+    [Fact]
+    public void ValidateNextSubtract_NLevelCoaxialSteppedContinuation_AdmitsThirdHole()
+    {
+        var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-15d, 15d, -15d, 15d, -10d, 10d)).Value;
+        var through = BrepPrimitives.CreateCylinder(2d, 30d).Value;
+        var mediumBlind = TransformBody(BrepPrimitives.CreateCylinder(3d, 6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 7d)));
+        var shallowBlind = TransformBody(BrepPrimitives.CreateCylinder(4d, 3d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 8.5d)));
+        var first = BrepBoolean.Subtract(baseBox, through);
+        var second = BrepBoolean.Subtract(first.Value, mediumBlind);
+        Assert.True(second.IsSuccess);
+        Assert.True(BrepBooleanAnalyticSurfaceRecognition.TryRecognizeCylinder(shallowBlind, ToleranceContext.Default, out var next, out _));
+
+        var result = BrepBooleanSafeCompositionGraphValidator.TryValidateNextSubtract(
+            second.Value.SafeBooleanComposition!,
+            next,
+            ToleranceContext.Default,
+            out var updated,
+            out var diagnostic,
+            "hole3");
+
+        Assert.True(result, diagnostic?.Message);
+        Assert.Null(diagnostic);
+        Assert.Equal(3, updated.Holes.Count);
+    }
+
     private static BrepBody TransformBody(BrepBody body, Transform3D transform)
     {
         var geometry = new BrepGeometryStore();

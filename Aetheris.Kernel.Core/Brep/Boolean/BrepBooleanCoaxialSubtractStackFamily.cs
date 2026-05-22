@@ -12,6 +12,83 @@ internal readonly record struct CoaxialCylinderSubtractStackProfile(
 
 internal static class BrepBooleanCoaxialSubtractStackFamily
 {
+    public static bool TryClassifyNLevel(
+        AxisAlignedBoxExtents outerBox,
+        IReadOnlyList<SupportedBooleanHole> existingHoles,
+        in SupportedBooleanHole nextHole,
+        ToleranceContext tolerance,
+        out BooleanDiagnostic? diagnostic,
+        string? featureId = null)
+    {
+        diagnostic = null;
+        if (existingHoles.Count == 0)
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(
+                BooleanOperation.Subtract.ToString(),
+                featureId,
+                "N-level coaxial stack classification requires at least one existing hole.");
+            return false;
+        }
+
+        var all = existingHoles.Append(nextHole).ToArray();
+        if (all.Any(h => h.Surface.Kind != AnalyticSurfaceKind.Cylinder))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateUnsupportedAnalyticSurfaceKindDiagnostic(BooleanOperation.Subtract.ToString(), AnalyticSurfaceKind.Cylinder, featureId);
+            return false;
+        }
+
+        if (all.Any(h => !IsWorldZAligned(h.Axis, tolerance)))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "N-level coaxial subtract-stack support requires world-Z aligned cylinders.");
+            return false;
+        }
+
+        var seed = all[0];
+        if (all.Any(h => System.Math.Sqrt(((h.CenterX - seed.CenterX) * (h.CenterX - seed.CenterX)) + ((h.CenterY - seed.CenterY) * (h.CenterY - seed.CenterY))) > tolerance.Linear))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateAxisNotAlignedDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "N-level coaxial subtract-stack support requires matching XY centers.");
+            return false;
+        }
+
+        var through = all.Where(h => h.SpanKind == SupportedBooleanHoleSpanKind.Through).ToArray();
+        if (through.Length != 1)
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "N-level coaxial subtract-stack support requires exactly one through segment.");
+            return false;
+        }
+
+        var topBlinds = all.Where(h => h.SpanKind == SupportedBooleanHoleSpanKind.BlindFromTop).ToArray();
+        if (topBlinds.Length == 0 || all.Any(h => h.SpanKind is SupportedBooleanHoleSpanKind.BlindFromBottom or SupportedBooleanHoleSpanKind.Contained))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "N-level coaxial subtract-stack support is limited to top-entry blind segments with one through segment.");
+            return false;
+        }
+
+        var ordered = topBlinds.OrderBy(h => ResolveBottom(h)).ToArray(); // deeper first (smaller Z)
+        for (var i = 0; i < ordered.Length - 1; i++)
+        {
+            if (!(ordered[i].BottomRadius < (ordered[i + 1].BottomRadius - tolerance.Linear)))
+            {
+                diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "N-level coaxial subtract-stack support requires strictly increasing blind radii toward top entry.");
+                return false;
+            }
+
+            if (!(ResolveBottom(ordered[i]) < (ResolveBottom(ordered[i + 1]) - tolerance.Linear)))
+            {
+                diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "N-level coaxial subtract-stack support requires strictly decreasing blind depths toward top entry.");
+                return false;
+            }
+        }
+
+        if (all.Any(h => !IsTopEntry(h, outerBox, tolerance) && h.SpanKind != SupportedBooleanHoleSpanKind.Through))
+        {
+            diagnostic = BrepBooleanCylinderRecognition.CreateNotFullySpanningDiagnostic(BooleanOperation.Subtract.ToString(), featureId, "N-level coaxial subtract-stack support requires all blind segments to enter from the top face.");
+            return false;
+        }
+
+        return true;
+    }
+
     public static bool TryClassifyPair(
         AxisAlignedBoxExtents outerBox,
         in SupportedBooleanHole first,

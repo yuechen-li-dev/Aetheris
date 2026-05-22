@@ -23,17 +23,13 @@ Counterbore remains the 2-level shape. Stepped-hole admission requires 3 levels,
 - profile stack: large shallow cylinder, medium depth cylinder, small through cylinder
 - expected annular transition floors and circular transition trims.
 
-## A4 productionization update
-Stepped execution is now production-enabled for the bounded canonical route selected by A3.1:
+## A4.1 reconciliation update
+Stepped execution is reverted to deferred in production pending plan/executor contract reconciliation:
 
-- deterministic order: `small -> medium -> large`,
-- bounded pre-boolean shape validation,
-- per-stage subtract diagnostics,
-- successful completion now returns `Succeeded` + produced `BrepBody`.
-
-If a subtract stage fails, executor now returns `BooleanFailed` for that stage with explicit stage diagnostics.
-
-STEP smoke coverage now executes for stepped-hole via the recovered body and confirms manifold/non-void export markers using unchanged `Step242Exporter.ExportBody(...)` behavior.
+- FrictionLab repeated-subtract success remains valid for lab-built route/tool placement.
+- Production `HoleRecoveryPlan` lacks per-tier entry-side polarity for medium/large stepped tiers.
+- Executor now returns `UnsupportedPlan` with `missing-stepped-entry-side-polarity` instead of attempting non-equivalent stepped Boolean execution.
+- STEP smoke for stepped is therefore intentionally deferred in production until that contract gap is closed.
 
 ## Non-goals
 No generic N-level stack executor, no threaded-hole support, no STEP exporter changes, no public API changes.

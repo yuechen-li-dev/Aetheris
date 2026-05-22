@@ -224,17 +224,25 @@ internal sealed class ChamferedEntryHoleVariant : IHoleRecoveryVariant
         var coneMinZ = coneTranslation.Z - (cone.Height * 0.5d);
         var coneMaxZ = coneTranslation.Z + (cone.Height * 0.5d);
         var touchesTop = Math.Abs(coneMaxZ - boxMaxZ) <= tol;
-        if (!touchesTop)
+        var touchesBottom = Math.Abs(coneMinZ - boxMinZ) <= tol;
+        if (!touchesTop && !touchesBottom)
         {
-            diagnostics.Add("entry side unsupported: bounded v15 supports top-entry chamfer only.");
-            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedEntrySide"], diagnostics);
+            diagnostics.Add("cone does not touch entry face.");
+            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedConeMissingEntryFace"], diagnostics);
         }
 
-        var entryRadius = cone.TopRadius;
-        var transitionRadius = cone.BottomRadius;
+        if (touchesTop && touchesBottom)
+        {
+            diagnostics.Add("cone through full depth unsupported.");
+            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedConeThroughFullDepth"], diagnostics);
+        }
+
+        var entryFromTop = touchesTop;
+        var entryRadius = entryFromTop ? cone.TopRadius : cone.BottomRadius;
+        var transitionRadius = entryFromTop ? cone.BottomRadius : cone.TopRadius;
         if (entryRadius <= transitionRadius + tol)
         {
-            diagnostics.Add("cone radius ordering invalid for entry side.");
+            diagnostics.Add($"cone radius ordering invalid for {(entryFromTop ? "top(+Z)" : "bottom(-Z)")} entry side.");
             return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedConeRadiusOrderingInvalid"], diagnostics);
         }
 
@@ -267,8 +275,8 @@ internal sealed class ChamferedEntryHoleVariant : IHoleRecoveryVariant
 
         var depthKind = host.ThroughLength >= host.BoxDepth - tol ? HoleDepthKind.ThroughWithEntryRelief : HoleDepthKind.BlindWithEntryRelief;
         var exitKind = depthKind == HoleDepthKind.ThroughWithEntryRelief ? HoleExitFeatureKind.Plain : HoleExitFeatureKind.ClosedBottom;
-        diagnostics.Add("entry side detected: top(+Z).");
-        diagnostics.Add("cone radius/order validated.");
+        diagnostics.Add($"entry side detected: {(entryFromTop ? "top(+Z)" : "bottom(-Z)")}.");
+        diagnostics.Add($"cone radius/order validated for {(entryFromTop ? "top(+Z)" : "bottom(-Z)")} entry.");
         diagnostics.Add("transition radius compatible.");
         diagnostics.Add("Chamfered-entry plan produced.");
         var plan = new HoleRecoveryPlan(HoleHostKind.RectangularBox, HoleAxisKind.Z, HoleKind.ChamferedEntry, depthKind, HoleEntryFeatureKind.Chamfer, exitKind,

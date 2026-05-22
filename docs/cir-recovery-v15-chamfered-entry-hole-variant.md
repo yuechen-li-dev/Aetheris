@@ -1,4 +1,4 @@
-# CIR-RECOVERY-V15 — bounded ChamferedEntryHoleVariant recognition + execution + STEP smoke
+# CIR-RECOVERY-V15 — bounded ChamferedEntryHoleVariant recognition + execution + STEP smoke (top-entry baseline; extended by V16 for bottom-entry)
 
 ## Supported bounded CIR shape
 

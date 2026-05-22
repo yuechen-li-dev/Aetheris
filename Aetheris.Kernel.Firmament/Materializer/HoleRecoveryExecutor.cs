@@ -427,8 +427,11 @@ public static class HoleRecoveryExecutor
         }
 
         var entryTopZ = plan.HostTranslation.Z + (plan.HostSizeZ * 0.5d);
-        var coneCenterZ = entryTopZ - (coneHeight * 0.5d);
+        var entryBottomZ = plan.HostTranslation.Z - (plan.HostSizeZ * 0.5d);
+        var touchesTop = Math.Abs((plan.ToolTranslation.Z + (coneHeight * 0.5d)) - entryTopZ) <= Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
+        var coneCenterZ = touchesTop ? entryTopZ - (coneHeight * 0.5d) : entryBottomZ + (coneHeight * 0.5d);
         var coneBody = TranslateBody(coneResult.Value, new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, coneCenterZ));
+        diagnostics.Add($"entry side resolved for {coneLabel}: {(touchesTop ? "top(+Z)" : "bottom(-Z)") }.");
         diagnostics.Add($"{coneLabel} subtract invoked.");
         var secondSub = BrepBoolean.Subtract(firstSub.Value, coneBody);
         if (!secondSub.IsSuccess || secondSub.Value is null)

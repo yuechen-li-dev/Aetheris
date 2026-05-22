@@ -7,6 +7,7 @@ V12 hardens production `HoleRecoveryPolicy` coverage and diagnostics for the cur
 - `CounterboreVariant`
 - `BlindHoleVariant`
 - `CountersinkVariant`
+- `ChamferedEntryHoleVariant` (added in V15 bounded entry-relief split)
 - `SteppedHoleVariant`
 
 This milestone adds matrix-style test coverage and diagnostics trace assertions. It does **not** add variants, change executor semantics, or change STEP exporter behavior.
@@ -19,6 +20,7 @@ This milestone adds matrix-style test coverage and diagnostics trace assertions.
 - BlindHoleTop -> `BlindHoleVariant`, `HoleKind.Blind`, executable.
 - BlindHoleBottom -> `BlindHoleVariant`, `HoleKind.Blind`, executable.
 - Countersink -> `CountersinkVariant`, `HoleKind.Countersink`, executable.
+- ChamferedEntry -> `ChamferedEntryHoleVariant`, `HoleKind.ChamferedEntry`, executable.
 - SteppedHole -> `SteppedHoleVariant`, `HoleKind.Stepped`, executable (A4 repeated-subtract production route) and manifold/non-void in STEP smoke assertions.
 
 ### Unsupported/fallback rows

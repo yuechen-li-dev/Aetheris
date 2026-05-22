@@ -50,3 +50,7 @@ Support remains intentionally bounded to the canonical three-level coaxial Z-axi
 - **Decision (Outcome B):** stepped execution is restored to **deferred** in production with explicit diagnostic:
   - `missing-stepped-entry-side-polarity`
 - Through/blind/counterbore/countersink execution paths remain unchanged.
+
+## V13.2 follow-up
+- V13.2 closes the prior plan-contract gap by adding explicit stepped tier placement semantics to `HoleProfileSegment` and populating anchor/depth/z-span metadata for each tier.
+- The old polarity-missing blocker is retired; stepped execution remains deferred under a new intentional gate (`stepped-execution-route-disabled-until-v13.3`) until production route re-enable.

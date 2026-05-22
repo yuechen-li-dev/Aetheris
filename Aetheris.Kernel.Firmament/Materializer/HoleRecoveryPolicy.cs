@@ -550,11 +550,37 @@ internal sealed class SteppedHoleVariant : IHoleRecoveryVariant
             return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedLargestRadiusClearance"], diagnostics);
         }
 
-        diagnostics.Add("entry side detected.");
+        var mediumMinZ = mediumT.Z - (medium.Height * 0.5d);
+        var mediumMaxZ = mediumT.Z + (medium.Height * 0.5d);
+        var largeMinZ = largeT.Z - (large.Height * 0.5d);
+        var largeMaxZ = largeT.Z + (large.Height * 0.5d);
+        var mediumTouchesTop = Math.Abs(mediumMaxZ - boxMaxZ) <= tol;
+        var mediumTouchesBottom = Math.Abs(mediumMinZ - boxMinZ) <= tol;
+        var largeTouchesTop = Math.Abs(largeMaxZ - boxMaxZ) <= tol;
+        var largeTouchesBottom = Math.Abs(largeMinZ - boxMinZ) <= tol;
+        var mediumAnchor = mediumTouchesTop ? HoleTierAnchorSide.Top : (mediumTouchesBottom ? HoleTierAnchorSide.Bottom : HoleTierAnchorSide.Unknown);
+        var largeAnchor = largeTouchesTop ? HoleTierAnchorSide.Top : (largeTouchesBottom ? HoleTierAnchorSide.Bottom : HoleTierAnchorSide.Unknown);
+        if (mediumAnchor == HoleTierAnchorSide.Unknown || largeAnchor == HoleTierAnchorSide.Unknown)
+        {
+            diagnostics.Add("entry side anchor unresolved for medium/large.");
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedSteppedAnchorUnknown"], diagnostics);
+        }
+
+        if (mediumAnchor != largeAnchor)
+        {
+            diagnostics.Add("entry side anchor mismatch between medium and large tiers.");
+            return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedSteppedAnchorMismatch"], diagnostics);
+        }
+
+        diagnostics.Add($"entry side detected: {(mediumAnchor == HoleTierAnchorSide.Top ? "top(+Z)" : "bottom(-Z)")}. ");
         diagnostics.Add("Stepped plan produced.");
         var plan = new HoleRecoveryPlan(HoleHostKind.RectangularBox, HoleAxisKind.Z, HoleKind.Stepped, HoleDepthKind.ThroughWithEntryRelief, HoleEntryFeatureKind.Stepped, HoleExitFeatureKind.Plain,
             host.ThroughLength, host.BoxWidth, host.BoxHeight, host.BoxDepth, host.BoxTranslation, host.CylinderTranslation,
-            [new(HoleProfileSegmentKind.Cylindrical, large.Radius, large.Radius, 0d, large.Height), new(HoleProfileSegmentKind.Cylindrical, medium.Radius, medium.Radius, 0d, medium.Height), new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength)],
+            [
+                new(HoleProfileSegmentKind.Cylindrical, large.Radius, large.Radius, 0d, large.Height, largeAnchor, large.Height, largeMinZ, largeMaxZ, false, [$"anchor={largeAnchor}", $"depthFromAnchor={large.Height:0.###}", $"z=[{largeMinZ:0.###},{largeMaxZ:0.###}]"]),
+                new(HoleProfileSegmentKind.Cylindrical, medium.Radius, medium.Radius, 0d, medium.Height, mediumAnchor, medium.Height, mediumMinZ, mediumMaxZ, false, [$"anchor={mediumAnchor}", $"depthFromAnchor={medium.Height:0.###}", $"z=[{mediumMinZ:0.###},{mediumMaxZ:0.###}]"]),
+                new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength, HoleTierAnchorSide.Through, host.ThroughLength, boxMinZ, boxMaxZ, true, ["anchor=Through", $"z=[{boxMinZ:0.###},{boxMaxZ:0.###}]"])
+            ],
             [new(HoleSurfacePatchRole.HostRetainedPlanarFaces, "Host planar faces are retained after stepped-hole subtraction."), new(HoleSurfacePatchRole.CylindricalWall, "Large cylindrical wall patch is expected."), new(HoleSurfacePatchRole.CylindricalWall, "Medium cylindrical wall patch is expected."), new(HoleSurfacePatchRole.CylindricalWall, "Small through cylindrical wall patch is expected."), new(HoleSurfacePatchRole.SteppedTransitionFloorAnnulus, "Annular floor between large and medium is expected."), new(HoleSurfacePatchRole.SteppedTransitionFloorAnnulus, "Annular floor between medium and small is expected.")],
             [new(HoleTrimCurveRole.CircularRimTrim, "Circular entry/transition/exit rim trims are expected.")], FrepMaterializerCapability.ExactBRep, diagnostics.ToArray());
 

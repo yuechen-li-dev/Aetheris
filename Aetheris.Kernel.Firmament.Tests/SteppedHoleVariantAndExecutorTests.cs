@@ -27,7 +27,7 @@ public sealed class SteppedHoleVariantAndExecutorTests
         var exec = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
         Assert.Null(exec.Body);
-        Assert.Contains(exec.Diagnostics, d => d.Contains("missing-stepped-entry-side-polarity", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class SteppedHoleVariantAndExecutorTests
         var exec = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
         Assert.Null(exec.Body);
-        Assert.Contains(exec.Diagnostics, d => d.Contains("missing-stepped-entry-side-polarity", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
         Assert.Contains(exec.Diagnostics, d => d.Contains("No STEP export attempted", StringComparison.Ordinal));
     }
 
@@ -72,7 +72,7 @@ public sealed class SteppedHoleVariantAndExecutorTests
         var exec = HoleRecoveryExecutor.Execute(invalid);
         Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
         Assert.Null(exec.Body);
-        Assert.Contains(exec.Diagnostics, d => d.Contains("missing-stepped-entry-side-polarity", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
         Assert.DoesNotContain(exec.Diagnostics, d => d.Contains("Stepped subtract", StringComparison.Ordinal));
     }
 

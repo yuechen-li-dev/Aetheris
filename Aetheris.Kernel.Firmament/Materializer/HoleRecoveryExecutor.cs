@@ -62,8 +62,8 @@ public static class HoleRecoveryExecutor
 
         if (plan.HoleKind == HoleKind.Stepped && plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief)
         {
-            diagnostics.Add("Stepped-hole plan recognized but execution deferred: plan does not encode entry-side polarity for medium/large tiers, and production route cannot be proven equivalent to FrictionLab route.");
-            diagnostics.Add("Deferred reason: missing-stepped-entry-side-polarity.");
+            diagnostics.Add("Stepped-hole plan recognized with explicit tier placement metadata; execution intentionally deferred in V13.2 pending production route re-enable.");
+            diagnostics.Add("Deferred reason: stepped-execution-route-disabled-until-v13.3.");
             return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 

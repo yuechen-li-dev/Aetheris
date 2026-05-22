@@ -108,7 +108,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         if (plan.HoleKind == HoleKind.Stepped)
         {
             Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
-            Assert.Contains(exec.Diagnostics, d => d.Contains("missing-stepped-entry-side-polarity", StringComparison.Ordinal));
+            Assert.Contains(exec.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
             return;
         }
 
@@ -131,7 +131,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         if (plan.HoleKind == HoleKind.Stepped)
         {
             Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
-            Assert.Contains(exec.Diagnostics, d => d.Contains("missing-stepped-entry-side-polarity", StringComparison.Ordinal));
+            Assert.Contains(exec.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
             return;
         }
 

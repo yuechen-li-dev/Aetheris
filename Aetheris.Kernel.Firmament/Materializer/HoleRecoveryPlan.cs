@@ -7,12 +7,24 @@ public enum HoleAxisKind { Z, Unsupported }
 public enum HoleKind { Through, Blind, Counterbore, Countersink, Stepped, Unsupported }
 public enum HoleDepthKind { Through, Blind, ThroughWithEntryRelief, BlindWithEntryRelief, Unsupported }
 public enum HoleProfileSegmentKind { Cylindrical, Conical, Chamfer, ThreadDeferred, Unsupported }
+public enum HoleTierAnchorSide { Top, Bottom, Through, Unknown }
 public enum HoleEntryFeatureKind { Plain, Counterbore, Countersink, Stepped, Unsupported }
 public enum HoleExitFeatureKind { Plain, ClosedBottom, Unsupported }
 public enum HoleSurfacePatchRole { EntryFace, ExitFace, HostRetainedPlanarFaces, CylindricalWall, BlindBottomCap, CounterboreFloorAnnulus, CounterboreWall, CountersinkWall, SteppedTransitionFloorAnnulus }
 public enum HoleTrimCurveRole { CircularRimTrim, Deferred }
 
-public sealed record HoleProfileSegment(HoleProfileSegmentKind SegmentKind, double RadiusStart, double RadiusEnd, double DepthStart, double DepthEnd);
+public sealed record HoleProfileSegment(
+    HoleProfileSegmentKind SegmentKind,
+    double RadiusStart,
+    double RadiusEnd,
+    double DepthStart,
+    double DepthEnd,
+    HoleTierAnchorSide AnchorSide = HoleTierAnchorSide.Unknown,
+    double DepthFromAnchor = 0d,
+    double ZMin = double.NaN,
+    double ZMax = double.NaN,
+    bool IsThrough = false,
+    IReadOnlyList<string>? PlacementDiagnostics = null);
 public sealed record HoleSurfacePatchExpectation(HoleSurfacePatchRole Role, string Description);
 public sealed record HoleTrimCurveExpectation(HoleTrimCurveRole Role, string Description);
 

@@ -4,17 +4,38 @@ namespace Aetheris.FrictionLab.Tests.CIRLab;
 
 public class SteppedHoleExecutionArchitectureLabTests
 {
+    private static readonly string[] AllowedRecommendations = ["repeated-subtract-production", "unioned-tool-production", "n-level-builder-production", "profile-stack-tool-builder-production", "keep-deferred"];
+
+    private static readonly string[] RequiredStrategies =
+    [
+        "repeated-subtract-small-medium-large",
+        "repeated-subtract-large-medium-small",
+        "repeated-subtract-medium-large-small",
+        "unioned-tool-single-subtract",
+        "n-level-builder-analysis",
+        "profile-stack-tool-builder-analysis",
+        "deferred-baseline-current-production",
+        "counterbore-baseline"
+    ];
+
     [Fact]
     public void SteppedArchitectureLab_ProducesStrategyMatrix()
     {
         var report = SteppedHoleExecutionArchitectureLab.RunCanonicalSteppedScenario();
-        Assert.Contains(report.Strategies, s => s.Strategy == "repeated-subtract-small-medium-large");
-        Assert.Contains(report.Strategies, s => s.Strategy == "repeated-subtract-large-medium-small");
-        Assert.Contains(report.Strategies, s => s.Strategy == "repeated-subtract-medium-large-small");
-        Assert.Contains(report.Strategies, s => s.Strategy == "unioned-tool-single-subtract");
-        Assert.Contains(report.Strategies, s => s.Strategy == "n-level-builder-analysis");
-        Assert.Contains(report.Strategies, s => s.Strategy == "profile-stack-tool-builder-analysis");
-        Assert.Contains(report.Strategies, s => s.Strategy == "deferred-baseline-current-production");
+        Assert.All(RequiredStrategies, strategy => Assert.Contains(report.Strategies, s => s.Strategy == strategy));
+    }
+
+    [Fact]
+    public void SteppedArchitectureLab_ReportMatrixContainsConcreteStatuses()
+    {
+        var report = SteppedHoleExecutionArchitectureLab.RunCanonicalSteppedScenario();
+        foreach (var strategy in RequiredStrategies)
+        {
+            var row = report.Strategies.Single(s => s.Strategy == strategy);
+            Assert.True(Enum.IsDefined(row.Status));
+            Assert.False(string.IsNullOrWhiteSpace(row.FailureStage));
+            Assert.False(string.IsNullOrWhiteSpace(row.FailureCode));
+        }
     }
 
     [Fact]
@@ -64,6 +85,67 @@ public class SteppedHoleExecutionArchitectureLabTests
     public void SteppedArchitectureLab_RecommendationIsExplicit()
     {
         var r = SteppedHoleExecutionArchitectureLab.RunCanonicalSteppedScenario().Recommendation;
-        Assert.Contains(r, new[] { "repeated-subtract-production", "unioned-tool-production", "n-level-builder-production", "profile-stack-tool-builder-production", "keep-deferred" });
+        Assert.False(string.IsNullOrWhiteSpace(r));
+        Assert.Contains(r, AllowedRecommendations);
+    }
+
+    [Fact]
+    public void SteppedArchitectureLab_SelectedRecommendationIsExplicit()
+    {
+        var recommendation = SteppedHoleExecutionArchitectureLab.RunCanonicalSteppedScenario().Recommendation;
+        Assert.False(string.IsNullOrWhiteSpace(recommendation));
+        Assert.Contains(recommendation, AllowedRecommendations);
+    }
+
+    [Fact]
+    public void SteppedArchitectureLab_UnionedToolRowHasConcreteOutcome()
+    {
+        var row = SteppedHoleExecutionArchitectureLab.RunCanonicalSteppedScenario().Strategies.Single(s => s.Strategy == "unioned-tool-single-subtract");
+        Assert.True(row.Status is SteppedArchitectureStrategyStatus.Succeeded or SteppedArchitectureStrategyStatus.Failed or SteppedArchitectureStrategyStatus.Skipped);
+        Assert.False(string.IsNullOrWhiteSpace(row.FailureStage));
+        Assert.False(string.IsNullOrWhiteSpace(row.FailureCode));
+        if (row.Status is SteppedArchitectureStrategyStatus.Skipped)
+        {
+            Assert.NotEmpty(row.Diagnostics);
+        }
+    }
+
+    [Fact]
+    public void SteppedArchitectureLab_RepeatedSubtractRowsHavePerOrderOutcomes()
+    {
+        var rows = SteppedHoleExecutionArchitectureLab.RunCanonicalSteppedScenario().Strategies
+            .Where(s => s.Strategy.StartsWith("repeated-subtract-", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.Equal(3, rows.Length);
+        Assert.Equal(3, rows.Select(r => r.Strategy).Distinct(StringComparer.Ordinal).Count());
+        Assert.All(rows, row =>
+        {
+            Assert.True(row.Status is SteppedArchitectureStrategyStatus.Succeeded or SteppedArchitectureStrategyStatus.Failed);
+            Assert.False(string.IsNullOrWhiteSpace(row.FailureStage));
+            Assert.False(string.IsNullOrWhiteSpace(row.FailureCode));
+        });
+    }
+
+    [Fact]
+    public void SteppedArchitectureLab_CounterboreBaselineOutcomePresent()
+    {
+        var row = SteppedHoleExecutionArchitectureLab.RunCanonicalSteppedScenario().Strategies.Single(s => s.Strategy == "counterbore-baseline");
+        Assert.True(row.Status is SteppedArchitectureStrategyStatus.Succeeded or SteppedArchitectureStrategyStatus.Failed);
+        Assert.False(string.IsNullOrWhiteSpace(row.FailureStage));
+        Assert.False(string.IsNullOrWhiteSpace(row.FailureCode));
+    }
+
+    [Fact]
+    public void SteppedArchitectureLab_ReportIsDecisionGrade()
+    {
+        var report = SteppedHoleExecutionArchitectureLab.RunCanonicalSteppedScenario();
+        var bannedVagueTerms = new[] { "represented", "compared", "analyzed" };
+        foreach (var strategy in RequiredStrategies)
+        {
+            var row = report.Strategies.Single(s => s.Strategy == strategy);
+            var rowText = string.Join("|", row.RecommendedNextStep, row.FailureCode, row.FailureStage, string.Join(";", row.Diagnostics)).ToLowerInvariant();
+            Assert.DoesNotContain(bannedVagueTerms, term => rowText.Contains(term, StringComparison.Ordinal));
+        }
     }
 }

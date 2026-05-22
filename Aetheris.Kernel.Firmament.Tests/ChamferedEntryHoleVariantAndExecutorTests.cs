@@ -18,6 +18,17 @@ public sealed class ChamferedEntryHoleVariantAndExecutorTests
         Assert.Equal(HoleProfileSegmentKind.Cylindrical, plan.ProfileStack[1].SegmentKind);
         Assert.Contains(plan.ExpectedSurfacePatches, p => p.Role == HoleSurfacePatchRole.ChamferedEntryWall);
     }
+    
+    [Fact]
+    public void ChamferedEntry_BottomEntry_AdmitsPlan()
+    {
+        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildChamferedBottom()));
+        Assert.Contains("selected-variant:ChamferedEntryHoleVariant", eval.Evidence);
+        var plan = Assert.IsType<HoleRecoveryPlan>(eval.Plan);
+        Assert.Equal(HoleKind.ChamferedEntry, plan.HoleKind);
+        Assert.Equal(HoleEntryFeatureKind.Chamfer, plan.EntryFeature);
+        Assert.Contains(eval.EvaluationsFor(nameof(ChamferedEntryHoleVariant)), d => d.Contains("bottom(-Z)", StringComparison.OrdinalIgnoreCase));
+    }
 
     [Fact]
     public void ChamferedEntryVariant_RejectsCountersinkSizedCone()
@@ -54,6 +65,18 @@ public sealed class ChamferedEntryHoleVariantAndExecutorTests
         Assert.Contains(result.Diagnostics, d => d.Contains("cylinder subtract invoked", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Diagnostics, d => d.Contains("chamfer cone subtract invoked", StringComparison.OrdinalIgnoreCase));
     }
+    
+    [Fact]
+    public void ChamferedEntry_BottomEntry_ProducesBrepBody()
+    {
+        var plan = Assert.IsType<HoleRecoveryPlan>(new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildChamferedBottom())).Plan);
+        var result = HoleRecoveryExecutor.Execute(plan);
+        Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
+        Assert.NotNull(result.Body);
+        Assert.Contains(result.Diagnostics, d => d.Contains("cylinder subtract invoked", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("chamfer cone subtract invoked", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("bottom(-Z)", StringComparison.OrdinalIgnoreCase));
+    }
 
     [Fact]
     public void ChamferedEntryStepSmoke_CanonicalChamferedEntry_ExportsStep()
@@ -69,6 +92,47 @@ public sealed class ChamferedEntryHoleVariantAndExecutorTests
         Assert.Contains("CYLINDRICAL_SURFACE", step.Value);
         Assert.DoesNotContain("BREP_WITH_VOIDS", step.Value);
     }
+    
+    [Fact]
+    public void ChamferedEntry_BottomEntry_ExportsStep()
+    {
+        var plan = Assert.IsType<HoleRecoveryPlan>(new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildChamferedBottom())).Plan);
+        var exec = HoleRecoveryExecutor.Execute(plan);
+        var step = Step242Exporter.ExportBody(exec.Body!);
+        Assert.True(step.IsSuccess);
+        Assert.Contains("ISO-10303-21", step.Value);
+        Assert.Contains("MANIFOLD_SOLID_BREP", step.Value);
+        Assert.Contains("ADVANCED_FACE", step.Value);
+        Assert.Contains("CONICAL_SURFACE", step.Value);
+        Assert.Contains("CYLINDRICAL_SURFACE", step.Value);
+        Assert.DoesNotContain("BREP_WITH_VOIDS", step.Value);
+    }
+
+    [Fact]
+    public void ChamferedEntry_BottomEntry_DoesNotStealCountersink()
+    {
+        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildCountersinkBottom()));
+        Assert.Contains("selected-variant:CountersinkVariant", eval.Evidence);
+        Assert.Contains(eval.Diagnostics, d => d.Contains("Variant rejected: ChamferedEntryHoleVariant", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Countersink_DoesNotStealBottomChamfer()
+    {
+        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildChamferedBottom()));
+        Assert.Contains("selected-variant:ChamferedEntryHoleVariant", eval.Evidence);
+        Assert.Contains(eval.Diagnostics, d => d.Contains("Variant rejected: CountersinkVariant", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ChamferedEntry_RejectsInvalidBottomConeOrientation()
+    {
+        var cone = new CirTransformNode(new CirConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -4.5d)));
+        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d, 20d, 10d), new CirCylinderNode(2d, 20d)), cone);
+        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
+        Assert.Contains(eval.EvaluationsFor(nameof(ChamferedEntryHoleVariant)), d => d.Contains("radius ordering invalid", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain("selected-variant:ChamferedEntryHoleVariant", eval.Evidence);
+    }
 
     [Fact]
     public void ChamferedEntry_Unsupported_DoesNotFalseSucceed()
@@ -83,4 +147,8 @@ public sealed class ChamferedEntryHoleVariantAndExecutorTests
         => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 4.5d))));
     private static CirNode BuildCountersink()
         => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(2d, 4d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
+    private static CirNode BuildChamferedBottom()
+        => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(2.8d, 2d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -4.5d))));
+    private static CirNode BuildCountersinkBottom()
+        => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(4d, 2d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -3d))));
 }

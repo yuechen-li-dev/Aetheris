@@ -60,49 +60,15 @@ public static class BrepBooleanSafeCompositionGraphValidator
             return false;
         }
 
-        foreach (var existingHole in composition.Holes)
+        if (composition.Holes.Count > 0)
         {
-            var deltaX = existingHole.CenterX - nextHole.CenterX;
-            var deltaY = existingHole.CenterY - nextHole.CenterY;
-            var centerDistance = System.Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
-            var requiredDistance = existingHole.MaxBoundaryRadius + nextHole.MaxBoundaryRadius;
-
-            if (composition.Holes.Count == 1
-                && (existingHole.IsBlind || nextHole.IsBlind))
+            if (!TryValidateHoleContinuationCandidate(composition, nextHole, tolerance, nextFeatureId, out var applyIndependentInterferenceChecks, out diagnostic))
             {
-                if (!TryValidateBlindContinuationCandidate(
-                        composition,
-                        existingHole,
-                        nextHole,
-                        tolerance,
-                        nextFeatureId,
-                        out var skipPairChecks,
-                        out diagnostic))
-                {
-                    return false;
-                }
-
-                if (skipPairChecks)
-                {
-                    continue;
-                }
-            }
-
-            if (ToleranceMath.AlmostEqual(centerDistance, requiredDistance, tolerance))
-            {
-                diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(
-                    BooleanOperation.Subtract.ToString(),
-                    nextFeatureId,
-                    $"would be tangent to previously accepted hole {FormatFeatureRef(existingHole.FeatureId)}; tangent safe-hole composition is rejected to avoid zero-thickness geometry.");
                 return false;
             }
 
-            if (centerDistance < (requiredDistance - tolerance.Linear))
+            if (applyIndependentInterferenceChecks && !TryValidateIndependentHoleInterference(composition, nextHole, tolerance, diagnosticContext, out diagnostic))
             {
-                diagnostic = new BooleanDiagnostic(
-                    BooleanDiagnosticCode.HoleInterference,
-                    diagnosticContext.FormatMessage($"overlaps previously accepted hole {FormatFeatureRef(existingHole.FeatureId)}; overlapping safe-hole composition is not supported. Separate the hole centers or reduce one of the boundary radii."),
-                    "BrepBoolean.AnalyticHole.HoleInterference");
                 return false;
             }
         }
@@ -609,24 +575,28 @@ public static class BrepBooleanSafeCompositionGraphValidator
         return nextHole.Surface.Kind is AnalyticSurfaceKind.Cylinder or AnalyticSurfaceKind.Cone;
     }
 
-    private static bool TryValidateBlindContinuationCandidate(
+    private static bool TryValidateHoleContinuationCandidate(
         SafeBooleanComposition composition,
-        in SupportedBooleanHole existingHole,
         in SupportedBooleanHole nextHole,
         ToleranceContext tolerance,
         string? featureId,
-        out bool skipPairChecks,
+        out bool applyIndependentInterferenceChecks,
         out BooleanDiagnostic? diagnostic)
     {
-        skipPairChecks = false;
-        var pairIsCoaxial = IsCoaxialHolePair(existingHole, nextHole, tolerance);
+        applyIndependentInterferenceChecks = false;
+        var nextHoleLocal = nextHole;
+        var pairIsCoaxial = composition.Holes.Count > 0 && composition.Holes.All(existingHole => IsCoaxialHolePair(existingHole, nextHoleLocal, tolerance));
+        var requiresBlindPairFamily = composition.Holes.Count == 1 && (composition.Holes[0].IsBlind || nextHoleLocal.IsBlind) && pairIsCoaxial;
         var countersinkSupported = false;
         BooleanDiagnostic? countersinkDiagnostic = null;
         var stackSupported = false;
         BooleanDiagnostic? stackDiagnostic = null;
+        var nLevelSupported = false;
+        BooleanDiagnostic? nLevelDiagnostic = null;
 
-        if (pairIsCoaxial)
+        if (composition.Holes.Count == 1 && pairIsCoaxial)
         {
+            var existingHole = composition.Holes[0];
             countersinkSupported = BrepBooleanCoaxialCountersinkSubtractFamily.TryClassifyPair(
                 composition.OuterBox,
                 existingHole,
@@ -644,15 +614,14 @@ public static class BrepBooleanSafeCompositionGraphValidator
                 out stackDiagnostic,
                 featureId);
         }
-        else
+        else if (pairIsCoaxial && composition.Holes.Count >= 2)
         {
-            BrepBooleanCoaxialSubtractStackFamily.TryClassifyPair(
+            nLevelSupported = BrepBooleanCoaxialSubtractStackFamily.TryClassifyNLevel(
                 composition.OuterBox,
-                existingHole,
+                composition.Holes,
                 nextHole,
                 tolerance,
-                out _,
-                out stackDiagnostic,
+                out nLevelDiagnostic,
                 featureId);
         }
 
@@ -660,13 +629,16 @@ public static class BrepBooleanSafeCompositionGraphValidator
             Operation: BooleanOperation.Subtract,
             HasRecognizedSafeCompositionRoot: true,
             HasRecognizedOrthogonalAdditiveRoot: SupportsIndependentHoleContinuationRoot(composition),
-            ExistingHole: existingHole,
+            ExistingHole: composition.Holes[0],
             NextHole: nextHole,
             PairIsCoaxial: pairIsCoaxial,
             IsCountersinkSupported: countersinkSupported,
             CountersinkDiagnostic: countersinkDiagnostic,
             IsSubtractStackSupported: stackSupported,
             SubtractStackDiagnostic: stackDiagnostic,
+            IsNLevelSubtractStackSupported: nLevelSupported,
+            NLevelSubtractStackDiagnostic: nLevelDiagnostic,
+            RequiresBlindPairFamily: requiresBlindPairFamily,
             SupportsIndependentContinuationOnAdditiveRoot: SupportsBoundedIndependentHoleContinuationOnRecognizedOrthogonalAdditiveRoot(composition, nextHole, tolerance));
 
         var result = ContinuationJudgmentEngine.Evaluate(context, ContinuationCandidates);
@@ -684,8 +656,12 @@ public static class BrepBooleanSafeCompositionGraphValidator
         {
             case BooleanContinuationFamily.CoaxialCountersinkPair:
             case BooleanContinuationFamily.CoaxialSubtractStack:
+            case BooleanContinuationFamily.NLevelCoaxialSubtractStack:
+                applyIndependentInterferenceChecks = false;
+                diagnostic = null;
+                return true;
             case BooleanContinuationFamily.IndependentHolesOnAdditiveRoot:
-                skipPairChecks = true;
+                applyIndependentInterferenceChecks = true;
                 diagnostic = null;
                 return true;
             case BooleanContinuationFamily.UnsupportedContinuationFromRecognizedRoot:
@@ -723,12 +699,17 @@ public static class BrepBooleanSafeCompositionGraphValidator
                     ? context.SubtractStackDiagnostic?.Message ?? "Coaxial subtract-stack continuation predicates were not satisfied."
                     : "Coaxial subtract-stack continuation requires a coaxial pair."),
             new JudgmentCandidate<BooleanContinuationContext>(
-                Name: BooleanContinuationFamily.IndependentHolesOnAdditiveRoot.ToString(),
-                IsAdmissible: context => !context.PairIsCoaxial && context.SupportsIndependentContinuationOnAdditiveRoot,
-                Score: _ => 300d,
+                Name: BooleanContinuationFamily.NLevelCoaxialSubtractStack.ToString(),
+                IsAdmissible: context => context.PairIsCoaxial && context.IsNLevelSubtractStackSupported,
+                Score: _ => 450d,
                 RejectionReason: context => context.PairIsCoaxial
-                    ? "Independent-hole continuation requires a non-coaxial pair."
-                    : "Independent-hole continuation requires a recognized orthogonal additive root (or simple box root) with world-Z cylinder/cone holes."),
+                    ? context.NLevelSubtractStackDiagnostic?.Message ?? "N-level coaxial subtract-stack continuation predicates were not satisfied."
+                    : "N-level coaxial subtract-stack continuation requires coaxial holes."),
+            new JudgmentCandidate<BooleanContinuationContext>(
+                Name: BooleanContinuationFamily.IndependentHolesOnAdditiveRoot.ToString(),
+                IsAdmissible: context => !context.RequiresBlindPairFamily && context.SupportsIndependentContinuationOnAdditiveRoot,
+                Score: _ => 300d,
+                RejectionReason: _ => "Independent-hole continuation requires a recognized orthogonal additive root (or simple box root) with world-Z cylinder/cone holes."),
             new JudgmentCandidate<BooleanContinuationContext>(
                 Name: BooleanContinuationFamily.UnsupportedContinuationFromRecognizedRoot.ToString(),
                 IsAdmissible: context => context.HasRecognizedSafeCompositionRoot,
@@ -803,6 +784,7 @@ public static class BrepBooleanSafeCompositionGraphValidator
     {
         CoaxialCountersinkPair,
         CoaxialSubtractStack,
+        NLevelCoaxialSubtractStack,
         IndependentHolesOnAdditiveRoot,
         UnsupportedContinuationFromRecognizedRoot,
         UnsupportedGeneral
@@ -819,7 +801,46 @@ public static class BrepBooleanSafeCompositionGraphValidator
         BooleanDiagnostic? CountersinkDiagnostic,
         bool IsSubtractStackSupported,
         BooleanDiagnostic? SubtractStackDiagnostic,
+        bool IsNLevelSubtractStackSupported,
+        BooleanDiagnostic? NLevelSubtractStackDiagnostic,
+        bool RequiresBlindPairFamily,
         bool SupportsIndependentContinuationOnAdditiveRoot);
+
+    private static bool TryValidateIndependentHoleInterference(
+        SafeBooleanComposition composition,
+        in SupportedBooleanHole nextHole,
+        ToleranceContext tolerance,
+        in BooleanDiagnosticContext diagnosticContext,
+        out BooleanDiagnostic? diagnostic)
+    {
+        foreach (var existingHole in composition.Holes)
+        {
+            var deltaX = existingHole.CenterX - nextHole.CenterX;
+            var deltaY = existingHole.CenterY - nextHole.CenterY;
+            var centerDistance = System.Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+            var requiredDistance = existingHole.MaxBoundaryRadius + nextHole.MaxBoundaryRadius;
+            if (ToleranceMath.AlmostEqual(centerDistance, requiredDistance, tolerance))
+            {
+                diagnostic = BrepBooleanCylinderRecognition.CreateTangentContactDiagnostic(
+                    BooleanOperation.Subtract.ToString(),
+                    nextHole.FeatureId,
+                    $"would be tangent to previously accepted hole {FormatFeatureRef(existingHole.FeatureId)}; tangent safe-hole composition is rejected to avoid zero-thickness geometry.");
+                return false;
+            }
+
+            if (centerDistance < (requiredDistance - tolerance.Linear))
+            {
+                diagnostic = new BooleanDiagnostic(
+                    BooleanDiagnosticCode.HoleInterference,
+                    diagnosticContext.FormatMessage($"overlaps previously accepted hole {FormatFeatureRef(existingHole.FeatureId)}; overlapping safe-hole composition is not supported. Separate the hole centers or reduce one of the boundary radii."),
+                    "BrepBoolean.AnalyticHole.HoleInterference");
+                return false;
+            }
+        }
+
+        diagnostic = null;
+        return true;
+    }
 
     private static bool TryValidateBoundedSphereSubtract(
         AxisAlignedBoxExtents outerBox,

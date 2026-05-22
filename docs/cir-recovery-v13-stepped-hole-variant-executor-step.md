@@ -32,14 +32,19 @@ Characterization summary:
 - no bounded deterministic safe alternative route was promoted in this milestone,
 - unioned-tool route is explicitly deferred (not enabled in production without dedicated stability coverage).
 
-## Execution policy after V13.1
-Stepped-hole execution is **deferred** in `HoleRecoveryExecutor` with explicit diagnostic code:
-- `SteppedHoleExecutionUnsupportedOverlappingCoaxialTools`
-- no STEP export attempt from hole executor when deferred.
+## A2 execution policy update
+After A1/A1.1 validator admission fix, stepped execution is now probed in `HoleRecoveryExecutor`, but production remains deferred due to downstream subtract-stage blocker diagnostics.
 
-This restores gates while preserving truthful behavior:
-- stepped recognition/planning remains supported,
-- stepped BRep execution is not falsely reported as success.
+Execution route:
+- create host box,
+- subtract small through cylinder,
+- subtract medium depth cylinder,
+- subtract large shallow cylinder,
+- if any subtract stage fails (or probe is not yet production-hardened), return deferred unsupported status with explicit blocker diagnostics.
+
+Diagnostics now record stepped plan validation and each subtract invocation/success.
+
+STEP smoke coverage confirms exporter compatibility using existing `Step242Exporter.ExportBody(...)` behavior only.
 
 ## Non-goals
 No generic N-level stack executor, no threaded-hole support, no STEP exporter changes, no public API changes.

@@ -74,6 +74,15 @@ public sealed class FrepSemanticRecoveryRematerializerTests
         Assert.Contains(remat.Value.TransitionEvents, e => e.Message.Contains("semantic recovery policy", StringComparison.Ordinal));
     }
 
+
+    [Fact]
+    public void SteppedHole_Rematerializer_BehaviorAligned()
+    {
+        var result = FrepSemanticRecoveryRematerializer.TryRecover(new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,-2)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-3)))));
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Body);
+        Assert.Contains(result.Diagnostics, d => d.Contains("executor failed", StringComparison.Ordinal));
+    }
     private static NativeGeometryReplayLog BuildReplay(string toolKind)
         => new([
             new NativeGeometryReplayOperation(0, "base", "primitive:box", null, null, null, null, new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.None, null, null, Vector3D.Zero, Vector3D.Zero, true, null), null),

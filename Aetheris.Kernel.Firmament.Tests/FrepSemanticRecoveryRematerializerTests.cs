@@ -82,7 +82,6 @@ public sealed class FrepSemanticRecoveryRematerializerTests
         Assert.False(result.Succeeded);
         Assert.Null(result.Body);
         Assert.Contains(result.Diagnostics, d => d.Contains("executor failed", StringComparison.Ordinal));
-        Assert.Contains(result.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
     }
     private static NativeGeometryReplayLog BuildReplay(string toolKind)
         => new([

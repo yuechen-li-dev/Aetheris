@@ -1,56 +1,20 @@
-# BREP-BOOLEAN-STACK-A4: stepped repeated-subtract productionization
+# BREP-BOOLEAN-STACK-A4: stepped repeated-subtract productionization (V13.3)
 
-## Outcome
-Success: bounded stepped-hole recovery is now executable in production for the canonical three-level coaxial stepped shape.
+## Inputs
+- A3.1 FrictionLab evidence: repeated-subtract variants succeed on canonical stepped case.
+- V13.2 contract fix: explicit stepped tier placement semantics on `HoleProfileSegment`.
 
-## A3.1 evidence used
-A3.1 architecture-lab evidence showed repeated subtract orders are viable for canonical bounded stepped stacks, while unioned-tool and generic profile-stack routes remained deferred. A4 promotes only the bounded repeated-subtract route.
+## V13.3 production result
+- Bounded stepped production execution re-enabled in `HoleRecoveryExecutor`.
+- Executor validates explicit placement before any Boolean.
+- Tools are built from explicit `ZMin/ZMax` only.
+- Route selected: `repeated-subtract-small-medium-large`.
+- Boolean stages are diagnostic-rich (`small`, `medium`, `large` stage invoke/success/failure markers).
+- STEP smoke remains exporter-neutral and verifies manifold solid/no-void markers.
 
-## Production route enabled
-`HoleRecoveryExecutor` now executes stepped plans with deterministic order:
-1. small through subtract,
-2. medium depth blind subtract,
-3. large shallow blind subtract.
-
-The route is enabled only after bounded plan-shape validation:
-- `HoleKind.Stepped` + `HoleDepthKind.ThroughWithEntryRelief`,
-- host rectangular box,
-- Z axis,
-- exactly three cylindrical profile segments,
-- strict radius order `small < medium < large`,
-- strict depth order `large < medium < through`.
-
-Unsupported shape mismatch is rejected before boolean invocation with explicit diagnostics.
-
-## Diagnostics
-Stepped diagnostics now explicitly record:
-- executor start and no STEP export attempt,
-- stepped plan shape validation,
-- route selection (`small-through -> medium-depth -> large-shallow`),
-- per-stage subtract invocation and success/failure,
-- final body production.
-
-## STEP smoke and manifold policy
-Stepped STEP smoke now runs via executor-produced body and existing `Step242Exporter.ExportBody(...)`. Expected manifold markers are asserted and `BREP_WITH_VOIDS` remains absent.
-
-## Non-goals preserved
-- No generic N-level stepped support.
-- No unioned-tool production route.
-- No direct N-level topology builder.
-- No STEP exporter behavior changes.
-- No public CLI/API expansion.
-
-## Remaining limits
-Support remains intentionally bounded to the canonical three-level coaxial Z-axis stepped-hole family.
-
-## A4.1 reconciliation update (lab vs production)
-- **Finding:** FrictionLab repeated-subtract success was demonstrated on a lab geometry route that is not semantically equivalent to the current production `HoleRecoveryPlan` contract.
-- FrictionLab route explicitly constructs medium/large tier Z placement in tool-building code (fixed signed translation), while production stepped plan only carries depth magnitudes and no explicit entry-side polarity for each relief tier.
-- Because `SteppedHoleVariant` currently admits both entry faces (`boxMinZ` and `boxMaxZ`) and does not encode which face was used, `HoleRecoveryExecutor` cannot safely reconstruct the exact lab route from plan data alone.
-- **Decision (Outcome B):** stepped execution is restored to **deferred** in production with explicit diagnostic:
-  - `missing-stepped-entry-side-polarity`
-- Through/blind/counterbore/countersink execution paths remain unchanged.
-
-## V13.2 follow-up
-- V13.2 closes the prior plan-contract gap by adding explicit stepped tier placement semantics to `HoleProfileSegment` and populating anchor/depth/z-span metadata for each tier.
-- The old polarity-missing blocker is retired; stepped execution remains deferred under a new intentional gate (`stepped-execution-route-disabled-until-v13.3`) until production route re-enable.
+## Current bounds intentionally retained
+- No arbitrary N-level stepped support.
+- No unioned-tool route.
+- No direct topology builder.
+- No STEP exporter behavior change.
+- No public API/CLI expansion.

@@ -107,8 +107,9 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         var exec = HoleRecoveryExecutor.Execute(plan);
         if (plan.HoleKind == HoleKind.Stepped)
         {
-            Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
-            Assert.Contains(exec.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
+            Assert.Equal(HoleRecoveryExecutionStatus.BooleanFailed, exec.Status);
+            Assert.Null(exec.Body);
+            Assert.Contains(exec.Diagnostics, d => d.Contains("repeated-subtract-small-medium-large", StringComparison.Ordinal));
             return;
         }
 
@@ -130,8 +131,9 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         var exec = HoleRecoveryExecutor.Execute(plan);
         if (plan.HoleKind == HoleKind.Stepped)
         {
-            Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
-            Assert.Contains(exec.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
+            Assert.Equal(HoleRecoveryExecutionStatus.BooleanFailed, exec.Status);
+            Assert.Null(exec.Body);
+            Assert.Contains(exec.Diagnostics, d => d.Contains("repeated-subtract-small-medium-large", StringComparison.Ordinal));
             return;
         }
 

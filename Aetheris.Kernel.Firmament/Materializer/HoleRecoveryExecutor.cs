@@ -206,6 +206,12 @@ public static class HoleRecoveryExecutor
                 diagnostics.Add("Stepped plan rejected before Boolean: every tier must provide a valid explicit z-span.");
                 return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
             }
+
+            if (segment.PlacementDiagnostics is null || segment.PlacementDiagnostics.Count == 0)
+            {
+                diagnostics.Add("Stepped plan rejected before Boolean: every tier must provide non-empty placement diagnostics.");
+                return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+            }
         }
 
         if (!small.IsThrough || small.AnchorSide != HoleTierAnchorSide.Through)
@@ -231,6 +237,12 @@ public static class HoleRecoveryExecutor
         if (small.ZMin > hostMinZ + tolerance || small.ZMax < hostMaxZ - tolerance)
         {
             diagnostics.Add("Stepped plan rejected before Boolean: through tier explicit z-span must cover host z-range.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        if ((medium.ZMin < hostMinZ - tolerance || medium.ZMax > hostMaxZ + tolerance) || (large.ZMin < hostMinZ - tolerance || large.ZMax > hostMaxZ + tolerance))
+        {
+            diagnostics.Add("Stepped plan rejected before Boolean: blind tier explicit z-span must stay within host z-range.");
             return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 

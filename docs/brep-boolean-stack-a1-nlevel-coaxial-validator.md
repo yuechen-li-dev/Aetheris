@@ -25,3 +25,10 @@ A1 generalizes safe-composition continuation validation so N-level coaxial subtr
 ## Next step
 
 - BREP-BOOLEAN-STACK-A2 should focus on any downstream builder/topology blocker only if present after validator admission.
+
+## A1.1 compatibility cleanup
+
+- Classified `Subtract_ComposedBlindPocketThenOffsetThrough_ReturnsCoaxialSteppedDiagnostic` as **A: stale diagnostic expectation**.
+- The fixture is intentionally non-coaxial (`offsetThrough` translated by `X=1.5`) and strongly overlapping (`r=7` blind pocket vs `r=3.5` through), so independent-hole interference rejection is the correct bounded-family outcome.
+- Updated the test to assert failure with `BrepBoolean.AnalyticHole.HoleInterference` and overlap wording, and renamed it to `Subtract_ComposedBlindPocketThenOffsetThrough_RejectsWithHoleInterferenceDiagnostic`.
+- A1 N-level coaxial admission remains unchanged for the canonical coaxial stepped continuation path.

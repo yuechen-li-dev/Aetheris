@@ -1295,7 +1295,7 @@ public sealed class BrepBooleanTests
     }
 
     [Fact]
-    public void Subtract_ComposedBlindPocketThenOffsetThrough_ReturnsCoaxialSteppedDiagnostic()
+    public void Subtract_ComposedBlindPocketThenOffsetThrough_RejectsWithHoleInterferenceDiagnostic()
     {
         var baseBox = BrepBooleanBoxRecognition.CreateBoxFromExtents(new AxisAlignedBoxExtents(-35d, 35d, -20d, 20d, -8d, 8d)).Value;
         var pocket = TransformBody(BrepPrimitives.CreateCylinder(7d, 6d).Value, Transform3D.CreateTranslation(new Vector3D(0d, 0d, 5d)));
@@ -1305,8 +1305,10 @@ public sealed class BrepBooleanTests
         Assert.True(first.IsSuccess);
         var second = BrepBoolean.Subtract(first.Value, offsetThrough);
 
-        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
-        Assert.Equal(2, second.Value.SafeBooleanComposition?.Holes.Count);
+        Assert.False(second.IsSuccess);
+        var diagnostic = Assert.Single(second.Diagnostics);
+        Assert.Equal("BrepBoolean.AnalyticHole.HoleInterference", diagnostic.Source);
+        Assert.Contains("overlaps previously accepted hole", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

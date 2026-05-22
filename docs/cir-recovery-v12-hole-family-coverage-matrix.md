@@ -7,6 +7,7 @@ V12 hardens production `HoleRecoveryPolicy` coverage and diagnostics for the cur
 - `CounterboreVariant`
 - `BlindHoleVariant`
 - `CountersinkVariant`
+- `SteppedHoleVariant`
 
 This milestone adds matrix-style test coverage and diagnostics trace assertions. It does **not** add variants, change executor semantics, or change STEP exporter behavior.
 
@@ -18,6 +19,7 @@ This milestone adds matrix-style test coverage and diagnostics trace assertions.
 - BlindHoleTop -> `BlindHoleVariant`, `HoleKind.Blind`, executable.
 - BlindHoleBottom -> `BlindHoleVariant`, `HoleKind.Blind`, executable.
 - Countersink -> `CountersinkVariant`, `HoleKind.Countersink`, executable.
+- SteppedHole -> `SteppedHoleVariant`, `HoleKind.Stepped`, executable.
 
 ### Unsupported/fallback rows
 - BoxSphere -> no variant admits; fallback/reject path.

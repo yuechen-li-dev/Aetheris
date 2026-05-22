@@ -109,7 +109,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         {
             Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
             Assert.Null(exec.Body);
-            Assert.Contains(exec.Diagnostics, d => d.Contains("SteppedHoleExecutionUnsupportedOverlappingCoaxialTools", StringComparison.Ordinal));
+            Assert.Contains(exec.Diagnostics, d => d.Contains("SteppedHoleExecutionDeferredPostValidator", StringComparison.Ordinal));
             return;
         }
 

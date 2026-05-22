@@ -62,14 +62,8 @@ public static class HoleRecoveryExecutor
 
         if (plan.HoleKind == HoleKind.Stepped && plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief)
         {
-            diagnostics.Add("Stepped-hole plan recognized, execution characterization started.");
-            diagnostics.Add("Stepped plan geometry validated; attempting overlapping-coaxial-cylinder execution was characterized as unsupported in V13.1.");
-            diagnostics.Add("Attempt characterization: subtract order [small->medium->large] fails with BooleanFailed.");
-            diagnostics.Add("Attempt characterization: alternative subtract orders are not promoted to production due to unstable/coincident topology risk.");
-            diagnostics.Add("Attempt characterization: unioned stepped tool route is deferred; no bounded safe deterministic route established.");
-            diagnostics.Add("SteppedHoleExecutionUnsupportedOverlappingCoaxialTools");
-            diagnostics.Add("No STEP export attempted by hole executor for deferred stepped execution.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+            diagnostics.Add("Stepped-hole plan recognized; post-validator bounded execution probe started.");
+            return ExecuteStepped(plan, diagnostics);
         }
 
         if (plan.HoleKind != HoleKind.Counterbore || plan.DepthKind != HoleDepthKind.ThroughWithEntryRelief)
@@ -126,7 +120,7 @@ public static class HoleRecoveryExecutor
         if (!firstSubtract.IsSuccess || firstSubtract.Value is null)
         {
             diagnostics.Add("First subtract failed (host - through cylinder).");
-            return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
         diagnostics.Add("First subtract succeeded.");
@@ -156,7 +150,7 @@ public static class HoleRecoveryExecutor
         if (!secondSubtract.IsSuccess || secondSubtract.Value is null)
         {
             diagnostics.Add("Second subtract failed (through result - counterbore relief).");
-            return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
         diagnostics.Add("Second subtract succeeded.");
@@ -165,6 +159,107 @@ public static class HoleRecoveryExecutor
     }
 
 
+
+    private static HoleRecoveryExecutionResult ExecuteStepped(HoleRecoveryPlan plan, List<string> diagnostics)
+    {
+        if (plan.HostKind != HoleHostKind.RectangularBox || plan.Axis != HoleAxisKind.Z || plan.ProfileStack.Count != 3)
+        {
+            diagnostics.Add("Stepped plan rejected: host/axis/profile mismatch.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        var tolerance = Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
+        var large = plan.ProfileStack[0];
+        var medium = plan.ProfileStack[1];
+        var small = plan.ProfileStack[2];
+        if (large.SegmentKind != HoleProfileSegmentKind.Cylindrical || medium.SegmentKind != HoleProfileSegmentKind.Cylindrical || small.SegmentKind != HoleProfileSegmentKind.Cylindrical)
+        {
+            diagnostics.Add("Stepped plan rejected: all profile segments must be cylindrical.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        if (small.RadiusStart >= medium.RadiusStart - tolerance || medium.RadiusStart >= large.RadiusStart - tolerance)
+        {
+            diagnostics.Add("Stepped plan rejected: strict radius ordering (small < medium < large) is required.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        var largeDepth = large.DepthEnd - large.DepthStart;
+        var mediumDepth = medium.DepthEnd - medium.DepthStart;
+        if (Math.Abs(small.DepthEnd - plan.ThroughLength) > tolerance || largeDepth <= tolerance || mediumDepth <= tolerance || largeDepth >= mediumDepth - tolerance || mediumDepth >= plan.ThroughLength - tolerance)
+        {
+            diagnostics.Add("Stepped plan rejected: strict depth ordering (large < medium < through) is required.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        diagnostics.Add("Stepped plan validated.");
+        var box = BrepPrimitives.CreateBox(plan.HostSizeX, plan.HostSizeY, plan.HostSizeZ);
+        if (!box.IsSuccess)
+        {
+            diagnostics.Add("Stepped box primitive construction failed.");
+            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+        }
+
+        var body = TranslateBody(box.Value, plan.HostTranslation);
+        var throughHeight = double.Max(plan.ThroughLength, plan.HostSizeZ);
+        var smallResult = BrepPrimitives.CreateCylinder(small.RadiusStart, throughHeight);
+        if (!smallResult.IsSuccess)
+        {
+            diagnostics.Add("Stepped small through cylinder primitive construction failed.");
+            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+        }
+
+        diagnostics.Add("Stepped subtract small invoked.");
+        var smallSubtract = BrepBoolean.Subtract(body, TranslateBody(smallResult.Value, plan.ToolTranslation));
+        if (!smallSubtract.IsSuccess || smallSubtract.Value is null)
+        {
+            diagnostics.Add("Stepped subtract small failed.");
+            diagnostics.Add("SteppedHoleExecutionDeferredPostValidator: blocker-at-small-subtract");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        diagnostics.Add("Stepped subtract small succeeded.");
+        var entryFaceZ = plan.HostTranslation.Z - (plan.HostSizeZ * 0.5d);
+        var mediumCenter = new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, entryFaceZ + (mediumDepth * 0.5d));
+        var mediumResult = BrepPrimitives.CreateCylinder(medium.RadiusStart, mediumDepth);
+        if (!mediumResult.IsSuccess)
+        {
+            diagnostics.Add("Stepped medium cylinder primitive construction failed.");
+            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+        }
+
+        diagnostics.Add("Stepped subtract medium invoked.");
+        var mediumSubtract = BrepBoolean.Subtract(smallSubtract.Value, TranslateBody(mediumResult.Value, mediumCenter));
+        if (!mediumSubtract.IsSuccess || mediumSubtract.Value is null)
+        {
+            diagnostics.Add("Stepped subtract medium failed.");
+            diagnostics.Add("SteppedHoleExecutionDeferredPostValidator: blocker-at-medium-subtract");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        diagnostics.Add("Stepped subtract medium succeeded.");
+        var largeCenter = new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, entryFaceZ + (largeDepth * 0.5d));
+        var largeResult = BrepPrimitives.CreateCylinder(large.RadiusStart, largeDepth);
+        if (!largeResult.IsSuccess)
+        {
+            diagnostics.Add("Stepped large cylinder primitive construction failed.");
+            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+        }
+
+        diagnostics.Add("Stepped subtract large invoked.");
+        var largeSubtract = BrepBoolean.Subtract(mediumSubtract.Value, TranslateBody(largeResult.Value, largeCenter));
+        if (!largeSubtract.IsSuccess || largeSubtract.Value is null)
+        {
+            diagnostics.Add("Stepped subtract large failed.");
+            diagnostics.Add("SteppedHoleExecutionDeferredPostValidator: blocker-at-large-subtract");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        diagnostics.Add("Stepped subtract large succeeded.");
+        diagnostics.Add("Stepped execution probe succeeded; production route remains deferred until dedicated stability coverage is promoted.");
+        diagnostics.Add("SteppedHoleExecutionDeferredPostValidator");
+        return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+    }
     private static HoleRecoveryExecutionResult ExecuteBlind(HoleRecoveryPlan plan, List<string> diagnostics)
     {
         if (plan.HostKind != HoleHostKind.RectangularBox || plan.Axis != HoleAxisKind.Z || plan.ProfileStack.Count != 1)
@@ -214,7 +309,7 @@ public static class HoleRecoveryExecutor
         if (!sub.IsSuccess || sub.Value is null)
         {
             diagnostics.Add("Blind subtract failed.");
-            return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
         diagnostics.Add("Blind subtract succeeded.");
@@ -253,7 +348,7 @@ public static class HoleRecoveryExecutor
         if (!firstSub.IsSuccess || firstSub.Value is null)
         {
             diagnostics.Add("cylinder subtract failed.");
-            return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
         diagnostics.Add("cylinder subtract succeeded.");
 
@@ -273,7 +368,7 @@ public static class HoleRecoveryExecutor
         if (!secondSub.IsSuccess || secondSub.Value is null)
         {
             diagnostics.Add("cone subtract failed.");
-            return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
         diagnostics.Add("cone subtract succeeded.");

@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Cir;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests;
@@ -20,17 +21,19 @@ public sealed class SteppedHoleVariantAndExecutorTests
     }
 
     [Fact]
-    public void SteppedHoleExecutor_BlockerCharacterizedOrExecutes()
+    public void SteppedHoleExecutor_CurrentPostValidatorBehavior()
     {
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped())).Plan!;
         var exec = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
         Assert.Null(exec.Body);
-        Assert.Contains(exec.Diagnostics, d => d.Contains("SteppedHoleExecutionUnsupportedOverlappingCoaxialTools", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped plan validated", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract small invoked", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("SteppedHoleExecutionDeferredPostValidator", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void SteppedHole_STEP_SkippedOrSucceedsAccordingToDecision()
+    public void SteppedHoleStepSmoke_IfExecutionSucceeds()
     {
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped())).Plan!;
         var exec = HoleRecoveryExecutor.Execute(plan);

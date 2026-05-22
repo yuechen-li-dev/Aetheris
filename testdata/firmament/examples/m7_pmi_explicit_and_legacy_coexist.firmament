@@ -1,0 +1,31 @@
+firmament:
+  version: 1
+
+model:
+  name: m7_pmi_explicit_and_legacy_coexist
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      80
+      50
+      20
+
+  -
+    op: subtract
+    id: hole
+    from: base
+    with:
+      op: cylinder
+      radius: 3
+      height: 24
+
+pmi[1]:
+  -
+    kind: dimension
+    dimension_kind: diameter
+    target: hole
+    value: 6

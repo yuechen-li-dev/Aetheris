@@ -1,0 +1,849 @@
+using System.Text;
+using System.Linq;
+
+namespace Aetheris.Kernel.Firmament.Tests;
+
+public sealed class FirmamentBuildAndExportTests
+{
+    [Fact]
+    public void Run_BoxBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/box_basic.firmament",
+            "box_basic.step",
+            "base",
+            0,
+            "primitive",
+            "box");
+    }
+
+    [Fact]
+    public void Run_CylinderBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/cylinder_basic.firmament",
+            "cylinder_basic.step",
+            "post",
+            0,
+            "primitive",
+            "cylinder");
+    }
+
+
+    [Fact]
+    public void Run_SphereBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/sphere_basic.firmament",
+            "sphere_basic.step",
+            "ball",
+            0,
+            "primitive",
+            "sphere");
+    }
+
+    [Fact]
+    public void Run_TorusBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/torus_basic.firmament",
+            "torus_basic.step",
+            "donut1",
+            0,
+            "primitive",
+            "torus");
+    }
+
+    [Fact]
+    public void Run_TriangularPrismBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/triangular_prism_basic.firmament",
+            "triangular_prism_basic.step",
+            "tri1",
+            0,
+            "primitive",
+            "triangularprism");
+    }
+
+    [Fact]
+    public void Run_HexagonalPrismBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/hexagonal_prism_basic.firmament",
+            "hexagonal_prism_basic.step",
+            "hex1",
+            0,
+            "primitive",
+            "hexagonalprism");
+    }
+
+    [Fact]
+    public void Run_StraightSlotBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/straight_slot_basic.firmament",
+            "straight_slot_basic.step",
+            "slot1",
+            0,
+            "primitive",
+            "straightslot");
+    }
+
+    [Fact]
+    public void Run_ConeFrustumBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/cone_frustum_basic.firmament",
+            "cone_frustum_basic.step",
+            "frustum1",
+            0,
+            "primitive",
+            "cone");
+    }
+
+    [Fact]
+    public void Run_ConePointedTopZeroExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/cone_pointed_top_zero.firmament",
+            "cone_pointed_top_zero.step",
+            "pointed1",
+            0,
+            "primitive",
+            "cone");
+    }
+
+    [Fact]
+    public void Run_BoxAddBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/box_add_basic.firmament",
+            "box_add_basic.step",
+            "joined",
+            1,
+            "boolean",
+            "add");
+    }
+
+    [Fact]
+    public void Run_BooleanAddBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_add_basic.firmament",
+            "boolean_add_basic.step",
+            "joined",
+            2,
+            "boolean",
+            "add");
+    }
+
+    [Fact]
+    public void Run_BooleanSubtractBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_subtract_basic.firmament",
+            "boolean_subtract_basic.step",
+            "carved",
+            2,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_PrismFamilyTriangularSubtractFixture_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/fixtures/m3b-valid-box-subtract-triangular-prism.firmament",
+            "m3b-valid-box-subtract-triangular-prism.step",
+            "tri_cut",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_PrismFamilyHexagonalSubtractFixture_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/fixtures/m3b-valid-box-subtract-hexagonal-prism.firmament",
+            "m3b-valid-box-subtract-hexagonal-prism.step",
+            "hex_cut",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_PrismFamilyStraightSlotSubtractFixture_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/fixtures/m3b-valid-box-subtract-straight-slot.firmament",
+            "m3b-valid-box-subtract-straight-slot.step",
+            "slot_cut",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_BooleanIntersectBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_intersect_basic.firmament",
+            "boolean_intersect_basic.step",
+            "overlap",
+            2,
+            "boolean",
+            "intersect");
+    }
+
+    [Fact]
+    public void Run_M4DraftBoxBasicExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/m4_draft_box_basic.firmament",
+            "m4_draft_box_basic.step",
+            "drafted",
+            1,
+            "boolean",
+            "draft");
+    }
+
+    [Fact]
+    public void Run_M5aChamferBoxEdgeExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/m5a_chamfer_box_edge_basic.firmament",
+            "m5a_chamfer_box_edge_basic.step",
+            "edge_break",
+            1,
+            "boolean",
+            "chamfer");
+    }
+
+    [Fact]
+    public void Run_M5aChamferBoxCornerE2Example_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/m5a_chamfer_box_corner_e2_basic.firmament",
+            "m5a_chamfer_box_corner_e2_basic.step",
+            "corner_break",
+            1,
+            "boolean",
+            "chamfer");
+    }
+
+    [Fact]
+    public void Run_M5aChamferTriangularPrismCornerE4Example_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/m5a_chamfer_triangular_prism_corner_e4_basic.firmament",
+            "m5a_chamfer_triangular_prism_corner_e4_basic.step",
+            "corner_break",
+            1,
+            "boolean",
+            "chamfer");
+    }
+
+    [Fact]
+    public void Run_BooleanBoxCylinderHoleExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_box_cylinder_hole.firmament",
+            "boolean_box_cylinder_hole.step",
+            "hole",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_BooleanBoxConeThroughHoleExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament",
+            "boolean_box_cone_throughhole_basic.step",
+            "cut",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_BooleanTwoCylinderHolesExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament",
+            "boolean_two_cylinder_holes_basic.step",
+            "hole_b",
+            2,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_BooleanCylinderConeHolesExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament",
+            "boolean_cylinder_cone_holes_basic.step",
+            "cut_b",
+            2,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_BooleanBoxSphereCavityExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament",
+            "boolean_box_sphere_cavity_basic.step",
+            "cavity",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+
+    [Fact]
+    public void Run_W2CylinderRootBlindBoreSemanticExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/w2_cylinder_root_blind_bore_semantic.firmament",
+            "w2_cylinder_root_blind_bore_semantic.step",
+            "blind_bore",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_W2BoxSphereExteriorOpeningPocketSemanticExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/w2_box_sphere_exterior_opening_pocket_semantic.firmament",
+            "w2_box_sphere_exterior_opening_pocket_semantic.step",
+            "pocket",
+            1,
+            "boolean",
+            "subtract");
+    }
+    [Fact]
+    public void Run_RibbedSupportF1Example_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/ribbed_support_f1.firmament",
+            "ribbed_support_f1.step",
+            "wall",
+            1,
+            "boolean",
+            "add");
+    }
+
+    [Fact]
+    public void Run_F2FlangeCenterBoreExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/f2_flange_center_bore.firmament",
+            "f2_flange_center_bore.step",
+            "center_bore",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_P1BlindHoleOnFaceSemanticExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/p1_blind_hole_on_face_semantic.firmament",
+            "p1_blind_hole_on_face_semantic.step",
+            "blind_hole_tool",
+            1,
+            "primitive",
+            "cylinder");
+    }
+
+    [Fact]
+    public void Run_P1FlangeRadialHoleSemanticExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/p1_flange_radial_hole_semantic.firmament",
+            "p1_flange_radial_hole_semantic.step",
+            "radial_hole_tool",
+            1,
+            "primitive",
+            "cylinder");
+    }
+
+    [Fact]
+    public void Run_P2LinearHoleRowExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/p2_linear_hole_row.firmament",
+            "p2_linear_hole_row.step",
+            "hole_cut_1__lin3",
+            4,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_P2FlangeBoltCirclePatternExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/p2_flange_bolt_circle_pattern.firmament",
+            "p2_flange_bolt_circle_pattern.step",
+            "bolt_hole_1__cir5",
+            7,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_P2MirrorHolePairExample_Writes_Default_Export_Artifact()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/examples/p2_mirror_hole_pair.firmament",
+            "p2_mirror_hole_pair.step",
+            "hole_cut_left__mir_yz",
+            2,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_FrictionLabBlindHoleMountBlock_NowBuildsAndExports()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/blind-hole-mount-block/part.firmament");
+
+        var first = FirmamentBuildAndExport.Run(fullSourcePath);
+        var second = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(d => d.Message)));
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
+        Assert.NotEmpty(first.Value.Export.StepText);
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", first.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_FrictionLabBlindHoleMountBlock_ExportedStep_Has_TopFace_Opening_Not_ContainedVoidShell()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/blind-hole-mount-block/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+        Assert.True(result.IsSuccess);
+
+        var import = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(result.Value.Export.StepText);
+        Assert.True(import.IsSuccess);
+
+        var body = import.Value;
+        Assert.DoesNotContain("BREP_WITH_VOIDS", result.Value.Export.StepText, StringComparison.Ordinal);
+
+        var topFace = body.Topology.Faces
+            .Select(face =>
+            {
+                body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return (face, surface);
+            })
+            .Where(entry => entry.surface?.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane)
+            .Where(entry => entry.surface!.Plane!.Value.Normal.ToVector().Z > 0.5d)
+            .OrderByDescending(entry => entry.surface!.Plane!.Value.Origin.Z)
+            .First();
+
+        Assert.Equal(2, topFace.face.LoopIds.Count);
+    }
+
+
+    [Fact]
+    public void Run_FrictionLabCountersinkHole_NowBuildsAndExports()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/countersink-hole/part.firmament");
+
+        var first = FirmamentBuildAndExport.Run(fullSourcePath);
+        var second = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(d => d.Message)));
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
+        Assert.NotEmpty(first.Value.Export.StepText);
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.Contains("CONICAL_SURFACE", first.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", first.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("BREP_WITH_VOIDS", first.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_FrictionLabCounterboreHole_NowBuildsAndExports()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/counterbore-hole/part.firmament");
+
+        var first = FirmamentBuildAndExport.Run(fullSourcePath);
+        var second = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.NotEmpty(first.Value.Export.StepText);
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", first.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Semantic_Placement_Build_Is_Deterministic()
+    {
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmament/examples/p1_flange_radial_hole_semantic.firmament");
+        var first = FirmamentBuildAndExport.Run(fullSourcePath);
+        var second = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+    }
+
+    [Fact]
+    public void P2_CircularPattern_Build_Is_Deterministic()
+    {
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmament/examples/p2_flange_bolt_circle_pattern.firmament");
+        var first = FirmamentBuildAndExport.Run(fullSourcePath);
+        var second = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+    }
+
+    [Fact]
+    public void Run_ContainedBoxWithCylinderHoleFixture_Builds_And_Writes_Export()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament",
+            "m10h1-unsupported-box-with-cylinder-hole.step",
+            "hole",
+            1,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_AddThenSubtract_ReentrySafeRootFixture_Builds_And_Writes_Export()
+    {
+        AssertExampleBuildAndExport(
+            "testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament",
+            "m13b-invalid-composed-reenter-safe-family.step",
+            "hole",
+            2,
+            "boolean",
+            "subtract");
+    }
+
+    [Fact]
+    public void Run_FrictionLabMountingBracketBasic_Builds_And_Exports_After_G8_IndependentHoleSupport()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/mounting-bracket-basic/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("upright_hole", result.Value.Export.ExportedFeatureId);
+        Assert.Equal("boolean", result.Value.Export.ExportedBodyCategory);
+        Assert.Equal("subtract", result.Value.Export.ExportedFeatureKind);
+        Assert.Contains("MANIFOLD_SOLID_BREP", result.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_FrictionLabSimpleBracket_NowBuildsAndExports()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/simple-bracket/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("bracket", result.Value.Export.ExportedFeatureId);
+        Assert.Equal("boolean", result.Value.Export.ExportedBodyCategory);
+        Assert.Equal("add", result.Value.Export.ExportedFeatureKind);
+        Assert.Contains("MANIFOLD_SOLID_BREP", result.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_FrictionLabSimpleBracket_ExportedStep_Matches_FL2i_Canonical_LShape_Constraints()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/simple-bracket/part.firmament");
+        var build = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(build.IsSuccess, string.Join(Environment.NewLine, build.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("bracket", build.Value.Export.ExportedFeatureId);
+        Assert.Equal("boolean", build.Value.Export.ExportedBodyCategory);
+        Assert.Equal("add", build.Value.Export.ExportedFeatureKind);
+
+        Assert.DoesNotContain("TRIANGULATED_FACE_SET", build.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.Equal(10, CountOccurrences(build.Value.Export.StepText, "ADVANCED_FACE"));
+
+        var sourceText = File.ReadAllText(fullSourcePath, Encoding.UTF8);
+        Assert.Contains("ops[2]", sourceText, StringComparison.Ordinal);
+        Assert.Contains(@"size[3]:
+      60
+      20
+      10", sourceText, StringComparison.Ordinal);
+        Assert.Contains(@"size[3]:
+        10
+        20
+        60", sourceText, StringComparison.Ordinal);
+        Assert.Contains(@"offset[3]:
+        30
+        10
+        0", sourceText, StringComparison.Ordinal);
+        Assert.Contains(@"offset[3]:
+        5
+        10
+        0", sourceText, StringComparison.Ordinal);
+        Assert.DoesNotContain("op: subtract", sourceText, StringComparison.Ordinal);
+
+        var pointPattern = new System.Text.RegularExpressions.Regex(
+            @"CARTESIAN_POINT\([^\)]*\(([-0-9.E+]+),([-0-9.E+]+),([-0-9.E+]+)\)\)",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+        var points = pointPattern.Matches(build.Value.Export.StepText)
+            .Select(match => (
+                X: double.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture),
+                Y: double.Parse(match.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture),
+                Z: double.Parse(match.Groups[3].Value, System.Globalization.CultureInfo.InvariantCulture)))
+            .ToArray();
+        Assert.NotEmpty(points);
+
+        var minX = points.Min(p => p.X);
+        var maxX = points.Max(p => p.X);
+        var minY = points.Min(p => p.Y);
+        var maxY = points.Max(p => p.Y);
+        var minZ = points.Min(p => p.Z);
+        var maxZ = points.Max(p => p.Z);
+
+        Assert.Equal(60d, maxX - minX, 6);
+        Assert.Equal(20d, maxY - minY, 6);
+        Assert.Equal(60d, maxZ - minZ, 6);
+        Assert.Equal(0d, minX, 6);
+        Assert.Equal(60d, maxX, 6);
+        Assert.Equal(0d, minY, 6);
+        Assert.Equal(20d, maxY, 6);
+        Assert.Equal(0d, minZ, 6);
+        Assert.Equal(60d, maxZ, 6);
+        Assert.DoesNotContain(points, p => ArePointWithinTolerance(p, 1d, 0d, 10d, 1e-6d));
+        Assert.DoesNotContain(points, p => ArePointWithinTolerance(p, 0d, 20d, 1d, 1e-6d));
+
+        Assert.DoesNotContain("B_SPLINE", build.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("TOROIDAL_SURFACE", build.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("CONICAL_SURFACE", build.Value.Export.StepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("SPHERICAL_SURFACE", build.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void Run_FrictionLabMountingBracketBasic_ContinuedRoot_SubtractPlacement_Uses_World_Frame()
+    {
+        var sourceText = File.ReadAllText(
+            Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/mounting-bracket-basic/part.firmament"),
+            Encoding.UTF8);
+        var compiler = new FirmamentCompiler();
+        var compilation = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText))).Compilation;
+
+        Assert.True(compilation.IsSuccess, string.Join(Environment.NewLine, compilation.Diagnostics.Select(d => d.Message)));
+        var finalBody = Assert.Single(compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans, b => b.FeatureId == "upright_hole").Body;
+        Assert.NotNull(finalBody.SafeBooleanComposition);
+        var composition = finalBody.SafeBooleanComposition!;
+        Assert.Equal(2, composition.Holes.Count);
+
+        Assert.Contains(composition.Holes, hole => Math.Abs(hole.CenterX + 15d) < 1e-6d && Math.Abs(hole.CenterY) < 1e-6d);
+        Assert.Contains(composition.Holes, hole => Math.Abs(hole.CenterX - 26d) < 1e-6d && Math.Abs(hole.CenterY) < 1e-6d);
+    }
+
+    [Fact]
+    public void Run_FrictionLabMountingBracketBasic_ExportedStep_Holes_Are_At_Intended_X_Positions()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/mounting-bracket-basic/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        var import = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(result.Value.Export.StepText);
+        Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
+
+        var cylinderOriginsX = import.Value.Topology.Faces
+            .Select(face =>
+            {
+                import.Value.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return surface;
+            })
+            .Where(surface => surface?.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder)
+            .Select(surface => surface!.Cylinder!.Value.Origin.X)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToArray();
+
+        Assert.Contains(cylinderOriginsX, x => Math.Abs(x + 15d) < 1e-6d);
+        Assert.Contains(cylinderOriginsX, x => Math.Abs(x - 26d) < 1e-6d);
+    }
+
+    [Theory]
+    [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-add-cylinder.firmament", "m10j-unsupported-box-add-cylinder.step", "joined", "add")]
+    [InlineData("testdata/firmament/fixtures/m10j-unsupported-box-intersect-cylinder.firmament", "m10j-unsupported-box-intersect-cylinder.step", "overlap", "intersect")]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-add-sphere.firmament", "m10l-unsupported-box-add-sphere.step", "joined", "add")]
+    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "m10l-unsupported-box-intersect-sphere.step", "overlap", "intersect")]
+    [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-subtract-cone.firmament", "m10m-unsupported-box-subtract-cone.step", "tapered_cut", "subtract")]
+    [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-add-cone.firmament", "m10m-unsupported-box-add-cone.step", "joined", "add")]
+    [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-intersect-cone.firmament", "m10m-unsupported-box-intersect-cone.step", "overlap", "intersect")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-overlapping-composed-holes.firmament", "m13a-unsupported-overlapping-composed-holes.step", "hole_b", "subtract")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", "m13a-unsupported-tangent-composed-holes.step", "hole_b", "subtract")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "m13a-unsupported-composed-add-ordering.step", "joined", "add")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "m13a-unsupported-composed-subtract-sphere.step", "cavity", "subtract")]
+    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "m13a-unsupported-composed-subtract-box.step", "notch", "subtract")]
+    [InlineData("testdata/firmament/fixtures/m13c-unsupported-cylinder-root-follow-on-hole.firmament", "m13c-unsupported-cylinder-root-follow-on-hole.step", "bolt_hole", "subtract")]
+    public void Run_Unsupported_MixedPrimitive_Fixtures_Fail_And_Do_Not_Write_Fallback_Export(
+        string sourcePath,
+        string expectedFileName,
+        string expectedFeatureId,
+        string expectedKind)
+    {
+        AssertUnsupportedBuildAndExport(sourcePath, expectedFileName, expectedFeatureId, expectedKind);
+    }
+
+    [Fact]
+    public void Run_FrictionLabShaftKeyway_SucceedsAndExports()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/shaft-keyway/part.firmament");
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("keyway", result.Value.Export.ExportedFeatureId);
+        Assert.Equal("boolean", result.Value.Export.ExportedBodyCategory);
+        Assert.Equal("subtract", result.Value.Export.ExportedFeatureKind);
+        Assert.Contains("CYLINDRICAL_SURFACE", result.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_FrictionLabPocketedPlate_ExecutesBoundedOpenMouthPocketAndExports()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/pocketed-plate/part.firmament");
+        var existingOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/pocketed-plate/part.step");
+        if (File.Exists(existingOutputPath))
+        {
+            File.Delete(existingOutputPath);
+        }
+
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("pocket", result.Value.Export.ExportedFeatureId);
+        Assert.Equal("boolean", result.Value.Export.ExportedBodyCategory);
+        Assert.Equal("subtract", result.Value.Export.ExportedFeatureKind);
+        Assert.True(File.Exists(result.Value.OutputPath));
+
+        var stepText = result.Value.Export.StepText;
+        Assert.True(CountOccurrences(stepText, "ADVANCED_FACE") > 6);
+    }
+
+    [Fact]
+    public void Run_FrictionLabFlangeBoltCircle_RemovesOverlapBlocker_AndAdvancesPastSchemaVoidGate()
+    {
+        var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/flange-bolt-circle/part.firmament");
+        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/flange-bolt-circle/part.step");
+        if (File.Exists(expectedOutputPath))
+        {
+            File.Delete(expectedOutputPath);
+        }
+
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.True(File.Exists(result.Value.OutputPath));
+        Assert.EndsWith(Path.Combine("testdata", "firmament", "exports", "part.step"), result.Value.OutputPath, StringComparison.Ordinal);
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("overlapping cylinder-root hole chains are not supported", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("[FIRM-SCHEMA-0006]", StringComparison.Ordinal));
+        Assert.Contains("BREP_WITH_VOIDS", result.Value.Export.StepText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_BoundedPocketFixture_WithSealedCavity_RemainsExplicitlyRejected()
+    {
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmament/fixtures/m13b-unsupported-sealed-pocket-box.firmament");
+        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "exports", "m13b-unsupported-sealed-pocket-box.step");
+        if (File.Exists(expectedOutputPath))
+        {
+            File.Delete(expectedOutputPath);
+        }
+
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.False(result.IsSuccess);
+        Assert.False(File.Exists(expectedOutputPath));
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Source == "BrepBoolean.RebuildResult"
+            && diagnostic.Message.Contains("requires the subtract box to open to exactly one exterior root face", StringComparison.Ordinal));
+    }
+
+    private static void AssertExampleBuildAndExport(string sourcePath, string expectedFileName, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)
+    {
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath(sourcePath);
+        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "exports", expectedFileName);
+        if (File.Exists(expectedOutputPath))
+        {
+            File.Delete(expectedOutputPath);
+        }
+
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(fullSourcePath, result.Value.SourcePath);
+        Assert.Equal(expectedOutputPath, result.Value.OutputPath);
+        Assert.Equal(expectedFeatureId, result.Value.Export.ExportedFeatureId);
+        Assert.Equal(expectedOpIndex, result.Value.Export.ExportedOpIndex);
+        Assert.Equal(expectedBodyCategory, result.Value.Export.ExportedBodyCategory);
+        Assert.Equal(expectedFeatureKind, result.Value.Export.ExportedFeatureKind);
+        Assert.True(File.Exists(expectedOutputPath));
+        Assert.Equal(result.Value.Export.StepText, File.ReadAllText(expectedOutputPath, Encoding.UTF8));
+    }
+
+    private static void AssertUnsupportedBuildAndExport(string sourcePath, string expectedFileName, string expectedFeatureId, string expectedKind)
+    {
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath(sourcePath);
+        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "exports", expectedFileName);
+        if (File.Exists(expectedOutputPath))
+        {
+            File.Delete(expectedOutputPath);
+        }
+
+        var result = FirmamentBuildAndExport.Run(fullSourcePath);
+
+        Assert.False(result.IsSuccess);
+        Assert.False(File.Exists(expectedOutputPath));
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains($"Requested boolean feature '{expectedFeatureId}' ({expectedKind}) could not be executed.", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, diagnostic => HasExpectedMixedPrimitiveFailure(diagnostic.Message));
+    }
+
+    private static bool HasExpectedMixedPrimitiveFailure(string message)
+        => message.Contains("bounded boolean family only supports recognized axis-aligned boxes from BrepPrimitives.CreateBox(...).", StringComparison.Ordinal)
+           || message.Contains("sequential safe composition only supports subtracting supported cylinder/cone analytic holes", StringComparison.Ordinal)
+           || message.Contains("safe subtract", StringComparison.Ordinal)
+           || message.Contains("unsupported follow-on tool kind", StringComparison.Ordinal)
+           || message.Contains("Boolean feature", StringComparison.Ordinal)
+           || message.Contains("analytic hole surface kind", StringComparison.Ordinal)
+           || message.Contains("fully enclosed spherical cavity", StringComparison.Ordinal);
+
+    private static int CountOccurrences(string value, string token)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = value.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+
+        return count;
+    }
+
+    private static bool ArePointWithinTolerance((double X, double Y, double Z) point, double x, double y, double z, double tolerance)
+        => Math.Abs(point.X - x) <= tolerance
+           && Math.Abs(point.Y - y) <= tolerance
+           && Math.Abs(point.Z - z) <= tolerance;
+}

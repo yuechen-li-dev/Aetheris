@@ -1,0 +1,44 @@
+firmament:
+  version: 1
+
+model:
+  name: cone_pointed_bottom_zero_selector_contract
+  units: mm
+
+ops[7]:
+  -
+    op: cone
+    id: pointed_bottom
+    bottom_radius: 0
+    top_radius: 8
+    height: 20
+
+  -
+    op: expect_selectable
+    target: pointed_bottom.bottom_face
+    count: 0
+
+  -
+    op: expect_selectable
+    target: pointed_bottom.top_face
+    count: 1
+
+  -
+    op: expect_selectable
+    target: pointed_bottom.side_face
+    count: 1
+
+  -
+    op: expect_selectable
+    target: pointed_bottom.circular_edges
+    count: 1
+
+  -
+    op: expect_selectable
+    target: pointed_bottom.edges
+    count: 2
+
+  -
+    op: expect_selectable
+    target: pointed_bottom.vertices
+    count: 3

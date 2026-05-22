@@ -1,0 +1,62 @@
+firmament:
+  version: 1
+
+model:
+  name: fl2_mounting_bracket_basic
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: base
+    size[3]:
+      60
+      30
+      8
+
+  -
+    op: add
+    id: bracket
+    to: base
+    with:
+      op: box
+      size[3]:
+        8
+        30
+        40
+    place:
+      on: origin
+      offset[3]:
+        26
+        0
+        24
+
+  -
+    op: subtract
+    id: base_hole
+    from: bracket
+    with:
+      op: cylinder
+      radius: 3.5
+      height: 20
+    place:
+      on: origin
+      offset[3]:
+        -15
+        0
+        0
+
+  -
+    op: subtract
+    id: upright_hole
+    from: base_hole
+    with:
+      op: cylinder
+      radius: 3.5
+      height: 20
+    place:
+      on: origin
+      offset[3]:
+        26
+        0
+        18

@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+
+model:
+  name: m7e_invalid_pmi_unsupported_target_kind
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      10
+      10
+
+pmi[1]:
+  -
+    kind: datum
+    datum_kind: axis
+    label: A
+    target: base

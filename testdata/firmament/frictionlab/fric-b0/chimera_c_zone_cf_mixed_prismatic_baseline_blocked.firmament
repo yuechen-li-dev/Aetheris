@@ -1,0 +1,25 @@
+firmament:
+  version: 1
+model:
+  name: fric_b0_chimera_c_zone_cf_mixed_prismatic_baseline_blocked
+  units: mm
+ops[3]:
+  -
+    op: box
+    id: chimera_c_root
+    size[3]: [60, 40, 20]
+  -
+    op: subtract
+    id: zone_cf_analytic_seed_hole
+    from: chimera_c_root
+    with:
+      op: cylinder
+      radius: 4
+      height: 30
+  -
+    op: subtract
+    id: zone_cf_mixed_prismatic_attempt
+    from: zone_cf_analytic_seed_hole
+    with:
+      op: box
+      size[3]: [18, 12, 24]

@@ -1,0 +1,8 @@
+firmament:
+  version: 1
+
+model:
+  name: m10a_no_export_body
+  units: mm
+
+ops[0]:

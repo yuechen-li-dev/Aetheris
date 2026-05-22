@@ -1,0 +1,49 @@
+firmament:
+  version: 1
+
+model:
+  name: fl2_flange_bolt_circle
+  units: mm
+
+ops[6]:
+  -
+    op: cylinder
+    id: flange
+    radius: 40
+    height: 12
+
+  -
+    op: subtract
+    id: center_bore
+    from: flange
+    with:
+      op: cylinder
+      radius: 12
+      height: 24
+
+  -
+    op: cylinder
+    id: axis_ref
+    radius: 1
+    height: 12
+
+  -
+    op: subtract
+    id: bolt_0
+    from: center_bore
+    with:
+      op: cylinder
+      radius: 4
+      height: 24
+    place:
+      on: origin
+      around_axis: axis_ref.side_face
+      radial_offset: 25
+      angle_degrees: 0
+
+  -
+    op: pattern_circular
+    source: bolt_0
+    count: 4
+    axis: axis_ref.side_face
+    angle_step_degrees: 90

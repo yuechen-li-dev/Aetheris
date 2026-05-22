@@ -1,0 +1,21 @@
+firmament:
+  version: 1
+
+model:
+  name: nist_ctc01_attempt1_cp0
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: base
+    size[3]:
+      800
+      450
+      100
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -100

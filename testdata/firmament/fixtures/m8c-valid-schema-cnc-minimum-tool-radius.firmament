@@ -1,0 +1,20 @@
+firmament:
+  version: 1
+
+model:
+  name: m8c-valid-cnc-tool-radius
+  units: mm
+
+schema:
+  process: cnc
+  minimum_tool_radius: 0.25
+  minimum_wall_thickness: 0.5
+
+ops[1]:
+  -
+    op: box
+    id: base
+    size[3]:
+      8
+      8
+      8

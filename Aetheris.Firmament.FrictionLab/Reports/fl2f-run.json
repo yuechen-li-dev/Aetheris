@@ -1,0 +1,71 @@
+{
+  "totalCases": 4,
+  "successCount": 0,
+  "partialCount": 3,
+  "failureCount": 1,
+  "caseResults": [
+    {
+      "caseId": "mounting-bracket-basic",
+      "buildStatus": "partial",
+      "artifactPresent": true,
+      "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/mounting-bracket-basic.step",
+      "possible": "partial",
+      "awkwardness": "high",
+      "diagnostics": []
+    },
+    {
+      "caseId": "simple-bracket",
+      "buildStatus": "partial",
+      "artifactPresent": true,
+      "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/simple-bracket.step",
+      "possible": "partial",
+      "awkwardness": "high",
+      "diagnostics": []
+    },
+    {
+      "caseId": "shaft-keyway",
+      "buildStatus": "failure",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027keyway\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027keyway\u0027 (subtract): Boolean Subtract: sequential safe composition only supports subtracting supported analytic holes from the current bounded safe root family.",
+          "source": "BrepBoolean.RebuildResult"
+        }
+      ]
+    },
+    {
+      "caseId": "pocketed-plate",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "medium",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027pocket\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027pocket\u0027 (subtract): Boolean Subtract: box subtraction result is not representable as a single box in M13.",
+          "source": "BrepBoolean.RebuildResult"
+        }
+      ]
+    }
+  ],
+  "summaryPath": "Aetheris.Firmament.FrictionLab/Reports/fl2f-run.json"
+}

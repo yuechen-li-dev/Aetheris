@@ -1,0 +1,43 @@
+firmament:
+  version: 1
+
+model:
+  name: m7d_invalid_boolean_placement_selector_runtime_empty
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      4
+      4
+      4
+
+  -
+    op: subtract
+    id: cut
+    from: base
+    with:
+      op: box
+      size[3]:
+        4
+        4
+        4
+
+  -
+    op: add
+    id: moved
+    to: base
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+    place:
+      on: cut.edges
+      offset[3]:
+        0
+        0
+        0

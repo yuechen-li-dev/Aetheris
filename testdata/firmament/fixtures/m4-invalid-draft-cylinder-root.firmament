@@ -1,0 +1,21 @@
+firmament:
+  version: 1
+
+model:
+  name: m4-draft-bad-root
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: base
+    radius: 10
+    height: 30
+  -
+    op: draft
+    id: drafted
+    from: base
+    pull: +z
+    angle: 2
+    faces[1]:
+      x_min

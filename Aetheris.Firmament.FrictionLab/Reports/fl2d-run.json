@@ -1,0 +1,40 @@
+{
+  "totalCases": 2,
+  "successCount": 1,
+  "partialCount": 1,
+  "failureCount": 0,
+  "caseResults": [
+    {
+      "caseId": "blind-hole-mount-block",
+      "buildStatus": "success",
+      "artifactPresent": true,
+      "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/blind-hole-mount-block.step",
+      "possible": "true",
+      "awkwardness": "low",
+      "diagnostics": []
+    },
+    {
+      "caseId": "counterbore-hole",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027counterbore_through\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027counterbore_through\u0027 (subtract) bounded contained coaxial subtract-stack support requires the deeper segment to open on the same top entry face.",
+          "source": "BrepBoolean.AnalyticHole.NotFullySpanning"
+        }
+      ]
+    }
+  ],
+  "summaryPath": "Aetheris.Firmament.FrictionLab/Reports/fl2d-run.json"
+}

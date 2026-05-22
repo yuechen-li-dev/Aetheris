@@ -10,7 +10,7 @@ namespace Aetheris.Kernel.Core.Brep.Features;
 
 /// <summary>
 /// M11 minimal programmatic revolve.
-/// Supported subset: one open line segment profile (two vertices) with strictly positive radius at both endpoints.
+/// Supported subset: one open line segment profile (two vertices) with a non-negative radius at each endpoint.
 /// Revolve angle is currently full-turn only (2*pi radians).
 /// </summary>
 public static class BrepRevolve
@@ -35,37 +35,74 @@ public static class BrepRevolve
         var rim0 = center0 + (seamReferenceDirection.ToVector() * p0.X);
         var rim1 = center1 + (seamReferenceDirection.ToVector() * p1.X);
         var seamLength = (rim1 - rim0).Length;
+        var hasCap0 = p0.X > 0d;
+        var hasCap1 = p1.X > 0d;
 
         var builder = new TopologyBuilder();
         var seamStart = builder.AddVertex();
         var seamEnd = builder.AddVertex();
-        var cap0Vertex = builder.AddVertex();
-        var cap1Vertex = builder.AddVertex();
 
         var seamEdge = builder.AddEdge(seamStart, seamEnd);
-        var cap0Edge = builder.AddEdge(cap0Vertex, cap0Vertex);
-        var cap1Edge = builder.AddEdge(cap1Vertex, cap1Vertex);
+
+        EdgeId? cap0Edge = null;
+        EdgeId? cap1Edge = null;
+        FaceId? cap0Face = null;
+        FaceId? cap1Face = null;
+
+        if (hasCap0)
+        {
+            var cap0Vertex = builder.AddVertex();
+            cap0Edge = builder.AddEdge(cap0Vertex, cap0Vertex);
+            cap0Face = AddFaceWithLoop(builder, [EdgeUse.Forward(cap0Edge.Value)]);
+        }
+
+        if (hasCap1)
+        {
+            var cap1Vertex = builder.AddVertex();
+            cap1Edge = builder.AddEdge(cap1Vertex, cap1Vertex);
+            cap1Face = AddFaceWithLoop(builder, [EdgeUse.Reversed(cap1Edge.Value)]);
+        }
 
         // Seam strategy: represent periodic side surface with one explicit seam edge used twice in the side loop.
-        var sideFace = AddFaceWithLoop(
-            builder,
-            [
-                EdgeUse.Forward(seamEdge),
-                EdgeUse.Forward(cap1Edge),
-                EdgeUse.Reversed(seamEdge),
-                EdgeUse.Reversed(cap0Edge),
-            ]);
+        var sideEdgeUses = new List<EdgeUse>(4) { EdgeUse.Forward(seamEdge) };
+        if (cap1Edge.HasValue)
+        {
+            sideEdgeUses.Add(EdgeUse.Forward(cap1Edge.Value));
+        }
 
-        var cap0Face = AddFaceWithLoop(builder, [EdgeUse.Forward(cap0Edge)]);
-        var cap1Face = AddFaceWithLoop(builder, [EdgeUse.Reversed(cap1Edge)]);
+        sideEdgeUses.Add(EdgeUse.Reversed(seamEdge));
 
-        var shell = builder.AddShell([sideFace, cap0Face, cap1Face]);
+        if (cap0Edge.HasValue)
+        {
+            sideEdgeUses.Add(EdgeUse.Reversed(cap0Edge.Value));
+        }
+
+        var sideFace = AddFaceWithLoop(builder, sideEdgeUses);
+        var shellFaces = new List<FaceId>(3) { sideFace };
+        if (cap0Face.HasValue)
+        {
+            shellFaces.Add(cap0Face.Value);
+        }
+
+        if (cap1Face.HasValue)
+        {
+            shellFaces.Add(cap1Face.Value);
+        }
+
+        var shell = builder.AddShell(shellFaces);
         builder.AddBody([shell]);
 
         var geometry = new BrepGeometryStore();
         geometry.AddCurve(new CurveGeometryId(1), CurveGeometry.FromLine(new Line3Curve(rim0, Direction3D.Create(rim1 - rim0))));
-        geometry.AddCurve(new CurveGeometryId(2), CurveGeometry.FromCircle(new Circle3Curve(center0, axisDirection, p0.X, seamReferenceDirection)));
-        geometry.AddCurve(new CurveGeometryId(3), CurveGeometry.FromCircle(new Circle3Curve(center1, axisDirection, p1.X, seamReferenceDirection)));
+        if (cap0Edge.HasValue)
+        {
+            geometry.AddCurve(new CurveGeometryId(2), CurveGeometry.FromCircle(new Circle3Curve(center0, axisDirection, p0.X, seamReferenceDirection)));
+        }
+
+        if (cap1Edge.HasValue)
+        {
+            geometry.AddCurve(new CurveGeometryId(3), CurveGeometry.FromCircle(new Circle3Curve(center1, axisDirection, p1.X, seamReferenceDirection)));
+        }
 
         var isCylinder = double.Abs(p0.X - p1.X) <= 1e-12d;
         if (isCylinder)
@@ -82,17 +119,38 @@ public static class BrepRevolve
             geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromCone(new ConeSurface(apex, coneAxis, semiAngle, seamReferenceDirection)));
         }
 
-        geometry.AddSurface(new SurfaceGeometryId(2), SurfaceGeometry.FromPlane(new PlaneSurface(center0, Direction3D.Create(-axisDirection.ToVector()), seamReferenceDirection)));
-        geometry.AddSurface(new SurfaceGeometryId(3), SurfaceGeometry.FromPlane(new PlaneSurface(center1, axisDirection, seamReferenceDirection)));
+        if (cap0Face.HasValue)
+        {
+            geometry.AddSurface(new SurfaceGeometryId(2), SurfaceGeometry.FromPlane(new PlaneSurface(center0, Direction3D.Create(-axisDirection.ToVector()), seamReferenceDirection)));
+        }
+
+        if (cap1Face.HasValue)
+        {
+            geometry.AddSurface(new SurfaceGeometryId(3), SurfaceGeometry.FromPlane(new PlaneSurface(center1, axisDirection, seamReferenceDirection)));
+        }
 
         var bindings = new BrepBindingModel();
         bindings.AddEdgeBinding(new EdgeGeometryBinding(seamEdge, new CurveGeometryId(1), new ParameterInterval(0d, seamLength)));
-        bindings.AddEdgeBinding(new EdgeGeometryBinding(cap0Edge, new CurveGeometryId(2), new ParameterInterval(0d, 2d * double.Pi)));
-        bindings.AddEdgeBinding(new EdgeGeometryBinding(cap1Edge, new CurveGeometryId(3), new ParameterInterval(0d, 2d * double.Pi)));
+        if (cap0Edge.HasValue)
+        {
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(cap0Edge.Value, new CurveGeometryId(2), new ParameterInterval(0d, 2d * double.Pi)));
+        }
+
+        if (cap1Edge.HasValue)
+        {
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(cap1Edge.Value, new CurveGeometryId(3), new ParameterInterval(0d, 2d * double.Pi)));
+        }
 
         bindings.AddFaceBinding(new FaceGeometryBinding(sideFace, new SurfaceGeometryId(1)));
-        bindings.AddFaceBinding(new FaceGeometryBinding(cap0Face, new SurfaceGeometryId(2)));
-        bindings.AddFaceBinding(new FaceGeometryBinding(cap1Face, new SurfaceGeometryId(3)));
+        if (cap0Face.HasValue)
+        {
+            bindings.AddFaceBinding(new FaceGeometryBinding(cap0Face.Value, new SurfaceGeometryId(2)));
+        }
+
+        if (cap1Face.HasValue)
+        {
+            bindings.AddFaceBinding(new FaceGeometryBinding(cap1Face.Value, new SurfaceGeometryId(3)));
+        }
 
         var body = new BrepBody(builder.Model, geometry, bindings);
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
@@ -148,11 +206,19 @@ public static class BrepRevolve
                 return diagnostics;
             }
 
-            if (point.X <= 0d)
+            if (point.X < 0d)
             {
-                diagnostics.Add(CreateInvalidArgument("profile radius (X) must be greater than zero; axis-touching/crossing profiles are unsupported in M11."));
+                diagnostics.Add(CreateInvalidArgument("profile radius (X) must be greater than or equal to zero."));
                 return diagnostics;
             }
+        }
+
+        var radius0 = profileVertices[0].X;
+        var radius1 = profileVertices[1].X;
+        if (radius0 <= 0d && radius1 <= 0d)
+        {
+            diagnostics.Add(CreateInvalidArgument("profile radii must not both be zero."));
+            return diagnostics;
         }
 
         if (double.Abs(profileVertices[1].Y - profileVertices[0].Y) <= 1e-12d)

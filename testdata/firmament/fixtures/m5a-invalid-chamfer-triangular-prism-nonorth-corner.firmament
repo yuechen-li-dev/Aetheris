@@ -1,0 +1,21 @@
+firmament:
+  version: 1
+
+model:
+  name: m5a_invalid_chamfer_triangular_prism_nonorth_corner
+  units: mm
+
+ops[2]:
+  -
+    op: triangular_prism
+    id: base
+    base_width: 10
+    base_depth: 6
+    height: 8
+  -
+    op: chamfer
+    id: corner_break
+    from: base
+    corners[1]:
+      x_max_y_max_z_max
+    distance: 1

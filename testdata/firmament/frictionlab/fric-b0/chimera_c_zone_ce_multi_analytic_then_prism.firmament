@@ -1,0 +1,40 @@
+firmament:
+  version: 1
+model:
+  name: fric_b0_chimera_c_zone_ce_multi_analytic_then_prism
+  units: mm
+ops[4]:
+  -
+    op: box
+    id: chimera_c_root
+    size[3]: [60, 40, 20]
+  -
+    op: subtract
+    id: zone_ce_hole_1
+    from: chimera_c_root
+    with:
+      op: cylinder
+      radius: 3.5
+      height: 30
+    place:
+      on: origin
+      offset[3]: [-12, 0, 0]
+  -
+    op: subtract
+    id: zone_ce_hole_2
+    from: zone_ce_hole_1
+    with:
+      op: cone
+      bottom_radius: 3
+      top_radius: 2
+      height: 30
+    place:
+      on: origin
+      offset[3]: [12, 0, 0]
+  -
+    op: subtract
+    id: zone_ce_follow_on_prism
+    from: zone_ce_hole_2
+    with:
+      op: box
+      size[3]: [12, 14, 24]

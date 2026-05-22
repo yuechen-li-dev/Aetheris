@@ -1,5 +1,7 @@
 using Aetheris.Kernel.Core.Brep;
-using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using System.Globalization;
 
@@ -29,6 +31,37 @@ public sealed class Step242ExporterTests
         Assert.Contains("ADVANCED_FACE", export.Value, StringComparison.Ordinal);
     }
 
+
+
+    [Fact]
+    public void ExportBody_WithSemanticCylinderHolePmi_EmitsSemanticOnlyDeterministicChain()
+    {
+        var boxResult = BrepPrimitives.CreateBox(4d, 6d, 8d);
+        Assert.True(boxResult.IsSuccess);
+
+        var semanticPmi = new[]
+        {
+            new Step242SemanticPmiHole("hole_a", 8d, null, "through_or_blind_cylindrical", null, null),
+            new Step242SemanticPmiHole("hole_b", 6d, null, "through_or_blind_cylindrical", null, null)
+        };
+
+        var first = Step242Exporter.ExportBody(boxResult.Value, semanticPmi);
+        var second = Step242Exporter.ExportBody(boxResult.Value, semanticPmi);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value, second.Value);
+        Assert.Equal(2, CountOccurrences(first.Value, "SHAPE_ASPECT"));
+        Assert.Equal(2, CountOccurrences(first.Value, "PROPERTY_DEFINITION_REPRESENTATION"));
+        Assert.Equal(2, CountOccurrences(first.Value, "SHAPE_DIMENSION_REPRESENTATION"));
+        Assert.Equal(2, CountOccurrences(first.Value, "MEASURE_REPRESENTATION_ITEM"));
+        Assert.Contains("firmament-feature:hole_a", first.Value, StringComparison.Ordinal);
+        Assert.Contains("firmament-feature:hole_b", first.Value, StringComparison.Ordinal);
+        Assert.Contains("MEASURE_REPRESENTATION_ITEM('diameter',8,#", first.Value, StringComparison.Ordinal);
+        Assert.Contains("MEASURE_REPRESENTATION_ITEM('diameter',6,#", first.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("DRAUGHTING_CALLOUT", first.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("ANNOTATION_PLANE", first.Value, StringComparison.Ordinal);
+    }
 
     [Fact]
     public void ExportBody_ImportedCylindricalFace_EmitsCylindricalSurface()
@@ -114,6 +147,34 @@ END-ISO-10303-21;";
         var export = Step242Exporter.ExportBody(import.Value);
         Assert.True(export.IsSuccess);
         Assert.Contains("TOROIDAL_SURFACE", export.Value, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void ExportBody_ProgrammaticTorus_IsDeterministic_AndEmitsToroidalSurface()
+    {
+        var torus = BrepPrimitives.CreateTorus(5d, 2d);
+        Assert.True(torus.IsSuccess);
+
+        var first = Step242Exporter.ExportBody(torus.Value);
+        var second = Step242Exporter.ExportBody(torus.Value);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value, second.Value);
+        Assert.Contains("TOROIDAL_SURFACE", first.Value, StringComparison.Ordinal);
+        Assert.Contains("CIRCLE", first.Value, StringComparison.Ordinal);
+
+        var import = Step242Importer.ImportBody(first.Value);
+        Assert.True(import.IsSuccess);
+
+        Assert.Equal(torus.Value.Topology.Faces.Count(), import.Value.Topology.Faces.Count());
+        Assert.Equal(torus.Value.Topology.Loops.Count(), import.Value.Topology.Loops.Count());
+        Assert.Equal(torus.Value.Topology.Edges.Count(), import.Value.Topology.Edges.Count());
+        Assert.Equal(torus.Value.Topology.Vertices.Count(), import.Value.Topology.Vertices.Count());
+
+        var torusFace = Assert.Single(import.Value.Topology.Faces);
+        Assert.Equal(Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Torus, import.Value.GetFaceSurface(torusFace.Id).Kind);
     }
 
     [Fact]
@@ -391,19 +452,20 @@ END-ISO-10303-21;";
     }
 
     [Fact]
-    public void ExportBody_Sphere_ReturnsNotImplementedDiagnostic_InsteadOfThrowing()
+    public void ExportBody_Sphere_ExportsCanonicalLooplessPrimitiveDeterministically()
     {
         var sphereResult = BrepPrimitives.CreateSphere(3d);
         Assert.True(sphereResult.IsSuccess);
 
-        var export = Step242Exporter.ExportBody(sphereResult.Value);
+        var first = Step242Exporter.ExportBody(sphereResult.Value);
+        var second = Step242Exporter.ExportBody(sphereResult.Value);
 
-        Assert.False(export.IsSuccess);
-        var diagnostic = Assert.Single(export.Diagnostics);
-        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal(KernelDiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Equal("Face:1", diagnostic.Source);
-        Assert.Contains("boundary loops", diagnostic.Message, StringComparison.Ordinal);
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(first.Value, second.Value);
+        Assert.Contains("SPHERICAL_SURFACE", first.Value, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", first.Value, StringComparison.Ordinal);
+        Assert.Contains("ADVANCED_FACE('',(),", first.Value, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -438,6 +500,45 @@ END-ISO-10303-21;";
                 endCheck.IsOnLine,
                 $"EDGE_CURVE #{edge.EdgeCurveId} end vertex #{edge.EndVertexId} is not on LINE #{edge.CurveId}. t={endCheck.T}, len={line.Length}, distance={endCheck.DistanceToLine}, point={FormatPoint(end)}, origin={FormatPoint(line.Origin)}, dir={FormatPoint(direction)}");
         }
+    }
+
+    [Fact]
+    public void ExportBody_WhenStoredLineDirectionIsAntiparallel_UsesEndpointDirectionForEdgeCurveLine()
+    {
+        var import = Step242Importer.ImportBody(Step242FixtureCorpus.PlanarFaceWithRectangularHole);
+        Assert.True(import.IsSuccess);
+
+        var bodyWithReversedLine = CloneWithFirstLineDirectionReversed(import.Value);
+        var export = Step242Exporter.ExportBody(bodyWithReversedLine);
+        Assert.True(export.IsSuccess);
+
+        var records = ParseStepEntities(export.Value);
+        AssertLineEdgeCurveDirectionsMatchVertexOrdering(records);
+    }
+
+    [Fact]
+    public void ExportBody_OcctSimpleBracket_ExportImportRoundTrip_Succeeds()
+    {
+        var fixturePath = Path.Combine(
+            Step242CorpusManifestRunner.RepoRoot(),
+            "testdata",
+            "firmasm",
+            "examples",
+            "occt-l-bracket",
+            "_part_003_l_bracket.step");
+        var source = File.ReadAllText(fixturePath);
+
+        var import = Step242Importer.ImportBody(source);
+        Assert.True(import.IsSuccess);
+
+        var export = Step242Exporter.ExportBody(import.Value);
+        Assert.True(export.IsSuccess);
+
+        var roundTrip = Step242Importer.ImportBody(export.Value);
+        Assert.True(roundTrip.IsSuccess);
+        Assert.DoesNotContain(
+            roundTrip.Diagnostics,
+            diagnostic => diagnostic.Message.Contains("EDGE_CURVE line parameterization is opposite to vertex ordering", StringComparison.Ordinal));
     }
 
 
@@ -661,6 +762,67 @@ END-ISO-10303-21;";
         return double.Parse(rhs[start..end], CultureInfo.InvariantCulture);
     }
 
+    private static void AssertLineEdgeCurveDirectionsMatchVertexOrdering(StepEntityRecords records)
+    {
+        foreach (var edge in records.EdgeCurves)
+        {
+            if (!records.Lines.TryGetValue(edge.CurveId, out var line))
+            {
+                continue;
+            }
+
+            var start = ResolveVertexPoint(records, edge.StartVertexId);
+            var end = ResolveVertexPoint(records, edge.EndVertexId);
+            var edgeDirection = Normalize((end.X - start.X, end.Y - start.Y, end.Z - start.Z));
+            var lineDirection = Normalize(ResolveDirection(records, line.VectorId));
+            var dot = (edgeDirection.X * lineDirection.X) + (edgeDirection.Y * lineDirection.Y) + (edgeDirection.Z * lineDirection.Z);
+
+            Assert.True(
+                dot > 0d,
+                $"EDGE_CURVE #{edge.EdgeCurveId} uses LINE #{edge.CurveId} with direction opposite to vertex ordering. dot={dot}.");
+        }
+    }
+
+    private static BrepBody CloneWithFirstLineDirectionReversed(BrepBody source)
+    {
+        var firstLineBinding = source.Bindings.EdgeBindings
+            .OrderBy(binding => binding.EdgeId.Value)
+            .First(binding =>
+            {
+                return source.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve)
+                    && curve is not null
+                    && curve.Kind == CurveGeometryKind.Line3
+                    && curve.Line3.HasValue;
+            });
+
+        var lineCurve = source.Geometry.GetCurve(firstLineBinding.CurveGeometryId).Line3!.Value;
+        var reversed = new Line3Curve(
+            lineCurve.Origin,
+            Direction3D.Create(lineCurve.Direction.ToVector() * -1d));
+
+        var geometry = new BrepGeometryStore();
+        foreach (var (curveId, curve) in source.Geometry.Curves.OrderBy(entry => entry.Key.Value))
+        {
+            geometry.AddCurve(
+                curveId,
+                curveId == firstLineBinding.CurveGeometryId ? CurveGeometry.FromLine(reversed) : curve);
+        }
+
+        foreach (var (surfaceId, surface) in source.Geometry.Surfaces.OrderBy(entry => entry.Key.Value))
+        {
+            geometry.AddSurface(surfaceId, surface);
+        }
+
+        return new BrepBody(source.Topology, geometry, source.Bindings);
+    }
+
+    private static (double X, double Y, double Z) Normalize((double X, double Y, double Z) v)
+    {
+        var length = double.Sqrt((v.X * v.X) + (v.Y * v.Y) + (v.Z * v.Z));
+        Assert.True(length > 1e-12d, "Expected non-degenerate vector.");
+        return (v.X / length, v.Y / length, v.Z / length);
+    }
+
     private static string FormatPoint((double X, double Y, double Z) p) => $"({p.X}, {p.Y}, {p.Z})";
 
     private static Aetheris.Kernel.Core.Topology.FaceId? FindPlanarFaceWithCircle(BrepBody body, Aetheris.Kernel.Core.Math.Point3D expectedCenter, double expectedRadius)
@@ -734,4 +896,18 @@ END-ISO-10303-21;";
     private sealed record ParsedLine((double X, double Y, double Z) Origin, int VectorId, double Length);
 
     private sealed record ParsedEdgeCurve(int EdgeCurveId, int StartVertexId, int EndVertexId, int CurveId);
+
+
+    private static int CountOccurrences(string text, string token)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+
+        return count;
+    }
 }

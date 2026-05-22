@@ -1,0 +1,13 @@
+firmament:
+  version: 1
+
+model:
+  name: torus_basic
+  units: mm
+
+ops[1]:
+  -
+    op: torus
+    id: donut1
+    major_radius: 10
+    minor_radius: 3

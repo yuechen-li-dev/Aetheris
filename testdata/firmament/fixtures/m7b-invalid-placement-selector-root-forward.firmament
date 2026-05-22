@@ -1,0 +1,29 @@
+firmament:
+  version: 1
+
+model:
+  name: m7b_invalid_placement_selector_root_forward
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: late_anchor
+    size[3]:
+      2
+      2
+      2
+    place:
+      on: future.top_face
+      offset[3]:
+        0
+        0
+        0
+
+  -
+    op: box
+    id: future
+    size[3]:
+      3
+      3
+      3

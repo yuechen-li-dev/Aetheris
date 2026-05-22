@@ -1,0 +1,38 @@
+firmament:
+  version: 1
+
+model:
+  name: e7_invalid_chamfer_concave_lroot_not_implemented
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      30
+      20
+      10
+  -
+    op: add
+    id: lroot
+    to: base
+    with:
+      op: box
+      size[3]:
+        10
+        10
+        10
+    place:
+      on: origin
+      offset[3]:
+        -10
+        0
+        0
+  -
+    op: chamfer
+    id: inner_edge_break
+    from: lroot
+    edges[1]:
+      inner_x_max_y_max
+    distance: 1

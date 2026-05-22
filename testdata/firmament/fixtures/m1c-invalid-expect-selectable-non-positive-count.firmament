@@ -1,0 +1,19 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[2]:
+  -
+    op: cone
+    id: pointed
+    bottom_radius: 8
+    top_radius: 0
+    height: 20
+
+  -
+    op: expect_selectable
+    target: pointed.top_face
+    count: 0

@@ -1,6 +1,8 @@
 using Aetheris.Kernel.Core.Brep.Picking;
+using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Server.Contracts;
@@ -60,11 +62,58 @@ public static class ApiMappings
                 p.FaceId.Value,
                 p.Positions.Select(position => ToPointDto(transform.Apply(position))).ToArray(),
                 p.Normals.Select(normal => ToVectorDto(transform.Apply(normal))).ToArray(),
-                p.TriangleIndices.ToArray())).ToArray(),
+                p.TriangleIndices.ToArray(),
+                p.Source.ToString(),
+                p.ScaffoldRejectionReason)).ToArray(),
             result.EdgePolylines.Select(e => new EdgePolylineDto(
                 e.EdgeId.Value,
                 e.Points.Select(point => ToPointDto(transform.Apply(point))).ToArray(),
                 e.IsClosed)).ToArray());
+
+    public static AnalyticDisplayPacketDto ToAnalyticDisplayPacketResponse(AnalyticDisplayPacket packet)
+        => new(
+            packet.BodyId.Value,
+            packet.AnalyticFaces.Select(face => new AnalyticDisplayFaceDto(
+                face.FaceId.Value,
+                face.ShellId.Value,
+                face.ShellRole.ToString(),
+                face.SurfaceGeometryId.Value,
+                face.SurfaceKind.ToString(),
+                face.LoopCount,
+                face.DomainHint is { } hint ? new AnalyticDisplayFaceDomainHintDto(hint.MinV, hint.MaxV) : null,
+                face.SurfaceGeometry.Plane is { } plane ? new AnalyticDisplayPlaneGeometryDto(
+                    ToPointDto(plane.Origin),
+                    ToVectorDto(plane.Normal.ToVector()),
+                    ToVectorDto(plane.UAxis.ToVector()),
+                    ToVectorDto(plane.VAxis.ToVector()),
+                    face.PlanarOuterBoundary?.Select(ToPointDto).ToArray()) : null,
+                face.SurfaceGeometry.Cylinder is { } cylinder ? new AnalyticDisplayCylinderGeometryDto(
+                    ToPointDto(cylinder.Origin),
+                    ToVectorDto(cylinder.Axis.ToVector()),
+                    ToVectorDto(cylinder.XAxis.ToVector()),
+                    ToVectorDto(cylinder.YAxis.ToVector()),
+                    cylinder.Radius) : null,
+                face.SurfaceGeometry.Cone is { } cone ? ToConeGeometryDto(cone) : null,
+                face.SurfaceGeometry.Sphere is { } sphere ? new AnalyticDisplaySphereGeometryDto(
+                    ToPointDto(sphere.Center),
+                    ToVectorDto(sphere.Axis.ToVector()),
+                    ToVectorDto(sphere.XAxis.ToVector()),
+                    ToVectorDto(sphere.YAxis.ToVector()),
+                    sphere.Radius) : null,
+                face.SurfaceGeometry.Torus is { } torus ? new AnalyticDisplayTorusGeometryDto(
+                    ToPointDto(torus.Center),
+                    ToVectorDto(torus.Axis.ToVector()),
+                    ToVectorDto(torus.XAxis.ToVector()),
+                    ToVectorDto(torus.YAxis.ToVector()),
+                    torus.MajorRadius,
+                    torus.MinorRadius) : null)).ToArray(),
+            packet.FallbackFaces.Select(face => new AnalyticDisplayFallbackFaceDto(
+                face.FaceId.Value,
+                face.ShellId.Value,
+                face.ShellRole.ToString(),
+                face.Reason.ToString(),
+                face.SurfaceKind?.ToString(),
+                face.Detail)).ToArray());
 
     public static PickResponseDto ToPickResponse(IReadOnlyList<PickHit> hits, Guid occurrenceId)
         => ToPickResponse(hits, Transform3D.Identity, occurrenceId);
@@ -118,5 +167,24 @@ public static class ApiMappings
             options.EdgeTolerance ?? defaults.EdgeTolerance,
             options.SortTieTolerance ?? defaults.SortTieTolerance,
             options.MaxDistance ?? defaults.MaxDistance);
+    }
+
+    private static AnalyticDisplayConeGeometryDto ToConeGeometryDto(ConeSurface cone)
+    {
+        var axis = cone.Axis.ToVector();
+        var projectedX = cone.ReferenceAxis.ToVector() - (axis * cone.ReferenceAxis.ToVector().Dot(axis));
+        var xAxis = projectedX.TryNormalize(out var normalizedX) ? normalizedX : cone.ReferenceAxis.ToVector();
+        var yAxis = axis.Cross(xAxis);
+        if (!yAxis.TryNormalize(out var normalizedY))
+        {
+            normalizedY = yAxis;
+        }
+
+        return new AnalyticDisplayConeGeometryDto(
+            ToPointDto(cone.Apex),
+            ToVectorDto(axis),
+            ToVectorDto(xAxis),
+            ToVectorDto(normalizedY),
+            cone.SemiAngleRadians);
     }
 }

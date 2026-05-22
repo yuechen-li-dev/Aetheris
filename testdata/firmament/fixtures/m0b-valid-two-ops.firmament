@@ -1,0 +1,25 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: b1
+    size[3]:
+      1
+      2
+      3
+  -
+    op: add
+    id: add1
+    to: b1
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1

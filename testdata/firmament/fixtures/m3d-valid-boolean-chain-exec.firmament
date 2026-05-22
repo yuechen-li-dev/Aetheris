@@ -1,0 +1,37 @@
+firmament:
+  version: 1
+
+model:
+  name: m3d-chain
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      10
+      10
+
+  -
+    op: subtract
+    id: cut1
+    from: base
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+
+  -
+    op: add
+    id: joined
+    to: cut1
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1

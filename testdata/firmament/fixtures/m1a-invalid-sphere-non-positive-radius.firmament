@@ -1,0 +1,12 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[1]:
+  -
+    op: sphere
+    id: s1
+    radius: 0

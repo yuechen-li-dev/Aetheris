@@ -1,0 +1,21 @@
+# friction-lab candidate syntax only
+# not production Firmament
+candidate:
+  id: placement-flange-bolt-circle
+  style: anchor
+  setup:
+    flange:
+      op: cylinder
+      radius: 70
+      height: 14
+  placement:
+    bolt_holes:
+      type: blind_hole_pattern
+      on: flange.top_face
+      concentric_with: flange.axis
+      radius_from_axis: 52
+      count: 6
+      angle_step_deg: 60
+      start_angle_deg: 0
+      diameter: 9
+      depth: 12

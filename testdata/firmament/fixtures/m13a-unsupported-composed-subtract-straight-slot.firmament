@@ -1,0 +1,34 @@
+firmament:
+  version: 1
+
+model:
+  name: m13a_unsupported_composed_subtract_straight_slot
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      30
+      12
+
+  -
+    op: subtract
+    id: hole_a
+    from: base
+    with:
+      op: cylinder
+      radius: 4
+      height: 20
+
+  -
+    op: subtract
+    id: slot_b
+    from: hole_a
+    with:
+      op: straight_slot
+      length: 14
+      width: 6
+      height: 20

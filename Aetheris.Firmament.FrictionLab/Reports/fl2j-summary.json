@@ -1,0 +1,111 @@
+{
+  "milestone": "FL2j",
+  "description": "Targeted friction rerun after D4 additive-frame semantics fix with direct STEP semantic inspection.",
+  "rerun_case_count": 4,
+  "source_previous_summary": "Aetheris.Firmament.FrictionLab/Reports/fl2g-summary.json",
+  "source_current_run": "Aetheris.Firmament.FrictionLab/Reports/fl2j-run.json",
+  "deterministic_case_order": [
+    "simple-bracket",
+    "mounting-bracket-basic",
+    "pocketed-plate",
+    "shaft-keyway"
+  ],
+  "cases": [
+    {
+      "case_id": "simple-bracket",
+      "previous_status": "success",
+      "current_status": "success",
+      "changed": "no",
+      "improved": false,
+      "classification": "resolved",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/simple-bracket.step",
+      "possible": "true",
+      "awkwardness": "low",
+      "remaining_blocker": "none",
+      "step_semantic_inspection": {
+        "inspected": true,
+        "expected_feature_geometry_present": true,
+        "semantically_correct": true,
+        "mismatch_kind": "none",
+        "inspection_notes": "Canonical L-bracket confirmed directly in STEP: world extents x=[0,60], y=[0,20], z=[0,60], no negative-axis recentering drift, no cross/T collapse."
+      }
+    },
+    {
+      "case_id": "mounting-bracket-basic",
+      "previous_status": "success",
+      "current_status": "success",
+      "changed": "no",
+      "improved": false,
+      "classification": "resolved",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/mounting-bracket-basic.step",
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "none (execution); ergonomic placement references still absent",
+      "step_semantic_inspection": {
+        "inspected": true,
+        "expected_feature_geometry_present": true,
+        "semantically_correct": true,
+        "mismatch_kind": "none",
+        "inspection_notes": "Bracket body and both holes are present; STEP cylindrical surfaces show hole origins at (-15,0,4) and (26,0,18) with radius 3.5, matching intended base and upright hole placement."
+      }
+    },
+    {
+      "case_id": "pocketed-plate",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "medium",
+      "remaining_blocker": "BrepBoolean.RebuildResult enclosed/open-mouth pocket classification and representability gate for enclosed cavity subtract.",
+      "step_semantic_inspection": {
+        "inspected": false,
+        "expected_feature_geometry_present": false,
+        "semantically_correct": false,
+        "mismatch_kind": "other",
+        "inspection_notes": "No STEP artifact produced; execution stops on NotImplemented for bounded orthogonal pocket family constraints."
+      }
+    },
+    {
+      "case_id": "shaft-keyway",
+      "previous_status": "failure",
+      "current_status": "failure",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "BrepBoolean.RebuildResult sequential safe subtract family does not support this cylinder-root keyway subtract.",
+      "step_semantic_inspection": {
+        "inspected": false,
+        "expected_feature_geometry_present": false,
+        "semantically_correct": false,
+        "mismatch_kind": "other",
+        "inspection_notes": "No STEP artifact produced; execution stops on NotImplemented for unsupported subtract family on current root."
+      }
+    }
+  ],
+  "step_artifact_case_count": 2,
+  "improved_cases": [],
+  "top_repeated_remaining_blockers": [
+    {
+      "blocker": "BrepBoolean.RebuildResult",
+      "count": 2
+    }
+  ],
+  "top_repeated_remaining_blocker_classes": [
+    {
+      "classification": "unchanged_kernel_blocker",
+      "count": 2
+    }
+  ],
+  "next_blocker_after_d4": "Kernel subtract representability/family coverage in BrepBoolean.RebuildResult for enclosed pockets and cylinder-root keyway slots.",
+  "notes": "FL2j is measurement-only; no production parser/kernel feature implementation was performed."
+}

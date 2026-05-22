@@ -1,0 +1,45 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      20
+      30
+  -
+    op: add
+    id: joined
+    to: base
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+  -
+    op: intersect
+    id: clipped
+    left: joined
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+  -
+    op: add
+    id: merged
+    to: clipped
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1

@@ -1,0 +1,14 @@
+firmament:
+  version: 1
+
+model:
+  name: straight_slot_basic
+  units: mm
+
+ops[1]:
+  -
+    op: straight_slot
+    id: slot1
+    length: 30
+    width: 10
+    height: 8

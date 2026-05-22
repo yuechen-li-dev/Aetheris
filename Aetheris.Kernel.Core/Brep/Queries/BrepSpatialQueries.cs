@@ -1,6 +1,7 @@
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
+using Aetheris.Kernel.Core.Judgment;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
@@ -14,6 +15,31 @@ namespace Aetheris.Kernel.Core.Brep.Queries;
 /// </summary>
 public static class BrepSpatialQueries
 {
+    public sealed class PointContainmentQueryContext
+    {
+        private readonly object? analyticRayProvider;
+
+        internal PointContainmentQueryContext(object? analyticRayProvider, string providerUnavailableReason)
+        {
+            this.analyticRayProvider = analyticRayProvider;
+            ProviderUnavailableReason = providerUnavailableReason;
+        }
+
+        internal string ProviderUnavailableReason { get; }
+
+        internal object? TryGetProviderObject() => analyticRayProvider;
+    }
+
+    private static readonly JudgmentEngine<PointContainmentContext> PointContainmentJudgmentEngine = new();
+    private static readonly IReadOnlyList<JudgmentCandidate<PointContainmentContext>> PointContainmentCandidates =
+    [
+        new("primitive_analytic", static context => context.HasPrimitive, static _ => 100d, static _ => "Body is not recognized as an analytic primitive."),
+        new("boundary_first", static _ => false, static _ => 80d, static context => context.BoundaryFirstUnavailableReason),
+        new("planar_closed_shell", static _ => false, static _ => 70d, static context => context.PlanarClosedShellUnavailableReason),
+        new("multi_axis_ray_consensus", static context => context.GenericRayHitProviderAvailable, static _ => 60d, static context => context.MultiAxisRayConsensusUnavailableReason),
+        new("unknown", static _ => true, static _ => 0d)
+    ];
+
     public static KernelResult<IReadOnlyList<RayHit>> Raycast(
         BrepBody body,
         Ray3D ray,
@@ -49,15 +75,43 @@ public static class BrepSpatialQueries
         BrepBody body,
         Point3D point,
         ToleranceContext? tolerance = null)
+        => ClassifyPoint(body, point, tolerance, queryContext: null);
+
+    public static KernelResult<PointContainment> ClassifyPoint(
+        BrepBody body,
+        Point3D point,
+        ToleranceContext? tolerance,
+        PointContainmentQueryContext? queryContext)
     {
         var context = tolerance ?? ToleranceContext.Default;
-
-        if (!TryResolvePrimitive(body, out var primitive, out var diagnostic))
+        var resolvedPrimitive = TryResolvePrimitive(body, out var primitive, out var primitiveDiagnostic);
+        var containmentContext = BuildPointContainmentContext(body, point, context, resolvedPrimitive, primitive, primitiveDiagnostic, queryContext);
+        var selection = PointContainmentJudgmentEngine.Evaluate(containmentContext, PointContainmentCandidates);
+        if (!selection.IsSuccess)
         {
-            return KernelResult<PointContainment>.Success(PointContainment.Unknown, [diagnostic with { Severity = KernelDiagnosticSeverity.Warning }]);
+            return KernelResult<PointContainment>.Success(
+                PointContainment.Unknown,
+                [new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Warning, "Point containment has no admissible strategy.", Source: nameof(BrepSpatialQueries))]);
         }
 
-        var containment = primitive.Kind switch
+        return selection.Selection!.Value.Candidate.Name switch
+        {
+            "primitive_analytic" => KernelResult<PointContainment>.Success(ClassifyPrimitive(containmentContext.Primitive, point, context), BuildSelectionDiagnostics(selection, containmentContext)),
+            "multi_axis_ray_consensus" => KernelResult<PointContainment>.Success(ClassifyByMultiAxisRayConsensus(body, containmentContext), BuildSelectionDiagnostics(selection, containmentContext)),
+            "unknown" => KernelResult<PointContainment>.Success(PointContainment.Unknown, BuildSelectionDiagnostics(selection, containmentContext)),
+            _ => KernelResult<PointContainment>.Success(PointContainment.Unknown, BuildSelectionDiagnostics(selection, containmentContext))
+        };
+    }
+
+    public static PointContainmentQueryContext CreatePointContainmentQueryContext(BrepBody body, ToleranceContext? tolerance = null)
+    {
+        var context = tolerance ?? ToleranceContext.Default;
+        _ = TryCreateAnalyticRayProvider(body, context, out var provider, out var unavailableReason);
+        return new PointContainmentQueryContext(provider, unavailableReason);
+    }
+
+    private static PointContainment ClassifyPrimitive(PrimitiveDescriptor primitive, Point3D point, ToleranceContext context) =>
+        primitive.Kind switch
         {
             PrimitiveKind.Box => ClassifyBoxPoint(primitive, point, context),
             PrimitiveKind.Cylinder => ClassifyCylinderPoint(primitive, point, context),
@@ -65,8 +119,74 @@ public static class BrepSpatialQueries
             _ => PointContainment.Unknown
         };
 
-        return KernelResult<PointContainment>.Success(containment);
+    private static PointContainmentContext BuildPointContainmentContext(
+        BrepBody body,
+        Point3D point,
+        ToleranceContext tolerance,
+        bool resolvedPrimitive,
+        PrimitiveDescriptor primitive,
+        KernelDiagnostic primitiveDiagnostic,
+        PointContainmentQueryContext? queryContext)
+    {
+        var hasPrimitive = resolvedPrimitive && primitive.Kind is PrimitiveKind.Box or PrimitiveKind.Cylinder or PrimitiveKind.Sphere;
+        AnalyticRayProvider? provider;
+        string unavailableReason;
+        bool analyticProvider;
+        if (queryContext is not null)
+        {
+            provider = queryContext.TryGetProviderObject() as AnalyticRayProvider;
+            unavailableReason = queryContext.ProviderUnavailableReason;
+            analyticProvider = provider is not null;
+        }
+        else
+        {
+            analyticProvider = TryCreateAnalyticRayProvider(body, tolerance, out provider, out unavailableReason);
+        }
+        return new PointContainmentContext(
+            point,
+            new BoundingBox3D(point, point),
+            tolerance,
+            hasPrimitive,
+            primitive,
+            primitiveDiagnostic with { Severity = KernelDiagnosticSeverity.Warning },
+            GenericRayHitProviderAvailable: analyticProvider,
+            AnalyticRayProvider: provider,
+            BoundaryFirstUnavailableReason: "Boundary-first containment is scaffolded but no trusted trimmed-face boundary distance query is available yet.",
+            PlanarClosedShellUnavailableReason: "Planar closed-shell exact containment is scaffolded but not enabled in this milestone.",
+            MultiAxisRayConsensusUnavailableReason: unavailableReason);
     }
+
+    private static IReadOnlyList<KernelDiagnostic> BuildSelectionDiagnostics(JudgmentResult<PointContainmentContext> selection, PointContainmentContext context)
+    {
+        var diagnostics = new List<KernelDiagnostic>();
+        if (!context.HasPrimitive)
+        {
+            diagnostics.Add(context.PrimitiveDiagnostic);
+        }
+
+        if (selection.Selection.HasValue)
+        {
+            var candidate = selection.Selection.Value.Candidate;
+            diagnostics.Add(new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Info, $"Point containment strategy selected: {candidate.Name}.", Source: nameof(BrepSpatialQueries)));
+        }
+
+        diagnostics.AddRange(selection.Rejections.Select(rejection =>
+            new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Info, $"Point containment strategy rejected: {rejection.CandidateName} ({rejection.Reason})", Source: nameof(BrepSpatialQueries))));
+        return diagnostics;
+    }
+
+    private sealed record PointContainmentContext(
+        Point3D Point,
+        BoundingBox3D BoundingBox,
+        ToleranceContext Tolerance,
+        bool HasPrimitive,
+        PrimitiveDescriptor Primitive,
+        KernelDiagnostic PrimitiveDiagnostic,
+        bool GenericRayHitProviderAvailable,
+        AnalyticRayProvider? AnalyticRayProvider,
+        string BoundaryFirstUnavailableReason,
+        string PlanarClosedShellUnavailableReason,
+        string MultiAxisRayConsensusUnavailableReason);
 
     private static IReadOnlyList<RayHit> IntersectBox(PrimitiveDescriptor primitive, Ray3D ray, RayQueryOptions options, ToleranceContext tolerance)
     {
@@ -422,6 +542,190 @@ public static class BrepSpatialQueries
         return PointContainment.Inside;
     }
 
+
+    internal sealed record ContainmentRayHitTrace(
+        double T,
+        int FaceId,
+        string SurfaceKind,
+        string DomainClassification,
+        string HitQuality,
+        bool SeamDuplicateRisk,
+        bool NearEdge,
+        bool NearVertex,
+        string DomainSource,
+        string DomainReason);
+
+    internal sealed record ContainmentRayTrace(
+        string Axis,
+        int RawHitCount,
+        int CleanHitCount,
+        int DuplicateOrCoincidentCount,
+        bool HasSeamRisk,
+        bool HasBoundaryHit,
+        bool HasAmbiguousHit,
+        bool Admissible,
+        string? InadmissibleReason,
+        string? Vote,
+        IReadOnlyList<ContainmentRayHitTrace> Hits);
+
+    internal sealed record ContainmentConsensusTrace(
+        PointContainment FinalClassification,
+        bool ProviderAvailable,
+        string? Candidate,
+        IReadOnlyList<ContainmentRayTrace> Rays);
+
+    internal static ContainmentConsensusTrace TraceMultiAxisConsensus(BrepBody body, Point3D point, ToleranceContext? tolerance = null)
+    {
+        var context = tolerance ?? ToleranceContext.Default;
+        var resolvedPrimitive = TryResolvePrimitive(body, out var primitive, out var primitiveDiagnostic);
+        var containmentContext = BuildPointContainmentContext(body, point, context, resolvedPrimitive, primitive, primitiveDiagnostic, queryContext: null);
+        var classification = ClassifyByMultiAxisRayConsensus(body, containmentContext, out var rays);
+        return new ContainmentConsensusTrace(classification, containmentContext.AnalyticRayProvider is not null, "multi_axis_ray_consensus", rays);
+    }
+
+    private static PointContainment ClassifyByMultiAxisRayConsensus(BrepBody body, PointContainmentContext context)
+        => ClassifyByMultiAxisRayConsensus(body, context, out _);
+
+    private static PointContainment ClassifyByMultiAxisRayConsensus(BrepBody body, PointContainmentContext context, out IReadOnlyList<ContainmentRayTrace> rayTraces)
+    {
+        var traces = new List<ContainmentRayTrace>();
+        if (context.AnalyticRayProvider is null)
+        {
+            rayTraces = traces;
+            return PointContainment.Unknown;
+        }
+
+        var dirs = new[] { Direction3D.Create(new Vector3D(1d,0d,0d)), Direction3D.Create(new Vector3D(-1d,0d,0d)), Direction3D.Create(new Vector3D(0d,1d,0d)), Direction3D.Create(new Vector3D(0d,-1d,0d)), Direction3D.Create(new Vector3D(0d,0d,1d)), Direction3D.Create(new Vector3D(0d,0d,-1d)) };
+        var votes = new List<PointContainment>();
+        foreach (var dir in dirs)
+        {
+            var hits = context.AnalyticRayProvider.Collect(new Ray3D(context.Point, dir));
+            if (hits.Any(h => h.Domain.Classification == FaceDomainClassification.OnBoundary))
+            {
+                traces.Add(BuildTrace(dir, hits, admissible: false, "boundary-hit", vote: null));
+                rayTraces = traces;
+                return PointContainment.Boundary;
+            }
+            if (hits.Any(h => h.Quality is AnalyticHitQuality.Ambiguous or AnalyticHitQuality.UnsupportedSurface or AnalyticHitQuality.SeamDuplicateRisk))
+            {
+                traces.Add(BuildTrace(dir, hits, admissible: false, "ambiguous-or-unsupported-hit", vote: null));
+                continue;
+            }
+            if (hits.Any(h => h.Quality == AnalyticHitQuality.DuplicateOrCoincident))
+            {
+                traces.Add(BuildTrace(dir, hits, admissible: false, "duplicate-or-coincident-hit", vote: null));
+                continue;
+            }
+            var count = hits.Count(h => h.T > context.Tolerance.Linear);
+            var vote = (count % 2) == 1 ? PointContainment.Inside : PointContainment.Outside;
+            votes.Add(vote);
+            traces.Add(BuildTrace(dir, hits, admissible: true, null, vote.ToString()));
+        }
+
+        rayTraces = traces;
+        if (votes.Count < 3) return PointContainment.Unknown;
+        return votes.All(v=>v==votes[0]) ? votes[0] : PointContainment.Unknown;
+
+        static string Axis(Direction3D d) => d switch
+        {
+            _ when d.X > 0.5d => "+X",
+            _ when d.X < -0.5d => "-X",
+            _ when d.Y > 0.5d => "+Y",
+            _ when d.Y < -0.5d => "-Y",
+            _ when d.Z > 0.5d => "+Z",
+            _ => "-Z"
+        };
+
+        static ContainmentRayTrace BuildTrace(Direction3D direction, IReadOnlyList<AnalyticRayHit> hits, bool admissible, string? inadmissibleReason, string? vote)
+            => new(
+                Axis(direction),
+                hits.Count,
+                hits.Count(h => h.Quality == AnalyticHitQuality.Clean),
+                hits.Count(h => h.Quality == AnalyticHitQuality.DuplicateOrCoincident),
+                hits.Any(h => h.Quality == AnalyticHitQuality.SeamDuplicateRisk),
+                hits.Any(h => h.Quality == AnalyticHitQuality.BoundaryHit),
+                hits.Any(h => h.Quality == AnalyticHitQuality.Ambiguous),
+                admissible,
+                inadmissibleReason,
+                vote,
+                hits.Select(h => new ContainmentRayHitTrace(
+                    h.T,
+                    h.FaceId.Value,
+                    h.SurfaceKind.ToString(),
+                    h.Domain.Classification.ToString(),
+                    h.Quality.ToString(),
+                    h.Domain.SeamDuplicateRisk,
+                    h.Domain.NearEdge,
+                    h.Domain.NearVertex,
+                    h.Domain.Source,
+                    h.Domain.Reason)).ToList());
+    }
+
+    private static bool TryCreateAnalyticRayProvider(BrepBody body, ToleranceContext tolerance, out AnalyticRayProvider? provider, out string reason)
+    {
+        provider = null;
+        var faces = new List<(FaceId FaceId, SurfaceGeometry Surface)>();
+        foreach (var binding in body.Bindings.FaceBindings)
+        {
+            var surface = body.Geometry.GetSurface(binding.SurfaceGeometryId);
+            if (surface.Kind is not (SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Cone or SurfaceGeometryKind.Torus))
+            {
+                reason = "Generic analytic ray-hit provider requires analytic faces only (plane/cylinder/sphere/cone/torus).";
+                return false;
+            }
+            faces.Add((binding.FaceId, surface));
+        }
+
+        if (faces.Count == 0)
+        {
+            reason = "Body has no bound faces.";
+            return false;
+        }
+
+        provider = new AnalyticRayProvider(body, faces, tolerance);
+        reason = "available";
+        return true;
+    }
+
+    private enum AnalyticHitQuality { Clean, BoundaryHit, Ambiguous, NearTangent, UnsupportedSurface, DuplicateOrCoincident, SeamDuplicateRisk }
+    private sealed record AnalyticRayHit(double T, Point3D Point, FaceId FaceId, SurfaceGeometryKind SurfaceKind, Direction3D Normal, FaceDomainQueryResult Domain, AnalyticHitQuality Quality);
+    private sealed class AnalyticRayProvider(BrepBody body, IReadOnlyList<(FaceId FaceId, SurfaceGeometry Surface)> faces, ToleranceContext tolerance)
+    {
+        public IReadOnlyList<AnalyticRayHit> Collect(Ray3D ray)
+        {
+            var hits = new List<AnalyticRayHit>();
+            foreach (var (faceId, surface) in faces)
+            {
+                var faceHits = new List<Aetheris.Kernel.Core.Brep.Queries.AnalyticRayHit>(2);
+                AnalyticDisplayQuery.CollectIntersectFaceHits(body, faceId, ray, faceHits, tolerance: tolerance);
+                foreach (var hit in faceHits)
+                {
+                    var domain = FaceDomainQuery.TryClassifyPointOnFace(body, faceId, hit.Position, tolerance);
+                    if (domain.Classification is FaceDomainClassification.Outside) continue;
+                    var q = domain.Classification switch
+                    {
+                        FaceDomainClassification.Inside => domain.SeamDuplicateRisk ? AnalyticHitQuality.SeamDuplicateRisk : AnalyticHitQuality.Clean,
+                        FaceDomainClassification.OnBoundary => AnalyticHitQuality.BoundaryHit,
+                        FaceDomainClassification.Unsupported => AnalyticHitQuality.UnsupportedSurface,
+                        FaceDomainClassification.Ambiguous => AnalyticHitQuality.Ambiguous,
+                        _ => AnalyticHitQuality.Ambiguous
+                    };
+                    hits.Add(new AnalyticRayHit(hit.Distance, hit.Position, faceId, surface.Kind, hit.Normal, domain, q));
+                }
+            }
+
+            var ordered = hits.OrderBy(h=>h.T).ToList();
+            for (int i=1;i<ordered.Count;i++)
+            {
+                if (ToleranceMath.AlmostEqual(ordered[i-1].T, ordered[i].T, tolerance))
+                {
+                    ordered[i-1] = ordered[i-1] with { Quality = AnalyticHitQuality.DuplicateOrCoincident };
+                    ordered[i] = ordered[i] with { Quality = AnalyticHitQuality.DuplicateOrCoincident };
+                }
+            }
+            return ordered;
+        }
+    }
     private static bool TryResolvePrimitive(BrepBody body, out PrimitiveDescriptor descriptor, out KernelDiagnostic diagnostic)
     {
         descriptor = default;

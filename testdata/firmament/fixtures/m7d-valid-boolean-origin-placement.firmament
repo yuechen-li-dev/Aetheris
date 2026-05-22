@@ -1,0 +1,32 @@
+firmament:
+  version: 1
+
+model:
+  name: m7d_valid_boolean_origin_placement
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      4
+      4
+      4
+
+  -
+    op: add
+    id: joined
+    to: base
+    with:
+      op: box
+      size[3]:
+        2
+        2
+        2
+    place:
+      on: origin
+      offset[3]:
+        10
+        -5
+        3

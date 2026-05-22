@@ -1,0 +1,26 @@
+{
+  "manifest": { "version": "1" },
+  "assembly": { "name": "occt_nut_bolt_assembly", "units": "mm" },
+  "parts": {
+    "bolt": { "kind": "step", "source": "./bolt.step" },
+    "nut": { "kind": "step", "source": "./_nut_extract.step" }
+  },
+  "instances": [
+    {
+      "id": "bolt_1",
+      "part": "bolt",
+      "transform": {
+        "translate": [-7.5, -10.0, 13.0],
+        "rotate_deg_xyz": [180.0, 0.0, -90.0]
+      }
+    },
+    {
+      "id": "nut_1",
+      "part": "nut",
+      "transform": {
+        "translate": [2.5, -17.5, -20.0],
+        "rotate_deg_xyz": [180.0, 0.0, 180.0]
+      }
+    }
+  ]
+}

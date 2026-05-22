@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+
+model:
+  name: m7e_invalid_pmi_dimension_invalid_target
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      40
+      20
+
+pmi[1]:
+  -
+    kind: dimension
+    dimension_kind: diameter
+    target: base
+    value: 10

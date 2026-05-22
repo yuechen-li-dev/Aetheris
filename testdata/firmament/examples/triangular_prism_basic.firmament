@@ -1,0 +1,14 @@
+firmament:
+  version: 1
+
+model:
+  name: triangular_prism_basic
+  units: mm
+
+ops[1]:
+  -
+    op: triangular_prism
+    id: tri1
+    base_width: 20
+    base_depth: 12
+    height: 10

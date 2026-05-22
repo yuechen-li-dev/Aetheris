@@ -1,0 +1,36 @@
+{
+  "manifest": {
+    "version": "1"
+  },
+  "assembly": {
+    "name": "mixed_native_step_demo",
+    "units": "mm"
+  },
+  "parts": {
+    "base": {
+      "kind": "firmament",
+      "source": "../../firmament/fixtures/m0b-valid-one-op.firmament"
+    },
+    "vendor_motor": {
+      "kind": "step",
+      "source": "../../firmament/exports/box_basic.step"
+    }
+  },
+  "instances": [
+    {
+      "id": "base_1",
+      "part": "base",
+      "transform": {
+        "translate": [0, 0, 0]
+      }
+    },
+    {
+      "id": "motor_1",
+      "part": "vendor_motor",
+      "transform": {
+        "translate": [120, 0, 0],
+        "rotate_deg_xyz": [0, 90, 0]
+      }
+    }
+  ]
+}

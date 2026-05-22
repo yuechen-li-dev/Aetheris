@@ -10,6 +10,17 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Step242;
 
+public static class Step242ImportComposition
+{
+    public static ImportCompositionBuilder Register(ImportCompositionBuilder builder)
+    {
+        return builder
+            .AddConnector(new StepSourceConnector())
+            .AddLane(new Step242ExactBRepImportLane())
+            .AddLane(new Step242TessellatedImportLane());
+    }
+}
+
 internal sealed class StepParsedSourceDocument(Step242ParsedDocument document) : IParsedSourceDocument
 {
     public Step242ParsedDocument Document { get; } = document;

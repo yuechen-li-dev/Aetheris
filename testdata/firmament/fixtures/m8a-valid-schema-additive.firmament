@@ -1,0 +1,12 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+schema:
+  process: additive
+  printer_resolution: 0.1
+
+ops[0]:

@@ -1,0 +1,41 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      1
+      1
+      1
+  -
+    op: add
+    id: anchor
+    to: base
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+    place:
+      on: origin
+      offset[3]:
+        10
+        0
+        0
+  -
+    op: subtract
+    id: sub1
+    from: anchor
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1

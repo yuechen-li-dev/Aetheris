@@ -12,6 +12,7 @@ const apiMocks = vi.hoisted(() => ({
     getDocumentSummary: vi.fn(),
     importStep: vi.fn(),
     pickBody: vi.fn(),
+    prepareBodyDisplay: vi.fn(),
     tessellateBody: vi.fn(),
     translateBody: vi.fn(),
 }));
@@ -28,6 +29,7 @@ vi.mock('../api/aetherisApi', async () => {
         getDocumentSummary: apiMocks.getDocumentSummary,
         importStep: apiMocks.importStep,
         pickBody: apiMocks.pickBody,
+        prepareBodyDisplay: apiMocks.prepareBodyDisplay,
         tessellateBody: apiMocks.tessellateBody,
         translateBody: apiMocks.translateBody,
     };
@@ -61,6 +63,18 @@ function setupDocumentApiMocks(): void {
         }],
     });
     apiMocks.tessellateBody.mockResolvedValue({ facePatches: [], edgePolylines: [] });
+    apiMocks.prepareBodyDisplay.mockResolvedValue({
+        lane: 'fallback-only',
+        analyticPacket: {
+            bodyId: 1,
+            analyticFaces: [],
+            fallbackFaces: [],
+        },
+        tessellationFallback: {
+            facePatches: [],
+            edgePolylines: [],
+        },
+    });
 }
 
 describe('App STEP file upload flow', () => {
@@ -77,7 +91,7 @@ describe('App STEP file upload flow', () => {
         render(<App />);
 
         expect(screen.getByRole('tab', { name: /STEP 242 Viewer/i }).getAttribute('aria-selected')).toBe('true');
-        expect(screen.getByText('Viewport')).toBeTruthy();
+        expect(screen.getByTestId('viewer-viewport')).toBeTruthy();
         expect(screen.getByRole('button', { name: 'GRID' }).getAttribute('aria-pressed')).toBe('true');
         expect(screen.getByRole('button', { name: 'COORD' }).getAttribute('aria-pressed')).toBe('true');
         expect(screen.queryByText('Create Box')).toBeNull();

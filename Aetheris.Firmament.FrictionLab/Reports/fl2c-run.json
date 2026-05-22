@@ -1,0 +1,53 @@
+{
+  "totalCases": 2,
+  "successCount": 0,
+  "partialCount": 2,
+  "failureCount": 0,
+  "caseResults": [
+    {
+      "caseId": "blind-hole-mount-block",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "medium",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027blind_hole\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027blind_hole\u0027 (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.",
+          "source": "BrepBoolean.AnalyticHole.NotFullySpanning"
+        }
+      ]
+    },
+    {
+      "caseId": "counterbore-hole",
+      "buildStatus": "partial",
+      "artifactPresent": false,
+      "stepArtifactPath": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "diagnostics": [
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Requested boolean feature \u0027counterbore_pocket\u0027 (subtract) could not be executed.",
+          "source": "firmament"
+        },
+        {
+          "code": "NotImplemented",
+          "severity": "Error",
+          "message": "Boolean feature \u0027counterbore_pocket\u0027 (subtract) does not match the supported subtract span family; only through-holes or one-sided blind holes are allowed in this milestone.",
+          "source": "BrepBoolean.AnalyticHole.NotFullySpanning"
+        }
+      ]
+    }
+  ],
+  "summaryPath": "Aetheris.Firmament.FrictionLab/Reports/fl2c-run.json"
+}

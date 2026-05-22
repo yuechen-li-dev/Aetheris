@@ -1,0 +1,14 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    size[3]:
+      1
+      2
+      3

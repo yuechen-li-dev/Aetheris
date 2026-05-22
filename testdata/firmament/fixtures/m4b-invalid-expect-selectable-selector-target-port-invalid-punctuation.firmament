@@ -1,0 +1,19 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      4
+      4
+      4
+  -
+    op: expect_selectable
+    target: base.top-face
+    count: 1

@@ -56,7 +56,7 @@ public sealed class HardeningRegressionCorpusTests
 
         Assert.True(BrepBoolean.Intersect(left, overlapRight).IsSuccess);
         Assert.False(BrepBoolean.Intersect(left, touchingRight).IsSuccess);
-        Assert.False(BrepBoolean.Union(lShapeLeft, lShapeRight).IsSuccess);
+        Assert.True(BrepBoolean.Union(lShapeLeft, lShapeRight).IsSuccess);
 
         var containmentUnion = BrepBoolean.Union(left, contained);
         Assert.True(containmentUnion.IsSuccess);

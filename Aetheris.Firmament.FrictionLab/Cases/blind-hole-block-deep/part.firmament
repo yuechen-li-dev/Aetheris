@@ -1,0 +1,30 @@
+firmament:
+  version: 1
+
+model:
+  name: fl2_blind_hole_block_deep
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: block
+    size[3]:
+      50
+      50
+      40
+
+  -
+    op: subtract
+    id: deep_blind_hole
+    from: block
+    with:
+      op: cylinder
+      radius: 6
+      height: 30
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        5

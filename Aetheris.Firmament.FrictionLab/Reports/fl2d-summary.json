@@ -1,0 +1,55 @@
+{
+  "milestone": "FL2d",
+  "description": "Targeted friction reassessment rerun for blind-hole and counterbore pressure cases after G4.",
+  "rerun_case_count": 2,
+  "source_previous_summary": "Aetheris.Firmament.FrictionLab/Reports/fl2c-summary.json",
+  "source_current_run": "Aetheris.Firmament.FrictionLab/Reports/fl2d-run.json",
+  "cases": [
+    {
+      "case_id": "blind-hole-mount-block",
+      "previous_status": "partial",
+      "current_status": "success",
+      "changed": "yes",
+      "improved": true,
+      "classification": "resolved",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/blind-hole-mount-block.step",
+      "possible": "true",
+      "awkwardness": "low",
+      "remaining_blocker": null
+    },
+    {
+      "case_id": "counterbore-hole",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "yes",
+      "improved": true,
+      "classification": "improved_but_still_blocked",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "high",
+      "remaining_blocker": "Boolean feature 'counterbore_through' (subtract) bounded contained coaxial subtract-stack support requires the deeper segment to open on the same top entry face."
+    }
+  ],
+  "improved_cases": [
+    "blind-hole-mount-block",
+    "counterbore-hole"
+  ],
+  "top_repeated_remaining_blockers": [
+    {
+      "blocker": "BrepBoolean.AnalyticHole.NotFullySpanning",
+      "count": 1
+    }
+  ],
+  "top_repeated_remaining_blocker_classes": [
+    {
+      "classification": "improved_but_still_blocked",
+      "count": 1
+    }
+  ],
+  "deterministic_case_order": [
+    "blind-hole-mount-block",
+    "counterbore-hole"
+  ]
+}

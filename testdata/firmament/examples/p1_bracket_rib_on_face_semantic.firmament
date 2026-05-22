@@ -1,0 +1,29 @@
+firmament:
+  version: 1
+
+model:
+  name: p1_bracket_rib_on_face_semantic
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: bracket
+    size[3]:
+      60
+      20
+      8
+
+  -
+    op: box
+    id: rib
+    size[3]:
+      30
+      6
+      24
+    place:
+      on_face: bracket.top_face
+      offset[3]:
+        15
+        7
+        0

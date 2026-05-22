@@ -1,0 +1,84 @@
+# File Shape, Sections, and Canonical Authoring Form
+
+## Canonical source form
+
+Repository corpus style is TOON-style indentation syntax in `.firmament` files.
+JSON is parser-compatible but non-canonical for corpus authoring.
+
+## Required top-level sections
+
+Required:
+
+- `firmament` (object-like)
+- `model` (object-like)
+- `ops` (array-like)
+
+Optional:
+
+- `schema` (object-like)
+- `pmi` (array-like)
+
+Unknown top-level sections are rejected.
+
+## Required top-level fields
+
+- `firmament.version` required.
+- `model.name` required.
+- `model.units` required.
+
+Current implementation note: units must be present but are not currently validated against a closed enum list; corpus convention is `mm`.
+
+## Ops structure
+
+- `ops[n]:` header defines count in canonical TOON style.
+- Each entry begins with `-` and contains an object-like block including `op`.
+- `op` token must map to known op kind.
+
+`ops[n]` count behavior (important): parser accepts the bracketed integer format but uses the actual list entries that follow.  
+The declared `n` is informational/canonical style only; it is not enforced as a hard count check.
+
+## Known op kinds (current)
+
+Primitive:
+
+- `box`, `cylinder`, `cone`, `torus`, `sphere`
+
+Boolean:
+
+- `add`, `subtract`, `intersect`
+
+Validation:
+
+- `expect_exists`, `expect_selectable`, `expect_manifold`
+
+Pattern:
+
+- `pattern_linear`, `pattern_circular`
+
+## Section ordering note
+
+Human docs recommend fixed section order (`firmament`, `model`, optional `schema`, `ops`, optional `pmi`).
+Current parser enforces section presence/shape but not strict relative order; do not rely on relaxed behavior for canonical corpus.
+
+## Schema block (current validation semantics)
+
+When `schema` is present:
+
+- `process` required and must be one of: `cnc`, `injection_molded`, `additive`.
+- `cnc` requires `minimum_tool_radius > 0`.
+- `injection_molded` requires:
+  - `parting_plane` in `xy|yz|xz`
+  - `gate_location` object-like with numeric `x,y,z`
+  - `draft_angle > 0`
+- `additive` requires `printer_resolution > 0`.
+
+Additional current behavior:
+
+- CNC DFM currently checks subtract-tool cylinder `with.radius >= minimum_tool_radius`.
+- Enclosed voids are a hard compile failure for non-additive process modes (including default/no-schema behavior, `cnc`, and `injection_molded`).
+  - Practical trip case: a sealed cavity (for example, subtracting a fully enclosed sphere cavity) fails compile under those modes.
+  - `additive` explicitly allows enclosed voids.
+
+## PMI behavior (current)
+
+`pmi` section presence is parsed/tracked (`HasPmi`) but currently does not alter execution, validation outcomes, or STEP output content. Treat `pmi` as no-op metadata in current milestone state.

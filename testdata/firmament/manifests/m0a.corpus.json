@@ -1,0 +1,44 @@
+{
+  "version": "1",
+  "entries": [
+    {
+      "id": "m0a-valid-minimal",
+      "name": "Valid minimal top-level skeleton",
+      "fixturePath": "testdata/firmament/fixtures/m0a-valid-minimal.firmament",
+      "expectedOutcome": "success"
+    },
+    {
+      "id": "m0a-missing-firmament",
+      "name": "Missing required firmament section",
+      "fixturePath": "testdata/firmament/fixtures/m0a-missing-firmament.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0001"
+      }
+    },
+    {
+      "id": "m0a-missing-version",
+      "name": "Missing required version field",
+      "fixturePath": "testdata/firmament/fixtures/m0a-missing-version.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0003"
+      }
+    },
+    {
+      "id": "m0a-unknown-section",
+      "name": "Unknown top-level section",
+      "fixturePath": "testdata/firmament/fixtures/m0a-unknown-section.firmament",
+      "expectedOutcome": "failure",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "kernelCode": "ValidationFailed",
+        "firmamentCode": "FIRM-STRUCT-0002"
+      }
+    }
+  ]
+}

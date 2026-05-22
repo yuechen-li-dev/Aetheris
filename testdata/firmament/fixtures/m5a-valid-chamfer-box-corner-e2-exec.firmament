@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+
+model:
+  name: m5a_chamfer_box_corner_e2_exec
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      20
+      10
+  -
+    op: chamfer
+    id: corner_break
+    from: base
+    corners[1]:
+      x_max_y_max_z_max
+    distance: 1.5

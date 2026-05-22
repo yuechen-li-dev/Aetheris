@@ -1,0 +1,24 @@
+{
+  "manifest": {
+    "version": "1"
+  },
+  "assembly": {
+    "name": "invalid_missing_step",
+    "units": "mm"
+  },
+  "parts": {
+    "vendor_part": {
+      "kind": "step",
+      "source": "./does-not-exist.step"
+    }
+  },
+  "instances": [
+    {
+      "id": "vendor_1",
+      "part": "vendor_part",
+      "transform": {
+        "translate": [0, 0, 0]
+      }
+    }
+  ]
+}

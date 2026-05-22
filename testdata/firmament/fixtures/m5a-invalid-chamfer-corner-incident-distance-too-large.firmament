@@ -1,0 +1,25 @@
+firmament:
+  version: 1
+
+model:
+  name: m5a_invalid_chamfer_corner_incident_distance_too_large
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      20
+      20
+      20
+  -
+    op: chamfer
+    id: corner_pair_break
+    from: base
+    corners[1]:
+      x_max_y_max_z_max
+    corner_edges[2]:
+      x_neg
+      y_neg
+    distance: 20

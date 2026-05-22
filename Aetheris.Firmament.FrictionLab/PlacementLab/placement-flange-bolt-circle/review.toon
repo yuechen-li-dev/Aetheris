@@ -1,0 +1,33 @@
+case: placement-flange-bolt-circle
+comparison:
+  anchor:
+    possible: true
+    awkwardness: low
+    verbosity: medium
+    pretzel_risk: low
+    pain_points:
+      - pattern semantics still need explicit angle defaults
+      - axis orientation for start angle must be consistent
+    smallest_feature_shape: "holes on face concentric_with axis at radial offset"
+  frame:
+    possible: true
+    awkwardness: medium
+    verbosity: high
+    pretzel_risk: medium
+    pain_points:
+      - seed+pattern split is more ceremony than intent
+      - local frame setup duplicates known flange axis intent
+    smallest_feature_shape: "frame + one seed hole + rotate copies"
+  semantic:
+    possible: true
+    awkwardness: low
+    verbosity: low
+    pretzel_risk: low
+    pain_points:
+      - only works while bolt-circle assumptions remain simple
+      - custom pitch or skips likely escape tiny sugar
+    smallest_feature_shape: "bolt_circle_holes(face, axis, radius, count)"
+verdict:
+  preferred_candidate: semantic
+  why: "directly names an everyday bolt-circle task without extra scaffolding"
+  what_should_be_tried_first_in_production: "introduce tiny bolt-circle helper backed by existing pattern mechanics"

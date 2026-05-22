@@ -1,0 +1,21 @@
+firmament:
+  version: 1
+
+model:
+  name: m7c_valid_origin_placement_offset
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: moved
+    size[3]:
+      2
+      2
+      2
+    place:
+      on: origin
+      offset[3]:
+        10
+        -5
+        2

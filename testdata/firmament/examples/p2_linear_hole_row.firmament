@@ -1,0 +1,43 @@
+firmament:
+  version: 1
+
+model:
+  name: p2_linear_hole_row
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: plate
+    size[3]:
+      120
+      80
+      8
+
+  -
+    op: subtract
+    id: hole_cut_1
+    from: plate
+    with:
+      op: cylinder
+      radius: 2
+      height: 8
+    place:
+      on: origin
+      offset[3]:
+        -20
+        0
+        0
+
+  -
+    op: pattern_linear
+    source: hole_cut_1
+    count: 3
+    step[3]:
+      10
+      0
+      0
+
+  -
+    op: expect_manifold
+    target: hole_cut_1__lin3

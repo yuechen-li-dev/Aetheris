@@ -1,0 +1,28 @@
+firmament:
+  version: 1
+model:
+  name: fric_b0_chimera_a_zone_j_edge_grazing
+  units: mm
+ops[3]:
+  -
+    op: box
+    id: chimera_a_root
+    size[3]: [60, 40, 20]
+  -
+    op: subtract
+    id: zone_j_seed_hole
+    from: chimera_a_root
+    with:
+      op: cylinder
+      radius: 4
+      height: 30
+  -
+    op: subtract
+    id: zone_j_grazing_prism
+    from: zone_j_seed_hole
+    with:
+      op: box
+      size[3]: [8, 8, 24]
+    place:
+      on: origin
+      offset[3]: [8, 0, 0]

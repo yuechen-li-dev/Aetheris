@@ -1,0 +1,17 @@
+firmament:
+  version: 1
+
+model:
+  name: m3b_valid_box_subtract_straight_slot
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]: [40, 30, 20]
+  -
+    op: subtract
+    id: slot_cut
+    from: base
+    with: { op: straight_slot, length: 24, width: 8, height: 24 }

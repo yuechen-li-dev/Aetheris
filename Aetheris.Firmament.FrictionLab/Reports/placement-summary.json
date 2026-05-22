@@ -1,0 +1,48 @@
+{
+  "milestone": "FL3",
+  "experiment": "placement/reference ergonomics mini-lab",
+  "total_cases": 4,
+  "candidates_compared": [
+    "anchor",
+    "frame",
+    "semantic"
+  ],
+  "per_case_preferred_candidate": {
+    "placement-blind-hole-face": "semantic",
+    "placement-flange-bolt-circle": "semantic",
+    "placement-shaft-keyway": "semantic",
+    "placement-bracket-rib": "semantic"
+  },
+  "preferred_candidate_histogram": {
+    "anchor": 0,
+    "frame": 0,
+    "semantic": 4
+  },
+  "repeated_pain_points": [
+    {
+      "pain_point": "frame boilerplate and axis setup add ceremony for ordinary features",
+      "seen_in": [
+        "placement-blind-hole-face",
+        "placement-flange-bolt-circle",
+        "placement-shaft-keyway",
+        "placement-bracket-rib"
+      ]
+    },
+    {
+      "pain_point": "orientation/clocking conventions are easy to misread without explicit defaults",
+      "seen_in": [
+        "placement-blind-hole-face",
+        "placement-flange-bolt-circle",
+        "placement-shaft-keyway"
+      ]
+    },
+    {
+      "pain_point": "semantic sugar is concise but risks narrow coverage outside common patterns",
+      "seen_in": [
+        "placement-flange-bolt-circle",
+        "placement-shaft-keyway",
+        "placement-bracket-rib"
+      ]
+    }
+  ]
+}

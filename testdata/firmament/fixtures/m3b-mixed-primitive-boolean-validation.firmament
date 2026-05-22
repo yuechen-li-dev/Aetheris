@@ -1,0 +1,53 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[5]:
+  -
+    op: box
+    id: base
+    size[3]:
+      4
+      5
+      6
+
+  -
+    op: add
+    id: join1
+    to: base
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+    place:
+      on: origin
+      offset[3]:
+        10
+        0
+        0
+
+  -
+    op: cylinder
+    id: cap
+    radius: 2
+    height: 9
+
+  -
+    op: subtract
+    id: cut1
+    from: join1
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+
+  -
+    op: expect_exists
+    target: cut1

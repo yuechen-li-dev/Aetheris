@@ -1,0 +1,21 @@
+firmament:
+  version: 1
+
+model:
+  name: m7a_invalid_box_placement_invalid_anchor
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      20
+      30
+    place:
+      on: base.top.face
+      offset[3]:
+        0
+        0
+        0

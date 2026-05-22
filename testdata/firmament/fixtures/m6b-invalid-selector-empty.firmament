@@ -1,0 +1,15 @@
+firmament:
+  version: 1
+
+model:
+  name: m6b_invalid_selector_empty
+  units: mm
+
+ops[2]:
+  -
+    op: sphere
+    id: sphere
+    radius: 3
+  -
+    op: expect_exists
+    target: sphere.edges

@@ -1,0 +1,17 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: cylinder
+    radius: 2
+    height: 3
+  -
+    op: expect_selectable
+    target: cylinder.surface
+    count: 1

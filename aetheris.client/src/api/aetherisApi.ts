@@ -103,6 +103,88 @@ export interface TessellationResponseDto {
     edgePolylines: EdgePolylineDto[];
 }
 
+export interface AnalyticDisplayFaceDomainHintDto {
+    minV: number | null;
+    maxV: number | null;
+}
+
+export interface AnalyticDisplayPlaneGeometryDto {
+    origin: Point3Dto;
+    normal: Vector3Dto;
+    uAxis: Vector3Dto;
+    vAxis: Vector3Dto;
+    outerBoundary: Point3Dto[] | null;
+}
+
+export interface AnalyticDisplayCylinderGeometryDto {
+    origin: Point3Dto;
+    axis: Vector3Dto;
+    xAxis: Vector3Dto;
+    yAxis: Vector3Dto;
+    radius: number;
+}
+
+export interface AnalyticDisplayConeGeometryDto {
+    apex: Point3Dto;
+    axis: Vector3Dto;
+    xAxis: Vector3Dto;
+    yAxis: Vector3Dto;
+    semiAngleRadians: number;
+}
+
+export interface AnalyticDisplaySphereGeometryDto {
+    center: Point3Dto;
+    axis: Vector3Dto;
+    xAxis: Vector3Dto;
+    yAxis: Vector3Dto;
+    radius: number;
+}
+
+export interface AnalyticDisplayTorusGeometryDto {
+    center: Point3Dto;
+    axis: Vector3Dto;
+    xAxis: Vector3Dto;
+    yAxis: Vector3Dto;
+    majorRadius: number;
+    minorRadius: number;
+}
+
+export interface AnalyticDisplayFaceDto {
+    faceId: number;
+    shellId: number;
+    shellRole: 'Outer' | 'InnerVoid' | 'Unknown';
+    surfaceGeometryId: number;
+    surfaceKind: 'Plane' | 'Sphere' | 'Cylinder' | 'Cone' | 'Torus' | string;
+    loopCount: number;
+    domainHint: AnalyticDisplayFaceDomainHintDto | null;
+    planeGeometry: AnalyticDisplayPlaneGeometryDto | null;
+    cylinderGeometry: AnalyticDisplayCylinderGeometryDto | null;
+    coneGeometry: AnalyticDisplayConeGeometryDto | null;
+    sphereGeometry: AnalyticDisplaySphereGeometryDto | null;
+    torusGeometry: AnalyticDisplayTorusGeometryDto | null;
+}
+
+export interface AnalyticDisplayFallbackFaceDto {
+    faceId: number;
+    shellId: number;
+    shellRole: 'Outer' | 'InnerVoid' | 'Unknown';
+    reason: 'MissingFaceBinding' | 'MissingSurfaceGeometry' | 'UnsupportedSurfaceKind' | 'UnsupportedTrim' | string;
+    surfaceKind: string | null;
+    detail: string | null;
+}
+
+export interface AnalyticDisplayPacketDto {
+    bodyId: number;
+    analyticFaces: AnalyticDisplayFaceDto[];
+    fallbackFaces: AnalyticDisplayFallbackFaceDto[];
+}
+
+export interface DisplayPreparationResponseDto {
+    lane: 'analytic-only' | 'mixed-fallback' | 'fallback-only' | string;
+    analyticPacket: AnalyticDisplayPacketDto;
+    tessellationFallback: TessellationResponseDto | null;
+}
+
 export interface PickOptionsDto {
     nearestOnly?: boolean;
     includeBackfaces?: boolean;
@@ -199,6 +281,13 @@ export async function tessellateBody(documentId: string, bodyId: string): Promis
     return request<TessellationResponseDto>(`/api/v1/documents/${documentId}/bodies/${bodyId}/tessellate`, {
         method: 'POST',
         body: JSON.stringify({ options: null }),
+    });
+}
+
+export async function prepareBodyDisplay(documentId: string, bodyId: string): Promise<DisplayPreparationResponseDto> {
+    return request<DisplayPreparationResponseDto>(`/api/v1/documents/${documentId}/bodies/${bodyId}/display/prepare`, {
+        method: 'POST',
+        body: JSON.stringify({ tessellationOptions: null }),
     });
 }
 

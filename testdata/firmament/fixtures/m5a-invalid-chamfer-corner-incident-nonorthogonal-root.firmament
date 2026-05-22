@@ -1,0 +1,24 @@
+firmament:
+  version: 1
+
+model:
+  name: m5a_invalid_chamfer_corner_incident_nonorthogonal_root
+  units: mm
+
+ops[2]:
+  -
+    op: triangular_prism
+    id: base
+    base_width: 10
+    base_depth: 6
+    height: 8
+  -
+    op: chamfer
+    id: corner_pair_break
+    from: base
+    corners[1]:
+      x_max_y_max_z_max
+    corner_edges[2]:
+      x_neg
+      y_neg
+    distance: 1

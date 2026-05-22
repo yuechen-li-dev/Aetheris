@@ -1,0 +1,14 @@
+firmament:
+  version: 1
+
+model:
+  name: cone_invalid_both_radii_zero
+  units: mm
+
+ops[1]:
+  -
+    op: cone
+    id: invalid1
+    bottom_radius: 0
+    top_radius: 0
+    height: 20

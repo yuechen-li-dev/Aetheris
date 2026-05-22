@@ -9,18 +9,19 @@ import {
     getDocumentSummary,
     importStep,
     pickBody,
-    tessellateBody,
+    prepareBodyDisplay,
     translateBody,
     type BooleanOperation,
     type BodyOccurrenceSummaryDto,
     type DiagnosticDto,
     type PickHitDto,
+    type DisplayPreparationResponseDto,
     type TessellationResponseDto,
 } from './api/aetherisApi';
 import { StepImportDropzone } from './components/StepImportDropzone';
 import { Button } from './components/ui/button';
 import { ViewerViewport } from './viewer/ViewerViewport';
-import { mapTessellationToRenderData } from './viewer/tessellationMapper';
+import { buildDisplaySceneData } from './viewer/displaySceneBuilder';
 import { STEP_UPLOAD_LIMIT_BYTES, STEP_UPLOAD_LIMIT_MB, formatMegabytes } from './config/stepUpload';
 
 type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
@@ -43,6 +44,7 @@ function App() {
     const [occurrences, setOccurrences] = useState<BodyOccurrenceSummaryDto[]>([]);
     const [activeBodyId, setActiveBodyId] = useState<string | null>(null);
     const [tessellation, setTessellation] = useState<TessellationResponseDto | null>(null);
+    const [displayPreparation, setDisplayPreparation] = useState<DisplayPreparationResponseDto | null>(null);
     const [status, setStatus] = useState<RequestStatus>('idle');
     const [statusMessage, setStatusMessage] = useState<string>('Ready. Create a document to begin.');
     const [serverStatus, setServerStatus] = useState<ServerStatus>('connecting');
@@ -79,6 +81,7 @@ function App() {
         setActiveBodyId(null);
         setOccurrences([]);
         setTessellation(null);
+        setDisplayPreparation(null);
         setPickStatus('idle');
         setPickMessage('Click in the viewport to run nearest-hit pick.');
         setPickDiagnostics([]);
@@ -161,10 +164,12 @@ function App() {
         setActiveBodyId(selected ?? null);
 
         if (selected) {
-            const tessellated = await tessellateBody(documentId, selected);
-            setTessellation(tessellated);
+            const preparedDisplay = await prepareBodyDisplay(documentId, selected);
+            setDisplayPreparation(preparedDisplay);
+            setTessellation(preparedDisplay.tessellationFallback);
         } else {
             setTessellation(null);
+            setDisplayPreparation(null);
         }
     }, [activeBodyId, documentId]);
 
@@ -210,9 +215,10 @@ function App() {
         }
 
         await runAction('Select active body', async () => {
-            const tessellated = await tessellateBody(documentId, nextBodyId);
+            const preparedDisplay = await prepareBodyDisplay(documentId, nextBodyId);
             setActiveBodyId(nextBodyId);
-            setTessellation(tessellated);
+            setDisplayPreparation(preparedDisplay);
+            setTessellation(preparedDisplay.tessellationFallback);
             setPickStatus('idle');
             setPickMessage('Active body changed. Click in viewport to pick nearest hit.');
             setPickDiagnostics([]);
@@ -245,15 +251,16 @@ function App() {
         });
     }, [activeBodyId, documentId, refreshSummaryAndActiveTessellation, runAction, tx, ty, tz]);
 
-    const handleRefreshTessellation = useCallback(async () => {
+    const handleRefreshDisplay = useCallback(async () => {
         if (!documentId || !activeBodyId) {
             return;
         }
 
         setIsRefreshing(true);
-        await runAction('Refresh tessellation', async () => {
-            const tessellated = await tessellateBody(documentId, activeBodyId);
-            setTessellation(tessellated);
+        await runAction('Refresh display data', async () => {
+            const preparedDisplay = await prepareBodyDisplay(documentId, activeBodyId);
+            setDisplayPreparation(preparedDisplay);
+            setTessellation(preparedDisplay.tessellationFallback);
         });
         setIsRefreshing(false);
     }, [activeBodyId, documentId, runAction]);
@@ -466,7 +473,8 @@ function App() {
         }
     }, [activeBodyId, documentId]);
 
-    const sceneData = useMemo(() => (tessellation ? mapTessellationToRenderData(tessellation) : null), [tessellation]);
+    const displayScene = useMemo(() => buildDisplaySceneData(displayPreparation), [displayPreparation]);
+    const sceneData = displayScene.sceneData;
     const nearestHit = pickHits[0] ?? null;
     const highlightedFaceId = nearestHit?.entityKind === 'Face' ? nearestHit.faceId : null;
     const highlightedEdgeId = nearestHit?.entityKind === 'Edge' ? nearestHit.edgeId : null;
@@ -512,9 +520,9 @@ function App() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() => void handleRefreshTessellation()}
+                                onClick={() => void handleRefreshDisplay()}
                                 disabled={documentStatus !== 'ready' || !activeBodyId || status === 'loading' || isRefreshing}>
-                                Refresh Tessellation
+                                Refresh Display Data
                             </Button>
                         </div>
                         <div className="status-row" role="status" aria-live="polite">
@@ -549,40 +557,31 @@ function App() {
 
             <main className="main-layout">
                 <section className="viewport-column">
-                    <div className="viewport-shell">
-                        <div className="viewport-frame-outline">
-                            <div className="viewport-frame">
-                                <div className="viewport-header">
-                                    <h2 className="section-title viewport-header__title">Viewport</h2>
-                                    <div className="viewport-segmented" role="group" aria-label="Viewport display controls">
-                                        <button
-                                            type="button"
-                                            className={isGridVisible ? 'viewport-segmented__button is-active' : 'viewport-segmented__button'}
-                                            onClick={() => setIsGridVisible((value) => !value)}
-                                            aria-pressed={isGridVisible}>
-                                            GRID
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={isCoordVisible ? 'viewport-segmented__button is-active' : 'viewport-segmented__button'}
-                                            onClick={() => setIsCoordVisible((value) => !value)}
-                                            aria-pressed={isCoordVisible}>
-                                            COORD
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="viewport-canvas-outline">
-                                    <ViewerViewport
-                                        sceneData={sceneData}
-                                        highlightedFaceId={highlightedFaceId}
-                                        highlightedEdgeId={highlightedEdgeId}
-                                        showGrid={isGridVisible}
-                                        showAxisGuide={isCoordVisible}
-                                        onPickRay={(origin, direction) => void handlePickRay(origin, direction)}
-                                    />
-                                </div>
-                            </div>
+                    <div className="viewport-frame">
+                        <div className="viewport-controls" role="group" aria-label="Viewport display controls">
+                            <button
+                                type="button"
+                                className={isGridVisible ? 'viewport-segmented__button is-active' : 'viewport-segmented__button'}
+                                onClick={() => setIsGridVisible((value) => !value)}
+                                aria-pressed={isGridVisible}>
+                                GRID
+                            </button>
+                            <button
+                                type="button"
+                                className={isCoordVisible ? 'viewport-segmented__button is-active' : 'viewport-segmented__button'}
+                                onClick={() => setIsCoordVisible((value) => !value)}
+                                aria-pressed={isCoordVisible}>
+                                COORD
+                            </button>
                         </div>
+                        <ViewerViewport
+                            sceneData={sceneData}
+                            highlightedFaceId={highlightedFaceId}
+                            highlightedEdgeId={highlightedEdgeId}
+                            showGrid={isGridVisible}
+                            showAxisGuide={isCoordVisible}
+                            onPickRay={(origin, direction) => void handlePickRay(origin, direction)}
+                        />
                     </div>
                 </section>
 
@@ -657,6 +656,10 @@ function App() {
                                 {copyHashMessage ? <p>{copyHashMessage}</p> : null}
                                 <p><strong>Definition ID:</strong> {activeOccurrence?.definitionId ?? 'None'}</p>
                                 <p><strong>Occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
+                                <p><strong>Display lane:</strong> {displayPreparation?.lane ?? 'None'}</p>
+                                <p><strong>Render path:</strong> {displayScene.renderPath}</p>
+                                <p><strong>Analytic faces:</strong> {displayPreparation?.analyticPacket.analyticFaces.length ?? 0}</p>
+                                <p><strong>Fallback faces:</strong> {displayPreparation?.analyticPacket.fallbackFaces.length ?? 0}</p>
                                 <p><strong>Face count:</strong> {tessellation?.facePatches.length ?? 0}</p>
                                 <p><strong>Edge count:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
                                 <p><strong>Shell count:</strong> {activeBodyId ? 1 : 0}</p>
@@ -758,6 +761,10 @@ function App() {
                                 <p><strong>Document ID:</strong> {documentId ?? 'None'}</p>
                                 <p><strong>Active occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
                                 <p><strong>Occurrence count:</strong> {bodyIds.length}</p>
+                                <p><strong>Display lane:</strong> {displayPreparation?.lane ?? 'None'}</p>
+                                <p><strong>Render path:</strong> {displayScene.renderPath}</p>
+                                <p><strong>Analytic faces:</strong> {displayPreparation?.analyticPacket.analyticFaces.length ?? 0}</p>
+                                <p><strong>Fallback faces:</strong> {displayPreparation?.analyticPacket.fallbackFaces.length ?? 0}</p>
                                 <p><strong>Face patches:</strong> {tessellation?.facePatches.length ?? 0}</p>
                                 <p><strong>Edge polylines:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
                                 <h3 className="section-title section-title--sub">Pick Diagnostics (active body only)</h3>

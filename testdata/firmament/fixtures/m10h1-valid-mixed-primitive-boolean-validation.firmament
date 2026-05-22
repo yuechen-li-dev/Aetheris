@@ -1,0 +1,38 @@
+firmament:
+  version: 1
+
+model:
+  name: m10h1_valid_mixed
+  units: mm
+
+ops[4]:
+  -
+    op: box
+    id: base
+    size[3]:
+      12
+      12
+      12
+
+  -
+    op: add
+    id: join1
+    to: base
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+
+  -
+    op: box
+    id: cap
+    size[3]:
+      6
+      6
+      6
+
+  -
+    op: expect_exists
+    target: cap

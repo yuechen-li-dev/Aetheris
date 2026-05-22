@@ -1,0 +1,20 @@
+firmament:
+  version: 1
+
+model:
+  name: fl2_thread_helix_test
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: shaft
+    radius: 8
+    height: 40
+
+  -
+    op: helix_thread
+    id: external_thread
+    target: shaft
+    pitch: 1.5
+    depth: 0.8

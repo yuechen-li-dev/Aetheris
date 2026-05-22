@@ -1,0 +1,20 @@
+firmament:
+  version: 1
+model:
+  name: fric_b0_chimera_a_zone_g_box_prism
+  units: mm
+ops[2]:
+  -
+    op: box
+    id: chimera_a_root
+    size[3]: [60, 40, 20]
+  -
+    op: subtract
+    id: zone_g_box_prism
+    from: chimera_a_root
+    with:
+      op: box
+      size[3]: [10, 8, 28]
+    place:
+      on: origin
+      offset[3]: [0, 10, 0]

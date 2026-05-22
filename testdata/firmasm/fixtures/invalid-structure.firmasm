@@ -1,0 +1,15 @@
+{
+  "manifest": {
+    "version": "1"
+  },
+  "assembly": {
+    "name": "invalid_missing_instances",
+    "units": "mm"
+  },
+  "parts": {
+    "base": {
+      "kind": "firmament",
+      "source": "../../firmament/fixtures/m0b-valid-one-op.firmament"
+    }
+  }
+}

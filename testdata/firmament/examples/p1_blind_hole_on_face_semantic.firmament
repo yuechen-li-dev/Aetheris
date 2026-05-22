@@ -1,0 +1,27 @@
+firmament:
+  version: 1
+
+model:
+  name: p1_blind_hole_on_face_semantic
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      40
+      40
+      12
+
+  -
+    op: cylinder
+    id: blind_hole_tool
+    radius: 4
+    height: 8
+    place:
+      on_face: base.top_face
+      offset[3]:
+        0
+        0
+        -8

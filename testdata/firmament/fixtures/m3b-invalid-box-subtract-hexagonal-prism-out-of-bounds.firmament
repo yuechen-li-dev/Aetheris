@@ -1,0 +1,17 @@
+firmament:
+  version: 1
+
+model:
+  name: m3b_invalid_box_subtract_hexagonal_prism_out_of_bounds
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]: [40, 30, 20]
+  -
+    op: subtract
+    id: hex_cut
+    from: base
+    with: { op: hexagonal_prism, across_flats: 60, height: 24 }

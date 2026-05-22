@@ -1,0 +1,15 @@
+# friction-lab candidate syntax only
+# not production Firmament
+candidate:
+  id: placement-blind-hole-face
+  style: semantic
+  setup:
+    base_block:
+      op: box
+      size: [80, 60, 20]
+  placement:
+    blind_hole:
+      face: base_block.top_face
+      from_face_center_xy: [12, -8]
+      diameter: 10
+      depth: 14

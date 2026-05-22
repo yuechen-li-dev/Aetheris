@@ -1,0 +1,29 @@
+# friction-lab candidate syntax only
+# not production Firmament
+candidate:
+  id: placement-bracket-rib
+  style: frame
+  setup:
+    bracket:
+      op: box
+      size: [90, 50, 10]
+    wall:
+      op: box
+      size: [10, 50, 60]
+      on: bracket.back_face
+    rib_frame:
+      from_face: bracket.top_face
+      origin: front_left_corner
+      x_axis: along_length
+      y_axis: along_width
+      z_axis: normal
+  placement:
+    rib_1:
+      type: rib
+      frame: rib_frame
+      base_line_xy:
+        start: [14, 10]
+        end: [14, 40]
+      extrude_height: 35
+      thickness: 6
+      lean_to_face: wall.inner_face

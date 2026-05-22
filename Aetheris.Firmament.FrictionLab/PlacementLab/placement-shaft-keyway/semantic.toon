@@ -1,0 +1,18 @@
+# friction-lab candidate syntax only
+# not production Firmament
+candidate:
+  id: placement-shaft-keyway
+  style: semantic
+  setup:
+    shaft:
+      op: cylinder
+      radius: 18
+      height: 140
+  placement:
+    shaft_keyway:
+      on_shaft: shaft
+      clocking_deg: 0
+      start_z: 20
+      length: 42
+      width: 6
+      depth: 3

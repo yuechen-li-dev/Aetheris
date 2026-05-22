@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Import;
+using Aetheris.Kernel.Core.Judgment;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
@@ -18,10 +19,13 @@ public static class Step242Importer
     private const double TinyCoedgeGapSnapEps = 2.5e-5d;
     private const double AngleUnwrapEps = 1e-8d;
     private const double ContainmentEps = 1e-8d;
+    private const string PlanarCrossingInsideRecoveryCandidate = "planar_crossing_inside_recover_as_inner";
+    private const string PlanarCrossingInsideRejectCandidate = "planar_crossing_inside_reject";
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleCoedgeGapDiagnostic>?> CoedgeGapDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleCylinderProjectionDiagnostic>?> CylinderProjectionDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleTorusProjectionDiagnostic>?> TorusProjectionDiagnosticsSink = new();
+    private static readonly AsyncLocal<ICollection<PlanarMultiBoundJudgmentDiagnostic>?> PlanarMultiBoundJudgmentDiagnosticsSink = new();
 
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
@@ -51,6 +55,13 @@ public static class Step242Importer
         return new TorusProjectionDiagnosticsScope(previous);
     }
 
+    public static IDisposable CapturePlanarMultiBoundJudgmentDiagnostics(ICollection<PlanarMultiBoundJudgmentDiagnostic> sink)
+    {
+        var previous = PlanarMultiBoundJudgmentDiagnosticsSink.Value;
+        PlanarMultiBoundJudgmentDiagnosticsSink.Value = sink;
+        return new PlanarMultiBoundJudgmentDiagnosticsScope(previous);
+    }
+
     public static KernelResult<BrepBody> ImportBody(string stepText)
     {
         var orchestrator = ImportOrchestrator.CreateDefault();
@@ -70,39 +81,66 @@ public static class Step242Importer
 
     internal static KernelResult<BrepBody> ImportExactBrepCore(Step242ParsedDocument document)
     {
-        var brepEntityResult = Step242ImportSharedUtilities.RequireSingleEntityByName(
-            document,
-            entityName: "MANIFOLD_SOLID_BREP",
-            missingMessage: "Missing MANIFOLD_SOLID_BREP root entity.",
-            missingSource: "Importer.TopologyRoot",
-            multipleMessage: "Multiple MANIFOLD_SOLID_BREP roots are unsupported in M23 import subset.",
-            multipleSource: "Importer.SingleSolid");
-        if (!brepEntityResult.IsSuccess)
+        var rigidRootClassification = Step242RigidRootClassifier.Classify(document);
+        if (rigidRootClassification.Kind == Step242RigidRootClassificationKind.MissingRigidRoot)
         {
-            return KernelResult<BrepBody>.Failure(brepEntityResult.Diagnostics);
+            return Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>(
+                "Missing MANIFOLD_SOLID_BREP or BREP_WITH_VOIDS root entity.",
+                "Importer.TopologyRoot");
         }
 
-        var brepEntity = brepEntityResult.Value;
-
-        var shellRefResult = Step242SubsetDecoder.ReadReference(brepEntity, 1, "MANIFOLD_SOLID_BREP shell");
-        if (!shellRefResult.IsSuccess)
+        if (rigidRootClassification.Kind == Step242RigidRootClassificationKind.AssemblyLikeMultipleRigidRoots)
         {
-            return KernelResult<BrepBody>.Failure(shellRefResult.Diagnostics);
+            return Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>(
+                $"STEP input is assembly-like: detected {rigidRootClassification.RigidRoots.Count} exact BRep rigid roots (MANIFOLD_SOLID_BREP/BREP_WITH_VOIDS). Single-part exact BRep import accepts exactly one rigid root; route this input through assembly extraction/import.",
+                "Importer.AssemblyLike.StepMultiRoot");
         }
 
-        var shellEntityResult = document.TryGetEntity(shellRefResult.Value.TargetId, "CLOSED_SHELL");
-        if (!shellEntityResult.IsSuccess)
+        var brepEntity = rigidRootClassification.SingleRigidRoot;
+        var shellRoleDiagnostics = new List<KernelDiagnostic>();
+        var shellFaceEntityIds = new List<IReadOnlyList<int>>();
+
+        var isBrepWithVoids = string.Equals(brepEntity.Name, "BREP_WITH_VOIDS", StringComparison.OrdinalIgnoreCase);
+        var outerShellRefResult = Step242SubsetDecoder.ReadReference(brepEntity, 1, isBrepWithVoids ? "BREP_WITH_VOIDS outer shell" : "MANIFOLD_SOLID_BREP shell");
+        if (!outerShellRefResult.IsSuccess)
         {
-            return KernelResult<BrepBody>.Failure(shellEntityResult.Diagnostics);
+            return KernelResult<BrepBody>.Failure(outerShellRefResult.Diagnostics);
         }
 
-        var faceRefsResult = Step242SubsetDecoder.ReadReferenceList(shellEntityResult.Value, 1, "CLOSED_SHELL faces");
-        if (!faceRefsResult.IsSuccess)
+        var outerShellFacesResult = ReadShellFaceIds(document, outerShellRefResult.Value.TargetId, "outer", shellRoleDiagnostics);
+        if (!outerShellFacesResult.IsSuccess)
         {
-            return KernelResult<BrepBody>.Failure(faceRefsResult.Diagnostics);
+            return KernelResult<BrepBody>.Failure(outerShellFacesResult.Diagnostics);
         }
 
-        var faceEntityIds = faceRefsResult.Value.Select(r => r.TargetId).ToList();
+        shellFaceEntityIds.Add(outerShellFacesResult.Value);
+
+        if (isBrepWithVoids)
+        {
+            var voidShellRefsResult = Step242SubsetDecoder.ReadReferenceList(brepEntity, 2, "BREP_WITH_VOIDS void shells");
+            if (!voidShellRefsResult.IsSuccess)
+            {
+                return KernelResult<BrepBody>.Failure(voidShellRefsResult.Diagnostics);
+            }
+
+            if (voidShellRefsResult.Value.Count == 0)
+            {
+                return Step242ImportSharedUtilities.ValidationFailure<BrepBody>("BREP_WITH_VOIDS must reference at least one void shell.", "Importer.TopologyRoot.BrepWithVoids");
+            }
+
+            foreach (var voidShellRef in voidShellRefsResult.Value)
+            {
+                var voidShellFacesResult = ReadShellFaceIds(document, voidShellRef.TargetId, "void", shellRoleDiagnostics);
+                if (!voidShellFacesResult.IsSuccess)
+                {
+                    return KernelResult<BrepBody>.Failure(voidShellFacesResult.Diagnostics);
+                }
+
+                shellFaceEntityIds.Add(voidShellFacesResult.Value);
+            }
+        }
+
+        var faceEntityIds = shellFaceEntityIds.SelectMany(ids => ids).ToList();
         AppendSupportedOrphanPlanarFaces(document, faceEntityIds);
 
         var builder = new TopologyBuilder();
@@ -116,6 +154,7 @@ public static class Step242Importer
         var nextCurveGeometryId = 1;
         var nextSurfaceGeometryId = 1;
         var faceIds = new List<FaceId>();
+        var faceEntityToFaceId = new Dictionary<int, FaceId>();
 
         foreach (var faceEntityId in faceEntityIds)
         {
@@ -214,6 +253,7 @@ public static class Step242Importer
                 }
 
                 _ = boundOrientationResult.Value;
+                var isDeclaredOuter = string.Equals(boundEntity.Name, "FACE_OUTER_BOUND", StringComparison.OrdinalIgnoreCase);
 
                 var loopEntityResult = document.TryGetEntity(loopRefResult.Value.TargetId);
                 if (!loopEntityResult.IsSuccess)
@@ -391,7 +431,7 @@ public static class Step242Importer
                     hasDisconnectedCoedgeGap = true;
                 }
 
-                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap));
+                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap, isDeclaredOuter));
             }
 
             var classifyResult = ClassifyAndNormalizeFaceLoops(faceEntity.Id, loopData, bindSurfaceResult.Value.SurfaceGeometry);
@@ -410,6 +450,7 @@ public static class Step242Importer
 
             var faceId = builder.AddFace(faceLoopIds);
             faceIds.Add(faceId);
+            faceEntityToFaceId[faceEntityId] = faceId;
 
             var (surfaceGeometryId, surfaceGeometry) = bindSurfaceResult.Value;
             nextSurfaceGeometryId++;
@@ -422,17 +463,95 @@ public static class Step242Importer
             builder.AddCoedge(coedge);
         }
 
-        var shellId = builder.AddShell(faceIds);
-        builder.AddBody([shellId]);
+        var shellIds = new List<ShellId>(shellFaceEntityIds.Count);
+        var assignedFaceIds = new HashSet<FaceId>();
+        var referencedFaceIds = new HashSet<FaceId>(
+            shellFaceEntityIds
+                .SelectMany(faceSet => faceSet)
+                .Where(faceEntityToFaceId.ContainsKey)
+                .Select(faceEntityId => faceEntityToFaceId[faceEntityId]));
+        foreach (var shellFaceSet in shellFaceEntityIds)
+        {
+            var shellFaceIds = new List<FaceId>(shellFaceSet.Count);
+            foreach (var shellFaceEntityId in shellFaceSet)
+            {
+                if (!faceEntityToFaceId.TryGetValue(shellFaceEntityId, out var shellFaceId))
+                {
+                    return Failure($"Shell references unknown face entity #{shellFaceEntityId}.", "Importer.TopologyRoot.BrepWithVoids");
+                }
 
-        var body = new BrepBody(builder.Model, geometry, bindings, vertexMap.Values.ToDictionary(entry => entry.VertexId, entry => entry.Point));
+                shellFaceIds.Add(shellFaceId);
+                assignedFaceIds.Add(shellFaceId);
+            }
+
+            if (shellIds.Count == 0)
+            {
+                foreach (var faceId in faceIds)
+                {
+                    if (assignedFaceIds.Contains(faceId) || referencedFaceIds.Contains(faceId))
+                    {
+                        continue;
+                    }
+
+                    shellFaceIds.Add(faceId);
+                    assignedFaceIds.Add(faceId);
+                }
+            }
+
+            shellIds.Add(builder.AddShell(shellFaceIds));
+        }
+
+        builder.AddBody(shellIds);
+
+        BrepBodyShellRepresentation? shellRepresentation = null;
+        if (shellIds.Count > 0)
+        {
+            shellRepresentation = new BrepBodyShellRepresentation(shellIds[0], shellIds.Skip(1).ToArray());
+        }
+
+        var body = new BrepBody(builder.Model, geometry, bindings, vertexMap.Values.ToDictionary(entry => entry.VertexId, entry => entry.Point), shellRepresentation: shellRepresentation);
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
         if (!validation.IsSuccess)
         {
             return KernelResult<BrepBody>.Failure(validation.Diagnostics);
         }
 
-        return KernelResult<BrepBody>.Success(body, validation.Diagnostics);
+        return KernelResult<BrepBody>.Success(body, validation.Diagnostics.Concat(shellRoleDiagnostics).ToArray());
+    }
+
+    private static KernelResult<IReadOnlyList<int>> ReadShellFaceIds(Step242ParsedDocument document, int shellEntityId, string role, ICollection<KernelDiagnostic> diagnostics)
+    {
+        var shellEntityResult = document.TryGetEntity(shellEntityId);
+        if (!shellEntityResult.IsSuccess)
+        {
+            return KernelResult<IReadOnlyList<int>>.Failure(shellEntityResult.Diagnostics);
+        }
+
+        var shellEntity = shellEntityResult.Value;
+        if (string.Equals(shellEntity.Name, "ORIENTED_CLOSED_SHELL", StringComparison.OrdinalIgnoreCase))
+        {
+            var orientedRefResult = Step242SubsetDecoder.ReadReference(shellEntity, 1, "ORIENTED_CLOSED_SHELL shell");
+            if (!orientedRefResult.IsSuccess)
+            {
+                return KernelResult<IReadOnlyList<int>>.Failure(orientedRefResult.Diagnostics);
+            }
+
+            diagnostics.Add(new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Info, $"Resolved oriented {role} shell reference #{shellEntity.Id} -> #{orientedRefResult.Value.TargetId}.", "Importer.TopologyRoot.BrepWithVoids"));
+            return ReadShellFaceIds(document, orientedRefResult.Value.TargetId, role, diagnostics);
+        }
+
+        if (!string.Equals(shellEntity.Name, "CLOSED_SHELL", StringComparison.OrdinalIgnoreCase))
+        {
+            return Step242ImportSharedUtilities.NotImplementedFailure<IReadOnlyList<int>>($"Unsupported {role} shell entity '{shellEntity.Name}' (expected CLOSED_SHELL or ORIENTED_CLOSED_SHELL).", "Importer.TopologyRoot.BrepWithVoids");
+        }
+
+        var faceRefsResult = Step242SubsetDecoder.ReadReferenceList(shellEntity, 1, $"CLOSED_SHELL {role} faces");
+        if (!faceRefsResult.IsSuccess)
+        {
+            return KernelResult<IReadOnlyList<int>>.Failure(faceRefsResult.Diagnostics);
+        }
+
+        return KernelResult<IReadOnlyList<int>>.Success(faceRefsResult.Value.Select(r => r.TargetId).ToArray());
     }
 
     private static void AppendSupportedOrphanPlanarFaces(Step242ParsedDocument document, IList<int> faceEntityIds)
@@ -859,6 +978,15 @@ public static class Step242Importer
             if (!surfaceResult.IsSuccess)
             {
                 return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(surfaceResult.Diagnostics);
+            }
+
+            var recoveryDecision = Step242BsplineSurfaceRecoveryLane.Decide(surfaceToDecode, surfaceResult.Value);
+            if (string.Equals(recoveryDecision.CandidateName, "analytic_cylinder", StringComparison.Ordinal)
+                && recoveryDecision.RecoveredSurface is not null)
+            {
+                return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((
+                    geometryId,
+                    recoveryDecision.RecoveredSurface));
             }
 
             return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((
@@ -1385,6 +1513,7 @@ public static class Step242Importer
         }
 
         var containedInners = new List<PlanarLoopInfo>();
+        var declaredOuterCount = infosWithSamples.Count(i => i.Info.Loop.IsDeclaredOuter);
 
         foreach (var candidate in infosWithSamples.Where(i => i.Info.Loop.LoopId != outer.Info.Loop.LoopId))
         {
@@ -1403,6 +1532,14 @@ public static class Step242Importer
             if (double.Abs(candidate.Info.SignedArea) <= areaTolerance * 4d
                 || IsPointNearPolygonEdge(candidate.SamplePoint, outer.Info.ProjectedPoints, containmentTolerance * 4d))
             {
+                continue;
+            }
+
+            if (intersectsOuter
+                && containment.OutsideCount == 0
+                && TryRecoverPlanarCrossingInnerWithJudgmentEngine(candidate.Info, outer.Info, containment, intersectionCount, containmentTolerance, loops.Count, declaredOuterCount))
+            {
+                containedInners.Add(candidate.Info);
                 continue;
             }
 
@@ -1827,6 +1964,93 @@ public static class Step242Importer
             ? $"Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}."
             : $"Inner loop could not be normalized: {reason}. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}.";
         return new ContainmentFailure(message, source);
+    }
+
+    private static bool TryRecoverPlanarCrossingInnerWithJudgmentEngine(
+        PlanarLoopInfo inner,
+        PlanarLoopInfo outer,
+        ContainmentEvaluation containment,
+        int intersectionCount,
+        double containmentTolerance,
+        int loopCount,
+        int declaredOuterCount)
+    {
+        var context = BuildPlanarCrossingInsideRecoveryContext(inner, outer, containment, intersectionCount, containmentTolerance, loopCount, declaredOuterCount);
+        var engine = new JudgmentEngine<PlanarCrossingInsideRecoveryContext>();
+        var result = engine.Evaluate(context, BuildPlanarCrossingInsideRecoveryCandidates());
+        var selected = result.Selection?.Candidate.Name ?? PlanarCrossingInsideRejectCandidate;
+        ReportPlanarMultiBoundJudgmentDiagnostic(new PlanarMultiBoundJudgmentDiagnostic(
+            FaceLoopCount: context.LoopCount,
+            OuterLoopId: context.OuterLoopId,
+            InnerLoopId: context.InnerLoopId,
+            OuterArea: context.OuterArea,
+            InnerArea: context.InnerArea,
+            AreaRatio: context.AreaRatio,
+            ContainedVertexCount: context.ContainedVertexCount,
+            VertexCount: context.VertexCount,
+            IntersectionCount: context.IntersectionCount,
+            MinDistanceToOuter: context.MinDistanceToOuter,
+            HasDisconnectedCoedgeGap: context.HasDisconnectedCoedgeGap,
+            HasSingleDeclaredOuterLoop: context.HasSingleDeclaredOuterLoop,
+            SelectedCandidate: selected,
+            CandidateRejections: string.Join(" | ", result.Rejections.Select(rejection => $"{rejection.CandidateName}:{rejection.Reason}"))));
+
+        return string.Equals(selected, PlanarCrossingInsideRecoveryCandidate, StringComparison.Ordinal);
+    }
+
+    private static PlanarCrossingInsideRecoveryContext BuildPlanarCrossingInsideRecoveryContext(
+        PlanarLoopInfo inner,
+        PlanarLoopInfo outer,
+        ContainmentEvaluation containment,
+        int intersectionCount,
+        double containmentTolerance,
+        int loopCount,
+        int declaredOuterCount)
+    {
+        var outerArea = double.Abs(outer.SignedArea);
+        var innerArea = double.Abs(inner.SignedArea);
+        var areaRatio = outerArea <= AreaEps ? 0d : innerArea / outerArea;
+        var hasDisconnectedCoedgeGap = inner.Loop.HasDisconnectedCoedgeGap || outer.Loop.HasDisconnectedCoedgeGap;
+        return new PlanarCrossingInsideRecoveryContext(
+            InnerLoopId: inner.Loop.LoopId.Value,
+            OuterLoopId: outer.Loop.LoopId.Value,
+            LoopCount: loopCount,
+            InnerArea: innerArea,
+            OuterArea: outerArea,
+            AreaRatio: areaRatio,
+            IntersectionCount: intersectionCount,
+            ContainedVertexCount: containment.VertexCount - containment.OutsideCount,
+            VertexCount: containment.VertexCount,
+            MinDistanceToOuter: containment.MinDistanceToOuter,
+            HasDisconnectedCoedgeGap: hasDisconnectedCoedgeGap,
+            HasSingleDeclaredOuterLoop: declaredOuterCount == 1,
+            IsNearBoundaryContact: containment.MinDistanceToOuter <= containmentTolerance * 8d);
+    }
+
+    private static IReadOnlyList<JudgmentCandidate<PlanarCrossingInsideRecoveryContext>> BuildPlanarCrossingInsideRecoveryCandidates()
+    {
+        return
+        [
+            new JudgmentCandidate<PlanarCrossingInsideRecoveryContext>(
+                Name: PlanarCrossingInsideRecoveryCandidate,
+                IsAdmissible: When.All<PlanarCrossingInsideRecoveryContext>(
+                    context => context.LoopCount >= 2,
+                    context => context.IntersectionCount > 0,
+                    context => context.ContainedVertexCount == context.VertexCount,
+                    context => !context.HasDisconnectedCoedgeGap,
+                    context => context.AreaRatio > 0d && context.AreaRatio < 0.98d,
+                    context => context.IsNearBoundaryContact || context.HasSingleDeclaredOuterLoop),
+                Score: context => (100d - context.IntersectionCount) + ((1d - context.AreaRatio) * 10d),
+                RejectionReason: context =>
+                    $"requires bounded planar crossing-all-inside recovery facts (loopCount={context.LoopCount}, intersections={context.IntersectionCount}, contained={context.ContainedVertexCount}/{context.VertexCount}, disconnected={context.HasDisconnectedCoedgeGap}, areaRatio={context.AreaRatio:E6}, nearBoundary={context.IsNearBoundaryContact}, singleDeclaredOuter={context.HasSingleDeclaredOuterLoop})",
+                TieBreakerPriority: 0),
+            new JudgmentCandidate<PlanarCrossingInsideRecoveryContext>(
+                Name: PlanarCrossingInsideRejectCandidate,
+                IsAdmissible: _ => true,
+                Score: _ => -1d,
+                RejectionReason: _ => "bounded planar crossing-all-inside recovery candidate is not admissible",
+                TieBreakerPriority: 1)
+        ];
     }
 
     private static ContainmentEvaluation EvaluateContainment(
@@ -2862,6 +3086,12 @@ public static class Step242Importer
         sink?.Add(diagnostic);
     }
 
+    private static void ReportPlanarMultiBoundJudgmentDiagnostic(PlanarMultiBoundJudgmentDiagnostic diagnostic)
+    {
+        var sink = PlanarMultiBoundJudgmentDiagnosticsSink.Value;
+        sink?.Add(diagnostic);
+    }
+
     private static (double Gap3d, double Gap2d, LoopCoedgeGapClassification Classification) ClassifyCoedgeGap(
         Point3D previousEnd,
         Point3D nextStart,
@@ -2966,6 +3196,22 @@ public static class Step242Importer
         double InitialSignedArea,
         bool FullMajorSpanNearConstantMinorCandidate);
 
+    public sealed record PlanarMultiBoundJudgmentDiagnostic(
+        int FaceLoopCount,
+        int OuterLoopId,
+        int InnerLoopId,
+        double OuterArea,
+        double InnerArea,
+        double AreaRatio,
+        int ContainedVertexCount,
+        int VertexCount,
+        int IntersectionCount,
+        double MinDistanceToOuter,
+        bool HasDisconnectedCoedgeGap,
+        bool HasSingleDeclaredOuterLoop,
+        string SelectedCandidate,
+        string CandidateRejections);
+
     private enum CylinderProjectionDegeneracy
     {
         None = 0,
@@ -3056,6 +3302,14 @@ public static class Step242Importer
         }
     }
 
+    private sealed class PlanarMultiBoundJudgmentDiagnosticsScope(ICollection<PlanarMultiBoundJudgmentDiagnostic>? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            PlanarMultiBoundJudgmentDiagnosticsSink.Value = previous;
+        }
+    }
+
     private static KernelResult<T> LoopRoleFailure<T>(string message, string source) =>
         KernelResult<T>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source)]);
 
@@ -3077,8 +3331,8 @@ public static class Step242Importer
     private static KernelResult<double> FailureCircleTrimAngle(string message, string source) =>
         Step242ImportSharedUtilities.ValidationFailure<double>(message, source);
 
-    private static KernelResult<ParameterInterval> FailureEllipseTrim(string message, string source) =>
-        Step242ImportSharedUtilities.ValidationFailure<ParameterInterval>(message, source);
+    private static KernelResult<ParameterInterval> FailureEllipseTrim(string message, string? source) =>
+        Step242ImportSharedUtilities.ValidationFailure<ParameterInterval>(message, source ?? "Importer.Geometry.EllipseTrim");
 
     private static KernelResult<double> FailureEllipseTrimAngle(string message, string source) =>
         Step242ImportSharedUtilities.ValidationFailure<double>(message, source);
@@ -3088,7 +3342,7 @@ public static class Step242Importer
 
     private static string SourceFor(int _entityId, string stableSource) => stableSource;
 
-    private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples, bool HasDisconnectedCoedgeGap = false);
+    private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples, bool HasDisconnectedCoedgeGap = false, bool IsDeclaredOuter = false);
 
     private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea);
 
@@ -3101,6 +3355,21 @@ public static class Step242Importer
     private sealed record ContainmentEvaluation(int OutsideCount, int VertexCount, double MinDistanceToOuter);
 
     private sealed record ContainmentFailure(string Message, string Source);
+
+    private sealed record PlanarCrossingInsideRecoveryContext(
+        int InnerLoopId,
+        int OuterLoopId,
+        int LoopCount,
+        double InnerArea,
+        double OuterArea,
+        double AreaRatio,
+        int IntersectionCount,
+        int ContainedVertexCount,
+        int VertexCount,
+        double MinDistanceToOuter,
+        bool HasDisconnectedCoedgeGap,
+        bool HasSingleDeclaredOuterLoop,
+        bool IsNearBoundaryContact);
 
     private readonly record struct UvPoint(double X, double Y)
     {

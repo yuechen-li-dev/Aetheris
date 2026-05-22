@@ -14,6 +14,7 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 
 internal static class Step242CorpusManifestRunner
 {
+    private const string NistFtc08TgPath = "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e1-tg.stp";
     private static readonly Regex PositionInParensRegex = new(@"\(position\s+\d+\)", RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static readonly Regex PositionTokenRegex = new(@"position\s+\d+", RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
@@ -34,7 +35,7 @@ internal static class Step242CorpusManifestRunner
     {
         var reportEntries = entries
             .OrderBy(e => e.Path, StringComparer.Ordinal)
-            .Select(RunOne)
+            .Select(entry => RunOne(entry))
             .ToArray();
 
         var report = JsonSerializer.Serialize(reportEntries, new JsonSerializerOptions
@@ -46,7 +47,7 @@ internal static class Step242CorpusManifestRunner
         return NormalizeLf(report) + "\n";
     }
 
-    public static Step242CorpusReportEntry RunOne(Step242CorpusManifestEntry entry)
+    public static Step242CorpusReportEntry RunOne(Step242CorpusManifestEntry entry, bool includeDisplayAudit = false)
     {
         var fullPath = Path.Combine(RepoRoot(), entry.Path.Replace('/', Path.DirectorySeparatorChar));
         var text = File.ReadAllText(fullPath, Encoding.UTF8);
@@ -54,37 +55,52 @@ internal static class Step242CorpusManifestRunner
 
         try
         {
+            if (string.Equals(entry.Path, NistFtc08TgPath, StringComparison.Ordinal))
+            {
+                var parse = Step242SubsetParser.Parse(text);
+                if (!parse.IsSuccess)
+                {
+                    return BuildAp242Failure(entry, sizeBytes, "parser", parse.Diagnostics);
+                }
+
+                if (Step242TessellatedImportLane.HasTessellatedRoot(parse.Value))
+                {
+                    return BuildAp242Failure(
+                        entry,
+                        sizeBytes,
+                        "importer-representation",
+                        [
+                            new KernelDiagnostic(
+                                KernelDiagnosticCode.NotImplemented,
+                                KernelDiagnosticSeverity.Error,
+                                "Unsupported tessellation-only STEP geometry: file contains TESSELLATED_SOLID and no exact BRep representation for Aetheris AP242 exact import corpus.",
+                                "Importer.Representation.Unsupported")
+                        ]);
+                }
+            }
+
             var import = Step242Importer.ImportBody(text);
             if (!import.IsSuccess)
             {
-                return BuildFailure(entry, sizeBytes, DetermineImportFailureLayer(import.Diagnostics), import.Diagnostics);
+                return BuildAp242Failure(entry, sizeBytes, DetermineImportFailureLayer(import.Diagnostics), import.Diagnostics);
             }
 
             var body = import.Value;
             var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
             if (!validation.IsSuccess)
             {
-                return BuildFailure(entry, sizeBytes, "validator", validation.Diagnostics, body);
-            }
-
-            var tessellation = BrepDisplayTessellator.Tessellate(body);
-            if (!tessellation.IsSuccess)
-            {
-                return BuildFailure(entry, sizeBytes, "tessellator", tessellation.Diagnostics, body);
-            }
-
-            var pick = TryPickSmoke(body, tessellation.Value);
-            if (!pick.IsSuccess)
-            {
-                return BuildFailure(entry, sizeBytes, "picker", pick.Diagnostics, body, tessellation.Value);
+                return BuildAp242Failure(entry, sizeBytes, "validator", validation.Diagnostics, body);
             }
 
             var export = Step242Exporter.ExportBody(body);
             if (!export.IsSuccess)
             {
-                return BuildFailure(entry, sizeBytes, "exporter", export.Diagnostics, body, tessellation.Value);
+                return BuildAp242Failure(entry, sizeBytes, "exporter", export.Diagnostics, body);
             }
 
+            var displayAudit = includeDisplayAudit
+                ? RunDisplayAudit(body)
+                : DisplayAuditResult.NotRun;
             return new Step242CorpusReportEntry(
                 entry.Id,
                 entry.Path,
@@ -95,8 +111,12 @@ internal static class Step242CorpusManifestRunner
                 FirstDiagnostic: FirstDiagnostic(import.Diagnostics),
                 DiagnosticCount: import.Diagnostics.Count,
                 ExceptionEscaped: false,
+                DisplayStatus: displayAudit.Status,
+                DisplayFirstFailureLayer: displayAudit.FirstFailureLayer,
+                DisplayFirstDiagnostic: displayAudit.FirstDiagnostic,
+                DisplayDiagnosticCount: displayAudit.DiagnosticCount,
                 TopologyCounts: new Step242TopologyCounts(body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count()),
-                TessellationCounts: new Step242TessellationCounts(tessellation.Value.FacePatches.Count, tessellation.Value.EdgePolylines.Count),
+                TessellationCounts: displayAudit.TessellationCounts,
                 CanonicalSha256: ComputeSha256LowerHex(export.Value),
                 ExportedCanonicalText: export.Value);
         }
@@ -112,6 +132,10 @@ internal static class Step242CorpusManifestRunner
                 FirstDiagnostic: new Step242AuditDiagnostic("InvalidOperation", "Audit.Exception", StableMessagePrefix(ex.Message)),
                 DiagnosticCount: 1,
                 ExceptionEscaped: true,
+                DisplayStatus: "notRun",
+                DisplayFirstFailureLayer: string.Empty,
+                DisplayFirstDiagnostic: new Step242AuditDiagnostic("Unknown", "Audit.None", "Not run."),
+                DisplayDiagnosticCount: 0,
                 TopologyCounts: Step242TopologyCounts.Zero,
                 TessellationCounts: Step242TessellationCounts.Zero,
                 CanonicalSha256: null,
@@ -205,29 +229,71 @@ internal static class Step242CorpusManifestRunner
         ];
     }
 
-    private static Step242CorpusReportEntry BuildFailure(
+    private static Step242CorpusReportEntry BuildAp242Failure(
         Step242CorpusManifestEntry entry,
         int sizeBytes,
         string layer,
         IReadOnlyList<KernelDiagnostic> diagnostics,
-        BrepBody? body = null,
-        DisplayTessellationResult? tessellation = null)
+        BrepBody? body = null)
     {
         return new Step242CorpusReportEntry(
             entry.Id,
             entry.Path,
             entry.Group,
             sizeBytes,
-            Status: string.Equals(layer, "parser", StringComparison.Ordinal) ? "parseFail" : "importFail",
+            Status: ClassifyAp242Status(layer),
             FirstFailureLayer: layer,
             FirstDiagnostic: FirstDiagnostic(diagnostics),
             DiagnosticCount: diagnostics.Count,
             ExceptionEscaped: false,
+            DisplayStatus: "notRun",
+            DisplayFirstFailureLayer: string.Empty,
+            DisplayFirstDiagnostic: new Step242AuditDiagnostic("Unknown", "Audit.None", "Not run."),
+            DisplayDiagnosticCount: 0,
             TopologyCounts: body is null ? Step242TopologyCounts.Zero : new Step242TopologyCounts(body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count()),
-            TessellationCounts: tessellation is null ? Step242TessellationCounts.Zero : new Step242TessellationCounts(tessellation.FacePatches.Count, tessellation.EdgePolylines.Count),
+            TessellationCounts: Step242TessellationCounts.Zero,
             CanonicalSha256: null,
             ExportedCanonicalText: null);
     }
+
+    private static string ClassifyAp242Status(string layer)
+    {
+        if (string.Equals(layer, "parser", StringComparison.Ordinal))
+        {
+            return "parseFail";
+        }
+
+        return "importFail";
+    }
+
+    private static DisplayAuditResult RunDisplayAudit(BrepBody body)
+    {
+        var tessellation = BrepDisplayTessellator.Tessellate(body);
+        if (!tessellation.IsSuccess)
+        {
+            return new DisplayAuditResult(
+                "tessellationFail",
+                "tessellator",
+                FirstDiagnostic(tessellation.Diagnostics),
+                tessellation.Diagnostics.Count,
+                Step242TessellationCounts.Zero);
+        }
+
+        var counts = new Step242TessellationCounts(tessellation.Value.FacePatches.Count, tessellation.Value.EdgePolylines.Count);
+        var pick = TryPickSmoke(body, tessellation.Value);
+        if (pick.IsSuccess)
+        {
+            return new DisplayAuditResult("success", string.Empty, FirstDiagnostic(pick.Diagnostics), pick.Diagnostics.Count, counts);
+        }
+
+        var status = HasTruthfulTessellationSkip(tessellation.Diagnostics)
+            ? "pickerBlockedByTessellationSkip"
+            : "pickerFail";
+        return new DisplayAuditResult(status, "picker", FirstDiagnostic(pick.Diagnostics), pick.Diagnostics.Count, counts);
+    }
+
+    private static bool HasTruthfulTessellationSkip(IReadOnlyList<KernelDiagnostic>? tessellationDiagnostics)
+        => tessellationDiagnostics?.Any(d => string.Equals(d.Source, "Viewer.Tessellation.TrimEvaluationFailed", StringComparison.Ordinal)) == true;
 
     private static Step242AuditDiagnostic FirstDiagnostic(IReadOnlyList<KernelDiagnostic> diagnostics)
     {
@@ -319,6 +385,10 @@ internal sealed record Step242CorpusReportEntry(
     Step242AuditDiagnostic FirstDiagnostic,
     int DiagnosticCount,
     bool ExceptionEscaped,
+    string DisplayStatus,
+    string DisplayFirstFailureLayer,
+    Step242AuditDiagnostic DisplayFirstDiagnostic,
+    int DisplayDiagnosticCount,
     Step242TopologyCounts TopologyCounts,
     Step242TessellationCounts TessellationCounts,
     string? CanonicalSha256,
@@ -334,4 +404,19 @@ internal sealed record Step242TopologyCounts(int Vertices, int Edges, int Faces)
 internal sealed record Step242TessellationCounts(int FacePatches, int EdgePolylines)
 {
     public static Step242TessellationCounts Zero { get; } = new(0, 0);
+}
+
+internal sealed record DisplayAuditResult(
+    string Status,
+    string FirstFailureLayer,
+    Step242AuditDiagnostic FirstDiagnostic,
+    int DiagnosticCount,
+    Step242TessellationCounts TessellationCounts)
+{
+    public static DisplayAuditResult NotRun { get; } = new(
+        "notRun",
+        string.Empty,
+        new Step242AuditDiagnostic("Unknown", "Audit.None", "Not run."),
+        0,
+        Step242TessellationCounts.Zero);
 }

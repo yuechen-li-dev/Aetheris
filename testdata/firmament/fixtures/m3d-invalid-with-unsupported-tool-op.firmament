@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+
+model:
+  name: m3d-invalid-tool
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      8
+      8
+      8
+
+  -
+    op: add
+    id: bad_tool
+    to: base
+    with:
+      op: add

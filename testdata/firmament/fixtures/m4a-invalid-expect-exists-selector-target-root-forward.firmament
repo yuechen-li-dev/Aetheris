@@ -1,0 +1,18 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[2]:
+  -
+    op: expect_exists
+    target: later.top_face
+  -
+    op: box
+    id: later
+    size[3]:
+      1
+      1
+      1

@@ -1,0 +1,36 @@
+{
+  "manifest": {
+    "version": "1"
+  },
+  "assembly": {
+    "name": "native_demo",
+    "units": "mm"
+  },
+  "parts": {
+    "base": {
+      "kind": "firmament",
+      "source": "../../firmament/fixtures/m0b-valid-one-op.firmament"
+    },
+    "cap": {
+      "kind": "firmament",
+      "source": "../../firmament/fixtures/m1a-valid-sphere.firmament"
+    }
+  },
+  "instances": [
+    {
+      "id": "base_1",
+      "part": "base",
+      "transform": {
+        "translate": [0, 0, 0]
+      }
+    },
+    {
+      "id": "cap_1",
+      "part": "cap",
+      "transform": {
+        "translate": [25, 0, 0],
+        "rotate_deg_xyz": [0, 0, 45]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+firmament:
+  version: 1
+
+model:
+  name: p2_invalid_pattern_source_primitive
+  units: mm
+
+ops[3]:
+  -
+    op: cylinder
+    id: hole_marker_1
+    radius: 2
+    height: 8
+
+  -
+    op: pattern_linear
+    source: hole_marker_1
+    count: 2
+    step[3]:
+      10
+      0
+      0
+
+  -
+    op: expect_exists
+    target: hole_marker_1__lin2

@@ -1,0 +1,165 @@
+firmament:
+  version: 1
+
+model:
+  name: nist_ctc01_attempt1_cp3
+  units: mm
+
+ops[11]:
+  -
+    op: box
+    id: base
+    size[3]:
+      800
+      450
+      100
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -100
+  -
+    op: subtract
+    id: major_center_bore
+    from: base
+    with:
+      op: cylinder
+      radius: 50
+      height: 120
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -110
+  -
+    op: subtract
+    id: blind_hole_nw
+    from: major_center_bore
+    with:
+      op: cylinder
+      radius: 25
+      height: 300
+    place:
+      on: origin
+      offset[3]:
+        -150
+        100
+        -260
+  -
+    op: subtract
+    id: blind_hole_ne
+    from: blind_hole_nw
+    with:
+      op: cylinder
+      radius: 25
+      height: 300
+    place:
+      on: origin
+      offset[3]:
+        150
+        100
+        -260
+  -
+    op: subtract
+    id: blind_hole_sw
+    from: blind_hole_ne
+    with:
+      op: cylinder
+      radius: 25
+      height: 300
+    place:
+      on: origin
+      offset[3]:
+        -150
+        -100
+        -260
+  -
+    op: subtract
+    id: blind_hole_se
+    from: blind_hole_sw
+    with:
+      op: cylinder
+      radius: 25
+      height: 300
+    place:
+      on: origin
+      offset[3]:
+        150
+        -100
+        -260
+  -
+    op: subtract
+    id: through_hole_w
+    from: blind_hole_se
+    with:
+      op: cylinder
+      radius: 12.5
+      height: 120
+    place:
+      on: origin
+      offset[3]:
+        -160
+        45
+        -110
+  -
+    op: subtract
+    id: through_hole_e
+    from: through_hole_w
+    with:
+      op: cylinder
+      radius: 12.5
+      height: 120
+    place:
+      on: origin
+      offset[3]:
+        160
+        45
+        -110
+  -
+    op: subtract
+    id: side_hole_pair_anchor
+    from: through_hole_e
+    with:
+      op: cylinder
+      radius: 10
+      height: 120
+    place:
+      on: origin
+      offset[3]:
+        0
+        -90
+        -110
+  -
+    op: add
+    id: mid_rib
+    to: side_hole_pair_anchor
+    with:
+      op: box
+      size[3]:
+        220
+        40
+        50
+    place:
+      on: origin
+      offset[3]:
+        0
+        -80
+        0
+  -
+    op: add
+    id: cap_rib
+    to: mid_rib
+    with:
+      op: box
+      size[3]:
+        320
+        20
+        50
+    place:
+      on: origin
+      offset[3]:
+        0
+        -40
+        0

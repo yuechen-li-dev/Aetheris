@@ -1,0 +1,114 @@
+{
+  "milestone": "FL2g",
+  "description": "Targeted friction rerun with direct STEP artifact semantic inspection after D1 fidelity fixes.",
+  "rerun_case_count": 4,
+  "source_previous_summary": "Aetheris.Firmament.FrictionLab/Reports/fl2f-summary.json",
+  "source_current_run": "Aetheris.Firmament.FrictionLab/Reports/fl2g-run.json",
+  "deterministic_case_order": [
+    "mounting-bracket-basic",
+    "simple-bracket",
+    "shaft-keyway",
+    "pocketed-plate"
+  ],
+  "cases": [
+    {
+      "case_id": "mounting-bracket-basic",
+      "previous_status": "partial",
+      "current_status": "success",
+      "changed": "yes",
+      "improved": true,
+      "classification": "resolved",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/mounting-bracket-basic.step",
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "none (semantic fidelity resolved for this case)",
+      "step_semantic_inspection": {
+        "inspected": true,
+        "expected_feature_geometry_present": true,
+        "semantically_correct": true,
+        "mismatch_kind": "none",
+        "inspection_notes": "Both intended holes are present and correctly placed: base_hole axis at x=-15 and upright_hole axis at x=26 in the exported STEP."
+      }
+    },
+    {
+      "case_id": "simple-bracket",
+      "previous_status": "partial",
+      "current_status": "success",
+      "changed": "yes",
+      "improved": true,
+      "classification": "resolved",
+      "artifact_present": true,
+      "step_artifact_path": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/simple-bracket.step",
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "none (semantic fidelity resolved for this case)",
+      "step_semantic_inspection": {
+        "inspected": true,
+        "expected_feature_geometry_present": true,
+        "semantically_correct": true,
+        "mismatch_kind": "none",
+        "inspection_notes": "Exported STEP is no longer box-like; it contains multi-region bracket topology (34 ADVANCED_FACE entries) consistent with additive bracket intent."
+      }
+    },
+    {
+      "case_id": "shaft-keyway",
+      "previous_status": "failure",
+      "current_status": "failure",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "true",
+      "awkwardness": "medium",
+      "remaining_blocker": "Boolean Subtract sequential safe composition still does not support this keyway subtract family on the current root.",
+      "step_semantic_inspection": {
+        "inspected": false,
+        "expected_feature_geometry_present": false,
+        "semantically_correct": false,
+        "mismatch_kind": "other",
+        "inspection_notes": "No STEP artifact produced; execution stops at BrepBoolean.RebuildResult NotImplemented."
+      }
+    },
+    {
+      "case_id": "pocketed-plate",
+      "previous_status": "partial",
+      "current_status": "partial",
+      "changed": "no",
+      "improved": false,
+      "classification": "unchanged_kernel_blocker",
+      "artifact_present": false,
+      "step_artifact_path": null,
+      "possible": "partial",
+      "awkwardness": "medium",
+      "remaining_blocker": "Box-minus-box subtract remains unrepresentable as a single-box rebuild in current M13 path.",
+      "step_semantic_inspection": {
+        "inspected": false,
+        "expected_feature_geometry_present": false,
+        "semantically_correct": false,
+        "mismatch_kind": "other",
+        "inspection_notes": "No STEP artifact produced; execution stops at BrepBoolean.RebuildResult representability diagnostic."
+      }
+    }
+  ],
+  "step_artifact_case_count": 2,
+  "improved_cases": [
+    "mounting-bracket-basic",
+    "simple-bracket"
+  ],
+  "top_repeated_remaining_blockers": [
+    {
+      "blocker": "BrepBoolean.RebuildResult",
+      "count": 2
+    }
+  ],
+  "top_repeated_remaining_blocker_classes": [
+    {
+      "classification": "unchanged_kernel_blocker",
+      "count": 2
+    }
+  ],
+  "next_blocker_after_d1": "Kernel subtract representability/family support in BrepBoolean.RebuildResult (keyway and pocket subtracts) is now the top repeated blocker class.",
+  "notes": "FL2g is reassessment-only; no production parser/kernel feature implementation was performed."
+}

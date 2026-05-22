@@ -1,0 +1,45 @@
+{
+  "root": "#5",
+  "unique_parts": [
+    {
+      "pd": "#579",
+      "name": "bolt",
+      "part_id": "part_001_bolt",
+      "manifold": "#585"
+    },
+    {
+      "pd": "#937",
+      "name": "l-bracket",
+      "part_id": "part_002_l_bracket",
+      "manifold": "#943"
+    },
+    {
+      "pd": "#70",
+      "name": "nut",
+      "part_id": "part_003_nut",
+      "manifold": "#76"
+    },
+    {
+      "pd": "#1652",
+      "name": "plate",
+      "part_id": "part_004_plate",
+      "manifold": "#1658"
+    },
+    {
+      "pd": "#364",
+      "name": "rod",
+      "part_id": "part_005_rod",
+      "manifold": "#370"
+    }
+  ],
+  "instance_count": 18,
+  "instance_part_counts": {
+    "part_003_nut": 8,
+    "part_005_rod": 1,
+    "part_001_bolt": 6,
+    "part_002_l_bracket": 2,
+    "part_004_plate": 1
+  },
+  "max_depth": 3,
+  "dedup_key": "product_definition id (+ shape representation lineage)"
+}

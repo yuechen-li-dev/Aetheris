@@ -1,0 +1,49 @@
+firmament:
+  version: 1
+
+model:
+  name: m3c-mixed
+  units: mm
+
+ops[5]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      10
+      4
+
+  -
+    op: add
+    id: join1
+    to: base
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+
+  -
+    op: box
+    id: cap
+    size[3]:
+      3
+      3
+      3
+
+  -
+    op: add
+    id: cut1
+    to: cap
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+
+  -
+    op: expect_exists
+    target: cap

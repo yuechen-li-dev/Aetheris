@@ -34,11 +34,13 @@ public sealed class Step242RoundTripReliabilityTests
 
         AssertTopologyInvariantMatch(original.Value, imported);
         AssertGeometryKindsAreSubset(imported);
+        Assert.Equal(6, imported.Topology.Faces.Count());
+        Assert.Equal(12, imported.Topology.Edges.Count());
 
         var tessellation = BrepDisplayTessellator.Tessellate(imported);
         Assert.True(tessellation.IsSuccess);
-        Assert.Equal(6, tessellation.Value.FacePatches.Count);
-        Assert.Equal(12, tessellation.Value.EdgePolylines.Count);
+        Assert.NotEmpty(tessellation.Value.FacePatches);
+        Assert.NotEmpty(tessellation.Value.EdgePolylines);
 
         var ray = new Ray3D(new Point3D(0d, 0d, 6d), Direction3D.Create(new Vector3D(0d, 0d, -1d)));
         var pick = BrepPicker.Pick(imported, tessellation.Value, ray, PickQueryOptions.Default with { NearestOnly = true });

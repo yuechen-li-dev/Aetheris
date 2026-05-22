@@ -1,0 +1,21 @@
+# friction-lab candidate syntax only
+# not production Firmament
+candidate:
+  id: placement-bracket-rib
+  style: semantic
+  setup:
+    bracket:
+      op: box
+      size: [90, 50, 10]
+    wall:
+      op: box
+      size: [10, 50, 60]
+      on: bracket.back_face
+  placement:
+    support_rib:
+      base_face: bracket.top_face
+      toward_face: wall.inner_face
+      offset_from_edge: 14
+      span_mode: full_between_side_edges
+      thickness: 6
+      height: 35

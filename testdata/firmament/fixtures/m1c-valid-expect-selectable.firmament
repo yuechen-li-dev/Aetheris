@@ -1,0 +1,17 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: hole
+    radius: 1
+    height: 2
+  -
+    op: expect_selectable
+    target: hole.top_face
+    count: 4

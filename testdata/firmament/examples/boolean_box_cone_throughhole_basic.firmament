@@ -1,0 +1,31 @@
+firmament:
+  version: 1
+
+model:
+  name: boolean_box_cone_throughhole_basic
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      20
+      20
+      10
+
+  -
+    op: subtract
+    id: cut
+    from: base
+    with:
+      op: cone
+      bottom_radius: 4
+      top_radius: 2
+      height: 10
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        -5

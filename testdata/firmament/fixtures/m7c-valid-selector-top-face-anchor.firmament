@@ -1,0 +1,29 @@
+firmament:
+  version: 1
+
+model:
+  name: m7c_valid_selector_top_face_anchor
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      4
+      4
+      4
+
+  -
+    op: box
+    id: placed
+    size[3]:
+      2
+      2
+      2
+    place:
+      on: base.top_face
+      offset[3]:
+        0
+        0
+        0

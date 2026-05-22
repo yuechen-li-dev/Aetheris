@@ -1,0 +1,18 @@
+firmament:
+  version: 1
+
+model:
+  name: m3b_unsupported_cylinder_subtract_hexagonal_prism
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: post
+    radius: 15
+    height: 20
+  -
+    op: subtract
+    id: hex_cut
+    from: post
+    with: { op: hexagonal_prism, across_flats: 8, height: 10 }

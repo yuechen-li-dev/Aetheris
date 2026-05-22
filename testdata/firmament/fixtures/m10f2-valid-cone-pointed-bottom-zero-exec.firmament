@@ -1,0 +1,14 @@
+firmament:
+  version: 1
+
+model:
+  name: cone_pointed_bottom_zero_exec
+  units: mm
+
+ops[1]:
+  -
+    op: cone
+    id: pointed_bottom
+    bottom_radius: 0
+    top_radius: 8
+    height: 20

@@ -1,0 +1,19 @@
+# friction-lab candidate syntax only
+# not production Firmament
+candidate:
+  id: placement-flange-bolt-circle
+  style: semantic
+  setup:
+    flange:
+      op: cylinder
+      radius: 70
+      height: 14
+  placement:
+    bolt_circle_holes:
+      face: flange.top_face
+      around_axis: flange.axis
+      bolt_circle_radius: 52
+      hole_count: 6
+      start_angle_deg: 0
+      hole_diameter: 9
+      hole_depth: 12

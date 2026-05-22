@@ -1,0 +1,46 @@
+firmament:
+  version: 1
+
+model:
+  name: m7d_valid_boolean_selector_placement
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      4
+      4
+      4
+
+  -
+    op: box
+    id: anchor
+    size[3]:
+      2
+      2
+      2
+    place:
+      on: origin
+      offset[3]:
+        2
+        0
+        0
+
+  -
+    op: add
+    id: moved
+    to: base
+    with:
+      op: box
+      size[3]:
+        1
+        1
+        1
+    place:
+      on: anchor.vertices
+      offset[3]:
+        1
+        0
+        0

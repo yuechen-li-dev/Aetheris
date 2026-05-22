@@ -1,0 +1,31 @@
+firmament:
+  version: 1
+
+model:
+  name: p2_invalid_pattern_unknown_axis
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: plate
+    size[3]:
+      60
+      20
+      8
+
+  -
+    op: subtract
+    id: hole_cut_1
+    from: plate
+    with:
+      op: cylinder
+      radius: 2
+      height: 8
+
+  -
+    op: pattern_circular
+    source: hole_cut_1
+    count: 5
+    axis: missing.side_face
+    angle_degrees: 360

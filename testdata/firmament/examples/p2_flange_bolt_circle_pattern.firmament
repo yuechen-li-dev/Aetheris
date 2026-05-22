@@ -1,0 +1,46 @@
+firmament:
+  version: 1
+
+model:
+  name: p2_flange_bolt_circle_pattern
+  units: mm
+
+ops[5]:
+  -
+    op: box
+    id: flange
+    size[3]:
+      90
+      90
+      12
+
+  -
+    op: cylinder
+    id: axis_ref
+    radius: 1
+    height: 12
+
+  -
+    op: subtract
+    id: bolt_hole_1
+    from: flange
+    with:
+      op: cylinder
+      radius: 3
+      height: 12
+    place:
+      on: origin
+      around_axis: axis_ref.side_face
+      radial_offset: 20
+      angle_degrees: 0
+
+  -
+    op: pattern_circular
+    source: bolt_hole_1
+    count: 5
+    axis: axis_ref.side_face
+    angle_step_degrees: 60
+
+  -
+    op: expect_manifold
+    target: bolt_hole_1__cir5

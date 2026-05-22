@@ -1,0 +1,43 @@
+firmament:
+  version: 1
+
+model:
+  name: m7c_valid_selector_vertices_edges_anchors
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      4
+      4
+      4
+
+  -
+    op: box
+    id: on_vertices
+    size[3]:
+      1
+      1
+      1
+    place:
+      on: base.vertices
+      offset[3]:
+        0
+        0
+        0
+
+  -
+    op: box
+    id: on_edges
+    size[3]:
+      1
+      1
+      1
+    place:
+      on: base.edges
+      offset[3]:
+        0
+        0
+        -2

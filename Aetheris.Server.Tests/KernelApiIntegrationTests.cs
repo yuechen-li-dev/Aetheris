@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Aetheris.Server.Contracts;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -83,6 +84,180 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.Single(pick.Data!.Hits);
         Assert.NotNull(pick.Data.Hits[0].Point);
         Assert.Empty(pick.Diagnostics);
+    }
+
+    [Fact]
+    public async Task DisplayPrepare_BoxCylinderThroughHole_UsesAnalyticLaneWithoutTessellationFallback()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 40, 30, 12);
+
+        var cylinderResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/primitives/cylinder",
+            new CylinderCreateRequestDto(4, 20));
+        cylinderResponse.EnsureSuccessStatusCode();
+        var cylinder = await cylinderResponse.Content.ReadFromJsonAsync<ApiResponseDto<BodyCreatedResponseDto>>();
+        Assert.NotNull(cylinder);
+        Assert.True(cylinder!.Success);
+
+        var translateResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{cylinder.Data!.BodyId}/transform",
+            new TranslateBodyRequestDto(new Vector3Dto(3, -2, 6)));
+        translateResponse.EnsureSuccessStatusCode();
+
+        var booleanResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/operations/boolean",
+            new BooleanRequestDto(box.Data!.BodyId, cylinder.Data.BodyId, "subtract"));
+        booleanResponse.EnsureSuccessStatusCode();
+        var resultBody = await booleanResponse.Content.ReadFromJsonAsync<ApiResponseDto<BodyCreatedResponseDto>>();
+        Assert.NotNull(resultBody);
+        Assert.True(resultBody!.Success);
+
+        var prepared = await PrepareDisplayAsync(document.Data.DocumentId, resultBody.Data!.BodyId);
+
+        Assert.Equal("analytic-only", prepared.Data!.Lane);
+        Assert.NotEmpty(prepared.Data.AnalyticPacket.AnalyticFaces);
+        Assert.Contains(prepared.Data.AnalyticPacket.AnalyticFaces, face => face.SurfaceKind == "Cylinder");
+        Assert.Empty(prepared.Data.AnalyticPacket.FallbackFaces);
+        Assert.Null(prepared.Data.TessellationFallback);
+    }
+
+    [Fact]
+    public async Task DisplayPrepare_SpherePrimitive_UsesAnalyticLaneWithSphereGeometry()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/bodies/primitives/sphere",
+            new SphereCreateRequestDto(5));
+        response.EnsureSuccessStatusCode();
+        var sphere = await response.Content.ReadFromJsonAsync<ApiResponseDto<BodyCreatedResponseDto>>();
+        Assert.NotNull(sphere);
+        Assert.True(sphere!.Success);
+
+        var prepared = await PrepareDisplayAsync(document.Data.DocumentId, sphere.Data!.BodyId);
+
+        Assert.Equal("analytic-only", prepared.Data!.Lane);
+        Assert.NotEmpty(prepared.Data.AnalyticPacket.AnalyticFaces);
+        Assert.Contains(prepared.Data.AnalyticPacket.AnalyticFaces, face =>
+            face.SurfaceKind == "Sphere"
+            && face.SphereGeometry is not null
+            && face.PlaneGeometry is null
+            && face.CylinderGeometry is null
+            && face.ConeGeometry is null
+            && face.TorusGeometry is null);
+        Assert.Empty(prepared.Data.AnalyticPacket.FallbackFaces);
+        Assert.Null(prepared.Data.TessellationFallback);
+    }
+
+    [Fact]
+    public async Task DisplayPrepare_BoxPrimitive_PlanarFaceIncludesOuterBoundaryContract()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var prepared = await PrepareDisplayAsync(document.Data.DocumentId, box.Data!.BodyId);
+
+        Assert.Equal("analytic-only", prepared.Data!.Lane);
+        var planarFace = prepared.Data.AnalyticPacket.AnalyticFaces.FirstOrDefault(face =>
+            face.SurfaceKind == "Plane"
+            && face.PlaneGeometry is not null
+            && face.PlaneGeometry.OuterBoundary is not null
+            && face.PlaneGeometry.OuterBoundary.Count >= 3);
+        Assert.NotNull(planarFace);
+        var vertices = planarFace.PlaneGeometry!.OuterBoundary!;
+        var minX = vertices.Min(vertex => vertex.X);
+        var maxX = vertices.Max(vertex => vertex.X);
+        var minY = vertices.Min(vertex => vertex.Y);
+        var maxY = vertices.Max(vertex => vertex.Y);
+        var minZ = vertices.Min(vertex => vertex.Z);
+        var maxZ = vertices.Max(vertex => vertex.Z);
+        var extent = double.Max(maxX - minX, double.Max(maxY - minY, maxZ - minZ));
+        Assert.True(extent >= 1.9d);
+    }
+
+    [Fact]
+    public async Task DisplayPrepare_ImportedUnsupportedBody_PreservesFallbackRouting()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var unsupportedStepText = await File.ReadAllTextAsync(GetRepositoryPath("testdata/step242/handcrafted/edge-trimming/block-full-round.step"));
+
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto(unsupportedStepText, "Unsupported"));
+        importResponse.EnsureSuccessStatusCode();
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+        Assert.NotNull(imported);
+        Assert.True(imported!.Success);
+
+        var prepared = await PrepareDisplayAsync(document.Data.DocumentId, imported.Data!.OccurrenceId);
+
+        Assert.NotEqual("analytic-only", prepared.Data!.Lane);
+        Assert.NotEmpty(prepared.Data.AnalyticPacket.FallbackFaces);
+        Assert.Contains(prepared.Data.AnalyticPacket.FallbackFaces, face => face.Reason is "UnsupportedSurfaceKind" or "UnsupportedTrim");
+        Assert.NotNull(prepared.Data.TessellationFallback);
+        Assert.NotEmpty(prepared.Data.TessellationFallback!.FacePatches);
+    }
+
+    [Fact]
+    public async Task DisplayPrepare_BoundedBsplineFallback_UsesSoftScaffoldSource()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto(RepresentativeSingleFaceBsplineStep, "BoundedBspline"));
+        importResponse.EnsureSuccessStatusCode();
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+        Assert.NotNull(imported);
+        Assert.True(imported!.Success);
+
+        var prepared = await PrepareDisplayAsync(document.Data.DocumentId, imported.Data!.OccurrenceId);
+
+        Assert.Equal("fallback-only", prepared.Data!.Lane);
+        Assert.NotNull(prepared.Data.TessellationFallback);
+        var patch = Assert.Single(prepared.Data.TessellationFallback!.FacePatches);
+        Assert.Equal("BsplineUvScaffold", patch.Source);
+        Assert.Null(patch.ScaffoldRejectionReason);
+    }
+
+    [Fact]
+    public async Task DisplayPrepare_SameBodyTwice_IsDeterministic()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var first = await PrepareDisplayAsync(document.Data.DocumentId, box.Data!.BodyId);
+        var second = await PrepareDisplayAsync(document.Data.DocumentId, box.Data.BodyId);
+
+        Assert.NotNull(first.Data);
+        Assert.NotNull(second.Data);
+        var firstSignature = JsonSerializer.Serialize(first.Data);
+        var secondSignature = JsonSerializer.Serialize(second.Data);
+        Assert.Equal(firstSignature, secondSignature);
+    }
+
+    [Fact]
+    public async Task Tessellate_UnsupportedImportedBody_StillWorksAfterDisplayPrepareIntegration()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var unsupportedStepText = await File.ReadAllTextAsync(GetRepositoryPath("testdata/step242/handcrafted/edge-trimming/block-full-round.step"));
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto(unsupportedStepText, "Unsupported"));
+        importResponse.EnsureSuccessStatusCode();
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+
+        var displayPrepared = await PrepareDisplayAsync(document.Data.DocumentId, imported!.Data!.OccurrenceId);
+        Assert.NotNull(displayPrepared.Data!.TessellationFallback);
+
+        var tessellationResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{imported.Data.OccurrenceId}/tessellate",
+            new TessellateRequestDto(null));
+        tessellationResponse.EnsureSuccessStatusCode();
+        var tessellation = await tessellationResponse.Content.ReadFromJsonAsync<ApiResponseDto<TessellationResponseDto>>();
+        Assert.NotNull(tessellation);
+        Assert.True(tessellation!.Success);
+        Assert.NotEmpty(tessellation.Data!.FacePatches);
     }
 
 
@@ -532,4 +707,21 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         var body = await response.Content.ReadFromJsonAsync<ApiResponseDto<BodyCreatedResponseDto>>();
         return body!;
     }
+
+    private async Task<ApiResponseDto<DisplayPreparationResponseDto>> PrepareDisplayAsync(Guid documentId, Guid bodyId)
+    {
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{documentId}/bodies/{bodyId}/display/prepare",
+            new DisplayPrepareRequestDto(null));
+        response.EnsureSuccessStatusCode();
+        var prepared = await response.Content.ReadFromJsonAsync<ApiResponseDto<DisplayPreparationResponseDto>>();
+        Assert.NotNull(prepared);
+        Assert.True(prepared!.Success);
+        return prepared;
+    }
+
+    private static string GetRepositoryPath(string relativePath)
+        => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", relativePath));
+
+    private const string RepresentativeSingleFaceBsplineStep = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n#1=MANIFOLD_SOLID_BREP('s',#2);\n#2=CLOSED_SHELL($,(#3));\n#3=ADVANCED_FACE((#4),#5,.T.);\n#4=FACE_OUTER_BOUND($,#6,.T.);\n#5=B_SPLINE_SURFACE_WITH_KNOTS('',3,3,((#100,#101,#102,#103),(#104,#105,#106,#107),(#108,#109,#110,#111),(#112,#113,#114,#115)),.UNSPECIFIED.,.F.,.F.,.F.,(4,4),(4,4),(0.,1.),(0.,1.),.UNSPECIFIED.);\n#6=EDGE_LOOP($,(#10,#11,#12,#13));\n#10=ORIENTED_EDGE($,$,$,#20,.T.);\n#11=ORIENTED_EDGE($,$,$,#21,.T.);\n#12=ORIENTED_EDGE($,$,$,#22,.T.);\n#13=ORIENTED_EDGE($,$,$,#23,.T.);\n#20=EDGE_CURVE($,#30,#31,#40,.T.);\n#21=EDGE_CURVE($,#31,#32,#41,.T.);\n#22=EDGE_CURVE($,#32,#33,#42,.T.);\n#23=EDGE_CURVE($,#33,#30,#43,.T.);\n#30=VERTEX_POINT($,#50);\n#31=VERTEX_POINT($,#51);\n#32=VERTEX_POINT($,#52);\n#33=VERTEX_POINT($,#53);\n#40=LINE($,#50,#80);\n#41=LINE($,#51,#81);\n#42=LINE($,#52,#82);\n#43=LINE($,#53,#83);\n#50=CARTESIAN_POINT($,(0,0,0));\n#51=CARTESIAN_POINT($,(1,0,0));\n#52=CARTESIAN_POINT($,(1,1,0));\n#53=CARTESIAN_POINT($,(0,1,0));\n#80=VECTOR($,#84,1.0);\n#81=VECTOR($,#85,1.0);\n#82=VECTOR($,#86,1.0);\n#83=VECTOR($,#87,1.0);\n#84=DIRECTION($,(1,0,0));\n#85=DIRECTION($,(0,1,0));\n#86=DIRECTION($,(-1,0,0));\n#87=DIRECTION($,(0,-1,0));\n#100=CARTESIAN_POINT($,(0,0,0));\n#101=CARTESIAN_POINT($,(0,0.33,0));\n#102=CARTESIAN_POINT($,(0,0.66,0));\n#103=CARTESIAN_POINT($,(0,1,0));\n#104=CARTESIAN_POINT($,(0.33,0,0));\n#105=CARTESIAN_POINT($,(0.33,0.33,0));\n#106=CARTESIAN_POINT($,(0.33,0.66,0));\n#107=CARTESIAN_POINT($,(0.33,1,0));\n#108=CARTESIAN_POINT($,(0.66,0,0));\n#109=CARTESIAN_POINT($,(0.66,0.33,0));\n#110=CARTESIAN_POINT($,(0.66,0.66,0));\n#111=CARTESIAN_POINT($,(0.66,1,0));\n#112=CARTESIAN_POINT($,(1,0,0));\n#113=CARTESIAN_POINT($,(1,0.33,0));\n#114=CARTESIAN_POINT($,(1,0.66,0));\n#115=CARTESIAN_POINT($,(1,1,0));\nENDSEC;\nEND-ISO-10303-21;";
 }

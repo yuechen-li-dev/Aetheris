@@ -87,11 +87,11 @@ public sealed class Step242ImporterTests
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("Importer.TopologyRoot", diagnostic.Source);
-        Assert.StartsWith("Missing MANIFOLD_SOLID_BREP", diagnostic.Message, StringComparison.Ordinal);
+        Assert.StartsWith("Missing MANIFOLD_SOLID_BREP or BREP_WITH_VOIDS", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ImportBody_MultipleSolidRoots_ReturnsDeterministicSingleSolidDiagnostic()
+    public void ImportBody_MultipleSolidRoots_ClassifiesInputAsAssemblyLike()
     {
         const string multiRoot = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n#1=MANIFOLD_SOLID_BREP('a',#3);\n#2=MANIFOLD_SOLID_BREP('b',#3);\n#3=CLOSED_SHELL($,());\nENDSEC;\nEND-ISO-10303-21;";
 
@@ -100,8 +100,9 @@ public sealed class Step242ImporterTests
         Assert.False(import.IsSuccess);
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
-        Assert.Equal("Importer.SingleSolid", diagnostic.Source);
-        Assert.StartsWith("Multiple MANIFOLD_SOLID_BREP", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal("Importer.AssemblyLike.StepMultiRoot", diagnostic.Source);
+        Assert.Contains("assembly-like", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("detected 2 exact BRep rigid roots", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -117,23 +118,18 @@ public sealed class Step242ImporterTests
     }
 
     [Fact]
-    public void NistFtc08Tg_TessellatedVariant_ImportsDeterministically()
+    public void NistFtc08Tg_TessellatedVariant_IsClassifiedAsUnsupportedForExactBrepCorpus()
     {
         var text = LoadFixture("testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e1-tg.stp");
+        var parse = Step242SubsetParser.Parse(text);
+        Assert.True(parse.IsSuccess);
 
-        var first = Step242Importer.ImportBody(text);
-        var second = Step242Importer.ImportBody(text);
-
-        Assert.True(first.IsSuccess, string.Join(" | ", first.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
-        Assert.True(second.IsSuccess, string.Join(" | ", second.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
-
-        Assert.Equal(first.Value.Topology.Vertices.Count(), second.Value.Topology.Vertices.Count());
-        Assert.Equal(first.Value.Topology.Edges.Count(), second.Value.Topology.Edges.Count());
-        Assert.Equal(first.Value.Topology.Faces.Count(), second.Value.Topology.Faces.Count());
-
-        var tessellation = BrepDisplayTessellator.Tessellate(first.Value);
-        Assert.True(tessellation.IsSuccess);
-        Assert.NotEmpty(tessellation.Value.FacePatches);
+        var import = Step242ExactBRepImportLane.ImportExactBrep(parse.Value);
+        Assert.False(import.IsSuccess);
+        var diagnostic = Assert.Single(import.Diagnostics);
+        Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
+        Assert.Equal("Importer.TopologyRoot", diagnostic.Source);
+        Assert.StartsWith("Missing MANIFOLD_SOLID_BREP or BREP_WITH_VOIDS", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

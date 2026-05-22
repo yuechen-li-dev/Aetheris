@@ -1,0 +1,19 @@
+firmament:
+  version: 1
+
+model:
+  name: schema_box_export
+  units: mm
+
+schema:
+  process: additive
+  printer_resolution: 0.1
+
+ops[1]:
+  -
+    op: box
+    id: schema_box
+    size[3]:
+      8
+      9
+      10

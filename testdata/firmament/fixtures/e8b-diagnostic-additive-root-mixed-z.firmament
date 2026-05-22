@@ -1,0 +1,47 @@
+firmament:
+  version: 1
+
+model:
+  name: e8b_diagnostic_additive_root_mixed_z
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      12
+      4
+      10
+  -
+    op: add
+    id: mid
+    to: base
+    with:
+      op: box
+      size[3]:
+        6
+        2
+        10
+    place:
+      on: origin
+      offset[3]:
+        0
+        4
+        0
+  -
+    op: add
+    id: croot
+    to: mid
+    with:
+      op: box
+      size[3]:
+        12
+        2
+        10
+    place:
+      on: origin
+      offset[3]:
+        0
+        6
+        0

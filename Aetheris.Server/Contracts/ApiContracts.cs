@@ -68,9 +68,87 @@ public sealed record TessellateRequestDto(TessellationOptionsDto? Options);
 
 public sealed record TessellationResponseDto(IReadOnlyList<FacePatchDto> FacePatches, IReadOnlyList<EdgePolylineDto> EdgePolylines);
 
-public sealed record FacePatchDto(int FaceId, IReadOnlyList<Point3Dto> Positions, IReadOnlyList<Vector3Dto> Normals, IReadOnlyList<int> TriangleIndices);
+public sealed record FacePatchDto(
+    int FaceId,
+    IReadOnlyList<Point3Dto> Positions,
+    IReadOnlyList<Vector3Dto> Normals,
+    IReadOnlyList<int> TriangleIndices,
+    string Source,
+    string? ScaffoldRejectionReason);
 
 public sealed record EdgePolylineDto(int EdgeId, IReadOnlyList<Point3Dto> Points, bool IsClosed);
+
+public sealed record DisplayPrepareRequestDto(TessellationOptionsDto? TessellationOptions);
+
+public sealed record AnalyticDisplayFaceDomainHintDto(double? MinV, double? MaxV);
+
+public sealed record AnalyticDisplayPlaneGeometryDto(
+    Point3Dto Origin,
+    Vector3Dto Normal,
+    Vector3Dto UAxis,
+    Vector3Dto VAxis,
+    IReadOnlyList<Point3Dto>? OuterBoundary);
+
+public sealed record AnalyticDisplayCylinderGeometryDto(
+    Point3Dto Origin,
+    Vector3Dto Axis,
+    Vector3Dto XAxis,
+    Vector3Dto YAxis,
+    double Radius);
+
+public sealed record AnalyticDisplayConeGeometryDto(
+    Point3Dto Apex,
+    Vector3Dto Axis,
+    Vector3Dto XAxis,
+    Vector3Dto YAxis,
+    double SemiAngleRadians);
+
+public sealed record AnalyticDisplaySphereGeometryDto(
+    Point3Dto Center,
+    Vector3Dto Axis,
+    Vector3Dto XAxis,
+    Vector3Dto YAxis,
+    double Radius);
+
+public sealed record AnalyticDisplayTorusGeometryDto(
+    Point3Dto Center,
+    Vector3Dto Axis,
+    Vector3Dto XAxis,
+    Vector3Dto YAxis,
+    double MajorRadius,
+    double MinorRadius);
+
+public sealed record AnalyticDisplayFaceDto(
+    int FaceId,
+    int ShellId,
+    string ShellRole,
+    int SurfaceGeometryId,
+    string SurfaceKind,
+    int LoopCount,
+    AnalyticDisplayFaceDomainHintDto? DomainHint,
+    AnalyticDisplayPlaneGeometryDto? PlaneGeometry,
+    AnalyticDisplayCylinderGeometryDto? CylinderGeometry,
+    AnalyticDisplayConeGeometryDto? ConeGeometry,
+    AnalyticDisplaySphereGeometryDto? SphereGeometry,
+    AnalyticDisplayTorusGeometryDto? TorusGeometry);
+
+public sealed record AnalyticDisplayFallbackFaceDto(
+    int FaceId,
+    int ShellId,
+    string ShellRole,
+    string Reason,
+    string? SurfaceKind,
+    string? Detail);
+
+public sealed record AnalyticDisplayPacketDto(
+    int BodyId,
+    IReadOnlyList<AnalyticDisplayFaceDto> AnalyticFaces,
+    IReadOnlyList<AnalyticDisplayFallbackFaceDto> FallbackFaces);
+
+public sealed record DisplayPreparationResponseDto(
+    string Lane,
+    AnalyticDisplayPacketDto AnalyticPacket,
+    TessellationResponseDto? TessellationFallback);
 
 public sealed record PickOptionsDto(bool? NearestOnly, bool? IncludeBackfaces, double? EdgeTolerance, double? SortTieTolerance, double? MaxDistance);
 

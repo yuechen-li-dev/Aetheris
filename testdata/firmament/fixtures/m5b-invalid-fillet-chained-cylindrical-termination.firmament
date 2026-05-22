@@ -1,0 +1,63 @@
+firmament:
+  version: 1
+
+model:
+  name: m5b_invalid_fillet_chained_cylindrical_termination
+  units: mm
+
+ops[5]:
+  -
+    op: box
+    id: base
+    size[3]:
+      12
+      4
+      10
+  -
+    op: add
+    id: mid
+    to: base
+    with:
+      op: box
+      size[3]:
+        6
+        2
+        10
+    place:
+      on: origin
+      offset[3]:
+        0
+        2
+        0
+  -
+    op: add
+    id: croot
+    to: mid
+    with:
+      op: box
+      size[3]:
+        12
+        2
+        10
+    place:
+      on: origin
+      offset[3]:
+        0
+        4
+        0
+  -
+    op: fillet
+    id: chained_inner_fillet
+    from: croot
+    edges[2]:
+      inner_x_min_y_min
+      inner_x_min_y_max
+    radius: 0.4
+  -
+    op: fillet
+    id: chained_termination_attempt
+    from: chained_inner_fillet
+    edges[2]:
+      inner_x_min_y_min
+      inner_x_min_y_max
+    radius: 0.4

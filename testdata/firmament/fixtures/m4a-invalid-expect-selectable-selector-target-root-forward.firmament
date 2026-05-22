@@ -1,0 +1,17 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[2]:
+  -
+    op: expect_selectable
+    target: later.entry_face
+    count: 1
+  -
+    op: cylinder
+    id: later
+    radius: 1
+    height: 2

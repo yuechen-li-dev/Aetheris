@@ -1,0 +1,44 @@
+firmament:
+  version: 1
+
+model:
+  name: p2_mirror_hole_pair
+  units: mm
+
+ops[5]:
+  -
+    op: box
+    id: plate
+    size[3]:
+      120
+      80
+      8
+
+  -
+    op: subtract
+    id: hole_cut_left
+    from: plate
+    with:
+      op: cylinder
+      radius: 3
+      height: 8
+    place:
+      on: origin
+      offset[3]:
+        -20
+        0
+        0
+
+  -
+    op: pattern_mirror
+    source: hole_cut_left
+    plane: yz
+
+  -
+    op: expect_selectable
+    target: hole_cut_left__mir_yz.side_faces
+    count: 6
+
+  -
+    op: expect_manifold
+    target: hole_cut_left__mir_yz

@@ -1,0 +1,18 @@
+firmament:
+  version: 1
+model:
+  name: fric_b0_chimera_b_zone_bd_box_prism
+  units: mm
+ops[2]:
+  -
+    op: cylinder
+    id: chimera_b_root
+    radius: 25
+    height: 20
+  -
+    op: subtract
+    id: zone_bd_box_prism
+    from: chimera_b_root
+    with:
+      op: box
+      size[3]: [10, 8, 24]

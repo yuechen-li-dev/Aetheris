@@ -1,0 +1,13 @@
+firmament:
+  version: 1
+
+model:
+  name: hexagonal_prism_basic
+  units: mm
+
+ops[1]:
+  -
+    op: hexagonal_prism
+    id: hex1
+    across_flats: 16
+    height: 10

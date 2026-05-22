@@ -1,0 +1,32 @@
+firmament:
+  version: 1
+
+model:
+  name: fl2_enclosure_hollow_box
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: outer
+    size[3]:
+      100
+      80
+      50
+
+  -
+    op: subtract
+    id: shell_cut
+    from: outer
+    with:
+      op: box
+      size[3]:
+        88
+        68
+        46
+    place:
+      on: origin
+      offset[3]:
+        0
+        0
+        2

@@ -1,0 +1,39 @@
+firmament:
+  version: 1
+model:
+  name: fric_b0_chimera_a_zone_i_disjoint_dual_holes_then_prism
+  units: mm
+ops[4]:
+  -
+    op: box
+    id: chimera_a_root
+    size[3]: [60, 40, 20]
+  -
+    op: subtract
+    id: zone_i_hole_left
+    from: chimera_a_root
+    with:
+      op: cylinder
+      radius: 3
+      height: 30
+    place:
+      on: origin
+      offset[3]: [-10, 0, 0]
+  -
+    op: subtract
+    id: zone_i_hole_right
+    from: zone_i_hole_left
+    with:
+      op: cylinder
+      radius: 3
+      height: 30
+    place:
+      on: origin
+      offset[3]: [10, 0, 0]
+  -
+    op: subtract
+    id: zone_i_follow_on_prism
+    from: zone_i_hole_right
+    with:
+      op: box
+      size[3]: [8, 10, 24]

@@ -1,0 +1,26 @@
+firmament:
+  version: 1
+
+model:
+  name: p3_invalid_pattern_mirror_source_placement
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: plate
+    size[3]: [120, 80, 8]
+
+  -
+    op: subtract
+    id: hole_cut
+    from: plate
+    with: { op: cylinder, radius: 3, height: 8 }
+    place:
+      on: plate.top_face
+      offset[3]: [20, 0, 0]
+
+  -
+    op: pattern_mirror
+    source: hole_cut
+    plane: yz

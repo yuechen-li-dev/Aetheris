@@ -1,0 +1,17 @@
+firmament:
+  version: 1
+
+model:
+  name: demo
+  units: mm
+
+ops[2]:
+  -
+    op: cylinder
+    id: hole
+    radius: 2
+    height: 10
+  -
+    op: expect_selectable
+    target: hole.circular_edges
+    count: 2

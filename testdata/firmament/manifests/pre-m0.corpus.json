@@ -1,0 +1,25 @@
+{
+  "version": "1",
+  "entries": [
+    {
+      "id": "fixture-minimal-source-exists",
+      "name": "Minimal placeholder source fixture exists",
+      "fixturePath": "testdata/firmament/fixtures/minimal-placeholder.firmament",
+      "expectedOutcome": "stubNotImplemented",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "code": "NotImplemented"
+      }
+    },
+    {
+      "id": "fixture-invalid-placeholder-source",
+      "name": "Invalid placeholder source still routes through compiler stub",
+      "fixturePath": "testdata/firmament/fixtures/invalid-placeholder.firmament",
+      "expectedOutcome": "stubNotImplemented",
+      "expectedDiagnostic": {
+        "source": "firmament",
+        "code": "NotImplemented"
+      }
+    }
+  ]
+}

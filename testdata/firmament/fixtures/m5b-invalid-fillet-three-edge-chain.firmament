@@ -1,0 +1,40 @@
+firmament:
+  version: 1
+
+model:
+  name: m5b_invalid_fillet_three_edge_chain
+  units: mm
+
+ops[3]:
+  -
+    op: box
+    id: base
+    size[3]:
+      30
+      20
+      10
+  -
+    op: add
+    id: lroot
+    to: base
+    with:
+      op: box
+      size[3]:
+        20
+        10
+        10
+    place:
+      on: origin
+      offset[3]:
+        20
+        10
+        0
+  -
+    op: fillet
+    id: bad_three_edge_chain
+    from: lroot
+    edges[3]:
+      inner_x_min_y_min
+      inner_x_max_y_min
+      inner_x_max_y_max
+    radius: 1

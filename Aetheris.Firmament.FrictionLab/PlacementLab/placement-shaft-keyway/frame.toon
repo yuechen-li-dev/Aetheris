@@ -1,0 +1,27 @@
+# friction-lab candidate syntax only
+# not production Firmament
+candidate:
+  id: placement-shaft-keyway
+  style: frame
+  setup:
+    shaft:
+      op: cylinder
+      radius: 18
+      height: 140
+    keyway_frame:
+      from_cylinder: shaft.side_face
+      origin:
+        angle_deg: 0
+        z: 20
+      x_axis: shaft.axis
+      y_axis: outward_radial
+      z_axis: tangential
+  placement:
+    keyway:
+      type: slot_cut
+      frame: keyway_frame
+      center_xyz: [21, 0, 0]
+      length_dir: +x
+      width: 6
+      depth: 3
+      length: 42

@@ -1,0 +1,32 @@
+firmament:
+  version: 1
+
+model:
+  name: ribbed_support_f1
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      80
+      40
+      8
+
+  -
+    op: add
+    id: wall
+    to: base
+    with:
+      op: box
+      size[3]:
+        8
+        40
+        36
+    place:
+      on: origin
+      offset[3]:
+        36
+        0
+        22

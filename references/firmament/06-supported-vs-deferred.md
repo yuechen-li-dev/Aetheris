@@ -1,0 +1,92 @@
+# What Works Reliably Today vs What Is Deferred
+
+This file is the capability boundary for LLM authoring.
+
+## Confidence-high, implementation-backed capabilities
+
+### Parsing and document shape
+- Canonical TOON `.firmament` parsing works.
+- JSON-object parse mode works.
+- Required sections/required fields are enforced.
+
+### Model header
+- `model.name` required scalar.
+- `model.units` required scalar.
+- Current implementation does **not** enforce a closed enum for units at parse/validation stage.
+  - Corpus convention uses `mm`.
+
+### Primitive execution
+- Primitives: `box`, `cylinder`, `cone`, `sphere`, `torus`.
+- Cone supports frustum and pointed variants under current radius constraints.
+- Default-frame behavior is stable and test-backed.
+
+### Placement subset
+- Legacy placement (`on` + `offset[3]`) is validated.
+- Semantic keys (`on_face`, `centered_on`, `around_axis`, `radial_offset`, `angle_degrees`) are validated with current constraints.
+- Selector anchoring + centroid extraction path is executable.
+
+### Boolean subset
+- Core boolean ops parse/lower/execute in bounded families:
+  - `add`, `subtract`, `intersect` with nested primitive tool ops.
+- Safe-family validator enforces bounded continuation semantics.
+- Boolean selector contracts are available for result bodies.
+
+### Pattern subset (P2)
+- `pattern_linear` and `pattern_circular` are supported.
+- Source must be earlier `subtract` feature.
+- Expansion produces synthesized booleans with chained references.
+
+### Validation ops
+- `expect_exists`
+- `expect_selectable`
+- `expect_manifold`
+
+`target` classification supports:
+- bare feature-id target (`feature_id`)
+- selector-shaped target (`feature_id.port`)
+
+Execution semantics:
+- `expect_exists`: executes for feature-id and selector targets.
+- `expect_selectable`: selector targets only (bare feature-id not supported at execution).
+  - `count` is an exact-match expectation (`resolved_count == count`), not a minimum.
+  - `count: 0` currently means "expect selector resolves to no elements" and passes only when resolved count is zero.
+  - failures add warning diagnostics; they do not stop primitive/boolean execution.
+- `expect_manifold`: bare feature-id only (selector target not supported at execution).
+  - this is a topology/geometry check, not syntax checking.
+  - operationally, current checker verifies 2-manifold-style edge incidence: every edge in the body topology must be used by exactly two face-side incidences.
+  - therefore open-boundary edges (incidence 1), dangling/unused edges (0), or non-manifold edges (>2) fail `expect_manifold`.
+
+⚠️ Severity for all validation ops (`expect_exists`, `expect_selectable`, `expect_manifold`): failures are diagnostic-only warning outcomes. They do **not** by themselves block compile success or STEP export.
+
+### Export semantics
+- Export body policy is fixed: last successfully executed geometric body by source op index.
+  - Failed later booleans do not invalidate earlier successful bodies.
+  - Partial execution can still produce a valid STEP file that silently omits intended later features.
+- Validation ops never become export bodies.
+- Validation-op failures can coexist with successful STEP export (because they are diagnostic-only).
+- Output STEP text represents the selected body in world coordinates after all default-frame and placement transforms already applied.
+- Firmament world coordinates map directly to STEP geometry coordinates (no additional global remap in exporter).
+
+---
+
+## Deferred / unsupported / unsafe-to-assume
+
+- General unrestricted booleans across arbitrary primitive combinations.
+- Unbounded rotated/tilted tool guarantees across all families.
+- Full mating/alignment placement language (current semantics are anchor+offset+axis heuristics).
+- Multi-hop selector traversals (`a.top_face.edges` etc.).
+- Dedicated counterbore/countersink high-level ops.
+- Broad support for box+sphere / box+cone / box+cylinder / box+torus across arbitrary geometric configurations.
+- Any assumption that pattern instances are independent from root (they are chained).
+
+---
+
+## LLM authoring policy
+
+If a requested construct is not explicitly covered by:
+1. this capability list,
+2. selector contracts,
+3. safe-family rules,
+4. current examples/tests,
+
+then treat it as deferred and avoid speculative generation.

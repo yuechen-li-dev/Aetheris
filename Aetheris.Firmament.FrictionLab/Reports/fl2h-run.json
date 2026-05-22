@@ -1,0 +1,18 @@
+{
+  "totalCases": 1,
+  "successCount": 1,
+  "partialCount": 0,
+  "failureCount": 0,
+  "caseResults": [
+    {
+      "caseId": "simple-bracket",
+      "buildStatus": "success",
+      "artifactPresent": true,
+      "stepArtifactPath": "Aetheris.Firmament.FrictionLab/Reports/Artifacts/simple-bracket.step",
+      "possible": "true",
+      "awkwardness": "low",
+      "diagnostics": []
+    }
+  ],
+  "summaryPath": "Aetheris.Firmament.FrictionLab/Reports/fl2h-run.json"
+}

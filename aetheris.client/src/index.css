@@ -5,56 +5,56 @@
 @tailwind utilities;
 
 :root {
-  --background: 48 20% 98%;
-  --foreground: 30 12% 13%;
-  --card: 45 33% 99%;
-  --card-foreground: 30 12% 13%;
-  --primary: 30 18% 18%;
-  --primary-foreground: 50 35% 97%;
-  --muted: 42 15% 93%;
-  --muted-foreground: 30 8% 38%;
-  --border: 30 14% 84%;
-  --input: 30 16% 82%;
-  --ring: 30 18% 30%;
-
-  --ui-font-sans: 'Inter', sans-serif;
-  --ui-text: 0.875rem;
-  --ui-small: 0.8125rem;
-  --ui-title: 0.75rem;
-  --ui-weight-body: 400;
-  --ui-weight-emphasis: 500;
-  --ui-weight-title: 300;
-  --ui-title-tracking: 0.08em;
-
-  --ui-radius: 2px;
-  --ui-stroke: 1.5px;
-  --ui-divider: 1px;
-  --ui-focus-ring: 2px;
-
-  --radius: var(--ui-radius);
+    --background: 48 20% 98%;
+    --foreground: 30 12% 13%;
+    --card: 45 33% 99%;
+    --card-foreground: 30 12% 13%;
+    --primary: 30 18% 18%;
+    --primary-foreground: 50 35% 97%;
+    --muted: 42 15% 93%;
+    --muted-foreground: 30 8% 38%;
+    --border: 30 14% 84%;
+    --input: 30 16% 82%;
+    --ring: 30 18% 30%;
+    --ui-font-sans: 'Inter', sans-serif;
+    --ui-text: 0.875rem;
+    --ui-small: 0.8125rem;
+    --ui-title: 0.75rem;
+    --ui-weight-body: 400;
+    --ui-weight-emphasis: 500;
+    --ui-weight-title: 300;
+    --ui-title-tracking: 0.08em;
+    --ui-radius: 2px;
+    --ui-stroke: 1.5px;
+    --ui-divider: 1px;
+    --ui-focus-ring: 2px;
+    --radius: var(--ui-radius);
 }
 
 * {
-  box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+html {
+    height: 100%;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-family: var(--ui-font-sans);
-  font-size: var(--ui-text);
-  font-weight: var(--ui-weight-body);
-  line-height: 1.4;
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text);
+    font-weight: var(--ui-weight-body);
+    line-height: 1.4;
 }
 
 #root {
-  width: 100%;
-  min-height: 100vh;
-  font-family: var(--ui-font-sans);
-  font-size: var(--ui-text);
-  font-weight: var(--ui-weight-body);
-  line-height: 1.4;
+    width: 100%;
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text);
+    font-weight: var(--ui-weight-body);
+    line-height: 1.4;
 }

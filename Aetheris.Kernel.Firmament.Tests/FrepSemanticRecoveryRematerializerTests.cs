@@ -83,6 +83,17 @@ public sealed class FrepSemanticRecoveryRematerializerTests
         Assert.Null(result.Body);
         Assert.Contains(result.Diagnostics, d => d.Contains("executor failed", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void ChamferedEntry_Rematerializer_ProducesBrepBody()
+    {
+        var result = FrepSemanticRecoveryRematerializer.TryRecover(
+            new CirSubtractNode(
+                new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)),
+                new CirTransformNode(new CirConeNode(2, 2.8, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, 4.5)))));
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Body);
+    }
     private static NativeGeometryReplayLog BuildReplay(string toolKind)
         => new([
             new NativeGeometryReplayOperation(0, "base", "primitive:box", null, null, null, null, new NativeGeometryResolvedPlacement(NativeGeometryPlacementKind.None, null, null, Vector3D.Zero, Vector3D.Zero, true, null), null),

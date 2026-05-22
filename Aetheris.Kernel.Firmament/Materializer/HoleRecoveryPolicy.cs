@@ -21,7 +21,7 @@ public sealed record HoleRecoveryVariantEvaluation(
 public sealed class HoleRecoveryPolicy : IFrepMaterializerPolicy
 {
     private static readonly JudgmentEngine<FrepMaterializerContext> VariantEngine = new();
-    private readonly IReadOnlyList<IHoleRecoveryVariant> _variants = [new ThroughHoleVariant(), new BlindHoleVariant(), new CounterboreVariant(), new CountersinkVariant(), new SteppedHoleVariant()];
+    private readonly IReadOnlyList<IHoleRecoveryVariant> _variants = [new ThroughHoleVariant(), new BlindHoleVariant(), new CounterboreVariant(), new ChamferedEntryHoleVariant(), new CountersinkVariant(), new SteppedHoleVariant()];
     public string Name => nameof(HoleRecoveryPolicy);
 
     public FrepMaterializerPolicyEvaluation Evaluate(FrepMaterializerContext context)
@@ -134,6 +134,13 @@ internal sealed class CountersinkVariant : IHoleRecoveryVariant
         }
 
         var coneDepth = cone.Height;
+        var depthRatio = coneDepth / Math.Max(host.CylinderRadius, tol);
+        var radiusDelta = entryRadius - host.CylinderRadius;
+        if (depthRatio <= ChamferedEntryHoleVariant.MaxChamferDepthToHoleRadius + tol && radiusDelta <= (ChamferedEntryHoleVariant.MaxChamferRadiusDeltaToHoleRadius * host.CylinderRadius) + tol)
+        {
+            diagnostics.Add("cone classified as chamfer-sized; countersink inadmissible.");
+            return new(Name, false, 0d, null, ["countersink", "rectangular-box-host"], ["RejectedChamferSizedEntryRelief"], diagnostics);
+        }
         if (coneDepth >= host.BoxDepth - tol)
         {
             diagnostics.Add("cone through full depth.");
@@ -172,6 +179,105 @@ internal sealed class CountersinkVariant : IHoleRecoveryVariant
             ["countersink", "rectangular-box-host", "cone-primitive", "coaxial-cone-cylinder", "entry-relief", "semantic-profile-stack"],
             Array.Empty<string>(),
             diagnostics);
+    }
+}
+
+internal sealed class ChamferedEntryHoleVariant : IHoleRecoveryVariant
+{
+    internal const double MaxChamferDepthToHoleRadius = 1.0d;
+    internal const double MaxChamferRadiusDeltaToHoleRadius = 0.75d;
+    private const double Score = 1040d;
+    public string Name => nameof(ChamferedEntryHoleVariant);
+
+    public HoleRecoveryVariantEvaluation Evaluate(FrepMaterializerContext context)
+    {
+        var diagnostics = new List<string> { "ChamferedEntryHoleVariant evaluated." };
+        if (context.Root is not CirSubtractNode outer || outer.Left is not CirSubtractNode inner)
+        {
+            diagnostics.Add("not chamfered-entry shape: requires Subtract(Subtract(Box,Cylinder),Cone).");
+            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedChamferedEntryShape"], diagnostics);
+        }
+
+        var hostRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(inner.Left, inner.Right), context.ReplayLog, context.SourceLabel));
+        if (!hostRec.Success || hostRec.Value is null)
+        {
+            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], [hostRec.Diagnostic, $"host-recognizer-reason:{hostRec.Reason}"], hostRec.Diagnostics);
+        }
+
+        if (!CounterboreVariant.TryUnwrapTranslation(outer.Right, out var coneNode, out var coneTranslation) || coneNode is not CirConeNode cone)
+        {
+            diagnostics.Add("missing cone primitive / unexpected tool kind.");
+            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedMissingConePrimitiveOrTransform"], diagnostics);
+        }
+
+        var host = hostRec.Value;
+        var tol = Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
+        if (Math.Abs(coneTranslation.X - host.CylinderTranslation.X) > tol || Math.Abs(coneTranslation.Y - host.CylinderTranslation.Y) > tol)
+        {
+            diagnostics.Add("cone/cylinder not coaxial in XY.");
+            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedNonCoaxialConeCylinder"], diagnostics);
+        }
+        diagnostics.Add("cone/cylinder coaxial in XY.");
+
+        var boxMinZ = host.BoxTranslation.Z - (host.BoxDepth * 0.5d);
+        var boxMaxZ = host.BoxTranslation.Z + (host.BoxDepth * 0.5d);
+        var coneMinZ = coneTranslation.Z - (cone.Height * 0.5d);
+        var coneMaxZ = coneTranslation.Z + (cone.Height * 0.5d);
+        var touchesTop = Math.Abs(coneMaxZ - boxMaxZ) <= tol;
+        if (!touchesTop)
+        {
+            diagnostics.Add("entry side unsupported: bounded v15 supports top-entry chamfer only.");
+            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedEntrySide"], diagnostics);
+        }
+
+        var entryRadius = cone.TopRadius;
+        var transitionRadius = cone.BottomRadius;
+        if (entryRadius <= transitionRadius + tol)
+        {
+            diagnostics.Add("cone radius ordering invalid for entry side.");
+            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedConeRadiusOrderingInvalid"], diagnostics);
+        }
+
+        if (Math.Abs(transitionRadius - host.CylinderRadius) > tol)
+        {
+            diagnostics.Add("cone transition radius incompatible with cylinder radius.");
+            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedTransitionRadiusMismatch"], diagnostics);
+        }
+
+        var coneDepth = cone.Height;
+        var depthRatio = coneDepth / Math.Max(host.CylinderRadius, tol);
+        var radiusDelta = entryRadius - host.CylinderRadius;
+        var radiusDeltaLimit = MaxChamferRadiusDeltaToHoleRadius * host.CylinderRadius;
+        if (depthRatio > MaxChamferDepthToHoleRadius + tol || radiusDelta > radiusDeltaLimit + tol)
+        {
+            diagnostics.Add("entry conical relief exceeds chamfer thresholds; classify as countersink-like.");
+            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["RejectedCountersinkLikeCone"], diagnostics);
+        }
+        diagnostics.Add("chamfer depth/radius thresholds validated.");
+
+        var halfW = host.BoxWidth * 0.5d;
+        var halfH = host.BoxHeight * 0.5d;
+        var dx = coneTranslation.X - host.BoxTranslation.X;
+        var dy = coneTranslation.Y - host.BoxTranslation.Y;
+        if ((dx + halfW - entryRadius) <= tol || (halfW - dx - entryRadius) <= tol || (dy + halfH - entryRadius) <= tol || (halfH - dy - entryRadius) <= tol)
+        {
+            diagnostics.Add("cone max radius tangent/grazing/oversized.");
+            return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedConeClearance"], diagnostics);
+        }
+
+        var depthKind = host.ThroughLength >= host.BoxDepth - tol ? HoleDepthKind.ThroughWithEntryRelief : HoleDepthKind.BlindWithEntryRelief;
+        var exitKind = depthKind == HoleDepthKind.ThroughWithEntryRelief ? HoleExitFeatureKind.Plain : HoleExitFeatureKind.ClosedBottom;
+        diagnostics.Add("entry side detected: top(+Z).");
+        diagnostics.Add("cone radius/order validated.");
+        diagnostics.Add("transition radius compatible.");
+        diagnostics.Add("Chamfered-entry plan produced.");
+        var plan = new HoleRecoveryPlan(HoleHostKind.RectangularBox, HoleAxisKind.Z, HoleKind.ChamferedEntry, depthKind, HoleEntryFeatureKind.Chamfer, exitKind,
+            host.ThroughLength, host.BoxWidth, host.BoxHeight, host.BoxDepth, host.BoxTranslation, host.CylinderTranslation,
+            [new(HoleProfileSegmentKind.Conical, entryRadius, transitionRadius, 0d, coneDepth), new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength)],
+            [new(HoleSurfacePatchRole.HostRetainedPlanarFaces, "Host planar faces are retained after chamfered-entry subtraction."), new(HoleSurfacePatchRole.ChamferedEntryWall, "Conical chamfered-entry wall patch is expected."), new(HoleSurfacePatchRole.CylindricalWall, "Cylindrical continuation wall patch is expected.")],
+            [new(HoleTrimCurveRole.CircularRimTrim, "Circular entry/transition trims are expected.")], FrepMaterializerCapability.ExactBRep, diagnostics.ToArray());
+
+        return new(Name, true, Score, plan, ["chamfered-entry", "rectangular-box-host", "cone-primitive", "coaxial-cone-cylinder", "entry-relief", "semantic-profile-stack"], Array.Empty<string>(), diagnostics);
     }
 }
 

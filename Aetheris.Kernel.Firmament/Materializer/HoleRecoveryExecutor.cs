@@ -59,6 +59,11 @@ public static class HoleRecoveryExecutor
             diagnostics.Add("Countersink plan accepted for bounded execution.");
             return ExecuteCountersink(plan, diagnostics);
         }
+        if (plan.HoleKind == HoleKind.ChamferedEntry && (plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief || plan.DepthKind == HoleDepthKind.BlindWithEntryRelief))
+        {
+            diagnostics.Add("Chamfered-entry plan accepted for bounded execution.");
+            return ExecuteCountersinkLike(plan, diagnostics, "chamfer cone");
+        }
 
         if (plan.HoleKind == HoleKind.Stepped && plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief)
         {
@@ -376,6 +381,9 @@ public static class HoleRecoveryExecutor
     }
 
     private static HoleRecoveryExecutionResult ExecuteCountersink(HoleRecoveryPlan plan, List<string> diagnostics)
+        => ExecuteCountersinkLike(plan, diagnostics, "cone");
+
+    private static HoleRecoveryExecutionResult ExecuteCountersinkLike(HoleRecoveryPlan plan, List<string> diagnostics, string coneLabel)
     {
         if (plan.HostKind != HoleHostKind.RectangularBox || plan.Axis != HoleAxisKind.Z || plan.ProfileStack.Count != 2)
         {
@@ -414,22 +422,22 @@ public static class HoleRecoveryExecutor
         var coneResult = FirmamentPrimitiveExecutor.ExecuteCone(new FirmamentLoweredConeParameters(coneSeg.RadiusEnd, coneSeg.RadiusStart, coneHeight));
         if (!coneResult.IsSuccess)
         {
-            diagnostics.Add("cone primitive construction failed.");
+            diagnostics.Add($"{coneLabel} primitive construction failed.");
             return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
         }
 
         var entryTopZ = plan.HostTranslation.Z + (plan.HostSizeZ * 0.5d);
         var coneCenterZ = entryTopZ - (coneHeight * 0.5d);
         var coneBody = TranslateBody(coneResult.Value, new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, coneCenterZ));
-        diagnostics.Add("cone subtract invoked.");
+        diagnostics.Add($"{coneLabel} subtract invoked.");
         var secondSub = BrepBoolean.Subtract(firstSub.Value, coneBody);
         if (!secondSub.IsSuccess || secondSub.Value is null)
         {
-            diagnostics.Add("cone subtract failed.");
+            diagnostics.Add($"{coneLabel} subtract failed.");
             return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
-        diagnostics.Add("cone subtract succeeded.");
+        diagnostics.Add($"{coneLabel} subtract succeeded.");
         diagnostics.Add("Result BRep body produced.");
         return new(HoleRecoveryExecutionStatus.Succeeded, secondSub.Value, diagnostics);
     }

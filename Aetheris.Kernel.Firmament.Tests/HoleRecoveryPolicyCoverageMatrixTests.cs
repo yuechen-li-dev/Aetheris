@@ -17,6 +17,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
             { "BlindHoleTop", BuildBlindHoleTop(), nameof(BlindHoleVariant), HoleKind.Blind, HoleDepthKind.Blind, FrepMaterializerCapability.ExactBRep },
             { "BlindHoleBottom", BuildBlindHoleBottom(), nameof(BlindHoleVariant), HoleKind.Blind, HoleDepthKind.Blind, FrepMaterializerCapability.ExactBRep },
             { "Countersink", BuildCountersink(), nameof(CountersinkVariant), HoleKind.Countersink, HoleDepthKind.ThroughWithEntryRelief, FrepMaterializerCapability.ExactBRep },
+            { "ChamferedEntry", BuildChamferedEntry(), nameof(ChamferedEntryHoleVariant), HoleKind.ChamferedEntry, HoleDepthKind.ThroughWithEntryRelief, FrepMaterializerCapability.ExactBRep },
             { "SteppedHole", BuildSteppedHole(), nameof(SteppedHoleVariant), HoleKind.Stepped, HoleDepthKind.ThroughWithEntryRelief, FrepMaterializerCapability.ExactBRep }
         };
 
@@ -65,7 +66,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         var plan = Assert.IsType<HoleRecoveryPlan>(eval.Plan);
         Assert.Equal(expectedHoleKind, plan.HoleKind);
         Assert.Equal(expectedDepthKind, plan.DepthKind);
-        var all = new[] { nameof(ThroughHoleVariant), nameof(CounterboreVariant), nameof(BlindHoleVariant), nameof(CountersinkVariant), nameof(SteppedHoleVariant) };
+        var all = new[] { nameof(ThroughHoleVariant), nameof(CounterboreVariant), nameof(BlindHoleVariant), nameof(ChamferedEntryHoleVariant), nameof(CountersinkVariant), nameof(SteppedHoleVariant) };
         foreach (var variant in all.Where(v => !string.Equals(v, expectedVariant, StringComparison.Ordinal)))
         {
             Assert.Contains(eval.Diagnostics, d => d.Contains($"Variant considered: {variant}; admissible=False.", StringComparison.Ordinal));
@@ -150,5 +151,6 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
     private static CirNode BuildBlindHoleBottom() => new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirTransformNode(new CirCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
     private static CirNode BuildCounterbore() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
     private static CirNode BuildCountersink() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
+    private static CirNode BuildChamferedEntry() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirConeNode(2, 2.8, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, 4.5))));
     private static CirNode BuildSteppedHole() => new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,-2)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-3))));
 }

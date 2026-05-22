@@ -58,16 +58,16 @@ public sealed class SteppedHolePlacementSemanticsTests
     {
         var exec = HoleRecoveryExecutor.Execute(BuildPlan());
         Assert.DoesNotContain(exec.Diagnostics, d => d.Contains("missing-stepped-entry-side-polarity", StringComparison.Ordinal));
-        Assert.Contains(exec.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("no-hidden-placement-inference", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void SteppedExecution_RemainsDeferredInV13_2()
+    public void SteppedExecution_UsesExplicitPlacementRouteInV13_3()
     {
         var exec = HoleRecoveryExecutor.Execute(BuildPlan());
-        Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
-        Assert.Null(exec.Body);
-        Assert.DoesNotContain(exec.Diagnostics, d => d.Contains("subtract", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
+        Assert.NotNull(exec.Body);
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped executor route: repeated-subtract-small-medium-large", StringComparison.Ordinal));
         Assert.Contains(exec.Diagnostics, d => d.Contains("No STEP export attempted", StringComparison.Ordinal));
     }
 

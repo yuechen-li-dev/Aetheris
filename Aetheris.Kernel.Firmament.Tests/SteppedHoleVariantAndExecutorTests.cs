@@ -25,9 +25,11 @@ public sealed class SteppedHoleVariantAndExecutorTests
     {
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped())).Plan!;
         var exec = HoleRecoveryExecutor.Execute(plan);
-        Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
+        Assert.Equal(HoleRecoveryExecutionStatus.BooleanFailed, exec.Status);
         Assert.Null(exec.Body);
-        Assert.Contains(exec.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("no-hidden-placement-inference", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract small succeeded", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract medium", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -35,10 +37,7 @@ public sealed class SteppedHoleVariantAndExecutorTests
     {
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped())).Plan!;
         var exec = HoleRecoveryExecutor.Execute(plan);
-        Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
-        Assert.Null(exec.Body);
-        Assert.Contains(exec.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
-        Assert.Contains(exec.Diagnostics, d => d.Contains("No STEP export attempted", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped executor route: repeated-subtract-small-medium-large", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -72,7 +71,23 @@ public sealed class SteppedHoleVariantAndExecutorTests
         var exec = HoleRecoveryExecutor.Execute(invalid);
         Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
         Assert.Null(exec.Body);
-        Assert.Contains(exec.Diagnostics, d => d.Contains("stepped-execution-route-disabled-until-v13.3", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("rejected before Boolean", StringComparison.Ordinal));
+        Assert.DoesNotContain(exec.Diagnostics, d => d.Contains("Stepped subtract", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SteppedHole_InvalidPlacement_RejectsBeforeBoolean()
+    {
+        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped()));
+        var plan = Assert.IsType<HoleRecoveryPlan>(eval.Plan);
+        var large = plan.ProfileStack[0] with { AnchorSide = HoleTierAnchorSide.Unknown };
+        var medium = plan.ProfileStack[1] with { IsThrough = true };
+        var small = plan.ProfileStack[2] with { IsThrough = false, ZMin = double.NaN };
+        var invalid = plan with { ProfileStack = [large, medium, small] };
+        var exec = HoleRecoveryExecutor.Execute(invalid);
+        Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
+        Assert.Null(exec.Body);
+        Assert.Contains(exec.Diagnostics, d => d.Contains("rejected before Boolean", StringComparison.Ordinal));
         Assert.DoesNotContain(exec.Diagnostics, d => d.Contains("Stepped subtract", StringComparison.Ordinal));
     }
 

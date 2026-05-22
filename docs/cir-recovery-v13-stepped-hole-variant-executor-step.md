@@ -44,3 +44,13 @@ Introduce a dedicated stepped-tool execution architecture before enabling steppe
 1. bounded stepped tool builder + validated single subtract,
 2. unioned coaxial tool composition with dedicated Boolean stability contracts,
 3. dedicated profile-stack executor/topology builder for stepped coaxial reliefs.
+
+## V13.3 execution restoration update
+Production stepped execution is restored for the bounded canonical shape (three cylindrical tiers, one through + two blind entry tiers, rectangular host, Z-axis).
+
+Execution now consumes explicit V13.2 placement semantics directly:
+- per-tier `ZMin/ZMax` drive tool height and center placement,
+- no hidden depth/anchor reconstruction in executor,
+- repeated subtract route is fixed to `small -> medium -> large`.
+
+STEP smoke is restored in tests using existing `Step242Exporter.ExportBody(...)`, asserting `ISO-10303-21`, `MANIFOLD_SOLID_BREP`, `ADVANCED_FACE`, `CYLINDRICAL_SURFACE`, and asserting absence of `BREP_WITH_VOIDS`.

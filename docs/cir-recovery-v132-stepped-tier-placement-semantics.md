@@ -41,3 +41,12 @@ No stepped Boolean execution is attempted in this milestone.
 
 ## V13.3 next step
 Re-enable stepped production execution using plan-provided placement semantics (`AnchorSide`, `DepthFromAnchor`, `ZMin/ZMax`, `IsThrough`) and keep route-equivalence tests as an execution gate.
+
+## V13.3 execution consumption update
+V13.3 re-enables bounded stepped execution and now treats these placement fields as executable source-of-truth:
+- executor validates explicit `AnchorSide`, `IsThrough`, and concrete `ZMin/ZMax` for every tier,
+- through tier must explicitly declare `AnchorSide=Through` and `IsThrough=true`,
+- medium/large tiers must be blind and share one concrete entry anchor side,
+- tool construction uses `height = ZMax - ZMin` and `centerZ = (ZMin + ZMax)/2` with no hidden span inference.
+
+Route is explicitly `repeated-subtract-small-medium-large`; any placement inconsistency rejects before Boolean.

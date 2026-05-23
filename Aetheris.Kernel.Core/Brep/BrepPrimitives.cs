@@ -144,105 +144,24 @@ public static class BrepPrimitives
         {
             return KernelResult<BrepBody>.Failure(diagnostics);
         }
-
-        var hx = width * 0.5d;
-        var hy = height * 0.5d;
-        var hz = depth * 0.5d;
-
-        var builder = new TopologyBuilder();
-
-        var vertices = new[]
+        var profile = PolylineProfile2D.Create(
+        [
+            new ProfilePoint2D(-width * 0.5d, -height * 0.5d),
+            new ProfilePoint2D(width * 0.5d, -height * 0.5d),
+            new ProfilePoint2D(width * 0.5d, height * 0.5d),
+            new ProfilePoint2D(-width * 0.5d, height * 0.5d),
+        ]);
+        if (!profile.IsSuccess)
         {
-            builder.AddVertex(), // 1: (-x,-y,-z)
-            builder.AddVertex(), // 2: (+x,-y,-z)
-            builder.AddVertex(), // 3: (+x,+y,-z)
-            builder.AddVertex(), // 4: (-x,+y,-z)
-            builder.AddVertex(), // 5: (-x,-y,+z)
-            builder.AddVertex(), // 6: (+x,-y,+z)
-            builder.AddVertex(), // 7: (+x,+y,+z)
-            builder.AddVertex(), // 8: (-x,+y,+z)
-        };
-
-        var edges = new[]
-        {
-            builder.AddEdge(vertices[0], vertices[1]),
-            builder.AddEdge(vertices[1], vertices[2]),
-            builder.AddEdge(vertices[2], vertices[3]),
-            builder.AddEdge(vertices[3], vertices[0]),
-            builder.AddEdge(vertices[4], vertices[5]),
-            builder.AddEdge(vertices[5], vertices[6]),
-            builder.AddEdge(vertices[6], vertices[7]),
-            builder.AddEdge(vertices[7], vertices[4]),
-            builder.AddEdge(vertices[0], vertices[4]),
-            builder.AddEdge(vertices[1], vertices[5]),
-            builder.AddEdge(vertices[2], vertices[6]),
-            builder.AddEdge(vertices[3], vertices[7]),
-        };
-
-        var faces = new[]
-        {
-            AddFaceWithLoop(builder, [EdgeUse.Forward(edges[0]), EdgeUse.Forward(edges[1]), EdgeUse.Forward(edges[2]), EdgeUse.Forward(edges[3])]),
-            AddFaceWithLoop(builder, [EdgeUse.Forward(edges[4]), EdgeUse.Forward(edges[5]), EdgeUse.Forward(edges[6]), EdgeUse.Forward(edges[7])]),
-            AddFaceWithLoop(builder, [EdgeUse.Forward(edges[0]), EdgeUse.Forward(edges[9]), EdgeUse.Reversed(edges[4]), EdgeUse.Reversed(edges[8])]),
-            AddFaceWithLoop(builder, [EdgeUse.Forward(edges[1]), EdgeUse.Forward(edges[10]), EdgeUse.Reversed(edges[5]), EdgeUse.Reversed(edges[9])]),
-            AddFaceWithLoop(builder, [EdgeUse.Forward(edges[2]), EdgeUse.Forward(edges[11]), EdgeUse.Reversed(edges[6]), EdgeUse.Reversed(edges[10])]),
-            AddFaceWithLoop(builder, [EdgeUse.Forward(edges[3]), EdgeUse.Forward(edges[8]), EdgeUse.Reversed(edges[7]), EdgeUse.Reversed(edges[11])]),
-        };
-
-        var shell = builder.AddShell(faces);
-        builder.AddBody([shell]);
-
-        var geometry = new BrepGeometryStore();
-
-        var p1 = new Point3D(-hx, -hy, -hz);
-        var p2 = new Point3D(hx, -hy, -hz);
-        var p3 = new Point3D(hx, hy, -hz);
-        var p4 = new Point3D(-hx, hy, -hz);
-        var p5 = new Point3D(-hx, -hy, hz);
-        var p6 = new Point3D(hx, -hy, hz);
-        var p7 = new Point3D(hx, hy, hz);
-        var p8 = new Point3D(-hx, hy, hz);
-
-        var lineCurves = new[]
-        {
-            (p1, new Vector3D(width, 0d, 0d)),
-            (p2, new Vector3D(0d, height, 0d)),
-            (p3, new Vector3D(-width, 0d, 0d)),
-            (p4, new Vector3D(0d, -height, 0d)),
-            (p5, new Vector3D(width, 0d, 0d)),
-            (p6, new Vector3D(0d, height, 0d)),
-            (p7, new Vector3D(-width, 0d, 0d)),
-            (p8, new Vector3D(0d, -height, 0d)),
-            (p1, new Vector3D(0d, 0d, depth)),
-            (p2, new Vector3D(0d, 0d, depth)),
-            (p3, new Vector3D(0d, 0d, depth)),
-            (p4, new Vector3D(0d, 0d, depth)),
-        };
-
-        for (var i = 0; i < lineCurves.Length; i++)
-        {
-            geometry.AddCurve(new CurveGeometryId(i + 1), CurveGeometry.FromLine(new Line3Curve(lineCurves[i].Item1, Direction3D.Create(lineCurves[i].Item2))));
+            return KernelResult<BrepBody>.Failure(profile.Diagnostics);
         }
 
-        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, -hz), Direction3D.Create(new Vector3D(0d, 0d, -1d)), Direction3D.Create(new Vector3D(1d, 0d, 0d)))));
-        geometry.AddSurface(new SurfaceGeometryId(2), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, 0d, hz), Direction3D.Create(new Vector3D(0d, 0d, 1d)), Direction3D.Create(new Vector3D(1d, 0d, 0d)))));
-        geometry.AddSurface(new SurfaceGeometryId(3), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, -hy, 0d), Direction3D.Create(new Vector3D(0d, -1d, 0d)), Direction3D.Create(new Vector3D(1d, 0d, 0d)))));
-        geometry.AddSurface(new SurfaceGeometryId(4), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(hx, 0d, 0d), Direction3D.Create(new Vector3D(1d, 0d, 0d)), Direction3D.Create(new Vector3D(0d, 1d, 0d)))));
-        geometry.AddSurface(new SurfaceGeometryId(5), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, hy, 0d), Direction3D.Create(new Vector3D(0d, 1d, 0d)), Direction3D.Create(new Vector3D(-1d, 0d, 0d)))));
-        geometry.AddSurface(new SurfaceGeometryId(6), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(-hx, 0d, 0d), Direction3D.Create(new Vector3D(-1d, 0d, 0d)), Direction3D.Create(new Vector3D(0d, 1d, 0d)))));
+        var frame = new ExtrudeFrame3D(
+            new Point3D(0d, 0d, -depth * 0.5d),
+            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            Direction3D.Create(new Vector3D(1d, 0d, 0d)));
 
-        var bindings = new BrepBindingModel();
-        for (var i = 0; i < edges.Length; i++)
-        {
-            bindings.AddEdgeBinding(new EdgeGeometryBinding(edges[i], new CurveGeometryId(i + 1), new ParameterInterval(0d, 1d)));
-        }
-
-        for (var i = 0; i < faces.Length; i++)
-        {
-            bindings.AddFaceBinding(new FaceGeometryBinding(faces[i], new SurfaceGeometryId(i + 1)));
-        }
-
-        return ValidateAndReturn(new BrepBody(builder.Model, geometry, bindings));
+        return BrepExtrude.Create(profile.Value, frame, depth);
     }
 
     public static KernelResult<BrepBody> CreateCylinder(double radius, double height)

@@ -53,17 +53,17 @@ public static class ProfileStackExtrudeExecutor
             diagnostics.Add($"profile-stack layer[{i}] role={l.Role} zMin={l.ZMin:0.###} zMax={l.ZMax:0.###} radius={(l.InnerCircleRadius?.ToString("0.###") ?? "none") }.");
         }
 
-        if (orderedLayers.Any(l => !l.InnerCircleRadius.HasValue || l.InnerCircleRadius.Value <= 0d))
-        {
-            diagnostics.Add("profile-stack unsupported-shape: V1 stepped-hole executor requires every layer to provide a positive inner radius.");
-            return new(ProfileStackExtrudeExecutionStatus.UnsupportedProfileShape, null, diagnostics);
-        }
+        if (orderedLayers.All(l => !l.InnerCircleRadius.HasValue))
+        { diagnostics.Add("profile-stack unsupported-shape: no cut intervals were provided."); return new(ProfileStackExtrudeExecutionStatus.UnsupportedProfileShape, null, diagnostics); }
+        if (orderedLayers.Any(l => l.InnerCircleRadius.HasValue && l.InnerCircleRadius.Value <= 0d))
+        { diagnostics.Add("profile-stack unsupported-shape: cut interval has non-positive inner radius."); return new(ProfileStackExtrudeExecutionStatus.UnsupportedProfileShape, null, diagnostics); }
 
         var holes = new List<SupportedBooleanHole>();
         var zAxis = Direction3D.Create(new Vector3D(0, 0, 1));
         var xAxis = Direction3D.Create(new Vector3D(1, 0, 0));
         foreach (var l in orderedLayers)
         {
+            if (!l.InnerCircleRadius.HasValue) continue;
             var span = l.ZMin <= spec.ZMin + 1e-9 && l.ZMax >= spec.ZMax - 1e-9
                 ? SupportedBooleanHoleSpanKind.Through
                 : (Math.Abs(l.ZMax - spec.ZMax) < 1e-9

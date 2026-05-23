@@ -47,6 +47,7 @@ public static class HoleRecoveryExecutor
             return ExecuteCountersinkLike(plan, diagnostics, "chamfer cone");
         }
 
+        diagnostics.Add("hole-family AIR attempt: profile-stack route evaluation started.");
         if (AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(plan, out var air, out var airDiagnostics) && air is not null)
         {
             diagnostics.AddRange(airDiagnostics);
@@ -71,6 +72,16 @@ public static class HoleRecoveryExecutor
             if (profileResult.Status != ProfileStackExtrudeExecutionStatus.Succeeded || profileResult.Body is null)
             {
                 diagnostics.Add("hole-family profile-stack execution failed.");
+                if (plan.HoleKind == HoleKind.Blind && plan.DepthKind == HoleDepthKind.Blind)
+                {
+                    diagnostics.Add("hole-family AIR failed; falling back to legacy blind executor.");
+                    return ExecuteBlind(plan, diagnostics);
+                }
+                if (plan.HoleKind == HoleKind.Counterbore && plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief)
+                {
+                    diagnostics.Add("hole-family AIR failed; falling back to legacy counterbore executor.");
+                    return ExecuteCounterbore(plan, diagnostics);
+                }
                 return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
             }
 
@@ -80,6 +91,7 @@ public static class HoleRecoveryExecutor
         }
 
         diagnostics.AddRange(airDiagnostics);
+        diagnostics.Add("hole-family AIR attempt rejected; evaluating legacy fallback routes.");
 
         if (plan.HoleKind == HoleKind.Through)
         {
@@ -97,6 +109,7 @@ public static class HoleRecoveryExecutor
 
         if (plan.HoleKind == HoleKind.Blind && plan.DepthKind == HoleDepthKind.Blind)
         {
+            diagnostics.Add("air-profile-stack-v2b-fallback-legacy-blind");
             diagnostics.Add("Blind-hole plan accepted for bounded execution.");
             return ExecuteBlind(plan, diagnostics);
         }
@@ -109,6 +122,7 @@ public static class HoleRecoveryExecutor
 
         if (plan.HoleKind == HoleKind.Counterbore && plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief)
         {
+            diagnostics.Add("air-profile-stack-v2b-fallback-legacy-counterbore");
             diagnostics.Add("Counterbore plan accepted for bounded execution.");
             return ExecuteCounterbore(plan, diagnostics);
         }

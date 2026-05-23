@@ -41,23 +41,25 @@ public sealed class AirProfileStackExtrudeTests
     }
 
     [Fact]
-    public void BlindHole_AirV2A_FinalRouteStatus()
+    public void BlindHole_AirV2B_FinalRouteStatus()
     {
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20,20,10), new CirTransformNode(new CirCylinderNode(2,4), Transform3D.CreateTranslation(new Vector3D(0,0,3)))))).Plan!;
         Assert.False(AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(plan, out _, out var d));
-        Assert.Contains(d, x => x.Contains("air-profile-stack-v1-blind-deferred", StringComparison.Ordinal));
+        Assert.Contains(d, x => x.Contains("air-profile-stack-v2b-blind-solid-interval-recognized", StringComparison.Ordinal));
+        Assert.Contains(d, x => x.Contains("air-profile-stack-v2b-blind-emitter-deferred", StringComparison.Ordinal));
         var exec = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
+        Assert.Contains(exec.Diagnostics, x => x.Contains("air-profile-stack-v2b-fallback-legacy-blind", StringComparison.Ordinal));
         Assert.Contains(exec.Diagnostics, x => x.Contains("Blind subtract succeeded", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void Counterbore_AirV2A_FinalRouteStatus()
+    public void Counterbore_AirV2B_FinalRouteStatus()
     {
         var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3))));
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root)).Plan!;
-        Assert.False(AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(plan, out _, out var d));
-        Assert.Contains(d, x => x.Contains("air-profile-stack-v1-counterbore-deferred", StringComparison.Ordinal));
+        Assert.True(AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(plan, out _, out var d));
+        Assert.Contains(d, x => x.Contains("air-profile-stack-v2b-counterbore-contiguous-accepted", StringComparison.Ordinal));
         var exec = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
         Assert.Contains(exec.Diagnostics, x => x.Contains("Second subtract succeeded", StringComparison.Ordinal));
@@ -77,10 +79,20 @@ public sealed class AirProfileStackExtrudeTests
     public void NoHoleLayer_CurrentExpectedBehavior()
     {
         var air = new AirProfileStackExtrude([
-            new AirProfileStackLayer(-5,0,new AirProfileRegion2D(new AirRectangleProfile(20,20),new AirCenteredCircleLoop(2),"a",[]),"a",[]),
-            new AirProfileStackLayer(1,5,new AirProfileRegion2D(new AirRectangleProfile(20,20),new AirCenteredCircleLoop(3),"b",[]),"b",[])
+            new AirProfileStackLayer(-5,0,new AirProfileRegion2D(new AirRectangleProfile(20,20),new AirCenteredCircleLoop(2),AirProfileStackLayerKind.CircularCutInterval,"a",[]),"a",[]),
+            new AirProfileStackLayer(1,5,new AirProfileRegion2D(new AirRectangleProfile(20,20),new AirCenteredCircleLoop(3),AirProfileStackLayerKind.CircularCutInterval,"b",[]),"b",[])
         ],-5,5,[],[]);
         Assert.False(AirProfileStackExtrudeAdapter.TryToProfileStackSpec(air, out _, out _));
+    }
+
+    [Fact]
+    public void SolidLayer_WithInnerLoop_IsDeterministicallyInvalid()
+    {
+        var air = new AirProfileStackExtrude([
+            new AirProfileStackLayer(-5,5,new AirProfileRegion2D(new AirRectangleProfile(20,20),new AirCenteredCircleLoop(2),AirProfileStackLayerKind.SolidInterval,"bad",[]),"bad",[])
+        ],-5,5,[],[]);
+        Assert.False(AirProfileStackExtrudeAdapter.TryValidate(air, out var d));
+        Assert.Contains(d, x => x.Contains("air-validation-failed-solid-interval-has-inner-loop", StringComparison.Ordinal));
     }
 
     private static CirNode BuildStepped() => new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,2)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3))));

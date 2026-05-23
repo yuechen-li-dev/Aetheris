@@ -63,3 +63,5 @@ Through-hole and stepped-hole profile-stack routes now materialize a bounded AIR
 
 ## AIR-V2A.1 update (2026-05-23)
 Through/stepped remain AIR/profile-stack. Blind/counterbore are explicitly deferred in AIR with legacy bounded execution retained; countersink/chamfer remain conical route.
+
+- AIR-V2B: counterbore contiguous layered-radii migrated to AIR/profile-stack, and blind migrated when explicit solid+cut interval semantics are admissible; legacy fallback remains active on AIR rejection.

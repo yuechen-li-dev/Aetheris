@@ -20,6 +20,7 @@ public sealed class HoleRecoveryExecutorPlacementDrivenTests
         var result = HoleRecoveryExecutor.Execute(plan);
 
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
+        Assert.Contains(result.Diagnostics, d => d.Contains("air-profile-stack-v2b-fallback-legacy-blind", StringComparison.Ordinal));
         Assert.Contains(result.Diagnostics, d => d.Contains("placement-driven segment=blind-cylinder", StringComparison.Ordinal));
     }
 

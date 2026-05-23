@@ -31,3 +31,7 @@ Preserved defer breadcrumbs:
 
 ## Recommended next step
 AIR-V2B should investigate bounded emitter support for blind/counterbore interval topology with dedicated composition constraints and diagnostics before re-enabling AIR routing for these variants.
+
+
+## AIR-V2B update
+Blind and counterbore are no longer blanket deferred when admissible contiguous AIR interval semantics are present; see `air-v2b-blind-counterbore-interval-production.md` for exact accepted/rejected boundaries and diagnostics.

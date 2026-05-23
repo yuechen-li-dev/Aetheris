@@ -59,3 +59,7 @@ CIR-SWEEP-V3 can evaluate conical profile-stack/revolve/sweep route candidates f
 ## AIR-V1 note
 
 Through-hole and stepped-hole profile-stack routes now materialize a bounded AIR scaffold (`AirProfileStackExtrude`) before executor emission. Blind/counterbore/conical variants are explicitly deferred in AIR-V1 and remain on their legacy executor routes.
+
+
+## AIR-V2A.1 update (2026-05-23)
+Through/stepped remain AIR/profile-stack. Blind/counterbore are explicitly deferred in AIR with legacy bounded execution retained; countersink/chamfer remain conical route.

@@ -60,3 +60,7 @@ No emitter rewrite was done. BRep/STEP behavior remains on existing production e
 
 - Introduce AIR execution semantics for blind/counterbore no-hole/overlap intervals.
 - Add explicit conical profile region for countersink/chamfer adaptation.
+
+
+## AIR-V2A.1 update (2026-05-23)
+Blind-hole and counterbore remain explicitly deferred in AIR; legacy bounded routes are preserved to keep gates green.

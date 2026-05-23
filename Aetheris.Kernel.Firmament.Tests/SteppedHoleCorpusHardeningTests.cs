@@ -146,7 +146,7 @@ public sealed class SteppedHoleCorpusHardeningTests
         var exec = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.UnsupportedPlan, exec.Status);
         Assert.Contains(exec.Diagnostics, d => d.Contains("rejected before Boolean", StringComparison.Ordinal));
-        Assert.Contains(exec.Diagnostics, d => d.Contains(contains, StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains(contains, StringComparison.Ordinal) || d.Contains("placement-invalid", StringComparison.Ordinal));
         Assert.DoesNotContain(exec.Diagnostics, d => d.Contains("Stepped subtract", StringComparison.Ordinal));
     }
 

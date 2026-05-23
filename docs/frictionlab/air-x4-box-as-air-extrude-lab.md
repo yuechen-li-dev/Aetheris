@@ -7,7 +7,9 @@ AIR-X4 introduces a **lab-only** evidence lane that compares:
 1. baseline `BrepPrimitives.CreateBox(width, depth, height)` behavior, and
 2. an AIR-style rectangle-profile linear extrusion built with existing `BrepExtrude` helpers.
 
-No production primitive routing is changed in this milestone.
+No production primitive routing is changed in AIR-X4 itself.
+
+> Postscript (AIR-V3): AIR-V3 consumed this evidence and migrated `BrepPrimitives.CreateBox` to the rectangle-profile extrude path in production.
 
 ## AIR-X3 reference
 
@@ -74,11 +76,11 @@ Per case recommendation is one of:
 - `box-air-extrude-ready-for-production-migration`, or
 - `box-air-extrude-needs-emitter-parity-work`.
 
-AIR-X4 remains lab-only; no production migration is performed here.
+AIR-X4 remained lab-only at execution time; AIR-V3 later consumed this lane for production migration.
 
 ## Explicit non-goals
 
-- no production migration of `BrepPrimitives.CreateBox`
+- no production migration is implemented inside AIR-X4 deliverables (migration occurs later in AIR-V3)
 - no cylinder/cone/sphere/torus primitive-as-AIR expansion
 - no STEP exporter/importer changes
 - no Boolean core changes

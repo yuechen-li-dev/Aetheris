@@ -39,6 +39,22 @@ public sealed class BrepPrimitivesTests
         Assert.True(validation.IsSuccess);
     }
 
+
+    [Theory]
+    [InlineData(10d, 10d, 10d)]
+    [InlineData(12d, 8d, 6d)]
+    public void CreateBox_RepresentativeDimensions_SucceedWithPlanarFaces(double width, double height, double depth)
+    {
+        var result = BrepPrimitives.CreateBox(width, height, depth);
+
+        Assert.True(result.IsSuccess);
+        var body = result.Value;
+        Assert.Equal(8, body.Topology.Vertices.Count());
+        Assert.Equal(12, body.Topology.Edges.Count());
+        Assert.Equal(6, body.Topology.Faces.Count());
+        Assert.Equal(6, body.Topology.Faces.Count(face => body.GetFaceSurface(face.Id).Kind == SurfaceGeometryKind.Plane));
+    }
+
     [Theory]
     [InlineData(0d, 1d, 1d)]
     [InlineData(1d, 0d, 1d)]

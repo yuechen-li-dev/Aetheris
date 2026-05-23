@@ -167,7 +167,7 @@ internal sealed class CountersinkVariant : IHoleRecoveryVariant
 
         var plan = new HoleRecoveryPlan(HoleHostKind.RectangularBox, HoleAxisKind.Z, HoleKind.Countersink, depthKind, HoleEntryFeatureKind.Countersink, exitKind,
             host.ThroughLength, host.BoxWidth, host.BoxHeight, host.BoxDepth, host.BoxTranslation, host.CylinderTranslation,
-            [new(HoleProfileSegmentKind.Conical, entryRadius, transitionRadius, 0d, coneDepth), new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength)],
+            [new(HoleProfileSegmentKind.Conical, entryRadius, transitionRadius, 0d, coneDepth, entryFromTop ? HoleTierAnchorSide.Top : HoleTierAnchorSide.Bottom, coneDepth, coneMinZ, coneMaxZ, false, [$"placement: segment=entry-cone anchor={(entryFromTop ? "Top" : "Bottom")} zMin={coneMinZ:0.###} zMax={coneMaxZ:0.###} through=false"]), new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength, depthKind == HoleDepthKind.ThroughWithEntryRelief ? HoleTierAnchorSide.Through : (entryFromTop ? HoleTierAnchorSide.Top : HoleTierAnchorSide.Bottom), host.ThroughLength, host.BoxTranslation.Z - (host.BoxDepth * 0.5d), host.BoxTranslation.Z + (host.BoxDepth * 0.5d), depthKind == HoleDepthKind.ThroughWithEntryRelief, [$"placement: segment=core-cylinder anchor={(depthKind == HoleDepthKind.ThroughWithEntryRelief ? "Through" : (entryFromTop ? "Top" : "Bottom"))} through={(depthKind == HoleDepthKind.ThroughWithEntryRelief).ToString().ToLowerInvariant()}"])],
             [new(HoleSurfacePatchRole.HostRetainedPlanarFaces, "Host planar faces are retained after countersink subtraction."), new(HoleSurfacePatchRole.CountersinkWall, "Conical countersink wall patch is expected."), new(HoleSurfacePatchRole.CylindricalWall, "Cylindrical continuation wall patch is expected.")],
             [new(HoleTrimCurveRole.CircularRimTrim, "Circular entry/transition trims are expected.")], FrepMaterializerCapability.ExactBRep, diagnostics.ToArray());
 
@@ -281,7 +281,7 @@ internal sealed class ChamferedEntryHoleVariant : IHoleRecoveryVariant
         diagnostics.Add("Chamfered-entry plan produced.");
         var plan = new HoleRecoveryPlan(HoleHostKind.RectangularBox, HoleAxisKind.Z, HoleKind.ChamferedEntry, depthKind, HoleEntryFeatureKind.Chamfer, exitKind,
             host.ThroughLength, host.BoxWidth, host.BoxHeight, host.BoxDepth, host.BoxTranslation, host.CylinderTranslation,
-            [new(HoleProfileSegmentKind.Conical, entryRadius, transitionRadius, 0d, coneDepth), new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength)],
+            [new(HoleProfileSegmentKind.Conical, entryRadius, transitionRadius, 0d, coneDepth, entryFromTop ? HoleTierAnchorSide.Top : HoleTierAnchorSide.Bottom, coneDepth, coneMinZ, coneMaxZ, false, [$"placement: segment=entry-cone anchor={(entryFromTop ? "Top" : "Bottom")} zMin={coneMinZ:0.###} zMax={coneMaxZ:0.###} through=false"]), new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength, depthKind == HoleDepthKind.ThroughWithEntryRelief ? HoleTierAnchorSide.Through : (entryFromTop ? HoleTierAnchorSide.Top : HoleTierAnchorSide.Bottom), host.ThroughLength, host.BoxTranslation.Z - (host.BoxDepth * 0.5d), host.BoxTranslation.Z + (host.BoxDepth * 0.5d), depthKind == HoleDepthKind.ThroughWithEntryRelief, [$"placement: segment=core-cylinder anchor={(depthKind == HoleDepthKind.ThroughWithEntryRelief ? "Through" : (entryFromTop ? "Top" : "Bottom"))} through={(depthKind == HoleDepthKind.ThroughWithEntryRelief).ToString().ToLowerInvariant()}"])],
             [new(HoleSurfacePatchRole.HostRetainedPlanarFaces, "Host planar faces are retained after chamfered-entry subtraction."), new(HoleSurfacePatchRole.ChamferedEntryWall, "Conical chamfered-entry wall patch is expected."), new(HoleSurfacePatchRole.CylindricalWall, "Cylindrical continuation wall patch is expected.")],
             [new(HoleTrimCurveRole.CircularRimTrim, "Circular entry/transition trims are expected.")], FrepMaterializerCapability.ExactBRep, diagnostics.ToArray());
 
@@ -306,7 +306,7 @@ internal sealed class ThroughHoleVariant : IHoleRecoveryVariant
         var supportsTranslation = r.BoxTranslation != Aetheris.Kernel.Core.Math.Vector3D.Zero || r.CylinderTranslation != Aetheris.Kernel.Core.Math.Vector3D.Zero;
         var evidence = new List<string> { "through-hole", "rectangular-box-host", "cylindrical-profile-segment", "strict-clearance", "z-axis", supportsTranslation ? "translation-wrapper-supported" : "translation-wrapper-not-required" };
         var plan = new HoleRecoveryPlan(HoleHostKind.RectangularBox, HoleAxisKind.Z, HoleKind.Through, HoleDepthKind.Through, HoleEntryFeatureKind.Plain, HoleExitFeatureKind.Plain, r.ThroughLength, r.BoxWidth, r.BoxHeight, r.BoxDepth, r.BoxTranslation, r.CylinderTranslation,
-            [new(HoleProfileSegmentKind.Cylindrical, r.CylinderRadius, r.CylinderRadius, 0d, r.ThroughLength)],
+            [new(HoleProfileSegmentKind.Cylindrical, r.CylinderRadius, r.CylinderRadius, 0d, r.ThroughLength, HoleTierAnchorSide.Through, r.ThroughLength, r.BoxTranslation.Z - (r.BoxDepth * 0.5d), r.BoxTranslation.Z + (r.BoxDepth * 0.5d), true, ["placement: segment=core anchor=Through through=true"])],
             [new(HoleSurfacePatchRole.EntryFace, "Cylinder intersects host entry face with circular profile."), new(HoleSurfacePatchRole.ExitFace, "Cylinder intersects host exit face with circular profile."), new(HoleSurfacePatchRole.HostRetainedPlanarFaces, "Host planar faces are retained after through-hole subtraction."), new(HoleSurfacePatchRole.CylindricalWall, "One cylindrical inner wall patch is expected.")],
             [new(HoleTrimCurveRole.CircularRimTrim, "Circular trims on entry and exit rims are expected.")],
             FrepMaterializerCapability.ExactBRep,
@@ -446,7 +446,7 @@ internal sealed class BlindHoleVariant : IHoleRecoveryVariant
 
         plan = new HoleRecoveryPlan(HoleHostKind.RectangularBox, HoleAxisKind.Z, HoleKind.Blind, HoleDepthKind.Blind, HoleEntryFeatureKind.Plain, HoleExitFeatureKind.ClosedBottom,
             depth, box.Width, box.Height, box.Depth, hostT, toolT,
-            [new(HoleProfileSegmentKind.Cylindrical, cyl.Radius, cyl.Radius, 0d, depth)],
+            [new(HoleProfileSegmentKind.Cylindrical, cyl.Radius, cyl.Radius, 0d, depth, entersTop ? HoleTierAnchorSide.Top : HoleTierAnchorSide.Bottom, depth, cylMinZ, cylMaxZ, false, [$"placement: segment=blind-core anchor={(entersTop ? "Top" : "Bottom")} zMin={cylMinZ:0.###} zMax={cylMaxZ:0.###} through=false"])],
             [new(HoleSurfacePatchRole.EntryFace, "Cylinder intersects one host entry face with circular profile."),
              new(HoleSurfacePatchRole.HostRetainedPlanarFaces, "Host planar faces are retained after blind-hole subtraction."),
              new(HoleSurfacePatchRole.CylindricalWall, "One cylindrical blind wall patch is expected."),
@@ -534,8 +534,8 @@ internal sealed class CounterboreVariant : IHoleRecoveryVariant
             host.BoxTranslation,
             host.CylinderTranslation,
             [
-                new(HoleProfileSegmentKind.Cylindrical, largeCylinder.Radius, largeCylinder.Radius, 0d, floorDepth),
-                new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength)
+                new(HoleProfileSegmentKind.Cylindrical, largeCylinder.Radius, largeCylinder.Radius, 0d, floorDepth, Math.Abs(largeMaxZ - boxMaxZ) <= tol ? HoleTierAnchorSide.Top : HoleTierAnchorSide.Bottom, floorDepth, largeMinZ, largeMaxZ, false, [$"placement: segment=counterbore-relief anchor={(Math.Abs(largeMaxZ - boxMaxZ) <= tol ? "Top" : "Bottom")} zMin={largeMinZ:0.###} zMax={largeMaxZ:0.###} through=false"]),
+                new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength, HoleTierAnchorSide.Through, host.ThroughLength, boxMinZ, boxMaxZ, true, [$"placement: segment=through-core anchor=Through zMin={boxMinZ:0.###} zMax={boxMaxZ:0.###} through=true"])
             ],
             [
                 new(HoleSurfacePatchRole.HostRetainedPlanarFaces, "Host planar faces are retained after counterbore subtraction."),
@@ -691,9 +691,9 @@ internal sealed class SteppedHoleVariant : IHoleRecoveryVariant
         var plan = new HoleRecoveryPlan(HoleHostKind.RectangularBox, HoleAxisKind.Z, HoleKind.Stepped, HoleDepthKind.ThroughWithEntryRelief, HoleEntryFeatureKind.Stepped, HoleExitFeatureKind.Plain,
             host.ThroughLength, host.BoxWidth, host.BoxHeight, host.BoxDepth, host.BoxTranslation, host.CylinderTranslation,
             [
-                new(HoleProfileSegmentKind.Cylindrical, large.Radius, large.Radius, 0d, large.Height, largeAnchor, large.Height, largeMinZ, largeMaxZ, false, [$"anchor={largeAnchor}", $"depthFromAnchor={large.Height:0.###}", $"z=[{largeMinZ:0.###},{largeMaxZ:0.###}]"]),
-                new(HoleProfileSegmentKind.Cylindrical, medium.Radius, medium.Radius, 0d, medium.Height, mediumAnchor, medium.Height, mediumMinZ, mediumMaxZ, false, [$"anchor={mediumAnchor}", $"depthFromAnchor={medium.Height:0.###}", $"z=[{mediumMinZ:0.###},{mediumMaxZ:0.###}]"]),
-                new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength, HoleTierAnchorSide.Through, host.ThroughLength, boxMinZ, boxMaxZ, true, ["anchor=Through", $"z=[{boxMinZ:0.###},{boxMaxZ:0.###}]"])
+                new(HoleProfileSegmentKind.Cylindrical, large.Radius, large.Radius, 0d, large.Height, largeAnchor, large.Height, largeMinZ, largeMaxZ, false, [$"placement: segment=large anchor={largeAnchor} zMin={largeMinZ:0.###} zMax={largeMaxZ:0.###} through=false"]),
+                new(HoleProfileSegmentKind.Cylindrical, medium.Radius, medium.Radius, 0d, medium.Height, mediumAnchor, medium.Height, mediumMinZ, mediumMaxZ, false, [$"placement: segment=medium anchor={mediumAnchor} zMin={mediumMinZ:0.###} zMax={mediumMaxZ:0.###} through=false"]),
+                new(HoleProfileSegmentKind.Cylindrical, host.CylinderRadius, host.CylinderRadius, 0d, host.ThroughLength, HoleTierAnchorSide.Through, host.ThroughLength, boxMinZ, boxMaxZ, true, [$"placement: segment=small-through anchor=Through zMin={boxMinZ:0.###} zMax={boxMaxZ:0.###} through=true"])
             ],
             [new(HoleSurfacePatchRole.HostRetainedPlanarFaces, "Host planar faces are retained after stepped-hole subtraction."), new(HoleSurfacePatchRole.CylindricalWall, "Large cylindrical wall patch is expected."), new(HoleSurfacePatchRole.CylindricalWall, "Medium cylindrical wall patch is expected."), new(HoleSurfacePatchRole.CylindricalWall, "Small through cylindrical wall patch is expected."), new(HoleSurfacePatchRole.SteppedTransitionFloorAnnulus, "Annular floor between large and medium is expected."), new(HoleSurfacePatchRole.SteppedTransitionFloorAnnulus, "Annular floor between medium and small is expected.")],
             [new(HoleTrimCurveRole.CircularRimTrim, "Circular entry/transition/exit rim trims are expected.")], FrepMaterializerCapability.ExactBRep, diagnostics.ToArray());

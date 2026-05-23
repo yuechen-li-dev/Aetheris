@@ -84,3 +84,6 @@ And no `BREP_WITH_VOIDS`.
 ## SEM-A0 status
 
 No generated topology naming/provenance expansion introduced. V16 is bounded to entry-side hardening inside existing hole-family variant architecture.
+
+## V17 follow-up
+Bottom-entry chamfer segments now participate in the shared explicit placement contract validator.

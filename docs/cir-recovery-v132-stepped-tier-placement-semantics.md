@@ -50,3 +50,6 @@ V13.3 re-enables bounded stepped execution and now treats these placement fields
 - tool construction uses `height = ZMax - ZMin` and `centerZ = (ZMin + ZMax)/2` with no hidden span inference.
 
 Route is explicitly `repeated-subtract-small-medium-large`; any placement inconsistency rejects before Boolean.
+
+## V17 follow-up
+Placement semantics are now harmonized across all hole-family variants; this document remains the stepped reference contract.

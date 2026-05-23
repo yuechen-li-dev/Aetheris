@@ -79,9 +79,9 @@ public sealed class FrepSemanticRecoveryRematerializerTests
     public void SteppedHole_Rematerializer_ProducesBrepBody()
     {
         var result = FrepSemanticRecoveryRematerializer.TryRecover(new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,-2)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-3)))));
-        Assert.False(result.Succeeded);
-        Assert.Null(result.Body);
-        Assert.Contains(result.Diagnostics, d => d.Contains("executor failed", StringComparison.Ordinal));
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Body);
+        Assert.Contains(result.Diagnostics, d => d.Contains("executor succeeded", StringComparison.Ordinal));
     }
 
     [Fact]

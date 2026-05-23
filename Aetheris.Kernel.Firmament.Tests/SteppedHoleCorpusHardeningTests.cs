@@ -42,8 +42,8 @@ public sealed class SteppedHoleCorpusHardeningTests
             }
             else
             {
-                Assert.Equal(HoleRecoveryExecutionStatus.BooleanFailed, exec.Status);
-                Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract", StringComparison.Ordinal));
+                Assert.True(exec.Status is HoleRecoveryExecutionStatus.BooleanFailed or HoleRecoveryExecutionStatus.UnsupportedPlan);
+                Assert.Contains(exec.Diagnostics, d => d.Contains("profile-stack", StringComparison.OrdinalIgnoreCase) || d.Contains("rejected before", StringComparison.OrdinalIgnoreCase));
             }
             return;
         }

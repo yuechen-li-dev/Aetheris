@@ -117,7 +117,7 @@ Current rules:
 - Supported case: bounded three-level stepped family (small through core + medium/large entry relief tiers).
 - Canonicality: top-entry is supported; bottom-entry is also supported when anchor/coaxial/depth ordering rules are satisfied.
 - Placement requirement: explicit segment `AnchorSide` + `ZMin/ZMax` for all tiers; unknown/mismatched anchors are rejected.
-- Executor route: repeated subtract sequence using explicit placement metadata.
+- Executor route: stepped profile-stack-extrude scaffold using explicit placement metadata and safe composition builder (no repeated 3D subtract route in stepped lane).
 - Validator dependency: A-series stepped placement/validator hardening lanes back this behavior.
 - Known limits: only bounded profile count/ordering family is admitted by current variant and executor gates.
 

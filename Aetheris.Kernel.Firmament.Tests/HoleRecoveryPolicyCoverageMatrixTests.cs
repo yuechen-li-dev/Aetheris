@@ -111,7 +111,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         {
             Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
             Assert.NotNull(exec.Body);
-            Assert.Contains(exec.Diagnostics, d => d.Contains("repeated-subtract-small-medium-large", StringComparison.Ordinal));
+            Assert.Contains(exec.Diagnostics, d => d.Contains("stepped executor route: profile-stack-extrude", StringComparison.Ordinal));
             var steppedStep = Step242Exporter.ExportBody(exec.Body!);
             Assert.True(steppedStep.IsSuccess);
             Assert.Contains("MANIFOLD_SOLID_BREP", steppedStep.Value, StringComparison.Ordinal);
@@ -139,7 +139,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         {
             Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
             Assert.NotNull(exec.Body);
-            Assert.Contains(exec.Diagnostics, d => d.Contains("repeated-subtract-small-medium-large", StringComparison.Ordinal));
+            Assert.Contains(exec.Diagnostics, d => d.Contains("stepped executor route: profile-stack-extrude", StringComparison.Ordinal));
             var steppedStep = Step242Exporter.ExportBody(exec.Body!);
             Assert.True(steppedStep.IsSuccess);
             Assert.Contains("MANIFOLD_SOLID_BREP", steppedStep.Value, StringComparison.Ordinal);

@@ -47,15 +47,24 @@ public static class HoleRecoveryExecutor
             return ExecuteCountersinkLike(plan, diagnostics, "chamfer cone");
         }
 
-        if (ProfileStackExtrudePlanAdapter.TryFromHoleRecoveryPlan(plan, out var profileSpec, out var profileDiags) && profileSpec is not null)
+        if (AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(plan, out var air, out var airDiagnostics) && air is not null)
         {
-            diagnostics.AddRange(profileDiags);
+            diagnostics.AddRange(airDiagnostics);
             if (plan.HoleKind == HoleKind.Stepped)
             {
                 diagnostics.Add("Stepped executor marker: no-hidden-placement-inference; explicit z-span authority.");
                 diagnostics.Add("stepped executor route: profile-stack-extrude");
             }
-            diagnostics.Add("hole-family executor route: profile-stack-extrude");
+
+            if (!AirProfileStackExtrudeAdapter.TryToProfileStackSpec(air, out var profileSpec, out var toSpecDiagnostics) || profileSpec is null)
+            {
+                diagnostics.AddRange(toSpecDiagnostics);
+                diagnostics.Add("hole-family AIR conversion failed before emitter.");
+                return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+            }
+
+            diagnostics.AddRange(toSpecDiagnostics);
+            diagnostics.Add("hole-family executor route: profile-stack-extrude via AIR");
             var profileResult = ProfileStackExtrudeExecutor.Execute(profileSpec);
             diagnostics.AddRange(profileResult.Diagnostics);
 
@@ -70,7 +79,7 @@ public static class HoleRecoveryExecutor
             return new(HoleRecoveryExecutionStatus.Succeeded, profileResult.Body, diagnostics);
         }
 
-        diagnostics.AddRange(profileDiags);
+        diagnostics.AddRange(airDiagnostics);
 
         if (plan.HoleKind == HoleKind.Through)
         {

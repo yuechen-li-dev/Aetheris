@@ -59,3 +59,6 @@ If/when expansion resumes, keep the same pattern:
 1. bounded admissibility first,
 2. explicit rejection diagnostics for all peer variants,
 3. matrix row + cross-steal + manifold STEP sanity tests with each new variant.
+
+## V17 follow-up
+Coverage matrix expectations include explicit placement metadata population for all supported hole-family variants.

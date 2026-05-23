@@ -46,3 +46,43 @@ public sealed record HoleRecoveryPlan(
     IReadOnlyList<HoleTrimCurveExpectation> ExpectedTrimCurves,
     FrepMaterializerCapability Capability,
     IReadOnlyList<string> Diagnostics);
+
+public static class HoleProfileSegmentPlacementValidator
+{
+    public static bool TryValidate(HoleRecoveryPlan plan, out IReadOnlyList<string> diagnostics)
+    {
+        var issues = new List<string>();
+        var tol = Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
+        var hostMinZ = plan.HostTranslation.Z - (plan.HostSizeZ * 0.5d);
+        var hostMaxZ = plan.HostTranslation.Z + (plan.HostSizeZ * 0.5d);
+
+        for (var i = 0; i < plan.ProfileStack.Count; i++)
+        {
+            var s = plan.ProfileStack[i];
+            var role = $"segment[{i}]/{s.SegmentKind}";
+            if (double.IsNaN(s.ZMin) || double.IsNaN(s.ZMax) || s.ZMax - s.ZMin <= tol)
+            {
+                issues.Add($"placement-invalid:{role}:z-span");
+            }
+
+            if (s.IsThrough)
+            {
+                if (s.AnchorSide != HoleTierAnchorSide.Through) issues.Add($"placement-invalid:{role}:through-anchor");
+                if (s.ZMin > hostMinZ + tol || s.ZMax < hostMaxZ - tol) issues.Add($"placement-invalid:{role}:through-z-coverage");
+            }
+            else
+            {
+                if (s.AnchorSide != HoleTierAnchorSide.Top && s.AnchorSide != HoleTierAnchorSide.Bottom) issues.Add($"placement-invalid:{role}:blind-anchor");
+                if (s.DepthFromAnchor <= tol) issues.Add($"placement-invalid:{role}:depth-from-anchor");
+            }
+
+            if (s.PlacementDiagnostics is null || s.PlacementDiagnostics.Count == 0)
+            {
+                issues.Add($"placement-invalid:{role}:diagnostics");
+            }
+        }
+
+        diagnostics = issues;
+        return issues.Count == 0;
+    }
+}

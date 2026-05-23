@@ -110,16 +110,11 @@ public static class HoleRecoveryExecutor
 
         var boxBody = TranslateBody(boxResult.Value, plan.HostTranslation);
 
-        var throughHeight = double.Max(plan.ThroughLength, plan.HostSizeZ);
-        var smallResult = BrepPrimitives.CreateCylinder(small.RadiusStart, throughHeight);
-        if (!smallResult.IsSuccess)
+        if (!TryBuildPlacementCylinderTool(plan, small, "counterbore-through", diagnostics, out var smallBody) || smallBody is null)
         {
-            diagnostics.Add("Small through cylinder primitive construction failed.");
-            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+            diagnostics.Add("Counterbore plan rejected before Boolean: placement-driven through segment failed.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
-
-        var smallBody = TranslateBody(smallResult.Value, plan.ToolTranslation);
-        diagnostics.Add("Small through cylinder constructed.");
 
         var firstSubtract = BrepBoolean.Subtract(boxBody, smallBody);
         if (!firstSubtract.IsSuccess || firstSubtract.Value is null)
@@ -130,26 +125,11 @@ public static class HoleRecoveryExecutor
 
         diagnostics.Add("First subtract succeeded.");
 
-        var shallowDepth = large.DepthEnd - large.DepthStart;
-        if (shallowDepth <= tolerance)
+        if (!TryBuildPlacementCylinderTool(plan, large, "counterbore-relief", diagnostics, out var largeBody) || largeBody is null)
         {
-            diagnostics.Add("Plan rejected: counterbore shallow depth must be positive.");
+            diagnostics.Add("Counterbore plan rejected before Boolean: placement-driven relief segment failed.");
             return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
-
-        var entryFaceZ = plan.HostTranslation.Z - (plan.HostSizeZ * 0.5d);
-        var largeCenterZ = entryFaceZ + (shallowDepth * 0.5d);
-        var largeToolTranslation = new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, largeCenterZ);
-
-        var largeResult = BrepPrimitives.CreateCylinder(large.RadiusStart, shallowDepth);
-        if (!largeResult.IsSuccess)
-        {
-            diagnostics.Add("Large counterbore cylinder primitive construction failed.");
-            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
-        }
-
-        var largeBody = TranslateBody(largeResult.Value, largeToolTranslation);
-        diagnostics.Add("Large counterbore cylinder constructed.");
 
         var secondSubtract = BrepBoolean.Subtract(firstSubtract.Value, largeBody);
         if (!secondSubtract.IsSuccess || secondSubtract.Value is null)
@@ -164,6 +144,85 @@ public static class HoleRecoveryExecutor
     }
 
 
+
+    private static bool TryBuildPlacementCylinderTool(HoleRecoveryPlan plan, HoleProfileSegment segment, string role, List<string> diagnostics, out BrepBody? body)
+    {
+        body = null;
+        if (!TryValidateExecutablePlacement(plan, segment, role, diagnostics, out var height, out var centerZ)) return false;
+        var cylinder = BrepPrimitives.CreateCylinder(segment.RadiusStart, height);
+        if (!cylinder.IsSuccess)
+        {
+            diagnostics.Add($"hole-executor: primitive-failed segment={role} kind=cylinder radius={segment.RadiusStart:0.###} height={height:0.###}");
+            return false;
+        }
+
+        body = TranslateBody(cylinder.Value, new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, centerZ));
+        diagnostics.Add($"hole-executor: placement-driven segment={role} anchor={segment.AnchorSide} zMin={segment.ZMin:0.###} zMax={segment.ZMax:0.###} height={height:0.###} centerZ={centerZ:0.###}");
+        diagnostics.Add($"Blind cylinder constructed with entry side {(segment.AnchorSide == HoleTierAnchorSide.Top ? "top(+Z)" : segment.AnchorSide == HoleTierAnchorSide.Bottom ? "bottom(-Z)" : "through")}.");
+        return true;
+    }
+
+    private static bool TryBuildPlacementConeTool(HoleRecoveryPlan plan, HoleProfileSegment segment, string role, string coneLabel, List<string> diagnostics, out BrepBody? body)
+    {
+        body = null;
+        if (!TryValidateExecutablePlacement(plan, segment, role, diagnostics, out var height, out var centerZ)) return false;
+        var cone = FirmamentPrimitiveExecutor.ExecuteCone(new FirmamentLoweredConeParameters(segment.RadiusEnd, segment.RadiusStart, height));
+        if (!cone.IsSuccess)
+        {
+            diagnostics.Add($"hole-executor: primitive-failed segment={role} kind={coneLabel} rBottom={segment.RadiusEnd:0.###} rTop={segment.RadiusStart:0.###} height={height:0.###}");
+            return false;
+        }
+
+        body = TranslateBody(cone.Value, new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, centerZ));
+        diagnostics.Add($"hole-executor: placement-driven segment={role} anchor={segment.AnchorSide} zMin={segment.ZMin:0.###} zMax={segment.ZMax:0.###} height={height:0.###} centerZ={centerZ:0.###}");
+        diagnostics.Add($"entry side resolved for {coneLabel}: {(segment.AnchorSide == HoleTierAnchorSide.Top ? "top(+Z)" : segment.AnchorSide == HoleTierAnchorSide.Bottom ? "bottom(-Z)" : "through") }.");
+        return true;
+    }
+
+    private static bool TryValidateExecutablePlacement(HoleRecoveryPlan plan, HoleProfileSegment segment, string role, List<string> diagnostics, out double height, out double centerZ)
+    {
+        height = 0d; centerZ = 0d;
+        var tol = Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
+        var hostMinZ = plan.HostTranslation.Z - (plan.HostSizeZ * 0.5d);
+        var hostMaxZ = plan.HostTranslation.Z + (plan.HostSizeZ * 0.5d);
+
+        if (segment.PlacementDiagnostics is null || segment.PlacementDiagnostics.Count == 0)
+        {
+            diagnostics.Add($"hole-executor: placement-validation-failed segment={role} reason=missing-placement-diagnostics");
+            return false;
+        }
+
+        if (double.IsNaN(segment.ZMin) || double.IsNaN(segment.ZMax) || segment.ZMax - segment.ZMin <= tol)
+        {
+            diagnostics.Add($"hole-executor: placement-validation-failed segment={role} reason=invalid-z-span zMin={segment.ZMin:0.###} zMax={segment.ZMax:0.###}");
+            return false;
+        }
+
+        height = segment.ZMax - segment.ZMin;
+        centerZ = (segment.ZMin + segment.ZMax) * 0.5d;
+
+        if (segment.IsThrough)
+        {
+            if (segment.AnchorSide != HoleTierAnchorSide.Through)
+            {
+                diagnostics.Add($"hole-executor: placement-validation-failed segment={role} reason=through-anchor-mismatch anchor={segment.AnchorSide}");
+                return false;
+            }
+
+            if (segment.ZMin > hostMinZ + tol || segment.ZMax < hostMaxZ - tol)
+            {
+                diagnostics.Add($"hole-executor: placement-validation-failed segment={role} reason=through-z-coverage hostZMin={hostMinZ:0.###} hostZMax={hostMaxZ:0.###}");
+                return false;
+            }
+        }
+        else if (segment.AnchorSide != HoleTierAnchorSide.Top && segment.AnchorSide != HoleTierAnchorSide.Bottom)
+        {
+            diagnostics.Add($"hole-executor: placement-validation-failed segment={role} reason=blind-anchor-invalid anchor={segment.AnchorSide}");
+            return false;
+        }
+
+        return true;
+    }
 
     private static HoleRecoveryExecutionResult ExecuteStepped(HoleRecoveryPlan plan, List<string> diagnostics)
     {
@@ -338,34 +397,19 @@ public static class HoleRecoveryExecutor
             return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
-        var depth = seg.DepthEnd - seg.DepthStart;
-        if (depth <= Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear)
-        {
-            diagnostics.Add("Blind plan rejected: depth must be positive.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        var boxResult = BrepPrimitives.CreateBox(plan.HostSizeX, plan.HostSizeY, plan.HostSizeZ);
+                var boxResult = BrepPrimitives.CreateBox(plan.HostSizeX, plan.HostSizeY, plan.HostSizeZ);
         if (!boxResult.IsSuccess)
         {
             diagnostics.Add("Blind-hole box primitive construction failed.");
             return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
         }
 
-        var toolResult = BrepPrimitives.CreateCylinder(seg.RadiusStart, depth);
-        if (!toolResult.IsSuccess)
-        {
-            diagnostics.Add("Blind-hole cylinder primitive construction failed.");
-            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
-        }
-
         var boxBody = TranslateBody(boxResult.Value, plan.HostTranslation);
-        var entryTopZ = plan.HostTranslation.Z + (plan.HostSizeZ * 0.5d);
-        var entryBottomZ = plan.HostTranslation.Z - (plan.HostSizeZ * 0.5d);
-        var touchTop = Math.Abs((plan.ToolTranslation.Z + (depth * 0.5d)) - entryTopZ) <= Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
-        var centerZ = touchTop ? entryTopZ - (depth * 0.5d) : entryBottomZ + (depth * 0.5d);
-        var toolBody = TranslateBody(toolResult.Value, new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, centerZ));
-        diagnostics.Add($"Blind cylinder constructed with entry side {(touchTop ? "top(+Z)" : "bottom(-Z)")}.");
+        if (!TryBuildPlacementCylinderTool(plan, seg, "blind-cylinder", diagnostics, out var toolBody) || toolBody is null)
+        {
+            diagnostics.Add("Blind plan rejected before Boolean: placement-driven construction failed.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
 
         var sub = BrepBoolean.Subtract(boxBody, toolBody);
         diagnostics.Add("Blind subtract invoked.");
@@ -400,15 +444,18 @@ public static class HoleRecoveryExecutor
         }
 
         var boxResult = BrepPrimitives.CreateBox(plan.HostSizeX, plan.HostSizeY, plan.HostSizeZ);
-        var cylResult = BrepPrimitives.CreateCylinder(cylSeg.RadiusStart, double.Max(plan.ThroughLength, plan.HostSizeZ));
-        if (!boxResult.IsSuccess || !cylResult.IsSuccess)
+        if (!boxResult.IsSuccess)
         {
-            diagnostics.Add("Countersink primitive construction failed for host/cylinder.");
+            diagnostics.Add("Countersink primitive construction failed for host.");
             return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
         }
 
         var boxBody = TranslateBody(boxResult.Value, plan.HostTranslation);
-        var cylBody = TranslateBody(cylResult.Value, plan.ToolTranslation);
+        if (!TryBuildPlacementCylinderTool(plan, cylSeg, "entry-cylinder", diagnostics, out var cylBody) || cylBody is null)
+        {
+            diagnostics.Add("Countersink plan rejected before Boolean: placement-driven cylinder segment failed.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
         diagnostics.Add("cylinder subtract invoked.");
         var firstSub = BrepBoolean.Subtract(boxBody, cylBody);
         if (!firstSub.IsSuccess || firstSub.Value is null)
@@ -418,20 +465,11 @@ public static class HoleRecoveryExecutor
         }
         diagnostics.Add("cylinder subtract succeeded.");
 
-        var coneHeight = coneSeg.DepthEnd - coneSeg.DepthStart;
-        var coneResult = FirmamentPrimitiveExecutor.ExecuteCone(new FirmamentLoweredConeParameters(coneSeg.RadiusEnd, coneSeg.RadiusStart, coneHeight));
-        if (!coneResult.IsSuccess)
+        if (!TryBuildPlacementConeTool(plan, coneSeg, coneLabel, coneLabel, diagnostics, out var coneBody) || coneBody is null)
         {
-            diagnostics.Add($"{coneLabel} primitive construction failed.");
-            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+            diagnostics.Add($"{coneLabel} plan rejected before Boolean: placement-driven cone segment failed.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
-
-        var entryTopZ = plan.HostTranslation.Z + (plan.HostSizeZ * 0.5d);
-        var entryBottomZ = plan.HostTranslation.Z - (plan.HostSizeZ * 0.5d);
-        var touchesTop = Math.Abs((plan.ToolTranslation.Z + (coneHeight * 0.5d)) - entryTopZ) <= Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
-        var coneCenterZ = touchesTop ? entryTopZ - (coneHeight * 0.5d) : entryBottomZ + (coneHeight * 0.5d);
-        var coneBody = TranslateBody(coneResult.Value, new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, coneCenterZ));
-        diagnostics.Add($"entry side resolved for {coneLabel}: {(touchesTop ? "top(+Z)" : "bottom(-Z)") }.");
         diagnostics.Add($"{coneLabel} subtract invoked.");
         var secondSub = BrepBoolean.Subtract(firstSub.Value, coneBody);
         if (!secondSub.IsSuccess || secondSub.Value is null)

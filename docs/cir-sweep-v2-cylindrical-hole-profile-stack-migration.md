@@ -6,9 +6,11 @@ This milestone migrates cylindrical hole-family execution routing from ad hoc re
 
 Migrated in V2:
 - Through-hole
+- Stepped-hole
+
+Deferred from profile-stack in V2 (legacy bounded routes retained):
 - Blind-hole
 - Counterbore
-- Stepped-hole
 
 Not migrated in V2:
 - Countersink
@@ -23,11 +25,9 @@ Not migrated in V2:
 - rejects/defer conical profiles with explicit diagnostics,
 - maps ordered profile segments into contiguous `ProfileStackLayer` entries.
 
-## Layer mapping
+## Layer mapping (active profile-stack routes)
 
 - Through-hole: single cylindrical through layer.
-- Blind-hole: single cylindrical blind layer from explicit segment z-span.
-- Counterbore: two cylindrical layers ordered by z-span (entry-relief + through core).
 - Stepped-hole: bounded 3-tier cylindrical stack from explicit placement tiers.
 
 ## Diagnostics
@@ -46,6 +46,8 @@ Execution emits explicit diagnostics for:
 STEP behavior remains unchanged at exporter boundary; migrated variants continue exporting manifold solid BRep in smoke lanes.
 
 ## Fallback boundaries
+
+Blind-hole and counterbore currently emit explicit profile-stack deferral diagnostics and execute via legacy bounded placement-driven subtract routes.
 
 Conical variants (`Countersink`, `ChamferedEntry`) intentionally remain on existing conical primitive/Boolean execution lanes in V2.
 

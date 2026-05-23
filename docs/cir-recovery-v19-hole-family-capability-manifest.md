@@ -37,8 +37,8 @@ Notes:
 | Variant | CIR shape | Entry side(s) | Profile stack | BRep execution | STEP smoke | Expected STEP root | Placement semantics | Key tests | Status |
 |---|---|---|---|---|---|---|---|---|---|
 | Through-hole | `Subtract(Box, Cylinder)` (translation wrappers tolerated) | Through (`AnchorSide=Through`) | 1 cylindrical through segment | Yes (`HoleRecoveryExecutor` prefers ProfileStackExtrude executor for cylindrical through profile-stack) | Yes | `MANIFOLD_SOLID_BREP` | Required and asserted | `ThroughHoleRecoveryPolicyTests`, `ThroughHoleRecoveryExecutorTests`, `ThroughHoleRecoveryStepSmokeTests` | Supported / executable |
-| Counterbore | `Subtract(Subtract(Box, small cyl through), large cyl shallow)` | Top or Bottom relief + through core | 2 cylindrical segments (relief + through core) | Yes | Yes | `MANIFOLD_SOLID_BREP` | Required and asserted | `CounterboreVariantTests`, `CounterboreRecoveryExecutorTests`, `CounterboreRecoveryStepSmokeTests` | Supported / executable |
-| Blind-hole | `Subtract(Box, Cylinder)` with non-through span and entry-face contact | Top or Bottom | 1 cylindrical blind segment | Yes | Covered through exporter/rematerializer + matrix lanes | `MANIFOLD_SOLID_BREP` | Required and asserted | `BlindHoleVariantAndExecutorTests`, `BlindHoleVariantHardeningTests`, `FirmamentStepExporterTests` | Supported / executable |
+| Counterbore | `Subtract(Subtract(Box, small cyl through), large cyl shallow)` | Top or Bottom relief + through core | 2 cylindrical segments (relief + through core) | Yes (profile-stack deferred; bounded legacy route executes) | Yes | `MANIFOLD_SOLID_BREP` | Required and asserted | `CounterboreVariantTests`, `CounterboreRecoveryExecutorTests`, `CounterboreRecoveryStepSmokeTests` | Supported / executable |
+| Blind-hole | `Subtract(Box, Cylinder)` with non-through span and entry-face contact | Top or Bottom | 1 cylindrical blind segment | Yes (profile-stack deferred; bounded legacy route executes) | Covered through exporter/rematerializer + matrix lanes | `MANIFOLD_SOLID_BREP` | Required and asserted | `BlindHoleVariantAndExecutorTests`, `BlindHoleVariantHardeningTests`, `FirmamentStepExporterTests` | Supported / executable |
 | Countersink | `Subtract(Subtract(Box, Cylinder), Cone)` with countersink-sized cone | Top or Bottom | 1 conical entry + 1 cylindrical core | Yes | Yes | `MANIFOLD_SOLID_BREP` | Required and asserted | `CountersinkVariantAndExecutorTests`, `FirmamentStepExporterTests` | Supported / executable |
 | Chamfered-entry | `Subtract(Subtract(Box, Cylinder), Cone)` with chamfer-sized cone | Top or Bottom | 1 conical entry + 1 cylindrical core | Yes | Yes | `MANIFOLD_SOLID_BREP` | Required and asserted | `ChamferedEntryHoleVariantAndExecutorTests`, `FirmamentStepExporterTests` | Supported / executable |
 | Stepped-hole | Nested subtract with small through + medium/large entry-relief cylinders (bounded 3-tier family) | Top or Bottom (must match across relief tiers) | 3 cylindrical segments (large relief, medium relief, small through) | Yes (bounded route) | Yes | `MANIFOLD_SOLID_BREP` | Required and asserted | `SteppedHoleVariantAndExecutorTests`, `SteppedHolePlacementSemanticsTests`, `SteppedHoleCorpusHardeningTests`, `FirmamentStepExporterTests` | Supported / executable (bounded) |
@@ -79,7 +79,7 @@ Current rules:
 - Accepted CIR shape: nested subtract where first lane yields through core and second lane is shallow larger coaxial cylinder.
 - Entry support: top-entry and bottom-entry relief supported.
 - Profile stack: shallow larger cylindrical relief + through smaller cylindrical core.
-- Executor route: `ProfileStackExtrudePlanAdapter` -> `ProfileStackExtrudeExecutor` (preferred cylindrical profile-stack backend).
+- Executor route: profile-stack adapter explicitly defers in V2; bounded counterbore legacy placement-driven subtract route executes.
 - Export expectations: manifold solid; no void-root expectation.
 - Rejection boundaries: non-coaxial tools, invalid radius ordering, relief not entering from host face, full-depth relief, invalid host/axis/profile form.
 
@@ -88,7 +88,7 @@ Current rules:
 - Accepted CIR shape: box minus cylinder that does not span full host depth and touches exactly one entry face.
 - Entry support: top-entry and bottom-entry supported.
 - Profile stack: one cylindrical blind segment with explicit anchor side.
-- Executor route: `ProfileStackExtrudePlanAdapter` -> `ProfileStackExtrudeExecutor` (preferred cylindrical profile-stack backend).
+- Executor route: profile-stack adapter explicitly defers in V2; bounded blind-hole legacy placement-driven subtract route executes.
 - Export expectations: manifold solid in STEP outputs where exported.
 - Rejection boundaries: through-depth spans, missing entry-face contact, invalid clearance, invalid shape nesting.
 

@@ -54,3 +54,8 @@ Conical variants (`Countersink`, `ChamferedEntry`) intentionally remain on exist
 ## V3 recommendation
 
 CIR-SWEEP-V3 can evaluate conical profile-stack/revolve/sweep route candidates for countersink/chamfered-entry without changing public APIs.
+
+
+## AIR-V1 note
+
+Through-hole and stepped-hole profile-stack routes now materialize a bounded AIR scaffold (`AirProfileStackExtrude`) before executor emission. Blind/counterbore/conical variants are explicitly deferred in AIR-V1 and remain on their legacy executor routes.

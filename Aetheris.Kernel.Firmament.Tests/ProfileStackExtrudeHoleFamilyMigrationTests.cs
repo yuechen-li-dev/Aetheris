@@ -25,7 +25,7 @@ public sealed class ProfileStackExtrudeHoleFamilyMigrationTests
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root)).Plan!;
         var result = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
-        Assert.Contains(result.Diagnostics, d => d.Contains("deferred: Blind", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("air-profile-stack-v1-blind-deferred", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Diagnostics, d => d.Contains("Blind subtract succeeded", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -36,7 +36,7 @@ public sealed class ProfileStackExtrudeHoleFamilyMigrationTests
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root)).Plan!;
         var result = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
-        Assert.Contains(result.Diagnostics, d => d.Contains("deferred: Counterbore", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Diagnostics, d => d.Contains("air-profile-stack-v1-counterbore-deferred", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Diagnostics, d => d.Contains("Second subtract succeeded", StringComparison.OrdinalIgnoreCase));
     }
 

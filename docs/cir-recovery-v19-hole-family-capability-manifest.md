@@ -191,3 +191,8 @@ Candidate next labs (user-prioritized):
 - Generic profile-stack executor lab.
 - Further stepped-hole expansion/hardening beyond bounded family.
 - Surface-feature/groove semantic bridge lab.
+
+
+## AIR-V1 note
+
+Through-hole and stepped-hole profile-stack routes now materialize a bounded AIR scaffold (`AirProfileStackExtrude`) before executor emission. Blind/counterbore/conical variants are explicitly deferred in AIR-V1 and remain on their legacy executor routes.

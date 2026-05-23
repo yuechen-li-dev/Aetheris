@@ -196,3 +196,7 @@ Candidate next labs (user-prioritized):
 ## AIR-V1 note
 
 Through-hole and stepped-hole profile-stack routes now materialize a bounded AIR scaffold (`AirProfileStackExtrude`) before executor emission. Blind/counterbore/conical variants are explicitly deferred in AIR-V1 and remain on their legacy executor routes.
+
+
+## AIR-V2A.1 update (2026-05-23)
+Capability manifest correction: blind-hole and counterbore remain AIR-deferred and execute via legacy bounded routes. Through/stepped remain on AIR/profile-stack; conical variants remain AIR-deferred.

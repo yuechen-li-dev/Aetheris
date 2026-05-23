@@ -145,10 +145,10 @@ public static class HoleRecoveryExecutor
 
 
 
-    private static bool TryBuildPlacementCylinderTool(HoleRecoveryPlan plan, HoleProfileSegment segment, string role, List<string> diagnostics, out BrepBody? body)
+    private static bool TryBuildPlacementCylinderTool(HoleRecoveryPlan plan, HoleProfileSegment segment, string role, List<string> diagnostics, out BrepBody? body, double entryPadding = 0d)
     {
         body = null;
-        if (!TryValidateExecutablePlacement(plan, segment, role, diagnostics, out var height, out var centerZ)) return false;
+        if (!TryValidateExecutablePlacement(plan, segment, role, diagnostics, out var height, out var centerZ, entryPadding)) return false;
         var cylinder = BrepPrimitives.CreateCylinder(segment.RadiusStart, height);
         if (!cylinder.IsSuccess)
         {
@@ -179,7 +179,7 @@ public static class HoleRecoveryExecutor
         return true;
     }
 
-    private static bool TryValidateExecutablePlacement(HoleRecoveryPlan plan, HoleProfileSegment segment, string role, List<string> diagnostics, out double height, out double centerZ)
+    private static bool TryValidateExecutablePlacement(HoleRecoveryPlan plan, HoleProfileSegment segment, string role, List<string> diagnostics, out double height, out double centerZ, double entryPadding = 0d)
     {
         height = 0d; centerZ = 0d;
         var tol = Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
@@ -198,8 +198,17 @@ public static class HoleRecoveryExecutor
             return false;
         }
 
-        height = segment.ZMax - segment.ZMin;
-        centerZ = (segment.ZMin + segment.ZMax) * 0.5d;
+        var zMin = segment.ZMin;
+        var zMax = segment.ZMax;
+        if (!segment.IsThrough && entryPadding > tol)
+        {
+            if (segment.AnchorSide == HoleTierAnchorSide.Top) zMax += entryPadding;
+            else if (segment.AnchorSide == HoleTierAnchorSide.Bottom) zMin -= entryPadding;
+            diagnostics.Add($"hole-executor: placement-padding-applied segment={role} anchor={segment.AnchorSide} padding={entryPadding:0.###} zMin={zMin:0.###} zMax={zMax:0.###}");
+        }
+
+        height = zMax - zMin;
+        centerZ = (zMin + zMax) * 0.5d;
 
         if (segment.IsThrough)
         {
@@ -254,6 +263,12 @@ public static class HoleRecoveryExecutor
         if (Math.Abs(small.DepthEnd - plan.ThroughLength) > tolerance || largeDepth <= tolerance || mediumDepth <= tolerance || largeDepth >= mediumDepth - tolerance || mediumDepth >= plan.ThroughLength - tolerance)
         {
             diagnostics.Add("Stepped plan rejected before Boolean: strict depth ordering (large < medium < through) is required.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        if (!HoleProfileSegmentPlacementValidator.TryValidate(plan, out var placementIssues))
+        {
+            diagnostics.AddRange(placementIssues.Select(i => $"Stepped plan rejected before Boolean: {i}."));
             return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
@@ -324,17 +339,14 @@ public static class HoleRecoveryExecutor
         }
 
         var body = TranslateBody(box.Value, plan.HostTranslation);
-        var smallHeight = small.ZMax - small.ZMin;
-        var smallCenterZ = (small.ZMin + small.ZMax) * 0.5d;
-        var smallResult = BrepPrimitives.CreateCylinder(small.RadiusStart, smallHeight);
-        if (!smallResult.IsSuccess)
+        if (!TryBuildPlacementCylinderTool(plan, small, "small", diagnostics, out var smallTool) || smallTool is null)
         {
-            diagnostics.Add("Stepped small-through cylinder primitive construction failed.");
-            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+            diagnostics.Add("Stepped plan rejected before Boolean: placement-driven small segment failed.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
         diagnostics.Add("Stepped subtract small invoked.");
-        var smallSubtract = BrepBoolean.Subtract(body, TranslateBody(smallResult.Value, new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, smallCenterZ)));
+        var smallSubtract = BrepBoolean.Subtract(body, smallTool);
         if (!smallSubtract.IsSuccess || smallSubtract.Value is null)
         {
             diagnostics.Add($"Stepped subtract small failed: codes={string.Join(",", smallSubtract.Diagnostics.Select(d => d.Code))}.");
@@ -342,17 +354,14 @@ public static class HoleRecoveryExecutor
         }
 
         diagnostics.Add("Stepped subtract small succeeded.");
-        var mediumHeight = medium.ZMax - medium.ZMin;
-        var mediumCenter = new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, (medium.ZMin + medium.ZMax) * 0.5d);
-        var mediumResult = BrepPrimitives.CreateCylinder(medium.RadiusStart, mediumHeight);
-        if (!mediumResult.IsSuccess)
+        if (!TryBuildPlacementCylinderTool(plan, medium, "medium", diagnostics, out var mediumTool, tolerance * 4d) || mediumTool is null)
         {
-            diagnostics.Add("Stepped medium-depth cylinder primitive construction failed.");
-            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+            diagnostics.Add("Stepped plan rejected before Boolean: placement-driven medium segment failed.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
         diagnostics.Add("Stepped subtract medium invoked.");
-        var mediumSubtract = BrepBoolean.Subtract(smallSubtract.Value, TranslateBody(mediumResult.Value, mediumCenter));
+        var mediumSubtract = BrepBoolean.Subtract(smallSubtract.Value, mediumTool);
         if (!mediumSubtract.IsSuccess || mediumSubtract.Value is null)
         {
             diagnostics.Add($"Stepped subtract medium failed: codes={string.Join(",", mediumSubtract.Diagnostics.Select(d => d.Code))}.");
@@ -360,17 +369,14 @@ public static class HoleRecoveryExecutor
         }
 
         diagnostics.Add("Stepped subtract medium succeeded.");
-        var largeHeight = large.ZMax - large.ZMin;
-        var largeCenter = new Vector3D(plan.ToolTranslation.X, plan.ToolTranslation.Y, (large.ZMin + large.ZMax) * 0.5d);
-        var largeResult = BrepPrimitives.CreateCylinder(large.RadiusStart, largeHeight);
-        if (!largeResult.IsSuccess)
+        if (!TryBuildPlacementCylinderTool(plan, large, "large", diagnostics, out var largeTool, tolerance * 4d) || largeTool is null)
         {
-            diagnostics.Add("Stepped large-shallow cylinder primitive construction failed.");
-            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
+            diagnostics.Add("Stepped plan rejected before Boolean: placement-driven large segment failed.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
         diagnostics.Add("Stepped subtract large invoked.");
-        var largeSubtract = BrepBoolean.Subtract(mediumSubtract.Value, TranslateBody(largeResult.Value, largeCenter));
+        var largeSubtract = BrepBoolean.Subtract(mediumSubtract.Value, largeTool);
         if (!largeSubtract.IsSuccess || largeSubtract.Value is null)
         {
             diagnostics.Add($"Stepped subtract large failed: codes={string.Join(",", largeSubtract.Diagnostics.Select(d => d.Code))}.");

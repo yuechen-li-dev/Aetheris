@@ -25,18 +25,31 @@ public sealed class SteppedHoleVariantAndExecutorTests
     {
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped())).Plan!;
         var exec = HoleRecoveryExecutor.Execute(plan);
-        Assert.Equal(HoleRecoveryExecutionStatus.BooleanFailed, exec.Status);
-        Assert.Null(exec.Body);
+        Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status); // diag: string.Join(" | ", exec.Diagnostics)
+        Assert.NotNull(exec.Body);
+        Assert.Contains(exec.Diagnostics, d => d.Contains("placement-driven segment=small", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("placement-driven segment=medium", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("placement-driven segment=large", StringComparison.Ordinal));
         Assert.Contains(exec.Diagnostics, d => d.Contains("no-hidden-placement-inference", StringComparison.Ordinal));
         Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract small succeeded", StringComparison.Ordinal));
-        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract medium", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract medium succeeded", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract large succeeded", StringComparison.Ordinal));
     }
+
 
     [Fact]
     public void SteppedHoleStepSmoke_CanonicalSteppedHole_ExportsStep()
     {
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped())).Plan!;
         var exec = HoleRecoveryExecutor.Execute(plan);
+        Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
+        var step = Step242Exporter.ExportBody(exec.Body!);
+        Assert.True(step.IsSuccess);
+        Assert.Contains("ISO-10303-21", step.Value, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", step.Value, StringComparison.Ordinal);
+        Assert.Contains("ADVANCED_FACE", step.Value, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", step.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("BREP_WITH_VOIDS", step.Value, StringComparison.Ordinal);
         Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped executor route: repeated-subtract-small-medium-large", StringComparison.Ordinal));
     }
 
@@ -102,8 +115,8 @@ public sealed class SteppedHoleVariantAndExecutorTests
     {
         var host = new CirBoxNode(20,20,10);
         var small = new CirCylinderNode(2,20);
-        var medium = new CirTransformNode(new CirCylinderNode(mediumRadius, mediumHeight), Transform3D.CreateTranslation(mediumTranslation ?? new Vector3D(0,0,-2)));
-        var large = new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-3)));
+        var medium = new CirTransformNode(new CirCylinderNode(mediumRadius, mediumHeight), Transform3D.CreateTranslation(mediumTranslation ?? new Vector3D(0,0,2)));
+        var large = new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3)));
         return new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(host, small), medium), large);
     }
 }

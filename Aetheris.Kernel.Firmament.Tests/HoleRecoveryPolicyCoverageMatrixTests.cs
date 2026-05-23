@@ -109,9 +109,13 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         var exec = HoleRecoveryExecutor.Execute(plan);
         if (plan.HoleKind == HoleKind.Stepped)
         {
-            Assert.Equal(HoleRecoveryExecutionStatus.BooleanFailed, exec.Status);
-            Assert.Null(exec.Body);
+            Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
+            Assert.NotNull(exec.Body);
             Assert.Contains(exec.Diagnostics, d => d.Contains("repeated-subtract-small-medium-large", StringComparison.Ordinal));
+            var steppedStep = Step242Exporter.ExportBody(exec.Body!);
+            Assert.True(steppedStep.IsSuccess);
+            Assert.Contains("MANIFOLD_SOLID_BREP", steppedStep.Value, StringComparison.Ordinal);
+            Assert.DoesNotContain("BREP_WITH_VOIDS", steppedStep.Value, StringComparison.Ordinal);
             return;
         }
 
@@ -133,9 +137,13 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         var exec = HoleRecoveryExecutor.Execute(plan);
         if (plan.HoleKind == HoleKind.Stepped)
         {
-            Assert.Equal(HoleRecoveryExecutionStatus.BooleanFailed, exec.Status);
-            Assert.Null(exec.Body);
+            Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
+            Assert.NotNull(exec.Body);
             Assert.Contains(exec.Diagnostics, d => d.Contains("repeated-subtract-small-medium-large", StringComparison.Ordinal));
+            var steppedStep = Step242Exporter.ExportBody(exec.Body!);
+            Assert.True(steppedStep.IsSuccess);
+            Assert.Contains("MANIFOLD_SOLID_BREP", steppedStep.Value, StringComparison.Ordinal);
+            Assert.DoesNotContain("BREP_WITH_VOIDS", steppedStep.Value, StringComparison.Ordinal);
             return;
         }
 
@@ -154,5 +162,5 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
     private static CirNode BuildCountersink() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
     private static CirNode BuildChamferedEntry() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirConeNode(2, 2.8, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, 4.5))));
     private static CirNode BuildChamferedEntryBottom() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirConeNode(2.8, 2, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, -4.5))));
-    private static CirNode BuildSteppedHole() => new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,-2)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-3))));
+    private static CirNode BuildSteppedHole() => new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,2)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3))));
 }

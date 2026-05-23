@@ -34,6 +34,44 @@ public static class HoleRecoveryExecutor
         };
 
         diagnostics.Add($"Plan kind inspection: holeKind={plan.HoleKind}, depthKind={plan.DepthKind}.");
+
+        if (plan.HoleKind == HoleKind.Countersink && (plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief || plan.DepthKind == HoleDepthKind.BlindWithEntryRelief))
+        {
+            diagnostics.Add("Countersink plan accepted for bounded conical route.");
+            return ExecuteCountersink(plan, diagnostics);
+        }
+
+        if (plan.HoleKind == HoleKind.ChamferedEntry && (plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief || plan.DepthKind == HoleDepthKind.BlindWithEntryRelief))
+        {
+            diagnostics.Add("Chamfered-entry plan accepted for bounded conical route.");
+            return ExecuteCountersinkLike(plan, diagnostics, "chamfer cone");
+        }
+
+        if (ProfileStackExtrudePlanAdapter.TryFromHoleRecoveryPlan(plan, out var profileSpec, out var profileDiags) && profileSpec is not null)
+        {
+            diagnostics.AddRange(profileDiags);
+            if (plan.HoleKind == HoleKind.Stepped)
+            {
+                diagnostics.Add("Stepped executor marker: no-hidden-placement-inference; explicit z-span authority.");
+                diagnostics.Add("stepped executor route: profile-stack-extrude");
+            }
+            diagnostics.Add("hole-family executor route: profile-stack-extrude");
+            var profileResult = ProfileStackExtrudeExecutor.Execute(profileSpec);
+            diagnostics.AddRange(profileResult.Diagnostics);
+
+            if (profileResult.Status != ProfileStackExtrudeExecutionStatus.Succeeded || profileResult.Body is null)
+            {
+                diagnostics.Add("hole-family profile-stack execution failed.");
+                return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
+            }
+
+            diagnostics.Add("hole-family profile-stack execution succeeded.");
+            diagnostics.Add("Result BRep body produced.");
+            return new(HoleRecoveryExecutionStatus.Succeeded, profileResult.Body, diagnostics);
+        }
+
+        diagnostics.AddRange(profileDiags);
+
         if (plan.HoleKind == HoleKind.Through)
         {
             diagnostics.Add("Plan kind accepted: through-hole delegated to ThroughHoleRecoveryExecutor.");
@@ -54,30 +92,52 @@ public static class HoleRecoveryExecutor
             return ExecuteBlind(plan, diagnostics);
         }
 
-        if (plan.HoleKind == HoleKind.Countersink && (plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief || plan.DepthKind == HoleDepthKind.BlindWithEntryRelief))
-        {
-            diagnostics.Add("Countersink plan accepted for bounded execution.");
-            return ExecuteCountersink(plan, diagnostics);
-        }
-        if (plan.HoleKind == HoleKind.ChamferedEntry && (plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief || plan.DepthKind == HoleDepthKind.BlindWithEntryRelief))
-        {
-            diagnostics.Add("Chamfered-entry plan accepted for bounded execution.");
-            return ExecuteCountersinkLike(plan, diagnostics, "chamfer cone");
-        }
-
         if (plan.HoleKind == HoleKind.Stepped && plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief)
         {
             diagnostics.Add("Stepped-hole plan recognized; stepped execution started.");
             return ExecuteStepped(plan, diagnostics);
         }
 
-        if (plan.HoleKind != HoleKind.Counterbore || plan.DepthKind != HoleDepthKind.ThroughWithEntryRelief)
+        if (plan.HoleKind == HoleKind.Counterbore && plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief)
         {
-            diagnostics.Add("Plan rejected: only bounded through/blind/counterbore/countersink/stepped plans are supported.");
+            diagnostics.Add("Counterbore plan accepted for bounded execution.");
+            return ExecuteCounterbore(plan, diagnostics);
+        }
+
+        diagnostics.Add("Plan rejected: only bounded through/blind/counterbore/countersink/stepped plans are supported.");
+        return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+    }
+
+    private static HoleRecoveryExecutionResult ExecuteCounterbore(HoleRecoveryPlan plan, List<string> diagnostics)
+    {
+        if (plan.HostKind != HoleHostKind.RectangularBox || plan.Axis != HoleAxisKind.Z || plan.ProfileStack.Count != 2)
+        {
+            diagnostics.Add("Plan rejected: host/axis/profile shape mismatch for bounded counterbore.");
             return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
-        diagnostics.Add("Counterbore plan accepted for bounded execution.");
+        var large = plan.ProfileStack[0];
+        var small = plan.ProfileStack[1];
+        var tolerance = Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
+        if (large.SegmentKind != HoleProfileSegmentKind.Cylindrical || small.SegmentKind != HoleProfileSegmentKind.Cylindrical)
+        {
+            diagnostics.Add("Plan rejected: both profile segments must be cylindrical.");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        if (Math.Abs(small.DepthEnd - plan.ThroughLength) > tolerance || large.RadiusStart <= small.RadiusStart + tolerance)
+        {
+            diagnostics.Add("Plan rejected: profile stack does not match counterbore (large shallow + small through).");
+            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+        }
+
+        diagnostics.Add("Profile stack validated.");
+        diagnostics.Add("Counterbore legacy fallback route available but profile-stack adapter rejected.");
+        return ExecuteLegacyCounterbore(plan, diagnostics);
+    }
+
+    private static HoleRecoveryExecutionResult ExecuteLegacyCounterbore(HoleRecoveryPlan plan, List<string> diagnostics)
+    {
         if (plan.HostKind != HoleHostKind.RectangularBox || plan.Axis != HoleAxisKind.Z || plan.ProfileStack.Count != 2)
         {
             diagnostics.Add("Plan rejected: host/axis/profile shape mismatch for bounded counterbore.");
@@ -236,7 +296,7 @@ public static class HoleRecoveryExecutor
     private static HoleRecoveryExecutionResult ExecuteStepped(HoleRecoveryPlan plan, List<string> diagnostics)
     {
         diagnostics.Add("Stepped explicit-placement validation started.");
-        if (!ProfileStackExtrudePlanAdapter.TryFromSteppedHolePlan(plan, out var spec, out var conversionDiagnostics) || spec is null)
+        if (!ProfileStackExtrudePlanAdapter.TryFromHoleRecoveryPlan(plan, out var spec, out var conversionDiagnostics) || spec is null)
         {
             diagnostics.AddRange(conversionDiagnostics);
             diagnostics.Add("Stepped plan rejected before execution: profile-stack conversion failed.");

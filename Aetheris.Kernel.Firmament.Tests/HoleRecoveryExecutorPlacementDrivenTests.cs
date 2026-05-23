@@ -109,7 +109,7 @@ public sealed class HoleRecoveryExecutorPlacementDrivenTests
     }
 
     [Fact]
-    public void PlacementDriven_SteppedPlacementValidatedButExecutionStillDeferred()
+    public void PlacementDriven_SteppedPlacementValidatedAndExecutionSucceeds()
     {
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(
             new CirSubtractNode(
@@ -122,7 +122,7 @@ public sealed class HoleRecoveryExecutorPlacementDrivenTests
 
         var result = HoleRecoveryExecutor.Execute((HoleRecoveryPlan)eval.Plan!);
 
-        Assert.NotEqual(HoleRecoveryExecutionStatus.Succeeded, result.Status);
+        Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
         Assert.Contains(result.Diagnostics, d => d.Contains("Stepped explicit-placement validation succeeded", StringComparison.Ordinal));
     }
 }

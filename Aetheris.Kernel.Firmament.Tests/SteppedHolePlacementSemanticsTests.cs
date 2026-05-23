@@ -67,7 +67,7 @@ public sealed class SteppedHolePlacementSemanticsTests
         var exec = HoleRecoveryExecutor.Execute(BuildPlan());
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
         Assert.NotNull(exec.Body);
-        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped executor route: repeated-subtract-small-medium-large", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("stepped executor route: profile-stack-extrude", StringComparison.Ordinal));
         Assert.Contains(exec.Diagnostics, d => d.Contains("No STEP export attempted", StringComparison.Ordinal));
     }
 

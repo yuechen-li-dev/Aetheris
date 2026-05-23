@@ -236,157 +236,29 @@ public static class HoleRecoveryExecutor
     private static HoleRecoveryExecutionResult ExecuteStepped(HoleRecoveryPlan plan, List<string> diagnostics)
     {
         diagnostics.Add("Stepped explicit-placement validation started.");
-        if (plan.HostKind != HoleHostKind.RectangularBox || plan.Axis != HoleAxisKind.Z || plan.ProfileStack.Count != 3)
+        if (!ProfileStackExtrudePlanAdapter.TryFromSteppedHolePlan(plan, out var spec, out var conversionDiagnostics) || spec is null)
         {
-            diagnostics.Add("Stepped plan rejected before Boolean: host must be rectangular box, axis must be Z, and profile stack count must be exactly 3.");
+            diagnostics.AddRange(conversionDiagnostics);
+            diagnostics.Add("Stepped plan rejected before execution: profile-stack conversion failed.");
             return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
         }
 
-        var tolerance = Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Linear;
-        var large = plan.ProfileStack[0];
-        var medium = plan.ProfileStack[1];
-        var small = plan.ProfileStack[2];
-        if (large.SegmentKind != HoleProfileSegmentKind.Cylindrical || medium.SegmentKind != HoleProfileSegmentKind.Cylindrical || small.SegmentKind != HoleProfileSegmentKind.Cylindrical)
-        {
-            diagnostics.Add("Stepped plan rejected before Boolean: all profile segments must be cylindrical.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        if (small.RadiusStart >= medium.RadiusStart - tolerance || medium.RadiusStart >= large.RadiusStart - tolerance)
-        {
-            diagnostics.Add("Stepped plan rejected before Boolean: strict radius ordering (small < medium < large) is required.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        var largeDepth = large.DepthEnd - large.DepthStart;
-        var mediumDepth = medium.DepthEnd - medium.DepthStart;
-        if (Math.Abs(small.DepthEnd - plan.ThroughLength) > tolerance || largeDepth <= tolerance || mediumDepth <= tolerance || largeDepth >= mediumDepth - tolerance || mediumDepth >= plan.ThroughLength - tolerance)
-        {
-            diagnostics.Add("Stepped plan rejected before Boolean: strict depth ordering (large < medium < through) is required.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        if (!HoleProfileSegmentPlacementValidator.TryValidate(plan, out var placementIssues))
-        {
-            diagnostics.AddRange(placementIssues.Select(i => $"Stepped plan rejected before Boolean: {i}."));
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        foreach (var segment in plan.ProfileStack)
-        {
-            if (segment.AnchorSide == HoleTierAnchorSide.Unknown)
-            {
-                diagnostics.Add("Stepped plan rejected before Boolean: anchor side cannot be Unknown.");
-                return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-            }
-
-            if (double.IsNaN(segment.ZMin) || double.IsNaN(segment.ZMax) || segment.ZMax - segment.ZMin <= tolerance)
-            {
-                diagnostics.Add("Stepped plan rejected before Boolean: every tier must provide a valid explicit z-span.");
-                return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-            }
-
-            if (segment.PlacementDiagnostics is null || segment.PlacementDiagnostics.Count == 0)
-            {
-                diagnostics.Add("Stepped plan rejected before Boolean: every tier must provide non-empty placement diagnostics.");
-                return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-            }
-        }
-
-        if (!small.IsThrough || small.AnchorSide != HoleTierAnchorSide.Through)
-        {
-            diagnostics.Add("Stepped plan rejected before Boolean: small tier must explicitly be through with through anchor.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        if (medium.IsThrough || large.IsThrough)
-        {
-            diagnostics.Add("Stepped plan rejected before Boolean: medium/large tiers must be blind tiers (IsThrough=false).");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        if (medium.AnchorSide != large.AnchorSide || (medium.AnchorSide != HoleTierAnchorSide.Top && medium.AnchorSide != HoleTierAnchorSide.Bottom))
-        {
-            diagnostics.Add("Stepped plan rejected before Boolean: medium and large blind tiers must share a concrete entry anchor side.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        var hostMinZ = plan.HostTranslation.Z - (plan.HostSizeZ * 0.5d);
-        var hostMaxZ = plan.HostTranslation.Z + (plan.HostSizeZ * 0.5d);
-        if (small.ZMin > hostMinZ + tolerance || small.ZMax < hostMaxZ - tolerance)
-        {
-            diagnostics.Add("Stepped plan rejected before Boolean: through tier explicit z-span must cover host z-range.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        if ((medium.ZMin < hostMinZ - tolerance || medium.ZMax > hostMaxZ + tolerance) || (large.ZMin < hostMinZ - tolerance || large.ZMax > hostMaxZ + tolerance))
-        {
-            diagnostics.Add("Stepped plan rejected before Boolean: blind tier explicit z-span must stay within host z-range.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        diagnostics.Add("Stepped explicit-placement validation succeeded.");
+        diagnostics.AddRange(conversionDiagnostics);
         diagnostics.Add("Stepped executor marker: no-hidden-placement-inference; explicit z-span authority.");
-        diagnostics.Add($"Stepped segment placement: large radius={large.RadiusStart:0.###} zMin={large.ZMin:0.###} zMax={large.ZMax:0.###} anchor={large.AnchorSide} through={large.IsThrough}.");
-        diagnostics.Add($"Stepped segment placement: medium radius={medium.RadiusStart:0.###} zMin={medium.ZMin:0.###} zMax={medium.ZMax:0.###} anchor={medium.AnchorSide} through={medium.IsThrough}.");
-        diagnostics.Add($"Stepped segment placement: small radius={small.RadiusStart:0.###} zMin={small.ZMin:0.###} zMax={small.ZMax:0.###} anchor={small.AnchorSide} through={small.IsThrough}.");
-        diagnostics.Add("Stepped executor route: repeated-subtract-small-medium-large.");
-        var box = BrepPrimitives.CreateBox(plan.HostSizeX, plan.HostSizeY, plan.HostSizeZ);
-        if (!box.IsSuccess)
-        {
-            diagnostics.Add("Stepped host box primitive construction failed.");
-            return new(HoleRecoveryExecutionStatus.PrimitiveConstructionFailed, null, diagnostics);
-        }
+        diagnostics.Add("stepped executor route: profile-stack-extrude");
 
-        var body = TranslateBody(box.Value, plan.HostTranslation);
-        if (!TryBuildPlacementCylinderTool(plan, small, "small", diagnostics, out var smallTool) || smallTool is null)
-        {
-            diagnostics.Add("Stepped plan rejected before Boolean: placement-driven small segment failed.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
+        var profileResult = ProfileStackExtrudeExecutor.Execute(spec);
+        diagnostics.AddRange(profileResult.Diagnostics);
 
-        diagnostics.Add("Stepped subtract small invoked.");
-        var smallSubtract = BrepBoolean.Subtract(body, smallTool);
-        if (!smallSubtract.IsSuccess || smallSubtract.Value is null)
+        if (profileResult.Status != ProfileStackExtrudeExecutionStatus.Succeeded || profileResult.Body is null)
         {
-            diagnostics.Add($"Stepped subtract small failed: codes={string.Join(",", smallSubtract.Diagnostics.Select(d => d.Code))}.");
+            diagnostics.Add("Stepped profile-stack execution failed.");
             return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
         }
 
-        diagnostics.Add("Stepped subtract small succeeded.");
-        if (!TryBuildPlacementCylinderTool(plan, medium, "medium", diagnostics, out var mediumTool, tolerance * 4d) || mediumTool is null)
-        {
-            diagnostics.Add("Stepped plan rejected before Boolean: placement-driven medium segment failed.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        diagnostics.Add("Stepped subtract medium invoked.");
-        var mediumSubtract = BrepBoolean.Subtract(smallSubtract.Value, mediumTool);
-        if (!mediumSubtract.IsSuccess || mediumSubtract.Value is null)
-        {
-            diagnostics.Add($"Stepped subtract medium failed: codes={string.Join(",", mediumSubtract.Diagnostics.Select(d => d.Code))}.");
-            return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
-        }
-
-        diagnostics.Add("Stepped subtract medium succeeded.");
-        if (!TryBuildPlacementCylinderTool(plan, large, "large", diagnostics, out var largeTool, tolerance * 4d) || largeTool is null)
-        {
-            diagnostics.Add("Stepped plan rejected before Boolean: placement-driven large segment failed.");
-            return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
-        }
-
-        diagnostics.Add("Stepped subtract large invoked.");
-        var largeSubtract = BrepBoolean.Subtract(mediumSubtract.Value, largeTool);
-        if (!largeSubtract.IsSuccess || largeSubtract.Value is null)
-        {
-            diagnostics.Add($"Stepped subtract large failed: codes={string.Join(",", largeSubtract.Diagnostics.Select(d => d.Code))}.");
-            return new(HoleRecoveryExecutionStatus.BooleanFailed, null, diagnostics);
-        }
-
-        diagnostics.Add("Stepped subtract large succeeded.");
-        diagnostics.Add("Stepped repeated-subtract route succeeded.");
+        diagnostics.Add("Stepped profile-stack execution succeeded.");
         diagnostics.Add("Result BRep body produced.");
-        return new(HoleRecoveryExecutionStatus.Succeeded, largeSubtract.Value, diagnostics);
+        return new(HoleRecoveryExecutionStatus.Succeeded, profileResult.Body, diagnostics);
     }
     private static HoleRecoveryExecutionResult ExecuteBlind(HoleRecoveryPlan plan, List<string> diagnostics)
     {

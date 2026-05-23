@@ -27,13 +27,11 @@ public sealed class SteppedHoleVariantAndExecutorTests
         var exec = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status); // diag: string.Join(" | ", exec.Diagnostics)
         Assert.NotNull(exec.Body);
-        Assert.Contains(exec.Diagnostics, d => d.Contains("placement-driven segment=small", StringComparison.Ordinal));
-        Assert.Contains(exec.Diagnostics, d => d.Contains("placement-driven segment=medium", StringComparison.Ordinal));
-        Assert.Contains(exec.Diagnostics, d => d.Contains("placement-driven segment=large", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("profile-stack layer-count", StringComparison.Ordinal));
         Assert.Contains(exec.Diagnostics, d => d.Contains("no-hidden-placement-inference", StringComparison.Ordinal));
-        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract small succeeded", StringComparison.Ordinal));
-        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract medium succeeded", StringComparison.Ordinal));
-        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped subtract large succeeded", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("profile-stack composition build succeeded", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("stepped executor route: profile-stack-extrude", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("profile-stack executor route: no 3D subtract route used", StringComparison.Ordinal));
     }
 
 
@@ -50,7 +48,7 @@ public sealed class SteppedHoleVariantAndExecutorTests
         Assert.Contains("ADVANCED_FACE", step.Value, StringComparison.Ordinal);
         Assert.Contains("CYLINDRICAL_SURFACE", step.Value, StringComparison.Ordinal);
         Assert.DoesNotContain("BREP_WITH_VOIDS", step.Value, StringComparison.Ordinal);
-        Assert.Contains(exec.Diagnostics, d => d.Contains("Stepped executor route: repeated-subtract-small-medium-large", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, d => d.Contains("stepped executor route: profile-stack-extrude", StringComparison.Ordinal));
     }
 
     [Fact]

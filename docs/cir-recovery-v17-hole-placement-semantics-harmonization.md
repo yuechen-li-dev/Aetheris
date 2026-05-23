@@ -37,3 +37,8 @@ No new variants, no STEP exporter changes, no public API changes, no generic pro
 
 ## Next milestone recommendation
 CIR-RECOVERY-V18: centralize segment-role taxonomy and validator-backed role/placement compatibility checks.
+
+## V18 executor consumption status
+- Blind/counterbore/countersink/chamfered-entry execution now consumes explicit segment placement in executor construction.
+- Through-hole remains delegated unchanged in V18 for low-risk compatibility.
+- Stepped remains deferred but placement-validated for future activation.

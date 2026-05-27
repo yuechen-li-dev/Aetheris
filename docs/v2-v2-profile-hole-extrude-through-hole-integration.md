@@ -65,3 +65,7 @@ See milestone run commands and focused `ProfileStackExtrudeHoleFamilyMigrationTe
 
 ## Next recommended milestone
 Extend semantic planning/adapter contracts to represent bounded multi-hole through plans in a single admissible executable plan, then reuse this route without broadening emitter geometry scope.
+
+
+## V2-V3 chaining note
+A lab-only V2-V3 pipeline now demonstrates compile-time profile Boolean expression normalization feeding bounded emitter input (rectangle minus circles) and STEP smoke validation, with no 3D Boolean in the candidate path.

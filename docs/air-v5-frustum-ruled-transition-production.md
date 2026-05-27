@@ -51,3 +51,6 @@ For migrated non-apex frustums, production behavior remains parity-aligned with 
 
 ## Next recommended milestone
 - Bounded square-to-round adapter lab with explicit admissibility, scoring, and topology/STEP parity gates before any production routing.
+
+## AIR-V5.1 follow-up
+- CLI external validation coverage for ruled-transition frustum routing, apex cone routing, and equal-radius cone/frustum semantics was added in `docs/air-v5-1-cli-validation.md`.

@@ -52,3 +52,6 @@ Extend internal emitter capability from full-circle-only hole loops to bounded l
 
 
 Update note (V2-X7): lab-only line/arc profile extrusion now demonstrates slot/capsule hole side-face emission without 3D Boolean via `LineArcProfileExtrudeLab`; production routing remains unchanged.
+
+
+Update note (V2-V4): slot/capsule horizontal hole topology is now additionally exercised through production-adjacent `LineArcProfileExtrudeEmitter` tests; broad production routing remains unchanged.

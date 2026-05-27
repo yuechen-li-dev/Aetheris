@@ -62,3 +62,6 @@ No sketch solver, no generalized 2D clipping, no 3D Boolean fallback, no blind/c
 
 ## Next milestone
 Evaluate controlled production routing at a narrow internal seam once bounded expression admission policy and telemetry thresholds are agreed.
+
+
+Update note (V2-X6): slot/capsule profile support is under lab evaluation only; V2-V3 front door remains bounded to rectangle-minus-circle(s).

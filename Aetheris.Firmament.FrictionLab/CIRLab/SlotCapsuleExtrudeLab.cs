@@ -92,6 +92,13 @@ public static class SlotCapsuleExtrudeLab
         return new([outer, hole]);
     }
 
+
+    public static LabResolvedProfile2D BuildProfileForX7(double rectWidth, double rectHeight, double centerX, double centerY, double length, double radius)
+    {
+        var c = new SlotCapsuleProfileCase("x7", rectWidth, rectHeight, 1, centerX, centerY, length, radius, SlotCapsuleOrientation.Horizontal);
+        return BuildProfile(c);
+    }
+
     private static LabAirLoop2D HorizontalSlot(double cx, double cy, double len, double r)
     {
         var half = len / 2d - r;

@@ -67,3 +67,7 @@ Not implemented in this milestone. Chaining into V2-X3 profile-hole extrude rema
 
 ## Recommended next step
 Run a bounded clipping lab for rectangle-rectangle overlap normalization, or a dedicated slot/capsule profile normalization+extrusion lab before any production expression-routing decisions.
+
+
+## V2-V3 chaining note
+V2-V3 now chains accepted V2-X4 normalized outputs into `ProfileHoleExtrudeEmitter` through a lab adapter (`ProfileBooleanExtrudePipelineLab`), preserving deferred/rejected stops before any BRep emission.

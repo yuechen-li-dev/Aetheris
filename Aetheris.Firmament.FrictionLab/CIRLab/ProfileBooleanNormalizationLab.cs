@@ -5,7 +5,12 @@ public enum ProfileBooleanRecommendation
     profile_boolean_normalized,
     profile_boolean_invalid_rejected,
     profile_boolean_deferred_topology,
-    profile_boolean_needs_bounded_clipping_lab
+    profile_boolean_needs_bounded_clipping_lab,
+    profile_boolean_extrude_ready_for_production_evaluation,
+    profile_boolean_extrude_normalization_rejected,
+    profile_boolean_extrude_deferred_topology,
+    profile_boolean_extrude_emitter_blocked,
+    profile_boolean_extrude_needs_production_profile_adapter
 }
 
 public abstract record ProfileBooleanExpr2D;

@@ -3,7 +3,9 @@
 ## Purpose and scope
 Lab-only evidence matrix for cylinder, cone/frustum, sphere, and torus comparing current primitive constructors against AIR-style candidates (extrude/revolve) where supported.
 
-Non-goals: no production routing changes, no public API changes, no STEP import/export changes, no Boolean core changes, no NURBS/freeform work.
+Non-goals (at AIR-X5 time): no production routing changes, no public API changes, no STEP import/export changes, no Boolean core changes, no NURBS/freeform work.
+
+Status note after AIR-V4: cylinder has now been production-routed via the proven AirRevolve lane (`docs/air-v4-cylinder-as-air-revolve-production.md`). Circular-profile AirExtrude remains blocked.
 
 ## References
 - AIR-X3: `docs/air-x3-primitive-as-air-normalization-audit.md`

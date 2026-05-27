@@ -102,12 +102,49 @@ public sealed class BrepPrimitivesTests
         Assert.Equal(1, curveKinds.Count(kind => kind == CurveGeometryKind.Line3));
 
         // The side face loop intentionally references the seam edge twice (forward and reversed).
-        var sideFaceId = body.Topology.Faces.First().Id;
+        var sideFaceId = body.Topology.Faces.Single(face => body.GetFaceSurface(face.Id).Kind == SurfaceGeometryKind.Cylinder).Id;
         var sideEdges = body.GetEdges(sideFaceId);
         Assert.Equal(3, sideEdges.Count);
 
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
         Assert.True(validation.IsSuccess);
+    }
+
+
+    [Theory]
+    [InlineData(5d, 10d)]
+    [InlineData(3d, 12d)]
+    public void CreateCylinder_RepresentativeDimensions_PreserveTopologyParity(double radius, double height)
+    {
+        var result = BrepPrimitives.CreateCylinder(radius, height);
+
+        Assert.True(result.IsSuccess);
+        var body = result.Value;
+
+        Assert.Equal(3, body.Topology.Faces.Count());
+        Assert.Equal(1, body.Topology.Faces.Count(face => body.GetFaceSurface(face.Id).Kind == SurfaceGeometryKind.Cylinder));
+        Assert.Equal(2, body.Topology.Faces.Count(face => body.GetFaceSurface(face.Id).Kind == SurfaceGeometryKind.Plane));
+
+        var sideFace = body.Topology.Faces.Single(face => body.GetFaceSurface(face.Id).Kind == SurfaceGeometryKind.Cylinder);
+        Assert.Equal(3, body.GetEdges(sideFace.Id).Count);
+
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        Assert.True(validation.IsSuccess);
+    }
+
+    [Fact]
+    public void CreateCylinder_Step242SmokeMarkers_RemainStable()
+    {
+        var body = BrepPrimitives.CreateCylinder(5d, 10d).Value;
+        var step = Step242Exporter.ExportBody(body);
+
+        Assert.True(step.IsSuccess);
+        Assert.Contains("ISO-10303-21", step.Value, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", step.Value, StringComparison.Ordinal);
+        Assert.Contains("ADVANCED_FACE", step.Value, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", step.Value, StringComparison.Ordinal);
+        Assert.Contains("PLANE", step.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("BREP_WITH_VOIDS", step.Value, StringComparison.Ordinal);
     }
 
     [Theory]

@@ -206,15 +206,13 @@ public sealed class CliBaselineTests
     {
         var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateCylinder(5d, 8d).Value, "cli-cylinder-edge-truth");
 
-        var lineEdge = AnalyzeEdge(stepPath, 1);
-        Assert.Equal(1, lineEdge.GetProperty("edgeId").GetInt32());
-        Assert.Equal("Line3", lineEdge.GetProperty("curveType").GetString());
+        var edges = Enumerable.Range(1, 3).Select(id => AnalyzeEdge(stepPath, id)).ToArray();
+        var lineEdge = edges.Single(edge => edge.GetProperty("curveType").GetString() == "Line3");
         Assert.Equal(8d, lineEdge.GetProperty("arcLength").GetDouble(), 8);
         Assert.Equal(8d, lineEdge.GetProperty("parameterRange").GetDouble(), 8);
         Assert.Equal("computed", lineEdge.GetProperty("arcLengthStatus").GetString());
 
-        var circleEdge = AnalyzeEdge(stepPath, 2);
-        Assert.Equal("Circle3", circleEdge.GetProperty("curveType").GetString());
+        var circleEdge = edges.First(edge => edge.GetProperty("curveType").GetString() == "Circle3");
         Assert.Equal(2d * double.Pi, circleEdge.GetProperty("parameterRange").GetDouble(), 8);
         Assert.Equal(10d * double.Pi, circleEdge.GetProperty("arcLength").GetDouble(), 8);
         Assert.Equal("computed", circleEdge.GetProperty("arcLengthStatus").GetString());
@@ -412,8 +410,9 @@ public sealed class CliBaselineTests
         var sphereStepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateSphere(3d).Value, "cli-sphere-face-anchor");
         var torusStepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateTorus(7d, 2d).Value, "cli-torus-face-anchor");
 
-        var cylinderFace = AnalyzeFace(cylinderStepPath, 1);
-        Assert.Equal("Cylinder", cylinderFace.GetProperty("surfaceType").GetString());
+        var cylinderFace = Enumerable.Range(1, 3)
+            .Select(id => AnalyzeFace(cylinderStepPath, id))
+            .Single(face => face.GetProperty("surfaceType").GetString() == "Cylinder");
         AssertPoint(cylinderFace.GetProperty("anchorPoint"), 0d, 0d, -6d);
         AssertVector(cylinderFace.GetProperty("axis"), 0d, 0d, 1d);
         Assert.Equal(4d, cylinderFace.GetProperty("radius").GetDouble(), 8);

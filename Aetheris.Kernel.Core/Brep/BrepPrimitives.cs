@@ -172,60 +172,19 @@ public static class BrepPrimitives
             return KernelResult<BrepBody>.Failure(diagnostics);
         }
 
-        var hz = height * 0.5d;
-        var topCenter = new Point3D(0d, 0d, hz);
-        var bottomCenter = new Point3D(0d, 0d, -hz);
+        var profile = new[]
+        {
+            new ProfilePoint2D(radius, -height * 0.5d),
+            new ProfilePoint2D(radius, height * 0.5d),
+        };
 
-        var builder = new TopologyBuilder();
+        var frame = new ExtrudeFrame3D(
+            new Point3D(0d, 0d, 0d),
+            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            Direction3D.Create(new Vector3D(1d, 0d, 0d)));
 
-        // Minimal seam strategy (M08): a single explicit seam edge on the side face plus one circular edge per cap.
-        var seamStart = builder.AddVertex();
-        var seamEnd = builder.AddVertex();
-        var topVertex = builder.AddVertex();
-        var bottomVertex = builder.AddVertex();
-
-        var seamEdge = builder.AddEdge(seamStart, seamEnd);
-        var topCircleEdge = builder.AddEdge(topVertex, topVertex);
-        var bottomCircleEdge = builder.AddEdge(bottomVertex, bottomVertex);
-
-        var sideFace = AddFaceWithLoop(
-            builder,
-            [
-                EdgeUse.Forward(seamEdge),
-                EdgeUse.Forward(topCircleEdge),
-                EdgeUse.Reversed(seamEdge),
-                EdgeUse.Reversed(bottomCircleEdge),
-            ]);
-
-        var topFace = AddFaceWithLoop(builder, [EdgeUse.Reversed(topCircleEdge)]);
-        var bottomFace = AddFaceWithLoop(builder, [EdgeUse.Forward(bottomCircleEdge)]);
-
-        var shell = builder.AddShell([sideFace, topFace, bottomFace]);
-        builder.AddBody([shell]);
-
-        var geometry = new BrepGeometryStore();
-        var zAxis = Direction3D.Create(new Vector3D(0d, 0d, 1d));
-        var xAxis = Direction3D.Create(new Vector3D(1d, 0d, 0d));
-        var yAxis = Direction3D.Create(new Vector3D(0d, 1d, 0d));
-
-        geometry.AddCurve(new CurveGeometryId(1), CurveGeometry.FromLine(new Line3Curve(new Point3D(radius, 0d, -hz), zAxis)));
-        geometry.AddCurve(new CurveGeometryId(2), CurveGeometry.FromCircle(new Circle3Curve(topCenter, zAxis, radius, xAxis)));
-        geometry.AddCurve(new CurveGeometryId(3), CurveGeometry.FromCircle(new Circle3Curve(bottomCenter, zAxis, radius, xAxis)));
-
-        geometry.AddSurface(new SurfaceGeometryId(1), SurfaceGeometry.FromCylinder(new CylinderSurface(bottomCenter, zAxis, radius, xAxis)));
-        geometry.AddSurface(new SurfaceGeometryId(2), SurfaceGeometry.FromPlane(new PlaneSurface(topCenter, zAxis, xAxis)));
-        geometry.AddSurface(new SurfaceGeometryId(3), SurfaceGeometry.FromPlane(new PlaneSurface(bottomCenter, Direction3D.Create(new Vector3D(0d, 0d, -1d)), yAxis)));
-
-        var bindings = new BrepBindingModel();
-        bindings.AddEdgeBinding(new EdgeGeometryBinding(seamEdge, new CurveGeometryId(1), new ParameterInterval(0d, height)));
-        bindings.AddEdgeBinding(new EdgeGeometryBinding(topCircleEdge, new CurveGeometryId(2), new ParameterInterval(0d, 2d * double.Pi)));
-        bindings.AddEdgeBinding(new EdgeGeometryBinding(bottomCircleEdge, new CurveGeometryId(3), new ParameterInterval(0d, 2d * double.Pi)));
-
-        bindings.AddFaceBinding(new FaceGeometryBinding(sideFace, new SurfaceGeometryId(1)));
-        bindings.AddFaceBinding(new FaceGeometryBinding(topFace, new SurfaceGeometryId(2)));
-        bindings.AddFaceBinding(new FaceGeometryBinding(bottomFace, new SurfaceGeometryId(3)));
-
-        return ValidateAndReturn(new BrepBody(builder.Model, geometry, bindings));
+        var axis = new RevolveAxis3D(new Point3D(0d, 0d, 0d), new Vector3D(0d, 0d, 1d));
+        return BrepRevolve.Create(profile, frame, axis);
     }
 
 

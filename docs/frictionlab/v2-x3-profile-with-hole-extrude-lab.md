@@ -63,3 +63,7 @@ Proceed to production evaluation focused on emitter parity/hardening and contrac
 
 ## V2-V1 follow-up note
 V2-V1 consumed this lab evidence by adding a bounded production-adjacent internal emitter (`ProfileHoleExtrudeEmitter`) with parity tests; executor integration remained deferred behind existing fallbacks.
+
+
+## V2-V2 note
+V2-V2 promotes the bounded through-hole subset from lab/adjacent status into the production through-hole seam with deterministic admissibility and fallback diagnostics.

@@ -48,7 +48,9 @@ public sealed class CounterboreRecoveryExecutorTests
         var result = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
         Assert.NotNull(result.Body);
-        Assert.Contains(result.Diagnostics, d => d.Contains("hole-family executor route: profile-stack-extrude", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, d =>
+            d.Contains("hole-family executor route: profile-stack-extrude", StringComparison.Ordinal) ||
+            d.Contains("v2-v2-profile-hole-extrude-succeeded", StringComparison.Ordinal));
     }
 
     [Fact]

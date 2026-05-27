@@ -72,3 +72,7 @@ V2-V2:
 2. keep strict fallback to legacy route,
 3. emit route-level fallback diagnostics,
 4. compare semantic parity against existing routes with CLI-level coverage.
+
+
+## V2-V2 note
+V2-V2 integrates the bounded plain rectangular Z-axis through-hole subset into production `HoleRecoveryExecutor` routing using `ProfileHoleExtrudeEmitter` with explicit diagnostics and legacy fallback preservation.

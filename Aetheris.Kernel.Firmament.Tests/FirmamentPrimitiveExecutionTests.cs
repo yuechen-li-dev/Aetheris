@@ -773,14 +773,24 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.True(result.Compilation.IsSuccess);
 
         var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;
-        Assert.True(body.TryGetFaceSurfaceGeometry(new FaceId(1), out var side));
+
+        var cylinderSurface = body.Topology.Faces
+            .Select(face => (face, surface: body.GetFaceSurface(face.Id)))
+            .Single(entry => entry.surface.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder);
+        Assert.True(body.TryGetFaceSurfaceGeometry(cylinderSurface.face.Id, out var side));
         Assert.Equal(new Point3D(0d, 0d, 0d), side!.Cylinder!.Value.Origin);
 
-        Assert.True(body.TryGetFaceSurfaceGeometry(new FaceId(2), out var top));
-        Assert.Equal(new Point3D(0d, 0d, 9d), top!.Plane!.Value.Origin);
-
-        Assert.True(body.TryGetFaceSurfaceGeometry(new FaceId(3), out var bottom));
-        Assert.Equal(new Point3D(0d, 0d, 0d), bottom!.Plane!.Value.Origin);
+        var planeOrigins = body.Topology.Faces
+            .Select(face =>
+            {
+                body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return surface;
+            })
+            .Where(surface => surface?.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane)
+            .Select(surface => surface!.Plane!.Value.Origin)
+            .OrderBy(origin => origin.Z)
+            .ToArray();
+        Assert.Equal(new[] { 0d, 9d }, planeOrigins.Select(origin => origin.Z).ToArray());
     }
 
     [Fact]
@@ -999,10 +1009,17 @@ ops[4]:
         Assert.Equal(new Point3D(1d, 1d, 7d), boxBounds.Max);
 
         var cylinderBody = result.Compilation.Value.PrimitiveExecutionResult.ExecutedPrimitives.Single(p => p.FeatureId == "placed_cylinder").Body;
-        Assert.True(cylinderBody.TryGetFaceSurfaceGeometry(new FaceId(3), out var cylinderBottom));
-        Assert.True(cylinderBody.TryGetFaceSurfaceGeometry(new FaceId(2), out var cylinderTop));
-        Assert.Equal(4d, cylinderBottom!.Plane!.Value.Origin.Z, 9);
-        Assert.Equal(10d, cylinderTop!.Plane!.Value.Origin.Z, 9);
+        var cylinderPlaneZ = cylinderBody.Topology.Faces
+            .Select(face =>
+            {
+                cylinderBody.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return surface;
+            })
+            .Where(surface => surface?.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Plane)
+            .Select(surface => surface!.Plane!.Value.Origin.Z)
+            .OrderBy(z => z)
+            .ToArray();
+        Assert.Equal(new[] { 4d, 10d }, cylinderPlaneZ);
 
         var coneBody = result.Compilation.Value.PrimitiveExecutionResult.ExecutedPrimitives.Single(p => p.FeatureId == "placed_cone").Body;
         var conePlanes = coneBody.Topology.Faces

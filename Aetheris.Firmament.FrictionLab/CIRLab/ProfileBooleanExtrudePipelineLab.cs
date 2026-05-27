@@ -33,64 +33,40 @@ public static class ProfileBooleanExtrudePipelineLab
 
     public static ProfileBooleanExtrudePipelineResult Evaluate(ProfileBooleanExtrudePipelineRow row)
     {
-        var diagnostics = new List<string> { "v2-x5-profile-boolean-extrude-pipeline-started", "v2-x5-profile-expression-normalization-attempted" };
-        var normalized = ProfileBooleanNormalizationLab.Normalize(row.Expression);
-        diagnostics.AddRange(normalized.Diagnostics);
+        var diagnostics = new List<string>();
+        var req = new ProfileExpressionHoleExtrudeRequest(ToFirmamentExpression(row.Expression), row.Height);
+        var result = ProfileExpressionHoleExtrudeEmitter.TryEmit(req);
+        diagnostics.AddRange(result.Diagnostics);
 
-        if (normalized.Status != LabProfileStatus.Succeeded || normalized.Profile is null)
+        if (result.Status != ProfileExpressionHoleExtrudeStatus.Succeeded || result.Body is null)
         {
-            diagnostics.Add(normalized.Status == LabProfileStatus.Deferred
-                ? $"v2-x5-profile-expression-deferred:{string.Join(",", normalized.Diagnostics)}"
-                : $"v2-x5-profile-expression-rejected:{string.Join(",", normalized.Diagnostics)}");
-            var rec = normalized.Status == LabProfileStatus.Deferred
+            var status = result.Status == ProfileExpressionHoleExtrudeStatus.Deferred ? LabProfileStatus.Deferred : LabProfileStatus.Failed;
+            var rec = result.Status == ProfileExpressionHoleExtrudeStatus.Deferred
                 ? ProfileBooleanRecommendation.profile_boolean_extrude_deferred_topology
                 : ProfileBooleanRecommendation.profile_boolean_extrude_normalization_rejected;
-            return Build(row.CaseName, normalized.Status, 0, 0, 0, 0, false, diagnostics, rec);
+            return Build(row.CaseName, status, 0, 0, 0, 0, false, diagnostics, rec);
         }
 
-        diagnostics.Add("v2-x5-profile-expression-normalized");
-        if (!TryAdapt(normalized.Profile, row.Height, out var req, out var reason))
-        {
-            diagnostics.Add($"v2-x5-profile-hole-extrude-failed:{reason}");
-            return Build(row.CaseName, LabProfileStatus.Failed, 1, Math.Max(0, normalized.Profile.Loops.Count-1), 0, 0, false, diagnostics, ProfileBooleanRecommendation.profile_boolean_extrude_emitter_blocked);
-        }
-
-        diagnostics.Add("v2-x5-resolved-profile-adapted-to-emitter");
-        diagnostics.Add("v2-x5-profile-hole-extrude-attempted");
-        var emit = ProfileHoleExtrudeEmitter.TryEmit(req!);
-        diagnostics.AddRange(emit.Diagnostics);
-        if (emit.Status != ProfileHoleExtrudeStatus.Succeeded || emit.Body is null)
-        {
-            diagnostics.Add("v2-x5-profile-hole-extrude-failed:emitter-rejected-or-failed");
-            return Build(row.CaseName, LabProfileStatus.Failed, 1, normalized.Profile.Loops.Count-1, 0, 0, false, diagnostics, ProfileBooleanRecommendation.profile_boolean_extrude_emitter_blocked);
-        }
-
-        diagnostics.Add("v2-x5-profile-hole-extrude-succeeded");
+        var holeCount = row.Expression is ProfileBooleanDifference { Rights: var rights }
+            ? rights.Count(x => x is ProfileBooleanCircle)
+            : 0;
+        var topo = CountFaces(result.Body);
         diagnostics.Add("v2-x5-no-3d-boolean-used");
-        diagnostics.Add("v2-v3-no-3d-boolean-used");
-        var topo = CountFaces(emit.Body);
-        var stepOk = StepOk(emit.Body, diagnostics);
-        return Build(row.CaseName, LabProfileStatus.Succeeded, 1, normalized.Profile.Loops.Count-1, topo.Planar, topo.Cyl, stepOk, diagnostics, ProfileBooleanRecommendation.profile_boolean_extrude_ready_for_production_evaluation);
+        var stepOk = StepOk(result.Body, diagnostics);
+        return Build(row.CaseName, LabProfileStatus.Succeeded, 1, holeCount, topo.Planar, topo.Cyl, stepOk, diagnostics, ProfileBooleanRecommendation.profile_boolean_extrude_ready_for_production_evaluation);
     }
 
-    private static bool TryAdapt(LabResolvedProfile2D p, double height, out ProfileHoleExtrudeRequest? req, out string reason)
+    private static ProfileExpression2D ToFirmamentExpression(ProfileBooleanExpr2D expr) => expr switch
     {
-        req = null; reason = string.Empty;
-        if (height <= 1e-9) { reason = "invalid-height"; return false; }
-        if (p.Loops.Count < 1) { reason = "no-outer-loop"; return false; }
-        var outer = p.Loops[0];
-        if (outer.Curves.Count != 4 || outer.Curves.Any(c => c is not LabAirLineSegment2D)) { reason = "outer-not-rectangle"; return false; }
-        var pts = outer.Curves.Cast<LabAirLineSegment2D>().SelectMany(x => new[] { x.Start, x.End }).ToArray();
-        var minX = pts.Min(x => x.X); var maxX = pts.Max(x => x.X); var minY = pts.Min(x => x.Y); var maxY = pts.Max(x => x.Y);
-        var holes = new List<ProfileHoleLoop2D>();
-        foreach (var loop in p.Loops.Skip(1))
-        {
-            if (loop.Curves.Count != 1 || loop.Curves[0] is not LabAirFullCircle2D c) { reason = "hole-not-full-circle"; return false; }
-            holes.Add(new(c.Center.X, c.Center.Y, c.Radius));
-        }
-        req = new(maxX-minX, maxY-minY, height, holes);
-        return true;
-    }
+        ProfileBooleanRectangle r => new ProfileRectangleExpr2D(r.CenterX, r.CenterY, r.Width, r.Height),
+        ProfileBooleanCircle c => new ProfileCircleExpr2D(c.CenterX, c.CenterY, c.Radius),
+        ProfileBooleanCapsule c => new ProfileCapsuleExpr2D(c.CenterX, c.CenterY, c.Length, c.Radius),
+        ProfileBooleanUnsupportedPrimitive u => new ProfileUnsupportedPrimitiveExpr2D(u.Name),
+        ProfileBooleanDifference d => new ProfileDifferenceExpr2D(ToFirmamentExpression(d.Left), d.Rights.Select(ToFirmamentExpression).ToArray()),
+        ProfileBooleanUnion u => new ProfileUnionExpr2D(u.Operands.Select(ToFirmamentExpression).ToArray()),
+        ProfileBooleanIntersection i => new ProfileIntersectionExpr2D(ToFirmamentExpression(i.Left), ToFirmamentExpression(i.Right)),
+        _ => new ProfileUnsupportedPrimitiveExpr2D(expr.GetType().Name)
+    };
 
     private static (int Planar, int Cyl) CountFaces(BrepBody b)
     {

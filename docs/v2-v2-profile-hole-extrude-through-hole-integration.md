@@ -69,3 +69,6 @@ Extend semantic planning/adapter contracts to represent bounded multi-hole throu
 
 ## V2-V3 chaining note
 A lab-only V2-V3 pipeline now demonstrates compile-time profile Boolean expression normalization feeding bounded emitter input (rectangle minus circles) and STEP smoke validation, with no 3D Boolean in the candidate path.
+
+
+Update note (V2-V3): no change to V2-V2 accepted through-hole production route; new profile-expression front door is internal production-adjacent only.

@@ -71,3 +71,6 @@ Run a bounded clipping lab for rectangle-rectangle overlap normalization, or a d
 
 ## V2-V3 chaining note
 V2-V3 now chains accepted V2-X4 normalized outputs into `ProfileHoleExtrudeEmitter` through a lab adapter (`ProfileBooleanExtrudePipelineLab`), preserving deferred/rejected stops before any BRep emission.
+
+
+Update note (V2-V3): normalization lab remains the bounded proof source; production-adjacent orchestration now consumes equivalent bounded rules in Firmament internal front-door flow.

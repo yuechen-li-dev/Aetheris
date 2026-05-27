@@ -24,7 +24,9 @@ public sealed class AirProfileStackExtrudeTests
         Assert.True(AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(plan, out _, out var d));
         var exec = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
-        Assert.Contains(exec.Diagnostics, x => x.Contains("air-profile-stack-extrude", StringComparison.Ordinal));
+        Assert.Contains(exec.Diagnostics, x =>
+            x.Contains("air-profile-stack-extrude", StringComparison.Ordinal) ||
+            x.Contains("v2-v2-profile-hole-extrude-succeeded", StringComparison.Ordinal));
         var step = Step242Exporter.ExportBody(exec.Body!);
         Assert.True(step.IsSuccess);
     }

@@ -35,6 +35,11 @@ public static class HoleRecoveryExecutor
 
         diagnostics.Add($"Plan kind inspection: holeKind={plan.HoleKind}, depthKind={plan.DepthKind}.");
 
+        if (TryExecuteProfileHoleExtrudeRoute(plan, diagnostics, out var profileHoleResult))
+        {
+            return profileHoleResult;
+        }
+
         if (plan.HoleKind == HoleKind.Countersink && (plan.DepthKind == HoleDepthKind.ThroughWithEntryRelief || plan.DepthKind == HoleDepthKind.BlindWithEntryRelief))
         {
             diagnostics.Add("Countersink plan accepted for bounded conical route.");
@@ -129,6 +134,116 @@ public static class HoleRecoveryExecutor
 
         diagnostics.Add("Plan rejected: only bounded through/blind/counterbore/countersink/stepped plans are supported.");
         return new(HoleRecoveryExecutionStatus.UnsupportedPlan, null, diagnostics);
+    }
+
+    private static bool TryExecuteProfileHoleExtrudeRoute(HoleRecoveryPlan plan, List<string> diagnostics, out HoleRecoveryExecutionResult result)
+    {
+        result = default!;
+        diagnostics.Add("v2-v2-profile-hole-extrude-attempted");
+
+        if (plan.HostKind != HoleHostKind.RectangularBox)
+        {
+            diagnostics.Add("v2-v2-profile-hole-extrude-rejected:unsupported-host-kind");
+            diagnostics.Add("v2-v2-fallback-legacy-through-hole");
+            return false;
+        }
+
+        if (plan.Axis != HoleAxisKind.Z)
+        {
+            diagnostics.Add("v2-v2-profile-hole-extrude-rejected:unsupported-axis");
+            diagnostics.Add("v2-v2-fallback-legacy-through-hole");
+            return false;
+        }
+
+        if (plan.HoleKind != HoleKind.Through)
+        {
+            diagnostics.Add("v2-v2-profile-hole-extrude-rejected:unsupported-hole-kind");
+            diagnostics.Add("v2-v2-fallback-legacy-through-hole");
+            return false;
+        }
+
+        if (plan.DepthKind != HoleDepthKind.Through)
+        {
+            diagnostics.Add("v2-v2-profile-hole-extrude-rejected:unsupported-depth-kind");
+            diagnostics.Add("v2-v2-fallback-legacy-through-hole");
+            return false;
+        }
+
+        if (plan.EntryFeature != HoleEntryFeatureKind.Plain || plan.ExitFeature != HoleExitFeatureKind.Plain)
+        {
+            diagnostics.Add("v2-v2-profile-hole-extrude-rejected:unsupported-relief-feature");
+            diagnostics.Add("v2-v2-fallback-legacy-through-hole");
+            return false;
+        }
+
+        if (!double.IsFinite(plan.HostSizeX) || !double.IsFinite(plan.HostSizeY) || !double.IsFinite(plan.HostSizeZ) ||
+            !double.IsFinite(plan.HostTranslation.X) || !double.IsFinite(plan.HostTranslation.Y) || !double.IsFinite(plan.HostTranslation.Z) ||
+            !double.IsFinite(plan.ToolTranslation.X) || !double.IsFinite(plan.ToolTranslation.Y) || !double.IsFinite(plan.ToolTranslation.Z))
+        {
+            diagnostics.Add("v2-v2-profile-hole-extrude-rejected:invalid-placement");
+            diagnostics.Add("v2-v2-fallback-legacy-through-hole");
+            return false;
+        }
+
+        if (plan.ProfileStack.Count != 1)
+        {
+            diagnostics.Add("v2-v2-profile-hole-extrude-rejected:multiple-profile-semantics-unsupported");
+            diagnostics.Add("v2-v2-fallback-legacy-through-hole");
+            return false;
+        }
+
+        var through = plan.ProfileStack[0];
+        if (through.SegmentKind != HoleProfileSegmentKind.Cylindrical || !through.IsThrough || through.AnchorSide != HoleTierAnchorSide.Through)
+        {
+            diagnostics.Add("v2-v2-profile-hole-extrude-rejected:multiple-profile-semantics-unsupported");
+            diagnostics.Add("v2-v2-fallback-legacy-through-hole");
+            return false;
+        }
+
+        var req = new ProfileHoleExtrudeRequest(
+            plan.HostSizeX,
+            plan.HostSizeY,
+            plan.HostSizeZ,
+            [new ProfileHoleLoop2D(plan.ToolTranslation.X - plan.HostTranslation.X, plan.ToolTranslation.Y - plan.HostTranslation.Y, through.RadiusStart)]);
+        var emit = ProfileHoleExtrudeEmitter.TryEmit(req);
+        if (emit.Status == ProfileHoleExtrudeStatus.Rejected)
+        {
+            diagnostics.AddRange(emit.Diagnostics.Select(MapProfileHoleDiagnostic));
+            diagnostics.Add("v2-v2-fallback-legacy-through-hole");
+            return false;
+        }
+
+        if (emit.Status != ProfileHoleExtrudeStatus.Succeeded || emit.Body is null)
+        {
+            diagnostics.Add("v2-v2-profile-hole-extrude-failed-fallback");
+            diagnostics.AddRange(emit.Diagnostics.Select(MapProfileHoleDiagnostic));
+            diagnostics.Add("v2-v2-fallback-legacy-through-hole");
+            return false;
+        }
+
+        diagnostics.Add("v2-v2-profile-hole-extrude-accepted");
+        diagnostics.Add("v2-v2-profile-hole-extrude-no-3d-boolean-subtract");
+        diagnostics.Add("v2-v2-profile-hole-extrude-succeeded");
+        result = new(HoleRecoveryExecutionStatus.Succeeded, TranslateBody(emit.Body, plan.HostTranslation), diagnostics);
+        return true;
+    }
+
+    private static string MapProfileHoleDiagnostic(string d)
+    {
+        return d switch
+        {
+            "v2-v1-profile-hole-extrude-attempted" => "v2-v2-profile-hole-extrude-attempted",
+            "v2-v1-profile-hole-extrude-accepted" => "v2-v2-profile-hole-extrude-accepted",
+            "v2-v1-profile-hole-extrude-no-3d-boolean-subtract" => "v2-v2-profile-hole-extrude-no-3d-boolean-subtract",
+            "v2-v1-profile-hole-extrude-succeeded" => "v2-v2-profile-hole-extrude-succeeded",
+            var x when x.StartsWith("v2-v1-profile-hole-extrude-rejected:hole-outside-or-touches-boundary", StringComparison.Ordinal)
+                => "v2-v2-profile-hole-extrude-rejected:hole-outside-rectangle",
+            var x when x.StartsWith("v2-v1-profile-hole-extrude-rejected:holes-overlap", StringComparison.Ordinal)
+                => "v2-v2-profile-hole-extrude-rejected:hole-overlaps-or-touches-boundary",
+            var x when x.StartsWith("v2-v1-profile-hole-extrude-rejected:", StringComparison.Ordinal)
+                => "v2-v2-profile-hole-extrude-rejected:emitter-validation-failed",
+            _ => d
+        };
     }
 
     private static HoleRecoveryExecutionResult ExecuteCounterbore(HoleRecoveryPlan plan, List<string> diagnostics)

@@ -49,3 +49,6 @@ Covered explicitly:
 
 ## Recommended next step
 Extend internal emitter capability from full-circle-only hole loops to bounded line+arc hole loops, then re-run V2-X6 as an extrusion-success candidate before any production route expansion.
+
+
+Update note (V2-X7): lab-only line/arc profile extrusion now demonstrates slot/capsule hole side-face emission without 3D Boolean via `LineArcProfileExtrudeLab`; production routing remains unchanged.

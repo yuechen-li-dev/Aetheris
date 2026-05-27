@@ -34,3 +34,6 @@ Current result is lab-only evidence and is ready for bounded production-evaluati
 
 ## Recommended next step
 Productionize bounded profile-expression front door (rectangle-minus-contained-circles), then run slot/capsule lab and/or bounded clipping lab based on deferred evidence.
+
+
+Update note (V2-V3): lab pipeline now delegates through the internal `ProfileExpressionHoleExtrudeEmitter` front door for bounded rectangle-minus-circle(s) routes.

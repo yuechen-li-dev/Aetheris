@@ -70,3 +70,6 @@ Current evidence supports: `line-arc-profile-extrude-ready-for-production-evalua
 ## Next step
 
 Production-adjacent generic line/arc profile extrude emitter evaluation and slot/capsule production admissibility audit.
+
+
+Update note (V2-V4): core emission logic is now mirrored by internal production-adjacent `LineArcProfileExtrudeEmitter` for bounded evaluation cases; lab remains evidence and regression guard.

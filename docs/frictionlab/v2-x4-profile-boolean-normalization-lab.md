@@ -74,3 +74,6 @@ V2-V3 now chains accepted V2-X4 normalized outputs into `ProfileHoleExtrudeEmitt
 
 
 Update note (V2-V3): normalization lab remains the bounded proof source; production-adjacent orchestration now consumes equivalent bounded rules in Firmament internal front-door flow.
+
+
+Update note (V2-X6): slot/capsule support is being evaluated in a dedicated lab (`docs/frictionlab/v2-x6-slot-capsule-profile-lab.md`) and remains out of production routing in V2-X4 scope.

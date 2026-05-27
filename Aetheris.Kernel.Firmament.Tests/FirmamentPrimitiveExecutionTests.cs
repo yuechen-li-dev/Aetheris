@@ -156,6 +156,48 @@ public sealed class FirmamentPrimitiveExecutionTests
         Assert.Equal(20d, planeSurface!.Plane!.Value.Origin.Z, 9);
     }
 
+
+    [Fact]
+    public void ExecuteCone_NonApexUnequalRadii_PreservesConicalTopologyAndStepSmoke()
+    {
+        var result = FirmamentPrimitiveExecutor.ExecuteCone(new FirmamentLoweredConeParameters(5d, 2d, 10d));
+        Assert.True(result.IsSuccess);
+
+        var body = result.Value;
+        Assert.Equal(1, body.Topology.Faces.Count(face =>
+        {
+            body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+            return surface!.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone;
+        }));
+
+        var step = Aetheris.Kernel.Core.Step242.Step242Exporter.ExportBody(body);
+        Assert.True(step.IsSuccess);
+        Assert.Contains("ISO-10303-21", step.Value, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP", step.Value, StringComparison.Ordinal);
+        Assert.Contains("ADVANCED_FACE", step.Value, StringComparison.Ordinal);
+        Assert.Contains("CONICAL_SURFACE", step.Value, StringComparison.Ordinal);
+        Assert.Contains("PLANE", step.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("BREP_WITH_VOIDS", step.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExecuteCone_ApexCases_RemainConicalRevolveFamily()
+    {
+        var pointedTop = FirmamentPrimitiveExecutor.ExecuteCone(new FirmamentLoweredConeParameters(5d, 0d, 10d));
+        var pointedBottom = FirmamentPrimitiveExecutor.ExecuteCone(new FirmamentLoweredConeParameters(0d, 5d, 10d));
+        Assert.True(pointedTop.IsSuccess);
+        Assert.True(pointedBottom.IsSuccess);
+
+        Assert.All(new[] { pointedTop.Value, pointedBottom.Value }, body =>
+        {
+            Assert.Equal(1, body.Topology.Faces.Count(face =>
+            {
+                body.TryGetFaceSurfaceGeometry(face.Id, out var surface);
+                return surface!.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone;
+            }));
+        });
+    }
+
     [Fact]
     public void Compile_Executes_Multiple_Primitives_In_Source_Order_With_Preserved_Ids()
     {

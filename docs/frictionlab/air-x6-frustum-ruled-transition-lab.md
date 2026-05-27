@@ -1,5 +1,8 @@
 # AIR-X6 — Frustum-as-AirRuledTransition lab
 
+> Status update (AIR-V5, 2026-05-27): the non-apex positive unequal-radius frustum lane from this lab has now been consumed into production routing with preserved conical topology/STEP parity. Apex cones remain deferred to revolve; equal-radius cylinder-like cases remain outside this ruled-frustum migration scope.
+
+
 ## Purpose and scope
 
 AIR-X6 is a lab-only experiment that evaluates representing a capped conical frustum as an `AirRuledTransition` between two compatible circular profiles, then compares that candidate against the current canonical revolve-produced frustum.

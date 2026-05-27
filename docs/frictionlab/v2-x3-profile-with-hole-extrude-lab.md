@@ -60,3 +60,6 @@ Current lab recommendation for successful valid cases: `profile-hole-extrude-rea
 
 ## Recommended next step
 Proceed to production evaluation focused on emitter parity/hardening and contract migration from lab profile model to production profile contract.
+
+## V2-V1 follow-up note
+V2-V1 consumed this lab evidence by adding a bounded production-adjacent internal emitter (`ProfileHoleExtrudeEmitter`) with parity tests; executor integration remained deferred behind existing fallbacks.

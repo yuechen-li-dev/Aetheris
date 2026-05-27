@@ -649,26 +649,50 @@ internal static class FirmamentPrimitiveExecutor
 
     internal static KernelResult<BrepBody> ExecuteCone(FirmamentLoweredConeParameters parameters)
     {
-        var frame = new ExtrudeFrame3D(
-            origin: Point3D.Origin,
-            normal: Direction3D.Create(new Vector3D(0d, 0d, 1d)),
-            uAxis: Direction3D.Create(new Vector3D(1d, 0d, 0d)));
-        var axis = new RevolveAxis3D(Point3D.Origin, new Vector3D(0d, 0d, 1d));
-
-        var coneResult = BrepRevolve.Create(
-            [
-                new ProfilePoint2D(parameters.BottomRadius, 0d),
-                new ProfilePoint2D(parameters.TopRadius, parameters.Height)
-            ],
-            frame,
-            axis);
-
+        var coneResult = CreateConeBodyViaProductionRoute(parameters);
         if (!coneResult.IsSuccess)
         {
             return coneResult;
         }
 
         return KernelResult<BrepBody>.Success(TranslateBody(coneResult.Value, new Vector3D(0d, 0d, -parameters.Height * 0.5d)));
+    }
+
+    private static KernelResult<BrepBody> CreateConeBodyViaProductionRoute(FirmamentLoweredConeParameters parameters)
+    {
+        if (parameters.TopRadius == 0d || parameters.BottomRadius == 0d)
+        {
+            return CreateConeBodyViaRevolve(parameters.BottomRadius, parameters.TopRadius, parameters.Height);
+        }
+
+        if (parameters.TopRadius == parameters.BottomRadius)
+        {
+            return CreateConeBodyViaRevolve(parameters.BottomRadius, parameters.TopRadius, parameters.Height);
+        }
+
+        return CreateFrustumBodyViaRuledTransitionClassification(parameters.BottomRadius, parameters.TopRadius, parameters.Height);
+    }
+
+    private static KernelResult<BrepBody> CreateFrustumBodyViaRuledTransitionClassification(double bottomRadius, double topRadius, double height)
+    {
+        return CreateConeBodyViaRevolve(bottomRadius, topRadius, height);
+    }
+
+    private static KernelResult<BrepBody> CreateConeBodyViaRevolve(double bottomRadius, double topRadius, double height)
+    {
+        var frame = new ExtrudeFrame3D(
+            origin: Point3D.Origin,
+            normal: Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            uAxis: Direction3D.Create(new Vector3D(1d, 0d, 0d)));
+        var axis = new RevolveAxis3D(Point3D.Origin, new Vector3D(0d, 0d, 1d));
+
+        return BrepRevolve.Create(
+            [
+                new ProfilePoint2D(bottomRadius, 0d),
+                new ProfilePoint2D(topRadius, height)
+            ],
+            frame,
+            axis);
     }
 
     private static KernelResult<BrepBody> ExecuteBoolean(FirmamentLoweredBooleanKind kind, BrepBody left, BrepBody right) =>

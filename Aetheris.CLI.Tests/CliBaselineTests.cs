@@ -188,6 +188,96 @@ public sealed class CliBaselineTests
         Assert.True(vertexIds.GetProperty("contiguous").GetBoolean());
     }
 
+    [Theory]
+    [InlineData("air-v5-1-box-10-10-10", "box", 10d, 10d, 10d, 6, 0, 0, true, false)]
+    [InlineData("air-v5-1-box-12-8-6", "box", 12d, 8d, 6d, 6, 0, 0, true, false)]
+    [InlineData("air-v5-1-cylinder-5-10", "cylinder", 5d, 0d, 10d, 2, 1, 0, true, false)]
+    [InlineData("air-v5-1-cylinder-3-12", "cylinder", 3d, 0d, 12d, 2, 1, 0, true, false)]
+    [InlineData("air-v5-1-frustum-5-2-10", "cone", 5d, 2d, 10d, 2, 0, 1, true, false)]
+    [InlineData("air-v5-1-frustum-3-1-12", "cone", 3d, 1d, 12d, 2, 0, 1, true, false)]
+    [InlineData("air-v5-1-frustum-inverted-2-5-10", "cone", 2d, 5d, 10d, 2, 0, 1, true, false)]
+    [InlineData("air-v5-1-apex-bottom-5", "cone", 5d, 0d, 10d, 1, 0, 1, true, false)]
+    [InlineData("air-v5-1-apex-top-5", "cone", 0d, 5d, 10d, 1, 0, 1, true, false)]
+    public void Build_And_Analyze_Primitives_Preserve_AIR_V5_1_Visible_Contracts(
+        string name,
+        string op,
+        double primary,
+        double secondary,
+        double heightOrDepth,
+        int expectedPlanarFaces,
+        int expectedCylindricalFaces,
+        int expectedConicalFaces,
+        bool expectManifoldSolid,
+        bool expectBrepWithVoids)
+    {
+        var sourcePath = WriteSingleOpFirmamentFixture(name, op, primary, secondary, heightOrDepth);
+        var outputPath = Path.Combine(Path.GetTempPath(), $"{name}-{Guid.NewGuid():N}.step");
+
+        try
+        {
+            var buildStdout = new StringWriter();
+            var buildStderr = new StringWriter();
+            var buildExitCode = Aetheris.CLI.CliRunner.Run(["build", sourcePath, "--out", outputPath], buildStdout, buildStderr);
+            Assert.Equal(0, buildExitCode);
+            Assert.True(File.Exists(outputPath), buildStderr.ToString());
+
+            var summary = AnalyzeSummary(outputPath);
+            Assert.Equal(1, summary.GetProperty("bodyCount").GetInt32());
+            Assert.Equal("enclosed-manifold", summary.GetProperty("structuralAssessment").GetString());
+            Assert.Equal(expectedPlanarFaces, summary.GetProperty("surfaceFamilies").GetProperty("plane").GetInt32());
+            Assert.Equal(expectedCylindricalFaces, summary.GetProperty("surfaceFamilies").GetProperty("cylinder").GetInt32());
+            Assert.Equal(expectedConicalFaces, summary.GetProperty("surfaceFamilies").GetProperty("cone").GetInt32());
+
+            var stepText = File.ReadAllText(outputPath);
+            Assert.Contains("ISO-10303-21", stepText, StringComparison.Ordinal);
+            Assert.Equal(expectManifoldSolid, stepText.Contains("MANIFOLD_SOLID_BREP", StringComparison.Ordinal));
+            Assert.Contains("ADVANCED_FACE", stepText, StringComparison.Ordinal);
+            Assert.Equal(expectedPlanarFaces > 0, stepText.Contains("PLANE", StringComparison.Ordinal));
+            Assert.Equal(expectedCylindricalFaces > 0, stepText.Contains("CYLINDRICAL_SURFACE", StringComparison.Ordinal));
+            Assert.Equal(expectedConicalFaces > 0, stepText.Contains("CONICAL_SURFACE", StringComparison.Ordinal));
+            Assert.Equal(expectBrepWithVoids, stepText.Contains("BREP_WITH_VOIDS", StringComparison.Ordinal));
+        }
+        finally
+        {
+            File.Delete(sourcePath);
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("box", 0d, 5d, 6d)]
+    [InlineData("box", -1d, 5d, 6d)]
+    [InlineData("cylinder", -2d, 0d, 10d)]
+    [InlineData("cylinder", 3d, 0d, 0d)]
+    [InlineData("cone", 5d, 2d, -8d)]
+    [InlineData("cone", 4d, 4d, 10d)]
+    public void Build_Command_Invalid_Primitive_Inputs_Fail_Deterministically(string op, double primary, double secondary, double heightOrDepth)
+    {
+        var sourcePath = WriteSingleOpFirmamentFixture($"air-v5-1-invalid-{op}-{Guid.NewGuid():N}", op, primary, secondary, heightOrDepth);
+        var outputPath = Path.Combine(Path.GetTempPath(), $"air-v5-1-invalid-{Guid.NewGuid():N}.step");
+
+        try
+        {
+            var stdout = new StringWriter();
+            var stderr = new StringWriter();
+            var exitCode = Aetheris.CLI.CliRunner.Run(["build", sourcePath, "--out", outputPath], stdout, stderr);
+            Assert.Equal(1, exitCode);
+            Assert.False(File.Exists(outputPath));
+            Assert.Contains("build failed", stderr.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.Delete(sourcePath);
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+        }
+    }
+
     [Fact]
     public void Analyze_Command_Provides_Numeric_Face_Detail_Anchors()
     {
@@ -1094,6 +1184,65 @@ public sealed class CliBaselineTests
         Assert.True(export.IsSuccess, string.Join(Environment.NewLine, export.Diagnostics.Select(d => d.Message)));
         var outputPath = Path.Combine(Path.GetTempPath(), $"{stem}-{Guid.NewGuid():N}.step");
         File.WriteAllText(outputPath, export.Value);
+        return outputPath;
+    }
+
+    private static string WriteSingleOpFirmamentFixture(string name, string op, double primary, double secondary, double heightOrDepth)
+    {
+        var outputPath = Path.Combine(Path.GetTempPath(), $"{name}-{Guid.NewGuid():N}.firmament");
+        var source = op switch
+        {            "box" => $"""
+firmament:
+  version: 1
+
+model:
+  name: {name}
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: body1
+    size[3]:
+      {primary}
+      {secondary}
+      {heightOrDepth}
+""",
+            "cylinder" => $"""
+firmament:
+  version: 1
+
+model:
+  name: {name}
+  units: mm
+
+ops[1]:
+  -
+    op: cylinder
+    id: body1
+    radius: {primary}
+    height: {heightOrDepth}
+""",
+            "cone" => $"""
+firmament:
+  version: 1
+
+model:
+  name: {name}
+  units: mm
+
+ops[1]:
+  -
+    op: cone
+    id: body1
+    bottom_radius: {primary}
+    top_radius: {secondary}
+    height: {heightOrDepth}
+""",
+            _ => throw new InvalidOperationException($"Unsupported op '{op}'.")
+        };
+
+        File.WriteAllText(outputPath, source);
         return outputPath;
     }
 

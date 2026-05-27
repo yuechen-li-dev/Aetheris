@@ -48,3 +48,6 @@ AIR-V4 preserves the observable cylinder contract:
 
 ## Next recommended primitive migration step
 Given AIR-X5 readiness, next bounded candidate remains cone/frustum production-route hardening through existing revolve lane while preserving emitter/topology parity constraints.
+
+## AIR-V5.1 follow-up
+- CLI external validation coverage for AIR-routed cylinder behavior was added in `docs/air-v5-1-cli-validation.md`.

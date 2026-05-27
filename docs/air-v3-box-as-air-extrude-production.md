@@ -56,3 +56,6 @@ Box was selected as the lowest-risk first primitive because it is bounded, analy
 ## Next recommended milestone
 
 Proceed to the next bounded primitive candidate only after introducing an equivalent pre-migration evidence lane and parity contract (topology + STEP smoke) for that primitive.
+
+## AIR-V5.1 follow-up
+- CLI external validation coverage for AIR-routed box behavior was added in `docs/air-v5-1-cli-validation.md`.

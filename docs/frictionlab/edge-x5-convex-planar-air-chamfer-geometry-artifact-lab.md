@@ -92,3 +92,6 @@ Invalid/deferred/legacy cases stop before artifact construction and produce reco
 
 ## Recommended next milestone
 Proceed to EDGE-X6 closed local witness lab. Production-adjacent convex AirChamfer prototype (EDGE-V1) should wait until closed witness evidence is sufficient.
+
+
+> EDGE-X6 note: open/local EDGE-X5 artifacts are now wrapped into a synthetic closed witness lab for manifold topology + STEP smoke validation.

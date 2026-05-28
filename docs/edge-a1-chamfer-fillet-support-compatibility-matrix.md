@@ -8,6 +8,8 @@ The current AirChamfer golden path is strong but narrow: controlled convex plana
 
 Legacy bounded chamfer/fillet behavior remains authoritative wherever production behavior exists. In particular, `BrepBoundedChamfer` and `BrepBoundedFillet` are still the production routes for the currently supported bounded cases, and AirEdgeSweep/AirChamfer evidence must not be read as route replacement.
 
+EDGE-A2 reclassifies some chamfer cases as profile/profile-stack candidates rather than AirEdgeSweep candidates: vertical edges of history-known extrusions should be tested as profile modifications, and top/bottom extrusion edges should be tested as profile-stack or section-transition constructions. Matrix statuses remain unchanged until those labs produce evidence.
+
 The matrix separates five concerns that were previously easy to conflate:
 
 - current legacy support;
@@ -235,12 +237,13 @@ Known blockers before broader chamfer/fillet support include:
 Recommended post-EDGE-X13 roadmap:
 
 1. **EDGE-X13**: completed as a non-authoritative Firmament-facing test-only shadow diagnostics probe for CH-03, capturing production-adjacent diagnostics without changing route authority.
-2. **EDGE-A2 / EDGE-FILLET-A0**: AirFillet architecture audit focused on bounded constant-radius analytic scope.
-3. **EDGE-X14**: plane-plane constant-radius AirFillet cylindrical closed witness lab.
-4. **EDGE-X15**: convex AirChamfer controlled body mutation hardening.
-5. **EDGE-X16**: AirChamfer edge-chain policy lab.
-6. **EDGE-X17**: AirChamfer three-edge corner patch audit/lab.
-7. **EDGE-V4**: controlled opt-in AirChamfer route only if shadow diagnostics remain stable and the relevant production-readiness gates are satisfied for the selected row.
+2. **EDGE-A2**: constructive chamfer reframing audit, reclassifying history-known chamfers into profile/profile-stack/corner-manifest candidates where evidence supports it.
+3. **EDGE-PROFILE-X1**: vertical-edge chamfer as profile extrusion lab.
+4. **EDGE-PROFILE-X2**: horizontal/top-edge chamfer as profile-stack or section-transition lab.
+5. **EDGE-CORNER-X1**: manifest-driven single-corner chamfer reconstruction lab.
+6. **EDGE-FILLET-A0**: AirFillet architecture audit focused on bounded constant-radius analytic scope.
+7. **EDGE-X14**: plane-plane constant-radius AirFillet cylindrical closed witness lab.
+8. **EDGE-X15+ / EDGE-V paths**: continue controlled no-history/local-edge AirChamfer hardening only where shadow diagnostics and production-readiness gates remain stable.
 
 The roadmap should be adjusted by evidence. If a row reveals recognizer divergence, legacy topology mismatch, or body-mutation instability, the next milestone should narrow to that blocker rather than broadening support claims.
 

@@ -1,5 +1,7 @@
 # EDGE-A0 / V2-A4 — AirEdgeSweep fillet/chamfer architecture audit
 
+> EDGE-A2 reframing note: AirEdgeSweep is not the universal chamfer strategy. When construction history exists, prefer profile chamfers for edges parallel to the sweep/extrude axis and profile-stack/section-transition chamfers for edges perpendicular to that axis. AirEdgeSweep remains valuable for no-history/local-edge cases that cannot be naturally emitted from profile or profile-stack context.
+
 ## 1. Executive summary
 Fillets/chamfers in current Aetheris production behavior are implemented as legacy bounded BRep feature operations (`BrepBoundedChamfer`, `BrepBoundedFillet`) routed through Firmament bounded execution seams.
 

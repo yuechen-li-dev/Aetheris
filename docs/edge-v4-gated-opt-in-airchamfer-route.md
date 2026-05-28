@@ -4,6 +4,8 @@
 
 EDGE-V4 adds a deliberately narrow, internal/test-only Firmament execution seam that can select an AirChamfer candidate **only** for the known controlled CH-03-style convex plane-plane single-edge fixture proven by EDGE-X13. The route is off by default and does not change normal Firmament chamfer execution.
 
+EDGE-A2 scope note: this gated route is no-history/local-edge AirChamfer experimentation, not the universal chamfer strategy. Profile and profile-stack chamfers should be preferred when construction context can emit final topology directly.
+
 Reference trail:
 
 - EDGE-A1 compatibility matrix: `docs/edge-a1-chamfer-fillet-support-compatibility-matrix.md`

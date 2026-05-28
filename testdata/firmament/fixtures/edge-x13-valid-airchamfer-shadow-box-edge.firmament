@@ -1,0 +1,22 @@
+firmament:
+  version: 1
+
+model:
+  name: edge_x13_airchamfer_shadow_box_edge
+  units: mm
+
+ops[2]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      8
+      6
+  -
+    op: chamfer
+    id: edge_x13_legacy_edge_break
+    from: base
+    edges[1]:
+      x_max_y_max
+    distance: 1

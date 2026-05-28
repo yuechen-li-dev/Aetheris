@@ -161,3 +161,7 @@ After EDGE-X12, any broader AirChamfer corpus shape expansion should remain anal
 ## EDGE-A1 matrix note
 
 EDGE-A1 classifies CLI/artifact corpus coverage as one production-readiness gate in `docs/edge-a1-chamfer-fillet-support-compatibility-matrix.md`. The EDGE-X11 corpus supports controlled AirChamfer evidence rows, but corpus artifacts alone do not imply production authority, chain/corner support, fillet support, or feature-recognition parity for legacy-sensitive cases.
+
+## EDGE-X13 Firmament shadow-diagnostics bridge
+
+EDGE-X13 reuses the same `AirChamferShadowRoute->AirChamferRealBodyPrototype` candidate path from this corpus in a Firmament-facing test-only sidecar probe. The corpus remains the CLI/artifact stability lane; EDGE-X13 adds Firmament observability evidence for CH-03 by proving that a real Firmament legacy chamfer fixture can collect AirChamfer shadow topology, recognition, and STEP-smoke summaries without changing the production body or replacing `BrepBoundedChamfer` authority.

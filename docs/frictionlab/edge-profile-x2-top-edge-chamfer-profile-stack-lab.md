@@ -148,3 +148,5 @@ Invalid cases reject before Route A/B geometry attempts:
 `profile-stack-chamfer-needs-section-transition-emitter`
 
 EDGE-PROFILE-X2 proves the top +X horizontal edge chamfer theory for one bounded all-planar witness through a lab-only section-transition emitter. The next production-adjacent step is not to generalize the existing circular-hole profile-stack executor in-place, but to define a first-class polygon section-transition/profile-correspondence contract and then evaluate a production-adjacent profile-stack chamfer emitter against that contract.
+
+Follow-up: EDGE-PRISMATIC-A0 creates that first-class contract in `docs/edge-prismatic-a0-section-transition-contract-audit.md`, using the term **prismatic section transition** for axis-stacked resolved profile evolution with explicit correspondence and deterministic transition-face emission. Future top/horizontal chamfer work should target that contract rather than extending this one-off witness directly.

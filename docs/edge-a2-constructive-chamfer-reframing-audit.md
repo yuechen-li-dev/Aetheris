@@ -25,6 +25,8 @@ EDGE-PROFILE-V1 packaging note: `ProfileVertexChamferExtrudeEmitter` moves the s
 
 EDGE-PROFILE-X2 follow-up: `ProfileStackChamferLab` now tests the top/horizontal-edge profile-stack theory. Route A records exact blockers in the current profile-stack model (no arbitrary polygon section profile contract and no ruled polygon-to-polygon transition emitter). Route B succeeds as a lab-only polygon section-transition witness for a top +X side chamfer on a 10 x 8 x 6 prism with chamfer distance 1, producing a closed all-planar STEP-exportable body without AirEdgeSweep, `BrepBoundedChamfer`, topology grafting, or 3D Boolean fallback. See `docs/frictionlab/edge-profile-x2-top-edge-chamfer-profile-stack-lab.md`.
 
+EDGE-PRISMATIC-A0 follow-up: `docs/edge-prismatic-a0-section-transition-contract-audit.md` defines the prismatic section-transition contract requested by EDGE-PROFILE-X2. It names the future `AirPrismaticTransition` / `PrismaticSectionTransitionEmitter` lane, fixes first-scope admissibility to line-only explicit-correspondence Z-stacked sections, and records why current circular-hole profile-stack machinery should not be generalized in-place for top/horizontal chamfers.
+
 ## 2. Theory under audit
 
 The audit tests a V2-compatible chamfer decomposition: do not trim if construction history can emit the final body directly.

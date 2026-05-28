@@ -215,3 +215,13 @@ V2-X8 lab-only parity probe added for triangle/hex prism baseline-vs-emitter com
 ## Update note (V2-V5)
 
 V2-V5 attempted to consume V2-X8 triangle evidence for production migration, but reverted after Firmament bounded-chamfer regression exposed a seam-level topology/adjacency parity blocker. Triangle production routing remains unchanged pending blocker resolution.
+
+## Update note (V2-A3)
+Triangle is no longer treated as the first production migration candidate. V2-X8.1/V2-X8.2 evidence classifies triangle production migration as blocked by feature-recognition parity (adjacency/corner contract divergence under bounded chamfer recognition).
+
+Migration order is now interpreted through parallel-lane doctrine:
+- V2 emitters remain preferred for new declared-topology work,
+- legacy routes remain authoritative where topology is load-bearing for downstream recognizers,
+- production replacement requires full parity ladder (including downstream feature-recognition parity), not summary/STEP parity alone.
+
+See: `docs/v2-a3-legacy-topology-contracts-and-parallel-emitter-lanes.md`.

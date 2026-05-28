@@ -157,3 +157,7 @@ EDGE-X12 adds an explicitly gated/manual repeated-run stability check for this c
 ## Recommended next milestone
 
 After EDGE-X12, any broader AirChamfer corpus shape expansion should remain analyzer/shadow evidence only until a separate production authorization milestone exists.
+
+## EDGE-A1 matrix note
+
+EDGE-A1 classifies CLI/artifact corpus coverage as one production-readiness gate in `docs/edge-a1-chamfer-fillet-support-compatibility-matrix.md`. The EDGE-X11 corpus supports controlled AirChamfer evidence rows, but corpus artifacts alone do not imply production authority, chain/corner support, fillet support, or feature-recognition parity for legacy-sensitive cases.

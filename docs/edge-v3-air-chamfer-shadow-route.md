@@ -159,3 +159,7 @@ EDGE-X10 adds the first CLI-visible AirChamfer candidate STEP artifact route: `a
 
 EDGE-X11 adds a tiny deterministic regression corpus command: `aetheris experimental airchamfer-corpus --out-dir <dir> [--json]`. It reuses the same non-authoritative `AirChamferShadowRoute->AirChamferRealBodyPrototype` path as EDGE-X10, writes STEP only for successful controlled candidate cases, and emits JSON-only diagnostics for rejected/deferred rows. Legacy `BrepBoundedChamfer` remains production-authoritative; no production route replacement and no 3D Boolean fallback are introduced.
 
+
+## EDGE-A1 support-gates note
+
+EDGE-A1 now defines the full chamfer/fillet support taxonomy, compatibility rows, and production-readiness gates in `docs/edge-a1-chamfer-fillet-support-compatibility-matrix.md`. EDGE-V3 remains non-authoritative shadow evidence for controlled AirChamfer rows; it is one readiness input, not proof of full support or production route replacement.

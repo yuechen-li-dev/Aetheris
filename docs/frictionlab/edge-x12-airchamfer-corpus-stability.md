@@ -153,3 +153,7 @@ dotnet test Aetheris.FrictionLab.Tests/Aetheris.FrictionLab.Tests.csproj -c Rele
 dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj --filter "Chamfer|Fillet|Corner|TriangularPrism|FirmamentPrimitive|FirmamentStepExporter|LineArcProfileExtrude|SemanticRecovery|FrepMaterializer|Rematerialize"
 dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --filter "Judgment|Chamfer|Fillet|Corner|TriangularPrism|BrepPrimitives|Step242|Primitive|Extrude|Boolean|SafeComposition"
 ```
+
+## EDGE-A1 matrix note
+
+EDGE-A1 maps this gated stability check to the artifact-corpus and artifact-stability readiness gates in `docs/edge-a1-chamfer-fillet-support-compatibility-matrix.md`. Passing EDGE-X12 stability keeps the controlled AirChamfer corpus repeatable, but it remains an opt-in evidence gate and does not replace legacy chamfer/fillet production routes.

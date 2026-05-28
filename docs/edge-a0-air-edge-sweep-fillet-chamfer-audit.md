@@ -267,3 +267,7 @@ A lab-only constructive concave planar AirChamfer patch proof was added in EDGE-
 - EDGE-X4 update: convex planar single-edge requests can now produce a lab-only replacement topology plan after Judgment admission; production geometry emission remains deferred.
 
 - EDGE-V1 (2026-05-28): internal production-adjacent convex planar single-edge AirChamfer prototype seam added; legacy BrepBoundedChamfer remains authoritative.
+
+## EDGE-A1 compatibility matrix note
+
+EDGE-A1 adds `docs/edge-a1-chamfer-fillet-support-compatibility-matrix.md` as the durable support/readiness matrix for chamfer and fillet work. Future AirEdgeSweep, AirChamfer, and AirFillet milestones should update that matrix when evidence changes support status, and production migration proposals should cite the relevant row IDs and readiness gates instead of relying on this audit alone.

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
+using Aetheris.Firmament.FrictionLab.CIRLab;
 
 namespace Aetheris.CLI;
 
@@ -16,7 +17,7 @@ public static class CliRunner
         string? Error,
         string? Classification = null,
         int? RigidRootCount = null);
-    private const string TopLevelUsage = "Usage: aetheris <build|analyze|canon|asm> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|analyze|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json";
@@ -26,6 +27,7 @@ public static class CliRunner
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
+    private const string ExperimentalUsage = "Usage: aetheris experimental airchamfer-cube --out <path> [--json]";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -67,6 +69,7 @@ public static class CliRunner
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
                 "asm" => RunAsm(args.Skip(1).ToArray(), stdout, stderr),
+                "experimental" => RunExperimental(args.Skip(1).ToArray(), stdout, stderr),
                 _ => UnknownCommand(args[0], stderr)
             };
         }
@@ -837,6 +840,97 @@ public static class CliRunner
         };
     }
 
+
+    private static int RunExperimental(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            WriteExperimentalHelp(stdout);
+            return args.Length == 0 ? 1 : 0;
+        }
+
+        if (string.Equals(args[0], "airchamfer-cube", StringComparison.Ordinal))
+        {
+            return RunExperimentalAirChamferCube(args.Skip(1).ToArray(), stdout, stderr);
+        }
+
+        stderr.WriteLine($"Unknown experimental subcommand '{args[0]}'.");
+        stderr.WriteLine(ExperimentalUsage);
+        return 1;
+    }
+
+    private static int RunExperimentalAirChamferCube(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        string? outPath = null;
+        var json = false;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--out" when i + 1 < args.Length:
+                    outPath = args[++i];
+                    break;
+                case "--out":
+                    stderr.WriteLine("Experimental airchamfer-cube option --out requires a path value.");
+                    stderr.WriteLine(ExperimentalUsage);
+                    return 1;
+                case "--json":
+                    json = true;
+                    break;
+                case "-h":
+                case "--help":
+                    WriteExperimentalAirChamferCubeHelp(stdout);
+                    return 0;
+                default:
+                    stderr.WriteLine($"Unknown experimental airchamfer-cube option '{args[i]}'.");
+                    stderr.WriteLine(ExperimentalUsage);
+                    return 1;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(outPath))
+        {
+            stderr.WriteLine("Experimental airchamfer-cube requires --out <path>.");
+            stderr.WriteLine(ExperimentalUsage);
+            return 1;
+        }
+
+        var artifact = AirChamferStepArtifactLab.WriteControlledCubeOneEdgeStep(outPath);
+        if (json)
+        {
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                success = artifact.Succeeded,
+                outputPath = artifact.OutputPath,
+                artifactFileName = artifact.ArtifactFileName,
+                route = artifact.Route,
+                candidatePath = artifact.CandidatePath,
+                shadowCandidateStatus = artifact.ShadowCandidateStatus.ToString(),
+                markers = artifact.MarkerSummary,
+                topologySummary = artifact.TopologySummary,
+                diagnostics = artifact.Diagnostics,
+                error = artifact.Error
+            }, JsonOptions));
+            return artifact.Succeeded ? 0 : 1;
+        }
+
+        foreach (var diagnostic in artifact.Diagnostics)
+        {
+            stdout.WriteLine(diagnostic);
+        }
+
+        if (!artifact.Succeeded)
+        {
+            stderr.WriteLine(artifact.Error ?? "Experimental AirChamfer STEP artifact export failed.");
+            return 1;
+        }
+
+        stdout.WriteLine($"Experimental AirChamfer cube STEP artifact written: {artifact.OutputPath}");
+        stdout.WriteLine("Route: experimental/lab AirChamfer shadow candidate export; production chamfer remains legacy-authoritative.");
+        return 0;
+    }
+
     private static int RunAsm(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0 || IsHelpFlag(args[0]))
@@ -1372,7 +1466,7 @@ public static class CliRunner
 
     private static int UnknownCommand(string command, TextWriter stderr)
     {
-        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, analyze, canon, asm.");
+        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, analyze, canon, asm, experimental.");
         stderr.WriteLine("Run 'aetheris --help' for usage and examples.");
         return 1;
     }
@@ -1402,6 +1496,7 @@ public static class CliRunner
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
         stdout.WriteLine("  canon      Import and re-export STEP/AP242 as canonical STEP.");
         stdout.WriteLine("  asm        Execute/export .firmasm assembly IR using rigid world-space composition.");
+        stdout.WriteLine("  experimental  Experimental/lab-only artifact export commands.");
         stdout.WriteLine();
         stdout.WriteLine("Global options:");
         stdout.WriteLine("  -h, --help       Show help.");
@@ -1414,6 +1509,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris canon input.step --out canonical.step --json");
         stdout.WriteLine("  aetheris asm exec assembly.firmasm --json");
         stdout.WriteLine("  aetheris asm export assembly.firmasm --out out/assembly-roundtrip --json");
+        stdout.WriteLine("  aetheris experimental airchamfer-cube --out edge-x10-airchamfer-cube-one-edge.step --json");
         stdout.WriteLine("  aetheris analyze map model.step --top --rows 40 --cols 60 --json");
         stdout.WriteLine("  aetheris analyze section model.step --xy --offset 2.5 --json");
         stdout.WriteLine("  aetheris analyze volume model.step --json");
@@ -1534,6 +1630,46 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris canon input.step --out canonical.step --json");
+    }
+
+
+    private static void WriteExperimentalHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Experimental/lab-only artifact export commands.");
+        stdout.WriteLine();
+        stdout.WriteLine(ExperimentalUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Subcommands:");
+        stdout.WriteLine("  airchamfer-cube  Export a controlled one-edge AirChamfer candidate cube/box STEP artifact.");
+        stdout.WriteLine();
+        stdout.WriteLine("Notes:");
+        stdout.WriteLine("  - Experimental only; does not route production Firmament chamfer operations through AirChamfer.");
+        stdout.WriteLine("  - Legacy BrepBoundedChamfer remains production-authoritative.");
+        stdout.WriteLine("  - The candidate path uses no 3D Boolean fallback.");
+        stdout.WriteLine();
+        stdout.WriteLine("Example:");
+        stdout.WriteLine("  aetheris experimental airchamfer-cube --out edge-x10-airchamfer-cube-one-edge.step --json");
+    }
+
+    private static void WriteExperimentalAirChamferCubeHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Export a controlled one-edge AirChamfer candidate cube/box STEP artifact.");
+        stdout.WriteLine();
+        stdout.WriteLine(ExperimentalUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Options:");
+        stdout.WriteLine("  --out <path>   Required deterministic STEP output path.");
+        stdout.WriteLine("  --json         Emit machine-readable success/failure JSON.");
+        stdout.WriteLine("  -h, --help     Show this help.");
+        stdout.WriteLine();
+        stdout.WriteLine("Expected artifact name:");
+        stdout.WriteLine($"  {AirChamferStepArtifactLab.DefaultArtifactFileName}");
+        stdout.WriteLine();
+        stdout.WriteLine("Production safety:");
+        stdout.WriteLine("  Experimental/lab-only route; no production chamfer route replacement and no 3D Boolean.");
+        stdout.WriteLine();
+        stdout.WriteLine("Example:");
+        stdout.WriteLine("  aetheris experimental airchamfer-cube --out edge-x10-airchamfer-cube-one-edge.step --json");
     }
 
     private static void WriteAsmHelp(TextWriter stdout)

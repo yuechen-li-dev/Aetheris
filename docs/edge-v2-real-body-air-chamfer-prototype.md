@@ -71,3 +71,6 @@ EDGE-X9 adds a lab-only feature-recognition parity probe (`AirChamferFeatureReco
 
 ## EDGE-V3 shadow-route wrapper note
 EDGE-V3 wraps `AirChamferRealBodyPrototype` in `AirChamferShadowRoute`, a non-authoritative internal/test-only seam that invokes the EDGE-V2 candidate body path, captures topology/STEP/recognition evidence, and reports readiness while keeping legacy `BrepBoundedChamfer` authoritative and production output unchanged.
+
+## EDGE-X10 export-artifact follow-on note
+EDGE-X10 consumes the EDGE-V2 candidate body through the EDGE-V3 shadow route and writes the first deterministic AirChamfer candidate STEP artifact via `aetheris experimental airchamfer-cube --out <path> [--json]`. This does not promote EDGE-V2 to production chamfer authority; it only exposes the controlled one-edge candidate body through experimental export plumbing, with no production route replacement and no 3D Boolean fallback.

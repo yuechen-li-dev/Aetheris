@@ -19,12 +19,13 @@ public sealed class CliHelpAndUsageTests
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
         var text = stdout.ToString();
-        Assert.Contains("Usage: aetheris <build|analyze|canon|asm>", text, StringComparison.Ordinal);
+        Assert.Contains("Usage: aetheris <build|analyze|canon|asm|experimental>", text, StringComparison.Ordinal);
         Assert.Contains("Commands:", text, StringComparison.Ordinal);
         Assert.Contains("build", text, StringComparison.Ordinal);
         Assert.Contains("analyze", text, StringComparison.Ordinal);
         Assert.Contains("canon", text, StringComparison.Ordinal);
         Assert.Contains("asm", text, StringComparison.Ordinal);
+        Assert.Contains("experimental", text, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -35,6 +36,8 @@ public sealed class CliHelpAndUsageTests
     [InlineData("analyze")]
     [InlineData("analyze", "map")]
     [InlineData("analyze", "section")]
+    [InlineData("experimental")]
+    [InlineData("experimental", "airchamfer-cube")]
     public void Subcommand_Help_Lists_Usage_And_Examples(params string[] prefix)
     {
         var stdout = new StringWriter();

@@ -152,3 +152,6 @@ No public API, STEP exporter/importer, Boolean core, production chamfer/fillet b
 
 ## Next recommended milestone
 Because the canonical and safe non-orthogonal shadow route fixtures are expected to stay green, the next recommended milestone is EDGE-X10 controlled opt-in route fixture. If future shadow parity issues appear, run EDGE-X9.1 recognition/body hardening instead, scoped by the first-divergence payload.
+
+## EDGE-X10 export-artifact note
+EDGE-X10 adds the first CLI-visible AirChamfer candidate STEP artifact route: `aetheris experimental airchamfer-cube --out <path> [--json]`. The route uses `AirChamferShadowRoute` to invoke the EDGE-V2 real-body prototype and exports the resulting controlled one-edge candidate body to `edge-x10-airchamfer-cube-one-edge.step` by convention. The route remains experimental/lab-only; legacy `BrepBoundedChamfer` stays production-authoritative, normal Firmament chamfer routing is not replaced, and the AirChamfer candidate path still uses no 3D Boolean.

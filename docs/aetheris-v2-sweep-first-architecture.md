@@ -364,3 +364,8 @@ Roadmap principle: each stage must shrink fallback ambiguity and increase declar
 - **Boolean fallback**: explicit, policy-bounded 3D Boolean route used when topology cannot be sufficiently declared in AIR construction space.
 - **Declared topology**: topology implied directly by validated constructive intent.
 - **Discovered topology**: topology inferred at runtime through intersection/classification/trimming/stitching operations.
+
+## Update note (V2-A3)
+V2 emitters and legacy emitters may intentionally coexist as parallel lanes when legacy adjacency/corner topology is load-bearing for downstream feature recognition. Declared-topology preference remains intact, but production replacement requires full migration parity gates, including recognizer parity, before legacy authority is retired.
+
+Reference: `docs/v2-a3-legacy-topology-contracts-and-parallel-emitter-lanes.md`.

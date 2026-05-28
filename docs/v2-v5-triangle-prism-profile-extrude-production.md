@@ -60,3 +60,8 @@ A dedicated follow-up lab now probes triangle chamfer adjacency/corner feature-r
 
 ## Update note (V2-X8.2)
 The V2-X8.2 forensic ledger audit identifies deterministic legacy-vs-candidate adjacency deltas and reinforces the V2-V5 honest stop: keep triangle production on legacy routing until seam parity is restored.
+
+## Update note (V2-A3)
+V2-A3 formalizes this result as doctrine: triangle remains on legacy production routing because topology contract parity for bounded feature recognition is not yet proven. The line-arc triangle route remains valid as a parallel V2 lane for scoped profile-first contexts, not as a silent replacement.
+
+Reference: `docs/v2-a3-legacy-topology-contracts-and-parallel-emitter-lanes.md`.

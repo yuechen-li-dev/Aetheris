@@ -22,3 +22,8 @@ Keep legacy route; harden emitter ordering/orientation parity before any product
 
 ## Non-goals
 No production migration, chamfer behavior change, STEP change, Boolean-core change, or hex/slot migration.
+
+## Update note (V2-A3)
+V2-A3 codifies this audit outcome into migration doctrine: geometry/STEP parity is necessary but insufficient when downstream recognizers depend on adjacency/corner contracts. Triangle production remains legacy-authoritative until replacement topology contract parity is demonstrated.
+
+Reference: `docs/v2-a3-legacy-topology-contracts-and-parallel-emitter-lanes.md`.

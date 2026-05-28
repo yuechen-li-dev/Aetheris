@@ -106,3 +106,7 @@ EDGE-X7 adds controlled real-body selection/replacement probing around this EDGE
 
 ## EDGE-X8 note
 EDGE-X8 consumes EDGE-V1 outputs (policy decision, topology plan, geometry artifact, closed witness) in a controlled local topology graft lab. This remains non-authoritative and does not replace production chamfer routing.
+
+
+## EDGE-V2 extension note
+EDGE-V2 extends this prototype chain to controlled candidate body creation and topology-graft packaging via `AirChamferRealBodyPrototype` while preserving legacy authority.

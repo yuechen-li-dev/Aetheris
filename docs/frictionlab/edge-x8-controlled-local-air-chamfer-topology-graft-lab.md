@@ -80,3 +80,7 @@ Before graft attempt, fixtures are rejected/deferred for:
 ## Recommended next milestone
 - If stable: EDGE-V2 production-adjacent real-body AirChamfer prototype.
 - If blockers remain: EDGE-X8.1 topology graft hardening.
+
+
+## EDGE-V2 packaging note
+EDGE-V2 now packages this controlled graft pipeline into `AirChamferRealBodyPrototype`, preserving non-authoritative status and unchanged production routes.

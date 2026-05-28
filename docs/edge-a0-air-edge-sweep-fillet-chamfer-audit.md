@@ -251,3 +251,8 @@ Each future `AirEdgeSweep` PR should include:
 - no generic surfacing expansion,
 - no NURBS/freeform expansion,
 - no sketch-solver/clipping-engine expansion.
+
+
+## EDGE-X1 follow-up note
+- EDGE-X1 added a decision-grade chamfer/fillet capability and diagnostic matrix inventory: `docs/frictionlab/edge-x1-chamfer-fillet-capability-matrix.md`.
+- This confirms current bounded chamfer/fillet routes remain legacy-authoritative and defines first AirEdgeSweep lab sequencing from observed support/reject envelopes.

@@ -49,3 +49,7 @@ Expected markers are validated for witness output:
 ## Recommended next milestone
 - EDGE-V1 production-adjacent convex planar AirChamfer prototype, or
 - additional closed witness hardening if a topology/robustness blocker appears.
+
+
+## EDGE-V1 packaging note
+EDGE-V1 now packages the proven EDGE-X3 through EDGE-X6 policy->topology->artifact->closed-witness chain into an internal production-adjacent prototype seam (`AirChamferConvexPlanarPrototype`) while keeping production chamfer authority unchanged.

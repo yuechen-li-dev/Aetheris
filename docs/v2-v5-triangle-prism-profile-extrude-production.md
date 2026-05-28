@@ -55,3 +55,8 @@ Observed effect:
 ## Update note (V2-X8.1)
 
 A dedicated follow-up lab now probes triangle chamfer adjacency/corner feature-recognition parity between legacy and line-arc candidate paths: `docs/frictionlab/v2-x8-1-triangle-chamfer-adjacency-parity-lab.md`.
+
+
+
+## Update note (V2-X8.2)
+The V2-X8.2 forensic ledger audit identifies deterministic legacy-vs-candidate adjacency deltas and reinforces the V2-V5 honest stop: keep triangle production on legacy routing until seam parity is restored.

@@ -152,6 +152,9 @@ Aetheris’s bounded no-NURBS answer to common loft-like manufacturing intent:
 - ruled side walls with deterministic representation,
 - no generic freeform loft interpolation.
 
+
+Note: bounded edge surfacing for future constructive chamfer/fillet is tracked under `AirEdgeSweep` architecture audit (`docs/edge-a0-air-edge-sweep-fillet-chamfer-audit.md`).
+
 ### 6.7 AirSurfaceOffset
 
 Necessary but high-risk family:

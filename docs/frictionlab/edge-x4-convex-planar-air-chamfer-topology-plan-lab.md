@@ -90,3 +90,7 @@ EDGE-X4 emits deterministic diagnostics including:
 ## Recommended next milestone
 - EDGE-X5: convex planar chamfer replacement geometry artifact lab.
 - If blockers appear, topology-plan hardening and policy refinement before geometry work.
+
+
+## EDGE-X5 follow-on note
+EDGE-X5 consumes this topology plan to build an open/local convex replacement geometry artifact (trimmed adjacent patches + chamfer face + transition/offset edges), while still stopping before production body mutation.

@@ -86,7 +86,7 @@ V2 directive:
 - Prefer subtractive intent realization in profile/AIR space (e.g., profile-stack intervals, layered radii, resolved profile region normalization).
 - Use 3D subtract only when intent cannot be declared from bounded constructive relations.
 
-EDGE-A2 constructive chamfer note: chamfers follow the same rule. When construction context is available, a chamfer may be a profile modification, a profile-stack/section transition, or a direct final-topology construction manifest. Do not trim a BRep, edge-sweep a local patch, or mutate an already-emitted sharp body when the chamfered final topology can be emitted from the constructive profile/stack/corner context from the start.
+EDGE-A2 constructive chamfer note: chamfers follow the same rule. When construction context is available, a chamfer may be a profile modification, a profile-stack/section transition, or a direct final-topology construction manifest. Do not trim a BRep, edge-sweep a local patch, or mutate an already-emitted sharp body when the chamfered final topology can be emitted from the constructive profile/stack/corner context from the start. EDGE-PROFILE-X1 validates the simplest vertical-edge case as `rectangle -> chamfered pentagon -> extrude`, with the bevel face emitted as an ordinary side face and no AirEdgeSweep, BRep chamfer mutation, topology graft, or 3D Boolean fallback.
 
 This direction is consistent with:
 

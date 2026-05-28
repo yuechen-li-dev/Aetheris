@@ -99,3 +99,6 @@ Covered in tests:
 
 ## Next recommended milestone
 Recommended next step: **EDGE-V2 production-adjacent real-body integration probe (still non-authoritative)**.
+
+## EDGE-X7 note
+EDGE-X7 adds controlled real-body selection/replacement probing around this EDGE-V1 prototype without changing production chamfer routing.

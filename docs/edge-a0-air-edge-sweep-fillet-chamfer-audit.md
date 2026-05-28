@@ -256,3 +256,8 @@ Each future `AirEdgeSweep` PR should include:
 ## EDGE-X1 follow-up note
 - EDGE-X1 added a decision-grade chamfer/fillet capability and diagnostic matrix inventory: `docs/frictionlab/edge-x1-chamfer-fillet-capability-matrix.md`.
 - This confirms current bounded chamfer/fillet routes remain legacy-authoritative and defines first AirEdgeSweep lab sequencing from observed support/reject envelopes.
+
+
+## EDGE-X2 follow-on
+
+A lab-only constructive concave planar AirChamfer patch proof was added in EDGE-X2 (`docs/frictionlab/edge-x2-concave-planar-chamfer-patch-lab.md`) without production chamfer/fillet migration.

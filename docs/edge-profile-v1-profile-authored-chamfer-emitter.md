@@ -159,7 +159,7 @@ EDGE-PROFILE-V1 does not change:
 - sketch solving;
 - clipping;
 - NURBS/freeform support;
-- top/horizontal edge chamfers;
+- top/horizontal edge chamfers (covered separately by EDGE-PROFILE-X2 as a lab-only section-transition witness, not by this V1 vertical-edge emitter);
 - corner-chain or multi-edge chamfers.
 
 ## 13. Tests run
@@ -181,5 +181,5 @@ The milestone validation commands are recorded in the PR summary/final response.
 
 Two next steps are reasonable:
 
-1. **EDGE-PROFILE-X2**: profile-stack top-edge chamfer lab for horizontal/top extrusion edges.
-2. **EDGE-PROFILE-V2**: controlled Firmament/profile route evaluation if this internal emitter remains stable under broader route-readiness tests.
+1. **Profile-stack section-transition contract**: use EDGE-PROFILE-X2 evidence to define explicit polygon profile correspondence and ruled transition emission for horizontal/top extrusion edges.
+2. **EDGE-PROFILE-V2**: controlled Firmament/profile route evaluation if this internal vertical-edge emitter remains stable under broader route-readiness tests.

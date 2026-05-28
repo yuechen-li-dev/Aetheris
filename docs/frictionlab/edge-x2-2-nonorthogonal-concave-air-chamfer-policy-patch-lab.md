@@ -83,3 +83,5 @@ Accepted geometry paths still emit `edge-x2-no-3d-boolean-used` and policy rows 
 
 ## Recommendation for next milestone
 Progress to convex planar replacement policy lab (EDGE-X3 lane) while keeping concave non-orthogonal proven path bounded and deterministic.
+
+> Update (EDGE-X3): concave acceptance lanes from EDGE-X2.2 are now regression-covered under a JudgmentEngine-backed policy evaluator while convex replacement remains deferred.

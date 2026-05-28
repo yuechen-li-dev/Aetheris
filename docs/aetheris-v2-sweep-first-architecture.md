@@ -86,6 +86,8 @@ V2 directive:
 - Prefer subtractive intent realization in profile/AIR space (e.g., profile-stack intervals, layered radii, resolved profile region normalization).
 - Use 3D subtract only when intent cannot be declared from bounded constructive relations.
 
+EDGE-A2 constructive chamfer note: chamfers follow the same rule. When construction context is available, a chamfer may be a profile modification, a profile-stack/section transition, or a direct final-topology construction manifest. Do not trim a BRep, edge-sweep a local patch, or mutate an already-emitted sharp body when the chamfered final topology can be emitted from the constructive profile/stack/corner context from the start.
+
 This direction is consistent with:
 
 - SafeBooleanComposition’s bounded policy posture,

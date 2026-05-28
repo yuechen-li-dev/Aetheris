@@ -1,5 +1,7 @@
 # EDGE-V3 — Non-authoritative AirChamfer shadow route
 
+> EDGE-A2 scope note: this shadow route represents no-history/local-edge AirChamfer experimentation. It is not the universal chamfer strategy; chamfers with construction-history profile or profile-stack context should be tested as final-topology construction from that context.
+
 ## Purpose and scope
 EDGE-V3 introduces `AirChamferShadowRoute`, an internal/test-only shadow seam that runs the controlled AirChamfer candidate beside legacy chamfer authority for the exact bounded convex planar single-edge case. The route is diagnostic only: it can produce and inspect an AirChamfer candidate report, but it cannot replace or mutate the production `BrepBoundedChamfer` result.
 

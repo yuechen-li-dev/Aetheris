@@ -155,3 +155,7 @@ Because the canonical and safe non-orthogonal shadow route fixtures are expected
 
 ## EDGE-X10 export-artifact note
 EDGE-X10 adds the first CLI-visible AirChamfer candidate STEP artifact route: `aetheris experimental airchamfer-cube --out <path> [--json]`. The route uses `AirChamferShadowRoute` to invoke the EDGE-V2 real-body prototype and exports the resulting controlled one-edge candidate body to `edge-x10-airchamfer-cube-one-edge.step` by convention. The route remains experimental/lab-only; legacy `BrepBoundedChamfer` stays production-authoritative, normal Firmament chamfer routing is not replaced, and the AirChamfer candidate path still uses no 3D Boolean.
+## EDGE-X11 corpus note
+
+EDGE-X11 adds a tiny deterministic regression corpus command: `aetheris experimental airchamfer-corpus --out-dir <dir> [--json]`. It reuses the same non-authoritative `AirChamferShadowRoute->AirChamferRealBodyPrototype` path as EDGE-X10, writes STEP only for successful controlled candidate cases, and emits JSON-only diagnostics for rejected/deferred rows. Legacy `BrepBoundedChamfer` remains production-authoritative; no production route replacement and no 3D Boolean fallback are introduced.
+

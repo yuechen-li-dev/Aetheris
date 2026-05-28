@@ -5,6 +5,8 @@ EDGE-X10 answers whether existing Aetheris CLI/export infrastructure can produce
 
 This is the first AirChamfer candidate STEP artifact exposed through CLI/export plumbing. It is not a production AirChamfer feature.
 
+EDGE-X11 expands this single trophy artifact into a tiny experimental regression corpus via `aetheris experimental airchamfer-corpus --out-dir <dir> [--json]`, preserving the same shadow/prototype candidate path and production-safety boundaries.
+
 ## References
 - EDGE-V2: `docs/edge-v2-real-body-air-chamfer-prototype.md`
 - EDGE-X9: `docs/frictionlab/edge-x9-air-chamfer-feature-recognition-parity-lab.md`

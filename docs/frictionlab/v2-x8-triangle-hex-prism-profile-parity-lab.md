@@ -56,3 +56,8 @@ Current lab rows are designed to provide bounded parity evidence only. Productio
 - If parity rows remain fully green: proceed to V2-V5 triangle production migration candidate.
 - Then V2-V6 hex production migration candidate.
 - If mismatch appears: harden emitter/convention mapping before production migration.
+
+
+## Update note (consumed by V2-V5)
+
+Triangle parity evidence from this lab was evaluated in V2-V5; production triangle migration was reverted after downstream Firmament chamfer parity regression, so lab evidence remains preparatory rather than consumed for final routing change. Hex parity rows remain continuity evidence for a future bounded migration milestone.

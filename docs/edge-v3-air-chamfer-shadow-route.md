@@ -163,3 +163,7 @@ EDGE-X11 adds a tiny deterministic regression corpus command: `aetheris experime
 ## EDGE-A1 support-gates note
 
 EDGE-A1 now defines the full chamfer/fillet support taxonomy, compatibility rows, and production-readiness gates in `docs/edge-a1-chamfer-fillet-support-compatibility-matrix.md`. EDGE-V3 remains non-authoritative shadow evidence for controlled AirChamfer rows; it is one readiness input, not proof of full support or production route replacement.
+
+## EDGE-X13 Firmament diagnostics note
+
+EDGE-X13 surfaces the existing `AirChamferShadowRoute` through a Firmament-facing, test-only diagnostics probe. The real Firmament fixture still executes legacy `BrepBoundedChamfer` first; the AirChamfer route is invoked afterward as a sidecar using `AirChamferShadowRoute->AirChamferRealBodyPrototype`. The probe records EDGE-X13 diagnostics for legacy authority, unchanged production output, no production route replacement, no 3D Boolean use, feature-recognition capture, and STEP smoke capture. No public API, normal Firmament route, STEP exporter, Boolean core, chamfer/fillet production behavior, arbitrary selection, chain/corner support, or fillet geometry changed.

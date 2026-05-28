@@ -206,3 +206,7 @@ This milestone explicitly does **not** do:
 - NURBS/freeform support,
 - STEP exporter/importer or Boolean core changes,
 - blind/counterbore/stepped/cross-axis expansion.
+
+## Update note (V2-X8)
+
+V2-X8 lab-only parity probe added for triangle/hex prism baseline-vs-emitter comparison (line-only loops), with deterministic topology + STEP smoke diagnostics and invalid input rejection rows. No production routing changed.

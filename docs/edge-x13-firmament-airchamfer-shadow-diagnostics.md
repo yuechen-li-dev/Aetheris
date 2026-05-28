@@ -134,3 +134,7 @@ EDGE-X13 does not add or change:
 ## Recommended next milestone
 
 The recommended next milestone is **EDGE-V4 controlled opt-in AirChamfer route** only if EDGE-X13 diagnostics and the EDGE-X12 corpus stability lane remain stable. If future work finds the Firmament seam too awkward for broader diagnostics, use **EDGE-X13.1 diagnostic seam hardening** before any route authorization. If priorities shift to fillets, use **EDGE-A2 / EDGE-FILLET-A0** instead.
+
+## EDGE-V4 follow-up
+
+EDGE-V4 builds on this shadow diagnostic probe by adding a gated internal/test-only Firmament execution seam. The new seam remains off by default, keeps legacy `BrepBoundedChamfer` authoritative for normal execution, and allows the AirChamfer candidate to become the result only for the exact controlled CH-03-style box edge when explicit experimental options and candidate evidence are supplied. Unsupported or failed cases fallback to legacy with deterministic EDGE-V4 diagnostics.

@@ -65,3 +65,6 @@ Deferred/rejected: invalid distance/edge/adjacency, non-planar marker, edge chai
 ## Limitations and next milestone
 Still controlled-only (single explicit convex planar edge).
 Recommended next milestone: EDGE-X9 feature-recognition parity probe, or EDGE-V3 shadow route behind controlled seam.
+
+## EDGE-X9 follow-on note
+EDGE-X9 adds a lab-only feature-recognition parity probe (`AirChamferFeatureRecognitionParityLab`) for EDGE-V2 candidate-body readiness, including adjacency-contract checks and deterministic legacy-comparison boundary diagnostics, while preserving legacy authority and no production-route replacement.

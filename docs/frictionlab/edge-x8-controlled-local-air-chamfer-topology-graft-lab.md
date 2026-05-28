@@ -84,3 +84,5 @@ Before graft attempt, fixtures are rejected/deferred for:
 
 ## EDGE-V2 packaging note
 EDGE-V2 now packages this controlled graft pipeline into `AirChamferRealBodyPrototype`, preserving non-authoritative status and unchanged production routes.
+
+EDGE-X9 now consumes EDGE-V2 candidate outputs to validate feature-recognition/adjacency parity for controlled cases before any shadow-route experiment.

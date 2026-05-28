@@ -22,7 +22,9 @@ public sealed class AirChamferPolicyLabTests
     }
 
     [Theory]
-    [InlineData("nonorthogonal-concave-planar", "defer-nonorthogonal-policy")]
+    [InlineData("nonorthogonal-concave-planar-safe", "accept-air-chamfer-patch")]
+    [InlineData("nonorthogonal-concave-planar-shallow", "defer-nonorthogonal-policy")]
+    [InlineData("nonorthogonal-concave-planar-near-parallel", "reject-invalid-face-adjacency")]
     [InlineData("convex-planar", "defer-convex-replacement-policy")]
     [InlineData("edge-chain", "defer-edge-chain-policy")]
     [InlineData("corner-chain", "defer-corner-policy")]
@@ -50,6 +52,16 @@ public sealed class AirChamferPolicyLabTests
             Assert.InRange(row.Score.CornerPolicyScore, 0, 100);
             Assert.InRange(row.Score.LegacyDependencyScore, 0, 100);
         }
+    }
+
+    [Fact]
+    public void NonOrthogonalAcceptedCase_EmitsNo3dBooleanDiagnostic()
+    {
+        var result = AirChamferPolicyLab.Evaluate(AirChamferPolicyLab.Cases().Single(x => x.CaseName == "nonorthogonal-concave-planar-safe"));
+        Assert.Equal("accept-air-chamfer-patch", result.Decision.Decision);
+        Assert.NotNull(result.PatchRow);
+        Assert.Contains("edge-x2-no-3d-boolean-used", result.PatchRow!.Diagnostics);
+        Assert.Contains("edge-x2-2-policy-nonorthogonal-concave-admitted", result.Diagnostics);
     }
 
     private static string Serialize(AirChamferPolicyRow row)

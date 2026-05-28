@@ -65,3 +65,5 @@ This lab is policy-shaped scaffolding intended for future production integration
 Based on policy results:
 - EDGE-X2.2 non-orthogonal concave policy+geometry lab, **or**
 - EDGE-X3 convex planar replacement policy lab.
+
+> Update (EDGE-X2.2): safe non-orthogonal concave planar single-edge fixtures are now admitted in lab policy when angle/offset admissibility checks pass; shallow/near-parallel cases remain deferred/rejected with explicit diagnostics.

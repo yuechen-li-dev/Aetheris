@@ -1,3 +1,4 @@
+using System.Numerics;
 using Aetheris.Firmament.FrictionLab.CIRLab;
 
 namespace Aetheris.FrictionLab.Tests.CIRLab;
@@ -51,7 +52,7 @@ public sealed class AirChamferPatchLabTests
         var c = AirChamferPatchLab.Canonical() with { FaceBNormal = new(1f, 0f, 0f) };
         var row = AirChamferPatchLab.Run(c);
         Assert.Equal(LabProfileStatus.Failed, row.Status);
-        Assert.Contains("edge-x2-invalid-face-adjacency-rejected", row.Diagnostics);
+        Assert.Contains(row.Diagnostics, x => x is "edge-x2-invalid-face-adjacency-rejected" or "edge-x2-2-nonorthogonal-patch-rejected:offset-angle-unstable");
         Assert.DoesNotContain("edge-x2-ruled-chamfer-patch-constructed", row.Diagnostics);
     }
 
@@ -60,6 +61,20 @@ public sealed class AirChamferPatchLabTests
     {
         foreach (var row in AirChamferPatchLab.RunAll())
             Assert.Contains(row.Recommendation, AirChamferPatchLab.AllowedRecommendations);
+    }
+
+    [Fact]
+    public void NonOrthogonalSafe_ConstructsPlanarPositivePatch()
+    {
+        var c = AirChamferPatchLab.Canonical() with { CaseName = "nonorthogonal-safe", FaceBNormal = Vector3.Normalize(new Vector3(1f, 1f, 0f)) };
+        var row = AirChamferPatchLab.Run(c);
+        Assert.Equal(LabProfileStatus.Succeeded, row.Status);
+        Assert.True(row.Topology.PatchProduced);
+        Assert.Equal(4, row.Topology.CoedgeCount);
+        Assert.True(row.Artifact!.Area > 0d);
+        Assert.Contains("edge-x2-2-nonorthogonal-offset-curves-constructed", row.Diagnostics);
+        Assert.Contains("edge-x2-2-nonorthogonal-patch-planarity-validated", row.Diagnostics);
+        Assert.Contains("edge-x2-no-3d-boolean-used", row.Diagnostics);
     }
 
     private static string Serialize(AirChamferPatchRow row)

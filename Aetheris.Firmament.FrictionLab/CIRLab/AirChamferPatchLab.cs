@@ -10,6 +10,7 @@ public sealed record AirChamferPatchRow(string CaseName, LabProfileStatus Status
 public static class AirChamferPatchLab
 {
     private const double Tol = 1e-9;
+    private const double MinStableNonOrthogonalAngleDeg = 12d;
     public static readonly IReadOnlySet<string> AllowedRecommendations = new HashSet<string>(StringComparer.Ordinal)
     {
         "air-chamfer-patch-constructive-proof-succeeded",
@@ -34,6 +35,8 @@ public static class AirChamferPatchLab
     [
         Run(Canonical(10d, 1d)),
         Run(Canonical(10d, 2d)),
+        Run(Canonical(10d, 1d) with { CaseName = "nonorthogonal-safe", FaceBNormal = Vector3.Normalize(new Vector3(1f, 1f, 0f)) }),
+        Run(Canonical(10d, 1d) with { CaseName = "nonorthogonal-shallow-unstable", FaceBNormal = Vector3.Normalize(new Vector3(1f, 0.05f, 0f)) }),
         Run(Canonical(7.5d, 1d)),
         Run(Canonical(10d, 0d) with { CaseName = "invalid-distance-zero" }),
         Run(Canonical(10d, double.NaN) with { CaseName = "invalid-distance-nan" }),
@@ -65,8 +68,13 @@ public static class AirChamferPatchLab
 
         var offA = Vector3.Cross(eDir, nA);
         var offB = Vector3.Cross(nB, eDir);
-        if (!TryNormalize(offA, out offA) || !TryNormalize(offB, out offB) || Math.Abs(Vector3.Dot(offA, offB)) >= 1d - 1e-8)
-            return Reject(c.CaseName, d, "edge-x2-invalid-face-adjacency-rejected");
+        if (!TryNormalize(offA, out offA) || !TryNormalize(offB, out offB))
+            return Reject(c.CaseName, d, "edge-x2-2-nonorthogonal-patch-rejected:offset-direction-invalid");
+        var nonOrthAngle = AngleDeg(offA, offB);
+        if (!Finite(nonOrthAngle))
+            return Reject(c.CaseName, d, "edge-x2-2-nonorthogonal-patch-rejected:offset-angle-non-finite");
+        if (Math.Abs(Vector3.Dot(offA, offB)) >= 1d - 1e-8 || nonOrthAngle < MinStableNonOrthogonalAngleDeg)
+            return Reject(c.CaseName, d, "edge-x2-2-nonorthogonal-patch-rejected:offset-angle-unstable");
 
         d.Add("edge-x2-concave-planar-edge-accepted");
 
@@ -76,6 +84,7 @@ public static class AirChamferPatchLab
         var b0 = c.EdgeStart + offB * (float)c.ChamferDistance;
         var b1 = c.EdgeEnd + offB * (float)c.ChamferDistance;
         d.Add("edge-x2-offset-curve-b-constructed");
+        d.Add("edge-x2-2-nonorthogonal-offset-curves-constructed");
 
         var verts = new[] { a0, a1, b1, b0 };
         var normal = Vector3.Cross(a1 - a0, b0 - a0);
@@ -83,8 +92,12 @@ public static class AirChamferPatchLab
             return Reject(c.CaseName, d, "edge-x2-invalid-face-adjacency-rejected");
 
         var area = 0.5d * Vector3.Cross(a1 - a0, b1 - a0).Length() + 0.5d * Vector3.Cross(b1 - a0, b0 - a0).Length();
+        if (!Finite(area) || area <= Tol)
+            return Reject(c.CaseName, d, "edge-x2-2-nonorthogonal-patch-rejected:area-degenerate");
         var artifact = new AirChamferPatchArtifact(verts, [(0, 1), (1, 2), (2, 3), (3, 0)], normal, area);
         d.Add("edge-x2-ruled-chamfer-patch-constructed");
+        d.Add("edge-x2-2-nonorthogonal-patch-constructed");
+        d.Add("edge-x2-2-nonorthogonal-patch-planarity-validated");
         d.Add("edge-x2-patch-topology-captured");
         d.Add("edge-x2-step-smoke-deferred:open-patch-export-unsupported");
 
@@ -107,5 +120,11 @@ public static class AirChamferPatchLab
         if (!float.IsFinite(len) || len <= Tol) { normalized = default; return false; }
         normalized = v / len;
         return Finite(normalized);
+    }
+
+    private static double AngleDeg(Vector3 a, Vector3 b)
+    {
+        var dot = Math.Clamp(Vector3.Dot(a, b), -1f, 1f);
+        return Math.Acos(dot) * (180d / Math.PI);
     }
 }

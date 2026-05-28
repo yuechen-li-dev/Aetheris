@@ -30,6 +30,7 @@ public sealed record AirChamferPolicyRow(string CaseName, string Decision, AirCh
 public static class AirChamferPolicyLab
 {
     private const double Tol = 1e-9;
+    private const double MinStablePlanarAngleDeg = 2d;
     public static readonly IReadOnlySet<string> AllowedDecisions = new HashSet<string>(StringComparer.Ordinal)
     {
         "accept-air-chamfer-patch","fallback-legacy-chamfer","defer-nonorthogonal-policy","defer-convex-replacement-policy","defer-edge-chain-policy","defer-corner-policy","defer-unsupported-face-family","defer-legacy-dependent-topology","reject-invalid-distance","reject-invalid-edge","reject-invalid-face-adjacency","reject-ambiguous-classification"
@@ -38,7 +39,9 @@ public static class AirChamferPolicyLab
     public static IReadOnlyList<AirChamferPolicyCase> Cases() =>
     [
         new("canonical-concave-planar", new(new(0,0,-5),new(0,0,5),new(1,0,0),new(0,1,0),1d,AirChamferFaceFamily.Planar,false,false,false,AirChamferRoutePreference.Auto,AirChamferClassificationExpectation.Concave,true), "accept-air-chamfer-patch"),
-        new("nonorthogonal-concave-planar", new(new(0,0,-5),new(0,0,5),new(1,0,0),Vector3.Normalize(new Vector3(1,1,0)),1d,AirChamferFaceFamily.Planar,false,false,false,AirChamferRoutePreference.Auto,AirChamferClassificationExpectation.Concave,false), "defer-nonorthogonal-policy"),
+        new("nonorthogonal-concave-planar-safe", new(new(0,0,-5),new(0,0,5),new(1,0,0),Vector3.Normalize(new Vector3(1,1,0)),1d,AirChamferFaceFamily.Planar,false,false,false,AirChamferRoutePreference.Auto,AirChamferClassificationExpectation.Concave,false), "accept-air-chamfer-patch"),
+        new("nonorthogonal-concave-planar-shallow", new(new(0,0,-5),new(0,0,5),new(1,0,0),Vector3.Normalize(new Vector3(0.99f,0.1f,0f)),1d,AirChamferFaceFamily.Planar,false,false,false,AirChamferRoutePreference.Auto,AirChamferClassificationExpectation.Concave,false), "defer-nonorthogonal-policy"),
+        new("nonorthogonal-concave-planar-near-parallel", new(new(0,0,-5),new(0,0,5),new(1,0,0),new(1,0,0.000001f),1d,AirChamferFaceFamily.Planar,false,false,false,AirChamferRoutePreference.Auto,AirChamferClassificationExpectation.Concave,false), "reject-invalid-face-adjacency"),
         new("convex-planar", new(new(0,0,-5),new(0,0,5),new(1,0,0),new(0,1,0),1d,AirChamferFaceFamily.Planar,false,false,false,AirChamferRoutePreference.Auto,AirChamferClassificationExpectation.Convex,true), "defer-convex-replacement-policy"),
         new("edge-chain", new(new(0,0,-5),new(0,0,5),new(1,0,0),new(0,1,0),1d,AirChamferFaceFamily.Planar,true,false,false,AirChamferRoutePreference.Auto,AirChamferClassificationExpectation.Concave,true), "defer-edge-chain-policy"),
         new("corner-chain", new(new(0,0,-5),new(0,0,5),new(1,0,0),new(0,1,0),1d,AirChamferFaceFamily.Planar,false,true,false,AirChamferRoutePreference.Auto,AirChamferClassificationExpectation.Concave,true), "defer-corner-policy"),
@@ -70,7 +73,11 @@ public static class AirChamferPolicyLab
         else if (r.ClassificationExpectation == AirChamferClassificationExpectation.Convex) decision = "defer-convex-replacement-policy";
         else if (r.LegacyDependency && r.RoutePreference == AirChamferRoutePreference.Legacy) decision = "fallback-legacy-chamfer";
         else if (r.LegacyDependency) decision = "defer-legacy-dependent-topology";
-        else if (!r.IsOrthogonalPlanarPair) decision = "defer-nonorthogonal-policy";
+        else if (!r.IsOrthogonalPlanarPair && !HasStableNonOrthogonalAdmissibility(r, out var nonOrthReason))
+        {
+            decision = nonOrthReason == "near-parallel" ? "reject-invalid-face-adjacency" : "defer-nonorthogonal-policy";
+            d.Add($"edge-x2-2-policy-nonorthogonal-concave-deferred:{nonOrthReason}");
+        }
         else decision = "accept-air-chamfer-patch";
 
         var score = Score(r, decision);
@@ -96,7 +103,9 @@ public static class AirChamferPolicyLab
         if (decision == "accept-air-chamfer-patch")
         {
             d.Add("edge-x2-1-air-chamfer-patch-admitted");
-            patch = AirChamferPatchLab.Run(AirChamferPatchLab.Canonical((r.EdgeEnd-r.EdgeStart).Length(), r.ChamferDistance));
+            if (!r.IsOrthogonalPlanarPair) d.Add("edge-x2-2-policy-nonorthogonal-concave-admitted");
+            var patchCase = new AirChamferPatchCase(c.CaseName, r.EdgeStart, r.EdgeEnd, r.FaceANormal!.Value, r.FaceBNormal!.Value, r.ChamferDistance);
+            patch = AirChamferPatchLab.Run(patchCase);
         }
         else if (decision.StartsWith("reject-", StringComparison.Ordinal)) d.Add($"edge-x2-1-air-chamfer-patch-rejected:{decision}");
         else if (decision == "fallback-legacy-chamfer") d.Add("edge-x2-1-legacy-route-preferred:legacy-dependent-topology");
@@ -126,5 +135,17 @@ public static class AirChamferPolicyLab
     {
         var len = v.Length(); if (!float.IsFinite(len) || len <= Tol) { normalized = default; return false; }
         normalized = v / len; return Finite(normalized);
+    }
+
+    private static bool HasStableNonOrthogonalAdmissibility(AirChamferPolicyRequest r, out string reason)
+    {
+        reason = "unsupported";
+        if (r.FaceANormal is null || r.FaceBNormal is null) { reason = "missing-face-normal"; return false; }
+        if (!TryNormalize(r.FaceANormal.Value, out var a) || !TryNormalize(r.FaceBNormal.Value, out var b)) { reason = "non-finite-normal"; return false; }
+        var angle = Math.Acos(Math.Clamp(Vector3.Dot(a, b), -1f, 1f)) * (180d / Math.PI);
+        if (!Finite(angle)) { reason = "non-finite-angle"; return false; }
+        if (angle < MinStablePlanarAngleDeg || (180d - angle) < MinStablePlanarAngleDeg) { reason = "near-parallel"; return false; }
+        if (angle < 20d) { reason = "shallow-angle-unstable"; return false; }
+        return true;
     }
 }

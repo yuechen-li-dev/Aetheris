@@ -80,3 +80,5 @@ Recommended next step: **EDGE-X2.1 non-orthogonal concave patch lab** to expand 
 
 
 > Note: EDGE-X2.1 adds a policy scaffold lane before any geometry expansion beyond canonical concave planar patch.
+>
+> Update (EDGE-X2.2): the canonical patch proof is now extended in lab-only code to include safe non-orthogonal concave planar single-edge cases, with deterministic topology/planarity checks and explicit unstable-angle rejection/defer diagnostics.

@@ -53,3 +53,7 @@ The lab includes deterministic rejected/deferred fixtures for invalid distance, 
 
 ## Recommended next milestone
 - EDGE-X8 body-mutation hardening to transition from replacement artifact to controlled replacement body construction.
+
+
+## EDGE-X8 follow-on
+EDGE-X8 extends this probe with a lab-only controlled local topology graft attempt that tries to move from witness-only artifacts to a synthetic candidate mutated body under the same bounded convex planar single-edge constraints.

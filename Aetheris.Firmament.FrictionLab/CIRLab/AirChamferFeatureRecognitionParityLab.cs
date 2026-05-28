@@ -50,7 +50,6 @@ public static class AirChamferFeatureRecognitionParityLab
         };
 
         var sourceBody = BrepPrimitives.CreateBox(10d, 8d, 6d).Value;
-        var sourceSummary = Summarize(sourceBody, stepSmokeSucceeded: true);
         diagnostics.Add("edge-x9-source-body-summary-captured");
 
         var request = new AirChamferRealBodyPrototypeRequest(
@@ -71,13 +70,37 @@ public static class AirChamferFeatureRecognitionParityLab
             IncludeStepSmoke: true);
 
         var v2 = AirChamferRealBodyPrototype.Evaluate(request);
+        return EvaluateCandidateEvidence(c.CaseName, sourceBody, v2, diagnostics);
+    }
+
+    public static AirChamferFeatureRecognitionParityRow EvaluateCandidateEvidence(
+        string caseName,
+        BrepBody sourceBody,
+        AirChamferRealBodyPrototypeResult v2)
+        => EvaluateCandidateEvidence(caseName, sourceBody, v2, new[]
+        {
+            "edge-x9-feature-recognition-lab-started",
+            "edge-x9-legacy-authority-preserved",
+            "edge-x9-no-production-route-replacement",
+            "edge-x9-no-3d-boolean-used",
+            "edge-x9-source-body-summary-captured"
+        });
+
+    private static AirChamferFeatureRecognitionParityRow EvaluateCandidateEvidence(
+        string caseName,
+        BrepBody sourceBody,
+        AirChamferRealBodyPrototypeResult v2,
+        IEnumerable<string> initialDiagnostics)
+    {
+        var diagnostics = new List<string>(initialDiagnostics);
+        var sourceSummary = Summarize(sourceBody, stepSmokeSucceeded: true);
         diagnostics.Add("edge-x9-edge-v2-prototype-invoked");
 
         if (v2.Status is not AirChamferRealBodyPrototypeStatus.Succeeded || v2.CandidateBody is null || v2.TopologySummary is null)
         {
             diagnostics.Add("edge-x9-recognition-contract-checked");
             diagnostics.Add($"edge-x9-first-divergence:prototype-status-{v2.Status}");
-            return new(c.CaseName, true, false, sourceSummary, null, 0, 0, 0, 0, 0, 0, false, false, $"prototype-status-{v2.Status}", "edge-x9-legacy-comparison-unavailable:controlled-case-not-comparable", 0, 0,
+            return new(caseName, true, false, sourceSummary, null, 0, 0, 0, 0, 0, 0, false, false, $"prototype-status-{v2.Status}", "edge-x9-legacy-comparison-unavailable:controlled-case-not-comparable", 0, 0,
                 "air-chamfer-candidate-keep-legacy-authority", diagnostics.Distinct().OrderBy(x => x, StringComparer.Ordinal).ToArray());
         }
 
@@ -116,7 +139,7 @@ public static class AirChamferFeatureRecognitionParityLab
         }
         else diagnostics.Add("edge-x9-feature-recognition-parity-succeeded");
 
-        return new(c.CaseName, true, true, sourceSummary, candidateSummary, chamferFaceCount, trimmedAdjacentFaceCount, transitionEdgeCount,
+        return new(caseName, true, true, sourceSummary, candidateSummary, chamferFaceCount, trimmedAdjacentFaceCount, transitionEdgeCount,
             chamferAdjacentFaceCount, transitionMin, transitionMax, originalEdgeAbsent, contractSatisfied, divergence, legacyStatus,
             RecognizedCandidateCount: contractSatisfied ? 1 : 0, AdmissibleCandidateCount: contractSatisfied ? 1 : 0,
             Recommendation: contractSatisfied ? "air-chamfer-candidate-ready-for-shadow-route-probe" : "air-chamfer-candidate-needs-adjacency-hardening",

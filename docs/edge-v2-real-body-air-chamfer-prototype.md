@@ -68,3 +68,6 @@ Recommended next milestone: EDGE-X9 feature-recognition parity probe, or EDGE-V3
 
 ## EDGE-X9 follow-on note
 EDGE-X9 adds a lab-only feature-recognition parity probe (`AirChamferFeatureRecognitionParityLab`) for EDGE-V2 candidate-body readiness, including adjacency-contract checks and deterministic legacy-comparison boundary diagnostics, while preserving legacy authority and no production-route replacement.
+
+## EDGE-V3 shadow-route wrapper note
+EDGE-V3 wraps `AirChamferRealBodyPrototype` in `AirChamferShadowRoute`, a non-authoritative internal/test-only seam that invokes the EDGE-V2 candidate body path, captures topology/STEP/recognition evidence, and reports readiness while keeping legacy `BrepBoundedChamfer` authoritative and production output unchanged.

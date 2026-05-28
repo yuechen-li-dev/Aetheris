@@ -64,3 +64,6 @@ No production behavior change, no production replacement, no fillet work, no cha
 ## 15) Recommended next milestone
 - If parity remains stable: EDGE-V3 non-authoritative shadow-route probe behind controlled seam.
 - If mismatch appears: EDGE-X9.1 adjacency/recognizer hardening with first-divergence driven scope.
+
+## 16) EDGE-V3 consumer note
+EDGE-V3 consumes the parity probe through `AirChamferFeatureRecognitionParityLab.EvaluateCandidateEvidence(...)` so the non-authoritative `AirChamferShadowRoute` can reuse EDGE-X9 recognition-summary and first-divergence logic after invoking `AirChamferRealBodyPrototype`, without replacing production chamfer behavior.

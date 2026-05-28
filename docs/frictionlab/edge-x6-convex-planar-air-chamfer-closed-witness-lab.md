@@ -53,3 +53,6 @@ Expected markers are validated for witness output:
 
 ## EDGE-V1 packaging note
 EDGE-V1 now packages the proven EDGE-X3 through EDGE-X6 policy->topology->artifact->closed-witness chain into an internal production-adjacent prototype seam (`AirChamferConvexPlanarPrototype`) while keeping production chamfer authority unchanged.
+
+## EDGE-X7 continuity
+EDGE-X7 reuses the EDGE-X6 closed witness as the controlled replacement-body artifact while body mutation remains deferred.

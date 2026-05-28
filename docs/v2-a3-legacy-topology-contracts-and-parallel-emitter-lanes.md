@@ -167,3 +167,8 @@ This milestone does **not** include:
 - **V2-X8.3**: triangle emitter ordering/adjacency hardening only if triangle migration remains a priority.
 - **V2-V6**: hex migration only after downstream feature-recognition parity scope is defined and passed.
 - **V2-A3.1**: apply migration checklist rigor across existing V2 migration docs/tests where needed.
+
+
+## EDGE-X1 load-bearing edge-finishing note
+- EDGE-X1 inventory confirms additional load-bearing legacy edge-finish contracts that must be preserved during AirEdgeSweep labs: non-orthogonal triangular-prism corner chamfer, internal concave two-edge chamfer interaction, and bounded chained/cylindrical-termination fillet envelopes.
+- Reference: `docs/frictionlab/edge-x1-chamfer-fillet-capability-matrix.md`.

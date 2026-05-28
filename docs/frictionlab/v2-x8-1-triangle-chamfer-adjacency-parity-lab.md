@@ -52,3 +52,8 @@ This lab emits one of:
 ## Next milestone
 If parity rows stay green: prepare a tightly scoped renewed triangle production migration attempt with seam-hardening assertions.
 If parity mismatches: isolate emitter ordering/adjacency convention deltas before any production retry.
+
+
+
+## Update note (V2-X8.2)
+A deterministic first-delta forensic audit now lives at `docs/frictionlab/v2-x8-2-triangle-adjacency-delta-audit.md`, replacing coarse blocker wording with concrete mismatch category/payload evidence.

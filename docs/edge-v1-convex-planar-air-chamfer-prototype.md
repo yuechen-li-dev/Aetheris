@@ -102,3 +102,7 @@ Recommended next step: **EDGE-V2 production-adjacent real-body integration probe
 
 ## EDGE-X7 note
 EDGE-X7 adds controlled real-body selection/replacement probing around this EDGE-V1 prototype without changing production chamfer routing.
+
+
+## EDGE-X8 note
+EDGE-X8 consumes EDGE-V1 outputs (policy decision, topology plan, geometry artifact, closed witness) in a controlled local topology graft lab. This remains non-authoritative and does not replace production chamfer routing.

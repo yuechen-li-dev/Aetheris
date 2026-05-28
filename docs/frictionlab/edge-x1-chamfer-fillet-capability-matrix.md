@@ -175,3 +175,5 @@ Evidence-driven recommended order:
 ## EDGE-X2 note
 
 EDGE-X2 starts the first constructive AirChamfer proof lane with a lab-only concave planar single-edge patch artifact (`docs/frictionlab/edge-x2-concave-planar-chamfer-patch-lab.md`).
+
+- EDGE-X2.1 status: policy scaffold lane started (lab-only), with deterministic accept/defer/reject routing and score breakdown.

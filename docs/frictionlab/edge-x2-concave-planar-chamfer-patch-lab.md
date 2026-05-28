@@ -77,3 +77,6 @@ Invalid input is rejected before patch construction with explicit diagnostics:
 
 ## Recommendation for next milestone
 Recommended next step: **EDGE-X2.1 non-orthogonal concave patch lab** to expand admissible planar adjacency while keeping local patch-only scope.
+
+
+> Note: EDGE-X2.1 adds a policy scaffold lane before any geometry expansion beyond canonical concave planar patch.

@@ -61,3 +61,7 @@ Current lab rows are designed to provide bounded parity evidence only. Productio
 ## Update note (consumed by V2-V5)
 
 Triangle parity evidence from this lab was evaluated in V2-V5; production triangle migration was reverted after downstream Firmament chamfer parity regression, so lab evidence remains preparatory rather than consumed for final routing change. Hex parity rows remain continuity evidence for a future bounded migration milestone.
+
+## Update note (V2-X8.1)
+
+Feature-recognition parity for triangle prism chamfer/corner behavior is now tracked separately in `docs/frictionlab/v2-x8-1-triangle-chamfer-adjacency-parity-lab.md` because V2-X8 summary topology parity was not sufficient for V2-V5 production migration readiness.

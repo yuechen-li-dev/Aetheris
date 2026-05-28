@@ -210,3 +210,8 @@ This milestone explicitly does **not** do:
 ## Update note (V2-X8)
 
 V2-X8 lab-only parity probe added for triangle/hex prism baseline-vs-emitter comparison (line-only loops), with deterministic topology + STEP smoke diagnostics and invalid input rejection rows. No production routing changed.
+
+
+## Update note (V2-V5)
+
+V2-V5 attempted to consume V2-X8 triangle evidence for production migration, but reverted after Firmament bounded-chamfer regression exposed a seam-level topology/adjacency parity blocker. Triangle production routing remains unchanged pending blocker resolution.

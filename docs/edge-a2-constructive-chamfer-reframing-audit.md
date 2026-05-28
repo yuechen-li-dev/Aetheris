@@ -21,6 +21,8 @@ The recommended convergence state is **success** for a docs/design audit: no pro
 
 EDGE-PROFILE-X1 follow-up: `ProfileChamferExtrudeLab` now exercises that smallest vertical-edge profile-chamfer sequence. It builds a chamfered rectangle/pentagon, emits it with `BrepExtrude.Create`, exports it through `Step242Exporter`, and records `10` vertices, `15` edges, `7` planar faces, `0` cylindrical faces, and one bevel side face without AirEdgeSweep, `BrepBoundedChamfer`, topology grafting, or 3D Boolean fallback. See `docs/frictionlab/edge-profile-x1-vertical-edge-chamfer-profile-extrude-lab.md`.
 
+EDGE-PROFILE-V1 packaging note: `ProfileVertexChamferExtrudeEmitter` moves the same proof into an internal production-adjacent seam with deterministic admissibility, topology, STEP, and no-legacy-route diagnostics. It remains non-authoritative and does not replace production chamfer, fillet, primitive, STEP, Boolean, or AirEdgeSweep behavior. See `docs/edge-profile-v1-profile-authored-chamfer-emitter.md`.
+
 ## 2. Theory under audit
 
 The audit tests a V2-compatible chamfer decomposition: do not trim if construction history can emit the final body directly.

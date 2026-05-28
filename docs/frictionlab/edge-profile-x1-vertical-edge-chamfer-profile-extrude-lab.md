@@ -4,6 +4,8 @@
 
 EDGE-PROFILE-X1 is a lab-only proof that a vertical-edge chamfer on a rectangular prism can be authored as profile geometry before extrusion. It validates the EDGE-A2 constructive chamfer reframing for the narrow history-known case where the selected edge is parallel to the extrusion axis.
 
+EDGE-PROFILE-V1 now packages this proof into the internal production-adjacent `ProfileVertexChamferExtrudeEmitter`. The V1 emitter keeps the same profile-first/extrude-second construction, adds bounded request/result diagnostics, rectangle invalid-case rejection, STEP smoke summarization, and evaluation-only convex polygon support without changing production routing.
+
 The lab does **not** change production chamfer or fillet behavior. It does not change public APIs, STEP export/import, Boolean core behavior, AirEdgeSweep behavior, triangle migration, sketch solving, clipping, or NURBS/freeform support.
 
 ## EDGE-A2 reference

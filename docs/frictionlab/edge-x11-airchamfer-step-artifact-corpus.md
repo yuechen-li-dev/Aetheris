@@ -150,6 +150,10 @@ EDGE-X11 does not add or change:
 - clipping engine behavior
 - NURBS/freeform support
 
+## EDGE-X12 gated stability check
+
+EDGE-X12 adds an explicitly gated/manual repeated-run stability check for this corpus. See `docs/frictionlab/edge-x12-airchamfer-corpus-stability.md` for the opt-in command, `Category=ArtifactCorpus` trait, `AETHERIS_RUN_ARTIFACT_CORPUS_TESTS=1` guard, and the raw STEP SHA256 plus normalized JSON/marker/topology comparisons. The check is intentionally not part of normal/default unit-test execution unless explicitly requested.
+
 ## Recommended next milestone
 
-Recommended next milestone: EDGE-X12 should compare the corpus summaries across known-good generated outputs and tighten deterministic diagnostic drift checks before considering any broader AirChamfer corpus shape expansion. Any route comparison must remain analyzer/shadow evidence only until a separate production authorization milestone exists.
+After EDGE-X12, any broader AirChamfer corpus shape expansion should remain analyzer/shadow evidence only until a separate production authorization milestone exists.

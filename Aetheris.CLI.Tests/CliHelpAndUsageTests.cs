@@ -38,6 +38,7 @@ public sealed class CliHelpAndUsageTests
     [InlineData("analyze", "section")]
     [InlineData("experimental")]
     [InlineData("experimental", "airchamfer-cube")]
+    [InlineData("experimental", "airchamfer-corpus")]
     public void Subcommand_Help_Lists_Usage_And_Examples(params string[] prefix)
     {
         var stdout = new StringWriter();

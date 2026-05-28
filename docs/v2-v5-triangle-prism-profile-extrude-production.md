@@ -51,3 +51,7 @@ Observed effect:
 ## Next recommended migration
 - Resolve triangle chamfer adjacency/parity at the emitter-integration seam first.
 - Keep V2-X8 hex parity continuity; then proceed to likely V2-V6 hex migration only after triangle seam parity strategy is proven safe.
+
+## Update note (V2-X8.1)
+
+A dedicated follow-up lab now probes triangle chamfer adjacency/corner feature-recognition parity between legacy and line-arc candidate paths: `docs/frictionlab/v2-x8-1-triangle-chamfer-adjacency-parity-lab.md`.

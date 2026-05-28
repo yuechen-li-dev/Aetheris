@@ -170,3 +170,8 @@ Evidence-driven recommended order:
 - No STEP importer/exporter changes.
 - No Boolean core changes.
 - No test weakening.
+
+
+## EDGE-X2 note
+
+EDGE-X2 starts the first constructive AirChamfer proof lane with a lab-only concave planar single-edge patch artifact (`docs/frictionlab/edge-x2-concave-planar-chamfer-patch-lab.md`).

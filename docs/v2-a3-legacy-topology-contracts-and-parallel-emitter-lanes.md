@@ -127,6 +127,8 @@ Until `AirEdgeSweep` exists as a proven contract:
 
 Non-action for this milestone: do **not** implement `AirEdgeSweep` here.
 
+Follow-up architecture audit reference: `docs/edge-a0-air-edge-sweep-fillet-chamfer-audit.md` (EDGE-A0 / V2-A4).
+
 ## 9. Implications for prismatic migration roadmap
 Roadmap adjustments:
 - triangle production migration: blocked by feature-recognition parity.

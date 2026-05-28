@@ -65,3 +65,7 @@ The V2-X8.2 forensic ledger audit identifies deterministic legacy-vs-candidate a
 V2-A3 formalizes this result as doctrine: triangle remains on legacy production routing because topology contract parity for bounded feature recognition is not yet proven. The line-arc triangle route remains valid as a parallel V2 lane for scoped profile-first contexts, not as a silent replacement.
 
 Reference: `docs/v2-a3-legacy-topology-contracts-and-parallel-emitter-lanes.md`.
+
+
+Update note (EDGE-A0): triangle migration remains blocked pending adjacency-contract hardening and future constructive edge-surfacing (`AirEdgeSweep`) contract proof.
+

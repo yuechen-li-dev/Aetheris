@@ -22,8 +22,14 @@ namespace Aetheris.Kernel.Firmament.Execution;
 internal static class FirmamentPrimitiveExecutor
 {
     public static KernelResult<FirmamentPrimitiveExecutionResult> Execute(FirmamentPrimitiveLoweringPlan loweringPlan)
+        => Execute(loweringPlan, FirmamentAirChamferExperimentalOptions.Disabled);
+
+    internal static KernelResult<FirmamentPrimitiveExecutionResult> Execute(
+        FirmamentPrimitiveLoweringPlan loweringPlan,
+        FirmamentAirChamferExperimentalOptions airChamferExperimentalOptions)
     {
         ArgumentNullException.ThrowIfNull(loweringPlan);
+        ArgumentNullException.ThrowIfNull(airChamferExperimentalOptions);
 
         var executedPrimitives = new List<FirmamentExecutedPrimitive>(loweringPlan.Primitives.Count);
         var executedBooleans = new List<FirmamentExecutedBoolean>(loweringPlan.Booleans.Count);
@@ -94,7 +100,14 @@ internal static class FirmamentPrimitiveExecutor
                     ]);
                 }
 
-                var chamferedBody = chamferResult.Value;
+                var selectedChamfer = SelectAirChamferExperimentalRouteOrLegacy(
+                    boolean,
+                    baseBody,
+                    featureGraphStates.TryGetValue(boolean.PrimaryReferenceFeatureId, out var chamferSourceState) ? chamferSourceState : FirmamentSafeSubtractFeatureGraphState.Other,
+                    distance: TryReadFiniteChamferDistance(boolean, out var parsedDistance) ? parsedDistance : double.NaN,
+                    legacyBody: chamferResult.Value,
+                    airChamferExperimentalOptions);
+                var chamferedBody = selectedChamfer.Body;
                 executedBooleans.Add(new FirmamentExecutedBoolean(boolean.OpIndex, boolean.FeatureId, boolean.Kind, chamferedBody));
                 publishedBodiesByFeatureId[boolean.FeatureId] = chamferedBody;
                 booleanExecutionBodiesByFeatureId[boolean.FeatureId] = chamferedBody;
@@ -1135,6 +1148,162 @@ internal static class FirmamentPrimitiveExecutor
                 "Bounded chamfer expected either one edge or one corner selection token.",
                 Source: "firmament.chamfer-bounded")
         ]);
+    }
+
+
+    private sealed record AirChamferExperimentalSelection(BrepBody Body, IReadOnlyList<string> Diagnostics);
+
+    private static AirChamferExperimentalSelection SelectAirChamferExperimentalRouteOrLegacy(
+        FirmamentLoweredBoolean boolean,
+        BrepBody sourceBody,
+        FirmamentSafeSubtractFeatureGraphState sourceState,
+        double distance,
+        BrepBody legacyBody,
+        FirmamentAirChamferExperimentalOptions options)
+    {
+        var diagnostics = new List<string>
+        {
+            "edge-v4-air-chamfer-opt-in-route-started",
+            "edge-v4-production-default-unchanged",
+            "edge-v4-no-3d-boolean-used"
+        };
+
+        if (!options.EnableAirChamferExperimentalRoute)
+        {
+            diagnostics.Add("edge-v4-air-chamfer-opt-in-disabled");
+            diagnostics.Add("edge-v4-legacy-default-route-used");
+            return Finish(legacyBody, diagnostics, options);
+        }
+
+        diagnostics.Add("edge-v4-air-chamfer-opt-in-enabled");
+
+        var rejection = GetAirChamferExperimentalSupportedCaseRejection(boolean, sourceState, distance, options);
+        if (rejection is not null)
+        {
+            diagnostics.Add($"edge-v4-supported-case-rejected:{rejection}");
+            diagnostics.Add("edge-v4-legacy-fallback-used");
+            return Finish(legacyBody, diagnostics, options);
+        }
+
+        diagnostics.Add("edge-v4-supported-case-accepted");
+
+        if (options.CandidateProvider is null)
+        {
+            diagnostics.Add("edge-v4-air-chamfer-candidate-rejected:missing-candidate-provider");
+            diagnostics.Add("edge-v4-air-chamfer-candidate-failed-fallback");
+            diagnostics.Add("edge-v4-legacy-fallback-used");
+            return Finish(legacyBody, diagnostics, options);
+        }
+
+        FirmamentAirChamferExperimentalCandidateReport candidate;
+        try
+        {
+            candidate = options.CandidateProvider(new FirmamentAirChamferExperimentalCandidateRequest(
+                options.CaseName,
+                sourceBody,
+                distance,
+                options.FaceFamily,
+                options.IsEdgeChain,
+                options.IsCornerChain,
+                options.LegacyDependency,
+                options.IncludeStepSmoke));
+        }
+        catch (Exception ex)
+        {
+            diagnostics.Add($"edge-v4-air-chamfer-candidate-rejected:provider-threw-{ex.GetType().Name}");
+            diagnostics.Add("edge-v4-air-chamfer-candidate-failed-fallback");
+            diagnostics.Add("edge-v4-legacy-fallback-used");
+            return Finish(legacyBody, diagnostics, options);
+        }
+
+        diagnostics.Add("edge-v4-air-chamfer-shadow-route-invoked");
+        diagnostics.AddRange(candidate.Diagnostics);
+
+        var candidateRejection = GetAirChamferExperimentalCandidateRejection(candidate);
+        if (candidateRejection is not null)
+        {
+            diagnostics.Add($"edge-v4-air-chamfer-candidate-rejected:{candidateRejection}");
+            diagnostics.Add("edge-v4-air-chamfer-candidate-failed-fallback");
+            diagnostics.Add("edge-v4-legacy-fallback-used");
+            return Finish(legacyBody, diagnostics, options);
+        }
+
+        diagnostics.Add("edge-v4-air-chamfer-candidate-selected");
+        return Finish(candidate.CandidateBody!, diagnostics, options);
+    }
+
+    private static string? GetAirChamferExperimentalSupportedCaseRejection(
+        FirmamentLoweredBoolean boolean,
+        FirmamentSafeSubtractFeatureGraphState sourceState,
+        double distance,
+        FirmamentAirChamferExperimentalOptions options)
+    {
+        if (boolean.FeatureId != "edge_x13_legacy_edge_break" || boolean.PrimaryReferenceFeatureId != "base")
+            return "unsupported-fixture";
+
+        if (sourceState != FirmamentSafeSubtractFeatureGraphState.BoxRoot)
+            return "unsupported-source-state";
+
+        if (!double.IsFinite(distance) || distance <= 0d)
+            return "invalid-distance";
+
+        if (options.FaceFamily != FirmamentAirChamferExperimentalFaceFamily.Planar)
+            return "unsupported-face-family";
+
+        if (options.IsEdgeChain)
+            return "edge-chain";
+
+        if (options.IsCornerChain)
+            return "corner-chain";
+
+        if (options.LegacyDependency)
+            return "legacy-dependent-topology";
+
+        if (!BrepBoundedEdgeFinishingToolParser.TryParseChamferSelection(boolean.Tool.RawFields, out var edge, out var incidentEdgePair, out var corner, out _))
+            return "invalid-selection";
+
+        if (edge != BrepBoundedChamferEdge.XMaxYMax || incidentEdgePair.HasValue || corner.HasValue)
+            return "unsupported-selection";
+
+        return null;
+    }
+
+    private static string? GetAirChamferExperimentalCandidateRejection(FirmamentAirChamferExperimentalCandidateReport candidate)
+    {
+        if (!candidate.CandidateProduced || candidate.CandidateBody is null)
+            return candidate.Status.ToString().ToLowerInvariant();
+
+        if (candidate.Status != FirmamentAirChamferExperimentalCandidateStatus.Succeeded)
+            return candidate.Status.ToString().ToLowerInvariant();
+
+        if (!candidate.NoThreeDimensionalBooleanUsed)
+            return "3d-boolean-used";
+
+        if (!candidate.TopologyContractSatisfied)
+            return "topology-contract";
+
+        if (!candidate.StepSmokeSucceeded)
+            return "step-smoke";
+
+        if (!candidate.RecognitionContractSatisfied)
+            return "recognition-contract";
+
+        return null;
+    }
+
+    private static AirChamferExperimentalSelection Finish(BrepBody body, IEnumerable<string> diagnostics, FirmamentAirChamferExperimentalOptions options)
+    {
+        var finalDiagnostics = diagnostics.Distinct().OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        options.DiagnosticSink?.Invoke(finalDiagnostics);
+        return new(body, finalDiagnostics);
+    }
+
+    private static bool TryReadFiniteChamferDistance(FirmamentLoweredBoolean boolean, out double distance)
+    {
+        distance = 0d;
+        return boolean.Tool.RawFields.TryGetValue("distance", out var distanceRaw)
+            && double.TryParse(distanceRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out distance)
+            && double.IsFinite(distance);
     }
 
     private static KernelResult<BrepBody> ExecuteBoundedManufacturingFilletOnRecognizedOrthogonalRoot(

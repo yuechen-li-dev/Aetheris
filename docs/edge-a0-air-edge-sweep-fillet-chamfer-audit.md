@@ -263,3 +263,5 @@ Each future `AirEdgeSweep` PR should include:
 A lab-only constructive concave planar AirChamfer patch proof was added in EDGE-X2 (`docs/frictionlab/edge-x2-concave-planar-chamfer-patch-lab.md`) without production chamfer/fillet migration.
 
 - EDGE-X2.1 introduces a lab-only AirChamfer policy scaffold to gate admissibility/route decisions before broader geometry work.
+
+- EDGE-X4 update: convex planar single-edge requests can now produce a lab-only replacement topology plan after Judgment admission; production geometry emission remains deferred.

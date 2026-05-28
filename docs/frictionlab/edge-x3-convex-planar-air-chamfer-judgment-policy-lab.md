@@ -53,3 +53,6 @@ No production route changes, no public API changes, no STEP/Boolean changes, no 
 
 ## Next milestone
 Implement bounded convex replacement topology planning lane (still policy-gated), then wire geometry emission only after admissibility and replacement-plan diagnostics are stable.
+
+## EDGE-X4 follow-on note
+EDGE-X4 extends this policy lab by reusing the same Judgment admission path and allowing admitted convex planar single-edge requests to produce a lab-only replacement topology plan (still no production geometry emission).

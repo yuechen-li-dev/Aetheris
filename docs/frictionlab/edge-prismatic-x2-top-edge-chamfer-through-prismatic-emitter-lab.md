@@ -140,3 +140,7 @@ If broader evidence is desired before route admission, X3 is the safer next step
 ## 12. EDGE-PRISMATIC-X3 follow-up
 
 EDGE-PRISMATIC-X3 confirms that the `PrismaticSectionTransitionEmitter` is not chamfer-specific. The generic lab emits rectangle-to-inset-rectangle, scaled pentagon, scaled hexagon, and asymmetric equal-count polygon transitions through the same direct prismatic emitter path, with STEP smoke and topology-formula validation, while leaving X2's top-edge chamfer witness and all production chamfer/fillet behavior unchanged.
+
+## V1 packaging status
+
+EDGE-PRISMATIC-V1 is now the preferred reusable seam for this lab witness. X2 remains lab-only and does not route production top-edge chamfers, but its section stack can be emitted through the internal production-adjacent `PrismaticSectionTransitionEmitter` rather than carrying an independent emitter implementation.

@@ -220,3 +220,7 @@ The X2 result confirms that the emitter is a real client path for the top-edge c
 ## 13. EDGE-PRISMATIC-X3 follow-up
 
 EDGE-PRISMATIC-X3 broadens the X1 evidence from rectangle and first pentagon rows into a generic line-only equal-count polygon transition lab. It adds deterministic two-section pentagon, hexagon, and asymmetric translated-polygon rows, validates the two-section topology formula (`vertices = 2n`, `edges = 3n`, `faces = n + 2`, `coedges = 6n`), and preserves the same lab-only no-AirEdgeSweep/no-BrepBoundedChamfer/no-graft/no-3D-Boolean constraints.
+
+## V1 packaging status
+
+EDGE-PRISMATIC-V1 packages the X1 lab emitter capability behind the internal production-adjacent `Aetheris.Kernel.Core.Brep.Prismatic.PrismaticSectionTransitionEmitter` seam. The FrictionLab X1 caller now remains a thin lab compatibility layer over that seam so the original evidence stays green while request/result diagnostics, topology summary, optional STEP smoke, and guardrails are centralized.

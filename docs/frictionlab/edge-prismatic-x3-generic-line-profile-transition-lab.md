@@ -157,3 +157,8 @@ Do not broaden to arcs, holes, different vertex counts, inferred correspondence,
 ## V1 packaging status
 
 EDGE-PRISMATIC-V1 packages the generic X3 evidence into the internal production-adjacent `PrismaticSectionTransitionEmitter` seam. The rectangle, scaled pentagon, scaled hexagon, and asymmetric translated pentagon cases remain regression evidence for the equal-count line-only first-scope contract.
+
+
+## V2 controlled-route status
+
+EDGE-PRISMATIC-V2 uses the V1 packaged emitter for a controlled top-edge chamfer route, while X3 remains the generic equal-count line-only regression evidence that the emitter is not chamfer-specific. V2 does not broaden X3 to arcs, holes, inferred correspondence, arbitrary selection, production route replacement, or public API changes.

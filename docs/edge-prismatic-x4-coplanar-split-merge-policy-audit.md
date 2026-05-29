@@ -163,6 +163,10 @@ Future tests for a merge mode should:
 - Any downstream route consuming prismatic section transitions must not silently merge coplanar faces.
 - Any future merged output should be named as a separate compatibility surface, not a quiet replacement for existing prismatic output.
 
+## EDGE-LOOP-A0 implication
+
+EDGE-LOOP-A0's recommended top-face outer-loop chamfer should inherit the split-preserving prismatic policy from this audit. A loop chamfer expressed as a prismatic section transition should keep stable-interval and transition-interval side faces visible by default, because those section splits are route evidence, diagnostics anchors, and future feature-recognition lineage. Any merged loop-chamfer output must be an explicit later compatibility mode rather than a silent optimization.
+
 ## 12. Recommended next milestones
 
 Recommended next milestones are:

@@ -143,6 +143,10 @@ The candidate path constructs the section stack and invokes `PrismaticSectionTra
 
 This route is a history-known top-edge chamfer via prismatic transition. It complements the profile-authored vertical-edge lane and the prismatic section-transition lane. AirEdgeSweep remains the no-history/local-edge architecture path and is not used by this candidate.
 
+## EDGE-LOOP-A0 relationship
+
+EDGE-LOOP-A0 identifies this controlled single top-edge prismatic route as a building block for the next Class B loop target: a uniform chamfer around the entire top face outer loop of a history-known rectangular prism. The loop target should generalize the section-stack idea from one changed top edge to an inset top section that changes all four top boundary edges uniformly, while retaining the same exclusions: no AirEdgeSweep, no `BrepBoundedChamfer`, no topology graft, no 3D Boolean, and no production route replacement.
+
 ## 12. Non-goals
 
 EDGE-PRISMATIC-V2 does not add:

@@ -77,7 +77,7 @@ The canonical X2 row succeeds through the prismatic emitter and preserves the ED
 - coedges: `40`
 - bounds: `[-5,-4,0]..[5,4,6]`
 
-The lower vertical side faces and upper transition faces remain split at `z=5`, including where adjacent portions are coplanar. This is intentional because it preserves the section-stack witness and transition-interval evidence. X2 does not merge coplanar faces.
+The lower vertical side faces and upper transition faces remain split at `z=5`, including where adjacent portions are coplanar. This is intentional because it preserves the section-stack witness and transition-interval evidence. X2 does not merge coplanar faces. EDGE-PRISMATIC-X4 records this as semantic output policy: these split faces are not incidental artifacts and any future coplanar merge must be an explicit optional post-emission mode with diagnostics and recognizer parity evidence.
 
 ## 7. STEP smoke findings
 

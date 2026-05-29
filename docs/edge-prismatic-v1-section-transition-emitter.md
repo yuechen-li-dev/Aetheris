@@ -72,6 +72,7 @@ For admitted requests the emitter:
 7. Binds each cap and transition face to a plane surface.
 8. Preserves split faces at section boundaries.
 9. Does not merge coplanar faces in V1.
+10. Follows EDGE-PRISMATIC-X4 policy: section-boundary faces are semantic interval evidence, and any future coplanar merge must be a separate explicit post-emission mode rather than a silent emitter behavior change.
 
 ## 7. Success cases and topology formula
 

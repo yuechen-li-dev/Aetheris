@@ -149,7 +149,7 @@ The three-section stable + transition rectangle case has:
 - loops `10`;
 - coedges `40`.
 
-These counts are asserted in `PrismaticSectionTransitionEmitterLabTests` and document the intended split-face contract.
+These counts are asserted in `PrismaticSectionTransitionEmitterLabTests` and document the intended split-face contract. EDGE-PRISMATIC-X4 now defines that contract as the current policy: section-boundary split faces are semantic prismatic output and must be preserved by default; coplanar merging is only a future explicit post-emission simplification mode.
 
 ## 7. STEP smoke findings
 

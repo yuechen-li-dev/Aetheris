@@ -92,7 +92,7 @@ For the canonical controlled case, the expected and tested topology is:
 | coedges | 40 |
 | bounds | `[-5,-4,0]..[5,4,6]` |
 
-The route preserves the `z = 5` split between stable lower side faces and upper transition faces. It does not merge coplanar faces in this milestone.
+The route preserves the `z = 5` split between stable lower side faces and upper transition faces. It does not merge coplanar faces in this milestone. EDGE-PRISMATIC-X4 records this as policy for controlled prismatic chamfer output: split faces are semantic section-stack/transition-interval evidence, and any future merged output must be an explicitly selected compatibility mode with recognizer and diagnostics parity.
 
 ## 7. STEP smoke findings
 

@@ -525,7 +525,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Build_And_Analyze_BoundedSingleEdgeFillet_Reports_CylindricalSurface_And_Manifoldness()
     {
-        var outputPath = Path.Combine(RepoRoot, "testdata", "firmament", "exports", "cli-m5b-bounded-single-edge-fillet.step");
+        var outputPath = Path.Combine(Path.GetTempPath(), $"cli-m5b-bounded-single-edge-fillet-{Guid.NewGuid():N}.step");
         if (File.Exists(outputPath))
         {
             File.Delete(outputPath);
@@ -544,11 +544,9 @@ public sealed class CliBaselineTests
         Assert.Equal("enclosed-manifold", summary.GetProperty("structuralAssessment").GetString());
         Assert.True(summary.GetProperty("surfaceFamilies").GetProperty("cylinder").GetInt32() >= 1);
 
-        var maxFaceId = summary.GetProperty("faceIds").GetProperty("max").GetInt32();
         var foundCylinder = false;
-        for (var faceId = 1; faceId <= maxFaceId; faceId++)
+        foreach (var face in AnalyzeExistingFaces(outputPath, summary))
         {
-            var face = AnalyzeFace(outputPath, faceId);
             if (face.GetProperty("surfaceType").GetString() is not "Cylinder")
             {
                 continue;
@@ -566,7 +564,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Build_And_Analyze_BoundedChainedSameRadiusFillet_Reports_MultipleCylindricalSurfaces_And_Manifoldness()
     {
-        var outputPath = Path.Combine(RepoRoot, "testdata", "firmament", "exports", "cli-m5b-bounded-chained-fillet.step");
+        var outputPath = Path.Combine(Path.GetTempPath(), $"cli-m5b-bounded-chained-fillet-{Guid.NewGuid():N}.step");
         if (File.Exists(outputPath))
         {
             File.Delete(outputPath);
@@ -585,17 +583,15 @@ public sealed class CliBaselineTests
         Assert.Equal("enclosed-manifold", summary.GetProperty("structuralAssessment").GetString());
         Assert.True(summary.GetProperty("surfaceFamilies").GetProperty("cylinder").GetInt32() >= 2);
 
-        var maxFaceId = summary.GetProperty("faceIds").GetProperty("max").GetInt32();
-        var cylinderCountAtRadius = 0;
-        for (var faceId = 1; faceId <= maxFaceId; faceId++)
-        {
-            var face = AnalyzeFace(outputPath, faceId);
-            if (face.GetProperty("surfaceType").GetString() is "Cylinder"
-                && Math.Abs(face.GetProperty("radius").GetDouble() - 0.4d) <= 1e-8)
-            {
-                cylinderCountAtRadius++;
-            }
-        }
+        var stepText = File.ReadAllText(outputPath);
+        Assert.Contains("MANIFOLD_SOLID_BREP", stepText, StringComparison.Ordinal);
+        Assert.Contains("ADVANCED_FACE", stepText, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", stepText, StringComparison.Ordinal);
+        Assert.DoesNotContain("BREP_WITH_VOIDS", stepText, StringComparison.Ordinal);
+
+        var cylinderCountAtRadius = AnalyzeExistingFaces(outputPath, summary)
+            .Count(face => face.GetProperty("surfaceType").GetString() is "Cylinder"
+                && Math.Abs(face.GetProperty("radius").GetDouble() - 0.4d) <= 1e-8);
 
         Assert.True(cylinderCountAtRadius >= 2, "Expected at least two radius-0.4 cylindrical faces in bounded chained fillet export.");
         File.Delete(outputPath);
@@ -1132,15 +1128,70 @@ public sealed class CliBaselineTests
         return doc.RootElement.GetProperty("summary").Clone();
     }
 
+    private sealed record AnalyzeFaceAttempt(int FaceId, int ExitCode, string Stdout, string Stderr, JsonElement? Face)
+    {
+        public bool Succeeded => ExitCode == 0 && Face.HasValue;
+    }
+
+    private static IReadOnlyList<JsonElement> AnalyzeExistingFaces(string stepPath, JsonElement summary)
+    {
+        var faceIds = summary.GetProperty("faceIds");
+        var minFaceId = faceIds.GetProperty("min").GetInt32();
+        var maxFaceId = faceIds.GetProperty("max").GetInt32();
+        var expectedFaceCount = faceIds.GetProperty("count").GetInt32();
+        var isContiguous = faceIds.GetProperty("contiguous").GetBoolean();
+
+        var faces = new List<JsonElement>(expectedFaceCount);
+        var failures = new List<AnalyzeFaceAttempt>();
+
+        for (var faceId = minFaceId; faceId <= maxFaceId; faceId++)
+        {
+            var attempt = TryAnalyzeFace(stepPath, faceId);
+            if (attempt.Succeeded)
+            {
+                faces.Add(attempt.Face!.Value);
+            }
+            else
+            {
+                failures.Add(attempt);
+            }
+        }
+
+        if (faces.Count != expectedFaceCount || (isContiguous && failures.Count > 0))
+        {
+            Assert.Fail($"Expected to analyze {expectedFaceCount} existing face(s) from range {minFaceId}..{maxFaceId} " +
+                $"(contiguous={isContiguous}) but analyzed {faces.Count}. Failures: {FormatAnalyzeFaceFailures(failures)}");
+        }
+
+        return faces;
+    }
+
     private static JsonElement AnalyzeFace(string stepPath, int faceId)
+    {
+        var attempt = TryAnalyzeFace(stepPath, faceId);
+        Assert.True(attempt.Succeeded,
+            $"AnalyzeFace failed for face {faceId} in '{stepPath}' with exit code {attempt.ExitCode}. " +
+            $"stdout: {attempt.Stdout} stderr: {attempt.Stderr}");
+        return attempt.Face!.Value;
+    }
+
+    private static AnalyzeFaceAttempt TryAnalyzeFace(string stepPath, int faceId)
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", stepPath, "--face", faceId.ToString(), "--json"], stdout, stderr);
-        Assert.Equal(0, exitCode);
+        if (exitCode != 0)
+        {
+            return new AnalyzeFaceAttempt(faceId, exitCode, stdout.ToString(), stderr.ToString(), null);
+        }
+
         using var doc = JsonDocument.Parse(stdout.ToString());
-        return doc.RootElement.GetProperty("face").Clone();
+        return new AnalyzeFaceAttempt(faceId, exitCode, stdout.ToString(), stderr.ToString(), doc.RootElement.GetProperty("face").Clone());
     }
+
+    private static string FormatAnalyzeFaceFailures(IEnumerable<AnalyzeFaceAttempt> failures)
+        => string.Join("; ", failures.Select(failure =>
+            $"face {failure.FaceId} exit {failure.ExitCode}, stdout: {failure.Stdout}, stderr: {failure.Stderr}"));
 
     private static JsonElement AnalyzeEdge(string stepPath, int edgeId)
     {

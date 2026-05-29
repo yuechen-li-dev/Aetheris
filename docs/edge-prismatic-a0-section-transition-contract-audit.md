@@ -424,3 +424,11 @@ This milestone explicitly does **not** include:
 - NURBS/freeform support;
 - holes or line+arc prismatic emission in first scope;
 - inferred profile correspondence.
+
+## 13. EDGE-PRISMATIC-X1 implementation note
+
+EDGE-PRISMATIC-X1 now implements the first-scope lab-only prismatic section-transition emitter described by this audit. The implementation introduces `PrismaticSectionTransitionEmitterLab`, `PrismaticSectionTransitionEmitter`, `PrismaticSectionTransitionCase`, `PrismaticSectionTransitionRow`, `PrismaticSection`, `PrismaticCorrespondenceMap`, and `PrismaticTransitionTopologySummary` under FrictionLab/CIRLab scope.
+
+The X1 lab admits two or three Z-stacked line-only outer sections, one loop, no holes/arcs, equal vertex counts, identity-by-index correspondence, planar transition faces, deterministic topology, and direct closed BRep emission. Its rectangle-to-inset and three-section stable+transition cases export through the existing `Step242Exporter` with planar `MANIFOLD_SOLID_BREP` STEP smoke and without `CYLINDRICAL_SURFACE` or `BREP_WITH_VOIDS` markers.
+
+This is evidence for the contract only. It does not change production chamfer/fillet behavior, production route selection, `ProfileStackExtrudeExecutor`, AirEdgeSweep, `BrepBoundedChamfer`, STEP exporter/importer code, Boolean core code, triangle migration, sketch solving, clipping, or NURBS/freeform support.

@@ -136,3 +136,7 @@ Two reasonable follow-up milestones are:
 2. **EDGE-PRISMATIC-X3 generic polygon transition lab**: broaden evidence first with additional line-only equal-count polygon transitions and harder correspondence diagnostics before production-adjacent packaging.
 
 If broader evidence is desired before route admission, X3 is the safer next step. If the only target is the canonical history-known top-edge chamfer family, V1 packaging can be evaluated next with strict gating.
+
+## 12. EDGE-PRISMATIC-X3 follow-up
+
+EDGE-PRISMATIC-X3 confirms that the `PrismaticSectionTransitionEmitter` is not chamfer-specific. The generic lab emits rectangle-to-inset-rectangle, scaled pentagon, scaled hexagon, and asymmetric equal-count polygon transitions through the same direct prismatic emitter path, with STEP smoke and topology-formula validation, while leaving X2's top-edge chamfer witness and all production chamfer/fillet behavior unchanged.

@@ -10,6 +10,8 @@ No implementation or production behavior changes are made in this milestone. The
 
 Recommended conclusion: **hybrid dispatch**. `analyze map` should become representation-polymorphic, with CIR/tape evaluation preferred for generated AIR bodies that carry an admitted CIR/FRep mirror, existing BRep raycast retained for supported explicit-topology bodies, and deterministic unsupported diagnostics retained for STEP/imported bodies that have neither.
 
+Authority note: `docs/air-cir-a0-authority-and-mirror-contract.md` now defines the broader AIR/CIR/BRep/STEP authority and mirror contract used by this recommendation. In that model, CIR/FRep is an optional admitted analysis mirror, AIR remains the constructive topology/intention MIR, BRep remains explicit topology/export authority, and STEP import does not imply mirror provenance.
+
 ## 2. Current analyze map architecture
 
 ### CLI command shape

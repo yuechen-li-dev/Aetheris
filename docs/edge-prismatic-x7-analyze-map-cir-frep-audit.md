@@ -391,3 +391,9 @@ This milestone explicitly does not include:
 ## 13. CIR-MAP-X2 prismatic status note
 
 CIR-MAP-X2 adds a lab/test-only mirror-aware primitive map dispatcher, but it deliberately does not add prismatic mirror support. Prismatic section-transition and profile-authored chamfer sources still resolve to mirror-unavailable or unsupported admission for map occupancy, emit no-prismatic-mirror-used diagnostics, and do not select the CIR map backend. Prismatic map support remains blocked until a real admitted prismatic mirror exists and can be validated against an appropriate baseline.
+
+## CIR-PRISMATIC-X1 follow-up note
+
+CIR-PRISMATIC-X1 adds a lab-only prismatic mirror feasibility prototype for the required `rectangle-inset` and `top-edge-chamfer` prismatic corpus cases. It compares a convex half-space/polyhedron evaluator against a section-stack implicit evaluator, admits both as exact for bounded point containment and map-like occupancy in the lab, and recommends the half-space/convex-polyhedron path for the next first-class implementation step.
+
+This does **not** change the X7 production audit conclusion: production `analyze map` remains unsupported for prismatic STEP/BRep artifacts until a later milestone introduces an admitted prismatic mirror into production dispatch. X1 also makes no STEP, BRep topology, Boolean, AIR emitter, CLI, or CIR-to-BRep extraction changes.

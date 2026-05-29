@@ -170,3 +170,7 @@ Recommended next work is one of:
 3. **AIR-CIR-X2** — mirror provenance/staleness hardening before any wider analyzer routing.
 
 Do not claim prismatic map support until an actual admitted mirror exists and can be compared against a trustworthy baseline.
+
+## CIR-PRISMATIC-X1 follow-up note
+
+CIR-PRISMATIC-X1 proves prismatic mirror feasibility in a lab/test-only path for `rectangle-inset` and `top-edge-chamfer`, and recommends the convex half-space/polyhedron strategy as the next implementation direction. CIR-MAP-X2 dispatch remains primitive-only in production-facing terms: prismatic map dispatch is still unavailable until a later milestone promotes an explicitly admitted prismatic mirror into the dispatch contract.

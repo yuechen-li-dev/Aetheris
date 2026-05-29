@@ -19,7 +19,7 @@ Firmament / semantic intent
       -> CIR/FRep mirror / analysis runtime, optional and admitted
 ```
 
-This audit defines representation authority, CIR mirror admission, provenance and diagnostics requirements, disagreement triage, feasible current mirror lanes, analyzer dispatch implications, and the next proof roadmap. It makes no implementation, production, analyzer, STEP, Boolean, topology, CIR-node, or corpus-gate behavior changes.
+This audit defines representation authority, CIR mirror admission, provenance and diagnostics requirements, disagreement triage, feasible current mirror lanes, analyzer dispatch implications, and the next proof roadmap. It makes no implementation, production, analyzer, STEP, Boolean, topology, CIR-node, or corpus-gate behavior changes. AIR-CIR-X1 now adds an internal/test-visible mirror metadata prototype that makes admitted primitive mirrors, unavailable prismatic/profile routes, lossy requests, and stale/mismatch diagnostics explicit without changing analyzer behavior.
 
 ## 2. Representation definitions
 

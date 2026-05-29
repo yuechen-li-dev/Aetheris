@@ -349,7 +349,7 @@ Risks:
 Guardrails:
 
 - Keep production/export behavior unchanged for analyzer convenience.
-- Keep `analyze map` unsupported for prismatic BReps until a backend is actually admitted.
+- Keep `analyze map` unsupported for prismatic BReps until a backend is actually admitted. AIR-CIR-X1 adds explicit status language for this boundary: prismatic section transitions remain `mirror-rejected-unsupported-atom` / `mirror-unavailable`, and profile-authored chamfers remain `mirror-unavailable` unless a later real mirror is admitted.
 - Require backend diagnostics and rejection reasons.
 - Treat CIR maps as field-analysis output, not explicit topology confirmation.
 - Keep `analyze section` BRep/contour-oriented unless a separate design proves CIR-backed section semantics.

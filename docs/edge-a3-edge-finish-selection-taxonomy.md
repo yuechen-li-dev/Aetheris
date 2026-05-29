@@ -80,6 +80,10 @@ Likely routes:
 
 Class B should not be conflated with arbitrary edge chains. A face loop has topological order, repeated local context, and an implied corner sequence; an arbitrary chain may not.
 
+### EDGE-LOOP-A0 Class B policy note
+
+EDGE-LOOP-A0 (`docs/edge-loop-a0-face-boundary-edge-finish-audit.md`) now defines the Class B face-boundary loop policy in detail. The important clarification is that a loop selection is selected by an owning face boundary and its ordered coedge sequence; it is not an arbitrary edge list that happens to form a cycle. First-scope Class B work should target a closed planar outer loop on a history-known profile/prismatic body with a uniform rule, preferably the top-face outer-loop chamfer of a rectangular prism via prismatic section transition. Inner loops, open chains, no-history/imported loops, non-planar loops, mixed-distance/radius loops, and arbitrary graphs remain deferred until separate admissibility and corner policies exist.
+
 ### Class C — Whole-body canonical edge set
 
 Class C selects all or classed edges of a simple body.

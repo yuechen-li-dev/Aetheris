@@ -62,6 +62,7 @@ public static class PrismaticSectionTransitionEmitterLab
     public static readonly string[] AllowedRecommendations =
     [
         "prismatic-section-transition-ready-for-production-evaluation",
+        "prismatic-section-transition-generic-ready-for-production-evaluation",
         "prismatic-section-transition-needs-profile-validation-hardening",
         "prismatic-section-transition-needs-correspondence-hardening",
         "prismatic-section-transition-invalid-rejected",
@@ -76,6 +77,8 @@ public static class PrismaticSectionTransitionEmitterLab
         Run(RectangleToInsetRectangle()),
         Run(ThreeSectionStableThenInsetRectangle()),
         Run(ScaledPentagon()),
+        Run(ScaledHexagon()),
+        Run(AsymmetricTranslatedPentagon()),
         Run(new("invalid-non-increasing-z", [RectangleSection(0, 10, 8), RectangleSection(0, 8, 6)], PrismaticCorrespondenceMap.Identity(4))),
         Run(new("invalid-mismatched-vertex-count", [RectangleSection(0, 10, 8), RegularPolygonSection(1, 5, 5)], PrismaticCorrespondenceMap.Identity(4))),
         Run(new("invalid-missing-correspondence", [RectangleSection(0, 10, 8), RectangleSection(1, 8, 6)], null)),
@@ -94,9 +97,25 @@ public static class PrismaticSectionTransitionEmitterLab
     public static PrismaticSectionTransitionCase ScaledPentagon() =>
         new("scaled-pentagon", [RegularPolygonSection(0, 5, 5), RegularPolygonSection(2, 4, 5)], PrismaticCorrespondenceMap.Identity(5));
 
+    public static PrismaticSectionTransitionCase ScaledHexagon() =>
+        new("scaled-hexagon", [RegularPolygonSection(0, 6, 6), RegularPolygonSection(2, 4.5, 6)], PrismaticCorrespondenceMap.Identity(6));
+
+    public static PrismaticSectionTransitionCase AsymmetricTranslatedPentagon() =>
+        new("asymmetric-translated-pentagon",
+            [
+                new PrismaticSection(0, [(-4, -2), (1, -3), (5, 0), (2, 3.5), (-3, 2.5)]),
+                new PrismaticSection(2, [(-3.25, -2.35), (1.75, -3.35), (5.75, -0.35), (2.75, 3.15), (-2.25, 2.15)]),
+            ],
+            PrismaticCorrespondenceMap.Identity(5));
+
     public static PrismaticSectionTransitionRow Run(PrismaticSectionTransitionCase c)
     {
-        var diagnostics = new List<string> { "edge-prismatic-x1-lab-started" };
+        var diagnostics = new List<string>
+        {
+            "edge-prismatic-x1-lab-started",
+            "edge-prismatic-x3-generic-lab-started",
+            $"edge-prismatic-x3-case-started:{c.Name}",
+        };
         var validation = Validate(c, diagnostics);
         if (validation.Status != LabProfileStatus.Succeeded)
         {
@@ -104,11 +123,14 @@ public static class PrismaticSectionTransitionEmitterLab
         }
 
         diagnostics.Add("edge-prismatic-x1-correspondence-created");
+        diagnostics.Add("edge-prismatic-x3-correspondence-created");
+        diagnostics.Add("edge-prismatic-x3-section-stack-created");
         for (var i = 0; i < c.Sections.Count - 1; i++)
         {
             diagnostics.Add("edge-prismatic-x1-transition-interval-created");
         }
 
+        diagnostics.Add("edge-prismatic-x3-prismatic-emitter-invoked");
         var built = PrismaticSectionTransitionEmitter.TryEmit(c.Sections, c.Correspondence!);
         if (built.Body is null)
         {
@@ -119,15 +141,21 @@ public static class PrismaticSectionTransitionEmitterLab
         diagnostics.Add("edge-prismatic-x1-cap-faces-created");
         diagnostics.Add("edge-prismatic-x1-transition-faces-created");
         diagnostics.Add("edge-prismatic-x1-body-created");
+        diagnostics.Add("edge-prismatic-x3-body-created");
         diagnostics.Add("edge-prismatic-x1-no-air-edge-sweep-used");
+        diagnostics.Add("edge-prismatic-x3-no-air-edge-sweep-used");
         diagnostics.Add("edge-prismatic-x1-no-brep-bounded-chamfer-used");
+        diagnostics.Add("edge-prismatic-x3-no-brep-bounded-chamfer-used");
         diagnostics.Add("edge-prismatic-x1-no-topology-graft-used");
+        diagnostics.Add("edge-prismatic-x3-no-topology-graft-used");
         diagnostics.Add("edge-prismatic-x1-no-3d-boolean-used");
+        diagnostics.Add("edge-prismatic-x3-no-3d-boolean-used");
 
         var topology = SummarizeTopology(built.Body, c.Sections);
         var step = SummarizeStep(built.Body);
         var stepSucceeded = step.Exported && step.MissingRequiredMarkers.Count == 0 && step.UnexpectedPresentMarkers.Count == 0;
         diagnostics.Add(stepSucceeded ? "edge-prismatic-x1-step-smoke-succeeded" : "edge-prismatic-x1-step-smoke-failed:markers");
+        diagnostics.Add(stepSucceeded ? "edge-prismatic-x3-step-smoke-succeeded" : "edge-prismatic-x3-step-smoke-failed:markers");
 
         var n = c.Sections[0].OuterLoop.Count;
         var sectionCount = c.Sections.Count;
@@ -145,6 +173,11 @@ public static class PrismaticSectionTransitionEmitterLab
             && topology.LoopCount == expectedFaces
             && topology.CoedgeCount == (2 * n) + (4 * (sectionCount - 1) * n);
 
+        if (topologySucceeded)
+        {
+            diagnostics.Add("edge-prismatic-x3-topology-formula-validated");
+        }
+
         return new(
             c.Name,
             LabProfileStatus.Succeeded,
@@ -153,7 +186,7 @@ public static class PrismaticSectionTransitionEmitterLab
             step,
             StableDiagnostics(diagnostics),
             topologySucceeded && stepSucceeded
-                ? "prismatic-section-transition-ready-for-production-evaluation"
+                ? "prismatic-section-transition-generic-ready-for-production-evaluation"
                 : "prismatic-section-transition-needs-profile-validation-hardening");
     }
 
@@ -162,6 +195,7 @@ public static class PrismaticSectionTransitionEmitterLab
         if (c.Sections.Count is < 2 or > 3)
         {
             diagnostics.Add("edge-prismatic-x1-invalid-section-rejected");
+            diagnostics.Add("edge-prismatic-x3-invalid-profile-rejected");
             return (LabProfileStatus.Failed, "prismatic-section-transition-invalid-rejected");
         }
 
@@ -170,24 +204,28 @@ public static class PrismaticSectionTransitionEmitterLab
             if (section.HasHoles)
             {
                 diagnostics.Add("edge-prismatic-x1-holes-deferred");
+                diagnostics.Add("edge-prismatic-x3-holes-deferred");
                 return (LabProfileStatus.Deferred, "prismatic-section-transition-deferred");
             }
 
             if (section.HasArcs)
             {
                 diagnostics.Add("edge-prismatic-x1-line-arc-deferred");
+                diagnostics.Add("edge-prismatic-x3-line-arc-deferred");
                 return (LabProfileStatus.Deferred, "prismatic-section-transition-deferred");
             }
 
             if (section.OuterLoopCount != 1)
             {
                 diagnostics.Add("edge-prismatic-x1-multiple-loops-deferred");
+                diagnostics.Add("edge-prismatic-x3-multiple-loops-deferred");
                 return (LabProfileStatus.Deferred, "prismatic-section-transition-deferred");
             }
 
             if (!ValidateProfile(section, out var profileDiagnostic))
             {
                 diagnostics.Add(profileDiagnostic);
+                diagnostics.Add("edge-prismatic-x3-invalid-profile-rejected");
                 return (LabProfileStatus.Failed, "prismatic-section-transition-invalid-rejected");
             }
 
@@ -199,12 +237,14 @@ public static class PrismaticSectionTransitionEmitterLab
             if (!double.IsFinite(c.Sections[i].Z))
             {
                 diagnostics.Add("edge-prismatic-x1-invalid-section-rejected");
+                diagnostics.Add("edge-prismatic-x3-invalid-profile-rejected");
                 return (LabProfileStatus.Failed, "prismatic-section-transition-invalid-rejected");
             }
 
             if (i > 0 && c.Sections[i].Z <= c.Sections[i - 1].Z + Tol)
             {
                 diagnostics.Add("edge-prismatic-x1-non-increasing-sections-rejected");
+                diagnostics.Add("edge-prismatic-x3-non-increasing-sections-rejected");
                 return (LabProfileStatus.Failed, "prismatic-section-transition-invalid-rejected");
             }
         }
@@ -213,6 +253,7 @@ public static class PrismaticSectionTransitionEmitterLab
         if (c.Sections.Any(s => s.OuterLoop.Count != vertexCount))
         {
             diagnostics.Add("edge-prismatic-x1-mismatched-vertex-count-rejected");
+            diagnostics.Add("edge-prismatic-x3-mismatched-vertex-count-rejected");
             return (LabProfileStatus.Failed, "prismatic-section-transition-invalid-rejected");
         }
 
@@ -220,18 +261,21 @@ public static class PrismaticSectionTransitionEmitterLab
         if (c.Sections.Skip(1).Any(s => (SignedArea(s.OuterLoop) > 0d) != orientation))
         {
             diagnostics.Add("edge-prismatic-x1-invalid-profile-rejected");
+            diagnostics.Add("edge-prismatic-x3-invalid-profile-rejected");
             return (LabProfileStatus.Failed, "prismatic-section-transition-invalid-rejected");
         }
 
         if (c.Correspondence is null || c.Correspondence.VertexMap.Count != vertexCount || !c.Correspondence.VertexMap.SequenceEqual(Enumerable.Range(0, vertexCount)))
         {
             diagnostics.Add("edge-prismatic-x1-missing-correspondence-rejected");
+            diagnostics.Add("edge-prismatic-x3-missing-correspondence-rejected");
             return (LabProfileStatus.Failed, c.Correspondence is null ? "prismatic-section-transition-invalid-rejected" : "prismatic-section-transition-needs-correspondence-hardening");
         }
 
         if (!AllTransitionFacesPlanar(c.Sections))
         {
             diagnostics.Add("edge-prismatic-x1-invalid-profile-rejected");
+            diagnostics.Add("edge-prismatic-x3-invalid-profile-rejected");
             return (LabProfileStatus.Failed, "prismatic-section-transition-needs-profile-validation-hardening");
         }
 

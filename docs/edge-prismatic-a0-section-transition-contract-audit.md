@@ -439,3 +439,11 @@ This is evidence for the contract only. It does not change production chamfer/fi
 EDGE-PRISMATIC-X2 now implements the audit's proposed top-edge chamfer follow-up. The lab builds the canonical EDGE-PROFILE-X2 three-section stack, uses explicit identity correspondence, invokes the EDGE-PRISMATIC-X1 `PrismaticSectionTransitionEmitter`, classifies the changed `+X` transition face as the chamfer face, and preserves the expected split topology: 12 vertices, 20 edges, 10 planar faces, 0 cylindrical faces, 10 loops, and 40 coedges.
 
 The result confirms the intended ownership split: this top/horizontal history-known chamfer belongs to the prismatic section-transition lane, not AirEdgeSweep, `BrepBoundedChamfer`, topology grafting, or 3D Boolean fallback. It remains lab-only and does not broaden `ProfileStackExtrudeExecutor` or production chamfer/fillet behavior.
+
+## 15. EDGE-PRISMATIC-X3 implementation note
+
+EDGE-PRISMATIC-X3 now broadens the contract evidence with a lab-only generic polygon transition row set. Successful rows cover rectangle-to-inset-rectangle, scaled pentagon, scaled hexagon, and asymmetric translated pentagon cases with equal vertex counts, line-only outer loops, explicit identity correspondence, planar transition faces, closed BRep emission, and STEP smoke through the existing exporter.
+
+The observed two-section topology convention matches the audit formula: `vertices = 2n`, `edges = 3n`, `faces = n + 2`, `planar faces = n + 2`, `cylindrical faces = 0`, `loops = n + 2`, and `coedges = 6n`. Invalid/deferred rows still reject or defer before emission for mismatched counts, missing correspondence, invalid profiles, non-increasing/zero section spans, holes, line+arc markers, and multiple-loop markers.
+
+This remains contract evidence only. It does not change production chamfer/fillet behavior, production route selection, `ProfileStackExtrudeExecutor`, AirEdgeSweep, `BrepBoundedChamfer`, STEP exporter/importer code, Boolean core code, triangle migration, sketch solving, clipping, or NURBS/freeform support.

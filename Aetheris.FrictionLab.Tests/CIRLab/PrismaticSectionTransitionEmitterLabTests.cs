@@ -82,6 +82,73 @@ public sealed class PrismaticSectionTransitionEmitterLabTests
         Assert.Contains("edge-prismatic-x1-no-3d-boolean-used", row.Diagnostics);
     }
 
+    [Theory]
+    [InlineData("scaled-pentagon", 5, 10, 15, 7, 30, "[-4.755,-5,0]..[4.755,4.045,2]")]
+    [InlineData("scaled-hexagon", 6, 12, 18, 8, 36, "[-5.196,-6,0]..[5.196,6,2]")]
+    [InlineData("asymmetric-translated-pentagon", 5, 10, 15, 7, 30, "[-4,-3.35,0]..[5.75,3.5,2]")]
+    public void GenericTwoSectionPolygonCases_ValidateTopologyFormulaAndStepSmoke(
+        string caseName,
+        int vertexCount,
+        int expectedVertices,
+        int expectedEdges,
+        int expectedFaces,
+        int expectedCoedges,
+        string expectedBounds)
+    {
+        var row = PrismaticSectionTransitionEmitterLab.RunAll().Single(x => x.CaseName == caseName);
+
+        Assert.True(row.Succeeded);
+        Assert.Equal(LabProfileStatus.Succeeded, row.Status);
+        Assert.True(row.Topology.BodyProduced);
+        Assert.Equal(2, row.Topology.SectionCount);
+        Assert.Equal(expectedVertices, row.Topology.VertexCount);
+        Assert.Equal(expectedEdges, row.Topology.EdgeCount);
+        Assert.Equal(vertexCount, row.Topology.BottomProfileEdgeCount);
+        Assert.Equal(vertexCount, row.Topology.TopProfileEdgeCount);
+        Assert.Equal(vertexCount, row.Topology.TransitionEdgeCount);
+        Assert.Equal(2, row.Topology.CapFaceCount);
+        Assert.Equal(vertexCount, row.Topology.TransitionFaceCount);
+        Assert.Equal(0, row.Topology.StableIntervalFaceCount);
+        Assert.Equal(vertexCount, row.Topology.ChangedIntervalFaceCount);
+        Assert.Equal(expectedFaces, row.Topology.FaceCount);
+        Assert.Equal(expectedFaces, row.Topology.PlanarFaceCount);
+        Assert.Equal(0, row.Topology.CylindricalFaceCount);
+        Assert.Equal(expectedFaces, row.Topology.LoopCount);
+        Assert.Equal(expectedCoedges, row.Topology.CoedgeCount);
+        Assert.Equal(expectedBounds, row.Topology.Bounds);
+        Assert.True(row.Step.Exported);
+        Assert.Empty(row.Step.MissingRequiredMarkers);
+        Assert.Empty(row.Step.UnexpectedPresentMarkers);
+        Assert.Contains("ISO-10303-21", row.Step.PresentMarkers);
+        Assert.Contains("MANIFOLD_SOLID_BREP", row.Step.PresentMarkers);
+        Assert.Contains("ADVANCED_FACE", row.Step.PresentMarkers);
+        Assert.Contains("PLANE", row.Step.PresentMarkers);
+        Assert.Contains("CYLINDRICAL_SURFACE", row.Step.AbsentMarkers);
+        Assert.Contains("BREP_WITH_VOIDS", row.Step.AbsentMarkers);
+        Assert.Contains("edge-prismatic-x3-topology-formula-validated", row.Diagnostics);
+        Assert.Equal("prismatic-section-transition-generic-ready-for-production-evaluation", row.Recommendation);
+    }
+
+    [Fact]
+    public void GenericLabDiagnostics_ConfirmNoLegacyRoutesOrBooleanRoutes()
+    {
+        var rows = PrismaticSectionTransitionEmitterLab.RunAll().Where(x => x.Succeeded).ToArray();
+
+        Assert.NotEmpty(rows);
+        foreach (var row in rows)
+        {
+            Assert.Contains("edge-prismatic-x3-prismatic-emitter-invoked", row.Diagnostics);
+            Assert.Contains("edge-prismatic-x3-section-stack-created", row.Diagnostics);
+            Assert.Contains("edge-prismatic-x3-correspondence-created", row.Diagnostics);
+            Assert.Contains("edge-prismatic-x3-body-created", row.Diagnostics);
+            Assert.Contains("edge-prismatic-x3-step-smoke-succeeded", row.Diagnostics);
+            Assert.Contains("edge-prismatic-x3-no-air-edge-sweep-used", row.Diagnostics);
+            Assert.Contains("edge-prismatic-x3-no-brep-bounded-chamfer-used", row.Diagnostics);
+            Assert.Contains("edge-prismatic-x3-no-topology-graft-used", row.Diagnostics);
+            Assert.Contains("edge-prismatic-x3-no-3d-boolean-used", row.Diagnostics);
+        }
+    }
+
     [Fact]
     public void ThreeSectionStablePlusTransition_EmitsSplitIntervalFacesWithDocumentedTopology()
     {
@@ -130,6 +197,23 @@ public sealed class PrismaticSectionTransitionEmitterLabTests
         Assert.Equal(expectedStatus, row.Status);
         Assert.Contains(diagnostic, row.Diagnostics);
         Assert.Equal(recommendation, row.Recommendation);
+    }
+
+    [Theory]
+    [InlineData("invalid-non-increasing-z", "edge-prismatic-x3-non-increasing-sections-rejected")]
+    [InlineData("invalid-mismatched-vertex-count", "edge-prismatic-x3-mismatched-vertex-count-rejected")]
+    [InlineData("invalid-missing-correspondence", "edge-prismatic-x3-missing-correspondence-rejected")]
+    [InlineData("invalid-self-intersecting-profile", "edge-prismatic-x3-invalid-profile-rejected")]
+    [InlineData("deferred-holes", "edge-prismatic-x3-holes-deferred")]
+    [InlineData("deferred-line-arc", "edge-prismatic-x3-line-arc-deferred")]
+    [InlineData("deferred-multiple-loops", "edge-prismatic-x3-multiple-loops-deferred")]
+    public void GenericInvalidAndDeferredCases_RejectOrDeferBeforeEmission(string caseName, string diagnostic)
+    {
+        var row = PrismaticSectionTransitionEmitterLab.RunAll().Single(x => x.CaseName == caseName);
+
+        Assert.False(row.Succeeded);
+        Assert.DoesNotContain("edge-prismatic-x3-prismatic-emitter-invoked", row.Diagnostics);
+        Assert.Contains(diagnostic, row.Diagnostics);
     }
 
     [Fact]

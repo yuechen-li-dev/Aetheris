@@ -216,3 +216,7 @@ The safer sequencing is EDGE-PRISMATIC-X2 first, because it would prove that the
 EDGE-PRISMATIC-X2 uses the X1 `PrismaticSectionTransitionEmitter` to reproduce the EDGE-PROFILE-X2 top `+X` horizontal edge chamfer witness. The X2 lab supplies the exact three-section stack, identity correspondence, split transition intervals, and chamfer transition-face classification expected by the top-edge chamfer contract.
 
 The X2 result confirms that the emitter is a real client path for the top-edge chamfer fixture while preserving the X1 constraints: lab-only, line-only profiles, equal vertex counts, explicit correspondence, all-planar closed BRep emission, STEP smoke, and no AirEdgeSweep, `BrepBoundedChamfer`, topology graft/body mutation, or 3D Boolean.
+
+## 13. EDGE-PRISMATIC-X3 follow-up
+
+EDGE-PRISMATIC-X3 broadens the X1 evidence from rectangle and first pentagon rows into a generic line-only equal-count polygon transition lab. It adds deterministic two-section pentagon, hexagon, and asymmetric translated-polygon rows, validates the two-section topology formula (`vertices = 2n`, `edges = 3n`, `faces = n + 2`, `coedges = 6n`), and preserves the same lab-only no-AirEdgeSweep/no-BrepBoundedChamfer/no-graft/no-3D-Boolean constraints.

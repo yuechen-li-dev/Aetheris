@@ -171,3 +171,7 @@ Because EDGE-PRISMATIC-V1 packaging already exists and V2 successfully consumes 
 1. EDGE-PRISMATIC-X4 coplanar split/merge policy audit, especially around when stable and transition interval faces may or may not merge;
 2. EDGE-PROFILE/PRISMATIC artifact corpus for stable STEP/topology regression evidence if this controlled route remains stable;
 3. a narrowly scoped route-hardening milestone that keeps production authority unchanged while adding feature-recognition/parity evidence for this exact history-known top-edge case.
+
+## 11. EDGE-PRISMATIC-X5 corpus evidence note
+
+EDGE-PRISMATIC-X5 includes the controlled top `+X` edge chamfer route in the split-preserving artifact corpus as `edge-prismatic-x5-top-edge-chamfer.step`. The corpus asserts the V2 topology contract of 12 vertices, 20 edges, 10 all-planar faces, 4 lower prism side faces, 4 transition faces, 1 chamfer transition face, 10 loops, and 40 coedges, with STEP smoke markers present and cylindrical/void markers absent. This remains experimental corpus evidence and does not change production chamfer routing.

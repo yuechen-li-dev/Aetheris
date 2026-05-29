@@ -191,3 +191,7 @@ This milestone does not include:
 - geometry implementation;
 - triangle migration retry;
 - sketch solver, clipping engine, NURBS, or freeform support.
+
+## 11. EDGE-PRISMATIC-X5 corpus evidence note
+
+EDGE-PRISMATIC-X5 adds a split-preserving artifact corpus for the prismatic section-transition lane. The corpus writes deterministic STEP artifacts for rectangle inset, top `+X` edge chamfer, scaled pentagon, scaled hexagon, and asymmetric pentagon cases, plus JSON-only invalid/deferred diagnostics. Its topology assertions intentionally use the X4 policy: section-boundary split faces are preserved by default, and coplanar merging remains a future optional post-emission optimization only.

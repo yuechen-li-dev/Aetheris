@@ -218,6 +218,8 @@ dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.cspr
 
 Recommended next milestone: **EDGE-PRISMATIC-X7 analyzer map support audit for generated/imported prismatic BReps**. The bounded blocker isolated by X6 is that `analyze section` can confirm non-empty deterministic sections for the prismatic STEP artifacts, while `analyze map` currently reports the known primitive-raycast limitation. X7 should decide whether to extend analyzer/raycast support in a lab route or keep map confirmation deferred until a broader analyzer architecture milestone.
 
+X7 is now recorded in `docs/edge-prismatic-x7-analyze-map-cir-frep-audit.md`. Its conclusion is that map analysis should move toward hybrid representation dispatch: use CIR/FRep/tape evaluation for generated AIR bodies only when an admitted mirror exists, retain the current BRep raycast path for bodies accepted by `BrepSpatialQueries.Raycast`, and keep deterministic unsupported diagnostics for STEP/imported prismatic bodies until either a CIR mirror or broader raycast support is deliberately admitted. X7 makes no implementation, production, STEP, Boolean, topology, prismatic-emitter, AirEdgeSweep, analyzer-behavior, or gated-test-default changes.
+
 Optional later milestones remain:
 
 - optional coplanar merge proof lab, still gated and still not a default route;

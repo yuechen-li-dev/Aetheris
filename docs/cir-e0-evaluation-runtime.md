@@ -206,7 +206,7 @@ How runtime supports workloads:
 
 - **Point containment**: tape interpreter first benefit (many probe points).
 - **Approximate volume**: biggest gain from region classification/pruning + subdivision policy.
-- **Analyze map**: grid scan can reuse per-tile interval culling. See `docs/edge-prismatic-x7-analyze-map-cir-frep-audit.md` for the prismatic-body audit recommending hybrid dispatch: CIR/tape for admitted AIR/FRep mirrors, BRep raycast for supported explicit topology, and deterministic unsupported diagnostics otherwise.
+- **Analyze map**: grid scan can reuse per-tile interval culling. See `docs/edge-prismatic-x7-analyze-map-cir-frep-audit.md` for the prismatic-body audit recommending hybrid dispatch, and `docs/air-cir-a0-authority-and-mirror-contract.md` for the authority rule that CIR/tape may answer map questions only when an admitted AIR/BRep mirror exists; BRep raycast remains the explicit-topology backend for supported bodies, with deterministic unsupported diagnostics otherwise.
 - **Analyze section**: 2D slice sampling benefits from tape + region short-circuit.
 - **Analyze compare**: repeated evaluations across two kernels benefit from deterministic traces.
 - **Future local/sub-box volume**: directly aligns with region interval planner.

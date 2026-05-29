@@ -15,7 +15,9 @@ Short doctrine:
 - **Boolean subtraction discovers.**
 - **Aetheris prefers declared topology over discovered topology.**
 
-V2 therefore treats AIR as the atomic constructive-intent layer between CIR/FRep and BRep, and treats BRep primarily as lowered boundary topology emission and validation substrate rather than as the preferred authoring foundation.
+V2 therefore treats AIR as the atomic constructive-intent layer above BRep emission and optional CIR/FRep analysis mirrors, and treats BRep primarily as lowered boundary topology emission and validation substrate rather than as the preferred authoring foundation.
+
+AIR-CIR-A0 sharpens this lowering contract: the default architecture is `Firmament -> AIR -> BRep` for explicit topology/export, with `Firmament -> AIR -> CIR mirror` only when an admitted analysis mirror exists. CIR/FRep is lower-level implicit/evaluation IR, not the default topology construction MIR, and STEP import must not be treated as recovered AIR or CIR mirror provenance without an explicit recognizer. See `docs/air-cir-a0-authority-and-mirror-contract.md`.
 
 ## 2. Why V1 reached this point
 

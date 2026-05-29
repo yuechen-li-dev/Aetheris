@@ -10,6 +10,8 @@ Legacy bounded chamfer/fillet behavior remains authoritative wherever production
 
 AIR-CIR-A0 adds an analyzer caveat for these lanes: map/volume/containment support should be read as backend- and mirror-scoped, not as general chamfer/fillet topology proof. `analyze map` may use BRep raycast where the explicit BRep query backend admits the body, or CIR/FRep only when an admitted mirror exists; AirChamfer and fillet routes remain `mirror-unavailable` by default until a separate mirror milestone proves a bounded reduction.
 
+EDGE-A3 adds a selection-pattern taxonomy over the matrix: baseline edge-finish support should be interpreted as selection-pattern driven, with Tier 1 single-edge, Tier 2 face-boundary loop, and Tier 3 whole-body canonical edge-set cases prioritized under uniform symmetric chamfer or constant-radius fillet rules. Arbitrary edge graphs, mixed per-edge rules, unequal-distance chamfers, and variable-radius fillets remain deferred/advanced unless a future bounded policy admits them. See `docs/edge-a3-edge-finish-selection-taxonomy.md`.
+
 EDGE-A2 reclassifies some chamfer cases as profile/profile-stack candidates rather than AirEdgeSweep candidates: vertical edges of history-known extrusions should be tested as profile modifications, and top/bottom extrusion edges should be tested as profile-stack or section-transition constructions. EDGE-PROFILE-X1 now provides lab evidence for the vertical-edge/profile-authored subset, EDGE-PROFILE-V1 packages that proof into an internal production-adjacent emitter, and EDGE-PROFILE-X2 provides lab-only section-transition evidence for one top horizontal +X side chamfer while documenting current profile-stack generalization blockers. EDGE-PRISMATIC-A0 classifies those top/bottom/horizontal history-known chamfers under the **prismatic section-transition** roadmap, EDGE-PRISMATIC-X1 introduces the first reusable lab-only prismatic emitter, EDGE-PRISMATIC-X2 re-expresses the top +X witness through that emitter, EDGE-PRISMATIC-X3 proves equal-count line-only generic polygon cases, EDGE-PRISMATIC-V1 packages that capability behind an internal production-adjacent seam, and EDGE-PRISMATIC-V2 adds an internal controlled top `+X` horizontal chamfer route that consumes that seam for the rectangular-prism case. Production statuses remain unchanged until a separately gated production route is admitted.
 
 The matrix separates five concerns that were previously easy to conflate:
@@ -277,6 +279,20 @@ This milestone does not include:
 - test weakening;
 - triangle migration retry;
 - sketch solver or clipping engine work.
+
+
+
+## EDGE-A3 selection taxonomy update
+
+EDGE-A3 reframes the selection-scope rows in this matrix as practical support tiers rather than a single march toward arbitrary edge-graph mutation:
+
+- **Class A / Tier 1 — single edge, uniform rule:** the immediate baseline for plane-plane or simple profile/prismatic contexts.
+- **Class B / Tier 2 — face-boundary loop or ordered chain around one face, uniform rule:** the next bounded target because loop order and corner sequence are known.
+- **Class C / Tier 3 — whole-body canonical edge set, uniform rule:** a body-family operation over simple boxes/prisms, not `N` unrelated edge selections.
+- **Class D / Tier 4 — arbitrary edge graph, mixed rules, unequal-distance chamfer, or variable-radius fillet:** deferred/advanced unless reducible to Classes A/B/C or admitted by an explicit bounded policy.
+- **Tier 5 — non-analytic/freeform/surfacing-heavy edge finishes:** deferred outside current bounded analytic scope.
+
+Consequences for existing rows: CH-03 should be read as a single-edge case whose route authority depends on whether history is known; top/horizontal history-known chamfer belongs to the prismatic section-transition route; chain rows should distinguish face-boundary loops from arbitrary edge graphs; and whole-body box/prism uniform chamfer/fillet support should be called out as canonical body-family support rather than broad graph support. Baseline Aetheris work should prioritize uniform symmetric chamfer and constant-radius fillet rules.
 
 
 ## EDGE-PRISMATIC-V1 status note

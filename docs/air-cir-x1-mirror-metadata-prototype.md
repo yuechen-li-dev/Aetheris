@@ -127,3 +127,9 @@ Recommended next work is one of:
 ## 13. CIR-MAP-X2 consumption note
 
 CIR-MAP-X2 is the first lab/test-only consumer of `CirMirrorAdmissionService` for map backend selection. The X2 dispatcher asks admission for the requested analyzer use, selects the CIR tape primitive map backend only when a box/cylinder/sphere mirror is `mirror-admitted-exact` for `MapOccupancy`, and rejects face identity/topology parity as lossy. Prismatic section transitions and profile-authored chamfers remain mirror-unavailable or unsupported; no production analyzer, CLI, STEP, Boolean, BRep topology, AIR emitter, CIR node kind, prismatic mirror, or CIR-to-BRep behavior changes are introduced.
+
+## CIR-PRISMATIC-X1 prismatic feasibility note
+
+CIR-PRISMATIC-X1 evaluates a bounded prismatic mirror in the friction-lab layer only. For `rectangle-inset` and `top-edge-chamfer`, the lab can produce `mirror-admitted-exact` metadata for point containment and map occupancy using AIR-authored section data, while still rejecting face identity and topology parity as lossy.
+
+The AIR-CIR-X1 production admission service remains intentionally conservative: prismatic mirrors are unavailable to production dispatch unless a later X2-style milestone promotes a bounded half-space/convex-polyhedron or section-stack evaluator into an explicitly admitted mirror path.

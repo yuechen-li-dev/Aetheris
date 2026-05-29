@@ -344,6 +344,8 @@ This metadata should be included in future analyzer artifacts whenever a compari
    - Do not add prismatic mirrors yet.
    - Emit backend/mirror diagnostics.
 
+   X1 proof note (May 29, 2026): the primitive proof now exists as a lab/test-only CIR tape map prototype for admitted box, cylinder, and sphere mirrors. It compares deterministic occupancy/thickness summaries against the existing `BrepSpatialQueries.Raycast` primitive baseline and emits explicit `mirror-admitted-exact` diagnostics, without changing production analyzer dispatch, CLI behavior, STEP import/export, Boolean behavior, BRep topology, AIR emission, CIR node kinds, prismatic mirror support, or CIR-to-BRep extraction.
+
 2. **AIR-CIR-X1 — AIR mirror metadata prototype.**
    - Attach mirror-availability diagnostics to a small generated body path.
    - Prove `mirror-admitted-*` and `mirror-rejected-*` statuses in artifacts.

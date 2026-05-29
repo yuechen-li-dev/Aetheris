@@ -184,3 +184,7 @@ Recommended next steps are either:
 
 - EDGE-PRISMATIC-V2 controlled top-edge chamfer route evaluation through this seam; or
 - EDGE-PRISMATIC-X4 coplanar split/merge policy audit before any route replacement is considered.
+
+## 11. EDGE-PRISMATIC-X5 corpus evidence note
+
+EDGE-PRISMATIC-X5 records artifact-corpus evidence for the internal `PrismaticSectionTransitionEmitter` seam. The experimental CLI corpus route writes split-preserving STEP artifacts for two-section rectangle, pentagon, hexagon, and asymmetric pentagon transitions, records JSON-only diagnostics for rejected/deferred inputs, and asserts the no-AirEdgeSweep/no-BrepBoundedChamfer/no-topology-graft/no-3D-Boolean/no-coplanar-merge guarantees. This is corpus evidence only; it does not promote the emitter to a production route.

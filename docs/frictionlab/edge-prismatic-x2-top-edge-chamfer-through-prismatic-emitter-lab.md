@@ -144,3 +144,8 @@ EDGE-PRISMATIC-X3 confirms that the `PrismaticSectionTransitionEmitter` is not c
 ## V1 packaging status
 
 EDGE-PRISMATIC-V1 is now the preferred reusable seam for this lab witness. X2 remains lab-only and does not route production top-edge chamfers, but its section stack can be emitted through the internal production-adjacent `PrismaticSectionTransitionEmitter` rather than carrying an independent emitter implementation.
+
+
+## V2 controlled-route status
+
+EDGE-PRISMATIC-V2 now consumes the packaged `PrismaticSectionTransitionEmitter` through the internal `PrismaticTopEdgeChamferPrototype` route for the same controlled top `+X` horizontal rectangular-prism chamfer. X2 remains lab evidence; V2 is production-adjacent but still not production-authoritative and does not change `ProfileStackExtrudeExecutor`, AirEdgeSweep, `BrepBoundedChamfer`, STEP exporter/importer, Boolean core, or default chamfer/fillet behavior.

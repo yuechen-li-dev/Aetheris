@@ -403,3 +403,8 @@ EDGE-A2 does not do any of the following:
 - no sketch solver, clipping engine, NURBS, or freeform support;
 - no modification to current AirChamfer behavior except documentation notes;
 - no deprecating legacy chamfer route yet.
+
+
+## EDGE-PRISMATIC-V2 follow-up status
+
+EDGE-PRISMATIC-V2 implements the controlled top `+X` horizontal rectangular-prism chamfer as a production-adjacent prismatic section-transition route named `PrismaticTopEdgeChamferPrototype`. This validates the A2 reframing for the known top-edge case: construction history emits a section stack and closed planar BRep through `PrismaticSectionTransitionEmitter` rather than trimming, grafting, AirEdgeSweep, `BrepBoundedChamfer`, or 3D Boolean fallback. The route remains internal and non-authoritative; no production chamfer/fillet behavior, `ProfileStackExtrudeExecutor` behavior, STEP exporter/importer behavior, Boolean core behavior, AirEdgeSweep behavior, triangle migration, sketch solver, clipping engine, or NURBS/freeform support changed.

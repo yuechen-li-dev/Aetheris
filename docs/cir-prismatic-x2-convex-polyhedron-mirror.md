@@ -170,3 +170,7 @@ Likely next milestones are:
 1. **EDGE-PRISMATIC-X8** — hybrid map dispatch using admitted prismatic mirrors, still without topology claims;
 2. **CIR-PRISMATIC-X3** — add tape payload/lowering for admitted prismatic mirrors;
 3. **AIR-CIR-A1** — drift/parity policy for mirror freshness and authority boundaries.
+
+## 12. EDGE-PRISMATIC-X8 consumption note
+
+EDGE-PRISMATIC-X8 consumes the X2 `CirConvexPolyhedronMirror` in a lab/test-only hybrid map dispatcher. Generated `rectangle-inset` and `top-edge-chamfer` source sections are admitted through the X2 builder, select the `cir-convex-polyhedron` backend for occupancy/thickness summaries, and still reject face-identity/topology-parity requests as lossy. This consumption does not wire the mirror into production `StepAnalyzer.AnalyzeMap`, does not add a default CLI route, does not infer mirrors from imported STEP, and does not perform CIR-to-BRep extraction.

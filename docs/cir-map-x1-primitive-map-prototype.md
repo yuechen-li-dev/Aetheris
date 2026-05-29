@@ -147,3 +147,7 @@ The prototype is a proof that admitted primitive CIR mirrors can answer map-like
 - **CIR-MAP-X2:** harden the tape-backed map evaluator, move toward a non-test internal lab package if needed, and evaluate interval/early-out acceleration.
 - **AIR-CIR-X1:** prototype explicit mirror metadata so generated AIR bodies can declare admitted CIR mirrors without STEP inference.
 - **CIR-PRISMATIC-X1:** investigate whether prismatic field mirrors are feasible without losing construction/topology authority or making unsupported map claims.
+
+## 10. CIR-MAP-X2 follow-up note
+
+CIR-MAP-X2 consumes the AIR-CIR-X1 mirror admission metadata from a lab/test-only dispatcher (`CirMapDispatchPrototype`). X1 remains the primitive map evaluator and BRep baseline comparison surface; X2 adds the policy proof that box, cylinder, and sphere primitive mirrors select the CIR tape backend only for map occupancy, while face identity, topology parity, prismatic section transitions, and profile-authored chamfers remain rejected or unavailable. Production `analyze map` behavior is still unchanged.

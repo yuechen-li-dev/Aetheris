@@ -165,3 +165,7 @@ Recommended next steps, in priority order:
 1. **EDGE-PRISMATIC-X9 experimental CLI prismatic-map route** — expose this generated-source-only path under an explicit experimental command, preserving normal `analyze map` behavior.
 2. **AIR-CIR-A1 mirror drift/parity policy** — define stale mirror detection and generated-source provenance checks before broader use.
 3. **Chamfer/fillet selection taxonomy return** — use the mirror evidence to refine when prismatic section transitions, AIR edge sweeps, or legacy BRep routes should compete.
+
+## EDGE-PRISMATIC-X9 CLI exposure note
+
+EDGE-PRISMATIC-X9 exposes the X8 generated-source-only hybrid map proof through `aetheris experimental prismatic-map --case <case> --rows <n> --cols <n> --json`. The route is experimental, accepts only the generated `rectangle-inset` and `top-edge-chamfer` cases, rejects positional STEP input, and preserves the X8 authority boundary: normal `aetheris analyze map` remains unchanged, imported STEP bodies do not infer CIR mirrors, and CIR map summaries make no topology or face-identity claims.

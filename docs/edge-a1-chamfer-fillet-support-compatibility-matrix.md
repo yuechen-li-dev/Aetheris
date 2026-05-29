@@ -240,11 +240,12 @@ Recommended post-EDGE-X13 roadmap:
 2. **EDGE-A2**: constructive chamfer reframing audit, reclassifying history-known chamfers into profile/profile-stack/corner-manifest candidates where evidence supports it.
 3. **EDGE-PROFILE-X1**: vertical-edge chamfer as profile extrusion lab.
 4. **EDGE-PROFILE-X2**: horizontal/top-edge chamfer as profile-stack or section-transition lab.
-5. **EDGE-PRISMATIC-A0**: completed as the prismatic section-transition contract audit for top/bottom/horizontal history-known chamfer roadmap classification; next implementation evidence should come from EDGE-PRISMATIC-X1/X2 labs, not production route changes.
-6. **EDGE-CORNER-X1**: manifest-driven single-corner chamfer reconstruction lab.
-7. **EDGE-FILLET-A0**: AirFillet architecture audit focused on bounded constant-radius analytic scope.
-8. **EDGE-X14**: plane-plane constant-radius AirFillet cylindrical closed witness lab.
-9. **EDGE-X15+ / EDGE-V paths**: continue controlled no-history/local-edge AirChamfer hardening only where shadow diagnostics and production-readiness gates remain stable.
+5. **EDGE-PRISMATIC-A0**: completed as the prismatic section-transition contract audit for top/bottom/horizontal history-known chamfer roadmap classification.
+6. **EDGE-PRISMATIC-X1**: completed as a lab-only first-scope `PrismaticSectionTransitionEmitter` proof for two/three Z-stacked line-only outer sections with explicit identity correspondence, closed planar BRep emission, split transition intervals, STEP smoke, and deterministic invalid/deferred diagnostics. This upgrades the evidence base for prismatic section transitions but does not change production chamfer/fillet behavior, current `ProfileStackExtrudeExecutor` behavior, AirEdgeSweep, `BrepBoundedChamfer`, STEP exporter/importer code, Boolean core code, triangle migration, sketch solving, clipping, or NURBS/freeform support.
+7. **EDGE-CORNER-X1**: manifest-driven single-corner chamfer reconstruction lab.
+8. **EDGE-FILLET-A0**: AirFillet architecture audit focused on bounded constant-radius analytic scope.
+9. **EDGE-X14**: plane-plane constant-radius AirFillet cylindrical closed witness lab.
+10. **EDGE-X15+ / EDGE-V paths**: continue controlled no-history/local-edge AirChamfer hardening only where shadow diagnostics and production-readiness gates remain stable.
 
 The roadmap should be adjusted by evidence. If a row reveals recognizer divergence, legacy topology mismatch, or body-mutation instability, the next milestone should narrow to that blocker rather than broadening support claims.
 

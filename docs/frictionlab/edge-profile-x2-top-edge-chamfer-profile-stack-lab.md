@@ -150,3 +150,9 @@ Invalid cases reject before Route A/B geometry attempts:
 EDGE-PROFILE-X2 proves the top +X horizontal edge chamfer theory for one bounded all-planar witness through a lab-only section-transition emitter. The next production-adjacent step is not to generalize the existing circular-hole profile-stack executor in-place, but to define a first-class polygon section-transition/profile-correspondence contract and then evaluate a production-adjacent profile-stack chamfer emitter against that contract.
 
 Follow-up: EDGE-PRISMATIC-A0 creates that first-class contract in `docs/edge-prismatic-a0-section-transition-contract-audit.md`, using the term **prismatic section transition** for axis-stacked resolved profile evolution with explicit correspondence and deterministic transition-face emission. Future top/horizontal chamfer work should target that contract rather than extending this one-off witness directly.
+
+## EDGE-PRISMATIC-X1 follow-up
+
+EDGE-PRISMATIC-X1 generalizes this lab's Route B section-transition witness into a reusable FrictionLab-only `PrismaticSectionTransitionEmitter`. Instead of the one-off top +X chamfer construction, X1 consumes explicit Z-stacked line-only sections, identity correspondence, and deterministic transition intervals, then emits closed planar BReps directly.
+
+The X1 result preserves the EDGE-PROFILE-X2 conclusion that horizontal/top-edge chamfer construction should proceed through prismatic section evolution rather than AirEdgeSweep, `BrepBoundedChamfer`, topology grafting, or 3D Boolean fallback. It also keeps the current `ProfileStackExtrudeExecutor` unchanged; X1 is lab-only evidence for a generic prismatic emitter, not a production profile-stack replacement.

@@ -122,6 +122,18 @@ internal static class CirMirrorRegistry
         CirMirrorLossFlags.BoundaryPrecisionLimited |
         CirMirrorLossFlags.ExactTopologyUnavailable;
 
+    public const CirMirrorCapability PrismaticConvexMirrorCapabilities =
+        CirMirrorCapability.PointContainment |
+        CirMirrorCapability.MapOccupancy |
+        CirMirrorCapability.SectionSampling;
+
+    public const CirMirrorLossFlags PrismaticConvexMirrorLosses =
+        CirMirrorLossFlags.FaceIdentityLost |
+        CirMirrorLossFlags.LoopIdentityLost |
+        CirMirrorLossFlags.SplitFaceLineageLost |
+        CirMirrorLossFlags.FeatureRoleLabelsLost |
+        CirMirrorLossFlags.ExactTopologyUnavailable;
+
     public static bool IsAdmittedPrimitive(CirMirrorAtomKind atomKind) =>
         atomKind is CirMirrorAtomKind.BoxPrimitive or CirMirrorAtomKind.CylinderPrimitive or CirMirrorAtomKind.SpherePrimitive;
 }

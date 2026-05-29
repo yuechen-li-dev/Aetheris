@@ -174,3 +174,7 @@ Do not claim prismatic map support until an actual admitted mirror exists and ca
 ## CIR-PRISMATIC-X1 follow-up note
 
 CIR-PRISMATIC-X1 proves prismatic mirror feasibility in a lab/test-only path for `rectangle-inset` and `top-edge-chamfer`, and recommends the convex half-space/polyhedron strategy as the next implementation direction. CIR-MAP-X2 dispatch remains primitive-only in production-facing terms: prismatic map dispatch is still unavailable until a later milestone promotes an explicitly admitted prismatic mirror into the dispatch contract.
+
+## CIR-PRISMATIC-X2 prismatic mirror note
+
+CIR-PRISMATIC-X2 implements the first reusable internal convex-polyhedron mirror for bounded prismatic section stacks, but CIR-MAP-X2 dispatch remains primitive-only. Prismatic map dispatch is still not integrated and remains pending an explicit follow-on milestone such as EDGE-PRISMATIC-X8; no production `analyze map` support claim is added by X2.

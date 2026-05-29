@@ -154,3 +154,7 @@ The next milestone should be one of:
 - **EDGE-PRISMATIC-X8 hybrid map dispatch with admitted mirror**: only after X2 provides an admitted prismatic mirror handle, route production map dispatch through the hybrid policy without losing BRep topology responsibilities.
 
 Do not route production `analyze map` through this X1 lab prototype directly.
+
+## CIR-PRISMATIC-X2 follow-up
+
+CIR-PRISMATIC-X2 promotes the X1-recommended half-space / convex-polyhedron strategy into a reusable internal Core mirror component (`CirConvexPolyhedronMirror` built by `CirPrismaticMirrorBuilder`). The promoted seam remains test/lab-visible only: rectangle-inset and top-edge-chamfer section stacks can be admitted exact for point containment and occupancy-style summaries, while face identity and topology parity remain rejected as lossy requests. Production `analyze map` dispatch is still unchanged.

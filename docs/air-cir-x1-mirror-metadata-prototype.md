@@ -133,3 +133,7 @@ CIR-MAP-X2 is the first lab/test-only consumer of `CirMirrorAdmissionService` fo
 CIR-PRISMATIC-X1 evaluates a bounded prismatic mirror in the friction-lab layer only. For `rectangle-inset` and `top-edge-chamfer`, the lab can produce `mirror-admitted-exact` metadata for point containment and map occupancy using AIR-authored section data, while still rejecting face identity and topology parity as lossy.
 
 The AIR-CIR-X1 production admission service remains intentionally conservative: prismatic mirrors are unavailable to production dispatch unless a later X2-style milestone promotes a bounded half-space/convex-polyhedron or section-stack evaluator into an explicitly admitted mirror path.
+
+## CIR-PRISMATIC-X2 bounded prismatic availability note
+
+CIR-PRISMATIC-X2 adds a bounded internal prismatic mirror availability path outside the AIR-CIR-X1 primitive admission service. For supported convex all-planar prismatic section stacks, `CirPrismaticMirrorBuilder` can return `mirror-admitted-exact` for point containment and map occupancy while carrying the established loss flags for face identity, loop identity, split-face lineage, feature role labels, and topology parity. This does not change production analyzer behavior or the X1 primitive dispatch contract.

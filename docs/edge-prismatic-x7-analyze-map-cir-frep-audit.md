@@ -2,6 +2,10 @@
 
 ## 1. Executive summary
 
+### CIR-MAP-X1 follow-up note
+
+CIR-MAP-X1 is the primitive proof step before any prismatic mirror work. It keeps `analyze map` unchanged, admits only box/cylinder/sphere CIR mirrors in lab tests, compares their CIR tape map summaries against the existing BRep raycast primitive baseline, and records deterministic diagnostics for unsupported/prismatic mirrors. This narrows the next prismatic question: prismatic support must be separately admitted from AIR/mirror metadata or another explicit source, not inferred from arbitrary STEP imports or claimed because primitive CIR maps work.
+
 EDGE-PRISMATIC-X6 isolated a clean analyzer split: `aetheris analyze section` can consume selected EDGE-PRISMATIC-X5 generated STEP artifacts and confirm non-empty closed line-loop section geometry, while `aetheris analyze map` is blocked by the current primitive-raycast analyzer limit.
 
 This audit evaluates whether `analyze map` should route through CIR/FRep/tape evaluation for admitted generated prismatic bodies instead of primarily extending the older BRep raycast-only path to every generated or imported BRep family.

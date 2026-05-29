@@ -2,6 +2,9 @@
 
 Status: **Design milestone only** (no production code changes).
 
+
+> CIR-MAP-X1 note (May 29, 2026): a lab/test-only primitive map prototype now lowers admitted box/cylinder/sphere `CirNode` mirrors to `CirTape` and samples deterministic orthographic rays for occupancy/thickness parity against the BRep raycast primitive baseline. This is evidence for tape-backed dense map evaluation, not a production analyzer dispatch change.
+
 > CIR-E1.1 framing note (May 5, 2026): the linear `CirTape` introduced in E1 is now the intended runtime/MIR direction for serious CIR evaluation paths. `CirNode` remains intentionally in place as a semantic prototype/builder surface, a compatibility lowering source, and an oracle for parity tests while lowering/execution paths are still converging.
 
 ## 1) Current CIR evaluation limitations

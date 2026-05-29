@@ -1,10 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
-using Aetheris.Kernel.Core.Geometry.Curves;
-using Aetheris.Kernel.Core.Geometry.Surfaces;
-using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
-using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Firmament.FrictionLab.CIRLab;
 
@@ -111,6 +107,7 @@ public static class ProfileStackChamferLab
         diagnostics.Add("edge-profile-x2-ruled-transition-emitter-missing-blocker");
 
         diagnostics.Add("edge-profile-x2-route-b-section-transition-attempted");
+        diagnostics.Add("edge-profile-x2-route-b-prismatic-emitter-backed");
         diagnostics.Add("edge-profile-x2-profile-correspondence-created");
 
         var built = BuildSectionTransitionBody(c);
@@ -158,104 +155,8 @@ public static class ProfileStackChamferLab
                 : "profile-stack-chamfer-needs-profile-correspondence-contract");
     }
 
-    private static (BrepBody? Body, string Diagnostic) BuildSectionTransitionBody(ProfileStackChamferCase c)
-    {
-        var x0 = -c.Width * 0.5d;
-        var x1 = c.Width * 0.5d;
-        var y0 = -c.Depth * 0.5d;
-        var y1 = c.Depth * 0.5d;
-        var z0 = 0d;
-        var z1 = c.Height - c.ChamferDistance;
-        var z2 = c.Height;
-        var xt = x1 - c.ChamferDistance;
-
-        var points = new List<Point3D>
-        {
-            new(x0, y0, z0), new(x1, y0, z0), new(x1, y1, z0), new(x0, y1, z0),
-            new(x0, y0, z1), new(x1, y0, z1), new(x1, y1, z1), new(x0, y1, z1),
-            new(x0, y0, z2), new(xt, y0, z2), new(xt, y1, z2), new(x0, y1, z2),
-        };
-
-        var b = new TopologyBuilder();
-        var v = points.Select(_ => b.AddVertex()).ToArray();
-        var bottomEdges = new[] { b.AddEdge(v[0], v[1]), b.AddEdge(v[1], v[2]), b.AddEdge(v[2], v[3]), b.AddEdge(v[3], v[0]) };
-        var middleEdges = new[] { b.AddEdge(v[4], v[5]), b.AddEdge(v[5], v[6]), b.AddEdge(v[6], v[7]), b.AddEdge(v[7], v[4]) };
-        var topEdges = new[] { b.AddEdge(v[8], v[9]), b.AddEdge(v[9], v[10]), b.AddEdge(v[10], v[11]), b.AddEdge(v[11], v[8]) };
-        var lowerEdges = new[] { b.AddEdge(v[0], v[4]), b.AddEdge(v[1], v[5]), b.AddEdge(v[2], v[6]), b.AddEdge(v[3], v[7]) };
-        var transitionEdges = new[] { b.AddEdge(v[4], v[8]), b.AddEdge(v[5], v[9]), b.AddEdge(v[6], v[10]), b.AddEdge(v[7], v[11]) };
-
-        var faces = new List<FaceId>
-        {
-            AddFaceWithLoop(b, bottomEdges.Select(Use.F).ToArray()),
-            AddFaceWithLoop(b, topEdges.Select(Use.R).ToArray()),
-        };
-
-        for (var i = 0; i < 4; i++)
-        {
-            var n = (i + 1) % 4;
-            faces.Add(AddFaceWithLoop(b, [Use.F(bottomEdges[i]), Use.F(lowerEdges[n]), Use.R(middleEdges[i]), Use.R(lowerEdges[i])]));
-        }
-
-        for (var i = 0; i < 4; i++)
-        {
-            var n = (i + 1) % 4;
-            faces.Add(AddFaceWithLoop(b, [Use.F(middleEdges[i]), Use.F(transitionEdges[n]), Use.R(topEdges[i]), Use.R(transitionEdges[i])]));
-        }
-
-        var shell = b.AddShell(faces);
-        b.AddBody([shell]);
-
-        var geometry = new BrepGeometryStore();
-        var bindings = new BrepBindingModel();
-        var vertexMap = new Dictionary<VertexId, Point3D>();
-        for (var i = 0; i < v.Length; i++)
-        {
-            vertexMap[v[i]] = points[i];
-        }
-
-        var curveId = 1;
-        foreach (var edge in b.Model.Edges.OrderBy(e => e.Id.Value))
-        {
-            var p0 = vertexMap[edge.StartVertexId];
-            var p1 = vertexMap[edge.EndVertexId];
-            geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromLine(new Line3Curve(p0, Direction3D.Create(p1 - p0))));
-            bindings.AddEdgeBinding(new EdgeGeometryBinding(edge.Id, new CurveGeometryId(curveId), new ParameterInterval(0d, (p1 - p0).Length)));
-            curveId++;
-        }
-
-        var surfaceId = 1;
-        AddPlane(geometry, bindings, faces[0], new Point3D(0, 0, z0), new Vector3D(0, 0, -1), new Vector3D(1, 0, 0), surfaceId++);
-        AddPlane(geometry, bindings, faces[1], new Point3D(0, 0, z2), new Vector3D(0, 0, 1), new Vector3D(1, 0, 0), surfaceId++);
-
-        for (var i = 0; i < 4; i++)
-        {
-            var n = (i + 1) % 4;
-            AddPlaneFromQuad(geometry, bindings, faces[2 + i], points[i], points[n], points[4 + n], surfaceId++);
-        }
-
-        for (var i = 0; i < 4; i++)
-        {
-            var n = (i + 1) % 4;
-            AddPlaneFromQuad(geometry, bindings, faces[6 + i], points[4 + i], points[4 + n], points[8 + n], surfaceId++);
-        }
-
-        return (new BrepBody(b.Model, geometry, bindings, vertexMap), string.Empty);
-    }
-
-    private static void AddPlaneFromQuad(BrepGeometryStore geometry, BrepBindingModel bindings, FaceId face, Point3D p0, Point3D p1, Point3D p2, int surfaceId)
-    {
-        var u = p1 - p0;
-        var v = p2 - p1;
-        var normal = u.Cross(v);
-        var reference = u.Length > Tol ? u : new Vector3D(1, 0, 0);
-        AddPlane(geometry, bindings, face, p0, normal, reference, surfaceId);
-    }
-
-    private static void AddPlane(BrepGeometryStore geometry, BrepBindingModel bindings, FaceId face, Point3D origin, Vector3D normal, Vector3D reference, int surfaceId)
-    {
-        geometry.AddSurface(new SurfaceGeometryId(surfaceId), SurfaceGeometry.FromPlane(new PlaneSurface(origin, Direction3D.Create(normal), Direction3D.Create(reference))));
-        bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(surfaceId)));
-    }
+    private static (BrepBody? Body, string Diagnostic) BuildSectionTransitionBody(ProfileStackChamferCase c) =>
+        PrismaticTopEdgeChamferLab.TryEmitBody(new PrismaticTopEdgeChamferCase(c.Name, c.Width, c.Depth, c.Height, c.ChamferDistance));
 
     private static ProfileStackChamferTopologySummary SummarizeTopology(BrepBody body, ProfileStackChamferCase c)
     {
@@ -299,30 +200,8 @@ public static class ProfileStackChamferLab
 
     private static ProfileStackChamferStepSummary EmptyStep() => new(false, [], RequiredStepMarkers, ForbiddenStepMarkers, []);
 
-    private static LoopId AddLoop(TopologyBuilder b, IReadOnlyList<Use> uses)
-    {
-        var loopId = b.AllocateLoopId();
-        var coedgeIds = uses.Select(_ => b.AllocateCoedgeId()).ToArray();
-        for (var i = 0; i < uses.Count; i++)
-        {
-            var next = coedgeIds[(i + 1) % coedgeIds.Length];
-            var previous = coedgeIds[(i + coedgeIds.Length - 1) % coedgeIds.Length];
-            b.AddCoedge(new Coedge(coedgeIds[i], uses[i].Edge, loopId, next, previous, uses[i].Reversed));
-        }
-
-        b.AddLoop(new Loop(loopId, coedgeIds));
-        return loopId;
-    }
-
-    private static FaceId AddFaceWithLoop(TopologyBuilder builder, IReadOnlyList<Use> edgeUses) => builder.AddFace([AddLoop(builder, edgeUses)]);
-
     private static IReadOnlyList<string> StableDiagnostics(IEnumerable<string> diagnostics) => diagnostics.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal).ToArray();
 
     private static bool FinitePositive(double value) => double.IsFinite(value) && value > Tol;
 
-    private readonly record struct Use(EdgeId Edge, bool Reversed)
-    {
-        public static Use F(EdgeId edge) => new(edge, false);
-        public static Use R(EdgeId edge) => new(edge, true);
-    }
 }

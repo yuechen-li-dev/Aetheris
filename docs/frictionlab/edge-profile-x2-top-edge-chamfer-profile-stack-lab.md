@@ -156,3 +156,10 @@ Follow-up: EDGE-PRISMATIC-A0 creates that first-class contract in `docs/edge-pri
 EDGE-PRISMATIC-X1 generalizes this lab's Route B section-transition witness into a reusable FrictionLab-only `PrismaticSectionTransitionEmitter`. Instead of the one-off top +X chamfer construction, X1 consumes explicit Z-stacked line-only sections, identity correspondence, and deterministic transition intervals, then emits closed planar BReps directly.
 
 The X1 result preserves the EDGE-PROFILE-X2 conclusion that horizontal/top-edge chamfer construction should proceed through prismatic section evolution rather than AirEdgeSweep, `BrepBoundedChamfer`, topology grafting, or 3D Boolean fallback. It also keeps the current `ProfileStackExtrudeExecutor` unchanged; X1 is lab-only evidence for a generic prismatic emitter, not a production profile-stack replacement.
+
+
+## EDGE-PRISMATIC-X2 follow-up
+
+EDGE-PRISMATIC-X2 re-expresses this lab's Route B top `+X` chamfer witness through the reusable lab-only `PrismaticSectionTransitionEmitter` introduced by EDGE-PRISMATIC-X1. The canonical topology and STEP smoke contract remain the same, but the motivating proof path is no longer a one-off Route B topology builder; it is now a prismatic-emitter-backed lab route.
+
+This follow-up still leaves `ProfileStackExtrudeExecutor` unchanged and does not admit a production chamfer/fillet route.

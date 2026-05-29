@@ -225,3 +225,7 @@ Optional later milestones remain:
 - optional coplanar merge proof lab, still gated and still not a default route;
 - controlled production-adjacent route admission only after stability, analyzer, recognition, and fallback authority evidence are sufficient;
 - return to chamfer/fillet production-route hardening without changing the split-preserving prismatic contract.
+
+## 11. EDGE-PRISMATIC-X8 generated-source map follow-up
+
+EDGE-PRISMATIC-X8 addresses the X6 `analyze map` limitation only for generated prismatic sources that still have admissible AIR/prismatic section data. The X8 lab dispatcher builds an admitted `CirConvexPolyhedronMirror` for `rectangle-inset` and `top-edge-chamfer` and produces deterministic CIR occupancy/thickness summaries. It does not change imported STEP-only artifact behavior: X5/X6 corpus STEP files still do not cause mirror inference, and normal production `aetheris analyze map` remains unchanged.

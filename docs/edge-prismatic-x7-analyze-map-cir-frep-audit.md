@@ -401,3 +401,7 @@ This does **not** change the X7 production audit conclusion: production `analyze
 ## CIR-PRISMATIC-X2 follow-up
 
 CIR-PRISMATIC-X2 implements the first reusable convex prismatic CIR mirror (`CirConvexPolyhedronMirror`/`CirPrismaticMirrorBuilder`) for admitted convex all-planar section stacks. The mirror supports test-visible point containment and top-view occupancy/thickness summaries for rectangle-inset and top-edge-chamfer, but X7 conclusions remain intact: production `analyze map` is not integrated with prismatic CIR mirrors yet, and topology/face identity parity remains out of scope.
+
+## EDGE-PRISMATIC-X8 follow-up
+
+EDGE-PRISMATIC-X8 prototypes the hybrid dispatch recommended by this audit in Core test scope. The prototype uses generated prismatic source data plus an admitted `CirConvexPolyhedronMirror` to select a CIR convex-polyhedron map backend for `rectangle-inset` and `top-edge-chamfer`, while preserving BRep raycast as the primitive baseline path and returning deterministic unsupported diagnostics for imported STEP-only/no-source cases. Production `analyze map` behavior and default CLI behavior remain unchanged.

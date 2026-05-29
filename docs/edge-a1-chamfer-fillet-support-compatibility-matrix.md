@@ -278,7 +278,7 @@ This milestone does not include:
 
 ## EDGE-PRISMATIC-V1 status note
 
-The prismatic section-transition row is now **internal production-adjacent / not routed** for Z-axis two/three-section, line-only, one-outer-loop, no-hole, equal-count identity-correspondence transitions. Rectangle, pentagon, hexagon, asymmetric pentagon, and stable+transition rectangle cases validate the topology formula and STEP smoke through the existing exporter. No production chamfer/fillet behavior, ProfileStack behavior, STEP exporter/importer behavior, Boolean core behavior, AirEdgeSweep behavior, public API, triangle migration, sketch solver, clipping engine, or NURBS/freeform support changed.
+The prismatic section-transition row is now **internal production-adjacent / not routed** for Z-axis two/three-section, line-only, one-outer-loop, no-hole, equal-count identity-correspondence transitions. Rectangle, pentagon, hexagon, asymmetric pentagon, and stable+transition rectangle cases validate the split-preserving topology formula and STEP smoke through the existing exporter. EDGE-PRISMATIC-X4 records split preservation as the current prismatic contract: coplanar section-boundary faces are semantic output by default, not merge candidates inside the emitter. No production chamfer/fillet behavior, ProfileStack behavior, STEP exporter/importer behavior, Boolean core behavior, AirEdgeSweep behavior, public API, triangle migration, sketch solver, clipping engine, or NURBS/freeform support changed.
 
 
 ## EDGE-PRISMATIC-V2 status note

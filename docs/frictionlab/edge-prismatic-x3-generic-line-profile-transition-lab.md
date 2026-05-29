@@ -82,6 +82,8 @@ For every successful two-section line-only transition with `n` vertices:
 
 The test suite asserts this formula for rectangle, pentagon, hexagon, and asymmetric polygon rows and records `edge-prismatic-x3-topology-formula-validated` for successful rows.
 
+For `S` sections, the current emitter's documented convention remains split-preserving. EDGE-PRISMATIC-X4 clarifies that generic transition counts intentionally preserve section-boundary faces; adjacent coplanar faces are not merged by default.
+
 For `S` sections, the current emitter's documented convention remains:
 
 - vertices: `S * n`;

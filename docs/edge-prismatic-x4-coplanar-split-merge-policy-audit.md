@@ -167,10 +167,11 @@ Future tests for a merge mode should:
 
 Recommended next milestones are:
 
-1. **EDGE-PRISMATIC-X5**: prismatic artifact/corpus route using split-preserving output.
-2. **EDGE-PRISMATIC-X6**: optional coplanar merge proof lab, only after the split-preserving corpus exists.
-3. **EDGE-PRISMATIC-V3**: controlled Firmament/CLI route if the split-preserving corpus is stable.
-4. Or return to chamfer/fillet work after X4 if the prismatic audit trail is sufficient for current planning.
+1. **EDGE-PRISMATIC-X5**: completed as the prismatic artifact/corpus route using split-preserving output.
+2. **EDGE-PRISMATIC-X6**: completed as the gated/manual corpus stability and analyzer confirmation check for the split-preserving corpus.
+3. **EDGE-PRISMATIC-X7**: optional coplanar merge proof lab, only after the split-preserving corpus remains stable and analyzer limitations are explicitly classified.
+4. **EDGE-PRISMATIC-V3**: controlled Firmament/CLI route if the split-preserving corpus and route-admission evidence are stable enough.
+5. Or return to chamfer/fillet work if the prismatic audit trail is sufficient for current planning.
 
 ## 13. Non-goals
 
@@ -192,6 +193,10 @@ This milestone does not include:
 - triangle migration retry;
 - sketch solver, clipping engine, NURBS, or freeform support.
 
-## 11. EDGE-PRISMATIC-X5 corpus evidence note
+## 14. EDGE-PRISMATIC-X5 corpus evidence note
 
 EDGE-PRISMATIC-X5 adds a split-preserving artifact corpus for the prismatic section-transition lane. The corpus writes deterministic STEP artifacts for rectangle inset, top `+X` edge chamfer, scaled pentagon, scaled hexagon, and asymmetric pentagon cases, plus JSON-only invalid/deferred diagnostics. Its topology assertions intentionally use the X4 policy: section-boundary split faces are preserved by default, and coplanar merging remains a future optional post-emission optimization only.
+
+## 15. EDGE-PRISMATIC-X6 split-preserving stability evidence note
+
+EDGE-PRISMATIC-X6 adds gated artifact stability and analyzer confirmation evidence for the split-preserving output policy recorded here. The manual `PrismaticCorpusStability` test runs the X5 corpus twice, compares stable JSON/topology/marker/diagnostic projections, compares raw STEP SHA256 hashes plus normalized STEP summaries for successful artifacts, and confirms deterministic `analyze section` output for selected rectangle, top-edge chamfer, and hexagon artifacts. It also invokes `analyze map` and documents the current primitive-raycast limitation as a bounded analyzer integration blocker rather than introducing a coplanar merge or production-route change. This strengthens the default split-preserving contract; it does not add merged mode, mutate topology, change exporter/importer behavior, or replace any production chamfer/fillet route.

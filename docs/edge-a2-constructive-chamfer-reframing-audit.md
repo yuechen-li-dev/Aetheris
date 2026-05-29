@@ -19,6 +19,9 @@ This audit concludes:
 
 The recommended convergence state is **success** for a docs/design audit: no production route changed, the theory is classified, and the smallest falsifiable lab sequence is now explicit.
 
+
+EDGE-A3 follow-up: `docs/edge-a3-edge-finish-selection-taxonomy.md` adds the selection-pattern layer above this constructive reframing. It collapses baseline edge-finish support around single-edge, face-boundary loop, and whole-body canonical edge-set selections with uniform symmetric chamfer or constant-radius fillet rules. This strengthens the A2 conclusion that history-known chamfers should lower through profile/prismatic/manifest construction where possible, while arbitrary edge graphs, unequal-distance chamfers, mixed rules, and variable-radius fillets remain deferred unless separately bounded.
+
 EDGE-PROFILE-X1 follow-up: `ProfileChamferExtrudeLab` now exercises that smallest vertical-edge profile-chamfer sequence. It builds a chamfered rectangle/pentagon, emits it with `BrepExtrude.Create`, exports it through `Step242Exporter`, and records `10` vertices, `15` edges, `7` planar faces, `0` cylindrical faces, and one bevel side face without AirEdgeSweep, `BrepBoundedChamfer`, topology grafting, or 3D Boolean fallback. See `docs/frictionlab/edge-profile-x1-vertical-edge-chamfer-profile-extrude-lab.md`.
 
 EDGE-PROFILE-V1 packaging note: `ProfileVertexChamferExtrudeEmitter` moves the same proof into an internal production-adjacent seam with deterministic admissibility, topology, STEP, and no-legacy-route diagnostics. It remains non-authoritative and does not replace production chamfer, fillet, primitive, STEP, Boolean, or AirEdgeSweep behavior. See `docs/edge-profile-v1-profile-authored-chamfer-emitter.md`.

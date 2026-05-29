@@ -209,3 +209,10 @@ X1 is strong enough to support one of two next steps:
 2. **EDGE-PRISMATIC-V1**: package the lab proof as a production-adjacent emitter candidate, if additional validation hardening and feature-recognition requirements are explicitly scoped.
 
 The safer sequencing is EDGE-PRISMATIC-X2 first, because it would prove that the generic emitter materially subsumes the existing top-edge chamfer lab before any production-adjacent packaging.
+
+
+## 12. EDGE-PRISMATIC-X2 follow-up
+
+EDGE-PRISMATIC-X2 uses the X1 `PrismaticSectionTransitionEmitter` to reproduce the EDGE-PROFILE-X2 top `+X` horizontal edge chamfer witness. The X2 lab supplies the exact three-section stack, identity correspondence, split transition intervals, and chamfer transition-face classification expected by the top-edge chamfer contract.
+
+The X2 result confirms that the emitter is a real client path for the top-edge chamfer fixture while preserving the X1 constraints: lab-only, line-only profiles, equal vertex counts, explicit correspondence, all-planar closed BRep emission, STEP smoke, and no AirEdgeSweep, `BrepBoundedChamfer`, topology graft/body mutation, or 3D Boolean.

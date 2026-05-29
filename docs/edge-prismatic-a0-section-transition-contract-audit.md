@@ -432,3 +432,10 @@ EDGE-PRISMATIC-X1 now implements the first-scope lab-only prismatic section-tran
 The X1 lab admits two or three Z-stacked line-only outer sections, one loop, no holes/arcs, equal vertex counts, identity-by-index correspondence, planar transition faces, deterministic topology, and direct closed BRep emission. Its rectangle-to-inset and three-section stable+transition cases export through the existing `Step242Exporter` with planar `MANIFOLD_SOLID_BREP` STEP smoke and without `CYLINDRICAL_SURFACE` or `BREP_WITH_VOIDS` markers.
 
 This is evidence for the contract only. It does not change production chamfer/fillet behavior, production route selection, `ProfileStackExtrudeExecutor`, AirEdgeSweep, `BrepBoundedChamfer`, STEP exporter/importer code, Boolean core code, triangle migration, sketch solving, clipping, or NURBS/freeform support.
+
+
+## 14. EDGE-PRISMATIC-X2 implementation note
+
+EDGE-PRISMATIC-X2 now implements the audit's proposed top-edge chamfer follow-up. The lab builds the canonical EDGE-PROFILE-X2 three-section stack, uses explicit identity correspondence, invokes the EDGE-PRISMATIC-X1 `PrismaticSectionTransitionEmitter`, classifies the changed `+X` transition face as the chamfer face, and preserves the expected split topology: 12 vertices, 20 edges, 10 planar faces, 0 cylindrical faces, 10 loops, and 40 coedges.
+
+The result confirms the intended ownership split: this top/horizontal history-known chamfer belongs to the prismatic section-transition lane, not AirEdgeSweep, `BrepBoundedChamfer`, topology grafting, or 3D Boolean fallback. It remains lab-only and does not broaden `ProfileStackExtrudeExecutor` or production chamfer/fillet behavior.

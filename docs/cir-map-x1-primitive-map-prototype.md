@@ -10,7 +10,7 @@ CIR-MAP-X1 proves that CIR/FRep can serve as an orthographic map backend for sim
 2. cylinder;
 3. sphere.
 
-The prototype is intentionally kept in focused test/lab code under `Aetheris.Kernel.Core.Tests`. It does not alter the production `analyze map` command, `StepAnalyzer`, STEP import/export, Boolean code, BRep topology, AIR emitters, CIR node kinds, or CIR-to-BRep extraction.
+The prototype is intentionally kept in focused test/lab code under `Aetheris.Kernel.Core.Tests`. It does not alter the production `analyze map` command, `StepAnalyzer`, STEP import/export, Boolean code, BRep topology, AIR emitters, CIR node kinds, or CIR-to-BRep extraction. AIR-CIR-X1 builds on this by adding internal admission metadata/status diagnostics that future mirror-aware dispatch can consume; CIR-MAP-X1 behavior itself remains lab-only and unchanged.
 
 ## 2. Authority contract reference
 

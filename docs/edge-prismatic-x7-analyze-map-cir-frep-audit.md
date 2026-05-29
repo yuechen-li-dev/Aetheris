@@ -387,3 +387,7 @@ This milestone explicitly does not include:
 - claims that `analyze map` supports prismatic BReps;
 - default execution of gated artifact tests;
 - test weakening.
+
+## 13. CIR-MAP-X2 prismatic status note
+
+CIR-MAP-X2 adds a lab/test-only mirror-aware primitive map dispatcher, but it deliberately does not add prismatic mirror support. Prismatic section-transition and profile-authored chamfer sources still resolve to mirror-unavailable or unsupported admission for map occupancy, emit no-prismatic-mirror-used diagnostics, and do not select the CIR map backend. Prismatic map support remains blocked until a real admitted prismatic mirror exists and can be validated against an appropriate baseline.

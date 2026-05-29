@@ -123,3 +123,7 @@ Recommended next work is one of:
 1. **CIR-MAP-X2** — mirror-aware primitive map dispatch prototype that consumes X1 metadata while preserving current CLI defaults;
 2. **CIR-PRISMATIC-X1** — prismatic mirror feasibility for exact section-stack/convex polyhedral fields;
 3. **EDGE-PRISMATIC-X8** — hybrid map dispatch only after mirror metadata and actual mirror availability exist.
+
+## 13. CIR-MAP-X2 consumption note
+
+CIR-MAP-X2 is the first lab/test-only consumer of `CirMirrorAdmissionService` for map backend selection. The X2 dispatcher asks admission for the requested analyzer use, selects the CIR tape primitive map backend only when a box/cylinder/sphere mirror is `mirror-admitted-exact` for `MapOccupancy`, and rejects face identity/topology parity as lossy. Prismatic section transitions and profile-authored chamfers remain mirror-unavailable or unsupported; no production analyzer, CLI, STEP, Boolean, BRep topology, AIR emitter, CIR node kind, prismatic mirror, or CIR-to-BRep behavior changes are introduced.

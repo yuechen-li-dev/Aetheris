@@ -153,3 +153,7 @@ X3 supports `prismatic-section-transition-generic-ready-for-production-evaluatio
 2. **EDGE-PRISMATIC-X4 coplanar split/merge policy audit** if the next uncertainty is whether stable and changed coplanar interval faces should remain split or be merged for production-adjacent output.
 
 Do not broaden to arcs, holes, different vertex counts, inferred correspondence, clipping, sketch solving, or NURBS/freeform support as part of this X3 result.
+
+## V1 packaging status
+
+EDGE-PRISMATIC-V1 packages the generic X3 evidence into the internal production-adjacent `PrismaticSectionTransitionEmitter` seam. The rectangle, scaled pentagon, scaled hexagon, and asymmetric translated pentagon cases remain regression evidence for the equal-count line-only first-scope contract.

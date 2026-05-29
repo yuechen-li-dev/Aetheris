@@ -447,3 +447,7 @@ EDGE-PRISMATIC-X3 now broadens the contract evidence with a lab-only generic pol
 The observed two-section topology convention matches the audit formula: `vertices = 2n`, `edges = 3n`, `faces = n + 2`, `planar faces = n + 2`, `cylindrical faces = 0`, `loops = n + 2`, and `coedges = 6n`. Invalid/deferred rows still reject or defer before emission for mismatched counts, missing correspondence, invalid profiles, non-increasing/zero section spans, holes, line+arc markers, and multiple-loop markers.
 
 This remains contract evidence only. It does not change production chamfer/fillet behavior, production route selection, `ProfileStackExtrudeExecutor`, AirEdgeSweep, `BrepBoundedChamfer`, STEP exporter/importer code, Boolean core code, triangle migration, sketch solving, clipping, or NURBS/freeform support.
+
+## V1 implementation status
+
+EDGE-PRISMATIC-V1 implements the first production-adjacent internal seam for the A0 contract under `Aetheris.Kernel.Core.Brep.Prismatic.PrismaticSectionTransitionEmitter`. It admits only Z-stacked two/three section, line-only, one-outer-loop, no-hole, equal-count, identity-correspondence transitions with planar faces and direct closed BRep emission. It does not change production ProfileStack behavior, chamfer/fillet routing, STEP import/export behavior, Boolean core behavior, AirEdgeSweep behavior, or public APIs.

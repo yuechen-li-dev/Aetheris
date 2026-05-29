@@ -1,6 +1,7 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Step242;
+using CorePrismatic = Aetheris.Kernel.Core.Brep.Prismatic;
 
 namespace Aetheris.Firmament.FrictionLab.CIRLab;
 
@@ -98,7 +99,7 @@ public static class PrismaticTopEdgeChamferLab
         var correspondence = PrismaticCorrespondenceMap.Identity(4);
         diagnostics.Add("edge-prismatic-x2-correspondence-created");
         diagnostics.Add("edge-prismatic-x2-prismatic-emitter-invoked");
-        var emitted = PrismaticSectionTransitionEmitter.TryEmit(sections, correspondence);
+        var emitted = EmitBody(sections, correspondence);
         if (emitted.Body is null)
         {
             diagnostics.Add($"edge-prismatic-x2-prismatic-emitter-failed:{emitted.Diagnostic}");
@@ -163,7 +164,17 @@ public static class PrismaticTopEdgeChamferLab
     }
 
     internal static (BrepBody? Body, string Diagnostic) TryEmitBody(PrismaticTopEdgeChamferCase c) =>
-        PrismaticSectionTransitionEmitter.TryEmit(CreateSectionStack(c), PrismaticCorrespondenceMap.Identity(4));
+        EmitBody(CreateSectionStack(c), PrismaticCorrespondenceMap.Identity(4));
+
+    private static (BrepBody? Body, string Diagnostic) EmitBody(IReadOnlyList<PrismaticSection> sections, PrismaticCorrespondenceMap correspondence)
+    {
+        var request = new CorePrismatic.PrismaticSectionTransitionRequest(
+            sections.Select(s => new CorePrismatic.PrismaticSection(s.Z, s.OuterLoop, s.HasHoles, s.HasArcs, s.OuterLoopCount)).ToArray(),
+            new CorePrismatic.PrismaticCorrespondenceMap(correspondence.VertexMap),
+            new CorePrismatic.PrismaticSectionTransitionOptions(RunStepSmoke: false, TraceLabel: "prismatic-top-edge-chamfer-lab"));
+        var result = CorePrismatic.PrismaticSectionTransitionEmitter.Emit(request);
+        return (result.Body, result.Status == CorePrismatic.PrismaticSectionTransitionStatus.Succeeded ? string.Empty : string.Join(",", result.Diagnostics));
+    }
 
     private static PrismaticTopEdgeChamferTopologySummary SummarizeTopology(BrepBody body, PrismaticTopEdgeChamferCase c)
     {

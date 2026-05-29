@@ -8,7 +8,7 @@ The current AirChamfer golden path is strong but narrow: controlled convex plana
 
 Legacy bounded chamfer/fillet behavior remains authoritative wherever production behavior exists. In particular, `BrepBoundedChamfer` and `BrepBoundedFillet` are still the production routes for the currently supported bounded cases, and AirEdgeSweep/AirChamfer evidence must not be read as route replacement.
 
-EDGE-A2 reclassifies some chamfer cases as profile/profile-stack candidates rather than AirEdgeSweep candidates: vertical edges of history-known extrusions should be tested as profile modifications, and top/bottom extrusion edges should be tested as profile-stack or section-transition constructions. EDGE-PROFILE-X1 now provides lab evidence for the vertical-edge/profile-authored subset, EDGE-PROFILE-V1 packages that proof into an internal production-adjacent emitter, and EDGE-PROFILE-X2 provides lab-only section-transition evidence for one top horizontal +X side chamfer while documenting current profile-stack generalization blockers. EDGE-PRISMATIC-A0 classifies those top/bottom/horizontal history-known chamfers under the **prismatic section-transition** roadmap, EDGE-PRISMATIC-X1 introduces the first reusable lab-only prismatic emitter, and EDGE-PRISMATIC-X2 re-expresses the top +X witness through that emitter. Production statuses remain unchanged until a separately gated route is admitted.
+EDGE-A2 reclassifies some chamfer cases as profile/profile-stack candidates rather than AirEdgeSweep candidates: vertical edges of history-known extrusions should be tested as profile modifications, and top/bottom extrusion edges should be tested as profile-stack or section-transition constructions. EDGE-PROFILE-X1 now provides lab evidence for the vertical-edge/profile-authored subset, EDGE-PROFILE-V1 packages that proof into an internal production-adjacent emitter, and EDGE-PROFILE-X2 provides lab-only section-transition evidence for one top horizontal +X side chamfer while documenting current profile-stack generalization blockers. EDGE-PRISMATIC-A0 classifies those top/bottom/horizontal history-known chamfers under the **prismatic section-transition** roadmap, EDGE-PRISMATIC-X1 introduces the first reusable lab-only prismatic emitter, EDGE-PRISMATIC-X2 re-expresses the top +X witness through that emitter, EDGE-PRISMATIC-X3 proves equal-count line-only generic polygon cases, and EDGE-PRISMATIC-V1 packages that capability behind an internal production-adjacent seam. Production statuses remain unchanged until a separately gated route is admitted.
 
 The matrix separates five concerns that were previously easy to conflate:
 
@@ -273,3 +273,8 @@ This milestone does not include:
 - test weakening;
 - triangle migration retry;
 - sketch solver or clipping engine work.
+
+
+## EDGE-PRISMATIC-V1 status note
+
+The prismatic section-transition row is now **internal production-adjacent / not routed** for Z-axis two/three-section, line-only, one-outer-loop, no-hole, equal-count identity-correspondence transitions. Rectangle, pentagon, hexagon, asymmetric pentagon, and stable+transition rectangle cases validate the topology formula and STEP smoke through the existing exporter. No production chamfer/fillet behavior, ProfileStack behavior, STEP exporter/importer behavior, Boolean core behavior, AirEdgeSweep behavior, public API, triangle migration, sketch solver, clipping engine, or NURBS/freeform support changed.

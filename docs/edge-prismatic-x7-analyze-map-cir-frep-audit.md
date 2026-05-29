@@ -405,3 +405,7 @@ CIR-PRISMATIC-X2 implements the first reusable convex prismatic CIR mirror (`Cir
 ## EDGE-PRISMATIC-X8 follow-up
 
 EDGE-PRISMATIC-X8 prototypes the hybrid dispatch recommended by this audit in Core test scope. The prototype uses generated prismatic source data plus an admitted `CirConvexPolyhedronMirror` to select a CIR convex-polyhedron map backend for `rectangle-inset` and `top-edge-chamfer`, while preserving BRep raycast as the primitive baseline path and returning deterministic unsupported diagnostics for imported STEP-only/no-source cases. Production `analyze map` behavior and default CLI behavior remain unchanged.
+
+## EDGE-PRISMATIC-X9 route boundary note
+
+EDGE-PRISMATIC-X9 adds `aetheris experimental prismatic-map` as a generated-source-only inspection route for the X8/CIR-PRISMATIC-X2 prismatic mirror proof. Normal `aetheris analyze map <file.step> ... --json` remains unchanged and continues to use the existing STEP analyzer path. X9 does not accept STEP input on the experimental route, does not infer imported STEP mirrors, and does not make topology or face-identity claims from CIR maps.

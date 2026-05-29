@@ -27,10 +27,11 @@ public static class CliRunner
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
-    private const string ExperimentalUsage = "Usage: aetheris experimental <airchamfer-cube|airchamfer-corpus|prismatic-corpus> [options]";
+    private const string ExperimentalUsage = "Usage: aetheris experimental <airchamfer-cube|airchamfer-corpus|prismatic-corpus|prismatic-map> [options]";
     private const string ExperimentalAirChamferCubeUsage = "Usage: aetheris experimental airchamfer-cube --out <path> [--json]";
     private const string ExperimentalAirChamferCorpusUsage = "Usage: aetheris experimental airchamfer-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticCorpusUsage = "Usage: aetheris experimental prismatic-corpus --out-dir <dir> [--json]";
+    private const string ExperimentalPrismaticMapUsage = "Usage: aetheris experimental prismatic-map --case <case> --rows <N> --cols <N> --json";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -867,6 +868,11 @@ public static class CliRunner
             return RunExperimentalPrismaticCorpus(args.Skip(1).ToArray(), stdout, stderr);
         }
 
+        if (string.Equals(args[0], "prismatic-map", StringComparison.Ordinal))
+        {
+            return RunExperimentalPrismaticMap(args.Skip(1).ToArray(), stdout, stderr);
+        }
+
         stderr.WriteLine($"Unknown experimental subcommand '{args[0]}'.");
         stderr.WriteLine(ExperimentalUsage);
         return 1;
@@ -1052,6 +1058,120 @@ public static class CliRunner
         stdout.WriteLine($"Experimental prismatic EDGE-PRISMATIC-X5 corpus summary written: {corpus.SummaryPath}");
         stdout.WriteLine("Route: experimental/lab prismatic section-transition corpus; production routes remain unchanged.");
         return corpus.Errors.Count == 0 ? 0 : 1;
+    }
+
+
+    private static int RunExperimentalPrismaticMap(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        string? caseName = null;
+        int? rows = null;
+        int? cols = null;
+        var json = false;
+        string? request = null;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--case" when i + 1 < args.Length:
+                    caseName = args[++i];
+                    break;
+                case "--case":
+                    stderr.WriteLine("edge-prismatic-x9-missing-case");
+                    stderr.WriteLine("Experimental prismatic-map option --case requires a generated case value.");
+                    stderr.WriteLine(ExperimentalPrismaticMapUsage);
+                    return 1;
+                case "--rows" when i + 1 < args.Length && int.TryParse(args[++i], out var parsedRows):
+                    rows = parsedRows;
+                    break;
+                case "--rows":
+                    stderr.WriteLine("edge-prismatic-x9-invalid-grid");
+                    stderr.WriteLine("Experimental prismatic-map option --rows requires an integer value.");
+                    stderr.WriteLine(ExperimentalPrismaticMapUsage);
+                    return 1;
+                case "--cols" when i + 1 < args.Length && int.TryParse(args[++i], out var parsedCols):
+                    cols = parsedCols;
+                    break;
+                case "--cols":
+                    stderr.WriteLine("edge-prismatic-x9-invalid-grid");
+                    stderr.WriteLine("Experimental prismatic-map option --cols requires an integer value.");
+                    stderr.WriteLine(ExperimentalPrismaticMapUsage);
+                    return 1;
+                case "--request" when i + 1 < args.Length:
+                    request = args[++i];
+                    break;
+                case "--request":
+                    stderr.WriteLine("edge-prismatic-x9-lossy-request-rejected:unknown");
+                    stderr.WriteLine("Experimental prismatic-map option --request requires a value; only map occupancy is supported.");
+                    stderr.WriteLine(ExperimentalPrismaticMapUsage);
+                    return 1;
+                case "--json":
+                    json = true;
+                    break;
+                case "-h":
+                case "--help":
+                    WriteExperimentalPrismaticMapHelp(stdout);
+                    return 0;
+                default:
+                    if (!args[i].StartsWith("-", StringComparison.Ordinal))
+                    {
+                        stderr.WriteLine("edge-prismatic-x9-step-input-rejected");
+                        stderr.WriteLine("experimental prismatic-map does not accept STEP input; use generated --case values only");
+                        stderr.WriteLine(ExperimentalPrismaticMapUsage);
+                        return 1;
+                    }
+
+                    stderr.WriteLine($"Unknown experimental prismatic-map option '{args[i]}'.");
+                    stderr.WriteLine(ExperimentalPrismaticMapUsage);
+                    return 1;
+            }
+        }
+
+        if (!json)
+        {
+            stderr.WriteLine("edge-prismatic-x9-json-required");
+            stderr.WriteLine("Experimental prismatic-map requires --json to avoid implying a stable human-facing API.");
+            stderr.WriteLine(ExperimentalPrismaticMapUsage);
+            return 1;
+        }
+
+        if (string.IsNullOrWhiteSpace(caseName))
+        {
+            stderr.WriteLine("edge-prismatic-x9-missing-case");
+            stderr.WriteLine("Experimental prismatic-map requires --case <case>.");
+            stderr.WriteLine(ExperimentalPrismaticMapUsage);
+            return 1;
+        }
+
+        if (!rows.HasValue || !cols.HasValue || rows <= 0 || cols <= 0)
+        {
+            stderr.WriteLine("edge-prismatic-x9-invalid-grid");
+            stderr.WriteLine("Experimental prismatic-map requires positive --rows <N> and --cols <N> values.");
+            stderr.WriteLine(ExperimentalPrismaticMapUsage);
+            return 1;
+        }
+
+        if (request is not null && !string.Equals(request, "map-occupancy", StringComparison.OrdinalIgnoreCase))
+        {
+            var failure = ExperimentalPrismaticMapLab.LossyRequestRejected(caseName, request, rows.Value, cols.Value);
+            stdout.WriteLine(JsonSerializer.Serialize(failure, JsonOptions));
+            stderr.WriteLine($"edge-prismatic-x9-lossy-request-rejected:{request.Trim().ToLowerInvariant().Replace(' ', '-')}");
+            stderr.WriteLine("Experimental prismatic-map only supports map occupancy; face identity and topology parity are lossy.");
+            return 1;
+        }
+
+        if (!ExperimentalPrismaticMapLab.SupportedCases.Contains(caseName, StringComparer.Ordinal))
+        {
+            var token = caseName.Trim().ToLowerInvariant().Replace(' ', '-');
+            stderr.WriteLine($"edge-prismatic-x9-unknown-case:{token}");
+            stderr.WriteLine($"Unknown experimental prismatic-map generated case '{caseName}'. Supported cases: {string.Join(", ", ExperimentalPrismaticMapLab.SupportedCases)}.");
+            stderr.WriteLine(ExperimentalPrismaticMapUsage);
+            return 1;
+        }
+
+        var result = ExperimentalPrismaticMapLab.Run(caseName, rows.Value, cols.Value);
+        stdout.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+        return result.Success ? 0 : 1;
     }
 
     private static int RunAsm(string[] args, TextWriter stdout, TextWriter stderr)
@@ -1619,7 +1739,7 @@ public static class CliRunner
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
         stdout.WriteLine("  canon      Import and re-export STEP/AP242 as canonical STEP.");
         stdout.WriteLine("  asm        Execute/export .firmasm assembly IR using rigid world-space composition.");
-        stdout.WriteLine("  experimental  Experimental/lab-only artifact export commands.");
+        stdout.WriteLine("  experimental  Experimental/lab-only artifact export and generated-source inspection commands.");
         stdout.WriteLine();
         stdout.WriteLine("Global options:");
         stdout.WriteLine("  -h, --help       Show help.");
@@ -1633,6 +1753,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris asm exec assembly.firmasm --json");
         stdout.WriteLine("  aetheris asm export assembly.firmasm --out out/assembly-roundtrip --json");
         stdout.WriteLine("  aetheris experimental airchamfer-cube --out edge-x10-airchamfer-cube-one-edge.step --json");
+        stdout.WriteLine("  aetheris experimental prismatic-map --case rectangle-inset --rows 16 --cols 16 --json");
         stdout.WriteLine("  aetheris analyze map model.step --top --rows 40 --cols 60 --json");
         stdout.WriteLine("  aetheris analyze section model.step --xy --offset 2.5 --json");
         stdout.WriteLine("  aetheris analyze volume model.step --json");
@@ -1766,17 +1887,20 @@ public static class CliRunner
         stdout.WriteLine("  airchamfer-cube    Export a controlled one-edge AirChamfer candidate cube/box STEP artifact.");
         stdout.WriteLine("  airchamfer-corpus  Generate the EDGE-X11 tiny AirChamfer STEP regression corpus.");
         stdout.WriteLine("  prismatic-corpus   Generate the EDGE-PRISMATIC-X5 split-preserving prismatic corpus.");
+        stdout.WriteLine("  prismatic-map      Inspect EDGE-PRISMATIC-X9 generated-source-only prismatic map JSON.");
         stdout.WriteLine();
         stdout.WriteLine("Notes:");
         stdout.WriteLine("  - Experimental only; does not route production Firmament chamfer operations through AirChamfer.");
         stdout.WriteLine("  - Legacy BrepBoundedChamfer remains production-authoritative.");
         stdout.WriteLine("  - The candidate path uses no 3D Boolean fallback.");
         stdout.WriteLine("  - The prismatic corpus preserves section-boundary split faces and performs no coplanar merge.");
+        stdout.WriteLine("  - experimental prismatic-map is generated-source-only, not normal analyze map, and accepts no STEP input.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris experimental airchamfer-cube --out edge-x10-airchamfer-cube-one-edge.step --json");
         stdout.WriteLine("  aetheris experimental airchamfer-corpus --out-dir artifacts/edge-x11 --json");
         stdout.WriteLine("  aetheris experimental prismatic-corpus --out-dir artifacts/edge-prismatic-x5 --json");
+        stdout.WriteLine("  aetheris experimental prismatic-map --case rectangle-inset --rows 16 --cols 16 --json");
     }
 
     private static void WriteExperimentalAirChamferCubeHelp(TextWriter stdout)
@@ -1848,6 +1972,32 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris experimental prismatic-corpus --out-dir artifacts/edge-prismatic-x5 --json");
+    }
+
+
+
+    private static void WriteExperimentalPrismaticMapHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Inspect the EDGE-PRISMATIC-X9 generated-source-only prismatic map proof as JSON.");
+        stdout.WriteLine();
+        stdout.WriteLine(ExperimentalPrismaticMapUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Options:");
+        stdout.WriteLine("  --case <case>     Required generated case: rectangle-inset or top-edge-chamfer.");
+        stdout.WriteLine("  --rows <N>        Required positive row count.");
+        stdout.WriteLine("  --cols <N>        Required positive column count.");
+        stdout.WriteLine("  --json            Required machine-readable output; no stable text API is promised.");
+        stdout.WriteLine("  --request <use>   Optional; only map-occupancy is supported. Face identity/topology parity reject as lossy.");
+        stdout.WriteLine("  -h, --help        Show this help.");
+        stdout.WriteLine();
+        stdout.WriteLine("Scope and authority:");
+        stdout.WriteLine("  - Experimental generated AIR/prismatic source route only.");
+        stdout.WriteLine("  - This is not normal 'aetheris analyze map' and does not change its STEP behavior.");
+        stdout.WriteLine("  - No STEP input, imported STEP prismatic body, or arbitrary user geometry is accepted.");
+        stdout.WriteLine("  - Output supports map occupancy only; no topology or face identity claims are made.");
+        stdout.WriteLine();
+        stdout.WriteLine("Example:");
+        stdout.WriteLine("  aetheris experimental prismatic-map --case rectangle-inset --rows 16 --cols 16 --json");
     }
 
     private static void WriteAsmHelp(TextWriter stdout)

@@ -174,3 +174,7 @@ Likely next milestones are:
 ## 12. EDGE-PRISMATIC-X8 consumption note
 
 EDGE-PRISMATIC-X8 consumes the X2 `CirConvexPolyhedronMirror` in a lab/test-only hybrid map dispatcher. Generated `rectangle-inset` and `top-edge-chamfer` source sections are admitted through the X2 builder, select the `cir-convex-polyhedron` backend for occupancy/thickness summaries, and still reject face-identity/topology-parity requests as lossy. This consumption does not wire the mirror into production `StepAnalyzer.AnalyzeMap`, does not add a default CLI route, does not infer mirrors from imported STEP, and does not perform CIR-to-BRep extraction.
+
+## EDGE-PRISMATIC-X9 CLI consumption note
+
+EDGE-PRISMATIC-X9 consumes the CIR-PRISMATIC-X2 convex-polyhedron mirror from an explicit experimental CLI route: `aetheris experimental prismatic-map --case <case> --rows <n> --cols <n> --json`. The route admits generated prismatic sources for map occupancy only and reports known losses for face identity, loop identity, split-face lineage, feature role labels, and topology parity. It does not add CIR-to-BRep extraction and does not infer mirrors from imported STEP.

@@ -179,3 +179,7 @@ Because EDGE-PRISMATIC-V1 packaging already exists and V2 successfully consumes 
 ## 11. EDGE-PRISMATIC-X5 corpus evidence note
 
 EDGE-PRISMATIC-X5 includes the controlled top `+X` edge chamfer route in the split-preserving artifact corpus as `edge-prismatic-x5-top-edge-chamfer.step`. The corpus asserts the V2 topology contract of 12 vertices, 20 edges, 10 all-planar faces, 4 lower prism side faces, 4 transition faces, 1 chamfer transition face, 10 loops, and 40 coedges, with STEP smoke markers present and cylindrical/void markers absent. This remains experimental corpus evidence and does not change production chamfer routing.
+
+## EDGE-LOOP-X1 relationship
+
+The controlled single top-edge route remains a Class A proof and is not replaced. EDGE-LOOP-X1 reuses the same prismatic section-transition building block for a Class B face-boundary loop proof: the lower and pre-chamfer sections remain full rectangles, while the top section is inset on all four sides. That route classifies all four upper transition faces as chamfer faces and records loop-selection diagnostics, proving one top-face outer-loop operation rather than four unrelated single-edge operations. No production route, AIR emitter, STEP exporter, Boolean, BRep topology, or CIR analyzer behavior changes are implied by the loop lab.

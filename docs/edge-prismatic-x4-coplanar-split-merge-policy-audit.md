@@ -204,3 +204,8 @@ EDGE-PRISMATIC-X5 adds a split-preserving artifact corpus for the prismatic sect
 ## 15. EDGE-PRISMATIC-X6 split-preserving stability evidence note
 
 EDGE-PRISMATIC-X6 adds gated artifact stability and analyzer confirmation evidence for the split-preserving output policy recorded here. The manual `PrismaticCorpusStability` test runs the X5 corpus twice, compares stable JSON/topology/marker/diagnostic projections, compares raw STEP SHA256 hashes plus normalized STEP summaries for successful artifacts, and confirms deterministic `analyze section` output for selected rectangle, top-edge chamfer, and hexagon artifacts. It also invokes `analyze map` and documents the current primitive-raycast limitation as a bounded analyzer integration blocker rather than introducing a coplanar merge or production-route change. This strengthens the default split-preserving contract; it does not add merged mode, mutate topology, change exporter/importer behavior, or replace any production chamfer/fillet route.
+
+
+## EDGE-LOOP-X1 split-preservation evidence
+
+EDGE-LOOP-X1 confirms that the top-face outer-loop chamfer inherits the default split-preserving policy. The loop chamfer stack preserves the `z = height - chamferDistance` section boundary, yielding four stable lower prism side faces and four upper chamfer transition faces. The lab records `edge-loop-x1-split-preserving-topology` and `edge-loop-x1-no-coplanar-merge-used`, so the loop proof does not introduce a merged mode or change the default prismatic topology contract.

@@ -249,6 +249,8 @@ A Class A route must define:
 
 ### Face-loop gate
 
+EDGE-LOOP-X1 evidence note: `PrismaticTopFaceLoopChamferPrototype` / `TopFaceLoopChamferPrismaticLab` now provide the first constructive Class B proof for the history-known top-cap outer loop of a rectangular prism. The proof admits one owning top face, one outer closed ordered four-coedge loop, and one uniform symmetric chamfer rule, then lowers the request through a single prismatic section stack. It records `edge-loop-x1-class-b-loop-route` and `edge-loop-x1-not-four-independent-single-edge-chamfers`, so the evidence is explicitly not a collection of four unrelated Class A edge operations.
+
 A Class B route must define:
 
 - loop selection contract and ordered topology;
@@ -308,7 +310,7 @@ Recommended next milestones:
 1. `EDGE-LOOP-A0` — face-boundary loop edge-finish audit.
 2. `EDGE-FILLET-A0` or `AIR-FILLET-A0` — fillet architecture audit using selection taxonomy.
 3. `EDGE-CORNER-X1` — constructive manifest for whole-body/simple corner chamfer/fillet cases.
-4. `EDGE-LOOP-X1` — face-boundary uniform chamfer policy lab.
+4. `EDGE-LOOP-X1` — completed first-scope top-face outer-loop chamfer prismatic lab; next promote to `EDGE-LOOP-X2` artifact/corpus evidence.
 5. `EDGE-FILLET-X1` — single-edge plane-plane constant-radius fillet witness.
 6. Optional: whole-body box uniform chamfer/fillet corpus.
 

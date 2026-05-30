@@ -174,3 +174,7 @@ The implementation validation also reruns the requested prismatic, AirChamfer, c
 1. **EDGE-LOOP-X2 loop chamfer artifact/corpus** — add deterministic STEP/JSON artifact rows for the admitted top-face loop chamfer.
 2. **EDGE-LOOP-X3 no-history/imported loop rejection diagnostics** — prove imported/no-history loop requests fail deterministically without implying local topology mutation support.
 3. **EDGE-FILLET-A0 fillet architecture audit using selection taxonomy** — apply the Class A/B/C/D taxonomy to fillet routes before implementing loop fillets.
+
+## EDGE-LOOP-X2 corpus follow-up
+
+EDGE-LOOP-X2 adds deterministic artifact evidence for the X1 route through `aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]`. The corpus writes canonical, larger-distance, and non-square STEP artifacts plus JSON-only rejected/deferred rows. It preserves the X1 constraints: Class B top-cap outer closed loop only, prismatic section transition, split-preserving topology, no AirEdgeSweep, no BrepBoundedChamfer, no topology graft, no 3D Boolean, and no coplanar merge.

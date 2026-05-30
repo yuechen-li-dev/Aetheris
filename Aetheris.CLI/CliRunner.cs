@@ -27,11 +27,12 @@ public static class CliRunner
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
-    private const string ExperimentalUsage = "Usage: aetheris experimental <airchamfer-cube|airchamfer-corpus|prismatic-corpus|prismatic-map> [options]";
+    private const string ExperimentalUsage = "Usage: aetheris experimental <airchamfer-cube|airchamfer-corpus|prismatic-corpus|prismatic-map|loop-chamfer-corpus> [options]";
     private const string ExperimentalAirChamferCubeUsage = "Usage: aetheris experimental airchamfer-cube --out <path> [--json]";
     private const string ExperimentalAirChamferCorpusUsage = "Usage: aetheris experimental airchamfer-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticCorpusUsage = "Usage: aetheris experimental prismatic-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticMapUsage = "Usage: aetheris experimental prismatic-map --case <case> --rows <N> --cols <N> --json";
+    private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -873,6 +874,11 @@ public static class CliRunner
             return RunExperimentalPrismaticMap(args.Skip(1).ToArray(), stdout, stderr);
         }
 
+        if (string.Equals(args[0], "loop-chamfer-corpus", StringComparison.Ordinal))
+        {
+            return RunExperimentalLoopChamferCorpus(args.Skip(1).ToArray(), stdout, stderr);
+        }
+
         stderr.WriteLine($"Unknown experimental subcommand '{args[0]}'.");
         stderr.WriteLine(ExperimentalUsage);
         return 1;
@@ -1057,6 +1063,61 @@ public static class CliRunner
 
         stdout.WriteLine($"Experimental prismatic EDGE-PRISMATIC-X5 corpus summary written: {corpus.SummaryPath}");
         stdout.WriteLine("Route: experimental/lab prismatic section-transition corpus; production routes remain unchanged.");
+        return corpus.Errors.Count == 0 ? 0 : 1;
+    }
+
+
+    private static int RunExperimentalLoopChamferCorpus(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        string? outDir = null;
+        var json = false;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--out-dir" when i + 1 < args.Length:
+                    outDir = args[++i];
+                    break;
+                case "--out-dir":
+                    stderr.WriteLine("Experimental loop-chamfer-corpus option --out-dir requires a directory value.");
+                    stderr.WriteLine(ExperimentalLoopChamferCorpusUsage);
+                    return 1;
+                case "--json":
+                    json = true;
+                    break;
+                case "-h":
+                case "--help":
+                    WriteExperimentalLoopChamferCorpusHelp(stdout);
+                    return 0;
+                default:
+                    stderr.WriteLine($"Unknown experimental loop-chamfer-corpus option '{args[i]}'.");
+                    stderr.WriteLine(ExperimentalLoopChamferCorpusUsage);
+                    return 1;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(outDir))
+        {
+            stderr.WriteLine("Experimental loop-chamfer-corpus requires --out-dir <dir>.");
+            stderr.WriteLine(ExperimentalLoopChamferCorpusUsage);
+            return 1;
+        }
+
+        var corpus = EdgeLoopX2TopFaceLoopChamferCorpusLab.WriteEdgeLoopX2Corpus(outDir);
+        if (json)
+        {
+            stdout.WriteLine(JsonSerializer.Serialize(corpus, JsonOptions));
+            return corpus.Errors.Count == 0 ? 0 : 1;
+        }
+
+        foreach (var diagnostic in corpus.Diagnostics)
+        {
+            stdout.WriteLine(diagnostic);
+        }
+
+        stdout.WriteLine($"Experimental EDGE-LOOP-X2 loop chamfer corpus summary written: {corpus.SummaryPath}");
+        stdout.WriteLine("Route: experimental/lab top-face outer-loop chamfer corpus; production chamfer and fillet routes remain unchanged.");
         return corpus.Errors.Count == 0 ? 0 : 1;
     }
 
@@ -1888,6 +1949,7 @@ public static class CliRunner
         stdout.WriteLine("  airchamfer-corpus  Generate the EDGE-X11 tiny AirChamfer STEP regression corpus.");
         stdout.WriteLine("  prismatic-corpus   Generate the EDGE-PRISMATIC-X5 split-preserving prismatic corpus.");
         stdout.WriteLine("  prismatic-map      Inspect EDGE-PRISMATIC-X9 generated-source-only prismatic map JSON.");
+        stdout.WriteLine("  loop-chamfer-corpus Generate the EDGE-LOOP-X2 top-face loop chamfer STEP/JSON corpus.");
         stdout.WriteLine();
         stdout.WriteLine("Notes:");
         stdout.WriteLine("  - Experimental only; does not route production Firmament chamfer operations through AirChamfer.");
@@ -1895,12 +1957,38 @@ public static class CliRunner
         stdout.WriteLine("  - The candidate path uses no 3D Boolean fallback.");
         stdout.WriteLine("  - The prismatic corpus preserves section-boundary split faces and performs no coplanar merge.");
         stdout.WriteLine("  - experimental prismatic-map is generated-source-only, not normal analyze map, and accepts no STEP input.");
+        stdout.WriteLine("  - loop-chamfer-corpus is a lab-only Class B top-face outer-loop route and does not change production chamfer or fillet behavior.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris experimental airchamfer-cube --out edge-x10-airchamfer-cube-one-edge.step --json");
         stdout.WriteLine("  aetheris experimental airchamfer-corpus --out-dir artifacts/edge-x11 --json");
         stdout.WriteLine("  aetheris experimental prismatic-corpus --out-dir artifacts/edge-prismatic-x5 --json");
         stdout.WriteLine("  aetheris experimental prismatic-map --case rectangle-inset --rows 16 --cols 16 --json");
+        stdout.WriteLine("  aetheris experimental loop-chamfer-corpus --out-dir artifacts/edge-loop-x2 --json");
+    }
+
+    private static void WriteExperimentalLoopChamferCorpusHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Generate the EDGE-LOOP-X2 top-face outer-loop chamfer artifact corpus.");
+        stdout.WriteLine();
+        stdout.WriteLine(ExperimentalLoopChamferCorpusUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Options:");
+        stdout.WriteLine("  --out-dir <dir>  Required deterministic corpus output directory.");
+        stdout.WriteLine("  --json           Emit the corpus JSON summary to stdout after writing it to disk.");
+        stdout.WriteLine("  -h, --help       Show this help.");
+        stdout.WriteLine();
+        stdout.WriteLine("Artifacts:");
+        stdout.WriteLine("  edge-loop-x2-canonical-top-face-loop-chamfer.step");
+        stdout.WriteLine("  edge-loop-x2-larger-top-face-loop-chamfer.step");
+        stdout.WriteLine("  edge-loop-x2-non-square-top-face-loop-chamfer.step");
+        stdout.WriteLine($"  {EdgeLoopX2TopFaceLoopChamferCorpusLab.DefaultSummaryFileName}");
+        stdout.WriteLine();
+        stdout.WriteLine("Production safety:");
+        stdout.WriteLine("  Experimental/lab-only route; no production route replacement, AirEdgeSweep, BrepBoundedChamfer, topology graft, 3D Boolean, coplanar merge, or production chamfer/fillet behavior change.");
+        stdout.WriteLine();
+        stdout.WriteLine("Example:");
+        stdout.WriteLine("  aetheris experimental loop-chamfer-corpus --out-dir artifacts/edge-loop-x2 --json");
     }
 
     private static void WriteExperimentalAirChamferCubeHelp(TextWriter stdout)

@@ -345,3 +345,7 @@ EDGE-A3 explicitly does not include:
 - test weakening;
 - triangle migration retry;
 - NURBS/freeform expansion.
+
+## EDGE-LOOP-X2 Class B corpus evidence
+
+EDGE-LOOP-X2 adds artifact-corpus evidence for the Class B top-face outer-loop chamfer route introduced by EDGE-LOOP-X1. The corpus command `aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]` writes canonical, larger valid, and non-square STEP artifacts, plus JSON-only rejected/deferred rows for invalid dimensions, invalid or too-large distances, non-uniform rules, arbitrary graphs, open chains, non-closed loops, non-outer loops, non-planar owning faces, and inset self-intersection risk. This is still lab-only, selection-pattern-driven evidence; it does not admit a production selector or broaden Class B support beyond the history-known top-cap outer loop.

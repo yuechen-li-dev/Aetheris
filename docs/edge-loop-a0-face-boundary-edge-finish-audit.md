@@ -317,3 +317,7 @@ This milestone explicitly does not include:
 - triangle migration retry;
 - NURBS/freeform expansion;
 - gated artifact corpus stability requirements by default.
+
+## EDGE-LOOP-X2 status
+
+EDGE-LOOP-X2 now records the top-face outer-loop chamfer as an artifact corpus rather than only a lab proof. The explicit experimental CLI route is `aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]`; it writes three successful STEP artifacts and JSON-only rejected/deferred rows. The corpus preserves the Class B selection contract, the three-section prismatic section-transition construction, and split-preserving topology (`12` vertices, `20` edges, `10` planar faces, `10` loops, `40` coedges). It remains non-production evidence and keeps the no-AirEdgeSweep/no-BrepBoundedChamfer/no-graft/no-3D-Boolean/no-merge guarantees.

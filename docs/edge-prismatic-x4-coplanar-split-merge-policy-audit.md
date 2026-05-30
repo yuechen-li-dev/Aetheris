@@ -209,3 +209,7 @@ EDGE-PRISMATIC-X6 adds gated artifact stability and analyzer confirmation eviden
 ## EDGE-LOOP-X1 split-preservation evidence
 
 EDGE-LOOP-X1 confirms that the top-face outer-loop chamfer inherits the default split-preserving policy. The loop chamfer stack preserves the `z = height - chamferDistance` section boundary, yielding four stable lower prism side faces and four upper chamfer transition faces. The lab records `edge-loop-x1-split-preserving-topology` and `edge-loop-x1-no-coplanar-merge-used`, so the loop proof does not introduce a merged mode or change the default prismatic topology contract.
+
+## EDGE-LOOP-X2 split-preserving corpus note
+
+EDGE-LOOP-X2 applies this split-preserving policy to a Class B top-face outer-loop chamfer corpus. Each successful corpus artifact keeps the lower prism side faces and the four chamfer transition faces as separate section-boundary topology. No coplanar merge is performed, and the JSON topology contract asserts `10` planar faces, `4` lower prism side faces, and `4` chamfer transition faces for every successful row.

@@ -349,3 +349,7 @@ EDGE-A3 explicitly does not include:
 ## EDGE-LOOP-X2 Class B corpus evidence
 
 EDGE-LOOP-X2 adds artifact-corpus evidence for the Class B top-face outer-loop chamfer route introduced by EDGE-LOOP-X1. The corpus command `aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]` writes canonical, larger valid, and non-square STEP artifacts, plus JSON-only rejected/deferred rows for invalid dimensions, invalid or too-large distances, non-uniform rules, arbitrary graphs, open chains, non-closed loops, non-outer loops, non-planar owning faces, and inset self-intersection risk. This is still lab-only, selection-pattern-driven evidence; it does not admit a production selector or broaden Class B support beyond the history-known top-cap outer loop.
+
+## EDGE-FILLET-A0 application note
+
+EDGE-FILLET-A0 (`docs/edge-fillet-a0-selection-taxonomy-architecture-audit.md`) applies this taxonomy to fillet support. The audit keeps baseline fillets constant-radius only, treats Class A single-edge cylindrical plane-plane evidence as the first proof target, defers Class B loop and Class C whole-body fillets until corner policy evidence exists, and keeps Class D arbitrary graphs, mixed-radius selections, variable-radius fillets, and mixed chamfer/fillet selections deferred unless a future bounded manifest admits them. Existing legacy bounded fillet behavior remains authoritative where production support already exists.

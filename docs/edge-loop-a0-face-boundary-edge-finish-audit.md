@@ -294,7 +294,7 @@ First-scope loop support should reject or defer deterministically for:
 1. **EDGE-LOOP-X1**: uniform top-face outer-loop chamfer via prismatic transition.
 2. **EDGE-LOOP-X2**: artifact/corpus for loop chamfer, including admitted top-loop output and deterministic rejected cases.
 3. **EDGE-LOOP-X3**: loop-selection diagnostics and no-history rejection policy; prove imported/no-history loops do not silently fall into unsupported mutation.
-4. **EDGE-FILLET-A0**: fillet architecture audit using Class A/B/C taxonomy before implementing fillet geometry.
+4. **EDGE-FILLET-A0**: fillet architecture audit using Class A/B/C taxonomy before implementing fillet geometry. This is now recorded in `docs/edge-fillet-a0-selection-taxonomy-architecture-audit.md`; loop fillet implementation remains deferred until EDGE-FILLET-X1 proves the single-edge cylindrical witness and EDGE-FILLET-A1/CORNER policy work bounds corner behavior.
 5. **EDGE-FILLET-X1**: single-edge constant-radius plane-plane fillet witness.
 6. **EDGE-CORNER-X1**: whole-body/simple corner manifest audit/proof for bounded body families.
 
@@ -321,3 +321,7 @@ This milestone explicitly does not include:
 ## EDGE-LOOP-X2 status
 
 EDGE-LOOP-X2 now records the top-face outer-loop chamfer as an artifact corpus rather than only a lab proof. The explicit experimental CLI route is `aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]`; it writes three successful STEP artifacts and JSON-only rejected/deferred rows. The corpus preserves the Class B selection contract, the three-section prismatic section-transition construction, and split-preserving topology (`12` vertices, `20` edges, `10` planar faces, `10` loops, `40` coedges). It remains non-production evidence and keeps the no-AirEdgeSweep/no-BrepBoundedChamfer/no-graft/no-3D-Boolean/no-merge guarantees.
+
+## EDGE-FILLET-A0 loop-deferral note
+
+EDGE-FILLET-A0 confirms that Class B loop fillets should not start from loop geometry implementation. They remain deferred until a Class A single plane-plane constant-radius cylindrical witness proves fillet surface emission/radius policy and a follow-on corner audit defines loop and whole-body corner behavior. EDGE-LOOP-X1/X2 chamfer evidence is reusable for selection and prismatic routing discipline, but it does not prove curved fillet surfaces or fillet corner patches.

@@ -376,3 +376,7 @@ Roadmap principle: each stage must shrink fallback ambiguity and increase declar
 V2 emitters and legacy emitters may intentionally coexist as parallel lanes when legacy adjacency/corner topology is load-bearing for downstream feature recognition. Declared-topology preference remains intact, but production replacement requires full migration parity gates, including recognizer parity, before legacy authority is retired.
 
 Reference: `docs/v2-a3-legacy-topology-contracts-and-parallel-emitter-lanes.md`.
+
+## AIR-A0 constitutional note
+
+AIR-A0 formalizes the sweep-first doctrine in compiler terms: Aetheris is a compiler for BRep, Firmament is source/semantic intent, AIR is the constructive geometry MIR, BRep is the explicit topology backend, CIR is an admitted field/evaluation side-channel, and STEP is serialization rather than construction truth. The canonical V2 path is `Firmament -> Feature AIR -> Constructive AIR -> BRepPlan -> BRep -> STEP`, with optional `Constructive AIR -> admitted CIR mirror` analysis. See `docs/air-a0-aetheris-v2-compiler-ir-constitution.md`.

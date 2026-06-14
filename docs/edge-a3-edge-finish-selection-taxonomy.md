@@ -353,3 +353,7 @@ EDGE-LOOP-X2 adds artifact-corpus evidence for the Class B top-face outer-loop c
 ## EDGE-FILLET-A0 application note
 
 EDGE-FILLET-A0 (`docs/edge-fillet-a0-selection-taxonomy-architecture-audit.md`) applies this taxonomy to fillet support. The audit keeps baseline fillets constant-radius only, treats Class A single-edge cylindrical plane-plane evidence as the first proof target, defers Class B loop and Class C whole-body fillets until corner policy evidence exists, and keeps Class D arbitrary graphs, mixed-radius selections, variable-radius fillets, and mixed chamfer/fillet selections deferred unless a future bounded manifest admits them. Existing legacy bounded fillet behavior remains authoritative where production support already exists.
+
+## AIR-A0 mapping note
+
+AIR-A0 maps these selection classes into Feature AIR: Class A as `AirEdgeSelection`, Class B as `AirLoopSelection`, Class C as `AirBodyEdgeClassSelection`, and Class D as explicit unsupported/deferred arbitrary graph selection. Future chamfer/fillet lowering should select the highest construction-aware AIR route before using no-history local edge or legacy bounded BRep fallbacks. See `docs/air-a0-aetheris-v2-compiler-ir-constitution.md`.

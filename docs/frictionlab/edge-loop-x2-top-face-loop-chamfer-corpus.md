@@ -206,3 +206,7 @@ Recommended follow-up options:
 1. **EDGE-LOOP-X3** — gated stability/analyzer confirmation for the X2 corpus.
 2. **EDGE-LOOP-X4** — no-history/imported loop rejection diagnostics.
 3. **EDGE-FILLET-A0** — Class B fillet policy audit without implementing fillet production routing.
+
+## AIR-A0 evidence note
+
+AIR-A0 classifies this corpus as evidence for a future `AirTopFaceLoopChamfer` Feature/Constructive AIR lane. The intended future lowering is `ChamferLoop` over a Class B top-face outer loop into a prismatic section transition, with BRep emission authority remaining in the prismatic route and any CIR convex-polyhedron mirror admitted separately. See `docs/air-a0-aetheris-v2-compiler-ir-constitution.md`.

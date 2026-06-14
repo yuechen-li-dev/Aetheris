@@ -409,3 +409,7 @@ This milestone does not do any of the following:
 - no default gated corpus test changes;
 - no CIR-to-BRep extraction work;
 - no NURBS/freeform scope.
+
+## AIR-A0 constitutional follow-up
+
+AIR-A0 formalizes this authority contract as the Aetheris V2 compiler IR constitution. It names AIR as the topology-generating constructive MIR, keeps CIR as an admitted mirror/evaluation side-channel, and introduces BRepPlan as the proposed backend topology emission plan between Constructive AIR and materialized BRep. See `docs/air-a0-aetheris-v2-compiler-ir-constitution.md`.

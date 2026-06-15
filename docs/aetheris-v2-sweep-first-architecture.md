@@ -19,6 +19,8 @@ V2 therefore treats AIR as the atomic constructive-intent layer above BRep emiss
 
 AIR-CIR-A0 sharpens this lowering contract: the default architecture is `Firmament -> AIR -> BRep` for explicit topology/export, with `Firmament -> AIR -> CIR mirror` only when an admitted analysis mirror exists. CIR/FRep is lower-level implicit/evaluation IR, not the default topology construction MIR, and STEP import must not be treated as recovered AIR or CIR mirror provenance without an explicit recognizer. See `docs/air-cir-a0-authority-and-mirror-contract.md`.
 
+AIR-A1 adds the scoped construction counterpart for multi-axis features: AIR Regions preserve local construction intent in local frames, expose effects only through explicit yields, and route-select parent integration. This keeps side holes, side pockets, bosses, pattern elements, and shell/local offset contexts aligned with sweep-first doctrine instead of making global Boolean the default for every different-axis feature. See `docs/air-a1-air-regions-scoped-feature-lowering-audit.md`.
+
 ## 2. Why V1 reached this point
 
 Aetheris V1 built a strong 3D-first analytic kernel substrate and delivered real capability:

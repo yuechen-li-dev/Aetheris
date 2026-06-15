@@ -78,6 +78,8 @@ Likely routes:
 - prismatic section transition;
 - loop-level AirEdgeSweep only if no construction history is available or admitted.
 
+AIR-A1 region note: future edge- or face-attached features may use AIR Regions when local frames, explicit yields, and parent integration contracts are needed. Current Class B top-face loop chamfer work does not require region machinery by default because its bounded selection and route can remain explicit without introducing a nested scoped construction island.
+
 Class B should not be conflated with arbitrary edge chains. A face loop has topological order, repeated local context, and an implied corner sequence; an arbitrary chain may not.
 
 ### EDGE-LOOP-A0 Class B policy note

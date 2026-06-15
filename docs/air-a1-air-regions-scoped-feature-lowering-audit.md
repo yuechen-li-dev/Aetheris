@@ -637,3 +637,7 @@ AIR-REGION-X2 implements a trace-only side-hole yield boundary contract for the 
 ## AIR-REGION-X3 status note
 
 AIR-REGION-X3 demonstrates the A1 doctrine that region effects may be mirrored for analysis without transferring topology authority to CIR. The side-hole region reports an analysis-only parent-box-minus-cylinder mirror summary while BRepPlan, BRep, STEP, Boolean, and production integration remain deferred.
+
+### AIR-REGION-X4 status note
+
+AIR-REGION-X4 adds a trace-only BRepPlan boundary contract for the side-hole `FaceAttachedRegion`. The summary records the affected `+X` parent face, circular entry-loop intent, deferred opposite-side exit intent, deferred cylindrical cut-wall intent, planned semantic role strings, deferred elements, losses, and guarantees. It preserves A1 locality: no parent topology mutation, no BRepPlan materialization, no Boolean, no BRep emission, no STEP smoke, and no production route replacement.

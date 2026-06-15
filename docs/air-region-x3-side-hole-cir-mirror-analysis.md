@@ -72,3 +72,7 @@ Validation used the focused CLI trace commands and filtered test commands record
 ## Recommended next milestone
 
 Recommended next milestone: **AIR-REGION-X4 — Region-to-CIR occupancy sample artifact**. X3 found the mirror summary boundary clean, so the next narrow step is to add an explicit trace/test-only sample artifact without changing production analyzer behavior or claiming topology authority.
+
+## AIR-REGION-X4 boundary-contract note
+
+AIR-REGION-X4 preserves the X3 CIR mirror as analysis-only and adds a separate `brepBoundary` trace summary for side-hole topology-side intent. The BRep boundary summary records affected `+X` parent face intent, circular entry-loop intent, deferred opposite-side exit intent, deferred cylindrical cut-wall intent, planned semantic role strings, losses, and guarantees. It does not grant CIR topology authority and does not materialize BRepPlan, BRep, Boolean, or STEP output.

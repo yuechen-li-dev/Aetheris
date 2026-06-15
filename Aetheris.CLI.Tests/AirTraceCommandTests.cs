@@ -305,7 +305,7 @@ public sealed class AirTraceCommandTests
     }
 
     [Fact]
-    public void TraceSideHoleRegion_YieldContract_DefaultText()
+    public void TraceSideHoleRegion_BRepBoundary_DefaultText()
     {
         var (exitCode, output, error) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"));
         Assert.Equal(0, exitCode); Assert.True(string.IsNullOrWhiteSpace(error));
@@ -318,17 +318,23 @@ public sealed class AirTraceCommandTests
         Assert.Contains("Parent field: Box", output); Assert.Contains("Subtract field: Cylinder", output);
         Assert.Contains("no topology authority", output); Assert.Contains("no face identity", output);
         Assert.Contains("no Boolean", output); Assert.Contains("no BRep emission", output);
+
+        Assert.Contains("Region BRepPlan boundary", output); Assert.Contains("PlannedContractOnly", output);
+        Assert.Contains("Affected face: +X", output); Assert.Contains("circular entry loop intent", output);
+        Assert.Contains("opposite-side exit deferred", output); Assert.Contains("cylindrical cut wall intent deferred", output);
+        Assert.Contains("CutEntryLoop", output); Assert.Contains("CutWallFace", output);
+        Assert.Contains("no parent topology mutation", output); Assert.Contains("no BRepPlan elements materialized", output);
     }
 
     [Fact]
-    public void TraceSideHoleRegion_YieldContract_Json()
+    public void TraceSideHoleRegion_BRepBoundary_Json()
     {
         var (exitCode, output, _) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
         Assert.Equal("valid", root.GetProperty("fixture").GetProperty("expectation").GetString());
         Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
-        Assert.Equal("region-cir-mirror", root.GetProperty("actualStageReached").GetString());
+        Assert.Equal("region-brep-boundary", root.GetProperty("actualStageReached").GetString());
         var regions = root.GetProperty("regions");
         Assert.Equal(2, regions.GetProperty("regionCount").GetInt32());
         Assert.True(regions.GetProperty("hasNestedRegions").GetBoolean());
@@ -364,6 +370,25 @@ public sealed class AirTraceCommandTests
         var losses = mirror.GetProperty("knownLosses").EnumerateArray().Select(x => x.GetString()).ToArray();
         Assert.Contains("no-topology-authority", losses); Assert.Contains("no-face-identity", losses);
         Assert.Contains("no-brep-plan-role-parity", losses); Assert.Contains("no-step-export-authority", losses);
+
+        var brepBoundary = side.GetProperty("brepBoundary");
+        Assert.Equal("PlannedContractOnly", brepBoundary.GetProperty("status").GetString());
+        Assert.Equal("+X", brepBoundary.GetProperty("affectedParent").GetProperty("affectedFaceSelector").GetString());
+        Assert.Equal("ParentBodyLocalFeature", brepBoundary.GetProperty("affectedParent").GetProperty("affectedScope").GetString());
+        Assert.Equal("CircularEntry", brepBoundary.GetProperty("entryBoundary").GetProperty("boundaryKind").GetString());
+        Assert.Equal("CircularEntryLoop", brepBoundary.GetProperty("entryBoundary").GetProperty("loopIntent").GetString());
+        Assert.Equal("OppositeSideExit", brepBoundary.GetProperty("exitBoundary").GetProperty("exitKind").GetString());
+        Assert.Equal("Deferred", brepBoundary.GetProperty("exitBoundary").GetProperty("status").GetString());
+        Assert.Equal("CylindricalCutWallIntent", brepBoundary.GetProperty("cutWallIntent").GetProperty("wallKind").GetString());
+        Assert.Equal("Deferred", brepBoundary.GetProperty("cutWallIntent").GetProperty("status").GetString());
+        var plannedRoles = brepBoundary.GetProperty("plannedRoles").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("CutEntryLoop", plannedRoles); Assert.Contains("CutWallFace", plannedRoles);
+        var boundaryLosses = brepBoundary.GetProperty("knownLosses").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("no-emitted-entry-loop-identity", boundaryLosses);
+        Assert.Contains("no-emitted-exit-loop-identity", boundaryLosses);
+        Assert.Contains("no-emitted-cut-wall-face-identity", boundaryLosses);
+        Assert.Contains("no-brep-plan-element-materialization", boundaryLosses);
+        Assert.Equal("Deferred", brepBoundary.GetProperty("integrationStatus").GetString());
         Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
         Assert.False(root.GetProperty("stepSmoke").GetProperty("succeeded").GetBoolean());
         Assert.Equal("none", root.GetProperty("brepPlan").GetProperty("planKind").GetString());
@@ -384,10 +409,12 @@ public sealed class AirTraceCommandTests
         Assert.Contains("air-region-x2-missing-explicit-yield-rejected", diagnostics);
         Assert.Contains("air-region-x2-boundary-contract-required", diagnostics);
         Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
+        var side = root.GetProperty("regions").GetProperty("regions").EnumerateArray().Single(r => r.GetProperty("regionKind").GetString() == "FaceAttachedRegion");
+        Assert.False(side.TryGetProperty("brepBoundary", out _));
     }
 
     [Fact]
-    public void RegionCirMirrorSummaries_AreDeterministic()
+    public void RegionBRepBoundarySummaries_AreDeterministic()
     {
         var valid = RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture");
         var invalid = RegionFixture("invalid/implicit-parent-mutation.invalid.firmfixture");
@@ -430,6 +457,7 @@ public sealed class AirTraceCommandTests
         var regions = root.GetProperty("regions");
         Assert.Equal(1, regions.GetProperty("regionCount").GetInt32());
         Assert.DoesNotContain("SideHole", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("brepBoundary", output, StringComparison.Ordinal);
     }
 
     [Fact]

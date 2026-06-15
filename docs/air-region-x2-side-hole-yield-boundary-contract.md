@@ -84,3 +84,7 @@ Recommended: **AIR-REGION-X3 — Region BRepPlan boundary contract for side-hole
 ## AIR-REGION-X3 CIR mirror note
 
 AIR-REGION-X3 preserves the X2 side-hole yield boundary contract and adds a trace-only CIR mirror admission summary for the same `FaceAttachedRegion`. The summary backend is `cir-region-parent-minus-cylinder`, records parent `Box` and subtract `Cylinder` fields, remains analysis-only, and keeps parent integration deferred with no Boolean, no BRep emission, no BRepPlan integration, and no STEP authority.
+
+## AIR-REGION-X4 boundary-contract note
+
+AIR-REGION-X4 builds on the X2 yield contract by adding a trace-only BRepPlan boundary contract summary under the side-hole `FaceAttachedRegion`. The summary reuses X2 attachment/profile/direction/scope facts and records future topology-planning roles as strings while keeping parent integration deferred and denying emitted entry loop, exit loop, cut-wall face, boundary patch, BRepPlan element, BRep, Boolean, and STEP identities.

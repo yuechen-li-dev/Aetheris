@@ -150,3 +150,7 @@ For `.firmfixture` inputs with `// parser-backed: true`, `aetheris trace --fixtu
 ## AIR-X9 Feature AIR section for parser-backed fixtures
 
 For the parser-backed box fixture, `aetheris trace --fixture` now includes a `Feature AIR` text section and a `featureAir` JSON object. The section reports source op `box`, node `CreateBox`, dimensions when extracted, construction intent, deterministic diagnostics, and the truthful stage `feature-air`. Constructive AIR, BRepPlan, BRep/STEP, and CIR mirror sections remain unavailable/not-requested for this fixture unless a later milestone wires those boundaries.
+
+## AIR-X10 Constructive AIR fixture section
+
+For parser-backed Firmament primitive fixtures, `aetheris trace --fixture` can now include both `Feature AIR` and `Constructive AIR` sections. The AIR-X10 box fixture reports source op `box`, Feature AIR `CreateBox`, Constructive AIR `AirProfileExtrude`, canonical form `rectangle-profile-extrude`, rectangle width/depth, extrusion height, and truthful deferred BRepPlan/emission/STEP/CIR status.

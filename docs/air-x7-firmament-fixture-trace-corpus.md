@@ -109,3 +109,7 @@ The first parser-backed fixture is `fixtures/Firmament/Primitive/valid/box.valid
 ## AIR-X9 parser-backed primitive stage
 
 The parser-backed primitive fixture `fixtures/Firmament/Primitive/valid/box.valid.firmfixture` now reaches `feature-air` through the real Firmament parser and a narrow trace summary adapter. The AIR-X7 Chamfer fixtures remain metadata-driven and continue to use their existing route-selection/lowering trace mappings.
+
+## AIR-X10 parser-backed fixture advancement
+
+The primitive parser-backed fixture `fixtures/Firmament/Primitive/valid/box.valid.firmfixture` now expects and reaches `constructive-air`. It remains parser-backed while the Chamfer corpus remains metadata-driven. The box trace reports Feature AIR `CreateBox`, Constructive AIR `AirProfileExtrude`, canonical form `rectangle-profile-extrude`, and deferred BRepPlan/emission/CIR status.

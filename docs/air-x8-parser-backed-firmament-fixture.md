@@ -94,3 +94,7 @@ AIR-X8 validation used CLI help, parser-backed text/JSON trace, existing metadat
 ## Recommended next milestone
 
 Recommended AIR-X9: **Firmament-to-AIR frontend boundary for parsed box primitive**. AIR-X8 proves parser invocation and isolates the next blocker: parsed primitive source is not yet wired into AIR trace lowering.
+
+## AIR-X9 advancement
+
+AIR-X9 advances the same parser-backed box fixture from `parsed` to `feature-air`. The syntax remains the existing TOON-style `op: box` with `size[3]`; the parser is still the real Firmament parser; and the new trace-only boundary creates a Feature AIR `CreateBox` summary with width/depth/height dimensions. Constructive AIR remains deferred and is not reported as reached.

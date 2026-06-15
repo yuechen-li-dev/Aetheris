@@ -1,8 +1,9 @@
 // case: box
 // expected: valid
-// expected-stage: parsed
+// expected-stage: feature-air
+// expected-feature-air: CreateBox
 // parser-backed: true
-// description: Minimal parser-backed Firmament primitive fixture.
+// description: Minimal parser-backed Firmament primitive fixture reaching Feature AIR.
 
 firmament:
   version: 1

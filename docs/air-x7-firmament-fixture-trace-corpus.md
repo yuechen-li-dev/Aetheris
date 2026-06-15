@@ -105,3 +105,7 @@ Recommended AIR-X8: **Firmament parser-backed trace fixture for one real source 
 AIR-X8 adds opt-in parser-backed fixture mode with `// parser-backed: true`. Metadata-driven AIR-X7 fixtures remain the default. Parser-backed fixtures extract the non-metadata body, invoke the existing Firmament frontend, report parse success/failure and `frontendStageReached`, and satisfy the fixture expectation from the truthful frontend stage reached.
 
 The first parser-backed fixture is `fixtures/Firmament/Primitive/valid/box.valid.firmfixture`. It reaches `parsed` and records the explicit AIR-X8 boundary diagnostic that AIR lowering is not wired for parser-backed fixtures yet.
+
+## AIR-X9 parser-backed primitive stage
+
+The parser-backed primitive fixture `fixtures/Firmament/Primitive/valid/box.valid.firmfixture` now reaches `feature-air` through the real Firmament parser and a narrow trace summary adapter. The AIR-X7 Chamfer fixtures remain metadata-driven and continue to use their existing route-selection/lowering trace mappings.

@@ -769,3 +769,7 @@ Firmament `.valid.firmfixture` and `.invalid.firmfixture` files are source/lower
 ## AIR-X8 parser-backed fixture anchor
 
 AIR-X8 anchors the Firmament fixture corpus to the real Firmament frontend for one minimal primitive source form. The primitive box `.valid.firmfixture` is parser-backed, reaches the truthful `parsed` frontend stage, and deliberately does not claim AIR/BRepPlan/CIR/STEP lowering until that bridge is explicitly wired. Metadata-driven AIR-X7 Chamfer fixtures remain valid lowering contracts.
+
+## AIR-X9 parser-backed frontend boundary note
+
+AIR-X9 creates the first parser-backed Firmament-to-AIR boundary for the existing TOON-style primitive box fixture. The path is `Firmament source -> FirmamentTopLevelParser -> parsed box op -> Feature AIR CreateBox trace summary`. This validates the constitutional distinction between Firmament source and Feature AIR without expanding grammar, replacing production routes, or claiming Constructive AIR/BRepPlan/CIR stages that are not wired.

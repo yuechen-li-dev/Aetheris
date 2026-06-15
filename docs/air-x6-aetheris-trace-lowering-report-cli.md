@@ -146,3 +146,7 @@ AIR-X7 extends `aetheris trace` with `--fixture <path>` while keeping AIR-X6 bui
 ## AIR-X8 parser-backed fixture frontend section
 
 For `.firmfixture` inputs with `// parser-backed: true`, `aetheris trace --fixture` now includes a `Frontend` section in text output and a `frontend` object in JSON. The fields record whether parser-backed mode was requested, the parser/frontend name, parse success, deterministic parse diagnostics, and the truthful frontend stage reached. The first parser-backed primitive box fixture stops at `parsed` because Firmament-to-AIR fixture lowering is not wired in AIR-X8.
+
+## AIR-X9 Feature AIR section for parser-backed fixtures
+
+For the parser-backed box fixture, `aetheris trace --fixture` now includes a `Feature AIR` text section and a `featureAir` JSON object. The section reports source op `box`, node `CreateBox`, dimensions when extracted, construction intent, deterministic diagnostics, and the truthful stage `feature-air`. Constructive AIR, BRepPlan, BRep/STEP, and CIR mirror sections remain unavailable/not-requested for this fixture unless a later milestone wires those boundaries.

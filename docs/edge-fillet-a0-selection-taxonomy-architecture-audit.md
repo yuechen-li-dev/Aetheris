@@ -279,3 +279,7 @@ This milestone explicitly does not include:
 ## AIR-A0 route-selection note
 
 AIR-A0 places future fillet support behind AIR route selection: constant-radius Class A evidence should lower through the highest construction-aware route available, then a future `AirFillet`/`AirEdgeSweep` local route only when no-history support is explicitly admitted, with legacy bounded BRep fillet behavior preserved as the current authoritative fallback. See `docs/air-a0-aetheris-v2-compiler-ir-constitution.md`.
+
+## AIR-X2 route-policy note
+
+AIR-X2 keeps face-boundary-loop constant-radius fillet deferred. The route selector requires Class A single-edge fillet and corner evidence before a loop fillet route can be admitted, and no fillet geometry behavior changes in AIR-X2.

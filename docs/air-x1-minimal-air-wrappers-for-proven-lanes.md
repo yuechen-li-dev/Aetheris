@@ -71,3 +71,7 @@ Focused AIR tests were added for profile extrusion provenance, prismatic split-p
 ## 11. Recommended next milestone
 
 AIR-X2 should introduce route-selection/admissibility metadata only after more wrappers need bounded strategy choice. AIR-X3 should introduce a BRepPlan for prismatic section transition if the next goal is to separate constructive planning from direct emitter invocation. AIR-X1 evidence suggests BRepPlan for the prismatic section stack is the narrower next technical step.
+
+## AIR-X2 route-selection note
+
+AIR-X2 now records deterministic route decisions for the AIR-X1 wrapper lanes. Profile extrusion and prismatic section transition use direct selection; top-face loop chamfer uses switch/match classification. These decisions are internal/test-visible and do not replace production routes.

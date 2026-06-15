@@ -214,3 +214,7 @@ AIR-A0 classifies this corpus as evidence for a future `AirTopFaceLoopChamfer` F
 ## AIR-X1 wrapper note
 
 AIR-X1 adds an internal `TopFaceLoopChamfer` AIR wrapper around the existing `PrismaticTopFaceLoopChamferPrototype` lane. The wrapper preserves the EDGE-LOOP-X2 Class B face-boundary-loop metadata, uniform chamfer rule, split-preserving topology summary, STEP smoke summary, and route-exclusion guarantees; it does not replace production routing or change chamfer geometry.
+
+## AIR-X2 route-selection note
+
+AIR-X2 can select the top-face loop chamfer wrapper through deterministic switch/match policy for `FaceBoundaryLoop + UniformChamfer + history-known top-face loop`. This is route-decision evidence only; it does not change the corpus writer or production geometry routes.

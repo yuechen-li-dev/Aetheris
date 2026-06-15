@@ -361,3 +361,7 @@ AIR-A0 maps these selection classes into Feature AIR: Class A as `AirEdgeSelecti
 ## AIR-X1 Class B metadata note
 
 AIR-X1 records the top-face outer-loop chamfer proof as internal AIR metadata with node kind `TopFaceLoopChamfer`, route `TopFaceLoopChamferPrismatic`, selection class `FaceBoundaryLoop`, and rule kind `UniformChamfer`. This note is descriptive metadata around the existing prismatic loop route only; it does not introduce route selection, JudgmentEngine policy, production replacement, or new chamfer/fillet geometry.
+
+## AIR-X2 evidence note
+
+AIR-X2 provides route-selection evidence for Class B face-boundary-loop uniform chamfer by admitting the `TopFaceLoopChamferPrismatic` AIR-X1 wrapper through switch/match classification. It also records stable rejection for arbitrary-graph uniform chamfer as unsupported in AIR-X2.

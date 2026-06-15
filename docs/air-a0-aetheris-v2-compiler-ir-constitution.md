@@ -761,3 +761,7 @@ AIR-X5 adds an internal/test-visible AIR-to-CIR mirror adapter envelope for gene
 ## AIR-X6 trace status
 
 AIR-X6 adds `aetheris trace` as a top-level compiler-lowering report command for built-in AIR cases. The command reports AIR, route selection, BRepPlan, emitted BRep/STEP smoke, CIR mirror admission, diagnostics, guarantees, and known losses without making STEP serialization or CIR evaluation topology authority.
+
+## AIR-X7 fixture corpus note
+
+Firmament `.valid.firmfixture` and `.invalid.firmfixture` files are source/lowering contract fixtures. They document accepted and rejected/deferred authoring-intent programs and let `aetheris trace --fixture` report compiler lowering stages without treating STEP as construction truth or changing production geometry behavior.

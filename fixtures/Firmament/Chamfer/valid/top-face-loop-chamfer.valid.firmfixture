@@ -1,0 +1,8 @@
+// case: top-face-loop-chamfer
+// expected: valid
+// expected-stage: cir-mirror
+// expected-route: TopFaceLoopChamferPrismatic
+// description: Class B top-face outer-loop uniform chamfer fixture contract.
+
+solid box = Box(width: 10, depth: 8, height: 6);
+chamfer box.top.outerLoop distance 1;

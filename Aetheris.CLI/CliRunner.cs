@@ -24,7 +24,7 @@ public static class CliRunner
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
-    private const string TraceUsage = "Usage: aetheris trace --case <name> [--out-dir <dir>] [--json]";
+    private const string TraceUsage = "Usage: aetheris trace (--case <name>|--fixture <path>) [--out-dir <dir>] [--json]";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
@@ -187,6 +187,7 @@ public static class CliRunner
         }
 
         string? caseName = null;
+        string? fixturePath = null;
         string? outDir = null;
         var json = false;
         for (var i = 0; i < args.Length; i++)
@@ -196,6 +197,13 @@ public static class CliRunner
                 case "--case" when i + 1 < args.Length:
                     caseName = args[++i];
                     break;
+                case "--fixture" when i + 1 < args.Length:
+                    fixturePath = args[++i];
+                    break;
+                case "--fixture":
+                    stderr.WriteLine("Trace option --fixture requires a fixture path.");
+                    stderr.WriteLine(TraceUsage);
+                    return 1;
                 case "--case":
                     stderr.WriteLine("Trace option --case requires a case name.");
                     stderr.WriteLine(TraceUsage);
@@ -229,30 +237,66 @@ public static class CliRunner
             }
         }
 
-        if (string.IsNullOrWhiteSpace(caseName))
+        if (!string.IsNullOrWhiteSpace(caseName) && !string.IsNullOrWhiteSpace(fixturePath))
         {
-            stderr.WriteLine("Trace requires --case <name>.");
-            stderr.WriteLine("air-x6-missing-case-rejected");
-            stderr.WriteLine($"Supported cases: {string.Join(", ", AirTraceReportBuilder.SupportedCases)}");
+            stderr.WriteLine("Trace options --case and --fixture are mutually exclusive.");
+            stderr.WriteLine("air-x7-case-and-fixture-mutually-exclusive");
             stderr.WriteLine(TraceUsage);
             return 1;
         }
 
-        caseName = AirTraceReportBuilder.Normalize(caseName);
-        if (!AirTraceReportBuilder.SupportedCases.Contains(caseName, StringComparer.Ordinal))
+        AirTraceReport report;
+        string fileStem;
+        if (!string.IsNullOrWhiteSpace(fixturePath))
         {
-            stderr.WriteLine($"Unknown trace case '{caseName}'.");
-            stderr.WriteLine("air-x6-unknown-case-rejected");
-            stderr.WriteLine($"Supported cases: {string.Join(", ", AirTraceReportBuilder.SupportedCases)}");
-            return 1;
+            FirmFixture fixture;
+            try { fixture = FirmFixtureLoader.Load(fixturePath); }
+            catch (FirmFixtureException ex) { stderr.WriteLine(ex.Message); stderr.WriteLine(ex.Code); stderr.WriteLine(TraceUsage); return 1; }
+            if (!AirTraceReportBuilder.SupportedFixtureCases.Contains(fixture.CaseName, StringComparer.Ordinal))
+            {
+                stderr.WriteLine($"Unknown Firmament fixture case '{fixture.CaseName}'.");
+                stderr.WriteLine("air-x7-unknown-firmfixture-case");
+                stderr.WriteLine($"Supported fixture cases: {string.Join(", ", AirTraceReportBuilder.SupportedFixtureCases)}");
+                return 1;
+            }
+            report = AirTraceReportBuilder.BuildFixture(fixture);
+            if (report.ExpectationSatisfied != true)
+            {
+                stderr.WriteLine("Firmament fixture expectation was not satisfied.");
+                stderr.WriteLine("air-x7-fixture-expectation-not-satisfied");
+                return 1;
+            }
+            fileStem = AirTraceReportBuilder.FixtureFileStem(fixture);
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(caseName))
+            {
+                stderr.WriteLine("Trace requires one of --case <name> or --fixture <path>.");
+                stderr.WriteLine("air-x7-missing-case-or-fixture");
+                stderr.WriteLine($"Supported cases: {string.Join(", ", AirTraceReportBuilder.SupportedCases)}");
+                stderr.WriteLine(TraceUsage);
+                return 1;
+            }
+
+            caseName = AirTraceReportBuilder.Normalize(caseName);
+            if (!AirTraceReportBuilder.SupportedCases.Contains(caseName, StringComparer.Ordinal))
+            {
+                stderr.WriteLine($"Unknown trace case '{caseName}'.");
+                stderr.WriteLine("air-x6-unknown-case-rejected");
+                stderr.WriteLine($"Supported cases: {string.Join(", ", AirTraceReportBuilder.SupportedCases)}");
+                return 1;
+            }
+            report = AirTraceReportBuilder.Build(caseName);
+            fileStem = AirTraceReportBuilder.FileStem(caseName);
         }
 
-        var report = AirTraceReportBuilder.Build(caseName);
+        report = report with { Diagnostics = (json ? report.Diagnostics.Append("air-x7-json-output-requested").Append("air-x7-json-fixture-report-created") : report.Diagnostics.Append("air-x7-default-text-output").Append("air-x7-text-fixture-report-created")).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray() };
         var text = json ? JsonSerializer.Serialize(report, JsonOptions) : AirTraceTextRenderer.Render(report);
         if (!string.IsNullOrWhiteSpace(outDir))
         {
             Directory.CreateDirectory(outDir);
-            var path = Path.Combine(outDir, AirTraceReportBuilder.FileStem(caseName) + (json ? ".json" : ".txt"));
+            var path = Path.Combine(outDir, fileStem + (json ? ".json" : ".txt"));
             File.WriteAllText(path, text);
             if (json)
             {
@@ -1905,6 +1949,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris analyze model.step");
         stdout.WriteLine("  aetheris analyze model.step --json");
         stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer");
+        stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture");
         stdout.WriteLine("  aetheris trace --case prismatic-section-transition --json");
         stdout.WriteLine("  aetheris canon input.step --out canonical.step --json");
         stdout.WriteLine("  aetheris asm exec assembly.firmasm --json");
@@ -1941,12 +1986,14 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Scope:");
         stdout.WriteLine("  trace reports compiler lowering; analyze reports geometric analysis of existing STEP/BRep artifacts.");
-        stdout.WriteLine("  Supported cases: prismatic-section-transition, top-face-loop-chamfer.");
+        stdout.WriteLine("  Supported cases: prismatic-section-transition, top-face-loop-chamfer");
+        stdout.WriteLine("  Supported fixture extensions: .valid.firmfixture, .invalid.firmfixture.");
         stdout.WriteLine("  Optional aliases: prismatic, loop-chamfer.");
         stdout.WriteLine("  No STEP input is accepted by trace.");
         stdout.WriteLine();
         stdout.WriteLine("Options:");
-        stdout.WriteLine("  --case <name>   Required built-in lowering case name.");
+        stdout.WriteLine("  --case <name>      Built-in lowering case name.");
+        stdout.WriteLine("  --fixture <path>   Firmament fixture trace input (.valid/.invalid.firmfixture).");
         stdout.WriteLine("  --json          Emit deterministic machine-readable JSON (default output is human-readable text).");
         stdout.WriteLine("  --out-dir <dir> Write the trace report artifact into a directory.");
         stdout.WriteLine("  -h, --help      Show this help.");
@@ -1954,7 +2001,8 @@ public static class CliRunner
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris trace --case prismatic-section-transition");
         stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer --json");
-        stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer --out-dir artifacts/air-x6");
+        stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --json");
+        stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --out-dir artifacts/air-x7");
     }
 
     private static void WriteAnalyzeHelp(TextWriter stdout)

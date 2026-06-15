@@ -77,3 +77,7 @@ The AIR-X2 switch/match-selected `TopFaceLoopChamferPrismatic` route now has AIR
 ## AIR-X6 trace reporting
 
 `aetheris trace` reports AIR-X2 route decisions for supported built-in cases, including Direct prismatic selection and SwitchMatch top-face loop chamfer selection. This is read-only reporting and does not alter JudgmentUtility, admissibility, tie-breaking, or rejection semantics.
+
+## AIR-X7 invalid fixture trace note
+
+AIR-X7 reuses AIR-X2 route-selection/admissibility decisions for invalid Firmament fixture traces. Arbitrary graph chamfers, non-uniform loop chamfers, and deferred loop fillets stop at route-selection/rejected/deferred stages with stable reason codes and no geometry emission.

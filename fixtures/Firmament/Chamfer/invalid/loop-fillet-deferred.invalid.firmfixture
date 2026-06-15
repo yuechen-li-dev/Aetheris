@@ -1,0 +1,8 @@
+// case: loop-fillet-deferred
+// expected: invalid
+// expected-stage: route-selection
+// expected-reason: loop-fillet-deferred-until-single-edge-fillet-evidence
+// description: Loop fillet is deferred until single-edge and corner fillet evidence exists.
+
+solid box = Box(width: 10, depth: 8, height: 6);
+fillet box.top.outerLoop radius 1;

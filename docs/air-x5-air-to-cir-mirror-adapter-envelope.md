@@ -97,3 +97,7 @@ Implementation showed that AIR-X3/X4 already carry useful BRepPlan topology-role
 ## AIR-X6 trace reporting
 
 `aetheris trace` reports AIR-X5 CIR mirror admission, backend, capabilities, provenance, and losses. CIR remains an evaluation side-channel and does not gain face identity, loop identity, topology parity, chamfer-face identity, or BRepPlan role parity authority.
+
+## AIR-X7 fixture note
+
+The AIR-X7 valid top-face loop chamfer fixture reaches the `cir-mirror` trace stage by reusing the existing admitted AIR-X5 top-face loop chamfer mirror envelope. The fixture does not make CIR a topology authority.

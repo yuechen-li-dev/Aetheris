@@ -192,17 +192,17 @@ internal static class AirTraceReportBuilder
     private static AirTraceReport BuildSideHoleFaceAttachedRegionFixture(FirmFixture fixture)
     {
         var regions = AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred();
-        var actualStage = "region-integration-deferred";
+        var actualStage = "region-cir-mirror";
         var expectationSatisfied = fixture.Expectation == "valid" && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
         var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
-        return new("AIR-REGION-X2", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole yield contract is valid but parent integration is deferred; no geometry emitted.",
-            new("RegionFixture", "none", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X2"),
+        return new("AIR-REGION-X3", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole yield contract admits a conservative analysis-only CIR mirror summary; parent integration remains deferred and no geometry is emitted.",
+            new("RegionFixture", "none", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X3"),
             new("none", null, false, "region integration deferred; no route selection invoked", "none", "none", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
             new("none", false, "no geometry emitted for trace-only region fixture"),
             new(false, false, false, false, []),
             new("not-requested", "none", "none", "RegionFixture", "none", "none", "none", [], [], [], []),
-            [], ["side-hole geometry integration not implemented"], fxDiagnostics,
+            [], ["side-hole geometry integration not implemented", "CIR evaluator composition deferred"], fxDiagnostics,
             [.. regions.Guarantees, "metadata-driven region fixture", "integration deferred"],
             ["no AIR Region production integration", "no production route replacement", "no Firmament grammar expansion", "no BRepPlan semantics change", "no CIR evaluator/tape behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no production analyzer behavior change", "no Boolean behavior change", "no AirEdgeSweep behavior change", "no BrepBoundedChamfer/BrepBoundedFillet behavior change", "no chamfer/fillet/shell geometry change", "no arbitrary graph support", "no import/recovery", "no triangle migration", "no NURBS/freeform behavior change"],
             new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, fxDiagnostics),
@@ -316,6 +316,24 @@ internal static class AirTraceTextRenderer
                     b.AppendLine($"      Integration: {y.IntegrationStatus}");
                     b.AppendLine("      Guarantees:");
                     foreach (var guarantee in y.Guarantees) b.AppendLine($"        - {guarantee}");
+                }
+
+                if (region.CirMirror is not null)
+                {
+                    var m = region.CirMirror;
+                    b.AppendLine("    Region CIR mirror");
+                    b.AppendLine($"      Region: {m.SourceRegionId}");
+                    b.AppendLine($"      Feature: {m.YieldFeatureKind}");
+                    b.AppendLine($"      Status: {m.Status}");
+                    b.AppendLine($"      Backend: {m.Backend}");
+                    b.AppendLine($"      Effect: {m.Effect}");
+                    b.AppendLine($"      Parent field: {m.ParentField}");
+                    b.AppendLine($"      Subtract field: {m.SubtractField}");
+                    b.AppendLine($"      Capabilities: {string.Join(", ", m.Capabilities)}");
+                    b.AppendLine("      Known losses:");
+                    foreach (var loss in m.KnownLosses) b.AppendLine($"        - {loss.Replace('-', ' ')}");
+                    b.AppendLine("      Guarantees:");
+                    foreach (var guarantee in m.Guarantees) b.AppendLine($"        - {guarantee}");
                 }
                 foreach (var loss in region.KnownLosses) b.AppendLine($"    Reason: {loss}");
                 foreach (var guarantee in region.Guarantees) b.AppendLine($"    Guarantee: {guarantee}");

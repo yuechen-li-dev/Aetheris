@@ -314,6 +314,9 @@ public sealed class AirTraceCommandTests
         Assert.Contains("YieldsCutVolume", output); Assert.Contains("Integration: Deferred", output);
         Assert.Contains("Region yield", output); Assert.Contains("SideHole", output); Assert.Contains("Circle", output);
         Assert.Contains("radius=1", output); Assert.Contains("+X", output); Assert.Contains("through inward", output); Assert.Contains("ThroughCut", output);
+        Assert.Contains("Region CIR mirror", output); Assert.Contains("mirror-admitted-conservative", output); Assert.Contains("cir-region-parent-minus-cylinder", output);
+        Assert.Contains("Parent field: Box", output); Assert.Contains("Subtract field: Cylinder", output);
+        Assert.Contains("no topology authority", output); Assert.Contains("no face identity", output);
         Assert.Contains("no Boolean", output); Assert.Contains("no BRep emission", output);
     }
 
@@ -325,7 +328,7 @@ public sealed class AirTraceCommandTests
         using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
         Assert.Equal("valid", root.GetProperty("fixture").GetProperty("expectation").GetString());
         Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
-        Assert.Equal("region-integration-deferred", root.GetProperty("actualStageReached").GetString());
+        Assert.Equal("region-cir-mirror", root.GetProperty("actualStageReached").GetString());
         var regions = root.GetProperty("regions");
         Assert.Equal(2, regions.GetProperty("regionCount").GetInt32());
         Assert.True(regions.GetProperty("hasNestedRegions").GetBoolean());
@@ -349,6 +352,18 @@ public sealed class AirTraceCommandTests
         Assert.True(yield.GetProperty("affectedScope").GetProperty("parentBodyOnly").GetBoolean());
         Assert.True(yield.GetProperty("affectedScope").GetProperty("escapesOnlyThroughYield").GetBoolean());
         Assert.Equal("Deferred", yield.GetProperty("integrationStatus").GetString());
+        var mirror = side.GetProperty("cirMirror");
+        Assert.Equal("SideHole", mirror.GetProperty("yieldFeatureKind").GetString());
+        Assert.Equal("mirror-admitted-conservative", mirror.GetProperty("status").GetString());
+        Assert.Equal("cir-region-parent-minus-cylinder", mirror.GetProperty("backend").GetString());
+        Assert.Equal("Subtractive", mirror.GetProperty("effect").GetString());
+        Assert.Equal("Box", mirror.GetProperty("parentField").GetString());
+        Assert.Equal("Cylinder", mirror.GetProperty("subtractField").GetString());
+        var capabilities = mirror.GetProperty("capabilities").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("occupancy", capabilities); Assert.Contains("containment", capabilities); Assert.Contains("bounds", capabilities);
+        var losses = mirror.GetProperty("knownLosses").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("no-topology-authority", losses); Assert.Contains("no-face-identity", losses);
+        Assert.Contains("no-brep-plan-role-parity", losses); Assert.Contains("no-step-export-authority", losses);
         Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
         Assert.False(root.GetProperty("stepSmoke").GetProperty("succeeded").GetBoolean());
         Assert.Equal("none", root.GetProperty("brepPlan").GetProperty("planKind").GetString());
@@ -372,7 +387,7 @@ public sealed class AirTraceCommandTests
     }
 
     [Fact]
-    public void RegionYieldSummaries_AreDeterministic()
+    public void RegionCirMirrorSummaries_AreDeterministic()
     {
         var valid = RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture");
         var invalid = RegionFixture("invalid/implicit-parent-mutation.invalid.firmfixture");
@@ -389,7 +404,16 @@ public sealed class AirTraceCommandTests
         Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
         Assert.False(root.GetProperty("stepSmoke").GetProperty("succeeded").GetBoolean());
         Assert.Equal("none", root.GetProperty("brepPlan").GetProperty("planKind").GetString());
-        Assert.Equal("not-requested", root.GetProperty("cirMirror").GetProperty("status").GetString());
+        var side = root.GetProperty("regions").GetProperty("regions").EnumerateArray().Single(r => r.GetProperty("regionKind").GetString() == "FaceAttachedRegion");
+        var mirror = side.GetProperty("cirMirror");
+        var capabilities = mirror.GetProperty("capabilities").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.DoesNotContain("topology-authority", capabilities);
+        Assert.DoesNotContain("face-identity", capabilities);
+        Assert.DoesNotContain("entry-loop-identity", capabilities);
+        Assert.DoesNotContain("boundary-patch-identity", capabilities);
+        var losses = mirror.GetProperty("knownLosses").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("no-topology-authority", losses);
+        Assert.Contains("no-face-identity", losses);
         var guarantees = root.GetProperty("guarantees").EnumerateArray().Select(x => x.GetString()).ToArray();
         Assert.Contains("no Boolean", guarantees);
         Assert.Contains("escapes only through explicit yield", guarantees);

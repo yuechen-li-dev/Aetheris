@@ -1,6 +1,6 @@
 // case: side-hole-face-attached-region
 // expected: valid
-// expected-stage: region-integration-deferred
+// expected-stage: region-cir-mirror
 // expected-region-kind: FaceAttachedRegion
 // expected-effect: Subtractive
 // expected-yield: YieldSubtractiveVolume
@@ -12,6 +12,12 @@
 // expected-attachment-face: +X
 // expected-direction: through-inward
 // expected-boundary-kind: ThroughCut
+// expected-cir-mirror: admitted
+// expected-cir-backend: cir-region-parent-minus-cylinder
+// expected-cir-effect: Subtractive
+// expected-cir-loss: no-topology-authority
+// expected-cir-loss: no-face-identity
+// expected-cir-loss: no-entry-loop-identity
 // expected-affected-scope: ParentBodyLocalFeature
 // description: Trace-only face-attached side-hole region fixture; integration deferred.
 

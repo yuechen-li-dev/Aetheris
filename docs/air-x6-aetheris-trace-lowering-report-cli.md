@@ -154,3 +154,8 @@ For the parser-backed box fixture, `aetheris trace --fixture` now includes a `Fe
 ## AIR-X10 Constructive AIR fixture section
 
 For parser-backed Firmament primitive fixtures, `aetheris trace --fixture` can now include both `Feature AIR` and `Constructive AIR` sections. The AIR-X10 box fixture reports source op `box`, Feature AIR `CreateBox`, Constructive AIR `AirProfileExtrude`, canonical form `rectangle-profile-extrude`, rectangle width/depth, extrusion height, and truthful deferred BRepPlan/emission/STEP/CIR status.
+
+
+## AIR-X11 profile emission section
+
+For parser-backed Firmament box fixtures, `aetheris trace --fixture` may include a `Profile extrusion emission` text section and a `profileEmission` JSON object. These fields report wrapper invocation, emitter name, propagated dimensions, topology summary when exposed by the existing wrapper, STEP smoke availability, diagnostics, and guarantees. BRepPlan and CIR are still reported separately and remain deferred/not-requested unless actually wired for the lane.

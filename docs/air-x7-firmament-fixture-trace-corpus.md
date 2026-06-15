@@ -113,3 +113,8 @@ The parser-backed primitive fixture `fixtures/Firmament/Primitive/valid/box.vali
 ## AIR-X10 parser-backed fixture advancement
 
 The primitive parser-backed fixture `fixtures/Firmament/Primitive/valid/box.valid.firmfixture` now expects and reaches `constructive-air`. It remains parser-backed while the Chamfer corpus remains metadata-driven. The box trace reports Feature AIR `CreateBox`, Constructive AIR `AirProfileExtrude`, canonical form `rectangle-profile-extrude`, and deferred BRepPlan/emission/CIR status.
+
+
+## AIR-X11 corpus note
+
+The parser-backed primitive box fixture advances to existing profile extrusion emission evidence with expected stage `emitted-brep`. The AIR-X7 chamfer fixtures remain metadata-driven and continue to validate their previous valid/deferred/rejected paths.

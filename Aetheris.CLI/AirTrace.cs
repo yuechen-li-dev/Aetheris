@@ -38,12 +38,16 @@ internal sealed record AirTraceReport(
     IReadOnlyList<string>? FixtureDiagnostics = null,
     AirTraceFrontendSummary? Frontend = null,
     AirTraceFeatureAirSummary? FeatureAir = null,
-    AirTraceConstructiveAirSummary? ConstructiveAir = null);
+    AirTraceConstructiveAirSummary? ConstructiveAir = null,
+    AirTraceProfileEmissionSummary? ProfileEmission = null);
 
 internal sealed record AirTraceFixtureSummary(string Path, string Expectation, string CaseName, string? ExpectedStage, string ActualStageReached, string? ExpectedRoute, string? ExpectedReason, bool ExpectationSatisfied, bool ParserBacked, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceFrontendSummary(bool ParserBacked, string? ParserName, bool? ParseSucceeded, IReadOnlyList<string> ParseDiagnostics, string? FrontendStageReached, string? FrontendSummary);
 internal sealed record AirTraceFeatureAirSummary(bool ParserBacked, string SourceOpKind, string NodeKind, AirTraceDimensionsSummary? Dimensions, string ConstructionIntent, string StageReached, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Guarantees);
 internal sealed record AirTraceConstructiveAirSummary(string NodeKind, string CanonicalForm, string SourceFeatureAirNodeKind, string ProfileKind, double Width, double Depth, double Height, string ExtrusionAxis, string ConstructionIntent, string RouteKind, string StageReached, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Guarantees);
+internal sealed record AirTraceProfileEmissionSummary(bool WrapperInvoked, string EmitterName, bool Succeeded, double Width, double Depth, double Height, string StageReached, AirTraceProfileEmissionTopologySummary? TopologySummary, AirTraceProfileEmissionStepSmokeSummary StepSmoke, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Guarantees);
+internal sealed record AirTraceProfileEmissionTopologySummary(int Vertices, int Edges, int Faces, int PlanarFaces, int CylindricalFaces, int Loops, int Coedges, int? CapFaces, int? SideFaces, string? Bounds);
+internal sealed record AirTraceProfileEmissionStepSmokeSummary(bool WasChecked, bool Succeeded, bool RequiredMarkersPresent, bool ForbiddenMarkersAbsent, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceDimensionsSummary(double Width, double Depth, double Height);
 internal sealed record AirTraceAirSummary(string Node, string Route, string SelectionClass, string Rule, string ConstructionHistory, string FeatureName, string FeatureId, string ProvenanceMilestone);
 internal sealed record AirTraceRouteDecisionSummary(string Mode, string? SelectedRoute, bool Succeeded, string Recommendation, string SelectionClass, string Rule, IReadOnlyList<string> Diagnostics);
@@ -106,12 +110,13 @@ internal static class AirTraceReportBuilder
     private static AirTraceReport BuildParserBackedFixture(FirmFixture fixture)
     {
         var frontend = FirmamentFrontendTraceProbe.ParseOnly(fixture.SourceBody);
-        var actualStage = frontend.FrontendStageReached;
+        var profileEmissionProbe = frontend.ConstructiveAir is null ? null : BoxConstructiveAirToProfileEmissionTraceProbe.Invoke(frontend.ConstructiveAir);
+        var actualStage = profileEmissionProbe?.StageReached ?? frontend.FrontendStageReached;
         var expectedStageSatisfied = string.IsNullOrWhiteSpace(fixture.ExpectedStage) || string.Equals(actualStage, fixture.ExpectedStage, StringComparison.Ordinal);
         var expectationSatisfied = fixture.Expectation == "valid"
-            ? frontend.ParseSucceeded && expectedStageSatisfied
+            ? frontend.ParseSucceeded && expectedStageSatisfied && (profileEmissionProbe?.Succeeded ?? true)
             : !frontend.ParseSucceeded && expectedStageSatisfied;
-        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. frontend.Diagnostics, "air-x8-parser-backed-fixture-trace-created", expectationSatisfied ? "air-x8-parser-backed-expectation-satisfied" : "air-x8-parser-backed-expectation-not-satisfied"]).ToArray();
+        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. frontend.Diagnostics, .. profileEmissionProbe?.Diagnostics ?? [], "air-x8-parser-backed-fixture-trace-created", "air-x11-parser-backed-fixture-loaded", "air-x11-firmament-parser-invoked", frontend.ParseSucceeded ? "air-x11-firmament-parse-succeeded" : "air-x11-firmament-parse-failed", expectationSatisfied ? "air-x11-parser-backed-expectation-satisfied" : "air-x11-profile-emission-expectation-not-satisfied"]).ToArray();
 
         var featureAir = frontend.FeatureAir is null
             ? null
@@ -128,20 +133,33 @@ internal static class AirTraceReportBuilder
             ? null
             : new AirTraceConstructiveAirSummary(frontend.ConstructiveAir.NodeKind, frontend.ConstructiveAir.CanonicalForm, frontend.ConstructiveAir.SourceFeatureAirNodeKind, frontend.ConstructiveAir.ProfileKind, frontend.ConstructiveAir.Dimensions.Width, frontend.ConstructiveAir.Dimensions.Depth, frontend.ConstructiveAir.Dimensions.Height, frontend.ConstructiveAir.ExtrusionAxis, frontend.ConstructiveAir.ConstructionIntent, frontend.ConstructiveAir.RouteKind, frontend.ConstructiveAir.StageReached, frontend.ConstructiveAir.Diagnostics, frontend.ConstructiveAir.Guarantees);
 
-        return new("AIR-X10", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, frontend.FrontendSummary,
-            new(constructiveAir?.NodeKind ?? featureAir?.NodeKind ?? "FirmamentPrimitive", constructiveAir?.RouteKind ?? "none", "none", "none", "parser-backed-source-fixture", fixture.CaseName, fixture.CaseName, "AIR-X10"),
-            new("none", null, false, "Route selection, BRepPlan, emission, STEP, and CIR are deferred for parser-backed box fixtures in AIR-X10.", "none", "none", []),
+        var profileEmission = profileEmissionProbe is null ? null : new AirTraceProfileEmissionSummary(
+            profileEmissionProbe.WrapperInvoked,
+            profileEmissionProbe.EmitterName,
+            profileEmissionProbe.Succeeded,
+            profileEmissionProbe.Width,
+            profileEmissionProbe.Depth,
+            profileEmissionProbe.Height,
+            profileEmissionProbe.StageReached,
+            profileEmissionProbe.TopologySummary is null ? null : new AirTraceProfileEmissionTopologySummary(profileEmissionProbe.TopologySummary.Vertices, profileEmissionProbe.TopologySummary.Edges, profileEmissionProbe.TopologySummary.Faces, profileEmissionProbe.TopologySummary.PlanarFaces, profileEmissionProbe.TopologySummary.CylindricalFaces, profileEmissionProbe.TopologySummary.Loops, profileEmissionProbe.TopologySummary.Coedges, profileEmissionProbe.TopologySummary.CapFaces, profileEmissionProbe.TopologySummary.SideFaces, profileEmissionProbe.TopologySummary.Bounds),
+            new AirTraceProfileEmissionStepSmokeSummary(profileEmissionProbe.StepSmoke.WasChecked, profileEmissionProbe.StepSmoke.Succeeded, profileEmissionProbe.StepSmoke.RequiredMarkersPresent, profileEmissionProbe.StepSmoke.ForbiddenMarkersAbsent, profileEmissionProbe.StepSmoke.Diagnostics),
+            profileEmissionProbe.Diagnostics,
+            profileEmissionProbe.Guarantees);
+
+        return new("AIR-X11", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, frontend.FrontendSummary,
+            new(constructiveAir?.NodeKind ?? featureAir?.NodeKind ?? "FirmamentPrimitive", constructiveAir?.RouteKind ?? "none", "none", "none", "parser-backed-source-fixture", fixture.CaseName, fixture.CaseName, "AIR-X11"),
+            new("none", null, false, "Route selection and BRepPlan are deferred for parser-backed box fixtures in AIR-X11; profile emission is reported separately.", "none", "none", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
-            new("none", false, "parser-backed fixture stops at Constructive AIR summary; BRepPlan, emission, STEP, and CIR are deferred"),
-            new(false, false, false, false, []),
+            new(profileEmission?.EmitterName ?? "none", profileEmission?.Succeeded ?? false, profileEmission is null ? "parser-backed fixture stops before profile emission" : "parser-backed fixture invoked existing profile extrusion wrapper/emitter summary"),
+            new(profileEmission?.StepSmoke.WasChecked ?? false, profileEmission?.StepSmoke.Succeeded ?? false, profileEmission?.StepSmoke.RequiredMarkersPresent ?? false, profileEmission?.StepSmoke.ForbiddenMarkersAbsent ?? false, profileEmission?.StepSmoke.Diagnostics ?? []),
             new("not-requested", "none", "none", "FirmamentPrimitive", "none", "none", "none", [], [], [], []),
-            [], ["BRepPlan/emission/CIR deferred for parser-backed box fixture"], fxDiagnostics,
-            ["real Firmament parser invoked", "parser-backed fixture reaches Feature AIR summary", "parser-backed fixture reaches Constructive AIR summary", "ProfileExtrude wrapper not invoked", "no production grammar expansion", "no production route replacement", "no new geometry"],
+            [], ["BRepPlan/CIR deferred for parser-backed box fixture", "STEP smoke unavailable for parser-backed box fixture"], fxDiagnostics,
+            ["real Firmament parser invoked", "parser-backed fixture reaches Feature AIR summary", "parser-backed fixture reaches Constructive AIR summary", "ProfileExtrude wrapper invoked", "no production grammar expansion", "no production route replacement", "no new geometry", "no profile emitter rewrite"],
             ["no production Firmament grammar expansion", "no production route replacement", "no production analyzer behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no CIR evaluator/tape behavior change", "no Boolean behavior change", "no AirEdgeSweep behavior change", "no BrepBoundedChamfer/BrepBoundedFillet behavior change", "no chamfer/fillet/shell geometry change", "no new geometry"],
             new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, true, fxDiagnostics),
             fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics,
             new(true, frontend.ParserName, frontend.ParseSucceeded, frontend.Diagnostics, actualStage, frontend.FrontendSummary),
-            featureAir, constructiveAir);
+            featureAir, constructiveAir, profileEmission);
     }
 
     public static string FixtureFileStem(FirmFixture fixture) => $"air-x7-{fixture.CaseName}-firmfixture-trace";
@@ -230,6 +248,12 @@ internal static class AirTraceTextRenderer
         if (r.ConstructiveAir is not null)
         {
             b.AppendLine("Constructive AIR"); b.AppendLine($"  Node: {r.ConstructiveAir.NodeKind}"); b.AppendLine($"  Canonical form: {r.ConstructiveAir.CanonicalForm}"); b.AppendLine($"  Profile: {r.ConstructiveAir.ProfileKind}(width={r.ConstructiveAir.Width:g}, depth={r.ConstructiveAir.Depth:g})"); b.AppendLine($"  Extrusion: height={r.ConstructiveAir.Height:g}"); b.AppendLine($"  Extrusion axis: {r.ConstructiveAir.ExtrusionAxis}"); b.AppendLine($"  Intent: {r.ConstructiveAir.ConstructionIntent}"); b.AppendLine($"  Route kind: {r.ConstructiveAir.RouteKind}"); b.AppendLine($"  Stage reached: {r.ConstructiveAir.StageReached}"); b.AppendLine("  Diagnostics:"); foreach (var d in r.ConstructiveAir.Diagnostics) b.AppendLine($"    - {d}"); b.AppendLine();
+        }
+        if (r.ProfileEmission is not null)
+        {
+            b.AppendLine("Profile extrusion emission"); b.AppendLine($"  Wrapper invoked: {r.ProfileEmission.WrapperInvoked.ToString().ToLowerInvariant()}"); b.AppendLine($"  Emitter: {r.ProfileEmission.EmitterName}"); b.AppendLine($"  Succeeded: {r.ProfileEmission.Succeeded.ToString().ToLowerInvariant()}"); b.AppendLine($"  Dimensions: width={r.ProfileEmission.Width:g}, depth={r.ProfileEmission.Depth:g}, height={r.ProfileEmission.Height:g}"); b.AppendLine($"  Stage reached: {r.ProfileEmission.StageReached}");
+            if (r.ProfileEmission.TopologySummary is not null) b.AppendLine($"  Topology: vertices={r.ProfileEmission.TopologySummary.Vertices}, edges={r.ProfileEmission.TopologySummary.Edges}, faces={r.ProfileEmission.TopologySummary.Faces}, planarFaces={r.ProfileEmission.TopologySummary.PlanarFaces}, cylindricalFaces={r.ProfileEmission.TopologySummary.CylindricalFaces}, bounds={r.ProfileEmission.TopologySummary.Bounds}");
+            b.AppendLine($"  STEP smoke: {(r.ProfileEmission.StepSmoke.Succeeded ? "succeeded" : r.ProfileEmission.StepSmoke.WasChecked ? "failed" : "unavailable")}"); b.AppendLine("  Diagnostics:"); foreach (var d in r.ProfileEmission.Diagnostics) b.AppendLine($"    - {d}"); b.AppendLine();
         }
         b.AppendLine("AIR"); b.AppendLine($"  Node: {r.Air.Node}"); b.AppendLine($"  Route: {r.Air.Route}"); b.AppendLine($"  Selection class: {r.Air.SelectionClass}"); b.AppendLine($"  Rule: {r.Air.Rule}"); b.AppendLine($"  Construction history: {r.Air.ConstructionHistory}"); b.AppendLine();
         b.AppendLine("Route decision"); b.AppendLine($"  Mode: {r.RouteDecision.Mode}"); b.AppendLine($"  Selected route: {r.RouteDecision.SelectedRoute}"); b.AppendLine($"  Succeeded: {r.RouteDecision.Succeeded.ToString().ToLowerInvariant()}"); b.AppendLine();

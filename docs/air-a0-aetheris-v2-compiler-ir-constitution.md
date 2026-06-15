@@ -777,3 +777,8 @@ AIR-X9 creates the first parser-backed Firmament-to-AIR boundary for the existin
 ## AIR-X10 parser-backed boundary note
 
 AIR-X10 creates the first parser-backed Feature AIR to Constructive AIR boundary: the existing Firmament `op: box` / `size[3]` fixture now traces from parsed source to Feature AIR `CreateBox` and then to a Constructive AIR `AirProfileExtrude` rectangle-profile-extrude summary. This is still a trace-only frontend-to-MIR proof; it does not change production grammar, route selection, BRepPlan, BRep, STEP, CIR, Boolean, or geometry behavior.
+
+
+## AIR-X11 parser-backed emission boundary note
+
+AIR-X11 establishes the first parser-backed Constructive AIR to existing emission-evidence boundary: a Firmament `box` fixture reaches `AirProfileExtrude` and then the existing profile extrusion wrapper/emitter summary. The boundary is trace-only and does not alter grammar, production routes, geometry implementation, BRepPlan semantics, CIR behavior, STEP export/import, route selection, or topology behavior.

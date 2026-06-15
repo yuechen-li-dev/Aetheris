@@ -1,10 +1,11 @@
 // case: box
 // expected: valid
-// expected-stage: constructive-air
+// expected-stage: emitted-brep
 // expected-feature-air: CreateBox
 // expected-constructive-air: AirProfileExtrude
+// expected-emitter: LineArcProfileExtrudeEmitter
 // parser-backed: true
-// description: Minimal parser-backed Firmament primitive fixture reaching Constructive AIR.
+// description: Parser-backed Firmament box fixture reaching existing profile extrusion emission evidence.
 
 firmament:
   version: 1

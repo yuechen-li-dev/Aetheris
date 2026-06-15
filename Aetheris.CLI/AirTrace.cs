@@ -192,12 +192,12 @@ internal static class AirTraceReportBuilder
     private static AirTraceReport BuildSideHoleFaceAttachedRegionFixture(FirmFixture fixture)
     {
         var regions = AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred();
-        var actualStage = "region-brep-boundary";
+        var actualStage = "region-integration-decision";
         var expectationSatisfied = fixture.Expectation == "valid" && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
-        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", "air-region-x4-firmfixture-boundary-contract-created", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
-        return new("AIR-REGION-X4", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole reports a trace-only BRepPlan boundary contract; parent integration remains deferred and no topology or geometry is emitted.",
-            new("RegionFixture", "none", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X4"),
-            new("none", null, false, "region integration deferred; no route selection invoked", "none", "none", []),
+        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", "air-region-x4-firmfixture-boundary-contract-created", "air-region-x5-firmfixture-integration-decision-created", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
+        return new("AIR-REGION-X5", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole reports trace-only integration route candidates; DeferredIntegration is selected and no topology or geometry is emitted.",
+            new("RegionFixture", "DeferredIntegration", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X5"),
+            new("SwitchMatch", "DeferredIntegration", false, "region integration deferred; no topology integration route admitted", "FaceAttachedRegion", "SideHole", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
             new("none", false, "no geometry emitted for trace-only region fixture"),
             new(false, false, false, false, []),
@@ -354,6 +354,28 @@ internal static class AirTraceTextRenderer
                     foreach (var loss in bb.KnownLosses) b.AppendLine($"        - {loss.Replace('-', ' ')}");
                     b.AppendLine("      Guarantees:");
                     foreach (var guarantee in bb.Guarantees) b.AppendLine($"        - {guarantee}");
+                }
+
+
+                if (region.IntegrationDecision is not null)
+                {
+                    var decision = region.IntegrationDecision;
+                    b.AppendLine("    Region integration decision");
+                    b.AppendLine($"      Region: {decision.SourceRegionId}");
+                    b.AppendLine($"      Feature: {decision.YieldFeatureKind}");
+                    b.AppendLine($"      Effect: {decision.EffectKind}");
+                    b.AppendLine($"      Boundary: {decision.BoundaryContractKind}");
+                    b.AppendLine($"      Mode: {decision.SelectionMode}");
+                    b.AppendLine($"      Selected: {decision.SelectedRouteKind}");
+                    b.AppendLine($"      Status: {decision.SelectedStatus}");
+                    b.AppendLine("      Candidates:");
+                    foreach (var c in decision.Candidates)
+                    {
+                        b.AppendLine($"        - {c.RouteKind}: {c.Status}");
+                        b.AppendLine($"          Reason: {c.Reason}");
+                    }
+                    b.AppendLine("      Guarantees:");
+                    foreach (var guarantee in decision.Guarantees) b.AppendLine($"        - {guarantee}");
                 }
                 foreach (var loss in region.KnownLosses) b.AppendLine($"    Reason: {loss}");
                 foreach (var guarantee in region.Guarantees) b.AppendLine($"    Guarantee: {guarantee}");

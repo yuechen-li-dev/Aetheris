@@ -324,6 +324,14 @@ public sealed class AirTraceCommandTests
         Assert.Contains("opposite-side exit deferred", output); Assert.Contains("cylindrical cut wall intent deferred", output);
         Assert.Contains("CutEntryLoop", output); Assert.Contains("CutWallFace", output);
         Assert.Contains("no parent topology mutation", output); Assert.Contains("no BRepPlan elements materialized", output);
+        Assert.Contains("Region integration decision", output);
+        Assert.Contains("Selected: DeferredIntegration", output);
+        Assert.Contains("Status: Deferred", output);
+        Assert.Contains("FaceAttachedConstructiveInsertion: Deferred", output);
+        Assert.Contains("LocalBRepPlanPatch: Deferred", output);
+        Assert.Contains("BRepBooleanFallback: Rejected", output);
+        Assert.Contains("CirAnalysisMirrorOnly: AvailableForAnalysis", output);
+        Assert.Contains("no BRep emission", output);
     }
 
     [Fact]
@@ -334,7 +342,7 @@ public sealed class AirTraceCommandTests
         using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
         Assert.Equal("valid", root.GetProperty("fixture").GetProperty("expectation").GetString());
         Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
-        Assert.Equal("region-brep-boundary", root.GetProperty("actualStageReached").GetString());
+        Assert.Equal("region-integration-decision", root.GetProperty("actualStageReached").GetString());
         var regions = root.GetProperty("regions");
         Assert.Equal(2, regions.GetProperty("regionCount").GetInt32());
         Assert.True(regions.GetProperty("hasNestedRegions").GetBoolean());
@@ -389,6 +397,21 @@ public sealed class AirTraceCommandTests
         Assert.Contains("no-emitted-cut-wall-face-identity", boundaryLosses);
         Assert.Contains("no-brep-plan-element-materialization", boundaryLosses);
         Assert.Equal("Deferred", brepBoundary.GetProperty("integrationStatus").GetString());
+        var decision = side.GetProperty("integrationDecision");
+        Assert.Equal("DeferredIntegration", decision.GetProperty("selectedRouteKind").GetString());
+        Assert.Equal("Deferred", decision.GetProperty("selectedStatus").GetString());
+        Assert.Equal("SwitchMatch", decision.GetProperty("selectionMode").GetString());
+        var candidates = decision.GetProperty("candidates").EnumerateArray().ToDictionary(c => c.GetProperty("routeKind").GetString()!, c => c);
+        Assert.Equal("Deferred", candidates["FaceAttachedConstructiveInsertion"].GetProperty("status").GetString());
+        Assert.Equal("side-hole-constructive-insertion-not-implemented", candidates["FaceAttachedConstructiveInsertion"].GetProperty("reasonCode").GetString());
+        Assert.Equal("Deferred", candidates["LocalBRepPlanPatch"].GetProperty("status").GetString());
+        Assert.Equal("local-brep-plan-patch-not-implemented", candidates["LocalBRepPlanPatch"].GetProperty("reasonCode").GetString());
+        Assert.Equal("Rejected", candidates["BRepBooleanFallback"].GetProperty("status").GetString());
+        Assert.Equal("boolean-fallback-not-admitted", candidates["BRepBooleanFallback"].GetProperty("reasonCode").GetString());
+        Assert.Equal("AvailableForAnalysis", candidates["CirAnalysisMirrorOnly"].GetProperty("status").GetString());
+        Assert.Equal("cir-mirror-analysis-only", candidates["CirAnalysisMirrorOnly"].GetProperty("reasonCode").GetString());
+        Assert.Equal("Selected", candidates["DeferredIntegration"].GetProperty("status").GetString());
+        Assert.Equal("no-topology-integration-route-admitted", candidates["DeferredIntegration"].GetProperty("reasonCode").GetString());
         Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
         Assert.False(root.GetProperty("stepSmoke").GetProperty("succeeded").GetBoolean());
         Assert.Equal("none", root.GetProperty("brepPlan").GetProperty("planKind").GetString());
@@ -411,10 +434,11 @@ public sealed class AirTraceCommandTests
         Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
         var side = root.GetProperty("regions").GetProperty("regions").EnumerateArray().Single(r => r.GetProperty("regionKind").GetString() == "FaceAttachedRegion");
         Assert.False(side.TryGetProperty("brepBoundary", out _));
+        Assert.False(side.TryGetProperty("integrationDecision", out _));
     }
 
     [Fact]
-    public void RegionBRepBoundarySummaries_AreDeterministic()
+    public void RegionIntegrationDecisionSummaries_AreDeterministic()
     {
         var valid = RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture");
         var invalid = RegionFixture("invalid/implicit-parent-mutation.invalid.firmfixture");
@@ -458,6 +482,7 @@ public sealed class AirTraceCommandTests
         Assert.Equal(1, regions.GetProperty("regionCount").GetInt32());
         Assert.DoesNotContain("SideHole", output, StringComparison.Ordinal);
         Assert.DoesNotContain("brepBoundary", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("integrationDecision", output, StringComparison.Ordinal);
     }
 
     [Fact]

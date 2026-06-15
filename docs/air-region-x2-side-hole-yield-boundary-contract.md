@@ -88,3 +88,7 @@ AIR-REGION-X3 preserves the X2 side-hole yield boundary contract and adds a trac
 ## AIR-REGION-X4 boundary-contract note
 
 AIR-REGION-X4 builds on the X2 yield contract by adding a trace-only BRepPlan boundary contract summary under the side-hole `FaceAttachedRegion`. The summary reuses X2 attachment/profile/direction/scope facts and records future topology-planning roles as strings while keeping parent integration deferred and denying emitted entry loop, exit loop, cut-wall face, boundary patch, BRepPlan element, BRep, Boolean, and STEP identities.
+
+## AIR-REGION-X5 note
+
+AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. The side-hole `FaceAttachedRegion` now reports deterministic candidate statuses, selects `DeferredIntegration`, rejects Boolean fallback as not admitted, keeps the CIR mirror analysis-only, and keeps the BRepPlan boundary contract as topology-side intent without materialization.

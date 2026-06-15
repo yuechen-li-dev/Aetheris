@@ -801,3 +801,7 @@ The AIR Region side-hole CIR mirror is a side-channel analysis summary only. It 
 ## AIR-REGION-X4 side-hole BRep boundary contract note
 
 AIR-REGION-X4 treats side-hole BRepPlan boundary information as a trace-only contract, not as topology materialization. The side-hole `FaceAttachedRegion` may report affected parent face intent, entry/exit boundary intent, cut-wall intent, planned role strings, deferred elements, losses, and guarantees while retaining deferred parent integration and denying Boolean, BRepPlan element, BRep, STEP, CIR topology authority, grammar, and route-selection behavior changes.
+
+## AIR-REGION-X5 note
+
+AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. The side-hole `FaceAttachedRegion` now reports deterministic candidate statuses, selects `DeferredIntegration`, rejects Boolean fallback as not admitted, keeps the CIR mirror analysis-only, and keeps the BRepPlan boundary contract as topology-side intent without materialization.

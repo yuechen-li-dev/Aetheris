@@ -76,3 +76,7 @@ Recommended next milestone: **AIR-REGION-X4 — Region-to-CIR occupancy sample a
 ## AIR-REGION-X4 boundary-contract note
 
 AIR-REGION-X4 preserves the X3 CIR mirror as analysis-only and adds a separate `brepBoundary` trace summary for side-hole topology-side intent. The BRep boundary summary records affected `+X` parent face intent, circular entry-loop intent, deferred opposite-side exit intent, deferred cylindrical cut-wall intent, planned semantic role strings, losses, and guarantees. It does not grant CIR topology authority and does not materialize BRepPlan, BRep, Boolean, or STEP output.
+
+## AIR-REGION-X5 note
+
+AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. The side-hole `FaceAttachedRegion` now reports deterministic candidate statuses, selects `DeferredIntegration`, rejects Boolean fallback as not admitted, keeps the CIR mirror analysis-only, and keeps the BRepPlan boundary contract as topology-side intent without materialization.

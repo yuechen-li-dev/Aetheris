@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Air.BRepPlan;
 using Aetheris.Kernel.Core.Brep.Prismatic;
+using Aetheris.Kernel.Firmament;
 
 namespace Aetheris.CLI;
 
@@ -34,9 +35,11 @@ internal sealed record AirTraceReport(
     string? ExpectedRoute = null,
     string? ExpectedReason = null,
     bool? ExpectationSatisfied = null,
-    IReadOnlyList<string>? FixtureDiagnostics = null);
+    IReadOnlyList<string>? FixtureDiagnostics = null,
+    AirTraceFrontendSummary? Frontend = null);
 
-internal sealed record AirTraceFixtureSummary(string Path, string Expectation, string CaseName, string? ExpectedStage, string ActualStageReached, string? ExpectedRoute, string? ExpectedReason, bool ExpectationSatisfied, IReadOnlyList<string> Diagnostics);
+internal sealed record AirTraceFixtureSummary(string Path, string Expectation, string CaseName, string? ExpectedStage, string ActualStageReached, string? ExpectedRoute, string? ExpectedReason, bool ExpectationSatisfied, bool ParserBacked, IReadOnlyList<string> Diagnostics);
+internal sealed record AirTraceFrontendSummary(bool ParserBacked, string? ParserName, bool? ParseSucceeded, IReadOnlyList<string> ParseDiagnostics, string? FrontendStageReached, string? FrontendSummary);
 internal sealed record AirTraceAirSummary(string Node, string Route, string SelectionClass, string Rule, string ConstructionHistory, string FeatureName, string FeatureId, string ProvenanceMilestone);
 internal sealed record AirTraceRouteDecisionSummary(string Mode, string? SelectedRoute, bool Succeeded, string Recommendation, string SelectionClass, string Rule, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceBRepPlanSummary(string PlanKind, int Vertices, int Curves, int Edges, int Faces, int Loops, int Coedges, int Surfaces, int CapFaces, int TransitionFaces, int ChamferFaces, int SideFaces, string SplitPolicy, string Bounds, string? RouteSelectionMode, IReadOnlyList<string> Diagnostics);
@@ -47,7 +50,7 @@ internal sealed record AirTraceCirMirrorSummary(string Status, string Backend, s
 internal static class AirTraceReportBuilder
 {
     public static readonly string[] SupportedCases = ["prismatic-section-transition", "top-face-loop-chamfer"];
-    public static readonly string[] SupportedFixtureCases = ["arbitrary-graph-chamfer", "loop-fillet-deferred", "non-uniform-loop-chamfer", "top-face-loop-chamfer"];
+    public static readonly string[] SupportedFixtureCases = ["arbitrary-graph-chamfer", "box", "loop-fillet-deferred", "non-uniform-loop-chamfer", "top-face-loop-chamfer"];
 
     public static AirTraceReport Build(string caseName)
     {
@@ -71,6 +74,8 @@ internal static class AirTraceReportBuilder
 
     public static AirTraceReport BuildFixture(FirmFixture fixture)
     {
+        if (fixture.ParserBacked) return BuildParserBackedFixture(fixture);
+
         var caseName = fixture.CaseName;
         var report = caseName switch
         {
@@ -89,8 +94,33 @@ internal static class AirTraceReportBuilder
         var fxDiagnostics = Stable([.. fixture.Diagnostics, "air-x7-firmfixture-case-mapped", "air-x7-firmfixture-trace-created", "air-x7-lowering-stage-recorded", expectationSatisfied ? "air-x7-expectation-satisfied" : "air-x7-fixture-expectation-not-satisfied"]).ToArray();
         return report with
         {
-            Milestone = "AIR-X7", InputKind = "firmfixture", FixturePath = fixture.Path, FixtureExpectation = fixture.Expectation, FixtureCaseName = caseName, ExpectedStage = fixture.ExpectedStage, ActualStageReached = actualStage, ExpectedRoute = fixture.ExpectedRoute, ExpectedReason = fixture.ExpectedReason, ExpectationSatisfied = expectationSatisfied, FixtureDiagnostics = fxDiagnostics, Fixture = new(fixture.Path, fixture.Expectation, caseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics), Diagnostics = Stable([.. report.Diagnostics, .. fxDiagnostics]).ToArray()
+            Milestone = "AIR-X7", InputKind = "firmfixture", FixturePath = fixture.Path, FixtureExpectation = fixture.Expectation, FixtureCaseName = caseName, ExpectedStage = fixture.ExpectedStage, ActualStageReached = actualStage, ExpectedRoute = fixture.ExpectedRoute, ExpectedReason = fixture.ExpectedReason, ExpectationSatisfied = expectationSatisfied, FixtureDiagnostics = fxDiagnostics, Fixture = new(fixture.Path, fixture.Expectation, caseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, fxDiagnostics), Diagnostics = Stable([.. report.Diagnostics, .. fxDiagnostics]).ToArray()
         };
+    }
+
+    private static AirTraceReport BuildParserBackedFixture(FirmFixture fixture)
+    {
+        var frontend = FirmamentFrontendTraceProbe.ParseOnly(fixture.SourceBody);
+        var actualStage = frontend.FrontendStageReached;
+        var expectedStageSatisfied = string.IsNullOrWhiteSpace(fixture.ExpectedStage) || string.Equals(actualStage, fixture.ExpectedStage, StringComparison.Ordinal);
+        var expectationSatisfied = fixture.Expectation == "valid"
+            ? frontend.ParseSucceeded && expectedStageSatisfied
+            : !frontend.ParseSucceeded && expectedStageSatisfied;
+        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. frontend.Diagnostics, "air-x8-parser-backed-fixture-trace-created", expectationSatisfied ? "air-x8-parser-backed-expectation-satisfied" : "air-x8-parser-backed-expectation-not-satisfied"]).ToArray();
+
+        return new("AIR-X8", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, frontend.FrontendSummary,
+            new("FirmamentPrimitive", "none", "none", "none", "parser-backed-source-fixture", fixture.CaseName, fixture.CaseName, "AIR-X8"),
+            new("none", null, false, "AIR lowering is not wired for parser-backed trace fixtures in AIR-X8.", "none", "none", []),
+            new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
+            new("none", false, "parser-backed fixture stops at truthful frontend boundary"),
+            new(false, false, false, false, []),
+            new("not-requested", "none", "none", "FirmamentPrimitive", "none", "none", "none", [], [], [], []),
+            [], ["AIR lowering not wired for parser-backed fixture"], fxDiagnostics,
+            ["real Firmament parser invoked", "parser-backed fixture stops at truthful frontend boundary", "no production grammar expansion", "no new geometry"],
+            ["no production Firmament grammar expansion", "no production route replacement", "no production analyzer behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no CIR evaluator/tape behavior change", "no Boolean behavior change", "no AirEdgeSweep behavior change", "no BrepBoundedChamfer/BrepBoundedFillet behavior change", "no chamfer/fillet/shell geometry change", "no new geometry"],
+            new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, true, fxDiagnostics),
+            fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics,
+            new(true, frontend.ParserName, frontend.ParseSucceeded, frontend.Diagnostics, actualStage, frontend.FrontendSummary));
     }
 
     public static string FixtureFileStem(FirmFixture fixture) => $"air-x7-{fixture.CaseName}-firmfixture-trace";
@@ -164,7 +194,11 @@ internal static class AirTraceTextRenderer
         b.AppendLine($"Case: {r.CaseName}"); b.AppendLine($"Trace kind: {r.TraceKind}"); b.AppendLine($"Input kind: {r.InputKind}"); b.AppendLine();
         if (r.Fixture is not null)
         {
-            b.AppendLine("Fixture"); b.AppendLine($"  Path: {r.Fixture.Path}"); b.AppendLine($"  Expectation: {r.Fixture.Expectation}"); b.AppendLine($"  Expected stage: {r.Fixture.ExpectedStage}"); b.AppendLine($"  Actual stage: {r.Fixture.ActualStageReached}"); b.AppendLine($"  Expected route: {r.Fixture.ExpectedRoute}"); b.AppendLine($"  Expected reason: {r.Fixture.ExpectedReason}"); b.AppendLine($"  Expectation satisfied: {r.Fixture.ExpectationSatisfied.ToString().ToLowerInvariant()}"); b.AppendLine();
+            b.AppendLine("Fixture"); b.AppendLine($"  Path: {r.Fixture.Path}"); b.AppendLine($"  Expectation: {r.Fixture.Expectation}"); b.AppendLine($"  Expected stage: {r.Fixture.ExpectedStage}"); b.AppendLine($"  Actual stage: {r.Fixture.ActualStageReached}"); b.AppendLine($"  Expected route: {r.Fixture.ExpectedRoute}"); b.AppendLine($"  Expected reason: {r.Fixture.ExpectedReason}"); b.AppendLine($"  Parser-backed: {r.Fixture.ParserBacked.ToString().ToLowerInvariant()}"); b.AppendLine($"  Expectation satisfied: {r.Fixture.ExpectationSatisfied.ToString().ToLowerInvariant()}"); b.AppendLine();
+        }
+        if (r.Frontend is not null)
+        {
+            b.AppendLine("Frontend"); b.AppendLine($"  Parser-backed: {r.Frontend.ParserBacked.ToString().ToLowerInvariant()}"); b.AppendLine($"  Parser name: {r.Frontend.ParserName}"); b.AppendLine($"  Parse succeeded: {r.Frontend.ParseSucceeded?.ToString().ToLowerInvariant()}"); b.AppendLine($"  Frontend stage reached: {r.Frontend.FrontendStageReached}"); b.AppendLine("  Diagnostics:"); foreach (var d in r.Frontend.ParseDiagnostics) b.AppendLine($"    - {d}"); b.AppendLine();
         }
         b.AppendLine("AIR"); b.AppendLine($"  Node: {r.Air.Node}"); b.AppendLine($"  Route: {r.Air.Route}"); b.AppendLine($"  Selection class: {r.Air.SelectionClass}"); b.AppendLine($"  Rule: {r.Air.Rule}"); b.AppendLine($"  Construction history: {r.Air.ConstructionHistory}"); b.AppendLine();
         b.AppendLine("Route decision"); b.AppendLine($"  Mode: {r.RouteDecision.Mode}"); b.AppendLine($"  Selected route: {r.RouteDecision.SelectedRoute}"); b.AppendLine($"  Succeeded: {r.RouteDecision.Succeeded.ToString().ToLowerInvariant()}"); b.AppendLine();

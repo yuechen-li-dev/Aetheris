@@ -99,3 +99,9 @@ AIR-X7 does not change production Firmament syntax or behavior, production route
 ## Recommended next milestone
 
 Recommended AIR-X8: **Firmament parser-backed trace fixture for one real source form**. AIR-X7 found that metadata-driven fixture contracts are sufficient for stable trace semantics, but the next convergence blocker is tying at least one `.firmfixture` body to real frontend parsing without prematurely expanding unsupported language forms.
+
+## AIR-X8 parser-backed fixture mode
+
+AIR-X8 adds opt-in parser-backed fixture mode with `// parser-backed: true`. Metadata-driven AIR-X7 fixtures remain the default. Parser-backed fixtures extract the non-metadata body, invoke the existing Firmament frontend, report parse success/failure and `frontendStageReached`, and satisfy the fixture expectation from the truthful frontend stage reached.
+
+The first parser-backed fixture is `fixtures/Firmament/Primitive/valid/box.valid.firmfixture`. It reaches `parsed` and records the explicit AIR-X8 boundary diagnostic that AIR lowering is not wired for parser-backed fixtures yet.

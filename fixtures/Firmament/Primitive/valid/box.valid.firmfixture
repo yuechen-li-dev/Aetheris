@@ -1,0 +1,21 @@
+// case: box
+// expected: valid
+// expected-stage: parsed
+// parser-backed: true
+// description: Minimal parser-backed Firmament primitive fixture.
+
+firmament:
+  version: 1
+
+model:
+  name: air-x8-box
+  units: mm
+
+ops[1]:
+  -
+    op: box
+    id: base
+    size[3]:
+      10
+      8
+      6

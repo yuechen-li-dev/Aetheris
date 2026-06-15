@@ -17,13 +17,14 @@ public static class CliRunner
         string? Error,
         string? Classification = null,
         int? RigidRootCount = null);
-    private const string TopLevelUsage = "Usage: aetheris <build|analyze|canon|asm|experimental> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|analyze|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
+    private const string TraceUsage = "Usage: aetheris trace --case <name> [--out-dir <dir>] [--json]";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
@@ -72,6 +73,7 @@ public static class CliRunner
             {
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
+                "trace" => RunTrace(args.Skip(1).ToArray(), stdout, stderr),
                 "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
                 "asm" => RunAsm(args.Skip(1).ToArray(), stdout, stderr),
                 "experimental" => RunExperimental(args.Skip(1).ToArray(), stdout, stderr),
@@ -173,6 +175,97 @@ public static class CliRunner
             stdout.WriteLine($"Build succeeded: {build.Value.OutputPath}");
         }
 
+        return 0;
+    }
+
+    private static int RunTrace(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length > 0 && IsHelpFlag(args[0]))
+        {
+            WriteTraceHelp(stdout);
+            return 0;
+        }
+
+        string? caseName = null;
+        string? outDir = null;
+        var json = false;
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--case" when i + 1 < args.Length:
+                    caseName = args[++i];
+                    break;
+                case "--case":
+                    stderr.WriteLine("Trace option --case requires a case name.");
+                    stderr.WriteLine(TraceUsage);
+                    return 1;
+                case "--out-dir" when i + 1 < args.Length:
+                    outDir = args[++i];
+                    break;
+                case "--out-dir":
+                    stderr.WriteLine("Trace option --out-dir requires a directory path.");
+                    stderr.WriteLine("air-x6-output-directory-invalid");
+                    stderr.WriteLine(TraceUsage);
+                    return 1;
+                case "--json":
+                    json = true;
+                    break;
+                case "-h":
+                case "--help":
+                    WriteTraceHelp(stdout);
+                    return 0;
+                default:
+                    if (!args[i].StartsWith("-", StringComparison.Ordinal))
+                    {
+                        stderr.WriteLine("trace does not analyze STEP files; use `aetheris analyze ...`.");
+                        stderr.WriteLine("air-x6-step-input-rejected-use-analyze");
+                        stderr.WriteLine(TraceUsage);
+                        return 1;
+                    }
+                    stderr.WriteLine($"Unknown trace option '{args[i]}'.");
+                    stderr.WriteLine(TraceUsage);
+                    return 1;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(caseName))
+        {
+            stderr.WriteLine("Trace requires --case <name>.");
+            stderr.WriteLine("air-x6-missing-case-rejected");
+            stderr.WriteLine($"Supported cases: {string.Join(", ", AirTraceReportBuilder.SupportedCases)}");
+            stderr.WriteLine(TraceUsage);
+            return 1;
+        }
+
+        caseName = AirTraceReportBuilder.Normalize(caseName);
+        if (!AirTraceReportBuilder.SupportedCases.Contains(caseName, StringComparer.Ordinal))
+        {
+            stderr.WriteLine($"Unknown trace case '{caseName}'.");
+            stderr.WriteLine("air-x6-unknown-case-rejected");
+            stderr.WriteLine($"Supported cases: {string.Join(", ", AirTraceReportBuilder.SupportedCases)}");
+            return 1;
+        }
+
+        var report = AirTraceReportBuilder.Build(caseName);
+        var text = json ? JsonSerializer.Serialize(report, JsonOptions) : AirTraceTextRenderer.Render(report);
+        if (!string.IsNullOrWhiteSpace(outDir))
+        {
+            Directory.CreateDirectory(outDir);
+            var path = Path.Combine(outDir, AirTraceReportBuilder.FileStem(caseName) + (json ? ".json" : ".txt"));
+            File.WriteAllText(path, text);
+            if (json)
+            {
+                stdout.WriteLine(text);
+            }
+            else
+            {
+                stdout.WriteLine($"Trace report written: {path}");
+            }
+            return 0;
+        }
+
+        stdout.WriteLine(text);
         return 0;
     }
 
@@ -1770,7 +1863,7 @@ public static class CliRunner
 
     private static int UnknownCommand(string command, TextWriter stderr)
     {
-        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, analyze, canon, asm, experimental.");
+        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, analyze, trace, canon, asm, experimental.");
         stderr.WriteLine("Run 'aetheris --help' for usage and examples.");
         return 1;
     }
@@ -1798,6 +1891,7 @@ public static class CliRunner
         stdout.WriteLine("Commands:");
         stdout.WriteLine("  build      Build a .firmament source file into STEP.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
+        stdout.WriteLine("  trace      Trace built-in AIR lowering cases through route, BRepPlan, STEP smoke, and CIR mirror.");
         stdout.WriteLine("  canon      Import and re-export STEP/AP242 as canonical STEP.");
         stdout.WriteLine("  asm        Execute/export .firmasm assembly IR using rigid world-space composition.");
         stdout.WriteLine("  experimental  Experimental/lab-only artifact export and generated-source inspection commands.");
@@ -1810,6 +1904,8 @@ public static class CliRunner
         stdout.WriteLine("  aetheris build model.firmament --out model.step");
         stdout.WriteLine("  aetheris analyze model.step");
         stdout.WriteLine("  aetheris analyze model.step --json");
+        stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer");
+        stdout.WriteLine("  aetheris trace --case prismatic-section-transition --json");
         stdout.WriteLine("  aetheris canon input.step --out canonical.step --json");
         stdout.WriteLine("  aetheris asm exec assembly.firmasm --json");
         stdout.WriteLine("  aetheris asm export assembly.firmasm --out out/assembly-roundtrip --json");
@@ -1835,6 +1931,30 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris build part.firmament --out part.step --json");
+    }
+
+    private static void WriteTraceHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Trace a built-in Aetheris lowering case through AIR, route selection, BRepPlan, emitted BRep/STEP smoke, and CIR mirror admission. Use `analyze` for existing STEP/BRep geometry.");
+        stdout.WriteLine();
+        stdout.WriteLine(TraceUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Scope:");
+        stdout.WriteLine("  trace reports compiler lowering; analyze reports geometric analysis of existing STEP/BRep artifacts.");
+        stdout.WriteLine("  Supported cases: prismatic-section-transition, top-face-loop-chamfer.");
+        stdout.WriteLine("  Optional aliases: prismatic, loop-chamfer.");
+        stdout.WriteLine("  No STEP input is accepted by trace.");
+        stdout.WriteLine();
+        stdout.WriteLine("Options:");
+        stdout.WriteLine("  --case <name>   Required built-in lowering case name.");
+        stdout.WriteLine("  --json          Emit deterministic machine-readable JSON (default output is human-readable text).");
+        stdout.WriteLine("  --out-dir <dir> Write the trace report artifact into a directory.");
+        stdout.WriteLine("  -h, --help      Show this help.");
+        stdout.WriteLine();
+        stdout.WriteLine("Examples:");
+        stdout.WriteLine("  aetheris trace --case prismatic-section-transition");
+        stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer --json");
+        stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer --out-dir artifacts/air-x6");
     }
 
     private static void WriteAnalyzeHelp(TextWriter stdout)

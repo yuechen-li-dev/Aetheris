@@ -93,3 +93,7 @@ Recommended next milestone: **AIR-X4 — BRepPlan roles/provenance for top-face 
 ## AIR-X4 extension note
 
 AIR-X4 extends this prismatic BRepPlan through a feature role overlay rather than duplicating the planner. The top-face loop chamfer wrapper preserves primary prismatic transition roles and adds `ChamferFace` semantic roles to upper transition faces only when the feature context is the Class B top-face loop chamfer.
+
+## AIR-X6 trace reporting
+
+`aetheris trace` reports the AIR-X3 prismatic BRepPlan summary, including split policy, bounds, and stable topology counts. The trace command uses the planner read-only and does not materialize new production topology or change emitter behavior.

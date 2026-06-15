@@ -73,3 +73,7 @@ AIR-X3 proves that the direct `AirPrismaticSectionTransition` route can produce 
 ## AIR-X4 evidence note
 
 The AIR-X2 switch/match-selected `TopFaceLoopChamferPrismatic` route now has AIR-X4 BRepPlan evidence carrying `FaceBoundaryLoop`, `UniformChamfer`, `SwitchMatch`, and not-four-independent-single-edge-chamfers provenance. Route selection and JudgmentUtility behavior are unchanged.
+
+## AIR-X6 trace reporting
+
+`aetheris trace` reports AIR-X2 route decisions for supported built-in cases, including Direct prismatic selection and SwitchMatch top-face loop chamfer selection. This is read-only reporting and does not alter JudgmentUtility, admissibility, tie-breaking, or rejection semantics.

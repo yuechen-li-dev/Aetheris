@@ -84,3 +84,7 @@ AIR-X1 wrappers remain thin envelopes around proven lanes. AIR-X3 adds a non-pro
 ## AIR-X4 top-face loop chamfer BRepPlan role note
 
 The AIR-X1 top-face loop chamfer wrapper remains the existing proven lane. AIR-X4 adds a non-production BRepPlan wrapper that reuses the prismatic plan and records Class B provenance plus chamfer semantic roles for upper transition faces without replacing this wrapper.
+
+## AIR-X6 trace consumption
+
+`aetheris trace` consumes the AIR-X1 wrapper summaries for `prismatic-section-transition` and `top-face-loop-chamfer` as source/provenance evidence. The wrappers remain non-production lowering evidence and are not route replacements.

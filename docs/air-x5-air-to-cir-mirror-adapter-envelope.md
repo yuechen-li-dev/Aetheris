@@ -93,3 +93,7 @@ Focused AIR-X5 tests were added to `Aetheris.Kernel.Core.Tests` for prismatic ad
 Recommended: **AIR-X6 — AIR/BRepPlan/CIR unified artifact summary for prismatic + loop chamfer**.
 
 Implementation showed that AIR-X3/X4 already carry useful BRepPlan topology-role metadata while AIR-X5 now carries evaluation-mirror metadata. A unified non-production artifact summary would make the authority boundaries easier to inspect without changing production routes or claiming CIR topology parity.
+
+## AIR-X6 trace reporting
+
+`aetheris trace` reports AIR-X5 CIR mirror admission, backend, capabilities, provenance, and losses. CIR remains an evaluation side-channel and does not gain face identity, loop identity, topology parity, chamfer-face identity, or BRepPlan role parity authority.

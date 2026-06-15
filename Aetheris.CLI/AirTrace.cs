@@ -1,0 +1,120 @@
+using System.Text;
+using System.Text.Json.Serialization;
+using Aetheris.Kernel.Core.Air;
+using Aetheris.Kernel.Core.Air.BRepPlan;
+using Aetheris.Kernel.Core.Brep.Prismatic;
+
+namespace Aetheris.CLI;
+
+internal sealed record AirTraceReport(
+    string Milestone,
+    string Command,
+    string TraceKind,
+    string InputKind,
+    string CaseName,
+    bool Succeeded,
+    string Recommendation,
+    AirTraceAirSummary Air,
+    AirTraceRouteDecisionSummary RouteDecision,
+    [property: JsonPropertyName("brepPlan")] AirTraceBRepPlanSummary BRepPlan,
+    AirTraceEmissionSummary Emission,
+    AirTraceStepSmokeSummary StepSmoke,
+    AirTraceCirMirrorSummary CirMirror,
+    IReadOnlyList<string> Capabilities,
+    IReadOnlyList<string> KnownLosses,
+    IReadOnlyList<string> Diagnostics,
+    IReadOnlyList<string> Guarantees,
+    IReadOnlyList<string> UnchangedBehavior);
+
+internal sealed record AirTraceAirSummary(string Node, string Route, string SelectionClass, string Rule, string ConstructionHistory, string FeatureName, string FeatureId, string ProvenanceMilestone);
+internal sealed record AirTraceRouteDecisionSummary(string Mode, string? SelectedRoute, bool Succeeded, string Recommendation, string SelectionClass, string Rule, IReadOnlyList<string> Diagnostics);
+internal sealed record AirTraceBRepPlanSummary(string PlanKind, int Vertices, int Curves, int Edges, int Faces, int Loops, int Coedges, int Surfaces, int CapFaces, int TransitionFaces, int ChamferFaces, int SideFaces, string SplitPolicy, string Bounds, string? RouteSelectionMode, IReadOnlyList<string> Diagnostics);
+internal sealed record AirTraceEmissionSummary(string ExistingEmitterPath, bool Succeeded, string Recommendation);
+internal sealed record AirTraceStepSmokeSummary(bool WasChecked, bool Succeeded, bool RequiredMarkersPresent, bool ForbiddenMarkersAbsent, IReadOnlyList<string> Diagnostics);
+internal sealed record AirTraceCirMirrorSummary(string Status, string Backend, string SourceNode, string SourceKind, string SelectionClass, string Rule, string MirrorBuilderRoute, IReadOnlyList<string> Capabilities, IReadOnlyList<string> KnownLosses, IReadOnlyList<string> Provenance, IReadOnlyList<string> Diagnostics);
+
+internal static class AirTraceReportBuilder
+{
+    public static readonly string[] SupportedCases = ["prismatic-section-transition", "top-face-loop-chamfer"];
+
+    public static AirTraceReport Build(string caseName)
+    {
+        caseName = Normalize(caseName);
+        return caseName switch
+        {
+            "prismatic-section-transition" => BuildPrismatic(),
+            "top-face-loop-chamfer" => BuildTopFaceLoopChamfer(),
+            _ => throw new ArgumentOutOfRangeException(nameof(caseName), caseName, "Unsupported trace case.")
+        };
+    }
+
+    public static string Normalize(string value) => value switch
+    {
+        "prismatic" => "prismatic-section-transition",
+        "loop-chamfer" => "top-face-loop-chamfer",
+        _ => value
+    };
+
+    public static string FileStem(string caseName) => $"air-x6-{Normalize(caseName)}-trace";
+
+    private static AirTraceReport BuildPrismatic()
+    {
+        var lowering = AirPrismaticSectionTransitionWrapper.LowerCanonicalRectangleInset();
+        var route = AirRouteSelector.Decide(AirRouteSelector.ForPrismaticSectionTransition());
+        var brepPlan = AirPrismaticSectionTransitionBRepPlanner.Plan(new PrismaticSectionTransitionRequest(AirPrismaticSectionTransitionWrapper.CanonicalSections(), PrismaticCorrespondenceMap.Identity(4), new PrismaticSectionTransitionOptions(RunStepSmoke: true, TraceLabel: "air-x6-prismatic-section-transition-trace")));
+        var mirror = AirCirMirrorAdapter.AdmitCanonicalPrismaticSectionTransition();
+        return Compose("prismatic-section-transition", lowering, route, brepPlan, mirror, "PrismaticSectionTransitionEmitter", SpecificGuarantees([]));
+    }
+
+    private static AirTraceReport BuildTopFaceLoopChamfer()
+    {
+        var lowering = AirTopFaceLoopChamferWrapper.LowerCanonicalTopFaceLoopChamfer();
+        var route = AirRouteSelector.Decide(AirRouteSelector.ForEdgeFinish("canonical-top-face-loop-chamfer", AirSelectionClass.FaceBoundaryLoop, AirRuleKind.UniformChamfer, "generated/history-known/top-face"));
+        var request = new PrismaticTopFaceLoopChamferRequest(10, 8, 6, 1, ExportStep: true);
+        var brepPlan = AirTopFaceLoopChamferBRepPlanner.Plan(request);
+        var mirror = AirCirMirrorAdapter.AdmitCanonicalTopFaceLoopChamfer();
+        return Compose("top-face-loop-chamfer", lowering, route, brepPlan, mirror, "PrismaticTopFaceLoopChamferPrototype / PrismaticSectionTransitionEmitter", SpecificGuarantees(["no AirEdgeSweep", "no BrepBoundedChamfer", "no topology graft", "no 3D Boolean", "no coplanar merge", "not four independent single-edge chamfers"]));
+    }
+
+    private static AirTraceReport Compose(string caseName, AirLoweringSummary lowering, AirRouteDecision route, AirBRepPlanResult planResult, AirCirMirrorAdapterResult mirror, string emitterPath, IReadOnlyList<string> guarantees)
+    {
+        var plan = planResult.Plan?.Summary ?? planResult.Validation.ExpectedTopologySummary;
+        var capabilities = SplitFlags(mirror.Summary.Capabilities).ToArray();
+        var losses = SplitFlags(mirror.Summary.KnownLosses).ToArray();
+        var diagnostics = Stable([
+            "air-x6-trace-command-started", $"air-x6-trace-case-selected:{caseName}", "air-x6-air-summary-created", "air-x6-route-decision-summary-created", "air-x6-brep-plan-summary-created", "air-x6-emission-summary-created", "air-x6-step-smoke-summary-created", "air-x6-cir-mirror-summary-created", "air-x6-lowering-report-created", "air-x6-trace-not-analyze", "air-x6-no-production-route-replacement", "air-x6-no-production-analyzer-change", "air-x6-no-step-exporter-change", "air-x6-no-brep-topology-change",
+            .. lowering.Diagnostics.Select(d => d.Code), .. route.Diagnostics.Select(d => d.Code), .. plan.Diagnostics.Select(d => d.Code), .. mirror.Summary.Diagnostics
+        ]).ToArray();
+        return new("AIR-X6", "trace", "lowering", "built-in-case", caseName, lowering.Succeeded && route.Succeeded && planResult.Succeeded, lowering.Recommendation,
+            new(lowering.NodeKind.ToString(), lowering.RouteKind.ToString(), lowering.Provenance.SelectionClass.ToString(), lowering.Provenance.RuleKind.ToString(), lowering.Provenance.ConstructionHistoryKind, lowering.Provenance.FeatureName, lowering.Provenance.FeatureId, lowering.Provenance.Milestone),
+            new(route.SelectionMode.ToString(), route.SelectedRouteKind?.ToString(), route.Succeeded, route.Recommendation, route.Summary.SelectionClass.ToString(), route.Summary.RuleKind.ToString(), route.Diagnostics.Select(d => d.Code).Order().ToArray()),
+            new(plan.PlanKind.ToString(), plan.VertexCount, plan.CurveCount, plan.EdgeCount, plan.FaceCount, plan.LoopCount, plan.CoedgeCount, plan.SurfaceCount, plan.CapFaceCount, plan.TransitionFaceCount, plan.ChamferFaceCount, plan.SideFaceCount, plan.SplitPolicy, plan.Bounds, plan.FeatureContext?.RouteSelectionMode, plan.Diagnostics.Select(d => d.Code).Order().ToArray()),
+            new(emitterPath, lowering.Succeeded, lowering.Recommendation),
+            new(lowering.StepSmokeSummary.WasChecked, lowering.StepSmokeSummary.Succeeded, lowering.StepSmokeSummary.RequiredMarkersPresent, lowering.StepSmokeSummary.ForbiddenMarkersAbsent, lowering.StepSmokeSummary.Diagnostics.Select(d => d.Code).Order().ToArray()),
+            new(mirror.Summary.StatusText, mirror.Summary.MirrorBackend, mirror.Summary.SourceNodeId, mirror.Summary.SourceKind.ToString(), mirror.Summary.SelectionClass.ToString(), mirror.Summary.RuleKind.ToString(), mirror.Summary.MirrorBuilderRoute, capabilities, losses, mirror.Summary.Provenance, mirror.Summary.Diagnostics),
+            capabilities, losses, diagnostics, guarantees, ["no production route replacement", "no production analyzer behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no Firmament lowering behavior change", "no Boolean behavior change", "no CIR evaluator/tape behavior change", "no new geometry"]);
+    }
+
+    private static IReadOnlyList<string> SpecificGuarantees(IEnumerable<string> extra) => Stable(["no production route replacement", "no default production CLI behavior change outside adding trace command", "no production analyzer behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no Boolean behavior change", "no Firmament lowering behavior change", "no CIR evaluator/tape behavior change", "no new geometry", "no import/recovery", "no arbitrary graph support", .. extra]).ToArray();
+    private static IEnumerable<string> Stable(IEnumerable<string> x) => x.Distinct(StringComparer.Ordinal).OrderBy(s => s, StringComparer.Ordinal);
+    private static IEnumerable<string> SplitFlags<T>(T value) where T : Enum => Enum.GetValues(typeof(T)).Cast<T>().Where(v => Convert.ToInt64(v) != 0 && value.HasFlag(v)).Select(v => Kebab(v.ToString())).OrderBy(x => x, StringComparer.Ordinal);
+    private static string Kebab(string value) => string.Concat(value.Replace("BRep", "Brep", StringComparison.Ordinal).SelectMany((c, i) => char.IsUpper(c) && i > 0 ? new[] { '-', char.ToLowerInvariant(c) } : new[] { char.ToLowerInvariant(c) }));
+}
+
+internal static class AirTraceTextRenderer
+{
+    public static string Render(AirTraceReport r)
+    {
+        var b = new StringBuilder();
+        b.AppendLine("Aetheris trace — AIR-X6 lowering report");
+        b.AppendLine($"Case: {r.CaseName}"); b.AppendLine($"Trace kind: {r.TraceKind}"); b.AppendLine($"Input kind: {r.InputKind}"); b.AppendLine();
+        b.AppendLine("AIR"); b.AppendLine($"  Node: {r.Air.Node}"); b.AppendLine($"  Route: {r.Air.Route}"); b.AppendLine($"  Selection class: {r.Air.SelectionClass}"); b.AppendLine($"  Rule: {r.Air.Rule}"); b.AppendLine($"  Construction history: {r.Air.ConstructionHistory}"); b.AppendLine();
+        b.AppendLine("Route decision"); b.AppendLine($"  Mode: {r.RouteDecision.Mode}"); b.AppendLine($"  Selected route: {r.RouteDecision.SelectedRoute}"); b.AppendLine($"  Succeeded: {r.RouteDecision.Succeeded.ToString().ToLowerInvariant()}"); b.AppendLine();
+        b.AppendLine("BRepPlan"); b.AppendLine($"  Plan kind: {r.BRepPlan.PlanKind}"); b.AppendLine($"  Vertices: {r.BRepPlan.Vertices}"); b.AppendLine($"  Edges: {r.BRepPlan.Edges}"); b.AppendLine($"  Faces: {r.BRepPlan.Faces}"); b.AppendLine($"  Loops: {r.BRepPlan.Loops}"); b.AppendLine($"  Coedges: {r.BRepPlan.Coedges}"); b.AppendLine($"  Cap faces: {r.BRepPlan.CapFaces}"); b.AppendLine($"  Transition faces: {r.BRepPlan.TransitionFaces}"); b.AppendLine($"  Chamfer faces: {r.BRepPlan.ChamferFaces}"); b.AppendLine($"  Split policy: {r.BRepPlan.SplitPolicy}"); b.AppendLine($"  Bounds: {r.BRepPlan.Bounds}"); b.AppendLine();
+        b.AppendLine("Emission / STEP"); b.AppendLine($"  Existing emitter path: {r.Emission.ExistingEmitterPath}"); b.AppendLine($"  STEP smoke: {(r.StepSmoke.Succeeded ? "succeeded" : "unavailable")}"); b.AppendLine();
+        b.AppendLine("CIR mirror"); b.AppendLine($"  Status: {r.CirMirror.Status}"); b.AppendLine($"  Backend: {r.CirMirror.Backend}"); b.AppendLine($"  Capabilities: {string.Join(", ", r.CirMirror.Capabilities)}"); b.AppendLine($"  Known losses: {string.Join(", ", r.CirMirror.KnownLosses.Select(x => "no " + x.Replace('-', ' ')))}"); b.AppendLine();
+        b.AppendLine("Guarantees"); foreach (var g in r.Guarantees) b.AppendLine($"  - {g}"); b.AppendLine();
+        b.AppendLine("Diagnostics"); foreach (var d in r.Diagnostics) b.AppendLine($"  - {d}");
+        return b.ToString();
+    }
+}

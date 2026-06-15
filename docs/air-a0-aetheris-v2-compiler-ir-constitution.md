@@ -757,3 +757,7 @@ AIR-X4 adds feature-role-aware BRepPlan evidence for the Class B top-face loop c
 ## AIR-X5 status note
 
 AIR-X5 adds an internal/test-visible AIR-to-CIR mirror adapter envelope for generated prismatic section transitions and top-face loop chamfers when existing convex polyhedron mirror evidence admits them. The adapter preserves AIR provenance metadata but explicitly denies CIR face identity, loop identity, topology parity, chamfer-face identity, feature labels, and BRepPlan role parity. It does not change production analyzer behavior, route selection, BRepPlan behavior, BRep topology, STEP import/export, CIR evaluator/tape behavior, Firmament lowering, Boolean behavior, or chamfer/fillet/shell geometry. See [AIR-X5 — AIR-to-CIR mirror adapter envelope](air-x5-air-to-cir-mirror-adapter-envelope.md).
+
+## AIR-X6 trace status
+
+AIR-X6 adds `aetheris trace` as a top-level compiler-lowering report command for built-in AIR cases. The command reports AIR, route selection, BRepPlan, emitted BRep/STEP smoke, CIR mirror admission, diagnostics, guarantees, and known losses without making STEP serialization or CIR evaluation topology authority.

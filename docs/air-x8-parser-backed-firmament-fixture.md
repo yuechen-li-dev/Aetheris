@@ -102,3 +102,8 @@ AIR-X9 advances the same parser-backed box fixture from `parsed` to `feature-air
 ## AIR-X10 stage update
 
 The parser-backed box fixture no longer stops at `parsed` or `feature-air`: AIR-X10 traces it through Feature AIR `CreateBox` into Constructive AIR `AirProfileExtrude` as a rectangle-profile extrusion summary. The syntax remains the same existing TOON-style `op: box` / `size[3]` form.
+
+
+## AIR-X11 advancement note
+
+The parser-backed primitive box fixture now has an `emitted-brep` expected stage. This is not a parser or grammar change: it is a trace-only bridge from the AIR-X10 Constructive AIR summary to the existing profile extrusion wrapper/emitter summary.

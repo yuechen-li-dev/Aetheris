@@ -88,3 +88,8 @@ Recommended next milestone: **AIR-X10 — Box Feature AIR to Constructive AIR/Pr
 ## AIR-X10 advancement
 
 AIR-X10 advances the same parser-backed box fixture from `feature-air` to `constructive-air`. The trace now canonicalizes Feature AIR `CreateBox` to Constructive AIR `AirProfileExtrude` with canonical form `rectangle-profile-extrude`, using `size[0]` as width, `size[1]` as depth, and `size[2]` as height. The profile wrapper/emitter remains deferred, and BRepPlan/emission/STEP/CIR sections remain truthful non-success placeholders.
+
+
+## AIR-X11 advancement note
+
+The parser-backed box boundary now reaches existing profile extrusion emission evidence after Feature AIR and Constructive AIR. The source syntax and parser boundary are unchanged; the trace bridge reuses the existing profile extrusion wrapper and does not expand production Firmament behavior.

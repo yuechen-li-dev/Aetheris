@@ -98,3 +98,7 @@ Implementation validation includes the focused CLI build/help/trace commands and
 ## Recommended next milestone
 
 Recommended next milestone: **AIR-X11 — Box Constructive AIR to existing profile extrusion wrapper/emission trace**. AIR-X10 found the parser-backed source-to-Constructive-AIR bridge clean, while wrapper/emitter invocation remains deliberately deferred to avoid overstating BRepPlan, STEP, or CIR success.
+
+## AIR-X11 advancement note
+
+AIR-X11 now consumes this Constructive AIR `AirProfileExtrude` summary through a narrow parser-backed box profile emission trace probe. The box fixture advances from `constructive-air` to `emitted-brep` only because the existing AIR-X1 profile extrusion wrapper invokes `LineArcProfileExtrudeEmitter` and returns deterministic BRep topology evidence; BRepPlan and CIR remain deferred.

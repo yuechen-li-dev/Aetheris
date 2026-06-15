@@ -7,7 +7,9 @@ namespace Aetheris.Kernel.Firmament.Air;
 
 internal static class AirProfileExtrudeWrapper
 {
-    public static AirLoweringSummary LowerCanonicalRectangleExtrude()
+    public static AirLoweringSummary LowerCanonicalRectangleExtrude() => LowerRectangleExtrude(10, 8, 6);
+
+    internal static AirLoweringSummary LowerRectangleExtrude(double width, double depth, double height)
     {
         var diagnostics = new List<AirDiagnostic>
         {
@@ -17,12 +19,12 @@ internal static class AirProfileExtrudeWrapper
 
         var result = LineArcProfileExtrudeEmitter.TryEmit(new LineArcProfileExtrudeRequest(
             [new LineArcProfileLoop2D([
-                new LineArcLineSegment2D((-5, -4), (5, -4)),
-                new LineArcLineSegment2D((5, -4), (5, 4)),
-                new LineArcLineSegment2D((5, 4), (-5, 4)),
-                new LineArcLineSegment2D((-5, 4), (-5, -4)),
+                new LineArcLineSegment2D((-width / 2d, -depth / 2d), (width / 2d, -depth / 2d)),
+                new LineArcLineSegment2D((width / 2d, -depth / 2d), (width / 2d, depth / 2d)),
+                new LineArcLineSegment2D((width / 2d, depth / 2d), (-width / 2d, depth / 2d)),
+                new LineArcLineSegment2D((-width / 2d, depth / 2d), (-width / 2d, -depth / 2d)),
             ], IsHole: false)],
-            Height: 6));
+            Height: height));
 
         diagnostics.Add(D("air-x1-profile-extrude-summary-created"));
         diagnostics.Add(D("air-x1-no-production-route-replacement"));
@@ -35,13 +37,13 @@ internal static class AirProfileExtrudeWrapper
             succeeded,
             succeeded ? "profile-extrude-air-wrapper-ready-for-envelope-validation" : "profile-extrude-air-wrapper-needs-emitter-investigation",
             new AirProvenance("AIR-X1", "Constructive AIR wrapper", "canonical-rectangle-profile-extrude", "air-x1-profile-extrude-canonical", nameof(LineArcProfileExtrudeEmitter), AirSelectionClass.None, AirRuleKind.None, "generated/constructive", true, ["Uses existing profile extrusion emitter; AIR wrapper is not a production route replacement."]),
-            result.Body is null ? new AirTopologySummary(0, 0, 0, 0, 0, 0, 0) : Summarize(result.Body),
+            result.Body is null ? new AirTopologySummary(0, 0, 0, 0, 0, 0, 0) : Summarize(result.Body, width, depth, height),
             AirStepSmokeSummary.NotChecked,
             diagnostics.GroupBy(x => x.Code).Select(g => g.First()).OrderBy(x => x.Code, StringComparer.Ordinal).ToArray(),
             ["no production route replacement"]);
     }
 
-    private static AirTopologySummary Summarize(Aetheris.Kernel.Core.Brep.BrepBody body) => new(
+    private static AirTopologySummary Summarize(Aetheris.Kernel.Core.Brep.BrepBody body, double width, double depth, double height) => new(
         body.Topology.Vertices.Count(),
         body.Topology.Edges.Count(),
         body.Topology.Faces.Count(),
@@ -51,7 +53,7 @@ internal static class AirProfileExtrudeWrapper
         body.Topology.Coedges.Count(),
         CapFaceCount: 2,
         SideFaceCount: body.Topology.Faces.Count() - 2,
-        Bounds: "[-5,-4,-3]..[5,4,3]");
+        Bounds: FormattableString.Invariant($"[{-width / 2d:g},{-depth / 2d:g},{-height / 2d:g}]..[{width / 2d:g},{depth / 2d:g},{height / 2d:g}]"));
 
     private static AirDiagnostic D(string code) => new(code, AirDiagnosticSeverity.Info, code);
 }

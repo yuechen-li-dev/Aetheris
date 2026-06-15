@@ -1,6 +1,6 @@
 // case: side-hole-face-attached-region
 // expected: valid
-// expected-stage: region-integration-decision
+// expected-stage: region-brep-placeholders
 // expected-region-kind: FaceAttachedRegion
 // expected-effect: Subtractive
 // expected-yield: YieldSubtractiveVolume
@@ -42,3 +42,12 @@ region sideHole on box.face("+X") {
   circle center(0, 0) radius 1;
   cut through;
 }
+
+// expected-brep-placeholder-status: PlaceholderOnly
+// expected-brep-placeholder-count: 5
+// expected-materialized-placeholder-count: 0
+// expected-placeholder: CutEntryLoop
+// expected-placeholder: CutExitLoop
+// expected-placeholder: CutWallFace
+// expected-placeholder: AffectedParentFace
+// expected-placeholder: RegionIntegrationPatch

@@ -805,3 +805,7 @@ AIR-REGION-X4 treats side-hole BRepPlan boundary information as a trace-only con
 ## AIR-REGION-X5 note
 
 AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. The side-hole `FaceAttachedRegion` now reports deterministic candidate statuses, selects `DeferredIntegration`, rejects Boolean fallback as not admitted, keeps the CIR mirror analysis-only, and keeps the BRepPlan boundary contract as topology-side intent without materialization.
+
+## AIR-REGION-X6 placeholder note
+
+AIR-REGION-X6 reinforces the constitution's separation between AIR, BRepPlan, BRep, and CIR by introducing trace-only region BRepPlan placeholders. These placeholders are planned topology scaffolding for a future materializer, not emitted BRep, not STEP/export authority, not CIR topology authority, and not a production route replacement.

@@ -192,11 +192,11 @@ internal static class AirTraceReportBuilder
     private static AirTraceReport BuildSideHoleFaceAttachedRegionFixture(FirmFixture fixture)
     {
         var regions = AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred();
-        var actualStage = "region-integration-decision";
+        var actualStage = "region-brep-placeholders";
         var expectationSatisfied = fixture.Expectation == "valid" && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
-        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", "air-region-x4-firmfixture-boundary-contract-created", "air-region-x5-firmfixture-integration-decision-created", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
-        return new("AIR-REGION-X5", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole reports trace-only integration route candidates; DeferredIntegration is selected and no topology or geometry is emitted.",
-            new("RegionFixture", "DeferredIntegration", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X5"),
+        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", "air-region-x4-firmfixture-boundary-contract-created", "air-region-x5-firmfixture-integration-decision-created", "air-region-x6-firmfixture-brep-placeholders-created", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
+        return new("AIR-REGION-X6", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole reports trace-only BRepPlan placeholder elements; DeferredIntegration remains selected and no topology or geometry is emitted.",
+            new("RegionFixture", "DeferredIntegration", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X6"),
             new("SwitchMatch", "DeferredIntegration", false, "region integration deferred; no topology integration route admitted", "FaceAttachedRegion", "SideHole", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
             new("none", false, "no geometry emitted for trace-only region fixture"),
@@ -356,6 +356,27 @@ internal static class AirTraceTextRenderer
                     foreach (var guarantee in bb.Guarantees) b.AppendLine($"        - {guarantee}");
                 }
 
+
+                if (region.BrepPlaceholders is not null)
+                {
+                    var bp = region.BrepPlaceholders;
+                    b.AppendLine("    Region BRepPlan placeholders");
+                    b.AppendLine($"      Region: {bp.SourceRegionId}");
+                    b.AppendLine($"      Feature: {bp.FeatureKind}");
+                    b.AppendLine($"      Status: {bp.PlaceholderStatus}");
+                    b.AppendLine($"      Elements: {bp.Summary.PlaceholderElementCount}");
+                    b.AppendLine($"      Materialized: {bp.Summary.MaterializedElementCount}");
+                    b.AppendLine("      Placeholders:");
+                    foreach (var e in bp.Elements)
+                    {
+                        b.AppendLine($"        - {e.Id}");
+                        b.AppendLine($"          Kind: {e.Kind}");
+                        b.AppendLine($"          Role: {e.Role}");
+                        b.AppendLine($"          Materialization: {e.MaterializationStatus}");
+                    }
+                    b.AppendLine("      Guarantees:");
+                    foreach (var guarantee in bp.Guarantees) b.AppendLine($"        - {guarantee}");
+                }
 
                 if (region.IntegrationDecision is not null)
                 {

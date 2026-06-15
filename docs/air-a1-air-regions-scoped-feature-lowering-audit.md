@@ -624,3 +624,7 @@ AIR-A1 explicitly does not include:
 - no BrepBoundedChamfer/BrepBoundedFillet behavior changes;
 - no chamfer/fillet/shell geometry changes;
 - no test weakening.
+
+## AIR-REGION-X1 status note
+
+AIR-REGION-X1 adds a trace-only AIR Region skeleton: parser-backed box fixtures report a `RootRegion`, region fixtures can report metadata-driven `FaceAttachedRegion` yields with deferred integration, and no Boolean, geometry emission, production route replacement, grammar expansion, BRepPlan semantics, or CIR behavior is changed. See `docs/air-region-x1-region-model-skeleton-trace-fixtures.md`.

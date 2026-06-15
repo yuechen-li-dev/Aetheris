@@ -107,3 +107,7 @@ Validation included CLI build/help/trace commands, parser-backed box text and JS
 ## Recommended next milestone
 
 Recommended next milestone: **AIR-X12 — ProfileExtrude BRepPlan for parser-backed box**. AIR-X11 shows the existing emitter can produce BRep evidence from parser-backed Constructive AIR, while BRepPlan remains the next explicitly deferred topology-planning boundary.
+
+## AIR-REGION-X1 status note
+
+AIR-REGION-X1 adds a trace-only AIR Region skeleton: parser-backed box fixtures report a `RootRegion`, region fixtures can report metadata-driven `FaceAttachedRegion` yields with deferred integration, and no Boolean, geometry emission, production route replacement, grammar expansion, BRepPlan semantics, or CIR behavior is changed. See `docs/air-region-x1-region-model-skeleton-trace-fixtures.md`.

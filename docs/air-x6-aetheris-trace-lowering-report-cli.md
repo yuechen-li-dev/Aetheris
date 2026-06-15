@@ -163,3 +163,7 @@ For parser-backed Firmament primitive fixtures, `aetheris trace --fixture` can n
 ## AIR-X11 profile emission section
 
 For parser-backed Firmament box fixtures, `aetheris trace --fixture` may include a `Profile extrusion emission` text section and a `profileEmission` JSON object. These fields report wrapper invocation, emitter name, propagated dimensions, topology summary when exposed by the existing wrapper, STEP smoke availability, diagnostics, and guarantees. BRepPlan and CIR are still reported separately and remain deferred/not-requested unless actually wired for the lane.
+
+## AIR-REGION-X1 status note
+
+AIR-REGION-X1 adds a trace-only AIR Region skeleton: parser-backed box fixtures report a `RootRegion`, region fixtures can report metadata-driven `FaceAttachedRegion` yields with deferred integration, and no Boolean, geometry emission, production route replacement, grammar expansion, BRepPlan semantics, or CIR behavior is changed. See `docs/air-region-x1-region-model-skeleton-trace-fixtures.md`.

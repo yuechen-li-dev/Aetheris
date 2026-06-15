@@ -784,3 +784,7 @@ AIR-X10 creates the first parser-backed Feature AIR to Constructive AIR boundary
 ## AIR-X11 parser-backed emission boundary note
 
 AIR-X11 establishes the first parser-backed Constructive AIR to existing emission-evidence boundary: a Firmament `box` fixture reaches `AirProfileExtrude` and then the existing profile extrusion wrapper/emitter summary. The boundary is trace-only and does not alter grammar, production routes, geometry implementation, BRepPlan semantics, CIR behavior, STEP export/import, route selection, or topology behavior.
+
+## AIR-REGION-X1 status note
+
+AIR-REGION-X1 adds a trace-only AIR Region skeleton: parser-backed box fixtures report a `RootRegion`, region fixtures can report metadata-driven `FaceAttachedRegion` yields with deferred integration, and no Boolean, geometry emission, production route replacement, grammar expansion, BRepPlan semantics, or CIR behavior is changed. See `docs/air-region-x1-region-model-skeleton-trace-fixtures.md`.

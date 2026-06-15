@@ -4,6 +4,8 @@
 // expected-feature-air: CreateBox
 // expected-constructive-air: AirProfileExtrude
 // expected-emitter: LineArcProfileExtrudeEmitter
+// expected-region-kind: RootRegion
+// expected-region-count: 1
 // parser-backed: true
 // description: Parser-backed Firmament box fixture reaching existing profile extrusion emission evidence.
 

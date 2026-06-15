@@ -1,0 +1,16 @@
+// case: side-hole-face-attached-region
+// expected: valid
+// expected-stage: region-integration-deferred
+// expected-region-kind: FaceAttachedRegion
+// expected-effect: Subtractive
+// expected-yield: YieldSubtractiveVolume
+// expected-boundary: YieldsCutVolume
+// expected-integration: Deferred
+// description: Trace-only face-attached side-hole region fixture; integration deferred.
+
+solid box = Box(width: 10, depth: 8, height: 6);
+region sideHole on box.face("+X") {
+  frame faceAttached;
+  circle center(0, 0) radius 1;
+  cut through;
+}

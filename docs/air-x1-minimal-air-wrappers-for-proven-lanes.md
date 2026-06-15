@@ -75,3 +75,7 @@ AIR-X2 should introduce route-selection/admissibility metadata only after more w
 ## AIR-X2 route-selection note
 
 AIR-X2 now records deterministic route decisions for the AIR-X1 wrapper lanes. Profile extrusion and prismatic section transition use direct selection; top-face loop chamfer uses switch/match classification. These decisions are internal/test-visible and do not replace production routes.
+
+## AIR-X3 BRepPlan note
+
+AIR-X1 wrappers remain thin envelopes around proven lanes. AIR-X3 adds a non-production, internal/test-visible BRepPlan for the canonical prismatic section transition lane, but it does not replace the AIR-X1 wrapper or the existing emitter path.

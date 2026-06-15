@@ -64,3 +64,7 @@ Focused AIR route-selection tests were added under `Aetheris.Kernel.Core.Tests`.
 ## Recommended next milestone
 
 Recommended next milestone: AIR-X3 JudgmentUtility integration for one contested edge-finish route. AIR-X2 found direct and switch/match selection clean enough that the remaining new evidence is in scored competing-route policy rather than another deterministic selector.
+
+## AIR-X3 direct-route BRepPlan proof
+
+AIR-X3 proves that the direct `AirPrismaticSectionTransition` route can produce a planned topology summary before invoking the existing emitter. Route selection behavior is unchanged: direct selection remains appropriate for this named constructive route, and JudgmentUtility remains deferred.

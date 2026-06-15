@@ -213,3 +213,7 @@ EDGE-LOOP-X1 confirms that the top-face outer-loop chamfer inherits the default 
 ## EDGE-LOOP-X2 split-preserving corpus note
 
 EDGE-LOOP-X2 applies this split-preserving policy to a Class B top-face outer-loop chamfer corpus. Each successful corpus artifact keeps the lower prism side faces and the four chamfer transition faces as separate section-boundary topology. No coplanar merge is performed, and the JSON topology contract asserts `10` planar faces, `4` lower prism side faces, and `4` chamfer transition faces for every successful row.
+
+## AIR-X3 split-policy note
+
+AIR-X3 BRepPlan records `preserve-section-splits` explicitly for the prismatic section transition proof. The plan intentionally performs no coplanar merge and preserves the split topology expected by the existing emitter.

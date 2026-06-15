@@ -223,3 +223,7 @@ AIR-X2 can select the top-face loop chamfer wrapper through deterministic switch
 ## AIR-X4 BRepPlan mapping note
 
 AIR-X4 maps the corpus chamfer transition faces into BRepPlan `ChamferFace` semantic roles while preserving the existing prismatic/top-face loop chamfer emitter summaries and corpus expectations.
+
+## AIR-X5 status note
+
+AIR-X5 adds an internal/test-visible AIR-to-CIR mirror adapter envelope for generated prismatic section transitions and top-face loop chamfers when existing convex polyhedron mirror evidence admits them. The adapter preserves AIR provenance metadata but explicitly denies CIR face identity, loop identity, topology parity, chamfer-face identity, feature labels, and BRepPlan role parity. It does not change production analyzer behavior, route selection, BRepPlan behavior, BRep topology, STEP import/export, CIR evaluator/tape behavior, Firmament lowering, Boolean behavior, or chamfer/fillet/shell geometry. See [AIR-X5 — AIR-to-CIR mirror adapter envelope](../air-x5-air-to-cir-mirror-adapter-envelope.md).

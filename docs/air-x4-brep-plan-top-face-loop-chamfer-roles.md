@@ -95,3 +95,7 @@ AIR-X4 does not change production routing, emitters, STEP exporter/importer, BRe
 ## Recommended next milestone
 
 Recommended: **AIR-X5 — BRepPlan materialization adapter for prismatic transition, still non-production**. AIR-X4 showed that roles/provenance can be layered without changing production emitters; the next useful evidence is a non-production adapter that consumes these plans while preserving BRep as topology authority and keeping production routes untouched.
+
+## AIR-X5 status note
+
+AIR-X5 adds an internal/test-visible AIR-to-CIR mirror adapter envelope for generated prismatic section transitions and top-face loop chamfers when existing convex polyhedron mirror evidence admits them. The adapter preserves AIR provenance metadata but explicitly denies CIR face identity, loop identity, topology parity, chamfer-face identity, feature labels, and BRepPlan role parity. It does not change production analyzer behavior, route selection, BRepPlan behavior, BRep topology, STEP import/export, CIR evaluator/tape behavior, Firmament lowering, Boolean behavior, or chamfer/fillet/shell geometry. See [AIR-X5 — AIR-to-CIR mirror adapter envelope](air-x5-air-to-cir-mirror-adapter-envelope.md).

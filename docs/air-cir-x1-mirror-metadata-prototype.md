@@ -137,3 +137,7 @@ The AIR-CIR-X1 production admission service remains intentionally conservative: 
 ## CIR-PRISMATIC-X2 bounded prismatic availability note
 
 CIR-PRISMATIC-X2 adds a bounded internal prismatic mirror availability path outside the AIR-CIR-X1 primitive admission service. For supported convex all-planar prismatic section stacks, `CirPrismaticMirrorBuilder` can return `mirror-admitted-exact` for point containment and map occupancy while carrying the established loss flags for face identity, loop identity, split-face lineage, feature role labels, and topology parity. This does not change production analyzer behavior or the X1 primitive dispatch contract.
+
+## AIR-X5 status note
+
+AIR-X5 adds an internal/test-visible AIR-to-CIR mirror adapter envelope for generated prismatic section transitions and top-face loop chamfers when existing convex polyhedron mirror evidence admits them. The adapter preserves AIR provenance metadata but explicitly denies CIR face identity, loop identity, topology parity, chamfer-face identity, feature labels, and BRepPlan role parity. It does not change production analyzer behavior, route selection, BRepPlan behavior, BRep topology, STEP import/export, CIR evaluator/tape behavior, Firmament lowering, Boolean behavior, or chamfer/fillet/shell geometry. See [AIR-X5 — AIR-to-CIR mirror adapter envelope](air-x5-air-to-cir-mirror-adapter-envelope.md).

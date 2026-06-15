@@ -81,3 +81,7 @@ The AIR-X2 switch/match-selected `TopFaceLoopChamferPrismatic` route now has AIR
 ## AIR-X7 invalid fixture trace note
 
 AIR-X7 reuses AIR-X2 route-selection/admissibility decisions for invalid Firmament fixture traces. Arbitrary graph chamfers, non-uniform loop chamfers, and deferred loop fillets stop at route-selection/rejected/deferred stages with stable reason codes and no geometry emission.
+
+## AIR-REGION-X5 note
+
+AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. The side-hole `FaceAttachedRegion` now reports deterministic candidate statuses, selects `DeferredIntegration`, rejects Boolean fallback as not admitted, keeps the CIR mirror analysis-only, and keeps the BRepPlan boundary contract as topology-side intent without materialization.

@@ -641,3 +641,7 @@ AIR-REGION-X3 demonstrates the A1 doctrine that region effects may be mirrored f
 ### AIR-REGION-X4 status note
 
 AIR-REGION-X4 adds a trace-only BRepPlan boundary contract for the side-hole `FaceAttachedRegion`. The summary records the affected `+X` parent face, circular entry-loop intent, deferred opposite-side exit intent, deferred cylindrical cut-wall intent, planned semantic role strings, deferred elements, losses, and guarantees. It preserves A1 locality: no parent topology mutation, no BRepPlan materialization, no Boolean, no BRep emission, no STEP smoke, and no production route replacement.
+
+## AIR-REGION-X5 note
+
+AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. The side-hole `FaceAttachedRegion` now reports deterministic candidate statuses, selects `DeferredIntegration`, rejects Boolean fallback as not admitted, keeps the CIR mirror analysis-only, and keeps the BRepPlan boundary contract as topology-side intent without materialization.

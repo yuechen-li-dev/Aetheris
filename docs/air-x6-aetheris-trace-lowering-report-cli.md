@@ -180,3 +180,7 @@ For the side-hole region fixture, `aetheris trace` now renders a `Region yield` 
 ## AIR-REGION-X4 region BRep boundary trace note
 
 For `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now reports a `Region BRepPlan boundary` text section and a structured `regions.regions[].brepBoundary` JSON object. The summary is contract-only: it records affected parent face, circular entry intent, deferred exit intent, deferred cylindrical cut-wall intent, planned role strings, losses, and guarantees while keeping integration deferred and materializing no topology.
+
+## AIR-REGION-X5 note
+
+AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. The side-hole `FaceAttachedRegion` now reports deterministic candidate statuses, selects `DeferredIntegration`, rejects Boolean fallback as not admitted, keeps the CIR mirror analysis-only, and keeps the BRepPlan boundary contract as topology-side intent without materialization.

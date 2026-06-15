@@ -96,3 +96,7 @@ JSON trace includes stable `regions.regions[].brepBoundary` fields such as `stat
 Recommended: **AIR-REGION-X5 — Side-hole integration route decision scaffold, no integration**.
 
 X4 now records enough topology-planning intent to evaluate future routes without immediately materializing BRepPlan elements. The next blocker is route decision scaffolding that can compare direct BRepPlan placeholder planning, constructive side-hole insertion, or Boolean fallback as explicit deferred candidates without changing production behavior.
+
+## AIR-REGION-X5 note
+
+AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. The side-hole `FaceAttachedRegion` now reports deterministic candidate statuses, selects `DeferredIntegration`, rejects Boolean fallback as not admitted, keeps the CIR mirror analysis-only, and keeps the BRepPlan boundary contract as topology-side intent without materialization.

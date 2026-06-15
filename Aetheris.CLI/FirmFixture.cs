@@ -8,6 +8,8 @@ internal sealed record FirmFixture(
     string? ExpectedRoute,
     string? ExpectedReason,
     IReadOnlyDictionary<string, string> Metadata,
+    string SourceBody,
+    bool ParserBacked,
     IReadOnlyList<string> Diagnostics);
 
 internal static class FirmFixtureLoader
@@ -40,14 +42,31 @@ internal static class FirmFixtureLoader
         if (metadata.TryGetValue("expected", out var expected) && !string.Equals(expected, expectation, StringComparison.Ordinal))
             throw new FirmFixtureException("air-x7-firmfixture-metadata-invalid", $"Fixture extension implies '{expectation}' but metadata expected '{expected}'.");
 
+        var sourceBody = ExtractSourceBody(lines);
+        var parserBacked = metadata.TryGetValue("parser-backed", out var parserBackedValue) && string.Equals(parserBackedValue, "true", StringComparison.OrdinalIgnoreCase);
         var diagnostics = new[]
         {
             "air-x7-firmfixture-loaded",
             "air-x7-firmfixture-extension-classified",
             "air-x7-firmfixture-metadata-parsed",
-            expectation == "valid" ? "air-x7-firmfixture-expectation-valid" : "air-x7-firmfixture-expectation-invalid"
+            expectation == "valid" ? "air-x7-firmfixture-expectation-valid" : "air-x7-firmfixture-expectation-invalid",
+            parserBacked ? "air-x8-parser-backed-fixture-loaded" : "air-x7-metadata-driven-fixture-loaded",
+            parserBacked ? "air-x8-firmfixture-source-body-extracted" : "air-x7-firmfixture-source-body-not-required"
         }.Order(StringComparer.Ordinal).ToArray();
-        return new(normalized, caseName, expectation, metadata.GetValueOrDefault("expected-stage"), metadata.GetValueOrDefault("expected-route"), metadata.GetValueOrDefault("expected-reason"), metadata, diagnostics);
+        return new(normalized, caseName, expectation, metadata.GetValueOrDefault("expected-stage"), metadata.GetValueOrDefault("expected-route"), metadata.GetValueOrDefault("expected-reason"), metadata, sourceBody, parserBacked, diagnostics);
+    }
+
+    private static string ExtractSourceBody(string[] lines)
+    {
+        var bodyStart = 0;
+        for (; bodyStart < lines.Length; bodyStart++)
+        {
+            var line = lines[bodyStart].Trim();
+            if (line.Length == 0) continue;
+            if (!line.StartsWith("//", StringComparison.Ordinal)) break;
+        }
+
+        return string.Join(Environment.NewLine, lines.Skip(bodyStart)).Trim();
     }
 
     public static string ClassifyExpectation(string path)

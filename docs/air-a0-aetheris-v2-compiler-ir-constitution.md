@@ -765,3 +765,7 @@ AIR-X6 adds `aetheris trace` as a top-level compiler-lowering report command for
 ## AIR-X7 fixture corpus note
 
 Firmament `.valid.firmfixture` and `.invalid.firmfixture` files are source/lowering contract fixtures. They document accepted and rejected/deferred authoring-intent programs and let `aetheris trace --fixture` report compiler lowering stages without treating STEP as construction truth or changing production geometry behavior.
+
+## AIR-X8 parser-backed fixture anchor
+
+AIR-X8 anchors the Firmament fixture corpus to the real Firmament frontend for one minimal primitive source form. The primitive box `.valid.firmfixture` is parser-backed, reaches the truthful `parsed` frontend stage, and deliberately does not claim AIR/BRepPlan/CIR/STEP lowering until that bridge is explicitly wired. Metadata-driven AIR-X7 Chamfer fixtures remain valid lowering contracts.

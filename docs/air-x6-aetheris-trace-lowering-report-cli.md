@@ -142,3 +142,7 @@ Recommended AIR-X7: **unified trace artifact corpus / golden summaries**. AIR-X6
 ## AIR-X7 fixture input extension
 
 AIR-X7 extends `aetheris trace` with `--fixture <path>` while keeping AIR-X6 built-in `--case` traces intact. Fixture paths must end in `.valid.firmfixture` or `.invalid.firmfixture`; `--case` and `--fixture` are mutually exclusive. Text remains default, JSON is emitted only with `--json`, and `--out-dir` writes the corresponding `.txt` or `.json` report. Fixture trace reports add fixture expectation, expected/actual lowering stage, expected route/reason, expectation satisfaction, and deterministic fixture diagnostics. Arbitrary STEP input remains rejected by `trace`; use `analyze` for STEP geometry.
+
+## AIR-X8 parser-backed fixture frontend section
+
+For `.firmfixture` inputs with `// parser-backed: true`, `aetheris trace --fixture` now includes a `Frontend` section in text output and a `frontend` object in JSON. The fields record whether parser-backed mode was requested, the parser/frontend name, parse success, deterministic parse diagnostics, and the truthful frontend stage reached. The first parser-backed primitive box fixture stops at `parsed` because Firmament-to-AIR fixture lowering is not wired in AIR-X8.

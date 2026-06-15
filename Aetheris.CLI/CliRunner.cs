@@ -260,12 +260,6 @@ public static class CliRunner
                 return 1;
             }
             report = AirTraceReportBuilder.BuildFixture(fixture);
-            if (report.ExpectationSatisfied != true)
-            {
-                stderr.WriteLine("Firmament fixture expectation was not satisfied.");
-                stderr.WriteLine("air-x7-fixture-expectation-not-satisfied");
-                return 1;
-            }
             fileStem = AirTraceReportBuilder.FixtureFileStem(fixture);
         }
         else
@@ -310,6 +304,12 @@ public static class CliRunner
         }
 
         stdout.WriteLine(text);
+        if (report.ExpectationSatisfied == false)
+        {
+            stderr.WriteLine("Firmament fixture expectation was not satisfied.");
+            stderr.WriteLine("air-x7-fixture-expectation-not-satisfied");
+            return 1;
+        }
         return 0;
     }
 

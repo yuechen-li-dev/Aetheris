@@ -210,3 +210,7 @@ Recommended follow-up options:
 ## AIR-A0 evidence note
 
 AIR-A0 classifies this corpus as evidence for a future `AirTopFaceLoopChamfer` Feature/Constructive AIR lane. The intended future lowering is `ChamferLoop` over a Class B top-face outer loop into a prismatic section transition, with BRep emission authority remaining in the prismatic route and any CIR convex-polyhedron mirror admitted separately. See `docs/air-a0-aetheris-v2-compiler-ir-constitution.md`.
+
+## AIR-X1 wrapper note
+
+AIR-X1 adds an internal `TopFaceLoopChamfer` AIR wrapper around the existing `PrismaticTopFaceLoopChamferPrototype` lane. The wrapper preserves the EDGE-LOOP-X2 Class B face-boundary-loop metadata, uniform chamfer rule, split-preserving topology summary, STEP smoke summary, and route-exclusion guarantees; it does not replace production routing or change chamfer geometry.

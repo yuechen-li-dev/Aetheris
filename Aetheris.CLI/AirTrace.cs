@@ -24,8 +24,19 @@ internal sealed record AirTraceReport(
     IReadOnlyList<string> KnownLosses,
     IReadOnlyList<string> Diagnostics,
     IReadOnlyList<string> Guarantees,
-    IReadOnlyList<string> UnchangedBehavior);
+    IReadOnlyList<string> UnchangedBehavior,
+    AirTraceFixtureSummary? Fixture = null,
+    string? FixturePath = null,
+    string? FixtureExpectation = null,
+    string? FixtureCaseName = null,
+    string? ExpectedStage = null,
+    string? ActualStageReached = null,
+    string? ExpectedRoute = null,
+    string? ExpectedReason = null,
+    bool? ExpectationSatisfied = null,
+    IReadOnlyList<string>? FixtureDiagnostics = null);
 
+internal sealed record AirTraceFixtureSummary(string Path, string Expectation, string CaseName, string? ExpectedStage, string ActualStageReached, string? ExpectedRoute, string? ExpectedReason, bool ExpectationSatisfied, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceAirSummary(string Node, string Route, string SelectionClass, string Rule, string ConstructionHistory, string FeatureName, string FeatureId, string ProvenanceMilestone);
 internal sealed record AirTraceRouteDecisionSummary(string Mode, string? SelectedRoute, bool Succeeded, string Recommendation, string SelectionClass, string Rule, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceBRepPlanSummary(string PlanKind, int Vertices, int Curves, int Edges, int Faces, int Loops, int Coedges, int Surfaces, int CapFaces, int TransitionFaces, int ChamferFaces, int SideFaces, string SplitPolicy, string Bounds, string? RouteSelectionMode, IReadOnlyList<string> Diagnostics);
@@ -36,6 +47,7 @@ internal sealed record AirTraceCirMirrorSummary(string Status, string Backend, s
 internal static class AirTraceReportBuilder
 {
     public static readonly string[] SupportedCases = ["prismatic-section-transition", "top-face-loop-chamfer"];
+    public static readonly string[] SupportedFixtureCases = ["arbitrary-graph-chamfer", "loop-fillet-deferred", "non-uniform-loop-chamfer", "top-face-loop-chamfer"];
 
     public static AirTraceReport Build(string caseName)
     {
@@ -57,6 +69,32 @@ internal static class AirTraceReportBuilder
 
     public static string FileStem(string caseName) => $"air-x6-{Normalize(caseName)}-trace";
 
+    public static AirTraceReport BuildFixture(FirmFixture fixture)
+    {
+        var caseName = fixture.CaseName;
+        var report = caseName switch
+        {
+            "top-face-loop-chamfer" => BuildTopFaceLoopChamfer(),
+            "arbitrary-graph-chamfer" => BuildRejectedFixture(fixture, AirSelectionClass.ArbitraryGraph, AirRuleKind.UniformChamfer),
+            "non-uniform-loop-chamfer" => BuildRejectedFixture(fixture, AirSelectionClass.FaceBoundaryLoop, AirRuleKind.Unsupported),
+            "loop-fillet-deferred" => BuildRejectedFixture(fixture, AirSelectionClass.FaceBoundaryLoop, AirRuleKind.ConstantRadiusFillet),
+            _ => throw new ArgumentOutOfRangeException(nameof(fixture), caseName, "Unsupported fixture case.")
+        };
+
+        var actualStage = caseName == "top-face-loop-chamfer" ? "cir-mirror" : (report.RouteDecision.Recommendation.Contains("deferred", StringComparison.Ordinal) ? "deferred" : "rejected");
+        var expectedReasonSatisfied = string.IsNullOrWhiteSpace(fixture.ExpectedReason) || report.RouteDecision.Recommendation.Contains(fixture.ExpectedReason, StringComparison.Ordinal) || report.Diagnostics.Any(d => d.Contains(fixture.ExpectedReason, StringComparison.Ordinal));
+        var expectedRouteSatisfied = string.IsNullOrWhiteSpace(fixture.ExpectedRoute) || string.Equals(report.RouteDecision.SelectedRoute, fixture.ExpectedRoute, StringComparison.Ordinal) || string.Equals(report.Air.Route, fixture.ExpectedRoute, StringComparison.Ordinal);
+        var expectationSatisfied = fixture.Expectation == "valid" ? report.Succeeded && expectedRouteSatisfied : !report.RouteDecision.Succeeded && expectedReasonSatisfied;
+        if (!string.IsNullOrWhiteSpace(fixture.ExpectedStage)) expectationSatisfied &= string.Equals(actualStage, fixture.ExpectedStage, StringComparison.Ordinal) || (fixture.ExpectedStage == "route-selection" && (actualStage == "rejected" || actualStage == "deferred"));
+        var fxDiagnostics = Stable([.. fixture.Diagnostics, "air-x7-firmfixture-case-mapped", "air-x7-firmfixture-trace-created", "air-x7-lowering-stage-recorded", expectationSatisfied ? "air-x7-expectation-satisfied" : "air-x7-fixture-expectation-not-satisfied"]).ToArray();
+        return report with
+        {
+            Milestone = "AIR-X7", InputKind = "firmfixture", FixturePath = fixture.Path, FixtureExpectation = fixture.Expectation, FixtureCaseName = caseName, ExpectedStage = fixture.ExpectedStage, ActualStageReached = actualStage, ExpectedRoute = fixture.ExpectedRoute, ExpectedReason = fixture.ExpectedReason, ExpectationSatisfied = expectationSatisfied, FixtureDiagnostics = fxDiagnostics, Fixture = new(fixture.Path, fixture.Expectation, caseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics), Diagnostics = Stable([.. report.Diagnostics, .. fxDiagnostics]).ToArray()
+        };
+    }
+
+    public static string FixtureFileStem(FirmFixture fixture) => $"air-x7-{fixture.CaseName}-firmfixture-trace";
+
     private static AirTraceReport BuildPrismatic()
     {
         var lowering = AirPrismaticSectionTransitionWrapper.LowerCanonicalRectangleInset();
@@ -74,6 +112,22 @@ internal static class AirTraceReportBuilder
         var brepPlan = AirTopFaceLoopChamferBRepPlanner.Plan(request);
         var mirror = AirCirMirrorAdapter.AdmitCanonicalTopFaceLoopChamfer();
         return Compose("top-face-loop-chamfer", lowering, route, brepPlan, mirror, "PrismaticTopFaceLoopChamferPrototype / PrismaticSectionTransitionEmitter", SpecificGuarantees(["no AirEdgeSweep", "no BrepBoundedChamfer", "no topology graft", "no 3D Boolean", "no coplanar merge", "not four independent single-edge chamfers"]));
+    }
+
+
+    private static AirTraceReport BuildRejectedFixture(FirmFixture fixture, AirSelectionClass selectionClass, AirRuleKind ruleKind)
+    {
+        var route = AirRouteSelector.Decide(AirRouteSelector.ForEdgeFinish(fixture.CaseName, selectionClass, ruleKind, "fixture/firmament-contract"));
+        var candidate = route.Candidates.First();
+        var diagnostics = Stable(["air-x7-firmfixture-invalid-route-trace-created", .. route.Diagnostics.Select(d => d.Code)]).ToArray();
+        return new("AIR-X7", "trace", "lowering", "firmfixture", fixture.CaseName, false, route.Recommendation,
+            new("Unsupported", "Unsupported", selectionClass.ToString(), ruleKind.ToString(), "fixture/firmament-contract", fixture.CaseName, fixture.CaseName, "AIR-X7"),
+            new(route.SelectionMode.ToString(), route.SelectedRouteKind?.ToString(), route.Succeeded, route.Recommendation, route.Summary.SelectionClass.ToString(), route.Summary.RuleKind.ToString(), route.Diagnostics.Select(d => d.Code).Order().ToArray()),
+            new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
+            new("none", false, "no geometry emitted for expected invalid fixture"),
+            new(false, false, false, false, []),
+            new("not-requested", "none", "none", "Unsupported", selectionClass.ToString(), ruleKind.ToString(), "none", [], [], [], []),
+            [], [], diagnostics, ["invalid fixture stops before geometry emission", "no production route replacement", "no arbitrary graph support"], ["no production route replacement", "no production analyzer behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no Firmament lowering behavior change", "no Boolean behavior change", "no CIR evaluator/tape behavior change", "no new geometry"]);
     }
 
     private static AirTraceReport Compose(string caseName, AirLoweringSummary lowering, AirRouteDecision route, AirBRepPlanResult planResult, AirCirMirrorAdapterResult mirror, string emitterPath, IReadOnlyList<string> guarantees)
@@ -106,8 +160,12 @@ internal static class AirTraceTextRenderer
     public static string Render(AirTraceReport r)
     {
         var b = new StringBuilder();
-        b.AppendLine("Aetheris trace — AIR-X6 lowering report");
+        b.AppendLine($"Aetheris trace — {r.Milestone} lowering report");
         b.AppendLine($"Case: {r.CaseName}"); b.AppendLine($"Trace kind: {r.TraceKind}"); b.AppendLine($"Input kind: {r.InputKind}"); b.AppendLine();
+        if (r.Fixture is not null)
+        {
+            b.AppendLine("Fixture"); b.AppendLine($"  Path: {r.Fixture.Path}"); b.AppendLine($"  Expectation: {r.Fixture.Expectation}"); b.AppendLine($"  Expected stage: {r.Fixture.ExpectedStage}"); b.AppendLine($"  Actual stage: {r.Fixture.ActualStageReached}"); b.AppendLine($"  Expected route: {r.Fixture.ExpectedRoute}"); b.AppendLine($"  Expected reason: {r.Fixture.ExpectedReason}"); b.AppendLine($"  Expectation satisfied: {r.Fixture.ExpectationSatisfied.ToString().ToLowerInvariant()}"); b.AppendLine();
+        }
         b.AppendLine("AIR"); b.AppendLine($"  Node: {r.Air.Node}"); b.AppendLine($"  Route: {r.Air.Route}"); b.AppendLine($"  Selection class: {r.Air.SelectionClass}"); b.AppendLine($"  Rule: {r.Air.Rule}"); b.AppendLine($"  Construction history: {r.Air.ConstructionHistory}"); b.AppendLine();
         b.AppendLine("Route decision"); b.AppendLine($"  Mode: {r.RouteDecision.Mode}"); b.AppendLine($"  Selected route: {r.RouteDecision.SelectedRoute}"); b.AppendLine($"  Succeeded: {r.RouteDecision.Succeeded.ToString().ToLowerInvariant()}"); b.AppendLine();
         b.AppendLine("BRepPlan"); b.AppendLine($"  Plan kind: {r.BRepPlan.PlanKind}"); b.AppendLine($"  Vertices: {r.BRepPlan.Vertices}"); b.AppendLine($"  Edges: {r.BRepPlan.Edges}"); b.AppendLine($"  Faces: {r.BRepPlan.Faces}"); b.AppendLine($"  Loops: {r.BRepPlan.Loops}"); b.AppendLine($"  Coedges: {r.BRepPlan.Coedges}"); b.AppendLine($"  Cap faces: {r.BRepPlan.CapFaces}"); b.AppendLine($"  Transition faces: {r.BRepPlan.TransitionFaces}"); b.AppendLine($"  Chamfer faces: {r.BRepPlan.ChamferFaces}"); b.AppendLine($"  Split policy: {r.BRepPlan.SplitPolicy}"); b.AppendLine($"  Bounds: {r.BRepPlan.Bounds}"); b.AppendLine();

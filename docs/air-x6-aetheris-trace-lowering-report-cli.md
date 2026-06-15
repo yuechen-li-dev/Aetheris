@@ -138,3 +138,7 @@ Focused AIR-X6 validation used CLI help, text output, JSON parsing/determinism, 
 ## Recommended next milestone
 
 Recommended AIR-X7: **unified trace artifact corpus / golden summaries**. AIR-X6 showed that deterministic reports can be composed from existing AIR-X1 through AIR-X5 summary surfaces without replacing production behavior; golden trace artifacts would lock the text/JSON contracts before adding source-file trace input.
+
+## AIR-X7 fixture input extension
+
+AIR-X7 extends `aetheris trace` with `--fixture <path>` while keeping AIR-X6 built-in `--case` traces intact. Fixture paths must end in `.valid.firmfixture` or `.invalid.firmfixture`; `--case` and `--fixture` are mutually exclusive. Text remains default, JSON is emitted only with `--json`, and `--out-dir` writes the corresponding `.txt` or `.json` report. Fixture trace reports add fixture expectation, expected/actual lowering stage, expected route/reason, expectation satisfaction, and deterministic fixture diagnostics. Arbitrary STEP input remains rejected by `trace`; use `analyze` for STEP geometry.

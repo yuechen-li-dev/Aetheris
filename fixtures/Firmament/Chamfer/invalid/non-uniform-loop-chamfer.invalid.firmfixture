@@ -1,0 +1,8 @@
+// case: non-uniform-loop-chamfer
+// expected: invalid
+// expected-stage: route-selection
+// expected-reason: non-uniform-rule-unsupported
+// description: Non-uniform loop chamfer rule is rejected before geometry emission.
+
+solid box = Box(width: 10, depth: 8, height: 6);
+chamfer box.top.outerLoop distances [1, 1.5, 1, 1.5];

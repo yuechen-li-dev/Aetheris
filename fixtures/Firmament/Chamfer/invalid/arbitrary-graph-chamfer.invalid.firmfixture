@@ -1,0 +1,8 @@
+// case: arbitrary-graph-chamfer
+// expected: invalid
+// expected-stage: route-selection
+// expected-reason: arbitrary-graph-unsupported
+// description: Arbitrary graph chamfer remains unsupported and must not emit geometry.
+
+solid box = Box(width: 10, depth: 8, height: 6);
+chamfer graph(box.edges[0], box.edges[3], box.edges[7]) distance 1;

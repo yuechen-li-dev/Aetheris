@@ -103,3 +103,7 @@ AIR-X5 adds an internal/test-visible AIR-to-CIR mirror adapter envelope for gene
 ## AIR-X6 trace reporting
 
 `aetheris trace` reports the AIR-X4 top-face loop chamfer role overlay, including Class B face-boundary-loop provenance, UniformChamfer rule provenance, and the four chamfer-face semantic roles. This preserves the doctrine that the case is not four independent single-edge chamfers.
+
+## AIR-X7 fixture note
+
+The AIR-X7 valid Chamfer corpus includes `fixtures/Firmament/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture`, which traces the Class B top-face boundary-loop uniform chamfer through the existing `TopFaceLoopChamferPrismatic` route and preserves the AIR-X4 BRepPlan chamfer-face role count of four.

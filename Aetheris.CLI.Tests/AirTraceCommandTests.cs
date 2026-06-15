@@ -104,6 +104,69 @@ public sealed class AirTraceCommandTests
         Assert.Equal(Run("trace", "--case", "top-face-loop-chamfer", "--json").Stdout, Run("trace", "--case", "top-face-loop-chamfer", "--json").Stdout);
     }
 
+
+    [Fact]
+    public void TraceFixtureValidTopFaceLoopChamfer_DefaultsToText()
+    {
+        var (exitCode, output, error) = Run("trace", "--fixture", Fixture("valid/top-face-loop-chamfer.valid.firmfixture"));
+        Assert.Equal(0, exitCode); Assert.True(string.IsNullOrWhiteSpace(error));
+        Assert.False(output.TrimStart().StartsWith("{", StringComparison.Ordinal));
+        Assert.Contains("Fixture", output); Assert.Contains("Expectation: valid", output);
+        Assert.Contains("Actual stage: cir-mirror", output); Assert.Contains("Expectation satisfied: true", output);
+        Assert.Contains("TopFaceLoopChamfer", output); Assert.Contains("FaceBoundaryLoop", output);
+        Assert.Contains("UniformChamfer", output); Assert.Contains("Chamfer faces: 4", output);
+    }
+
+    [Fact]
+    public void TraceFixtureValidTopFaceLoopChamfer_JsonParses()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", Fixture("valid/top-face-loop-chamfer.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
+        Assert.Equal("firmfixture", root.GetProperty("inputKind").GetString());
+        Assert.Equal("valid", root.GetProperty("fixtureExpectation").GetString());
+        Assert.True(root.GetProperty("expectationSatisfied").GetBoolean());
+        Assert.Equal("top-face-loop-chamfer", root.GetProperty("fixtureCaseName").GetString());
+        Assert.True(root.TryGetProperty("air", out _)); Assert.True(root.TryGetProperty("routeDecision", out _));
+        Assert.True(root.TryGetProperty("brepPlan", out _)); Assert.True(root.TryGetProperty("cirMirror", out _));
+    }
+
+    [Theory]
+    [InlineData("invalid/arbitrary-graph-chamfer.invalid.firmfixture", "arbitrary-graph-unsupported")]
+    [InlineData("invalid/non-uniform-loop-chamfer.invalid.firmfixture", "non-uniform-rule-unsupported")]
+    [InlineData("invalid/loop-fillet-deferred.invalid.firmfixture", "loop-fillet-deferred")]
+    public void TraceFixtureInvalid_StopsBeforeGeometry(string path, string reason)
+    {
+        var (exitCode, output, error) = Run("trace", "--fixture", Fixture(path));
+        Assert.Equal(0, exitCode); Assert.True(string.IsNullOrWhiteSpace(error));
+        Assert.Contains("Expectation: invalid", output); Assert.Contains("Expectation satisfied: true", output);
+        Assert.Contains(reason, output); Assert.Contains("Faces: 0", output);
+        Assert.Contains("STEP smoke: unavailable", output); Assert.Contains("Status: not-requested", output);
+    }
+
+    [Fact]
+    public void TraceFixtureUsageErrors_AreHelpful()
+    {
+        var both = Run("trace", "--case", "top-face-loop-chamfer", "--fixture", Fixture("valid/top-face-loop-chamfer.valid.firmfixture"));
+        Assert.NotEqual(0, both.ExitCode); Assert.Contains("mutually exclusive", both.Stderr);
+        var wrongPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".txt"); File.WriteAllText(wrongPath, "// case: nope");
+        var wrong = Run("trace", "--fixture", wrongPath); Assert.NotEqual(0, wrong.ExitCode); Assert.Contains(".valid.firmfixture", wrong.Stderr);
+        var missing = Run("trace", "--fixture", "fixtures/Firmament/Chamfer/missing.valid.firmfixture"); Assert.NotEqual(0, missing.ExitCode); Assert.Contains("not found", missing.Stderr);
+        var unknownPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".valid.firmfixture"); File.WriteAllText(unknownPath, "// case: nope\n// expected: valid\n");
+        var unknown = Run("trace", "--fixture", unknownPath); Assert.NotEqual(0, unknown.ExitCode); Assert.Contains("Supported fixture cases", unknown.Stderr);
+    }
+
+    [Fact]
+    public void TraceFixtureOutput_IsDeterministic()
+    {
+        var valid = Fixture("valid/top-face-loop-chamfer.valid.firmfixture");
+        var invalid = Fixture("invalid/arbitrary-graph-chamfer.invalid.firmfixture");
+        Assert.Equal(Run("trace", "--fixture", valid, "--json").Stdout, Run("trace", "--fixture", valid, "--json").Stdout);
+        Assert.Equal(Run("trace", "--fixture", invalid, "--json").Stdout, Run("trace", "--fixture", invalid, "--json").Stdout);
+    }
+
+    private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Chamfer", relative));
+
     private static (int ExitCode, string Stdout, string Stderr) Run(params string[] args)
     {
         var stdout = new StringWriter(); var stderr = new StringWriter();

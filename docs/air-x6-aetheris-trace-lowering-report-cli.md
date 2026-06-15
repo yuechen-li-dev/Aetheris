@@ -176,3 +176,7 @@ For the side-hole region fixture, `aetheris trace` now renders a `Region yield` 
 ## AIR-REGION-X3 trace note
 
 `aetheris trace --fixture fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture` now prints a `Region CIR mirror` section for the side-hole `FaceAttachedRegion`. The JSON region entry includes `cirMirror` with stable status, backend, fields, capabilities, losses, diagnostics, and guarantees.
+
+## AIR-REGION-X4 region BRep boundary trace note
+
+For `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now reports a `Region BRepPlan boundary` text section and a structured `regions.regions[].brepBoundary` JSON object. The summary is contract-only: it records affected parent face, circular entry intent, deferred exit intent, deferred cylindrical cut-wall intent, planned role strings, losses, and guarantees while keeping integration deferred and materializing no topology.

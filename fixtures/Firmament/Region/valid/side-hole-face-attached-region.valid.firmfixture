@@ -1,6 +1,6 @@
 // case: side-hole-face-attached-region
 // expected: valid
-// expected-stage: region-cir-mirror
+// expected-stage: region-brep-boundary
 // expected-region-kind: FaceAttachedRegion
 // expected-effect: Subtractive
 // expected-yield: YieldSubtractiveVolume
@@ -19,6 +19,13 @@
 // expected-cir-loss: no-face-identity
 // expected-cir-loss: no-entry-loop-identity
 // expected-affected-scope: ParentBodyLocalFeature
+// expected-brep-boundary: planned-contract-only
+// expected-entry-boundary: circular-entry-loop
+// expected-exit-boundary: opposite-side-exit-deferred
+// expected-cut-wall: cylindrical-cut-wall-intent
+// expected-brep-role: CutEntryLoop
+// expected-brep-role: CutWallFace
+// expected-brep-loss: no-emitted-entry-loop-identity
 // description: Trace-only face-attached side-hole region fixture; integration deferred.
 
 solid box = Box(width: 10, depth: 8, height: 6);

@@ -797,3 +797,7 @@ AIR-REGION-X2 reinforces that AIR Region yields carry construction intent across
 ## AIR-REGION-X3 constitutional note
 
 The AIR Region side-hole CIR mirror is a side-channel analysis summary only. It reinforces that CIR evaluation mirrors can describe field behavior while AIR/BRepPlan/BRep/STEP retain their separate authority boundaries.
+
+## AIR-REGION-X4 side-hole BRep boundary contract note
+
+AIR-REGION-X4 treats side-hole BRepPlan boundary information as a trace-only contract, not as topology materialization. The side-hole `FaceAttachedRegion` may report affected parent face intent, entry/exit boundary intent, cut-wall intent, planned role strings, deferred elements, losses, and guarantees while retaining deferred parent integration and denying Boolean, BRepPlan element, BRep, STEP, CIR topology authority, grammar, and route-selection behavior changes.

@@ -773,3 +773,7 @@ AIR-X8 anchors the Firmament fixture corpus to the real Firmament frontend for o
 ## AIR-X9 parser-backed frontend boundary note
 
 AIR-X9 creates the first parser-backed Firmament-to-AIR boundary for the existing TOON-style primitive box fixture. The path is `Firmament source -> FirmamentTopLevelParser -> parsed box op -> Feature AIR CreateBox trace summary`. This validates the constitutional distinction between Firmament source and Feature AIR without expanding grammar, replacing production routes, or claiming Constructive AIR/BRepPlan/CIR stages that are not wired.
+
+## AIR-X10 parser-backed boundary note
+
+AIR-X10 creates the first parser-backed Feature AIR to Constructive AIR boundary: the existing Firmament `op: box` / `size[3]` fixture now traces from parsed source to Feature AIR `CreateBox` and then to a Constructive AIR `AirProfileExtrude` rectangle-profile-extrude summary. This is still a trace-only frontend-to-MIR proof; it does not change production grammar, route selection, BRepPlan, BRep, STEP, CIR, Boolean, or geometry behavior.

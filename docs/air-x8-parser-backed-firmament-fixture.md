@@ -98,3 +98,7 @@ Recommended AIR-X9: **Firmament-to-AIR frontend boundary for parsed box primitiv
 ## AIR-X9 advancement
 
 AIR-X9 advances the same parser-backed box fixture from `parsed` to `feature-air`. The syntax remains the existing TOON-style `op: box` with `size[3]`; the parser is still the real Firmament parser; and the new trace-only boundary creates a Feature AIR `CreateBox` summary with width/depth/height dimensions. Constructive AIR remains deferred and is not reported as reached.
+
+## AIR-X10 stage update
+
+The parser-backed box fixture no longer stops at `parsed` or `feature-air`: AIR-X10 traces it through Feature AIR `CreateBox` into Constructive AIR `AirProfileExtrude` as a rectangle-profile extrusion summary. The syntax remains the same existing TOON-style `op: box` / `size[3]` form.

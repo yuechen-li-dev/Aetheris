@@ -27,8 +27,15 @@ public sealed record FirmamentPrimitiveAirTraceSummary(
 public sealed record FirmamentConstructiveAirTraceSummary(
     string NodeKind,
     string CanonicalForm,
+    string SourceFeatureAirNodeKind,
+    string ProfileKind,
+    FirmamentTraceDimensions Dimensions,
+    string ExtrusionAxis,
+    string ConstructionIntent,
+    string RouteKind,
     string StageReached,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics,
+    IReadOnlyList<string> Guarantees);
 
 public sealed record FirmamentTraceDimensions(double Width, double Depth, double Height);
 
@@ -47,21 +54,19 @@ public static class FirmamentFrontendTraceProbe
             {
                 var dimensions = TryExtractBoxDimensions(boxOp) ?? TryExtractBoxDimensionsFromSource(sourceText);
                 var dimensionDiagnostics = dimensions is null
-                    ? new[] { "air-x9-box-dimensions-missing" }
-                    : new[] { "air-x9-source-dimensions-extracted" };
+                    ? new[] { "air-x10-box-dimensions-missing" }
+                    : new[] { "air-x10-box-dimensions-extracted", "air-x9-source-dimensions-extracted" };
                 var featureAirDiagnostics = new[]
                 {
-                    "air-x9-parser-backed-fixture-loaded",
-                    "air-x9-firmament-parser-invoked",
-                    "air-x9-firmament-parse-succeeded",
-                    "air-x9-firmament-box-op-recognized",
+                    "air-x10-parser-backed-fixture-loaded",
+                    "air-x10-firmament-parser-invoked",
+                    "air-x10-firmament-parse-succeeded",
+                    "air-x10-firmament-box-op-recognized",
+                    "air-x10-feature-air-box-read",
+                    "air-x10-no-production-grammar-change",
+                    "air-x10-no-production-route-replacement",
                     "air-x9-feature-air-summary-created",
-                    "air-x9-feature-air-box-created",
-                    "air-x9-actual-stage-feature-air",
-                    "air-x9-box-constructive-air-lowering-not-wired",
-                    "air-x9-constructive-air-deferred",
-                    "air-x9-no-production-grammar-change",
-                    "air-x9-no-production-route-replacement"
+                    "air-x9-feature-air-box-created"
                 }.Concat(dimensionDiagnostics).Order(StringComparer.Ordinal).ToArray();
 
                 var featureAir = new FirmamentPrimitiveAirTraceSummary(
@@ -69,26 +74,68 @@ public static class FirmamentFrontendTraceProbe
                     SourceOpKind: boxOp.OpName,
                     FeatureAirNodeKind: "CreateBox",
                     SourceDimensions: dimensions,
-                    ConstructionIntent: "box / rectangular prism",
+                    ConstructionIntent: "Box",
                     StageReached: "feature-air",
                     Diagnostics: featureAirDiagnostics,
                     Guarantees:
                     [
                         "parser-backed Firmament source form",
-                        "Feature AIR summary only",
-                        "Constructive AIR deferred",
+                        "Feature AIR CreateBox summary",
+                        "Constructive AIR rectangle profile extrusion summary",
                         "no production grammar expansion",
                         "no production route replacement",
                         "no geometry emitted"
                     ]);
 
+                var constructiveDiagnostics = dimensions is null
+                    ? new[] { "air-x10-box-canonicalization-failed" }
+                    : new[]
+                    {
+                        "air-x10-box-canonicalized-to-profile-extrude",
+                        "air-x10-constructive-air-summary-created",
+                        "air-x10-actual-stage-constructive-air",
+                        "air-x10-profile-extrude-wrapper-not-invoked",
+                        "air-x10-brepplan-deferred",
+                        "air-x10-emission-deferred",
+                        "air-x10-cir-mirror-deferred",
+                        "air-x10-no-geometry-emission-required"
+                    }.Order(StringComparer.Ordinal).ToArray();
+
+                var constructiveAir = dimensions is null
+                    ? null
+                    : new FirmamentConstructiveAirTraceSummary(
+                        NodeKind: "AirProfileExtrude",
+                        CanonicalForm: "rectangle-profile-extrude",
+                        SourceFeatureAirNodeKind: "CreateBox",
+                        ProfileKind: "Rectangle",
+                        Dimensions: dimensions,
+                        ExtrusionAxis: "Z",
+                        ConstructionIntent: "Box",
+                        RouteKind: "ProfileExtrude",
+                        StageReached: "constructive-air",
+                        Diagnostics: constructiveDiagnostics,
+                        Guarantees:
+                        [
+                            "trace summary only",
+                            "rectangle profile uses size[0] width and size[1] depth",
+                            "extrusion uses size[2] height",
+                            "profile extrusion wrapper not invoked",
+                            "BRepPlan deferred",
+                            "emission deferred",
+                            "CIR mirror deferred"
+                        ]);
+
+                var allDiagnostics = featureAirDiagnostics.Concat(constructiveDiagnostics).Order(StringComparer.Ordinal).ToArray();
                 return new(
                     "FirmamentTopLevelParser",
                     true,
-                    "feature-air",
-                    $"Parsed Firmament document with {opCount} op(s). Recognized box op and created Feature AIR CreateBox summary; Constructive AIR is deferred.",
-                    featureAirDiagnostics,
-                    featureAir);
+                    dimensions is null ? "feature-air" : "constructive-air",
+                    dimensions is null
+                        ? $"Parsed Firmament document with {opCount} op(s). Recognized box op and created Feature AIR CreateBox summary; Constructive AIR canonicalization failed because dimensions were missing or invalid."
+                        : $"Parsed Firmament document with {opCount} op(s). Recognized box op, created Feature AIR CreateBox summary, and canonicalized it to Constructive AIR AirProfileExtrude rectangle profile extrusion.",
+                    allDiagnostics,
+                    featureAir,
+                    constructiveAir);
             }
 
             return new(

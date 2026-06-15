@@ -107,20 +107,22 @@ public sealed class AirTraceCommandTests
 
 
     [Fact]
-    public void TraceParserBackedBoxFixture_ReachesFeatureAir_DefaultText()
+    public void TraceParserBackedBoxFixture_ReachesConstructiveAir_DefaultText()
     {
         var (exitCode, output, error) = Run("trace", "--fixture", PrimitiveFixture("valid/box.valid.firmfixture"));
         Assert.Equal(0, exitCode); Assert.True(string.IsNullOrWhiteSpace(error));
         Assert.False(output.TrimStart().StartsWith("{", StringComparison.Ordinal));
         Assert.Contains("Fixture", output); Assert.Contains("Frontend", output);
         Assert.Contains("Parser-backed: true", output); Assert.Contains("Parse succeeded: true", output);
-        Assert.Contains("Expected stage: feature-air", output); Assert.Contains("Actual stage: feature-air", output);
+        Assert.Contains("Expected stage: constructive-air", output); Assert.Contains("Actual stage: constructive-air", output);
         Assert.Contains("Feature AIR", output); Assert.Contains("Source op: box", output); Assert.Contains("Node: CreateBox", output);
+        Assert.Contains("Constructive AIR", output); Assert.Contains("Node: AirProfileExtrude", output); Assert.Contains("Canonical form: rectangle-profile-extrude", output);
+        Assert.Contains("Profile: Rectangle(width=10, depth=8)", output); Assert.Contains("Extrusion: height=6", output);
         Assert.Contains("Expectation satisfied: true", output);
     }
 
     [Fact]
-    public void TraceParserBackedBoxFixture_ReachesFeatureAir_Json()
+    public void TraceParserBackedBoxFixture_ReachesConstructiveAir_Json()
     {
         var (exitCode, output, _) = Run("trace", "--fixture", PrimitiveFixture("valid/box.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
@@ -131,16 +133,18 @@ public sealed class AirTraceCommandTests
         Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
         Assert.True(root.GetProperty("frontend").GetProperty("parserBacked").GetBoolean());
         Assert.True(root.GetProperty("frontend").GetProperty("parseSucceeded").GetBoolean());
-        Assert.Equal("feature-air", root.GetProperty("frontend").GetProperty("frontendStageReached").GetString());
-        Assert.Equal("feature-air", root.GetProperty("actualStageReached").GetString());
+        Assert.Equal("constructive-air", root.GetProperty("frontend").GetProperty("frontendStageReached").GetString());
+        Assert.Equal("constructive-air", root.GetProperty("actualStageReached").GetString());
         Assert.Equal("box", root.GetProperty("featureAir").GetProperty("sourceOpKind").GetString());
         Assert.Equal("CreateBox", root.GetProperty("featureAir").GetProperty("nodeKind").GetString());
-        Assert.Contains("air-x9-firmament-parse-succeeded", output);
+        Assert.Equal("AirProfileExtrude", root.GetProperty("constructiveAir").GetProperty("nodeKind").GetString());
+        Assert.Equal("rectangle-profile-extrude", root.GetProperty("constructiveAir").GetProperty("canonicalForm").GetString());
+        Assert.Contains("air-x10-firmament-parse-succeeded", output);
     }
 
 
     [Fact]
-    public void TraceParserBackedBoxFixture_DimensionsAreReported()
+    public void TraceParserBackedBoxFixture_DimensionsMappedToProfileExtrude()
     {
         var (exitCode, output, _) = Run("trace", "--fixture", PrimitiveFixture("valid/box.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
@@ -149,7 +153,12 @@ public sealed class AirTraceCommandTests
         Assert.Equal(10, dimensions.GetProperty("width").GetDouble());
         Assert.Equal(8, dimensions.GetProperty("depth").GetDouble());
         Assert.Equal(6, dimensions.GetProperty("height").GetDouble());
-        Assert.Contains("air-x9-source-dimensions-extracted", output);
+        var constructive = doc.RootElement.GetProperty("constructiveAir");
+        Assert.Equal(10, constructive.GetProperty("width").GetDouble());
+        Assert.Equal(8, constructive.GetProperty("depth").GetDouble());
+        Assert.Equal(6, constructive.GetProperty("height").GetDouble());
+        Assert.Equal("Rectangle", constructive.GetProperty("profileKind").GetString());
+        Assert.Contains("air-x10-box-dimensions-extracted", output);
     }
 
     [Fact]
@@ -158,10 +167,12 @@ public sealed class AirTraceCommandTests
         var (exitCode, output, _) = Run("trace", "--fixture", PrimitiveFixture("valid/box.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
-        Assert.Equal("feature-air", root.GetProperty("actualStageReached").GetString());
+        Assert.Equal("constructive-air", root.GetProperty("actualStageReached").GetString());
         Assert.Equal("none", root.GetProperty("brepPlan").GetProperty("planKind").GetString());
         Assert.Equal("not-requested", root.GetProperty("cirMirror").GetProperty("status").GetString());
-        Assert.False(root.TryGetProperty("constructiveAir", out var constructive) && constructive.ValueKind != JsonValueKind.Null);
+        Assert.Equal("AirProfileExtrude", root.GetProperty("constructiveAir").GetProperty("nodeKind").GetString());
+        Assert.Contains("air-x10-brepplan-deferred", output);
+        Assert.Contains("air-x10-cir-mirror-deferred", output);
     }
 
     [Fact]
@@ -176,7 +187,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void ParserBackedBoxExpectationFailure_ReturnsNonZeroWithReport()
     {
-        var source = File.ReadAllText(PrimitiveFixture("valid/box.valid.firmfixture")).Replace("// expected-stage: feature-air", "// expected-stage: cir-mirror", StringComparison.Ordinal);
+        var source = File.ReadAllText(PrimitiveFixture("valid/box.valid.firmfixture")).Replace("// expected-stage: constructive-air", "// expected-stage: cir-mirror", StringComparison.Ordinal);
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".valid.firmfixture");
         File.WriteAllText(path, source);
         var (exitCode, output, error) = Run("trace", "--fixture", path, "--json");
@@ -184,8 +195,8 @@ public sealed class AirTraceCommandTests
         using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
         Assert.False(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
         Assert.True(root.GetProperty("frontend").GetProperty("parseSucceeded").GetBoolean());
-        Assert.Equal("feature-air", root.GetProperty("actualStageReached").GetString());
-        Assert.Contains("air-x9-firmament-parse-succeeded", output);
+        Assert.Equal("constructive-air", root.GetProperty("actualStageReached").GetString());
+        Assert.Contains("air-x10-firmament-parse-succeeded", output);
     }
 
     [Fact]

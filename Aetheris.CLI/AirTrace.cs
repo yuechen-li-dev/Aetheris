@@ -43,7 +43,7 @@ internal sealed record AirTraceReport(
 internal sealed record AirTraceFixtureSummary(string Path, string Expectation, string CaseName, string? ExpectedStage, string ActualStageReached, string? ExpectedRoute, string? ExpectedReason, bool ExpectationSatisfied, bool ParserBacked, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceFrontendSummary(bool ParserBacked, string? ParserName, bool? ParseSucceeded, IReadOnlyList<string> ParseDiagnostics, string? FrontendStageReached, string? FrontendSummary);
 internal sealed record AirTraceFeatureAirSummary(bool ParserBacked, string SourceOpKind, string NodeKind, AirTraceDimensionsSummary? Dimensions, string ConstructionIntent, string StageReached, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Guarantees);
-internal sealed record AirTraceConstructiveAirSummary(string NodeKind, string CanonicalForm, string StageReached, IReadOnlyList<string> Diagnostics);
+internal sealed record AirTraceConstructiveAirSummary(string NodeKind, string CanonicalForm, string SourceFeatureAirNodeKind, string ProfileKind, double Width, double Depth, double Height, string ExtrusionAxis, string ConstructionIntent, string RouteKind, string StageReached, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Guarantees);
 internal sealed record AirTraceDimensionsSummary(double Width, double Depth, double Height);
 internal sealed record AirTraceAirSummary(string Node, string Route, string SelectionClass, string Rule, string ConstructionHistory, string FeatureName, string FeatureId, string ProvenanceMilestone);
 internal sealed record AirTraceRouteDecisionSummary(string Mode, string? SelectedRoute, bool Succeeded, string Recommendation, string SelectionClass, string Rule, IReadOnlyList<string> Diagnostics);
@@ -126,17 +126,17 @@ internal static class AirTraceReportBuilder
                 frontend.FeatureAir.Guarantees);
         var constructiveAir = frontend.ConstructiveAir is null
             ? null
-            : new AirTraceConstructiveAirSummary(frontend.ConstructiveAir.NodeKind, frontend.ConstructiveAir.CanonicalForm, frontend.ConstructiveAir.StageReached, frontend.ConstructiveAir.Diagnostics);
+            : new AirTraceConstructiveAirSummary(frontend.ConstructiveAir.NodeKind, frontend.ConstructiveAir.CanonicalForm, frontend.ConstructiveAir.SourceFeatureAirNodeKind, frontend.ConstructiveAir.ProfileKind, frontend.ConstructiveAir.Dimensions.Width, frontend.ConstructiveAir.Dimensions.Depth, frontend.ConstructiveAir.Dimensions.Height, frontend.ConstructiveAir.ExtrusionAxis, frontend.ConstructiveAir.ConstructionIntent, frontend.ConstructiveAir.RouteKind, frontend.ConstructiveAir.StageReached, frontend.ConstructiveAir.Diagnostics, frontend.ConstructiveAir.Guarantees);
 
-        return new("AIR-X9", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, frontend.FrontendSummary,
-            new(featureAir?.NodeKind ?? "FirmamentPrimitive", "none", "none", "none", "parser-backed-source-fixture", fixture.CaseName, fixture.CaseName, "AIR-X9"),
-            new("none", null, false, "Constructive AIR and route selection are deferred for parser-backed box fixtures in AIR-X9.", "none", "none", []),
+        return new("AIR-X10", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, frontend.FrontendSummary,
+            new(constructiveAir?.NodeKind ?? featureAir?.NodeKind ?? "FirmamentPrimitive", constructiveAir?.RouteKind ?? "none", "none", "none", "parser-backed-source-fixture", fixture.CaseName, fixture.CaseName, "AIR-X10"),
+            new("none", null, false, "Route selection, BRepPlan, emission, STEP, and CIR are deferred for parser-backed box fixtures in AIR-X10.", "none", "none", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
-            new("none", false, "parser-backed fixture stops at truthful frontend boundary"),
+            new("none", false, "parser-backed fixture stops at Constructive AIR summary; BRepPlan, emission, STEP, and CIR are deferred"),
             new(false, false, false, false, []),
             new("not-requested", "none", "none", "FirmamentPrimitive", "none", "none", "none", [], [], [], []),
-            [], ["Constructive AIR lowering not wired for parser-backed box fixture"], fxDiagnostics,
-            ["real Firmament parser invoked", "parser-backed fixture reaches Feature AIR summary", "Constructive AIR deferred", "no production grammar expansion", "no production route replacement", "no new geometry"],
+            [], ["BRepPlan/emission/CIR deferred for parser-backed box fixture"], fxDiagnostics,
+            ["real Firmament parser invoked", "parser-backed fixture reaches Feature AIR summary", "parser-backed fixture reaches Constructive AIR summary", "ProfileExtrude wrapper not invoked", "no production grammar expansion", "no production route replacement", "no new geometry"],
             ["no production Firmament grammar expansion", "no production route replacement", "no production analyzer behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no CIR evaluator/tape behavior change", "no Boolean behavior change", "no AirEdgeSweep behavior change", "no BrepBoundedChamfer/BrepBoundedFillet behavior change", "no chamfer/fillet/shell geometry change", "no new geometry"],
             new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, true, fxDiagnostics),
             fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics,
@@ -229,7 +229,7 @@ internal static class AirTraceTextRenderer
         }
         if (r.ConstructiveAir is not null)
         {
-            b.AppendLine("Constructive AIR"); b.AppendLine($"  Node: {r.ConstructiveAir.NodeKind}"); b.AppendLine($"  Canonical form: {r.ConstructiveAir.CanonicalForm}"); b.AppendLine($"  Stage reached: {r.ConstructiveAir.StageReached}"); b.AppendLine();
+            b.AppendLine("Constructive AIR"); b.AppendLine($"  Node: {r.ConstructiveAir.NodeKind}"); b.AppendLine($"  Canonical form: {r.ConstructiveAir.CanonicalForm}"); b.AppendLine($"  Profile: {r.ConstructiveAir.ProfileKind}(width={r.ConstructiveAir.Width:g}, depth={r.ConstructiveAir.Depth:g})"); b.AppendLine($"  Extrusion: height={r.ConstructiveAir.Height:g}"); b.AppendLine($"  Extrusion axis: {r.ConstructiveAir.ExtrusionAxis}"); b.AppendLine($"  Intent: {r.ConstructiveAir.ConstructionIntent}"); b.AppendLine($"  Route kind: {r.ConstructiveAir.RouteKind}"); b.AppendLine($"  Stage reached: {r.ConstructiveAir.StageReached}"); b.AppendLine("  Diagnostics:"); foreach (var d in r.ConstructiveAir.Diagnostics) b.AppendLine($"    - {d}"); b.AppendLine();
         }
         b.AppendLine("AIR"); b.AppendLine($"  Node: {r.Air.Node}"); b.AppendLine($"  Route: {r.Air.Route}"); b.AppendLine($"  Selection class: {r.Air.SelectionClass}"); b.AppendLine($"  Rule: {r.Air.Rule}"); b.AppendLine($"  Construction history: {r.Air.ConstructionHistory}"); b.AppendLine();
         b.AppendLine("Route decision"); b.AppendLine($"  Mode: {r.RouteDecision.Mode}"); b.AppendLine($"  Selected route: {r.RouteDecision.SelectedRoute}"); b.AppendLine($"  Succeeded: {r.RouteDecision.Succeeded.ToString().ToLowerInvariant()}"); b.AppendLine();

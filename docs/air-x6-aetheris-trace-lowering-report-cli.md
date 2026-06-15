@@ -61,6 +61,10 @@ Each successful report includes:
 * deterministic diagnostics;
 * guarantees and unchanged behavior.
 
+## Future AIR Region trace reporting
+
+AIR-A1 identifies future trace needs for scoped AIR Regions: region tree, local frames, region effects, explicit yields, boundary contracts, parent integration routes, BRepPlan region roles, CIR mirror losses, and deterministic fallback/rejection diagnostics. AIR-X6 does not implement these fields; the note records the expected trace surface for later region milestones without changing current command behavior.
+
 ## Text output example
 
 ```text

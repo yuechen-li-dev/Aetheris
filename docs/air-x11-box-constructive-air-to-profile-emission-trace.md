@@ -4,6 +4,8 @@
 
 AIR-X11 advances the parser-backed box fixture from AIR-X10 Constructive AIR evidence to existing profile extrusion wrapper/emitter evidence. This is a trace integration milestone, not a geometry milestone: it reuses the already-existing AIR-X1 `AirProfileExtrudeWrapper` and `LineArcProfileExtrudeEmitter` path and reports only what that path truthfully exposes.
 
+AIR-A1 intentionally pauses before treating multi-axis features as the next backend continuation. The region audit defines scoped AIR Regions for side holes, side pockets, bosses, patterns, shell/local offset contexts, and other local-frame features so future work does not collapse different-axis construction directly into global Boolean or ad hoc BRep mutation.
+
 ## Relationship to AIR-X10
 
 AIR-X10 proved `fixtures/Firmament/Primitive/valid/box.valid.firmfixture` can be loaded, parsed by `FirmamentTopLevelParser`, recognized as `op: box`, surfaced as Feature AIR `CreateBox`, and canonicalized as Constructive AIR `AirProfileExtrude` with canonical form `rectangle-profile-extrude`. AIR-X11 starts from that same Constructive AIR summary and invokes a narrow trace probe for profile emission evidence.

@@ -53,6 +53,8 @@ Constructive AIR
 
 This document is documentation/design only. It does not implement AIR, change production routes, change BRep topology, change STEP import/export, change Boolean behavior, change CIR evaluation/analyzers, change Firmament behavior, or alter chamfer/fillet/shell geometry.
 
+AIR-A1 extends this constitution with **AIR Regions**: scoped construction islands inside AIR for local-frame features whose effects escape only through explicit yields and route-selected parent integration. The doctrine is that different-axis features such as side holes, side pockets, bosses, pattern elements, and future shell/local offset contexts should be represented as scoped local AIR intent first; Boolean remains only one possible admitted backend integration route, not the default representation. See `docs/air-a1-air-regions-scoped-feature-lowering-audit.md`.
+
 ## 2. Compiler analogy
 
 Aetheris V2 should be reasoned about as a compiler pipeline, not as a collection of interchangeable geometry encodings.

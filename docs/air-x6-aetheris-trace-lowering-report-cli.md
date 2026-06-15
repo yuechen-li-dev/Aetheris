@@ -171,3 +171,8 @@ AIR-REGION-X1 adds a trace-only AIR Region skeleton: parser-backed box fixtures 
 ## AIR-REGION-X2 region yield contract trace note
 
 For the side-hole region fixture, `aetheris trace` now renders a `Region yield` block in text and a structured `regions.regions[].yield` object in JSON. The fields are stable trace summaries for attachment, profile, direction, affected scope, boundary intent, integration status, diagnostics, known losses, and guarantees. The side-hole route remains trace-only and deferred.
+
+
+## AIR-REGION-X3 trace note
+
+`aetheris trace --fixture fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture` now prints a `Region CIR mirror` section for the side-hole `FaceAttachedRegion`. The JSON region entry includes `cirMirror` with stable status, backend, fields, capabilities, losses, diagnostics, and guarantees.

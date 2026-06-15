@@ -101,3 +101,8 @@ Implementation showed that AIR-X3/X4 already carry useful BRepPlan topology-role
 ## AIR-X7 fixture note
 
 The AIR-X7 valid top-face loop chamfer fixture reaches the `cir-mirror` trace stage by reusing the existing admitted AIR-X5 top-face loop chamfer mirror envelope. The fixture does not make CIR a topology authority.
+
+
+## AIR-REGION-X3 side-hole region mirror envelope
+
+The side-hole `FaceAttachedRegion` now has an analysis-only AIR Region to CIR mirror envelope. It uses a summary backend named `cir-region-parent-minus-cylinder`, admits conservative occupancy/containment/bounds summary capabilities, and denies topology, face, loop, boundary patch, BRepPlan role, STEP/export, and production integration authority.

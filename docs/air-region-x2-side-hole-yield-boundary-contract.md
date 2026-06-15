@@ -79,3 +79,8 @@ The implementation was validated with CLI help, side-hole text and JSON traces, 
 ## Recommended next milestone
 
 Recommended: **AIR-REGION-X3 — Region BRepPlan boundary contract for side-hole, no integration**. X2 now carries enough attachment/profile/direction/boundary/scope intent to define an analysis-only BRepPlan boundary contract without committing to Boolean integration or production side-hole geometry.
+
+
+## AIR-REGION-X3 CIR mirror note
+
+AIR-REGION-X3 preserves the X2 side-hole yield boundary contract and adds a trace-only CIR mirror admission summary for the same `FaceAttachedRegion`. The summary backend is `cir-region-parent-minus-cylinder`, records parent `Box` and subtract `Cylinder` fields, remains analysis-only, and keeps parent integration deferred with no Boolean, no BRep emission, no BRepPlan integration, and no STEP authority.

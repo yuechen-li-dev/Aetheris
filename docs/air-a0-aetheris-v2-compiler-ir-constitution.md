@@ -792,3 +792,8 @@ AIR-REGION-X1 adds a trace-only AIR Region skeleton: parser-backed box fixtures 
 ## AIR-REGION-X2 constitution note
 
 AIR-REGION-X2 reinforces that AIR Region yields carry construction intent across scoped boundaries. The side-hole `FaceAttachedRegion` yield is explicit, local, and deferred, allowing later lowering to choose an integration route without treating Boolean subtraction as the region model.
+
+
+## AIR-REGION-X3 constitutional note
+
+The AIR Region side-hole CIR mirror is a side-channel analysis summary only. It reinforces that CIR evaluation mirrors can describe field behavior while AIR/BRepPlan/BRep/STEP retain their separate authority boundaries.

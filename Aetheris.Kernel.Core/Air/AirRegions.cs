@@ -7,6 +7,8 @@ internal enum AirRegionBoundaryContractKind { DoesNotEscape, YieldsBody, YieldsC
 internal enum AirLocalFrameKind { WorldRoot, FaceAttached, Unsupported }
 internal enum AirLocalFrameHandedness { RightHanded, LeftHanded, Unknown }
 internal enum AirRegionIntegrationStatus { NotRequired, Deferred, Rejected, Admitted, Unsupported }
+internal enum AirRegionCirMirrorStatus { MirrorAdmittedConservative, MirrorUnavailable, MirrorRejectedLossyForRequest }
+
 
 internal sealed record AirVectorSummary(double X, double Y, double Z);
 internal sealed record AirPoint2Summary(double X, double Y);
@@ -17,6 +19,55 @@ internal sealed record AirRegionProfileSummary(string ProfileKind, AirPoint2Summ
 internal sealed record AirRegionDirectionSummary(string DirectionKind, string Axis, string Sense, bool IsThrough, string Depth, IReadOnlyList<string> Diagnostics);
 internal sealed record AirRegionAffectedScopeSummary(string ScopeKind, bool ParentBodyOnly, string AffectedFaceSelector, bool MayAffectSiblings, bool EscapesOnlyThroughYield, IReadOnlyList<string> Diagnostics);
 internal sealed record AirRegionBoundaryIntentSummary(string BoundaryKind, string EntryBoundary, string ExitBoundary, string RimIntent, string PatchIntent, IReadOnlyList<string> Diagnostics);
+internal sealed record AirRegionCirMirrorSummary(string SourceRegionId, AirRegionKind SourceRegionKind, string YieldId, string YieldFeatureKind, string Status, string Backend, AirRegionEffectKind Effect, string ParentField, string SubtractField, IReadOnlyList<string> Capabilities, IReadOnlyList<string> KnownLosses, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Guarantees);
+
+internal sealed record AirRegionCirMirrorRequest(AirRegionSummary Region, AirRegionYieldSummary Yield, IReadOnlyList<string> RequestedCapabilities);
+internal sealed record AirRegionCirMirrorResult(bool Succeeded, AirRegionCirMirrorSummary Summary);
+
+internal static class AirSideHoleRegionCirMirrorAdapter
+{
+    private static readonly string[] AllowedCapabilities = ["occupancy", "containment", "bounds"];
+    private static readonly string[] KnownLosses = ["no-topology-authority", "no-face-identity", "no-entry-loop-identity", "no-exit-loop-identity", "no-boundary-patch-identity", "no-brep-plan-role-parity", "no-step-export-authority", "no-production-integration"];
+    private static readonly string[] Guarantees = ["analysis mirror only", "integration deferred", "no Boolean", "no BRep emission", "no STEP smoke", "summary-only; CIR evaluator composition deferred"];
+
+    public static AirRegionCirMirrorResult Admit(AirRegionSummary region, IReadOnlyList<string>? requestedCapabilities = null)
+    {
+        if (region.Yield is null) throw new ArgumentException("Region must carry a yield summary.", nameof(region));
+        var requested = requestedCapabilities ?? AllowedCapabilities;
+        var diagnostics = new List<string>
+        {
+            "air-region-x3-cir-mirror-request-created",
+            "air-region-x3-side-hole-cir-mirror-created",
+            "air-region-x3-parent-box-field-recorded",
+            "air-region-x3-subtract-cylinder-field-recorded",
+            "air-region-x3-region-effect-mirrored",
+            "air-region-x3-cir-analysis-side-channel-only",
+            "air-region-x3-no-topology-authority",
+            "air-region-x3-no-face-identity",
+            "air-region-x3-no-entry-loop-identity",
+            "air-region-x3-no-exit-loop-identity",
+            "air-region-x3-no-boundary-patch-identity",
+            "air-region-x3-no-brep-plan-role-parity",
+            "air-region-x3-no-step-export-authority",
+            "air-region-x3-parent-integration-deferred",
+            "air-region-x3-no-boolean",
+            "air-region-x3-no-brep-emission",
+            "air-region-x3-no-step-smoke",
+            "air-region-x3-cir-composition-deferred",
+            "air-region-x3-cir-mirror-summary-only"
+        };
+        if (requested.Contains("face-identity", StringComparer.Ordinal)) diagnostics.Add("air-region-x3-face-identity-request-rejected-lossy");
+        if (requested.Contains("topology-parity", StringComparer.Ordinal)) diagnostics.Add("air-region-x3-topology-parity-request-rejected-lossy");
+        if (requested.Contains("entry-loop-identity", StringComparer.Ordinal)) diagnostics.Add("air-region-x3-entry-loop-identity-request-rejected-lossy");
+        if (requested.Contains("boundary-patch-identity", StringComparer.Ordinal)) diagnostics.Add("air-region-x3-boundary-patch-identity-request-rejected-lossy");
+        var forbidden = requested.Any(x => x is "face-identity" or "topology-parity" or "entry-loop-identity" or "boundary-patch-identity");
+        var status = forbidden ? "mirror-rejected-lossy-for-request" : "mirror-admitted-conservative";
+        var caps = forbidden ? Array.Empty<string>() : AllowedCapabilities;
+        return new(!forbidden, new(region.RegionId, region.RegionKind, region.Yield.YieldId, region.Yield.FeatureKind, status, "cir-region-parent-minus-cylinder", region.EffectKind, "Box", "Cylinder", Stable(caps).ToArray(), KnownLosses, Stable(diagnostics).ToArray(), Guarantees));
+    }
+
+    private static IEnumerable<string> Stable(IEnumerable<string> values) => values.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal);
+}
 
 internal sealed record AirLocalFrameSummary(
     string FrameId,
@@ -47,7 +98,8 @@ internal sealed record AirRegionSummary(
     IReadOnlyList<string> Diagnostics,
     IReadOnlyList<string> KnownLosses,
     IReadOnlyList<string> Guarantees,
-    AirRegionYieldSummary? Yield = null);
+    AirRegionYieldSummary? Yield = null,
+    AirRegionCirMirrorSummary? CirMirror = null);
 
 internal sealed record AirRegionTraceSummary(
     IReadOnlyList<AirRegionSummary> Regions,
@@ -68,7 +120,7 @@ internal static class AirRegionTraceFactory
     public static AirRegionTraceSummary ForFaceAttachedSideHoleDeferred()
     {
         var root = RootRegion("region-created");
-        var side = new AirRegionSummary(
+        AirRegionSummary sideBase = new(
             "region:side-hole:+x",
             AirRegionKind.FaceAttachedRegion,
             root.RegionId,
@@ -84,7 +136,17 @@ internal static class AirRegionTraceFactory
             ["side-hole geometry integration not implemented", "concrete through depth deferred", "opposite-side exit boundary deferred"],
             ["escapes only through explicit yield", "no implicit parent mutation", "no Boolean", "no BRep emission", "no production route replacement", "trace-only"],
             SideHoleYield(root.RegionId));
-        return Summary([root, side], ["air-region-x1-region-trace-created", "air-region-x1-no-implicit-parent-mutation", "air-region-x1-no-boolean", "air-region-x1-no-brep-emission", "air-region-x1-no-production-route-replacement", "air-region-x1-trace-only", "air-region-x2-yield-contract-created", "air-region-x2-side-hole-yield-created", "air-region-x2-region-locality-enforced", "air-region-x2-explicit-yield-only", "air-region-x2-parent-integration-deferred", "air-region-x2-no-boolean", "air-region-x2-no-brep-emission", "air-region-x2-no-step-smoke", "air-region-x2-no-cir-mirror", "air-region-x2-trace-only"], ["escapes only through explicit yield", "no Boolean", "no geometry", "no BRep emission", "no STEP smoke", "no production route replacement"]);
+        var mirror = AirSideHoleRegionCirMirrorAdapter.Admit(sideBase);
+        var side = sideBase with
+        {
+            StageReached = "region-cir-mirror",
+            Provenance = "AIR-REGION-X3 metadata-driven fixture",
+            Diagnostics = Stable([.. sideBase.Diagnostics.Where(d => d != "air-region-x2-no-cir-mirror"), .. mirror.Summary.Diagnostics]).ToArray(),
+            KnownLosses = Stable([.. sideBase.KnownLosses, .. mirror.Summary.KnownLosses]).ToArray(),
+            Guarantees = Stable([.. sideBase.Guarantees, .. mirror.Summary.Guarantees]).ToArray(),
+            CirMirror = mirror.Summary
+        };
+        return Summary([root, side], ["air-region-x1-region-trace-created", "air-region-x1-no-implicit-parent-mutation", "air-region-x1-no-boolean", "air-region-x1-no-brep-emission", "air-region-x1-no-production-route-replacement", "air-region-x1-trace-only", "air-region-x2-yield-contract-created", "air-region-x2-side-hole-yield-created", "air-region-x2-region-locality-enforced", "air-region-x2-explicit-yield-only", "air-region-x2-parent-integration-deferred", "air-region-x2-no-boolean", "air-region-x2-no-brep-emission", "air-region-x2-no-step-smoke", "air-region-x2-trace-only", .. side.CirMirror!.Diagnostics], ["escapes only through explicit yield", "no Boolean", "no geometry", "no BRep emission", "no STEP smoke", "no production route replacement", .. side.CirMirror.Guarantees]);
     }
 
     public static AirRegionTraceSummary ForImplicitParentMutationRejected()
@@ -108,4 +170,5 @@ internal static class AirRegionTraceFactory
 
     private static AirRegionSummary RootRegion(string stageReached) => new("region:root", AirRegionKind.RootRegion, null, AirRegionEffectKind.PureConstruction, AirRegionYieldKind.YieldBody, AirRegionBoundaryContractKind.YieldsBody, new AirLocalFrameSummary("frame:world-root", AirLocalFrameKind.WorldRoot, new(0, 0, 0), new(1, 0, 0), new(0, 1, 0), new(0, 0, 1), AirLocalFrameHandedness.RightHanded, null, null, null, true, ["air-region-x1-world-root-frame-created"]), AirRegionIntegrationStatus.NotRequired, "root-body", stageReached, "AIR-REGION-X1", ["air-region-x1-root-region-created"], [], ["root region is a trace-only summary"]);
     private static AirRegionTraceSummary Summary(IReadOnlyList<AirRegionSummary> regions, IReadOnlyList<string> diagnostics, IReadOnlyList<string> guarantees) => new(regions, "region:root", regions.Count, regions.Any(r => r.ParentRegionId is not null), diagnostics.Order(StringComparer.Ordinal).ToArray(), guarantees.Order(StringComparer.Ordinal).ToArray());
+    private static IEnumerable<string> Stable(IEnumerable<string> values) => values.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal);
 }

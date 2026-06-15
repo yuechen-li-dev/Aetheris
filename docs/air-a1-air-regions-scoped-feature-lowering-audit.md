@@ -632,3 +632,8 @@ AIR-REGION-X1 adds a trace-only AIR Region skeleton: parser-backed box fixtures 
 ## AIR-REGION-X2 status note
 
 AIR-REGION-X2 implements a trace-only side-hole yield boundary contract for the metadata-driven `FaceAttachedRegion` fixture. The contract records `SideHole` feature intent, face attachment, circular profile radius, through/inward direction, parent-body-local affected scope, through-cut boundary intent, deferred exit boundary, and explicit-yield-only locality guarantees. Parent integration remains deferred and no production geometry, Boolean, BRepPlan, CIR, STEP, or grammar behavior changes.
+
+
+## AIR-REGION-X3 status note
+
+AIR-REGION-X3 demonstrates the A1 doctrine that region effects may be mirrored for analysis without transferring topology authority to CIR. The side-hole region reports an analysis-only parent-box-minus-cylinder mirror summary while BRepPlan, BRep, STEP, Boolean, and production integration remain deferred.

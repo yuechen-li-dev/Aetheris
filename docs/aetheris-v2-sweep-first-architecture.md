@@ -380,3 +380,7 @@ Reference: `docs/v2-a3-legacy-topology-contracts-and-parallel-emitter-lanes.md`.
 ## AIR-A0 constitutional note
 
 AIR-A0 formalizes the sweep-first doctrine in compiler terms: Aetheris is a compiler for BRep, Firmament is source/semantic intent, AIR is the constructive geometry MIR, BRep is the explicit topology backend, CIR is an admitted field/evaluation side-channel, and STEP is serialization rather than construction truth. The canonical V2 path is `Firmament -> Feature AIR -> Constructive AIR -> BRepPlan -> BRep -> STEP`, with optional `Constructive AIR -> admitted CIR mirror` analysis. See `docs/air-a0-aetheris-v2-compiler-ir-constitution.md`.
+
+## AIR-X1 status note
+
+AIR-X1 now wraps the proven V2 constructive lanes for profile extrusion, prismatic section transition, and top-face loop chamfer in a minimal internal AIR envelope. This is validation metadata around existing emitters only; it does not change sweep-first production behavior or add BRepPlan/route selection. See `docs/air-x1-minimal-air-wrappers-for-proven-lanes.md`.

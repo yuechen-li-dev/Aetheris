@@ -357,3 +357,7 @@ EDGE-FILLET-A0 (`docs/edge-fillet-a0-selection-taxonomy-architecture-audit.md`) 
 ## AIR-A0 mapping note
 
 AIR-A0 maps these selection classes into Feature AIR: Class A as `AirEdgeSelection`, Class B as `AirLoopSelection`, Class C as `AirBodyEdgeClassSelection`, and Class D as explicit unsupported/deferred arbitrary graph selection. Future chamfer/fillet lowering should select the highest construction-aware AIR route before using no-history local edge or legacy bounded BRep fallbacks. See `docs/air-a0-aetheris-v2-compiler-ir-constitution.md`.
+
+## AIR-X1 Class B metadata note
+
+AIR-X1 records the top-face outer-loop chamfer proof as internal AIR metadata with node kind `TopFaceLoopChamfer`, route `TopFaceLoopChamferPrismatic`, selection class `FaceBoundaryLoop`, and rule kind `UniformChamfer`. This note is descriptive metadata around the existing prismatic loop route only; it does not introduce route selection, JudgmentEngine policy, production replacement, or new chamfer/fillet geometry.

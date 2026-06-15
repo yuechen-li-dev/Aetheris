@@ -736,3 +736,7 @@ Reasoning:
 - It prevents `AirPrismaticSectionTransition` from becoming an accidental one-off design.
 - It gives route selection and BRepPlan later milestones enough variety to design stable provenance, diagnostics, and mirror admission metadata.
 - It keeps imported recovery, shell, fillet, arbitrary graph support, Boolean replacement, and NURBS/freeform expansion out of scope.
+
+## AIR-X1 status note
+
+AIR-X1 adds a minimal internal AIR envelope and thin wrappers for the existing profile extrusion, prismatic section transition, and top-face loop chamfer constructive lanes. The wrappers validate provenance, diagnostics, route identity, topology summaries, and Class B loop metadata without introducing BRepPlan, route selection, production route replacement, CIR mirror changes, or STEP/BRep/Boolean behavior changes. See `docs/air-x1-minimal-air-wrappers-for-proven-lanes.md`.

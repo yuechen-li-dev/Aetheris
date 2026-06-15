@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Air.BRepPlan;
+using Aetheris.Kernel.Core.Air.Regions;
 using Aetheris.Kernel.Core.Brep.Prismatic;
 using Aetheris.Kernel.Firmament;
 
@@ -39,7 +40,8 @@ internal sealed record AirTraceReport(
     AirTraceFrontendSummary? Frontend = null,
     AirTraceFeatureAirSummary? FeatureAir = null,
     AirTraceConstructiveAirSummary? ConstructiveAir = null,
-    AirTraceProfileEmissionSummary? ProfileEmission = null);
+    AirTraceProfileEmissionSummary? ProfileEmission = null,
+    [property: JsonPropertyName("regions")] AirRegionTraceSummary? Regions = null);
 
 internal sealed record AirTraceFixtureSummary(string Path, string Expectation, string CaseName, string? ExpectedStage, string ActualStageReached, string? ExpectedRoute, string? ExpectedReason, bool ExpectationSatisfied, bool ParserBacked, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceFrontendSummary(bool ParserBacked, string? ParserName, bool? ParseSucceeded, IReadOnlyList<string> ParseDiagnostics, string? FrontendStageReached, string? FrontendSummary);
@@ -59,7 +61,7 @@ internal sealed record AirTraceCirMirrorSummary(string Status, string Backend, s
 internal static class AirTraceReportBuilder
 {
     public static readonly string[] SupportedCases = ["prismatic-section-transition", "top-face-loop-chamfer"];
-    public static readonly string[] SupportedFixtureCases = ["arbitrary-graph-chamfer", "box", "loop-fillet-deferred", "non-uniform-loop-chamfer", "top-face-loop-chamfer"];
+    public static readonly string[] SupportedFixtureCases = ["arbitrary-graph-chamfer", "box", "implicit-parent-mutation-region", "loop-fillet-deferred", "non-uniform-loop-chamfer", "side-hole-face-attached-region", "top-face-loop-chamfer"];
 
     public static AirTraceReport Build(string caseName)
     {
@@ -86,6 +88,8 @@ internal static class AirTraceReportBuilder
         if (fixture.ParserBacked) return BuildParserBackedFixture(fixture);
 
         var caseName = fixture.CaseName;
+        if (caseName == "side-hole-face-attached-region") return BuildSideHoleFaceAttachedRegionFixture(fixture);
+        if (caseName == "implicit-parent-mutation-region") return BuildImplicitParentMutationRegionFixture(fixture);
         var report = caseName switch
         {
             "top-face-loop-chamfer" => BuildTopFaceLoopChamfer(),
@@ -103,7 +107,7 @@ internal static class AirTraceReportBuilder
         var fxDiagnostics = Stable([.. fixture.Diagnostics, "air-x7-firmfixture-case-mapped", "air-x7-firmfixture-trace-created", "air-x7-lowering-stage-recorded", expectationSatisfied ? "air-x7-expectation-satisfied" : "air-x7-fixture-expectation-not-satisfied"]).ToArray();
         return report with
         {
-            Milestone = "AIR-X7", InputKind = "firmfixture", FixturePath = fixture.Path, FixtureExpectation = fixture.Expectation, FixtureCaseName = caseName, ExpectedStage = fixture.ExpectedStage, ActualStageReached = actualStage, ExpectedRoute = fixture.ExpectedRoute, ExpectedReason = fixture.ExpectedReason, ExpectationSatisfied = expectationSatisfied, FixtureDiagnostics = fxDiagnostics, Fixture = new(fixture.Path, fixture.Expectation, caseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, fxDiagnostics), Diagnostics = Stable([.. report.Diagnostics, .. fxDiagnostics]).ToArray()
+            Milestone = "AIR-X7", InputKind = "firmfixture", FixturePath = fixture.Path, FixtureExpectation = fixture.Expectation, FixtureCaseName = caseName, ExpectedStage = fixture.ExpectedStage, ActualStageReached = actualStage, ExpectedRoute = fixture.ExpectedRoute, ExpectedReason = fixture.ExpectedReason, ExpectationSatisfied = expectationSatisfied, FixtureDiagnostics = fxDiagnostics, Fixture = new(fixture.Path, fixture.Expectation, caseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, fxDiagnostics), Diagnostics = Stable([.. report.Diagnostics, .. fxDiagnostics]).ToArray()
         };
     }
 
@@ -111,7 +115,7 @@ internal static class AirTraceReportBuilder
     {
         var frontend = FirmamentFrontendTraceProbe.ParseOnly(fixture.SourceBody);
         var profileEmissionProbe = frontend.ConstructiveAir is null ? null : BoxConstructiveAirToProfileEmissionTraceProbe.Invoke(frontend.ConstructiveAir);
-        var actualStage = profileEmissionProbe?.StageReached ?? frontend.FrontendStageReached;
+        var actualStage = profileEmissionProbe?.StageReached ?? frontend.FrontendStageReached ?? "frontend-unavailable";
         var expectedStageSatisfied = string.IsNullOrWhiteSpace(fixture.ExpectedStage) || string.Equals(actualStage, fixture.ExpectedStage, StringComparison.Ordinal);
         var expectationSatisfied = fixture.Expectation == "valid"
             ? frontend.ParseSucceeded && expectedStageSatisfied && (profileEmissionProbe?.Succeeded ?? true)
@@ -133,6 +137,8 @@ internal static class AirTraceReportBuilder
             ? null
             : new AirTraceConstructiveAirSummary(frontend.ConstructiveAir.NodeKind, frontend.ConstructiveAir.CanonicalForm, frontend.ConstructiveAir.SourceFeatureAirNodeKind, frontend.ConstructiveAir.ProfileKind, frontend.ConstructiveAir.Dimensions.Width, frontend.ConstructiveAir.Dimensions.Depth, frontend.ConstructiveAir.Dimensions.Height, frontend.ConstructiveAir.ExtrusionAxis, frontend.ConstructiveAir.ConstructionIntent, frontend.ConstructiveAir.RouteKind, frontend.ConstructiveAir.StageReached, frontend.ConstructiveAir.Diagnostics, frontend.ConstructiveAir.Guarantees);
 
+        var regions = AirRegionTraceFactory.ForRootBody(actualStage ?? "emitted-brep");
+        fxDiagnostics = Stable([.. fxDiagnostics, .. regions.Diagnostics]).ToArray();
         var profileEmission = profileEmissionProbe is null ? null : new AirTraceProfileEmissionSummary(
             profileEmissionProbe.WrapperInvoked,
             profileEmissionProbe.EmitterName,
@@ -156,10 +162,10 @@ internal static class AirTraceReportBuilder
             [], ["BRepPlan/CIR deferred for parser-backed box fixture", "STEP smoke unavailable for parser-backed box fixture"], fxDiagnostics,
             ["real Firmament parser invoked", "parser-backed fixture reaches Feature AIR summary", "parser-backed fixture reaches Constructive AIR summary", "ProfileExtrude wrapper invoked", "no production grammar expansion", "no production route replacement", "no new geometry", "no profile emitter rewrite"],
             ["no production Firmament grammar expansion", "no production route replacement", "no production analyzer behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no CIR evaluator/tape behavior change", "no Boolean behavior change", "no AirEdgeSweep behavior change", "no BrepBoundedChamfer/BrepBoundedFillet behavior change", "no chamfer/fillet/shell geometry change", "no new geometry"],
-            new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, true, fxDiagnostics),
-            fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics,
-            new(true, frontend.ParserName, frontend.ParseSucceeded, frontend.Diagnostics, actualStage, frontend.FrontendSummary),
-            featureAir, constructiveAir, profileEmission);
+            new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, true, fxDiagnostics),
+            fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics,
+            new(true, frontend.ParserName, frontend.ParseSucceeded, frontend.Diagnostics, actualStage!, frontend.FrontendSummary),
+            featureAir, constructiveAir, profileEmission, regions);
     }
 
     public static string FixtureFileStem(FirmFixture fixture) => $"air-x7-{fixture.CaseName}-firmfixture-trace";
@@ -183,6 +189,35 @@ internal static class AirTraceReportBuilder
         return Compose("top-face-loop-chamfer", lowering, route, brepPlan, mirror, "PrismaticTopFaceLoopChamferPrototype / PrismaticSectionTransitionEmitter", SpecificGuarantees(["no AirEdgeSweep", "no BrepBoundedChamfer", "no topology graft", "no 3D Boolean", "no coplanar merge", "not four independent single-edge chamfers"]));
     }
 
+    private static AirTraceReport BuildSideHoleFaceAttachedRegionFixture(FirmFixture fixture)
+    {
+        var regions = AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred();
+        var actualStage = "region-integration-deferred";
+        var expectationSatisfied = fixture.Expectation == "valid" && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
+        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
+        return new("AIR-REGION-X1", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole yield is valid but parent integration is deferred; no geometry emitted.",
+            new("RegionFixture", "none", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X1"),
+            new("none", null, false, "region integration deferred; no route selection invoked", "none", "none", []),
+            new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
+            new("none", false, "no geometry emitted for trace-only region fixture"),
+            new(false, false, false, false, []),
+            new("not-requested", "none", "none", "RegionFixture", "none", "none", "none", [], [], [], []),
+            [], ["side-hole geometry integration not implemented"], fxDiagnostics,
+            [.. regions.Guarantees, "metadata-driven region fixture", "integration deferred"],
+            ["no AIR Region production integration", "no production route replacement", "no Firmament grammar expansion", "no BRepPlan semantics change", "no CIR evaluator/tape behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no production analyzer behavior change", "no Boolean behavior change", "no AirEdgeSweep behavior change", "no BrepBoundedChamfer/BrepBoundedFillet behavior change", "no chamfer/fillet/shell geometry change", "no arbitrary graph support", "no import/recovery", "no triangle migration", "no NURBS/freeform behavior change"],
+            new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, fxDiagnostics),
+            fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics, Regions: regions);
+    }
+
+    private static AirTraceReport BuildImplicitParentMutationRegionFixture(FirmFixture fixture)
+    {
+        var regions = AirRegionTraceFactory.ForImplicitParentMutationRejected();
+        var actualStage = "region-rejected";
+        var reasonSatisfied = string.IsNullOrWhiteSpace(fixture.ExpectedReason) || fixture.ExpectedReason == "implicit-parent-mutation-rejected";
+        var expectationSatisfied = fixture.Expectation == "invalid" && reasonSatisfied && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
+        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
+        return BuildSideHoleFaceAttachedRegionFixture(fixture) with { Succeeded = false, Recommendation = "implicit parent mutation rejected", ActualStageReached = actualStage, ExpectedReason = fixture.ExpectedReason, ExpectationSatisfied = expectationSatisfied, FixtureDiagnostics = fxDiagnostics, Diagnostics = fxDiagnostics, Fixture = new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, fxDiagnostics), Regions = regions };
+    }
 
     private static AirTraceReport BuildRejectedFixture(FirmFixture fixture, AirSelectionClass selectionClass, AirRuleKind ruleKind)
     {
@@ -255,6 +290,20 @@ internal static class AirTraceTextRenderer
             if (r.ProfileEmission.TopologySummary is not null) b.AppendLine($"  Topology: vertices={r.ProfileEmission.TopologySummary.Vertices}, edges={r.ProfileEmission.TopologySummary.Edges}, faces={r.ProfileEmission.TopologySummary.Faces}, planarFaces={r.ProfileEmission.TopologySummary.PlanarFaces}, cylindricalFaces={r.ProfileEmission.TopologySummary.CylindricalFaces}, bounds={r.ProfileEmission.TopologySummary.Bounds}");
             b.AppendLine($"  STEP smoke: {(r.ProfileEmission.StepSmoke.Succeeded ? "succeeded" : r.ProfileEmission.StepSmoke.WasChecked ? "failed" : "unavailable")}"); b.AppendLine("  Diagnostics:"); foreach (var d in r.ProfileEmission.Diagnostics) b.AppendLine($"    - {d}"); b.AppendLine();
         }
+        if (r.Regions is not null)
+        {
+            b.AppendLine("Regions"); b.AppendLine($"  Count: {r.Regions.RegionCount}"); b.AppendLine($"  Root: {r.Regions.RootRegionId}");
+            foreach (var region in r.Regions.Regions)
+            {
+                b.AppendLine(); b.AppendLine($"  Region {region.RegionId}"); b.AppendLine($"    Kind: {region.RegionKind}");
+                if (region.ParentRegionId is not null) b.AppendLine($"    Parent: {region.ParentRegionId}");
+                b.AppendLine($"    Effect: {region.EffectKind}"); b.AppendLine($"    Yield: {region.YieldKind}"); b.AppendLine($"    Boundary: {region.BoundaryContractKind}");
+                b.AppendLine($"    Frame: {FrameLabel(region.LocalFrame)}"); b.AppendLine($"    Integration: {region.IntegrationStatus}");
+                foreach (var loss in region.KnownLosses) b.AppendLine($"    Reason: {loss}");
+                foreach (var guarantee in region.Guarantees) b.AppendLine($"    Guarantee: {guarantee}");
+            }
+            b.AppendLine();
+        }
         b.AppendLine("AIR"); b.AppendLine($"  Node: {r.Air.Node}"); b.AppendLine($"  Route: {r.Air.Route}"); b.AppendLine($"  Selection class: {r.Air.SelectionClass}"); b.AppendLine($"  Rule: {r.Air.Rule}"); b.AppendLine($"  Construction history: {r.Air.ConstructionHistory}"); b.AppendLine();
         b.AppendLine("Route decision"); b.AppendLine($"  Mode: {r.RouteDecision.Mode}"); b.AppendLine($"  Selected route: {r.RouteDecision.SelectedRoute}"); b.AppendLine($"  Succeeded: {r.RouteDecision.Succeeded.ToString().ToLowerInvariant()}"); b.AppendLine();
         b.AppendLine("BRepPlan"); b.AppendLine($"  Plan kind: {r.BRepPlan.PlanKind}"); b.AppendLine($"  Vertices: {r.BRepPlan.Vertices}"); b.AppendLine($"  Edges: {r.BRepPlan.Edges}"); b.AppendLine($"  Faces: {r.BRepPlan.Faces}"); b.AppendLine($"  Loops: {r.BRepPlan.Loops}"); b.AppendLine($"  Coedges: {r.BRepPlan.Coedges}"); b.AppendLine($"  Cap faces: {r.BRepPlan.CapFaces}"); b.AppendLine($"  Transition faces: {r.BRepPlan.TransitionFaces}"); b.AppendLine($"  Chamfer faces: {r.BRepPlan.ChamferFaces}"); b.AppendLine($"  Split policy: {r.BRepPlan.SplitPolicy}"); b.AppendLine($"  Bounds: {r.BRepPlan.Bounds}"); b.AppendLine();
@@ -264,4 +313,6 @@ internal static class AirTraceTextRenderer
         b.AppendLine("Diagnostics"); foreach (var d in r.Diagnostics) b.AppendLine($"  - {d}");
         return b.ToString();
     }
+
+    private static string FrameLabel(AirLocalFrameSummary frame) => frame.FrameKind == AirLocalFrameKind.FaceAttached && frame.SourceFace is not null ? $"FaceAttached({frame.SourceFace})" : frame.FrameKind.ToString();
 }

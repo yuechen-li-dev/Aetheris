@@ -288,8 +288,81 @@ public sealed class AirTraceCommandTests
         Assert.Equal(Run("trace", "--fixture", invalid, "--json").Stdout, Run("trace", "--fixture", invalid, "--json").Stdout);
     }
 
+
+    [Fact]
+    public void TraceParserBackedBoxFixture_IncludesRootRegion()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", PrimitiveFixture("valid/box.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output); var regions = doc.RootElement.GetProperty("regions");
+        Assert.Equal(1, regions.GetProperty("regionCount").GetInt32());
+        Assert.False(regions.GetProperty("hasNestedRegions").GetBoolean());
+        var rootRegion = regions.GetProperty("regions")[0];
+        Assert.Equal("RootRegion", rootRegion.GetProperty("regionKind").GetString());
+        Assert.Equal("WorldRoot", rootRegion.GetProperty("localFrame").GetProperty("frameKind").GetString());
+        Assert.Equal("PureConstruction", rootRegion.GetProperty("effectKind").GetString());
+        Assert.Equal("NotRequired", rootRegion.GetProperty("integrationStatus").GetString());
+    }
+
+    [Fact]
+    public void TraceSideHoleFaceAttachedRegion_DefaultText()
+    {
+        var (exitCode, output, error) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"));
+        Assert.Equal(0, exitCode); Assert.True(string.IsNullOrWhiteSpace(error));
+        Assert.Contains("Regions", output); Assert.Contains("FaceAttachedRegion", output);
+        Assert.Contains("Subtractive", output); Assert.Contains("YieldSubtractiveVolume", output);
+        Assert.Contains("YieldsCutVolume", output); Assert.Contains("Integration: Deferred", output);
+        Assert.Contains("no Boolean", output); Assert.Contains("no BRep emission", output);
+    }
+
+    [Fact]
+    public void TraceSideHoleFaceAttachedRegion_Json()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
+        Assert.Equal("valid", root.GetProperty("fixture").GetProperty("expectation").GetString());
+        Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
+        Assert.Equal("region-integration-deferred", root.GetProperty("actualStageReached").GetString());
+        var regions = root.GetProperty("regions");
+        Assert.Equal(2, regions.GetProperty("regionCount").GetInt32());
+        Assert.True(regions.GetProperty("hasNestedRegions").GetBoolean());
+        var side = regions.GetProperty("regions").EnumerateArray().Single(r => r.GetProperty("regionKind").GetString() == "FaceAttachedRegion");
+        Assert.Equal("region:root", side.GetProperty("parentRegionId").GetString());
+        Assert.Equal("Subtractive", side.GetProperty("effectKind").GetString());
+        Assert.Equal("YieldSubtractiveVolume", side.GetProperty("yieldKind").GetString());
+        Assert.Equal("YieldsCutVolume", side.GetProperty("boundaryContractKind").GetString());
+        Assert.Equal("Deferred", side.GetProperty("integrationStatus").GetString());
+        Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
+        Assert.False(root.GetProperty("stepSmoke").GetProperty("succeeded").GetBoolean());
+        Assert.Equal("none", root.GetProperty("brepPlan").GetProperty("planKind").GetString());
+    }
+
+    [Fact]
+    public void TraceImplicitParentMutationRegion_Rejected()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", RegionFixture("invalid/implicit-parent-mutation.invalid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
+        Assert.Equal("invalid", root.GetProperty("fixture").GetProperty("expectation").GetString());
+        Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
+        Assert.Equal("region-rejected", root.GetProperty("actualStageReached").GetString());
+        Assert.Contains("implicit parent mutation rejected", root.GetProperty("recommendation").GetString());
+        Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
+    }
+
+    [Fact]
+    public void TraceRegionFixtures_DeterministicJson()
+    {
+        var valid = RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture");
+        var invalid = RegionFixture("invalid/implicit-parent-mutation.invalid.firmfixture");
+        Assert.Equal(Run("trace", "--fixture", valid, "--json").Stdout, Run("trace", "--fixture", valid, "--json").Stdout);
+        Assert.Equal(Run("trace", "--fixture", invalid, "--json").Stdout, Run("trace", "--fixture", invalid, "--json").Stdout);
+    }
+
     private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Chamfer", relative));
     private static string PrimitiveFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Primitive", relative));
+    private static string RegionFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Region", relative));
 
     private static (int ExitCode, string Stdout, string Stderr) Run(params string[] args)
     {

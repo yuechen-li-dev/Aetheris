@@ -118,3 +118,7 @@ The primitive parser-backed fixture `fixtures/Firmament/Primitive/valid/box.vali
 ## AIR-X11 corpus note
 
 The parser-backed primitive box fixture advances to existing profile extrusion emission evidence with expected stage `emitted-brep`. The AIR-X7 chamfer fixtures remain metadata-driven and continue to validate their previous valid/deferred/rejected paths.
+
+## AIR-REGION-X1 status note
+
+AIR-REGION-X1 adds a trace-only AIR Region skeleton: parser-backed box fixtures report a `RootRegion`, region fixtures can report metadata-driven `FaceAttachedRegion` yields with deferred integration, and no Boolean, geometry emission, production route replacement, grammar expansion, BRepPlan semantics, or CIR behavior is changed. See `docs/air-region-x1-region-model-skeleton-trace-fixtures.md`.

@@ -305,18 +305,20 @@ public sealed class AirTraceCommandTests
     }
 
     [Fact]
-    public void TraceSideHoleFaceAttachedRegion_DefaultText()
+    public void TraceSideHoleRegion_YieldContract_DefaultText()
     {
         var (exitCode, output, error) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"));
         Assert.Equal(0, exitCode); Assert.True(string.IsNullOrWhiteSpace(error));
         Assert.Contains("Regions", output); Assert.Contains("FaceAttachedRegion", output);
         Assert.Contains("Subtractive", output); Assert.Contains("YieldSubtractiveVolume", output);
         Assert.Contains("YieldsCutVolume", output); Assert.Contains("Integration: Deferred", output);
+        Assert.Contains("Region yield", output); Assert.Contains("SideHole", output); Assert.Contains("Circle", output);
+        Assert.Contains("radius=1", output); Assert.Contains("+X", output); Assert.Contains("through inward", output); Assert.Contains("ThroughCut", output);
         Assert.Contains("no Boolean", output); Assert.Contains("no BRep emission", output);
     }
 
     [Fact]
-    public void TraceSideHoleFaceAttachedRegion_Json()
+    public void TraceSideHoleRegion_YieldContract_Json()
     {
         var (exitCode, output, _) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
@@ -333,13 +335,27 @@ public sealed class AirTraceCommandTests
         Assert.Equal("YieldSubtractiveVolume", side.GetProperty("yieldKind").GetString());
         Assert.Equal("YieldsCutVolume", side.GetProperty("boundaryContractKind").GetString());
         Assert.Equal("Deferred", side.GetProperty("integrationStatus").GetString());
+        var yield = side.GetProperty("yield");
+        Assert.Equal("SideHole", yield.GetProperty("featureKind").GetString());
+        Assert.Equal("YieldSubtractiveVolume", yield.GetProperty("yieldKind").GetString());
+        Assert.Equal("Subtractive", yield.GetProperty("effectKind").GetString());
+        Assert.Equal("+X", yield.GetProperty("attachment").GetProperty("faceSelector").GetString());
+        Assert.Equal("Circle", yield.GetProperty("profile").GetProperty("profileKind").GetString());
+        Assert.Equal(1, yield.GetProperty("profile").GetProperty("radius").GetDouble());
+        Assert.Equal("FaceNormal", yield.GetProperty("direction").GetProperty("directionKind").GetString());
+        Assert.Equal("Inward", yield.GetProperty("direction").GetProperty("sense").GetString());
+        Assert.True(yield.GetProperty("direction").GetProperty("isThrough").GetBoolean());
+        Assert.Equal("ThroughCut", yield.GetProperty("boundaryIntent").GetProperty("boundaryKind").GetString());
+        Assert.True(yield.GetProperty("affectedScope").GetProperty("parentBodyOnly").GetBoolean());
+        Assert.True(yield.GetProperty("affectedScope").GetProperty("escapesOnlyThroughYield").GetBoolean());
+        Assert.Equal("Deferred", yield.GetProperty("integrationStatus").GetString());
         Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
         Assert.False(root.GetProperty("stepSmoke").GetProperty("succeeded").GetBoolean());
         Assert.Equal("none", root.GetProperty("brepPlan").GetProperty("planKind").GetString());
     }
 
     [Fact]
-    public void TraceImplicitParentMutationRegion_Rejected()
+    public void TraceImplicitParentMutationRegion_RejectedWithYieldContractReason()
     {
         var (exitCode, output, _) = Run("trace", "--fixture", RegionFixture("invalid/implicit-parent-mutation.invalid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
@@ -348,16 +364,57 @@ public sealed class AirTraceCommandTests
         Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
         Assert.Equal("region-rejected", root.GetProperty("actualStageReached").GetString());
         Assert.Contains("implicit parent mutation rejected", root.GetProperty("recommendation").GetString());
+        var diagnostics = root.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("air-region-x2-implicit-parent-mutation-rejected", diagnostics);
+        Assert.Contains("air-region-x2-missing-explicit-yield-rejected", diagnostics);
+        Assert.Contains("air-region-x2-boundary-contract-required", diagnostics);
         Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
     }
 
     [Fact]
-    public void TraceRegionFixtures_DeterministicJson()
+    public void RegionYieldSummaries_AreDeterministic()
     {
         var valid = RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture");
         var invalid = RegionFixture("invalid/implicit-parent-mutation.invalid.firmfixture");
         Assert.Equal(Run("trace", "--fixture", valid, "--json").Stdout, Run("trace", "--fixture", valid, "--json").Stdout);
         Assert.Equal(Run("trace", "--fixture", invalid, "--json").Stdout, Run("trace", "--fixture", invalid, "--json").Stdout);
+    }
+
+    [Fact]
+    public void TraceSideHoleRegion_EnforcesLocality_NoGeometryOrBoolean()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
+        Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
+        Assert.False(root.GetProperty("stepSmoke").GetProperty("succeeded").GetBoolean());
+        Assert.Equal("none", root.GetProperty("brepPlan").GetProperty("planKind").GetString());
+        Assert.Equal("not-requested", root.GetProperty("cirMirror").GetProperty("status").GetString());
+        var guarantees = root.GetProperty("guarantees").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.Contains("no Boolean", guarantees);
+        Assert.Contains("escapes only through explicit yield", guarantees);
+        Assert.Contains("no BRep emission", guarantees);
+    }
+
+    [Fact]
+    public void TraceParserBackedBox_RootRegionStillWorks()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", PrimitiveFixture("valid/box.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
+        Assert.Equal("emitted-brep", root.GetProperty("actualStageReached").GetString());
+        var regions = root.GetProperty("regions");
+        Assert.Equal(1, regions.GetProperty("regionCount").GetInt32());
+        Assert.DoesNotContain("SideHole", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExistingMetadataDrivenChamferFixtures_StillWork()
+    {
+        Assert.Equal(0, Run("trace", "--fixture", Fixture("valid/top-face-loop-chamfer.valid.firmfixture"), "--json").ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", Fixture("invalid/arbitrary-graph-chamfer.invalid.firmfixture"), "--json").ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", Fixture("invalid/non-uniform-loop-chamfer.invalid.firmfixture"), "--json").ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", Fixture("invalid/loop-fillet-deferred.invalid.firmfixture"), "--json").ExitCode);
     }
 
     private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Chamfer", relative));

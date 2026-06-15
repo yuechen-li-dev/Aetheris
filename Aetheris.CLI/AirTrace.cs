@@ -195,8 +195,8 @@ internal static class AirTraceReportBuilder
         var actualStage = "region-integration-deferred";
         var expectationSatisfied = fixture.Expectation == "valid" && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
         var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
-        return new("AIR-REGION-X1", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole yield is valid but parent integration is deferred; no geometry emitted.",
-            new("RegionFixture", "none", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X1"),
+        return new("AIR-REGION-X2", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole yield contract is valid but parent integration is deferred; no geometry emitted.",
+            new("RegionFixture", "none", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X2"),
             new("none", null, false, "region integration deferred; no route selection invoked", "none", "none", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
             new("none", false, "no geometry emitted for trace-only region fixture"),
@@ -299,6 +299,24 @@ internal static class AirTraceTextRenderer
                 if (region.ParentRegionId is not null) b.AppendLine($"    Parent: {region.ParentRegionId}");
                 b.AppendLine($"    Effect: {region.EffectKind}"); b.AppendLine($"    Yield: {region.YieldKind}"); b.AppendLine($"    Boundary: {region.BoundaryContractKind}");
                 b.AppendLine($"    Frame: {FrameLabel(region.LocalFrame)}"); b.AppendLine($"    Integration: {region.IntegrationStatus}");
+                if (region.Yield is not null)
+                {
+                    var y = region.Yield;
+                    b.AppendLine("    Region yield");
+                    b.AppendLine($"      Yield: {y.YieldKind}");
+                    b.AppendLine($"      Feature: {y.FeatureKind}");
+                    b.AppendLine($"      Attachment: {y.Attachment.AttachmentKind} {y.Attachment.FaceSelector}");
+                    b.AppendLine($"      Profile: {y.Profile.ProfileKind}(radius={y.Profile.Radius:g}, center=({y.Profile.Center.X:g},{y.Profile.Center.Y:g}))");
+                    b.AppendLine($"      Direction: {(y.Direction.IsThrough ? "through" : y.Direction.Depth)} {y.Direction.Sense.ToLowerInvariant()} along face normal");
+                    b.AppendLine($"      Boundary: {y.BoundaryIntent.BoundaryKind}");
+                    b.AppendLine($"        Entry: circular entry loop on {y.Attachment.FaceSelector} face");
+                    b.AppendLine($"        Exit: opposite-side exit {y.BoundaryIntent.ExitBoundary.ToLowerInvariant()}");
+                    b.AppendLine("        Rim: circular rim intent");
+                    b.AppendLine($"      Affected scope: {(y.AffectedScope.ParentBodyOnly ? "parent body only" : "parent scope")}, local feature scope");
+                    b.AppendLine($"      Integration: {y.IntegrationStatus}");
+                    b.AppendLine("      Guarantees:");
+                    foreach (var guarantee in y.Guarantees) b.AppendLine($"        - {guarantee}");
+                }
                 foreach (var loss in region.KnownLosses) b.AppendLine($"    Reason: {loss}");
                 foreach (var guarantee in region.Guarantees) b.AppendLine($"    Guarantee: {guarantee}");
             }

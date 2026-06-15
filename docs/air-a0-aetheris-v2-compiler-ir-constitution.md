@@ -740,3 +740,7 @@ Reasoning:
 ## AIR-X1 status note
 
 AIR-X1 adds a minimal internal AIR envelope and thin wrappers for the existing profile extrusion, prismatic section transition, and top-face loop chamfer constructive lanes. The wrappers validate provenance, diagnostics, route identity, topology summaries, and Class B loop metadata without introducing BRepPlan, route selection, production route replacement, CIR mirror changes, or STEP/BRep/Boolean behavior changes. See `docs/air-x1-minimal-air-wrappers-for-proven-lanes.md`.
+
+## AIR-X2 status note
+
+AIR-X2 adds an internal route-selection/admissibility layer ahead of AIR-X1 wrappers. It preserves the AIR-A0 authority split: Firmament remains source intent, AIR remains constructive MIR, BRep remains topology authority, CIR remains a mirror side-channel, and STEP remains serialization. AIR-X2 does not implement BRepPlan and does not replace production routes.

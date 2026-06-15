@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Air.BRepPlan;
 using Aetheris.Kernel.Core.Brep.Prismatic;
 
@@ -38,7 +39,7 @@ public sealed class AirBRepPlanTests
         var b = AirPrismaticSectionTransitionBRepPlanner.Plan(CanonicalRequest()).Plan!;
         Assert.Equal(a.Elements.Select(e => e.Id.Value), b.Elements.Select(e => e.Id.Value));
         Assert.Equal(a.Elements.Select(e => (e.Kind, e.Role)), b.Elements.Select(e => (e.Kind, e.Role)));
-        Assert.Equal(a.Summary with { Diagnostics = [], Guarantees = [] }, b.Summary with { Diagnostics = [], Guarantees = [] });
+        Assert.Equal((a.Summary.PlanKind, a.Summary.SourceAirNodeId, a.Summary.VertexCount, a.Summary.CurveCount, a.Summary.EdgeCount, a.Summary.CoedgeCount, a.Summary.LoopCount, a.Summary.SurfaceCount, a.Summary.FaceCount, a.Summary.ShellCount, a.Summary.BodyCount, a.Summary.CapFaceCount, a.Summary.SideFaceCount, a.Summary.TransitionFaceCount, a.Summary.ChamferFaceCount, a.Summary.Bounds, a.Summary.SplitPolicy), (b.Summary.PlanKind, b.Summary.SourceAirNodeId, b.Summary.VertexCount, b.Summary.CurveCount, b.Summary.EdgeCount, b.Summary.CoedgeCount, b.Summary.LoopCount, b.Summary.SurfaceCount, b.Summary.FaceCount, b.Summary.ShellCount, b.Summary.BodyCount, b.Summary.CapFaceCount, b.Summary.SideFaceCount, b.Summary.TransitionFaceCount, b.Summary.ChamferFaceCount, b.Summary.Bounds, b.Summary.SplitPolicy));
         Assert.Equal(a.Summary.Diagnostics.Select(d => d.Code), b.Summary.Diagnostics.Select(d => d.Code));
         Assert.Equal(a.Summary.Guarantees, b.Summary.Guarantees);
         Assert.Equal(a.Diagnostics.Select(d => d.Code), b.Diagnostics.Select(d => d.Code));
@@ -81,6 +82,107 @@ public sealed class AirBRepPlanTests
         Assert.Equal(AirBRepPlanKind.Unsupported, result.Validation.ExpectedTopologySummary.PlanKind);
     }
 
+
+    [Fact]
+    public void AirTopFaceLoopChamferBRepPlanner_CanonicalCase_PreservesClassBProvenance()
+    {
+        var result = AirTopFaceLoopChamferBRepPlanner.Plan(CanonicalTopFaceLoopChamferRequest());
+        Assert.True(result.Succeeded);
+        var plan = result.Plan!;
+        Assert.Equal(AirNodeKind.TopFaceLoopChamfer, plan.FeatureContext!.SourceNodeKind);
+        Assert.Equal(AirRouteKind.TopFaceLoopChamferPrismatic, plan.FeatureContext.RouteKind);
+        Assert.Equal(AirSelectionClass.FaceBoundaryLoop, plan.FeatureContext.SelectionClass);
+        Assert.Equal(AirRuleKind.UniformChamfer, plan.FeatureContext.RuleKind);
+        Assert.Equal("SwitchMatch", plan.FeatureContext.RouteSelectionMode);
+        Assert.Contains(plan.Diagnostics, d => d.Code == "air-x4-class-b-face-boundary-loop-provenance");
+        Assert.Contains(plan.Diagnostics, d => d.Code == "air-x4-uniform-chamfer-rule-provenance");
+        Assert.Contains(plan.Diagnostics, d => d.Code == "air-x4-not-four-independent-single-edge-chamfers");
+    }
+
+    [Fact]
+    public void AirTopFaceLoopChamferBRepPlanner_CanonicalCase_MarksUpperTransitionFacesAsChamferFaces()
+    {
+        var plan = AirTopFaceLoopChamferBRepPlanner.Plan(CanonicalTopFaceLoopChamferRequest()).Plan!;
+        Assert.Equal(10, plan.Summary.FaceCount);
+        Assert.Equal(4, plan.Summary.TransitionFaceCount);
+        Assert.Equal(4, plan.Summary.ChamferFaceCount);
+        Assert.Equal(2, plan.Summary.CapFaceCount);
+        Assert.Equal(4, plan.Summary.SideFaceCount);
+        Assert.Equal(10, plan.Summary.SurfaceCount);
+        Assert.Equal(AirPrismaticSectionTransitionBRepPlanner.PreserveSectionSplits, plan.Summary.SplitPolicy);
+        var upperTransitionFaces = plan.Elements.Where(e => e.Kind == AirBRepPlanElementKind.Face && e.IntervalIndex == 1).ToArray();
+        Assert.Equal(4, upperTransitionFaces.Length);
+        Assert.All(upperTransitionFaces, f => Assert.Contains(AirBRepPlanRole.PrismaticTransitionFace, f.SemanticRoles!));
+        Assert.All(upperTransitionFaces, f => Assert.Contains(AirBRepPlanRole.ChamferFace, f.SemanticRoles!));
+    }
+
+    [Fact]
+    public void AirTopFaceLoopChamferBRepPlanner_StableIdsAndRoles_AreDeterministic()
+    {
+        var a = AirTopFaceLoopChamferBRepPlanner.Plan(CanonicalTopFaceLoopChamferRequest()).Plan!;
+        var b = AirTopFaceLoopChamferBRepPlanner.Plan(CanonicalTopFaceLoopChamferRequest()).Plan!;
+        Assert.Equal(a.Elements.Select(e => e.Id.Value), b.Elements.Select(e => e.Id.Value));
+        Assert.Equal(a.Elements.Select(e => (e.Kind, e.Role)), b.Elements.Select(e => (e.Kind, e.Role)));
+        Assert.Equal(a.Elements.Select(e => string.Join(",", e.SemanticRoles ?? [])), b.Elements.Select(e => string.Join(",", e.SemanticRoles ?? [])));
+        Assert.Equal((a.Summary.PlanKind, a.Summary.SourceAirNodeId, a.Summary.VertexCount, a.Summary.CurveCount, a.Summary.EdgeCount, a.Summary.CoedgeCount, a.Summary.LoopCount, a.Summary.SurfaceCount, a.Summary.FaceCount, a.Summary.ShellCount, a.Summary.BodyCount, a.Summary.CapFaceCount, a.Summary.SideFaceCount, a.Summary.TransitionFaceCount, a.Summary.ChamferFaceCount, a.Summary.Bounds, a.Summary.SplitPolicy), (b.Summary.PlanKind, b.Summary.SourceAirNodeId, b.Summary.VertexCount, b.Summary.CurveCount, b.Summary.EdgeCount, b.Summary.CoedgeCount, b.Summary.LoopCount, b.Summary.SurfaceCount, b.Summary.FaceCount, b.Summary.ShellCount, b.Summary.BodyCount, b.Summary.CapFaceCount, b.Summary.SideFaceCount, b.Summary.TransitionFaceCount, b.Summary.ChamferFaceCount, b.Summary.Bounds, b.Summary.SplitPolicy));
+        Assert.Equal(a.Summary.Diagnostics.Select(d => d.Code), b.Summary.Diagnostics.Select(d => d.Code));
+        Assert.Equal(a.Summary.Guarantees, b.Summary.Guarantees);
+        Assert.Equal(a.Diagnostics.Select(d => d.Code), b.Diagnostics.Select(d => d.Code));
+        Assert.Equal(a.Guarantees, b.Guarantees);
+    }
+
+    [Fact]
+    public void AirTopFaceLoopChamferBRepPlanner_PlanMatchesExistingLoopChamferSummary()
+    {
+        var request = CanonicalTopFaceLoopChamferRequest(exportStep: true);
+        var plan = AirTopFaceLoopChamferBRepPlanner.Plan(request).Plan!;
+        var emitted = AirTopFaceLoopChamferWrapper.LowerCanonicalTopFaceLoopChamfer();
+        Assert.True(emitted.Succeeded);
+        Assert.Equal(emitted.TopologySummary.VertexCount, plan.Summary.VertexCount);
+        Assert.Equal(emitted.TopologySummary.EdgeCount, plan.Summary.EdgeCount);
+        Assert.Equal(emitted.TopologySummary.FaceCount, plan.Summary.FaceCount);
+        Assert.Equal(emitted.TopologySummary.PlanarFaceCount, plan.Summary.SurfaceCount);
+        Assert.Equal(emitted.TopologySummary.LoopCount, plan.Summary.LoopCount);
+        Assert.Equal(emitted.TopologySummary.CoedgeCount, plan.Summary.CoedgeCount);
+        Assert.Equal(emitted.TopologySummary.CapFaceCount, plan.Summary.CapFaceCount);
+        Assert.Equal(emitted.TopologySummary.SideFaceCount, plan.Summary.SideFaceCount);
+        Assert.Equal(emitted.TopologySummary.TransitionFaceCount, plan.Summary.TransitionFaceCount);
+        Assert.Equal(emitted.TopologySummary.ChamferFaceCount, plan.Summary.ChamferFaceCount);
+        Assert.Equal(emitted.TopologySummary.Bounds, plan.Summary.Bounds);
+        Assert.True(emitted.StepSmokeSummary.Succeeded);
+        foreach (var guarantee in new[] { "no production route replacement", "no emitter rewrite", "no STEP exporter change", "no BRep topology behavior change", "no coplanar merge", "no AirEdgeSweep", "no BrepBoundedChamfer", "no Boolean", "no topology graft", "not four independent single-edge chamfers" })
+            Assert.Contains(plan.Guarantees, g => g == guarantee);
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidTopFaceLoopChamferContexts))]
+    public void AirTopFaceLoopChamferBRepPlanner_InvalidFeatureContext_RejectedOrDeferred(object contextObject, string expectedCode)
+    {
+        var context = Assert.IsType<AirBRepPlanFeatureContext>(contextObject);
+        var result = AirTopFaceLoopChamferBRepPlanner.Plan(CanonicalTopFaceLoopChamferRequest(), context);
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Plan);
+        Assert.Contains(result.Validation.Diagnostics, d => d.Code == expectedCode);
+    }
+
+    [Fact]
+    public void AirPrismaticSectionTransitionBRepPlanner_PurePrismatic_DoesNotClaimChamferFaces()
+    {
+        var plan = AirPrismaticSectionTransitionBRepPlanner.Plan(CanonicalRequest()).Plan!;
+        Assert.Equal(0, plan.Summary.ChamferFaceCount);
+        Assert.Equal(4, plan.Summary.TransitionFaceCount);
+        Assert.DoesNotContain(plan.Elements, e => (e.SemanticRoles ?? []).Contains(AirBRepPlanRole.ChamferFace));
+    }
+
+    public static IEnumerable<object[]> InvalidTopFaceLoopChamferContexts()
+    {
+        var canonical = AirTopFaceLoopChamferBRepPlanner.CanonicalFeatureContext();
+        yield return [canonical with { SelectionClass = AirSelectionClass.SingleEdge }, "air-x4-non-face-boundary-loop-rejected"];
+        yield return [canonical with { RuleKind = AirRuleKind.ConstantRadiusFillet }, "air-x4-non-uniform-chamfer-rule-rejected"];
+        yield return [canonical with { RouteKind = AirRouteKind.PrismaticSectionTransitionEmitter }, "air-x4-non-prismatic-lowering-deferred"];
+        yield return [canonical with { SourceNodeKind = AirNodeKind.PrismaticSectionTransition }, "air-x4-missing-loop-chamfer-provenance-rejected"];
+    }
+
     public static IEnumerable<object[]> InvalidRequests()
     {
         yield return [new PrismaticSectionTransitionRequest([new(0, [(-1d, -1d), (1d, -1d), (1d, 1d)])], PrismaticCorrespondenceMap.Identity(3)), "air-x3-invalid-section-count-rejected"];
@@ -90,6 +192,8 @@ public sealed class AirBRepPlanTests
         yield return [new PrismaticSectionTransitionRequest([new(0, [(-1d, -1d), (1d, -1d), (1d, 1d)], HasHoles: true), new(1, [(-1d, -1d), (1d, -1d), (1d, 1d)]), new(2, [(-1d, -1d), (1d, -1d), (1d, 1d)])], PrismaticCorrespondenceMap.Identity(3)), "air-x3-holes-deferred"];
         yield return [new PrismaticSectionTransitionRequest([new(0, [(-1d, -1d), (1d, -1d), (1d, 1d)]), new(1, [(-1d, -1d), (1d, -1d), (1d, 1d)]), new(2, [(-1d, -1d), (1d, -1d), (1d, 1d)])], new PrismaticCorrespondenceMap([1, 2, 0])), "air-x3-non-identity-correspondence-deferred"];
     }
+
+    private static PrismaticTopFaceLoopChamferRequest CanonicalTopFaceLoopChamferRequest(bool exportStep = false) => new(10, 8, 6, 1, ExportStep: exportStep);
 
     private static PrismaticSectionTransitionRequest CanonicalRequest(bool runStepSmoke = false) => new(
         [

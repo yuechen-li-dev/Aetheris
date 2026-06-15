@@ -218,3 +218,8 @@ AIR-X1 adds an internal `TopFaceLoopChamfer` AIR wrapper around the existing `Pr
 ## AIR-X2 route-selection note
 
 AIR-X2 can select the top-face loop chamfer wrapper through deterministic switch/match policy for `FaceBoundaryLoop + UniformChamfer + history-known top-face loop`. This is route-decision evidence only; it does not change the corpus writer or production geometry routes.
+
+
+## AIR-X4 BRepPlan mapping note
+
+AIR-X4 maps the corpus chamfer transition faces into BRepPlan `ChamferFace` semantic roles while preserving the existing prismatic/top-face loop chamfer emitter summaries and corpus expectations.

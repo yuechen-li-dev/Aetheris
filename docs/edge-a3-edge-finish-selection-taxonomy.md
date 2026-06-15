@@ -365,3 +365,8 @@ AIR-X1 records the top-face outer-loop chamfer proof as internal AIR metadata wi
 ## AIR-X2 evidence note
 
 AIR-X2 provides route-selection evidence for Class B face-boundary-loop uniform chamfer by admitting the `TopFaceLoopChamferPrismatic` AIR-X1 wrapper through switch/match classification. It also records stable rejection for arbitrary-graph uniform chamfer as unsupported in AIR-X2.
+
+
+## AIR-X4 Class B planning note
+
+For Class B top-face boundary-loop uniform chamfers, AIR-X4 preserves selection metadata into BRepPlan feature context and marks upper transition faces with chamfer semantic roles. This does not change edge-finish selection or production routing.

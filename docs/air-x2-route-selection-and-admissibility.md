@@ -68,3 +68,8 @@ Recommended next milestone: AIR-X3 JudgmentUtility integration for one contested
 ## AIR-X3 direct-route BRepPlan proof
 
 AIR-X3 proves that the direct `AirPrismaticSectionTransition` route can produce a planned topology summary before invoking the existing emitter. Route selection behavior is unchanged: direct selection remains appropriate for this named constructive route, and JudgmentUtility remains deferred.
+
+
+## AIR-X4 evidence note
+
+The AIR-X2 switch/match-selected `TopFaceLoopChamferPrismatic` route now has AIR-X4 BRepPlan evidence carrying `FaceBoundaryLoop`, `UniformChamfer`, `SwitchMatch`, and not-four-independent-single-edge-chamfers provenance. Route selection and JudgmentUtility behavior are unchanged.

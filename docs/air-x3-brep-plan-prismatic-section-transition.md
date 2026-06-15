@@ -88,3 +88,8 @@ Focused AIR-X3 tests validate canonical plan counts and diagnostics, determinist
 ## Recommended next milestone
 
 Recommended next milestone: **AIR-X4 — BRepPlan roles/provenance for top-face loop chamfer**. AIR-X3 showed that the pure prismatic transition can preserve structural roles and match emitted topology without production changes; the next useful increment is preserving Class B `FaceBoundaryLoop` / `UniformChamfer` provenance and marking the four upper transition faces as `ChamferFace` in a similarly non-production plan.
+
+
+## AIR-X4 extension note
+
+AIR-X4 extends this prismatic BRepPlan through a feature role overlay rather than duplicating the planner. The top-face loop chamfer wrapper preserves primary prismatic transition roles and adds `ChamferFace` semantic roles to upper transition faces only when the feature context is the Class B top-face loop chamfer.

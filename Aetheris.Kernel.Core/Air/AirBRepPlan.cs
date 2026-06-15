@@ -22,7 +22,8 @@ internal sealed record AirBRepPlanElement(
     int? IntervalIndex = null,
     int? EdgeIndex = null,
     string? FaceRole = null,
-    IReadOnlyList<AirDiagnostic>? Diagnostics = null);
+    IReadOnlyList<AirDiagnostic>? Diagnostics = null,
+    IReadOnlyList<AirBRepPlanRole>? SemanticRoles = null);
 
 internal sealed record AirBRepPlanSummary(
     AirBRepPlanKind PlanKind,
@@ -43,7 +44,17 @@ internal sealed record AirBRepPlanSummary(
     string Bounds,
     string SplitPolicy,
     IReadOnlyList<AirDiagnostic> Diagnostics,
-    IReadOnlyList<string> Guarantees);
+    IReadOnlyList<string> Guarantees,
+    AirBRepPlanFeatureContext? FeatureContext = null);
+
+internal sealed record AirBRepPlanFeatureContext(
+    AirNodeKind SourceNodeKind,
+    AirRouteKind RouteKind,
+    AirSelectionClass SelectionClass,
+    AirRuleKind RuleKind,
+    string ConstructionHistoryKind,
+    string RouteSelectionMode,
+    IReadOnlyList<string> Notes);
 
 internal sealed record AirBRepPlanValidationResult(
     bool Succeeded,
@@ -61,7 +72,8 @@ internal sealed record AirBRepPlan(
     IReadOnlyList<AirBRepPlanElement> Elements,
     AirBRepPlanSummary Summary,
     IReadOnlyList<AirDiagnostic> Diagnostics,
-    IReadOnlyList<string> Guarantees);
+    IReadOnlyList<string> Guarantees,
+    AirBRepPlanFeatureContext? FeatureContext = null);
 
 internal sealed record AirBRepPlanResult(AirBRepPlan? Plan, AirBRepPlanValidationResult Validation)
 {
@@ -150,7 +162,7 @@ internal static class AirPrismaticSectionTransitionBRepPlanner
         e.Add(E("body:0", AirBRepPlanElementKind.Body, AirBRepPlanRole.Body)); diagnostics.Add(D("air-x3-body-planned"));
         diagnostics.Add(D("air-x3-stable-planned-ids-created"));
         return e;
-        AirBRepPlanElement E(string id, AirBRepPlanElementKind kind, AirBRepPlanRole role, int? section = null, int? vertex = null, int? interval = null, int? edge = null, string? faceRole = null) => new(new AirBRepPlanId(id), kind, role, sourceAirNodeId, provenance, section, vertex, interval, edge, faceRole, []);
+        AirBRepPlanElement E(string id, AirBRepPlanElementKind kind, AirBRepPlanRole role, int? section = null, int? vertex = null, int? interval = null, int? edge = null, string? faceRole = null) => new(new AirBRepPlanId(id), kind, role, sourceAirNodeId, provenance, section, vertex, interval, edge, faceRole, [], role == AirBRepPlanRole.TransitionFace ? [AirBRepPlanRole.PrismaticTransitionFace] : [role]);
     }
 
     private static AirBRepPlanSummary Summary(PrismaticSectionTransitionRequest request, string sourceAirNodeId, IReadOnlyList<AirDiagnostic> diagnostics, IReadOnlyList<string> guarantees)
@@ -173,4 +185,119 @@ internal static class AirPrismaticSectionTransitionBRepPlanner
     private static AirProvenance Provenance(string sourceAirNodeId) => new("AIR-X3", "Constructive AIR BRepPlan", "canonical-rectangle-inset-section-transition", sourceAirNodeId, nameof(PrismaticSectionTransitionEmitter), AirSelectionClass.None, AirRuleKind.None, "generated/constructive; split policy: preserve section splits", false, ["BRepPlan is non-production and does not materialize BRep."]);
     private static AirDiagnostic D(string code, AirDiagnosticSeverity severity = AirDiagnosticSeverity.Info) => new(code, severity, code);
     private static IReadOnlyList<AirDiagnostic> Stable(IEnumerable<AirDiagnostic> d) => d.GroupBy(x => x.Code).Select(g => g.First()).OrderBy(x => x.Code, StringComparer.Ordinal).ToArray();
+}
+
+internal static class AirTopFaceLoopChamferBRepPlanner
+{
+    public static AirBRepPlanResult Plan(
+        PrismaticTopFaceLoopChamferRequest request,
+        AirBRepPlanFeatureContext? featureContext = null,
+        string sourceAirNodeId = "air-x4-top-face-loop-chamfer-canonical")
+    {
+        featureContext ??= CanonicalFeatureContext();
+        var diagnostics = new List<AirDiagnostic> { D("air-x4-top-face-loop-chamfer-brep-plan-created") };
+        var rejected = ValidateFeatureContext(featureContext);
+        if (rejected is not null)
+            return Reject(sourceAirNodeId, diagnostics, rejected);
+
+        var selection = request.Selection ?? new FaceLoopChamferSelection();
+        rejected = ValidateRequest(request, selection);
+        if (rejected is not null)
+            return Reject(sourceAirNodeId, diagnostics, rejected);
+
+        var provenance = new AirProvenance(
+            "AIR-X4",
+            "Constructive AIR BRepPlan feature role overlay",
+            "canonical-top-face-loop-chamfer",
+            sourceAirNodeId,
+            nameof(AirRouteKind.TopFaceLoopChamferPrismatic),
+            AirSelectionClass.FaceBoundaryLoop,
+            AirRuleKind.UniformChamfer,
+            "generated/history-known",
+            false,
+            ["Class B face-boundary loop uniform chamfer lowered through the prismatic section-transition plan.", "not-four-independent-single-edge-chamfers"]);
+
+        var prismatic = AirPrismaticSectionTransitionBRepPlanner.Plan(
+            new PrismaticSectionTransitionRequest(PrismaticTopFaceLoopChamferPrototype.CreateSectionStack(request), PrismaticCorrespondenceMap.Identity(4), new PrismaticSectionTransitionOptions(RunStepSmoke: request.ExportStep, TraceLabel: "air-x4-top-face-loop-chamfer-brep-plan")),
+            sourceAirNodeId,
+            provenance);
+        if (!prismatic.Succeeded || prismatic.Plan is null)
+            return prismatic;
+
+        diagnostics.AddRange(prismatic.Diagnostics());
+        diagnostics.AddRange(new[]
+        {
+            D("air-x4-feature-role-overlay-applied"),
+            D("air-x4-class-b-face-boundary-loop-provenance"),
+            D("air-x4-uniform-chamfer-rule-provenance"),
+            D("air-x4-upper-transition-faces-marked-chamfer"),
+            D("air-x4-not-four-independent-single-edge-chamfers"),
+            D("air-x4-prismatic-plan-reused"),
+            D("air-x4-plan-matches-existing-loop-chamfer-emitter"),
+            D("air-x4-split-preserving-plan"),
+            D("air-x4-no-production-route-replacement"),
+            D("air-x4-no-emitter-rewrite"),
+            D("air-x4-no-step-exporter-change"),
+            D("air-x4-no-brep-topology-change"),
+            D("air-x4-no-coplanar-merge"),
+            D("air-x4-no-air-edge-sweep"),
+            D("air-x4-no-brep-bounded-chamfer"),
+            D("air-x4-no-boolean"),
+            D("air-x4-no-topology-graft"),
+        });
+
+        var elements = prismatic.Plan.Elements.Select(e =>
+            e.Kind == AirBRepPlanElementKind.Face && e.IntervalIndex == 1 && e.Role == AirBRepPlanRole.TransitionFace
+                ? e with { SemanticRoles = StableRoles((e.SemanticRoles ?? []).Concat([AirBRepPlanRole.PrismaticTransitionFace, AirBRepPlanRole.ChamferFace])), FaceRole = "top-face-loop-chamfer" }
+                : e).ToArray();
+        var chamferFaceCount = elements.Count(e => e.Kind == AirBRepPlanElementKind.Face && (e.SemanticRoles ?? []).Contains(AirBRepPlanRole.ChamferFace));
+        if (chamferFaceCount != 4)
+            return Reject(sourceAirNodeId, diagnostics, D("air-x4-plan-overlay-mismatch-rejected", AirDiagnosticSeverity.Error));
+
+        var guarantees = StableStrings(prismatic.Plan.Guarantees.Concat(["no BrepBoundedChamfer", "not four independent single-edge chamfers"])).ToArray();
+        diagnostics = StableDiagnostics(diagnostics).ToList();
+        var summary = prismatic.Plan.Summary with { ChamferFaceCount = chamferFaceCount, Diagnostics = diagnostics, Guarantees = guarantees, FeatureContext = featureContext };
+        var plan = prismatic.Plan with { Elements = elements, Summary = summary, Diagnostics = diagnostics, Guarantees = guarantees, FeatureContext = featureContext };
+        return new AirBRepPlanResult(plan, new AirBRepPlanValidationResult(true, diagnostics, [], [], summary));
+    }
+
+    public static AirBRepPlanFeatureContext CanonicalFeatureContext() => new(
+        AirNodeKind.TopFaceLoopChamfer,
+        AirRouteKind.TopFaceLoopChamferPrismatic,
+        AirSelectionClass.FaceBoundaryLoop,
+        AirRuleKind.UniformChamfer,
+        "generated/history-known",
+        "SwitchMatch",
+        ["not-four-independent-single-edge-chamfers"]);
+
+    private static AirDiagnostic? ValidateFeatureContext(AirBRepPlanFeatureContext context)
+    {
+        if (context.SourceNodeKind != AirNodeKind.TopFaceLoopChamfer) return D("air-x4-missing-loop-chamfer-provenance-rejected", AirDiagnosticSeverity.Error);
+        if (context.SelectionClass != AirSelectionClass.FaceBoundaryLoop) return D("air-x4-non-face-boundary-loop-rejected", AirDiagnosticSeverity.Error);
+        if (context.RuleKind != AirRuleKind.UniformChamfer) return D("air-x4-non-uniform-chamfer-rule-rejected", AirDiagnosticSeverity.Error);
+        if (context.RouteKind != AirRouteKind.TopFaceLoopChamferPrismatic) return D("air-x4-non-prismatic-lowering-deferred", AirDiagnosticSeverity.Warning);
+        return null;
+    }
+
+    private static AirDiagnostic? ValidateRequest(PrismaticTopFaceLoopChamferRequest request, FaceLoopChamferSelection selection)
+    {
+        if (selection.SelectionKind != FaceLoopChamferSelectionKind.FaceBoundaryLoop) return D("air-x4-non-face-boundary-loop-rejected", AirDiagnosticSeverity.Error);
+        if (request.Rule != FaceLoopChamferRuleKind.UniformSymmetric) return D("air-x4-non-uniform-chamfer-rule-rejected", AirDiagnosticSeverity.Error);
+        if (selection.OwningFace != FaceLoopChamferOwningFaceKind.TopCap || selection.LoopKind != FaceLoopChamferLoopKind.Outer) return D("air-x4-non-top-face-loop-deferred", AirDiagnosticSeverity.Warning);
+        return null;
+    }
+
+    private static AirBRepPlanResult Reject(string sourceAirNodeId, List<AirDiagnostic> diagnostics, AirDiagnostic error)
+    {
+        diagnostics.Add(error);
+        diagnostics = StableDiagnostics(diagnostics).ToList();
+        var summary = new AirBRepPlanSummary(AirBRepPlanKind.Unsupported, sourceAirNodeId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", AirPrismaticSectionTransitionBRepPlanner.PreserveSectionSplits, diagnostics, []);
+        return new AirBRepPlanResult(null, new AirBRepPlanValidationResult(false, diagnostics, error.Severity == AirDiagnosticSeverity.Error ? [error] : [], error.Severity == AirDiagnosticSeverity.Warning ? [error] : [], summary));
+    }
+
+    private static AirDiagnostic D(string code, AirDiagnosticSeverity severity = AirDiagnosticSeverity.Info) => new(code, severity, code);
+    private static IReadOnlyList<AirDiagnostic> StableDiagnostics(IEnumerable<AirDiagnostic> d) => d.GroupBy(x => x.Code).Select(g => g.First()).OrderBy(x => x.Code, StringComparer.Ordinal).ToArray();
+    private static IReadOnlyList<AirBRepPlanRole> StableRoles(IEnumerable<AirBRepPlanRole> roles) => roles.Distinct().OrderBy(r => r.ToString(), StringComparer.Ordinal).ToArray();
+    private static IEnumerable<string> StableStrings(IEnumerable<string> values) => values.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal);
+    private static IEnumerable<AirDiagnostic> Diagnostics(this AirBRepPlanResult result) => result.Plan?.Diagnostics ?? result.Validation.Diagnostics;
 }

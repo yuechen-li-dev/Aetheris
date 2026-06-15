@@ -748,3 +748,8 @@ AIR-X2 adds an internal route-selection/admissibility layer ahead of AIR-X1 wrap
 ## AIR-X3 status note
 
 AIR-X3 adds the first minimal internal BRepPlan proof for `AirPrismaticSectionTransition`. The plan sits between Constructive AIR and the existing prismatic BRep emitter, records deterministic planned IDs, topology roles, expected counts, split policy, provenance, diagnostics, and guarantees, and does not change production routes, BRep topology behavior, CIR authority, Firmament lowering, or STEP/export authority.
+
+
+## AIR-X4 status note
+
+AIR-X4 adds feature-role-aware BRepPlan evidence for the Class B top-face loop chamfer lane. It preserves AIR-A0 authority boundaries: AIR remains constructive MIR, BRepPlan remains a non-materializing backend plan, BRep remains explicit topology/export authority, CIR remains a side-channel, and STEP remains serialization.

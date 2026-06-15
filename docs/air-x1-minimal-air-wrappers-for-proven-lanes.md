@@ -79,3 +79,8 @@ AIR-X2 now records deterministic route decisions for the AIR-X1 wrapper lanes. P
 ## AIR-X3 BRepPlan note
 
 AIR-X1 wrappers remain thin envelopes around proven lanes. AIR-X3 adds a non-production, internal/test-visible BRepPlan for the canonical prismatic section transition lane, but it does not replace the AIR-X1 wrapper or the existing emitter path.
+
+
+## AIR-X4 top-face loop chamfer BRepPlan role note
+
+The AIR-X1 top-face loop chamfer wrapper remains the existing proven lane. AIR-X4 adds a non-production BRepPlan wrapper that reuses the prismatic plan and records Class B provenance plus chamfer semantic roles for upper transition faces without replacing this wrapper.

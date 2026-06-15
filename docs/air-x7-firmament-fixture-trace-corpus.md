@@ -122,3 +122,7 @@ The parser-backed primitive box fixture advances to existing profile extrusion e
 ## AIR-REGION-X1 status note
 
 AIR-REGION-X1 adds a trace-only AIR Region skeleton: parser-backed box fixtures report a `RootRegion`, region fixtures can report metadata-driven `FaceAttachedRegion` yields with deferred integration, and no Boolean, geometry emission, production route replacement, grammar expansion, BRepPlan semantics, or CIR behavior is changed. See `docs/air-region-x1-region-model-skeleton-trace-fixtures.md`.
+
+## AIR-REGION-X2 side-hole fixture note
+
+The region fixture corpus now uses `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture` to validate a side-hole `FaceAttachedRegion` yield contract. Metadata records the expected side-hole feature, circle profile, radius, attachment face, direction, boundary kind, and affected scope without requiring production Firmament grammar support.

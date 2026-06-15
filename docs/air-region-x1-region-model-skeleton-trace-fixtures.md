@@ -41,3 +41,7 @@ Focused CLI tests cover root-region box reporting, side-hole text and JSON, impl
 ## Recommended next milestone
 
 AIR-REGION-X2 — Side-hole FaceAttachedRegion mock yield refinement and boundary contract. The implementation showed that trace contracts are now visible, but the next blocker is sharpening yield/boundary metadata before any BRepPlan or CIR analysis is attempted.
+
+## AIR-REGION-X2 note
+
+AIR-REGION-X2 extends the X1 side-hole `FaceAttachedRegion` trace with a structured yield contract. The region still reports `YieldSubtractiveVolume`, `YieldsCutVolume`, and `Deferred` integration, but the emitted trace now includes feature kind, attachment, profile, direction, affected scope, boundary intent, diagnostics, known losses, and locality guarantees. This remains metadata-driven and trace-only: no side-hole geometry, Boolean, BRepPlan, CIR, STEP smoke, or production route replacement is introduced.

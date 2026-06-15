@@ -788,3 +788,7 @@ AIR-X11 establishes the first parser-backed Constructive AIR to existing emissio
 ## AIR-REGION-X1 status note
 
 AIR-REGION-X1 adds a trace-only AIR Region skeleton: parser-backed box fixtures report a `RootRegion`, region fixtures can report metadata-driven `FaceAttachedRegion` yields with deferred integration, and no Boolean, geometry emission, production route replacement, grammar expansion, BRepPlan semantics, or CIR behavior is changed. See `docs/air-region-x1-region-model-skeleton-trace-fixtures.md`.
+
+## AIR-REGION-X2 constitution note
+
+AIR-REGION-X2 reinforces that AIR Region yields carry construction intent across scoped boundaries. The side-hole `FaceAttachedRegion` yield is explicit, local, and deferred, allowing later lowering to choose an integration route without treating Boolean subtraction as the region model.

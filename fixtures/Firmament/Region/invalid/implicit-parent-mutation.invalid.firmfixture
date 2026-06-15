@@ -2,6 +2,8 @@
 // expected: invalid
 // expected-stage: region-rejected
 // expected-reason: implicit-parent-mutation-rejected
+// expected-diagnostic: air-region-x2-missing-explicit-yield-rejected
+// expected-diagnostic: air-region-x2-boundary-contract-required
 // description: Region fixture that attempts parent mutation without explicit yield.
 
 solid box = Box(width: 10, depth: 8, height: 6);

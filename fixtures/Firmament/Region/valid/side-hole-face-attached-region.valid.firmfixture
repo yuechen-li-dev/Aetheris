@@ -6,6 +6,13 @@
 // expected-yield: YieldSubtractiveVolume
 // expected-boundary: YieldsCutVolume
 // expected-integration: Deferred
+// expected-yield-feature: SideHole
+// expected-profile: Circle
+// expected-radius: 1
+// expected-attachment-face: +X
+// expected-direction: through-inward
+// expected-boundary-kind: ThroughCut
+// expected-affected-scope: ParentBodyLocalFeature
 // description: Trace-only face-attached side-hole region fixture; integration deferred.
 
 solid box = Box(width: 10, depth: 8, height: 6);

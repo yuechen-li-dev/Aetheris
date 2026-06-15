@@ -224,3 +224,7 @@ Alternative future milestones remain valid after X6:
 ## 14. EDGE-PRISMATIC-X6 gated stability/analyzer note
 
 EDGE-PRISMATIC-X6 adds an explicitly gated/manual stability and analyzer confirmation check for this X5 corpus. See `docs/frictionlab/edge-prismatic-x6-corpus-stability-and-analyzer-confirmation.md` for the `Category=ArtifactCorpus` trait, `AETHERIS_RUN_ARTIFACT_CORPUS_TESTS=1` guard, `PrismaticCorpusStability` filter, repeated-run JSON/STEP hash/normalized-summary comparisons, `analyze section` confirmation, and current `analyze map` primitive-raycast integration blocker. The X6 gate is not part of normal unit-test execution unless explicitly requested, and it does not change production chamfer/fillet behavior, production route authority, ProfileStack behavior, STEP exporter/importer behavior, Boolean core behavior, AirEdgeSweep behavior, or coplanar merge policy.
+
+## AIR-X3 BRepPlan corpus note
+
+AIR-X3 uses the same canonical three-section rectangle/inset stack as a planned-topology proof. The BRepPlan summary matches the existing emitted topology counts and bounds for this corpus shape while leaving artifact generation on the existing emitter path.

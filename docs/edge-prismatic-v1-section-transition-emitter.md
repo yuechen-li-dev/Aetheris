@@ -188,3 +188,7 @@ Recommended next steps are either:
 ## 11. EDGE-PRISMATIC-X5 corpus evidence note
 
 EDGE-PRISMATIC-X5 records artifact-corpus evidence for the internal `PrismaticSectionTransitionEmitter` seam. The experimental CLI corpus route writes split-preserving STEP artifacts for two-section rectangle, pentagon, hexagon, and asymmetric pentagon transitions, records JSON-only diagnostics for rejected/deferred inputs, and asserts the no-AirEdgeSweep/no-BrepBoundedChamfer/no-topology-graft/no-3D-Boolean/no-coplanar-merge guarantees. This is corpus evidence only; it does not promote the emitter to a production route.
+
+## AIR-X3 BRepPlan note
+
+AIR-X3 adds a non-production BRepPlan planner for the canonical prismatic section transition. The planner matches the existing emitter topology summary for the canonical split-preserving stack and does not rewrite or alter emitter behavior.

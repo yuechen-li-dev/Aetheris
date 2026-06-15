@@ -744,3 +744,7 @@ AIR-X1 adds a minimal internal AIR envelope and thin wrappers for the existing p
 ## AIR-X2 status note
 
 AIR-X2 adds an internal route-selection/admissibility layer ahead of AIR-X1 wrappers. It preserves the AIR-A0 authority split: Firmament remains source intent, AIR remains constructive MIR, BRep remains topology authority, CIR remains a mirror side-channel, and STEP remains serialization. AIR-X2 does not implement BRepPlan and does not replace production routes.
+
+## AIR-X3 status note
+
+AIR-X3 adds the first minimal internal BRepPlan proof for `AirPrismaticSectionTransition`. The plan sits between Constructive AIR and the existing prismatic BRep emitter, records deterministic planned IDs, topology roles, expected counts, split policy, provenance, diagnostics, and guarantees, and does not change production routes, BRep topology behavior, CIR authority, Firmament lowering, or STEP/export authority.

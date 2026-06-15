@@ -63,3 +63,7 @@ Focused CLI trace tests were updated for text, JSON, non-integration guarantees,
 ## Recommended next milestone
 
 AIR-REGION-X6 should add region BRepPlan placeholder elements without parent mutation. X5 left the cleanest next blocker at patch/materialization intent: the boundary contract and route decision now agree that a local BRepPlan patch route is the likely topology-side next step, but it must still avoid parent mutation.
+
+## AIR-REGION-X6 placeholder note
+
+AIR-REGION-X6 preserves the X5 `DeferredIntegration` selection and Boolean rejection, then adds a parallel `brepPlaceholders` trace summary for the side-hole region. The placeholder plan has five deterministic elements (`AffectedParentFace`, `CutEntryLoop`, `CutExitLoop`, `CutWallFace`, and `RegionIntegrationPatch`) and zero materialized elements. The route decision is unchanged: placeholders prepare the future local BRepPlan patch/materialization boundary, but they do not admit integration.

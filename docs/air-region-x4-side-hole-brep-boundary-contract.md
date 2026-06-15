@@ -100,3 +100,7 @@ X4 now records enough topology-planning intent to evaluate future routes without
 ## AIR-REGION-X5 note
 
 AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. The side-hole `FaceAttachedRegion` now reports deterministic candidate statuses, selects `DeferredIntegration`, rejects Boolean fallback as not admitted, keeps the CIR mirror analysis-only, and keeps the BRepPlan boundary contract as topology-side intent without materialization.
+
+## AIR-REGION-X6 placeholder note
+
+AIR-REGION-X6 keeps this X4 boundary contract as intent and adds deterministic placeholder elements derived from it. The X6 placeholders make the future materialization boundary explicit (`+X` parent face reference, entry loop, exit loop, cut wall face, and integration patch), while still recording zero materialized BRepPlan elements and no parent topology mutation.

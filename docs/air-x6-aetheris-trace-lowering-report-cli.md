@@ -184,3 +184,7 @@ For `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfi
 ## AIR-REGION-X5 note
 
 AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. The side-hole `FaceAttachedRegion` now reports deterministic candidate statuses, selects `DeferredIntegration`, rejects Boolean fallback as not admitted, keeps the CIR mirror analysis-only, and keeps the BRepPlan boundary contract as topology-side intent without materialization.
+
+## AIR-REGION-X6 region placeholder trace note
+
+Region fixture traces can now include a `Region BRepPlan placeholders` text section and a JSON `regions.regions[].brepPlaceholders` object. For the side-hole FaceAttachedRegion this section reports `PlaceholderOnly`, five deterministic placeholder elements, zero materialized elements, and guarantees that no parent topology mutation, BRepPlan materialization, BRep emission, STEP smoke, or Boolean invocation occurred.

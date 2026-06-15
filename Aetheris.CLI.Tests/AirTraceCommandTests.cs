@@ -107,19 +107,20 @@ public sealed class AirTraceCommandTests
 
 
     [Fact]
-    public void TraceParserBackedFixture_ValidBox_DefaultsToText()
+    public void TraceParserBackedBoxFixture_ReachesFeatureAir_DefaultText()
     {
         var (exitCode, output, error) = Run("trace", "--fixture", PrimitiveFixture("valid/box.valid.firmfixture"));
         Assert.Equal(0, exitCode); Assert.True(string.IsNullOrWhiteSpace(error));
         Assert.False(output.TrimStart().StartsWith("{", StringComparison.Ordinal));
         Assert.Contains("Fixture", output); Assert.Contains("Frontend", output);
         Assert.Contains("Parser-backed: true", output); Assert.Contains("Parse succeeded: true", output);
-        Assert.Contains("Expected stage: parsed", output); Assert.Contains("Actual stage: parsed", output);
+        Assert.Contains("Expected stage: feature-air", output); Assert.Contains("Actual stage: feature-air", output);
+        Assert.Contains("Feature AIR", output); Assert.Contains("Source op: box", output); Assert.Contains("Node: CreateBox", output);
         Assert.Contains("Expectation satisfied: true", output);
     }
 
     [Fact]
-    public void TraceParserBackedFixture_ValidBox_JsonParses()
+    public void TraceParserBackedBoxFixture_ReachesFeatureAir_Json()
     {
         var (exitCode, output, _) = Run("trace", "--fixture", PrimitiveFixture("valid/box.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
@@ -130,25 +131,65 @@ public sealed class AirTraceCommandTests
         Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
         Assert.True(root.GetProperty("frontend").GetProperty("parserBacked").GetBoolean());
         Assert.True(root.GetProperty("frontend").GetProperty("parseSucceeded").GetBoolean());
-        Assert.Equal("parsed", root.GetProperty("frontend").GetProperty("frontendStageReached").GetString());
-        Assert.Contains("air-x8-firmament-parse-succeeded", output);
+        Assert.Equal("feature-air", root.GetProperty("frontend").GetProperty("frontendStageReached").GetString());
+        Assert.Equal("feature-air", root.GetProperty("actualStageReached").GetString());
+        Assert.Equal("box", root.GetProperty("featureAir").GetProperty("sourceOpKind").GetString());
+        Assert.Equal("CreateBox", root.GetProperty("featureAir").GetProperty("nodeKind").GetString());
+        Assert.Contains("air-x9-firmament-parse-succeeded", output);
+    }
+
+
+    [Fact]
+    public void TraceParserBackedBoxFixture_DimensionsAreReported()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", PrimitiveFixture("valid/box.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output);
+        var dimensions = doc.RootElement.GetProperty("featureAir").GetProperty("dimensions");
+        Assert.Equal(10, dimensions.GetProperty("width").GetDouble());
+        Assert.Equal(8, dimensions.GetProperty("depth").GetDouble());
+        Assert.Equal(6, dimensions.GetProperty("height").GetDouble());
+        Assert.Contains("air-x9-source-dimensions-extracted", output);
     }
 
     [Fact]
-    public void TraceParserBackedFixture_ExpectationFailure_ReturnsNonZero()
+    public void TraceParserBackedBoxFixture_DoesNotPretendBRepPlanOrCIR()
     {
+        var (exitCode, output, _) = Run("trace", "--fixture", PrimitiveFixture("valid/box.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
+        Assert.Equal("feature-air", root.GetProperty("actualStageReached").GetString());
+        Assert.Equal("none", root.GetProperty("brepPlan").GetProperty("planKind").GetString());
+        Assert.Equal("not-requested", root.GetProperty("cirMirror").GetProperty("status").GetString());
+        Assert.False(root.TryGetProperty("constructiveAir", out var constructive) && constructive.ValueKind != JsonValueKind.Null);
+    }
+
+    [Fact]
+    public void MetadataDrivenChamferFixtures_StillWork()
+    {
+        Assert.Equal(0, Run("trace", "--fixture", Fixture("valid/top-face-loop-chamfer.valid.firmfixture"), "--json").ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", Fixture("invalid/arbitrary-graph-chamfer.invalid.firmfixture"), "--json").ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", Fixture("invalid/non-uniform-loop-chamfer.invalid.firmfixture"), "--json").ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", Fixture("invalid/loop-fillet-deferred.invalid.firmfixture"), "--json").ExitCode);
+    }
+
+    [Fact]
+    public void ParserBackedBoxExpectationFailure_ReturnsNonZeroWithReport()
+    {
+        var source = File.ReadAllText(PrimitiveFixture("valid/box.valid.firmfixture")).Replace("// expected-stage: feature-air", "// expected-stage: cir-mirror", StringComparison.Ordinal);
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".valid.firmfixture");
-        File.WriteAllText(path, "// case: box\n// expected: valid\n// expected-stage: parsed\n// parser-backed: true\n\nnot valid firmament");
+        File.WriteAllText(path, source);
         var (exitCode, output, error) = Run("trace", "--fixture", path, "--json");
         Assert.NotEqual(0, exitCode); Assert.Contains("expectation", error, StringComparison.OrdinalIgnoreCase);
         using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
         Assert.False(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
-        Assert.False(root.GetProperty("frontend").GetProperty("parseSucceeded").GetBoolean());
-        Assert.Contains("air-x8-firmament-parse-failed", output);
+        Assert.True(root.GetProperty("frontend").GetProperty("parseSucceeded").GetBoolean());
+        Assert.Equal("feature-air", root.GetProperty("actualStageReached").GetString());
+        Assert.Contains("air-x9-firmament-parse-succeeded", output);
     }
 
     [Fact]
-    public void TraceParserBackedFixture_JsonOutput_IsDeterministic()
+    public void ParserBackedBoxJsonDeterministic()
     {
         var valid = PrimitiveFixture("valid/box.valid.firmfixture");
         Assert.Equal(Run("trace", "--fixture", valid, "--json").Stdout, Run("trace", "--fixture", valid, "--json").Stdout);

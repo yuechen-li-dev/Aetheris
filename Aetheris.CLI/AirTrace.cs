@@ -192,14 +192,14 @@ internal static class AirTraceReportBuilder
     private static AirTraceReport BuildSideHoleFaceAttachedRegionFixture(FirmFixture fixture)
     {
         var regions = AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred();
-        var actualStage = "region-materialization-partial";
+        var actualStage = "region-parent-integration-blocked";
         var expectationSatisfied = fixture.Expectation == "valid" && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
         var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", "air-region-x4-firmfixture-boundary-contract-created", "air-region-x5-firmfixture-integration-decision-created", "air-region-x6-firmfixture-brep-placeholders-created", "air-region-x7-firmfixture-materialization-created", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
-        return new("AIR-REGION-X7", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole materializes a controlled standalone patch from BRepPlan placeholders; parent integration remains deferred.",
-            new("RegionFixture", "ControlledSideHolePatchMaterialization", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X6"),
-            new("SwitchMatch", "ControlledSideHolePatchMaterialization", false, "controlled standalone side-hole patch materialized; parent integration deferred", "FaceAttachedRegion", "SideHole", []),
+        return new("AIR-REGION-X8", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole attempts controlled parent BRep integration; blocked at parent face splitting and loop insertion.",
+            new("RegionFixture", "ControlledSideHoleParentBRepIntegration", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X8"),
+            new("SwitchMatch", "ControlledSideHoleParentBRepIntegration", false, "controlled parent integration attempted; blocked at parent face splitting and loop insertion", "FaceAttachedRegion", "SideHole", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
-            new("ControlledSideHolePatchMaterialization", true, "standalone side-hole patch evidence emitted; parent body not mutated"),
+            new("ControlledSideHoleParentBRepIntegration", true, "standalone side-hole patch evidence preserved; parent integration blocked before topology mutation"),
             new(false, false, false, false, []),
             new("not-requested", "none", "none", "RegionFixture", "none", "none", "none", [], [], [], []),
             [], ["parent BRep integration not implemented", "CIR evaluator composition deferred"], fxDiagnostics,
@@ -401,6 +401,38 @@ internal static class AirTraceTextRenderer
                     b.AppendLine($"      STEP smoke: {(m.StepSmoke.WasChecked ? (m.StepSmoke.Succeeded ? "succeeded" : "failed") : "unavailable")}");
                     b.AppendLine("      Guarantees:");
                     foreach (var guarantee in m.Guarantees) b.AppendLine($"        - {guarantee}");
+                }
+
+                if (region.ParentIntegration is not null)
+                {
+                    var pi = region.ParentIntegration;
+                    b.AppendLine("    Region parent integration");
+                    b.AppendLine($"      Region: {pi.SourceRegionId}");
+                    b.AppendLine($"      Feature: {pi.FeatureKind}");
+                    b.AppendLine($"      Status: {pi.Status}");
+                    b.AppendLine($"      Route: {pi.Route}");
+                    b.AppendLine("      Placeholder mappings:");
+                    foreach (var map in pi.PlaceholderMappings)
+                    {
+                        b.AppendLine($"        - {map.PlaceholderRole}: {map.MaterializationStatus}");
+                        b.AppendLine($"          Element: {map.MaterializedRole}");
+                    }
+                    b.AppendLine("      Topology:");
+                    b.AppendLine($"        Faces: {(pi.TopologySummary.FaceCount.HasValue ? pi.TopologySummary.FaceCount.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "unavailable")}");
+                    b.AppendLine($"        Loops: {(pi.TopologySummary.LoopCount.HasValue ? pi.TopologySummary.LoopCount.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "unavailable")}");
+                    b.AppendLine($"        Cylindrical faces: {(pi.TopologySummary.CylindricalFaceCount.HasValue ? pi.TopologySummary.CylindricalFaceCount.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "unavailable")}");
+                    b.AppendLine($"        Closed: {(pi.TopologySummary.Closed.HasValue ? pi.TopologySummary.Closed.Value.ToString().ToLowerInvariant() : "unavailable")}");
+                    b.AppendLine($"      STEP smoke: {pi.StepSmoke.Status}");
+                    if (pi.Blocker is not null)
+                    {
+                        b.AppendLine();
+                        b.AppendLine("      Blocker:");
+                        b.AppendLine($"        Category: {pi.Blocker.Category}");
+                        b.AppendLine($"        Code: {pi.Blocker.Code}");
+                        b.AppendLine($"        Message: {pi.Blocker.Message}");
+                    }
+                    b.AppendLine("      Guarantees:");
+                    foreach (var guarantee in pi.Guarantees) b.AppendLine($"        - {guarantee}");
                 }
 
                 if (region.IntegrationDecision is not null)

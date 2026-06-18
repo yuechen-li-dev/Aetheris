@@ -6,13 +6,14 @@ internal enum AirRegionYieldKind { None, YieldBody, YieldAdditiveBody, YieldSubt
 internal enum AirRegionBoundaryContractKind { DoesNotEscape, YieldsBody, YieldsCutVolume, YieldsPatch, YieldsLoopRewrite, YieldsAttachmentInterface, YieldsSelection, RejectedOrDeferred }
 internal enum AirLocalFrameKind { WorldRoot, FaceAttached, Unsupported }
 internal enum AirLocalFrameHandedness { RightHanded, LeftHanded, Unknown }
-internal enum AirRegionIntegrationStatus { NotRequired, Deferred, Rejected, Admitted, Unsupported }
+internal enum AirRegionIntegrationStatus { NotRequired, Integrated, PartiallyIntegrated, Blocked, Deferred, Rejected, Admitted, Unsupported }
 internal enum AirRegionCirMirrorStatus { MirrorAdmittedConservative, MirrorUnavailable, MirrorRejectedLossyForRequest }
 internal enum AirRegionBRepBoundaryStatus { PlannedContractOnly, Deferred, Rejected, Unsupported }
-internal enum AirRegionIntegrationRouteKind { FaceAttachedConstructiveInsertion, LocalBRepPlanPatch, ControlledSideHolePatchMaterialization, BRepBooleanFallback, CirAnalysisMirrorOnly, DeferredIntegration, Unsupported }
+internal enum AirRegionIntegrationRouteKind { FaceAttachedConstructiveInsertion, LocalBRepPlanPatch, ControlledSideHolePatchMaterialization, ControlledSideHoleParentBRepIntegration, ControlledSideHoleDirectBRepPrototype, ControlledSideHoleBoundedBackend, ControlledSideHoleBooleanBackend, BRepBooleanFallback, CirAnalysisMirrorOnly, DeferredIntegration, Unsupported }
 internal enum AirRegionIntegrationCandidateStatus { Admitted, AvailableForAnalysis, Deferred, Rejected, Unavailable, NotApplicable, Selected }
 internal enum AirRegionBRepPlaceholderStatus { PlaceholderOnly, NotMaterialized, Deferred, Rejected, Unsupported }
 internal enum AirRegionMaterializationStatus { Materialized, PartiallyMaterialized, Deferred, Rejected, Unsupported }
+internal enum AirRegionIntegrationBlockerCategory { MissingBRepApi, FaceSplitting, LoopInsertion, CylindricalWallBinding, ShellClosure, STEPExport, UnsafeBooleanBackend, FrameMismatch, TopologyValidation, Unknown }
 
 
 
@@ -37,6 +38,10 @@ internal sealed record AirRegionBRepPlaceholderMaterialization(string Placeholde
 internal sealed record AirRegionMaterializationTopologySummary(bool BodyExists, bool? Closed, int FaceCount, int LoopCount, int CylindricalFaceCount, string Bounds, IReadOnlyList<string> EvidenceRoles);
 internal sealed record AirRegionMaterializationStepSmokeSummary(bool WasChecked, bool Succeeded, IReadOnlyList<string> Diagnostics);
 internal sealed record AirRegionSideHoleMaterializationSummary(string SourceRegionId, string FeatureKind, AirRegionMaterializationStatus Status, string Route, IReadOnlyList<AirRegionBRepPlaceholderMaterialization> PlaceholderMappings, AirRegionMaterializationTopologySummary TopologySummary, AirRegionMaterializationStepSmokeSummary StepSmoke, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> KnownLosses, IReadOnlyList<string> Guarantees);
+internal sealed record AirRegionIntegrationBlocker(AirRegionIntegrationBlockerCategory Category, string Code, string Message, string FailedStage, IReadOnlyList<string> RelevantPlaceholderIds, IReadOnlyList<string> CurrentEvidence, string SuggestedNextFix, IReadOnlyList<string> Diagnostics);
+internal sealed record AirRegionParentIntegrationTopologySummary(bool ParentBodyExists, bool? Closed, int? FaceCount, int? LoopCount, int? CylindricalFaceCount, string Bounds, IReadOnlyList<string> EvidenceRoles);
+internal sealed record AirRegionParentIntegrationStepSmokeSummary(bool WasChecked, bool Succeeded, string Status, IReadOnlyList<string> Diagnostics);
+internal sealed record AirRegionParentIntegrationSummary(string SourceRegionId, string FeatureKind, AirRegionIntegrationStatus Status, AirRegionIntegrationRouteKind Route, IReadOnlyList<AirRegionBRepPlaceholderMaterialization> PlaceholderMappings, AirRegionParentIntegrationTopologySummary TopologySummary, AirRegionParentIntegrationStepSmokeSummary StepSmoke, AirRegionIntegrationBlocker? Blocker, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> KnownLosses, IReadOnlyList<string> Guarantees);
 internal sealed record AirRegionAffectedParentSummary(string ParentRegionId, string ParentBody, string AffectedFaceSelector, string AffectedFaceRole, string AffectedScope, string Locality);
 internal sealed record AirRegionEntryBoundarySummary(string BoundaryKind, string ProfileKind, string ProfileSource, string LocalFrameId, string LoopIntent, string Role);
 internal sealed record AirRegionExitBoundarySummary(string BoundaryKind, string ExitKind, string Role, string Status, IReadOnlyList<string> Diagnostics);
@@ -164,6 +169,37 @@ internal static class AirSideHolePlaceholderMaterializer
     private static IEnumerable<string> Stable(IEnumerable<string> values) => values.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal);
 }
 
+internal static class AirSideHoleParentBRepIntegrationPrototype
+{
+    public static AirRegionParentIntegrationSummary Attempt(AirRegionSummary region, AirRegionBRepBoundarySummary boundary, AirRegionBRepPlaceholderPlan placeholders, AirRegionSideHoleMaterializationSummary patch)
+    {
+        if (region.Yield is null) throw new ArgumentException("Side-hole region must carry a yield summary.", nameof(region));
+        var byRole = placeholders.Elements.ToDictionary(e => e.Role, StringComparer.Ordinal);
+        var mappings = new[]
+        {
+            Map(byRole["AffectedParentFace"], AirRegionMaterializationStatus.Deferred, "ParentFace", "RequiresParentFaceSplit", "brep:root-box:face:+x", "air-region-x8-affected-parent-face-blocked-by-face-splitting"),
+            Map(byRole["CutEntryLoop"], AirRegionMaterializationStatus.Deferred, "ParentLoop", "RequiresLoopInsertion", null, "air-region-x8-cut-entry-loop-blocked-by-face-splitting"),
+            Map(byRole["CutExitLoop"], AirRegionMaterializationStatus.Deferred, "ParentLoop", "RequiresOppositeFaceLoopInsertion", null, "air-region-x8-cut-exit-loop-blocked-by-face-splitting"),
+            Map(byRole["CutWallFace"], AirRegionMaterializationStatus.Materialized, "CylindricalFaceEvidence", "StandaloneCylindricalCutWallEvidence", "brep:side-hole:+x:cut-wall-face", "air-region-x8-cut-wall-face-evidence-preserved"),
+            Map(byRole["RegionIntegrationPatch"], AirRegionMaterializationStatus.Deferred, "ParentIntegrationPatch", "BlockedBeforeParentConsumption", null, "air-region-x8-integration-patch-blocked-by-face-splitting")
+        };
+        var blocker = new AirRegionIntegrationBlocker(
+            AirRegionIntegrationBlockerCategory.FaceSplitting,
+            "controlled-side-hole-parent-face-splitting-missing",
+            "The controlled side-hole parent integration attempt can consume the X6 placeholders and X7 patch evidence, but no bounded parent-face splitting and loop insertion API is available for inserting the circular entry/exit loops into the box shell without expanding to a general side-hole algorithm.",
+            "ParentFaceSplitAndLoopInsertion",
+            [byRole["AffectedParentFace"].Id, byRole["CutEntryLoop"].Id, byRole["CutExitLoop"].Id, byRole["RegionIntegrationPatch"].Id],
+            ["x2-yield-contract-present", "x3-cir-mirror-analysis-only", "x4-brep-boundary-contract-present", "x5-route-decision-present", "x6-placeholders-present", "x7-standalone-patch-materialized", "standalone-cylindrical-cut-wall-face-evidence-present"],
+            "Add a controlled parent-face split plus entry/exit loop insertion adapter for the exact +X through-hole fixture, then bind the preserved cylindrical cut-wall evidence into the parent shell.",
+            ["air-region-x8-face-splitting-blocker", "air-region-x8-loop-insertion-blocker"]);
+        var diagnostics = Stable(["air-region-x8-parent-integration-request-created", "air-region-x8-side-hole-parent-integration-started", "air-region-x8-placeholder-plan-consumed", "air-region-x8-x7-patch-evidence-consumed", "air-region-x8-controlled-parent-integration-route-selected", "air-region-x8-parent-integration-blocked", "air-region-x8-blocker-recorded", "air-region-x8-current-evidence-preserved", "air-region-x8-no-fake-parent-integration", "air-region-x8-face-splitting-blocker", "air-region-x8-loop-insertion-blocker", "air-region-x8-controlled-fixture-only", "air-region-x8-no-general-side-hole-support", "air-region-x8-no-production-route-replacement", "air-region-x8-cir-remains-analysis-only", .. mappings.SelectMany(m => m.Diagnostics), .. blocker.Diagnostics]).ToArray();
+        return new(region.RegionId, region.Yield.FeatureKind, AirRegionIntegrationStatus.Blocked, AirRegionIntegrationRouteKind.ControlledSideHoleParentBRepIntegration, mappings, new(false, false, null, null, 1, "parent-box:10x8x6; parent shell not split; x7 local patch bounds preserved", ["StandaloneCylindricalCutWallFaceEvidence"]), new(false, false, "unavailable", ["air-region-x8-step-smoke-unavailable", "step smoke unavailable because parent BRep integration is blocked before shell closure"]), blocker, diagnostics, ["parent-face-splitting-missing", "entry-exit-loop-insertion-missing", "parent-shell-not-closed", "standalone-patch-only"], ["controlled fixture only", "no general side-hole support", "no arbitrary face/axis support", "no production route replacement", "no parent topology mutation", "CIR remains analysis-only", "Boolean not used", "Boolean not generally admitted", "no STEP exporter/importer change"]);
+    }
+
+    private static AirRegionBRepPlaceholderMaterialization Map(AirRegionBRepPlaceholderElement e, AirRegionMaterializationStatus status, string kind, string role, string? id, string diagnostic) => new(e.Id, e.Role, status, kind, role, id, [diagnostic]);
+    private static IEnumerable<string> Stable(IEnumerable<string> values) => values.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal);
+}
+
 internal sealed record AirLocalFrameSummary(
     string FrameId,
     AirLocalFrameKind FrameKind,
@@ -202,7 +238,9 @@ internal sealed record AirRegionSummary(
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     AirRegionBRepPlaceholderPlan? BrepPlaceholders = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    AirRegionSideHoleMaterializationSummary? Materialization = null);
+    AirRegionSideHoleMaterializationSummary? Materialization = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    AirRegionParentIntegrationSummary? ParentIntegration = null);
 
 internal sealed record AirRegionTraceSummary(
     IReadOnlyList<AirRegionSummary> Regions,
@@ -244,22 +282,24 @@ internal static class AirRegionTraceFactory
         var decision = AirSideHoleRegionIntegrationSelector.Decide(sideBase, mirror.Summary, boundary);
         var placeholders = AirSideHoleBRepPlaceholderPlanner.Plan(sideBase, boundary, decision);
         var materialization = AirSideHolePlaceholderMaterializer.MaterializePatch(sideBase, boundary, placeholders);
-        var x7Decision = decision with { SelectedRouteKind = AirRegionIntegrationRouteKind.ControlledSideHolePatchMaterialization, SelectedStatus = AirRegionIntegrationStatus.Deferred, Recommendation = "controlled standalone side-hole patch materialized from placeholders; parent integration remains deferred", Diagnostics = Stable([.. decision.Diagnostics, .. materialization.Diagnostics]).ToArray(), KnownLosses = Stable([.. decision.KnownLosses, .. materialization.KnownLosses]).ToArray(), Guarantees = Stable([.. decision.Guarantees, .. materialization.Guarantees]).ToArray() };
+        var parentIntegration = AirSideHoleParentBRepIntegrationPrototype.Attempt(sideBase, boundary, placeholders, materialization);
+        var x8Decision = decision with { SelectedRouteKind = AirRegionIntegrationRouteKind.ControlledSideHoleParentBRepIntegration, SelectedStatus = AirRegionIntegrationStatus.Blocked, Recommendation = "controlled parent BRep integration attempted; blocked at parent face splitting and loop insertion", Diagnostics = Stable([.. decision.Diagnostics, .. materialization.Diagnostics, .. parentIntegration.Diagnostics]).ToArray(), KnownLosses = Stable([.. decision.KnownLosses, .. materialization.KnownLosses, .. parentIntegration.KnownLosses]).ToArray(), Guarantees = Stable([.. decision.Guarantees, .. materialization.Guarantees, .. parentIntegration.Guarantees]).ToArray() };
         var side = sideBase with
         {
-            StageReached = "region-materialization-partial",
-            Provenance = "AIR-REGION-X7 metadata-driven fixture",
-            Diagnostics = Stable([.. sideBase.Diagnostics.Where(d => d != "air-region-x2-no-cir-mirror"), .. mirror.Summary.Diagnostics, .. boundary.Diagnostics, .. x7Decision.Diagnostics, .. placeholders.Diagnostics, .. materialization.Diagnostics]).ToArray(),
-            KnownLosses = Stable([.. sideBase.KnownLosses, .. mirror.Summary.KnownLosses, .. boundary.KnownLosses, .. x7Decision.KnownLosses, .. placeholders.KnownLosses, .. materialization.KnownLosses]).ToArray(),
-            Guarantees = Stable([.. sideBase.Guarantees, .. mirror.Summary.Guarantees, .. boundary.Guarantees, .. x7Decision.Guarantees, .. placeholders.Guarantees, .. materialization.Guarantees]).ToArray(),
-            IntegrationRoute = "ControlledSideHolePatchMaterialization",
+            StageReached = "region-parent-integration-blocked",
+            Provenance = "AIR-REGION-X8 metadata-driven fixture",
+            Diagnostics = Stable([.. sideBase.Diagnostics.Where(d => d != "air-region-x2-no-cir-mirror"), .. mirror.Summary.Diagnostics, .. boundary.Diagnostics, .. x8Decision.Diagnostics, .. placeholders.Diagnostics, .. materialization.Diagnostics]).ToArray(),
+            KnownLosses = Stable([.. sideBase.KnownLosses, .. mirror.Summary.KnownLosses, .. boundary.KnownLosses, .. x8Decision.KnownLosses, .. placeholders.KnownLosses, .. materialization.KnownLosses]).ToArray(),
+            Guarantees = Stable([.. sideBase.Guarantees, .. mirror.Summary.Guarantees, .. boundary.Guarantees, .. x8Decision.Guarantees, .. placeholders.Guarantees, .. materialization.Guarantees]).ToArray(),
+            IntegrationRoute = "ControlledSideHoleParentBRepIntegration",
             CirMirror = mirror.Summary,
             BrepBoundary = boundary,
-            IntegrationDecision = x7Decision,
+            IntegrationDecision = x8Decision,
             BrepPlaceholders = placeholders,
-            Materialization = materialization
+            Materialization = materialization,
+            ParentIntegration = parentIntegration
         };
-        return Summary([root, side], ["air-region-x1-region-trace-created", "air-region-x1-no-implicit-parent-mutation", "air-region-x1-no-boolean", "air-region-x1-no-brep-emission", "air-region-x1-no-production-route-replacement", "air-region-x1-trace-only", "air-region-x2-yield-contract-created", "air-region-x2-side-hole-yield-created", "air-region-x2-region-locality-enforced", "air-region-x2-explicit-yield-only", "air-region-x2-parent-integration-deferred", "air-region-x2-no-boolean", "air-region-x2-no-brep-emission", "air-region-x2-no-step-smoke", "air-region-x2-trace-only", .. side.CirMirror!.Diagnostics, .. side.BrepBoundary!.Diagnostics, .. side.IntegrationDecision!.Diagnostics, .. side.BrepPlaceholders!.Diagnostics, .. side.Materialization!.Diagnostics], ["escapes only through explicit yield", "no Boolean", "no production route replacement", .. side.CirMirror.Guarantees, .. side.BrepBoundary.Guarantees, .. side.IntegrationDecision.Guarantees, .. side.BrepPlaceholders.Guarantees, .. side.Materialization.Guarantees]);
+        return Summary([root, side], ["air-region-x1-region-trace-created", "air-region-x1-no-implicit-parent-mutation", "air-region-x1-no-boolean", "air-region-x1-no-brep-emission", "air-region-x1-no-production-route-replacement", "air-region-x1-trace-only", "air-region-x2-yield-contract-created", "air-region-x2-side-hole-yield-created", "air-region-x2-region-locality-enforced", "air-region-x2-explicit-yield-only", "air-region-x2-parent-integration-deferred", "air-region-x2-no-boolean", "air-region-x2-no-brep-emission", "air-region-x2-no-step-smoke", "air-region-x2-trace-only", .. side.CirMirror!.Diagnostics, .. side.BrepBoundary!.Diagnostics, .. side.IntegrationDecision!.Diagnostics, .. side.BrepPlaceholders!.Diagnostics, .. side.Materialization!.Diagnostics, .. side.ParentIntegration!.Diagnostics], ["escapes only through explicit yield", "no Boolean", "no production route replacement", .. side.CirMirror.Guarantees, .. side.BrepBoundary.Guarantees, .. side.IntegrationDecision.Guarantees, .. side.BrepPlaceholders.Guarantees, .. side.Materialization.Guarantees, .. side.ParentIntegration.Guarantees]);
     }
 
     public static AirRegionTraceSummary ForImplicitParentMutationRejected()

@@ -104,3 +104,8 @@ The implementation was validated with CLI help/build, side-hole text/JSON traces
 ## AIR-REGION-X7 note
 
 AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fixture and materializes standalone patch evidence for the entry loop, exit loop, and cylindrical cut wall. Parent BRep integration remains deferred; CIR remains analysis-only; Boolean is not generally admitted; no production route replacement or general side-hole support is introduced.
+
+
+## AIR-REGION-X8 placeholder consumption note
+
+AIR-REGION-X8 consumes all five X6 placeholders in a controlled parent integration attempt. `CutWallFace` maps to preserved X7 cylindrical wall evidence, while `AffectedParentFace`, `CutEntryLoop`, `CutExitLoop`, and `RegionIntegrationPatch` are blocked by the missing parent face split and loop insertion adapter.

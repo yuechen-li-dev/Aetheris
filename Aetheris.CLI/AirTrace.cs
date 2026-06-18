@@ -52,7 +52,8 @@ internal sealed record AirTraceConstructiveAirSummary(string NodeKind, string Ca
 internal sealed record AirTraceProfileEmissionSummary(bool WrapperInvoked, string EmitterName, bool Succeeded, double Width, double Depth, double Height, string StageReached, AirTraceProfileEmissionTopologySummary? TopologySummary, AirTraceProfileEmissionStepSmokeSummary StepSmoke, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Guarantees);
 internal sealed record AirTraceProfileEmissionTopologySummary(int Vertices, int Edges, int Faces, int PlanarFaces, int CylindricalFaces, int Loops, int Coedges, int? CapFaces, int? SideFaces, string? Bounds);
 internal sealed record AirTraceFirmamentV2Summary(string SyntaxVersion, string ModelName, string Units, string SolidName, string RecordType, IReadOnlyList<double> Size, string Stage, IReadOnlyList<AirTraceFirmamentV2SolidSummary> Solids);
-internal sealed record AirTraceFirmamentV2SolidSummary(string Name, string RecordType, IReadOnlyList<double> Size, string? DerivedFrom, IReadOnlyDictionary<string, IReadOnlyList<double>> Overrides);
+internal sealed record AirTraceFirmamentV2SolidSummary(string Name, string RecordType, IReadOnlyList<double> Size, string? DerivedFrom, IReadOnlyDictionary<string, IReadOnlyList<double>> Overrides, IReadOnlyList<AirTraceFirmamentV2ExposureSummary> Exposures);
+internal sealed record AirTraceFirmamentV2ExposureSummary(string Alias, string SelectorKind, string Selector, string RefType, string Axis, string? Subselector);
 internal sealed record AirTraceProfileEmissionStepSmokeSummary(bool WasChecked, bool Succeeded, bool RequiredMarkersPresent, bool ForbiddenMarkersAbsent, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceDimensionsSummary(double Width, double Depth, double Height);
 internal sealed record AirTraceAirSummary(string Node, string Route, string SelectionClass, string Rule, string ConstructionHistory, string FeatureName, string FeatureId, string ProvenanceMilestone);
@@ -159,7 +160,7 @@ internal static class AirTraceReportBuilder
             profileEmissionProbe.Diagnostics,
             profileEmissionProbe.Guarantees);
 
-        var v2 = frontend.FirmamentV2 is null ? null : new AirTraceFirmamentV2Summary(frontend.FirmamentV2.SyntaxVersion, frontend.FirmamentV2.ModelName, frontend.FirmamentV2.Units, frontend.FirmamentV2.SolidName, frontend.FirmamentV2.RecordType, frontend.FirmamentV2.Size, frontend.FirmamentV2.StageReached, frontend.FirmamentV2.Solids.Select(s => new AirTraceFirmamentV2SolidSummary(s.Name, s.RecordType, s.Size, s.DerivedFrom, s.Overrides)).ToArray());
+        var v2 = frontend.FirmamentV2 is null ? null : new AirTraceFirmamentV2Summary(frontend.FirmamentV2.SyntaxVersion, frontend.FirmamentV2.ModelName, frontend.FirmamentV2.Units, frontend.FirmamentV2.SolidName, frontend.FirmamentV2.RecordType, frontend.FirmamentV2.Size, frontend.FirmamentV2.StageReached, frontend.FirmamentV2.Solids.Select(s => new AirTraceFirmamentV2SolidSummary(s.Name, s.RecordType, s.Size, s.DerivedFrom, s.Overrides, s.Exposures.Select(e => new AirTraceFirmamentV2ExposureSummary(e.Alias, e.SelectorKind, e.Selector, e.RefType, e.Axis, e.Subselector)).ToArray())).ToArray());
 
         return new(isFirmamentV2 ? "AIR-FIRMAMENT-X1" : "AIR-X11", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, frontend.FrontendSummary,
             new(constructiveAir?.NodeKind ?? featureAir?.NodeKind ?? "FirmamentPrimitive", constructiveAir?.RouteKind ?? "none", "none", "none", "parser-backed-source-fixture", fixture.CaseName, fixture.CaseName, "AIR-X11"),
@@ -335,6 +336,12 @@ internal static class AirTraceTextRenderer
                     foreach (var ov in solid.Overrides) b.AppendLine($"      {ov.Key}: [{string.Join(", ", ov.Value.Select(v => v.ToString("g", System.Globalization.CultureInfo.InvariantCulture)))}]");
                 }
                 b.AppendLine($"    Size: [{string.Join(", ", solid.Size.Select(v => v.ToString("g", System.Globalization.CultureInfo.InvariantCulture)))}]");
+                if (solid.Exposures.Count > 0)
+                {
+                    b.AppendLine();
+                    b.AppendLine("    Expose:");
+                    foreach (var exposure in solid.Exposures) b.AppendLine($"      {exposure.Selector} => {exposure.Alias} : {exposure.RefType}");
+                }
             }
             if (r.FeatureAir is not null) b.AppendLine($"  Feature AIR: {r.FeatureAir.NodeKind}");
             b.AppendLine();

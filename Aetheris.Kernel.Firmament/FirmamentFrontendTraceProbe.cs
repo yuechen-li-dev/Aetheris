@@ -17,7 +17,8 @@ public sealed record FirmamentFrontendTraceProbeResult(
     FirmamentV2TraceSummary? FirmamentV2 = null);
 
 public sealed record FirmamentV2TraceSummary(string SyntaxVersion, string ModelName, string Units, string SolidName, string RecordType, IReadOnlyList<double> Size, string StageReached, IReadOnlyList<FirmamentV2SolidTraceSummary> Solids);
-public sealed record FirmamentV2SolidTraceSummary(string Name, string RecordType, IReadOnlyList<double> Size, string? DerivedFrom, IReadOnlyDictionary<string, IReadOnlyList<double>> Overrides);
+public sealed record FirmamentV2SolidTraceSummary(string Name, string RecordType, IReadOnlyList<double> Size, string? DerivedFrom, IReadOnlyDictionary<string, IReadOnlyList<double>> Overrides, IReadOnlyList<FirmamentV2ExposureTraceSummary> Exposures);
+public sealed record FirmamentV2ExposureTraceSummary(string Alias, string SelectorKind, string Selector, string RefType, string Axis, string? Subselector);
 
 public sealed record FirmamentPrimitiveAirTraceSummary(
     bool ParserBacked,
@@ -101,7 +102,7 @@ public static class FirmamentFrontendTraceProbe
             featureDiagnostics,
             featureAir,
             null,
-            new FirmamentV2TraceSummary("FirmamentV2", document.ModelName, document.Units, loweredSolid.Name, loweredSolid.RecordType, loweredSolid.Box.Size, "feature-air", document.Solids.Select(s => new FirmamentV2SolidTraceSummary(s.Name, s.RecordType, s.Box.Size, s.DerivedFrom, s.Overrides ?? new Dictionary<string, IReadOnlyList<double>>())).ToArray()));
+            new FirmamentV2TraceSummary("FirmamentV2", document.ModelName, document.Units, loweredSolid.Name, loweredSolid.RecordType, loweredSolid.Box.Size, "feature-air", document.Solids.Select(s => new FirmamentV2SolidTraceSummary(s.Name, s.RecordType, s.Box.Size, s.DerivedFrom, s.Overrides ?? new Dictionary<string, IReadOnlyList<double>>(), s.Box.Exposures.Select(e => new FirmamentV2ExposureTraceSummary(e.Alias, e.SelectorKind, e.Selector, e.RefType, e.Axis, e.Subselector)).ToArray())).ToArray()));
     }
 
     public static FirmamentFrontendTraceProbeResult ParseOnly(string sourceText)

@@ -143,6 +143,48 @@ public sealed class FirmamentV2ParserTests
         Assert.Contains("firmament-v2-no-v1-parser", result.Diagnostics);
     }
 
+    [Fact]
+    public void FirmamentV2Parser_ExposeBoxFaces_ParsesAliases()
+    {
+        var result = FirmamentV2Parser.Parse(Source("SemanticRefs/valid/named-box-faces-v2.valid.firmfixture"));
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var exposures = result.Document!.Solid.Box.Exposures;
+        Assert.Equal(4, exposures.Count);
+        Assert.Equal(["top", "bottom", "right", "topRim"], exposures.Select(e => e.Alias).ToArray());
+        Assert.Equal("FaceRef", exposures.Single(e => e.Alias == "top").RefType);
+        Assert.Equal("LoopRef", exposures.Single(e => e.Alias == "topRim").RefType);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_ExposeBoxFaces_LowersBoxToFeatureAir()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("SemanticRefs/valid/named-box-faces-v2.valid.firmfixture"));
+        Assert.True(result.ParseSucceeded, string.Join(", ", result.Diagnostics));
+        Assert.Equal("CreateBox", result.FeatureAir!.FeatureAirNodeKind);
+        Assert.Equal(10, result.FeatureAir.SourceDimensions!.Width);
+        Assert.Equal(8, result.FeatureAir.SourceDimensions.Depth);
+        Assert.Equal(6, result.FeatureAir.SourceDimensions.Height);
+        Assert.Equal(4, result.FirmamentV2!.Solids.Single().Exposures.Count);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_ExposeBoxFaces_Diagnostics()
+    {
+        Assert.Contains(FirmamentV2Parser.ExposeAliasDuplicate, FirmamentV2Parser.Parse(Source("SemanticRefs/invalid/duplicate-expose-alias-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SelectorAxisInvalid, FirmamentV2Parser.Parse(Source("SemanticRefs/invalid/invalid-face-axis-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.RawBackendIdReferenceForbidden, FirmamentV2Parser.Parse(Source("SemanticRefs/invalid/raw-brep-id-reference-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.FatArrowOutsideExpose, FirmamentV2Parser.Parse(Source("SemanticRefs/invalid/fat-arrow-outside-expose-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SelectorUnsupported, FirmamentV2Parser.Parse(Source("SemanticRefs/invalid/unsupported-selector-edge-v2.invalid.firmfixture")).Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_ExposeBoxFaces_DoesNotUseV1Parser()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("SemanticRefs/valid/named-box-faces-v2.valid.firmfixture"));
+        Assert.Equal("FirmamentV2Parser", result.ParserName);
+        Assert.Contains("firmament-v2-no-v1-parser", result.Diagnostics);
+    }
+
     private static string Source(string relative)
     {
         var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));

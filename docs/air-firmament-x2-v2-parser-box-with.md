@@ -94,3 +94,7 @@ Validated with targeted CLI traces and focused .NET test filters for Firmament V
 ## 12. Next milestone recommendation
 
 The next milestone should keep V2 isolated and add one narrow capability at a time. Recommended next step: explicit derived-record trace/diagnostic polish for forward-reference detection or a second Box-only `with` fixture shape, before any attempt at general `with`, selectors, templates, concepts, PMI, `where`, materials, or topology-affecting behavior.
+
+## X3 alias-copying policy
+
+AIR-FIRMAMENT-X3 does not copy semantic exposure aliases through `with` derivation. Derived Box records continue to support size overrides, but expose blocks on derived records are rejected until an explicit safe alias-copying rule is designed.

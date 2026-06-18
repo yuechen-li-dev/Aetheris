@@ -190,7 +190,16 @@ public sealed class FirmamentFixtureCorpusTests
         {
             using var doc = Trace(path);
             var diagnostics = doc.RootElement.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
-            Assert.False(doc.RootElement.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
+            var fixture = LoadMetadata(path);
+            if (string.Equals(fixture.GetValueOrDefault("implementation"), "parser-backed", StringComparison.Ordinal))
+            {
+                Assert.True(doc.RootElement.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
+                Assert.Equal("FirmamentV2Parser", doc.RootElement.GetProperty("frontend").GetProperty("parserName").GetString());
+            }
+            else
+            {
+                Assert.False(doc.RootElement.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
+            }
             Assert.DoesNotContain("air-x11-firmament-parse-failed", diagnostics);
         }
     }

@@ -1,0 +1,18 @@
+// fixture-id: fat-arrow-outside-expose-v2
+// case: firmament-v2-fat-arrow-outside-expose
+// category: SemanticRefs
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-fat-arrow-outside-expose
+// parser-backed: true
+
+model FatArrowOutsideExpose {
+    units mm
+    solid base: Box {
+        size: [10, 8, 6]
+        face(+Z) => top
+    }
+}

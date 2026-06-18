@@ -1,0 +1,21 @@
+// fixture-id: duplicate-expose-alias-v2
+// case: firmament-v2-duplicate-expose-alias
+// category: SemanticRefs
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-expose-alias-duplicate
+// parser-backed: true
+
+model DuplicateExposeAlias {
+    units mm
+    solid base: Box {
+        size: [10, 8, 6]
+        expose {
+            face(+Z) => top
+            face(-Z) => top
+        }
+    }
+}

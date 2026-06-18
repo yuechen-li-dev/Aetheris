@@ -3,21 +3,29 @@
 // category: SemanticRefs
 // syntax-version: FirmamentV2
 // validity: valid
-// implementation: not-implemented
+// implementation: parser-backed
 // expected: valid
-// expected-stage: not-implemented
-// expected-diagnostic: firmament-v2-parser-not-ready
-// notes: AIR-FIRMAMENT-A2.1 metadata-only semantic exposure fixture; not parser-backed.
+// expected-stage: feature-air
+// expected-feature-air: CreateBox
+// expected-exposure-count: 4
+// expected-exposure: top = FaceRef face(+Z)
+// expected-exposure: bottom = FaceRef face(-Z)
+// expected-exposure: right = FaceRef face(+X)
+// expected-exposure: topRim = LoopRef face(+Z).outerLoop
+// parser-backed: true
+// notes: AIR-FIRMAMENT-X3 parser-backed Box semantic exposure fixture advanced from A2.1 metadata-only design coverage.
 
 model NamedBoxFaces {
     units mm
 
-    solid base = box {
+    solid base: Box {
         size: [10, 8, 6]
+
         expose {
             face(+Z) => top
-            face(+Z).outerLoop => topRim
+            face(-Z) => bottom
             face(+X) => right
+            face(+Z).outerLoop => topRim
         }
     }
 }

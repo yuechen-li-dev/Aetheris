@@ -10,7 +10,8 @@ public sealed record FirmamentV2SolidBinding(string Name, string RecordType, Fir
     public bool IsDerived => !string.IsNullOrWhiteSpace(DerivedFrom);
 }
 
-public sealed record FirmamentV2BoxRecord(IReadOnlyList<double> Size);
+public sealed record FirmamentV2BoxRecord(IReadOnlyList<double> Size, IReadOnlyList<FirmamentV2Exposure> Exposures);
+public sealed record FirmamentV2Exposure(string Alias, string SelectorKind, string Selector, string RefType, string Axis, string? Subselector);
 public sealed record FirmamentV2ParseResult(bool IsSuccess, FirmamentV2Document? Document, IReadOnlyList<string> Diagnostics)
 {
     public static FirmamentV2ParseResult Success(FirmamentV2Document document, IReadOnlyList<string> diagnostics) => new(true, document, diagnostics);

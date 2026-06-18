@@ -1,0 +1,16 @@
+// fixture-id: shell-thickness-collapse-v2
+// case: firmament-v2-shell-thickness-collapse
+// category: Admissibility
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-shell-thickness-collapses-body
+// notes: AIR-FIRMAMENT-A2.1 shell collapse is invalid design intent; no shell implementation is introduced.
+
+model ShellCollapse {
+    units mm
+    solid base = box { size: [10, 8, 1] }
+    solid shell: Shell { target: base thickness: 2 remove: face(+Z) direction: inward }
+}

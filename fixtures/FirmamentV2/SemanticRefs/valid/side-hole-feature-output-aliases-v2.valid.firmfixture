@@ -1,0 +1,27 @@
+// fixture-id: side-hole-feature-output-aliases-v2
+// case: firmament-v2-side-hole-feature-output-aliases
+// category: SemanticRefs
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2.1 metadata-only FeatureOutputRef alias fixture; no general side-hole support.
+
+model SideHoleAliases {
+    units mm
+    solid base = box { size: [10, 8, 6] }
+    modify base {
+        feature sideHole: Cut {
+            on: face(+X)
+            tool: Cylinder { radius: 1 through: face(-X) }
+            expose {
+                entryLoop => inlet
+                exitLoop => outlet
+                wallFace => bore
+            }
+        }
+        feature entryChamfer: Chamfer { target: sideHole.inlet distance: 0.2 }
+    }
+}

@@ -7,6 +7,7 @@ public sealed class FirmamentFixtureCorpusTests
     private static readonly string CorpusRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament"));
     private static readonly string V2CorpusRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2"));
     private static readonly string V2DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-firmament-v2-source-language-design.md"));
+    private static readonly string V21DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-1-semantic-references-admissibility-surface-doctrine.md"));
     private static readonly string[] RequiredMetadata = ["fixture-id", "case", "category", "validity", "implementation", "expected", "expected-stage"];
 
     [Fact]
@@ -101,6 +102,14 @@ public sealed class FirmamentFixtureCorpusTests
         Assert.Contains(fixtures, p => p.EndsWith("Shell/future/open-top-box-shell-v2.valid.firmfixture", StringComparison.Ordinal));
         Assert.Contains(fixtures, p => p.EndsWith("Fillet/future/single-edge-fillet-v2.valid.firmfixture", StringComparison.Ordinal));
         Assert.Contains(fixtures, p => p.EndsWith("Invalid/invalid-missing-units-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("SemanticRefs/valid/named-box-faces-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("SemanticRefs/valid/side-hole-feature-output-aliases-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("SemanticRefs/invalid/raw-brep-id-reference-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Admissibility/invalid/degenerate-box-zero-dimension-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Admissibility/invalid/shell-thickness-collapse-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Surface/future/ruled-surface-rails-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Surface/future/offset-surface-detail-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Pattern/future/linear-pattern-v2.valid.firmfixture", StringComparison.Ordinal));
 
         foreach (var path in fixtures)
         {
@@ -141,6 +150,66 @@ public sealed class FirmamentFixtureCorpusTests
         Assert.Contains("CIR is not the topology path", doc, StringComparison.Ordinal);
         Assert.Contains("Boolean", doc, StringComparison.Ordinal);
         Assert.Contains("not the core language model", doc, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void FirmamentV2SemanticRefs_MetadataRecognized()
+    {
+        var semanticRefs = DiscoverV2Fixtures().Where(p => p.Contains("/SemanticRefs/", StringComparison.Ordinal)).ToArray();
+        Assert.NotEmpty(semanticRefs);
+        foreach (var path in semanticRefs)
+        {
+            var fixture = LoadMetadata(path);
+            Assert.Equal("FirmamentV2", fixture["syntax-version"]);
+            Assert.Equal("SemanticRefs", fixture["category"]);
+            Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2SemanticRefs_NotV1ParseFailures()
+    {
+        foreach (var path in DiscoverV2Fixtures().Where(p => p.Contains("/SemanticRefs/", StringComparison.Ordinal)))
+        {
+            using var doc = Trace(path);
+            var diagnostics = doc.RootElement.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
+            Assert.False(doc.RootElement.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
+            Assert.DoesNotContain("air-x11-firmament-parse-failed", diagnostics);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2Admissibility_InvalidFixtures_ReportExpectedDiagnostics()
+    {
+        var expected = new[]
+        {
+            (Path: "SemanticRefs/invalid/raw-brep-id-reference-v2.invalid.firmfixture", Diagnostic: "firmament-raw-backend-id-reference-forbidden"),
+            (Path: "Admissibility/invalid/degenerate-box-zero-dimension-v2.invalid.firmfixture", Diagnostic: "firmament-degenerate-dimension"),
+            (Path: "Admissibility/invalid/shell-thickness-collapse-v2.invalid.firmfixture", Diagnostic: "firmament-shell-thickness-collapses-body")
+        };
+
+        foreach (var item in expected)
+        {
+            using var doc = Trace(Path.Combine(V2CorpusRoot, item.Path));
+            var diagnostics = doc.RootElement.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
+            Assert.True(doc.RootElement.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean(), item.Path);
+            Assert.Contains(item.Diagnostic, diagnostics);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2Doctrine_DocsMentionAdmissibilityAndRuledSurfacePolicy()
+    {
+        Assert.True(File.Exists(V21DoctrinePath), V21DoctrinePath);
+        var doc = File.ReadAllText(V21DoctrinePath);
+        Assert.Contains("degenerate geometry", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("compile errors", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ruled/sweep/offset-first", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Spline/NURBS limited admission", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("no loops", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("no conditionals", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("=>", doc, StringComparison.Ordinal);
+        Assert.Contains("not BRep IDs", doc, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

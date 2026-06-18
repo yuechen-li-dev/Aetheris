@@ -819,3 +819,7 @@ AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fi
 ## AIR-FIRMAMENT-A1 Firmament source fixture corpus note
 
 AIR-FIRMAMENT-A1 establishes `fixtures/Firmament/` as the source-language corpus for compiler-style development: Firmament source fixture -> parse -> semantic intent -> Feature AIR -> Constructive/Compositional AIR -> BRepPlan -> BRep -> STEP/artifacts -> trace/diagnostics -> regression corpus. Valid source intent can be tracked before implementation with `implementation: not-implemented` or `deferred`; such fixtures are not syntax-invalid and must report deliberate metadata-backed diagnostics instead of random parser/materialization failure. CIR remains analysis/evaluation mirror only and is not topology authority.
+
+## Firmament V2 admissibility note
+
+AIR-FIRMAMENT-A2.1 makes degeneracy rejection part of the Firmament V2 source-language contract. When source/semantic analysis can prove that construction intent necessarily creates degenerate, impossible, ambiguous, or unsupported geometry within the admitted lowering route, the compiler should reject it before backend emission with a bounded diagnostic rather than letting invalid intent leak into BRep. If source analysis cannot prove the condition, AIR/BRepPlan/BRep may still return a bounded blocker; the compiler should not fake certainty.

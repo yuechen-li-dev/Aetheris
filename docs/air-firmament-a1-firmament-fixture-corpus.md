@@ -148,8 +148,16 @@ fixtures/FirmamentV2/
   Fillet/
   Shell/
   Surfacing/
+  Surface/
+  SemanticRefs/
+  Admissibility/
+  Pattern/
   Material/
   Invalid/
 ```
 
 Future features should be written in V2 syntax first, marked not implemented/future-design, and then advanced through parser, semantic intent, Feature AIR, Constructive/Compositional AIR, BRepPlan, BRep, STEP/artifact, and trace stages in narrow milestones. Existing V1 fixtures remain valid in `fixtures/Firmament/` and do not require migration.
+
+## A2.1 semantic-reference and admissibility fixture expansion
+
+A2.1 expands the `fixtures/FirmamentV2/` metadata-only taxonomy with semantic-reference, admissibility, surface-doctrine, and pattern-as-record pilot fixtures. These fixtures remain `syntax-version: FirmamentV2` and are deliberately classified by metadata rather than by the V1 parser. Valid design examples use `implementation: not-implemented`, `expected-stage: not-implemented`, and `expected-diagnostic: firmament-v2-parser-not-ready`; invalid doctrine examples use `implementation: rejected` with stable diagnostics such as `firmament-raw-backend-id-reference-forbidden`, `firmament-degenerate-dimension`, and `firmament-shell-thickness-collapses-body`.

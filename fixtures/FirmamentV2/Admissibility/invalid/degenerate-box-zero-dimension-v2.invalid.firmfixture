@@ -1,0 +1,15 @@
+// fixture-id: degenerate-box-zero-dimension-v2
+// case: firmament-v2-degenerate-box-zero-dimension
+// category: Admissibility
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-degenerate-dimension
+// notes: AIR-FIRMAMENT-A2.1 zero-size box dimension is a compile-time degeneracy.
+
+model DegenerateBox {
+    units mm
+    solid base = box { size: [10, 0, 6] }
+}

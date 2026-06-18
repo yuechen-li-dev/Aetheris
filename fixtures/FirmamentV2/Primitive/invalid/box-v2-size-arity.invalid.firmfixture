@@ -1,0 +1,18 @@
+// fixture-id: box-v2-size-arity
+// case: firmament-v2-box-size-arity
+// category: Primitive
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-box-size-arity
+// parser-backed: true
+
+model BoxExample {
+    units mm
+
+    solid base: Box {
+        size: [10, 8]
+    }
+}

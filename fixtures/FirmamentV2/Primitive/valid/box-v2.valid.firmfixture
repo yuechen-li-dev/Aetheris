@@ -3,16 +3,19 @@
 // category: Primitive
 // syntax-version: FirmamentV2
 // validity: valid
-// implementation: not-implemented
+// implementation: parser-backed
 // expected: valid
-// expected-stage: not-implemented
-// expected-diagnostic: firmament-v2-parser-not-ready
-// notes: AIR-FIRMAMENT-A2 metadata-only V2 design fixture; source snippet is canonical-shape design, not parser-backed.
+// expected-stage: feature-air
+// expected-feature-air: CreateBox
+// dimensions: 10, 8, 6
+// units: mm
+// parser-backed: true
+// notes: AIR-FIRMAMENT-X1 canonical typed-record V2 Box parser fixture.
 
 model BoxExample {
     units mm
 
-    solid base = box {
+    solid base: Box {
         size: [10, 8, 6]
     }
 }

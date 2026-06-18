@@ -104,3 +104,7 @@ AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. T
 ## AIR-REGION-X6 placeholder note
 
 AIR-REGION-X6 keeps this X4 boundary contract as intent and adds deterministic placeholder elements derived from it. The X6 placeholders make the future materialization boundary explicit (`+X` parent face reference, entry loop, exit loop, cut wall face, and integration patch), while still recording zero materialized BRepPlan elements and no parent topology mutation.
+
+## AIR-REGION-X7 note
+
+AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fixture and materializes standalone patch evidence for the entry loop, exit loop, and cylindrical cut wall. Parent BRep integration remains deferred; CIR remains analysis-only; Boolean is not generally admitted; no production route replacement or general side-hole support is introduced.

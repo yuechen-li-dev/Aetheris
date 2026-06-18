@@ -188,3 +188,7 @@ AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. T
 ## AIR-REGION-X6 region placeholder trace note
 
 Region fixture traces can now include a `Region BRepPlan placeholders` text section and a JSON `regions.regions[].brepPlaceholders` object. For the side-hole FaceAttachedRegion this section reports `PlaceholderOnly`, five deterministic placeholder elements, zero materialized elements, and guarantees that no parent topology mutation, BRepPlan materialization, BRep emission, STEP smoke, or Boolean invocation occurred.
+
+## AIR-REGION-X7 note
+
+AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fixture and materializes standalone patch evidence for the entry loop, exit loop, and cylindrical cut wall. Parent BRep integration remains deferred; CIR remains analysis-only; Boolean is not generally admitted; no production route replacement or general side-hole support is introduced.

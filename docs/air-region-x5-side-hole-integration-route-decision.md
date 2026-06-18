@@ -67,3 +67,7 @@ AIR-REGION-X6 should add region BRepPlan placeholder elements without parent mut
 ## AIR-REGION-X6 placeholder note
 
 AIR-REGION-X6 preserves the X5 `DeferredIntegration` selection and Boolean rejection, then adds a parallel `brepPlaceholders` trace summary for the side-hole region. The placeholder plan has five deterministic elements (`AffectedParentFace`, `CutEntryLoop`, `CutExitLoop`, `CutWallFace`, and `RegionIntegrationPatch`) and zero materialized elements. The route decision is unchanged: placeholders prepare the future local BRepPlan patch/materialization boundary, but they do not admit integration.
+
+## AIR-REGION-X7 note
+
+AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fixture and materializes standalone patch evidence for the entry loop, exit loop, and cylindrical cut wall. Parent BRep integration remains deferred; CIR remains analysis-only; Boolean is not generally admitted; no production route replacement or general side-hole support is introduced.

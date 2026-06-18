@@ -6,6 +6,8 @@ Firmament V2 is the next canonical human-facing Aetheris source language. It is 
 
 A2 is a design/audit milestone. It defines doctrine, policy, syntax shape, source constructs, lowering expectations, and fixture process. It does not implement a full V2 parser, migrate the corpus, add geometry features, replace production routes, change STEP behavior, change BRep topology behavior, or promote CIR to topology authority.
 
+A2.2 adds `with` as the Firmament V2 record-derivation/configuration doctrine: immutable source records may derive named variants by overriding fields, then revalidating under the same admissibility contracts before AIR lowering. See `docs/air-firmament-a2-2-record-derivation-with.md`.
+
 ## Relationship to Firmament V1
 
 ```text

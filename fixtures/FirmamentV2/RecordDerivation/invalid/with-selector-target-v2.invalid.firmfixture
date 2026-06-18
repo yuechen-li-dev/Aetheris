@@ -1,0 +1,24 @@
+// fixture-id: with-selector-target-v2
+// case: firmament-v2-with-selector-target
+// category: RecordDerivation
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-with-requires-record
+// notes: AIR-FIRMAMENT-A2.2 metadata-only invalid derivation fixture; with cannot target selectors.
+
+model WithSelectorTarget {
+    units mm
+
+    solid base = Box {
+        size: [10, 8, 6]
+    }
+
+    select topFace = base.face(+Z)
+
+    solid bad = topFace with {
+        size: [10, 8, 12]
+    }
+}

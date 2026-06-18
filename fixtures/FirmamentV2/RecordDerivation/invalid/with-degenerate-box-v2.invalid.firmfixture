@@ -1,0 +1,22 @@
+// fixture-id: with-degenerate-box-v2
+// case: firmament-v2-with-degenerate-box
+// category: RecordDerivation
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-degenerate-dimension
+// notes: AIR-FIRMAMENT-A2.2 metadata-only invalid derivation fixture; derived Box must be revalidated.
+
+model WithDegenerateBox {
+    units mm
+
+    solid base = Box {
+        size: [10, 8, 6]
+    }
+
+    solid bad = base with {
+        size: [10, 0, 6]
+    }
+}

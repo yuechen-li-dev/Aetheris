@@ -153,6 +153,7 @@ fixtures/FirmamentV2/
   Admissibility/
   Pattern/
   Material/
+  RecordDerivation/
   Invalid/
 ```
 
@@ -161,3 +162,7 @@ Future features should be written in V2 syntax first, marked not implemented/fut
 ## A2.1 semantic-reference and admissibility fixture expansion
 
 A2.1 expands the `fixtures/FirmamentV2/` metadata-only taxonomy with semantic-reference, admissibility, surface-doctrine, and pattern-as-record pilot fixtures. These fixtures remain `syntax-version: FirmamentV2` and are deliberately classified by metadata rather than by the V1 parser. Valid design examples use `implementation: not-implemented`, `expected-stage: not-implemented`, and `expected-diagnostic: firmament-v2-parser-not-ready`; invalid doctrine examples use `implementation: rejected` with stable diagnostics such as `firmament-raw-backend-id-reference-forbidden`, `firmament-degenerate-dimension`, and `firmament-shell-thickness-collapses-body`.
+
+## A2.2 record-derivation fixture expansion
+
+A2.2 expands the `fixtures/FirmamentV2/` metadata-only taxonomy with `RecordDerivation/` fixtures for valid `with` variants and invalid derivation diagnostics. Valid design examples remain `implementation: not-implemented`, `expected-stage: not-implemented`, and `expected-diagnostic: firmament-v2-parser-not-ready`; invalid doctrine examples use `implementation: rejected` with diagnostics such as `firmament-degenerate-dimension`, `firmament-with-requires-record`, and `firmament-with-field-not-found`. These fixtures are classified by metadata and must not be routed through the V1 parser as incidental parse failures.

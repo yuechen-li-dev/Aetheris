@@ -95,3 +95,7 @@ Recommended next: **AIR-REGION-X8 — Side-hole materialization artifact corpus 
 ## AIR-REGION-X8 parent integration attempt note
 
 AIR-REGION-X8 consumes the X7 standalone patch evidence during a controlled parent BRep integration attempt. The attempt remains truthful Outcome B: the cylindrical cut-wall evidence is preserved, but parent integration is blocked at parent face splitting and entry/exit loop insertion.
+
+## AIR-REGION-X11 update
+
+The standalone X7 cylindrical patch evidence is now consumed by the controlled parent-integration trace as `CylindricalCutWallFace` evidence between the X9 entry loop and X10 exit loop. The cut-wall blocker is cleared for the fixture, but parent shell closure is still blocked on `RegionIntegrationPatch` validation.

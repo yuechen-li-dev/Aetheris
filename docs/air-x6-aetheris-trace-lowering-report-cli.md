@@ -206,3 +206,7 @@ For `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfi
 ## AIR-REGION-X10 side-hole exit loop trace section
 
 For `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now includes a `Region exit loop` text section and a JSON `regions.regions[].exitLoop` object. The section records deterministic `-X` exit face selection, `ExitLoopMaterialized`, `Circle(radius=1)`, consumed `CutExitLoop` placeholder identity, and bounded loop evidence. Parent integration remains partial and now reports `CutWallAttachment` as the next blocker.
+
+## AIR-REGION-X11 trace note
+
+Side-hole region traces now include a `Region cut wall / shell closure` section for the controlled fixture. The section reports cut-wall attachment status, entry/exit-loop preservation, `CutWallFace` placeholder consumption, shell-closure status, parent-integration status, STEP smoke status, and the precise blocker when shell closure is not complete.

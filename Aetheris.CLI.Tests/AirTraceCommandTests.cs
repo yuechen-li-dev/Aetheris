@@ -864,6 +864,51 @@ public sealed class AirTraceCommandTests
         Assert.Equal(0, Run("trace", "--fixture", Fixture("invalid/loop-fillet-deferred.invalid.firmfixture"), "--json").ExitCode);
     }
 
+
+    [Fact]
+    public void TraceSideHoleRegion_GoldenPathArtifacts_OutDirWritesFiles()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        var (exitCode, output, error) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--out-dir", dir);
+        Assert.Equal(0, exitCode); Assert.True(string.IsNullOrWhiteSpace(error));
+        Assert.Contains("Trace artifacts written:", output, StringComparison.Ordinal);
+        var step = Path.Combine(dir, "side-hole.step");
+        var json = Path.Combine(dir, "side-hole.trace.json");
+        var text = Path.Combine(dir, "side-hole.trace.txt");
+        Assert.True(File.Exists(step)); Assert.True(new FileInfo(step).Length > 0);
+        Assert.True(File.Exists(json)); Assert.True(new FileInfo(json).Length > 0);
+        Assert.True(File.Exists(text)); Assert.Contains("Artifacts", File.ReadAllText(text));
+        using var doc = JsonDocument.Parse(File.ReadAllText(json));
+        var root = doc.RootElement;
+        Assert.Equal("AIR-REGION-X13", root.GetProperty("milestone").GetString());
+        Assert.Equal(step, root.GetProperty("artifacts").GetProperty("step").GetString());
+        Assert.Equal("region-parent-integrated", root.GetProperty("actualStageReached").GetString());
+    }
+
+    [Fact]
+    public void TraceSideHoleRegion_GoldenPathArtifacts_StepPathStable()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.True(File.Exists(Path.Combine(dir, "side-hole.step")));
+        Assert.True(File.Exists(Path.Combine(dir, "manifest.json")));
+        Assert.Contains("side-hole.step", File.ReadAllText(Path.Combine(dir, "manifest.json")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GoldenPathArtifacts_AreDeterministic()
+    {
+        var firstDir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        var secondDir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--out-dir", firstDir, "--json").ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--out-dir", secondDir, "--json").ExitCode);
+        using var first = JsonDocument.Parse(File.ReadAllText(Path.Combine(firstDir, "side-hole.trace.json")));
+        using var second = JsonDocument.Parse(File.ReadAllText(Path.Combine(secondDir, "side-hole.trace.json")));
+        Assert.Equal(first.RootElement.GetProperty("actualStageReached").GetString(), second.RootElement.GetProperty("actualStageReached").GetString());
+        Assert.Equal(first.RootElement.GetProperty("regions").GetRawText(), second.RootElement.GetProperty("regions").GetRawText());
+        Assert.Contains("STEP smoke: succeeded", File.ReadAllText(Path.Combine(firstDir, "side-hole.trace.txt")), StringComparison.Ordinal);
+    }
+
     private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Chamfer", relative));
     private static string PrimitiveFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Primitive", relative));
     private static string RegionFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Region", relative));

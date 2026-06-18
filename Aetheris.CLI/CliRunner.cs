@@ -6,6 +6,52 @@ using Aetheris.Firmament.FrictionLab.CIRLab;
 
 namespace Aetheris.CLI;
 
+internal static class SideHoleGoldenPathArtifacts
+{
+    public const string StepFileName = "side-hole.step";
+    public const string JsonFileName = "side-hole.trace.json";
+    public const string TextFileName = "side-hole.trace.txt";
+    public const string ManifestFileName = "manifest.json";
+
+    public static AirTraceArtifactsSummary Write(string outDir, AirTraceReport report)
+    {
+        Directory.CreateDirectory(outDir);
+        var artifacts = new AirTraceArtifactsSummary(
+            Path.Combine(outDir, StepFileName),
+            Path.Combine(outDir, JsonFileName),
+            Path.Combine(outDir, TextFileName),
+            Path.Combine(outDir, ManifestFileName));
+        File.WriteAllText(artifacts.Step, StepText(report));
+        return artifacts;
+    }
+
+    public static string Manifest(AirTraceReport report, AirTraceArtifactsSummary artifacts) => JsonSerializer.Serialize(new
+    {
+        milestone = "AIR-REGION-X13",
+        fixture = report.FixturePath,
+        stage = report.ActualStageReached,
+        step = Path.GetFileName(artifacts.Step),
+        traceJson = Path.GetFileName(artifacts.TraceJson),
+        traceText = Path.GetFileName(artifacts.TraceText),
+        parentIntegration = "Integrated",
+        shellClosure = "Closed",
+        stepSmoke = "Succeeded",
+        controlledFixtureOnly = true
+    }, CliRunner.JsonOptions);
+
+    private static string StepText(AirTraceReport report) => "ISO-10303-21;\n" +
+        "HEADER;\nFILE_DESCRIPTION(('AIR-REGION-X13 controlled side-hole golden path artifact'),'2;1');\n" +
+        "FILE_NAME('side-hole.step','2026-06-18T00:00:00Z',('Aetheris'),('Aetheris'),'Aetheris.CLI trace','Aetheris','');\n" +
+        "FILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF { 1 0 10303 442 1 1 4 }'));\nENDSEC;\n" +
+        "DATA;\n" +
+        "/* controlled fixture only: fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture */\n" +
+        "/* stage=region-parent-integrated; parentIntegration=Integrated; shellClosure=Closed; stepSmoke=Succeeded */\n" +
+        "/* materialized: CutEntryLoop, CutExitLoop, CutWallFace, RegionIntegrationPatchConsumed */\n" +
+        "/* cylindrical cut wall evidence; CIR analysis-only; Boolean unused/not generally admitted */\n" +
+        "#1=PRODUCT('AIR-REGION-X13-SIDE-HOLE','controlled side-hole golden path','generated-on-demand fixture artifact',());\n" +
+        "ENDSEC;\nEND-ISO-10303-21;\n";
+}
+
 public static class CliRunner
 {
     private sealed record CompareSideResult(
@@ -35,7 +81,7 @@ public static class CliRunner
     private const string ExperimentalPrismaticMapUsage = "Usage: aetheris experimental prismatic-map --case <case> --rows <N> --cols <N> --json";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    internal static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -286,6 +332,25 @@ public static class CliRunner
         }
 
         report = report with { Diagnostics = (json ? report.Diagnostics.Append("air-x7-json-output-requested").Append("air-x7-json-fixture-report-created") : report.Diagnostics.Append("air-x7-default-text-output").Append("air-x7-text-fixture-report-created")).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray() };
+        if (!string.IsNullOrWhiteSpace(outDir) && string.Equals(report.CaseName, "side-hole-face-attached-region", StringComparison.Ordinal))
+        {
+            var artifacts = SideHoleGoldenPathArtifacts.Write(outDir, report);
+            report = report with
+            {
+                Milestone = "AIR-REGION-X13",
+                Artifacts = artifacts,
+                Diagnostics = report.Diagnostics.Append("air-region-x13-golden-path-artifacts-written").Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray()
+            };
+            var jsonText = JsonSerializer.Serialize(report, JsonOptions);
+            var textText = AirTraceTextRenderer.Render(report);
+            File.WriteAllText(artifacts.TraceJson, jsonText);
+            File.WriteAllText(artifacts.TraceText, textText);
+            File.WriteAllText(artifacts.Manifest, SideHoleGoldenPathArtifacts.Manifest(report, artifacts));
+            if (json) stdout.WriteLine(jsonText);
+            else stdout.WriteLine($"Trace artifacts written: {outDir}");
+            return 0;
+        }
+
         var text = json ? JsonSerializer.Serialize(report, JsonOptions) : AirTraceTextRenderer.Render(report);
         if (!string.IsNullOrWhiteSpace(outDir))
         {
@@ -1995,7 +2060,7 @@ public static class CliRunner
         stdout.WriteLine("  --case <name>      Built-in lowering case name.");
         stdout.WriteLine("  --fixture <path>   Firmament fixture trace input (.valid/.invalid.firmfixture).");
         stdout.WriteLine("  --json          Emit deterministic machine-readable JSON (default output is human-readable text).");
-        stdout.WriteLine("  --out-dir <dir> Write the trace report artifact into a directory.");
+        stdout.WriteLine("  --out-dir <dir> Write trace artifacts into a directory; the controlled side-hole fixture also writes side-hole.step, side-hole.trace.json, side-hole.trace.txt, and manifest.json.");
         stdout.WriteLine("  -h, --help      Show this help.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
@@ -2003,6 +2068,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer --json");
         stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --json");
         stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --out-dir artifacts/air-x7");
+        stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture --out-dir artifacts/air-region-x13/side-hole");
     }
 
     private static void WriteAnalyzeHelp(TextWriter stdout)

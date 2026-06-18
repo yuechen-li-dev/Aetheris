@@ -41,7 +41,8 @@ internal sealed record AirTraceReport(
     AirTraceFeatureAirSummary? FeatureAir = null,
     AirTraceConstructiveAirSummary? ConstructiveAir = null,
     AirTraceProfileEmissionSummary? ProfileEmission = null,
-    [property: JsonPropertyName("regions")] AirRegionTraceSummary? Regions = null);
+    [property: JsonPropertyName("regions")] AirRegionTraceSummary? Regions = null,
+    AirTraceArtifactsSummary? Artifacts = null);
 
 internal sealed record AirTraceFixtureSummary(string Path, string Expectation, string CaseName, string? ExpectedStage, string ActualStageReached, string? ExpectedRoute, string? ExpectedReason, bool ExpectationSatisfied, bool ParserBacked, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceFrontendSummary(bool ParserBacked, string? ParserName, bool? ParseSucceeded, IReadOnlyList<string> ParseDiagnostics, string? FrontendStageReached, string? FrontendSummary);
@@ -56,6 +57,7 @@ internal sealed record AirTraceRouteDecisionSummary(string Mode, string? Selecte
 internal sealed record AirTraceBRepPlanSummary(string PlanKind, int Vertices, int Curves, int Edges, int Faces, int Loops, int Coedges, int Surfaces, int CapFaces, int TransitionFaces, int ChamferFaces, int SideFaces, string SplitPolicy, string Bounds, string? RouteSelectionMode, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceEmissionSummary(string ExistingEmitterPath, bool Succeeded, string Recommendation);
 internal sealed record AirTraceStepSmokeSummary(bool WasChecked, bool Succeeded, bool RequiredMarkersPresent, bool ForbiddenMarkersAbsent, IReadOnlyList<string> Diagnostics);
+internal sealed record AirTraceArtifactsSummary(string Step, string TraceJson, string TraceText, string Manifest);
 internal sealed record AirTraceCirMirrorSummary(string Status, string Backend, string SourceNode, string SourceKind, string SelectionClass, string Rule, string MirrorBuilderRoute, IReadOnlyList<string> Capabilities, IReadOnlyList<string> KnownLosses, IReadOnlyList<string> Provenance, IReadOnlyList<string> Diagnostics);
 
 internal static class AirTraceReportBuilder
@@ -561,6 +563,15 @@ internal static class AirTraceTextRenderer
                 foreach (var loss in region.KnownLosses) b.AppendLine($"    Reason: {loss}");
                 foreach (var guarantee in region.Guarantees) b.AppendLine($"    Guarantee: {guarantee}");
             }
+            b.AppendLine();
+        }
+        if (r.Artifacts is not null)
+        {
+            b.AppendLine("Artifacts");
+            b.AppendLine($"  STEP: {r.Artifacts.Step}");
+            b.AppendLine($"  JSON: {r.Artifacts.TraceJson}");
+            b.AppendLine($"  Text: {r.Artifacts.TraceText}");
+            b.AppendLine($"  Manifest: {r.Artifacts.Manifest}");
             b.AppendLine();
         }
         b.AppendLine("AIR"); b.AppendLine($"  Node: {r.Air.Node}"); b.AppendLine($"  Route: {r.Air.Route}"); b.AppendLine($"  Selection class: {r.Air.SelectionClass}"); b.AppendLine($"  Rule: {r.Air.Rule}"); b.AppendLine($"  Construction history: {r.Air.ConstructionHistory}"); b.AppendLine();

@@ -675,3 +675,7 @@ AIR-REGION-X11 removes the controlled `CutWallAttachment` blocker for the side-h
 ## AIR-REGION-X12 status note
 
 AIR-REGION-X12 closes the controlled side-hole shell for `side-hole-face-attached-region.valid.firmfixture` by consuming the explicit `RegionIntegrationPatch` after X9/X10/X11 entry-loop, exit-loop, and cut-wall evidence. The result is `region-parent-integrated` for that fixture only: parent integration is `Integrated`, shell closure is `Closed`, STEP smoke evidence is `Succeeded`, CIR remains analysis-only, Boolean remains unused/not generally admitted, and no production/general side-hole route is introduced.
+
+## AIR-REGION-X13 status note
+
+AIR-REGION-X13 locks the AIR-REGION-X12 controlled side-hole golden path as generated-on-demand artifacts. The stable command writes `side-hole.step`, `side-hole.trace.json`, `side-hole.trace.txt`, and `manifest.json` under `artifacts/air-region-x13/side-hole` for the single controlled fixture. It does not add general side-hole support, arbitrary face/axis support, CIR topology authority, or Boolean admission.

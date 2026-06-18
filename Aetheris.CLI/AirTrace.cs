@@ -192,18 +192,18 @@ internal static class AirTraceReportBuilder
     private static AirTraceReport BuildSideHoleFaceAttachedRegionFixture(FirmFixture fixture)
     {
         var regions = AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred();
-        var actualStage = "region-face-split";
+        var actualStage = "region-exit-loop";
         var expectationSatisfied = fixture.Expectation == "valid" && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
         var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", "air-region-x4-firmfixture-boundary-contract-created", "air-region-x5-firmfixture-integration-decision-created", "air-region-x6-firmfixture-brep-placeholders-created", "air-region-x7-firmfixture-materialization-created", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
-        return new("AIR-REGION-X9", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole creates controlled +X parent face split and entry-loop evidence; parent integration remains partial.",
-            new("RegionFixture", "ControlledSideHoleParentBRepIntegration", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X9"),
-            new("SwitchMatch", "ControlledSideHoleParentBRepIntegration", false, "controlled +X face split and entry loop evidence created; parent integration remains partial", "FaceAttachedRegion", "SideHole", []),
+        return new("AIR-REGION-X10", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole creates controlled +X entry-loop and -X exit-loop evidence; parent integration remains partial.",
+            new("RegionFixture", "ControlledSideHoleParentBRepIntegration", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X10"),
+            new("SwitchMatch", "ControlledSideHoleParentBRepIntegration", false, "controlled +X entry loop and -X exit loop evidence created; parent integration remains partial", "FaceAttachedRegion", "SideHole", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
-            new("ControlledSideHoleParentBRepIntegration", true, "standalone side-hole patch evidence preserved; controlled +X entry face split evidence created; parent integration partial"),
+            new("ControlledSideHoleParentBRepIntegration", true, "standalone side-hole patch evidence preserved; controlled +X entry and -X exit face split evidence created; parent integration partial"),
             new(false, false, false, false, []),
             new("not-requested", "none", "none", "RegionFixture", "none", "none", "none", [], [], [], []),
             [], ["parent BRep integration not implemented", "CIR evaluator composition deferred"], fxDiagnostics,
-            [.. regions.Guarantees, "metadata-driven region fixture", "controlled standalone patch materialized", "controlled +X face split evidence", "parent integration partial"],
+            [.. regions.Guarantees, "metadata-driven region fixture", "controlled standalone patch materialized", "controlled +X face split evidence", "controlled -X exit loop evidence", "parent integration partial"],
             ["no AIR Region production integration", "no production route replacement", "no Firmament grammar expansion", "no BRepPlan semantics change", "no CIR evaluator/tape behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no production analyzer behavior change", "no Boolean behavior change", "no AirEdgeSweep behavior change", "no BrepBoundedChamfer/BrepBoundedFillet behavior change", "no chamfer/fillet/shell geometry change", "no arbitrary graph support", "no import/recovery", "no triangle migration", "no NURBS/freeform behavior change"],
             new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, fxDiagnostics),
             fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics, Regions: regions);
@@ -432,6 +432,36 @@ internal static class AirTraceTextRenderer
                     }
                     b.AppendLine("      Guarantees:");
                     foreach (var guarantee in fs.Guarantees) b.AppendLine($"        - {guarantee}");
+                }
+
+                if (region.ExitLoop is not null)
+                {
+                    var el = region.ExitLoop;
+                    b.AppendLine("    Region exit loop");
+                    b.AppendLine($"      Region: {el.SourceRegionId}");
+                    b.AppendLine($"      Exit face: {el.ExitFaceSelector}");
+                    b.AppendLine($"      Status: {el.ExitLoopStatus}");
+                    b.AppendLine($"      Profile: {el.ExitLoopProfile}");
+                    b.AppendLine($"      Placeholder consumed: {el.ExitLoopRole}");
+                    b.AppendLine("      Topology:");
+                    b.AppendLine($"        Face loops: {el.TopologySummary.FaceLoopCount}");
+                    b.AppendLine($"        Inner loops: {el.TopologySummary.InnerLoopCount}");
+                    b.AppendLine($"        Circular edges: {el.TopologySummary.CircularEdgeCount}");
+                    b.AppendLine("      Blocker:");
+                    if (el.Blocker is null)
+                    {
+                        b.AppendLine("        Category: none");
+                        b.AppendLine("        Code: none");
+                        b.AppendLine("        Message: none");
+                    }
+                    else
+                    {
+                        b.AppendLine($"        Category: {el.Blocker.Category}");
+                        b.AppendLine($"        Code: {el.Blocker.Code}");
+                        b.AppendLine($"        Message: {el.Blocker.Message}");
+                    }
+                    b.AppendLine("      Guarantees:");
+                    foreach (var guarantee in el.Guarantees) b.AppendLine($"        - {guarantee}");
                 }
 
                 if (region.ParentIntegration is not null)

@@ -662,3 +662,8 @@ AIR-REGION-X8 adds a controlled side-hole parent BRep integration attempt to the
 ## AIR-REGION-X9 status note
 
 AIR-REGION-X9 advances the side-hole parent integration evidence past the generic X8 `FaceSplitting` blocker. The controlled `+X` face now reports face-split and circular entry-loop evidence with `CutEntryLoop` consumed. Parent integration remains partial with `ExitLoopInsertion` as the next specific blocker; Boolean fallback and general side-hole support remain disallowed.
+
+
+### AIR-REGION-X10 status note
+
+AIR-REGION-X10 addresses the X9 `ExitLoopInsertion` blocker for the controlled side-hole fixture. The trace now reports deterministic `-X` opposite-face exit-loop evidence, consumes/materializes `CutExitLoop`, preserves the X9 `+X` entry-loop evidence, and advances the next blocker to `CutWallAttachment`. Parent integration remains partial; shell closure, STEP/export, Boolean integration, general side-hole support, arbitrary face/axis support, and production route replacement remain out of scope.

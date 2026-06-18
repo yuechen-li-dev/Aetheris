@@ -55,6 +55,8 @@ This document is documentation/design only. It does not implement AIR, change pr
 
 Firmament V2 is the canonical human-facing source-language design for this constitution. V2 source is expected to lower through source AST and semantic intent into Feature AIR, then Constructive/Compositional AIR, BRepPlan, BRep, and STEP/artifacts. AIR remains IR, BRep remains the topology/export backend, and CIR remains an optional computational implicit mirror for admitted analysis rather than topology authority. See `docs/air-firmament-a2-firmament-v2-source-language-design.md`.
 
+Firmament V2 `with` derivation is source-level record derivation resolved during name/record resolution before Feature AIR lowering. It produces revalidated source records and must not become mutation, topology editing, backend patching, CIR topology authority, or STEP/BRep behavior. See `docs/air-firmament-a2-2-record-derivation-with.md`.
+
 AIR-A1 extends this constitution with **AIR Regions**: scoped construction islands inside AIR for local-frame features whose effects escape only through explicit yields and route-selected parent integration. The doctrine is that different-axis features such as side holes, side pockets, bosses, pattern elements, and future shell/local offset contexts should be represented as scoped local AIR intent first; Boolean remains only one possible admitted backend integration route, not the default representation. See `docs/air-a1-air-regions-scoped-feature-lowering-audit.md`.
 
 ## 2. Compiler analogy

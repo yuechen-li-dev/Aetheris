@@ -1,0 +1,29 @@
+// fixture-id: feature-with-radius-variant-v2
+// case: firmament-v2-feature-with-radius-variant
+// category: RecordDerivation
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2.2 metadata-only nested with feature variant fixture; not parser-backed.
+
+model FeatureWithRadiusVariant {
+    units mm
+
+    feature sideHole = Cut {
+        on: face(+X)
+
+        tool: Cylinder {
+            radius: 1
+            through: face(-X)
+        }
+    }
+
+    feature largeSideHole = sideHole with {
+        tool: sideHole.tool with {
+            radius: 2
+        }
+    }
+}

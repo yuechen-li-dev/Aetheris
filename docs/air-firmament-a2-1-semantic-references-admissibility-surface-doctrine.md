@@ -381,6 +381,8 @@ A2.1 tests should verify that metadata is recognized, V2 semantic-reference fixt
 
 A2.1 extends A2 rather than replacing it. A2 remains the broader V2 source-language audit; this document is the semantic-reference, admissibility, and surface-doctrine addendum. The A1 fixture-corpus doc records the expanded V2 metadata-only taxonomy. The A0 compiler IR constitution records that Firmament V2 rejects provable degenerate construction intent before backend emission when possible.
 
+A2.2 extends this doctrine with `with` record derivation/configuration. `=>` remains the semantic exposure construct; `with` derives record values and must revalidate derived records rather than mutating selectors, backend topology, or existing objects. See `docs/air-firmament-a2-2-record-derivation-with.md`.
+
 ## 21. Non-goals
 
 A2.1 explicitly preserves: no parser implementation; no backend implementation; no shell implementation; no fillet implementation; no surfacing implementation; no pattern implementation; no material implementation; no broad Boolean; no CIR topology authority; no STEP behavior change; no BRep topology behavior change; no Firmasm redesign; no corpus migration; no production route replacement; no general side-hole support; no arbitrary face/axis support; no production analyzer/map behavior changes; no CIR evaluator/tape behavior changes; no route-selection/JudgmentUtility production behavior changes; no AirEdgeSweep behavior changes; no BrepBoundedChamfer/BrepBoundedFillet behavior changes; no triangle migration; and no NURBS/freeform implementation.

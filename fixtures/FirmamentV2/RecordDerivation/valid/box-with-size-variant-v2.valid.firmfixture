@@ -1,0 +1,22 @@
+// fixture-id: box-with-size-variant-v2
+// case: firmament-v2-box-with-size-variant
+// category: RecordDerivation
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2.2 metadata-only record derivation fixture; not parser-backed.
+
+model BoxWithSizeVariant {
+    units mm
+
+    solid base = Box {
+        size: [10, 8, 6]
+    }
+
+    solid tall = base with {
+        size: [10, 8, 12]
+    }
+}

@@ -8,6 +8,7 @@ public sealed class FirmamentFixtureCorpusTests
     private static readonly string V2CorpusRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2"));
     private static readonly string V2DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-firmament-v2-source-language-design.md"));
     private static readonly string V21DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-1-semantic-references-admissibility-surface-doctrine.md"));
+    private static readonly string V22DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-2-record-derivation-with.md"));
     private static readonly string[] RequiredMetadata = ["fixture-id", "case", "category", "validity", "implementation", "expected", "expected-stage"];
 
     [Fact]
@@ -110,6 +111,12 @@ public sealed class FirmamentFixtureCorpusTests
         Assert.Contains(fixtures, p => p.EndsWith("Surface/future/ruled-surface-rails-v2.valid.firmfixture", StringComparison.Ordinal));
         Assert.Contains(fixtures, p => p.EndsWith("Surface/future/offset-surface-detail-v2.valid.firmfixture", StringComparison.Ordinal));
         Assert.Contains(fixtures, p => p.EndsWith("Pattern/future/linear-pattern-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/valid/feature-with-radius-variant-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/valid/material-with-property-variant-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/invalid/with-degenerate-box-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/invalid/with-selector-target-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/invalid/with-unknown-field-v2.invalid.firmfixture", StringComparison.Ordinal));
 
         foreach (var path in fixtures)
         {
@@ -210,6 +217,70 @@ public sealed class FirmamentFixtureCorpusTests
         Assert.Contains("no conditionals", doc, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("=>", doc, StringComparison.Ordinal);
         Assert.Contains("not BRep IDs", doc, StringComparison.OrdinalIgnoreCase);
+    }
+
+
+    [Fact]
+    public void FirmamentV2RecordDerivation_MetadataRecognized()
+    {
+        var fixtures = DiscoverV2Fixtures().Where(p => p.Contains("/RecordDerivation/", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(6, fixtures.Length);
+        foreach (var path in fixtures)
+        {
+            var fixture = LoadMetadata(path);
+            Assert.Equal("FirmamentV2", fixture["syntax-version"]);
+            Assert.Equal("RecordDerivation", fixture["category"]);
+            Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2RecordDerivation_NotV1ParseFailures()
+    {
+        foreach (var path in DiscoverV2Fixtures().Where(p => p.Contains("/RecordDerivation/", StringComparison.Ordinal)))
+        {
+            using var doc = Trace(path);
+            var metadata = LoadMetadata(path);
+            var diagnostics = doc.RootElement.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
+            Assert.False(doc.RootElement.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
+            Assert.True(doc.RootElement.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean(), path);
+            Assert.Equal(metadata["expected-stage"], doc.RootElement.GetProperty("actualStageReached").GetString());
+            Assert.Contains(metadata["expected-diagnostic"], diagnostics);
+            Assert.DoesNotContain("air-x11-firmament-parse-failed", diagnostics);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2RecordDerivation_InvalidFixtures_ReportExpectedDiagnostics()
+    {
+        var expected = new[]
+        {
+            (Path: "RecordDerivation/invalid/with-degenerate-box-v2.invalid.firmfixture", Diagnostic: "firmament-degenerate-dimension"),
+            (Path: "RecordDerivation/invalid/with-selector-target-v2.invalid.firmfixture", Diagnostic: "firmament-with-requires-record"),
+            (Path: "RecordDerivation/invalid/with-unknown-field-v2.invalid.firmfixture", Diagnostic: "firmament-with-field-not-found")
+        };
+
+        foreach (var item in expected)
+        {
+            using var doc = Trace(Path.Combine(V2CorpusRoot, item.Path));
+            var diagnostics = doc.RootElement.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
+            Assert.True(doc.RootElement.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean(), item.Path);
+            Assert.Contains(item.Diagnostic, diagnostics);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2Doctrine_DocsMentionWithDerivation()
+    {
+        Assert.True(File.Exists(V22DoctrinePath), V22DoctrinePath);
+        var doc = File.ReadAllText(V22DoctrinePath);
+        Assert.Contains("immutable record derivation", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not mutation", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not topology editing", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("admissibility", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("no control flow", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("nested `with`", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("=>", doc, StringComparison.Ordinal);
     }
 
     [Fact]

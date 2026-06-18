@@ -1,0 +1,22 @@
+// fixture-id: with-unknown-field-v2
+// case: firmament-v2-with-unknown-field
+// category: RecordDerivation
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-with-field-not-found
+// notes: AIR-FIRMAMENT-A2.2 metadata-only invalid derivation fixture; overridden fields must exist on the source record type.
+
+model WithUnknownField {
+    units mm
+
+    solid base = Box {
+        size: [10, 8, 6]
+    }
+
+    solid bad = base with {
+        colorway: "blue"
+    }
+}

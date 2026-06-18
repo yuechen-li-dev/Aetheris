@@ -1,0 +1,24 @@
+// fixture-id: material-with-property-variant-v2
+// case: firmament-v2-material-with-property-variant
+// category: RecordDerivation
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2.2 metadata-only material variant fixture; material parsing/lowering is not implemented.
+
+model MaterialWithPropertyVariant {
+    units mm
+
+    material steel = Isotropic {
+        youngs: 200 GPa
+        poisson: 0.30
+        density: 7850 kg/m^3
+    }
+
+    material softSteel = steel with {
+        youngs: 180 GPa
+    }
+}

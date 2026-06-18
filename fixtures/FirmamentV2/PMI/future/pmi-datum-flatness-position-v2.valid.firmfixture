@@ -1,0 +1,18 @@
+// fixture-id: pmi-datum-flatness-position-v2
+// case: firmament-v2-pmi-datum-flatness-position
+// category: PMI
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2.3 metadata-only PMI datum/GD&T fixture; not parser-backed.
+
+pmi BracketInspection {
+    datum A: base.face(+Z)
+    datum B: base.face(+X)
+
+    flatness base.face(+Z) { tolerance: 0.05 mm }
+    position sideHole.axis { tolerance: 0.10 mm datums: [A, B] }
+}

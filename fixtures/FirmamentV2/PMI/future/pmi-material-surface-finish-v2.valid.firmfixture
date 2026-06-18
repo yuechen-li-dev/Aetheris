@@ -1,0 +1,16 @@
+// fixture-id: pmi-material-surface-finish-v2
+// case: firmament-v2-pmi-material-surface-finish
+// category: PMI
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2.3 metadata-only PMI material/surface finish fixture; not parser-backed.
+
+pmi MaterialAndFinish {
+    assign Aluminum6061T6 to base
+    surfaceFinish base.face(+Z) { roughnessRa: 1.6 um }
+    note { target: sideHole.wallFace text: "Deburr bore after machining." }
+}

@@ -1,5 +1,7 @@
 # AIR-FIRMAMENT-A2.2 — Firmament V2 record derivation with `with`
 
+A2.3 applies the same immutable `with` doctrine to manufacturing templates/configs: derived `template<Process>` records may override typed `concept` facts, are revalidated, and do not mutate the original template. See `docs/air-firmament-a2-3-dfm-templates-concepts-pmi.md`.
+
 ## 1. Purpose
 
 A2.2 defines `with` as Firmament V2's record derivation and configuration mechanism. Firmament V2 is a typed declarative record language, so configuration should remain data-shaped: named records are authored once, then immutable derived records express variants by overriding selected fields.

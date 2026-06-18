@@ -1,5 +1,7 @@
 # AIR-FIRMAMENT-A2 — Firmament V2 source language design audit
 
+A2.3 adds manufacturing/process doctrine: `template<Process>` records for DFM contexts, typed `concept` facts for admissibility, and PMI records for product/manufacturing annotations with GD&T as one PMI category rather than the umbrella. See `docs/air-firmament-a2-3-dfm-templates-concepts-pmi.md`.
+
 ## Purpose
 
 Firmament V2 is the next canonical human-facing Aetheris source language. It is a source language for authoring construction intent: names, units, selections, profiles, regions, feature operations, materials, and traceable feature history. It is not a serialized IR and it is not a backend topology language.

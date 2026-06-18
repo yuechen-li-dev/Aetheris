@@ -1,5 +1,7 @@
 # AIR-FIRMAMENT-A1 — Firmament fixture corpus and lowering-stage taxonomy
 
+AIR-FIRMAMENT-A2.3 extends the V2 metadata-only design fixture taxonomy with `fixtures/FirmamentV2/Templates/` for `template<Process>`/`concept` doctrine and `fixtures/FirmamentV2/PMI/` for product/manufacturing information examples. These fixtures remain parser-not-ready or metadata-rejected contracts and must not be treated as V1 parse failures.
+
 ## Purpose
 
 AIR-FIRMAMENT-A1 formalizes Firmament as Aetheris' source-language corpus. `.firmfixture` files are compiler-style fixtures: they record authoring intent, expected validity, expected implementation state, expected lowering stage, and stable diagnostics before geometry support is broadened.

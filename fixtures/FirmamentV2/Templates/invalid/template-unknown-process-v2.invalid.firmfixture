@@ -1,0 +1,14 @@
+// fixture-id: template-unknown-process-v2
+// case: firmament-v2-template-unknown-process
+// category: Templates
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-template-process-unknown
+// notes: AIR-FIRMAMENT-A2.3 metadata-only invalid process fixture; not parser-backed.
+
+template<MagicUnicornProcess> ShopDefault {
+    concept minimumToolRadius: 0.1 mm
+}

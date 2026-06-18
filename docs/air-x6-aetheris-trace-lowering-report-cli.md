@@ -197,3 +197,7 @@ AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fi
 ## AIR-REGION-X8 trace note
 
 The side-hole region fixture now includes a `Region parent integration` text section and stable JSON `parentIntegration` object. For X8 it reports `Blocked`, route `ControlledSideHoleParentBRepIntegration`, placeholder mappings, preserved topology evidence, STEP smoke unavailable, and a structured `FaceSplitting` blocker.
+
+## AIR-REGION-X9 side-hole face split trace section
+
+For `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now includes a `Region face split` text section and a JSON `regions.regions[].faceSplit` object. The section records the controlled `+X` affected face, `SplitCreated` face split status, `EntryLoopMaterialized` entry loop status, `Circle(radius=1)`, consumed `CutEntryLoop` placeholder identity, and bounded loop evidence. Parent integration remains partial with a more specific `ExitLoopInsertion` blocker.

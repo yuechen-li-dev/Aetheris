@@ -69,3 +69,7 @@ The implementation was validated with CLI build/help, side-hole text and JSON tr
 ## Recommended next milestone
 
 Recommended: **AIR-REGION-X9 — Controlled side-hole parent face split and loop insertion adapter**. The next milestone should directly address the reported `FaceSplitting` blocker by adding the smallest controlled adapter for the exact +X through-hole fixture, then binding the preserved X7 cylindrical wall evidence into the parent shell.
+
+## AIR-REGION-X9 update
+
+AIR-REGION-X9 clears the generic X8 `FaceSplitting` blocker for the controlled `+X` side-hole fixture by adding trace/evidence for a controlled parent face split with a circular entry inner loop. Parent integration remains partial: the next blocker is `ExitLoopInsertion`, followed by cut-wall attachment and shell closure. No Boolean fallback, production route replacement, general side-hole support, arbitrary face/axis support, STEP exporter/importer change, or production BRep topology behavior change is introduced.

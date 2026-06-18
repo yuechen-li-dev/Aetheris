@@ -109,3 +109,7 @@ AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fi
 ## AIR-REGION-X8 placeholder consumption note
 
 AIR-REGION-X8 consumes all five X6 placeholders in a controlled parent integration attempt. `CutWallFace` maps to preserved X7 cylindrical wall evidence, while `AffectedParentFace`, `CutEntryLoop`, `CutExitLoop`, and `RegionIntegrationPatch` are blocked by the missing parent face split and loop insertion adapter.
+
+## AIR-REGION-X9 CutEntryLoop consumption note
+
+AIR-REGION-X9 consumes the stable `CutEntryLoop` placeholder for the controlled `+X` side-hole fixture as trace/evidence for a circular entry inner loop on the affected parent face. The placeholder ID remains stable (`region:side-hole:+x:entry-loop`). This is controlled fixture evidence only; it does not introduce arbitrary planar face splitting or production topology mutation.

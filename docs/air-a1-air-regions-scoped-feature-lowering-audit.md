@@ -658,3 +658,7 @@ AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fi
 ## AIR-REGION-X8 status note
 
 AIR-REGION-X8 adds a controlled side-hole parent BRep integration attempt to the AIR Region trace. The attempt consumes the X2-X7 evidence chain and reports Outcome B: blocked at parent face splitting/loop insertion, with no fake integrated parent topology, no Boolean use, and no general side-hole support.
+
+## AIR-REGION-X9 status note
+
+AIR-REGION-X9 advances the side-hole parent integration evidence past the generic X8 `FaceSplitting` blocker. The controlled `+X` face now reports face-split and circular entry-loop evidence with `CutEntryLoop` consumed. Parent integration remains partial with `ExitLoopInsertion` as the next specific blocker; Boolean fallback and general side-hole support remain disallowed.

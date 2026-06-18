@@ -809,3 +809,7 @@ AIR-REGION-X5 adds a trace-only side-hole integration route decision scaffold. T
 ## AIR-REGION-X6 placeholder note
 
 AIR-REGION-X6 reinforces the constitution's separation between AIR, BRepPlan, BRep, and CIR by introducing trace-only region BRepPlan placeholders. These placeholders are planned topology scaffolding for a future materializer, not emitted BRep, not STEP/export authority, not CIR topology authority, and not a production route replacement.
+
+## AIR-REGION-X7 note
+
+AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fixture and materializes standalone patch evidence for the entry loop, exit loop, and cylindrical cut wall. Parent BRep integration remains deferred; CIR remains analysis-only; Boolean is not generally admitted; no production route replacement or general side-hole support is introduced.

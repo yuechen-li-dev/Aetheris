@@ -1,6 +1,6 @@
 // case: side-hole-face-attached-region
 // expected: valid
-// expected-stage: region-brep-placeholders
+// expected-stage: region-materialization-partial
 // expected-region-kind: FaceAttachedRegion
 // expected-effect: Subtractive
 // expected-yield: YieldSubtractiveVolume
@@ -26,7 +26,7 @@
 // expected-brep-role: CutEntryLoop
 // expected-brep-role: CutWallFace
 // expected-brep-loss: no-emitted-entry-loop-identity
-// expected-integration-route: DeferredIntegration
+// expected-integration-route: ControlledSideHolePatchMaterialization
 // expected-integration-status: Deferred
 // expected-candidate: FaceAttachedConstructiveInsertion:Deferred
 // expected-candidate: LocalBRepPlanPatch:Deferred
@@ -34,7 +34,14 @@
 // expected-candidate: CirAnalysisMirrorOnly:AvailableForAnalysis
 // expected-candidate: DeferredIntegration:Selected
 // expected-reason: no-topology-integration-route-admitted
-// description: Trace-only face-attached side-hole region fixture; integration deferred.
+// expected-materialization: PartiallyMaterialized
+// expected-materialization-route: ControlledSideHolePatchMaterialization
+// expected-parent-integration: Deferred
+// expected-placeholder-materialized: CutEntryLoop
+// expected-placeholder-materialized: CutExitLoop
+// expected-placeholder-materialized: CutWallFace
+// expected-cylindrical-faces-min: 1
+// description: Face-attached side-hole fixture with controlled standalone patch materialization; parent integration deferred.
 
 solid box = Box(width: 10, depth: 8, height: 6);
 region sideHole on box.face("+X") {

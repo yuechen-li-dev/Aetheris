@@ -325,7 +325,7 @@ public sealed class AirTraceCommandTests
         Assert.Contains("CutEntryLoop", output); Assert.Contains("CutWallFace", output);
         Assert.Contains("no parent topology mutation", output); Assert.Contains("no BRepPlan elements materialized", output);
         Assert.Contains("Region integration decision", output);
-        Assert.Contains("Selected: DeferredIntegration", output);
+        Assert.Contains("Selected: ControlledSideHolePatchMaterialization", output);
         Assert.Contains("Status: Deferred", output);
         Assert.Contains("FaceAttachedConstructiveInsertion: Deferred", output);
         Assert.Contains("LocalBRepPlanPatch: Deferred", output);
@@ -342,7 +342,7 @@ public sealed class AirTraceCommandTests
         using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
         Assert.Equal("valid", root.GetProperty("fixture").GetProperty("expectation").GetString());
         Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
-        Assert.Equal("region-brep-placeholders", root.GetProperty("actualStageReached").GetString());
+        Assert.Equal("region-materialization-partial", root.GetProperty("actualStageReached").GetString());
         var regions = root.GetProperty("regions");
         Assert.Equal(2, regions.GetProperty("regionCount").GetInt32());
         Assert.True(regions.GetProperty("hasNestedRegions").GetBoolean());
@@ -398,7 +398,7 @@ public sealed class AirTraceCommandTests
         Assert.Contains("no-brep-plan-element-materialization", boundaryLosses);
         Assert.Equal("Deferred", brepBoundary.GetProperty("integrationStatus").GetString());
         var decision = side.GetProperty("integrationDecision");
-        Assert.Equal("DeferredIntegration", decision.GetProperty("selectedRouteKind").GetString());
+        Assert.Equal("ControlledSideHolePatchMaterialization", decision.GetProperty("selectedRouteKind").GetString());
         Assert.Equal("Deferred", decision.GetProperty("selectedStatus").GetString());
         Assert.Equal("SwitchMatch", decision.GetProperty("selectionMode").GetString());
         var candidates = decision.GetProperty("candidates").EnumerateArray().ToDictionary(c => c.GetProperty("routeKind").GetString()!, c => c);
@@ -412,7 +412,7 @@ public sealed class AirTraceCommandTests
         Assert.Equal("cir-mirror-analysis-only", candidates["CirAnalysisMirrorOnly"].GetProperty("reasonCode").GetString());
         Assert.Equal("Selected", candidates["DeferredIntegration"].GetProperty("status").GetString());
         Assert.Equal("no-topology-integration-route-admitted", candidates["DeferredIntegration"].GetProperty("reasonCode").GetString());
-        Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
+        Assert.True(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
         Assert.False(root.GetProperty("stepSmoke").GetProperty("succeeded").GetBoolean());
         Assert.Equal("none", root.GetProperty("brepPlan").GetProperty("planKind").GetString());
     }
@@ -427,6 +427,11 @@ public sealed class AirTraceCommandTests
         Assert.Contains("Status: PlaceholderOnly", output);
         Assert.Contains("Elements: 5", output);
         Assert.Contains("Materialized: 0", output);
+        Assert.Contains("Region materialization", output);
+        Assert.Contains("ControlledSideHolePatchMaterialization", output);
+        Assert.Contains("CutWallFace -> Materialized", output);
+        Assert.Contains("Cylindrical faces: 1", output);
+        Assert.Contains("no general side-hole support", output);
         Assert.Contains("region:side-hole:+x:entry-loop", output);
         Assert.Contains("CutEntryLoop", output);
         Assert.Contains("CutExitLoop", output);
@@ -463,10 +468,15 @@ public sealed class AirTraceCommandTests
         Assert.Contains("CutEntryLoop", roles); Assert.Contains("CutExitLoop", roles); Assert.Contains("CutWallFace", roles);
         Assert.Contains("AffectedParentFace", roles); Assert.Contains("RegionIntegrationPatch", roles);
         Assert.All(elements, e => Assert.True(e.GetProperty("materializationStatus").GetString() is "NotMaterialized" or "ReferenceOnly"));
-        Assert.Equal("DeferredIntegration", side.GetProperty("integrationDecision").GetProperty("selectedRouteKind").GetString());
+        Assert.Equal("ControlledSideHolePatchMaterialization", side.GetProperty("integrationDecision").GetProperty("selectedRouteKind").GetString());
         Assert.Equal("Rejected", side.GetProperty("integrationDecision").GetProperty("candidates").EnumerateArray().Single(c => c.GetProperty("routeKind").GetString() == "BRepBooleanFallback").GetProperty("status").GetString());
-        Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
+        Assert.True(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
         Assert.False(root.GetProperty("stepSmoke").GetProperty("succeeded").GetBoolean());
+        var materialization = side.GetProperty("materialization");
+        Assert.Equal("PartiallyMaterialized", materialization.GetProperty("status").GetString());
+        Assert.Equal("ControlledSideHolePatchMaterialization", materialization.GetProperty("route").GetString());
+        Assert.Equal(1, materialization.GetProperty("topologySummary").GetProperty("cylindricalFaceCount").GetInt32());
+        Assert.Contains(materialization.GetProperty("placeholderMappings").EnumerateArray(), m => m.GetProperty("placeholderRole").GetString() == "CutWallFace" && m.GetProperty("materializationStatus").GetString() == "Materialized");
     }
 
     [Fact]
@@ -510,12 +520,12 @@ public sealed class AirTraceCommandTests
     }
 
     [Fact]
-    public void TraceSideHoleRegion_EnforcesLocality_NoGeometryOrBoolean()
+    public void TraceSideHoleRegion_EnforcesLocality_NoParentBRepOrBoolean()
     {
         var (exitCode, output, _) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
-        Assert.False(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
+        Assert.True(root.GetProperty("emission").GetProperty("succeeded").GetBoolean());
         Assert.False(root.GetProperty("stepSmoke").GetProperty("succeeded").GetBoolean());
         Assert.Equal("none", root.GetProperty("brepPlan").GetProperty("planKind").GetString());
         var side = root.GetProperty("regions").GetProperty("regions").EnumerateArray().Single(r => r.GetProperty("regionKind").GetString() == "FaceAttachedRegion");

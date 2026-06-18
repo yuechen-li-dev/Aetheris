@@ -100,3 +100,7 @@ If this scaffolding remains stable, the recommended next milestone is **AIR-REGI
 ## Tests run
 
 The implementation was validated with CLI help/build, side-hole text/JSON traces, invalid implicit-parent-mutation JSON trace, parser-backed box trace, and focused filtered .NET tests recorded in the PR summary.
+
+## AIR-REGION-X7 note
+
+AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fixture and materializes standalone patch evidence for the entry loop, exit loop, and cylindrical cut wall. Parent BRep integration remains deferred; CIR remains analysis-only; Boolean is not generally admitted; no production route replacement or general side-hole support is introduced.

@@ -192,18 +192,18 @@ internal static class AirTraceReportBuilder
     private static AirTraceReport BuildSideHoleFaceAttachedRegionFixture(FirmFixture fixture)
     {
         var regions = AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred();
-        var actualStage = "region-brep-placeholders";
+        var actualStage = "region-materialization-partial";
         var expectationSatisfied = fixture.Expectation == "valid" && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
-        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", "air-region-x4-firmfixture-boundary-contract-created", "air-region-x5-firmfixture-integration-decision-created", "air-region-x6-firmfixture-brep-placeholders-created", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
-        return new("AIR-REGION-X6", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole reports trace-only BRepPlan placeholder elements; DeferredIntegration remains selected and no topology or geometry is emitted.",
-            new("RegionFixture", "DeferredIntegration", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X6"),
-            new("SwitchMatch", "DeferredIntegration", false, "region integration deferred; no topology integration route admitted", "FaceAttachedRegion", "SideHole", []),
+        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", "air-region-x4-firmfixture-boundary-contract-created", "air-region-x5-firmfixture-integration-decision-created", "air-region-x6-firmfixture-brep-placeholders-created", "air-region-x7-firmfixture-materialization-created", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
+        return new("AIR-REGION-X7", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole materializes a controlled standalone patch from BRepPlan placeholders; parent integration remains deferred.",
+            new("RegionFixture", "ControlledSideHolePatchMaterialization", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X6"),
+            new("SwitchMatch", "ControlledSideHolePatchMaterialization", false, "controlled standalone side-hole patch materialized; parent integration deferred", "FaceAttachedRegion", "SideHole", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
-            new("none", false, "no geometry emitted for trace-only region fixture"),
+            new("ControlledSideHolePatchMaterialization", true, "standalone side-hole patch evidence emitted; parent body not mutated"),
             new(false, false, false, false, []),
             new("not-requested", "none", "none", "RegionFixture", "none", "none", "none", [], [], [], []),
-            [], ["side-hole geometry integration not implemented", "CIR evaluator composition deferred"], fxDiagnostics,
-            [.. regions.Guarantees, "metadata-driven region fixture", "integration deferred"],
+            [], ["parent BRep integration not implemented", "CIR evaluator composition deferred"], fxDiagnostics,
+            [.. regions.Guarantees, "metadata-driven region fixture", "controlled standalone patch materialized", "parent integration deferred"],
             ["no AIR Region production integration", "no production route replacement", "no Firmament grammar expansion", "no BRepPlan semantics change", "no CIR evaluator/tape behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no production analyzer behavior change", "no Boolean behavior change", "no AirEdgeSweep behavior change", "no BrepBoundedChamfer/BrepBoundedFillet behavior change", "no chamfer/fillet/shell geometry change", "no arbitrary graph support", "no import/recovery", "no triangle migration", "no NURBS/freeform behavior change"],
             new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, fxDiagnostics),
             fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics, Regions: regions);
@@ -216,7 +216,7 @@ internal static class AirTraceReportBuilder
         var reasonSatisfied = string.IsNullOrWhiteSpace(fixture.ExpectedReason) || fixture.ExpectedReason == "implicit-parent-mutation-rejected";
         var expectationSatisfied = fixture.Expectation == "invalid" && reasonSatisfied && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
         var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
-        return BuildSideHoleFaceAttachedRegionFixture(fixture) with { Succeeded = false, Recommendation = "implicit parent mutation rejected", ActualStageReached = actualStage, ExpectedReason = fixture.ExpectedReason, ExpectationSatisfied = expectationSatisfied, FixtureDiagnostics = fxDiagnostics, Diagnostics = fxDiagnostics, Fixture = new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, fxDiagnostics), Regions = regions };
+        return BuildSideHoleFaceAttachedRegionFixture(fixture) with { Succeeded = false, Recommendation = "implicit parent mutation rejected", Emission = new("none", false, "no geometry emitted for rejected implicit parent mutation fixture"), StepSmoke = new(false, false, false, false, []), ActualStageReached = actualStage, ExpectedReason = fixture.ExpectedReason, ExpectationSatisfied = expectationSatisfied, FixtureDiagnostics = fxDiagnostics, Diagnostics = fxDiagnostics, Fixture = new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, fxDiagnostics), Regions = regions };
     }
 
     private static AirTraceReport BuildRejectedFixture(FirmFixture fixture, AirSelectionClass selectionClass, AirRuleKind ruleKind)
@@ -376,6 +376,31 @@ internal static class AirTraceTextRenderer
                     }
                     b.AppendLine("      Guarantees:");
                     foreach (var guarantee in bp.Guarantees) b.AppendLine($"        - {guarantee}");
+                }
+
+
+                if (region.Materialization is not null)
+                {
+                    var m = region.Materialization;
+                    b.AppendLine("    Region materialization");
+                    b.AppendLine($"      Region: {m.SourceRegionId}");
+                    b.AppendLine($"      Feature: {m.FeatureKind}");
+                    b.AppendLine($"      Status: {m.Status}");
+                    b.AppendLine($"      Route: {m.Route}");
+                    b.AppendLine("      Placeholder mappings:");
+                    foreach (var map in m.PlaceholderMappings)
+                    {
+                        b.AppendLine($"        - {map.PlaceholderRole} -> {map.MaterializationStatus}");
+                        b.AppendLine($"          Element: {map.MaterializedRole}");
+                    }
+                    b.AppendLine("      Topology:");
+                    b.AppendLine($"        Faces: {m.TopologySummary.FaceCount}");
+                    b.AppendLine($"        Loops: {m.TopologySummary.LoopCount}");
+                    b.AppendLine($"        Cylindrical faces: {m.TopologySummary.CylindricalFaceCount}");
+                    b.AppendLine($"        Closed: {(m.TopologySummary.Closed.HasValue ? m.TopologySummary.Closed.Value.ToString().ToLowerInvariant() : "unavailable")}");
+                    b.AppendLine($"      STEP smoke: {(m.StepSmoke.WasChecked ? (m.StepSmoke.Succeeded ? "succeeded" : "failed") : "unavailable")}");
+                    b.AppendLine("      Guarantees:");
+                    foreach (var guarantee in m.Guarantees) b.AppendLine($"        - {guarantee}");
                 }
 
                 if (region.IntegrationDecision is not null)

@@ -1,0 +1,13 @@
+// fixture-id: boolean-ambiguous-target
+// case: boolean-ambiguous-target
+// category: Boolean
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-boolean-ambiguous-target
+// notes: AIR-FIRMAMENT-A1 metadata-only corpus fixture; syntax may be future design intent where parser support is not yet settled.
+
+solid a = Box(width: 10, depth: 8, height: 6);
+solid b = Box(width: 2, depth: 2, height: 2);
+subtract Cylinder(radius: 1, height: 8);

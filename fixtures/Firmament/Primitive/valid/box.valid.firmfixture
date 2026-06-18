@@ -1,4 +1,8 @@
 // case: box
+// fixture-id: box
+// category: Primitive
+// validity: valid
+// implementation: implemented
 // expected: valid
 // expected-stage: emitted-brep
 // expected-feature-air: CreateBox

@@ -1,0 +1,11 @@
+// fixture-id: surfacing-underconstrained
+// case: surfacing-underconstrained
+// category: Surfacing
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-surfacing-underconstrained
+// notes: AIR-FIRMAMENT-A1 metadata-only corpus fixture; syntax may be future design intent where parser support is not yet settled.
+
+surface s = loft();

@@ -1,4 +1,8 @@
 // case: top-face-loop-chamfer
+// fixture-id: top-face-loop-chamfer
+// category: Chamfer
+// validity: valid
+// implementation: implemented
 // expected: valid
 // expected-stage: cir-mirror
 // expected-route: TopFaceLoopChamferPrismatic

@@ -1,0 +1,12 @@
+// fixture-id: region-face-attached-pocket
+// case: region-face-attached-pocket
+// category: Region
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-feature-not-implemented
+// notes: AIR-FIRMAMENT-A1 metadata-only corpus fixture; syntax may be future design intent where parser support is not yet settled.
+
+solid box = Box(width: 10, depth: 8, height: 6);
+region pocket on box.face("+Z") { rectangle width 2 depth 1; cut depth 2; }

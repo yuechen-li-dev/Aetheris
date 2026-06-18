@@ -1,0 +1,12 @@
+// fixture-id: prism-profile-hole-extrude
+// case: prism-profile-hole-extrude
+// category: Prism
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-feature-not-implemented
+// notes: AIR-FIRMAMENT-A1 metadata-only corpus fixture; syntax may be future design intent where parser support is not yet settled.
+
+profile plate = Rectangle(width: 10, depth: 8) - Circle(radius: 1);
+solid prism = extrude(plate, height: 2);

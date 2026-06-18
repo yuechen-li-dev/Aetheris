@@ -78,3 +78,7 @@ dotnet test Aetheris.CLI.Tests/Aetheris.CLI.Tests.csproj --filter "Trace|Fixture
 ## Recommended next milestone
 
 AIR-REGION-X14 — Controlled side-hole parameter variation. Start with the same box and the same +X/-X through direction, varying only radius or center offset.
+
+## AIR-FIRMAMENT-A1 corpus status
+
+AIR-FIRMAMENT-A1 promotes the controlled side-hole fixture into the language-level Firmament corpus taxonomy. The fixture remains at `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture` with explicit metadata for source validity, implementation state, expected lowering stage, integration status, shell closure, STEP smoke, and artifact evidence. This is still the same controlled golden path only: it does not admit general side-hole support, arbitrary face/axis support, production Boolean fallback, CIR topology authority, STEP exporter/importer changes, or BRep topology behavior changes.

@@ -1,4 +1,8 @@
 // case: side-hole-face-attached-region
+// fixture-id: side-hole-face-attached-region
+// category: Region
+// validity: valid
+// implementation: implemented
 // expected: valid
 // expected-stage: region-parent-integrated
 // expected-region-kind: FaceAttachedRegion

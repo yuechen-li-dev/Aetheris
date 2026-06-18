@@ -1,6 +1,6 @@
 // case: side-hole-face-attached-region
 // expected: valid
-// expected-stage: region-face-split
+// expected-stage: region-exit-loop
 // expected-region-kind: FaceAttachedRegion
 // expected-effect: Subtractive
 // expected-yield: YieldSubtractiveVolume
@@ -40,13 +40,15 @@
 // expected-face-split: SplitCreated
 // expected-entry-loop: EntryLoopMaterialized
 // expected-placeholder-materialized: CutEntryLoop
-// expected-blocker-category: ExitLoopInsertion
+// expected-exit-loop: ExitLoopMaterialized
+// expected-exit-face: -X
+// expected-blocker-category: CutWallAttachment
 // expected-current-evidence: standalone-patch-materialized
 // expected-placeholder-materialized: CutEntryLoop
 // expected-placeholder-materialized: CutExitLoop
 // expected-placeholder-materialized: CutWallFace
 // expected-cylindrical-faces-min: 1
-// description: Face-attached side-hole fixture with controlled parent face split and entry-loop evidence with parent integration still partial.
+// description: Face-attached side-hole fixture with controlled parent entry-loop and opposite-side exit-loop evidence with parent integration still partial.
 
 solid box = Box(width: 10, depth: 8, height: 6);
 region sideHole on box.face("+X") {

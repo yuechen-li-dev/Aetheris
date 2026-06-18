@@ -201,3 +201,8 @@ The side-hole region fixture now includes a `Region parent integration` text sec
 ## AIR-REGION-X9 side-hole face split trace section
 
 For `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now includes a `Region face split` text section and a JSON `regions.regions[].faceSplit` object. The section records the controlled `+X` affected face, `SplitCreated` face split status, `EntryLoopMaterialized` entry loop status, `Circle(radius=1)`, consumed `CutEntryLoop` placeholder identity, and bounded loop evidence. Parent integration remains partial with a more specific `ExitLoopInsertion` blocker.
+
+
+## AIR-REGION-X10 side-hole exit loop trace section
+
+For `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now includes a `Region exit loop` text section and a JSON `regions.regions[].exitLoop` object. The section records deterministic `-X` exit face selection, `ExitLoopMaterialized`, `Circle(radius=1)`, consumed `CutExitLoop` placeholder identity, and bounded loop evidence. Parent integration remains partial and now reports `CutWallAttachment` as the next blocker.

@@ -113,3 +113,8 @@ AIR-REGION-X8 consumes all five X6 placeholders in a controlled parent integrati
 ## AIR-REGION-X9 CutEntryLoop consumption note
 
 AIR-REGION-X9 consumes the stable `CutEntryLoop` placeholder for the controlled `+X` side-hole fixture as trace/evidence for a circular entry inner loop on the affected parent face. The placeholder ID remains stable (`region:side-hole:+x:entry-loop`). This is controlled fixture evidence only; it does not introduce arbitrary planar face splitting or production topology mutation.
+
+
+## AIR-REGION-X10 CutExitLoop consumption note
+
+AIR-REGION-X10 consumes the stable `CutExitLoop` placeholder for the controlled `+X` side-hole fixture as trace/evidence for a circular exit inner loop on the deterministic opposite `-X` parent face. The placeholder ID remains stable (`region:side-hole:+x:exit-loop`). This is controlled fixture evidence only; it does not introduce arbitrary face splitting, general side-hole support, or production topology mutation.

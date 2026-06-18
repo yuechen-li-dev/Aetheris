@@ -75,3 +75,8 @@ X9 was validated with the requested CLI commands and focused .NET test filters. 
 Recommended: **AIR-REGION-X10 — Controlled exit loop / cut-wall parent integration**.
 
 X9 cleared the entry face-splitting blocker for the controlled fixture. The next blocker is no longer generic face splitting; it is controlled opposite-face exit loop insertion plus attaching the preserved cylindrical cut-wall evidence and closing the parent shell.
+
+
+## AIR-REGION-X10 follow-up
+
+AIR-REGION-X10 preserves the X9 `+X` entry-loop evidence and adds controlled opposite-side `-X` exit-loop evidence. The `CutExitLoop` placeholder is now consumed/materialized in the controlled trace path, and the parent-integration blocker advances from `ExitLoopInsertion` to `CutWallAttachment`. Parent integration remains partial; cut-wall attachment, shell closure, topology validation, STEP/export, Boolean integration, and general side-hole support are still not claimed.

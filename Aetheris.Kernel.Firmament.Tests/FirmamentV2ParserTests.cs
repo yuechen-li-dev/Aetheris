@@ -65,11 +65,82 @@ public sealed class FirmamentV2ParserTests
     }
 
     [Fact]
-    public void FirmamentV2Parser_UnsupportedConstruct_RemainsMetadataClassified()
+    public void FirmamentV2Parser_WithBox_ParsesBaseAndDerivedSolid()
     {
         var result = FirmamentV2Parser.Parse(Source("RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture"));
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var document = result.Document!;
+        Assert.Equal("BoxVariant", document.ModelName);
+        Assert.Equal("mm", document.Units);
+        Assert.Equal(2, document.Solids.Count);
+        Assert.Equal("base", document.Solids[0].Name);
+        Assert.Equal("Box", document.Solids[0].RecordType);
+        Assert.Equal([10, 8, 6], document.Solids[0].Box.Size);
+        Assert.Equal("tall", document.Solids[1].Name);
+        Assert.Equal("base", document.Solids[1].DerivedFrom);
+        Assert.Equal([10, 8, 12], document.Solids[1].Overrides!["size"]);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_WithBox_LowersDerivedToFeatureAir()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture"));
+        Assert.True(result.ParseSucceeded, string.Join(", ", result.Diagnostics));
+        Assert.Equal("FirmamentV2Parser", result.ParserName);
+        Assert.Equal("CreateBox", result.FeatureAir!.FeatureAirNodeKind);
+        Assert.Equal(10, result.FeatureAir.SourceDimensions!.Width);
+        Assert.Equal(8, result.FeatureAir.SourceDimensions.Depth);
+        Assert.Equal(12, result.FeatureAir.SourceDimensions.Height);
+        Assert.Equal("tall", result.FirmamentV2!.SolidName);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_WithBox_BaseRemainsUnchanged()
+    {
+        var result = FirmamentV2Parser.Parse(Source("RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture"));
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        Assert.Equal([10, 8, 6], result.Document!.Solids.Single(s => s.Name == "base").Box.Size);
+        Assert.Equal([10, 8, 12], result.Document.Solids.Single(s => s.Name == "tall").Box.Size);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_WithBox_DegenerateDerivedSize_IsDiagnostic()
+    {
+        var result = FirmamentV2Parser.Parse(Source("RecordDerivation/invalid/with-degenerate-box-v2.invalid.firmfixture"));
         Assert.False(result.IsSuccess);
-        Assert.Contains(FirmamentV2Parser.UnsupportedConstruct, result.Diagnostics);
+        Assert.Contains(FirmamentV2Parser.DegenerateDimension, result.Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_WithBox_UnknownField_IsDiagnostic()
+    {
+        var result = FirmamentV2Parser.Parse(Source("RecordDerivation/invalid/with-unknown-field-v2.invalid.firmfixture"));
+        Assert.False(result.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.WithFieldNotFound, result.Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_WithBox_UndefinedBase_IsDiagnostic()
+    {
+        var result = FirmamentV2Parser.Parse(Source("RecordDerivation/invalid/with-undefined-base-v2.invalid.firmfixture"));
+        Assert.False(result.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.NameUnresolved, result.Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_WithBox_DuplicateName_IsDiagnostic()
+    {
+        var result = FirmamentV2Parser.Parse(Source("RecordDerivation/invalid/with-duplicate-solid-name-v2.invalid.firmfixture"));
+        Assert.False(result.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.DuplicateName, result.Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_WithBox_DoesNotUseV1Parser()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture"));
+        Assert.Equal("FirmamentV2Parser", result.ParserName);
+        Assert.Contains("firmament-v2-no-v1-parser", result.Diagnostics);
     }
 
     private static string Source(string relative)

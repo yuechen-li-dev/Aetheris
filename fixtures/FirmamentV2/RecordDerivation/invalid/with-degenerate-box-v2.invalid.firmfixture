@@ -3,20 +3,20 @@
 // category: RecordDerivation
 // syntax-version: FirmamentV2
 // validity: invalid
-// implementation: rejected
+// implementation: parser-backed
 // expected: invalid
-// expected-stage: rejected
+// expected-stage: parsed
 // expected-diagnostic: firmament-degenerate-dimension
-// notes: AIR-FIRMAMENT-A2.2 metadata-only invalid derivation fixture; derived Box must be revalidated.
+// notes: AIR-FIRMAMENT-X2 parser-backed invalid derivation fixture; derived Box size must be revalidated.
 
 model WithDegenerateBox {
     units mm
 
-    solid base = Box {
+    solid base: Box {
         size: [10, 8, 6]
     }
 
-    solid bad = base with {
-        size: [10, 0, 6]
+    solid bad: base with {
+        size: [10, 0, 12]
     }
 }

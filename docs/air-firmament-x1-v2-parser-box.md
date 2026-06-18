@@ -78,3 +78,8 @@ Validation for this milestone includes CLI build/help, V2 text and JSON traces, 
 ## Next milestone recommendation
 
 Recommended AIR-FIRMAMENT-X2: add a small token/lexer layer and semantic-name checks for V2 while preserving the X1 Feature AIR boundary. Do not broaden into regions, selectors, record derivation, or geometry materialization until the tiny parser contract remains stable across the fixture corpus.
+
+
+## X2 follow-on note
+
+AIR-FIRMAMENT-X2 builds on this isolated V2 frontend by adding only Box `with` record derivation: a derived Box may override `size`, be revalidated, and lower to Feature AIR `CreateBox`. The V1 parser remains untouched and the V2 frontend remains under the `FirmamentV2` namespace.

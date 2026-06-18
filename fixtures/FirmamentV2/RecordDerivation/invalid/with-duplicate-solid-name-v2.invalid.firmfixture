@@ -1,0 +1,21 @@
+// fixture-id: with-duplicate-solid-name-v2
+// case: firmament-v2-with-duplicate-solid-name
+// category: RecordDerivation
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-duplicate-name
+
+model WithDuplicateSolidName {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+    }
+
+    solid base: Box {
+        size: [10, 8, 12]
+    }
+}

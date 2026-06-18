@@ -51,7 +51,8 @@ internal sealed record AirTraceFeatureAirSummary(bool ParserBacked, string Sourc
 internal sealed record AirTraceConstructiveAirSummary(string NodeKind, string CanonicalForm, string SourceFeatureAirNodeKind, string ProfileKind, double Width, double Depth, double Height, string ExtrusionAxis, string ConstructionIntent, string RouteKind, string StageReached, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Guarantees);
 internal sealed record AirTraceProfileEmissionSummary(bool WrapperInvoked, string EmitterName, bool Succeeded, double Width, double Depth, double Height, string StageReached, AirTraceProfileEmissionTopologySummary? TopologySummary, AirTraceProfileEmissionStepSmokeSummary StepSmoke, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Guarantees);
 internal sealed record AirTraceProfileEmissionTopologySummary(int Vertices, int Edges, int Faces, int PlanarFaces, int CylindricalFaces, int Loops, int Coedges, int? CapFaces, int? SideFaces, string? Bounds);
-internal sealed record AirTraceFirmamentV2Summary(string SyntaxVersion, string ModelName, string Units, string SolidName, string RecordType, IReadOnlyList<double> Size, string Stage);
+internal sealed record AirTraceFirmamentV2Summary(string SyntaxVersion, string ModelName, string Units, string SolidName, string RecordType, IReadOnlyList<double> Size, string Stage, IReadOnlyList<AirTraceFirmamentV2SolidSummary> Solids);
+internal sealed record AirTraceFirmamentV2SolidSummary(string Name, string RecordType, IReadOnlyList<double> Size, string? DerivedFrom, IReadOnlyDictionary<string, IReadOnlyList<double>> Overrides);
 internal sealed record AirTraceProfileEmissionStepSmokeSummary(bool WasChecked, bool Succeeded, bool RequiredMarkersPresent, bool ForbiddenMarkersAbsent, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceDimensionsSummary(double Width, double Depth, double Height);
 internal sealed record AirTraceAirSummary(string Node, string Route, string SelectionClass, string Rule, string ConstructionHistory, string FeatureName, string FeatureId, string ProvenanceMilestone);
@@ -158,7 +159,7 @@ internal static class AirTraceReportBuilder
             profileEmissionProbe.Diagnostics,
             profileEmissionProbe.Guarantees);
 
-        var v2 = frontend.FirmamentV2 is null ? null : new AirTraceFirmamentV2Summary(frontend.FirmamentV2.SyntaxVersion, frontend.FirmamentV2.ModelName, frontend.FirmamentV2.Units, frontend.FirmamentV2.SolidName, frontend.FirmamentV2.RecordType, frontend.FirmamentV2.Size, frontend.FirmamentV2.StageReached);
+        var v2 = frontend.FirmamentV2 is null ? null : new AirTraceFirmamentV2Summary(frontend.FirmamentV2.SyntaxVersion, frontend.FirmamentV2.ModelName, frontend.FirmamentV2.Units, frontend.FirmamentV2.SolidName, frontend.FirmamentV2.RecordType, frontend.FirmamentV2.Size, frontend.FirmamentV2.StageReached, frontend.FirmamentV2.Solids.Select(s => new AirTraceFirmamentV2SolidSummary(s.Name, s.RecordType, s.Size, s.DerivedFrom, s.Overrides)).ToArray());
 
         return new(isFirmamentV2 ? "AIR-FIRMAMENT-X1" : "AIR-X11", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, frontend.FrontendSummary,
             new(constructiveAir?.NodeKind ?? featureAir?.NodeKind ?? "FirmamentPrimitive", constructiveAir?.RouteKind ?? "none", "none", "none", "parser-backed-source-fixture", fixture.CaseName, fixture.CaseName, "AIR-X11"),
@@ -322,9 +323,19 @@ internal static class AirTraceTextRenderer
             b.AppendLine($"  Stage: {r.FirmamentV2.Stage}");
             b.AppendLine($"  Model: {r.FirmamentV2.ModelName}");
             b.AppendLine($"  Units: {r.FirmamentV2.Units}");
-            b.AppendLine($"  Solid: {r.FirmamentV2.SolidName}");
-            b.AppendLine($"  Record: {r.FirmamentV2.RecordType}");
-            b.AppendLine($"  Size: [{string.Join(", ", r.FirmamentV2.Size.Select(v => v.ToString("g", System.Globalization.CultureInfo.InvariantCulture)))}]");
+            foreach (var solid in r.FirmamentV2.Solids)
+            {
+                b.AppendLine();
+                b.AppendLine($"  Solid: {solid.Name}");
+                b.AppendLine($"    Record: {solid.RecordType}");
+                if (!string.IsNullOrWhiteSpace(solid.DerivedFrom)) b.AppendLine($"    DerivedFrom: {solid.DerivedFrom}");
+                if (solid.Overrides.Count > 0)
+                {
+                    b.AppendLine("    With:");
+                    foreach (var ov in solid.Overrides) b.AppendLine($"      {ov.Key}: [{string.Join(", ", ov.Value.Select(v => v.ToString("g", System.Globalization.CultureInfo.InvariantCulture)))}]");
+                }
+                b.AppendLine($"    Size: [{string.Join(", ", solid.Size.Select(v => v.ToString("g", System.Globalization.CultureInfo.InvariantCulture)))}]");
+            }
             if (r.FeatureAir is not null) b.AppendLine($"  Feature AIR: {r.FeatureAir.NodeKind}");
             b.AppendLine();
         }

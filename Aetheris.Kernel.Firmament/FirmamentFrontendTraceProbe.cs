@@ -16,7 +16,8 @@ public sealed record FirmamentFrontendTraceProbeResult(
     FirmamentConstructiveAirTraceSummary? ConstructiveAir = null,
     FirmamentV2TraceSummary? FirmamentV2 = null);
 
-public sealed record FirmamentV2TraceSummary(string SyntaxVersion, string ModelName, string Units, string SolidName, string RecordType, IReadOnlyList<double> Size, string StageReached);
+public sealed record FirmamentV2TraceSummary(string SyntaxVersion, string ModelName, string Units, string SolidName, string RecordType, IReadOnlyList<double> Size, string StageReached, IReadOnlyList<FirmamentV2SolidTraceSummary> Solids);
+public sealed record FirmamentV2SolidTraceSummary(string Name, string RecordType, IReadOnlyList<double> Size, string? DerivedFrom, IReadOnlyDictionary<string, IReadOnlyList<double>> Overrides);
 
 public sealed record FirmamentPrimitiveAirTraceSummary(
     bool ParserBacked,
@@ -62,7 +63,8 @@ public static class FirmamentFrontendTraceProbe
         }
 
         var document = parseResult.Document;
-        var dimensions = new FirmamentTraceDimensions(document.Solid.Box.Size[0], document.Solid.Box.Size[1], document.Solid.Box.Size[2]);
+        var loweredSolid = document.Solids.LastOrDefault(s => s.IsDerived) ?? document.Solid;
+        var dimensions = new FirmamentTraceDimensions(loweredSolid.Box.Size[0], loweredSolid.Box.Size[1], loweredSolid.Box.Size[2]);
         var featureDiagnostics = new[]
         {
             "firmament-v2-box-record-recognized",
@@ -74,7 +76,7 @@ public static class FirmamentFrontendTraceProbe
 
         var featureAir = new FirmamentPrimitiveAirTraceSummary(
             ParserBacked: true,
-            SourceOpKind: document.Solid.RecordType,
+            SourceOpKind: loweredSolid.RecordType,
             FeatureAirNodeKind: "CreateBox",
             SourceDimensions: dimensions,
             ConstructionIntent: "Box",
@@ -95,11 +97,11 @@ public static class FirmamentFrontendTraceProbe
             "FirmamentV2Parser",
             true,
             "feature-air",
-            $"Firmament V2 parsed model '{document.ModelName}' with units '{document.Units}', solid '{document.Solid.Name}: {document.Solid.RecordType}', and created Feature AIR CreateBox summary.",
+            $"Firmament V2 parsed model '{document.ModelName}' with units '{document.Units}', lowered solid '{loweredSolid.Name}: {loweredSolid.RecordType}', and created Feature AIR CreateBox summary.",
             featureDiagnostics,
             featureAir,
             null,
-            new FirmamentV2TraceSummary("FirmamentV2", document.ModelName, document.Units, document.Solid.Name, document.Solid.RecordType, document.Solid.Box.Size, "feature-air"));
+            new FirmamentV2TraceSummary("FirmamentV2", document.ModelName, document.Units, loweredSolid.Name, loweredSolid.RecordType, loweredSolid.Box.Size, "feature-air", document.Solids.Select(s => new FirmamentV2SolidTraceSummary(s.Name, s.RecordType, s.Box.Size, s.DerivedFrom, s.Overrides ?? new Dictionary<string, IReadOnlyList<double>>())).ToArray()));
     }
 
     public static FirmamentFrontendTraceProbeResult ParseOnly(string sourceText)

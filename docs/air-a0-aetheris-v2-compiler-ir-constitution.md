@@ -1,5 +1,7 @@
 # AIR-A0 — Aetheris V2 compiler IR constitution
 
+Firmament V2 `template<Process>`, `concept`, and PMI records are source/semantic manufacturing-intent layers. They may later lower toward Feature AIR / PMI AIR and semantic role attachments, but A2.3 introduces no STEP PMI export, no BRep topology behavior change, and no CIR topology authority. See `docs/air-firmament-a2-3-dfm-templates-concepts-pmi.md`.
+
 ## 1. Executive summary
 
 Aetheris is a compiler for BRep.

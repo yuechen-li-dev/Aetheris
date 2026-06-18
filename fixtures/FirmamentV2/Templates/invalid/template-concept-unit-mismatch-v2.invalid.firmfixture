@@ -1,0 +1,14 @@
+// fixture-id: template-concept-unit-mismatch-v2
+// case: firmament-v2-template-concept-unit-mismatch
+// category: Templates
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-concept-unit-mismatch
+// notes: AIR-FIRMAMENT-A2.3 metadata-only invalid concept unit fixture; not parser-backed.
+
+template<CNC> BadShop {
+    concept minimumToolRadius: 2 deg
+}

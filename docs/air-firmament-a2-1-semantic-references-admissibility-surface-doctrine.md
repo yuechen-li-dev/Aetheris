@@ -1,5 +1,7 @@
 # AIR-FIRMAMENT-A2.1 — Semantic references, admissibility, and surface doctrine
 
+A2.3 extends this admissibility doctrine with manufacturing/process contexts: `template<Process>` supplies typed DFM concepts, and PMI records attach product/manufacturing annotations to semantic selectors and feature outputs rather than backend IDs. See `docs/air-firmament-a2-3-dfm-templates-concepts-pmi.md`.
+
 ## 1. Purpose
 
 A2.1 defines the Firmament V2 semantic contract before parser implementation. It closes the source-language design gaps left after A2 by specifying source-level references, exposure/binding, compile-time admissibility, degeneracy rejection, ruled/sweep/offset-first surface modeling, limited spline/NURBS admission, and feature-output roles.

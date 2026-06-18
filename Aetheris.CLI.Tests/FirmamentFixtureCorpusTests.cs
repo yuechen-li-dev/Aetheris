@@ -9,6 +9,7 @@ public sealed class FirmamentFixtureCorpusTests
     private static readonly string V2DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-firmament-v2-source-language-design.md"));
     private static readonly string V21DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-1-semantic-references-admissibility-surface-doctrine.md"));
     private static readonly string V22DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-2-record-derivation-with.md"));
+    private static readonly string V23DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-3-dfm-templates-concepts-pmi.md"));
     private static readonly string[] RequiredMetadata = ["fixture-id", "case", "category", "validity", "implementation", "expected", "expected-stage"];
 
     [Fact]
@@ -117,6 +118,14 @@ public sealed class FirmamentFixtureCorpusTests
         Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/invalid/with-degenerate-box-v2.invalid.firmfixture", StringComparison.Ordinal));
         Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/invalid/with-selector-target-v2.invalid.firmfixture", StringComparison.Ordinal));
         Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/invalid/with-unknown-field-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Templates/valid/cnc-template-min-tool-radius-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Templates/valid/fdm-template-wall-overhang-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Templates/valid/sheet-metal-template-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Templates/invalid/template-concept-unit-mismatch-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Templates/invalid/template-unknown-process-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("PMI/future/pmi-datum-flatness-position-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("PMI/future/pmi-material-surface-finish-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("PMI/invalid/pmi-raw-brep-id-target-v2.invalid.firmfixture", StringComparison.Ordinal));
 
         foreach (var path in fixtures)
         {
@@ -281,6 +290,91 @@ public sealed class FirmamentFixtureCorpusTests
         Assert.Contains("no control flow", doc, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("nested `with`", doc, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("=>", doc, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void FirmamentV2Templates_MetadataRecognized()
+    {
+        var fixtures = DiscoverV2Fixtures().Where(p => p.Contains("/Templates/", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(5, fixtures.Length);
+        foreach (var path in fixtures)
+        {
+            var fixture = LoadMetadata(path);
+            Assert.Equal("FirmamentV2", fixture["syntax-version"]);
+            Assert.Equal("Templates", fixture["category"]);
+            Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2Templates_NotV1ParseFailures()
+    {
+        foreach (var path in DiscoverV2Fixtures().Where(p => p.Contains("/Templates/", StringComparison.Ordinal)))
+        {
+            using var doc = Trace(path);
+            var diagnostics = doc.RootElement.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
+            Assert.False(doc.RootElement.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
+            Assert.True(doc.RootElement.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean(), path);
+            Assert.DoesNotContain("air-x11-firmament-parse-failed", diagnostics);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2Templates_InvalidFixtures_ReportExpectedDiagnostics()
+    {
+        var expected = new[]
+        {
+            (Path: "Templates/invalid/template-concept-unit-mismatch-v2.invalid.firmfixture", Diagnostic: "firmament-concept-unit-mismatch"),
+            (Path: "Templates/invalid/template-unknown-process-v2.invalid.firmfixture", Diagnostic: "firmament-template-process-unknown")
+        };
+
+        foreach (var item in expected)
+        {
+            using var doc = Trace(Path.Combine(V2CorpusRoot, item.Path));
+            var diagnostics = doc.RootElement.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
+            Assert.True(doc.RootElement.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean(), item.Path);
+            Assert.Contains(item.Diagnostic, diagnostics);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2PMI_MetadataRecognized()
+    {
+        var fixtures = DiscoverV2Fixtures().Where(p => p.Contains("/PMI/", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(3, fixtures.Length);
+        foreach (var path in fixtures)
+        {
+            var fixture = LoadMetadata(path);
+            Assert.Equal("FirmamentV2", fixture["syntax-version"]);
+            Assert.Equal("PMI", fixture["category"]);
+            Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2PMI_InvalidFixtures_ReportExpectedDiagnostics()
+    {
+        using var doc = Trace(Path.Combine(V2CorpusRoot, "PMI/invalid/pmi-raw-brep-id-target-v2.invalid.firmfixture"));
+        var diagnostics = doc.RootElement.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
+        Assert.True(doc.RootElement.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
+        Assert.Contains("firmament-raw-backend-id-reference-forbidden", diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Doctrine_DocsMentionTemplatesConceptsPMI()
+    {
+        Assert.True(File.Exists(V23DoctrinePath), V23DoctrinePath);
+        var doc = File.ReadAllText(V23DoctrinePath);
+        Assert.Contains("template<Process>", doc, StringComparison.Ordinal);
+        Assert.Contains("concept", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("PMI", doc, StringComparison.Ordinal);
+        Assert.Contains("GD&T is one category inside PMI", doc, StringComparison.Ordinal);
+        Assert.Contains("material", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("surface finish", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not C++-style metaprogramming", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not hidden Excel tables", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("no STEP PMI export in A2.3", doc, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

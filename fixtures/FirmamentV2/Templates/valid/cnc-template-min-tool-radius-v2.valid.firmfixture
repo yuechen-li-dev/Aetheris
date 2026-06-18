@@ -1,0 +1,16 @@
+// fixture-id: cnc-template-min-tool-radius-v2
+// case: firmament-v2-cnc-template-min-tool-radius
+// category: Templates
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2.3 metadata-only CNC template/concept fixture; not parser-backed.
+
+template<CNC> ShopDefault {
+    concept minimumToolRadius: 0.1 mm
+    concept minimumWallThickness: 0.8 mm
+    concept minimumHoleDiameter: 0.8 mm
+}

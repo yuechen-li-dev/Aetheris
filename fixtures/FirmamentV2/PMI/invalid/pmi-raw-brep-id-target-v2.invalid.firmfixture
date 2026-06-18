@@ -1,0 +1,14 @@
+// fixture-id: pmi-raw-brep-id-target-v2
+// case: firmament-v2-pmi-raw-brep-id-target
+// category: PMI
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-raw-backend-id-reference-forbidden
+// notes: AIR-FIRMAMENT-A2.3 metadata-only invalid PMI backend-ID fixture; not parser-backed.
+
+pmi BadBackendReference {
+    flatness brep.face#42 { tolerance: 0.05 mm }
+}

@@ -1,4 +1,9 @@
 // case: loop-fillet-deferred
+// fixture-id: loop-fillet-deferred
+// category: Chamfer
+// validity: invalid
+// implementation: rejected
+// expected-diagnostic: air-x2-fillet-deferred
 // expected: invalid
 // expected-stage: route-selection
 // expected-reason: loop-fillet-deferred-until-single-edge-fillet-evidence

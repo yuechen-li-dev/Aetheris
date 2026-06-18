@@ -1,4 +1,9 @@
 // case: arbitrary-graph-chamfer
+// fixture-id: arbitrary-graph-chamfer
+// category: Chamfer
+// validity: invalid
+// implementation: rejected
+// expected-diagnostic: air-x2-arbitrary-graph-rejected
 // expected: invalid
 // expected-stage: route-selection
 // expected-reason: arbitrary-graph-unsupported

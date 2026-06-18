@@ -1,0 +1,12 @@
+// fixture-id: pattern-linear
+// case: pattern-linear
+// category: Pattern
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-feature-not-implemented
+// notes: AIR-FIRMAMENT-A1 metadata-only corpus fixture; syntax may be future design intent where parser support is not yet settled.
+
+feature hole = Cut(target: base, tool: Cylinder(radius: 1, height: 8));
+pattern linear hole count 4 pitch 3 along X;

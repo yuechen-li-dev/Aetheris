@@ -1,0 +1,12 @@
+// fixture-id: region-face-attached-boss
+// case: region-face-attached-boss
+// category: Region
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-feature-not-implemented
+// notes: AIR-FIRMAMENT-A1 metadata-only corpus fixture; syntax may be future design intent where parser support is not yet settled.
+
+solid box = Box(width: 10, depth: 8, height: 6);
+region boss on box.face("+Z") { circle radius 1; add height 2; }

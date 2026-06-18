@@ -1,0 +1,11 @@
+// fixture-id: primitive-missing-radius
+// case: primitive-missing-radius
+// category: Primitive
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-primitive-missing-radius
+// notes: AIR-FIRMAMENT-A1 metadata-only corpus fixture; syntax may be future design intent where parser support is not yet settled.
+
+solid bad = Cylinder(height: 6);

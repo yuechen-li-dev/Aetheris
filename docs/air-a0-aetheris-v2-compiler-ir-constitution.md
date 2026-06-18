@@ -813,3 +813,7 @@ AIR-REGION-X6 reinforces the constitution's separation between AIR, BRepPlan, BR
 ## AIR-REGION-X7 note
 
 AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fixture and materializes standalone patch evidence for the entry loop, exit loop, and cylindrical cut wall. Parent BRep integration remains deferred; CIR remains analysis-only; Boolean is not generally admitted; no production route replacement or general side-hole support is introduced.
+
+## AIR-FIRMAMENT-A1 Firmament source fixture corpus note
+
+AIR-FIRMAMENT-A1 establishes `fixtures/Firmament/` as the source-language corpus for compiler-style development: Firmament source fixture -> parse -> semantic intent -> Feature AIR -> Constructive/Compositional AIR -> BRepPlan -> BRep -> STEP/artifacts -> trace/diagnostics -> regression corpus. Valid source intent can be tracked before implementation with `implementation: not-implemented` or `deferred`; such fixtures are not syntax-invalid and must report deliberate metadata-backed diagnostics instead of random parser/materialization failure. CIR remains analysis/evaluation mirror only and is not topology authority.

@@ -1,0 +1,11 @@
+// fixture-id: pattern-missing-seed
+// case: pattern-missing-seed
+// category: Pattern
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-pattern-missing-seed
+// notes: AIR-FIRMAMENT-A1 metadata-only corpus fixture; syntax may be future design intent where parser support is not yet settled.
+
+pattern linear count 4 pitch 3 along X;

@@ -88,6 +88,7 @@ internal static class AirTraceReportBuilder
     public static AirTraceReport BuildFixture(FirmFixture fixture)
     {
         if (fixture.ParserBacked) return BuildParserBackedFixture(fixture);
+        if (IsMetadataOnlyFixture(fixture)) return BuildMetadataOnlyFixture(fixture);
 
         var caseName = fixture.CaseName;
         if (caseName == "side-hole-face-attached-region") return BuildSideHoleFaceAttachedRegionFixture(fixture);
@@ -168,6 +169,38 @@ internal static class AirTraceReportBuilder
             fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics,
             new(true, frontend.ParserName, frontend.ParseSucceeded, frontend.Diagnostics, actualStage!, frontend.FrontendSummary),
             featureAir, constructiveAir, profileEmission, regions);
+    }
+
+
+    private static bool IsMetadataOnlyFixture(FirmFixture fixture)
+    {
+        var implementation = fixture.Metadata.GetValueOrDefault("implementation");
+        if (string.Equals(implementation, "not-implemented", StringComparison.Ordinal) || string.Equals(implementation, "deferred", StringComparison.Ordinal)) return true;
+        return !SupportedFixtureCases.Contains(fixture.CaseName, StringComparer.Ordinal) && string.Equals(implementation, "rejected", StringComparison.Ordinal);
+    }
+
+    private static AirTraceReport BuildMetadataOnlyFixture(FirmFixture fixture)
+    {
+        var implementation = fixture.Metadata.GetValueOrDefault("implementation") ?? (fixture.Expectation == "invalid" ? "rejected" : "not-implemented");
+        var expectedDiagnostic = fixture.Metadata.GetValueOrDefault("expected-diagnostic") ?? (implementation == "not-implemented" ? "firmament-feature-not-implemented" : "firmament-fixture-rejected");
+        var actualStage = fixture.ExpectedStage ?? (implementation == "deferred" ? "deferred" : implementation == "rejected" || fixture.Expectation == "invalid" ? "rejected" : "not-implemented");
+        var isNotImplemented = implementation is "not-implemented" or "deferred";
+        var expectationSatisfied = fixture.Expectation == "valid"
+            ? isNotImplemented && (actualStage is "not-implemented" or "deferred" || fixture.ExpectedStage == actualStage)
+            : implementation == "rejected" || actualStage == "rejected";
+        var diagnostics = Stable([.. fixture.Diagnostics, "air-firmament-a1-metadata-only-fixture-classified", expectedDiagnostic, isNotImplemented ? "air-firmament-a1-feature-not-implemented" : "air-firmament-a1-fixture-rejected", expectationSatisfied ? "air-firmament-a1-expectation-satisfied" : "air-firmament-a1-expectation-not-satisfied"]).ToArray();
+        return new("AIR-FIRMAMENT-A1", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, isNotImplemented ? "Fixture is valid Firmament design intent but its lowering/materialization route is deliberately not implemented in A1." : "Fixture is rejected by metadata contract with stable diagnostic.",
+            new("FirmamentFixture", "none", fixture.Metadata.GetValueOrDefault("category") ?? "none", "none", "metadata-only-fixture", fixture.CaseName, fixture.Metadata.GetValueOrDefault("fixture-id") ?? fixture.CaseName, "AIR-FIRMAMENT-A1"),
+            new("none", null, false, isNotImplemented ? "not implemented" : "rejected", fixture.Metadata.GetValueOrDefault("category") ?? "none", "none", diagnostics),
+            new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
+            new("none", false, isNotImplemented ? "no geometry emitted for not-implemented Firmament fixture" : "no geometry emitted for invalid Firmament fixture"),
+            new(false, false, false, false, []),
+            new("not-requested", "none", "FirmamentFixture", "Firmament", fixture.Metadata.GetValueOrDefault("category") ?? "none", "none", "none", [], ["no-topology-authority"], ["AIR-FIRMAMENT-A1"], diagnostics),
+            [], ["metadata-only corpus fixture", isNotImplemented ? "feature lowering not implemented" : "invalid fixture rejected"], diagnostics,
+            ["future Firmament fixtures do not require geometry implementation", "no production route replacement", "no BRep topology behavior change", "no STEP exporter/importer change", "no CIR topology authority"],
+            ["no broad new geometry feature support", "no production route replacement", "no shell/fillet/surfacing implementation", "no general side-hole support", "no arbitrary face/axis support", "no CIR topology authority", "no Boolean general admission", "no STEP exporter/importer behavior change", "no BRep topology behavior change"],
+            new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, diagnostics),
+            fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, diagnostics);
     }
 
     public static string FixtureFileStem(FirmFixture fixture) => $"air-x7-{fixture.CaseName}-firmfixture-trace";

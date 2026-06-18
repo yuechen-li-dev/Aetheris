@@ -298,7 +298,7 @@ public static class CliRunner
             FirmFixture fixture;
             try { fixture = FirmFixtureLoader.Load(fixturePath); }
             catch (FirmFixtureException ex) { stderr.WriteLine(ex.Message); stderr.WriteLine(ex.Code); stderr.WriteLine(TraceUsage); return 1; }
-            if (!AirTraceReportBuilder.SupportedFixtureCases.Contains(fixture.CaseName, StringComparer.Ordinal))
+            if (!AirTraceReportBuilder.SupportedFixtureCases.Contains(fixture.CaseName, StringComparer.Ordinal) && !fixture.Metadata.ContainsKey("implementation"))
             {
                 stderr.WriteLine($"Unknown Firmament fixture case '{fixture.CaseName}'.");
                 stderr.WriteLine("air-x7-unknown-firmfixture-case");

@@ -1,0 +1,11 @@
+// fixture-id: primitive-negative-dimension
+// case: primitive-negative-dimension
+// category: Primitive
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-primitive-negative-dimension
+// notes: AIR-FIRMAMENT-A1 metadata-only corpus fixture; syntax may be future design intent where parser support is not yet settled.
+
+solid bad = Box(width: -1, depth: 8, height: 6);

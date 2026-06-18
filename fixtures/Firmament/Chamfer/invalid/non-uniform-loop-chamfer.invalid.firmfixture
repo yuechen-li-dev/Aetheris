@@ -1,4 +1,9 @@
 // case: non-uniform-loop-chamfer
+// fixture-id: non-uniform-loop-chamfer
+// category: Chamfer
+// validity: invalid
+// implementation: rejected
+// expected-diagnostic: air-x2-non-uniform-rule-rejected
 // expected: invalid
 // expected-stage: route-selection
 // expected-reason: non-uniform-rule-unsupported

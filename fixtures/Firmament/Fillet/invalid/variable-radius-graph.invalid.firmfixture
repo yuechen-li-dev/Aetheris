@@ -1,0 +1,12 @@
+// fixture-id: fillet-variable-radius-graph
+// case: fillet-variable-radius-graph
+// category: Fillet
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-fillet-variable-radius-graph-unsupported
+// notes: AIR-FIRMAMENT-A1 metadata-only corpus fixture; syntax may be future design intent where parser support is not yet settled.
+
+solid box = Box(width: 10, depth: 8, height: 6);
+fillet graph(box.edges) radius from 0.5 to 2;

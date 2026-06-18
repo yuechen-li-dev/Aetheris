@@ -71,3 +71,8 @@ AIR-REGION-X6 preserves the X5 `DeferredIntegration` selection and Boolean rejec
 ## AIR-REGION-X7 note
 
 AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fixture and materializes standalone patch evidence for the entry loop, exit loop, and cylindrical cut wall. Parent BRep integration remains deferred; CIR remains analysis-only; Boolean is not generally admitted; no production route replacement or general side-hole support is introduced.
+
+
+## AIR-REGION-X8 route update note
+
+AIR-REGION-X8 updates the side-hole trace decision to the controlled attempted route `ControlledSideHoleParentBRepIntegration` with status `Blocked`. The prior route scaffold is preserved as evidence; Boolean remains rejected/not generally admitted, and the blocker is parent face splitting plus loop insertion for the controlled fixture.

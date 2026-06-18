@@ -90,3 +90,8 @@ No Boolean backend is used. Boolean remains not generally admitted as the AIR Re
 ## Recommended next milestone
 
 Recommended next: **AIR-REGION-X8 — Side-hole materialization artifact corpus / golden trace summaries**. The parent integration blocker should be approached only after the controlled patch evidence has a stable corpus and golden JSON/text trace summaries.
+
+
+## AIR-REGION-X8 parent integration attempt note
+
+AIR-REGION-X8 consumes the X7 standalone patch evidence during a controlled parent BRep integration attempt. The attempt remains truthful Outcome B: the cylindrical cut-wall evidence is preserved, but parent integration is blocked at parent face splitting and entry/exit loop insertion.

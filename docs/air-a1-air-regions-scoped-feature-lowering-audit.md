@@ -653,3 +653,8 @@ AIR-REGION-X6 adds trace-only side-hole BRepPlan placeholder elements for the Fa
 ## AIR-REGION-X7 note
 
 AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fixture and materializes standalone patch evidence for the entry loop, exit loop, and cylindrical cut wall. Parent BRep integration remains deferred; CIR remains analysis-only; Boolean is not generally admitted; no production route replacement or general side-hole support is introduced.
+
+
+## AIR-REGION-X8 status note
+
+AIR-REGION-X8 adds a controlled side-hole parent BRep integration attempt to the AIR Region trace. The attempt consumes the X2-X7 evidence chain and reports Outcome B: blocked at parent face splitting/loop insertion, with no fake integrated parent topology, no Boolean use, and no general side-hole support.

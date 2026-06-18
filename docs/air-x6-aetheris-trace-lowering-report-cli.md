@@ -192,3 +192,8 @@ Region fixture traces can now include a `Region BRepPlan placeholders` text sect
 ## AIR-REGION-X7 note
 
 AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fixture and materializes standalone patch evidence for the entry loop, exit loop, and cylindrical cut wall. Parent BRep integration remains deferred; CIR remains analysis-only; Boolean is not generally admitted; no production route replacement or general side-hole support is introduced.
+
+
+## AIR-REGION-X8 trace note
+
+The side-hole region fixture now includes a `Region parent integration` text section and stable JSON `parentIntegration` object. For X8 it reports `Blocked`, route `ControlledSideHoleParentBRepIntegration`, placeholder mappings, preserved topology evidence, STEP smoke unavailable, and a structured `FaceSplitting` blocker.

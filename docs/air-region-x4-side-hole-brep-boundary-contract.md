@@ -108,3 +108,8 @@ AIR-REGION-X6 keeps this X4 boundary contract as intent and adds deterministic p
 ## AIR-REGION-X7 note
 
 AIR-REGION-X7 consumes the controlled side-hole placeholder plan for the `+X` fixture and materializes standalone patch evidence for the entry loop, exit loop, and cylindrical cut wall. Parent BRep integration remains deferred; CIR remains analysis-only; Boolean is not generally admitted; no production route replacement or general side-hole support is introduced.
+
+
+## AIR-REGION-X8 parent integration blocker note
+
+AIR-REGION-X8 confirms the X4 boundary contract is sufficient to identify the next topology blocker: the controlled parent path needs parent face splitting and entry/exit loop insertion before the cut-wall evidence can be bound into a closed parent shell.

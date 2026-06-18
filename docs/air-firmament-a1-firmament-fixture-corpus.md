@@ -168,3 +168,8 @@ A2.1 expands the `fixtures/FirmamentV2/` metadata-only taxonomy with semantic-re
 ## A2.2 record-derivation fixture expansion
 
 A2.2 expands the `fixtures/FirmamentV2/` metadata-only taxonomy with `RecordDerivation/` fixtures for valid `with` variants and invalid derivation diagnostics. Valid design examples remain `implementation: not-implemented`, `expected-stage: not-implemented`, and `expected-diagnostic: firmament-v2-parser-not-ready`; invalid doctrine examples use `implementation: rejected` with diagnostics such as `firmament-degenerate-dimension`, `firmament-with-requires-record`, and `firmament-with-field-not-found`. These fixtures are classified by metadata and must not be routed through the V1 parser as incidental parse failures.
+
+
+### AIR-FIRMAMENT-X2 fixture stage update
+
+`fixtures/FirmamentV2/RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture` is no longer metadata-only. It is parser-backed, reaches `feature-air`, lowers the derived solid `tall` to `CreateBox`, and retains `base` as source record evidence. The surrounding V2 design fixtures remain metadata-only, parser-not-ready, not-implemented, deferred, or rejected according to their existing fixture metadata.

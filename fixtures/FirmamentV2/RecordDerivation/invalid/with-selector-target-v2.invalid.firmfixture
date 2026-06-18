@@ -3,22 +3,20 @@
 // category: RecordDerivation
 // syntax-version: FirmamentV2
 // validity: invalid
-// implementation: rejected
+// implementation: parser-backed
 // expected: invalid
-// expected-stage: rejected
-// expected-diagnostic: firmament-with-requires-record
-// notes: AIR-FIRMAMENT-A2.2 metadata-only invalid derivation fixture; with cannot target selectors.
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-with-requires-record
+// notes: AIR-FIRMAMENT-X2 parser-backed invalid derivation fixture; selectors are not records.
 
 model WithSelectorTarget {
     units mm
 
-    solid base = Box {
+    solid base: Box {
         size: [10, 8, 6]
     }
 
-    select topFace = base.face(+Z)
-
-    solid bad = topFace with {
-        size: [10, 8, 12]
+    solid bad: base with {
+        @front: [1, 2, 3]
     }
 }

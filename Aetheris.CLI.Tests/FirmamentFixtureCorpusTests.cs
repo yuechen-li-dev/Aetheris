@@ -179,7 +179,7 @@ public sealed class FirmamentFixtureCorpusTests
             var fixture = LoadMetadata(path);
             Assert.Equal("FirmamentV2", fixture["syntax-version"]);
             Assert.Equal("SemanticRefs", fixture["category"]);
-            Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
+            if (fixture["implementation"] != "parser-backed" || fixture["validity"] == "invalid") Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
         }
     }
 
@@ -234,13 +234,13 @@ public sealed class FirmamentFixtureCorpusTests
     public void FirmamentV2RecordDerivation_MetadataRecognized()
     {
         var fixtures = DiscoverV2Fixtures().Where(p => p.Contains("/RecordDerivation/", StringComparison.Ordinal)).ToArray();
-        Assert.Equal(6, fixtures.Length);
+        Assert.Equal(8, fixtures.Length);
         foreach (var path in fixtures)
         {
             var fixture = LoadMetadata(path);
             Assert.Equal("FirmamentV2", fixture["syntax-version"]);
             Assert.Equal("RecordDerivation", fixture["category"]);
-            Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
+            if (fixture["implementation"] != "parser-backed" || fixture["validity"] == "invalid") Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
         }
     }
 
@@ -252,10 +252,10 @@ public sealed class FirmamentFixtureCorpusTests
             using var doc = Trace(path);
             var metadata = LoadMetadata(path);
             var diagnostics = doc.RootElement.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
-            Assert.False(doc.RootElement.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
+            Assert.Equal(metadata["implementation"] == "parser-backed", doc.RootElement.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
             Assert.True(doc.RootElement.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean(), path);
             Assert.Equal(metadata["expected-stage"], doc.RootElement.GetProperty("actualStageReached").GetString());
-            Assert.Contains(metadata["expected-diagnostic"], diagnostics);
+            if (metadata.TryGetValue("expected-diagnostic", out var expectedDiagnostic)) Assert.Contains(expectedDiagnostic, diagnostics);
             Assert.DoesNotContain("air-x11-firmament-parse-failed", diagnostics);
         }
     }
@@ -266,8 +266,8 @@ public sealed class FirmamentFixtureCorpusTests
         var expected = new[]
         {
             (Path: "RecordDerivation/invalid/with-degenerate-box-v2.invalid.firmfixture", Diagnostic: "firmament-degenerate-dimension"),
-            (Path: "RecordDerivation/invalid/with-selector-target-v2.invalid.firmfixture", Diagnostic: "firmament-with-requires-record"),
-            (Path: "RecordDerivation/invalid/with-unknown-field-v2.invalid.firmfixture", Diagnostic: "firmament-with-field-not-found")
+            (Path: "RecordDerivation/invalid/with-selector-target-v2.invalid.firmfixture", Diagnostic: "firmament-v2-with-requires-record"),
+            (Path: "RecordDerivation/invalid/with-unknown-field-v2.invalid.firmfixture", Diagnostic: "firmament-v2-with-field-not-found")
         };
 
         foreach (var item in expected)

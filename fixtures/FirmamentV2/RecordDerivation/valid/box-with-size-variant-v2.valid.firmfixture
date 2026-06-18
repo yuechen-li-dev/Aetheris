@@ -3,20 +3,23 @@
 // category: RecordDerivation
 // syntax-version: FirmamentV2
 // validity: valid
-// implementation: not-implemented
+// implementation: parser-backed
 // expected: valid
-// expected-stage: not-implemented
-// expected-diagnostic: firmament-v2-parser-not-ready
-// notes: AIR-FIRMAMENT-A2.2 metadata-only record derivation fixture; not parser-backed.
+// expected-stage: feature-air
+// expected-feature-air: CreateBox
+// expected-solid: tall
+// expected-size: [10, 8, 12]
+// expected-derived-from: base
+// notes: AIR-FIRMAMENT-X2 parser-backed Box record derivation fixture; advanced from A2.2 metadata-only design intent.
 
-model BoxWithSizeVariant {
+model BoxVariant {
     units mm
 
-    solid base = Box {
+    solid base: Box {
         size: [10, 8, 6]
     }
 
-    solid tall = base with {
+    solid tall: base with {
         size: [10, 8, 12]
     }
 }

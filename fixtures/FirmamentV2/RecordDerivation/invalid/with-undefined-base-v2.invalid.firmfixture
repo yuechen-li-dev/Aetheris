@@ -1,0 +1,17 @@
+// fixture-id: with-undefined-base-v2
+// case: firmament-v2-with-undefined-base
+// category: RecordDerivation
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-name-unresolved
+
+model WithUndefinedBase {
+    units mm
+
+    solid tall: base with {
+        size: [10, 8, 12]
+    }
+}

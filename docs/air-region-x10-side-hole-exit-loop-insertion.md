@@ -68,3 +68,7 @@ Validation included CLI build/help, side-hole text and JSON traces, invalid impl
 Recommended: **AIR-REGION-X11 — Controlled cut-wall attachment / entry-exit wall integration**.
 
 X11 should bind the preserved cylindrical cut-wall evidence to the controlled `+X` entry loop and `-X` exit loop, then truthfully report whether parent shell closure/topology validation becomes available.
+
+## AIR-REGION-X11 update
+
+AIR-REGION-X11 consumes the X9 entry-loop evidence and X10 exit-loop evidence, attaches the controlled cylindrical `CutWallFace` evidence, and advances the precise blocker to `ShellClosure`. Parent integration remains `PartiallyIntegrated`; STEP smoke remains unavailable until the controlled `RegionIntegrationPatch` is materialized and shell closure is validated.

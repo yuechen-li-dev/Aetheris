@@ -667,3 +667,7 @@ AIR-REGION-X9 advances the side-hole parent integration evidence past the generi
 ### AIR-REGION-X10 status note
 
 AIR-REGION-X10 addresses the X9 `ExitLoopInsertion` blocker for the controlled side-hole fixture. The trace now reports deterministic `-X` opposite-face exit-loop evidence, consumes/materializes `CutExitLoop`, preserves the X9 `+X` entry-loop evidence, and advances the next blocker to `CutWallAttachment`. Parent integration remains partial; shell closure, STEP/export, Boolean integration, general side-hole support, arbitrary face/axis support, and production route replacement remain out of scope.
+
+## AIR-REGION-X11 status note
+
+AIR-REGION-X11 removes the controlled `CutWallAttachment` blocker for the side-hole fixture by attaching cylindrical cut-wall evidence between the materialized entry and exit loops. The fixture now truthfully stops at `region-shell-closure-blocked` with parent integration `PartiallyIntegrated`, shell closure `Blocked`, and STEP smoke `Unavailable`.

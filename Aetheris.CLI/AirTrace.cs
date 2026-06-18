@@ -192,11 +192,11 @@ internal static class AirTraceReportBuilder
     private static AirTraceReport BuildSideHoleFaceAttachedRegionFixture(FirmFixture fixture)
     {
         var regions = AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred();
-        var actualStage = "region-exit-loop";
+        var actualStage = "region-shell-closure-blocked";
         var expectationSatisfied = fixture.Expectation == "valid" && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
         var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", "air-region-x4-firmfixture-boundary-contract-created", "air-region-x5-firmfixture-integration-decision-created", "air-region-x6-firmfixture-brep-placeholders-created", "air-region-x7-firmfixture-materialization-created", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
-        return new("AIR-REGION-X10", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole creates controlled +X entry-loop and -X exit-loop evidence; parent integration remains partial.",
-            new("RegionFixture", "ControlledSideHoleParentBRepIntegration", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X10"),
+        return new("AIR-REGION-X11", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole preserves +X entry-loop and -X exit-loop evidence, attaches controlled cylindrical cut-wall evidence, and stops truthfully at shell closure.",
+            new("RegionFixture", "ControlledSideHoleParentBRepIntegration", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X11"),
             new("SwitchMatch", "ControlledSideHoleParentBRepIntegration", false, "controlled +X entry loop and -X exit loop evidence created; parent integration remains partial", "FaceAttachedRegion", "SideHole", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
             new("ControlledSideHoleParentBRepIntegration", true, "standalone side-hole patch evidence preserved; controlled +X entry and -X exit face split evidence created; parent integration partial"),
@@ -462,6 +462,41 @@ internal static class AirTraceTextRenderer
                     }
                     b.AppendLine("      Guarantees:");
                     foreach (var guarantee in el.Guarantees) b.AppendLine($"        - {guarantee}");
+                }
+
+                if (region.CutWallAttachment is not null || region.ShellClosure is not null)
+                {
+                    b.AppendLine("    Region cut wall / shell closure");
+                    b.AppendLine($"      Region: {region.RegionId}");
+                    if (region.CutWallAttachment is not null)
+                    {
+                        var cw = region.CutWallAttachment;
+                        b.AppendLine($"      Status: {cw.Status}");
+                        b.AppendLine($"      Cut wall: {(cw.Status == Aetheris.Kernel.Core.Air.Regions.AirRegionCutWallAttachmentStatus.CutWallAttached ? "cylindrical face materialized" : "blocked")}");
+                        b.AppendLine("      Entry loop: materialized");
+                        b.AppendLine("      Exit loop: materialized");
+                        b.AppendLine("      Placeholder consumed: CutWallFace");
+                    }
+                    if (region.ShellClosure is not null)
+                    {
+                        var sc = region.ShellClosure;
+                        b.AppendLine($"      Shell closure: {sc.Status}");
+                        b.AppendLine($"      Parent integration: {region.ParentIntegration?.Status.ToString() ?? region.IntegrationStatus.ToString()}");
+                        b.AppendLine($"      STEP smoke: {region.ParentIntegration?.StepSmoke.Status.ToLowerInvariant() ?? "unavailable"}");
+                        b.AppendLine("      Blocker:");
+                        if (sc.Blocker is null)
+                        {
+                            b.AppendLine("        Category: none");
+                            b.AppendLine("        Code: none");
+                            b.AppendLine("        Message: none");
+                        }
+                        else
+                        {
+                            b.AppendLine($"        Category: {sc.Blocker.Category}");
+                            b.AppendLine($"        Code: {sc.Blocker.Code}");
+                            b.AppendLine($"        Message: {sc.Blocker.Message}");
+                        }
+                    }
                 }
 
                 if (region.ParentIntegration is not null)

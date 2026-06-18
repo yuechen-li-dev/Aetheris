@@ -909,9 +909,71 @@ public sealed class AirTraceCommandTests
         Assert.Contains("STEP smoke: succeeded", File.ReadAllText(Path.Combine(firstDir, "side-hole.trace.txt")), StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void FirmamentV2Parser_Box_TraceReportsFeatureAir()
+    {
+        var (exitCode, output, error) = Run("trace", "--fixture", FirmamentV2Fixture("Primitive/valid/box-v2.valid.firmfixture"));
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(error));
+        Assert.Contains("Firmament V2", output);
+        Assert.Contains("Stage: feature-air", output);
+        Assert.Contains("Model: BoxExample", output);
+        Assert.Contains("Units: mm", output);
+        Assert.Contains("Solid: base", output);
+        Assert.Contains("Record: Box", output);
+        Assert.Contains("Size: [10, 8, 6]", output);
+        Assert.Contains("Feature AIR: CreateBox", output);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_Box_JsonIncludesStableFields()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Primitive/valid/box-v2.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output);
+        var root = doc.RootElement;
+        Assert.Equal("AIR-FIRMAMENT-X1", root.GetProperty("milestone").GetString());
+        Assert.Equal("feature-air", root.GetProperty("actualStageReached").GetString());
+        Assert.Equal("CreateBox", root.GetProperty("featureAir").GetProperty("nodeKind").GetString());
+        var v2 = root.GetProperty("firmamentV2");
+        Assert.Equal("FirmamentV2", v2.GetProperty("syntaxVersion").GetString());
+        Assert.Equal("BoxExample", v2.GetProperty("modelName").GetString());
+        Assert.Equal("mm", v2.GetProperty("units").GetString());
+        Assert.Equal("base", v2.GetProperty("solidName").GetString());
+        Assert.Equal("Box", v2.GetProperty("recordType").GetString());
+        Assert.Equal(3, v2.GetProperty("size").GetArrayLength());
+        Assert.Contains("firmament-v2-no-v1-parser", output);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_MissingUnits_TraceReportsDiagnostic()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Primitive/invalid/box-v2-missing-units.invalid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        Assert.Contains("firmament-v2-missing-units", output);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_NegativeSize_TraceReportsDegenerateDimension()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Primitive/invalid/box-v2-negative-size.invalid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        Assert.Contains("firmament-degenerate-dimension", output);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_UnknownRecord_TraceReportsDiagnostic()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Primitive/invalid/box-v2-unknown-record.invalid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        Assert.Contains("firmament-v2-unknown-record-type", output);
+    }
+
     private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Chamfer", relative));
     private static string PrimitiveFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Primitive", relative));
     private static string RegionFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Region", relative));
+    private static string FirmamentV2Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));
 
     private static (int ExitCode, string Stdout, string Stderr) Run(params string[] args)
     {

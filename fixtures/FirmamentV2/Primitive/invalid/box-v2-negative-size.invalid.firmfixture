@@ -1,0 +1,18 @@
+// fixture-id: box-v2-negative-size
+// case: firmament-v2-box-negative-size
+// category: Primitive
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-degenerate-dimension
+// parser-backed: true
+
+model BoxExample {
+    units mm
+
+    solid base: Box {
+        size: [10, -8, 6]
+    }
+}

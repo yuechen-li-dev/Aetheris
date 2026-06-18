@@ -356,9 +356,9 @@ A2 explicitly does not introduce:
 
 Recommended next milestones:
 
-1. Define a tiny V2 lexer/parser spike for model/units/basic named constructors without geometry expansion.
-2. Add source diagnostics for missing units, duplicate names, and unsupported V2 constructs.
-3. Lower one V2 parser-backed box fixture to existing Feature AIR without changing backend topology.
+1. AIR-FIRMAMENT-X1 now provides the first parser-backed slice for `model`, `units`, and typed-record `solid base: Box { size: [...] }`; see `docs/air-firmament-x1-v2-parser-box.md`.
+2. Add source diagnostics for duplicate names and keep unsupported V2 constructs metadata-classified until explicitly promoted.
+3. Extend the V2 parser only through narrow frontend slices without changing backend topology.
 4. Lower one profile extrusion fixture through Feature AIR and existing Constructive AIR/profile emission evidence.
 5. Promote side-hole V2 region syntax from design fixture to semantic intent only, then to AIR Region only, before any materialization expansion.
 6. Keep fillet, shell, surfacing, and material fixtures as future-design until their compiler stages are separately admitted.

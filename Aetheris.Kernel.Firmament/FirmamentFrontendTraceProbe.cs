@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Firmament.ParsedModel;
 using Aetheris.Kernel.Firmament.Parsing;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament;
 
@@ -12,7 +13,10 @@ public sealed record FirmamentFrontendTraceProbeResult(
     string FrontendSummary,
     IReadOnlyList<string> Diagnostics,
     FirmamentPrimitiveAirTraceSummary? FeatureAir = null,
-    FirmamentConstructiveAirTraceSummary? ConstructiveAir = null);
+    FirmamentConstructiveAirTraceSummary? ConstructiveAir = null,
+    FirmamentV2TraceSummary? FirmamentV2 = null);
+
+public sealed record FirmamentV2TraceSummary(string SyntaxVersion, string ModelName, string Units, string SolidName, string RecordType, IReadOnlyList<double> Size, string StageReached);
 
 public sealed record FirmamentPrimitiveAirTraceSummary(
     bool ParserBacked,
@@ -41,6 +45,63 @@ public sealed record FirmamentTraceDimensions(double Width, double Depth, double
 
 public static class FirmamentFrontendTraceProbe
 {
+
+    public static FirmamentFrontendTraceProbeResult ParseV2Only(string sourceText)
+    {
+        ArgumentNullException.ThrowIfNull(sourceText);
+
+        var parseResult = FirmamentV2Parser.Parse(sourceText);
+        if (!parseResult.IsSuccess || parseResult.Document is null)
+        {
+            return new(
+                "FirmamentV2Parser",
+                false,
+                "parsed",
+                "Firmament V2 parser rejected the fixture source body.",
+                parseResult.Diagnostics);
+        }
+
+        var document = parseResult.Document;
+        var dimensions = new FirmamentTraceDimensions(document.Solid.Box.Size[0], document.Solid.Box.Size[1], document.Solid.Box.Size[2]);
+        var featureDiagnostics = new[]
+        {
+            "firmament-v2-box-record-recognized",
+            "firmament-v2-feature-air-create-box-created",
+            "firmament-v2-inherited-model-units",
+            "firmament-v2-no-v1-parser",
+            "firmament-v2-parser-backed-fixture-loaded"
+        }.Concat(parseResult.Diagnostics).Order(StringComparer.Ordinal).ToArray();
+
+        var featureAir = new FirmamentPrimitiveAirTraceSummary(
+            ParserBacked: true,
+            SourceOpKind: document.Solid.RecordType,
+            FeatureAirNodeKind: "CreateBox",
+            SourceDimensions: dimensions,
+            ConstructionIntent: "Box",
+            StageReached: "feature-air",
+            Diagnostics: featureDiagnostics,
+            Guarantees:
+            [
+                "Firmament V2 parser invoked",
+                "typed record solid binding",
+                "model units inherited by Box size",
+                "Feature AIR CreateBox summary",
+                "no V1 parser route",
+                "no production route replacement",
+                "no new geometry emitted"
+            ]);
+
+        return new(
+            "FirmamentV2Parser",
+            true,
+            "feature-air",
+            $"Firmament V2 parsed model '{document.ModelName}' with units '{document.Units}', solid '{document.Solid.Name}: {document.Solid.RecordType}', and created Feature AIR CreateBox summary.",
+            featureDiagnostics,
+            featureAir,
+            null,
+            new FirmamentV2TraceSummary("FirmamentV2", document.ModelName, document.Units, document.Solid.Name, document.Solid.RecordType, document.Solid.Box.Size, "feature-air"));
+    }
+
     public static FirmamentFrontendTraceProbeResult ParseOnly(string sourceText)
     {
         ArgumentNullException.ThrowIfNull(sourceText);

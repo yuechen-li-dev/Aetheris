@@ -1,0 +1,18 @@
+// fixture-id: box-v2-unknown-record
+// case: firmament-v2-box-unknown-record
+// category: Primitive
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-unknown-record-type
+// parser-backed: true
+
+model BoxExample {
+    units mm
+
+    solid base: Cylinder {
+        size: [10, 8, 6]
+    }
+}

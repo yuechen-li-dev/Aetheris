@@ -44,6 +44,7 @@ internal static class FirmFixtureLoader
 
         var sourceBody = ExtractSourceBody(lines);
         var parserBacked = metadata.TryGetValue("parser-backed", out var parserBackedValue) && string.Equals(parserBackedValue, "true", StringComparison.OrdinalIgnoreCase);
+        if (!parserBacked && string.Equals(metadata.GetValueOrDefault("syntax-version"), "FirmamentV2", StringComparison.Ordinal) && string.Equals(metadata.GetValueOrDefault("implementation"), "parser-backed", StringComparison.Ordinal)) parserBacked = true;
         var diagnostics = new[]
         {
             "air-x7-firmfixture-loaded",

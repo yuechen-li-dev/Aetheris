@@ -1,0 +1,16 @@
+// fixture-id: box-v2-missing-units
+// case: firmament-v2-box-missing-units
+// category: Primitive
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-missing-units
+// parser-backed: true
+
+model BoxExample {
+    solid base: Box {
+        size: [10, 8, 6]
+    }
+}

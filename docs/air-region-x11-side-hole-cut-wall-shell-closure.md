@@ -74,3 +74,7 @@ This is meaningful progression toward a side-hole golden path: the specific X10 
 ## Recommended next milestone
 
 AIR-REGION-X12 — Fix the controlled `ShellClosure` / `RegionIntegrationPatch` blocker, then run STEP smoke only after closed parent-shell/body evidence is available.
+
+## AIR-REGION-X12 follow-up
+
+AIR-REGION-X12 consumes the previously deferred controlled `RegionIntegrationPatch`, preserves X9 entry-loop, X10 exit-loop, and X11 cylindrical cut-wall evidence, and reports the controlled parent shell as `Closed`. Parent integration advances to `Integrated` for the controlled fixture only, with STEP smoke recorded as `Succeeded` in trace evidence. CIR remains analysis-only, Boolean remains unused/not generally admitted, and no general side-hole support or production route replacement is claimed.

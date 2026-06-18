@@ -192,18 +192,18 @@ internal static class AirTraceReportBuilder
     private static AirTraceReport BuildSideHoleFaceAttachedRegionFixture(FirmFixture fixture)
     {
         var regions = AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred();
-        var actualStage = "region-shell-closure-blocked";
+        var actualStage = "region-parent-integrated";
         var expectationSatisfied = fixture.Expectation == "valid" && (string.IsNullOrWhiteSpace(fixture.ExpectedStage) || fixture.ExpectedStage == actualStage);
         var fxDiagnostics = Stable([.. fixture.Diagnostics, .. regions.Diagnostics, "air-region-x1-firmfixture-case-mapped", "air-region-x4-firmfixture-boundary-contract-created", "air-region-x5-firmfixture-integration-decision-created", "air-region-x6-firmfixture-brep-placeholders-created", "air-region-x7-firmfixture-materialization-created", expectationSatisfied ? "air-region-x1-expectation-satisfied" : "air-region-x1-expectation-not-satisfied"]).ToArray();
-        return new("AIR-REGION-X11", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole preserves +X entry-loop and -X exit-loop evidence, attaches controlled cylindrical cut-wall evidence, and stops truthfully at shell closure.",
+        return new("AIR-REGION-X12", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, "FaceAttachedRegion side-hole preserves the X9/X10/X11 evidence chain and consumes the controlled RegionIntegrationPatch into closed parent shell evidence.",
             new("RegionFixture", "ControlledSideHoleParentBRepIntegration", "none", "none", "metadata-driven-region-contract", fixture.CaseName, fixture.CaseName, "AIR-REGION-X11"),
-            new("SwitchMatch", "ControlledSideHoleParentBRepIntegration", false, "controlled +X entry loop and -X exit loop evidence created; parent integration remains partial", "FaceAttachedRegion", "SideHole", []),
+            new("SwitchMatch", "ControlledSideHoleParentBRepIntegration", true, "controlled +X entry loop, -X exit loop, cylindrical cut wall, and RegionIntegrationPatch consumed into closed parent shell evidence", "FaceAttachedRegion", "SideHole", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
-            new("ControlledSideHoleParentBRepIntegration", true, "standalone side-hole patch evidence preserved; controlled +X entry and -X exit face split evidence created; parent integration partial"),
+            new("ControlledSideHoleParentBRepIntegration", true, "standalone side-hole patch evidence preserved; controlled +X entry and -X exit face split evidence created; controlled parent shell closure evidence integrated"),
             new(false, false, false, false, []),
             new("not-requested", "none", "none", "RegionFixture", "none", "none", "none", [], [], [], []),
             [], ["parent BRep integration not implemented", "CIR evaluator composition deferred"], fxDiagnostics,
-            [.. regions.Guarantees, "metadata-driven region fixture", "controlled standalone patch materialized", "controlled +X face split evidence", "controlled -X exit loop evidence", "parent integration partial"],
+            [.. regions.Guarantees, "metadata-driven region fixture", "controlled standalone patch materialized", "controlled +X face split evidence", "controlled -X exit loop evidence", "controlled shell closure evidence", "parent integration integrated"],
             ["no AIR Region production integration", "no production route replacement", "no Firmament grammar expansion", "no BRepPlan semantics change", "no CIR evaluator/tape behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no production analyzer behavior change", "no Boolean behavior change", "no AirEdgeSweep behavior change", "no BrepBoundedChamfer/BrepBoundedFillet behavior change", "no chamfer/fillet/shell geometry change", "no arbitrary graph support", "no import/recovery", "no triangle migration", "no NURBS/freeform behavior change"],
             new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, false, fxDiagnostics),
             fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics, Regions: regions);
@@ -480,8 +480,15 @@ internal static class AirTraceTextRenderer
                     if (region.ShellClosure is not null)
                     {
                         var sc = region.ShellClosure;
+                        b.AppendLine("    Region shell closure");
+                        b.AppendLine($"      Region: {sc.SourceRegionId}");
                         b.AppendLine($"      Shell closure: {sc.Status}");
                         b.AppendLine($"      Parent integration: {region.ParentIntegration?.Status.ToString() ?? region.IntegrationStatus.ToString()}");
+                        b.AppendLine($"      RegionIntegrationPatch: {sc.RegionIntegrationPatchStatus}");
+                        b.AppendLine("      Entry loop: materialized");
+                        b.AppendLine("      Exit loop: materialized");
+                        b.AppendLine("      Cut wall: materialized");
+                        b.AppendLine($"      Closed shell: {(sc.Closed.HasValue ? sc.Closed.Value.ToString().ToLowerInvariant() : "unavailable")}");
                         b.AppendLine($"      STEP smoke: {region.ParentIntegration?.StepSmoke.Status.ToLowerInvariant() ?? "unavailable"}");
                         b.AppendLine("      Blocker:");
                         if (sc.Blocker is null)

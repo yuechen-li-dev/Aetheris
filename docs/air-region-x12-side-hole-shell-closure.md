@@ -74,3 +74,15 @@ This is a golden-path proof point for future generalization through AIR Regions,
 ## Recommended next milestone
 
 Recommended: **AIR-REGION-X13 — Side-hole golden path artifact corpus / trace + STEP fixture**. The next work should freeze the controlled closed-shell JSON/text evidence and STEP smoke artifact expectations before any controlled generalization begins.
+
+## AIR-REGION-X13 artifact generation
+
+The X12 closed-shell evidence is now locked by the X13 generated-on-demand artifact command:
+
+```bash
+dotnet run --project Aetheris.CLI -f net10.0 -- trace \
+  --fixture fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture \
+  --out-dir artifacts/air-region-x13/side-hole
+```
+
+Open `artifacts/air-region-x13/side-hole/side-hole.step` for manual inspection. The generated directory also contains `side-hole.trace.json`, `side-hole.trace.txt`, and `manifest.json`.

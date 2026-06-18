@@ -210,3 +210,15 @@ For `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfi
 ## AIR-REGION-X11 trace note
 
 Side-hole region traces now include a `Region cut wall / shell closure` section for the controlled fixture. The section reports cut-wall attachment status, entry/exit-loop preservation, `CutWallFace` placeholder consumption, shell-closure status, parent-integration status, STEP smoke status, and the precise blocker when shell closure is not complete.
+
+## AIR-REGION-X13 controlled side-hole artifact output
+
+For the controlled side-hole fixture, `trace --out-dir` writes a persistent generated-on-demand artifact set instead of only one selected trace report:
+
+```bash
+dotnet run --project Aetheris.CLI -f net10.0 -- trace \
+  --fixture fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture \
+  --out-dir artifacts/air-region-x13/side-hole
+```
+
+Expected outputs are `side-hole.step`, `side-hole.trace.json`, `side-hole.trace.txt`, and `manifest.json`. This behavior is limited to the controlled AIR Region golden-path fixture and does not make trace accept arbitrary STEP input.

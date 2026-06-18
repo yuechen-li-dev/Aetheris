@@ -16,39 +16,46 @@ internal static class SideHoleGoldenPathArtifacts
     public static AirTraceArtifactsSummary Write(string outDir, AirTraceReport report)
     {
         Directory.CreateDirectory(outDir);
+        var stem = IsFirmamentV2SideHole(report) ? "side-hole-v2" : "side-hole";
         var artifacts = new AirTraceArtifactsSummary(
-            Path.Combine(outDir, StepFileName),
-            Path.Combine(outDir, JsonFileName),
-            Path.Combine(outDir, TextFileName),
+            Path.Combine(outDir, stem + ".step"),
+            Path.Combine(outDir, stem + ".trace.json"),
+            Path.Combine(outDir, stem + ".trace.txt"),
             Path.Combine(outDir, ManifestFileName));
-        File.WriteAllText(artifacts.Step, StepText(report));
+        File.WriteAllText(artifacts.Step, StepText(report, stem));
         return artifacts;
     }
 
     public static string Manifest(AirTraceReport report, AirTraceArtifactsSummary artifacts) => JsonSerializer.Serialize(new
     {
-        milestone = "AIR-REGION-X13",
+        milestone = IsFirmamentV2SideHole(report) ? "AIR-FIRMAMENT-X5" : "AIR-REGION-X13",
+        syntaxVersion = report.FirmamentV2?.SyntaxVersion,
         fixture = report.FixturePath,
         stage = report.ActualStageReached,
+        parentIntegration = report.FirmamentV2?.ParentIntegration ?? "Integrated",
+        shellClosure = report.FirmamentV2?.ShellClosure ?? "Closed",
+        stepSmoke = report.FirmamentV2?.StepSmoke ?? "Succeeded",
         step = Path.GetFileName(artifacts.Step),
         traceJson = Path.GetFileName(artifacts.TraceJson),
         traceText = Path.GetFileName(artifacts.TraceText),
-        parentIntegration = "Integrated",
-        shellClosure = "Closed",
-        stepSmoke = "Succeeded",
-        controlledFixtureOnly = true
+        sourcePath = IsFirmamentV2SideHole(report) ? "FirmamentV2Parser" : "FirmamentFixtureMetadata",
+        controlledFixtureOnly = true,
+        generalSideHoleSupport = false
     }, CliRunner.JsonOptions);
 
-    private static string StepText(AirTraceReport report) => "ISO-10303-21;\n" +
+    private static bool IsFirmamentV2SideHole(AirTraceReport report) =>
+        report.FirmamentV2 is { SyntaxVersion: "FirmamentV2", SemanticIntent: not null };
+
+    private static string StepText(AirTraceReport report, string stem) => "ISO-10303-21;\n" +
         "HEADER;\nFILE_DESCRIPTION(('AIR-REGION-X13 controlled side-hole golden path artifact'),'2;1');\n" +
-        "FILE_NAME('side-hole.step','2026-06-18T00:00:00Z',('Aetheris'),('Aetheris'),'Aetheris.CLI trace','Aetheris','');\n" +
+        $"FILE_NAME('{stem}.step','2026-06-18T00:00:00Z',('Aetheris'),('Aetheris'),'Aetheris.CLI trace','Aetheris','');\n" +
         "FILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF { 1 0 10303 442 1 1 4 }'));\nENDSEC;\n" +
         "DATA;\n" +
-        "/* controlled fixture only: fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture */\n" +
+        $"/* controlled fixture only: {report.FixturePath} */\n" +
         "/* stage=region-parent-integrated; parentIntegration=Integrated; shellClosure=Closed; stepSmoke=Succeeded */\n" +
         "/* materialized: CutEntryLoop, CutExitLoop, CutWallFace, RegionIntegrationPatchConsumed */\n" +
         "/* cylindrical cut wall evidence; CIR analysis-only; Boolean unused/not generally admitted */\n" +
-        "#1=PRODUCT('AIR-REGION-X13-SIDE-HOLE','controlled side-hole golden path','generated-on-demand fixture artifact',());\n" +
+        $"#1=PRODUCT('{(IsFirmamentV2SideHole(report) ? "AIR-FIRMAMENT-X5-SIDE-HOLE-V2" : "AIR-REGION-X13-SIDE-HOLE")}','controlled side-hole golden path','generated-on-demand fixture artifact',());\n" +
         "ENDSEC;\nEND-ISO-10303-21;\n";
 }
 
@@ -332,14 +339,14 @@ public static class CliRunner
         }
 
         report = report with { Diagnostics = (json ? report.Diagnostics.Append("air-x7-json-output-requested").Append("air-x7-json-fixture-report-created") : report.Diagnostics.Append("air-x7-default-text-output").Append("air-x7-text-fixture-report-created")).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray() };
-        if (!string.IsNullOrWhiteSpace(outDir) && string.Equals(report.CaseName, "side-hole-face-attached-region", StringComparison.Ordinal))
+        if (!string.IsNullOrWhiteSpace(outDir) && (string.Equals(report.CaseName, "side-hole-face-attached-region", StringComparison.Ordinal) || report.FirmamentV2?.SemanticIntent is not null))
         {
             var artifacts = SideHoleGoldenPathArtifacts.Write(outDir, report);
             report = report with
             {
-                Milestone = "AIR-REGION-X13",
+                Milestone = report.FirmamentV2?.SemanticIntent is not null ? "AIR-FIRMAMENT-X5" : "AIR-REGION-X13",
                 Artifacts = artifacts,
-                Diagnostics = report.Diagnostics.Append("air-region-x13-golden-path-artifacts-written").Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray()
+                Diagnostics = report.Diagnostics.Append(report.FirmamentV2?.SemanticIntent is not null ? "air-firmament-x5-v2-side-hole-artifacts-written" : "air-region-x13-golden-path-artifacts-written").Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray()
             };
             var jsonText = JsonSerializer.Serialize(report, JsonOptions);
             var textText = AirTraceTextRenderer.Render(report);

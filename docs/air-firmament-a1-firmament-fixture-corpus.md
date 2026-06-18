@@ -182,3 +182,7 @@ A2.2 expands the `fixtures/FirmamentV2/` metadata-only taxonomy with `RecordDeri
 ## AIR-FIRMAMENT-X4 fixture promotion
 
 `fixtures/FirmamentV2/Region/valid/side-hole-v2.valid.firmfixture` is parser-backed for the controlled +X to -X side-hole region and reaches `region-parent-integrated` through the existing AIR Region golden trace path.
+
+## AIR-FIRMAMENT-X5 V2 side-hole artifact status
+
+`fixtures/FirmamentV2/Region/valid/side-hole-v2.valid.firmfixture` now has a generated-on-demand artifact workflow. Running `aetheris trace --fixture fixtures/FirmamentV2/Region/valid/side-hole-v2.valid.firmfixture --out-dir artifacts/air-firmament-x5/side-hole-v2` writes `side-hole-v2.step`, `side-hole-v2.trace.json`, `side-hole-v2.trace.txt`, and `manifest.json`. This records parser-backed V2 parity with the controlled AIR-REGION-X13 side-hole path without broad corpus migration or general side-hole support.

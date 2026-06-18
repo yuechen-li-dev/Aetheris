@@ -86,3 +86,7 @@ AIR-FIRMAMENT-A1 promotes the controlled side-hole fixture into the language-lev
 ## Firmament V2 syntax note
 
 AIR-FIRMAMENT-A2 documents a V2 side-hole region syntax as design-level source shape. That snippet is not parser-backed yet and does not expand the controlled X13 golden path into general side-hole support, arbitrary face/axis support, production Boolean fallback, CIR topology authority, STEP exporter/importer behavior changes, or BRep topology behavior changes.
+
+## AIR-FIRMAMENT-X5 V2 parity note
+
+AIR-FIRMAMENT-X5 now gives the parser-backed Firmament V2 side-hole fixture its own generated-on-demand artifact path at `artifacts/air-firmament-x5/side-hole-v2/`. The V2 artifact uses clearly labeled `side-hole-v2.*` filenames and is structurally parity-checked against this X13 controlled side-hole path for stage, parent integration, shell closure, STEP smoke, +X entry, -X exit, radius-1 Cylinder cut evidence, loop/wall/patch materialization evidence, no blocker, CIR analysis-only status, and no Boolean general admission.

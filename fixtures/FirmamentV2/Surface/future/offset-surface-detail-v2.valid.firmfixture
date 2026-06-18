@@ -1,0 +1,18 @@
+// fixture-id: offset-surface-detail-v2
+// case: firmament-v2-offset-surface-detail
+// category: Surface
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2.1 future offset detail design; no surfacing implementation.
+
+model OffsetSurfaceDetail {
+    units mm
+    feature emboss: SurfaceOffsetDetail {
+        target: base.face(+Z)
+        offset: HeightField { source: ribPattern scale: 0.2 }
+    }
+}

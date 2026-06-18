@@ -1,0 +1,20 @@
+// fixture-id: linear-pattern-v2
+// case: firmament-v2-linear-pattern
+// category: Pattern
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2.1 pattern-as-record design; no pattern implementation.
+
+model LinearPatternDesign {
+    units mm
+    feature holes: LinearPattern {
+        seed: sideHole
+        count: 6
+        spacing: 10
+        direction: +Y
+    }
+}

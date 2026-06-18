@@ -1,0 +1,23 @@
+// fixture-id: named-box-faces-v2
+// case: firmament-v2-named-box-faces
+// category: SemanticRefs
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2.1 metadata-only semantic exposure fixture; not parser-backed.
+
+model NamedBoxFaces {
+    units mm
+
+    solid base = box {
+        size: [10, 8, 6]
+        expose {
+            face(+Z) => top
+            face(+Z).outerLoop => topRim
+            face(+X) => right
+        }
+    }
+}

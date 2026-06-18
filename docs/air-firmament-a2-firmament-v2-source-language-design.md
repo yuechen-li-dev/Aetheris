@@ -358,3 +358,7 @@ Recommended next milestones:
 4. Lower one profile extrusion fixture through Feature AIR and existing Constructive AIR/profile emission evidence.
 5. Promote side-hole V2 region syntax from design fixture to semantic intent only, then to AIR Region only, before any materialization expansion.
 6. Keep fillet, shell, surfacing, and material fixtures as future-design until their compiler stages are separately admitted.
+
+## A2.1 semantic contract addendum
+
+AIR-FIRMAMENT-A2.1 extends this source-language design with the semantic-reference and admissibility contract that must be settled before parser work begins. See `docs/air-firmament-a2-1-semantic-references-admissibility-surface-doctrine.md` for the typed source-level reference model, the reserved `=>` exposure/binding syntax, compile-time degeneracy/admissibility doctrine, ruled/sweep/offset-first surface policy, limited-admission spline/NURBS policy, pattern-as-record/no-control-flow doctrine, and feature-output role vocabulary. A2.1 remains design/audit only: no full V2 parser, backend behavior change, corpus migration, or geometry feature implementation is introduced.

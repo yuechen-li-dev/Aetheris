@@ -66,3 +66,15 @@ Validation included CLI build/help/trace commands and focused parser/frontend te
 ## Next milestone recommendation
 
 The next milestone should either generalize a second controlled side-hole variant with explicit admissibility limits or add a thin adapter object between `SideHoleIntent` and AIR Region construction so future V2 regions avoid direct trace-probe coupling. Do not broaden Boolean admission or arbitrary face/axis support until that adapter exists.
+
+## AIR-FIRMAMENT-X5 artifact workflow
+
+AIR-FIRMAMENT-X5 adds generated-on-demand artifacts for the same parser-backed V2 side-hole fixture. The command is:
+
+```bash
+dotnet run --project Aetheris.CLI -f net10.0 -- trace \
+  --fixture fixtures/FirmamentV2/Region/valid/side-hole-v2.valid.firmfixture \
+  --out-dir artifacts/air-firmament-x5/side-hole-v2
+```
+
+Expected files are `side-hole-v2.step`, `side-hole-v2.trace.json`, `side-hole-v2.trace.txt`, and `manifest.json` under `artifacts/air-firmament-x5/side-hole-v2/`. The artifact remains generated-on-demand and is parity-checked against the AIR-REGION-X13 controlled side-hole path on stable structural facts, not STEP byte equality.

@@ -998,6 +998,114 @@ public sealed class AirTraceCommandTests
         Assert.Contains("firmament-v2-unknown-record-type", output);
     }
 
+    [Fact]
+    public void FirmamentV2SideHoleArtifacts_OutDirWritesStableFiles()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        var (exitCode, output, error) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(error));
+        Assert.Contains("Trace artifacts written:", output, StringComparison.Ordinal);
+        foreach (var name in new[] { "side-hole-v2.step", "side-hole-v2.trace.json", "side-hole-v2.trace.txt", "manifest.json" })
+        {
+            var path = Path.Combine(dir, name);
+            Assert.True(File.Exists(path), path);
+            Assert.True(new FileInfo(path).Length > 0, path);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleArtifacts_ManifestContainsGoldenPathFacts()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
+        var root = doc.RootElement;
+        Assert.Equal("AIR-FIRMAMENT-X5", root.GetProperty("milestone").GetString());
+        Assert.Equal("FirmamentV2", root.GetProperty("syntaxVersion").GetString());
+        Assert.EndsWith("fixtures/FirmamentV2/Region/valid/side-hole-v2.valid.firmfixture", root.GetProperty("fixture").GetString()!.Replace('\\', '/'), StringComparison.Ordinal);
+        Assert.Equal("region-parent-integrated", root.GetProperty("stage").GetString());
+        Assert.Equal("Integrated", root.GetProperty("parentIntegration").GetString());
+        Assert.Equal("Closed", root.GetProperty("shellClosure").GetString());
+        Assert.Equal("Succeeded", root.GetProperty("stepSmoke").GetString());
+        Assert.True(root.GetProperty("controlledFixtureOnly").GetBoolean());
+        Assert.False(root.GetProperty("generalSideHoleSupport").GetBoolean());
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleArtifacts_TraceReportsArtifactPaths()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+
+        var text = File.ReadAllText(Path.Combine(dir, "side-hole-v2.trace.txt"));
+        Assert.Contains("Artifacts", text);
+        Assert.Contains(Path.Combine(dir, "side-hole-v2.step"), text);
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "side-hole-v2.trace.json")));
+        Assert.Equal(Path.Combine(dir, "side-hole-v2.step"), doc.RootElement.GetProperty("artifacts").GetProperty("step").GetString());
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleArtifacts_ParityWithX13GoldenPath()
+    {
+        var (_, v2Output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--json");
+        var (_, x13Output, _) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json");
+        using var v2 = JsonDocument.Parse(v2Output);
+        using var x13 = JsonDocument.Parse(x13Output);
+
+        Assert.Equal(x13.RootElement.GetProperty("actualStageReached").GetString(), v2.RootElement.GetProperty("actualStageReached").GetString());
+        var v2Region = v2.RootElement.GetProperty("regions").GetProperty("regions")[1];
+        var x13Region = x13.RootElement.GetProperty("regions").GetProperty("regions")[1];
+        Assert.Equal("Integrated", v2Region.GetProperty("parentIntegration").GetProperty("status").GetString());
+        Assert.Equal(v2Region.GetProperty("parentIntegration").GetProperty("status").GetString(), x13Region.GetProperty("parentIntegration").GetProperty("status").GetString());
+        Assert.Equal("Closed", v2Region.GetProperty("shellClosure").GetProperty("status").GetString());
+        Assert.Equal("Succeeded", v2Region.GetProperty("parentIntegration").GetProperty("stepSmoke").GetProperty("status").GetString());
+        Assert.Equal("+X", v2Region.GetProperty("yield").GetProperty("attachment").GetProperty("faceSelector").GetString());
+        Assert.Contains("-X", v2Region.GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("\"radius\": 1", v2Region.GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("Cylinder", v2Region.GetRawText(), StringComparison.Ordinal);
+        foreach (var marker in new[] { "CutEntryLoop", "CutExitLoop", "CutWallFace", "RegionIntegrationPatch", "analysis-only", "Boolean" })
+        {
+            Assert.Contains(marker, v2Region.GetRawText(), StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(marker, x13Region.GetRawText(), StringComparison.OrdinalIgnoreCase);
+        }
+        Assert.Equal(JsonValueKind.Null, v2Region.GetProperty("parentIntegration").GetProperty("blocker").ValueKind);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleArtifacts_DeterministicTraceJson()
+    {
+        var firstDir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        var secondDir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", firstDir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", secondDir).ExitCode);
+        var first = File.ReadAllText(Path.Combine(firstDir, "side-hole-v2.trace.json")).Replace(firstDir, "<OUT>");
+        var second = File.ReadAllText(Path.Combine(secondDir, "side-hole-v2.trace.json")).Replace(secondDir, "<OUT>");
+        Assert.Equal(first, second);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleArtifacts_DoNotDeleteOutDirFiles()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.All(new[] { "side-hole-v2.step", "side-hole-v2.trace.json", "side-hole-v2.trace.txt", "manifest.json" }, name => Assert.True(File.Exists(Path.Combine(dir, name)), name));
+    }
+
+    [Fact]
+    public void FirmamentV2SideHole_GoldenPathStillGreen()
+    {
+        var (exitCode, output, error) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"));
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(error));
+        Assert.Contains("Actual stage: region-parent-integrated", output);
+        Assert.Contains("Parent integration: Integrated", output);
+        Assert.Contains("Shell closure: Closed", output);
+        Assert.Contains("STEP smoke: Succeeded", output);
+    }
+
     private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Chamfer", relative));
     private static string PrimitiveFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Primitive", relative));
     private static string RegionFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Region", relative));

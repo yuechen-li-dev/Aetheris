@@ -3,22 +3,31 @@
 // category: Region
 // syntax-version: FirmamentV2
 // validity: valid
-// implementation: not-implemented
+// implementation: parser-backed
 // expected: valid
-// expected-stage: not-implemented
-// expected-diagnostic: firmament-v2-parser-not-ready
-// notes: AIR-FIRMAMENT-A2 V2 side-hole golden-path syntax design; not general side-hole support and not parser-backed.
+// expected-stage: region-parent-integrated
+// expected-parent-integration: Integrated
+// expected-shell-closure: Closed
+// expected-step-smoke: Succeeded
+// expected-feature: sideHole
+// expected-region-kind: FaceAttachedRegion
+// expected-entry-face: +X
+// expected-exit-face: -X
+// expected-tool: Cylinder
+// expected-radius: 1
+// parser-backed: true
+// notes: AIR-FIRMAMENT-X4 parser-backed controlled V2 side-hole region fixture.
 
-model SideHoleExample {
+model SideHoleV2 {
     units mm
 
-    solid base = box {
+    solid base: Box {
         size: [10, 8, 6]
     }
 
     modify base {
         region sideHole on face(+X) {
-            cut cylinder {
+            cut Cylinder {
                 radius: 1
                 through: face(-X)
             }

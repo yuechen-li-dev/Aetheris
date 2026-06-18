@@ -177,3 +177,8 @@ A2.2 expands the `fixtures/FirmamentV2/` metadata-only taxonomy with `RecordDeri
 ## X3 fixture stage note
 
 `fixtures/FirmamentV2/SemanticRefs/valid/named-box-faces-v2.valid.firmfixture` is parser-backed as of AIR-FIRMAMENT-X3 and is expected to reach `feature-air` while reporting four semantic exposure aliases.
+
+
+## AIR-FIRMAMENT-X4 fixture promotion
+
+`fixtures/FirmamentV2/Region/valid/side-hole-v2.valid.firmfixture` is parser-backed for the controlled +X to -X side-hole region and reaches `region-parent-integrated` through the existing AIR Region golden trace path.

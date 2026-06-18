@@ -366,3 +366,8 @@ Recommended next milestones:
 ## A2.1 semantic contract addendum
 
 AIR-FIRMAMENT-A2.1 extends this source-language design with the semantic-reference and admissibility contract that must be settled before parser work begins. See `docs/air-firmament-a2-1-semantic-references-admissibility-surface-doctrine.md` for the typed source-level reference model, the reserved `=>` exposure/binding syntax, compile-time degeneracy/admissibility doctrine, ruled/sweep/offset-first surface policy, limited-admission spline/NURBS policy, pattern-as-record/no-control-flow doctrine, and feature-output role vocabulary. A2.1 remains design/audit only: no full V2 parser, backend behavior change, corpus migration, or geometry feature implementation is introduced.
+
+
+## AIR-FIRMAMENT-X4 side-hole parser slice
+
+The controlled parser-backed V2 side-hole region slice is documented in [AIR-FIRMAMENT-X4](air-firmament-x4-v2-side-hole-region.md). It preserves V1/V2 parser separation and supports only the canonical `modify base { region sideHole on face(+X) { cut Cylinder { radius: 1 through: face(-X) } } }` route.

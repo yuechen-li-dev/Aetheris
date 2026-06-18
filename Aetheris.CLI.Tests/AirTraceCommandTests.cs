@@ -947,6 +947,34 @@ public sealed class AirTraceCommandTests
     }
 
     [Fact]
+    public void FirmamentV2Parser_ExposeBoxFaces_TraceJsonContainsSemanticRefs()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("SemanticRefs/valid/named-box-faces-v2.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output);
+        var exposures = doc.RootElement.GetProperty("firmamentV2").GetProperty("solids")[0].GetProperty("exposures");
+        Assert.Equal(4, exposures.GetArrayLength());
+        var top = exposures.EnumerateArray().Single(e => e.GetProperty("alias").GetString() == "top");
+        Assert.Equal("face", top.GetProperty("selectorKind").GetString());
+        Assert.Equal("face(+Z)", top.GetProperty("selector").GetString());
+        Assert.Equal("FaceRef", top.GetProperty("refType").GetString());
+        Assert.Equal("+Z", top.GetProperty("axis").GetString());
+        var rim = exposures.EnumerateArray().Single(e => e.GetProperty("alias").GetString() == "topRim");
+        Assert.Equal("outerLoop", rim.GetProperty("subselector").GetString());
+        Assert.Equal("LoopRef", rim.GetProperty("refType").GetString());
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_ExposeBoxFaces_TraceTextContainsFatArrowBindings()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("SemanticRefs/valid/named-box-faces-v2.valid.firmfixture"));
+        Assert.Equal(0, exitCode);
+        Assert.Contains("face(+Z) => top : FaceRef", output);
+        Assert.Contains("face(-Z) => bottom : FaceRef", output);
+        Assert.Contains("face(+Z).outerLoop => topRim : LoopRef", output);
+    }
+
+    [Fact]
     public void FirmamentV2Parser_MissingUnits_TraceReportsDiagnostic()
     {
         var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Primitive/invalid/box-v2-missing-units.invalid.firmfixture"), "--json");

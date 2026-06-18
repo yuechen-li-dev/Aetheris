@@ -83,3 +83,7 @@ Recommended AIR-FIRMAMENT-X2: add a small token/lexer layer and semantic-name ch
 ## X2 follow-on note
 
 AIR-FIRMAMENT-X2 builds on this isolated V2 frontend by adding only Box `with` record derivation: a derived Box may override `size`, be revalidated, and lower to Feature AIR `CreateBox`. The V1 parser remains untouched and the V2 frontend remains under the `FirmamentV2` namespace.
+
+## X3 exposure extension
+
+The X1 Box record path remains the base V2 parser route. AIR-FIRMAMENT-X3 layers Box-only semantic exposure metadata on that route without changing `CreateBox` dimensions or geometry behavior.

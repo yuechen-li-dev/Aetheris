@@ -3,16 +3,17 @@
 // category: SemanticRefs
 // syntax-version: FirmamentV2
 // validity: invalid
-// implementation: rejected
+// implementation: parser-backed
 // expected: invalid
-// expected-stage: rejected
+// expected-stage: parsed
 // expected-diagnostic: firmament-raw-backend-id-reference-forbidden
-// notes: AIR-FIRMAMENT-A2.1 forbids backend topology IDs in source references.
+// parser-backed: true
+// notes: AIR-FIRMAMENT-X3 keeps raw backend topology IDs forbidden in source references.
 
 model RawBRepIdReference {
     units mm
-    solid base = box { size: [10, 8, 6] }
-    modify base {
-        feature bad: Chamfer { target: brep.face("F-00017") distance: 0.2 }
+    solid base: Box {
+        size: [10, 8, 6]
+        expose { brep.face("F-00017") => badFace }
     }
 }

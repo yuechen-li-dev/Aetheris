@@ -1,0 +1,18 @@
+// fixture-id: invalid-face-axis-v2
+// case: firmament-v2-invalid-face-axis
+// category: SemanticRefs
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-selector-axis-invalid
+// parser-backed: true
+
+model InvalidFaceAxis {
+    units mm
+    solid base: Box {
+        size: [10, 8, 6]
+        expose { face(+W) => badFace }
+    }
+}

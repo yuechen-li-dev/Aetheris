@@ -173,3 +173,7 @@ A2.2 expands the `fixtures/FirmamentV2/` metadata-only taxonomy with `RecordDeri
 ### AIR-FIRMAMENT-X2 fixture stage update
 
 `fixtures/FirmamentV2/RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture` is no longer metadata-only. It is parser-backed, reaches `feature-air`, lowers the derived solid `tall` to `CreateBox`, and retains `base` as source record evidence. The surrounding V2 design fixtures remain metadata-only, parser-not-ready, not-implemented, deferred, or rejected according to their existing fixture metadata.
+
+## X3 fixture stage note
+
+`fixtures/FirmamentV2/SemanticRefs/valid/named-box-faces-v2.valid.firmfixture` is parser-backed as of AIR-FIRMAMENT-X3 and is expected to reach `feature-air` while reporting four semantic exposure aliases.

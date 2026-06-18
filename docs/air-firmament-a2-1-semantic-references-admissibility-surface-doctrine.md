@@ -388,3 +388,7 @@ A2.2 extends this doctrine with `with` record derivation/configuration. `=>` rem
 ## 21. Non-goals
 
 A2.1 explicitly preserves: no parser implementation; no backend implementation; no shell implementation; no fillet implementation; no surfacing implementation; no pattern implementation; no material implementation; no broad Boolean; no CIR topology authority; no STEP behavior change; no BRep topology behavior change; no Firmasm redesign; no corpus migration; no production route replacement; no general side-hole support; no arbitrary face/axis support; no production analyzer/map behavior changes; no CIR evaluator/tape behavior changes; no route-selection/JudgmentUtility production behavior changes; no AirEdgeSweep behavior changes; no BrepBoundedChamfer/BrepBoundedFillet behavior changes; no triangle migration; and no NURBS/freeform implementation.
+
+## X3 parser-backed Box exposure note
+
+AIR-FIRMAMENT-X3 advances the V2 named Box face exposure fixture from A2.1 metadata-only doctrine into the isolated Firmament V2 parser/frontend. The supported slice is limited to Box `expose { face(axis) => alias }` and `face(axis).outerLoop => alias` semantic summaries; aliases remain source-level names and not backend topology identifiers.

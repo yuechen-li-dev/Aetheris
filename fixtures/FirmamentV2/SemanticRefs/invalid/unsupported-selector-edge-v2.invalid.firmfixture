@@ -1,0 +1,18 @@
+// fixture-id: unsupported-selector-edge-v2
+// case: firmament-v2-unsupported-selector-edge
+// category: SemanticRefs
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-selector-unsupported
+// parser-backed: true
+
+model UnsupportedSelectorEdge {
+    units mm
+    solid base: Box {
+        size: [10, 8, 6]
+        expose { edge(+Z, +X) => unsupportedEdge }
+    }
+}

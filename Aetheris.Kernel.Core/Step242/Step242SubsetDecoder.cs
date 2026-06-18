@@ -1018,6 +1018,9 @@ internal static class Step242SubsetDecoder
         return KernelResult<IReadOnlyList<int>>.Success(ints);
     }
 
+    internal static KernelResult<IReadOnlyList<double>> ReadRationalBSplineCurveWeights(Step242ParsedEntity rationalCurveEntity) =>
+        ReadNumberListArgument(rationalCurveEntity, 0, "RATIONAL_B_SPLINE_CURVE weights_data", "Importer.Geometry.RationalBSplineCurve");
+
     private static KernelResult<IReadOnlyList<double>> ReadNumberListArgument(
         Step242ParsedEntity entity,
         int argumentIndex,

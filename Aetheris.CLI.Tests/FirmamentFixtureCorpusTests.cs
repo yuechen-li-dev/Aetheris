@@ -5,6 +5,8 @@ namespace Aetheris.CLI.Tests;
 public sealed class FirmamentFixtureCorpusTests
 {
     private static readonly string CorpusRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament"));
+    private static readonly string V2CorpusRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2"));
+    private static readonly string V2DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-firmament-v2-source-language-design.md"));
     private static readonly string[] RequiredMetadata = ["fixture-id", "case", "category", "validity", "implementation", "expected", "expected-stage"];
 
     [Fact]
@@ -84,6 +86,64 @@ public sealed class FirmamentFixtureCorpusTests
     }
 
     [Fact]
+    public void FirmamentV1Fixtures_RemainValid()
+    {
+        FirmamentFixtureCorpus_Box_RemainsParserBacked();
+        FirmamentFixtureCorpus_SideHoleGoldenPath_RemainsIntegrated();
+    }
+
+    [Fact]
+    public void FirmamentV2DesignFixtures_MetadataRecognized()
+    {
+        var fixtures = DiscoverV2Fixtures();
+        Assert.Contains(fixtures, p => p.EndsWith("Primitive/valid/box-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Region/valid/side-hole-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Shell/future/open-top-box-shell-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Fillet/future/single-edge-fillet-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Invalid/invalid-missing-units-v2.invalid.firmfixture", StringComparison.Ordinal));
+
+        foreach (var path in fixtures)
+        {
+            var fixture = LoadMetadata(path);
+            foreach (var key in RequiredMetadata) Assert.True(fixture.ContainsKey(key), $"{path} missing {key}");
+            Assert.Equal("FirmamentV2", fixture["syntax-version"]);
+            Assert.Contains(fixture["validity"], new[] { "valid", "invalid" });
+            Assert.Contains(fixture["implementation"], new[] { "not-implemented", "rejected" });
+            Assert.True(fixture.ContainsKey("expected-diagnostic"), $"{path} missing expected-diagnostic");
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2DesignFixtures_AreNotTreatedAsV1ParseFailures()
+    {
+        foreach (var path in DiscoverV2Fixtures())
+        {
+            using var doc = Trace(path);
+            var root = doc.RootElement;
+            var metadata = LoadMetadata(path);
+            Assert.False(root.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
+            Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean(), path);
+            Assert.Equal(metadata["expected-stage"], root.GetProperty("actualStageReached").GetString());
+            var diagnostics = root.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
+            Assert.Contains(metadata["expected-diagnostic"], diagnostics);
+            Assert.DoesNotContain("air-x11-firmament-parse-failed", diagnostics);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2Doctrine_DocsExist()
+    {
+        Assert.True(File.Exists(V2DoctrinePath), V2DoctrinePath);
+        var doc = File.ReadAllText(V2DoctrinePath);
+        Assert.Contains("mostly frozen", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("canonical human-facing", doc, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Feature AIR", doc, StringComparison.Ordinal);
+        Assert.Contains("CIR is not the topology path", doc, StringComparison.Ordinal);
+        Assert.Contains("Boolean", doc, StringComparison.Ordinal);
+        Assert.Contains("not the core language model", doc, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void FirmamentFixtureCorpus_DoesNotRequireFeatureImplementation()
     {
         var future = Path.Combine(CorpusRoot, "Fillet/future/single-edge-fillet.valid.firmfixture");
@@ -130,6 +190,8 @@ public sealed class FirmamentFixtureCorpusTests
     }
 
     private static string[] DiscoverFixtures() => Directory.EnumerateFiles(CorpusRoot, "*.firmfixture", SearchOption.AllDirectories).OrderBy(p => p.Replace('\\', '/'), StringComparer.Ordinal).ToArray();
+
+    private static string[] DiscoverV2Fixtures() => Directory.EnumerateFiles(V2CorpusRoot, "*.firmfixture", SearchOption.AllDirectories).Select(p => p.Replace('\\', '/')).Order(StringComparer.Ordinal).ToArray();
 
     private static JsonDocument Trace(string fixturePath, params string[] extraArgs)
     {

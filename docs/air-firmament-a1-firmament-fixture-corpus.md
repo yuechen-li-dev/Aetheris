@@ -129,3 +129,27 @@ A1 adds `FirmamentFixtureCorpusTests` in `Aetheris.CLI.Tests`, covering metadata
 ## Next milestone recommendation
 
 Next milestones should pick one narrow future fixture and lower it part-by-part: source parse, semantic intent, Feature AIR, Constructive/Compositional AIR, BRepPlan/BRep evidence, STEP/artifacts, and stable trace diagnostics. Do not admit broad shell, fillet, surfacing, Boolean, arbitrary side-hole, arbitrary face/axis, or CIR topology authority behavior through the corpus metadata path.
+
+## AIR-FIRMAMENT-A2 — Firmament V2 design-fixture policy
+
+Firmament V2 is the canonical future human-facing source language. Firmament V1 remains valid where already supported, but it is legacy TOON/YAML structured syntax, mostly frozen, and primarily useful for the existing corpus, interchange, and historical regression evidence.
+
+A2 introduces metadata-only V2 design fixtures under `fixtures/FirmamentV2/`. These fixtures use record/block-style construction-intent snippets and declare `syntax-version: FirmamentV2`. Until a V2 parser lands, they are deliberately classified by metadata as `not-implemented` or `rejected`; they must not be surfaced as random V1 parser failures.
+
+The intended V2 fixture tree is:
+
+```text
+fixtures/FirmamentV2/
+  Primitive/
+  Profile/
+  Prism/
+  Region/
+  Chamfer/
+  Fillet/
+  Shell/
+  Surfacing/
+  Material/
+  Invalid/
+```
+
+Future features should be written in V2 syntax first, marked not implemented/future-design, and then advanced through parser, semantic intent, Feature AIR, Constructive/Compositional AIR, BRepPlan, BRep, STEP/artifact, and trace stages in narrow milestones. Existing V1 fixtures remain valid in `fixtures/Firmament/` and do not require migration.

@@ -1,0 +1,24 @@
+// fixture-id: open-top-box-shell-v2
+// case: firmament-v2-open-top-shell-design
+// category: Shell
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2 future shell syntax design; no shell implementation is introduced.
+
+model OpenTopShellExample {
+    units mm
+
+    solid base = box {
+        size: [10, 8, 6]
+    }
+
+    solid shell = shell base {
+        thickness: 1
+        remove: face(+Z)
+        direction: inward
+    }
+}

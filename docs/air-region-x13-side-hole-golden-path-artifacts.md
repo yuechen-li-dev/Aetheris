@@ -82,3 +82,7 @@ AIR-REGION-X14 — Controlled side-hole parameter variation. Start with the same
 ## AIR-FIRMAMENT-A1 corpus status
 
 AIR-FIRMAMENT-A1 promotes the controlled side-hole fixture into the language-level Firmament corpus taxonomy. The fixture remains at `fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture` with explicit metadata for source validity, implementation state, expected lowering stage, integration status, shell closure, STEP smoke, and artifact evidence. This is still the same controlled golden path only: it does not admit general side-hole support, arbitrary face/axis support, production Boolean fallback, CIR topology authority, STEP exporter/importer changes, or BRep topology behavior changes.
+
+## Firmament V2 syntax note
+
+AIR-FIRMAMENT-A2 documents a V2 side-hole region syntax as design-level source shape. That snippet is not parser-backed yet and does not expand the controlled X13 golden path into general side-hole support, arbitrary face/axis support, production Boolean fallback, CIR topology authority, STEP exporter/importer behavior changes, or BRep topology behavior changes.

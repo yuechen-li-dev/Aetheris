@@ -1,0 +1,18 @@
+// fixture-id: box-v2
+// case: firmament-v2-box-design
+// category: Primitive
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2 metadata-only V2 design fixture; source snippet is canonical-shape design, not parser-backed.
+
+model BoxExample {
+    units mm
+
+    solid base = box {
+        size: [10, 8, 6]
+    }
+}

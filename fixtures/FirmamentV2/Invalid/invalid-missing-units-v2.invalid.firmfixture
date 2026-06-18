@@ -1,0 +1,16 @@
+// fixture-id: invalid-missing-units-v2
+// case: firmament-v2-invalid-missing-units-design
+// category: Invalid
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-v2-missing-units
+// notes: AIR-FIRMAMENT-A2 invalid V2 design fixture; metadata-only until parser diagnostics land.
+
+model MissingUnitsExample {
+    solid base = box {
+        size: [10, 8, 6]
+    }
+}

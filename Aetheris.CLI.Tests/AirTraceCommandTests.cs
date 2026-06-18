@@ -326,7 +326,7 @@ public sealed class AirTraceCommandTests
         Assert.Contains("no parent topology mutation", output); Assert.Contains("no BRepPlan elements materialized", output);
         Assert.Contains("Region integration decision", output);
         Assert.Contains("Selected: ControlledSideHoleParentBRepIntegration", output);
-        Assert.Contains("Status: Blocked", output);
+        Assert.Contains("Status: PartiallyIntegrated", output);
         Assert.Contains("FaceAttachedConstructiveInsertion: Deferred", output);
         Assert.Contains("LocalBRepPlanPatch: Deferred", output);
         Assert.Contains("BRepBooleanFallback: Rejected", output);
@@ -342,7 +342,7 @@ public sealed class AirTraceCommandTests
         using var doc = JsonDocument.Parse(output); var root = doc.RootElement;
         Assert.Equal("valid", root.GetProperty("fixture").GetProperty("expectation").GetString());
         Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
-        Assert.Equal("region-parent-integration-blocked", root.GetProperty("actualStageReached").GetString());
+        Assert.Equal("region-face-split", root.GetProperty("actualStageReached").GetString());
         var regions = root.GetProperty("regions");
         Assert.Equal(2, regions.GetProperty("regionCount").GetInt32());
         Assert.True(regions.GetProperty("hasNestedRegions").GetBoolean());
@@ -399,7 +399,7 @@ public sealed class AirTraceCommandTests
         Assert.Equal("Deferred", brepBoundary.GetProperty("integrationStatus").GetString());
         var decision = side.GetProperty("integrationDecision");
         Assert.Equal("ControlledSideHoleParentBRepIntegration", decision.GetProperty("selectedRouteKind").GetString());
-        Assert.Equal("Blocked", decision.GetProperty("selectedStatus").GetString());
+        Assert.Equal("PartiallyIntegrated", decision.GetProperty("selectedStatus").GetString());
         Assert.Equal("SwitchMatch", decision.GetProperty("selectionMode").GetString());
         var candidates = decision.GetProperty("candidates").EnumerateArray().ToDictionary(c => c.GetProperty("routeKind").GetString()!, c => c);
         Assert.Equal("Deferred", candidates["FaceAttachedConstructiveInsertion"].GetProperty("status").GetString());
@@ -495,13 +495,16 @@ public sealed class AirTraceCommandTests
         var (exitCode, output, error) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"));
         Assert.Equal(0, exitCode); Assert.True(string.IsNullOrWhiteSpace(error));
         Assert.Contains("Region parent integration", output);
-        Assert.Contains("Status: Blocked", output);
+        Assert.Contains("Status: PartiallyIntegrated", output);
         Assert.Contains("Route: ControlledSideHoleParentBRepIntegration", output);
         Assert.Contains("Placeholder mappings:", output);
-        Assert.Contains("CutEntryLoop: Deferred", output);
+        Assert.Contains("CutEntryLoop: Materialized", output);
         Assert.Contains("CutWallFace: Materialized", output);
         Assert.Contains("Blocker:", output);
-        Assert.Contains("Category: FaceSplitting", output);
+        Assert.Contains("Region face split", output);
+        Assert.Contains("Status: SplitCreated", output);
+        Assert.Contains("Entry loop: EntryLoopMaterialized", output);
+        Assert.Contains("Category: ExitLoopInsertion", output);
         Assert.Contains("controlled fixture only", output);
     }
 
@@ -513,12 +516,12 @@ public sealed class AirTraceCommandTests
         using var doc = JsonDocument.Parse(output);
         var side = doc.RootElement.GetProperty("regions").GetProperty("regions").EnumerateArray().Single(r => r.GetProperty("regionKind").GetString() == "FaceAttachedRegion");
         var parent = side.GetProperty("parentIntegration");
-        Assert.Equal("Blocked", parent.GetProperty("status").GetString());
+        Assert.Equal("PartiallyIntegrated", parent.GetProperty("status").GetString());
         Assert.Equal("ControlledSideHoleParentBRepIntegration", parent.GetProperty("route").GetString());
-        Assert.Contains(parent.GetProperty("placeholderMappings").EnumerateArray(), m => m.GetProperty("placeholderRole").GetString() == "CutEntryLoop" && m.GetProperty("materializationStatus").GetString() == "Deferred");
+        Assert.Contains(parent.GetProperty("placeholderMappings").EnumerateArray(), m => m.GetProperty("placeholderRole").GetString() == "CutEntryLoop" && m.GetProperty("materializationStatus").GetString() == "Materialized");
         Assert.Contains(parent.GetProperty("placeholderMappings").EnumerateArray(), m => m.GetProperty("placeholderRole").GetString() == "CutWallFace" && m.GetProperty("materializationStatus").GetString() == "Materialized");
-        Assert.Equal("FaceSplitting", parent.GetProperty("blocker").GetProperty("category").GetString());
-        Assert.Equal("controlled-side-hole-parent-face-splitting-missing", parent.GetProperty("blocker").GetProperty("code").GetString());
+        Assert.Equal("ExitLoopInsertion", parent.GetProperty("blocker").GetProperty("category").GetString());
+        Assert.Equal("controlled-side-hole-exit-loop-insertion-deferred", parent.GetProperty("blocker").GetProperty("code").GetString());
     }
 
     [Fact]
@@ -561,6 +564,76 @@ public sealed class AirTraceCommandTests
 
     [Fact]
     public void SideHoleParentIntegration_IsDeterministic()
+    {
+        var first = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json").Stdout;
+        var second = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json").Stdout;
+        Assert.Equal(first, second);
+    }
+
+    [Fact]
+    public void TraceSideHoleRegion_FaceSplit_DefaultText()
+    {
+        var (exitCode, output, error) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"));
+        Assert.Equal(0, exitCode);
+        Assert.Equal(string.Empty, error);
+        Assert.Contains("Region face split", output);
+        Assert.Contains("Affected face: +X", output);
+        Assert.Contains("Profile: Circle(radius=1)", output);
+        Assert.Contains("Placeholder consumed: CutEntryLoop", output);
+        Assert.Contains("Status: SplitCreated", output);
+        Assert.Contains("Entry loop: EntryLoopMaterialized", output);
+    }
+
+    [Fact]
+    public void TraceSideHoleRegion_FaceSplit_Json()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output);
+        var side = doc.RootElement.GetProperty("regions").GetProperty("regions").EnumerateArray().Single(r => r.GetProperty("regionKind").GetString() == "FaceAttachedRegion");
+        var split = side.GetProperty("faceSplit");
+        Assert.Equal("+X", split.GetProperty("affectedFaceSelector").GetString());
+        Assert.Equal("SplitCreated", split.GetProperty("faceSplitStatus").GetString());
+        Assert.Equal("EntryLoopMaterialized", split.GetProperty("entryLoopStatus").GetString());
+        Assert.Equal(1, split.GetProperty("entryLoopRadius").GetDouble());
+        Assert.Contains("region:side-hole:+x:entry-loop", split.GetProperty("materializedPlaceholderIds").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal(JsonValueKind.Null, split.GetProperty("blocker").ValueKind);
+    }
+
+    [Fact]
+    public void TraceSideHoleRegion_FaceSplit_AdvancesOrRefinesX8Blocker()
+    {
+        var output = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json").Stdout;
+        using var doc = JsonDocument.Parse(output);
+        var side = doc.RootElement.GetProperty("regions").GetProperty("regions").EnumerateArray().Single(r => r.GetProperty("regionKind").GetString() == "FaceAttachedRegion");
+        Assert.Equal("SplitCreated", side.GetProperty("faceSplit").GetProperty("faceSplitStatus").GetString());
+        Assert.Equal("ExitLoopInsertion", side.GetProperty("parentIntegration").GetProperty("blocker").GetProperty("category").GetString());
+        Assert.DoesNotContain("controlled-side-hole-parent-face-splitting-missing", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TraceSideHoleRegion_FaceSplit_DoesNotClaimFullIntegrationPrematurely()
+    {
+        var output = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json").Stdout;
+        using var doc = JsonDocument.Parse(output);
+        var side = doc.RootElement.GetProperty("regions").GetProperty("regions").EnumerateArray().Single(r => r.GetProperty("regionKind").GetString() == "FaceAttachedRegion");
+        var parent = side.GetProperty("parentIntegration");
+        Assert.Equal("PartiallyIntegrated", parent.GetProperty("status").GetString());
+        Assert.Equal("ExitLoopInsertion", parent.GetProperty("blocker").GetProperty("category").GetString());
+        Assert.Equal("deferred", parent.GetProperty("stepSmoke").GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public void TraceSideHoleRegion_NoBoolean()
+    {
+        var output = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json").Stdout;
+        Assert.Contains("Boolean not used", output);
+        Assert.Contains("air-region-x9-no-boolean", output);
+        Assert.DoesNotContain("bounded-backend-used", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void FaceSplit_IsDeterministic()
     {
         var first = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json").Stdout;
         var second = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json").Stdout;

@@ -1,0 +1,27 @@
+// fixture-id: side-hole-v2
+// case: firmament-v2-side-hole-design
+// category: Region
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2 V2 side-hole golden-path syntax design; not general side-hole support and not parser-backed.
+
+model SideHoleExample {
+    units mm
+
+    solid base = box {
+        size: [10, 8, 6]
+    }
+
+    modify base {
+        region sideHole on face(+X) {
+            cut cylinder {
+                radius: 1
+                through: face(-X)
+            }
+        }
+    }
+}

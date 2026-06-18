@@ -1,0 +1,24 @@
+// fixture-id: single-edge-fillet-v2
+// case: firmament-v2-single-edge-fillet-design
+// category: Fillet
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: AIR-FIRMAMENT-A2 future fillet syntax design; no fillet implementation is introduced.
+
+model FilletExample {
+    units mm
+
+    solid base = box {
+        size: [10, 8, 6]
+    }
+
+    modify base {
+        fillet edge(+X, +Z) {
+            radius: 0.5
+        }
+    }
+}

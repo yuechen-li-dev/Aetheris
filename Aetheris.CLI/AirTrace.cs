@@ -5,6 +5,7 @@ using Aetheris.Kernel.Core.Air.BRepPlan;
 using Aetheris.Kernel.Core.Air.Regions;
 using Aetheris.Kernel.Core.Brep.Prismatic;
 using Aetheris.Kernel.Firmament;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.CLI;
 
@@ -51,9 +52,11 @@ internal sealed record AirTraceFeatureAirSummary(bool ParserBacked, string Sourc
 internal sealed record AirTraceConstructiveAirSummary(string NodeKind, string CanonicalForm, string SourceFeatureAirNodeKind, string ProfileKind, double Width, double Depth, double Height, string ExtrusionAxis, string ConstructionIntent, string RouteKind, string StageReached, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Guarantees);
 internal sealed record AirTraceProfileEmissionSummary(bool WrapperInvoked, string EmitterName, bool Succeeded, double Width, double Depth, double Height, string StageReached, AirTraceProfileEmissionTopologySummary? TopologySummary, AirTraceProfileEmissionStepSmokeSummary StepSmoke, IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Guarantees);
 internal sealed record AirTraceProfileEmissionTopologySummary(int Vertices, int Edges, int Faces, int PlanarFaces, int CylindricalFaces, int Loops, int Coedges, int? CapFaces, int? SideFaces, string? Bounds);
-internal sealed record AirTraceFirmamentV2Summary(string SyntaxVersion, string ModelName, string Units, string SolidName, string RecordType, IReadOnlyList<double> Size, string Stage, IReadOnlyList<AirTraceFirmamentV2SolidSummary> Solids);
+internal sealed record AirTraceFirmamentV2Summary(string SyntaxVersion, string ModelName, string Units, string SolidName, string RecordType, IReadOnlyList<double> Size, string Stage, IReadOnlyList<AirTraceFirmamentV2SolidSummary> Solids, IReadOnlyList<AirTraceFirmamentV2ModifySummary>? ModifyBlocks = null, FirmamentV2SideHoleIntent? SemanticIntent = null, string? ParentIntegration = null, string? ShellClosure = null, string? StepSmoke = null, string? Blocker = null);
 internal sealed record AirTraceFirmamentV2SolidSummary(string Name, string RecordType, IReadOnlyList<double> Size, string? DerivedFrom, IReadOnlyDictionary<string, IReadOnlyList<double>> Overrides, IReadOnlyList<AirTraceFirmamentV2ExposureSummary> Exposures);
 internal sealed record AirTraceFirmamentV2ExposureSummary(string Alias, string SelectorKind, string Selector, string RefType, string Axis, string? Subselector);
+internal sealed record AirTraceFirmamentV2ModifySummary(string TargetSolid, IReadOnlyList<AirTraceFirmamentV2RegionSummary> Regions);
+internal sealed record AirTraceFirmamentV2RegionSummary(string Name, string Kind, string On, string Operation, string Tool, double Radius, string Through);
 internal sealed record AirTraceProfileEmissionStepSmokeSummary(bool WasChecked, bool Succeeded, bool RequiredMarkersPresent, bool ForbiddenMarkersAbsent, IReadOnlyList<string> Diagnostics);
 internal sealed record AirTraceDimensionsSummary(double Width, double Depth, double Height);
 internal sealed record AirTraceAirSummary(string Node, string Route, string SelectionClass, string Rule, string ConstructionHistory, string FeatureName, string FeatureId, string ProvenanceMilestone);
@@ -145,7 +148,7 @@ internal static class AirTraceReportBuilder
             ? null
             : new AirTraceConstructiveAirSummary(frontend.ConstructiveAir.NodeKind, frontend.ConstructiveAir.CanonicalForm, frontend.ConstructiveAir.SourceFeatureAirNodeKind, frontend.ConstructiveAir.ProfileKind, frontend.ConstructiveAir.Dimensions.Width, frontend.ConstructiveAir.Dimensions.Depth, frontend.ConstructiveAir.Dimensions.Height, frontend.ConstructiveAir.ExtrusionAxis, frontend.ConstructiveAir.ConstructionIntent, frontend.ConstructiveAir.RouteKind, frontend.ConstructiveAir.StageReached, frontend.ConstructiveAir.Diagnostics, frontend.ConstructiveAir.Guarantees);
 
-        var regions = AirRegionTraceFactory.ForRootBody(actualStage ?? "emitted-brep");
+        var regions = frontend.FirmamentV2?.SemanticIntent is not null ? AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred() : AirRegionTraceFactory.ForRootBody(actualStage ?? "emitted-brep");
         fxDiagnostics = Stable([.. fxDiagnostics, .. regions.Diagnostics]).ToArray();
         var profileEmission = profileEmissionProbe is null ? null : new AirTraceProfileEmissionSummary(
             profileEmissionProbe.WrapperInvoked,
@@ -160,9 +163,9 @@ internal static class AirTraceReportBuilder
             profileEmissionProbe.Diagnostics,
             profileEmissionProbe.Guarantees);
 
-        var v2 = frontend.FirmamentV2 is null ? null : new AirTraceFirmamentV2Summary(frontend.FirmamentV2.SyntaxVersion, frontend.FirmamentV2.ModelName, frontend.FirmamentV2.Units, frontend.FirmamentV2.SolidName, frontend.FirmamentV2.RecordType, frontend.FirmamentV2.Size, frontend.FirmamentV2.StageReached, frontend.FirmamentV2.Solids.Select(s => new AirTraceFirmamentV2SolidSummary(s.Name, s.RecordType, s.Size, s.DerivedFrom, s.Overrides, s.Exposures.Select(e => new AirTraceFirmamentV2ExposureSummary(e.Alias, e.SelectorKind, e.Selector, e.RefType, e.Axis, e.Subselector)).ToArray())).ToArray());
+        var v2 = frontend.FirmamentV2 is null ? null : new AirTraceFirmamentV2Summary(frontend.FirmamentV2.SyntaxVersion, frontend.FirmamentV2.ModelName, frontend.FirmamentV2.Units, frontend.FirmamentV2.SolidName, frontend.FirmamentV2.RecordType, frontend.FirmamentV2.Size, frontend.FirmamentV2.StageReached, frontend.FirmamentV2.Solids.Select(s => new AirTraceFirmamentV2SolidSummary(s.Name, s.RecordType, s.Size, s.DerivedFrom, s.Overrides, s.Exposures.Select(e => new AirTraceFirmamentV2ExposureSummary(e.Alias, e.SelectorKind, e.Selector, e.RefType, e.Axis, e.Subselector)).ToArray())).ToArray(), frontend.FirmamentV2.ModifyBlocks?.Select(m => new AirTraceFirmamentV2ModifySummary(m.TargetSolid, m.Regions.Select(r => new AirTraceFirmamentV2RegionSummary(r.Name, r.Kind, r.On, r.Operation, r.Tool, r.Radius, r.Through)).ToArray())).ToArray(), frontend.FirmamentV2.SemanticIntent, frontend.FirmamentV2.ParentIntegration, frontend.FirmamentV2.ShellClosure, frontend.FirmamentV2.StepSmoke, frontend.FirmamentV2.Blocker);
 
-        return new(isFirmamentV2 ? "AIR-FIRMAMENT-X1" : "AIR-X11", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, frontend.FrontendSummary,
+        return new(isFirmamentV2 && frontend.FirmamentV2?.SemanticIntent is not null ? "AIR-FIRMAMENT-X4" : isFirmamentV2 ? "AIR-FIRMAMENT-X1" : "AIR-X11", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, frontend.FrontendSummary,
             new(constructiveAir?.NodeKind ?? featureAir?.NodeKind ?? "FirmamentPrimitive", constructiveAir?.RouteKind ?? "none", "none", "none", "parser-backed-source-fixture", fixture.CaseName, fixture.CaseName, "AIR-X11"),
             new("none", null, false, "Route selection and BRepPlan are deferred for parser-backed box fixtures in AIR-X11; profile emission is reported separately.", "none", "none", []),
             new("none", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "none", "none", null, []),
@@ -342,6 +345,34 @@ internal static class AirTraceTextRenderer
                     b.AppendLine("    Expose:");
                     foreach (var exposure in solid.Exposures) b.AppendLine($"      {exposure.Selector} => {exposure.Alias} : {exposure.RefType}");
                 }
+            }
+            if (r.FirmamentV2.ModifyBlocks is not null)
+            {
+                foreach (var modify in r.FirmamentV2.ModifyBlocks)
+                {
+                    b.AppendLine();
+                    b.AppendLine($"  Modify: {modify.TargetSolid}");
+                    foreach (var region in modify.Regions)
+                    {
+                        b.AppendLine($"    Region: {region.Name}");
+                        b.AppendLine($"      Kind: {region.Kind}");
+                        b.AppendLine($"      On: {region.On}");
+                        b.AppendLine($"      Operation: {region.Operation}");
+                        b.AppendLine($"      Tool: {region.Tool}");
+                        b.AppendLine($"      Radius: {region.Radius:g}");
+                        b.AppendLine($"      Through: {region.Through}");
+                    }
+                }
+            }
+            if (r.FirmamentV2.SemanticIntent is not null)
+            {
+                b.AppendLine();
+                b.AppendLine("  Lowering:");
+                b.AppendLine("    Semantic intent: SideHole");
+                b.AppendLine($"    AIR Region: {(r.Regions is null ? "not-reached" : "FaceAttachedRegion golden trace chain")}");
+                b.AppendLine($"    Parent integration: {r.FirmamentV2.ParentIntegration ?? "not-reached"}");
+                b.AppendLine($"    Shell closure: {r.FirmamentV2.ShellClosure ?? "not-reached"}");
+                b.AppendLine($"    STEP smoke: {r.FirmamentV2.StepSmoke ?? "not-reached"}");
             }
             if (r.FeatureAir is not null) b.AppendLine($"  Feature AIR: {r.FeatureAir.NodeKind}");
             b.AppendLine();

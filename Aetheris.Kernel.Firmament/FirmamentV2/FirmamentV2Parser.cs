@@ -31,6 +31,18 @@ public static class FirmamentV2Parser
     public const string FatArrowOutsideExpose = "firmament-v2-fat-arrow-outside-expose";
     public const string RawBackendIdReferenceForbidden = "firmament-raw-backend-id-reference-forbidden";
 
+    public const string ModifyTargetUnresolved = "firmament-v2-modify-target-unresolved";
+    public const string ModifyTargetNotSolid = "firmament-v2-modify-target-not-solid";
+    public const string RegionUnsupported = "firmament-v2-region-unsupported";
+    public const string RegionAttachmentSelectorUnsupported = "firmament-v2-region-attachment-selector-unsupported";
+    public const string CutUnsupported = "firmament-v2-cut-unsupported";
+    public const string CutToolUnsupported = "firmament-v2-cut-tool-unsupported";
+    public const string CylinderRadiusMissing = "firmament-v2-cylinder-radius-missing";
+    public const string CylinderRadiusInvalid = "firmament-v2-cylinder-radius-invalid";
+    public const string ThroughSelectorUnsupported = "firmament-v2-through-selector-unsupported";
+    public const string SideHoleOnlyPlusXMinusXSupported = "firmament-v2-side-hole-only-plus-x-minus-x-supported";
+    public const string SideHoleRadiusExceedsClearance = "firmament-v2-side-hole-radius-exceeds-clearance";
+
     private static readonly Regex ModelRegex = new(@"\bmodel\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex UnitsRegex = new(@"\bunits\s+(?<units>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
     private static readonly Regex SolidHeaderRegex = new(@"\bsolid\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<target>[A-Za-z_][A-Za-z0-9_]*)(?<with>\s+with)?\s*\{", RegexOptions.CultureInvariant);
@@ -40,6 +52,11 @@ public static class FirmamentV2Parser
     private static readonly Regex ExposeRegex = new(@"\bexpose\s*\{(?<body>.*?)\}", RegexOptions.CultureInvariant | RegexOptions.Singleline);
     private static readonly Regex ExposureLineRegex = new(@"^\s*(?<selector>.+?)\s*=>\s*(?<alias>[A-Za-z_][A-Za-z0-9_]*)\s*$", RegexOptions.CultureInvariant);
     private static readonly Regex FaceSelectorRegex = new(@"^face\((?<axis>[+-][XYZ])\)(?<sub>\.[A-Za-z_][A-Za-z0-9_]*)?$", RegexOptions.CultureInvariant);
+    private static readonly Regex ModifyHeaderRegex = new(@"\bmodify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex RegionHeaderRegex = new(@"\bregion\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s+on\s+(?<selector>face\([^)]*\))\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex CutHeaderRegex = new(@"\bcut\s+(?<tool>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex RadiusRegex = new(@"\bradius\s*:\s*(?<value>[-+]?[0-9]+(?:\.[0-9]+)?)", RegexOptions.CultureInvariant);
+    private static readonly Regex ThroughRegex = new(@"\bthrough\s*:\s*(?<selector>face\([^)]*\))", RegexOptions.CultureInvariant);
 
     public static FirmamentV2ParseResult Parse(string sourceText)
     {
@@ -84,9 +101,11 @@ public static class FirmamentV2Parser
             }
         }
 
+        var modifyBlocks = ParseModifyBlocks(source, byName, diagnostics);
+
         FirmamentV2Document? document = null;
         if (modelMatch.Success && unitsMatch.Success && solids.Count > 0 && !diagnostics.Any(IsFatalDiagnostic))
-            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids);
+            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks);
 
         diagnostics.Add(document is null ? "firmament-v2-parse-failed" : "firmament-v2-parse-succeeded");
         diagnostics.Sort(StringComparer.Ordinal);
@@ -115,7 +134,7 @@ public static class FirmamentV2Parser
         return new(name, "Box", new(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
     }
 
-    private static bool IsFatalDiagnostic(string code) => code is MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden;
+    private static bool IsFatalDiagnostic(string code) => code is MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or ThroughSelectorUnsupported or SideHoleOnlyPlusXMinusXSupported or SideHoleRadiusExceedsClearance;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -174,8 +193,71 @@ public static class FirmamentV2Parser
         return diagnostics.Contains(DegenerateDimension) ? null : values;
     }
 
+
+    private static IReadOnlyList<FirmamentV2ModifyBlock> ParseModifyBlocks(string source, Dictionary<string, FirmamentV2SolidBinding> byName, List<string> diagnostics)
+    {
+        var blocks = new List<FirmamentV2ModifyBlock>();
+        foreach (Match match in ModifyHeaderRegex.Matches(source))
+        {
+            var target = match.Groups["target"].Value;
+            if (!byName.TryGetValue(target, out var solid)) { diagnostics.Add(ModifyTargetUnresolved); continue; }
+            if (!string.Equals(solid.RecordType, "Box", StringComparison.Ordinal)) { diagnostics.Add(ModifyTargetNotSolid); continue; }
+            var open = source.IndexOf('{', match.Index);
+            var close = FindMatchingBrace(source, open);
+            if (close < 0) { diagnostics.Add(RegionUnsupported); continue; }
+            var body = source[(open + 1)..close];
+            var region = ParseRegion(body, solid, diagnostics);
+            if (region is not null) blocks.Add(new(target, [region]));
+        }
+        return blocks;
+    }
+
+    private static FirmamentV2RegionDecl? ParseRegion(string body, FirmamentV2SolidBinding solid, List<string> diagnostics)
+    {
+        var regions = RegionHeaderRegex.Matches(body);
+        if (regions.Count != 1) { diagnostics.Add(RegionUnsupported); return null; }
+        var rm = regions[0];
+        if (!string.Equals(rm.Groups["name"].Value, "sideHole", StringComparison.Ordinal)) { diagnostics.Add(RegionUnsupported); return null; }
+        var attach = ParseFaceSelector(rm.Groups["selector"].Value, RegionAttachmentSelectorUnsupported, diagnostics);
+        var open = body.IndexOf('{', rm.Index);
+        var close = FindMatchingBrace(body, open);
+        if (close < 0) { diagnostics.Add(RegionUnsupported); return null; }
+        var cut = ParseCut(body[(open + 1)..close], diagnostics);
+        if (attach is null || cut is null) return null;
+        if (attach.Axis != "+X" || cut.Tool.Through.Axis != "-X") diagnostics.Add(SideHoleOnlyPlusXMinusXSupported);
+        var clearance = Math.Min(solid.Box.Size[1], solid.Box.Size[2]) / 2.0;
+        if (cut.Tool.Radius >= clearance) diagnostics.Add(SideHoleRadiusExceedsClearance);
+        return diagnostics.Any(IsFatalDiagnostic) ? null : new(rm.Groups["name"].Value, "FaceAttachedRegion", attach, cut);
+    }
+
+    private static FirmamentV2CutOperation? ParseCut(string body, List<string> diagnostics)
+    {
+        var cuts = CutHeaderRegex.Matches(body);
+        if (cuts.Count != 1) { diagnostics.Add(CutUnsupported); return null; }
+        var cm = cuts[0];
+        if (!string.Equals(cm.Groups["tool"].Value, "Cylinder", StringComparison.Ordinal) && !string.Equals(cm.Groups["tool"].Value, "cylinder", StringComparison.Ordinal)) { diagnostics.Add(CutToolUnsupported); return null; }
+        var open = body.IndexOf('{', cm.Index);
+        var close = FindMatchingBrace(body, open);
+        if (close < 0) { diagnostics.Add(CutUnsupported); return null; }
+        var toolBody = body[(open + 1)..close];
+        var radiusMatch = RadiusRegex.Match(toolBody);
+        if (!radiusMatch.Success) { diagnostics.Add(CylinderRadiusMissing); return null; }
+        if (!double.TryParse(radiusMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius) || radius <= 0) { diagnostics.Add(CylinderRadiusInvalid); return null; }
+        var throughMatch = ThroughRegex.Match(toolBody);
+        var through = throughMatch.Success ? ParseFaceSelector(throughMatch.Groups["selector"].Value, ThroughSelectorUnsupported, diagnostics) : null;
+        if (through is null) { diagnostics.Add(ThroughSelectorUnsupported); return null; }
+        return new("Cut", new("Cylinder", radius, through));
+    }
+
+    private static FirmamentV2FaceSelector? ParseFaceSelector(string selector, string diagnostic, List<string> diagnostics)
+    {
+        var face = FaceSelectorRegex.Match(selector);
+        if (!face.Success || face.Groups["sub"].Success) { diagnostics.Add(diagnostic); return null; }
+        return new(face.Groups["axis"].Value);
+    }
+
     private static bool ContainsUnsupportedConstruct(string source) =>
-        Regex.IsMatch(source, @"\b(concept|PMI|where|template|cut|add|shell|fillet|chamfer|region|regions|profile|material|pattern|modify)\b|<\s*Process\s*>", RegexOptions.CultureInvariant);
+        Regex.IsMatch(source, @"\b(concept|PMI|where|template|add|shell|fillet|chamfer|regions|profile|material|pattern)\b|<\s*Process\s*>", RegexOptions.CultureInvariant);
 
     private static bool ContainsRawBackendId(string source) =>
         Regex.IsMatch(source, @"\b(brep|step|backend|coedge)\s*\.|STEP\s*#|#[0-9]+", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);

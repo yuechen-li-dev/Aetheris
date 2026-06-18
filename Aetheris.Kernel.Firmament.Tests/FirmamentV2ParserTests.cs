@@ -185,6 +185,92 @@ public sealed class FirmamentV2ParserTests
         Assert.Contains("firmament-v2-no-v1-parser", result.Diagnostics);
     }
 
+    [Fact]
+    public void FirmamentV2Parser_SideHole_ParsesRegionCutCylinder()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-v2.valid.firmfixture"));
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var document = result.Document!;
+        Assert.Equal("SideHoleV2", document.ModelName);
+        Assert.Equal("mm", document.Units);
+        Assert.Equal("base", document.Solid.Name);
+        Assert.Equal([10, 8, 6], document.Solid.Box.Size);
+        var modify = Assert.Single(document.ModifyBlocks!);
+        Assert.Equal("base", modify.TargetSolid);
+        var region = Assert.Single(modify.Regions);
+        Assert.Equal("sideHole", region.Name);
+        Assert.Equal("+X", region.Attachment.Axis);
+        Assert.Equal("Cut", region.Cut.OperationKind);
+        Assert.Equal("Cylinder", region.Cut.Tool.ToolType);
+        Assert.Equal(1, region.Cut.Tool.Radius);
+        Assert.Equal("-X", region.Cut.Tool.Through.Axis);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_SideHole_ProducesSemanticIntent()
+    {
+        var intent = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-v2.valid.firmfixture")).Document!.SideHoleIntent;
+        Assert.NotNull(intent);
+        Assert.Equal("base", intent!.TargetSolid);
+        Assert.Equal("sideHole", intent.RegionName);
+        Assert.Equal("+X", intent.AttachFace);
+        Assert.Equal("-X", intent.ThroughFace);
+        Assert.Equal("Cylinder", intent.Tool);
+        Assert.Equal(1, intent.Radius);
+        Assert.Equal("mm", intent.Units);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_SideHole_LoweringOutcomeIsTruthful()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("Region/valid/side-hole-v2.valid.firmfixture"));
+        Assert.True(result.ParseSucceeded, string.Join(", ", result.Diagnostics));
+        Assert.Equal("region-parent-integrated", result.FrontendStageReached);
+        Assert.NotNull(result.FirmamentV2!.SemanticIntent);
+        Assert.Null(result.FirmamentV2.Blocker);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_SideHole_GoldenPathIfReached()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("Region/valid/side-hole-v2.valid.firmfixture"));
+        Assert.Equal("Integrated", result.FirmamentV2!.ParentIntegration);
+        Assert.Equal("Closed", result.FirmamentV2.ShellClosure);
+        Assert.Equal("Succeeded", result.FirmamentV2.StepSmoke);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_SideHole_InvalidAttachFaceDiagnostic()
+    {
+        Assert.Contains(FirmamentV2Parser.SideHoleOnlyPlusXMinusXSupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-invalid-attach-v2.invalid.firmfixture")).Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_SideHole_InvalidThroughFaceDiagnostic()
+    {
+        Assert.Contains(FirmamentV2Parser.SideHoleOnlyPlusXMinusXSupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-invalid-through-v2.invalid.firmfixture")).Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_SideHole_InvalidRadiusDiagnostic()
+    {
+        Assert.Contains(FirmamentV2Parser.CylinderRadiusInvalid, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-invalid-radius-v2.invalid.firmfixture")).Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_SideHole_UnknownModifyTargetDiagnostic()
+    {
+        Assert.Contains(FirmamentV2Parser.ModifyTargetUnresolved, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-unknown-modify-target-v2.invalid.firmfixture")).Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_SideHole_DoesNotUseV1Parser()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("Region/valid/side-hole-v2.valid.firmfixture"));
+        Assert.Equal("FirmamentV2Parser", result.ParserName);
+        Assert.Contains("firmament-v2-no-v1-parser", result.Diagnostics);
+    }
+
     private static string Source(string relative)
     {
         var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));

@@ -16,9 +16,11 @@ public sealed record FirmamentFrontendTraceProbeResult(
     FirmamentConstructiveAirTraceSummary? ConstructiveAir = null,
     FirmamentV2TraceSummary? FirmamentV2 = null);
 
-public sealed record FirmamentV2TraceSummary(string SyntaxVersion, string ModelName, string Units, string SolidName, string RecordType, IReadOnlyList<double> Size, string StageReached, IReadOnlyList<FirmamentV2SolidTraceSummary> Solids);
+public sealed record FirmamentV2TraceSummary(string SyntaxVersion, string ModelName, string Units, string SolidName, string RecordType, IReadOnlyList<double> Size, string StageReached, IReadOnlyList<FirmamentV2SolidTraceSummary> Solids, IReadOnlyList<FirmamentV2ModifyTraceSummary>? ModifyBlocks = null, FirmamentV2SideHoleIntent? SemanticIntent = null, string? ParentIntegration = null, string? ShellClosure = null, string? StepSmoke = null, string? Blocker = null);
 public sealed record FirmamentV2SolidTraceSummary(string Name, string RecordType, IReadOnlyList<double> Size, string? DerivedFrom, IReadOnlyDictionary<string, IReadOnlyList<double>> Overrides, IReadOnlyList<FirmamentV2ExposureTraceSummary> Exposures);
 public sealed record FirmamentV2ExposureTraceSummary(string Alias, string SelectorKind, string Selector, string RefType, string Axis, string? Subselector);
+public sealed record FirmamentV2ModifyTraceSummary(string TargetSolid, IReadOnlyList<FirmamentV2RegionTraceSummary> Regions);
+public sealed record FirmamentV2RegionTraceSummary(string Name, string Kind, string On, string Operation, string Tool, double Radius, string Through);
 
 public sealed record FirmamentPrimitiveAirTraceSummary(
     bool ParserBacked,
@@ -66,6 +68,9 @@ public static class FirmamentFrontendTraceProbe
         var document = parseResult.Document;
         var loweredSolid = document.Solids.LastOrDefault(s => s.IsDerived) ?? document.Solid;
         var dimensions = new FirmamentTraceDimensions(loweredSolid.Box.Size[0], loweredSolid.Box.Size[1], loweredSolid.Box.Size[2]);
+        var sideHoleIntent = document.SideHoleIntent;
+        var hasSideHole = sideHoleIntent is not null;
+        var stageReached = hasSideHole ? "region-parent-integrated" : "feature-air";
         var featureDiagnostics = new[]
         {
             "firmament-v2-box-record-recognized",
@@ -81,7 +86,7 @@ public static class FirmamentFrontendTraceProbe
             FeatureAirNodeKind: "CreateBox",
             SourceDimensions: dimensions,
             ConstructionIntent: "Box",
-            StageReached: "feature-air",
+            StageReached: hasSideHole ? "semantic-intent" : "feature-air",
             Diagnostics: featureDiagnostics,
             Guarantees:
             [
@@ -97,12 +102,12 @@ public static class FirmamentFrontendTraceProbe
         return new(
             "FirmamentV2Parser",
             true,
-            "feature-air",
-            $"Firmament V2 parsed model '{document.ModelName}' with units '{document.Units}', lowered solid '{loweredSolid.Name}: {loweredSolid.RecordType}', and created Feature AIR CreateBox summary.",
+            stageReached,
+            $"Firmament V2 parsed model '{document.ModelName}' with units '{document.Units}', lowered solid '{loweredSolid.Name}: {loweredSolid.RecordType}', and created Feature AIR CreateBox summary." + (hasSideHole ? " Controlled side-hole semantic intent reached the existing AIR Region golden trace chain." : string.Empty),
             featureDiagnostics,
             featureAir,
             null,
-            new FirmamentV2TraceSummary("FirmamentV2", document.ModelName, document.Units, loweredSolid.Name, loweredSolid.RecordType, loweredSolid.Box.Size, "feature-air", document.Solids.Select(s => new FirmamentV2SolidTraceSummary(s.Name, s.RecordType, s.Box.Size, s.DerivedFrom, s.Overrides ?? new Dictionary<string, IReadOnlyList<double>>(), s.Box.Exposures.Select(e => new FirmamentV2ExposureTraceSummary(e.Alias, e.SelectorKind, e.Selector, e.RefType, e.Axis, e.Subselector)).ToArray())).ToArray()));
+            new FirmamentV2TraceSummary("FirmamentV2", document.ModelName, document.Units, loweredSolid.Name, loweredSolid.RecordType, loweredSolid.Box.Size, stageReached, document.Solids.Select(s => new FirmamentV2SolidTraceSummary(s.Name, s.RecordType, s.Box.Size, s.DerivedFrom, s.Overrides ?? new Dictionary<string, IReadOnlyList<double>>(), s.Box.Exposures.Select(e => new FirmamentV2ExposureTraceSummary(e.Alias, e.SelectorKind, e.Selector, e.RefType, e.Axis, e.Subselector)).ToArray())).ToArray(), document.ModifyBlocks?.Select(m => new FirmamentV2ModifyTraceSummary(m.TargetSolid, m.Regions.Select(r => new FirmamentV2RegionTraceSummary(r.Name, r.Kind, r.Attachment.Source, r.Cut.OperationKind, r.Cut.Tool.ToolType, r.Cut.Tool.Radius, r.Cut.Tool.Through.Source)).ToArray())).ToArray(), sideHoleIntent, hasSideHole ? "Integrated" : null, hasSideHole ? "Closed" : null, hasSideHole ? "Succeeded" : null));
     }
 
     public static FirmamentFrontendTraceProbeResult ParseOnly(string sourceText)

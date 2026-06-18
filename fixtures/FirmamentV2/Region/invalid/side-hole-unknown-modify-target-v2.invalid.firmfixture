@@ -1,0 +1,11 @@
+// fixture-id: side-hole-unknown-modify-target-v2
+// case: firmament-v2-side-hole-unknown-modify-target
+// category: Region
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-modify-target-unresolved
+
+model SideHoleV2 { units mm solid base: Box { size: [10, 8, 6] } modify missing { region sideHole on face(+X) { cut Cylinder { radius: 1 through: face(-X) } } } }

@@ -1,6 +1,6 @@
 // case: side-hole-face-attached-region
 // expected: valid
-// expected-stage: region-shell-closure-blocked
+// expected-stage: region-parent-integrated
 // expected-region-kind: FaceAttachedRegion
 // expected-effect: Subtractive
 // expected-yield: YieldSubtractiveVolume
@@ -27,7 +27,7 @@
 // expected-brep-role: CutWallFace
 // expected-brep-loss: no-emitted-entry-loop-identity
 // expected-integration-route: ControlledSideHoleParentBRepIntegration
-// expected-integration-status: PartiallyIntegrated
+// expected-integration-status: Integrated
 // expected-candidate: FaceAttachedConstructiveInsertion:Deferred
 // expected-candidate: LocalBRepPlanPatch:Deferred
 // expected-candidate: BRepBooleanFallback:Rejected
@@ -36,21 +36,21 @@
 // expected-reason: no-topology-integration-route-admitted
 // expected-materialization: PartiallyMaterialized
 // expected-materialization-route: ControlledSideHolePatchMaterialization
-// expected-parent-integration: PartiallyIntegrated
+// expected-parent-integration: Integrated
 // expected-face-split: SplitCreated
 // expected-entry-loop: EntryLoopMaterialized
 // expected-placeholder-materialized: CutEntryLoop
 // expected-exit-loop: ExitLoopMaterialized
 // expected-exit-face: -X
-// expected-blocker-category: ShellClosure
 // expected-current-evidence: standalone-patch-materialized
 // expected-placeholder-materialized: CutEntryLoop
 // expected-placeholder-materialized: CutExitLoop
 // expected-placeholder-materialized: CutWallFace
-// expected-shell-closure: Blocked
+// expected-shell-closure: Closed
+// expected-region-integration-patch: Consumed
 // expected-cylindrical-faces-min: 1
-// expected-step-smoke: Unavailable
-// description: Face-attached side-hole fixture with controlled parent entry-loop and opposite-side exit-loop evidence with parent integration still partial.
+// expected-step-smoke: Succeeded
+// description: Face-attached side-hole fixture with controlled parent entry-loop and opposite-side exit-loop evidence with parent integration closed for the controlled prototype evidence path.
 
 solid box = Box(width: 10, depth: 8, height: 6);
 region sideHole on box.face("+X") {

@@ -828,6 +828,43 @@ public static class Step242Importer
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(splineResult.Diagnostics);
             }
 
+            var rationalConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "RATIONAL_B_SPLINE_CURVE");
+            if (rationalConstructor is not null)
+            {
+                var rationalEntity = WithConstructor(curveEntity, rationalConstructor);
+                var weightsResult = Step242SubsetDecoder.ReadRationalBSplineCurveWeights(rationalEntity);
+                if (!weightsResult.IsSuccess)
+                {
+                    return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(weightsResult.Diagnostics);
+                }
+
+                var hasMaterialRationalWeights = weightsResult.Value.Any(w => double.IsFinite(w) && double.Abs(w - 1d) > 1e-12d);
+                if (splineResult.Value.Degree != 2 || !hasMaterialRationalWeights)
+                {
+                    return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
+                        CurveGeometry.FromBSpline(splineResult.Value),
+                        new ParameterInterval(splineResult.Value.DomainStart, splineResult.Value.DomainEnd)));
+                }
+
+                var recoveryDecision = Step242BsplineCurveRecoveryLane.Decide(curveEntity, splineResult.Value, weightsResult.Value);
+                if (recoveryDecision.RecoveredCurve is CurveGeometry recoveredCurve)
+                {
+                    var trimResult = recoveredCurve.Kind == CurveGeometryKind.Circle3 && recoveredCurve.Circle3 is Circle3Curve recoveredCircle
+                        ? ComputeCircleTrim(recoveredCircle, startPoint, endPoint, edgeSameSense)
+                        : KernelResult<ParameterInterval>.Success(new ParameterInterval(splineResult.Value.DomainStart, splineResult.Value.DomainEnd));
+                    if (!trimResult.IsSuccess)
+                    {
+                        return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
+                    }
+
+                    return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((recoveredCurve, trimResult.Value));
+                }
+
+                return FailureCurveBinding(
+                    $"RATIONAL_B_SPLINE_CURVE is unsupported unless it recovers as an analytic circle. {recoveryDecision.Reason}",
+                    SourceFor(curveEntity.Id, "Importer.Geometry.RationalBSplineCurve"));
+            }
+
             return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
                 CurveGeometry.FromBSpline(splineResult.Value),
                 new ParameterInterval(splineResult.Value.DomainStart, splineResult.Value.DomainEnd)));

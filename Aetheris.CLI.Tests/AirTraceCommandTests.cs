@@ -1300,6 +1300,44 @@ public sealed class AirTraceCommandTests
     private static string RegionFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Region", relative));
     private static string FirmamentV2Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));
 
+    [Fact]
+    public void FirmamentV2SideHoleYAxis_TraceJsonContainsRouteEvidence()
+    {
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-y-axis-v2.valid.firmfixture"), "--json");
+        using var doc = JsonDocument.Parse(output);
+        var intent = doc.RootElement.GetProperty("firmamentV2").GetProperty("semanticIntent");
+        var route = intent.GetProperty("routeEvidence");
+        Assert.Equal("Y", route.GetProperty("axis").GetString());
+        Assert.Equal("+Y->-Y", route.GetProperty("direction").GetString());
+        Assert.Equal("+Y", route.GetProperty("attachFace").GetString());
+        Assert.Equal("-Y", route.GetProperty("throughFace").GetString());
+        Assert.Equal("face(+Y):u=+X,v=+Z", intent.GetProperty("centerSelectorFrame").GetString());
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleYAxis_TraceTextContainsRouteEvidence()
+    {
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-y-axis-v2.valid.firmfixture"));
+        Assert.Contains("On: face(+Y)", output);
+        Assert.Contains("Through: face(-Y)", output);
+        Assert.Contains("Route: +Y -> -Y", output);
+        Assert.Contains("Center frame: face(+Y) local u=+X, v=+Z", output);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleYAxis_ArtifactsEmit()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-y-axis-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.All(new[] { "side-hole-y-axis-v2.step", "side-hole-y-axis-v2.trace.json", "side-hole-y-axis-v2.trace.txt", "manifest.json" }, name => Assert.True(new FileInfo(Path.Combine(dir, name)).Length > 0, name));
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
+        var route = doc.RootElement.GetProperty("route");
+        Assert.Equal("Y", route.GetProperty("axis").GetString());
+        Assert.Equal("+Y->-Y", route.GetProperty("direction").GetString());
+        Assert.Equal("+Y", route.GetProperty("attachFace").GetString());
+        Assert.Equal("-Y", route.GetProperty("throughFace").GetString());
+    }
+
     private static (int ExitCode, string Stdout, string Stderr) Run(params string[] args)
     {
         var stdout = new StringWriter(); var stderr = new StringWriter();

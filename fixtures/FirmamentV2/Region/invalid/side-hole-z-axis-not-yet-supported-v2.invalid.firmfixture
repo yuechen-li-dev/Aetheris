@@ -1,5 +1,5 @@
-// fixture-id: side-hole-y-axis-not-yet-supported-v2
-// case: firmament-v2-side-hole-historical-y-now-z-axis-invalid
+// fixture-id: side-hole-z-axis-not-yet-supported-v2
+// case: firmament-v2-side-hole-z-axis-not-yet-supported
 // category: Region
 // syntax-version: FirmamentV2
 // validity: invalid
@@ -7,9 +7,8 @@
 // expected: invalid
 // expected-stage: parsed
 // expected-diagnostic: firmament-v2-side-hole-axis-not-yet-supported
-// notes: Historical pre-X10 fixture path retained for corpus compatibility; X10 supports Y and uses this file as an unsupported Z-axis rejection.
 
-model SideHoleHistoricalAxisNotYetSupportedV2 {
+model SideHoleZAxisNotYetSupportedV2 {
     units mm
     solid base: Box { size: [10, 8, 6] }
     modify base { region sideHole on face(+Z) { cut Cylinder { radius: 1 through: face(-Z) } } }

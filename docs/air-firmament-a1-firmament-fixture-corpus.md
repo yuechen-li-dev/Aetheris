@@ -200,3 +200,6 @@ X7 adds controlled Firmament V2 Region side-hole center-offset fixtures under `f
 ## AIR-FIRMAMENT-X9 fixture taxonomy note
 
 The Firmament V2 region fixture set now includes controlled reverse-X side-hole valid fixtures (`side-hole-reverse-x-v2`, `side-hole-aliases-reverse-x-v2`) and invalid route fixtures for same-face, mixed-axis, Y-axis-not-yet-supported, and alias wrong-through cases.
+
+
+X10 fixture taxonomy note: Firmament V2 Region valid fixtures now include controlled Y-axis side-hole route fixtures, and invalid fixtures include Z-axis, mixed-axis, Y-clearance-boundary, and alias wrong-through rejections.

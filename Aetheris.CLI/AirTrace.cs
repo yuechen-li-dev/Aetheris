@@ -148,7 +148,7 @@ internal static class AirTraceReportBuilder
             ? null
             : new AirTraceConstructiveAirSummary(frontend.ConstructiveAir.NodeKind, frontend.ConstructiveAir.CanonicalForm, frontend.ConstructiveAir.SourceFeatureAirNodeKind, frontend.ConstructiveAir.ProfileKind, frontend.ConstructiveAir.Dimensions.Width, frontend.ConstructiveAir.Dimensions.Depth, frontend.ConstructiveAir.Dimensions.Height, frontend.ConstructiveAir.ExtrusionAxis, frontend.ConstructiveAir.ConstructionIntent, frontend.ConstructiveAir.RouteKind, frontend.ConstructiveAir.StageReached, frontend.ConstructiveAir.Diagnostics, frontend.ConstructiveAir.Guarantees);
 
-        var regions = frontend.FirmamentV2?.SemanticIntent is not null ? AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred(frontend.FirmamentV2.SemanticIntent.Radius, frontend.FirmamentV2.SemanticIntent.CenterU, frontend.FirmamentV2.SemanticIntent.CenterV) : AirRegionTraceFactory.ForRootBody(actualStage ?? "emitted-brep");
+        var regions = frontend.FirmamentV2?.SemanticIntent is not null ? AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred(frontend.FirmamentV2.SemanticIntent.Radius, frontend.FirmamentV2.SemanticIntent.CenterU, frontend.FirmamentV2.SemanticIntent.CenterV, frontend.FirmamentV2.SemanticIntent.AttachFace, frontend.FirmamentV2.SemanticIntent.ThroughFace, frontend.FirmamentV2.SemanticIntent.CenterSelectorFrame) : AirRegionTraceFactory.ForRootBody(actualStage ?? "emitted-brep");
         fxDiagnostics = Stable([.. fxDiagnostics, .. regions.Diagnostics]).ToArray();
         var profileEmission = profileEmissionProbe is null ? null : new AirTraceProfileEmissionSummary(
             profileEmissionProbe.WrapperInvoked,
@@ -363,7 +363,8 @@ internal static class AirTraceTextRenderer
                         b.AppendLine($"      Radius: {region.Radius:g}");
                         var cu = region.Center?.U ?? 0; var cv = region.Center?.V ?? 0;
                         b.AppendLine($"      Center: [{cu:g}, {cv:g}]");
-                        b.AppendLine($"      Center frame: {((region.ResolvedOn.Contains("-X", StringComparison.Ordinal) ? "face(-X):u=+Y,v=+Z" : "face(+X):u=+Y,v=+Z").Replace(":u=", " local u=").Replace(",v=", ", v="))}");
+                        var frame = FirmamentV2FaceLocalPoint2D.ConventionFor(region.ResolvedOn.Contains("-X", StringComparison.Ordinal) ? "-X" : region.ResolvedOn.Contains("+Y", StringComparison.Ordinal) ? "+Y" : region.ResolvedOn.Contains("-Y", StringComparison.Ordinal) ? "-Y" : "+X");
+                        b.AppendLine($"      Center frame: {frame.Replace(":u=", " local u=").Replace(",v=", ", v=")}");
                         b.AppendLine($"      Through: {region.Through}");
                         if (!string.Equals(region.Through, region.ResolvedThrough, StringComparison.Ordinal)) b.AppendLine($"      Resolved through: {region.ResolvedThrough}");
                     }

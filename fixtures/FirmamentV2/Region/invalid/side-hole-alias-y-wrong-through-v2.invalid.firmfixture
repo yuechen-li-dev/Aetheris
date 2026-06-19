@@ -1,0 +1,16 @@
+// fixture-id: side-hole-alias-y-wrong-through-v2
+// case: firmament-v2-side-hole-alias-y-wrong-through
+// category: Region
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-side-hole-route-unsupported
+
+model SideHoleAliasYWrongThroughV2 {
+    units mm
+    solid base: Box { size: [10, 8, 6] expose { face(+Y) => front
+            face(+X) => right } }
+    modify base { region sideHole on front { cut Cylinder { radius: 1 through: right } } }
+}

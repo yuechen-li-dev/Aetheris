@@ -303,17 +303,17 @@ internal static class AirRegionTraceFactory
         return Summary([root], ["air-region-x1-region-trace-created", "air-region-x1-root-region-created", "air-region-x1-world-root-frame-created"], ["AIR Region trace-only summary", "root region does not change BRepPlan semantics"]);
     }
 
-    public static AirRegionTraceSummary ForFaceAttachedSideHoleDeferred(double radius = 1, double centerU = 0, double centerV = 0)
+    public static AirRegionTraceSummary ForFaceAttachedSideHoleDeferred(double radius = 1, double centerU = 0, double centerV = 0, string attachFace = "+X", string throughFace = "-X", string centerFrame = "face(+X):u=+Y,v=+Z")
     {
         var root = RootRegion("region-created");
         AirRegionSummary sideBase = new(
-            "region:side-hole:+x",
+            $"region:side-hole:{attachFace.ToLowerInvariant()}",
             AirRegionKind.FaceAttachedRegion,
             root.RegionId,
             AirRegionEffectKind.Subtractive,
             AirRegionYieldKind.YieldSubtractiveVolume,
             AirRegionBoundaryContractKind.YieldsCutVolume,
-            new AirLocalFrameSummary("frame:side-hole:+x", AirLocalFrameKind.FaceAttached, new(5, 0, 0), new(0, 1, 0), new(0, 0, 1), new(1, 0, 0), AirLocalFrameHandedness.RightHanded, "box.face(\"+X\")", "+X", "+Z", true, ["air-region-x1-face-attached-frame-created"]),
+            FrameForSideHole(attachFace),
             AirRegionIntegrationStatus.Deferred,
             "deferred:no-geometry-integration",
             "region-integration-deferred",
@@ -321,7 +321,7 @@ internal static class AirRegionTraceFactory
             ["air-region-x1-face-attached-region-created", "air-region-x1-region-effect-declared", "air-region-x1-region-yield-declared", "air-region-x1-boundary-contract-declared", "air-region-x1-parent-integration-deferred", "air-region-x2-yield-contract-created", "air-region-x2-side-hole-yield-created", "air-region-x2-face-attachment-recorded", "air-region-x2-local-profile-recorded", "air-region-x2-circle-profile-recorded", "air-region-x2-through-direction-recorded", "air-region-x2-affected-scope-recorded", "air-region-x2-boundary-intent-recorded", "air-region-x2-entry-loop-intent-recorded", "air-region-x2-exit-boundary-deferred", "air-region-x2-region-locality-enforced", "air-region-x2-explicit-yield-only", "air-region-x2-parent-integration-deferred", "air-region-x2-no-implicit-parent-mutation", "air-region-x2-no-boolean", "air-region-x2-no-brep-emission", "air-region-x2-no-step-smoke", "air-region-x2-no-cir-mirror", "air-region-x2-trace-only"],
             ["side-hole geometry integration not implemented", "concrete through depth deferred", "opposite-side exit boundary deferred"],
             ["escapes only through explicit yield", "no implicit parent mutation", "no Boolean", "no BRep emission", "no production route replacement", "trace-only"],
-            SideHoleYield(root.RegionId, radius, centerU, centerV));
+            SideHoleYield(root.RegionId, radius, centerU, centerV, attachFace, throughFace, centerFrame));
         var mirror = AirSideHoleRegionCirMirrorAdapter.Admit(sideBase);
         var boundary = SideHoleBRepBoundary(sideBase);
         var decision = AirSideHoleRegionIntegrationSelector.Decide(sideBase, mirror.Summary, boundary);
@@ -332,7 +332,7 @@ internal static class AirRegionTraceFactory
         var parentIntegration = AirSideHoleParentBRepIntegrationPrototype.AttemptCutWallAttachment(sideBase, boundary, placeholders, materialization, faceSplit, exitLoop);
         var cutWallAttachment = AirSideHoleParentBRepIntegrationPrototype.AttachCutWall(sideBase, placeholders, faceSplit, exitLoop);
         var shellClosure = AirSideHoleParentBRepIntegrationPrototype.AttemptShellClosure(sideBase, placeholders, cutWallAttachment);
-        var x10Decision = decision with { SelectedRouteKind = AirRegionIntegrationRouteKind.ControlledSideHoleParentBRepIntegration, SelectedStatus = AirRegionIntegrationStatus.Integrated, Recommendation = $"controlled parent BRep integration succeeded for the +X/-X/radius={radius:g}/center=({centerU:g},{centerV:g}) fixture; entry loop, exit loop, cylindrical cut wall, and RegionIntegrationPatch are consumed into closed shell evidence", Diagnostics = Stable([.. decision.Diagnostics, .. materialization.Diagnostics, .. parentIntegration.Diagnostics, .. faceSplit.Diagnostics, .. exitLoop.Diagnostics, .. cutWallAttachment.Diagnostics, .. shellClosure.Diagnostics]).ToArray(), KnownLosses = Stable([.. decision.KnownLosses, .. materialization.KnownLosses, .. parentIntegration.KnownLosses]).ToArray(), Guarantees = Stable([.. decision.Guarantees, .. materialization.Guarantees, .. parentIntegration.Guarantees, .. faceSplit.Guarantees, .. exitLoop.Guarantees, .. cutWallAttachment.Guarantees, .. shellClosure.Guarantees]).ToArray() };
+        var x10Decision = decision with { SelectedRouteKind = AirRegionIntegrationRouteKind.ControlledSideHoleParentBRepIntegration, SelectedStatus = AirRegionIntegrationStatus.Integrated, Recommendation = $"controlled parent BRep integration succeeded for the {attachFace}/{throughFace}/radius={radius:g}/center=({centerU:g},{centerV:g}) fixture; entry loop, exit loop, cylindrical cut wall, and RegionIntegrationPatch are consumed into closed shell evidence", Diagnostics = Stable([.. decision.Diagnostics, .. materialization.Diagnostics, .. parentIntegration.Diagnostics, .. faceSplit.Diagnostics, .. exitLoop.Diagnostics, .. cutWallAttachment.Diagnostics, .. shellClosure.Diagnostics]).ToArray(), KnownLosses = Stable([.. decision.KnownLosses, .. materialization.KnownLosses, .. parentIntegration.KnownLosses]).ToArray(), Guarantees = Stable([.. decision.Guarantees, .. materialization.Guarantees, .. parentIntegration.Guarantees, .. faceSplit.Guarantees, .. exitLoop.Guarantees, .. cutWallAttachment.Guarantees, .. shellClosure.Guarantees]).ToArray() };
         var side = sideBase with
         {
             StageReached = "region-parent-integrated",
@@ -362,12 +362,20 @@ internal static class AirRegionTraceFactory
         return Summary([root, bad], ["air-region-x1-region-trace-created", "air-region-x1-implicit-parent-mutation-rejected", "air-region-x1-no-brep-emission", "air-region-x1-no-boolean", "air-region-x2-implicit-parent-mutation-rejected", "air-region-x2-missing-explicit-yield-rejected", "air-region-x2-boundary-contract-required"], ["no Boolean", "no geometry", "no BRep emission"]);
     }
 
-    private static AirRegionYieldSummary SideHoleYield(string parentRegionId, double radius = 1, double centerU = 0, double centerV = 0) => new(
-        "yield:side-hole:+x:subtractive-volume", AirRegionYieldKind.YieldSubtractiveVolume, "SideHole", AirRegionEffectKind.Subtractive, "frame:side-hole:+x", parentRegionId,
-        new("Face", parentRegionId, "parser-backed/root box fixture", "+X", "SideFace", "frame:side-hole:+x", ["air-region-x2-face-attachment-recorded"]),
-        new("Circle", new(centerU, centerV), radius, "CircularEntryLoop", "face(+X):u=+Y,v=+Z"),
+    private static AirLocalFrameSummary FrameForSideHole(string attachFace) => attachFace switch
+    {
+        "+Y" => new("frame:side-hole:+y", AirLocalFrameKind.FaceAttached, new(0, 4, 0), new(1, 0, 0), new(0, 0, 1), new(0, 1, 0), AirLocalFrameHandedness.RightHanded, "box.face(\"+Y\")", "+Y", "+Z", true, ["air-region-x1-face-attached-frame-created"]),
+        "-Y" => new("frame:side-hole:-y", AirLocalFrameKind.FaceAttached, new(0, -4, 0), new(1, 0, 0), new(0, 0, 1), new(0, -1, 0), AirLocalFrameHandedness.RightHanded, "box.face(\"-Y\")", "-Y", "+Z", true, ["air-region-x1-face-attached-frame-created"]),
+        "-X" => new("frame:side-hole:-x", AirLocalFrameKind.FaceAttached, new(-5, 0, 0), new(0, 1, 0), new(0, 0, 1), new(-1, 0, 0), AirLocalFrameHandedness.RightHanded, "box.face(\"-X\")", "-X", "+Z", true, ["air-region-x1-face-attached-frame-created"]),
+        _ => new("frame:side-hole:+x", AirLocalFrameKind.FaceAttached, new(5, 0, 0), new(0, 1, 0), new(0, 0, 1), new(1, 0, 0), AirLocalFrameHandedness.RightHanded, "box.face(\"+X\")", "+X", "+Z", true, ["air-region-x1-face-attached-frame-created"])
+    };
+
+    private static AirRegionYieldSummary SideHoleYield(string parentRegionId, double radius = 1, double centerU = 0, double centerV = 0, string attachFace = "+X", string throughFace = "-X", string centerFrame = "face(+X):u=+Y,v=+Z") => new(
+        $"yield:side-hole:{attachFace.ToLowerInvariant()}:subtractive-volume", AirRegionYieldKind.YieldSubtractiveVolume, "SideHole", AirRegionEffectKind.Subtractive, $"frame:side-hole:{attachFace.ToLowerInvariant()}", parentRegionId,
+        new("Face", parentRegionId, "parser-backed/root box fixture", attachFace, "SideFace", $"frame:side-hole:{attachFace.ToLowerInvariant()}", ["air-region-x2-face-attachment-recorded"]),
+        new("Circle", new(centerU, centerV), radius, "CircularEntryLoop", centerFrame),
         new("FaceNormal", "LocalZ", "Inward", true, "Through", ["air-region-x2-through-direction-recorded"]),
-        new("ParentBodyLocalFeature", true, "+X", false, true, ["air-region-x2-affected-scope-recorded", "air-region-x2-explicit-yield-only"]),
+        new("ParentBodyLocalFeature", true, attachFace, false, true, ["air-region-x2-affected-scope-recorded", "air-region-x2-explicit-yield-only"]),
         new("ThroughCut", "CircularEntryLoop", "Deferred", "CircularRimIntent", "Deferred", ["air-region-x2-boundary-intent-recorded", "air-region-x2-entry-loop-intent-recorded", "air-region-x2-exit-boundary-deferred"]),
         AirRegionIntegrationStatus.Deferred,
         ["air-region-x2-yield-contract-created", "air-region-x2-side-hole-yield-created", "air-region-x2-region-locality-enforced"],

@@ -43,6 +43,8 @@ The helper scripts are:
 
 `test-all.sh` is the active/default lane. `test-legacy.sh` exports `AETHERIS_RUN_LEGACY_TESTS=1` and runs the same `net10.0` framework lane with legacy sources included.
 
+Shell helper scripts in `scripts/*.sh` are repository-managed as LF line ending files. `.gitattributes` enforces `*.sh text eol=lf` so Git Bash and other POSIX shells do not trip over CRLF control characters.
+
 ## Promoting useful legacy tests
 
 When a Firmament V1 or FrictionLab scenario becomes relevant to current V2/Core work:
@@ -83,5 +85,7 @@ scripts/test-active.sh
 AETHERIS_RUN_LEGACY_TESTS=1 dotnet test Aetheris.FrictionLab.Tests/Aetheris.FrictionLab.Tests.csproj -f net10.0 --filter "CirBoxCylinderConvention" --logger "console;verbosity=minimal"
 scripts/test-corpus.sh
 ```
+
+Command-line MSBuild in this repo also uses `Directory.Build.rsp` to apply `-maxCpuCount:1` for repo-local builds. This keeps the current `Aetheris.slnx` developer loop reliable on Windows while the solution graph is still scheduling duplicate project work against shared `obj` outputs under higher parallelism.
 
 When adding new corpus tests, keep representative active smoke coverage in the default suite and gate only the broad audit/corpus expansion.

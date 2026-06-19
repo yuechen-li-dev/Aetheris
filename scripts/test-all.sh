@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOTNET_BIN="${DOTNET_BIN:-dotnet}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$REPO_ROOT/scripts/_dotnet-env.sh"
+DOTNET_BIN="${DOTNET_BIN:-$(resolve_dotnet_bin)}"
 PRIMARY_TFM="${AETHERIS_PRIMARY_TFM:-net10.0}"
 
 run() {

@@ -1227,8 +1227,8 @@ public sealed class AirTraceCommandTests
         var secondDir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
         Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", firstDir).ExitCode);
         Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", secondDir).ExitCode);
-        var first = File.ReadAllText(Path.Combine(firstDir, "side-hole-v2.trace.json")).Replace(firstDir, "<OUT>");
-        var second = File.ReadAllText(Path.Combine(secondDir, "side-hole-v2.trace.json")).Replace(secondDir, "<OUT>");
+        var first = NormalizeOutDir(File.ReadAllText(Path.Combine(firstDir, "side-hole-v2.trace.json")), firstDir);
+        var second = NormalizeOutDir(File.ReadAllText(Path.Combine(secondDir, "side-hole-v2.trace.json")), secondDir);
         Assert.Equal(first, second);
     }
 
@@ -1299,6 +1299,9 @@ public sealed class AirTraceCommandTests
     private static string PrimitiveFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Primitive", relative));
     private static string RegionFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Region", relative));
     private static string FirmamentV2Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));
+    private static string NormalizeOutDir(string text, string outDir) =>
+        text.Replace(outDir.Replace("\\", "\\\\", StringComparison.Ordinal), "<OUT>", StringComparison.Ordinal)
+            .Replace(outDir, "<OUT>", StringComparison.Ordinal);
 
     [Fact]
     public void FirmamentV2SideHoleYAxis_TraceJsonContainsRouteEvidence()

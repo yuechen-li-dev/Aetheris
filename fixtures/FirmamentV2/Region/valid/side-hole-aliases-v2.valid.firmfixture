@@ -1,0 +1,45 @@
+// fixture-id: side-hole-aliases-v2
+// case: firmament-v2-side-hole-aliases
+// category: Region
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: region-parent-integrated
+// expected-parent-integration: Integrated
+// expected-shell-closure: Closed
+// expected-step-smoke: Succeeded
+// expected-region-kind: FaceAttachedRegion
+// expected-entry-face: +X
+// expected-through-face: -X
+// expected-attach-alias: right
+// expected-through-alias: left
+// expected-tool: Cylinder
+// expected-radius: 1
+// expected-center: [1, 0]
+// expected-center-frame: face(+X):u=+Y,v=+Z
+// parser-backed: true
+// notes: AIR-FIRMAMENT-X8 parser-backed controlled V2 side-hole selector alias fixture.
+
+model SideHoleAliasV2 {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+
+        expose {
+            face(+X) => right
+            face(-X) => left
+        }
+    }
+
+    modify base {
+        region sideHole on right {
+            cut Cylinder {
+                radius: 1
+                center: [1, 0]
+                through: left
+            }
+        }
+    }
+}

@@ -1122,6 +1122,45 @@ public sealed class AirTraceCommandTests
         }
     }
 
+
+    [Fact]
+    public void FirmamentV2SideHoleAliases_TraceJsonContainsAliasResolution()
+    {
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-aliases-v2.valid.firmfixture"), "--json");
+        using var doc = JsonDocument.Parse(output);
+        var region = doc.RootElement.GetProperty("firmamentV2").GetProperty("modifyBlocks")[0].GetProperty("regions")[0];
+        Assert.Equal("right", region.GetProperty("on").GetString());
+        Assert.Equal("Alias", region.GetProperty("onKind").GetString());
+        Assert.Equal("face(+X)", region.GetProperty("resolvedOn").GetString());
+        Assert.Equal("left", region.GetProperty("through").GetString());
+        Assert.Equal("Alias", region.GetProperty("throughKind").GetString());
+        Assert.Equal("face(-X)", region.GetProperty("resolvedThrough").GetString());
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleAliases_TraceTextContainsAliasResolution()
+    {
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-aliases-v2.valid.firmfixture"));
+        Assert.Contains("face(+X) => right", output);
+        Assert.Contains("On: right", output);
+        Assert.Contains("Resolved on: face(+X)", output);
+        Assert.Contains("Through: left", output);
+        Assert.Contains("Resolved through: face(-X)", output);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleAliases_ArtifactsEmit()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-aliases-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.All(new[] { "side-hole-aliases-v2.step", "side-hole-aliases-v2.trace.json", "side-hole-aliases-v2.trace.txt", "manifest.json" }, name => Assert.True(new FileInfo(Path.Combine(dir, name)).Length > 0, name));
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
+        Assert.Equal("right", doc.RootElement.GetProperty("attachTargetSource").GetString());
+        Assert.Equal("face(+X)", doc.RootElement.GetProperty("attachResolvedSelector").GetString());
+        Assert.Equal("left", doc.RootElement.GetProperty("throughTargetSource").GetString());
+        Assert.Equal("face(-X)", doc.RootElement.GetProperty("throughResolvedSelector").GetString());
+    }
+
     [Fact]
     public void FirmamentV2SideHoleArtifacts_ManifestContainsGoldenPathFacts()
     {

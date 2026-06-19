@@ -7,17 +7,20 @@ namespace Aetheris.Kernel.Core.Brep.Tessellation;
 
 public static class DisplayPreparationFallbackBuilder
 {
+    private static readonly TimeSpan DefaultExecutionTimeout = TimeSpan.FromSeconds(5);
+
     public static KernelResult<DisplayTessellationResult> Build(
         BrepBody body,
         DisplayTessellationOptions? tessellationOptions = null)
-        => Build(body, tessellationOptions, null);
+        => Build(body, tessellationOptions, null, DefaultExecutionTimeout);
 
     internal static KernelResult<DisplayTessellationResult> Build(
         BrepBody body,
         DisplayTessellationOptions? tessellationOptions,
-        DisplayPreparationBsplineScaffoldOptions? scaffoldOptions)
+        DisplayPreparationBsplineScaffoldOptions? scaffoldOptions,
+        TimeSpan? executionTimeout = null)
     {
-        var tessellation = BrepDisplayTessellator.Tessellate(body, tessellationOptions);
+        var tessellation = BrepDisplayTessellator.TessellateBounded(body, tessellationOptions, executionTimeout);
         if (!tessellation.IsSuccess)
         {
             return tessellation;

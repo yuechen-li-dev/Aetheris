@@ -221,6 +221,56 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     }
 
     [Fact]
+    public async Task Ftc07ServerImport_ReturnsBeforeViewMaterialization()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var ftc07StepText = await File.ReadAllTextAsync(GetRepositoryPath("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp"));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto(ftc07StepText, "FTC07"),
+            cts.Token);
+        importResponse.EnsureSuccessStatusCode();
+
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>(cts.Token);
+        Assert.NotNull(imported);
+        Assert.True(imported!.Success);
+        Assert.NotNull(imported.Data);
+    }
+
+    [Fact]
+    public async Task Ftc07ViewMaterialization_FailsWithDiagnosticInsteadOfHang()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var ftc07StepText = await File.ReadAllTextAsync(GetRepositoryPath("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp"));
+
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto(ftc07StepText, "FTC07"));
+        importResponse.EnsureSuccessStatusCode();
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+        Assert.NotNull(imported);
+        Assert.True(imported!.Success);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var prepareResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/bodies/{imported.Data!.OccurrenceId}/display/prepare",
+            new DisplayPrepareRequestDto(null),
+            cts.Token);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, prepareResponse.StatusCode);
+        var payload = await prepareResponse.Content.ReadFromJsonAsync<ApiResponseDto<object>>(cts.Token);
+        Assert.NotNull(payload);
+        Assert.False(payload!.Success);
+        Assert.Contains(payload.Diagnostics, diagnostic => diagnostic.Source == "Viewer.Tessellation.Timeout");
+        Assert.Contains(payload.Diagnostics, diagnostic => diagnostic.Message.Contains("face", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(payload.Diagnostics, diagnostic =>
+            diagnostic.Message.Contains("PlanarTriangulationWithHoles", StringComparison.Ordinal)
+            || diagnostic.Message.Contains("FaceTessellation", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task DisplayPrepare_SameBodyTwice_IsDeterministic()
     {
         var document = await CreateDocumentAsync("/api/v1/documents");

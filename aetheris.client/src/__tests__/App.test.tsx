@@ -355,6 +355,44 @@ describe('App STEP file upload flow', () => {
         await screen.findByText('[Error] ValidationFailed: Malformed STEP payload.');
     });
 
+    it('reports view materialization failure without masquerading as import failure', async () => {
+        apiMocks.importStep.mockResolvedValue({
+            documentId: 'doc-1',
+            definitionId: 'def-2',
+            occurrenceId: 'occ-2',
+            name: 'Imported',
+            diagnostics: [],
+        });
+        apiMocks.prepareBodyDisplay.mockRejectedValue(new ApiError('Display tessellation exceeded the bounded execution budget.', [{
+            code: 'ValidationFailed',
+            severity: 'Error',
+            message: 'Display tessellation exceeded the bounded execution budget.',
+            source: 'Viewer.Tessellation.Timeout',
+        }]));
+        apiMocks.exportDefinitionStep.mockResolvedValue({
+            documentId: 'doc-1',
+            definitionId: 'def-2',
+            stepText: 'ISO-10303-21;',
+            canonicalHash: 'hash-123',
+            diagnostics: [],
+        });
+
+        render(<App />);
+        await screen.findByText('Document: Ready');
+
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
+        const file = new File(['ISO-10303-21;DATA;'], 'ftc07.stp', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [file] } });
+        await screen.findByText('ftc07.stp');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
+
+        await screen.findByText('Import complete. View materialization failed.');
+        await screen.findByText('[Error] ValidationFailed: Display tessellation exceeded the bounded execution budget.');
+        expect(screen.queryByText('Import failed')).toBeNull();
+        await screen.findByText('hash-123');
+    });
+
     it('preserves ApiError diagnostics from canonical download failure', async () => {
         apiMocks.exportDefinitionStep.mockRejectedValue(new ApiError('Export failed.', [{
             code: 'StepExportFailed',

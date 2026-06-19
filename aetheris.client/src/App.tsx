@@ -151,9 +151,9 @@ function App() {
         }
     }, []);
 
-    const refreshSummaryAndActiveTessellation = useCallback(async (targetBodyId?: string) => {
+    const refreshSummaryAndActiveTessellation = useCallback(async (targetBodyId?: string, suppressDisplayErrors = false) => {
         if (!documentId) {
-            return;
+            return null;
         }
 
         const summary = await getDocumentSummary(documentId);
@@ -164,13 +164,29 @@ function App() {
         setActiveBodyId(selected ?? null);
 
         if (selected) {
-            const preparedDisplay = await prepareBodyDisplay(documentId, selected);
-            setDisplayPreparation(preparedDisplay);
-            setTessellation(preparedDisplay.tessellationFallback);
+            try {
+                const preparedDisplay = await prepareBodyDisplay(documentId, selected);
+                setDisplayPreparation(preparedDisplay);
+                setTessellation(preparedDisplay.tessellationFallback);
+                return null;
+            } catch (error) {
+                const apiError = error instanceof ApiError
+                    ? error
+                    : new ApiError((error as Error).message || 'Unexpected display preparation error.', []);
+                setTessellation(null);
+                setDisplayPreparation(null);
+                if (!suppressDisplayErrors) {
+                    throw apiError;
+                }
+
+                return apiError;
+            }
         } else {
             setTessellation(null);
             setDisplayPreparation(null);
         }
+
+        return null;
     }, [activeBodyId, documentId]);
 
     const handleCreateDocument = useCallback(async () => {
@@ -354,6 +370,7 @@ function App() {
         setIsImporting(true);
 
         try {
+            let displayError: ApiError | null = null;
             const didImport = await runAction('Import STEP', async () => {
                 const stepText = await stepImportFile.text();
                 if (stepText.trim().length === 0) {
@@ -362,7 +379,7 @@ function App() {
 
                 const imported = await importStep(documentId, stepText);
                 setStepExportText('');
-                await refreshSummaryAndActiveTessellation(imported.occurrenceId);
+                displayError = await refreshSummaryAndActiveTessellation(imported.occurrenceId, true);
                 const exported = await exportDefinitionStep(documentId, imported.definitionId);
                 setStepCanonicalHash(exported.canonicalHash);
                 setPickStatus('idle');
@@ -371,8 +388,16 @@ function App() {
                 setPickHits([]);
                 setCopyHashMessage('');
             });
-            setImportStatus(didImport ? 'success' : 'error');
-            setImportStatusMessage(didImport ? 'Import complete.' : 'Import error: Request failed.');
+            if (didImport && displayError) {
+                setStatus('error');
+                setStatusMessage(`View materialization failed after import: ${displayError.message}`);
+                setDiagnostics(displayError.diagnostics);
+                setImportStatus('success');
+                setImportStatusMessage('Import complete. View materialization failed.');
+            } else {
+                setImportStatus(didImport ? 'success' : 'error');
+                setImportStatusMessage(didImport ? 'Import complete.' : 'Import error: Request failed.');
+            }
         } finally {
             setIsImporting(false);
         }

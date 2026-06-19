@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
@@ -22,8 +23,11 @@ internal static class TrimmedSurfaceTessellator
         double uDomainEnd,
         double vDomainStart,
         double vDomainEnd,
-        Func<string, string, KernelDiagnostic> createWarning)
+        Func<string, string, KernelDiagnostic> createWarning,
+        DisplayTessellationExecutionBudget? executionBudget = null,
+        SurfaceGeometryKind? surfaceKind = null)
     {
+        executionBudget?.ThrowIfExpired("TrimmedSurface.Start", faceId, surfaceKind);
         if (uvLoops.Count == 0)
         {
             return KernelResult<DisplayFaceMeshPatch>.Success(CreateEmptyPatch(faceId));
@@ -73,6 +77,7 @@ internal static class TrimmedSurfaceTessellator
 
         for (var iv = 0; iv <= vSegments; iv++)
         {
+            executionBudget?.ThrowIfExpired("TrimmedSurface.GridSampling", faceId, surfaceKind);
             var tv = (double)iv / vSegments;
             var v = vStart + ((vEnd - vStart) * tv);
             for (var iu = 0; iu <= uSegments; iu++)
@@ -88,6 +93,7 @@ internal static class TrimmedSurfaceTessellator
         var rowWidth = uSegments + 1;
         for (var iv = 0; iv < vSegments; iv++)
         {
+            executionBudget?.ThrowIfExpired("TrimmedSurface.TriangleClassification", faceId, surfaceKind);
             for (var iu = 0; iu < uSegments; iu++)
             {
                 var i0 = (iv * rowWidth) + iu;
@@ -109,6 +115,7 @@ internal static class TrimmedSurfaceTessellator
 
         void AppendTriangleWithBoundaryRefinement(int ia, int ib, int ic, int remainingDepth)
         {
+            executionBudget?.ThrowIfExpired("TrimmedSurface.BoundaryRefinement", faceId, surfaceKind);
             var classification = ClassifyTriangle(uvGrid[ia], uvGrid[ib], uvGrid[ic], trimContext);
             switch (classification)
             {

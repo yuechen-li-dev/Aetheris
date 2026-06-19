@@ -35,6 +35,18 @@ public static class BrepDisplayTessellator
     private const string TrimEvaluationFailedSource = "Viewer.Tessellation.TrimEvaluationFailed";
 
     public static KernelResult<DisplayTessellationResult> Tessellate(BrepBody body, DisplayTessellationOptions? options = null)
+        => TessellateCore(body, options, null);
+
+    public static KernelResult<DisplayTessellationResult> TessellateBounded(
+        BrepBody body,
+        DisplayTessellationOptions? options = null,
+        TimeSpan? executionTimeout = null)
+        => TessellateCore(body, options, new DisplayTessellationExecutionBudget(executionTimeout ?? TimeSpan.FromSeconds(5)));
+
+    private static KernelResult<DisplayTessellationResult> TessellateCore(
+        BrepBody body,
+        DisplayTessellationOptions? options,
+        DisplayTessellationExecutionBudget? executionBudget)
     {
         if (body is null)
         {
@@ -51,54 +63,116 @@ public static class BrepDisplayTessellator
         var accumulatedDiagnostics = new List<KernelDiagnostic>();
 
         var facePatches = new List<DisplayFaceMeshPatch>();
-        foreach (var face in body.Topology.Faces.OrderBy(f => f.Id.Value))
+        try
         {
-            var faceResult = TessellateFace(body, face.Id, effectiveOptions);
-            if (!faceResult.IsSuccess)
+            foreach (var face in body.Topology.Faces.OrderBy(f => f.Id.Value))
             {
-                return KernelResult<DisplayTessellationResult>.Failure(faceResult.Diagnostics);
+                executionBudget?.ThrowIfExpired("FaceDispatch", face.Id);
+                var faceResult = ExecuteWithinOptionalBudget(
+                    () => TessellateFace(body, face.Id, effectiveOptions, executionBudget),
+                    executionBudget,
+                    "FaceTessellation",
+                    face.Id,
+                    TryGetSurfaceKind(body, face.Id),
+                    executionBudget is null ? null : executionBudget.Remaining + TimeSpan.FromMilliseconds(250));
+                if (!faceResult.IsSuccess)
+                {
+                    return KernelResult<DisplayTessellationResult>.Failure(faceResult.Diagnostics);
+                }
+
+                facePatches.Add(faceResult.Value);
+                accumulatedDiagnostics.AddRange(faceResult.Diagnostics);
             }
 
-            facePatches.Add(faceResult.Value);
-            accumulatedDiagnostics.AddRange(faceResult.Diagnostics);
-        }
-
-        var edgePolylines = new List<DisplayEdgePolyline>();
-        foreach (var edge in body.Topology.Edges.OrderBy(e => e.Id.Value))
-        {
-            var edgeResult = TessellateEdge(body, edge.Id, effectiveOptions);
-            if (!edgeResult.IsSuccess)
+            var edgePolylines = new List<DisplayEdgePolyline>();
+            foreach (var edge in body.Topology.Edges.OrderBy(e => e.Id.Value))
             {
-                return KernelResult<DisplayTessellationResult>.Failure(edgeResult.Diagnostics);
+                executionBudget?.ThrowIfExpired("EdgeDispatch");
+                var edgeResult = ExecuteWithinOptionalBudget(
+                    () => TessellateEdge(body, edge.Id, effectiveOptions),
+                    executionBudget,
+                    "EdgeTessellation");
+                if (!edgeResult.IsSuccess)
+                {
+                    return KernelResult<DisplayTessellationResult>.Failure(edgeResult.Diagnostics);
+                }
+
+                edgePolylines.Add(edgeResult.Value);
+                accumulatedDiagnostics.AddRange(edgeResult.Diagnostics);
             }
 
-            edgePolylines.Add(edgeResult.Value);
-            accumulatedDiagnostics.AddRange(edgeResult.Diagnostics);
+            return KernelResult<DisplayTessellationResult>.Success(new DisplayTessellationResult(facePatches, edgePolylines), accumulatedDiagnostics);
         }
-
-        return KernelResult<DisplayTessellationResult>.Success(new DisplayTessellationResult(facePatches, edgePolylines), accumulatedDiagnostics);
+        catch (DisplayTessellationTimeoutException ex)
+        {
+            return KernelResult<DisplayTessellationResult>.Failure([CreateValidationError(ex.Message, "Viewer.Tessellation.Timeout")]);
+        }
     }
 
-    private static KernelResult<DisplayFaceMeshPatch> TessellateFace(BrepBody body, FaceId faceId, DisplayTessellationOptions options)
+    private static KernelResult<T> ExecuteWithinBudget<T>(
+        Func<KernelResult<T>> action,
+        DisplayTessellationExecutionBudget executionBudget,
+        string phase,
+        FaceId? faceId = null,
+        SurfaceGeometryKind? surfaceKind = null,
+        TimeSpan? timeoutOverride = null)
+    {
+        try
+        {
+            return Task.Run(action)
+                .WaitAsync(timeoutOverride ?? executionBudget.Remaining)
+                .GetAwaiter()
+                .GetResult();
+        }
+        catch (TimeoutException)
+        {
+            throw new DisplayTessellationTimeoutException(phase, executionBudget.Elapsed, faceId, surfaceKind);
+        }
+    }
+
+    private static KernelResult<T> ExecuteWithinOptionalBudget<T>(
+        Func<KernelResult<T>> action,
+        DisplayTessellationExecutionBudget? executionBudget,
+        string phase,
+        FaceId? faceId = null,
+        SurfaceGeometryKind? surfaceKind = null,
+        TimeSpan? timeoutOverride = null)
+        => executionBudget is null
+            ? action()
+            : ExecuteWithinBudget(action, executionBudget, phase, faceId, surfaceKind, timeoutOverride);
+
+    private static SurfaceGeometryKind? TryGetSurfaceKind(BrepBody body, FaceId faceId)
+    {
+        if (!body.TryGetFaceSurfaceGeometry(faceId, out var surface) || surface is null)
+        {
+            return null;
+        }
+
+        return surface.Kind;
+    }
+
+    private static KernelResult<DisplayFaceMeshPatch> TessellateFace(BrepBody body, FaceId faceId, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
         if (!body.TryGetFaceSurfaceGeometry(faceId, out var surface) || surface is null)
         {
             return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} is missing bound surface geometry.")]);
         }
 
+        executionBudget?.ThrowIfExpired("FaceSurfaceDispatch", faceId, surface.Kind);
+
         return surface.Kind switch
         {
-            SurfaceGeometryKind.Plane => TessellatePlanarFace(body, faceId, surface.Plane!.Value, options),
-            SurfaceGeometryKind.Cylinder => TessellateCylinderFace(body, faceId, surface.Cylinder!.Value, options),
-            SurfaceGeometryKind.Cone => TessellateConeFace(body, faceId, surface.Cone!.Value, options),
+            SurfaceGeometryKind.Plane => TessellatePlanarFace(body, faceId, surface.Plane!.Value, options, executionBudget),
+            SurfaceGeometryKind.Cylinder => TessellateCylinderFace(body, faceId, surface.Cylinder!.Value, options, executionBudget),
+            SurfaceGeometryKind.Cone => TessellateConeFace(body, faceId, surface.Cone!.Value, options, executionBudget),
             SurfaceGeometryKind.Sphere => TessellateSphereFace(body, faceId, surface.Sphere!.Value, options),
-            SurfaceGeometryKind.Torus => TessellateTorusFace(body, faceId, surface.Torus!.Value, options),
-            SurfaceGeometryKind.BSplineSurfaceWithKnots => TessellateBSplineSurfaceFace(body, faceId, surface.BSplineSurfaceWithKnots!, options),
+            SurfaceGeometryKind.Torus => TessellateTorusFace(body, faceId, surface.Torus!.Value, options, executionBudget),
+            SurfaceGeometryKind.BSplineSurfaceWithKnots => TessellateBSplineSurfaceFace(body, faceId, surface.BSplineSurfaceWithKnots!, options, executionBudget),
             _ => KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} has unsupported surface kind '{surface.Kind}'.")]),
         };
     }
 
-    private static KernelResult<DisplayFaceMeshPatch> TessellatePlanarFace(BrepBody body, FaceId faceId, PlaneSurface plane, DisplayTessellationOptions options)
+    private static KernelResult<DisplayFaceMeshPatch> TessellatePlanarFace(BrepBody body, FaceId faceId, PlaneSurface plane, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
         var loopIds = body.GetLoopIds(faceId);
         if (loopIds.Count == 0)
@@ -108,19 +182,34 @@ public static class BrepDisplayTessellator
 
         if (loopIds.Count == 1)
         {
-            var simpleLoopPoints = FlattenPlanarLoop(body, faceId, plane, options, loopIds[0]);
+            var simpleLoopPoints = ExecuteWithinOptionalBudget(
+                () => FlattenPlanarLoop(body, faceId, plane, options, loopIds[0]),
+                executionBudget,
+                "PlanarLoopFlattening",
+                faceId,
+                SurfaceGeometryKind.Plane);
             if (!simpleLoopPoints.IsSuccess)
             {
                 return KernelResult<DisplayFaceMeshPatch>.Failure(simpleLoopPoints.Diagnostics);
             }
 
-            return TriangulatePlanarPatch(faceId, plane, simpleLoopPoints.Value);
+            return ExecuteWithinOptionalBudget(
+                () => TriangulatePlanarPatch(faceId, plane, simpleLoopPoints.Value),
+                executionBudget,
+                "PlanarTriangulation",
+                faceId,
+                SurfaceGeometryKind.Plane);
         }
 
         var flattenedLoops = new Dictionary<LoopId, IReadOnlyList<Point3D>>();
         foreach (var loopId in loopIds.OrderBy(id => id.Value))
         {
-            var flattenedLoop = FlattenPlanarLoop(body, faceId, plane, options, loopId);
+            var flattenedLoop = ExecuteWithinOptionalBudget(
+                () => FlattenPlanarLoop(body, faceId, plane, options, loopId),
+                executionBudget,
+                "PlanarLoopFlattening",
+                faceId,
+                SurfaceGeometryKind.Plane);
             if (!flattenedLoop.IsSuccess)
             {
                 return KernelResult<DisplayFaceMeshPatch>.Failure(flattenedLoop.Diagnostics);
@@ -129,7 +218,12 @@ public static class BrepDisplayTessellator
             flattenedLoops[loopId] = flattenedLoop.Value;
         }
 
-        var outerLoopId = SelectPlanarPrimaryLoop(body, faceId, plane, loopIds);
+        var outerLoopId = ExecuteWithinOptionalBudget(
+            () => KernelResult<LoopId>.Success(SelectPlanarPrimaryLoop(body, faceId, plane, loopIds)),
+            executionBudget,
+            "PlanarPrimaryLoopSelection",
+            faceId,
+            SurfaceGeometryKind.Plane).Value;
         var outerLoop = flattenedLoops[outerLoopId];
         var holes = loopIds
             .Where(loopId => loopId != outerLoopId)
@@ -137,22 +231,41 @@ public static class BrepDisplayTessellator
             .Select(loopId => flattenedLoops[loopId])
             .ToArray();
 
-        if (!PlanarPolygonTriangulator.TryTriangulateWithHoles(
-                outerLoop,
-                holes,
-                plane.Normal.ToVector(),
-                out var triangulationPoints,
-                out var indices,
-                out var failure))
+        var triangulationResult = ExecuteWithinOptionalBudget(
+            () =>
+            {
+                if (!PlanarPolygonTriangulator.TryTriangulateWithHoles(
+                        outerLoop,
+                        holes,
+                        plane.Normal.ToVector(),
+                        out var triangulationPoints,
+                        out var indices,
+                        out var failure))
+                {
+                    return KernelResult<(IReadOnlyList<Point3D> Points, IReadOnlyList<int> Indices, PlanarPolygonTriangulationFailure? Failure)>.Failure([
+                        CreateValidationWarning(
+                            $"Face {faceId.Value} planar multi-loop tessellation could not be resolved ({failure?.ToString() ?? "Unknown"}); skipping face patch to avoid misleading filled geometry.",
+                            PlanarMultiLoopTriangulationSkippedSource)]);
+                }
+
+                return KernelResult<(IReadOnlyList<Point3D> Points, IReadOnlyList<int> Indices, PlanarPolygonTriangulationFailure? Failure)>.Success((triangulationPoints, indices, null));
+            },
+            executionBudget,
+            "PlanarTriangulationWithHoles",
+            faceId,
+            SurfaceGeometryKind.Plane);
+
+        if (!triangulationResult.IsSuccess)
         {
-            return KernelResult<DisplayFaceMeshPatch>.Success(
-                CreateEmptyPlanarPatch(faceId),
-                [CreateValidationWarning(
-                    $"Face {faceId.Value} planar multi-loop tessellation could not be resolved ({failure?.ToString() ?? "Unknown"}); skipping face patch to avoid misleading filled geometry.",
-                    PlanarMultiLoopTriangulationSkippedSource)]);
+            if (triangulationResult.Diagnostics.Any(diagnostic => string.Equals(diagnostic.Source, "Viewer.Tessellation.Timeout", StringComparison.Ordinal)))
+            {
+                return KernelResult<DisplayFaceMeshPatch>.Failure(triangulationResult.Diagnostics);
+            }
+
+            return KernelResult<DisplayFaceMeshPatch>.Success(CreateEmptyPlanarPatch(faceId), triangulationResult.Diagnostics);
         }
 
-        return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, triangulationPoints, plane.Normal.ToVector(), indices));
+        return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, triangulationResult.Value.Points, plane.Normal.ToVector(), triangulationResult.Value.Indices));
     }
 
     private static KernelResult<DisplayFaceMeshPatch> TriangulatePlanarPatch(FaceId faceId, PlaneSurface plane, IReadOnlyList<Point3D> polygonPoints)
@@ -344,12 +457,12 @@ public static class BrepDisplayTessellator
         return KernelResult<DisplayFaceMeshPatch>.Success(new DisplayFaceMeshPatch(faceId, positions, normals, indices));
     }
 
-    private static KernelResult<DisplayFaceMeshPatch> TessellateCylinderFace(BrepBody body, FaceId faceId, CylinderSurface cylinder, DisplayTessellationOptions options)
+    private static KernelResult<DisplayFaceMeshPatch> TessellateCylinderFace(BrepBody body, FaceId faceId, CylinderSurface cylinder, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
         var loopIds = body.GetLoopIds(faceId);
         if (loopIds.Count > 1)
         {
-            var uvLoopsResult = TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToCylinderUv(cylinder, point), options);
+            var uvLoopsResult = TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToCylinderUv(cylinder, point), options, executionBudget, SurfaceGeometryKind.Cylinder);
             if (!uvLoopsResult.IsSuccess)
             {
                 return KernelResult<DisplayFaceMeshPatch>.Success(
@@ -369,18 +482,20 @@ public static class BrepDisplayTessellator
                 double.PositiveInfinity,
                 double.NegativeInfinity,
                 double.PositiveInfinity,
-                CreateValidationWarning);
+                CreateValidationWarning,
+                executionBudget,
+                SurfaceGeometryKind.Cylinder);
         }
 
         return TessellateLegacyCylinderFace(body, faceId, cylinder, options);
     }
 
-    private static KernelResult<DisplayFaceMeshPatch> TessellateConeFace(BrepBody body, FaceId faceId, ConeSurface cone, DisplayTessellationOptions options)
+    private static KernelResult<DisplayFaceMeshPatch> TessellateConeFace(BrepBody body, FaceId faceId, ConeSurface cone, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
         var loopIds = body.GetLoopIds(faceId);
         if (loopIds.Count > 0)
         {
-            var uvLoopsResult = TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToConeUv(cone, point), options);
+            var uvLoopsResult = TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToConeUv(cone, point), options, executionBudget, SurfaceGeometryKind.Cone);
             if (!uvLoopsResult.IsSuccess)
             {
                 return KernelResult<DisplayFaceMeshPatch>.Success(
@@ -405,7 +520,9 @@ public static class BrepDisplayTessellator
                 double.PositiveInfinity,
                 double.NegativeInfinity,
                 double.PositiveInfinity,
-                CreateValidationWarning);
+                CreateValidationWarning,
+                executionBudget,
+                SurfaceGeometryKind.Cone);
         }
 
         return TessellateLegacyConeFace(body, faceId, cone, options);
@@ -553,8 +670,9 @@ public static class BrepDisplayTessellator
         return area * 0.5d;
     }
 
-    private static KernelResult<DisplayFaceMeshPatch> TessellateBSplineSurfaceFace(BrepBody body, FaceId faceId, BSplineSurfaceWithKnots surface, DisplayTessellationOptions options)
+    private static KernelResult<DisplayFaceMeshPatch> TessellateBSplineSurfaceFace(BrepBody body, FaceId faceId, BSplineSurfaceWithKnots surface, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
+        executionBudget?.ThrowIfExpired("BSplineSurface.Start", faceId, SurfaceGeometryKind.BSplineSurfaceWithKnots);
         var loopIds = body.GetLoopIds(faceId);
         if (loopIds.Count == 0)
         {
@@ -575,7 +693,9 @@ public static class BrepDisplayTessellator
             faceId,
             loopIds,
             point => TryProjectPointToBSplineUv(surface, point),
-            options);
+            options,
+            executionBudget,
+            SurfaceGeometryKind.BSplineSurfaceWithKnots);
         if (!uvLoopsResult.IsSuccess)
         {
             return KernelResult<DisplayFaceMeshPatch>.Success(
@@ -595,7 +715,9 @@ public static class BrepDisplayTessellator
             surface.DomainEndU,
             surface.DomainStartV,
             surface.DomainEndV,
-            CreateValidationWarning);
+            CreateValidationWarning,
+            executionBudget,
+            SurfaceGeometryKind.BSplineSurfaceWithKnots);
     }
 
     private static (double U, double V)? TryProjectPointToBSplineUv(BSplineSurfaceWithKnots surface, Point3D point)
@@ -683,12 +805,15 @@ public static class BrepDisplayTessellator
         FaceId faceId,
         IReadOnlyList<LoopId> loopIds,
         Func<Point3D, (double U, double V)?> projectPointToUv,
-        DisplayTessellationOptions options)
+        DisplayTessellationOptions options,
+        DisplayTessellationExecutionBudget? executionBudget = null,
+        SurfaceGeometryKind? surfaceKind = null)
     {
         var uvLoops = new List<IReadOnlyList<(double U, double V)>>(loopIds.Count);
         foreach (var loopId in loopIds.OrderBy(id => id.Value))
         {
-            var uvLoop = TryBuildDoublyPeriodicTrimmedSurfaceUvLoop(body, faceId, loopId, projectPointToUv, options);
+            executionBudget?.ThrowIfExpired("DoublyPeriodicTrimLoopDispatch", faceId, surfaceKind);
+            var uvLoop = TryBuildDoublyPeriodicTrimmedSurfaceUvLoop(body, faceId, loopId, projectPointToUv, options, executionBudget, surfaceKind);
             if (!uvLoop.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>>.Failure(uvLoop.Diagnostics);
@@ -705,7 +830,9 @@ public static class BrepDisplayTessellator
         FaceId faceId,
         LoopId loopId,
         Func<Point3D, (double U, double V)?> projectPointToUv,
-        DisplayTessellationOptions options)
+        DisplayTessellationOptions options,
+        DisplayTessellationExecutionBudget? executionBudget = null,
+        SurfaceGeometryKind? surfaceKind = null)
     {
         var coedges = body.GetCoedgeIds(loopId).Select(id => body.Topology.GetCoedge(id)).ToArray();
         if (coedges.Length < 1)
@@ -730,7 +857,8 @@ public static class BrepDisplayTessellator
 
         foreach (var coedge in coedges)
         {
-            var sampledCurve = TrySampleCoedgeForTrimEvaluation(body, faceId, coedge, vertexPointsResult.Value, options);
+            executionBudget?.ThrowIfExpired("DoublyPeriodicTrimLoopSampling", faceId, surfaceKind);
+            var sampledCurve = TrySampleCoedgeForTrimEvaluation(body, faceId, coedge, vertexPointsResult.Value, options, executionBudget, surfaceKind);
             if (!sampledCurve.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<(double U, double V)>>.Failure(sampledCurve.Diagnostics);
@@ -775,12 +903,15 @@ public static class BrepDisplayTessellator
         FaceId faceId,
         IReadOnlyList<LoopId> loopIds,
         Func<Point3D, (double U, double V)?> projectPointToUv,
-        DisplayTessellationOptions options)
+        DisplayTessellationOptions options,
+        DisplayTessellationExecutionBudget? executionBudget = null,
+        SurfaceGeometryKind? surfaceKind = null)
     {
         var uvLoops = new List<IReadOnlyList<(double U, double V)>>(loopIds.Count);
         foreach (var loopId in loopIds.OrderBy(id => id.Value))
         {
-            var uvLoop = TryBuildPeriodicTrimmedSurfaceUvLoop(body, faceId, loopId, projectPointToUv, options);
+            executionBudget?.ThrowIfExpired("PeriodicTrimLoopDispatch", faceId, surfaceKind);
+            var uvLoop = TryBuildPeriodicTrimmedSurfaceUvLoop(body, faceId, loopId, projectPointToUv, options, executionBudget, surfaceKind);
             if (!uvLoop.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>>.Failure(uvLoop.Diagnostics);
@@ -797,7 +928,9 @@ public static class BrepDisplayTessellator
         FaceId faceId,
         LoopId loopId,
         Func<Point3D, (double U, double V)?> projectPointToUv,
-        DisplayTessellationOptions options)
+        DisplayTessellationOptions options,
+        DisplayTessellationExecutionBudget? executionBudget = null,
+        SurfaceGeometryKind? surfaceKind = null)
     {
         var coedges = body.GetCoedgeIds(loopId).Select(id => body.Topology.GetCoedge(id)).ToArray();
         if (coedges.Length < 1)
@@ -820,7 +953,8 @@ public static class BrepDisplayTessellator
         var wrappedSpanTolerance = double.Pi + 1e-6d;
         foreach (var coedge in coedges)
         {
-            var sampledCurve = TrySampleCoedgeForTrimEvaluation(body, faceId, coedge, vertexPointsResult.Value, options);
+            executionBudget?.ThrowIfExpired("PeriodicTrimLoopSampling", faceId, surfaceKind);
+            var sampledCurve = TrySampleCoedgeForTrimEvaluation(body, faceId, coedge, vertexPointsResult.Value, options, executionBudget, surfaceKind);
             if (!sampledCurve.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<(double U, double V)>>.Failure(sampledCurve.Diagnostics);
@@ -1028,12 +1162,15 @@ public static class BrepDisplayTessellator
         FaceId faceId,
         IReadOnlyList<LoopId> loopIds,
         Func<Point3D, (double U, double V)?> projectPointToUv,
-        DisplayTessellationOptions options)
+        DisplayTessellationOptions options,
+        DisplayTessellationExecutionBudget? executionBudget = null,
+        SurfaceGeometryKind? surfaceKind = null)
     {
         var uvLoops = new List<IReadOnlyList<(double U, double V)>>(loopIds.Count);
         foreach (var loopId in loopIds.OrderBy(id => id.Value))
         {
-            var uvLoop = TryBuildTrimmedSurfaceUvLoop(body, faceId, loopId, projectPointToUv, options);
+            executionBudget?.ThrowIfExpired("TrimLoopDispatch", faceId, surfaceKind);
+            var uvLoop = TryBuildTrimmedSurfaceUvLoop(body, faceId, loopId, projectPointToUv, options, executionBudget, surfaceKind);
             if (!uvLoop.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>>.Failure(uvLoop.Diagnostics);
@@ -1050,7 +1187,9 @@ public static class BrepDisplayTessellator
         FaceId faceId,
         LoopId loopId,
         Func<Point3D, (double U, double V)?> projectPointToUv,
-        DisplayTessellationOptions options)
+        DisplayTessellationOptions options,
+        DisplayTessellationExecutionBudget? executionBudget = null,
+        SurfaceGeometryKind? surfaceKind = null)
     {
         var coedges = body.GetCoedgeIds(loopId).Select(id => body.Topology.GetCoedge(id)).ToArray();
         if (coedges.Length < 3)
@@ -1070,7 +1209,8 @@ public static class BrepDisplayTessellator
         var uvPoints = new List<(double U, double V)>();
         foreach (var coedge in coedges)
         {
-            var sampledCurve = TrySampleCoedgeForTrimEvaluation(body, faceId, coedge, vertexPointsResult.Value, options);
+            executionBudget?.ThrowIfExpired("TrimLoopSampling", faceId, surfaceKind);
+            var sampledCurve = TrySampleCoedgeForTrimEvaluation(body, faceId, coedge, vertexPointsResult.Value, options, executionBudget, surfaceKind);
             if (!sampledCurve.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<(double U, double V)>>.Failure(sampledCurve.Diagnostics);
@@ -1104,8 +1244,11 @@ public static class BrepDisplayTessellator
         FaceId faceId,
         Coedge coedge,
         IReadOnlyDictionary<VertexId, Point3D> vertexPoints,
-        DisplayTessellationOptions options)
+        DisplayTessellationOptions options,
+        DisplayTessellationExecutionBudget? executionBudget = null,
+        SurfaceGeometryKind? surfaceKind = null)
     {
+        executionBudget?.ThrowIfExpired("TrimCoedgeSampling", faceId, surfaceKind);
         var endpoints = GetEdgeEndpoints(body, coedge.EdgeId, coedge.IsReversed, vertexPoints);
         if (!endpoints.IsSuccess)
         {
@@ -1220,12 +1363,12 @@ public static class BrepDisplayTessellator
     }
 
 
-    private static KernelResult<DisplayFaceMeshPatch> TessellateTorusFace(BrepBody body, FaceId faceId, TorusSurface torus, DisplayTessellationOptions options)
+    private static KernelResult<DisplayFaceMeshPatch> TessellateTorusFace(BrepBody body, FaceId faceId, TorusSurface torus, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
         var loopIds = body.GetLoopIds(faceId);
         if (loopIds.Count > 0)
         {
-            var uvLoopsResult = TryBuildDoublyPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToTorusUv(torus, point), options);
+            var uvLoopsResult = TryBuildDoublyPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToTorusUv(torus, point), options, executionBudget, SurfaceGeometryKind.Torus);
             if (!uvLoopsResult.IsSuccess)
             {
                 return KernelResult<DisplayFaceMeshPatch>.Success(
@@ -1245,7 +1388,9 @@ public static class BrepDisplayTessellator
                 double.PositiveInfinity,
                 double.NegativeInfinity,
                 double.PositiveInfinity,
-                CreateValidationWarning);
+                CreateValidationWarning,
+                executionBudget,
+                SurfaceGeometryKind.Torus);
         }
 
         var parameters = GetRevolvedFaceParameters(body, faceId, options, radiusHint: torus.MajorRadius + torus.MinorRadius, allowThreeCoedgeConeTopology: false, axialParameterFromPoint: point => TorusMinorAngleOf(torus, point));
@@ -3839,6 +3984,9 @@ public static class BrepDisplayTessellator
 
     private static KernelDiagnostic CreateNotImplemented(string message, string? source = null)
         => new(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, message, source);
+
+    private static KernelDiagnostic CreateValidationError(string message, string source)
+        => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source);
 
     private static KernelDiagnostic CreateValidationWarning(string message, string source)
         => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning, message, source);

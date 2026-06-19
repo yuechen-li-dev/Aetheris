@@ -279,7 +279,7 @@ public static class KernelEndpoints
             WithDocumentOccurrence(store, documentId, bodyId, (document, body) =>
             {
                 var options = ApiMappings.BuildTessellationOptions(request?.Options);
-                var kernel = BrepDisplayTessellator.Tessellate(body, options);
+                var kernel = BrepDisplayTessellator.TessellateBounded(body, options);
                 if (!kernel.IsSuccess)
                 {
                     return ApiMappings.KernelFailure(kernel.Diagnostics);

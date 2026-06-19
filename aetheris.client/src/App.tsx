@@ -683,7 +683,7 @@ function App() {
                                 <p><strong>Occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
                                 <p><strong>Display lane:</strong> {displayPreparation?.lane ?? 'None'}</p>
                                 <p><strong>Display status:</strong> {displayPreparation?.status ?? 'None'}</p>
-                                {displayPreparation?.status === 'Partial' ? <p role="status">Import succeeded; view materialization is partial. Some faces are diagnostic-only.</p> : null}
+                                {displayPreparation?.status === 'Partial' ? <p role="status">Import succeeded. Display partial: bounded mesh materialization failed for {displayPreparation.faces?.filter((face) => face.materializationLane === 'BoundedMesh' && face.status === 'DiagnosticOnly').length ?? 'some'} face(s).</p> : null}
                                 <p><strong>Render path:</strong> {displayScene.renderPath}</p>
                                 <p><strong>Analytic faces:</strong> {displayPreparation?.analyticPacket.analyticFaces.length ?? 0}</p>
                                 <p><strong>Fallback faces:</strong> {displayPreparation?.analyticPacket.fallbackFaces.length ?? 0}</p>

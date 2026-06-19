@@ -37,7 +37,8 @@ public sealed class DisplayPreparationFallbackBuilderTests
                 USegments: 12,
                 VSegments: 12,
                 Acceptance: new BsplineUvGridScaffoldAcceptanceThresholds(
-                    MaxTriangleDensityRatioVsFallback: 0.01d)));
+                    MaxTriangleDensityRatioVsFallback: 0.01d)),
+            executionTimeout: TimeSpan.FromSeconds(30));
 
         Assert.True(result.IsSuccess);
         var patch = Assert.Single(result.Value.FacePatches);

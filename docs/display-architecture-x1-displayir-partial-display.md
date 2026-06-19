@@ -100,3 +100,7 @@ The client DTOs now accept the DisplayIR metadata and diagnostic-only faces. The
 ## Next milestone recommendation
 
 DISPLAY-ARCH-X2 should quarantine legacy tessellation behind an explicit bounded mesh lowering lane with quality/budget metadata and cleaner per-face cancellation semantics. If X2 absorbs most of that work quickly, DISPLAY-ARCH-X3 should focus on a robust planar face-with-holes display lane using FTC-07 face 9 as the motivating regression.
+
+## X2 follow-up
+
+DISPLAY-ARCH-X2 adds the explicit `BoundedMesh` DisplayIR lane for legacy BRep tessellation. The X1 compatibility fields remain, including `tessellationFallback`, but new lane metadata identifies mesh materialization as a bounded lowering from `BRep` into `DisplayIR` rather than a fallback display authority. See `docs/display-architecture-x2-bounded-mesh-lane.md`.

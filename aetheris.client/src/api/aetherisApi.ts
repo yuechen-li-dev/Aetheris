@@ -196,7 +196,20 @@ export interface DisplayFaceDto {
     patchKind: 'AnalyticPatch' | 'MeshPatch' | 'WirePatch' | 'ProxyPatch' | 'DiagnosticPatch' | string;
     meshPatch: FacePatchDto | null;
     analyticPatch: AnalyticDisplayFaceDto | null;
+    materializationLane?: 'AnalyticPatch' | 'BoundedMesh' | 'DiagnosticOnly' | 'WirePatch' | 'ProxyPatch' | string | null;
     diagnostics: DisplayDiagnosticDto[];
+}
+
+export interface DisplayLaneDto {
+    kind: 'AnalyticPatch' | 'BoundedMesh' | 'DiagnosticOnly' | 'WirePatch' | 'ProxyPatch' | string;
+    status: 'Complete' | 'Partial' | 'DiagnosticOnly' | 'Failed' | string;
+    source: string;
+    displayAuthority: string;
+    implementation: string | null;
+    quality: string | null;
+    timeoutMs: number | null;
+    faceCount: number;
+    diagnosticCount: number;
 }
 
 export interface DisplayPreparationResponseDto {
@@ -209,6 +222,7 @@ export interface DisplayPreparationResponseDto {
     lanes?: string[] | null;
     faces?: DisplayFaceDto[] | null;
     diagnostics?: DisplayDiagnosticDto[] | null;
+    displayLanes?: DisplayLaneDto[] | null;
 }
 
 export interface PickOptionsDto {

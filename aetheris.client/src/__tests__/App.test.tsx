@@ -281,6 +281,61 @@ describe('App STEP file upload flow', () => {
         await screen.findByText('hash-123');
     });
 
+
+    it('reports bounded mesh partial display separately from import success', async () => {
+        apiMocks.importStep.mockResolvedValue({
+            documentId: 'doc-1',
+            definitionId: 'def-2',
+            occurrenceId: 'occ-2',
+            name: 'Imported',
+            diagnostics: [],
+        });
+        apiMocks.exportDefinitionStep.mockResolvedValue({
+            documentId: 'doc-1',
+            definitionId: 'def-2',
+            stepText: 'ISO-10303-21;',
+            canonicalHash: 'hash-123',
+            diagnostics: [],
+        });
+        apiMocks.prepareBodyDisplay.mockResolvedValue({
+            lane: 'fallback-only',
+            analyticPacket: { bodyId: 1, analyticFaces: [], fallbackFaces: [{ faceId: 9, shellId: 1, shellRole: 'Outer', reason: 'UnsupportedTrim', surfaceKind: 'Plane', detail: null }] },
+            tessellationFallback: { facePatches: [], edgePolylines: [] },
+            status: 'Partial',
+            sourceAuthority: 'BRep',
+            displayAuthority: 'DisplayIR',
+            lanes: ['BoundedMesh', 'DiagnosticOnly'],
+            displayLanes: [{ kind: 'BoundedMesh', status: 'Partial', source: 'BRep', displayAuthority: 'DisplayIR', implementation: 'BrepDisplayTessellator', quality: 'Default', timeoutMs: 5000, faceCount: 0, diagnosticCount: 1 }],
+            faces: [{
+                faceId: 9,
+                shellId: 1,
+                surfaceKind: 'Plane',
+                status: 'DiagnosticOnly',
+                patchKind: 'DiagnosticPatch',
+                meshPatch: null,
+                analyticPatch: null,
+                materializationLane: 'BoundedMesh',
+                diagnostics: [{ code: 'Viewer.Tessellation.Timeout', message: 'timeout', faceId: 9, surfaceKind: 'Plane', phase: 'PlanarTriangulationWithHoles', suggestedNextAction: null }],
+            }],
+            diagnostics: [],
+        });
+
+        render(<App />);
+        await screen.findByText('Document: Ready');
+
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
+        const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [file] } });
+        await screen.findByText('part.stp');
+        fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
+
+        await waitFor(() => {
+            expect(apiMocks.prepareBodyDisplay).toHaveBeenCalledWith('doc-1', 'occ-2');
+        });
+        await screen.findByText('Import succeeded. Display partial: bounded mesh materialization failed for 1 face(s).');
+        await screen.findByText('hash-123');
+    });
+
     it('downloads backend STEP text with deterministic filename without mutating hash state', async () => {
         const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:download');
         const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);

@@ -266,7 +266,14 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.NotNull(payload.Data);
         Assert.Equal("BRep", payload.Data.SourceAuthority);
         Assert.Equal("DisplayIR", payload.Data.DisplayAuthority);
-        Assert.Contains(payload.Data.Faces ?? [], face => face.Status == "DiagnosticOnly");
+        var boundedMeshLane = Assert.Single(payload.Data.DisplayLanes ?? [], lane => lane.Kind == "BoundedMesh");
+        Assert.Equal("BRep", boundedMeshLane.Source);
+        Assert.Equal("DisplayIR", boundedMeshLane.DisplayAuthority);
+        Assert.Equal("BrepDisplayTessellator", boundedMeshLane.Implementation);
+        Assert.True(boundedMeshLane.TimeoutMs > 0);
+        Assert.Contains(payload.Data.Faces ?? [], face => face.Status == "DiagnosticOnly" && face.MaterializationLane == "BoundedMesh");
+        Assert.Contains(payload.Data.Faces ?? [], face => face.Status != "DiagnosticOnly" && face.Status != "Omitted");
+        Assert.DoesNotContain(payload.Data.DisplayLanes ?? [], lane => lane.DisplayAuthority.Contains("fallback", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(payload.Data.Diagnostics ?? [], diagnostic => diagnostic.Code == "Viewer.Tessellation.Timeout");
         Assert.Contains(payload.Data.Diagnostics ?? [], diagnostic => diagnostic.Phase == "PlanarTriangulationWithHoles" || diagnostic.Phase == "FaceTessellation");
     }
@@ -300,6 +307,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
 
         var displayPrepared = await PrepareDisplayAsync(document.Data.DocumentId, imported!.Data!.OccurrenceId);
         Assert.NotNull(displayPrepared.Data!.TessellationFallback);
+        Assert.Contains(displayPrepared.Data.DisplayLanes ?? [], lane => lane.Kind == "BoundedMesh" && lane.Source == "BRep");
 
         var tessellationResponse = await _client.PostAsJsonAsync(
             $"/api/v1/documents/{document.Data.DocumentId}/bodies/{imported.Data.OccurrenceId}/tessellate",

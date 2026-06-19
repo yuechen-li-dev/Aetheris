@@ -541,3 +541,7 @@ This milestone is documentation-only. No production CAD/kernel behavior was chan
 ## X1 follow-up
 
 DISPLAY-ARCH-X1 adds the first DisplayIR partial display contract. `display/prepare` now carries source/display authority metadata and per-face display records so a bounded face materialization timeout can become a diagnostic face rather than a whole-body display preparation failure. See `docs/display-architecture-x1-displayir-partial-display.md`.
+
+## X2 implementation note
+
+DISPLAY-ARCH-X2 landed the explicit `BoundedMesh` DisplayIR lane. Legacy BRep tessellation remains available for display materialization, but new `display/prepare` metadata reports it as a bounded lowering lane with `source = BRep` and `displayAuthority = DisplayIR`, preserving compatibility fields while removing generic fallback-authority semantics from new DisplayIR lane data.

@@ -998,6 +998,64 @@ public sealed class AirTraceCommandTests
         Assert.Contains("firmament-v2-unknown-record-type", output);
     }
 
+
+
+    [Fact]
+    public void FirmamentV2SideHoleRadius_TraceJsonPreservesRadius()
+    {
+        foreach (var (fixture, expected) in new[] { ("Region/valid/side-hole-radius-0_5-v2.valid.firmfixture", 0.5), ("Region/valid/side-hole-radius-1_5-v2.valid.firmfixture", 1.5) })
+        {
+            var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture(fixture), "--json");
+            Assert.Equal(0, exitCode);
+            using var doc = JsonDocument.Parse(output);
+            var v2 = doc.RootElement.GetProperty("firmamentV2");
+            Assert.Equal(expected, v2.GetProperty("semanticIntent").GetProperty("radius").GetDouble());
+            Assert.Equal(expected, v2.GetProperty("modifyBlocks")[0].GetProperty("regions")[0].GetProperty("radius").GetDouble());
+            Assert.Contains($"\"radius\": {expected.ToString(System.Globalization.CultureInfo.InvariantCulture)}", doc.RootElement.GetProperty("regions").GetRawText(), StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRadius_TraceTextPreservesRadius()
+    {
+        var (_, radius05, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-radius-0_5-v2.valid.firmfixture"));
+        var (_, radius15, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-radius-1_5-v2.valid.firmfixture"));
+        Assert.Contains("Tool: Cylinder", radius05);
+        Assert.Contains("Radius: 0.5", radius05);
+        Assert.Contains("Through: face(-X)", radius05);
+        Assert.Contains("Stage: region-parent-integrated", radius05);
+        Assert.Contains("Parent integration: Integrated", radius05);
+        Assert.Contains("Shell closure: Closed", radius05);
+        Assert.Contains("STEP smoke: Succeeded", radius05);
+        Assert.Contains("Radius: 1.5", radius15);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRadius_ArtifactsEmitForVariation()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-radius-0_5-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        foreach (var name in new[] { "side-hole-radius-0_5-v2.step", "side-hole-radius-0_5-v2.trace.json", "side-hole-radius-0_5-v2.trace.txt", "manifest.json" })
+        {
+            var path = Path.Combine(dir, name);
+            Assert.True(File.Exists(path), path);
+            Assert.True(new FileInfo(path).Length > 0, path);
+        }
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
+        Assert.Equal(0.5, manifest.RootElement.GetProperty("radius").GetDouble());
+        Assert.Equal("Cylinder", manifest.RootElement.GetProperty("tool").GetString());
+        Assert.Equal("face(-X)", manifest.RootElement.GetProperty("throughSelector").GetString());
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRadius_InvalidDiagnostics()
+    {
+        Assert.Contains("firmament-v2-cylinder-radius-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-radius-zero-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-cylinder-radius-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-radius-negative-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-radius-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-radius-too-large-v2.invalid.firmfixture"), "--json").Stdout);
+    }
+
+
     [Fact]
     public void FirmamentV2SideHoleArtifacts_OutDirWritesStableFiles()
     {
@@ -1023,7 +1081,7 @@ public sealed class AirTraceCommandTests
 
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
         var root = doc.RootElement;
-        Assert.Equal("AIR-FIRMAMENT-X5", root.GetProperty("milestone").GetString());
+        Assert.Equal("AIR-FIRMAMENT-X6", root.GetProperty("milestone").GetString());
         Assert.Equal("FirmamentV2", root.GetProperty("syntaxVersion").GetString());
         Assert.EndsWith("fixtures/FirmamentV2/Region/valid/side-hole-v2.valid.firmfixture", root.GetProperty("fixture").GetString()!.Replace('\\', '/'), StringComparison.Ordinal);
         Assert.Equal("region-parent-integrated", root.GetProperty("stage").GetString());

@@ -186,3 +186,7 @@ A2.2 expands the `fixtures/FirmamentV2/` metadata-only taxonomy with `RecordDeri
 ## AIR-FIRMAMENT-X5 V2 side-hole artifact status
 
 `fixtures/FirmamentV2/Region/valid/side-hole-v2.valid.firmfixture` now has a generated-on-demand artifact workflow. Running `aetheris trace --fixture fixtures/FirmamentV2/Region/valid/side-hole-v2.valid.firmfixture --out-dir artifacts/air-firmament-x5/side-hole-v2` writes `side-hole-v2.step`, `side-hole-v2.trace.json`, `side-hole-v2.trace.txt`, and `manifest.json`. This records parser-backed V2 parity with the controlled AIR-REGION-X13 side-hole path without broad corpus migration or general side-hole support.
+
+## AIR-FIRMAMENT-X6 V2 side-hole radius variation status
+
+The Firmament V2 region corpus now includes controlled valid side-hole radius variation fixtures for radius `0.5` and `1.5`, plus invalid radius fixtures for zero, negative, and clearance-exceeding radii. These fixtures remain parser-backed and bounded to the same `base` Box, `face(+X)` to `face(-X)`, single `cut Cylinder` side-hole path; they do not migrate the broad corpus or add general side-hole support.

@@ -107,3 +107,7 @@ dotnet test Aetheris.CLI.Tests/Aetheris.CLI.Tests.csproj --filter "FirmamentV2Si
 ## Next milestone recommendation
 
 Recommended next milestone: add a thin explicit V2 side-hole-to-AIR-region adapter object so future parser-backed region milestones avoid trace-probe coupling. Do not generalize arbitrary faces, axes, Boolean admission, or generic region topology until that adapter has its own narrow tests.
+
+## AIR-FIRMAMENT-X6 radius variation follow-up
+
+AIR-FIRMAMENT-X6 keeps the X5 canonical `side-hole-v2` artifact workflow green and extends the same generated-on-demand behavior to controlled non-1 V2 side-hole radius fixtures. Radius-specific fixtures use radius-specific file stems in their own output directories and record the actual radius in trace JSON/text and `manifest.json`; this is still not general side-hole support.

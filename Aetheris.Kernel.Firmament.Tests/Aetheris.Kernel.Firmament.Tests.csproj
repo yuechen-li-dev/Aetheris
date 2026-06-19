@@ -6,6 +6,11 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
+
+  <ItemGroup Condition="'$(AETHERIS_RUN_CORPUS_TESTS)' != '1'">
+    <Compile Remove="FirmamentCirDifferentialAnalysisTests.cs" />
+  </ItemGroup>
+
   <ItemGroup Condition="'$(AETHERIS_RUN_LEGACY_TESTS)' != '1'">
     <Compile Remove="FirmamentBoolean*.cs" />
     <Compile Remove="FirmamentBuildAndExportTests.cs" />

@@ -4,7 +4,7 @@ Date: 2026-05-06 (UTC)
 
 ## Scope
 
-This milestone inventories remaining warnings/failures in the canonical gate after WARN-CLEAN-A0 made `Aetheris.Kernel.Core` warning-free for `net10.0` and `net8.0`.
+This milestone inventories remaining warnings/failures in the canonical gate after WARN-CLEAN-A0 made `Aetheris.Kernel.Core` warning-free. Current validation should use the sole active `net10.0` target framework.
 
 Commands used:
 

@@ -112,7 +112,7 @@ Observed focused result during implementation:
 dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj --filter "AirChamferShadow"
 ```
 
-Result: passed for both `net8.0` and `net10.0` target frameworks.
+Historical result: passed when the repo still multi-targeted. Current validation should use the sole active `net10.0` target framework.
 
 ## Non-goals
 

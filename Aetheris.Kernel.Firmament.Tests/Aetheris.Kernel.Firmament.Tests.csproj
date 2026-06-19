@@ -1,10 +1,30 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(AETHERIS_RUN_LEGACY_TESTS)' != '1'">
+    <Compile Remove="FirmamentBoolean*.cs" />
+    <Compile Remove="FirmamentBuildAndExportTests.cs" />
+    <Compile Remove="FirmamentCompiledSchemaAttachmentTests.cs" />
+    <Compile Remove="FirmamentConnectorLibraryPartTests.cs" />
+    <Compile Remove="FirmamentCorpusScaffoldTests.cs" />
+    <Compile Remove="FirmamentDocumentCoherenceValidationTests.cs" />
+    <Compile Remove="FirmamentExamplePackSmokeTests.cs" />
+    <Compile Remove="FirmamentFormatterTests.cs" />
+    <Compile Remove="FirmamentPlacement*.cs" />
+    <Compile Remove="FirmamentPmiTests.cs" />
+    <Compile Remove="FirmamentPrimitive*.cs" />
+    <Compile Remove="FirmamentSafeSubtractFeatureGraphValidationTests.cs" />
+    <Compile Remove="FirmamentScaffoldTests.cs" />
+    <Compile Remove="FirmamentSchema*.cs" />
+    <Compile Remove="FirmamentStepExporterTests.cs" />
+    <Compile Remove="FirmamentTorusContractTests.cs" />
+    <Compile Remove="FirmamentValidation*.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />

@@ -1,5 +1,5 @@
-// fixture-id: side-hole-z-axis-not-yet-supported-v2
-// case: firmament-v2-side-hole-z-axis-mixed-route-retired-x10-expectation
+// fixture-id: side-hole-mixed-axis-z-to-x-v2
+// case: firmament-v2-side-hole-mixed-axis-z-to-x
 // category: Region
 // syntax-version: FirmamentV2
 // validity: invalid
@@ -7,10 +7,11 @@
 // expected: invalid
 // expected-stage: parsed
 // expected-diagnostic: firmament-v2-side-hole-route-unsupported
-// notes: X11 retired the stale Z-axis-not-supported expectation; this fixture now guards mixed-axis rejection.
 
-model SideHoleZAxisMixedRouteRetiredX10ExpectationV2 {
+model SideHoleMixedAxisZToXV2 {
     units mm
+
     solid base: Box { size: [10, 8, 6] }
+
     modify base { region sideHole on face(+Z) { cut Cylinder { radius: 1 through: face(-X) } } }
 }

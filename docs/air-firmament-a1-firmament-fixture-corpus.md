@@ -203,3 +203,7 @@ The Firmament V2 region fixture set now includes controlled reverse-X side-hole 
 
 
 X10 fixture taxonomy note: Firmament V2 Region valid fixtures now include controlled Y-axis side-hole route fixtures, and invalid fixtures include Z-axis, mixed-axis, Y-clearance-boundary, and alias wrong-through rejections.
+
+## X11 fixture taxonomy note
+
+AIR-FIRMAMENT-X11 adds parser-backed Firmament V2 Region fixtures for controlled Z-axis opposite-face side holes, plus invalid mixed-axis and Z-clearance boundary fixtures. This is a narrow Region taxonomy addition and not a broad corpus migration.

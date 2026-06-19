@@ -367,6 +367,8 @@ internal static class AirRegionTraceFactory
         "+Y" => new("frame:side-hole:+y", AirLocalFrameKind.FaceAttached, new(0, 4, 0), new(1, 0, 0), new(0, 0, 1), new(0, 1, 0), AirLocalFrameHandedness.RightHanded, "box.face(\"+Y\")", "+Y", "+Z", true, ["air-region-x1-face-attached-frame-created"]),
         "-Y" => new("frame:side-hole:-y", AirLocalFrameKind.FaceAttached, new(0, -4, 0), new(1, 0, 0), new(0, 0, 1), new(0, -1, 0), AirLocalFrameHandedness.RightHanded, "box.face(\"-Y\")", "-Y", "+Z", true, ["air-region-x1-face-attached-frame-created"]),
         "-X" => new("frame:side-hole:-x", AirLocalFrameKind.FaceAttached, new(-5, 0, 0), new(0, 1, 0), new(0, 0, 1), new(-1, 0, 0), AirLocalFrameHandedness.RightHanded, "box.face(\"-X\")", "-X", "+Z", true, ["air-region-x1-face-attached-frame-created"]),
+        "+Z" => new("frame:side-hole:+z", AirLocalFrameKind.FaceAttached, new(0, 0, 3), new(1, 0, 0), new(0, 1, 0), new(0, 0, 1), AirLocalFrameHandedness.RightHanded, "box.face(\"+Z\")", "+Z", "+Y", true, ["air-region-x1-face-attached-frame-created"]),
+        "-Z" => new("frame:side-hole:-z", AirLocalFrameKind.FaceAttached, new(0, 0, -3), new(1, 0, 0), new(0, 1, 0), new(0, 0, -1), AirLocalFrameHandedness.RightHanded, "box.face(\"-Z\")", "-Z", "+Y", true, ["air-region-x1-face-attached-frame-created"]),
         _ => new("frame:side-hole:+x", AirLocalFrameKind.FaceAttached, new(5, 0, 0), new(0, 1, 0), new(0, 0, 1), new(1, 0, 0), AirLocalFrameHandedness.RightHanded, "box.face(\"+X\")", "+X", "+Z", true, ["air-region-x1-face-attached-frame-created"])
     };
 

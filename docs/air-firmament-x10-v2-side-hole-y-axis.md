@@ -90,3 +90,7 @@ Run the active .NET build/test and targeted Firmament V2 side-hole tests for thi
 ## Next milestone recommendation
 
 AIR-FIRMAMENT-X11 — controlled V2 side-hole Z-axis face-pair variation. X11 must define `face(+Z)` and `face(-Z)` local frames before implementation; likely `u=+X, v=+Y` for both faces.
+
+## X11 follow-up
+
+AIR-FIRMAMENT-X11 extends the same controlled opposite-face policy to Z-axis routes (`+Z -> -Z` and `-Z -> +Z`) and preserves the X10 Y-axis route evidence and clearance behavior.

@@ -1,0 +1,26 @@
+// fixture-id: side-hole-reverse-z-v2
+// case: firmament-v2-side-hole-reverse-z
+// category: Region
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: region-parent-integrated
+
+model SideHoleReverseZV2 {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+    }
+
+    modify base {
+        region sideHole on face(-Z) {
+            cut Cylinder {
+                radius: 1
+                center: [1, 0]
+                through: face(+Z)
+            }
+        }
+    }
+}

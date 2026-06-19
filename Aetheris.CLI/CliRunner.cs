@@ -65,6 +65,9 @@ internal static class SideHoleGoldenPathArtifacts
         if (report.FirmamentV2!.SemanticIntent!.Route == "+Y->-Y" && (report.FirmamentV2!.SemanticIntent!.AttachTargetKind == "Alias" || report.FirmamentV2!.SemanticIntent!.ThroughTargetKind == "Alias")) return "side-hole-aliases-y-axis-v2";
         if (report.FirmamentV2!.SemanticIntent!.Route == "+Y->-Y") return "side-hole-y-axis-v2";
         if (report.FirmamentV2!.SemanticIntent!.Route == "-Y->+Y") return "side-hole-reverse-y-v2";
+        if (report.FirmamentV2!.SemanticIntent!.Route == "+Z->-Z" && (report.FirmamentV2!.SemanticIntent!.AttachTargetKind == "Alias" || report.FirmamentV2!.SemanticIntent!.ThroughTargetKind == "Alias")) return "side-hole-aliases-z-axis-v2";
+        if (report.FirmamentV2!.SemanticIntent!.Route == "+Z->-Z") return "side-hole-z-axis-v2";
+        if (report.FirmamentV2!.SemanticIntent!.Route == "-Z->+Z") return "side-hole-reverse-z-v2";
         if (report.FirmamentV2!.SemanticIntent!.AttachTargetKind == "Alias" || report.FirmamentV2!.SemanticIntent!.ThroughTargetKind == "Alias") return "side-hole-aliases-v2";
         if (Math.Abs(centerU) > 1e-12 || Math.Abs(centerV) > 1e-12)
         {

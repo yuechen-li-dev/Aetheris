@@ -407,7 +407,7 @@ public sealed class FirmamentV2ParserTests
     {
         Assert.Contains(FirmamentV2Parser.SideHoleSameFaceUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-same-face-x-v2.invalid.firmfixture")).Diagnostics);
         Assert.Contains(FirmamentV2Parser.SideHoleRouteUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-mixed-axis-x-to-y-v2.invalid.firmfixture")).Diagnostics);
-        Assert.Contains(FirmamentV2Parser.SideHoleAxisNotYetSupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-z-axis-not-yet-supported-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SideHoleRouteUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-mixed-axis-z-to-x-v2.invalid.firmfixture")).Diagnostics);
         Assert.Contains(FirmamentV2Parser.SideHoleRouteUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-alias-reverse-x-wrong-through-v2.invalid.firmfixture")).Diagnostics);
     }
 
@@ -522,11 +522,90 @@ public sealed class FirmamentV2ParserTests
     [Fact]
     public void FirmamentV2SideHoleYAxis_InvalidRoutesRejected()
     {
-        Assert.Contains(FirmamentV2Parser.SideHoleAxisNotYetSupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-z-axis-not-yet-supported-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SideHoleRouteUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-mixed-axis-z-to-x-v2.invalid.firmfixture")).Diagnostics);
         Assert.Contains(FirmamentV2Parser.SideHoleRouteUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-mixed-axis-y-to-x-v2.invalid.firmfixture")).Diagnostics);
         Assert.Contains(FirmamentV2Parser.SideHoleCenterExceedsClearance, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-y-center-x-boundary-v2.invalid.firmfixture")).Diagnostics);
         Assert.Contains(FirmamentV2Parser.SideHoleCenterExceedsClearance, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-y-center-z-boundary-v2.invalid.firmfixture")).Diagnostics);
         Assert.Contains(FirmamentV2Parser.SideHoleRouteUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-alias-y-wrong-through-v2.invalid.firmfixture")).Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleZAxis_ParsesDirectZRoute()
+    {
+        var intent = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-z-axis-v2.valid.firmfixture")).Document!.SideHoleIntent!;
+        Assert.Equal("+Z", intent.AttachFace);
+        Assert.Equal("-Z", intent.ThroughFace);
+        Assert.Equal("+Z->-Z", intent.Route);
+        Assert.Equal("Z", intent.RouteEvidence.Axis);
+        Assert.Equal("face(+Z):u=+X,v=+Y", intent.CenterSelectorFrame);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleZAxis_DirectZReachesGoldenPath()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("Region/valid/side-hole-z-axis-v2.valid.firmfixture"));
+        Assert.True(result.ParseSucceeded, string.Join(", ", result.Diagnostics));
+        Assert.Equal("region-parent-integrated", result.FirmamentV2!.StageReached);
+        Assert.Equal("Integrated", result.FirmamentV2.ParentIntegration);
+        Assert.Equal("Closed", result.FirmamentV2.ShellClosure);
+        Assert.Equal("Succeeded", result.FirmamentV2.StepSmoke);
+        Assert.Null(result.FirmamentV2.Blocker);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleZAxis_ParsesReverseZRoute()
+    {
+        var intent = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-reverse-z-v2.valid.firmfixture")).Document!.SideHoleIntent!;
+        Assert.Equal("-Z", intent.AttachFace);
+        Assert.Equal("+Z", intent.ThroughFace);
+        Assert.Equal("-Z->+Z", intent.Route);
+        Assert.Equal("face(-Z):u=+X,v=+Y", intent.CenterSelectorFrame);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleZAxis_ReverseZReachesGoldenPath()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("Region/valid/side-hole-reverse-z-v2.valid.firmfixture"));
+        Assert.True(result.ParseSucceeded, string.Join(", ", result.Diagnostics));
+        Assert.Equal("region-parent-integrated", result.FirmamentV2!.StageReached);
+        Assert.Equal("Integrated", result.FirmamentV2.ParentIntegration);
+        Assert.Equal("Closed", result.FirmamentV2.ShellClosure);
+        Assert.Equal("Succeeded", result.FirmamentV2.StepSmoke);
+        Assert.Null(result.FirmamentV2.Blocker);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleZAxis_ParsesAliasZRoute()
+    {
+        var doc = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-aliases-z-axis-v2.valid.firmfixture")).Document!;
+        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "top" && e.Selector == "face(+Z)");
+        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "bottom" && e.Selector == "face(-Z)");
+        var region = Assert.Single(Assert.Single(doc.ModifyBlocks!).Regions);
+        Assert.Equal("top", region.Attachment.Source);
+        Assert.Equal("face(+Z)", region.Attachment.ResolvedSelector);
+        Assert.Equal("bottom", region.Cut.Tool.Through.Source);
+        Assert.Equal("face(-Z)", region.Cut.Tool.Through.ResolvedSelector);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleZAxis_AliasZReachesGoldenPath()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("Region/valid/side-hole-aliases-z-axis-v2.valid.firmfixture"));
+        Assert.True(result.ParseSucceeded, string.Join(", ", result.Diagnostics));
+        Assert.Equal("region-parent-integrated", result.FirmamentV2!.StageReached);
+        Assert.Equal("Integrated", result.FirmamentV2.ParentIntegration);
+        Assert.Equal("Closed", result.FirmamentV2.ShellClosure);
+        Assert.Equal("Succeeded", result.FirmamentV2.StepSmoke);
+        Assert.Null(result.FirmamentV2.Blocker);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleZAxis_InvalidRoutesAndClearanceRejected()
+    {
+        Assert.Contains(FirmamentV2Parser.SideHoleRouteUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-mixed-axis-z-to-x-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SideHoleCenterExceedsClearance, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-z-center-x-boundary-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SideHoleCenterExceedsClearance, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-z-center-y-boundary-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SideHoleRouteUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-alias-z-wrong-through-v2.invalid.firmfixture")).Diagnostics);
     }
 
     private static string Source(string relative)

@@ -1000,6 +1000,55 @@ public sealed class AirTraceCommandTests
 
 
 
+
+    [Fact]
+    public void FirmamentV2SideHoleCenter_TraceJsonPreservesCenter()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-center-y1-v2.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output);
+        var intent = doc.RootElement.GetProperty("firmamentV2").GetProperty("semanticIntent");
+        Assert.Equal(1, intent.GetProperty("centerU").GetDouble());
+        Assert.Equal(0, intent.GetProperty("centerV").GetDouble());
+        Assert.True(intent.GetProperty("centerExplicit").GetBoolean());
+        Assert.Equal("face(+X):u=+Y,v=+Z", intent.GetProperty("centerSelectorFrame").GetString());
+        Assert.Equal(1, doc.RootElement.GetProperty("regions").GetProperty("regions")[1].GetProperty("yield").GetProperty("profile").GetProperty("center").GetProperty("x").GetDouble());
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleCenter_TraceTextPreservesCenter()
+    {
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-center-y1-v2.valid.firmfixture"));
+        Assert.Contains("Center: [1, 0]", output);
+        Assert.Contains("Center frame: face(+X) local u=+Y, v=+Z", output);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleCenter_ArtifactsEmitForOffset()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-center-y1-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        foreach (var name in new[] { "side-hole-center-y1-v2.step", "side-hole-center-y1-v2.trace.json", "side-hole-center-y1-v2.trace.txt", "manifest.json" })
+        {
+            var path = Path.Combine(dir, name);
+            Assert.True(File.Exists(path), path);
+            Assert.True(new FileInfo(path).Length > 0, path);
+        }
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
+        Assert.Equal(1, manifest.RootElement.GetProperty("radius").GetDouble());
+        Assert.Equal(1, manifest.RootElement.GetProperty("center").GetProperty("u").GetDouble());
+        Assert.Equal(0, manifest.RootElement.GetProperty("center").GetProperty("v").GetDouble());
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleCenter_InvalidDiagnostics()
+    {
+        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-center-y-boundary-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-center-z-boundary-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-cylinder-center-arity-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-center-arity-one-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-cylinder-center-arity-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-center-arity-three-v2.invalid.firmfixture"), "--json").Stdout);
+    }
+
     [Fact]
     public void FirmamentV2SideHoleRadius_TraceJsonPreservesRadius()
     {

@@ -1,0 +1,27 @@
+// fixture-id: side-hole-center-arity-one-v2
+// case: firmament-v2-side-hole-center-offset
+// category: Region
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-cylinder-center-arity-invalid
+
+model SideHoleCenterArityOneV2 {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+    }
+
+    modify base {
+        region sideHole on face(+X) {
+            cut Cylinder {
+                radius: 1
+                center: [1]
+                through: face(-X)
+            }
+        }
+    }
+}

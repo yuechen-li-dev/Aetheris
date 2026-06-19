@@ -43,6 +43,10 @@ public static class FirmamentV2Parser
     public const string SideHoleOnlyPlusXMinusXSupported = "firmament-v2-side-hole-only-plus-x-minus-x-supported";
     public const string SideHoleRadiusExceedsClearance = "firmament-v2-side-hole-radius-exceeds-clearance";
     public const string CylinderRadiusNotFinite = "firmament-v2-side-hole-radius-not-finite";
+    public const string CylinderCenterInvalid = "firmament-v2-cylinder-center-invalid";
+    public const string CylinderCenterArityInvalid = "firmament-v2-cylinder-center-arity-invalid";
+    public const string CylinderCenterNotFinite = "firmament-v2-cylinder-center-not-finite";
+    public const string SideHoleCenterExceedsClearance = "firmament-v2-side-hole-center-exceeds-clearance";
 
     private static readonly Regex ModelRegex = new(@"\bmodel\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex UnitsRegex = new(@"\bunits\s+(?<units>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
@@ -58,6 +62,7 @@ public static class FirmamentV2Parser
     private static readonly Regex CutHeaderRegex = new(@"\bcut\s+(?<tool>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex RadiusRegex = new(@"\bradius\s*:\s*(?<value>[^\s}]+)", RegexOptions.CultureInvariant);
     private static readonly Regex ThroughRegex = new(@"\bthrough\s*:\s*(?<selector>face\([^)]*\))", RegexOptions.CultureInvariant);
+    private static readonly Regex CenterRegex = new(@"\bcenter\s*:\s*\[(?<values>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
 
     public static FirmamentV2ParseResult Parse(string sourceText)
     {
@@ -135,7 +140,7 @@ public static class FirmamentV2Parser
         return new(name, "Box", new(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
     }
 
-    private static bool IsFatalDiagnostic(string code) => code is MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or SideHoleOnlyPlusXMinusXSupported or SideHoleRadiusExceedsClearance;
+    private static bool IsFatalDiagnostic(string code) => code is MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or SideHoleOnlyPlusXMinusXSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -226,8 +231,12 @@ public static class FirmamentV2Parser
         var cut = ParseCut(body[(open + 1)..close], diagnostics);
         if (attach is null || cut is null) return null;
         if (attach.Axis != "+X" || cut.Tool.Through.Axis != "-X") diagnostics.Add(SideHoleOnlyPlusXMinusXSupported);
-        var clearance = Math.Min(solid.Box.Size[1], solid.Box.Size[2]) / 2.0;
-        if (cut.Tool.Radius >= clearance) diagnostics.Add(SideHoleRadiusExceedsClearance);
+        var yHalfExtent = solid.Box.Size[1] / 2.0;
+        var zHalfExtent = solid.Box.Size[2] / 2.0;
+        if (cut.Tool.Radius >= Math.Min(yHalfExtent, zHalfExtent)) diagnostics.Add(SideHoleRadiusExceedsClearance);
+        var centerU = cut.Tool.Center?.U ?? 0;
+        var centerV = cut.Tool.Center?.V ?? 0;
+        if (Math.Abs(centerU) + cut.Tool.Radius >= yHalfExtent || Math.Abs(centerV) + cut.Tool.Radius >= zHalfExtent) diagnostics.Add(SideHoleCenterExceedsClearance);
         return diagnostics.Any(IsFatalDiagnostic) ? null : new(rm.Groups["name"].Value, "FaceAttachedRegion", attach, cut);
     }
 
@@ -246,10 +255,22 @@ public static class FirmamentV2Parser
         if (!double.TryParse(radiusMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius)) { diagnostics.Add(CylinderRadiusInvalid); return null; }
         if (!double.IsFinite(radius)) { diagnostics.Add(CylinderRadiusNotFinite); return null; }
         if (radius <= 0) { diagnostics.Add(CylinderRadiusInvalid); return null; }
+        var center = ParseCenter(toolBody, diagnostics);
         var throughMatch = ThroughRegex.Match(toolBody);
         var through = throughMatch.Success ? ParseFaceSelector(throughMatch.Groups["selector"].Value, ThroughSelectorUnsupported, diagnostics) : null;
         if (through is null) { diagnostics.Add(ThroughSelectorUnsupported); return null; }
-        return new("Cut", new("Cylinder", radius, through));
+        return new("Cut", new("Cylinder", radius, center, through));
+    }
+
+    private static FirmamentV2FaceLocalPoint2D? ParseCenter(string toolBody, List<string> diagnostics)
+    {
+        var match = CenterRegex.Match(toolBody);
+        if (!match.Success) return null;
+        var parts = match.Groups["values"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2) { diagnostics.Add(CylinderCenterArityInvalid); return null; }
+        if (!double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var u) || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var v)) { diagnostics.Add(CylinderCenterInvalid); return null; }
+        if (!double.IsFinite(u) || !double.IsFinite(v)) { diagnostics.Add(CylinderCenterNotFinite); return null; }
+        return new FirmamentV2FaceLocalPoint2D(u, v, FirmamentV2FaceLocalPoint2D.PlusXConvention);
     }
 
     private static FirmamentV2FaceSelector? ParseFaceSelector(string selector, string diagnostic, List<string> diagnostics)

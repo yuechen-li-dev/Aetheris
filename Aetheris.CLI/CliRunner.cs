@@ -38,6 +38,7 @@ internal static class SideHoleGoldenPathArtifacts
         radius = report.FirmamentV2?.SemanticIntent?.Radius,
         tool = report.FirmamentV2?.SemanticIntent?.Tool,
         throughSelector = report.FirmamentV2?.SemanticIntent is null ? null : $"face({report.FirmamentV2.SemanticIntent.ThroughFace})",
+        center = report.FirmamentV2?.SemanticIntent is null ? null : new { u = report.FirmamentV2.SemanticIntent.CenterU, v = report.FirmamentV2.SemanticIntent.CenterV, explicitValue = report.FirmamentV2.SemanticIntent.CenterExplicit, frame = report.FirmamentV2.SemanticIntent.CenterSelectorFrame },
         step = Path.GetFileName(artifacts.Step),
         traceJson = Path.GetFileName(artifacts.TraceJson),
         traceText = Path.GetFileName(artifacts.TraceText),
@@ -52,6 +53,16 @@ internal static class SideHoleGoldenPathArtifacts
     private static string V2Stem(AirTraceReport report)
     {
         var radius = report.FirmamentV2!.SemanticIntent!.Radius;
+        var centerU = report.FirmamentV2!.SemanticIntent!.CenterU;
+        var centerV = report.FirmamentV2!.SemanticIntent!.CenterV;
+        if (Math.Abs(centerU) > 1e-12 || Math.Abs(centerV) > 1e-12)
+        {
+            static string Tok(double v) => v.ToString("0.############", System.Globalization.CultureInfo.InvariantCulture).Replace('.', '_').Replace("-", "neg");
+            var parts = new List<string>();
+            if (Math.Abs(centerU) > 1e-12) parts.Add($"y{Tok(centerU)}");
+            if (Math.Abs(centerV) > 1e-12) parts.Add($"z{Tok(centerV)}");
+            return $"side-hole-center-{string.Join("-", parts)}-v2";
+        }
         if (Math.Abs(radius - 1.0) < 1e-12) return "side-hole-v2";
         var token = radius.ToString("0.############", System.Globalization.CultureInfo.InvariantCulture).Replace('.', '_');
         return $"side-hole-radius-{token}-v2";
@@ -66,7 +77,7 @@ internal static class SideHoleGoldenPathArtifacts
         "/* stage=region-parent-integrated; parentIntegration=Integrated; shellClosure=Closed; stepSmoke=Succeeded */\n" +
         "/* materialized: CutEntryLoop, CutExitLoop, CutWallFace, RegionIntegrationPatchConsumed */\n" +
         "/* cylindrical cut wall evidence; CIR analysis-only; Boolean unused/not generally admitted */\n" +
-        $"#1=PRODUCT('{(IsFirmamentV2SideHole(report) ? "AIR-FIRMAMENT-X6-SIDE-HOLE-V2" : "AIR-REGION-X13-SIDE-HOLE")}','controlled side-hole golden path','generated-on-demand fixture artifact',());\n" +
+        $"#1=PRODUCT('{(IsFirmamentV2SideHole(report) ? "AIR-FIRMAMENT-X7-SIDE-HOLE-V2" : "AIR-REGION-X13-SIDE-HOLE")}','controlled side-hole golden path','generated-on-demand fixture artifact',());\n" +
         "ENDSEC;\nEND-ISO-10303-21;\n";
 }
 

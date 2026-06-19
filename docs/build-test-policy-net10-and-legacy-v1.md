@@ -66,3 +66,22 @@ This policy change does not:
 - redesign Firmasm;
 - delete V1 tests or fixtures;
 - mass-disable `Aetheris.Kernel.Core` tests.
+
+## BUILD-TEST-X1 corpus/long-running policy
+
+Default `net10.0` test runs should remain active-suite focused. Long-running audit/corpus suites that are valuable for stabilization but produce extended periods with little console output must be explicit opt-in instead of silently stretching broad active runs.
+
+Current opt-in gates:
+
+- `AETHERIS_RUN_LEGACY_TESTS=1` includes legacy V1/FrictionLab coverage.
+- `AETHERIS_RUN_CORPUS_TESTS=1` includes the Firmament CIR-vs-BRep differential corpus matrix.
+
+Recommended commands:
+
+```bash
+scripts/test-active.sh
+AETHERIS_RUN_LEGACY_TESTS=1 dotnet test Aetheris.FrictionLab.Tests/Aetheris.FrictionLab.Tests.csproj -f net10.0 --filter "CirBoxCylinderConvention" --logger "console;verbosity=minimal"
+scripts/test-corpus.sh
+```
+
+When adding new corpus tests, keep representative active smoke coverage in the default suite and gate only the broad audit/corpus expansion.

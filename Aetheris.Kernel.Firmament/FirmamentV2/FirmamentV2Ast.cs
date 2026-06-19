@@ -33,11 +33,15 @@ public sealed record FirmamentV2FaceLocalPoint2D(double U, double V, string Conv
     public const string MinusXConvention = "face(-X):u=+Y,v=+Z";
     public const string PlusYConvention = "face(+Y):u=+X,v=+Z";
     public const string MinusYConvention = "face(-Y):u=+X,v=+Z";
+    public const string PlusZConvention = "face(+Z):u=+X,v=+Y";
+    public const string MinusZConvention = "face(-Z):u=+X,v=+Y";
     public static string ConventionFor(string attachFace) => attachFace switch
     {
         "-X" => MinusXConvention,
         "+Y" => PlusYConvention,
         "-Y" => MinusYConvention,
+        "+Z" => PlusZConvention,
+        "-Z" => MinusZConvention,
         _ => PlusXConvention
     };
 }

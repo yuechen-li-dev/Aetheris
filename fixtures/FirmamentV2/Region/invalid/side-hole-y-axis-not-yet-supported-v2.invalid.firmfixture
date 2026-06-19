@@ -6,11 +6,11 @@
 // implementation: parser-backed
 // expected: invalid
 // expected-stage: parsed
-// expected-diagnostic: firmament-v2-side-hole-axis-not-yet-supported
-// notes: Historical pre-X10 fixture path retained for corpus compatibility; X10 supports Y and uses this file as an unsupported Z-axis rejection.
+// expected-diagnostic: firmament-v2-side-hole-route-unsupported
+// notes: Historical pre-X10 fixture path retained for corpus compatibility; X11 supports Z and uses this file as a mixed-axis rejection for corpus compatibility.
 
 model SideHoleHistoricalAxisNotYetSupportedV2 {
     units mm
     solid base: Box { size: [10, 8, 6] }
-    modify base { region sideHole on face(+Z) { cut Cylinder { radius: 1 through: face(-Z) } } }
+    modify base { region sideHole on face(+Z) { cut Cylinder { radius: 1 through: face(-X) } } }
 }

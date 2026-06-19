@@ -363,7 +363,7 @@ internal static class AirTraceTextRenderer
                         b.AppendLine($"      Radius: {region.Radius:g}");
                         var cu = region.Center?.U ?? 0; var cv = region.Center?.V ?? 0;
                         b.AppendLine($"      Center: [{cu:g}, {cv:g}]");
-                        var frame = FirmamentV2FaceLocalPoint2D.ConventionFor(region.ResolvedOn.Contains("-X", StringComparison.Ordinal) ? "-X" : region.ResolvedOn.Contains("+Y", StringComparison.Ordinal) ? "+Y" : region.ResolvedOn.Contains("-Y", StringComparison.Ordinal) ? "-Y" : "+X");
+                        var frame = FirmamentV2FaceLocalPoint2D.ConventionFor(region.ResolvedOn.Contains("-X", StringComparison.Ordinal) ? "-X" : region.ResolvedOn.Contains("+Y", StringComparison.Ordinal) ? "+Y" : region.ResolvedOn.Contains("-Y", StringComparison.Ordinal) ? "-Y" : region.ResolvedOn.Contains("+Z", StringComparison.Ordinal) ? "+Z" : region.ResolvedOn.Contains("-Z", StringComparison.Ordinal) ? "-Z" : "+X");
                         b.AppendLine($"      Center frame: {frame.Replace(":u=", " local u=").Replace(",v=", ", v=")}");
                         b.AppendLine($"      Through: {region.Through}");
                         if (!string.Equals(region.Through, region.ResolvedThrough, StringComparison.Ordinal)) b.AppendLine($"      Resolved through: {region.ResolvedThrough}");

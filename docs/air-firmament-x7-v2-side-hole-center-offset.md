@@ -74,3 +74,7 @@ AIR-FIRMAMENT-X8 — controlled V2 side-hole selector aliases using X3 exposures
 
 
 X10 note: controlled Y-face frames are now `face(+Y): u=+X, v=+Z` and `face(-Y): u=+X, v=+Z`; X-face frames remain unchanged.
+
+## X11 center-frame extension
+
+AIR-FIRMAMENT-X11 adds Z-face local frames: `face(+Z): u=+X, v=+Y` and `face(-Z): u=+X, v=+Y`. Existing X/Y center-frame conventions remain unchanged.

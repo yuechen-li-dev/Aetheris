@@ -240,17 +240,23 @@ public static class FirmamentV2Parser
         var supportedCanonical = attach.Axis == "+X" && cut.Tool.Through.Axis == "-X";
         var supportedReverseX = attach.Axis == "-X" && cut.Tool.Through.Axis == "+X";
         var supportedY = (attach.Axis == "+Y" && cut.Tool.Through.Axis == "-Y") || (attach.Axis == "-Y" && cut.Tool.Through.Axis == "+Y");
-        if (!supportedCanonical && !supportedReverseX && !supportedY)
+        var supportedZ = (attach.Axis == "+Z" && cut.Tool.Through.Axis == "-Z") || (attach.Axis == "-Z" && cut.Tool.Through.Axis == "+Z");
+        if (!supportedCanonical && !supportedReverseX && !supportedY && !supportedZ)
         {
             if (attach.Axis == cut.Tool.Through.Axis) diagnostics.Add(SideHoleSameFaceUnsupported);
             else if (AxisName(attach.Axis) != AxisName(cut.Tool.Through.Axis)) diagnostics.Add(SideHoleRouteUnsupported);
-            else if (AxisName(attach.Axis) is "Z") diagnostics.Add(SideHoleAxisNotYetSupported);
             else diagnostics.Add(SideHoleRouteUnsupported);
             if (attach.Kind == "Alias" || cut.Tool.Through.Kind == "Alias") diagnostics.Add(SideHoleAliasResolvesToUnsupportedFace);
             diagnostics.Add(SideHoleOnlyPlusXMinusXSupported);
         }
-        var uHalfExtent = AxisName(attach.Axis) == "Y" ? solid.Box.Size[0] / 2.0 : solid.Box.Size[1] / 2.0;
-        var vHalfExtent = solid.Box.Size[2] / 2.0;
+        var axis = AxisName(attach.Axis);
+        var uHalfExtent = axis switch
+        {
+            "Y" => solid.Box.Size[0] / 2.0,
+            "Z" => solid.Box.Size[0] / 2.0,
+            _ => solid.Box.Size[1] / 2.0
+        };
+        var vHalfExtent = axis == "Z" ? solid.Box.Size[1] / 2.0 : solid.Box.Size[2] / 2.0;
         if (cut.Tool.Radius >= Math.Min(uHalfExtent, vHalfExtent)) diagnostics.Add(SideHoleRadiusExceedsClearance);
         var centerU = cut.Tool.Center?.U ?? 0;
         var centerV = cut.Tool.Center?.V ?? 0;

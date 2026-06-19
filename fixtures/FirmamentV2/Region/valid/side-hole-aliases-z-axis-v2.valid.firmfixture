@@ -1,0 +1,31 @@
+// fixture-id: side-hole-aliases-z-axis-v2
+// case: firmament-v2-side-hole-alias-z-axis
+// category: Region
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: region-parent-integrated
+
+model SideHoleAliasZAxisV2 {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+
+        expose {
+            face(+Z) => top
+            face(-Z) => bottom
+        }
+    }
+
+    modify base {
+        region sideHole on top {
+            cut Cylinder {
+                radius: 1
+                center: [1, 0]
+                through: bottom
+            }
+        }
+    }
+}

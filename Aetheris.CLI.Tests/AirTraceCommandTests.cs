@@ -1338,6 +1338,53 @@ public sealed class AirTraceCommandTests
         Assert.Equal("-Y", route.GetProperty("throughFace").GetString());
     }
 
+    [Fact]
+    public void FirmamentV2SideHoleZAxis_TraceJsonContainsRouteEvidence()
+    {
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--json");
+        using var doc = JsonDocument.Parse(output);
+        var intent = doc.RootElement.GetProperty("firmamentV2").GetProperty("semanticIntent");
+        var route = intent.GetProperty("routeEvidence");
+        Assert.Equal("Z", route.GetProperty("axis").GetString());
+        Assert.Equal("+Z->-Z", route.GetProperty("direction").GetString());
+        Assert.Equal("+Z", route.GetProperty("attachFace").GetString());
+        Assert.Equal("-Z", route.GetProperty("throughFace").GetString());
+        Assert.Equal("face(+Z):u=+X,v=+Y", intent.GetProperty("centerSelectorFrame").GetString());
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleZAxis_TraceTextContainsRouteEvidence()
+    {
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-z-axis-v2.valid.firmfixture"));
+        Assert.Contains("On: face(+Z)", output);
+        Assert.Contains("Through: face(-Z)", output);
+        Assert.Contains("Route: +Z -> -Z", output);
+        Assert.Contains("Center frame: face(+Z) local u=+X, v=+Y", output);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleZAxis_ArtifactsEmit()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.All(new[] { "side-hole-z-axis-v2.step", "side-hole-z-axis-v2.trace.json", "side-hole-z-axis-v2.trace.txt", "manifest.json" }, name => Assert.True(new FileInfo(Path.Combine(dir, name)).Length > 0, name));
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
+        var route = doc.RootElement.GetProperty("route");
+        Assert.Equal("Z", route.GetProperty("axis").GetString());
+        Assert.Equal("+Z->-Z", route.GetProperty("direction").GetString());
+        Assert.Equal("+Z", route.GetProperty("attachFace").GetString());
+        Assert.Equal("-Z", route.GetProperty("throughFace").GetString());
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleZAxis_InvalidDiagnostics()
+    {
+        Assert.Contains("firmament-v2-side-hole-route-unsupported", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-mixed-axis-z-to-x-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-z-center-x-boundary-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-z-center-y-boundary-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-route-unsupported", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-alias-z-wrong-through-v2.invalid.firmfixture"), "--json").Stdout);
+    }
+
     private static (int ExitCode, string Stdout, string Stderr) Run(params string[] args)
     {
         var stdout = new StringWriter(); var stderr = new StringWriter();

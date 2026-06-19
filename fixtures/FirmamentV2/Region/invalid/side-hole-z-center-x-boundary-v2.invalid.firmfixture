@@ -1,0 +1,17 @@
+// fixture-id: side-hole-z-center-x-boundary-v2
+// case: firmament-v2-side-hole-z-center-x-boundary
+// category: Region
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-side-hole-center-exceeds-clearance
+
+model SideHoleZCenterXBoundaryV2 {
+    units mm
+
+    solid base: Box { size: [10, 8, 6] }
+
+    modify base { region sideHole on face(+Z) { cut Cylinder { radius: 1 center: [4, 0] through: face(-Z) } } }
+}

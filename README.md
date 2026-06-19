@@ -33,11 +33,11 @@ If you want the API entry point instead of the test wrapper, use `FirmamentBuild
 
 ## Automation-friendly test entrypoints
 
-The canonical solution format is `Aetheris.slnx` for both local and automation workflows. Primary targeting is .NET 10 (`net10.0`) with .NET 8 (`net8.0`) as an explicit fallback target.
+The canonical solution format is `Aetheris.slnx` for both local and automation workflows. Primary targeting is .NET 10 (`net10.0`) only; legacy .NET 8 targeting has been removed.
 
 ### Canonical repo-level test path
 
-Use the shell script below as the official automation-friendly entrypoint. It runs the canonical solution (`Aetheris.slnx`) on the primary framework (`net10.0`) and excludes `SlowCorpus` by default.
+Use the shell script below as the official automation-friendly entrypoint. It runs the canonical solution (`Aetheris.slnx`) on the sole active framework (`net10.0`), excludes `SlowCorpus` by default, and leaves legacy Firmament V1/FrictionLab tests opt-in.
 
 ```bash
 export PATH="$HOME/.dotnet:$PATH"
@@ -77,7 +77,7 @@ dotnet test Aetheris.slnx -f net10.0 --filter "Category!=SlowCorpus"
 dotnet test Aetheris.Kernel.Core.Tests --filter "Category=SlowCorpus"
 ```
 
-Use `Aetheris.slnx` as the only solution entrypoint. For fallback framework validation, run `dotnet build Aetheris.slnx -f net8.0`.
+Use `Aetheris.slnx` as the only solution entrypoint. For legacy Firmament V1/FrictionLab test validation, run `AETHERIS_RUN_LEGACY_TESTS=1 dotnet test Aetheris.slnx -f net10.0` or `./scripts/test-legacy.sh`. See `docs/build-test-policy-net10-and-legacy-v1.md`.
 
 ## Repo map
 

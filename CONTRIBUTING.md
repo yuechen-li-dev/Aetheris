@@ -28,7 +28,7 @@
   dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --logger "console;verbosity=minimal"
   ```
 
-- Use `Aetheris.slnx` as the canonical solution file. Default automation should target `net10.0`; use `net8.0` only for explicit fallback validation.
+- Use `Aetheris.slnx` as the canonical solution file. Default automation targets `net10.0` only. Legacy Firmament V1 and FrictionLab tests are opt-in with `AETHERIS_RUN_LEGACY_TESTS=1` or `./scripts/test-legacy.sh`; see `docs/build-test-policy-net10-and-legacy-v1.md`.
 
 ## Kernel discipline
 

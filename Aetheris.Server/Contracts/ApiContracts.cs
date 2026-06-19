@@ -148,7 +148,31 @@ public sealed record AnalyticDisplayPacketDto(
 public sealed record DisplayPreparationResponseDto(
     string Lane,
     AnalyticDisplayPacketDto AnalyticPacket,
-    TessellationResponseDto? TessellationFallback);
+    TessellationResponseDto? TessellationFallback,
+    string Status = "Complete",
+    string SourceAuthority = "BRep",
+    string DisplayAuthority = "DisplayIR",
+    IReadOnlyList<string>? Lanes = null,
+    IReadOnlyList<DisplayFaceDto>? Faces = null,
+    IReadOnlyList<DisplayDiagnosticDto>? Diagnostics = null);
+
+public sealed record DisplayFaceDto(
+    int FaceId,
+    int? ShellId,
+    string? SurfaceKind,
+    string Status,
+    string PatchKind,
+    FacePatchDto? MeshPatch,
+    AnalyticDisplayFaceDto? AnalyticPatch,
+    IReadOnlyList<DisplayDiagnosticDto> Diagnostics);
+
+public sealed record DisplayDiagnosticDto(
+    string Code,
+    string Message,
+    int? FaceId,
+    string? SurfaceKind,
+    string? Phase,
+    string? SuggestedNextAction);
 
 public sealed record PickOptionsDto(bool? NearestOnly, bool? IncludeBackfaces, double? EdgeTolerance, double? SortTieTolerance, double? MaxDistance);
 

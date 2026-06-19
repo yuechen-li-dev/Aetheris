@@ -297,26 +297,79 @@ public static class KernelEndpoints
             WithDocumentOccurrence(store, documentId, bodyId, (document, body) =>
             {
                 var analyticPacket = AnalyticDisplayPacketBuilder.Build(body);
+                var analyticDto = ApiMappings.ToAnalyticDisplayPacketResponse(analyticPacket);
                 var lane = ResolveDisplayLane(analyticPacket);
                 TessellationResponseDto? tessellationFallback = null;
+                var displayDiagnostics = new List<DisplayDiagnosticDto>();
 
                 if (lane is not "analytic-only")
                 {
-                    var tessellateKernel = DisplayPreparationFallbackBuilder.Build(body, ApiMappings.BuildTessellationOptions(request?.TessellationOptions));
-                    if (!tessellateKernel.IsSuccess)
-                    {
-                        return ApiMappings.KernelFailure(tessellateKernel.Diagnostics);
-                    }
+                    var options = ApiMappings.BuildTessellationOptions(request?.TessellationOptions);
+                    var completeFallback = DisplayPreparationFallbackBuilder.Build(body, options);
+                    var fallbackResult = completeFallback.IsSuccess
+                        ? completeFallback.Value
+                        : BrepDisplayTessellator.TessellateBoundedPartial(body, options);
 
                     tessellationFallback = document.TryGetBodyTransform(bodyId, out var fallbackTransform)
-                        ? ApiMappings.ToTessellationResponse(tessellateKernel.Value, fallbackTransform)
-                        : ApiMappings.ToTessellationResponse(tessellateKernel.Value);
+                        ? ApiMappings.ToTessellationResponse(fallbackResult, fallbackTransform)
+                        : ApiMappings.ToTessellationResponse(fallbackResult);
+
+                    if (!completeFallback.IsSuccess && fallbackResult.FaceDiagnostics is { Count: > 0 })
+                    {
+                        displayDiagnostics.AddRange(fallbackResult.FaceDiagnostics.Select(diagnostic => new DisplayDiagnosticDto(
+                            diagnostic.Code,
+                            diagnostic.Message,
+                            diagnostic.FaceId?.Value,
+                            diagnostic.SurfaceKind,
+                            diagnostic.Phase,
+                            "Keep the valid BRep/import result and use diagnostic/proxy display for this face until a bounded display lane supports it.")));
+                    }
                 }
 
+                var meshByFace = tessellationFallback?.FacePatches.ToDictionary(patch => patch.FaceId) ?? [];
+                var analyticByFace = analyticDto.AnalyticFaces.ToDictionary(face => face.FaceId);
+                var fallbackByFace = analyticDto.FallbackFaces.ToDictionary(face => face.FaceId);
+                var diagnosticsByFace = displayDiagnostics
+                    .Where(diagnostic => diagnostic.FaceId.HasValue)
+                    .GroupBy(diagnostic => diagnostic.FaceId!.Value)
+                    .ToDictionary(group => group.Key, group => (IReadOnlyList<DisplayDiagnosticDto>)group.ToArray());
+                var faces = body.Topology.Faces.OrderBy(face => face.Id.Value).Select(face =>
+                {
+                    analyticByFace.TryGetValue(face.Id.Value, out var analyticFace);
+                    meshByFace.TryGetValue(face.Id.Value, out var meshPatch);
+                    fallbackByFace.TryGetValue(face.Id.Value, out var fallbackFace);
+                    diagnosticsByFace.TryGetValue(face.Id.Value, out var faceDiagnostics);
+                    var status = analyticFace is not null ? "Analytic" : meshPatch is not null ? "Mesh" : faceDiagnostics is { Count: > 0 } ? "DiagnosticOnly" : "Omitted";
+                    var patchKind = analyticFace is not null ? "AnalyticPatch" : meshPatch is not null ? "MeshPatch" : faceDiagnostics is { Count: > 0 } ? "DiagnosticPatch" : "DiagnosticPatch";
+                    return new DisplayFaceDto(
+                        face.Id.Value,
+                        analyticFace?.ShellId ?? fallbackFace?.ShellId,
+                        analyticFace?.SurfaceKind ?? fallbackFace?.SurfaceKind,
+                        status,
+                        patchKind,
+                        meshPatch,
+                        analyticFace,
+                        faceDiagnostics ?? []);
+                }).ToArray();
+
+                var status = faces.All(face => face.Status is "DiagnosticOnly" or "Omitted") ? "DiagnosticOnly" :
+                    faces.Any(face => face.Status is "DiagnosticOnly" or "Omitted") ? "Partial" : "Complete";
+                if (status is "Partial")
+                {
+                    displayDiagnostics.Insert(0, new DisplayDiagnosticDto("Viewer.Display.Partial", "Display preparation completed with one or more diagnostic-only faces.", null, null, null, null));
+                }
+
+                var lanes = faces.Select(face => face.PatchKind).Distinct().ToArray();
                 return ApiMappings.Ok(new DisplayPreparationResponseDto(
                     lane,
-                    ApiMappings.ToAnalyticDisplayPacketResponse(analyticPacket),
-                    tessellationFallback));
+                    analyticDto,
+                    tessellationFallback,
+                    status,
+                    "BRep",
+                    "DisplayIR",
+                    lanes,
+                    faces,
+                    displayDiagnostics));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/pick", (Guid documentId, Guid bodyId, PickRequestDto request, KernelDocumentStore store) =>

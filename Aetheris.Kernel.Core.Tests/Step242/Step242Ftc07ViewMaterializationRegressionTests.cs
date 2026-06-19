@@ -48,6 +48,20 @@ public sealed class Step242Ftc07ViewMaterializationRegressionTests
             || diagnostic.Message.Contains("FaceTessellation", StringComparison.Ordinal));
     }
 
+
+    [Fact]
+    public void DisplayPrepare_Ftc07_ReturnsPartialDisplayInsteadOfWholeBodyFailure()
+    {
+        var body = ImportFixture();
+
+        var partial = BrepDisplayTessellator.TessellateBoundedPartial(body);
+
+        Assert.NotEmpty(partial.FacePatches);
+        Assert.NotEmpty(partial.FaceDiagnostics ?? []);
+        Assert.Contains(partial.FaceDiagnostics ?? [], diagnostic => diagnostic.Code == "Viewer.Tessellation.Timeout");
+        Assert.Contains(partial.FaceDiagnostics ?? [], diagnostic => diagnostic.Phase == "PlanarTriangulationWithHoles" || diagnostic.Phase == "FaceTessellation");
+    }
+
     private static global::Aetheris.Kernel.Core.Brep.BrepBody ImportFixture()
     {
         var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), RelativePath.Replace('/', Path.DirectorySeparatorChar));

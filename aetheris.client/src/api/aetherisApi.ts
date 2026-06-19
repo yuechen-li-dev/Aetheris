@@ -179,10 +179,36 @@ export interface AnalyticDisplayPacketDto {
     fallbackFaces: AnalyticDisplayFallbackFaceDto[];
 }
 
+export interface DisplayDiagnosticDto {
+    code: string;
+    message: string;
+    faceId: number | null;
+    surfaceKind: string | null;
+    phase: string | null;
+    suggestedNextAction: string | null;
+}
+
+export interface DisplayFaceDto {
+    faceId: number;
+    shellId: number | null;
+    surfaceKind: string | null;
+    status: 'Analytic' | 'Mesh' | 'WireframeOnly' | 'BoundingProxy' | 'DiagnosticOnly' | 'Omitted' | string;
+    patchKind: 'AnalyticPatch' | 'MeshPatch' | 'WirePatch' | 'ProxyPatch' | 'DiagnosticPatch' | string;
+    meshPatch: FacePatchDto | null;
+    analyticPatch: AnalyticDisplayFaceDto | null;
+    diagnostics: DisplayDiagnosticDto[];
+}
+
 export interface DisplayPreparationResponseDto {
     lane: 'analytic-only' | 'mixed-fallback' | 'fallback-only' | string;
     analyticPacket: AnalyticDisplayPacketDto;
     tessellationFallback: TessellationResponseDto | null;
+    status?: 'Complete' | 'Partial' | 'DiagnosticOnly' | 'Failed' | string;
+    sourceAuthority?: string;
+    displayAuthority?: string;
+    lanes?: string[] | null;
+    faces?: DisplayFaceDto[] | null;
+    diagnostics?: DisplayDiagnosticDto[] | null;
 }
 
 export interface PickOptionsDto {

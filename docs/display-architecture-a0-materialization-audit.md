@@ -537,3 +537,7 @@ This audit does not and should not:
 ## Validation notes
 
 This milestone is documentation-only. No production CAD/kernel behavior was changed. Playwright was not used; code inspection, existing tests, and CLI/server validation were sufficient to map the current display path.
+
+## X1 follow-up
+
+DISPLAY-ARCH-X1 adds the first DisplayIR partial display contract. `display/prepare` now carries source/display authority metadata and per-face display records so a bounded face materialization timeout can become a diagnostic face rather than a whole-body display preparation failure. See `docs/display-architecture-x1-displayir-partial-display.md`.

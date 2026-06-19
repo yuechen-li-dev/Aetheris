@@ -1,0 +1,31 @@
+// fixture-id: side-hole-aliases-y-axis-v2
+// case: firmament-v2-side-hole-alias-y-axis
+// category: Region
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: region-parent-integrated
+
+model SideHoleAliasYAxisV2 {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+
+        expose {
+            face(+Y) => front
+            face(-Y) => back
+        }
+    }
+
+    modify base {
+        region sideHole on front {
+            cut Cylinder {
+                radius: 1
+                center: [1, 0]
+                through: back
+            }
+        }
+    }
+}

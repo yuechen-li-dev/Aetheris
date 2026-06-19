@@ -35,7 +35,7 @@ internal static class SideHoleGoldenPathArtifacts
         parentIntegration = report.FirmamentV2?.ParentIntegration ?? "Integrated",
         shellClosure = report.FirmamentV2?.ShellClosure ?? "Closed",
         stepSmoke = report.FirmamentV2?.StepSmoke ?? "Succeeded",
-        route = report.FirmamentV2?.SemanticIntent is null ? null : new { axis = "X", direction = report.FirmamentV2.SemanticIntent.Route, attachFace = report.FirmamentV2.SemanticIntent.AttachFace, throughFace = report.FirmamentV2.SemanticIntent.ThroughFace },
+        route = report.FirmamentV2?.SemanticIntent?.RouteEvidence,
         radius = report.FirmamentV2?.SemanticIntent?.Radius,
         tool = report.FirmamentV2?.SemanticIntent?.Tool,
         attachTargetSource = report.FirmamentV2?.SemanticIntent?.AttachTargetSource,
@@ -62,6 +62,9 @@ internal static class SideHoleGoldenPathArtifacts
         var centerV = report.FirmamentV2!.SemanticIntent!.CenterV;
         if (report.FirmamentV2!.SemanticIntent!.Route == "-X->+X" && (report.FirmamentV2!.SemanticIntent!.AttachTargetKind == "Alias" || report.FirmamentV2!.SemanticIntent!.ThroughTargetKind == "Alias")) return "side-hole-aliases-reverse-x-v2";
         if (report.FirmamentV2!.SemanticIntent!.Route == "-X->+X") return "side-hole-reverse-x-v2";
+        if (report.FirmamentV2!.SemanticIntent!.Route == "+Y->-Y" && (report.FirmamentV2!.SemanticIntent!.AttachTargetKind == "Alias" || report.FirmamentV2!.SemanticIntent!.ThroughTargetKind == "Alias")) return "side-hole-aliases-y-axis-v2";
+        if (report.FirmamentV2!.SemanticIntent!.Route == "+Y->-Y") return "side-hole-y-axis-v2";
+        if (report.FirmamentV2!.SemanticIntent!.Route == "-Y->+Y") return "side-hole-reverse-y-v2";
         if (report.FirmamentV2!.SemanticIntent!.AttachTargetKind == "Alias" || report.FirmamentV2!.SemanticIntent!.ThroughTargetKind == "Alias") return "side-hole-aliases-v2";
         if (Math.Abs(centerU) > 1e-12 || Math.Abs(centerV) > 1e-12)
         {

@@ -239,21 +239,22 @@ public static class FirmamentV2Parser
         if (attach is null || cut is null) return null;
         var supportedCanonical = attach.Axis == "+X" && cut.Tool.Through.Axis == "-X";
         var supportedReverseX = attach.Axis == "-X" && cut.Tool.Through.Axis == "+X";
-        if (!supportedCanonical && !supportedReverseX)
+        var supportedY = (attach.Axis == "+Y" && cut.Tool.Through.Axis == "-Y") || (attach.Axis == "-Y" && cut.Tool.Through.Axis == "+Y");
+        if (!supportedCanonical && !supportedReverseX && !supportedY)
         {
             if (attach.Axis == cut.Tool.Through.Axis) diagnostics.Add(SideHoleSameFaceUnsupported);
             else if (AxisName(attach.Axis) != AxisName(cut.Tool.Through.Axis)) diagnostics.Add(SideHoleRouteUnsupported);
-            else if (AxisName(attach.Axis) is "Y" or "Z") diagnostics.Add(SideHoleAxisNotYetSupported);
+            else if (AxisName(attach.Axis) is "Z") diagnostics.Add(SideHoleAxisNotYetSupported);
             else diagnostics.Add(SideHoleRouteUnsupported);
             if (attach.Kind == "Alias" || cut.Tool.Through.Kind == "Alias") diagnostics.Add(SideHoleAliasResolvesToUnsupportedFace);
             diagnostics.Add(SideHoleOnlyPlusXMinusXSupported);
         }
-        var yHalfExtent = solid.Box.Size[1] / 2.0;
-        var zHalfExtent = solid.Box.Size[2] / 2.0;
-        if (cut.Tool.Radius >= Math.Min(yHalfExtent, zHalfExtent)) diagnostics.Add(SideHoleRadiusExceedsClearance);
+        var uHalfExtent = AxisName(attach.Axis) == "Y" ? solid.Box.Size[0] / 2.0 : solid.Box.Size[1] / 2.0;
+        var vHalfExtent = solid.Box.Size[2] / 2.0;
+        if (cut.Tool.Radius >= Math.Min(uHalfExtent, vHalfExtent)) diagnostics.Add(SideHoleRadiusExceedsClearance);
         var centerU = cut.Tool.Center?.U ?? 0;
         var centerV = cut.Tool.Center?.V ?? 0;
-        if (Math.Abs(centerU) + cut.Tool.Radius >= yHalfExtent || Math.Abs(centerV) + cut.Tool.Radius >= zHalfExtent) diagnostics.Add(SideHoleCenterExceedsClearance);
+        if (Math.Abs(centerU) + cut.Tool.Radius >= uHalfExtent || Math.Abs(centerV) + cut.Tool.Radius >= vHalfExtent) diagnostics.Add(SideHoleCenterExceedsClearance);
         return diagnostics.Any(IsFatalDiagnostic) ? null : new(rm.Groups["name"].Value, "FaceAttachedRegion", attach, cut);
     }
 
@@ -287,7 +288,7 @@ public static class FirmamentV2Parser
         if (parts.Length != 2) { diagnostics.Add(CylinderCenterArityInvalid); return null; }
         if (!double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var u) || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var v)) { diagnostics.Add(CylinderCenterInvalid); return null; }
         if (!double.IsFinite(u) || !double.IsFinite(v)) { diagnostics.Add(CylinderCenterNotFinite); return null; }
-        return new FirmamentV2FaceLocalPoint2D(u, v, FirmamentV2FaceLocalPoint2D.PlusXConvention);
+        return new FirmamentV2FaceLocalPoint2D(u, v, string.Empty);
     }
 
     private static string AxisName(string faceAxis) => faceAxis.Length == 2 ? faceAxis[1].ToString() : string.Empty;

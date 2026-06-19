@@ -31,12 +31,20 @@ public sealed record FirmamentV2FaceLocalPoint2D(double U, double V, string Conv
 {
     public const string PlusXConvention = "face(+X):u=+Y,v=+Z";
     public const string MinusXConvention = "face(-X):u=+Y,v=+Z";
-    public static string ConventionFor(string attachFace) => attachFace == "-X" ? MinusXConvention : PlusXConvention;
+    public const string PlusYConvention = "face(+Y):u=+X,v=+Z";
+    public const string MinusYConvention = "face(-Y):u=+X,v=+Z";
+    public static string ConventionFor(string attachFace) => attachFace switch
+    {
+        "-X" => MinusXConvention,
+        "+Y" => PlusYConvention,
+        "-Y" => MinusYConvention,
+        _ => PlusXConvention
+    };
 }
 public sealed record FirmamentV2SideHoleIntent(string TargetSolid, string RegionName, string AttachTargetSource, string AttachTargetKind, string AttachFace, string ThroughTargetSource, string ThroughTargetKind, string ThroughFace, string Tool, double Radius, double CenterU, double CenterV, bool CenterExplicit, string CenterSelectorFrame, string Units)
 {
     public string Route => $"{AttachFace}->{ThroughFace}";
-    public FirmamentV2SideHoleRouteEvidence RouteEvidence => new("X", Route, AttachFace, ThroughFace);
+    public FirmamentV2SideHoleRouteEvidence RouteEvidence => new(AttachFace.Length == 2 ? AttachFace[1].ToString() : string.Empty, Route, AttachFace, ThroughFace);
 }
 public sealed record FirmamentV2SideHoleRouteEvidence(string Axis, string Direction, string AttachFace, string ThroughFace);
 public sealed record FirmamentV2ParseResult(bool IsSuccess, FirmamentV2Document? Document, IReadOnlyList<string> Diagnostics)

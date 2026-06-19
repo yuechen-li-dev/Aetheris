@@ -103,3 +103,6 @@ Use the active suite and targeted parser/CLI tests for reverse-X, aliases, radiu
 ## Next milestone recommendation
 
 AIR-FIRMAMENT-X10 — controlled V2 side-hole Y-axis face-pair variation. X10 must define `face(+Y)` and `face(-Y)` local frames before implementation; a possible policy is `u=+X`, `v=+Z` for both Y faces.
+
+
+Update: AIR-FIRMAMENT-X10 extends the controlled side-hole route set to Y-axis opposite faces; see `docs/air-firmament-x10-v2-side-hole-y-axis.md`.

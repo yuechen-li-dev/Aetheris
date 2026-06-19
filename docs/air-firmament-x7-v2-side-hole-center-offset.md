@@ -78,3 +78,7 @@ X10 note: controlled Y-face frames are now `face(+Y): u=+X, v=+Z` and `face(-Y):
 ## X11 center-frame extension
 
 AIR-FIRMAMENT-X11 adds Z-face local frames: `face(+Z): u=+X, v=+Y` and `face(-Z): u=+X, v=+Y`. Existing X/Y center-frame conventions remain unchanged.
+
+## X12 follow-up
+
+AIR-FIRMAMENT-X12 keeps the strict center-clearance rule and centralizes the face-local center frames and transverse half extents in `FirmamentV2SideHoleRoutePolicy`; see `docs/air-firmament-x12-side-hole-route-policy.md`.

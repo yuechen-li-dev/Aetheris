@@ -1388,6 +1388,50 @@ public sealed class AirTraceCommandTests
         Assert.Contains("firmament-v2-side-hole-route-unsupported", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-alias-z-wrong-through-v2.invalid.firmfixture"), "--json").Stdout);
     }
 
+
+    [Fact]
+    public void FirmamentV2SideHoleRoutePolicy_ManifestContainsPolicyFacts()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
+        var route = doc.RootElement.GetProperty("route");
+        Assert.Equal("Z", route.GetProperty("axis").GetString());
+        Assert.Equal("+Z->-Z", route.GetProperty("direction").GetString());
+        Assert.Equal("+Z", route.GetProperty("attachFace").GetString());
+        Assert.Equal("-Z", route.GetProperty("throughFace").GetString());
+        Assert.Equal("face(+Z):u=+X,v=+Y", route.GetProperty("centerFrame").GetString());
+        Assert.Equal("+X", route.GetProperty("uAxis").GetString());
+        Assert.Equal("+Y", route.GetProperty("vAxis").GetString());
+        Assert.Equal(5, route.GetProperty("uHalfExtent").GetDouble());
+        Assert.Equal(4, route.GetProperty("vHalfExtent").GetDouble());
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRoutePolicy_TraceJsonContainsPolicyFacts()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output);
+        var route = doc.RootElement.GetProperty("firmamentV2").GetProperty("semanticIntent").GetProperty("routeEvidence");
+        Assert.Equal("Z", route.GetProperty("axis").GetString());
+        Assert.Equal("+Z->-Z", route.GetProperty("direction").GetString());
+        Assert.Equal("+Z", route.GetProperty("attachFace").GetString());
+        Assert.Equal("-Z", route.GetProperty("throughFace").GetString());
+        Assert.Equal("face(+Z):u=+X,v=+Y", route.GetProperty("centerFrame").GetString());
+        Assert.Equal("+X", route.GetProperty("uAxis").GetString());
+        Assert.Equal("+Y", route.GetProperty("vAxis").GetString());
+        Assert.Equal(5, route.GetProperty("uHalfExtent").GetDouble());
+        Assert.Equal(4, route.GetProperty("vHalfExtent").GetDouble());
+    }
+
+    [Fact]
+    public void DefaultActiveTests_DoNotRequireCorpusOrLegacy()
+    {
+        Assert.True(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AETHERIS_RUN_LEGACY_TESTS")) || Environment.GetEnvironmentVariable("AETHERIS_RUN_LEGACY_TESTS") == "0");
+        Assert.True(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AETHERIS_RUN_CORPUS_TESTS")) || Environment.GetEnvironmentVariable("AETHERIS_RUN_CORPUS_TESTS") == "0");
+    }
+
     private static (int ExitCode, string Stdout, string Stderr) Run(params string[] args)
     {
         var stdout = new StringWriter(); var stderr = new StringWriter();

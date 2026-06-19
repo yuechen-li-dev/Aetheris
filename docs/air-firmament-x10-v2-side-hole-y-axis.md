@@ -94,3 +94,7 @@ AIR-FIRMAMENT-X11 — controlled V2 side-hole Z-axis face-pair variation. X11 mu
 ## X11 follow-up
 
 AIR-FIRMAMENT-X11 extends the same controlled opposite-face policy to Z-axis routes (`+Z -> -Z` and `-Z -> +Z`) and preserves the X10 Y-axis route evidence and clearance behavior.
+
+## X12 follow-up
+
+AIR-FIRMAMENT-X12 keeps the Y-axis routes unchanged and moves their route/frame/clearance facts into `FirmamentV2SideHoleRoutePolicy`; see `docs/air-firmament-x12-side-hole-route-policy.md`.

@@ -1252,6 +1252,49 @@ public sealed class AirTraceCommandTests
         Assert.Contains("STEP smoke: Succeeded", output);
     }
 
+
+    [Fact]
+    public void FirmamentV2SideHoleReverseX_TraceJsonContainsRouteEvidence()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-reverse-x-v2.valid.firmfixture"), "--json");
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(output);
+        var intent = doc.RootElement.GetProperty("firmamentV2").GetProperty("semanticIntent");
+        Assert.Equal("-X->+X", intent.GetProperty("route").GetString());
+        Assert.Equal("-X", intent.GetProperty("attachFace").GetString());
+        Assert.Equal("+X", intent.GetProperty("throughFace").GetString());
+        Assert.Equal("face(-X):u=+Y,v=+Z", intent.GetProperty("centerSelectorFrame").GetString());
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleReverseX_TraceTextContainsRouteEvidence()
+    {
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-reverse-x-v2.valid.firmfixture"));
+        Assert.Equal(0, exitCode);
+        Assert.Contains("On: face(-X)", output);
+        Assert.Contains("Through: face(+X)", output);
+        Assert.Contains("Route: -X -> +X", output);
+        Assert.Contains("Center frame: face(-X) local u=+Y, v=+Z", output);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleReverseX_ArtifactsEmit()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-reverse-x-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        foreach (var name in new[] { "side-hole-reverse-x-v2.step", "side-hole-reverse-x-v2.trace.json", "side-hole-reverse-x-v2.trace.txt", "manifest.json" })
+        {
+            var path = Path.Combine(dir, name);
+            Assert.True(File.Exists(path), path);
+            Assert.True(new FileInfo(path).Length > 0, path);
+        }
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
+        var route = manifest.RootElement.GetProperty("route");
+        Assert.Equal("-X->+X", route.GetProperty("direction").GetString());
+        Assert.Equal("-X", route.GetProperty("attachFace").GetString());
+        Assert.Equal("+X", route.GetProperty("throughFace").GetString());
+    }
+
     private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Chamfer", relative));
     private static string PrimitiveFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Primitive", relative));
     private static string RegionFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Region", relative));

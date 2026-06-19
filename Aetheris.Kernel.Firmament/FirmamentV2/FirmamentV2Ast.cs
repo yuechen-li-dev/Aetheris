@@ -3,7 +3,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null)
 {
     public FirmamentV2SolidBinding Solid => Solids[^1];
-    public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r => new FirmamentV2SideHoleIntent(m.TargetSolid, r.Name, r.Attachment.Source, r.Attachment.Kind, r.Attachment.Axis, r.Cut.Tool.Through.Source, r.Cut.Tool.Through.Kind, r.Cut.Tool.Through.Axis, r.Cut.Tool.ToolType, r.Cut.Tool.Radius, r.Cut.Tool.Center?.U ?? 0, r.Cut.Tool.Center?.V ?? 0, r.Cut.Tool.Center is not null, r.Cut.Tool.Center?.Convention ?? FirmamentV2FaceLocalPoint2D.PlusXConvention, Units))).SingleOrDefault();
+    public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r => new FirmamentV2SideHoleIntent(m.TargetSolid, r.Name, r.Attachment.Source, r.Attachment.Kind, r.Attachment.Axis, r.Cut.Tool.Through.Source, r.Cut.Tool.Through.Kind, r.Cut.Tool.Through.Axis, r.Cut.Tool.ToolType, r.Cut.Tool.Radius, r.Cut.Tool.Center?.U ?? 0, r.Cut.Tool.Center?.V ?? 0, r.Cut.Tool.Center is not null, FirmamentV2FaceLocalPoint2D.ConventionFor(r.Attachment.Axis), Units))).SingleOrDefault();
 }
 
 public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2BoxRecord Box, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null)
@@ -30,8 +30,15 @@ public sealed record FirmamentV2CylinderTool(string ToolType, double Radius, Fir
 public sealed record FirmamentV2FaceLocalPoint2D(double U, double V, string Convention)
 {
     public const string PlusXConvention = "face(+X):u=+Y,v=+Z";
+    public const string MinusXConvention = "face(-X):u=+Y,v=+Z";
+    public static string ConventionFor(string attachFace) => attachFace == "-X" ? MinusXConvention : PlusXConvention;
 }
-public sealed record FirmamentV2SideHoleIntent(string TargetSolid, string RegionName, string AttachTargetSource, string AttachTargetKind, string AttachFace, string ThroughTargetSource, string ThroughTargetKind, string ThroughFace, string Tool, double Radius, double CenterU, double CenterV, bool CenterExplicit, string CenterSelectorFrame, string Units);
+public sealed record FirmamentV2SideHoleIntent(string TargetSolid, string RegionName, string AttachTargetSource, string AttachTargetKind, string AttachFace, string ThroughTargetSource, string ThroughTargetKind, string ThroughFace, string Tool, double Radius, double CenterU, double CenterV, bool CenterExplicit, string CenterSelectorFrame, string Units)
+{
+    public string Route => $"{AttachFace}->{ThroughFace}";
+    public FirmamentV2SideHoleRouteEvidence RouteEvidence => new("X", Route, AttachFace, ThroughFace);
+}
+public sealed record FirmamentV2SideHoleRouteEvidence(string Axis, string Direction, string AttachFace, string ThroughFace);
 public sealed record FirmamentV2ParseResult(bool IsSuccess, FirmamentV2Document? Document, IReadOnlyList<string> Diagnostics)
 {
     public static FirmamentV2ParseResult Success(FirmamentV2Document document, IReadOnlyList<string> diagnostics) => new(true, document, diagnostics);

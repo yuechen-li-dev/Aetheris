@@ -363,7 +363,7 @@ internal static class AirTraceTextRenderer
                         b.AppendLine($"      Radius: {region.Radius:g}");
                         var cu = region.Center?.U ?? 0; var cv = region.Center?.V ?? 0;
                         b.AppendLine($"      Center: [{cu:g}, {cv:g}]");
-                        b.AppendLine($"      Center frame: face(+X) local u=+Y, v=+Z");
+                        b.AppendLine($"      Center frame: {((region.ResolvedOn.Contains("-X", StringComparison.Ordinal) ? "face(-X):u=+Y,v=+Z" : "face(+X):u=+Y,v=+Z").Replace(":u=", " local u=").Replace(",v=", ", v="))}");
                         b.AppendLine($"      Through: {region.Through}");
                         if (!string.Equals(region.Through, region.ResolvedThrough, StringComparison.Ordinal)) b.AppendLine($"      Resolved through: {region.ResolvedThrough}");
                     }
@@ -374,6 +374,7 @@ internal static class AirTraceTextRenderer
                 b.AppendLine();
                 b.AppendLine("  Lowering:");
                 b.AppendLine("    Semantic intent: SideHole");
+                b.AppendLine($"    Route: {r.FirmamentV2.SemanticIntent.AttachFace} -> {r.FirmamentV2.SemanticIntent.ThroughFace}");
                 if (r.FirmamentV2.SemanticIntent.AttachTargetKind == "Alias") b.AppendLine($"    Attach alias: {r.FirmamentV2.SemanticIntent.AttachTargetSource} -> face({r.FirmamentV2.SemanticIntent.AttachFace})");
                 if (r.FirmamentV2.SemanticIntent.ThroughTargetKind == "Alias") b.AppendLine($"    Through alias: {r.FirmamentV2.SemanticIntent.ThroughTargetSource} -> face({r.FirmamentV2.SemanticIntent.ThroughFace})");
                 b.AppendLine($"    AIR Region: {(r.Regions is null ? "not-reached" : "FaceAttachedRegion golden trace chain")}");

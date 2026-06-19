@@ -195,3 +195,8 @@ The Firmament V2 region corpus now includes controlled valid side-hole radius va
 ## AIR-FIRMAMENT-X7 fixture taxonomy update
 
 X7 adds controlled Firmament V2 Region side-hole center-offset fixtures under `fixtures/FirmamentV2/Region/valid` and matching clearance/arity invalid fixtures under `fixtures/FirmamentV2/Region/invalid`. These remain parser-backed controlled Region fixtures, not broad corpus migration or general side-hole support.
+
+
+## AIR-FIRMAMENT-X9 fixture taxonomy note
+
+The Firmament V2 region fixture set now includes controlled reverse-X side-hole valid fixtures (`side-hole-reverse-x-v2`, `side-hole-aliases-reverse-x-v2`) and invalid route fixtures for same-face, mixed-axis, Y-axis-not-yet-supported, and alias wrong-through cases.

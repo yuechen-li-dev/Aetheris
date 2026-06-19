@@ -351,6 +351,68 @@ public sealed class FirmamentV2ParserTests
 
 
     [Fact]
+    public void FirmamentV2SideHoleReverseX_ParsesDirectReverseRoute()
+    {
+        var intent = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-reverse-x-v2.valid.firmfixture")).Document!.SideHoleIntent!;
+        Assert.Equal("face(-X)", intent.AttachTargetSource);
+        Assert.Equal("DirectSelector", intent.AttachTargetKind);
+        Assert.Equal("-X", intent.AttachFace);
+        Assert.Equal("face(+X)", intent.ThroughTargetSource);
+        Assert.Equal("DirectSelector", intent.ThroughTargetKind);
+        Assert.Equal("+X", intent.ThroughFace);
+        Assert.Equal("-X->+X", intent.Route);
+        Assert.Equal("face(-X):u=+Y,v=+Z", intent.CenterSelectorFrame);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleReverseX_DirectReachesGoldenPath()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("Region/valid/side-hole-reverse-x-v2.valid.firmfixture"));
+        Assert.True(result.ParseSucceeded, string.Join(", ", result.Diagnostics));
+        Assert.Equal("region-parent-integrated", result.FirmamentV2!.StageReached);
+        Assert.Equal("Integrated", result.FirmamentV2.ParentIntegration);
+        Assert.Equal("Closed", result.FirmamentV2.ShellClosure);
+        Assert.Equal("Succeeded", result.FirmamentV2.StepSmoke);
+        Assert.Null(result.FirmamentV2.Blocker);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleReverseX_ParsesAliasReverseRoute()
+    {
+        var doc = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-aliases-reverse-x-v2.valid.firmfixture")).Document!;
+        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "left" && e.Selector == "face(-X)");
+        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "right" && e.Selector == "face(+X)");
+        var region = Assert.Single(Assert.Single(doc.ModifyBlocks!).Regions);
+        Assert.Equal("left", region.Attachment.Source);
+        Assert.Equal("face(-X)", region.Attachment.ResolvedSelector);
+        Assert.Equal("right", region.Cut.Tool.Through.Source);
+        Assert.Equal("face(+X)", region.Cut.Tool.Through.ResolvedSelector);
+        Assert.Equal("-X->+X", doc.SideHoleIntent!.Route);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleReverseX_AliasReachesGoldenPath()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("Region/valid/side-hole-aliases-reverse-x-v2.valid.firmfixture"));
+        Assert.True(result.ParseSucceeded, string.Join(", ", result.Diagnostics));
+        Assert.Equal("region-parent-integrated", result.FirmamentV2!.StageReached);
+        Assert.Equal("Integrated", result.FirmamentV2.ParentIntegration);
+        Assert.Equal("Closed", result.FirmamentV2.ShellClosure);
+        Assert.Equal("Succeeded", result.FirmamentV2.StepSmoke);
+        Assert.Null(result.FirmamentV2.Blocker);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleReverseX_InvalidRoutesRejected()
+    {
+        Assert.Contains(FirmamentV2Parser.SideHoleSameFaceUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-same-face-x-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SideHoleRouteUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-mixed-axis-x-to-y-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SideHoleAxisNotYetSupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-y-axis-not-yet-supported-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SideHoleRouteUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-alias-reverse-x-wrong-through-v2.invalid.firmfixture")).Diagnostics);
+    }
+
+
+    [Fact]
     public void FirmamentV2SideHoleAliases_ParsesExposeAndAliasTargets()
     {
         var doc = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-aliases-v2.valid.firmfixture")).Document!;

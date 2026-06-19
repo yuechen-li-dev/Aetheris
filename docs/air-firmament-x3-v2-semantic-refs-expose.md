@@ -69,3 +69,7 @@ The implementation was validated with targeted build, CLI trace/help, valid/inva
 ## Next milestone recommendation
 
 The next milestone should keep alias semantics metadata-only unless an explicit design lands for alias copying through derivation and selector-backed BRep/topology materialization.
+
+## AIR-FIRMAMENT-X8 consumption
+
+AIR-FIRMAMENT-X8 uses X3 parser-backed `=>` aliases as controlled V2 side-hole attach and through targets. The aliases remain scoped to the modified solid's exposure table and must resolve to FaceRef selectors for the bounded `+X` to `-X` side-hole path.

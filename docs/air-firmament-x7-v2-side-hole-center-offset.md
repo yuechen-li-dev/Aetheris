@@ -70,3 +70,4 @@ Run the active .NET build/test commands for X7 changes, including targeted Firma
 ## Next milestone recommendation
 
 AIR-FIRMAMENT-X8 — controlled V2 side-hole selector aliases using X3 exposures, for example `face(+X) => right` and `face(-X) => left`.
+

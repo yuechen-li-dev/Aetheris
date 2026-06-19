@@ -1,0 +1,22 @@
+// fixture-id: side-hole-alias-wrong-face-v2
+// case: firmament-v2-side-hole-alias-wrong-face
+// category: Region
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-side-hole-alias-resolves-to-unsupported-face
+// parser-backed: true
+
+model SideHoleWrongFaceAliasV2 {
+    units mm
+    solid base: Box {
+        size: [10, 8, 6]
+        expose {
+            face(+Y) => topish
+            face(-X) => left
+        }
+    }
+    modify base { region sideHole on topish { cut Cylinder { radius: 1 through: left } } }
+}

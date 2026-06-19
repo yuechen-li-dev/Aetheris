@@ -1,0 +1,16 @@
+// fixture-id: side-hole-alias-unknown-on-v2
+// case: firmament-v2-side-hole-alias-unknown-on
+// category: Region
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-alias-unresolved
+// parser-backed: true
+
+model SideHoleUnknownAttachAliasV2 {
+    units mm
+    solid base: Box { size: [10, 8, 6] expose { face(-X) => left } }
+    modify base { region sideHole on right { cut Cylinder { radius: 1 through: left } } }
+}

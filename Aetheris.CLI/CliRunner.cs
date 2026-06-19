@@ -37,6 +37,10 @@ internal static class SideHoleGoldenPathArtifacts
         stepSmoke = report.FirmamentV2?.StepSmoke ?? "Succeeded",
         radius = report.FirmamentV2?.SemanticIntent?.Radius,
         tool = report.FirmamentV2?.SemanticIntent?.Tool,
+        attachTargetSource = report.FirmamentV2?.SemanticIntent?.AttachTargetSource,
+        attachResolvedSelector = report.FirmamentV2?.SemanticIntent is null ? null : $"face({report.FirmamentV2.SemanticIntent.AttachFace})",
+        throughTargetSource = report.FirmamentV2?.SemanticIntent?.ThroughTargetSource,
+        throughResolvedSelector = report.FirmamentV2?.SemanticIntent is null ? null : $"face({report.FirmamentV2.SemanticIntent.ThroughFace})",
         throughSelector = report.FirmamentV2?.SemanticIntent is null ? null : $"face({report.FirmamentV2.SemanticIntent.ThroughFace})",
         center = report.FirmamentV2?.SemanticIntent is null ? null : new { u = report.FirmamentV2.SemanticIntent.CenterU, v = report.FirmamentV2.SemanticIntent.CenterV, explicitValue = report.FirmamentV2.SemanticIntent.CenterExplicit, frame = report.FirmamentV2.SemanticIntent.CenterSelectorFrame },
         step = Path.GetFileName(artifacts.Step),
@@ -55,6 +59,7 @@ internal static class SideHoleGoldenPathArtifacts
         var radius = report.FirmamentV2!.SemanticIntent!.Radius;
         var centerU = report.FirmamentV2!.SemanticIntent!.CenterU;
         var centerV = report.FirmamentV2!.SemanticIntent!.CenterV;
+        if (report.FirmamentV2!.SemanticIntent!.AttachTargetKind == "Alias" || report.FirmamentV2!.SemanticIntent!.ThroughTargetKind == "Alias") return "side-hole-aliases-v2";
         if (Math.Abs(centerU) > 1e-12 || Math.Abs(centerV) > 1e-12)
         {
             static string Tok(double v) => v.ToString("0.############", System.Globalization.CultureInfo.InvariantCulture).Replace('.', '_').Replace("-", "neg");

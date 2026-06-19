@@ -455,7 +455,7 @@ public static class Step242Importer
             var (surfaceGeometryId, surfaceGeometry) = bindSurfaceResult.Value;
             nextSurfaceGeometryId++;
             geometry.AddSurface(surfaceGeometryId, surfaceGeometry);
-            bindings.AddFaceBinding(new FaceGeometryBinding(faceId, surfaceGeometryId));
+            bindings.AddFaceBinding(new FaceGeometryBinding(faceId, surfaceGeometryId, faceSameSenseResult.Value));
         }
 
         foreach (var coedge in coedges)

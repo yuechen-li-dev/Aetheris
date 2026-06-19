@@ -203,7 +203,7 @@ public static class Step242Exporter
                 Step242TextWriter.String(string.Empty),
                 Step242TextWriter.List(loopBoundIds.ToArray()),
                 Step242TextWriter.Ref(surfaceIdResult.Value),
-                Step242TextWriter.BooleanLogical(true));
+                Step242TextWriter.BooleanLogical(faceBinding.SameSense));
 
             faceIds.Add(advancedFaceId);
         }

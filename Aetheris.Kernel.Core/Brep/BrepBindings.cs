@@ -9,7 +9,10 @@ public readonly record struct EdgeGeometryBinding(
     ParameterInterval? TrimInterval = null,
     bool OrientedEdgeSense = true);
 
-public readonly record struct FaceGeometryBinding(FaceId FaceId, SurfaceGeometryId SurfaceGeometryId);
+public readonly record struct FaceGeometryBinding(
+    FaceId FaceId,
+    SurfaceGeometryId SurfaceGeometryId,
+    bool SameSense = true);
 
 /// <summary>
 /// Explicit topology-to-geometry binding container.

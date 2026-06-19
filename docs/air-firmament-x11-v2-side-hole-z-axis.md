@@ -116,3 +116,7 @@ This does not prove mixed-axis support, same-face support, blind holes, oblique 
 ## Next milestone recommendation
 
 AIR-FIRMAMENT-X12 should consolidate controlled opposite-face side-hole route policy into a central route/frame/admissibility table rather than adding more feature surface area.
+
+## X12 follow-up
+
+AIR-FIRMAMENT-X12 consolidates the six X4-X11 controlled opposite-face side-hole routes into `FirmamentV2SideHoleRoutePolicy`; see `docs/air-firmament-x12-side-hole-route-policy.md` for the central route/frame/clearance table.

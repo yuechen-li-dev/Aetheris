@@ -1,0 +1,35 @@
+// fixture-id: side-hole-aliases-reverse-x-v2
+// case: firmament-v2-side-hole-aliases-reverse-x-design
+// category: Region
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: region-parent-integrated
+// expected-parent-integration: Integrated
+// expected-shell-closure: Closed
+// expected-step-smoke: Succeeded
+// expected-feature: sideHole
+
+model SideHoleAliasReverseXV2 {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+
+        expose {
+            face(-X) => left
+            face(+X) => right
+        }
+    }
+
+    modify base {
+        region sideHole on left {
+            cut Cylinder {
+                radius: 1
+                center: [1, 0]
+                through: right
+            }
+        }
+    }
+}

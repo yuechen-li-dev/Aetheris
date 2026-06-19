@@ -1,0 +1,15 @@
+// fixture-id: side-hole-y-axis-not-yet-supported-v2
+// case: firmament-v2-side-hole-y-axis-not-yet-supported-invalid
+// category: Region
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-side-hole-axis-not-yet-supported
+
+model SideHoleYAxisNotYetSupportedV2 {
+    units mm
+    solid base: Box { size: [10, 8, 6] }
+    modify base { region sideHole on face(+Y) { cut Cylinder { radius: 1 through: face(-Y) } } }
+}

@@ -45,6 +45,9 @@ public static class FirmamentV2Parser
     public const string SideHoleAliasMustResolveToFace = "firmament-v2-side-hole-alias-must-resolve-to-face";
     public const string SideHoleAliasResolvesToUnsupportedFace = "firmament-v2-side-hole-alias-resolves-to-unsupported-face";
     public const string SideHoleOnlyPlusXMinusXSupported = "firmament-v2-side-hole-only-plus-x-minus-x-supported";
+    public const string SideHoleRouteUnsupported = "firmament-v2-side-hole-route-unsupported";
+    public const string SideHoleSameFaceUnsupported = "firmament-v2-side-hole-same-face-unsupported";
+    public const string SideHoleAxisNotYetSupported = "firmament-v2-side-hole-axis-not-yet-supported";
     public const string SideHoleRadiusExceedsClearance = "firmament-v2-side-hole-radius-exceeds-clearance";
     public const string CylinderRadiusNotFinite = "firmament-v2-side-hole-radius-not-finite";
     public const string CylinderCenterInvalid = "firmament-v2-cylinder-center-invalid";
@@ -144,7 +147,7 @@ public static class FirmamentV2Parser
         return new(name, "Box", new(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
     }
 
-    private static bool IsFatalDiagnostic(string code) => code is MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance;
+    private static bool IsFatalDiagnostic(string code) => code is MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -234,9 +237,17 @@ public static class FirmamentV2Parser
         if (close < 0) { diagnostics.Add(RegionUnsupported); return null; }
         var cut = ParseCut(body[(open + 1)..close], solid, diagnostics);
         if (attach is null || cut is null) return null;
-        if (attach.Kind == "Alias" && attach.Axis != "+X") diagnostics.Add(SideHoleAliasResolvesToUnsupportedFace);
-        if (cut.Tool.Through.Kind == "Alias" && cut.Tool.Through.Axis != "-X") diagnostics.Add(SideHoleAliasResolvesToUnsupportedFace);
-        if (attach.Axis != "+X" || cut.Tool.Through.Axis != "-X") diagnostics.Add(SideHoleOnlyPlusXMinusXSupported);
+        var supportedCanonical = attach.Axis == "+X" && cut.Tool.Through.Axis == "-X";
+        var supportedReverseX = attach.Axis == "-X" && cut.Tool.Through.Axis == "+X";
+        if (!supportedCanonical && !supportedReverseX)
+        {
+            if (attach.Axis == cut.Tool.Through.Axis) diagnostics.Add(SideHoleSameFaceUnsupported);
+            else if (AxisName(attach.Axis) != AxisName(cut.Tool.Through.Axis)) diagnostics.Add(SideHoleRouteUnsupported);
+            else if (AxisName(attach.Axis) is "Y" or "Z") diagnostics.Add(SideHoleAxisNotYetSupported);
+            else diagnostics.Add(SideHoleRouteUnsupported);
+            if (attach.Kind == "Alias" || cut.Tool.Through.Kind == "Alias") diagnostics.Add(SideHoleAliasResolvesToUnsupportedFace);
+            diagnostics.Add(SideHoleOnlyPlusXMinusXSupported);
+        }
         var yHalfExtent = solid.Box.Size[1] / 2.0;
         var zHalfExtent = solid.Box.Size[2] / 2.0;
         if (cut.Tool.Radius >= Math.Min(yHalfExtent, zHalfExtent)) diagnostics.Add(SideHoleRadiusExceedsClearance);
@@ -278,6 +289,8 @@ public static class FirmamentV2Parser
         if (!double.IsFinite(u) || !double.IsFinite(v)) { diagnostics.Add(CylinderCenterNotFinite); return null; }
         return new FirmamentV2FaceLocalPoint2D(u, v, FirmamentV2FaceLocalPoint2D.PlusXConvention);
     }
+
+    private static string AxisName(string faceAxis) => faceAxis.Length == 2 ? faceAxis[1].ToString() : string.Empty;
 
     private static FirmamentV2FaceSelector? ParseFaceSelector(string selector, string diagnostic, List<string> diagnostics)
     {

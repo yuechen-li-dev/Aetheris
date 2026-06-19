@@ -111,3 +111,7 @@ Recommended next milestone: add a thin explicit V2 side-hole-to-AIR-region adapt
 ## AIR-FIRMAMENT-X6 radius variation follow-up
 
 AIR-FIRMAMENT-X6 keeps the X5 canonical `side-hole-v2` artifact workflow green and extends the same generated-on-demand behavior to controlled non-1 V2 side-hole radius fixtures. Radius-specific fixtures use radius-specific file stems in their own output directories and record the actual radius in trace JSON/text and `manifest.json`; this is still not general side-hole support.
+
+## X7 center-offset artifact note
+
+AIR-FIRMAMENT-X7 keeps canonical centered `side-hole-v2.*` artifact names and extends generated-on-demand stems for offset fixtures, for example `side-hole-center-y1-v2.step`, `side-hole-center-y1-v2.trace.json`, and `side-hole-center-y1-v2.trace.txt`. Separate output directories remain the overwrite-prevention boundary, and manifests now include center evidence when Firmament V2 side-hole semantic intent carries it.

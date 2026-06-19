@@ -84,4 +84,4 @@ The generated-on-demand artifact workflow remains active. Canonical radius `1` k
 
 ## Next milestone recommendation
 
-AIR-FIRMAMENT-X7 — controlled V2 side-hole center offset.
+AIR-FIRMAMENT-X7 — controlled V2 side-hole center offset (implemented as the next bounded variation; see `docs/air-firmament-x7-v2-side-hole-center-offset.md`).

@@ -1,0 +1,27 @@
+// fixture-id: side-hole-center-y-boundary-v2
+// case: firmament-v2-side-hole-center-offset
+// category: Region
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parsed
+// expected-diagnostic: firmament-v2-side-hole-center-exceeds-clearance
+
+model SideHoleCenterYBoundaryV2 {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+    }
+
+    modify base {
+        region sideHole on face(+X) {
+            cut Cylinder {
+                radius: 1
+                center: [3, 0]
+                through: face(-X)
+            }
+        }
+    }
+}

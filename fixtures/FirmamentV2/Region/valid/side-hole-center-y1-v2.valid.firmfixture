@@ -1,0 +1,29 @@
+// fixture-id: side-hole-center-y1-v2
+// case: firmament-v2-side-hole-center-offset
+// category: Region
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: region-parent-integrated
+// expected-parent-integration: Integrated
+// expected-shell-closure: Closed
+// expected-step-smoke: Succeeded
+
+model SideHoleCenterY1V2 {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+    }
+
+    modify base {
+        region sideHole on face(+X) {
+            cut Cylinder {
+                radius: 1
+                center: [1, 0]
+                through: face(-X)
+            }
+        }
+    }
+}

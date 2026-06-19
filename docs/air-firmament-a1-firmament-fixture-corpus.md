@@ -190,3 +190,8 @@ A2.2 expands the `fixtures/FirmamentV2/` metadata-only taxonomy with `RecordDeri
 ## AIR-FIRMAMENT-X6 V2 side-hole radius variation status
 
 The Firmament V2 region corpus now includes controlled valid side-hole radius variation fixtures for radius `0.5` and `1.5`, plus invalid radius fixtures for zero, negative, and clearance-exceeding radii. These fixtures remain parser-backed and bounded to the same `base` Box, `face(+X)` to `face(-X)`, single `cut Cylinder` side-hole path; they do not migrate the broad corpus or add general side-hole support.
+
+
+## AIR-FIRMAMENT-X7 fixture taxonomy update
+
+X7 adds controlled Firmament V2 Region side-hole center-offset fixtures under `fixtures/FirmamentV2/Region/valid` and matching clearance/arity invalid fixtures under `fixtures/FirmamentV2/Region/invalid`. These remain parser-backed controlled Region fixtures, not broad corpus migration or general side-hole support.

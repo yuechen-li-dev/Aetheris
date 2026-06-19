@@ -240,6 +240,53 @@ public sealed class FirmamentV2ParserTests
     }
 
 
+
+    [Fact]
+    public void FirmamentV2SideHoleCenter_ParsesCenterOffsets()
+    {
+        foreach (var (fixture, u, v) in new[] { ("Region/valid/side-hole-center-y1-v2.valid.firmfixture", 1d, 0d), ("Region/valid/side-hole-center-z1-v2.valid.firmfixture", 0d, 1d), ("Region/valid/side-hole-center-y1-z1-v2.valid.firmfixture", 1d, 1d) })
+        {
+            var intent = FirmamentV2Parser.Parse(Source(fixture)).Document!.SideHoleIntent!;
+            Assert.Equal(u, intent.CenterU);
+            Assert.Equal(v, intent.CenterV);
+            Assert.True(intent.CenterExplicit);
+            Assert.Equal("face(+X):u=+Y,v=+Z", intent.CenterSelectorFrame);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleCenter_DefaultsToZeroWhenOmitted()
+    {
+        var intent = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-v2.valid.firmfixture")).Document!.SideHoleIntent!;
+        Assert.Equal(0, intent.CenterU);
+        Assert.Equal(0, intent.CenterV);
+        Assert.False(intent.CenterExplicit);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleCenter_ValidOffsetsReachGoldenPath()
+    {
+        foreach (var fixture in new[] { "Region/valid/side-hole-center-y1-v2.valid.firmfixture", "Region/valid/side-hole-center-z1-v2.valid.firmfixture", "Region/valid/side-hole-center-y1-z1-v2.valid.firmfixture" })
+        {
+            var result = FirmamentFrontendTraceProbe.ParseV2Only(Source(fixture));
+            Assert.True(result.ParseSucceeded, string.Join(", ", result.Diagnostics));
+            Assert.Equal("region-parent-integrated", result.FirmamentV2!.StageReached);
+            Assert.Equal("Integrated", result.FirmamentV2.ParentIntegration);
+            Assert.Equal("Closed", result.FirmamentV2.ShellClosure);
+            Assert.Equal("Succeeded", result.FirmamentV2.StepSmoke);
+            Assert.Null(result.FirmamentV2.Blocker);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleCenter_InvalidDiagnostics()
+    {
+        Assert.Contains(FirmamentV2Parser.SideHoleCenterExceedsClearance, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-center-y-boundary-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SideHoleCenterExceedsClearance, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-center-z-boundary-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.CylinderCenterArityInvalid, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-center-arity-one-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.CylinderCenterArityInvalid, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-center-arity-three-v2.invalid.firmfixture")).Diagnostics);
+    }
+
     [Fact]
     public void FirmamentV2SideHoleRadius_ParsesRadiusVariations()
     {

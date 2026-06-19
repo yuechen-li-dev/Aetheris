@@ -148,7 +148,7 @@ internal static class AirTraceReportBuilder
             ? null
             : new AirTraceConstructiveAirSummary(frontend.ConstructiveAir.NodeKind, frontend.ConstructiveAir.CanonicalForm, frontend.ConstructiveAir.SourceFeatureAirNodeKind, frontend.ConstructiveAir.ProfileKind, frontend.ConstructiveAir.Dimensions.Width, frontend.ConstructiveAir.Dimensions.Depth, frontend.ConstructiveAir.Dimensions.Height, frontend.ConstructiveAir.ExtrusionAxis, frontend.ConstructiveAir.ConstructionIntent, frontend.ConstructiveAir.RouteKind, frontend.ConstructiveAir.StageReached, frontend.ConstructiveAir.Diagnostics, frontend.ConstructiveAir.Guarantees);
 
-        var regions = frontend.FirmamentV2?.SemanticIntent is not null ? AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred() : AirRegionTraceFactory.ForRootBody(actualStage ?? "emitted-brep");
+        var regions = frontend.FirmamentV2?.SemanticIntent is not null ? AirRegionTraceFactory.ForFaceAttachedSideHoleDeferred(frontend.FirmamentV2.SemanticIntent.Radius) : AirRegionTraceFactory.ForRootBody(actualStage ?? "emitted-brep");
         fxDiagnostics = Stable([.. fxDiagnostics, .. regions.Diagnostics]).ToArray();
         var profileEmission = profileEmissionProbe is null ? null : new AirTraceProfileEmissionSummary(
             profileEmissionProbe.WrapperInvoked,

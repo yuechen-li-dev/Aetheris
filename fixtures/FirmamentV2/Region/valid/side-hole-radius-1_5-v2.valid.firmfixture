@@ -1,0 +1,36 @@
+// fixture-id: side-hole-radius-1_5-v2
+// case: firmament-v2-side-hole-radius-1_5
+// category: Region
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: region-parent-integrated
+// expected-parent-integration: Integrated
+// expected-shell-closure: Closed
+// expected-step-smoke: Succeeded
+// expected-feature: sideHole
+// expected-region-kind: FaceAttachedRegion
+// expected-entry-face: +X
+// expected-exit-face: -X
+// expected-tool: Cylinder
+// expected-radius: 1.5
+// parser-backed: true
+// notes: AIR-FIRMAMENT-X6 controlled V2 side-hole radius variation fixture.
+
+model SideHoleRadius15V2 {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+    }
+
+    modify base {
+        region sideHole on face(+X) {
+            cut Cylinder {
+                radius: 1.5
+                through: face(-X)
+            }
+        }
+    }
+}

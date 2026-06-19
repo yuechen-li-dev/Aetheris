@@ -239,6 +239,37 @@ public sealed class FirmamentV2ParserTests
         Assert.Equal("Succeeded", result.FirmamentV2.StepSmoke);
     }
 
+
+    [Fact]
+    public void FirmamentV2SideHoleRadius_ParsesRadiusVariations()
+    {
+        Assert.Equal(0.5, FirmamentV2Parser.Parse(Source("Region/valid/side-hole-radius-0_5-v2.valid.firmfixture")).Document!.SideHoleIntent!.Radius);
+        Assert.Equal(1.5, FirmamentV2Parser.Parse(Source("Region/valid/side-hole-radius-1_5-v2.valid.firmfixture")).Document!.SideHoleIntent!.Radius);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRadius_ValidVariationsReachGoldenPath()
+    {
+        foreach (var fixture in new[] { "Region/valid/side-hole-radius-0_5-v2.valid.firmfixture", "Region/valid/side-hole-radius-1_5-v2.valid.firmfixture" })
+        {
+            var result = FirmamentFrontendTraceProbe.ParseV2Only(Source(fixture));
+            Assert.True(result.ParseSucceeded, string.Join(", ", result.Diagnostics));
+            Assert.Equal("region-parent-integrated", result.FirmamentV2!.StageReached);
+            Assert.Equal("Integrated", result.FirmamentV2.ParentIntegration);
+            Assert.Equal("Closed", result.FirmamentV2.ShellClosure);
+            Assert.Equal("Succeeded", result.FirmamentV2.StepSmoke);
+            Assert.Null(result.FirmamentV2.Blocker);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRadius_InvalidRadiusDiagnostics()
+    {
+        Assert.Contains(FirmamentV2Parser.CylinderRadiusInvalid, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-radius-zero-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.CylinderRadiusInvalid, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-radius-negative-v2.invalid.firmfixture")).Diagnostics);
+        Assert.Contains(FirmamentV2Parser.SideHoleRadiusExceedsClearance, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-radius-too-large-v2.invalid.firmfixture")).Diagnostics);
+    }
+
     [Fact]
     public void FirmamentV2Parser_SideHole_InvalidAttachFaceDiagnostic()
     {

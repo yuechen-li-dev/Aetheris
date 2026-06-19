@@ -42,6 +42,7 @@ public static class FirmamentV2Parser
     public const string ThroughSelectorUnsupported = "firmament-v2-through-selector-unsupported";
     public const string SideHoleOnlyPlusXMinusXSupported = "firmament-v2-side-hole-only-plus-x-minus-x-supported";
     public const string SideHoleRadiusExceedsClearance = "firmament-v2-side-hole-radius-exceeds-clearance";
+    public const string CylinderRadiusNotFinite = "firmament-v2-side-hole-radius-not-finite";
 
     private static readonly Regex ModelRegex = new(@"\bmodel\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex UnitsRegex = new(@"\bunits\s+(?<units>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
@@ -55,7 +56,7 @@ public static class FirmamentV2Parser
     private static readonly Regex ModifyHeaderRegex = new(@"\bmodify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex RegionHeaderRegex = new(@"\bregion\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s+on\s+(?<selector>face\([^)]*\))\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CutHeaderRegex = new(@"\bcut\s+(?<tool>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex RadiusRegex = new(@"\bradius\s*:\s*(?<value>[-+]?[0-9]+(?:\.[0-9]+)?)", RegexOptions.CultureInvariant);
+    private static readonly Regex RadiusRegex = new(@"\bradius\s*:\s*(?<value>[^\s}]+)", RegexOptions.CultureInvariant);
     private static readonly Regex ThroughRegex = new(@"\bthrough\s*:\s*(?<selector>face\([^)]*\))", RegexOptions.CultureInvariant);
 
     public static FirmamentV2ParseResult Parse(string sourceText)
@@ -134,7 +135,7 @@ public static class FirmamentV2Parser
         return new(name, "Box", new(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
     }
 
-    private static bool IsFatalDiagnostic(string code) => code is MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or ThroughSelectorUnsupported or SideHoleOnlyPlusXMinusXSupported or SideHoleRadiusExceedsClearance;
+    private static bool IsFatalDiagnostic(string code) => code is MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or SideHoleOnlyPlusXMinusXSupported or SideHoleRadiusExceedsClearance;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -242,7 +243,9 @@ public static class FirmamentV2Parser
         var toolBody = body[(open + 1)..close];
         var radiusMatch = RadiusRegex.Match(toolBody);
         if (!radiusMatch.Success) { diagnostics.Add(CylinderRadiusMissing); return null; }
-        if (!double.TryParse(radiusMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius) || radius <= 0) { diagnostics.Add(CylinderRadiusInvalid); return null; }
+        if (!double.TryParse(radiusMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius)) { diagnostics.Add(CylinderRadiusInvalid); return null; }
+        if (!double.IsFinite(radius)) { diagnostics.Add(CylinderRadiusNotFinite); return null; }
+        if (radius <= 0) { diagnostics.Add(CylinderRadiusInvalid); return null; }
         var throughMatch = ThroughRegex.Match(toolBody);
         var through = throughMatch.Success ? ParseFaceSelector(throughMatch.Groups["selector"].Value, ThroughSelectorUnsupported, diagnostics) : null;
         if (through is null) { diagnostics.Add(ThroughSelectorUnsupported); return null; }

@@ -16,7 +16,7 @@ internal static class SideHoleGoldenPathArtifacts
     public static AirTraceArtifactsSummary Write(string outDir, AirTraceReport report)
     {
         Directory.CreateDirectory(outDir);
-        var stem = IsFirmamentV2SideHole(report) ? "side-hole-v2" : "side-hole";
+        var stem = IsFirmamentV2SideHole(report) ? V2Stem(report) : "side-hole";
         var artifacts = new AirTraceArtifactsSummary(
             Path.Combine(outDir, stem + ".step"),
             Path.Combine(outDir, stem + ".trace.json"),
@@ -28,13 +28,16 @@ internal static class SideHoleGoldenPathArtifacts
 
     public static string Manifest(AirTraceReport report, AirTraceArtifactsSummary artifacts) => JsonSerializer.Serialize(new
     {
-        milestone = IsFirmamentV2SideHole(report) ? "AIR-FIRMAMENT-X5" : "AIR-REGION-X13",
+        milestone = IsFirmamentV2SideHole(report) ? "AIR-FIRMAMENT-X6" : "AIR-REGION-X13",
         syntaxVersion = report.FirmamentV2?.SyntaxVersion,
         fixture = report.FixturePath,
         stage = report.ActualStageReached,
         parentIntegration = report.FirmamentV2?.ParentIntegration ?? "Integrated",
         shellClosure = report.FirmamentV2?.ShellClosure ?? "Closed",
         stepSmoke = report.FirmamentV2?.StepSmoke ?? "Succeeded",
+        radius = report.FirmamentV2?.SemanticIntent?.Radius,
+        tool = report.FirmamentV2?.SemanticIntent?.Tool,
+        throughSelector = report.FirmamentV2?.SemanticIntent is null ? null : $"face({report.FirmamentV2.SemanticIntent.ThroughFace})",
         step = Path.GetFileName(artifacts.Step),
         traceJson = Path.GetFileName(artifacts.TraceJson),
         traceText = Path.GetFileName(artifacts.TraceText),
@@ -46,6 +49,14 @@ internal static class SideHoleGoldenPathArtifacts
     private static bool IsFirmamentV2SideHole(AirTraceReport report) =>
         report.FirmamentV2 is { SyntaxVersion: "FirmamentV2", SemanticIntent: not null };
 
+    private static string V2Stem(AirTraceReport report)
+    {
+        var radius = report.FirmamentV2!.SemanticIntent!.Radius;
+        if (Math.Abs(radius - 1.0) < 1e-12) return "side-hole-v2";
+        var token = radius.ToString("0.############", System.Globalization.CultureInfo.InvariantCulture).Replace('.', '_');
+        return $"side-hole-radius-{token}-v2";
+    }
+
     private static string StepText(AirTraceReport report, string stem) => "ISO-10303-21;\n" +
         "HEADER;\nFILE_DESCRIPTION(('AIR-REGION-X13 controlled side-hole golden path artifact'),'2;1');\n" +
         $"FILE_NAME('{stem}.step','2026-06-18T00:00:00Z',('Aetheris'),('Aetheris'),'Aetheris.CLI trace','Aetheris','');\n" +
@@ -55,7 +66,7 @@ internal static class SideHoleGoldenPathArtifacts
         "/* stage=region-parent-integrated; parentIntegration=Integrated; shellClosure=Closed; stepSmoke=Succeeded */\n" +
         "/* materialized: CutEntryLoop, CutExitLoop, CutWallFace, RegionIntegrationPatchConsumed */\n" +
         "/* cylindrical cut wall evidence; CIR analysis-only; Boolean unused/not generally admitted */\n" +
-        $"#1=PRODUCT('{(IsFirmamentV2SideHole(report) ? "AIR-FIRMAMENT-X5-SIDE-HOLE-V2" : "AIR-REGION-X13-SIDE-HOLE")}','controlled side-hole golden path','generated-on-demand fixture artifact',());\n" +
+        $"#1=PRODUCT('{(IsFirmamentV2SideHole(report) ? "AIR-FIRMAMENT-X6-SIDE-HOLE-V2" : "AIR-REGION-X13-SIDE-HOLE")}','controlled side-hole golden path','generated-on-demand fixture artifact',());\n" +
         "ENDSEC;\nEND-ISO-10303-21;\n";
 }
 

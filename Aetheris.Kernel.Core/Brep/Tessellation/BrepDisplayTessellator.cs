@@ -43,6 +43,88 @@ public static class BrepDisplayTessellator
         TimeSpan? executionTimeout = null)
         => TessellateCore(body, options, new DisplayTessellationExecutionBudget(executionTimeout ?? TimeSpan.FromSeconds(5)));
 
+
+    public static DisplayTessellationResult TessellateBoundedPartial(
+        BrepBody body,
+        DisplayTessellationOptions? options = null,
+        TimeSpan? executionTimeout = null)
+    {
+        var effectiveOptions = options ?? DisplayTessellationOptions.Default;
+        var executionBudget = new DisplayTessellationExecutionBudget(executionTimeout ?? TimeSpan.FromSeconds(5));
+        var facePatches = new List<DisplayFaceMeshPatch>();
+        var faceDiagnostics = new List<DisplayFaceMaterializationDiagnostic>();
+
+        foreach (var face in body.Topology.Faces.OrderBy(f => f.Id.Value))
+        {
+            var surfaceKind = TryGetSurfaceKind(body, face.Id);
+            try
+            {
+                executionBudget.ThrowIfExpired("FaceDispatch", face.Id, surfaceKind);
+                var faceResult = ExecuteWithinOptionalBudget(
+                    () => TessellateFace(body, face.Id, effectiveOptions, executionBudget),
+                    executionBudget,
+                    "FaceTessellation",
+                    face.Id,
+                    surfaceKind,
+                    executionBudget.Remaining + TimeSpan.FromMilliseconds(250));
+
+                if (faceResult.IsSuccess)
+                {
+                    facePatches.Add(faceResult.Value);
+                    continue;
+                }
+
+                foreach (var diagnostic in faceResult.Diagnostics)
+                {
+                    faceDiagnostics.Add(new DisplayFaceMaterializationDiagnostic(
+                        face.Id,
+                        surfaceKind?.ToString(),
+                        ExtractPhase(diagnostic.Message),
+                        diagnostic.Source ?? diagnostic.Code.ToString(),
+                        diagnostic.Message));
+                }
+            }
+            catch (DisplayTessellationTimeoutException ex)
+            {
+                faceDiagnostics.Add(new DisplayFaceMaterializationDiagnostic(
+                    ex.FaceId ?? face.Id,
+                    ex.SurfaceKind?.ToString() ?? surfaceKind?.ToString(),
+                    ex.Phase,
+                    "Viewer.Tessellation.Timeout",
+                    ex.Message));
+            }
+        }
+
+        var edgePolylines = new List<DisplayEdgePolyline>();
+        foreach (var edge in body.Topology.Edges.OrderBy(e => e.Id.Value))
+        {
+            try
+            {
+                var edgeResult = TessellateEdge(body, edge.Id, effectiveOptions);
+                if (edgeResult.IsSuccess)
+                {
+                    edgePolylines.Add(edgeResult.Value);
+                }
+            }
+            catch (DisplayTessellationTimeoutException)
+            {
+                break;
+            }
+        }
+
+        return new DisplayTessellationResult(facePatches, edgePolylines, faceDiagnostics);
+    }
+
+    private static string ExtractPhase(string message)
+    {
+        const string marker = "during phase '";
+        var start = message.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0) return "FaceTessellation";
+        start += marker.Length;
+        var end = message.IndexOf('\'', start);
+        return end > start ? message[start..end] : "FaceTessellation";
+    }
+
     private static KernelResult<DisplayTessellationResult> TessellateCore(
         BrepBody body,
         DisplayTessellationOptions? options,
@@ -262,7 +344,7 @@ public static class BrepDisplayTessellator
                 return KernelResult<DisplayFaceMeshPatch>.Failure(triangulationResult.Diagnostics);
             }
 
-            return KernelResult<DisplayFaceMeshPatch>.Success(CreateEmptyPlanarPatch(faceId), triangulationResult.Diagnostics);
+            return KernelResult<DisplayFaceMeshPatch>.Success(CreateEmptyPlanarPatch(faceId), triangulationResult.Diagnostics.Where(diagnostic => diagnostic.Severity != KernelDiagnosticSeverity.Error));
         }
 
         return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, triangulationResult.Value.Points, plane.Normal.ToVector(), triangulationResult.Value.Indices));

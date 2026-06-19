@@ -259,15 +259,16 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
             new DisplayPrepareRequestDto(null),
             cts.Token);
 
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, prepareResponse.StatusCode);
-        var payload = await prepareResponse.Content.ReadFromJsonAsync<ApiResponseDto<object>>(cts.Token);
+        prepareResponse.EnsureSuccessStatusCode();
+        var payload = await prepareResponse.Content.ReadFromJsonAsync<ApiResponseDto<DisplayPreparationResponseDto>>(cts.Token);
         Assert.NotNull(payload);
-        Assert.False(payload!.Success);
-        Assert.Contains(payload.Diagnostics, diagnostic => diagnostic.Source == "Viewer.Tessellation.Timeout");
-        Assert.Contains(payload.Diagnostics, diagnostic => diagnostic.Message.Contains("face", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(payload.Diagnostics, diagnostic =>
-            diagnostic.Message.Contains("PlanarTriangulationWithHoles", StringComparison.Ordinal)
-            || diagnostic.Message.Contains("FaceTessellation", StringComparison.Ordinal));
+        Assert.True(payload!.Success);
+        Assert.NotNull(payload.Data);
+        Assert.Equal("BRep", payload.Data.SourceAuthority);
+        Assert.Equal("DisplayIR", payload.Data.DisplayAuthority);
+        Assert.Contains(payload.Data.Faces ?? [], face => face.Status == "DiagnosticOnly");
+        Assert.Contains(payload.Data.Diagnostics ?? [], diagnostic => diagnostic.Code == "Viewer.Tessellation.Timeout");
+        Assert.Contains(payload.Data.Diagnostics ?? [], diagnostic => diagnostic.Phase == "PlanarTriangulationWithHoles" || diagnostic.Phase == "FaceTessellation");
     }
 
     [Fact]

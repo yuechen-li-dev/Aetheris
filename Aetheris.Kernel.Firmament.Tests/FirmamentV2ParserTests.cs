@@ -608,6 +608,117 @@ public sealed class FirmamentV2ParserTests
         Assert.Contains(FirmamentV2Parser.SideHoleRouteUnsupported, FirmamentV2Parser.Parse(Source("Region/invalid/side-hole-alias-z-wrong-through-v2.invalid.firmfixture")).Diagnostics);
     }
 
+
+    [Fact]
+    public void FirmamentV2SideHoleRoutePolicy_AllSixRoutesAreSupported()
+    {
+        var size = new double[] { 10, 8, 6 };
+        foreach (var (attach, through) in new[] { ("+X", "-X"), ("-X", "+X"), ("+Y", "-Y"), ("-Y", "+Y"), ("+Z", "-Z"), ("-Z", "+Z") })
+        {
+            var result = FirmamentV2SideHoleRoutePolicy.Resolve(attach, through, size, radius: 1);
+            Assert.True(result.IsSupported, $"{attach}->{through}: {result.Diagnostic}");
+            Assert.Equal($"{attach}->{through}", result.Route!.Direction);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRoutePolicy_RouteFramesAreCorrect()
+    {
+        var size = new double[] { 10, 8, 6 };
+        Assert.Equal(("+Y", "+Z", "face(+X):u=+Y,v=+Z"), Frame("+X", "-X"));
+        Assert.Equal(("+Y", "+Z", "face(-X):u=+Y,v=+Z"), Frame("-X", "+X"));
+        Assert.Equal(("+X", "+Z", "face(+Y):u=+X,v=+Z"), Frame("+Y", "-Y"));
+        Assert.Equal(("+X", "+Z", "face(-Y):u=+X,v=+Z"), Frame("-Y", "+Y"));
+        Assert.Equal(("+X", "+Y", "face(+Z):u=+X,v=+Y"), Frame("+Z", "-Z"));
+        Assert.Equal(("+X", "+Y", "face(-Z):u=+X,v=+Y"), Frame("-Z", "+Z"));
+
+        (string U, string V, string CenterFrame) Frame(string attach, string through)
+        {
+            var route = FirmamentV2SideHoleRoutePolicy.Resolve(attach, through, size, radius: 1).Route!;
+            return (route.UAxis, route.VAxis, route.CenterFrame);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRoutePolicy_ClearanceUsesCorrectHalfExtents()
+    {
+        var size = new double[] { 10, 8, 6 };
+        Assert.Equal((4, 3), Extents("+X", "-X"));
+        Assert.Equal((4, 3), Extents("-X", "+X"));
+        Assert.Equal((5, 3), Extents("+Y", "-Y"));
+        Assert.Equal((5, 3), Extents("-Y", "+Y"));
+        Assert.Equal((5, 4), Extents("+Z", "-Z"));
+        Assert.Equal((5, 4), Extents("-Z", "+Z"));
+
+        (double U, double V) Extents(string attach, string through)
+        {
+            var route = FirmamentV2SideHoleRoutePolicy.Resolve(attach, through, size, radius: 1).Route!;
+            return (route.UHalfExtent, route.VHalfExtent);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRoutePolicy_RejectsSameFace()
+    {
+        var result = FirmamentV2SideHoleRoutePolicy.Resolve("+X", "+X", new double[] { 10, 8, 6 }, radius: 1);
+        Assert.False(result.IsSupported);
+        Assert.Equal(FirmamentV2Parser.SideHoleSameFaceUnsupported, result.Diagnostic);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRoutePolicy_RejectsMixedAxis()
+    {
+        var result = FirmamentV2SideHoleRoutePolicy.Resolve("+Z", "+X", new double[] { 10, 8, 6 }, radius: 1);
+        Assert.False(result.IsSupported);
+        Assert.Equal(FirmamentV2Parser.SideHoleRouteUnsupported, result.Diagnostic);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRoutePolicy_RejectsCenterBoundary()
+    {
+        var result = FirmamentV2SideHoleRoutePolicy.Resolve("+Z", "-Z", new double[] { 10, 8, 6 }, radius: 1, centerU: 4, centerV: 0);
+        Assert.False(result.IsSupported);
+        Assert.Equal(FirmamentV2Parser.SideHoleCenterExceedsClearance, result.Diagnostic);
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRoutePolicy_DirectFixturesStillGreen()
+    {
+        foreach (var fixture in new[] { "Region/valid/side-hole-v2.valid.firmfixture", "Region/valid/side-hole-y-axis-v2.valid.firmfixture", "Region/valid/side-hole-z-axis-v2.valid.firmfixture" })
+        {
+            var result = FirmamentFrontendTraceProbe.ParseV2Only(Source(fixture));
+            Assert.True(result.ParseSucceeded, fixture + ": " + string.Join(", ", result.Diagnostics));
+            Assert.Equal("Integrated", result.FirmamentV2!.ParentIntegration);
+            Assert.Equal("Closed", result.FirmamentV2.ShellClosure);
+            Assert.Equal("Succeeded", result.FirmamentV2.StepSmoke);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2SideHoleRoutePolicy_AliasFixturesStillGreen()
+    {
+        foreach (var fixture in new[] { "Region/valid/side-hole-aliases-v2.valid.firmfixture", "Region/valid/side-hole-aliases-y-axis-v2.valid.firmfixture", "Region/valid/side-hole-aliases-z-axis-v2.valid.firmfixture" })
+        {
+            var result = FirmamentFrontendTraceProbe.ParseV2Only(Source(fixture));
+            Assert.True(result.ParseSucceeded, fixture + ": " + string.Join(", ", result.Diagnostics));
+            Assert.Equal("Integrated", result.FirmamentV2!.ParentIntegration);
+            Assert.Equal("Closed", result.FirmamentV2.ShellClosure);
+            Assert.Equal("Succeeded", result.FirmamentV2.StepSmoke);
+        }
+    }
+
+    [Fact]
+    public void FirmamentV2_AllPriorSideHoleMilestonesRemainGreen()
+    {
+        foreach (var fixture in Directory.EnumerateFiles(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Region/valid")), "side-hole*.valid.firmfixture"))
+        {
+            var lines = File.ReadAllLines(fixture);
+            var bodyStart = Array.FindIndex(lines, line => !string.IsNullOrWhiteSpace(line) && !line.TrimStart().StartsWith("//", StringComparison.Ordinal));
+            var result = FirmamentFrontendTraceProbe.ParseV2Only(string.Join(Environment.NewLine, lines.Skip(Math.Max(0, bodyStart))));
+            Assert.True(result.ParseSucceeded, Path.GetFileName(fixture) + ": " + string.Join(", ", result.Diagnostics));
+        }
+    }
+
     private static string Source(string relative)
     {
         var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));

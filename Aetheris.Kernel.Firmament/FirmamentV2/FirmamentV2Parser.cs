@@ -237,30 +237,15 @@ public static class FirmamentV2Parser
         if (close < 0) { diagnostics.Add(RegionUnsupported); return null; }
         var cut = ParseCut(body[(open + 1)..close], solid, diagnostics);
         if (attach is null || cut is null) return null;
-        var supportedCanonical = attach.Axis == "+X" && cut.Tool.Through.Axis == "-X";
-        var supportedReverseX = attach.Axis == "-X" && cut.Tool.Through.Axis == "+X";
-        var supportedY = (attach.Axis == "+Y" && cut.Tool.Through.Axis == "-Y") || (attach.Axis == "-Y" && cut.Tool.Through.Axis == "+Y");
-        var supportedZ = (attach.Axis == "+Z" && cut.Tool.Through.Axis == "-Z") || (attach.Axis == "-Z" && cut.Tool.Through.Axis == "+Z");
-        if (!supportedCanonical && !supportedReverseX && !supportedY && !supportedZ)
-        {
-            if (attach.Axis == cut.Tool.Through.Axis) diagnostics.Add(SideHoleSameFaceUnsupported);
-            else if (AxisName(attach.Axis) != AxisName(cut.Tool.Through.Axis)) diagnostics.Add(SideHoleRouteUnsupported);
-            else diagnostics.Add(SideHoleRouteUnsupported);
-            if (attach.Kind == "Alias" || cut.Tool.Through.Kind == "Alias") diagnostics.Add(SideHoleAliasResolvesToUnsupportedFace);
-            diagnostics.Add(SideHoleOnlyPlusXMinusXSupported);
-        }
-        var axis = AxisName(attach.Axis);
-        var uHalfExtent = axis switch
-        {
-            "Y" => solid.Box.Size[0] / 2.0,
-            "Z" => solid.Box.Size[0] / 2.0,
-            _ => solid.Box.Size[1] / 2.0
-        };
-        var vHalfExtent = axis == "Z" ? solid.Box.Size[1] / 2.0 : solid.Box.Size[2] / 2.0;
-        if (cut.Tool.Radius >= Math.Min(uHalfExtent, vHalfExtent)) diagnostics.Add(SideHoleRadiusExceedsClearance);
         var centerU = cut.Tool.Center?.U ?? 0;
         var centerV = cut.Tool.Center?.V ?? 0;
-        if (Math.Abs(centerU) + cut.Tool.Radius >= uHalfExtent || Math.Abs(centerV) + cut.Tool.Radius >= vHalfExtent) diagnostics.Add(SideHoleCenterExceedsClearance);
+        var route = FirmamentV2SideHoleRoutePolicy.Resolve(attach.Axis, cut.Tool.Through.Axis, solid.Box.Size, cut.Tool.Radius, centerU, centerV);
+        if (!route.IsSupported)
+        {
+            diagnostics.Add(route.Diagnostic!);
+            if (route.Diagnostic is SideHoleRouteUnsupported && (attach.Kind == "Alias" || cut.Tool.Through.Kind == "Alias")) diagnostics.Add(SideHoleAliasResolvesToUnsupportedFace);
+            diagnostics.Add(SideHoleOnlyPlusXMinusXSupported);
+        }
         return diagnostics.Any(IsFatalDiagnostic) ? null : new(rm.Groups["name"].Value, "FaceAttachedRegion", attach, cut);
     }
 
@@ -297,7 +282,6 @@ public static class FirmamentV2Parser
         return new FirmamentV2FaceLocalPoint2D(u, v, string.Empty);
     }
 
-    private static string AxisName(string faceAxis) => faceAxis.Length == 2 ? faceAxis[1].ToString() : string.Empty;
 
     private static FirmamentV2FaceSelector? ParseFaceSelector(string selector, string diagnostic, List<string> diagnostics)
     {

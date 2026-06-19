@@ -300,29 +300,30 @@ public static class KernelEndpoints
                 var analyticDto = ApiMappings.ToAnalyticDisplayPacketResponse(analyticPacket);
                 var lane = ResolveDisplayLane(analyticPacket);
                 TessellationResponseDto? tessellationFallback = null;
+                DisplayTessellationResult? boundedMeshResult = null;
                 var displayDiagnostics = new List<DisplayDiagnosticDto>();
 
                 if (lane is not "analytic-only")
                 {
                     var options = ApiMappings.BuildTessellationOptions(request?.TessellationOptions);
-                    var completeFallback = DisplayPreparationFallbackBuilder.Build(body, options);
-                    var fallbackResult = completeFallback.IsSuccess
-                        ? completeFallback.Value
+                    var completeBoundedMesh = DisplayPreparationFallbackBuilder.Build(body, options);
+                    boundedMeshResult = completeBoundedMesh.IsSuccess
+                        ? completeBoundedMesh.Value
                         : BrepDisplayTessellator.TessellateBoundedPartial(body, options);
 
                     tessellationFallback = document.TryGetBodyTransform(bodyId, out var fallbackTransform)
-                        ? ApiMappings.ToTessellationResponse(fallbackResult, fallbackTransform)
-                        : ApiMappings.ToTessellationResponse(fallbackResult);
+                        ? ApiMappings.ToTessellationResponse(boundedMeshResult, fallbackTransform)
+                        : ApiMappings.ToTessellationResponse(boundedMeshResult);
 
-                    if (!completeFallback.IsSuccess && fallbackResult.FaceDiagnostics is { Count: > 0 })
+                    if (!completeBoundedMesh.IsSuccess && boundedMeshResult.FaceDiagnostics is { Count: > 0 })
                     {
-                        displayDiagnostics.AddRange(fallbackResult.FaceDiagnostics.Select(diagnostic => new DisplayDiagnosticDto(
+                        displayDiagnostics.AddRange(boundedMeshResult.FaceDiagnostics.Select(diagnostic => new DisplayDiagnosticDto(
                             diagnostic.Code,
                             diagnostic.Message,
                             diagnostic.FaceId?.Value,
                             diagnostic.SurfaceKind,
                             diagnostic.Phase,
-                            "Keep the valid BRep/import result and use diagnostic/proxy display for this face until a bounded display lane supports it.")));
+                            "Use wire/proxy display or retry with explicit bounded mesh lowering.")));
                     }
                 }
 
@@ -341,6 +342,7 @@ public static class KernelEndpoints
                     diagnosticsByFace.TryGetValue(face.Id.Value, out var faceDiagnostics);
                     var status = analyticFace is not null ? "Analytic" : meshPatch is not null ? "Mesh" : faceDiagnostics is { Count: > 0 } ? "DiagnosticOnly" : "Omitted";
                     var patchKind = analyticFace is not null ? "AnalyticPatch" : meshPatch is not null ? "MeshPatch" : faceDiagnostics is { Count: > 0 } ? "DiagnosticPatch" : "DiagnosticPatch";
+                    var materializationLane = analyticFace is not null ? "AnalyticPatch" : meshPatch is not null ? "BoundedMesh" : faceDiagnostics is { Count: > 0 } ? "BoundedMesh" : "DiagnosticOnly";
                     return new DisplayFaceDto(
                         face.Id.Value,
                         analyticFace?.ShellId ?? fallbackFace?.ShellId,
@@ -349,6 +351,7 @@ public static class KernelEndpoints
                         patchKind,
                         meshPatch,
                         analyticFace,
+                        materializationLane,
                         faceDiagnostics ?? []);
                 }).ToArray();
 
@@ -359,7 +362,36 @@ public static class KernelEndpoints
                     displayDiagnostics.Insert(0, new DisplayDiagnosticDto("Viewer.Display.Partial", "Display preparation completed with one or more diagnostic-only faces.", null, null, null, null));
                 }
 
-                var lanes = faces.Select(face => face.PatchKind).Distinct().ToArray();
+                var displayLanes = new List<DisplayLaneDto>();
+                var analyticFaceCount = faces.Count(face => face.MaterializationLane == "AnalyticPatch");
+                if (analyticFaceCount > 0)
+                {
+                    displayLanes.Add(new DisplayLaneDto("AnalyticPatch", "Complete", "BRep", "DisplayIR", null, "Default", null, analyticFaceCount, 0));
+                }
+
+                if (boundedMeshResult is not null)
+                {
+                    var boundedMeshDiagnostics = boundedMeshResult.FaceDiagnostics?.Count ?? 0;
+                    var boundedMeshFaceCount = faces.Count(face => face.MaterializationLane == "BoundedMesh" && face.Status == "Mesh");
+                    var boundedMeshStatus = boundedMeshDiagnostics > 0 ? (boundedMeshFaceCount > 0 ? "Partial" : "Failed") : "Complete";
+                    displayLanes.Add(new DisplayLaneDto(
+                        "BoundedMesh",
+                        boundedMeshStatus,
+                        "BRep",
+                        "DisplayIR",
+                        "BrepDisplayTessellator",
+                        "Default",
+                        5000,
+                        boundedMeshFaceCount,
+                        boundedMeshDiagnostics));
+                }
+
+                if (faces.Any(face => face.Status == "DiagnosticOnly"))
+                {
+                    displayLanes.Add(new DisplayLaneDto("DiagnosticOnly", status, "DisplayIR", "DisplayIR", null, "Diagnostic", null, faces.Count(face => face.Status == "DiagnosticOnly"), displayDiagnostics.Count));
+                }
+
+                var lanes = displayLanes.Select(displayLane => displayLane.Kind).ToArray();
                 return ApiMappings.Ok(new DisplayPreparationResponseDto(
                     lane,
                     analyticDto,
@@ -369,7 +401,8 @@ public static class KernelEndpoints
                     "DisplayIR",
                     lanes,
                     faces,
-                    displayDiagnostics));
+                    displayDiagnostics,
+                    displayLanes));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/pick", (Guid documentId, Guid bodyId, PickRequestDto request, KernelDocumentStore store) =>

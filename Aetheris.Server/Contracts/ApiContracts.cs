@@ -154,7 +154,8 @@ public sealed record DisplayPreparationResponseDto(
     string DisplayAuthority = "DisplayIR",
     IReadOnlyList<string>? Lanes = null,
     IReadOnlyList<DisplayFaceDto>? Faces = null,
-    IReadOnlyList<DisplayDiagnosticDto>? Diagnostics = null);
+    IReadOnlyList<DisplayDiagnosticDto>? Diagnostics = null,
+    IReadOnlyList<DisplayLaneDto>? DisplayLanes = null);
 
 public sealed record DisplayFaceDto(
     int FaceId,
@@ -164,7 +165,19 @@ public sealed record DisplayFaceDto(
     string PatchKind,
     FacePatchDto? MeshPatch,
     AnalyticDisplayFaceDto? AnalyticPatch,
+    string? MaterializationLane,
     IReadOnlyList<DisplayDiagnosticDto> Diagnostics);
+
+public sealed record DisplayLaneDto(
+    string Kind,
+    string Status,
+    string Source,
+    string DisplayAuthority,
+    string? Implementation,
+    string? Quality,
+    int? TimeoutMs,
+    int FaceCount,
+    int DiagnosticCount);
 
 public sealed record DisplayDiagnosticDto(
     string Code,

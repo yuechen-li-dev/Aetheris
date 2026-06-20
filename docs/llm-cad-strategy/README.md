@@ -46,6 +46,7 @@ Treat the notes as guidance for reasoning. Do not treat them as permission to ch
 - [05 — CAD as semantic dependency graph](05-cad-as-semantic-dependency-graph.md)
 - [06 — Profiles as constructive regions](06-profiles-as-constructive-regions.md)
 - [07 — Holes are semantic features](07-holes-are-semantic-features.md)
+- [08 — Edge finish and fillet/chamfer intent](08-edge-finish-and-fillet-chamfer-intent.md)
 - [99 — Glossary](99-glossary.md)
 
 ## How to add future lessons

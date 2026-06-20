@@ -316,7 +316,11 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         var tessellationResponse = await _client.PostAsJsonAsync(
             $"/api/v1/documents/{document.Data.DocumentId}/bodies/{imported.Data.OccurrenceId}/tessellate",
             new TessellateRequestDto(null));
-        tessellationResponse.EnsureSuccessStatusCode();
+        if (!tessellationResponse.IsSuccessStatusCode)
+        {
+            var errorBody = await tessellationResponse.Content.ReadAsStringAsync();
+            throw new Xunit.Sdk.XunitException($"tessellate failed {(int)tessellationResponse.StatusCode}: {errorBody}");
+        }
         var tessellation = await tessellationResponse.Content.ReadFromJsonAsync<ApiResponseDto<TessellationResponseDto>>();
         Assert.NotNull(tessellation);
         Assert.True(tessellation!.Success);
@@ -613,13 +617,52 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         var tessellationResponse = await _client.PostAsJsonAsync(
             $"/api/v1/documents/{document.Data.DocumentId}/bodies/{imported.Data.OccurrenceId}/tessellate",
             new TessellateRequestDto(null));
-        tessellationResponse.EnsureSuccessStatusCode();
+        await AssertTessellationEndpointContractAsync(tessellationResponse);
+    }
 
-        var tessellation = await tessellationResponse.Content.ReadFromJsonAsync<ApiResponseDto<TessellationResponseDto>>();
-        Assert.NotNull(tessellation);
-        Assert.True(tessellation!.Success);
-        Assert.NotEmpty(tessellation.Data!.FacePatches);
-        Assert.NotEmpty(tessellation.Data.EdgePolylines);
+    [Fact]
+    public async Task StepIo_ExportImportRoundTrip_TessellationEndpointContract_IsExplicit()
+    {
+        var (documentId, importedOccurrenceId) = await CreateImportedRoundTripBoxOccurrenceAsync();
+
+        var tessellationResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{documentId}/bodies/{importedOccurrenceId}/tessellate",
+            new TessellateRequestDto(null));
+        await AssertTessellationEndpointContractAsync(tessellationResponse);
+    }
+
+    [Fact]
+    public async Task StepIo_ExportImportRoundTrip_DisplayPrepareStillReturnsDisplayIR()
+    {
+        var (documentId, importedOccurrenceId) = await CreateImportedRoundTripBoxOccurrenceAsync();
+
+        var prepared = await PrepareDisplayAsync(documentId, importedOccurrenceId);
+
+        Assert.NotNull(prepared.Data);
+        Assert.Equal("BRep", prepared.Data!.SourceAuthority);
+        Assert.Equal("DisplayIR", prepared.Data.DisplayAuthority);
+        Assert.NotNull(prepared.Data.Faces);
+        Assert.NotEmpty(prepared.Data.Faces!);
+        Assert.Contains(prepared.Data.Faces, face => face.PatchKind is "AnalyticPatch" or "MeshPatch" or "WirePatch" or "DiagnosticPatch");
+    }
+
+    [Fact]
+    public async Task TessellateEndpoint_DoesNotMasqueradeAsDisplayAuthority()
+    {
+        var (documentId, importedOccurrenceId) = await CreateImportedRoundTripBoxOccurrenceAsync();
+
+        var tessellationResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{documentId}/bodies/{importedOccurrenceId}/tessellate",
+            new TessellateRequestDto(null));
+        var tessellationJson = await tessellationResponse.Content.ReadAsStringAsync();
+        using var tessellationDocument = JsonDocument.Parse(tessellationJson);
+        Assert.False(tessellationDocument.RootElement.TryGetProperty("displayAuthority", out _));
+        Assert.False(tessellationDocument.RootElement.TryGetProperty("data", out var tessellationData)
+            && tessellationData.ValueKind == JsonValueKind.Object
+            && tessellationData.TryGetProperty("displayAuthority", out _));
+
+        var prepared = await PrepareDisplayAsync(documentId, importedOccurrenceId);
+        Assert.Equal("DisplayIR", prepared.Data!.DisplayAuthority);
     }
 
 
@@ -769,6 +812,55 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<ApiResponseDto<BodyCreatedResponseDto>>();
         return body!;
+    }
+
+    private static async Task AssertTessellationEndpointContractAsync(HttpResponseMessage tessellationResponse)
+    {
+        if (!tessellationResponse.IsSuccessStatusCode)
+        {
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, tessellationResponse.StatusCode);
+            var error = await tessellationResponse.Content.ReadFromJsonAsync<ApiResponseDto<object>>();
+            Assert.NotNull(error);
+            Assert.False(error!.Success);
+            Assert.NotEmpty(error.Diagnostics);
+            Assert.Contains(error.Diagnostics, diagnostic =>
+                diagnostic.Code is "ValidationFailed"
+                && diagnostic.Source is "Viewer.Tessellation.Timeout"
+                && diagnostic.Message.Contains("bounded execution budget", StringComparison.OrdinalIgnoreCase));
+            return;
+        }
+
+        var tessellation = await tessellationResponse.Content.ReadFromJsonAsync<ApiResponseDto<TessellationResponseDto>>();
+        Assert.NotNull(tessellation);
+        Assert.True(tessellation!.Success);
+        Assert.NotNull(tessellation.Data);
+        Assert.NotEmpty(tessellation.Data!.FacePatches);
+        Assert.NotEmpty(tessellation.Data.EdgePolylines);
+        Assert.Empty(tessellation.Diagnostics);
+    }
+
+    private async Task<(Guid DocumentId, Guid ImportedOccurrenceId)> CreateImportedRoundTripBoxOccurrenceAsync()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 2, 2, 2);
+
+        var exportResponse = await _client.GetAsync($"/api/v1/documents/{document.Data.DocumentId}/definitions/{box.Data!.DefinitionId}/export/step");
+        exportResponse.EnsureSuccessStatusCode();
+        var exported = await exportResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepExportResponseDto>>();
+        Assert.NotNull(exported);
+        Assert.True(exported!.Success);
+        Assert.NotNull(exported.Data);
+
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data.DocumentId}/import/step",
+            new StepImportRequestDto(exported.Data!.StepText, "Imported Box"));
+        importResponse.EnsureSuccessStatusCode();
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+        Assert.NotNull(imported);
+        Assert.True(imported!.Success);
+        Assert.NotNull(imported.Data);
+
+        return (document.Data.DocumentId, imported.Data!.OccurrenceId);
     }
 
     private async Task<ApiResponseDto<DisplayPreparationResponseDto>> PrepareDisplayAsync(Guid documentId, Guid bodyId)

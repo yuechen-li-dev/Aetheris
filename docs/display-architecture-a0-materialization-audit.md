@@ -111,12 +111,12 @@ App.tsx
        -> analytic-only: mapAnalyticPacketToRenderData
        -> mixed-fallback: map analytic + filtered tessellation fallback
        -> fallback-only: map tessellation fallback
-  -> ViewerViewport
+  -> AetherisViewport
        -> FaceMesh
        -> Three.js BufferGeometry + MeshStandardMaterial
 ```
 
-`analyticMapper.ts` converts analytic DTOs into triangle patches in the browser. Planes are triangulated with a simple ear-clipping polygon routine over the outer boundary only. Cylinders, cones, spheres, and tori are sampled at fixed angular/latitudinal segment counts. `ViewerViewport.tsx` then creates Three.js `BufferGeometry` for every face and renders `<mesh geometry={geometry} material={material} />`.
+`analyticMapper.ts` converts analytic DTOs into triangle patches in the browser. Planes are triangulated with a simple ear-clipping polygon routine over the outer boundary only. Cylinders, cones, spheres, and tori are sampled at fixed angular/latitudinal segment counts. `AetherisViewport.tsx` now owns the Three.js adapter layer (historically `ViewerViewport.tsx`) and creates Three.js `BufferGeometry` for every face and renders `<mesh geometry={geometry} material={material} />`.
 
 ## 3. Authority model
 
@@ -545,3 +545,7 @@ DISPLAY-ARCH-X1 adds the first DisplayIR partial display contract. `display/prep
 ## X2 implementation note
 
 DISPLAY-ARCH-X2 landed the explicit `BoundedMesh` DisplayIR lane. Legacy BRep tessellation remains available for display materialization, but new `display/prepare` metadata reports it as a bounded lowering lane with `source = BRep` and `displayAuthority = DisplayIR`, preserving compatibility fields while removing generic fallback-authority semantics from new DisplayIR lane data.
+
+### DISPLAY-ARCH-X5 frontend update
+
+DISPLAY-ARCH-X5 landed the frontend renderer cleanup recommended by A0: typed DisplayIR records are mapped into `DisplayScene` / `DisplayRenderable` records and rendered by `AetherisViewport`, with Three.js kept as backend plumbing. Legacy `RenderSceneData` compatibility remains only when typed DisplayIR face records are unavailable.

@@ -104,3 +104,7 @@ If wire extraction becomes the bottleneck, use the alternate milestone:
 ```text
 DISPLAY-ARCH-X5 — BRep edge polyline sampler hardening
 ```
+
+## X5 follow-up
+
+DISPLAY-ARCH-X5 moved the frontend toward typed DisplayIR rendering. `WirePatch` records are now consumed as their own renderable kind by `AetherisViewport` instead of being treated as exceptions to a mesh-scene model.

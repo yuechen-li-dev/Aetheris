@@ -35,8 +35,8 @@ vi.mock('../api/aetherisApi', async () => {
     };
 });
 
-vi.mock('../viewer/ViewerViewport', () => ({
-    ViewerViewport: () => <div data-testid="viewer-viewport" />,
+vi.mock('../viewer/AetherisViewport', () => ({
+    AetherisViewport: () => <div data-testid="viewer-viewport" />,
 }));
 
 function setupDocumentApiMocks(): void {

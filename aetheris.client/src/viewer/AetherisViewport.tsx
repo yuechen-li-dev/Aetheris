@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2, Vector3 } from 'three';
+import type { DisplayScene } from './displayRenderables';
 import type { RenderSceneData } from './tessellationMapper';
 import { selectLogarithmicGridScales } from './logarithmicGrid';
 
@@ -449,7 +450,8 @@ function DraftingGrid() {
   );
 }
 
-interface ViewerViewportProps {
+export interface AetherisViewportProps {
+  displayScene?: DisplayScene | null;
   sceneData: RenderSceneData | null;
   highlightedFaceId?: number | null;
   highlightedEdgeId?: number | null;
@@ -541,7 +543,7 @@ function EdgeLine({ points, isHighlighted }: { points: Float32Array; isHighlight
   );
 }
 
-function PickRayCapture({ onPickRay }: { onPickRay?: ViewerViewportProps['onPickRay'] }) {
+function PickRayCapture({ onPickRay }: { onPickRay?: AetherisViewportProps['onPickRay'] }) {
   const { camera, gl } = useThree();
 
   useEffect(() => {
@@ -582,14 +584,15 @@ function PickRayCapture({ onPickRay }: { onPickRay?: ViewerViewportProps['onPick
   return null;
 }
 
-export function ViewerViewport({
+export function AetherisViewport({
+  displayScene = null,
   sceneData,
   highlightedFaceId = null,
   highlightedEdgeId = null,
   showGrid = true,
   showAxisGuide = true,
   onPickRay,
-}: ViewerViewportProps) {
+}: AetherisViewportProps) {
   const hasInteractionEdgeHighlight = highlightedEdgeId !== null;
 
   return (
@@ -599,7 +602,22 @@ export function ViewerViewport({
         <directionalLight position={[-5, 9, 6]} intensity={VIEWPORT_THEME.directionalIntensity} />
         {showGrid ? <DraftingGrid /> : null}
         {showAxisGuide ? <AxisGuide /> : null}
-        {sceneData?.faces.map((face) => (
+        {displayScene?.renderables.map((renderable) => {
+          if (renderable.kind === 'AnalyticPatch') {
+            return <FaceMesh key={`analytic-${renderable.faceId}`} positions={renderable.previewMesh.positions} normals={renderable.previewMesh.normals} indices={renderable.previewMesh.indices} isHighlighted={highlightedFaceId === renderable.faceId} />;
+          }
+
+          if (renderable.kind === 'MeshPatch') {
+            return <FaceMesh key={`mesh-${renderable.faceId}`} positions={renderable.mesh.positions} normals={renderable.mesh.normals} indices={renderable.mesh.indices} isHighlighted={highlightedFaceId === renderable.faceId} />;
+          }
+
+          if (renderable.kind === 'WirePatch') {
+            return renderable.wires.map((wire) => <EdgeLine key={`wire-${renderable.faceId}-${wire.edgeId}`} points={wire.points} isHighlighted={highlightedFaceId === renderable.faceId || highlightedEdgeId === wire.edgeId} />);
+          }
+
+          return null;
+        })}
+        {!displayScene ? sceneData?.faces.map((face) => (
           <FaceMesh
             key={`face-${face.faceId}`}
             positions={face.positions}
@@ -607,8 +625,8 @@ export function ViewerViewport({
             indices={face.indices}
             isHighlighted={highlightedFaceId === face.faceId}
           />
-        ))}
-        {hasInteractionEdgeHighlight
+        )) : null}
+        {!displayScene && hasInteractionEdgeHighlight
           ? sceneData?.edges
             .filter((edge) => edge.edgeId === highlightedEdgeId)
             .map((edge) => (

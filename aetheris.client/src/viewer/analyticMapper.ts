@@ -359,7 +359,7 @@ function buildTorusPatch(face: AnalyticDisplayFaceDto): RenderFacePatch | null {
   };
 }
 
-function mapFace(face: AnalyticDisplayFaceDto): RenderFacePatch | null {
+export function analyticPatchToPreviewMesh(face: AnalyticDisplayFaceDto): RenderFacePatch | null {
   if (face.surfaceKind === 'Plane') {
     return buildPlanePatch(face);
   }
@@ -385,7 +385,7 @@ function mapFace(face: AnalyticDisplayFaceDto): RenderFacePatch | null {
 
 export function mapAnalyticPacketToRenderData(packet: AnalyticDisplayPacketDto): RenderSceneData {
   const faces = packet.analyticFaces
-    .map(mapFace)
+    .map(analyticPatchToPreviewMesh)
     .filter((patch): patch is RenderFacePatch => patch !== null);
 
   return {

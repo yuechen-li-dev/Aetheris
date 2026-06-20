@@ -110,3 +110,7 @@ Recommended next milestone:
 If immediate user-facing resilience is preferred first, use:
 
 `DISPLAY-ARCH-X3 — wireframe/edge-first diagnostic fallback for unsupported/timed-out faces`
+
+## X3 follow-up
+
+DISPLAY-ARCH-X3 narrows the planar multi-loop `BoundedMesh` lane by adding explicit planar loop classification before `PlanarTriangulationWithHoles`. Unsupported nesting and degenerate loops now produce stable face-local planar triangulation diagnostics while preserving the X2 DisplayIR authority split.

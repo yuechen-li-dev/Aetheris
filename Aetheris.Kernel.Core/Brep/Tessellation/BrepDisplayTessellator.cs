@@ -300,17 +300,46 @@ public static class BrepDisplayTessellator
             flattenedLoops[loopId] = flattenedLoop.Value;
         }
 
-        var outerLoopId = ExecuteWithinOptionalBudget(
-            () => KernelResult<LoopId>.Success(SelectPlanarPrimaryLoop(body, faceId, plane, loopIds)),
+        var loopClassification = ExecuteWithinOptionalBudget(
+            () => KernelResult<IReadOnlyList<PlanarLoopClassification>>.Success(new PlanarDisplayLoopClassifier().Classify(
+                faceId.Value,
+                loopIds.OrderBy(id => id.Value).Select(id => (id.Value, flattenedLoops[id])).ToArray())),
             executionBudget,
-            "PlanarPrimaryLoopSelection",
+            "PlanarLoopClassification",
             faceId,
-            SurfaceGeometryKind.Plane).Value;
-        var outerLoop = flattenedLoops[outerLoopId];
-        var holes = loopIds
-            .Where(loopId => loopId != outerLoopId)
-            .OrderBy(loopId => loopId.Value)
-            .Select(loopId => flattenedLoops[loopId])
+            SurfaceGeometryKind.Plane);
+        if (!loopClassification.IsSuccess)
+        {
+            return KernelResult<DisplayFaceMeshPatch>.Failure(loopClassification.Diagnostics);
+        }
+
+        var classifications = loopClassification.Value;
+        var unsupported = classifications.FirstOrDefault(item => item.Role is PlanarDisplayLoopRole.Degenerate or PlanarDisplayLoopRole.UnsupportedNested or PlanarDisplayLoopRole.Island or PlanarDisplayLoopRole.Unknown);
+        if (unsupported is not null)
+        {
+            var code = unsupported.Role == PlanarDisplayLoopRole.Degenerate
+                ? "Viewer.PlanarTriangulation.DegenerateLoop"
+                : unsupported.Role is PlanarDisplayLoopRole.UnsupportedNested or PlanarDisplayLoopRole.Island
+                    ? "Viewer.PlanarTriangulation.UnsupportedNesting"
+                    : "Viewer.PlanarTriangulation.InvalidLoop";
+            return KernelResult<DisplayFaceMeshPatch>.Success(
+                CreateEmptyPlanarPatch(faceId),
+                [CreateValidationWarning($"Face {faceId.Value} planar loop {unsupported.Loop.LoopId} classified as {unsupported.Role}; reasons=[{string.Join(",", unsupported.Reasons)}].", code)]);
+        }
+
+        var outer = classifications.SingleOrDefault(item => item.Role == PlanarDisplayLoopRole.Outer);
+        if (outer is null)
+        {
+            return KernelResult<DisplayFaceMeshPatch>.Success(
+                CreateEmptyPlanarPatch(faceId),
+                [CreateValidationWarning($"Face {faceId.Value} planar multi-loop tessellation could not select a unique outer loop.", "Viewer.PlanarTriangulation.InvalidLoop")]);
+        }
+
+        var outerLoop = outer.Loop.Points3D;
+        var holes = classifications
+            .Where(item => item.Role == PlanarDisplayLoopRole.Hole)
+            .OrderBy(item => item.Loop.LoopId)
+            .Select(item => item.Loop.Points3D)
             .ToArray();
 
         var triangulationResult = ExecuteWithinOptionalBudget(
@@ -2458,92 +2487,14 @@ public static class BrepDisplayTessellator
             return edge.StartVertexId == edge.EndVertexId;
         });
 
-        if (lineCoedges.Count == 0 && circleCoedges.Count == coedges.Count)
-        {
-            if (coedges.Count == 1 && uniqueEdgeIds.Length == 1 && seamUses == 1)
-            {
-                return "single-coedge circle-only seam-reused revolved loop";
-            }
-
-            if (coedges.Count == 4 && uniqueEdgeIds.Length == 4 && seamUses == 0)
-            {
-                return "four-coedge circle-only non-seam revolved loop";
-            }
-
-            return seamUses > 0 ? "circle-only seam reused loop" : "circle-only non-seam loop";
-        }
-
-        if (lineCoedges.Count >= 2 && circleCoedges.Count >= 2 && coedges.Count >= 5)
-        {
-            return "repeated mixed line/circle revolved loop";
-        }
-
-        if (lineCoedges.Count == 0 && circleCoedges.Count >= 2 && bSplineCoedges.Count >= 1 && coedges.Count >= 5)
-        {
-            return "repeated mixed circle/bspline revolved loop";
-        }
-
-        if (lineCoedges.Count == 0 && circleCoedges.Count == 1 && bSplineCoedges.Count == 5 && coedges.Count == 6 && uniqueEdgeIds.Length == 6)
-        {
-            return "six-coedge single-circle/five-bspline revolved loop";
-        }
-
-        if (lineCoedges.Count >= 2 && circleCoedges.Count >= 1 && coedges.Count == 3)
-        {
-            return "three-coedge cone/revolved loop";
-        }
-
-        if (bSplineCoedges.Count == 3 && coedges.Count == 3 && uniqueEdgeIds.Length == 3)
-        {
-            return "three-coedge cone/revolved bspline loop";
-        }
-
-        if (circleCoedges.Count == 1 && bSplineCoedges.Count == 2 && coedges.Count == 3 && uniqueEdgeIds.Length == 3)
-        {
-            return "three-coedge cone/revolved mixed circle/bspline loop";
-        }
-
-        if (lineCoedges.Count == 2 && circleCoedges.Count == 2 && coedges.Count == 4)
-        {
-            return "four-coedge mixed line/circle loop";
-        }
-
-        if (lineCoedges.Count == 0 && circleCoedges.Count == 2 && bSplineCoedges.Count == 2 && coedges.Count == 4)
-        {
-            return "four-coedge mixed circle/bspline loop";
-        }
-
-        if (lineCoedges.Count == 0 && circleCoedges.Count == 1 && bSplineCoedges.Count == 3 && coedges.Count == 4 && uniqueEdgeIds.Length >= 3)
-        {
-            return "four-coedge single-circle/three-bspline revolved loop";
-        }
-
-        if (lineCoedges.Count == 0 && circleCoedges.Count == 3 && bSplineCoedges.Count == 1 && coedges.Count == 4 && uniqueEdgeIds.Length == 4)
-        {
-            return "four-coedge three-circle/single-bspline revolved loop";
-        }
-
-        if (lineCoedges.Count == 2 && circleCoedges.Count == 0 && bSplineCoedges.Count == 2 && coedges.Count == 4 && uniqueEdgeIds.Length == 4)
-        {
-            return "four-coedge mixed line/bspline revolved loop";
-        }
-
-        if (lineCoedges.Count == 0 && circleCoedges.Count == 0 && bSplineCoedges.Count == 4 && coedges.Count == 4)
-        {
-            return "four-coedge bspline-only revolved loop";
-        }
-
-        if (lineCoedges.Count == 0 && circleCoedges.Count == 0 && bSplineCoedges.Count == 6 && coedges.Count == 6 && uniqueEdgeIds.Length == 6 && seamUses > 0)
-        {
-            return "six-coedge bspline-only seam-reused revolved loop";
-        }
-
-        if (lineCoedges.Count == 0 && circleCoedges.Count == 0 && bSplineCoedges.Count == 6 && coedges.Count == 6 && uniqueEdgeIds.Length == 6)
-        {
-            return "six-coedge bspline-only revolved loop";
-        }
-
-        return $"other (coedges={coedges.Count}, uniqueEdges={uniqueEdgeIds.Length})";
+        var evidence = new LoopPatternEvidence(
+            coedges.Count,
+            uniqueEdgeIds.Length,
+            lineCoedges.Count,
+            circleCoedges.Count,
+            bSplineCoedges.Count,
+            seamUses);
+        return new LoopPatternClassifier().Classify(evidence).Label;
     }
 
     private static DisplayFaceMeshPatch CreatePeriodicGridPatch(

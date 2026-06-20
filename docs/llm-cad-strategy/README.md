@@ -42,6 +42,7 @@ Treat the notes as guidance for reasoning. Do not treat them as permission to ch
 - [01 — Geometry inventory vs. modeling strategy](01-geometry-inventory-vs-modeling-strategy.md)
 - [02 — Prismatic CAD first principles](02-prismatic-cad-first-principles.md)
 - [03 — Semantic decompilation workflow](03-semantic-decompilation-workflow.md)
+- [04 — Spatial decomposition first pass](04-spatial-decomposition-first-pass.md)
 - [99 — Glossary](99-glossary.md)
 
 ## How to add future lessons

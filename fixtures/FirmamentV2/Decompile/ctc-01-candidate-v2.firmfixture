@@ -1,0 +1,165 @@
+// fixture-id: ctc-01-candidate-v2
+// case: air-firmament-decompile-x1-ctc01-semantic-candidate
+// category: Decompile
+// syntax-version: FirmamentV2
+// validity: semantic-candidate
+// implementation: design-only-not-implemented
+// expected: not-implemented
+// expected-stage: semantic-candidate
+// parser-backed: false
+// source-model: CTC-01
+// source-step: testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp
+// source-topology: bodies=1 shells=1 faces=117 edges=318 vertices=206
+// source-surfaces: plane=56 cylinder=57 cone=4 sphere=0 torus=0 bspline=0 other=0
+// source-bounds-mm: min=[-400,-225,-100] max=[400,225,50]
+// decompile-confidence: main-web=medium, end-tabs=medium, through-holes=medium, slots=medium, center-boss=low, rounds=medium
+// unsupported-features: profile-sketch, profile-extrude, arbitrary-prismatic-add, arbitrary-through-cut, slot-cut, fillet-round, mirror-pattern, feature-references, construction-geometry
+// notes: Experimental semantic decompilation candidate only. This file is intentionally outside parser-backed valid/invalid corpus folders.
+
+model CTC01SemanticCandidate {
+    units mm
+
+    // FIRMAMENT-V2-MISSING: profile sketch with named construction geometry, dimensions,
+    // line/arc outline elements, and constraints. Coordinates are approximate semantic
+    // anchors from analyze bounds and visual evidence, not recovered PMI dimensions.
+    profile mainWebOutline on XY {
+        // Overall imported bounds: X -400..400, Y -225..225, Z -100..50.
+        // Likely design plane is XY; thickness/height is along Z.
+        // Semantic outline: long central web connecting four rounded/lobed corner/end
+        // regions, with side steps and notches near the inner tab roots.
+        construction symmetryX: axis X at y: 0
+        construction symmetryY: axis Y at x: 0
+
+        region leftUpperRoundedTab at [-320, 150]
+        region leftLowerRoundedEnd at [-320, -150]
+        region rightUpperRoundedTab at [320, 150]
+        region rightLowerRoundedEnd at [320, -150]
+        region centralBridge from [-170, -70] to [170, 70]
+
+        // FIRMAMENT-V2-MISSING: closed polyline/arc profile syntax.
+        // outline closed {
+        //     line/arc chain through the lobed outer perimeter, neck-down steps,
+        //     concave reliefs, and central bridge shoulders.
+        // }
+    }
+
+    // FIRMAMENT-V2-MISSING: ProfileExtrude from line/arc profile to a bounded solid.
+    solid basePlate: ProfileExtrude {
+        profile: mainWebOutline
+        depth: 150
+        direction: +Z
+        originZ: -100
+        expose {
+            face(+Z) => top
+            face(-Z) => bottom
+            sideLoop(mainWebOutline) => perimeter
+        }
+    }
+
+    modify basePlate {
+        // FIRMAMENT-V2-MISSING: semantic slot primitive and slot-through cut lowering.
+        cut ThroughSlot {
+            name: leftWebSlot
+            on: top
+            center: [-285, 0]
+            length: 120
+            radius: 25
+            axis: X
+            through: bottom
+            confidence: medium
+        }
+
+        cut ThroughSlot {
+            name: rightWebSlot
+            on: top
+            center: [285, 0]
+            length: 120
+            radius: 25
+            axis: X
+            through: bottom
+            confidence: medium
+        }
+
+        // FIRMAMENT-V2-MISSING: arbitrary face-normal through-cuts and feature arrays.
+        pattern Mirror about symmetryY {
+            seed upperTabHoleLeft
+            produces: [upperTabHoleRight]
+        }
+
+        cut PrismaticThroughCut {
+            name: upperTabHoleLeft
+            on: leftSideTabOuterFace
+            tool: Cylinder { radius: 30 }
+            axis: X
+            center: [-320, 150, -25]
+            through: rightSideOfLeftTab
+            confidence: medium
+        }
+
+        cut PrismaticThroughCut {
+            name: lowerEndHoleLeft
+            on: leftSideLowerOuterFace
+            tool: Cylinder { radius: 30 }
+            axis: X
+            center: [-320, -150, -25]
+            through: rightSideOfLeftLowerEnd
+            confidence: medium
+        }
+
+        pattern Mirror about symmetryY {
+            seed lowerEndHoleLeft
+            produces: [lowerEndHoleRight]
+        }
+
+        // FIRMAMENT-V2-MISSING: small repeated through-hole family with named centers.
+        cut HolePattern {
+            name: centralSmallThroughHoles
+            tool: Cylinder { radius: 18 }
+            axis: Z
+            through: bottom
+            centers: [[-85, -75], [-25, -55], [25, -55], [85, -75], [-110, 35], [110, 35]]
+            confidence: low
+        }
+
+        // FIRMAMENT-V2-MISSING: additive boss/block with chamfered/rounded top contour.
+        add ProfileExtrude {
+            name: centralRaisedBoss
+            profile: centralBossHexProfile
+            on: top
+            height: 95
+            confidence: low
+        }
+
+        // FIRMAMENT-V2-MISSING: rectangular pocket/notch through-cuts from top/side faces.
+        cut PrismaticThroughCut {
+            name: rightRectangularPocket
+            tool: RoundedRectangle { size: [95, 55] radius: 12 }
+            on: top
+            through: bottom
+            center: [235, 30]
+            confidence: medium
+        }
+
+        cut PrismaticThroughCut {
+            name: leftUpperStepRelief
+            tool: Box { size: [70, 55, 70] }
+            on: perimeter
+            confidence: low
+        }
+
+        // FIRMAMENT-V2-MISSING: edge-set selection, constant-radius round/fillet lowering,
+        // conical/chamfer-like transition handling, and stable face naming across features.
+        round Edges {
+            name: perimeterAndSlotRounds
+            radius: inferred-from-cylindrical-faces
+            targets: [outerLobes, slotEnds, pocketCorners, tabTopEdges]
+            confidence: medium
+        }
+    }
+
+    profile centralBossHexProfile on XY {
+        // FIRMAMENT-V2-MISSING: explicit polygon/profile syntax.
+        // A raised central boss is visible, but STEP BRep alone does not prove whether it
+        // was authored as a hex/house-shaped boss, drafted boss, or later-trimmed block.
+    }
+}

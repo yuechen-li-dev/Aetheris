@@ -44,6 +44,7 @@ Treat the notes as guidance for reasoning. Do not treat them as permission to ch
 - [03 — Semantic decompilation workflow](03-semantic-decompilation-workflow.md)
 - [04 — Spatial decomposition first pass](04-spatial-decomposition-first-pass.md)
 - [05 — CAD as semantic dependency graph](05-cad-as-semantic-dependency-graph.md)
+- [06 — Profiles as constructive regions](06-profiles-as-constructive-regions.md)
 - [99 — Glossary](99-glossary.md)
 
 ## How to add future lessons

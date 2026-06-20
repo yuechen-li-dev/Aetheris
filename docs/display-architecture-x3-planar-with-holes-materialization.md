@@ -53,3 +53,7 @@ X3 did not change STEP import/export semantics, AP242 importer/exporter behavior
 ## Next milestone recommendation
 
 DISPLAY-ARCH-X4 should add a wireframe/edge-first fallback for planar materialization failures so diagnostic-only faces can still expose their loop geometry without pretending that a filled mesh succeeded.
+
+## Follow-up: DISPLAY-ARCH-X4 wireframe fallback
+
+DISPLAY-ARCH-X4 builds on X3 by allowing a face whose fill materialization still fails to degrade to `WireframeOnly` when BRep boundary loops/edges are available. This keeps X3 planar diagnostics intact while making partial display more visually useful. See `docs/display-architecture-x4-wireframe-fallback.md`.

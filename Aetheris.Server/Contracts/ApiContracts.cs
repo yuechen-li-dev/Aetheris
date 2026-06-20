@@ -165,7 +165,26 @@ public sealed record DisplayFaceDto(
     string PatchKind,
     FacePatchDto? MeshPatch,
     AnalyticDisplayFaceDto? AnalyticPatch,
+    DisplayWirePatchDto? WirePatch,
     string? MaterializationLane,
+    IReadOnlyList<DisplayDiagnosticDto> Diagnostics);
+
+public sealed record DisplayWirePatchDto(
+    string Kind,
+    string Source,
+    string Quality,
+    IReadOnlyList<DisplayLoopDto> Loops);
+
+public sealed record DisplayLoopDto(
+    int LoopId,
+    string Role,
+    IReadOnlyList<DisplayEdgeDto> Edges);
+
+public sealed record DisplayEdgeDto(
+    int EdgeId,
+    IReadOnlyList<Point3Dto> Points,
+    string SourceCurveKind,
+    int SampleCount,
     IReadOnlyList<DisplayDiagnosticDto> Diagnostics);
 
 public sealed record DisplayLaneDto(

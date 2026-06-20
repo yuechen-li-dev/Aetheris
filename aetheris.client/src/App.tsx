@@ -20,7 +20,7 @@ import {
 } from './api/aetherisApi';
 import { StepImportDropzone } from './components/StepImportDropzone';
 import { Button } from './components/ui/button';
-import { ViewerViewport } from './viewer/ViewerViewport';
+import { AetherisViewport } from './viewer/AetherisViewport';
 import { buildDisplaySceneData } from './viewer/displaySceneBuilder';
 import { STEP_UPLOAD_LIMIT_BYTES, STEP_UPLOAD_LIMIT_MB, formatMegabytes } from './config/stepUpload';
 
@@ -388,10 +388,11 @@ function App() {
                 setPickHits([]);
                 setCopyHashMessage('');
             });
-            if (didImport && displayError) {
+            const importDisplayError = displayError as ApiError | null;
+            if (didImport && importDisplayError) {
                 setStatus('error');
-                setStatusMessage(`View materialization failed after import: ${displayError.message}`);
-                setDiagnostics(displayError.diagnostics);
+                setStatusMessage(`View materialization failed after import: ${importDisplayError.message}`);
+                setDiagnostics(importDisplayError.diagnostics);
                 setImportStatus('success');
                 setImportStatusMessage('Import complete. View materialization failed.');
             } else {
@@ -599,7 +600,8 @@ function App() {
                                 COORD
                             </button>
                         </div>
-                        <ViewerViewport
+                        <AetherisViewport
+                            displayScene={displayScene.displayScene}
                             sceneData={sceneData}
                             highlightedFaceId={highlightedFaceId}
                             highlightedEdgeId={highlightedEdgeId}

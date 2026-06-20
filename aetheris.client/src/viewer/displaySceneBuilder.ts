@@ -1,5 +1,6 @@
 import type { DisplayPreparationResponseDto } from '../api/aetherisApi';
 import { mapAnalyticPacketToRenderData } from './analyticMapper';
+import { mapDisplayPreparationToDisplayScene, type DisplayScene } from './displayRenderables';
 import { mapTessellationToRenderData, type RenderSceneData } from './tessellationMapper';
 
 export type DisplayRenderPath = 'analytic-only' | 'mixed-fallback' | 'fallback';
@@ -7,6 +8,7 @@ export type DisplayRenderPath = 'analytic-only' | 'mixed-fallback' | 'fallback';
 export interface DisplaySceneBuildResult {
   renderPath: DisplayRenderPath;
   sceneData: RenderSceneData | null;
+  displayScene: DisplayScene | null;
   missingFallbackFaceIds: number[];
 }
 
@@ -52,14 +54,18 @@ export function buildDisplaySceneData(
     return {
       renderPath: 'fallback',
       sceneData: null,
+      displayScene: null,
       missingFallbackFaceIds: [],
     };
   }
 
+  const typedDisplayScene = mapDisplayPreparationToDisplayScene(preparation);
+
   if (preparation.lane === 'analytic-only') {
     return {
       renderPath: 'analytic-only',
-      sceneData: deps.mapAnalytic(preparation.analyticPacket),
+      sceneData: typedDisplayScene?.renderables.length ? null : deps.mapAnalytic(preparation.analyticPacket),
+      displayScene: typedDisplayScene,
       missingFallbackFaceIds: [],
     };
   }
@@ -72,7 +78,8 @@ export function buildDisplaySceneData(
     if (!preparation.tessellationFallback) {
       return {
         renderPath: 'mixed-fallback',
-        sceneData: analyticScene,
+        sceneData: typedDisplayScene?.renderables.length ? null : analyticScene,
+        displayScene: typedDisplayScene,
         missingFallbackFaceIds: Array.from(fallbackFaceIds).sort((left, right) => left - right),
       };
     }
@@ -83,14 +90,16 @@ export function buildDisplaySceneData(
 
     return {
       renderPath: 'mixed-fallback',
-      sceneData: composeSceneData(analyticScene, filteredFallbackScene),
+      sceneData: typedDisplayScene?.renderables.length ? null : composeSceneData(analyticScene, filteredFallbackScene),
+      displayScene: typedDisplayScene,
       missingFallbackFaceIds: getMissingFallbackFaceIds(fallbackFaceIds, renderedFallbackFaceIds),
     };
   }
 
   return {
     renderPath: 'fallback',
-    sceneData: preparation.tessellationFallback ? deps.mapFallback(preparation.tessellationFallback) : null,
+    sceneData: typedDisplayScene?.renderables.length ? null : (preparation.tessellationFallback ? deps.mapFallback(preparation.tessellationFallback) : null),
+    displayScene: typedDisplayScene,
     missingFallbackFaceIds: [],
   };
 }

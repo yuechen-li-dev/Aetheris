@@ -1,5 +1,7 @@
 # DISPLAY-QA-X1: FTC-06 / FTC-07 local visual pass
 
+Follow-up: DISPLAY-QA-X2 fixed the FTC-06 imported-body framing defect and promoted mixed/partial display status into the main UI. See [docs/display-qa-x2-imported-body-framing-status.md](/C:/Users/yuech/source/repos/Aetheris/docs/display-qa-x2-imported-body-framing-status.md).
+
 ## 1. Purpose and scope
 
 This pass validates the current local viewer behavior for FTC-06 and FTC-07 after the DisplayIR architecture milestones, with emphasis on:

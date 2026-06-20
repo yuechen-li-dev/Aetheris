@@ -6,7 +6,12 @@ import type { DisplayScene } from '../viewer/displayRenderables';
 vi.mock('@react-three/fiber', () => ({
   Canvas: ({ children }: { children: React.ReactNode }) => <div data-testid="canvas">{children}</div>,
   useFrame: () => undefined,
-  useThree: () => ({ camera: { position: { x: 0, z: 0 }, zoom: 1 }, gl: { domElement: { addEventListener: vi.fn(), removeEventListener: vi.fn() } } }),
+  useThree: () => ({
+    camera: { position: { x: 0, z: 0 }, zoom: 1 },
+    controls: null,
+    size: { width: 800, height: 600 },
+    gl: { domElement: { addEventListener: vi.fn(), removeEventListener: vi.fn() } },
+  }),
 }));
 
 vi.mock('@react-three/drei', () => ({

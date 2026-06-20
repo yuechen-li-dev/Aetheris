@@ -281,6 +281,51 @@ describe('App STEP file upload flow', () => {
         await screen.findByText('hash-123');
     });
 
+    it('App_DisplayStatus_ShowsMixedFallbackAsDisplayStatus', async () => {
+        apiMocks.importStep.mockResolvedValue({
+            documentId: 'doc-1',
+            definitionId: 'def-2',
+            occurrenceId: 'occ-2',
+            name: 'Imported',
+            diagnostics: [],
+        });
+        apiMocks.exportDefinitionStep.mockResolvedValue({
+            documentId: 'doc-1',
+            definitionId: 'def-2',
+            stepText: 'ISO-10303-21;',
+            canonicalHash: 'hash-123',
+            diagnostics: [],
+        });
+        apiMocks.prepareBodyDisplay.mockResolvedValue({
+            lane: 'mixed-fallback',
+            analyticPacket: {
+                bodyId: 1,
+                analyticFaces: [{ faceId: 1, shellId: 1, shellRole: 'Outer', surfaceGeometryId: 1, surfaceKind: 'Plane', loopCount: 1, domainHint: null, planeGeometry: null, cylinderGeometry: null, coneGeometry: null, sphereGeometry: null, torusGeometry: null }],
+                fallbackFaces: [{ faceId: 2, shellId: 1, shellRole: 'Outer', reason: 'UnsupportedTrim', surfaceKind: 'Plane', detail: null }],
+            },
+            tessellationFallback: { facePatches: [], edgePolylines: [] },
+            status: 'Complete',
+            sourceAuthority: 'BRep',
+            displayAuthority: 'DisplayIR',
+            lanes: ['AnalyticPatch', 'BoundedMesh'],
+            displayLanes: [],
+            faces: [],
+            diagnostics: [],
+        });
+
+        render(<App />);
+        await screen.findByText('Document: Ready');
+
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
+        const file = new File(['ISO-10303-21;DATA;'], 'ftc06.stp', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [file] } });
+        await screen.findByText('ftc06.stp');
+        fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
+
+        await screen.findByText('Import complete. Display: mixed analytic + bounded mesh fallback.');
+        expect(screen.queryByText('Import failed')).toBeNull();
+    });
+
 
     it('reports wireframe-only display fallback separately from import success', async () => {
         apiMocks.importStep.mockResolvedValue({ documentId: 'doc-1', definitionId: 'def-2', occurrenceId: 'occ-2', name: 'Imported', diagnostics: [] });
@@ -310,13 +355,13 @@ describe('App STEP file upload flow', () => {
         await screen.findByText('part.stp');
         fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
 
-        await screen.findByText('Import succeeded. Display partial: display degraded: 1 wire-only face(s), 0 diagnostic-only face(s).');
+        expect((await screen.findAllByText('Import complete. Display partial: 1 wire-only face(s), 0 diagnostic-only face(s).')).length).toBeGreaterThan(0);
         await screen.findByText('Wire-only faces:');
         await screen.findByText('Diagnostic-only faces:');
     });
 
 
-    it('reports bounded mesh partial display separately from import success', async () => {
+    it('App_DisplayStatus_ShowsPartialDisplaySeparatelyFromImportFailure', async () => {
         apiMocks.importStep.mockResolvedValue({
             documentId: 'doc-1',
             definitionId: 'def-2',
@@ -367,8 +412,9 @@ describe('App STEP file upload flow', () => {
         await waitFor(() => {
             expect(apiMocks.prepareBodyDisplay).toHaveBeenCalledWith('doc-1', 'occ-2');
         });
-        await screen.findByText('Import succeeded. Display partial: display degraded: 0 wire-only face(s), 1 diagnostic-only face(s).');
+        expect((await screen.findAllByText('Import complete. Display partial: 0 wire-only face(s), 1 diagnostic-only face(s).')).length).toBeGreaterThan(0);
         await screen.findByText('hash-123');
+        expect(screen.queryByText('Import failed')).toBeNull();
     });
 
     it('downloads backend STEP text with deterministic filename without mutating hash state', async () => {

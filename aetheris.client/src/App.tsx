@@ -31,11 +31,61 @@ type ServerStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 type DocumentStatus = 'creating' | 'ready' | 'error';
 type ImportStatus = 'idle' | 'creating' | 'importing' | 'success' | 'error';
 
+interface DisplayStatusSummary {
+    summary: string;
+    wireOnlyFaceCount: number;
+    diagnosticOnlyFaceCount: number;
+}
+
+interface RefreshDisplayResult {
+    preparation: DisplayPreparationResponseDto | null;
+    error: ApiError | null;
+}
+
 const BOOLEAN_OP_TO_API: Record<BooleanOperationUi, BooleanOperation> = {
     Union: 'union',
     Subtract: 'subtract',
     Intersect: 'intersect',
 };
+
+function createDisplayStatusSummary(preparation: DisplayPreparationResponseDto | null): DisplayStatusSummary | null {
+    if (!preparation) {
+        return null;
+    }
+
+    const wireOnlyFaceCount = preparation.faces?.filter((face) => face.status === 'WireframeOnly').length ?? 0;
+    const diagnosticOnlyFaceCount = preparation.faces?.filter((face) => face.status === 'DiagnosticOnly').length ?? 0;
+
+    if (preparation.status === 'Partial') {
+        return {
+            summary: `Import complete. Display partial: ${wireOnlyFaceCount} wire-only face(s), ${diagnosticOnlyFaceCount} diagnostic-only face(s).`,
+            wireOnlyFaceCount,
+            diagnosticOnlyFaceCount,
+        };
+    }
+
+    if (preparation.lane === 'mixed-fallback') {
+        return {
+            summary: 'Import complete. Display: mixed analytic + bounded mesh fallback.',
+            wireOnlyFaceCount,
+            diagnosticOnlyFaceCount,
+        };
+    }
+
+    if (preparation.lane === 'fallback-only') {
+        return {
+            summary: 'Import complete. Display: bounded mesh fallback.',
+            wireOnlyFaceCount,
+            diagnosticOnlyFaceCount,
+        };
+    }
+
+    return {
+        summary: 'Import complete.',
+        wireOnlyFaceCount,
+        diagnosticOnlyFaceCount,
+    };
+}
 
 function App() {
     const [activeTab, setActiveTab] = useState<TopLevelTab>('viewer');
@@ -151,9 +201,9 @@ function App() {
         }
     }, []);
 
-    const refreshSummaryAndActiveTessellation = useCallback(async (targetBodyId?: string, suppressDisplayErrors = false) => {
+    const refreshSummaryAndActiveTessellation = useCallback(async (targetBodyId?: string, suppressDisplayErrors = false): Promise<RefreshDisplayResult> => {
         if (!documentId) {
-            return null;
+            return { preparation: null, error: null };
         }
 
         const summary = await getDocumentSummary(documentId);
@@ -168,7 +218,7 @@ function App() {
                 const preparedDisplay = await prepareBodyDisplay(documentId, selected);
                 setDisplayPreparation(preparedDisplay);
                 setTessellation(preparedDisplay.tessellationFallback);
-                return null;
+                return { preparation: preparedDisplay, error: null };
             } catch (error) {
                 const apiError = error instanceof ApiError
                     ? error
@@ -179,14 +229,14 @@ function App() {
                     throw apiError;
                 }
 
-                return apiError;
+                return { preparation: null, error: apiError };
             }
         } else {
             setTessellation(null);
             setDisplayPreparation(null);
         }
 
-        return null;
+        return { preparation: null, error: null };
     }, [activeBodyId, documentId]);
 
     const handleCreateDocument = useCallback(async () => {
@@ -368,41 +418,53 @@ function App() {
         setImportStatus('importing');
         setImportStatusMessage('Importing STEP…');
         setIsImporting(true);
+        setDiagnostics([]);
 
         try {
-            let displayError: ApiError | null = null;
-            const didImport = await runAction('Import STEP', async () => {
-                const stepText = await stepImportFile.text();
-                if (stepText.trim().length === 0) {
-                    throw new ApiError('Selected STEP file is empty.', []);
-                }
+            setStatus('loading');
+            setStatusMessage('Import STEP...');
 
-                const imported = await importStep(documentId, stepText);
-                setStepExportText('');
-                displayError = await refreshSummaryAndActiveTessellation(imported.occurrenceId, true);
-                const exported = await exportDefinitionStep(documentId, imported.definitionId);
-                setStepCanonicalHash(exported.canonicalHash);
-                setPickStatus('idle');
-                setPickMessage(`Imported occurrence ${imported.occurrenceId} is now active.`);
-                setPickDiagnostics([]);
-                setPickHits([]);
-                setCopyHashMessage('');
-            });
-            const importDisplayError = displayError as ApiError | null;
-            if (didImport && importDisplayError) {
+            const stepText = await stepImportFile.text();
+            if (stepText.trim().length === 0) {
+                throw new ApiError('Selected STEP file is empty.', []);
+            }
+
+            const imported = await importStep(documentId, stepText);
+            setStepExportText('');
+            const displayRefresh = await refreshSummaryAndActiveTessellation(imported.occurrenceId, true);
+            const exported = await exportDefinitionStep(documentId, imported.definitionId);
+            setStepCanonicalHash(exported.canonicalHash);
+            setPickStatus('idle');
+            setPickMessage(`Imported occurrence ${imported.occurrenceId} is now active.`);
+            setPickDiagnostics([]);
+            setPickHits([]);
+            setCopyHashMessage('');
+
+            if (displayRefresh.error) {
                 setStatus('error');
-                setStatusMessage(`View materialization failed after import: ${importDisplayError.message}`);
-                setDiagnostics(importDisplayError.diagnostics);
+                setStatusMessage(`View materialization failed after import: ${displayRefresh.error.message}`);
+                setDiagnostics(displayRefresh.error.diagnostics);
                 setImportStatus('success');
                 setImportStatusMessage('Import complete. View materialization failed.');
             } else {
-                setImportStatus(didImport ? 'success' : 'error');
-                setImportStatusMessage(didImport ? 'Import complete.' : 'Import error: Request failed.');
+                setStatus('success');
+                setStatusMessage('Import STEP complete.');
+                setImportStatus('success');
+                setImportStatusMessage(createDisplayStatusSummary(displayRefresh.preparation)?.summary ?? 'Import complete.');
             }
+        } catch (error) {
+            const apiError = error instanceof ApiError
+                ? error
+                : new ApiError((error as Error).message || 'Unexpected error.', []);
+            setStatus('error');
+            setStatusMessage(apiError.message);
+            setDiagnostics(apiError.diagnostics);
+            setImportStatus('error');
+            setImportStatusMessage(`Import error: ${apiError.message}`);
         } finally {
             setIsImporting(false);
         }
-    }, [documentId, documentStatus, refreshSummaryAndActiveTessellation, runAction, serverStatus, stepImportFile]);
+    }, [documentId, documentStatus, refreshSummaryAndActiveTessellation, serverStatus, stepImportFile]);
 
     const handleStepFileAccepted = useCallback((selected: File) => {
         setStepImportFile(selected);
@@ -529,6 +591,7 @@ function App() {
         error: 'Document: Error',
     };
     const importStatusTone = importStatus === 'error' ? 'error' : (importStatus === 'success' ? 'success' : 'neutral');
+    const displayStatusSummary = createDisplayStatusSummary(displayPreparation);
 
     return (
         <div className="app-shell">
@@ -685,12 +748,12 @@ function App() {
                                 <p><strong>Occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
                                 <p><strong>Display lane:</strong> {displayPreparation?.lane ?? 'None'}</p>
                                 <p><strong>Display status:</strong> {displayPreparation?.status ?? 'None'}</p>
-                                {displayPreparation?.status === 'Partial' ? <p role="status">Import succeeded. Display partial: display degraded: {displayPreparation.faces?.filter((face) => face.status === 'WireframeOnly').length ?? 0} wire-only face(s), {displayPreparation.faces?.filter((face) => face.status === 'DiagnosticOnly').length ?? 0} diagnostic-only face(s).</p> : null}
+                                {displayPreparation?.status === 'Partial' && displayStatusSummary ? <p role="status">{displayStatusSummary.summary}</p> : null}
                                 <p><strong>Render path:</strong> {displayScene.renderPath}</p>
                                 <p><strong>Analytic faces:</strong> {displayPreparation?.analyticPacket.analyticFaces.length ?? 0}</p>
                                 <p><strong>Fallback faces:</strong> {displayPreparation?.analyticPacket.fallbackFaces.length ?? 0}</p>
-                                <p><strong>Wire-only faces:</strong> {displayPreparation?.faces?.filter((face) => face.status === 'WireframeOnly').length ?? 0}</p>
-                                <p><strong>Diagnostic-only faces:</strong> {displayPreparation?.faces?.filter((face) => face.status === 'DiagnosticOnly').length ?? 0}</p>
+                                <p><strong>Wire-only faces:</strong> {displayStatusSummary?.wireOnlyFaceCount ?? 0}</p>
+                                <p><strong>Diagnostic-only faces:</strong> {displayStatusSummary?.diagnosticOnlyFaceCount ?? 0}</p>
                                 <p><strong>Face count:</strong> {tessellation?.facePatches.length ?? 0}</p>
                                 <p><strong>Edge count:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
                                 <p><strong>Shell count:</strong> {activeBodyId ? 1 : 0}</p>
@@ -797,8 +860,8 @@ function App() {
                                 <p><strong>Render path:</strong> {displayScene.renderPath}</p>
                                 <p><strong>Analytic faces:</strong> {displayPreparation?.analyticPacket.analyticFaces.length ?? 0}</p>
                                 <p><strong>Fallback faces:</strong> {displayPreparation?.analyticPacket.fallbackFaces.length ?? 0}</p>
-                                <p><strong>Wire-only faces:</strong> {displayPreparation?.faces?.filter((face) => face.status === 'WireframeOnly').length ?? 0}</p>
-                                <p><strong>Diagnostic-only faces:</strong> {displayPreparation?.faces?.filter((face) => face.status === 'DiagnosticOnly').length ?? 0}</p>
+                                <p><strong>Wire-only faces:</strong> {displayStatusSummary?.wireOnlyFaceCount ?? 0}</p>
+                                <p><strong>Diagnostic-only faces:</strong> {displayStatusSummary?.diagnosticOnlyFaceCount ?? 0}</p>
                                 <p><strong>Face patches:</strong> {tessellation?.facePatches.length ?? 0}</p>
                                 <p><strong>Edge polylines:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
                                 <h3 className="section-title section-title--sub">Pick Diagnostics (active body only)</h3>

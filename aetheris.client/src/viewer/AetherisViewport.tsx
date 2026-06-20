@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2, Vector3 } from 'three';
 import type { DisplayScene } from './displayRenderables';
+import { computeDisplaySceneBounds, computeOrthographicCameraFit } from './displaySceneBounds';
 import type { RenderSceneData } from './tessellationMapper';
 import { selectLogarithmicGridScales } from './logarithmicGrid';
 
@@ -584,6 +585,41 @@ function PickRayCapture({ onPickRay }: { onPickRay?: AetherisViewportProps['onPi
   return null;
 }
 
+function FitCameraToScene({ displayScene, sceneData }: { displayScene: DisplayScene | null; sceneData: RenderSceneData | null }) {
+  const { camera, controls, size } = useThree();
+  const sceneBounds = useMemo(() => computeDisplaySceneBounds(displayScene, sceneData), [displayScene, sceneData]);
+
+  useEffect(() => {
+    if (!(camera instanceof OrthographicCamera) || !sceneBounds.isValid) {
+      return;
+    }
+
+    const frustumWidth = Math.abs(camera.right - camera.left) || size.width || 1;
+    const frustumHeight = Math.abs(camera.top - camera.bottom) || size.height || 1;
+    const fit = computeOrthographicCameraFit(sceneBounds, frustumWidth, frustumHeight);
+
+    if (!fit) {
+      return;
+    }
+
+    camera.position.set(...fit.position);
+    camera.zoom = fit.zoom;
+    camera.near = fit.near;
+    camera.far = fit.far;
+    camera.lookAt(...fit.target);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(false);
+
+    if (controls && typeof controls === 'object' && 'target' in controls) {
+      const orbitControls = controls as { target: Vector3; update?: () => void };
+      orbitControls.target.set(...fit.target);
+      orbitControls.update?.();
+    }
+  }, [camera, controls, sceneBounds, size.height, size.width]);
+
+  return null;
+}
+
 export function AetherisViewport({
   displayScene = null,
   sceneData,
@@ -600,6 +636,7 @@ export function AetherisViewport({
         {/*Negative near value is indeed correct in order to show negative value on grid. Documentation is wrong.*/}
         <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
         <directionalLight position={[-5, 9, 6]} intensity={VIEWPORT_THEME.directionalIntensity} />
+        <FitCameraToScene displayScene={displayScene} sceneData={sceneData} />
         {showGrid ? <DraftingGrid /> : null}
         {showAxisGuide ? <AxisGuide /> : null}
         {displayScene?.renderables.map((renderable) => {

@@ -64,3 +64,7 @@ DISPLAY-ARCH-X6 — typed DisplayIR API cleanup / remove legacy render-scene ass
 ## X5.1 follow-up
 
 DISPLAY-ARCH-X5.1 resolved the imported-occurrence server validation issue by documenting and testing the distinction between direct bounded `/tessellate` mesh lowering and DisplayIR-authoritative `/display/prepare`. The frontend typed renderable architecture from X5 remains unchanged.
+
+## X5.2 follow-up
+
+DISPLAY-QA-X2 kept the X5 typed-renderable contract intact but fixed one remaining frontend legacy assumption: imported-body framing still used a fixed orthographic camera pose instead of bounds derived from typed DisplayIR renderables. X2 added DisplayIR-aware bounds and orthographic fit logic without changing renderable semantics or server authority.

@@ -1,5 +1,4 @@
 import type { DisplayScene } from './displayRenderables';
-import type { RenderSceneData } from './tessellationMapper';
 
 export interface SceneBounds {
   min: [number, number, number];
@@ -107,7 +106,7 @@ function finalizeBounds(bounds: MutableBounds): SceneBounds {
   };
 }
 
-function computeTypedBounds(displayScene: DisplayScene | null): SceneBounds {
+export function computeDisplaySceneBounds(displayScene: DisplayScene | null): SceneBounds {
   if (!displayScene) {
     return EMPTY_BOUNDS;
   }
@@ -133,29 +132,6 @@ function computeTypedBounds(displayScene: DisplayScene | null): SceneBounds {
   }
 
   return finalizeBounds(bounds);
-}
-
-function computeFallbackBounds(sceneData: RenderSceneData | null): SceneBounds {
-  if (!sceneData) {
-    return EMPTY_BOUNDS;
-  }
-
-  const bounds = createBounds();
-
-  for (const face of sceneData.faces) {
-    includeTriplets(bounds, face.positions);
-  }
-
-  for (const edge of sceneData.edges) {
-    includeTriplets(bounds, edge.points);
-  }
-
-  return finalizeBounds(bounds);
-}
-
-export function computeDisplaySceneBounds(displayScene: DisplayScene | null, sceneData: RenderSceneData | null = null): SceneBounds {
-  const typedBounds = computeTypedBounds(displayScene);
-  return typedBounds.isValid ? typedBounds : computeFallbackBounds(sceneData);
 }
 
 function normalize(vector: Vec3): Vec3 {

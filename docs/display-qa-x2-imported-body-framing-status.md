@@ -177,3 +177,7 @@ The local rerun used the same script with `AETHERIS_QA_CASE=ftc06` and `AETHERIS
 Recommended next step: a focused FTC-07 follow-up that explains the changed local smoke result and stabilizes the intended server-side behavior for planar / wire degradation reporting.
 
 If the team wants to stay in frontend scope first, the next small slice would be viewer polish around partial-display highlighting and optional explicit wireframe emphasis, not more camera work.
+
+## Follow-up: DISPLAY-ARCH-X6
+
+DISPLAY-ARCH-X6 keeps the imported-body framing/status behavior from this milestone while removing the remaining frontend dependency on legacy mesh-scene data as a primary viewport contract. Legacy tessellation fallback is now compatibility-only. See `docs/display-architecture-x6-retire-legacy-mesh-scene.md`.

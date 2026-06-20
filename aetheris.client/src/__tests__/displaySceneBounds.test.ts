@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { DisplayScene } from '../viewer/displayRenderables';
 import { computeDisplaySceneBounds, computeOrthographicCameraFit } from '../viewer/displaySceneBounds';
-import type { RenderSceneData } from '../viewer/tessellationMapper';
 
 const baseScene: DisplayScene = {
   renderables: [],
   sourceAuthority: 'BRep',
   displayAuthority: 'DisplayIR',
-  displayLanes: [],
-  displayStatus: 'Complete',
+  lanes: [],
+  diagnostics: [],
+  status: 'Complete',
 };
 
 describe('displaySceneBounds', () => {
@@ -105,11 +105,55 @@ describe('displaySceneBounds', () => {
     expect(bounds.isValid).toBe(false);
   });
 
-  it('AetherisViewport_FitsCameraToDisplaySceneBounds', () => {
-    const sceneData: RenderSceneData = {
-      faces: [],
-      edges: [],
+  it('computeDisplaySceneBounds_ProducesValidLargeFarFromOriginBounds', () => {
+    const displayScene: DisplayScene = {
+      ...baseScene,
+      renderables: [
+        {
+          kind: 'MeshPatch',
+          faceId: 1,
+          surfaceKind: 'Plane',
+          status: 'Mesh',
+          patchKind: 'MeshPatch',
+          materializationLane: 'BoundedMesh',
+          diagnostics: [],
+          mesh: {
+            faceId: 1,
+            positions: new Float32Array([10000, -50, 25000, 10120, 60, 25140, 9980, 40, 25080]),
+            normals: new Float32Array(9),
+            indices: new Uint32Array([0, 1, 2]),
+          },
+        },
+        {
+          kind: 'WirePatch',
+          faceId: 2,
+          surfaceKind: 'Plane',
+          status: 'WireframeOnly',
+          patchKind: 'WirePatch',
+          materializationLane: 'WirePatch',
+          diagnostics: [],
+          wires: [{ edgeId: 2, points: new Float32Array([9975, -55, 24990, 10130, 65, 25150]) }],
+        },
+        {
+          kind: 'DiagnosticPatch',
+          faceId: 3,
+          surfaceKind: 'Plane',
+          status: 'DiagnosticOnly',
+          patchKind: 'DiagnosticPatch',
+          materializationLane: 'DiagnosticOnly',
+          diagnostics: [],
+        },
+      ],
     };
+
+    const bounds = computeDisplaySceneBounds(displayScene);
+
+    expect(bounds.isValid).toBe(true);
+    expect(bounds.min).toEqual([9975, -55, 24990]);
+    expect(bounds.max).toEqual([10130, 65, 25150]);
+  });
+
+  it('computeOrthographicCameraFit_FitsLargeFarFromOriginSceneBounds', () => {
     const displayScene: DisplayScene = {
       ...baseScene,
       renderables: [{
@@ -129,7 +173,7 @@ describe('displaySceneBounds', () => {
       }],
     };
 
-    const bounds = computeDisplaySceneBounds(displayScene, sceneData);
+    const bounds = computeDisplaySceneBounds(displayScene);
     const fit = computeOrthographicCameraFit(bounds, 20, 20);
 
     expect(fit).not.toBeNull();

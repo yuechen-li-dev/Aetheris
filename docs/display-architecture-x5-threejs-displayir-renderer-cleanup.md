@@ -68,3 +68,7 @@ DISPLAY-ARCH-X5.1 resolved the imported-occurrence server validation issue by do
 ## X5.2 follow-up
 
 DISPLAY-QA-X2 kept the X5 typed-renderable contract intact but fixed one remaining frontend legacy assumption: imported-body framing still used a fixed orthographic camera pose instead of bounds derived from typed DisplayIR renderables. X2 added DisplayIR-aware bounds and orthographic fit logic without changing renderable semantics or server authority.
+
+## Follow-up: DISPLAY-ARCH-X6
+
+DISPLAY-ARCH-X6 follows this cleanup by making `DisplayScene` / `DisplayRenderable` the primary frontend scene contract and quarantining legacy tessellation fallback conversion behind explicit compatibility adapters. See `docs/display-architecture-x6-retire-legacy-mesh-scene.md`.

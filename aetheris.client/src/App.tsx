@@ -16,7 +16,6 @@ import {
     type DiagnosticDto,
     type PickHitDto,
     type DisplayPreparationResponseDto,
-    type TessellationResponseDto,
 } from './api/aetherisApi';
 import { StepImportDropzone } from './components/StepImportDropzone';
 import { Button } from './components/ui/button';
@@ -93,7 +92,6 @@ function App() {
     const [bodyIds, setBodyIds] = useState<string[]>([]);
     const [occurrences, setOccurrences] = useState<BodyOccurrenceSummaryDto[]>([]);
     const [activeBodyId, setActiveBodyId] = useState<string | null>(null);
-    const [tessellation, setTessellation] = useState<TessellationResponseDto | null>(null);
     const [displayPreparation, setDisplayPreparation] = useState<DisplayPreparationResponseDto | null>(null);
     const [status, setStatus] = useState<RequestStatus>('idle');
     const [statusMessage, setStatusMessage] = useState<string>('Ready. Create a document to begin.');
@@ -130,7 +128,6 @@ function App() {
         setBodyIds([]);
         setActiveBodyId(null);
         setOccurrences([]);
-        setTessellation(null);
         setDisplayPreparation(null);
         setPickStatus('idle');
         setPickMessage('Click in the viewport to run nearest-hit pick.');
@@ -217,13 +214,11 @@ function App() {
             try {
                 const preparedDisplay = await prepareBodyDisplay(documentId, selected);
                 setDisplayPreparation(preparedDisplay);
-                setTessellation(preparedDisplay.tessellationFallback);
                 return { preparation: preparedDisplay, error: null };
             } catch (error) {
                 const apiError = error instanceof ApiError
                     ? error
                     : new ApiError((error as Error).message || 'Unexpected display preparation error.', []);
-                setTessellation(null);
                 setDisplayPreparation(null);
                 if (!suppressDisplayErrors) {
                     throw apiError;
@@ -232,7 +227,6 @@ function App() {
                 return { preparation: null, error: apiError };
             }
         } else {
-            setTessellation(null);
             setDisplayPreparation(null);
         }
 
@@ -284,7 +278,6 @@ function App() {
             const preparedDisplay = await prepareBodyDisplay(documentId, nextBodyId);
             setActiveBodyId(nextBodyId);
             setDisplayPreparation(preparedDisplay);
-            setTessellation(preparedDisplay.tessellationFallback);
             setPickStatus('idle');
             setPickMessage('Active body changed. Click in viewport to pick nearest hit.');
             setPickDiagnostics([]);
@@ -326,7 +319,6 @@ function App() {
         await runAction('Refresh display data', async () => {
             const preparedDisplay = await prepareBodyDisplay(documentId, activeBodyId);
             setDisplayPreparation(preparedDisplay);
-            setTessellation(preparedDisplay.tessellationFallback);
         });
         setIsRefreshing(false);
     }, [activeBodyId, documentId, runAction]);
@@ -562,7 +554,15 @@ function App() {
     }, [activeBodyId, documentId]);
 
     const displayScene = useMemo(() => buildDisplaySceneData(displayPreparation), [displayPreparation]);
-    const sceneData = displayScene.sceneData;
+    const displayRenderableCounts = useMemo(() => {
+        const renderables = displayScene.displayScene?.renderables ?? [];
+        return {
+            meshFaces: renderables.filter((renderable) => renderable.kind === 'MeshPatch').length,
+            wireEdges: renderables
+                .filter((renderable) => renderable.kind === 'WirePatch')
+                .reduce((count, renderable) => count + renderable.wires.length, 0),
+        };
+    }, [displayScene.displayScene]);
     const nearestHit = pickHits[0] ?? null;
     const highlightedFaceId = nearestHit?.entityKind === 'Face' ? nearestHit.faceId : null;
     const highlightedEdgeId = nearestHit?.entityKind === 'Edge' ? nearestHit.edgeId : null;
@@ -665,7 +665,6 @@ function App() {
                         </div>
                         <AetherisViewport
                             displayScene={displayScene.displayScene}
-                            sceneData={sceneData}
                             highlightedFaceId={highlightedFaceId}
                             highlightedEdgeId={highlightedEdgeId}
                             showGrid={isGridVisible}
@@ -754,8 +753,8 @@ function App() {
                                 <p><strong>Fallback faces:</strong> {displayPreparation?.analyticPacket.fallbackFaces.length ?? 0}</p>
                                 <p><strong>Wire-only faces:</strong> {displayStatusSummary?.wireOnlyFaceCount ?? 0}</p>
                                 <p><strong>Diagnostic-only faces:</strong> {displayStatusSummary?.diagnosticOnlyFaceCount ?? 0}</p>
-                                <p><strong>Face count:</strong> {tessellation?.facePatches.length ?? 0}</p>
-                                <p><strong>Edge count:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
+                                <p><strong>Face count:</strong> {displayRenderableCounts.meshFaces}</p>
+                                <p><strong>Edge count:</strong> {displayRenderableCounts.wireEdges || displayScene.displayScene?.legacyCompatibility?.edgePolylineCount || 0}</p>
                                 <p><strong>Shell count:</strong> {activeBodyId ? 1 : 0}</p>
                             </section>
                         </>
@@ -856,14 +855,14 @@ function App() {
                                 <p><strong>Active occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
                                 <p><strong>Occurrence count:</strong> {bodyIds.length}</p>
                                 <p><strong>Display lane:</strong> {displayPreparation?.lane ?? 'None'}</p>
-                                <p><strong>Display status:</strong> {displayPreparation?.status ?? 'None'}</p>
+                                <p><strong>Display status:</strong> {displayScene.displayScene?.status ?? 'None'}</p>
                                 <p><strong>Render path:</strong> {displayScene.renderPath}</p>
                                 <p><strong>Analytic faces:</strong> {displayPreparation?.analyticPacket.analyticFaces.length ?? 0}</p>
                                 <p><strong>Fallback faces:</strong> {displayPreparation?.analyticPacket.fallbackFaces.length ?? 0}</p>
                                 <p><strong>Wire-only faces:</strong> {displayStatusSummary?.wireOnlyFaceCount ?? 0}</p>
                                 <p><strong>Diagnostic-only faces:</strong> {displayStatusSummary?.diagnosticOnlyFaceCount ?? 0}</p>
-                                <p><strong>Face patches:</strong> {tessellation?.facePatches.length ?? 0}</p>
-                                <p><strong>Edge polylines:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
+                                <p><strong>Face patches:</strong> {displayRenderableCounts.meshFaces}</p>
+                                <p><strong>Edge polylines:</strong> {displayRenderableCounts.wireEdges || displayScene.displayScene?.legacyCompatibility?.edgePolylineCount || 0}</p>
                                 <h3 className="section-title section-title--sub">Pick Diagnostics (active body only)</h3>
                                 <p><strong>Pick status:</strong> {pickStatus}</p>
                                 <p><strong>Pick message:</strong> {pickMessage}</p>

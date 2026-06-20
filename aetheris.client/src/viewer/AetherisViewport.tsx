@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2, Vector3 } from 'three';
 import type { DisplayScene } from './displayRenderables';
-import type { RenderSceneData } from './tessellationMapper';
 import { selectLogarithmicGridScales } from './logarithmicGrid';
 
 const VIEWPORT_THEME = {
@@ -452,7 +451,8 @@ function DraftingGrid() {
 
 export interface AetherisViewportProps {
   displayScene?: DisplayScene | null;
-  sceneData: RenderSceneData | null;
+  /** Compatibility-only input for callers not yet migrated to DisplayScene. */
+  sceneData?: null;
   highlightedFaceId?: number | null;
   highlightedEdgeId?: number | null;
   showGrid?: boolean;
@@ -586,15 +586,12 @@ function PickRayCapture({ onPickRay }: { onPickRay?: AetherisViewportProps['onPi
 
 export function AetherisViewport({
   displayScene = null,
-  sceneData,
   highlightedFaceId = null,
   highlightedEdgeId = null,
   showGrid = true,
   showAxisGuide = true,
   onPickRay,
 }: AetherisViewportProps) {
-  const hasInteractionEdgeHighlight = highlightedEdgeId !== null;
-
   return (
     <Canvas style={{ display: 'block', width: '100%', height: '100%' }} orthographic camera={{ position: [6, 6, 6], zoom: 90, near: -10000, far: 10000 }} gl={{ alpha: true }}>
         {/*Negative near value is indeed correct in order to show negative value on grid. Documentation is wrong.*/}
@@ -617,26 +614,6 @@ export function AetherisViewport({
 
           return null;
         })}
-        {!displayScene ? sceneData?.faces.map((face) => (
-          <FaceMesh
-            key={`face-${face.faceId}`}
-            positions={face.positions}
-            normals={face.normals}
-            indices={face.indices}
-            isHighlighted={highlightedFaceId === face.faceId}
-          />
-        )) : null}
-        {!displayScene && hasInteractionEdgeHighlight
-          ? sceneData?.edges
-            .filter((edge) => edge.edgeId === highlightedEdgeId)
-            .map((edge) => (
-              <EdgeLine
-                key={`edge-${edge.edgeId}`}
-                points={edge.points}
-                isHighlighted
-              />
-            ))
-          : null}
         <PickRayCapture onPickRay={onPickRay} />
         <OrbitControls makeDefault enablePan enableZoom />
       </Canvas>

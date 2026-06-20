@@ -36,11 +36,17 @@ export interface DiagnosticRenderable extends DisplayRenderableBase {
 export type DisplayRenderable = AnalyticRenderable | MeshRenderable | WireRenderable | DiagnosticRenderable;
 
 export interface DisplayScene {
-  renderables: DisplayRenderable[];
+  status: string | null;
   sourceAuthority: string | null;
   displayAuthority: string | null;
-  displayLanes: DisplayLaneDto[];
-  displayStatus: string | null;
+  lanes: DisplayLaneDto[];
+  renderables: DisplayRenderable[];
+  diagnostics: DisplayDiagnosticDto[];
+  legacyCompatibility?: {
+    source: 'tessellationFallback';
+    facePatchCount: number;
+    edgePolylineCount: number;
+  };
 }
 
 function base(face: DisplayFaceDto): Omit<DisplayRenderableBase, 'kind'> {
@@ -85,10 +91,11 @@ export function mapDisplayFaceToRenderable(face: DisplayFaceDto): DisplayRendera
 export function mapDisplayPreparationToDisplayScene(preparation: DisplayPreparationResponseDto | null): DisplayScene | null {
   if (!preparation) return null;
   return {
-    renderables: (preparation.faces ?? []).map(mapDisplayFaceToRenderable),
+    status: preparation.status ?? null,
     sourceAuthority: preparation.sourceAuthority ?? null,
     displayAuthority: preparation.displayAuthority ?? null,
-    displayLanes: preparation.displayLanes ?? [],
-    displayStatus: preparation.status ?? null,
+    lanes: preparation.displayLanes ?? [],
+    renderables: (preparation.faces ?? []).map(mapDisplayFaceToRenderable),
+    diagnostics: preparation.diagnostics ?? [],
   };
 }

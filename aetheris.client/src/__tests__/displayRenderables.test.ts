@@ -64,5 +64,6 @@ describe('DisplayIRMapper', () => {
     ]);
     expect(scene?.sourceAuthority).toBe('BRep');
     expect(scene?.displayAuthority).toBe('DisplayIR');
+    expect(scene?.status).toBe('Partial');
   });
 });

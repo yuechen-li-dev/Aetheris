@@ -241,3 +241,7 @@ This house call did not:
 - rewrite the tessellator
 - weaken FTC-06 / FTC-07 regression coverage
 - change CAD feature behavior
+
+## 15. Workstream boundary note
+
+Display/frontend workstream is now closed out for the main compiler path; see [DISPLAY-PHASE-CLOSEOUT-A1](display-phase-closeout-a1-workstream-boundary.md).

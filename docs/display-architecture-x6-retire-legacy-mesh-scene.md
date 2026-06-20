@@ -74,3 +74,7 @@ Full .NET validation and CLI smoke were also run for this change set when prepar
 ## 11. Next milestone recommendation
 
 Recommended next milestone: `DISPLAY-ARCH-X7 — remove deprecated tessellationFallback frontend compatibility once server clients are migrated`.
+
+## 12. Workstream boundary note
+
+Display/frontend workstream is now closed out for the main compiler path; see [DISPLAY-PHASE-CLOSEOUT-A1](display-phase-closeout-a1-workstream-boundary.md).

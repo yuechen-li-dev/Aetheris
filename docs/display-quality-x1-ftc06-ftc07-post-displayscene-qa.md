@@ -339,3 +339,7 @@ Additional explicit non-changes for this pass:
 - no Firmasm changes
 - no frontend typed renderable semantic changes
 - no AP242 importer/exporter behavior changes
+
+## 13. Workstream boundary note
+
+Display/frontend workstream is now closed out for the main compiler path; see [DISPLAY-PHASE-CLOSEOUT-A1](display-phase-closeout-a1-workstream-boundary.md).

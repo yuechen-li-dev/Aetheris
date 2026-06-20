@@ -69,11 +69,43 @@ function wireEdges(face: DisplayFaceDto): RenderEdgePolyline[] {
     })) ?? [];
 }
 
-export function mapDisplayFaceToRenderable(face: DisplayFaceDto): DisplayRenderable {
+function analyticPreviewNeedsFallbackMesh(face: DisplayFaceDto): boolean {
+  if (!face.analyticPatch) {
+    return false;
+  }
+
+  if (face.analyticPatch.surfaceKind === 'Plane') {
+    return face.analyticPatch.loopCount > 1;
+  }
+
+  return face.analyticPatch.surfaceKind === 'Cylinder'
+    || face.analyticPatch.surfaceKind === 'Cone';
+}
+
+function analyticFallbackMeshRenderable(face: DisplayFaceDto, fallbackMesh: RenderFacePatch): MeshRenderable {
+  return {
+    ...base(face),
+    kind: 'MeshPatch',
+    status: 'Mesh',
+    patchKind: 'MeshPatch',
+    materializationLane: 'BoundedMesh',
+    mesh: fallbackMesh,
+  };
+}
+
+export function mapDisplayFaceToRenderable(face: DisplayFaceDto, fallbackMesh: RenderFacePatch | null = null): DisplayRenderable {
   if (face.patchKind === 'AnalyticPatch' && face.analyticPatch) {
+    if (fallbackMesh && analyticPreviewNeedsFallbackMesh(face)) {
+      return analyticFallbackMeshRenderable(face, fallbackMesh);
+    }
+
     const previewMesh = analyticPatchToPreviewMesh(face.analyticPatch);
     if (previewMesh) {
       return { ...base(face), kind: 'AnalyticPatch', previewMesh };
+    }
+
+    if (fallbackMesh) {
+      return analyticFallbackMeshRenderable(face, fallbackMesh);
     }
   }
 
@@ -90,12 +122,17 @@ export function mapDisplayFaceToRenderable(face: DisplayFaceDto): DisplayRendera
 
 export function mapDisplayPreparationToDisplayScene(preparation: DisplayPreparationResponseDto | null): DisplayScene | null {
   if (!preparation) return null;
+  const fallbackMeshByFaceId = new Map(
+    (preparation.tessellationFallback?.facePatches ?? [])
+      .map((patch) => [patch.faceId, mapFacePatchToRenderFacePatch(patch)]),
+  );
+
   return {
     status: preparation.status ?? null,
     sourceAuthority: preparation.sourceAuthority ?? null,
     displayAuthority: preparation.displayAuthority ?? null,
     lanes: preparation.displayLanes ?? [],
-    renderables: (preparation.faces ?? []).map(mapDisplayFaceToRenderable),
+    renderables: (preparation.faces ?? []).map((face) => mapDisplayFaceToRenderable(face, fallbackMeshByFaceId.get(face.faceId) ?? null)),
     diagnostics: preparation.diagnostics ?? [],
   };
 }

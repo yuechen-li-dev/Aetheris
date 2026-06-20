@@ -35,8 +35,8 @@ vi.mock('../api/aetherisApi', async () => {
     };
 });
 
-vi.mock('../viewer/ViewerViewport', () => ({
-    ViewerViewport: () => <div data-testid="viewer-viewport" />,
+vi.mock('../viewer/AetherisViewport', () => ({
+    AetherisViewport: () => <div data-testid="viewer-viewport" />,
 }));
 
 function setupDocumentApiMocks(): void {
@@ -278,6 +278,96 @@ describe('App STEP file upload flow', () => {
             expect(apiMocks.importStep).toHaveBeenCalledWith('doc-1', 'ISO-10303-21;DATA;');
         });
         expect(apiMocks.exportDefinitionStep).toHaveBeenCalledWith('doc-1', 'def-2');
+        await screen.findByText('hash-123');
+    });
+
+
+    it('reports wireframe-only display fallback separately from import success', async () => {
+        apiMocks.importStep.mockResolvedValue({ documentId: 'doc-1', definitionId: 'def-2', occurrenceId: 'occ-2', name: 'Imported', diagnostics: [] });
+        apiMocks.exportDefinitionStep.mockResolvedValue({ documentId: 'doc-1', definitionId: 'def-2', stepText: 'ISO-10303-21;', canonicalHash: 'hash-123', diagnostics: [] });
+        apiMocks.prepareBodyDisplay.mockResolvedValue({
+            lane: 'fallback-only',
+            analyticPacket: { bodyId: 1, analyticFaces: [], fallbackFaces: [{ faceId: 9, shellId: 1, shellRole: 'Outer', reason: 'UnsupportedTrim', surfaceKind: 'Plane', detail: null }] },
+            tessellationFallback: { facePatches: [], edgePolylines: [] },
+            status: 'Partial',
+            sourceAuthority: 'BRep',
+            displayAuthority: 'DisplayIR',
+            lanes: ['BoundedMesh', 'WirePatch'],
+            displayLanes: [{ kind: 'WirePatch', status: 'Partial', source: 'BRep', displayAuthority: 'DisplayIR', implementation: 'BRepEdgeWireLowering', quality: 'PreviewPolyline', timeoutMs: null, faceCount: 1, diagnosticCount: 1 }],
+            faces: [{
+                faceId: 9, shellId: 1, surfaceKind: 'Plane', status: 'WireframeOnly', patchKind: 'WirePatch', meshPatch: null, analyticPatch: null,
+                wirePatch: { kind: 'WirePatch', source: 'BRepEdges', quality: 'PreviewPolyline', loops: [{ loopId: 12, role: 'Outer', edges: [{ edgeId: 44, points: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }], sourceCurveKind: 'Line3', sampleCount: 2, diagnostics: [] }] }] },
+                materializationLane: 'WirePatch',
+                diagnostics: [{ code: 'Viewer.Display.WireframeOnly', message: 'wire', faceId: 9, surfaceKind: 'Plane', phase: 'BRepEdgeWireLowering', suggestedNextAction: null }],
+            }],
+            diagnostics: [],
+        });
+
+        render(<App />);
+        await screen.findByText('Document: Ready');
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
+        fireEvent.change(fileInput, { target: { files: [new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' })] } });
+        await screen.findByText('part.stp');
+        fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
+
+        await screen.findByText('Import succeeded. Display partial: display degraded: 1 wire-only face(s), 0 diagnostic-only face(s).');
+        await screen.findByText('Wire-only faces:');
+        await screen.findByText('Diagnostic-only faces:');
+    });
+
+
+    it('reports bounded mesh partial display separately from import success', async () => {
+        apiMocks.importStep.mockResolvedValue({
+            documentId: 'doc-1',
+            definitionId: 'def-2',
+            occurrenceId: 'occ-2',
+            name: 'Imported',
+            diagnostics: [],
+        });
+        apiMocks.exportDefinitionStep.mockResolvedValue({
+            documentId: 'doc-1',
+            definitionId: 'def-2',
+            stepText: 'ISO-10303-21;',
+            canonicalHash: 'hash-123',
+            diagnostics: [],
+        });
+        apiMocks.prepareBodyDisplay.mockResolvedValue({
+            lane: 'fallback-only',
+            analyticPacket: { bodyId: 1, analyticFaces: [], fallbackFaces: [{ faceId: 9, shellId: 1, shellRole: 'Outer', reason: 'UnsupportedTrim', surfaceKind: 'Plane', detail: null }] },
+            tessellationFallback: { facePatches: [], edgePolylines: [] },
+            status: 'Partial',
+            sourceAuthority: 'BRep',
+            displayAuthority: 'DisplayIR',
+            lanes: ['BoundedMesh', 'DiagnosticOnly'],
+            displayLanes: [{ kind: 'BoundedMesh', status: 'Partial', source: 'BRep', displayAuthority: 'DisplayIR', implementation: 'BrepDisplayTessellator', quality: 'Default', timeoutMs: 5000, faceCount: 0, diagnosticCount: 1 }],
+            faces: [{
+                faceId: 9,
+                shellId: 1,
+                surfaceKind: 'Plane',
+                status: 'DiagnosticOnly',
+                patchKind: 'DiagnosticPatch',
+                meshPatch: null,
+                analyticPatch: null,
+                wirePatch: null,
+                materializationLane: 'BoundedMesh',
+                diagnostics: [{ code: 'Viewer.Tessellation.Timeout', message: 'timeout', faceId: 9, surfaceKind: 'Plane', phase: 'PlanarTriangulationWithHoles', suggestedNextAction: null }],
+            }],
+            diagnostics: [],
+        });
+
+        render(<App />);
+        await screen.findByText('Document: Ready');
+
+        const fileInput = screen.getByTestId('step-import-file-input') as HTMLInputElement;
+        const file = new File(['ISO-10303-21;DATA;'], 'part.stp', { type: 'text/plain' });
+        fireEvent.change(fileInput, { target: { files: [file] } });
+        await screen.findByText('part.stp');
+        fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
+
+        await waitFor(() => {
+            expect(apiMocks.prepareBodyDisplay).toHaveBeenCalledWith('doc-1', 'occ-2');
+        });
+        await screen.findByText('Import succeeded. Display partial: display degraded: 0 wire-only face(s), 1 diagnostic-only face(s).');
         await screen.findByText('hash-123');
     });
 

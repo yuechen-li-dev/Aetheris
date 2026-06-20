@@ -39,13 +39,36 @@ public sealed class Step242Ftc07ViewMaterializationRegressionTests
             return;
         }
 
-        var diagnostic = Assert.Single(tessellation.Diagnostics, candidate => string.Equals(candidate.Source, "Viewer.Tessellation.Timeout", StringComparison.Ordinal));
-        Assert.Contains("face", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("phase", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("surface", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.True(
-            diagnostic.Message.Contains("PlanarTriangulationWithHoles", StringComparison.Ordinal)
-            || diagnostic.Message.Contains("FaceTessellation", StringComparison.Ordinal));
+        Assert.All(tessellation.Diagnostics, diagnostic =>
+        {
+            Assert.Contains("face", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("phase", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("surface", diagnostic.Message, StringComparison.OrdinalIgnoreCase);
+        });
+        Assert.Contains(tessellation.Diagnostics, diagnostic =>
+            string.Equals(diagnostic.Source, "Viewer.Tessellation.Timeout", StringComparison.Ordinal)
+            || diagnostic.Source?.StartsWith("Viewer.PlanarTriangulation.", StringComparison.Ordinal) == true);
+    }
+
+
+    [Fact]
+    public void DisplayPrepare_Ftc07_ReturnsPartialDisplayInsteadOfWholeBodyFailure()
+    {
+        var body = ImportFixture();
+
+        var partial = BrepDisplayTessellator.TessellateBoundedPartial(body);
+
+        Assert.NotEmpty(partial.FacePatches);
+        if ((partial.FaceDiagnostics ?? []).Count == 0)
+        {
+            return;
+        }
+
+        Assert.Contains(partial.FaceDiagnostics ?? [], diagnostic =>
+            diagnostic.Code == "Viewer.Tessellation.Timeout"
+            || diagnostic.Code.StartsWith("Viewer.PlanarTriangulation.", StringComparison.Ordinal));
+        Assert.Contains(partial.FaceDiagnostics ?? [], diagnostic =>
+            diagnostic.Phase is "PlanarTriangulationWithHoles" or "PlanarLoopClassification" or "FaceTessellation" or "TrimLoopSampling" or "FaceDispatch");
     }
 
     private static global::Aetheris.Kernel.Core.Brep.BrepBody ImportFixture()

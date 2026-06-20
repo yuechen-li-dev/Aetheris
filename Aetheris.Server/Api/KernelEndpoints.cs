@@ -4,8 +4,10 @@ using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Brep.Picking;
 using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Brep.Tessellation;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Topology;
 using Aetheris.Server.Contracts;
 using Aetheris.Server.Documents;
 using System.Security.Cryptography;
@@ -297,26 +299,128 @@ public static class KernelEndpoints
             WithDocumentOccurrence(store, documentId, bodyId, (document, body) =>
             {
                 var analyticPacket = AnalyticDisplayPacketBuilder.Build(body);
+                var analyticDto = ApiMappings.ToAnalyticDisplayPacketResponse(analyticPacket);
                 var lane = ResolveDisplayLane(analyticPacket);
                 TessellationResponseDto? tessellationFallback = null;
+                DisplayTessellationResult? boundedMeshResult = null;
+                var displayDiagnostics = new List<DisplayDiagnosticDto>();
 
                 if (lane is not "analytic-only")
                 {
-                    var tessellateKernel = DisplayPreparationFallbackBuilder.Build(body, ApiMappings.BuildTessellationOptions(request?.TessellationOptions));
-                    if (!tessellateKernel.IsSuccess)
-                    {
-                        return ApiMappings.KernelFailure(tessellateKernel.Diagnostics);
-                    }
+                    var options = ApiMappings.BuildTessellationOptions(request?.TessellationOptions);
+                    var completeBoundedMesh = DisplayPreparationFallbackBuilder.Build(body, options);
+                    boundedMeshResult = completeBoundedMesh.IsSuccess
+                        ? completeBoundedMesh.Value
+                        : BrepDisplayTessellator.TessellateBoundedPartial(body, options);
 
                     tessellationFallback = document.TryGetBodyTransform(bodyId, out var fallbackTransform)
-                        ? ApiMappings.ToTessellationResponse(tessellateKernel.Value, fallbackTransform)
-                        : ApiMappings.ToTessellationResponse(tessellateKernel.Value);
+                        ? ApiMappings.ToTessellationResponse(boundedMeshResult, fallbackTransform)
+                        : ApiMappings.ToTessellationResponse(boundedMeshResult);
+
+                    if (!completeBoundedMesh.IsSuccess && boundedMeshResult.FaceDiagnostics is { Count: > 0 })
+                    {
+                        displayDiagnostics.AddRange(boundedMeshResult.FaceDiagnostics.Select(diagnostic => new DisplayDiagnosticDto(
+                            diagnostic.Code,
+                            diagnostic.Message,
+                            diagnostic.FaceId?.Value,
+                            diagnostic.SurfaceKind,
+                            diagnostic.Phase,
+                            "Use wire/proxy display or retry with explicit bounded mesh lowering.")));
+                    }
                 }
 
+                var meshByFace = tessellationFallback?.FacePatches.ToDictionary(patch => patch.FaceId) ?? [];
+                var wireByFace = body.Topology.Faces
+                    .OrderBy(face => face.Id.Value)
+                    .Select(face => (face.Id, Wire: TryBuildWirePatch(body, face.Id)))
+                    .Where(item => item.Wire is not null)
+                    .ToDictionary(item => item.Id.Value, item => item.Wire!);
+                var analyticByFace = analyticDto.AnalyticFaces.ToDictionary(face => face.FaceId);
+                var fallbackByFace = analyticDto.FallbackFaces.ToDictionary(face => face.FaceId);
+                var diagnosticsByFace = displayDiagnostics
+                    .Where(diagnostic => diagnostic.FaceId.HasValue)
+                    .GroupBy(diagnostic => diagnostic.FaceId!.Value)
+                    .ToDictionary(group => group.Key, group => (IReadOnlyList<DisplayDiagnosticDto>)group.ToArray());
+                var faces = body.Topology.Faces.OrderBy(face => face.Id.Value).Select(face =>
+                {
+                    analyticByFace.TryGetValue(face.Id.Value, out var analyticFace);
+                    meshByFace.TryGetValue(face.Id.Value, out var meshPatch);
+                    fallbackByFace.TryGetValue(face.Id.Value, out var fallbackFace);
+                    diagnosticsByFace.TryGetValue(face.Id.Value, out var faceDiagnostics);
+                    wireByFace.TryGetValue(face.Id.Value, out var wirePatch);
+                    var canUseWireFallback = analyticFace is null && meshPatch is null && faceDiagnostics is { Count: > 0 } && wirePatch is not null && wirePatch.Loops.Count > 0;
+                    var status = analyticFace is not null ? "Analytic" : meshPatch is not null ? "Mesh" : canUseWireFallback ? "WireframeOnly" : faceDiagnostics is { Count: > 0 } ? "DiagnosticOnly" : "Omitted";
+                    var patchKind = analyticFace is not null ? "AnalyticPatch" : meshPatch is not null ? "MeshPatch" : canUseWireFallback ? "WirePatch" : faceDiagnostics is { Count: > 0 } ? "DiagnosticPatch" : "DiagnosticPatch";
+                    var materializationLane = analyticFace is not null ? "AnalyticPatch" : meshPatch is not null ? "BoundedMesh" : canUseWireFallback ? "WirePatch" : faceDiagnostics is { Count: > 0 } ? "BoundedMesh" : "DiagnosticOnly";
+                    var combinedDiagnostics = canUseWireFallback
+                        ? (faceDiagnostics ?? []).Concat([new DisplayDiagnosticDto("Viewer.Display.WireframeOnly", "Face fill materialization failed; boundary edges were emitted as preview wireframe DisplayIR.", face.Id.Value, analyticFace?.SurfaceKind ?? fallbackFace?.SurfaceKind, "BRepEdgeWireLowering", null)]).ToArray()
+                        : faceDiagnostics ?? [];
+                    return new DisplayFaceDto(
+                        face.Id.Value,
+                        analyticFace?.ShellId ?? fallbackFace?.ShellId,
+                        analyticFace?.SurfaceKind ?? fallbackFace?.SurfaceKind,
+                        status,
+                        patchKind,
+                        meshPatch,
+                        analyticFace,
+                        canUseWireFallback ? wirePatch : null,
+                        materializationLane,
+                        combinedDiagnostics);
+                }).ToArray();
+
+                var status = faces.All(face => face.Status is "DiagnosticOnly" or "Omitted") ? "DiagnosticOnly" :
+                    faces.Any(face => face.Status is "DiagnosticOnly" or "Omitted" or "WireframeOnly") ? "Partial" : "Complete";
+                if (status is "Partial")
+                {
+                    displayDiagnostics.Insert(0, new DisplayDiagnosticDto("Viewer.Display.Partial", "Display preparation completed with one or more diagnostic-only or wireframe-only faces.", null, null, null, null));
+                }
+
+                var displayLanes = new List<DisplayLaneDto>();
+                var analyticFaceCount = faces.Count(face => face.MaterializationLane == "AnalyticPatch");
+                if (analyticFaceCount > 0)
+                {
+                    displayLanes.Add(new DisplayLaneDto("AnalyticPatch", "Complete", "BRep", "DisplayIR", null, "Default", null, analyticFaceCount, 0));
+                }
+
+                if (boundedMeshResult is not null)
+                {
+                    var boundedMeshDiagnostics = boundedMeshResult.FaceDiagnostics?.Count ?? 0;
+                    var boundedMeshFaceCount = faces.Count(face => face.MaterializationLane == "BoundedMesh" && face.Status == "Mesh");
+                    var boundedMeshStatus = boundedMeshDiagnostics > 0 ? (boundedMeshFaceCount > 0 ? "Partial" : "Failed") : "Complete";
+                    displayLanes.Add(new DisplayLaneDto(
+                        "BoundedMesh",
+                        boundedMeshStatus,
+                        "BRep",
+                        "DisplayIR",
+                        "BrepDisplayTessellator",
+                        "Default",
+                        5000,
+                        boundedMeshFaceCount,
+                        boundedMeshDiagnostics));
+                }
+
+                if (faces.Any(face => face.Status == "WireframeOnly"))
+                {
+                    displayLanes.Add(new DisplayLaneDto("WirePatch", "Partial", "BRep", "DisplayIR", "BRepEdgeWireLowering", "PreviewPolyline", null, faces.Count(face => face.Status == "WireframeOnly"), faces.Where(face => face.Status == "WireframeOnly").Sum(face => face.Diagnostics.Count)));
+                }
+
+                if (faces.Any(face => face.Status == "DiagnosticOnly"))
+                {
+                    displayLanes.Add(new DisplayLaneDto("DiagnosticOnly", status, "DisplayIR", "DisplayIR", null, "Diagnostic", null, faces.Count(face => face.Status == "DiagnosticOnly"), displayDiagnostics.Count));
+                }
+
+                var lanes = displayLanes.Select(displayLane => displayLane.Kind).ToArray();
                 return ApiMappings.Ok(new DisplayPreparationResponseDto(
                     lane,
-                    ApiMappings.ToAnalyticDisplayPacketResponse(analyticPacket),
-                    tessellationFallback));
+                    analyticDto,
+                    tessellationFallback,
+                    status,
+                    "BRep",
+                    "DisplayIR",
+                    lanes,
+                    faces,
+                    displayDiagnostics,
+                    displayLanes));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/pick", (Guid documentId, Guid bodyId, PickRequestDto request, KernelDocumentStore store) =>
@@ -425,6 +529,77 @@ public static class KernelEndpoints
             error = ApiMappings.BadRequestFromMessage(ex.Message, "operations.extrude");
             return false;
         }
+    }
+
+    private static DisplayWirePatchDto? TryBuildWirePatch(Aetheris.Kernel.Core.Brep.BrepBody body, FaceId faceId)
+    {
+        var loops = new List<DisplayLoopDto>();
+        var loopIds = body.GetLoopIds(faceId);
+        for (var loopIndex = 0; loopIndex < loopIds.Count; loopIndex++)
+        {
+            var loopId = loopIds[loopIndex];
+            var edges = new List<DisplayEdgeDto>();
+            foreach (var coedgeId in body.GetCoedgeIds(loopId))
+            {
+                if (!body.Topology.TryGetCoedge(coedgeId, out var coedge) || coedge is null)
+                {
+                    continue;
+                }
+
+                edges.Add(BuildWireEdge(body, coedge.EdgeId));
+            }
+
+            if (edges.Count > 0)
+            {
+                loops.Add(new DisplayLoopDto(loopId.Value, loopIndex == 0 ? "Outer" : "Inner", edges));
+            }
+        }
+
+        return loops.Count == 0 ? null : new DisplayWirePatchDto("WirePatch", "BRepEdges", "PreviewPolyline", loops);
+    }
+
+    private static DisplayEdgeDto BuildWireEdge(Aetheris.Kernel.Core.Brep.BrepBody body, EdgeId edgeId)
+    {
+        var points = new List<Point3Dto>();
+        var diagnostics = new List<DisplayDiagnosticDto>();
+        var sourceCurveKind = "Unknown";
+        if (body.TryGetEdgeCurve(edgeId, out var curve) && curve is not null && body.Bindings.TryGetEdgeBinding(edgeId, out var binding))
+        {
+            sourceCurveKind = curve.Kind.ToString();
+            var interval = binding.TrimInterval;
+            var start = interval?.Start ?? 0d;
+            var end = interval?.End ?? (curve.Kind == CurveGeometryKind.Circle3 ? 2d * double.Pi : 1d);
+            if (curve.Kind == CurveGeometryKind.Line3 && curve.Line3 is { } line)
+            {
+                points.Add(ApiMappings.ToPointDto(line.Evaluate(start)));
+                points.Add(ApiMappings.ToPointDto(line.Evaluate(end)));
+            }
+            else if (curve.Kind == CurveGeometryKind.Circle3 && curve.Circle3 is { } circle)
+            {
+                var samples = Math.Clamp((int)Math.Ceiling(Math.Abs(end - start) / (Math.PI / 12d)) + 1, 3, 33);
+                for (var i = 0; i < samples; i++)
+                {
+                    var t = start + ((end - start) * i / (samples - 1));
+                    points.Add(ApiMappings.ToPointDto(circle.Evaluate(t)));
+                }
+            }
+            else
+            {
+                diagnostics.Add(new DisplayDiagnosticDto("Viewer.Wireframe.UnsupportedCurve", $"Wireframe preview does not sample edge curve kind '{curve.Kind}'.", null, null, "BRepEdgeWireLowering", "Keep face diagnostic visible; harden edge polyline sampler in a later milestone."));
+            }
+        }
+        else
+        {
+            diagnostics.Add(new DisplayDiagnosticDto("Viewer.Wireframe.UnsupportedCurve", "Wireframe preview could not resolve an edge curve binding.", null, null, "BRepEdgeWireLowering", "Keep face diagnostic visible; inspect BRep edge bindings."));
+        }
+
+        if (points.Count == 0 && body.TryGetEdgeVertices(edgeId, out var startVertex, out var endVertex))
+        {
+            if (body.TryGetVertexPoint(startVertex, out var startPoint)) points.Add(ApiMappings.ToPointDto(startPoint));
+            if (body.TryGetVertexPoint(endVertex, out var endPoint)) points.Add(ApiMappings.ToPointDto(endPoint));
+        }
+
+        return new DisplayEdgeDto(edgeId.Value, points, sourceCurveKind, points.Count, diagnostics);
     }
 
     private static string ResolveDisplayLane(AnalyticDisplayPacket packet)

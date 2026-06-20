@@ -5,7 +5,8 @@ namespace Aetheris.Kernel.Core.Brep.Tessellation;
 
 public sealed record DisplayTessellationResult(
     IReadOnlyList<DisplayFaceMeshPatch> FacePatches,
-    IReadOnlyList<DisplayEdgePolyline> EdgePolylines);
+    IReadOnlyList<DisplayEdgePolyline> EdgePolylines,
+    IReadOnlyList<DisplayFaceMaterializationDiagnostic>? FaceDiagnostics = null);
 
 public enum DisplayFaceMeshSource
 {
@@ -25,3 +26,10 @@ public sealed record DisplayEdgePolyline(
     EdgeId EdgeId,
     IReadOnlyList<Point3D> Points,
     bool IsClosed);
+
+public sealed record DisplayFaceMaterializationDiagnostic(
+    FaceId? FaceId,
+    string? SurfaceKind,
+    string Phase,
+    string Code,
+    string Message);

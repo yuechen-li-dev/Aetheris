@@ -183,3 +183,7 @@ Representative direct API result:
 - no AIR Region route policy changes
 - no CIR authority changes
 - no BRep redesign
+
+## DISPLAY-ARCH-X1 follow-up
+
+DISPLAY-ARCH-X1 changes the expected `display/prepare` behavior for this case: FTC-07 import remains successful, and a bounded face materialization timeout is represented in DisplayIR as a diagnostic-only face with `Viewer.Tessellation.Timeout` instead of a whole-body HTTP 422 display preparation failure. The planar-with-holes tessellator itself was not rewritten in X1.

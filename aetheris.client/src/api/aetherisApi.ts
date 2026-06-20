@@ -179,10 +179,72 @@ export interface AnalyticDisplayPacketDto {
     fallbackFaces: AnalyticDisplayFallbackFaceDto[];
 }
 
+export interface DisplayDiagnosticDto {
+    code: string;
+    message: string;
+    faceId: number | null;
+    surfaceKind: string | null;
+    phase: string | null;
+    suggestedNextAction: string | null;
+}
+
+export interface DisplayWirePatchDto {
+    kind: 'WirePatch' | string;
+    source: 'BRepEdges' | string;
+    quality: 'PreviewPolyline' | string;
+    loops: DisplayLoopDto[];
+}
+
+export interface DisplayLoopDto {
+    loopId: number;
+    role: 'Outer' | 'Inner' | 'Unknown' | string;
+    edges: DisplayEdgeDto[];
+}
+
+export interface DisplayEdgeDto {
+    edgeId: number;
+    points: Point3Dto[];
+    sourceCurveKind: string;
+    sampleCount: number;
+    diagnostics: DisplayDiagnosticDto[];
+}
+
+export interface DisplayFaceDto {
+    faceId: number;
+    shellId: number | null;
+    surfaceKind: string | null;
+    status: 'Analytic' | 'Mesh' | 'WireframeOnly' | 'BoundingProxy' | 'DiagnosticOnly' | 'Omitted' | string;
+    patchKind: 'AnalyticPatch' | 'MeshPatch' | 'WirePatch' | 'ProxyPatch' | 'DiagnosticPatch' | string;
+    meshPatch: FacePatchDto | null;
+    analyticPatch: AnalyticDisplayFaceDto | null;
+    wirePatch: DisplayWirePatchDto | null;
+    materializationLane?: 'AnalyticPatch' | 'BoundedMesh' | 'DiagnosticOnly' | 'WirePatch' | 'ProxyPatch' | string | null;
+    diagnostics: DisplayDiagnosticDto[];
+}
+
+export interface DisplayLaneDto {
+    kind: 'AnalyticPatch' | 'BoundedMesh' | 'DiagnosticOnly' | 'WirePatch' | 'ProxyPatch' | string;
+    status: 'Complete' | 'Partial' | 'DiagnosticOnly' | 'Failed' | string;
+    source: string;
+    displayAuthority: string;
+    implementation: string | null;
+    quality: string | null;
+    timeoutMs: number | null;
+    faceCount: number;
+    diagnosticCount: number;
+}
+
 export interface DisplayPreparationResponseDto {
     lane: 'analytic-only' | 'mixed-fallback' | 'fallback-only' | string;
     analyticPacket: AnalyticDisplayPacketDto;
     tessellationFallback: TessellationResponseDto | null;
+    status?: 'Complete' | 'Partial' | 'DiagnosticOnly' | 'Failed' | string;
+    sourceAuthority?: string;
+    displayAuthority?: string;
+    lanes?: string[] | null;
+    faces?: DisplayFaceDto[] | null;
+    diagnostics?: DisplayDiagnosticDto[] | null;
+    displayLanes?: DisplayLaneDto[] | null;
 }
 
 export interface PickOptionsDto {

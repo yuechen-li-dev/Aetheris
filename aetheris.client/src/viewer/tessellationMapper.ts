@@ -1,4 +1,4 @@
-import type { TessellationResponseDto } from '../api/aetherisApi';
+import type { FacePatchDto, TessellationResponseDto } from '../api/aetherisApi';
 
 export interface RenderFacePatch {
     faceId: number;
@@ -17,14 +17,18 @@ export interface RenderSceneData {
     edges: RenderEdgePolyline[];
 }
 
+export function mapFacePatchToRenderFacePatch(patch: FacePatchDto): RenderFacePatch {
+    return {
+        faceId: patch.faceId,
+        positions: new Float32Array(patch.positions.flatMap((position) => [position.x, position.y, position.z])),
+        normals: new Float32Array(patch.normals.flatMap((normal) => [normal.x, normal.y, normal.z])),
+        indices: new Uint32Array(patch.triangleIndices),
+    };
+}
+
 export function mapTessellationToRenderData(tessellation: TessellationResponseDto): RenderSceneData {
     return {
-        faces: tessellation.facePatches.map((patch) => ({
-            faceId: patch.faceId,
-            positions: new Float32Array(patch.positions.flatMap((position) => [position.x, position.y, position.z])),
-            normals: new Float32Array(patch.normals.flatMap((normal) => [normal.x, normal.y, normal.z])),
-            indices: new Uint32Array(patch.triangleIndices),
-        })),
+        faces: tessellation.facePatches.map(mapFacePatchToRenderFacePatch),
         edges: tessellation.edgePolylines
             .filter((polyline) => polyline.points.length >= 2)
             .map((polyline) => ({

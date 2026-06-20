@@ -20,7 +20,7 @@ import {
 } from './api/aetherisApi';
 import { StepImportDropzone } from './components/StepImportDropzone';
 import { Button } from './components/ui/button';
-import { ViewerViewport } from './viewer/ViewerViewport';
+import { AetherisViewport } from './viewer/AetherisViewport';
 import { buildDisplaySceneData } from './viewer/displaySceneBuilder';
 import { STEP_UPLOAD_LIMIT_BYTES, STEP_UPLOAD_LIMIT_MB, formatMegabytes } from './config/stepUpload';
 
@@ -388,10 +388,11 @@ function App() {
                 setPickHits([]);
                 setCopyHashMessage('');
             });
-            if (didImport && displayError) {
+            const importDisplayError = displayError as ApiError | null;
+            if (didImport && importDisplayError) {
                 setStatus('error');
-                setStatusMessage(`View materialization failed after import: ${displayError.message}`);
-                setDiagnostics(displayError.diagnostics);
+                setStatusMessage(`View materialization failed after import: ${importDisplayError.message}`);
+                setDiagnostics(importDisplayError.diagnostics);
                 setImportStatus('success');
                 setImportStatusMessage('Import complete. View materialization failed.');
             } else {
@@ -599,7 +600,8 @@ function App() {
                                 COORD
                             </button>
                         </div>
-                        <ViewerViewport
+                        <AetherisViewport
+                            displayScene={displayScene.displayScene}
                             sceneData={sceneData}
                             highlightedFaceId={highlightedFaceId}
                             highlightedEdgeId={highlightedEdgeId}
@@ -682,9 +684,13 @@ function App() {
                                 <p><strong>Definition ID:</strong> {activeOccurrence?.definitionId ?? 'None'}</p>
                                 <p><strong>Occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
                                 <p><strong>Display lane:</strong> {displayPreparation?.lane ?? 'None'}</p>
+                                <p><strong>Display status:</strong> {displayPreparation?.status ?? 'None'}</p>
+                                {displayPreparation?.status === 'Partial' ? <p role="status">Import succeeded. Display partial: display degraded: {displayPreparation.faces?.filter((face) => face.status === 'WireframeOnly').length ?? 0} wire-only face(s), {displayPreparation.faces?.filter((face) => face.status === 'DiagnosticOnly').length ?? 0} diagnostic-only face(s).</p> : null}
                                 <p><strong>Render path:</strong> {displayScene.renderPath}</p>
                                 <p><strong>Analytic faces:</strong> {displayPreparation?.analyticPacket.analyticFaces.length ?? 0}</p>
                                 <p><strong>Fallback faces:</strong> {displayPreparation?.analyticPacket.fallbackFaces.length ?? 0}</p>
+                                <p><strong>Wire-only faces:</strong> {displayPreparation?.faces?.filter((face) => face.status === 'WireframeOnly').length ?? 0}</p>
+                                <p><strong>Diagnostic-only faces:</strong> {displayPreparation?.faces?.filter((face) => face.status === 'DiagnosticOnly').length ?? 0}</p>
                                 <p><strong>Face count:</strong> {tessellation?.facePatches.length ?? 0}</p>
                                 <p><strong>Edge count:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
                                 <p><strong>Shell count:</strong> {activeBodyId ? 1 : 0}</p>
@@ -787,9 +793,12 @@ function App() {
                                 <p><strong>Active occurrence ID:</strong> {activeBodyId ?? 'None'}</p>
                                 <p><strong>Occurrence count:</strong> {bodyIds.length}</p>
                                 <p><strong>Display lane:</strong> {displayPreparation?.lane ?? 'None'}</p>
+                                <p><strong>Display status:</strong> {displayPreparation?.status ?? 'None'}</p>
                                 <p><strong>Render path:</strong> {displayScene.renderPath}</p>
                                 <p><strong>Analytic faces:</strong> {displayPreparation?.analyticPacket.analyticFaces.length ?? 0}</p>
                                 <p><strong>Fallback faces:</strong> {displayPreparation?.analyticPacket.fallbackFaces.length ?? 0}</p>
+                                <p><strong>Wire-only faces:</strong> {displayPreparation?.faces?.filter((face) => face.status === 'WireframeOnly').length ?? 0}</p>
+                                <p><strong>Diagnostic-only faces:</strong> {displayPreparation?.faces?.filter((face) => face.status === 'DiagnosticOnly').length ?? 0}</p>
                                 <p><strong>Face patches:</strong> {tessellation?.facePatches.length ?? 0}</p>
                                 <p><strong>Edge polylines:</strong> {tessellation?.edgePolylines.length ?? 0}</p>
                                 <h3 className="section-title section-title--sub">Pick Diagnostics (active body only)</h3>

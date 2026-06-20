@@ -148,7 +148,63 @@ public sealed record AnalyticDisplayPacketDto(
 public sealed record DisplayPreparationResponseDto(
     string Lane,
     AnalyticDisplayPacketDto AnalyticPacket,
-    TessellationResponseDto? TessellationFallback);
+    TessellationResponseDto? TessellationFallback,
+    string Status = "Complete",
+    string SourceAuthority = "BRep",
+    string DisplayAuthority = "DisplayIR",
+    IReadOnlyList<string>? Lanes = null,
+    IReadOnlyList<DisplayFaceDto>? Faces = null,
+    IReadOnlyList<DisplayDiagnosticDto>? Diagnostics = null,
+    IReadOnlyList<DisplayLaneDto>? DisplayLanes = null);
+
+public sealed record DisplayFaceDto(
+    int FaceId,
+    int? ShellId,
+    string? SurfaceKind,
+    string Status,
+    string PatchKind,
+    FacePatchDto? MeshPatch,
+    AnalyticDisplayFaceDto? AnalyticPatch,
+    DisplayWirePatchDto? WirePatch,
+    string? MaterializationLane,
+    IReadOnlyList<DisplayDiagnosticDto> Diagnostics);
+
+public sealed record DisplayWirePatchDto(
+    string Kind,
+    string Source,
+    string Quality,
+    IReadOnlyList<DisplayLoopDto> Loops);
+
+public sealed record DisplayLoopDto(
+    int LoopId,
+    string Role,
+    IReadOnlyList<DisplayEdgeDto> Edges);
+
+public sealed record DisplayEdgeDto(
+    int EdgeId,
+    IReadOnlyList<Point3Dto> Points,
+    string SourceCurveKind,
+    int SampleCount,
+    IReadOnlyList<DisplayDiagnosticDto> Diagnostics);
+
+public sealed record DisplayLaneDto(
+    string Kind,
+    string Status,
+    string Source,
+    string DisplayAuthority,
+    string? Implementation,
+    string? Quality,
+    int? TimeoutMs,
+    int FaceCount,
+    int DiagnosticCount);
+
+public sealed record DisplayDiagnosticDto(
+    string Code,
+    string Message,
+    int? FaceId,
+    string? SurfaceKind,
+    string? Phase,
+    string? SuggestedNextAction);
 
 public sealed record PickOptionsDto(bool? NearestOnly, bool? IncludeBackfaces, double? EdgeTolerance, double? SortTieTolerance, double? MaxDistance);
 

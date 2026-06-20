@@ -64,3 +64,7 @@ DISPLAY-ARCH-X6 — typed DisplayIR API cleanup / remove legacy render-scene ass
 ## X5.1 follow-up
 
 DISPLAY-ARCH-X5.1 resolved the imported-occurrence server validation issue by documenting and testing the distinction between direct bounded `/tessellate` mesh lowering and DisplayIR-authoritative `/display/prepare`. The frontend typed renderable architecture from X5 remains unchanged.
+
+## Follow-up: DISPLAY-ARCH-X6
+
+DISPLAY-ARCH-X6 follows this cleanup by making `DisplayScene` / `DisplayRenderable` the primary frontend scene contract and quarantining legacy tessellation fallback conversion behind explicit compatibility adapters. See `docs/display-architecture-x6-retire-legacy-mesh-scene.md`.

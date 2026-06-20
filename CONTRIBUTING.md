@@ -30,6 +30,18 @@
 
 - Use `Aetheris.slnx` as the canonical solution file. Default automation targets `net10.0` only. Legacy Firmament V1 and FrictionLab tests are opt-in with `AETHERIS_RUN_LEGACY_TESTS=1` or `./scripts/test-legacy.sh`; see `docs/build-test-policy-net10-and-legacy-v1.md`.
 
+## Frontend/display PR boundary checklist
+
+Frontend/display PRs must state whether they change:
+
+- STEP import/export semantics;
+- BRep topology;
+- Firmament V2 lowering;
+- AIR lowering;
+- CIR authority;
+- DisplayIR server authority;
+- frontend rendering only.
+
 ## Kernel discipline
 
 - Do not introduce ad hoc epsilon constants; use `ToleranceContext` + `ToleranceMath` and follow `docs/numerics-policy.md`.

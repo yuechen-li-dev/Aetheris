@@ -188,6 +188,27 @@ export interface DisplayDiagnosticDto {
     suggestedNextAction: string | null;
 }
 
+export interface DisplayWirePatchDto {
+    kind: 'WirePatch' | string;
+    source: 'BRepEdges' | string;
+    quality: 'PreviewPolyline' | string;
+    loops: DisplayLoopDto[];
+}
+
+export interface DisplayLoopDto {
+    loopId: number;
+    role: 'Outer' | 'Inner' | 'Unknown' | string;
+    edges: DisplayEdgeDto[];
+}
+
+export interface DisplayEdgeDto {
+    edgeId: number;
+    points: Point3Dto[];
+    sourceCurveKind: string;
+    sampleCount: number;
+    diagnostics: DisplayDiagnosticDto[];
+}
+
 export interface DisplayFaceDto {
     faceId: number;
     shellId: number | null;
@@ -196,6 +217,7 @@ export interface DisplayFaceDto {
     patchKind: 'AnalyticPatch' | 'MeshPatch' | 'WirePatch' | 'ProxyPatch' | 'DiagnosticPatch' | string;
     meshPatch: FacePatchDto | null;
     analyticPatch: AnalyticDisplayFaceDto | null;
+    wirePatch: DisplayWirePatchDto | null;
     materializationLane?: 'AnalyticPatch' | 'BoundedMesh' | 'DiagnosticOnly' | 'WirePatch' | 'ProxyPatch' | string | null;
     diagnostics: DisplayDiagnosticDto[];
 }

@@ -126,9 +126,9 @@ model BadRecognition { units mm solid importedPart: InlineStep { path: "../testd
     }
 
     [Theory]
-    [InlineData("recognize missingPart { region topFace { kind: datumPlane faces: [\"#40\"] confidence: high } }", FirmamentV2Parser.UnknownRecognitionBody)]
-    [InlineData("recognize importedPart { region topFace { kind: datumPlane faces: [\"#40\"] confidence: high } region topFace { kind: datumPlane faces: [\"#77\"] confidence: high } }", FirmamentV2Parser.DuplicateRegion)]
-    [InlineData("recognize importedPart { region topFace { kind: datumPlane faces: [\"#40\"] confidence: high } } pmi { datum A { target: importedPart.region(\"missingRegion\") } }", FirmamentV2Parser.UnknownRecognitionRegion)]
+    [InlineData("recognize missingPart { region topFace { kind: datumPlane faces: [\"#191\"] confidence: high } }", FirmamentV2Parser.UnknownRecognitionBody)]
+    [InlineData("recognize importedPart { region topFace { kind: datumPlane faces: [\"#191\"] confidence: high } region topFace { kind: datumPlane faces: [\"#77\"] confidence: high } }", FirmamentV2Parser.DuplicateRegion)]
+    [InlineData("recognize importedPart { region topFace { kind: datumPlane faces: [\"#191\"] confidence: high } } pmi { datum A { target: importedPart.region(\"missingRegion\") } }", FirmamentV2Parser.UnknownRecognitionRegion)]
     [InlineData("recognize importedPart { region mountHole { kind: holeShaft faces: [\"#40\"] confidence: high } } pmi { datum A { target: importedPart.region(\"mountHole\") } }", FirmamentV2Parser.PmiRecognizedRegionKindMismatch)]
     public void InlineStep_InvalidRecognizedTargets_RejectDeterministically(string tail, string diagnostic)
     {
@@ -153,6 +153,68 @@ model BadRecognitionTarget { units mm solid importedPart: InlineStep { path: "..
 
         Assert.False(parse.IsSuccess);
         Assert.Contains(diagnostic, parse.Diagnostics);
+    }
+
+
+    [Fact]
+    public void InlineStep_ReplacementDeclaration_ParsesAndReferencesRecognizedRegion()
+    {
+        var repo = FindRepoRoot();
+        var fixturePath = Path.Combine(repo, "fixtures/FirmamentV2/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture");
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
+
+        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+        var replacement = Assert.Single(parse.Document!.Replacements!);
+        Assert.Equal("importedPart", replacement.ImportedBodyName);
+        Assert.Equal("mountHole", replacement.RecognizedRegionName);
+        Assert.Equal("holeShaft", replacement.ReplacementKind);
+        Assert.Equal(1d, replacement.Radius);
+        Assert.Equal("throughAll", replacement.EndCondition);
+        Assert.Equal("importedPart.region(\"mountHole\")", replacement.TargetSource);
+    }
+
+    [Theory]
+    [InlineData("replace missingPart.region(\"mountHole\") with hole<shaft> mountHole { on: importedPart.face(\"#191\") center: [0,0] radius: 1 end: throughAll hostSize: [10,8,6] }", FirmamentV2Parser.UnknownReplacementBody)]
+    [InlineData("replace importedPart.region(\"missing\") with hole<shaft> mountHole { on: importedPart.face(\"#191\") center: [0,0] radius: 1 end: throughAll hostSize: [10,8,6] }", FirmamentV2Parser.UnknownReplacementRegion)]
+    [InlineData("recognize importedPart { region mountHole { kind: datumPlane faces: [\"#191\"] confidence: high } } replace importedPart.region(\"mountHole\") with hole<shaft> mountHole { on: importedPart.face(\"#191\") center: [0,0] radius: 1 end: throughAll hostSize: [10,8,6] }", FirmamentV2Parser.ReplacementKindMismatch)]
+    [InlineData("replace importedPart.region(\"mountHole\") with counterbore mountHole { on: importedPart.face(\"#191\") center: [0,0] radius: 1 end: throughAll hostSize: [10,8,6] }", FirmamentV2Parser.ReplacementUnsupportedKind)]
+    [InlineData("replace importedPart.region(\"mountHole\") with hole<shaft> mountHole { on: importedPart.face(\"#999999\") center: [0,0] radius: 1 end: throughAll hostSize: [10,8,6] }", FirmamentV2Parser.ReplacementFaceUnresolved)]
+    [InlineData("replace importedPart.region(\"mountHole\") with hole<shaft> mountHole { on: importedPart.face(\"#191\") center: [0,0] radius: -1 end: throughAll hostSize: [10,8,6] }", FirmamentV2Parser.ReplacementRadiusInvalid)]
+    [InlineData("replace importedPart.region(\"mountHole\") with hole<shaft> mountHole { on: importedPart.face(\"#191\") center: [0,0] radius: 1 end: depth 2 hostSize: [10,8,6] }", FirmamentV2Parser.ReplacementEndUnsupported)]
+    public void InlineStep_InvalidReplacement_RejectsDeterministically(string tail, string diagnostic)
+    {
+        var recognition = tail.Contains("recognize importedPart", StringComparison.Ordinal) ? string.Empty : "recognize importedPart { region mountHole { kind: holeShaft faces: [\"#191\"] confidence: high } }";
+        var source = $$"""
+model BadReplacement { units mm solid importedPart: InlineStep { path: "../testdata/canonical-through-hole.step" } {{recognition}} {{tail}} }
+""";
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/FirmamentV2/InlineStep/valid"));
+
+        Assert.False(parse.IsSuccess);
+        Assert.Contains(diagnostic, parse.Diagnostics);
+    }
+
+    [Fact]
+    public void InlineStep_ReplacementFixture_ExportsReimportsAndKeepsSingleThroughHoleVolume()
+    {
+        var repo = FindRepoRoot();
+        var fixturePath = Path.Combine(repo, "fixtures/FirmamentV2/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture");
+        var outputPath = Path.Combine(Path.GetTempPath(), $"aetheris-inline-step-x4-{Guid.NewGuid():N}.step");
+        try
+        {
+            var result = FirmamentBuildAndExport.Run(fixturePath, outputPath);
+            Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+            Assert.Equal("inline-step-replacement", result.Value.Export.ExportedBodyCategory);
+            var output = File.ReadAllText(outputPath);
+            Assert.Contains("ADVANCED_FACE", output, StringComparison.Ordinal);
+            Assert.DoesNotContain("trace-only", output, StringComparison.OrdinalIgnoreCase);
+            var import = Step242Importer.ImportBody(output);
+            Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+            Assert.Equal(1, import.Value.Geometry.Surfaces.Count(entry => entry.Value.Kind.ToString() == "Cylinder"));
+        }
+        finally
+        {
+            if (File.Exists(outputPath)) File.Delete(outputPath);
+        }
     }
 
     [Fact]

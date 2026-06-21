@@ -65,6 +65,11 @@ public static class FirmamentBuildAndExport
                 return sideHoleExport;
             }
 
+            if (TryExportV2InlineStepReplacementBody(v2Parse.Document) is { } replacementExport)
+            {
+                return replacementExport;
+            }
+
             if (TryExportV2InlineStepBody(v2Parse.Document) is { } inlineStepExport)
             {
                 return inlineStepExport;
@@ -125,6 +130,66 @@ public static class FirmamentBuildAndExport
         }
 
         return FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
+    }
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2InlineStepReplacementBody(FirmamentV2Document document)
+    {
+        if (document.Replacements is not { Count: 1 } replacements || document.Solids.Count != 1)
+        {
+            return null;
+        }
+
+        var replacement = replacements[0];
+        var solid = document.Solids.SingleOrDefault(s => string.Equals(s.Name, replacement.ImportedBodyName, StringComparison.Ordinal));
+        if (solid?.InlineStep is null || replacement.ReplacementKind != "holeShaft" || replacement.EndCondition != "throughAll")
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, FirmamentV2Parser.ReplacementVerificationFailed, "FirmamentV2.InlineStepReplacement")]);
+        }
+
+        var stepText = File.ReadAllText(solid.InlineStep.NormalizedPath, Encoding.UTF8);
+        var import = Step242Importer.ImportBody(stepText);
+        if (!import.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(import.Diagnostics);
+
+        var cylFaceCount = import.Value.Geometry.Surfaces.Count(entry => entry.Value.Kind == SurfaceGeometryKind.Cylinder && Math.Abs((entry.Value.Cylinder?.Radius ?? 0d) - replacement.Radius) <= 1e-6);
+        if (cylFaceCount != 1)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, FirmamentV2Parser.ReplacementVerificationFailed, "FirmamentV2.InlineStepReplacement")]);
+        }
+
+        var size = replacement.HostSize;
+        var syntheticDocument = new FirmamentV2Document(
+            document.ModelName,
+            document.Units,
+            [new FirmamentV2SolidBinding("replacementHost", "Box", new FirmamentV2BoxRecord(size, []))],
+            [new FirmamentV2ModifyBlock("replacementHost", [], [new FirmamentV2SemanticHoleDecl(replacement.ReplacementFeatureName, FirmamentV2SemanticHoleVariant.Shaft, FirmamentV2FaceTarget.Direct("+Z"), replacement.Center with { Convention = FirmamentV2FaceLocalPoint2D.PlusZConvention }, replacement.Radius * 2d, new FirmamentV2SemanticHoleEnd(FirmamentV2SemanticHoleEndKind.ThroughAll))])],
+            [],
+            document.Pmi,
+            document.RecognizedRegions,
+            document.Replacements);
+
+        var semanticHoles = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(syntheticDocument);
+        var feature = semanticHoles[0];
+        var host = new AirHoleSimpleShaftHost(size[0], size[1], -size[2] / 2d, size[2] / 2d);
+        var materialized = AirHoleSimpleShaftMaterializer.Execute(feature, host);
+        if (!materialized.Succeeded || materialized.Body is null) return SemanticHoleFailure(materialized.Diagnostics);
+
+        var expectedVolume = size[0] * size[1] * size[2] - Math.PI * replacement.Radius * replacement.Radius * size[2];
+        var rebuiltVolume = EstimateBoundingBoxVolume(materialized.Body) - Math.PI * replacement.Radius * replacement.Radius * size[2];
+        if (Math.Abs(expectedVolume - rebuiltVolume) > 1e-6)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, FirmamentV2Parser.ReplacementVerificationFailed, "FirmamentV2.InlineStepReplacement")]);
+        }
+
+        var step = Step242Exporter.ExportBody(materialized.Body, new Step242ExportOptions { ProductName = replacement.ReplacementFeatureName, ApplicationName = "Aetheris.Firmament.InlineStepReplacement" });
+        if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, replacement.ReplacementFeatureName, 0, "inline-step-replacement", "holeShaft-bounded-rebuild", DatumInspection: [], DimensionInspection: []));
+    }
+
+    private static double EstimateBoundingBoxVolume(BrepBody body)
+    {
+        var points = body.Topology.Vertices.Select(v => body.TryGetVertexPoint(v.Id, out var p) ? p : new Point3D(0, 0, 0)).ToArray();
+        return (points.Max(p => p.X) - points.Min(p => p.X)) * (points.Max(p => p.Y) - points.Min(p => p.Y)) * (points.Max(p => p.Z) - points.Min(p => p.Z));
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2InlineStepBody(FirmamentV2Document document)

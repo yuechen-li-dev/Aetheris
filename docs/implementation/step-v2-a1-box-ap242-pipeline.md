@@ -68,3 +68,7 @@ STEP-V2-A1 intentionally does **not** wire Cylinder, Cone, Sphere, Torus, prism 
 ## MVP contract relationship
 
 This milestone is the first implementation slice for `docs/mvp/firmament-v2-ap242-mvp-readiness-contract.md`: a Firmament V2 fixture is considered ready only when real AP242 is emitted from a real `BrepBody` by `Step242Exporter` and independently verified by reimport, topology checks, and volume checks.
+
+## Forward link
+
+STEP-V2-X1 extends this Box-only bridge to Cylinder, Cone/frustum, Sphere, and Torus while preserving the V2-to-lowered compatibility seam; see `docs/implementation/step-v2-x1-analytic-primitives-ap242.md`.

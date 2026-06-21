@@ -1,0 +1,29 @@
+// fixture-id: primitive-v2-cylinder-step-verified
+// case: primitive-v2-cylinder-step-verified
+// category: Primitive
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// expected-feature-air: CreateCylinder
+// dimensions: radius=2, height=10
+// units: mm
+// tier: 1
+// mvp-required: true
+// feature-area: pipeline/analytic-primitives
+// build-command: aetheris build
+// expected-topology: faces=3
+// expected-volume: 125.66370614359172
+// roundtrip-required: true
+// parser-backed: true
+// notes: STEP-V2-X1 V2 Cylinder fixture verified through real BrepBody and Step242Exporter.
+
+model CylinderStepVerified {
+    units mm
+
+    solid cyl: Cylinder {
+        radius: 2mm
+        height: 10mm
+    }
+}

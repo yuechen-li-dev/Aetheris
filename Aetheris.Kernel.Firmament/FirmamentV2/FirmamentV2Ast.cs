@@ -6,17 +6,27 @@ public sealed record FirmamentV2Document(string ModelName, string Units, IReadOn
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
     {
         var targetSolid = Solids.Single(s => string.Equals(s.Name, m.TargetSolid, StringComparison.Ordinal));
-        var route = FirmamentV2SideHoleRoutePolicy.Resolve(r.Attachment.Axis, r.Cut.Tool.Through.Axis, targetSolid.Box.Size, r.Cut.Tool.Radius, r.Cut.Tool.Center?.U ?? 0, r.Cut.Tool.Center?.V ?? 0).Route!;
+        var route = FirmamentV2SideHoleRoutePolicy.Resolve(r.Attachment.Axis, r.Cut.Tool.Through.Axis, targetSolid.Box!.Size, r.Cut.Tool.Radius, r.Cut.Tool.Center?.U ?? 0, r.Cut.Tool.Center?.V ?? 0).Route!;
         return new FirmamentV2SideHoleIntent(m.TargetSolid, r.Name, r.Attachment.Source, r.Attachment.Kind, r.Attachment.Axis, r.Cut.Tool.Through.Source, r.Cut.Tool.Through.Kind, r.Cut.Tool.Through.Axis, r.Cut.Tool.ToolType, r.Cut.Tool.Radius, r.Cut.Tool.Center?.U ?? 0, r.Cut.Tool.Center?.V ?? 0, r.Cut.Tool.Center is not null, route.CenterFrame, Units, route);
     })).SingleOrDefault();
 }
 
-public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2BoxRecord Box, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null)
+public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null)
 {
     public bool IsDerived => !string.IsNullOrWhiteSpace(DerivedFrom);
+    public FirmamentV2BoxRecord? Box => Primitive as FirmamentV2BoxRecord;
+    public FirmamentV2CylinderRecord? Cylinder => Primitive as FirmamentV2CylinderRecord;
+    public FirmamentV2ConeRecord? Cone => Primitive as FirmamentV2ConeRecord;
+    public FirmamentV2SphereRecord? Sphere => Primitive as FirmamentV2SphereRecord;
+    public FirmamentV2TorusRecord? Torus => Primitive as FirmamentV2TorusRecord;
 }
 
-public sealed record FirmamentV2BoxRecord(IReadOnlyList<double> Size, IReadOnlyList<FirmamentV2Exposure> Exposures);
+public abstract record FirmamentV2PrimitiveRecord;
+public sealed record FirmamentV2BoxRecord(IReadOnlyList<double> Size, IReadOnlyList<FirmamentV2Exposure> Exposures) : FirmamentV2PrimitiveRecord;
+public sealed record FirmamentV2CylinderRecord(double Radius, double Height) : FirmamentV2PrimitiveRecord;
+public sealed record FirmamentV2ConeRecord(double BottomRadius, double TopRadius, double Height) : FirmamentV2PrimitiveRecord;
+public sealed record FirmamentV2SphereRecord(double Radius) : FirmamentV2PrimitiveRecord;
+public sealed record FirmamentV2TorusRecord(double MajorRadius, double MinorRadius) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2Exposure(string Alias, string SelectorKind, string Selector, string RefType, string Axis, string? Subselector);
 public sealed record FirmamentV2FaceTarget(string Source, string Kind, string Axis, string ResolvedSelector, string RefType)
 {

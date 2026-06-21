@@ -58,6 +58,7 @@ public static class Step242Exporter
         var ellipseIds = new Dictionary<EdgeId, string>();
 
         var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds);
+        EmitAuxiliaryVertexPointForVertexlessAnalyticBody(writer, body, model);
         if (outerClosedShellId is null)
         {
             return Failure($"Shell {shellRepresentation.OuterShellId.Value} could not be exported.", $"Shell:{shellRepresentation.OuterShellId.Value}");
@@ -112,6 +113,26 @@ public static class Step242Exporter
         writer.AddEntity("SHAPE_DEFINITION_REPRESENTATION", Step242TextWriter.Ref(shapeId), Step242TextWriter.Ref(shapeRepresentationId));
 
         return KernelResult<string>.Success(writer.Build(options.ApplicationName));
+    }
+
+    private static void EmitAuxiliaryVertexPointForVertexlessAnalyticBody(Step242TextWriter writer, BrepBody body, TopologyModel model)
+    {
+        if (model.Vertices.Any()) return;
+
+        foreach (var face in model.Faces.OrderBy(f => f.Id.Value))
+        {
+            if (!body.TryGetFaceSurface(face.Id, out var surface) || surface is null) continue;
+            Point3D? point = surface.Kind switch
+            {
+                SurfaceGeometryKind.Sphere when surface.Sphere is SphereSurface sphere => sphere.Evaluate(0d, 0d),
+                SurfaceGeometryKind.Torus when surface.Torus is TorusSurface torus => torus.Evaluate(0d, 0d),
+                _ => null
+            };
+            if (point is null) continue;
+            var pointId = writer.AddEntity("CARTESIAN_POINT", "$", PointList(point.Value));
+            writer.AddEntity("VERTEX_POINT", "$", Step242TextWriter.Ref(pointId));
+            return;
+        }
     }
 
     private static string? BuildClosedShell(

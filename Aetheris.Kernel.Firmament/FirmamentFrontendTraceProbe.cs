@@ -67,7 +67,7 @@ public static class FirmamentFrontendTraceProbe
 
         var document = parseResult.Document;
         var loweredSolid = document.Solids.LastOrDefault(s => s.IsDerived) ?? document.Solid;
-        var dimensions = new FirmamentTraceDimensions(loweredSolid.Box.Size[0], loweredSolid.Box.Size[1], loweredSolid.Box.Size[2]);
+        var dimensions = loweredSolid.Box is null ? null : new FirmamentTraceDimensions(loweredSolid.Box.Size[0], loweredSolid.Box.Size[1], loweredSolid.Box.Size[2]);
         var sideHoleIntent = document.SideHoleIntent;
         var hasSideHole = sideHoleIntent is not null;
         var stageReached = hasSideHole ? "region-parent-integrated" : "feature-air";
@@ -83,9 +83,9 @@ public static class FirmamentFrontendTraceProbe
         var featureAir = new FirmamentPrimitiveAirTraceSummary(
             ParserBacked: true,
             SourceOpKind: loweredSolid.RecordType,
-            FeatureAirNodeKind: "CreateBox",
+            FeatureAirNodeKind: $"Create{loweredSolid.RecordType}",
             SourceDimensions: dimensions,
-            ConstructionIntent: "Box",
+            ConstructionIntent: loweredSolid.RecordType,
             StageReached: hasSideHole ? "semantic-intent" : "feature-air",
             Diagnostics: featureDiagnostics,
             Guarantees:
@@ -103,11 +103,11 @@ public static class FirmamentFrontendTraceProbe
             "FirmamentV2Parser",
             true,
             stageReached,
-            $"Firmament V2 parsed model '{document.ModelName}' with units '{document.Units}', lowered solid '{loweredSolid.Name}: {loweredSolid.RecordType}', and created Feature AIR CreateBox summary." + (hasSideHole ? " Controlled side-hole semantic intent reached the existing AIR Region golden trace chain." : string.Empty),
+            $"Firmament V2 parsed model '{document.ModelName}' with units '{document.Units}', lowered solid '{loweredSolid.Name}: {loweredSolid.RecordType}', and created Feature AIR primitive summary." + (hasSideHole ? " Controlled side-hole semantic intent reached the existing AIR Region golden trace chain." : string.Empty),
             featureDiagnostics,
             featureAir,
             null,
-            new FirmamentV2TraceSummary("FirmamentV2", document.ModelName, document.Units, loweredSolid.Name, loweredSolid.RecordType, loweredSolid.Box.Size, stageReached, document.Solids.Select(s => new FirmamentV2SolidTraceSummary(s.Name, s.RecordType, s.Box.Size, s.DerivedFrom, s.Overrides ?? new Dictionary<string, IReadOnlyList<double>>(), s.Box.Exposures.Select(e => new FirmamentV2ExposureTraceSummary(e.Alias, e.SelectorKind, e.Selector, e.RefType, e.Axis, e.Subselector)).ToArray())).ToArray(), document.ModifyBlocks?.Select(m => new FirmamentV2ModifyTraceSummary(m.TargetSolid, m.Regions.Select(r => new FirmamentV2RegionTraceSummary(r.Name, r.Kind, r.Attachment.Source, r.Attachment.Kind, r.Attachment.ResolvedSelector, r.Attachment.RefType, r.Cut.OperationKind, r.Cut.Tool.ToolType, r.Cut.Tool.Radius, r.Cut.Tool.Center, r.Cut.Tool.Through.Source, r.Cut.Tool.Through.Kind, r.Cut.Tool.Through.ResolvedSelector, r.Cut.Tool.Through.RefType)).ToArray())).ToArray(), sideHoleIntent, hasSideHole ? "Integrated" : null, hasSideHole ? "Closed" : null, hasSideHole ? "Succeeded" : null));
+            new FirmamentV2TraceSummary("FirmamentV2", document.ModelName, document.Units, loweredSolid.Name, loweredSolid.RecordType, loweredSolid.Box?.Size ?? [], stageReached, document.Solids.Select(s => new FirmamentV2SolidTraceSummary(s.Name, s.RecordType, s.Box?.Size ?? [], s.DerivedFrom, s.Overrides ?? new Dictionary<string, IReadOnlyList<double>>(), (s.Box?.Exposures ?? []).Select(e => new FirmamentV2ExposureTraceSummary(e.Alias, e.SelectorKind, e.Selector, e.RefType, e.Axis, e.Subselector)).ToArray())).ToArray(), document.ModifyBlocks?.Select(m => new FirmamentV2ModifyTraceSummary(m.TargetSolid, m.Regions.Select(r => new FirmamentV2RegionTraceSummary(r.Name, r.Kind, r.Attachment.Source, r.Attachment.Kind, r.Attachment.ResolvedSelector, r.Attachment.RefType, r.Cut.OperationKind, r.Cut.Tool.ToolType, r.Cut.Tool.Radius, r.Cut.Tool.Center, r.Cut.Tool.Through.Source, r.Cut.Tool.Through.Kind, r.Cut.Tool.Through.ResolvedSelector, r.Cut.Tool.Through.RefType)).ToArray())).ToArray(), sideHoleIntent, hasSideHole ? "Integrated" : null, hasSideHole ? "Closed" : null, hasSideHole ? "Succeeded" : null));
     }
 
     public static FirmamentFrontendTraceProbeResult ParseOnly(string sourceText)

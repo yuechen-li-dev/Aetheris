@@ -111,6 +111,40 @@ public sealed record VolumeAnalysisResult(
             return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-cylinder", true, false, null, null, null, null, null, null, null, notes);
         }
 
+        var coneFaces = body.Topology.Faces.Where(f => body.TryGetFaceSurface(f.Id, out var sf) && sf?.Cone is not null).ToArray();
+        if (coneFaces.Length == 1 && body.Topology.Faces.Count() == 3)
+        {
+            body.TryGetFaceSurface(coneFaces[0].Id, out var coneSurface);
+            var cone = coneSurface!.Cone!.Value;
+            var axis = cone.Axis.ToVector();
+            var min = double.PositiveInfinity; var max = double.NegativeInfinity;
+            foreach (var v in body.Topology.Vertices)
+            {
+                if (!body.TryGetVertexPoint(v.Id, out var pt)) continue;
+                var t = (pt - cone.PlacementOrigin).Dot(axis);
+                min = double.Min(min, t); max = double.Max(max, t);
+            }
+            if (!double.IsFinite(min) || !double.IsFinite(max) || max <= min)
+                throw new InvalidOperationException("Cone volume analysis could not resolve finite axial span from vertices.");
+            var h = max - min;
+            var tan = double.Tan(cone.SemiAngleRadians);
+            var r1 = double.Abs(cone.PlacementRadius + min * tan);
+            var r2 = double.Abs(cone.PlacementRadius + max * tan);
+            var vol = double.Pi * h / 3d * (r1 * r1 + r1 * r2 + r2 * r2);
+            notes.Add("Exact analytic cone/frustum volume from conical face radii and cap-span derived from bound vertices.");
+            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-cone", true, false, null, null, null, null, null, null, null, notes);
+        }
+
+        var torusFaces = body.Topology.Faces.Where(f => body.TryGetFaceSurface(f.Id, out var sf) && sf?.Torus is not null).ToArray();
+        if (body.Topology.Faces.Count() == 1 && torusFaces.Length == 1)
+        {
+            body.TryGetFaceSurface(torusFaces[0].Id, out var ts);
+            var torus = ts!.Torus!.Value;
+            var vol = 2d * double.Pi * double.Pi * torus.MajorRadius * torus.MinorRadius * torus.MinorRadius;
+            notes.Add("Exact analytic torus volume from toroidal face radii.");
+            return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-torus", true, false, null, null, null, null, null, null, null, notes);
+        }
+
         var shellVolume = TryComputePlanarClosedShellVolume(body, shells, out var planarVolume, out var planarFailureReason);
         if (shellVolume)
         {

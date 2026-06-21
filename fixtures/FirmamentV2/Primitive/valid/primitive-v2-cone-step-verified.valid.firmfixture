@@ -1,0 +1,30 @@
+// fixture-id: primitive-v2-cone-step-verified
+// case: primitive-v2-cone-step-verified
+// category: Primitive
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// expected-feature-air: CreateCone
+// dimensions: bottomRadius=3, topRadius=1, height=10
+// units: mm
+// tier: 1
+// mvp-required: true
+// feature-area: pipeline/analytic-primitives
+// build-command: aetheris build
+// expected-topology: faces=3
+// expected-volume: 136.1356816555577
+// roundtrip-required: true
+// parser-backed: true
+// notes: STEP-V2-X1 V2 Cone frustum fixture verified through real BrepBody and Step242Exporter; apex cone syntax deferred.
+
+model ConeStepVerified {
+    units mm
+
+    solid cone: Cone {
+        bottomRadius: 3mm
+        topRadius: 1mm
+        height: 10mm
+    }
+}

@@ -126,22 +126,23 @@ public sealed class FirmamentFixtureCorpusTests
         Assert.Contains(fixtures, p => p.EndsWith("PMI/future/pmi-datum-flatness-position-v2.valid.firmfixture", StringComparison.Ordinal));
         Assert.Contains(fixtures, p => p.EndsWith("PMI/future/pmi-material-surface-finish-v2.valid.firmfixture", StringComparison.Ordinal));
         Assert.Contains(fixtures, p => p.EndsWith("PMI/invalid/pmi-raw-brep-id-target-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Decompile/ctc-01-candidate-v2.firmfixture", StringComparison.Ordinal));
 
         foreach (var path in fixtures)
         {
             var fixture = LoadMetadata(path);
             foreach (var key in RequiredMetadata) Assert.True(fixture.ContainsKey(key), $"{path} missing {key}");
             Assert.Equal("FirmamentV2", fixture["syntax-version"]);
-            Assert.Contains(fixture["validity"], new[] { "valid", "invalid" });
-            Assert.Contains(fixture["implementation"], new[] { "not-implemented", "rejected", "parser-backed" });
-            if (fixture["implementation"] != "parser-backed") Assert.True(fixture.ContainsKey("expected-diagnostic"), $"{path} missing expected-diagnostic");
+            Assert.Contains(fixture["validity"], new[] { "valid", "invalid", "semantic-candidate" });
+            Assert.Contains(fixture["implementation"], new[] { "not-implemented", "rejected", "parser-backed", "design-only-not-implemented" });
+            if (fixture["implementation"] != "parser-backed" && fixture["validity"] != "semantic-candidate") Assert.True(fixture.ContainsKey("expected-diagnostic"), $"{path} missing expected-diagnostic");
         }
     }
 
     [Fact]
     public void FirmamentV2DesignFixtures_AreNotTreatedAsV1ParseFailures()
     {
-        foreach (var path in DiscoverV2Fixtures())
+        foreach (var path in DiscoverV2TraceFixtures())
         {
             using var doc = Trace(path);
             var root = doc.RootElement;
@@ -436,6 +437,8 @@ public sealed class FirmamentFixtureCorpusTests
     private static string[] DiscoverFixtures() => Directory.EnumerateFiles(CorpusRoot, "*.firmfixture", SearchOption.AllDirectories).OrderBy(p => p.Replace('\\', '/'), StringComparer.Ordinal).ToArray();
 
     private static string[] DiscoverV2Fixtures() => Directory.EnumerateFiles(V2CorpusRoot, "*.firmfixture", SearchOption.AllDirectories).Select(p => p.Replace('\\', '/')).Order(StringComparer.Ordinal).ToArray();
+
+    private static string[] DiscoverV2TraceFixtures() => DiscoverV2Fixtures().Where(path => path.EndsWith(".valid.firmfixture", StringComparison.Ordinal) || path.EndsWith(".invalid.firmfixture", StringComparison.Ordinal)).ToArray();
 
     private static JsonDocument Trace(string fixturePath, params string[] extraArgs)
     {

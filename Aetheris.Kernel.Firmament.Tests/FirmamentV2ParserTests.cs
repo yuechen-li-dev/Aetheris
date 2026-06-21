@@ -138,6 +138,30 @@ public sealed class FirmamentV2ParserTests
         Assert.Equal(["base.leftMount", "base.rightMount"], lowered.Select(h => h.FeatureId).ToArray());
         Assert.All(lowered, h => Assert.Equal(AirHoleStackKind.SimpleShaft, h.Stack.Kind));
     }
+    [Fact]
+    public void FirmamentV2Parser_DerivedCompositeHole_LowersSelectedDerivedSolidAndAirHoleFeature()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Composite/valid/composite-v2-hole-plus-derived-variant-step-verified.valid.firmfixture"));
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var document = result.Document!;
+        Assert.Equal([10, 8, 6], document.Solids.Single(s => s.Name == "base").Box!.Size);
+        Assert.Equal([12, 8, 6], document.Solids.Single(s => s.Name == "wider").Box!.Size);
+        Assert.Equal("wider", document.Solid.Name);
+
+        var modify = Assert.Single(document.ModifyBlocks!);
+        Assert.Equal("wider", modify.TargetSolid);
+        var hole = Assert.Single(modify.SemanticHoles);
+        Assert.Equal(FirmamentV2SemanticHoleVariant.Shaft, hole.Variant);
+        Assert.Equal(2, hole.ShaftDiameter);
+
+        var lowered = Assert.Single(FirmamentV2SemanticHoleLowering.LowerSemanticHoles(document));
+        Assert.Equal("wider.mount", lowered.FeatureId);
+        Assert.Equal("wider", lowered.TargetBodyId);
+        Assert.Equal(AirHoleStackKind.SimpleShaft, lowered.Stack.Kind);
+        Assert.Equal(nameof(AirHoleFeature), lowered.Provenance.RouteName);
+        Assert.Contains("target-solid:wider", lowered.Provenance.Notes);
+    }
+
 
     [Fact]
     public void FirmamentV2Parser_SemanticFaceAlias_ResolvesBeforeHoleLowering()

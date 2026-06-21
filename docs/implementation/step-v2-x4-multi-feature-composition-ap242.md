@@ -13,7 +13,7 @@ Invalid Tier 4 fixture:
 
 - `fixtures/FirmamentV2/Composite/invalid/composite-v2-overlapping-holes-rejected-with-clear-diagnostic.invalid.firmfixture`
 
-The optional derived-variant plus hole case remains deferred for this milestone. X4 intentionally proves multi-hole composition on one selected Box first; combining derivation selection and feature composition can be promoted later without broadening this slice.
+The optional derived-variant plus hole case was deferred from X4 and is promoted separately by STEP-V2-X5; see `docs/implementation/step-v2-x5-derived-variant-plus-hole-ap242.md`. X4 intentionally proved multi-hole composition on one selected Box first.
 
 ## Command path and verification
 
@@ -56,4 +56,4 @@ These fixtures satisfy the MVP readiness contract for this bounded multi-feature
 
 - General feature conflict resolution.
 - Patterns, hole groups, new hole variants, threads/taps, up-to-face/up-to-next, side-hole reroute, chamfer/fillet/draft, PMI, and DFM enforcement.
-- Derived variant plus hole AP242 verification, until composition on derived selected solids is promoted as its own bounded slice.
+- Derived variant plus hole AP242 verification was promoted by STEP-V2-X5; remaining deferred items stay limited to broader semantics and unsupported feature families.

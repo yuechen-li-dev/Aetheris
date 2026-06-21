@@ -17,7 +17,8 @@ public sealed class FirmamentV2SourceCompositionStepPipelineTests
     public static TheoryData<string, string, double> CompositeCases => new()
     {
         { "Composite/valid/composite-v2-two-independent-holes-step-verified.valid.firmfixture", "composite-v2-two-independent-holes-step-verified", 480d - 2d * Math.PI * 1d * 1d * 6d },
-        { "Composite/valid/composite-v2-adjacent-non-overlapping-holes-step-verified.valid.firmfixture", "composite-v2-adjacent-non-overlapping-holes-step-verified", 480d - 2d * Math.PI * 1d * 1d * 6d }
+        { "Composite/valid/composite-v2-adjacent-non-overlapping-holes-step-verified.valid.firmfixture", "composite-v2-adjacent-non-overlapping-holes-step-verified", 480d - 2d * Math.PI * 1d * 1d * 6d },
+        { "Composite/valid/composite-v2-hole-plus-derived-variant-step-verified.valid.firmfixture", "composite-v2-hole-plus-derived-variant-step-verified", 12d * 8d * 6d - Math.PI * 1d * 1d * 6d }
     };
 
     [Theory]
@@ -29,7 +30,17 @@ public sealed class FirmamentV2SourceCompositionStepPipelineTests
 
         var (stepText, fixtureText) = BuildAndReadStep(fixturePath, stepPath, fixtureId);
         AssertStageHonesty(fixtureText, "multi-feature-composition", 4);
-        Assert.Contains("AirHoleFeature(SimpleShaft) x2", fixtureText, StringComparison.Ordinal);
+        if (fixtureId.Contains("derived-variant", StringComparison.Ordinal))
+        {
+            Assert.Contains("with derivation + AirHoleFeature(SimpleShaft)", fixtureText, StringComparison.Ordinal);
+            Assert.Contains("solid base: Box { size: [10, 8, 6] }", fixtureText, StringComparison.Ordinal);
+            Assert.Contains("solid wider: base with { size: [12, 8, 6] }", fixtureText, StringComparison.Ordinal);
+            Assert.Contains("modify wider", fixtureText, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Contains("AirHoleFeature(SimpleShaft) x2", fixtureText, StringComparison.Ordinal);
+        }
 
         Assert.True(CountStepEntities(stepText, "ADVANCED_FACE") > 0, fixtureId + " emits real STEP advanced faces");
         Assert.True(CountStepEntities(stepText, "VERTEX_POINT") > 0, fixtureId + " emits STEP vertex topology marker");
@@ -38,13 +49,19 @@ public sealed class FirmamentV2SourceCompositionStepPipelineTests
         var import = Step242Importer.ImportBody(stepText);
         Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
         var body = import.Value;
-        Assert.Equal(2, body.Topology.Faces.Count(f => body.TryGetFaceSurface(f.Id, out var surface) && surface?.Kind == SurfaceGeometryKind.Cylinder));
+        var expectedCylinderFaceCount = fixtureId.Contains("derived-variant", StringComparison.Ordinal) ? 1 : 2;
+        Assert.Equal(expectedCylinderFaceCount, body.Topology.Faces.Count(f => body.TryGetFaceSurface(f.Id, out var surface) && surface?.Kind == SurfaceGeometryKind.Cylinder));
 
         var volume = StepAnalyzer.AnalyzeVolume(stepPath);
         Assert.True(volume.Success, fixtureId + " volume analysis succeeds");
         Assert.True(volume.Exact, fixtureId + " volume should use exact semantic multi-hole interval analysis");
         Assert.Equal("analytic-box-minus-z-hole", volume.Method);
         Assert.InRange(Math.Abs(volume.Volume - expectedVolume), 0d, 1e-8);
+        if (fixtureId.Contains("derived-variant", StringComparison.Ordinal))
+        {
+            var staleBaseVolume = 10d * 8d * 6d - Math.PI * 1d * 1d * 6d;
+            Assert.True(Math.Abs(volume.Volume - staleBaseVolume) > 1d, "derived-variant-plus-hole volume must not reuse stale base 10 x 8 x 6 dimensions");
+        }
     }
 
     [Fact]

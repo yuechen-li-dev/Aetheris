@@ -91,7 +91,14 @@ public static class FirmamentBuildAndExport
             return null;
         }
 
-        if (document.Solids.Count != 1 || document.Solid.Primitive is not FirmamentV2BoxRecord box || box.Size.Count != 3)
+        var modifyTargets = document.ModifyBlocks.Select(m => m.TargetSolid).Distinct(StringComparer.Ordinal).ToArray();
+        if (modifyTargets.Length != 1)
+        {
+            return null;
+        }
+
+        var targetSolid = document.Solids.SingleOrDefault(s => string.Equals(s.Name, modifyTargets[0], StringComparison.Ordinal));
+        if (targetSolid?.Primitive is not FirmamentV2BoxRecord box || box.Size.Count != 3)
         {
             return null;
         }

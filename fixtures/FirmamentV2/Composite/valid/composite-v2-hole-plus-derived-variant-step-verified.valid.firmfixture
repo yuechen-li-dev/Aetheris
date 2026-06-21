@@ -1,0 +1,36 @@
+// fixture-id: composite-v2-hole-plus-derived-variant-step-verified
+// case: composite-v2-hole-plus-derived-variant-step-verified
+// category: Composite
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// expected-feature-air: with derivation + AirHoleFeature(SimpleShaft)
+// dimensions: base box 10 x 8 x 6; derived box 12 x 8 x 6; shaft radius 1; through depth 6
+// units: mm
+// tier: 4
+// mvp-required: true
+// feature-area: multi-feature-composition
+// build-command: aetheris build
+// expected-volume: 557.1504440784612
+// expected-volume-formula: 12 * 8 * 6 - pi * 1^2 * 6
+// expected-topology: advanced_face>0, vertex_point>0, cylindrical-wall-face-count=1
+// roundtrip-required: true
+// parser-backed: true
+// stale-state-guard: volume must use derived 12 x 8 x 6 box, not stale base 10 x 8 x 6 box
+// notes: STEP-V2-X5 fixture; real build/export path composes selected with-derived Box dimensions, semantic AirHoleFeature lowering, AirHoleSimpleShaftMaterializer, Step242Exporter, reimport, topology markers, and analytic volume.
+model CompositeV2HolePlusDerivedVariantStepVerified {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+  solid wider: base with { size: [12, 8, 6] }
+  modify wider {
+    hole<shaft> mount {
+      on: face(+Z)
+      center: [0, 0]
+      radius: 1
+      end: throughAll
+    }
+  }
+}

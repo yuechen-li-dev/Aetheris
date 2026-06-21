@@ -50,11 +50,11 @@ public sealed record FirmamentTraceDimensions(double Width, double Depth, double
 public static class FirmamentFrontendTraceProbe
 {
 
-    public static FirmamentFrontendTraceProbeResult ParseV2Only(string sourceText)
+    public static FirmamentFrontendTraceProbeResult ParseV2Only(string sourceText, string? sourceDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(sourceText);
 
-        var parseResult = FirmamentV2Parser.Parse(sourceText);
+        var parseResult = FirmamentV2Parser.Parse(sourceText, sourceDirectory);
         if (!parseResult.IsSuccess || parseResult.Document is null)
         {
             return new(

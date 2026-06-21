@@ -126,7 +126,8 @@ internal static class AirTraceReportBuilder
     private static AirTraceReport BuildParserBackedFixture(FirmFixture fixture)
     {
         var isFirmamentV2 = string.Equals(fixture.Metadata.GetValueOrDefault("syntax-version"), "FirmamentV2", StringComparison.Ordinal);
-        var frontend = isFirmamentV2 ? FirmamentFrontendTraceProbe.ParseV2Only(fixture.SourceBody) : FirmamentFrontendTraceProbe.ParseOnly(fixture.SourceBody);
+        var sourceDirectory = Path.GetDirectoryName(Path.GetFullPath(fixture.Path));
+        var frontend = isFirmamentV2 ? FirmamentFrontendTraceProbe.ParseV2Only(fixture.SourceBody, sourceDirectory) : FirmamentFrontendTraceProbe.ParseOnly(fixture.SourceBody);
         var profileEmissionProbe = frontend.ConstructiveAir is null ? null : BoxConstructiveAirToProfileEmissionTraceProbe.Invoke(frontend.ConstructiveAir);
         var actualStage = profileEmissionProbe?.StageReached ?? frontend.FrontendStageReached ?? "frontend-unavailable";
         var stepVerifiedDiagnostics = Array.Empty<string>();

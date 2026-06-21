@@ -33,3 +33,7 @@ The semantic rule is that a hole remains a feature until a lower execution layer
 ## Why intent must survive before lowering
 
 Manufacturing features carry identity, placement, end-condition, and provenance that a bare cylinder or BRep subtraction cannot reliably express. Preserving that intent lets later milestones add stack components, standards, PMI, diagnostics, and controlled lowerers without changing the authoring contract or forcing recovery machinery to guess what the user meant.
+
+## HOLE-X2 continuation
+
+HOLE-X2 adds an executable simple-shaft materialization lane for the scaffold introduced here. See `docs/implementation/hole-x2-simple-shaft-hole-materialization.md` for the bounded profile-stack/BRep route, provenance story, and remaining deferred hole-family scope.

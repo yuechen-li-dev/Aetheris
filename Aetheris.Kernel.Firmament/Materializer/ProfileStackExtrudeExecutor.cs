@@ -28,7 +28,9 @@ public sealed record ProfileStackExtrudeSpec(
     double ZMin,
     double ZMax,
     IReadOnlyList<ProfileStackLayer> Layers,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics,
+    double CenterX = 0d,
+    double CenterY = 0d);
 
 public sealed record ProfileStackExtrudeExecutionResult(
     ProfileStackExtrudeExecutionStatus Status,
@@ -69,9 +71,9 @@ public static class ProfileStackExtrudeExecutor
                 : (Math.Abs(l.ZMax - spec.ZMax) < 1e-9
                     ? SupportedBooleanHoleSpanKind.BlindFromTop
                     : SupportedBooleanHoleSpanKind.Contained);
-            var cyl = new RecognizedCylinder(new Point3D(0, 0, 0), zAxis, l.InnerCircleRadius!.Value, l.ZMin, l.ZMax);
+            var cyl = new RecognizedCylinder(new Point3D(spec.CenterX, spec.CenterY, 0), zAxis, l.InnerCircleRadius!.Value, l.ZMin, l.ZMax);
             holes.Add(new SupportedBooleanHole(l.Role, new AnalyticSurface(AnalyticSurfaceKind.Cylinder, Cylinder: cyl), 0, 0,
-                new Point3D(0, 0, l.ZMin), new Point3D(0, 0, l.ZMax), zAxis, xAxis,
+                new Point3D(spec.CenterX, spec.CenterY, l.ZMin), new Point3D(spec.CenterX, spec.CenterY, l.ZMax), zAxis, xAxis,
                 l.InnerCircleRadius.Value, l.InnerCircleRadius.Value, span, l.ZMin, l.ZMax));
         }
 

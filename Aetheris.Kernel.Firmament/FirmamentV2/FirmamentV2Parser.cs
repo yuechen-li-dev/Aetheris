@@ -85,6 +85,13 @@ public static class FirmamentV2Parser
     public const string PmiImportedTargetNotFace = "firmament-pmi-imported-target-not-face";
     public const string PmiImportedTargetRequiresCanonicalStep = "firmament-pmi-imported-target-requires-canonical-step";
     public const string PmiInvalidImportedTarget = "firmament-pmi-invalid-imported-target";
+    public const string UnknownRecognitionBody = "firmament-inline-step-unknown-recognition-body";
+    public const string UnknownRecognitionFace = "firmament-inline-step-unknown-recognition-face";
+    public const string DuplicateRegion = "firmament-inline-step-duplicate-region";
+    public const string UnknownRecognitionRegion = "firmament-inline-step-unknown-recognition-region";
+    public const string InvalidRecognitionKind = "firmament-inline-step-invalid-recognition-kind";
+    public const string InvalidRecognitionConfidence = "firmament-inline-step-invalid-recognition-confidence";
+    public const string PmiRecognizedRegionKindMismatch = "firmament-pmi-recognized-region-kind-mismatch";
 
     private static readonly Regex ModelRegex = new(@"\bmodel\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex UnitsRegex = new(@"\bunits\s+(?<units>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
@@ -103,10 +110,16 @@ public static class FirmamentV2Parser
     private static readonly Regex ThroughRegex = new(@"\bthrough\s*:\s*(?<target>face\([^)]*\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
     private static readonly Regex CenterRegex = new(@"\bcenter\s*:\s*\[(?<values>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
     private static readonly Regex SemanticHoleHeaderRegex = new(@"\bhole\s*<\s*(?<variant>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex RecognizeHeaderRegex = new(@"\brecognize\s+(?<body>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex RecognitionRegionHeaderRegex = new(@"\bregion\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex KindRegex = new("\\bkind\\s*:\\s*(?<kind>\"[^\"]+\"|[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*[A-Za-z_][A-Za-z0-9_]*\\s*>)?)", RegexOptions.CultureInvariant);
+    private static readonly Regex FacesRegex = new(@"\bfaces\s*:\s*\[(?<faces>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
+    private static readonly Regex ConfidenceRegex = new(@"\bconfidence\s*:\s*(?<confidence>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
     private static readonly Regex PmiHeaderRegex = new(@"\bpmi\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex PmiEntryHeaderRegex = new(@"\b(?<kind>[A-Za-z_][A-Za-z0-9_]*)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex TargetRegex = new("\\btarget\\s*:\\s*(?<target>[A-Za-z_][A-Za-z0-9_]*\\.face\\(\\\"#[0-9]+\\\"\\)|[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*\\([^)]*\\)|face\\([^)]+\\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+    private static readonly Regex TargetRegex = new(@"\btarget\s*:\s*(?<target>[A-Za-z_][A-Za-z0-9_]*\.(?:face|region)\(""[#A-Za-z0-9_]+""\)|[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*\([^)]*\)|face\([^)]+\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
     private static readonly Regex ImportedFaceTargetRegex = new("^(?<body>[A-Za-z_][A-Za-z0-9_]*)\\.face\\(\\\"(?<entity>#[0-9]+)\\\"\\)$", RegexOptions.CultureInvariant);
+    private static readonly Regex RecognizedRegionTargetRegex = new("^(?<body>[A-Za-z_][A-Za-z0-9_]*)\\.region\\(\\\"(?<region>[A-Za-z_][A-Za-z0-9_]*)\\\"\\)$", RegexOptions.CultureInvariant);
     private static readonly Regex ValueRegex = new(@"\b(?:value|diameter)\s*:\s*(?<value>[^\s}]+)", RegexOptions.CultureInvariant);
     private static readonly Regex TemplateHeaderRegex = new(@"\btemplate\s*<\s*(?<process>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex ConceptRegex = new(@"\bconcept\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>[-+0-9.eE]+)\s*(?<unit>[A-Za-z_][A-Za-z0-9_]*)?", RegexOptions.CultureInvariant);
@@ -159,11 +172,12 @@ public static class FirmamentV2Parser
 
         var modifyBlocks = ParseModifyBlocks(source, byName, diagnostics);
         var templates = ParseTemplates(source, diagnostics);
-        var pmi = ParsePmi(source, byName, modifyBlocks, diagnostics);
+        var recognizedRegions = ParseRecognizedRegions(source, byName, diagnostics);
+        var pmi = ParsePmi(source, byName, modifyBlocks, recognizedRegions, diagnostics);
 
         FirmamentV2Document? document = null;
         if (modelMatch.Success && unitsMatch.Success && solids.Count > 0 && !diagnostics.Any(IsFatalDiagnostic))
-            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks, templates, pmi);
+            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks, templates, pmi, recognizedRegions);
 
         diagnostics.Add(document is null ? "firmament-v2-parse-failed" : "firmament-v2-parse-succeeded");
         diagnostics.Sort(StringComparer.Ordinal);
@@ -277,7 +291,7 @@ public static class FirmamentV2Parser
         return new(name, "Box", new FirmamentV2BoxRecord(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
     }
 
-    private static bool IsFatalDiagnostic(string code) => code is PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical;
+    private static bool IsFatalDiagnostic(string code) => code is PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -566,7 +580,55 @@ public static class FirmamentV2Parser
         return templates;
     }
 
-    private static IReadOnlyList<FirmamentV2PmiDecl> ParsePmi(string source, Dictionary<string, FirmamentV2SolidBinding> solids, IReadOnlyList<FirmamentV2ModifyBlock> modifyBlocks, List<string> diagnostics)
+
+    private static IReadOnlyList<FirmamentV2RecognizedRegion> ParseRecognizedRegions(string source, Dictionary<string, FirmamentV2SolidBinding> solids, List<string> diagnostics)
+    {
+        var result = new List<FirmamentV2RecognizedRegion>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match rm in RecognizeHeaderRegex.Matches(source))
+        {
+            var bodyName = rm.Groups["body"].Value;
+            if (!solids.TryGetValue(bodyName, out var solid) || solid.InlineStep is null)
+            {
+                diagnostics.Add(UnknownRecognitionBody);
+                continue;
+            }
+            var open = source.IndexOf('{', rm.Index);
+            var close = FindMatchingBrace(source, open);
+            if (close < 0) { diagnostics.Add(UnsupportedConstruct); continue; }
+            var block = source[(open + 1)..close];
+            foreach (Match rr in RecognitionRegionHeaderRegex.Matches(block))
+            {
+                var regionName = rr.Groups["name"].Value;
+                if (!seen.Add($"{bodyName}.{regionName}")) { diagnostics.Add(DuplicateRegion); continue; }
+                var regionOpen = block.IndexOf('{', rr.Index);
+                var regionClose = FindMatchingBrace(block, regionOpen);
+                if (regionClose < 0) { diagnostics.Add(UnsupportedConstruct); continue; }
+                var rb = block[(regionOpen + 1)..regionClose];
+                var kindMatch = KindRegex.Match(rb);
+                var kind = kindMatch.Success ? NormalizeRecognitionKind(kindMatch.Groups["kind"].Value) : string.Empty;
+                if (kind is not ("datumPlane" or "holeShaft")) { diagnostics.Add(InvalidRecognitionKind); continue; }
+                var confidenceMatch = ConfidenceRegex.Match(rb);
+                var confidence = confidenceMatch.Success ? confidenceMatch.Groups["confidence"].Value : "medium";
+                if (confidence is not ("low" or "medium" or "high" or "certain")) { diagnostics.Add(InvalidRecognitionConfidence); continue; }
+                var facesMatch = FacesRegex.Match(rb);
+                var faces = facesMatch.Success
+                    ? Regex.Matches(facesMatch.Groups["faces"].Value, "\\\"(?<face>#[0-9]+)\\\"", RegexOptions.CultureInvariant).Select(m => m.Groups["face"].Value).ToArray()
+                    : [];
+                if (faces.Length == 0 || faces.Any(f => !solid.InlineStep.TopologyMap.TryResolveFaceEntity(f, out _))) { diagnostics.Add(UnknownRecognitionFace); continue; }
+                result.Add(new FirmamentV2RecognizedRegion(bodyName, regionName, kind, faces, confidence));
+            }
+        }
+        return result;
+    }
+
+    private static string NormalizeRecognitionKind(string raw)
+    {
+        raw = raw.Trim().Trim('"').Replace(" ", string.Empty, StringComparison.Ordinal);
+        return string.Equals(raw, "hole<shaft>", StringComparison.Ordinal) ? "holeShaft" : raw;
+    }
+
+    private static IReadOnlyList<FirmamentV2PmiDecl> ParsePmi(string source, Dictionary<string, FirmamentV2SolidBinding> solids, IReadOnlyList<FirmamentV2ModifyBlock> modifyBlocks, IReadOnlyList<FirmamentV2RecognizedRegion> recognizedRegions, List<string> diagnostics)
     {
         var match = PmiHeaderRegex.Match(source);
         if (!match.Success) return [];
@@ -577,6 +639,7 @@ public static class FirmamentV2Parser
         var entries = new List<FirmamentV2PmiDecl>();
         var names = new HashSet<string>(StringComparer.Ordinal);
         var holeNames = modifyBlocks.SelectMany(m => m.SemanticHoles).Select(h => h.Name).ToHashSet(StringComparer.Ordinal);
+        var regionByTarget = recognizedRegions.ToDictionary(r => r.TargetSource, r => r, StringComparer.Ordinal);
         var aliases = solids.Values.SelectMany(s => s.Box?.Exposures ?? []).Select(e => e.Alias).ToHashSet(StringComparer.Ordinal);
         foreach (Match em in PmiEntryHeaderRegex.Matches(body))
         {
@@ -599,6 +662,13 @@ public static class FirmamentV2Parser
                     entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.HoleDiameter, target, value));
                     continue;
                 }
+                if (RecognizedRegionTargetRegex.IsMatch(target))
+                {
+                    if (!regionByTarget.TryGetValue(target, out var region)) { diagnostics.Add(UnknownRecognitionRegion); continue; }
+                    if (region.Kind != "holeShaft") { diagnostics.Add(PmiRecognizedRegionKindMismatch); continue; }
+                    entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.HoleDiameter, target, value));
+                    continue;
+                }
                 if (!holeNames.Contains(target)) { diagnostics.Add(PmiTargetUnresolved); continue; }
                 entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.HoleDiameter, target, value));
             }
@@ -606,6 +676,13 @@ public static class FirmamentV2Parser
             {
                 if (TryValidateImportedFaceTarget(target, solids, diagnostics))
                 {
+                    entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.DatumPlane, target));
+                    continue;
+                }
+                if (RecognizedRegionTargetRegex.IsMatch(target))
+                {
+                    if (!regionByTarget.TryGetValue(target, out var region)) { diagnostics.Add(UnknownRecognitionRegion); continue; }
+                    if (region.Kind != "datumPlane") { diagnostics.Add(PmiRecognizedRegionKindMismatch); continue; }
                     entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.DatumPlane, target));
                     continue;
                 }
@@ -622,7 +699,7 @@ public static class FirmamentV2Parser
 
     private static bool TryValidateImportedFaceTarget(string target, Dictionary<string, FirmamentV2SolidBinding> solids, List<string> diagnostics)
     {
-        if (target.Contains('.', StringComparison.Ordinal) && !ImportedFaceTargetRegex.IsMatch(target))
+        if (target.Contains(".face(", StringComparison.Ordinal) && !ImportedFaceTargetRegex.IsMatch(target))
         {
             diagnostics.Add(PmiInvalidImportedTarget);
             return false;

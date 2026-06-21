@@ -372,19 +372,40 @@ public static class FirmamentBuildAndExport
                 {
                     result.Add(new Step242SemanticPmiHole(pmiHole.FeatureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", null, null));
                 }
-                else if (TryResolveV2ImportedFaceTarget(targetBinding, pmi.Target, out var importedTarget))
+                else if (TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var importedTarget) || TryResolveV2ImportedFaceTarget(targetBinding, pmi.Target, out importedTarget))
                 {
                     result.Add(new Step242SemanticPmiHole($"{targetSolid}.{pmi.Name}", pmi.Value.Value, null, $"imported_canonical_face:{importedTarget}", null, null));
                 }
             }
             else if (pmi.Kind == FirmamentV2PmiKind.DatumPlane)
             {
-                var selector = ResolveV2DatumTarget(targetBinding, pmi.Target);
+                var selector = TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var recognizedDatumTarget) ? recognizedDatumTarget : ResolveV2DatumTarget(targetBinding, pmi.Target);
                 result.Add(new Step242SemanticPmiDatum(targetSolid, "plane", pmi.Name, selector));
             }
         }
 
         return result;
+    }
+
+
+    private static bool TryResolveV2RecognizedRegionTarget(FirmamentV2Document document, FirmamentV2SolidBinding solid, string target, out string resolved)
+    {
+        resolved = string.Empty;
+        const string marker = ".region(\"";
+        if (solid.InlineStep is null || !target.StartsWith(solid.Name + marker, StringComparison.Ordinal) || !target.EndsWith("\")", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var regionName = target[(solid.Name.Length + marker.Length)..^2];
+        var region = document.RecognizedRegions?.FirstOrDefault(r => string.Equals(r.BodyName, solid.Name, StringComparison.Ordinal) && string.Equals(r.RegionName, regionName, StringComparison.Ordinal));
+        if (region is null || region.FaceRefs.Count == 0 || !solid.InlineStep.TopologyMap.TryResolveFaceEntity(region.FaceRefs[0], out var faceId))
+        {
+            return false;
+        }
+
+        resolved = $"{solid.Name}.{region.RegionName}.{faceId}:{region.FaceRefs[0]}";
+        return true;
     }
 
     private static bool TryResolveV2ImportedFaceTarget(FirmamentV2SolidBinding solid, string target, out string resolved)

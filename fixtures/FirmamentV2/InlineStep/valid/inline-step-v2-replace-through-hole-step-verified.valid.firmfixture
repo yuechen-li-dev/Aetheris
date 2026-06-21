@@ -18,6 +18,14 @@
 // replacement-verification-required: true
 // graphical-pmi-required: false
 // input-step: ../testdata/canonical-through-hole.step
+// migration-report-required: true
+// migration-original-face-count: 7
+// migration-recognized-region-count: 1
+// migration-replaced-face-count: 1
+// migration-residual-face-count: 6
+// migration-replacement-state: hybrid-step-verified
+// migration-emission-strategy: holeShaft-bounded-rebuild
+// migration-residual-surgery: false
 // notes: INLINE-STEP-X4 bounded rebuild strategy: recognize imported cylindrical face #191, verify radius/evidence against canonical input, rebuild the simple 10x8x6 host with semantic hole<shaft>, then export through Step242Exporter. This is not full STEP decompilation or general residual surgery.
 model InlineStepReplaceThroughHole {
     units mm

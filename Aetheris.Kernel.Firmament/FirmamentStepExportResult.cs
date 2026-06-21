@@ -9,7 +9,8 @@ public sealed record FirmamentStepExportResult(
     string ExportBodyPolicy = FirmamentStepExporter.LastExecutedGeometricBodyPolicy,
     string ExportBodySelectionReason = FirmamentStepExporter.LastExecutedGeometricBodySelectionReason,
     IReadOnlyList<FirmamentPmiInspectionDatum>? DatumInspection = null,
-    IReadOnlyList<FirmamentPmiInspectionDimension>? DimensionInspection = null);
+    IReadOnlyList<FirmamentPmiInspectionDimension>? DimensionInspection = null,
+    Aetheris.Kernel.Firmament.FirmamentV2.InlineStepMigrationReport? InlineStepMigration = null);
 
 public sealed record FirmamentPmiInspectionDatum(
     string Label,

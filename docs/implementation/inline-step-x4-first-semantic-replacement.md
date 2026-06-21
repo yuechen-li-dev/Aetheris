@@ -49,3 +49,8 @@ X4 verifies:
 ## Limitations and deferred work
 
 Deferred: automatic recognition, residual body surgery/suppression, multiple replacements, counterbore/countersink/blind replacements, fillet/chamfer/slot replacement, robust geometric signatures beyond this fixture class, graphical PMI, arbitrary vendor STEP, and full decompilation.
+
+
+## Forward link
+
+INLINE-STEP-X5 adds residual accounting and migration progress metrics for this bounded rebuild path. See `docs/implementation/inline-step-x5-residual-accounting.md`.

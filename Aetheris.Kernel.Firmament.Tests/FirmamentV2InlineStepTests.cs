@@ -218,6 +218,72 @@ model BadReplacement { units mm solid importedPart: InlineStep { path: "../testd
     }
 
     [Fact]
+    public void InlineStep_MigrationReport_RecognizedOnlyCountsResidualCoverage()
+    {
+        var repo = FindRepoRoot();
+        var fixturePath = Path.Combine(repo, "fixtures/FirmamentV2/InlineStep/valid/inline-step-v2-recognized-face-datum-pmi-emits-in-step.valid.firmfixture");
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
+        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+
+        var report = InlineStepMigrationReportBuilder.Build(parse.Document!, parse.Document!.Solids.Single());
+
+        Assert.Equal("importedPart", report.ImportedBodyName);
+        Assert.Equal(6, report.OriginalTopology.FaceCount);
+        Assert.Equal(1, report.Recognized.RegionCount);
+        Assert.Equal(1, report.Recognized.ReferencedFaceCount);
+        Assert.Equal(0, report.Replacements.ReplacedFaceCount);
+        Assert.Equal(report.OriginalTopology.FaceCount, report.Residual.ResidualFaceCount);
+        Assert.Equal(1d / 6d, report.Coverage.RecognizedFaceRatio, precision: 12);
+        Assert.Equal(0d, report.Coverage.ReplacedFaceRatio);
+        Assert.Contains("recognized", report.ReplacementStates);
+        Assert.Contains("residual-emitted", report.ReplacementStates);
+    }
+
+    [Fact]
+    public void InlineStep_MigrationReport_VerifiedReplacementCountsReplacedFaces()
+    {
+        var repo = FindRepoRoot();
+        var fixturePath = Path.Combine(repo, "fixtures/FirmamentV2/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture");
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
+        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+
+        var report = InlineStepMigrationReportBuilder.Build(parse.Document!, parse.Document!.Solids.Single(), replacementsVerified: true, replacementsEmitted: true, emissionStrategy: "holeShaft-bounded-rebuild");
+
+        Assert.Equal(7, report.OriginalTopology.FaceCount);
+        Assert.Equal(1, report.Recognized.RegionCount);
+        Assert.Equal(1, report.Replacements.PlannedCount);
+        Assert.Equal(1, report.Replacements.VerifiedCount);
+        Assert.Equal(1, report.Replacements.EmittedCount);
+        Assert.Equal(1, report.Replacements.ReplacedFaceCount);
+        Assert.Equal(6, report.Residual.ResidualFaceCount);
+        Assert.Equal("holeShaft-bounded-rebuild", report.EmissionStrategy);
+        Assert.False(report.ResidualSurgery);
+        Assert.Contains("hybrid-step-verified", report.ReplacementStates);
+    }
+
+    [Fact]
+    public void InlineStep_MigrationReport_DuplicateAndUnresolvedFacesAreDeterministic()
+    {
+        var map = new ImportedStepTopologyMap(new Dictionary<string, string>(StringComparer.Ordinal) { ["#1"] = "f1", ["#2"] = "f2" }, new Dictionary<string, string>(StringComparer.Ordinal));
+        var inlineStep = new FirmamentV2InlineStepRecord("part.step", "/tmp/part.step", "hash", true, "Aetheris-canonical", map);
+        var solid = new FirmamentV2SolidBinding("importedPart", "InlineStep", inlineStep);
+        var document = new FirmamentV2Document("MigrationProbe", "mm", [solid], RecognizedRegions: [
+            new FirmamentV2RecognizedRegion("importedPart", "a", "holeShaft", ["#1", "#1"], "high"),
+            new FirmamentV2RecognizedRegion("importedPart", "b", "holeShaft", ["#2", "#999"], "high")]);
+
+        var report = InlineStepMigrationReportBuilder.Build(document, solid);
+
+        Assert.Equal(2, report.OriginalTopology.FaceCount);
+        Assert.Equal(2, report.Recognized.RegionCount);
+        Assert.Equal(2, report.Recognized.ReferencedFaceCount);
+        Assert.Equal(1, report.Recognized.DuplicateReferencedFaceCount);
+        Assert.Equal(1, report.Recognized.UnresolvedReferenceCount);
+        Assert.Equal(1d, report.Coverage.RecognizedFaceRatio);
+        Assert.Contains("inline-step-migration-duplicate-face-reference:#1", report.Diagnostics);
+        Assert.Contains("inline-step-migration-unresolved-face:#999", report.Diagnostics);
+    }
+
+    [Fact]
     public void InlineStep_NonCanonicalStep_IsRejectedWithDeterministicDiagnostic()
     {
         var source = """

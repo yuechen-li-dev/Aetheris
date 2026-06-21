@@ -256,7 +256,8 @@ public static class CliRunner
             {
                 success = true,
                 sourcePath = build.Value.SourcePath,
-                outputPath = build.Value.OutputPath
+                outputPath = build.Value.OutputPath,
+                inlineStepMigration = build.Value.Export.InlineStepMigration
             }, JsonOptions));
         }
         else

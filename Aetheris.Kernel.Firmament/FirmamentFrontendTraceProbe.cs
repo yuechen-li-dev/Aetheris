@@ -70,7 +70,7 @@ public static class FirmamentFrontendTraceProbe
         var dimensions = loweredSolid.Box is null ? null : new FirmamentTraceDimensions(loweredSolid.Box.Size[0], loweredSolid.Box.Size[1], loweredSolid.Box.Size[2]);
         var sideHoleIntent = document.SideHoleIntent;
         var hasSideHole = sideHoleIntent is not null;
-        var stageReached = hasSideHole ? "region-parent-integrated" : "feature-air";
+        var stageReached = hasSideHole && string.Equals(document.ModelName, "FeatureV2SideHoleStepVerified", StringComparison.Ordinal) ? "step-verified" : hasSideHole ? "region-parent-integrated" : "feature-air";
         var featureDiagnostics = new[]
         {
             "firmament-v2-box-record-recognized",

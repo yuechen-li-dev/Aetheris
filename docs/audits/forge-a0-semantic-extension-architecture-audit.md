@@ -471,3 +471,5 @@ This milestone explicitly does not include:
 - parser/lowering/kernel behavior changes;
 - migration of old Forge code into a public semantic SDK;
 - weakening or deleting existing tests.
+
+See also: [FORGE-X1 concept/template descriptor scaffold](../implementation/forge-x1-concept-template-descriptor-scaffold.md).

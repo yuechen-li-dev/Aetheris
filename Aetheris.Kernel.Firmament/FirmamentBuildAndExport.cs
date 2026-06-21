@@ -23,7 +23,7 @@ public static class FirmamentBuildAndExport
 
         var fullSourcePath = Path.GetFullPath(sourcePath);
         var sourceText = NormalizeLf(File.ReadAllText(fullSourcePath, Encoding.UTF8));
-        var exportResult = ExportSource(sourceText);
+        var exportResult = ExportSource(sourceText, Path.GetDirectoryName(fullSourcePath));
         if (!exportResult.IsSuccess)
         {
             return KernelResult<FirmamentBuildAndExportResult>.Failure(exportResult.Diagnostics);
@@ -44,9 +44,9 @@ public static class FirmamentBuildAndExport
     }
 
 
-    private static KernelResult<FirmamentStepExportResult> ExportSource(string sourceText)
+    private static KernelResult<FirmamentStepExportResult> ExportSource(string sourceText, string? sourceDirectory = null)
     {
-        var v2Parse = FirmamentV2Parser.Parse(sourceText);
+        var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory);
         if (v2Parse.IsSuccess && v2Parse.Document is not null)
         {
             var dfm = FirmamentV2DfmEnforcement.Validate(v2Parse.Document);
@@ -63,6 +63,11 @@ public static class FirmamentBuildAndExport
             if (TryExportV2ControlledSideHoleBody(v2Parse.Document) is { } sideHoleExport)
             {
                 return sideHoleExport;
+            }
+
+            if (TryExportV2InlineStepBody(v2Parse.Document) is { } inlineStepExport)
+            {
+                return inlineStepExport;
             }
 
             var lowering = FirmamentV2BuildLowering.LowerPrimitiveBridge(v2Parse.Document);
@@ -101,7 +106,66 @@ public static class FirmamentBuildAndExport
                     DimensionInspection: []));
         }
 
+        if (v2Parse.Diagnostics.Contains(FirmamentV2Parser.InlineStepRequiresCanonical, StringComparer.Ordinal))
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+                Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                "firmament-inline-step-requires-aetheris-canonical-step: Inline STEP requires an Aetheris-canonical AP242 file. Run `aetheris canon <input.step> --out <canonical.step>` first.",
+                "FirmamentV2.InlineStep")]);
+        }
+
+        if (v2Parse.Diagnostics.Any(d => d.StartsWith("firmament-v2-inline-step-", StringComparison.Ordinal)))
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(v2Parse.Diagnostics.Select(d => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+                Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                d,
+                "FirmamentV2.InlineStep")).ToArray());
+        }
+
         return FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
+    }
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2InlineStepBody(FirmamentV2Document document)
+    {
+        if (document.Solids.Count != 1)
+        {
+            return null;
+        }
+
+        var solid = document.Solids[0];
+        if (solid.Primitive is not FirmamentV2InlineStepRecord inlineStep)
+        {
+            return null;
+        }
+
+        var stepText = File.ReadAllText(inlineStep.NormalizedPath, Encoding.UTF8);
+        var import = Step242Importer.ImportBody(stepText);
+        if (!import.IsSuccess)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(import.Diagnostics);
+        }
+
+        var export = Step242Exporter.ExportBody(import.Value, new Step242ExportOptions
+        {
+            ProductName = solid.Name,
+            ApplicationName = "Aetheris.Firmament.InlineStep"
+        });
+        if (!export.IsSuccess)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(export.Diagnostics);
+        }
+
+        return KernelResult<FirmamentStepExportResult>.Success(
+            new FirmamentStepExportResult(
+                export.Value,
+                solid.Name,
+                0,
+                "inline-step",
+                "aetheris-canonical-ap242",
+                DatumInspection: [],
+                DimensionInspection: []));
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2ControlledSideHoleBody(FirmamentV2Document document)

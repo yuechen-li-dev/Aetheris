@@ -19,6 +19,7 @@ public sealed record FirmamentV2SolidBinding(string Name, string RecordType, Fir
     public FirmamentV2ConeRecord? Cone => Primitive as FirmamentV2ConeRecord;
     public FirmamentV2SphereRecord? Sphere => Primitive as FirmamentV2SphereRecord;
     public FirmamentV2TorusRecord? Torus => Primitive as FirmamentV2TorusRecord;
+    public FirmamentV2InlineStepRecord? InlineStep => Primitive as FirmamentV2InlineStepRecord;
 }
 
 public abstract record FirmamentV2PrimitiveRecord;
@@ -27,6 +28,7 @@ public sealed record FirmamentV2CylinderRecord(double Radius, double Height) : F
 public sealed record FirmamentV2ConeRecord(double BottomRadius, double TopRadius, double Height) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2SphereRecord(double Radius) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2TorusRecord(double MajorRadius, double MinorRadius) : FirmamentV2PrimitiveRecord;
+public sealed record FirmamentV2InlineStepRecord(string SourcePath, string NormalizedPath, string ContentHash, bool CanonicalInput, string CanonicalEvidence) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2Exposure(string Alias, string SelectorKind, string Selector, string RefType, string Axis, string? Subselector);
 public sealed record FirmamentV2FaceTarget(string Source, string Kind, string Axis, string ResolvedSelector, string RefType)
 {

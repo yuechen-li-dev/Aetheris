@@ -1,0 +1,44 @@
+// fixture-id: inline-step-v2-replace-through-hole-step-verified
+// case: inline-step-v2-replace-through-hole-step-verified
+// category: InlineStep
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// feature-area: inline-step-semantic-replacement
+// build-command: aetheris build
+// roundtrip-required: true
+// expected-volume: 461.15044407846125
+// expected-topology: one cylindrical through-hole wall; no duplicate hole geometry
+// canonical-input-required: true
+// recognized-region-required: true
+// replacement-required: true
+// replacement-verification-required: true
+// graphical-pmi-required: false
+// input-step: ../testdata/canonical-through-hole.step
+// notes: INLINE-STEP-X4 bounded rebuild strategy: recognize imported cylindrical face #191, verify radius/evidence against canonical input, rebuild the simple 10x8x6 host with semantic hole<shaft>, then export through Step242Exporter. This is not full STEP decompilation or general residual surgery.
+model InlineStepReplaceThroughHole {
+    units mm
+
+    solid importedPart: InlineStep {
+        path: "../testdata/canonical-through-hole.step"
+    }
+
+    recognize importedPart {
+        region mountHole {
+            kind: holeShaft
+            faces: ["#191"]
+            confidence: high
+        }
+    }
+
+    replace importedPart.region("mountHole") with hole<shaft> mountHole {
+        on: importedPart.face("#191")
+        center: [0, 0]
+        radius: 1
+        end: throughAll
+        hostSize: [10, 8, 6]
+    }
+}

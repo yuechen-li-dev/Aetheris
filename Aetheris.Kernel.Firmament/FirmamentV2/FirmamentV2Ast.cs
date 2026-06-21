@@ -1,6 +1,6 @@
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null)
+public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null)
 {
     public FirmamentV2SolidBinding Solid => Solids[^1];
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
@@ -36,6 +36,11 @@ public sealed record ImportedStepTopologyMap(IReadOnlyDictionary<string, string>
 public sealed record FirmamentV2RecognizedRegion(string BodyName, string RegionName, string Kind, IReadOnlyList<string> FaceRefs, string Confidence)
 {
     public string TargetSource => $"{BodyName}.region(\"{RegionName}\")";
+}
+
+public sealed record FirmamentV2ReplacementDecl(string ImportedBodyName, string RecognizedRegionName, string ReplacementKind, string ReplacementFeatureName, string PlacementTarget, FirmamentV2FaceLocalPoint2D Center, double Radius, string EndCondition, IReadOnlyList<double> HostSize, string Source)
+{
+    public string TargetSource => $"{ImportedBodyName}.region(\"{RecognizedRegionName}\")";
 }
 
 public sealed record FirmamentV2ImportedStepFaceTarget(string BodySymbol, string EntityRef)

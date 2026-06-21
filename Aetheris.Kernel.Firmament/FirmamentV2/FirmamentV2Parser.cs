@@ -92,6 +92,14 @@ public static class FirmamentV2Parser
     public const string InvalidRecognitionKind = "firmament-inline-step-invalid-recognition-kind";
     public const string InvalidRecognitionConfidence = "firmament-inline-step-invalid-recognition-confidence";
     public const string PmiRecognizedRegionKindMismatch = "firmament-pmi-recognized-region-kind-mismatch";
+    public const string UnknownReplacementBody = "firmament-inline-step-unknown-replacement-body";
+    public const string UnknownReplacementRegion = "firmament-inline-step-unknown-replacement-region";
+    public const string ReplacementKindMismatch = "firmament-inline-step-replacement-kind-mismatch";
+    public const string ReplacementFaceUnresolved = "firmament-inline-step-replacement-face-unresolved";
+    public const string ReplacementUnsupportedKind = "firmament-inline-step-replacement-unsupported-kind";
+    public const string ReplacementVerificationFailed = "firmament-inline-step-replacement-verification-failed";
+    public const string ReplacementRadiusInvalid = "firmament-inline-step-replacement-radius-invalid";
+    public const string ReplacementEndUnsupported = "firmament-inline-step-replacement-end-unsupported";
 
     private static readonly Regex ModelRegex = new(@"\bmodel\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex UnitsRegex = new(@"\bunits\s+(?<units>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
@@ -115,6 +123,9 @@ public static class FirmamentV2Parser
     private static readonly Regex KindRegex = new("\\bkind\\s*:\\s*(?<kind>\"[^\"]+\"|[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*[A-Za-z_][A-Za-z0-9_]*\\s*>)?)", RegexOptions.CultureInvariant);
     private static readonly Regex FacesRegex = new(@"\bfaces\s*:\s*\[(?<faces>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
     private static readonly Regex ConfidenceRegex = new(@"\bconfidence\s*:\s*(?<confidence>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+    private static readonly Regex ReplaceHeaderRegex = new("\\breplace\\s+(?<target>[A-Za-z_][A-Za-z0-9_]*\\.region\\(\"[A-Za-z_][A-Za-z0-9_]*\"\\))\\s+with\\s+(?<kind>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*[A-Za-z_][A-Za-z0-9_]*\\s*>)?)\\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\\s*\\{", RegexOptions.CultureInvariant);
+    private static readonly Regex OnRegex = new("\\bon\\s*:\\s*(?<target>[A-Za-z_][A-Za-z0-9_]*\\.face\\(\"#[0-9]+\"\\)|face\\([^)]+\\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+    private static readonly Regex HostSizeRegex = new(@"\bhostSize\s*:\s*\[(?<values>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
     private static readonly Regex PmiHeaderRegex = new(@"\bpmi\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex PmiEntryHeaderRegex = new(@"\b(?<kind>[A-Za-z_][A-Za-z0-9_]*)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex TargetRegex = new(@"\btarget\s*:\s*(?<target>[A-Za-z_][A-Za-z0-9_]*\.(?:face|region)\(""[#A-Za-z0-9_]+""\)|[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*\([^)]*\)|face\([^)]+\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
@@ -173,11 +184,12 @@ public static class FirmamentV2Parser
         var modifyBlocks = ParseModifyBlocks(source, byName, diagnostics);
         var templates = ParseTemplates(source, diagnostics);
         var recognizedRegions = ParseRecognizedRegions(source, byName, diagnostics);
+        var replacements = ParseReplacements(source, byName, recognizedRegions, diagnostics);
         var pmi = ParsePmi(source, byName, modifyBlocks, recognizedRegions, diagnostics);
 
         FirmamentV2Document? document = null;
         if (modelMatch.Success && unitsMatch.Success && solids.Count > 0 && !diagnostics.Any(IsFatalDiagnostic))
-            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks, templates, pmi, recognizedRegions);
+            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks, templates, pmi, recognizedRegions, replacements);
 
         diagnostics.Add(document is null ? "firmament-v2-parse-failed" : "firmament-v2-parse-succeeded");
         diagnostics.Sort(StringComparer.Ordinal);
@@ -291,7 +303,7 @@ public static class FirmamentV2Parser
         return new(name, "Box", new FirmamentV2BoxRecord(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
     }
 
-    private static bool IsFatalDiagnostic(string code) => code is PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch;
+    private static bool IsFatalDiagnostic(string code) => code is PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -626,6 +638,48 @@ public static class FirmamentV2Parser
     {
         raw = raw.Trim().Trim('"').Replace(" ", string.Empty, StringComparison.Ordinal);
         return string.Equals(raw, "hole<shaft>", StringComparison.Ordinal) ? "holeShaft" : raw;
+    }
+
+
+    private static IReadOnlyList<FirmamentV2ReplacementDecl> ParseReplacements(string source, Dictionary<string, FirmamentV2SolidBinding> solids, IReadOnlyList<FirmamentV2RecognizedRegion> recognizedRegions, List<string> diagnostics)
+    {
+        var replacements = new List<FirmamentV2ReplacementDecl>();
+        var regions = recognizedRegions.ToDictionary(r => r.TargetSource, r => r, StringComparer.Ordinal);
+        foreach (Match rm in ReplaceHeaderRegex.Matches(source))
+        {
+            var target = rm.Groups["target"].Value;
+            var targetMatch = RecognizedRegionTargetRegex.Match(target);
+            var bodyName = targetMatch.Groups["body"].Value;
+            var regionName = targetMatch.Groups["region"].Value;
+            if (!solids.TryGetValue(bodyName, out var solid) || solid.InlineStep is null) { diagnostics.Add(UnknownReplacementBody); continue; }
+            if (!regions.TryGetValue(target, out var region)) { diagnostics.Add(UnknownReplacementRegion); continue; }
+            var kind = NormalizeRecognitionKind(rm.Groups["kind"].Value);
+            if (kind != "holeShaft") { diagnostics.Add(ReplacementUnsupportedKind); continue; }
+            if (region.Kind != "holeShaft") { diagnostics.Add(ReplacementKindMismatch); continue; }
+            var open = source.IndexOf('{', rm.Index);
+            var close = FindMatchingBrace(source, open);
+            if (close < 0) { diagnostics.Add(UnsupportedConstruct); continue; }
+            var body = source[(open + 1)..close];
+            var on = OnRegex.Match(body);
+            if (!on.Success || !TryValidateReplacementFaceTarget(on.Groups["target"].Value.Trim(), solid)) { diagnostics.Add(ReplacementFaceUnresolved); continue; }
+            var center = CenterRegex.IsMatch(body) ? ParseCenter(body, diagnostics) : null;
+            if (center is null) { diagnostics.Add(HoleCenterMissing); continue; }
+            var hasRadius = ReadPositive(body, ["radius"], out var radius) || (ReadPositive(body, ["diameter"], out var diameter) && (radius = diameter / 2d) > 0);
+            if (!hasRadius || radius <= 0) { diagnostics.Add(ReplacementRadiusInvalid); continue; }
+            var end = ParseEnd(body, diagnostics);
+            if (end?.Kind != FirmamentV2SemanticHoleEndKind.ThroughAll) { diagnostics.Add(ReplacementEndUnsupported); continue; }
+            var hostMatch = HostSizeRegex.Match(body);
+            var hostSize = hostMatch.Success ? ParseSizeValues(hostMatch.Groups["values"].Value, diagnostics) : null;
+            if (hostSize is null) { diagnostics.Add(ReplacementVerificationFailed); continue; }
+            replacements.Add(new FirmamentV2ReplacementDecl(bodyName, regionName, kind, rm.Groups["name"].Value, on.Groups["target"].Value.Trim(), center, radius, "throughAll", hostSize, rm.Value));
+        }
+        return replacements;
+    }
+
+    private static bool TryValidateReplacementFaceTarget(string target, FirmamentV2SolidBinding solid)
+    {
+        var imported = Regex.Match(target, "^(?<body>[A-Za-z_][A-Za-z0-9_]*)\\.face\\(\"(?<entity>#[0-9]+)\"\\)?$", RegexOptions.CultureInvariant);
+        return imported.Success && string.Equals(imported.Groups["body"].Value, solid.Name, StringComparison.Ordinal) && solid.InlineStep is not null && solid.InlineStep.TopologyMap.TryResolveFaceEntity(imported.Groups["entity"].Value, out _);
     }
 
     private static IReadOnlyList<FirmamentV2PmiDecl> ParsePmi(string source, Dictionary<string, FirmamentV2SolidBinding> solids, IReadOnlyList<FirmamentV2ModifyBlock> modifyBlocks, IReadOnlyList<FirmamentV2RecognizedRegion> recognizedRegions, List<string> diagnostics)

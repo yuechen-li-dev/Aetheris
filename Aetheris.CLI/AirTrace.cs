@@ -133,7 +133,7 @@ internal static class AirTraceReportBuilder
         if (isFirmamentV2 && string.Equals(fixture.ExpectedStage, "step-verified", StringComparison.Ordinal))
         {
             var featureArea = fixture.Metadata.GetValueOrDefault("feature-area");
-            var stepVerified = string.Equals(featureArea, "semantic-hole", StringComparison.Ordinal) || string.Equals(featureArea, "semantic-reference", StringComparison.Ordinal) || string.Equals(featureArea, "multi-feature-composition", StringComparison.Ordinal)
+            var stepVerified = string.Equals(featureArea, "semantic-hole", StringComparison.Ordinal) || string.Equals(featureArea, "semantic-reference", StringComparison.Ordinal) || string.Equals(featureArea, "multi-feature-composition", StringComparison.Ordinal) || string.Equals(featureArea, "semantic-pmi", StringComparison.Ordinal)
                 ? TryVerifyV2SemanticHoleStepFixture(fixture)
                 : TryVerifyV2BoxStepFixture(fixture);
             if (stepVerified.Succeeded)
@@ -295,6 +295,8 @@ internal static class AirTraceReportBuilder
                     "feature-v2-shaft-hole-blind-step-verified" => 480d - Math.PI * 3d,
                     "feature-v2-counterbore-step-verified" => 480d - ((Math.PI * 6d) + (Math.PI * 3d)),
                     "feature-v2-countersink-step-verified" => 480d - ((Math.PI * 6d) + (Math.PI * 7d / 3d) - Math.PI),
+                    "pmi-v2-hole-diameter-callout-emits-in-step" => 480d - Math.PI * 6d,
+                    "pmi-v2-datum-plane-emits-in-step" => 480d,
                     _ => double.NaN
                 };
 
@@ -302,6 +304,24 @@ internal static class AirTraceReportBuilder
             {
                 diagnostics.Add("step-v2-x2-volume-mismatch");
                 return (false, Stable(diagnostics).ToArray());
+            }
+
+            if (string.Equals(fixture.Metadata.GetValueOrDefault("feature-area"), "semantic-pmi", StringComparison.Ordinal))
+            {
+                var hasPmiEvidence = fixture.CaseName switch
+                {
+                    "pmi-v2-hole-diameter-callout-emits-in-step" => stepText.Contains("SHAPE_DIMENSION_REPRESENTATION('diameter:base.mount'", StringComparison.Ordinal),
+                    "pmi-v2-datum-plane-emits-in-step" => stepText.Contains("PROPERTY_DEFINITION('datum:A:base'", StringComparison.Ordinal),
+                    _ => false
+                };
+                if (!hasPmiEvidence)
+                {
+                    diagnostics.Add("step-v2-x7-semantic-pmi-evidence-missing");
+                    return (false, Stable(diagnostics).ToArray());
+                }
+
+                diagnostics.Add("step-v2-x7-semantic-pmi-evidence-verified");
+                diagnostics.Add("step-v2-x7-graphical-pmi-not-required");
             }
 
             diagnostics.Add("step-v2-x2-real-ap242-emitted");

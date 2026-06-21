@@ -817,6 +817,49 @@ model AliasFailure {
         }
     }
 
+
+    [Fact]
+    public void FirmamentV2Parser_SemanticPmi_ParsesHoleDiameterAndDatumPlane()
+    {
+        var hole = FirmamentV2Parser.Parse(Source("PMI/valid/pmi-v2-hole-diameter-callout-emits-in-step.valid.firmfixture"));
+        Assert.True(hole.IsSuccess, string.Join(", ", hole.Diagnostics));
+        var holePmi = Assert.Single(hole.Document!.Pmi!);
+        Assert.Equal(FirmamentV2PmiKind.HoleDiameter, holePmi.Kind);
+        Assert.Equal("mountDiameter", holePmi.Name);
+        Assert.Equal("mount", holePmi.Target);
+        Assert.Equal(2d, holePmi.Value);
+
+        var datum = FirmamentV2Parser.Parse(Source("PMI/valid/pmi-v2-datum-plane-emits-in-step.valid.firmfixture"));
+        Assert.True(datum.IsSuccess, string.Join(", ", datum.Diagnostics));
+        var datumPmi = Assert.Single(datum.Document!.Pmi!);
+        Assert.Equal(FirmamentV2PmiKind.DatumPlane, datumPmi.Kind);
+        Assert.Equal("A", datumPmi.Name);
+        Assert.Equal("top", datumPmi.Target);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_SemanticPmi_InvalidTargetAndDiameterAreDeterministicDiagnostics()
+    {
+        var unknown = FirmamentV2Parser.Parse("""
+model BadPmiTarget {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+  pmi { diameter bad { target: missing value: 2mm } }
+}
+""");
+        Assert.Contains(FirmamentV2Parser.PmiTargetUnresolved, unknown.Diagnostics);
+
+        var invalidDiameter = FirmamentV2Parser.Parse("""
+model BadPmiDiameter {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+  modify base { hole<shaft> mount { on: face(+Z) center: [0, 0] diameter: 2 end: throughAll } }
+  pmi { diameter bad { target: mount value: 2deg } }
+}
+""");
+        Assert.Contains(FirmamentV2Parser.PmiDiameterInvalid, invalidDiameter.Diagnostics);
+    }
+
     private static string Source(string relative)
     {
         var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));

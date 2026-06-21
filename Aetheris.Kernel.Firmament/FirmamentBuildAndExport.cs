@@ -70,7 +70,8 @@ public static class FirmamentBuildAndExport
                 return KernelResult<FirmamentStepExportResult>.Failure(execution.Diagnostics);
             }
 
-            var step = Step242Exporter.ExportBody(executedPrimitive.Body);
+            var semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], executedPrimitive.FeatureId);
+            var step = Step242Exporter.ExportBody(executedPrimitive.Body, semanticPmi);
             if (!step.IsSuccess)
             {
                 return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
@@ -83,7 +84,7 @@ public static class FirmamentBuildAndExport
                     executedPrimitive.OpIndex,
                     "primitive",
                     v2Parse.Document.Solid.RecordType.ToLowerInvariant(),
-                    DatumInspection: [],
+                    DatumInspection: v2Parse.Document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
                     DimensionInspection: []));
         }
 
@@ -140,7 +141,8 @@ public static class FirmamentBuildAndExport
             }
         }
 
-        var step = Step242Exporter.ExportBody(body);
+        var semanticPmi = BuildV2SemanticPmi(document, semanticHoles, modifyTargets[0]);
+        var step = Step242Exporter.ExportBody(body, semanticPmi);
         if (!step.IsSuccess)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
@@ -153,9 +155,57 @@ public static class FirmamentBuildAndExport
                 0,
                 semanticHoles.Count == 1 ? nameof(AirHoleSimpleShaftMaterializer) : nameof(AirHoleCompositeMaterializer),
                 semanticHoles.Count == 1 ? feature.Stack.Kind.ToString() : "CompositeSimpleShaft",
-                DatumInspection: [],
-                DimensionInspection: []));
+                DatumInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
+                DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", null)).ToArray() ?? []));
     }
+
+    private static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(FirmamentV2Document document, IReadOnlyList<Core.Air.AirHoleFeature> semanticHoles, string targetSolid)
+    {
+        if (document.Pmi is null || document.Pmi.Count == 0)
+        {
+            return [];
+        }
+
+        var holeByName = semanticHoles.SelectMany(h => new[] { new KeyValuePair<string, Core.Air.AirHoleFeature>(h.FeatureId, h), new KeyValuePair<string, Core.Air.AirHoleFeature>(h.Name, h) }).ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
+        var targetBinding = document.Solids.Single(s => string.Equals(s.Name, targetSolid, StringComparison.Ordinal));
+        var result = new List<Step242SemanticPmi>();
+        foreach (var pmi in document.Pmi)
+        {
+            if (pmi.Kind == FirmamentV2PmiKind.HoleDiameter && pmi.Value.HasValue && holeByName.TryGetValue(pmi.Target, out var pmiHole))
+            {
+                result.Add(new Step242SemanticPmiHole(pmiHole.FeatureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", null, null));
+            }
+            else if (pmi.Kind == FirmamentV2PmiKind.DatumPlane)
+            {
+                var selector = ResolveV2DatumTarget(targetBinding, pmi.Target);
+                result.Add(new Step242SemanticPmiDatum(targetSolid, "plane", pmi.Name, selector));
+            }
+        }
+
+        return result;
+    }
+
+    private static string ResolveV2DatumTarget(FirmamentV2SolidBinding solid, string target)
+    {
+        if (target.StartsWith("face(", StringComparison.Ordinal))
+        {
+            return $"{solid.Name}.{FaceAxisToPort(target)}";
+        }
+
+        var exposure = solid.Box?.Exposures.FirstOrDefault(e => string.Equals(e.Alias, target, StringComparison.Ordinal));
+        return exposure is null ? $"{solid.Name}.{target}" : $"{solid.Name}.{FaceAxisToPort(exposure.Selector)}";
+    }
+
+    private static string FaceAxisToPort(string selector) => selector switch
+    {
+        "face(+Z)" => "top_face",
+        "face(-Z)" => "bottom_face",
+        "face(+X)" => "plus_x_face",
+        "face(-X)" => "minus_x_face",
+        "face(+Y)" => "plus_y_face",
+        "face(-Y)" => "minus_y_face",
+        _ => selector
+    };
 
     private static KernelResult<FirmamentStepExportResult> SemanticHoleFailure(IEnumerable<string> diagnostics) =>
         KernelResult<FirmamentStepExportResult>.Failure(diagnostics.Select(d => new Kernel.Core.Diagnostics.KernelDiagnostic(

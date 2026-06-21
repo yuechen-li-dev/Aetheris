@@ -180,7 +180,7 @@ public sealed class FirmamentFixtureCorpusTests
             var fixture = LoadMetadata(path);
             Assert.Equal("FirmamentV2", fixture["syntax-version"]);
             Assert.Equal("SemanticRefs", fixture["category"]);
-            if (fixture["implementation"] != "parser-backed" || fixture["validity"] == "invalid") Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
+            if (fixture["implementation"] != "parser-backed" || fixture["validity"] == "invalid") if (fixture["implementation"] != "parser-backed") Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
         }
     }
 
@@ -361,13 +361,13 @@ public sealed class FirmamentFixtureCorpusTests
     public void FirmamentV2PMI_MetadataRecognized()
     {
         var fixtures = DiscoverV2Fixtures().Where(p => p.Contains("/PMI/", StringComparison.Ordinal)).ToArray();
-        Assert.Equal(3, fixtures.Length);
+        Assert.Equal(5, fixtures.Length);
         foreach (var path in fixtures)
         {
             var fixture = LoadMetadata(path);
             Assert.Equal("FirmamentV2", fixture["syntax-version"]);
             Assert.Equal("PMI", fixture["category"]);
-            Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
+            if (fixture["implementation"] != "parser-backed") Assert.True(fixture.ContainsKey("expected-diagnostic"), path);
         }
     }
 

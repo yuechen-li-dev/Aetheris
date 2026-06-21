@@ -1,0 +1,26 @@
+// fixture-id: inline-step-v2-canonical-box-reexport-step-verified
+// case: firmament-v2-inline-step-canonical-box-reexport
+// category: InlineStep
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// tier: inline-step
+// expected-stage: step-verified
+// current-stage: step-verified
+// feature-area: inline-step-wrapper
+// build-command: aetheris build
+// roundtrip-required: true
+// expected-volume: 480
+// expected-topology: faces=6, vertices=8, edges=12
+// canonical-input-required: true
+// input-step: ../testdata/canonical-box-10x8x6.step
+// notes: INLINE-STEP-X1 wraps an Aetheris-canonical AP242 fixture and re-exports through Step242Importer/Step242Exporter; output is canonicalized, not byte-identical.
+
+model InlineStepCanonicalBox {
+    units mm
+
+    solid importedPart: InlineStep {
+        path: "../testdata/canonical-box-10x8x6.step"
+    }
+}

@@ -299,3 +299,7 @@ Open questions:
 - No guarantee that source STEP entity IDs are stable across arbitrary external re-export.
 - No change to STEP import/export behavior in this milestone.
 - No change to Firmament lowering, BRep/materializer behavior, or product behavior in this milestone.
+
+## X1 correction: canonical STEP only
+
+INLINE-STEP-X1 narrows the first implementation milestone: Firmament inline STEP source is **Aetheris-canonical AP242 STEP**, not arbitrary raw vendor STEP. Raw external/vendor STEP remains input to `aetheris canon`; Firmament wraps the canonicalized artifact and re-exports it through `Step242Importer` and `Step242Exporter`. See `docs/implementation/inline-step-x1-canonical-step-wrapper.md`.

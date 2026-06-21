@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Air;
 
@@ -74,6 +76,10 @@ public static class FirmamentV2Parser
     public const string PmiTargetUnresolved = "firmament-v2-pmi-target-unresolved";
     public const string PmiDiameterInvalid = "firmament-v2-pmi-diameter-invalid";
     public const string PmiDuplicateName = "firmament-v2-pmi-duplicate-name";
+    public const string InlineStepPathMissing = "firmament-v2-inline-step-path-missing";
+    public const string InlineStepPathInvalid = "firmament-v2-inline-step-path-invalid";
+    public const string InlineStepFileMissing = "firmament-v2-inline-step-file-missing";
+    public const string InlineStepRequiresCanonical = "firmament-inline-step-requires-aetheris-canonical-step";
 
     private static readonly Regex ModelRegex = new(@"\bmodel\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex UnitsRegex = new(@"\bunits\s+(?<units>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
@@ -98,8 +104,11 @@ public static class FirmamentV2Parser
     private static readonly Regex ValueRegex = new(@"\b(?:value|diameter)\s*:\s*(?<value>[^\s}]+)", RegexOptions.CultureInvariant);
     private static readonly Regex TemplateHeaderRegex = new(@"\btemplate\s*<\s*(?<process>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex ConceptRegex = new(@"\bconcept\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>[-+0-9.eE]+)\s*(?<unit>[A-Za-z_][A-Za-z0-9_]*)?", RegexOptions.CultureInvariant);
+    private static readonly Regex PathRegex = new("\\bpath\\s*:\\s*\"(?<path>[^\"]+)\"", RegexOptions.CultureInvariant);
 
-    public static FirmamentV2ParseResult Parse(string sourceText)
+    public static FirmamentV2ParseResult Parse(string sourceText) => Parse(sourceText, null);
+
+    public static FirmamentV2ParseResult Parse(string sourceText, string? sourceDirectory)
     {
         ArgumentNullException.ThrowIfNull(sourceText);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };
@@ -133,7 +142,7 @@ public static class FirmamentV2Parser
 
                 FirmamentV2SolidBinding? binding = isWith
                     ? ParseDerived(name, target, body, byName, diagnostics)
-                    : ParseDirect(name, target, body, diagnostics);
+                    : ParseDirect(name, target, body, diagnostics, sourceDirectory);
                 if (binding is not null)
                 {
                     solids.Add(binding);
@@ -155,13 +164,18 @@ public static class FirmamentV2Parser
         return document is null ? FirmamentV2ParseResult.Failure(diagnostics) : FirmamentV2ParseResult.Success(document, diagnostics);
     }
 
-    private static FirmamentV2SolidBinding? ParseDirect(string name, string recordType, string body, List<string> diagnostics)
+    private static FirmamentV2SolidBinding? ParseDirect(string name, string recordType, string body, List<string> diagnostics, string? sourceDirectory)
     {
         if (string.Equals(recordType, "Box", StringComparison.Ordinal))
         {
             var values = ParseSizeField(body, diagnostics, BoxMissingSize);
             var exposures = ParseExposures(body, diagnostics);
             return values is null ? null : new(name, "Box", new FirmamentV2BoxRecord(values, exposures));
+        }
+
+        if (string.Equals(recordType, "InlineStep", StringComparison.Ordinal))
+        {
+            return ParseInlineStep(name, body, diagnostics, sourceDirectory);
         }
 
         if (recordType is not ("Cylinder" or "Cone" or "Sphere" or "Torus")) { diagnostics.Add(UnknownRecordType); return null; }
@@ -182,6 +196,51 @@ public static class FirmamentV2Parser
             : new(name, recordType, primitive);
     }
 
+    private static FirmamentV2SolidBinding? ParseInlineStep(string name, string body, List<string> diagnostics, string? sourceDirectory)
+    {
+        var match = PathRegex.Match(body);
+        if (!match.Success) { diagnostics.Add(InlineStepPathMissing); return null; }
+
+        var sourcePath = match.Groups["path"].Value;
+        if (Path.IsPathRooted(sourcePath))
+        {
+            diagnostics.Add(InlineStepPathInvalid);
+            return null;
+        }
+
+        var baseDirectory = string.IsNullOrWhiteSpace(sourceDirectory) ? Directory.GetCurrentDirectory() : sourceDirectory;
+        var normalizedPath = Path.GetFullPath(Path.Combine(baseDirectory!, sourcePath));
+        if (!File.Exists(normalizedPath))
+        {
+            diagnostics.Add(InlineStepFileMissing);
+            return null;
+        }
+
+        var stepText = File.ReadAllText(normalizedPath, Encoding.UTF8);
+        if (!IsAetherisCanonicalStep(stepText, out var evidence))
+        {
+            diagnostics.Add(InlineStepRequiresCanonical);
+            return null;
+        }
+
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(stepText))).ToLowerInvariant();
+        return new FirmamentV2SolidBinding(name, "InlineStep", new FirmamentV2InlineStepRecord(sourcePath, normalizedPath, hash, true, evidence));
+    }
+
+    private static bool IsAetherisCanonicalStep(string stepText, out string evidence)
+    {
+        if (stepText.Contains("Aetheris AP242 subset export", StringComparison.Ordinal)
+            && stepText.Contains("Aetheris.Kernel", StringComparison.Ordinal)
+            && stepText.Contains("FILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'))", StringComparison.Ordinal))
+        {
+            evidence = "aetheris-ap242-subset-export-header";
+            return true;
+        }
+
+        evidence = string.Empty;
+        return false;
+    }
+
     private static FirmamentV2SolidBinding? ParseDerived(string name, string baseName, string body, Dictionary<string, FirmamentV2SolidBinding> byName, List<string> diagnostics)
     {
         if (!byName.TryGetValue(baseName, out var baseSolid)) { diagnostics.Add(NameUnresolved); if (Regex.IsMatch(body, @"\bsize\s*:", RegexOptions.CultureInvariant)) diagnostics.Add(WithForwardReference); return null; }
@@ -196,7 +255,7 @@ public static class FirmamentV2Parser
         return new(name, "Box", new FirmamentV2BoxRecord(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
     }
 
-    private static bool IsFatalDiagnostic(string code) => code is PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName;
+    private static bool IsFatalDiagnostic(string code) => code is PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {

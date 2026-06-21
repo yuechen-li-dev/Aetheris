@@ -183,7 +183,8 @@ public static class FirmamentBuildAndExport
         var step = Step242Exporter.ExportBody(materialized.Body, new Step242ExportOptions { ProductName = replacement.ReplacementFeatureName, ApplicationName = "Aetheris.Firmament.InlineStepReplacement" });
         if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
 
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, replacement.ReplacementFeatureName, 0, "inline-step-replacement", "holeShaft-bounded-rebuild", DatumInspection: [], DimensionInspection: [], InlineStepMigration: InlineStepMigrationReportBuilder.Build(document, solid, replacementsVerified: true, replacementsEmitted: true, emissionStrategy: "holeShaft-bounded-rebuild", residualSurgery: false)));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, replacement.ReplacementFeatureName, 0, "inline-step-replacement", "holeShaft-bounded-rebuild", DatumInspection: [], DimensionInspection: [], InlineStepMigration: InlineStepMigrationReportBuilder.Build(document, solid, replacementsVerified: true, replacementsEmitted: true, emissionStrategy: "holeShaft-bounded-rebuild", residualSurgery: false),
+                InlineStepReplacementAssist: InlineStepReplacementAssistReportBuilder.Build(document)));
     }
 
     private static double EstimateBoundingBoxVolume(BrepBody body)
@@ -232,7 +233,8 @@ public static class FirmamentBuildAndExport
                 "aetheris-canonical-ap242",
                 DatumInspection: [],
                 DimensionInspection: [],
-                InlineStepMigration: InlineStepMigrationReportBuilder.Build(document, solid, emissionStrategy: "canonical-reexport", residualSurgery: false)));
+                InlineStepMigration: InlineStepMigrationReportBuilder.Build(document, solid, emissionStrategy: "canonical-reexport", residualSurgery: false),
+                InlineStepReplacementAssist: InlineStepReplacementAssistReportBuilder.Build(document)));
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2ControlledSideHoleBody(FirmamentV2Document document)

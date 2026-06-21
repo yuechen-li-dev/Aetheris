@@ -200,6 +200,109 @@ model BadRecognitionProposal { units mm solid importedPart: InlineStep { path: "
         Assert.Contains(diagnostic, parse.Diagnostics);
     }
 
+
+
+    [Fact]
+    public void InlineStep_ReplacementAssist_ReadyHoleProposalProducesStableReplacementText()
+    {
+        var parse = ParseRecognizedHoleProposalFixture();
+        var report = InlineStepReplacementAssistReportBuilder.Build(parse.Document!);
+
+        Assert.Equal(1, report.ReadyCount);
+        Assert.Equal(0, report.BlockedCount);
+        var assist = Assert.Single(report.Assists);
+        Assert.True(assist.ReplacementReady);
+        Assert.Equal("holeShaft", assist.ProposalKind);
+        Assert.NotNull(assist.SuggestedReplacementModel);
+        Assert.Equal("replace importedPart.region(\"mountHole\") with hole<shaft> mountHole {" + Environment.NewLine +
+            "    on: importedPart.face(\"#51\")" + Environment.NewLine +
+            "    center: [0mm, 0mm]" + Environment.NewLine +
+            "    radius: 1mm" + Environment.NewLine +
+            "    end: throughAll" + Environment.NewLine +
+            "}", assist.SuggestedReplacementText);
+        Assert.Empty(parse.Document!.Replacements!);
+    }
+
+    [Theory]
+    [InlineData("datumPlane", "holeShaft", InlineStepReplacementAssistReportBuilder.RegionProposalKindMismatch)]
+    [InlineData("datumPlane", "datumPlane", InlineStepReplacementAssistReportBuilder.UnsupportedProposalKind)]
+    public void InlineStep_ReplacementAssist_BlocksKindIncompatibility(string regionKind, string proposalKind, string reason)
+    {
+        var document = ReplacementAssistDocument(regionKind: regionKind, proposalKind: proposalKind);
+        var assist = Assert.Single(InlineStepReplacementAssistReportBuilder.Build(document).Assists);
+        Assert.False(assist.ReplacementReady);
+        Assert.Contains(reason, assist.Reasons);
+    }
+
+    [Theory]
+    [InlineData(null, InlineStepReplacementAssistReportBuilder.MissingPlacementTarget)]
+    [InlineData("importedPart.face(\"#999999\")", InlineStepReplacementAssistReportBuilder.UnresolvedPlacementTarget)]
+    public void InlineStep_ReplacementAssist_BlocksMissingOrUnresolvedPlacementFace(string? target, string reason)
+    {
+        var document = ReplacementAssistDocument(placementTarget: target);
+        var assist = Assert.Single(InlineStepReplacementAssistReportBuilder.Build(document).Assists);
+        Assert.False(assist.ReplacementReady);
+        Assert.Contains(reason, assist.Reasons);
+    }
+
+    [Theory]
+    [InlineData(0d, InlineStepReplacementAssistReportBuilder.InvalidRadius)]
+    [InlineData(-1d, InlineStepReplacementAssistReportBuilder.InvalidRadius)]
+    public void InlineStep_ReplacementAssist_BlocksInvalidRadius(double radius, string reason)
+    {
+        var document = ReplacementAssistDocument(radius: radius);
+        var assist = Assert.Single(InlineStepReplacementAssistReportBuilder.Build(document).Assists);
+        Assert.False(assist.ReplacementReady);
+        Assert.Contains(reason, assist.Reasons);
+    }
+
+    [Fact]
+    public void InlineStep_ReplacementAssist_BlocksUnsupportedEndCondition()
+    {
+        var assist = Assert.Single(InlineStepReplacementAssistReportBuilder.Build(ReplacementAssistDocument(endCondition: "blind")).Assists);
+        Assert.False(assist.ReplacementReady);
+        Assert.Contains(InlineStepReplacementAssistReportBuilder.UnsupportedEndCondition, assist.Reasons);
+    }
+
+    [Theory]
+    [InlineData(false, "cylindrical", 1d, InlineStepReplacementAssistReportBuilder.EvidenceThroughFalse)]
+    [InlineData(true, "planar", 1d, InlineStepReplacementAssistReportBuilder.EvidenceSurfaceNotCylindrical)]
+    [InlineData(true, "cylindrical", 2d, InlineStepReplacementAssistReportBuilder.EvidenceRadiusMismatch)]
+    public void InlineStep_ReplacementAssist_BlocksEvidenceIncompatibility(bool through, string surfaceFamily, double evidenceRadius, string reason)
+    {
+        var document = ReplacementAssistDocument(evidenceThrough: through, surfaceFamily: surfaceFamily, evidenceRadius: evidenceRadius);
+        var assist = Assert.Single(InlineStepReplacementAssistReportBuilder.Build(document).Assists);
+        Assert.False(assist.ReplacementReady);
+        Assert.Contains(reason, assist.Reasons);
+    }
+
+    private static FirmamentV2ParseResult ParseRecognizedHoleProposalFixture()
+    {
+        var repo = FindRepoRoot();
+        var fixturePath = Path.Combine(repo, "fixtures/FirmamentV2/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture");
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
+        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+        return parse;
+    }
+
+    private static FirmamentV2Document ReplacementAssistDocument(
+        string regionKind = "holeShaft",
+        string proposalKind = "holeShaft",
+        string? placementTarget = "importedPart.face(\"#51\")",
+        double radius = 1d,
+        string endCondition = "throughAll",
+        bool evidenceThrough = true,
+        string surfaceFamily = "cylindrical",
+        double evidenceRadius = 1d)
+    {
+        var map = new ImportedStepTopologyMap(new Dictionary<string, string> { ["#51"] = "face-51", ["#191"] = "face-191" }, new Dictionary<string, string>());
+        var solid = new FirmamentV2SolidBinding("importedPart", "InlineStep", new FirmamentV2InlineStepRecord("canonical.step", "canonical.step", "hash", true, "canonical", map));
+        var evidence = new FirmamentV2RecognitionEvidence([surfaceFamily], evidenceRadius, "+Z", null, evidenceThrough);
+        var proposal = new FirmamentV2SemanticProposal(proposalKind, "mountHole", placementTarget, new FirmamentV2FaceLocalPoint2D(0d, 0d, FirmamentV2FaceLocalPoint2D.PlusZConvention), radius, endCondition);
+        var region = new FirmamentV2RecognizedRegion("importedPart", "mountHole", regionKind, ["#191"], "high", evidence, proposal);
+        return new FirmamentV2Document("AssistProbe", "mm", [solid], RecognizedRegions: [region], Replacements: []);
+    }
+
     [Fact]
     public void InlineStep_ReplacementDeclaration_ParsesAndReferencesRecognizedRegion()
     {

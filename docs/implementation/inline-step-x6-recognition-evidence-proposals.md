@@ -100,3 +100,8 @@ residualSurgery = false
 - multiple proposals per region;
 - edge/vertex evidence;
 - counterbore/countersink/fillet/slot proposals.
+
+
+## Forward link
+
+INLINE-STEP-X7 adds review-only proposal-to-replacement assist for these X6 proposal records; see `docs/implementation/inline-step-x7-proposal-replacement-assist.md`.

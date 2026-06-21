@@ -151,6 +151,12 @@ public sealed record VolumeAnalysisResult(
             return new VolumeAnalysisResult(stepPath, true, zHoleVolume, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-box-minus-z-hole", true, false, null, null, null, null, null, null, null, notes);
         }
 
+        if (TryComputeAxisAlignedBoxWithXHoleVolume(body, bbox, out var xHoleVolume, out var xHoleBasis))
+        {
+            notes.Add(xHoleBasis);
+            return new VolumeAnalysisResult(stepPath, true, xHoleVolume, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-box-minus-x-hole", true, false, null, null, null, null, null, null, null, notes);
+        }
+
         var shellVolume = TryComputePlanarClosedShellVolume(body, shells, out var planarVolume, out var planarFailureReason);
         if (shellVolume)
         {
@@ -159,6 +165,45 @@ public sealed record VolumeAnalysisResult(
         }
 
         throw new InvalidOperationException(planarFailureReason ?? "Volume analysis currently supports canonical sphere, single-lateral-face cylinder, and enclosed planar closed-shell bodies only.");
+    }
+
+    private static bool TryComputeAxisAlignedBoxWithXHoleVolume(BrepBody body, BoundingBox3D bbox, out double volume, out string basis)
+    {
+        volume = 0d;
+        basis = string.Empty;
+        var cylinders = new List<(double Radius, double XMin, double XMax)>();
+
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.TryGetFaceSurface(face.Id, out var surface) || surface is null)
+            {
+                return false;
+            }
+
+            if (surface.Kind == SurfaceGeometryKind.Cylinder && surface.Cylinder is { } cylinder)
+            {
+                if (!IsXAxis(cylinder.Axis.ToVector())) return false;
+                if (!TryResolveFaceXSpan(body, face.Id, out var xMin, out var xMax)) return false;
+                cylinders.Add((cylinder.Radius, xMin, xMax));
+                continue;
+            }
+
+            if (surface.Kind != SurfaceGeometryKind.Plane)
+            {
+                return false;
+            }
+        }
+
+        if (cylinders.Count == 0)
+        {
+            return false;
+        }
+
+        var baseVolume = (bbox.Max.X - bbox.Min.X) * (bbox.Max.Y - bbox.Min.Y) * (bbox.Max.Z - bbox.Min.Z);
+        var removed = cylinders.Sum(c => double.Pi * c.Radius * c.Radius * (c.XMax - c.XMin));
+        volume = baseVolume - removed;
+        basis = "Exact analytic volume for an axis-aligned rectangular box with supported locked Firmament V2 +X/-X cylindrical side-hole interval.";
+        return double.IsFinite(volume) && volume > 0d;
     }
 
     private static bool TryComputeAxisAlignedBoxWithZHoleVolume(BrepBody body, BoundingBox3D bbox, out double volume, out string basis)
@@ -279,6 +324,27 @@ public sealed record VolumeAnalysisResult(
     private static bool IsZAxis(Vector3D axis) =>
         double.Abs(axis.X) <= 1e-9 && double.Abs(axis.Y) <= 1e-9 && double.Abs(double.Abs(axis.Z) - 1d) <= 1e-9;
 
+    private static bool IsXAxis(Vector3D axis) =>
+        double.Abs(axis.Y) <= 1e-9 && double.Abs(axis.Z) <= 1e-9 && double.Abs(double.Abs(axis.X) - 1d) <= 1e-9;
+
+    private static bool TryResolveFaceXSpan(BrepBody body, FaceId faceId, out double xMin, out double xMax)
+    {
+        xMin = double.PositiveInfinity;
+        xMax = double.NegativeInfinity;
+        if (!body.Topology.TryGetFace(faceId, out var face) || face is null) return false;
+        foreach (var loopId in face.LoopIds)
+        {
+            var vertices = TryBuildOrientedLoopVertices(body, loopId, out _);
+            if (vertices is null) return false;
+            foreach (var vertex in vertices)
+            {
+                xMin = double.Min(xMin, vertex.X);
+                xMax = double.Max(xMax, vertex.X);
+            }
+        }
+
+        return double.IsFinite(xMin) && double.IsFinite(xMax) && xMax > xMin;
+    }
 
     private static BrepBodyShellRepresentation ResolveShellRepresentationForVolume(BrepBody body)
     {

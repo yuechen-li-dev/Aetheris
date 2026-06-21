@@ -1,11 +1,17 @@
-// fixture-id: side-hole-v2
-// case: firmament-v2-side-hole-design
+// fixture-id: feature-v2-side-hole-step-verified
+// case: firmament-v2-side-hole-step-verified
 // category: Region
 // syntax-version: FirmamentV2
 // validity: valid
 // implementation: parser-backed
 // expected: valid
-// expected-stage: region-parent-integrated
+// expected-stage: step-verified
+// current-stage: step-verified
+// tier: 2
+// mvp-required: true
+// roundtrip-required: true
+// build-command: aetheris build
+// expected-volume: 10*8*6 - pi*1^2*10
 // expected-parent-integration: Integrated
 // expected-shell-closure: Closed
 // expected-step-smoke: Succeeded
@@ -16,9 +22,9 @@
 // expected-tool: Cylinder
 // expected-radius: 1
 // parser-backed: true
-// notes: AIR-FIRMAMENT-X4 parser-backed controlled V2 side-hole region fixture. SIDEHOLE-REAL-X1 real AP242 proof lives in feature-v2-side-hole-step-verified.valid.firmfixture.
+// notes: SIDEHOLE-REAL-X1 locked +X/-X side-hole fixture emits real AP242 via Step242Exporter; admissibility remains unchanged.
 
-model SideHoleV2 {
+model FeatureV2SideHoleStepVerified {
     units mm
 
     solid base: Box {

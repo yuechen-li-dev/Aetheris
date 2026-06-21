@@ -1,6 +1,14 @@
 using System.Text;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
+using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Numerics;
+using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
@@ -52,6 +60,11 @@ public static class FirmamentBuildAndExport
                 return semanticHoleExport;
             }
 
+            if (TryExportV2ControlledSideHoleBody(v2Parse.Document) is { } sideHoleExport)
+            {
+                return sideHoleExport;
+            }
+
             var lowering = FirmamentV2BuildLowering.LowerPrimitiveBridge(v2Parse.Document);
             if (!lowering.IsSuccess)
             {
@@ -89,6 +102,123 @@ public static class FirmamentBuildAndExport
         }
 
         return FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
+    }
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2ControlledSideHoleBody(FirmamentV2Document document)
+    {
+        var intent = document.SideHoleIntent;
+        if (intent is null)
+        {
+            return null;
+        }
+
+        if (document.ModifyBlocks is not { Count: 1 }
+            || document.ModifyBlocks[0].Regions.Count != 1
+            || document.ModifyBlocks[0].SemanticHoles.Count != 0)
+        {
+            return null;
+        }
+
+        if (!string.Equals(intent.Tool, "Cylinder", StringComparison.Ordinal)
+            || !string.Equals(intent.AttachFace, "+X", StringComparison.Ordinal)
+            || !string.Equals(intent.ThroughFace, "-X", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var targetSolid = document.Solids.SingleOrDefault(s => string.Equals(s.Name, intent.TargetSolid, StringComparison.Ordinal));
+        if (targetSolid?.Primitive is not FirmamentV2BoxRecord box || box.Size.Count != 3)
+        {
+            return null;
+        }
+
+        var sizeX = box.Size[0];
+        var sizeY = box.Size[1];
+        var sizeZ = box.Size[2];
+        var zAxis = Direction3D.Create(new Vector3D(0, 0, 1));
+        var xAxis = Direction3D.Create(new Vector3D(1, 0, 0));
+        var extents = new AxisAlignedBoxExtents(-sizeY / 2d, sizeY / 2d, -sizeZ / 2d, sizeZ / 2d, -sizeX / 2d, sizeX / 2d);
+        var cylinder = new RecognizedCylinder(new Point3D(intent.CenterU, intent.CenterV, 0), zAxis, intent.Radius, -sizeX / 2d, sizeX / 2d);
+        var hole = new SupportedBooleanHole(
+            intent.RegionName,
+            new AnalyticSurface(AnalyticSurfaceKind.Cylinder, Cylinder: cylinder),
+            intent.CenterU,
+            intent.CenterV,
+            new Point3D(intent.CenterU, intent.CenterV, -sizeX / 2d),
+            new Point3D(intent.CenterU, intent.CenterV, sizeX / 2d),
+            zAxis,
+            xAxis,
+            intent.Radius,
+            intent.Radius,
+            SupportedBooleanHoleSpanKind.Through,
+            -sizeX / 2d,
+            sizeX / 2d);
+        var composition = new SafeBooleanComposition(extents, [hole], SafeBooleanRootDescriptor.FromBox(extents));
+        var built = BrepBooleanBoxCylinderHoleBuilder.BuildComposition(composition, ToleranceContext.Default);
+        if (!built.IsSuccess || built.Value is null)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(built.Diagnostics);
+        }
+
+        var body = ReorientCanonicalSideHoleBodyFromZToX(built.Value);
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions { ProductName = "firmament-v2-controlled-side-hole" });
+        if (!step.IsSuccess)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        }
+
+        return KernelResult<FirmamentStepExportResult>.Success(
+            new FirmamentStepExportResult(
+                step.Value,
+                intent.RegionName,
+                0,
+                "boolean",
+                "side-hole-controlled-x",
+                DatumInspection: [],
+                DimensionInspection: []));
+    }
+
+    private static BrepBody ReorientCanonicalSideHoleBodyFromZToX(BrepBody body)
+    {
+        static Point3D P(Point3D p) => new(p.Z, p.X, p.Y);
+        static Direction3D D(Direction3D d)
+        {
+            var v = d.ToVector();
+            return Direction3D.Create(new Vector3D(v.Z, v.X, v.Y));
+        }
+
+        var geometry = new BrepGeometryStore();
+        foreach (var entry in body.Geometry.Curves)
+        {
+            geometry.AddCurve(entry.Key, entry.Value.Kind switch
+            {
+                CurveGeometryKind.Line3 => CurveGeometry.FromLine(new Line3Curve(P(entry.Value.Line3!.Value.Origin), D(entry.Value.Line3.Value.Direction))),
+                CurveGeometryKind.Circle3 => CurveGeometry.FromCircle(new Circle3Curve(P(entry.Value.Circle3!.Value.Center), D(entry.Value.Circle3.Value.Normal), entry.Value.Circle3.Value.Radius, D(entry.Value.Circle3.Value.XAxis))),
+                CurveGeometryKind.Ellipse3 => CurveGeometry.FromEllipse(new Ellipse3Curve(P(entry.Value.Ellipse3!.Value.Center), D(entry.Value.Ellipse3.Value.Normal), entry.Value.Ellipse3.Value.MajorRadius, entry.Value.Ellipse3.Value.MinorRadius, D(entry.Value.Ellipse3.Value.XAxis))),
+                _ => entry.Value
+            });
+        }
+
+        foreach (var entry in body.Geometry.Surfaces)
+        {
+            geometry.AddSurface(entry.Key, entry.Value.Kind switch
+            {
+                SurfaceGeometryKind.Plane => SurfaceGeometry.FromPlane(new PlaneSurface(P(entry.Value.Plane!.Value.Origin), D(entry.Value.Plane.Value.Normal), D(entry.Value.Plane.Value.UAxis))),
+                SurfaceGeometryKind.Cylinder => SurfaceGeometry.FromCylinder(new CylinderSurface(P(entry.Value.Cylinder!.Value.Origin), D(entry.Value.Cylinder.Value.Axis), entry.Value.Cylinder.Value.Radius, D(entry.Value.Cylinder.Value.XAxis))),
+                _ => entry.Value
+            });
+        }
+
+        var vertexPoints = new Dictionary<VertexId, Point3D>();
+        foreach (var vertex in body.Topology.Vertices)
+        {
+            if (body.TryGetVertexPoint(vertex.Id, out var point))
+            {
+                vertexPoints[vertex.Id] = P(point);
+            }
+        }
+
+        return new BrepBody(body.Topology, geometry, body.Bindings, vertexPoints, safeBooleanComposition: null, body.ShellRepresentation);
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2SemanticHoleBody(FirmamentV2Document document)

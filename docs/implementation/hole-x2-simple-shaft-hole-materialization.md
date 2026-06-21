@@ -61,3 +61,5 @@ dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.cspr
 ```
 
 Full milestone validation should also run the solution restore/build and focused `Air`/`Hole`/`FirmamentV2` filters documented in the milestone prompt.
+
+Forward link: HOLE-X3 extends this lane with semantic counterbore/countersink stack components in `docs/implementation/hole-x3-stacked-hole-components.md`.

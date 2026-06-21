@@ -35,6 +35,8 @@ internal sealed record AirHoleSimpleShaftMaterializationPlan(
     double CutZMin,
     double CutZMax,
     AirHoleEndConditionKind EndConditionKind,
+    AirHoleStackKind StackKind,
+    IReadOnlyList<AirHoleStackComponentKind> StackComponentRoles,
     ProfileStackExtrudeSpec ProfileStackSpec,
     IReadOnlyList<string> Diagnostics);
 
@@ -77,7 +79,7 @@ internal static class AirHoleSimpleShaftMaterializer
 
     public static AirHoleSimpleShaftMaterializationResult TryCreatePlan(AirHoleFeature feature, AirHoleSimpleShaftHost host)
     {
-        var diagnostics = new List<string> { "air-hole-x2 simple shaft planner started." };
+        var diagnostics = new List<string> { "air-hole-x2 semantic hole planner started." };
         if (!feature.IsValid)
         {
             diagnostics.AddRange(feature.Diagnostics.Select(d => $"semantic diagnostic {d.Code}: {d.Message}"));
@@ -120,8 +122,8 @@ internal static class AirHoleSimpleShaftMaterializer
             feature.Placement.U,
             feature.Placement.V);
         var plan = new AirHoleSimpleShaftMaterializationPlan(feature, host, feature.FeatureId, nameof(AirHoleFeature), feature.Placement.EntryFaceName,
-            feature.Placement.U, feature.Placement.V, axisZ, feature.Shaft.Radius, cutZMin, cutZMax, feature.EndCondition.Kind, spec, diagnostics.ToArray());
-        diagnostics.Add("air-hole-x2 plan created; semantic AirHoleFeature remains parent intent.");
+            feature.Placement.U, feature.Placement.V, axisZ, feature.Shaft.Radius, cutZMin, cutZMax, feature.EndCondition.Kind, feature.Stack.Kind, feature.Stack.Components.Select(c => c.Kind).ToArray(), spec, diagnostics.ToArray());
+        diagnostics.Add("air-hole-x2/x3 plan created; semantic AirHoleFeature remains parent intent and owns stack components.");
         return new(AirHoleSimpleShaftMaterializationStatus.Succeeded, plan, null, diagnostics);
     }
 
@@ -135,7 +137,25 @@ internal static class AirHoleSimpleShaftMaterializer
     private static IEnumerable<ProfileStackLayer> BuildLayers(AirHoleFeature feature, AirHoleSimpleShaftHost host, double cutZMin, double cutZMax)
     {
         if (cutZMin > host.ZMin + Tolerance) yield return new(host.ZMin, cutZMin, null, "air-hole-x2-solid-before-blind-depth", []);
-        yield return new(cutZMin, cutZMax, feature.Shaft.Radius, $"air-hole-x2-simple-shaft:{feature.FeatureId}", []);
+        if (feature.Stack.Kind == AirHoleStackKind.Counterbore)
+        {
+            var cb = feature.Stack.Components.OfType<AirHoleCounterboreComponent>().Single();
+            var entryMin = Math.Max(cutZMin, cutZMax - cb.Depth);
+            yield return new(cutZMin, cutZMax, feature.Shaft.Radius, $"air-hole-x3-shaft:{feature.FeatureId}", []);
+            yield return new(entryMin, cutZMax, cb.Radius, $"air-hole-x3-counterbore-entry:{feature.FeatureId}", []);
+        }
+        else if (feature.Stack.Kind == AirHoleStackKind.Countersink)
+        {
+            var cs = feature.Stack.Components.OfType<AirHoleCountersinkComponent>().Single();
+            var sinkDepth = cs.DerivedDepthForShaft(feature.Shaft);
+            var entryMin = Math.Max(cutZMin, cutZMax - sinkDepth);
+            yield return new(cutZMin, cutZMax, feature.Shaft.Radius, $"air-hole-x3-shaft:{feature.FeatureId}", []);
+            yield return new(entryMin, cutZMax, cs.EntryRadius, $"air-hole-x3-countersink-entry:{feature.FeatureId}", [], feature.Shaft.Radius);
+        }
+        else
+        {
+            yield return new(cutZMin, cutZMax, feature.Shaft.Radius, $"air-hole-x2-simple-shaft:{feature.FeatureId}", []);
+        }
         if (cutZMax < host.ZMax - Tolerance) yield return new(cutZMax, host.ZMax, null, "air-hole-x2-solid-after-blind-depth", []);
     }
 

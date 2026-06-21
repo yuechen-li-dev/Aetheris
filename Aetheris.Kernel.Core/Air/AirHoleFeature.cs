@@ -3,7 +3,9 @@ using Aetheris.Kernel.Core.Math;
 namespace Aetheris.Kernel.Core.Air;
 
 internal enum AirHoleEndConditionKind { ThroughAll, Depth }
-internal enum AirHoleLoweringRouteKind { NotLowered, SimpleShaftProfileStackCandidate }
+internal enum AirHoleLoweringRouteKind { NotLowered, SimpleShaftProfileStackCandidate, StackedProfileStackCandidate }
+internal enum AirHoleStackKind { SimpleShaft, Counterbore, Countersink }
+internal enum AirHoleStackComponentKind { Shaft, Counterbore, Countersink }
 
 internal sealed record AirHoleFeature(
     string Name,
@@ -13,6 +15,7 @@ internal sealed record AirHoleFeature(
     AirHoleAxis Axis,
     AirHoleShaft Shaft,
     AirHoleEndCondition EndCondition,
+    AirHoleStack Stack,
     AirProvenance Provenance,
     IReadOnlyList<AirDiagnostic> Diagnostics)
 {
@@ -42,8 +45,42 @@ internal sealed record AirHoleFeature(
             axis,
             shaft,
             endCondition,
+            AirHoleStack.SimpleShaft(shaft, endCondition),
             provenance ?? DefaultProvenance(name, featureId),
             diagnostics);
+    }
+
+
+    public static AirHoleFeature CreateCounterbore(
+        string name,
+        string featureId,
+        string? targetBodyId,
+        AirFaceLocalHolePlacement placement,
+        AirHoleAxis axis,
+        AirHoleShaft shaft,
+        AirHoleEndCondition endCondition,
+        AirHoleCounterboreComponent counterbore,
+        AirProvenance? provenance = null)
+    {
+        var stack = AirHoleStack.Counterbore(counterbore, new AirHoleShaftComponent(shaft.Diameter, endCondition));
+        var diagnostics = Validate(name, featureId, placement, axis, shaft, endCondition).Concat(ValidateStack(stack, shaft, endCondition)).ToArray();
+        return new AirHoleFeature(name, featureId, targetBodyId, placement, axis, shaft, endCondition, stack, provenance ?? DefaultProvenance(name, featureId), diagnostics);
+    }
+
+    public static AirHoleFeature CreateCountersink(
+        string name,
+        string featureId,
+        string? targetBodyId,
+        AirFaceLocalHolePlacement placement,
+        AirHoleAxis axis,
+        AirHoleShaft shaft,
+        AirHoleEndCondition endCondition,
+        AirHoleCountersinkComponent countersink,
+        AirProvenance? provenance = null)
+    {
+        var stack = AirHoleStack.Countersink(countersink, new AirHoleShaftComponent(shaft.Diameter, endCondition));
+        var diagnostics = Validate(name, featureId, placement, axis, shaft, endCondition).Concat(ValidateStack(stack, shaft, endCondition)).ToArray();
+        return new AirHoleFeature(name, featureId, targetBodyId, placement, axis, shaft, endCondition, stack, provenance ?? DefaultProvenance(name, featureId), diagnostics);
     }
 
     public AirHoleLoweringPlan CreateSimpleShaftLoweringPlan()
@@ -71,7 +108,7 @@ internal sealed record AirHoleFeature(
         AirRuleKind.None,
         "authored/semantic-hole-intent",
         true,
-        ["Simple shaft hole only; throughAll and fixed depth end conditions are represented before lower geometry."]);
+        ["Semantic shaft/counterbore/countersink hole intent; throughAll and fixed depth end conditions are represented before lower geometry."]);
 
     private static IEnumerable<AirDiagnostic> Validate(string name, string featureId, AirFaceLocalHolePlacement placement, AirHoleAxis axis, AirHoleShaft shaft, AirHoleEndCondition endCondition)
     {
@@ -85,6 +122,26 @@ internal sealed record AirHoleFeature(
         if (endCondition is AirHoleEndCondition.Depth depth && (!IsFinite(depth.Value) || depth.Value <= 0d)) yield return Error("hole-x1-depth-invalid", "Depth end condition must be greater than zero.");
     }
 
+    private static IEnumerable<AirDiagnostic> ValidateStack(AirHoleStack stack, AirHoleShaft shaft, AirHoleEndCondition endCondition)
+    {
+        if (stack.Kind == AirHoleStackKind.Counterbore)
+        {
+            var cb = stack.Components.OfType<AirHoleCounterboreComponent>().Single();
+            if (!IsFinite(cb.Diameter) || cb.Diameter <= shaft.Diameter) yield return Error("hole-x3-counterbore-diameter-invalid", "Counterbore diameter must be finite and greater than shaft diameter.");
+            if (!IsFinite(cb.Depth) || cb.Depth <= 0d) yield return Error("hole-x3-counterbore-depth-invalid", "Counterbore depth must be finite and greater than zero.");
+            if (endCondition is AirHoleEndCondition.Depth d && IsFinite(cb.Depth) && cb.Depth > d.Value) yield return Error("hole-x3-counterbore-depth-exceeds-shaft-span", "Counterbore depth must not exceed bounded shaft depth.");
+        }
+        if (stack.Kind == AirHoleStackKind.Countersink)
+        {
+            var cs = stack.Components.OfType<AirHoleCountersinkComponent>().Single();
+            if (!IsFinite(cs.EntryDiameter) || cs.EntryDiameter <= shaft.Diameter) yield return Error("hole-x3-countersink-diameter-invalid", "Countersink entry diameter must be finite and greater than shaft diameter.");
+            if (!IsFinite(cs.AngleDegrees) || cs.AngleDegrees <= 0d || cs.AngleDegrees >= 180d) yield return Error("hole-x3-countersink-angle-invalid", "Countersink angle must be finite and between 0 and 180 degrees.");
+            var sinkDepth = cs.DerivedDepthForShaft(shaft);
+            if (!IsFinite(sinkDepth) || sinkDepth <= 0d) yield return Error("hole-x3-countersink-depth-invalid", "Countersink derived depth must be finite and greater than zero.");
+            if (IsFinite(sinkDepth) && endCondition is AirHoleEndCondition.Depth d && sinkDepth > d.Value) yield return Error("hole-x3-countersink-depth-exceeds-shaft-span", "Countersink derived depth must not exceed bounded shaft depth.");
+        }
+    }
+
     private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
     private static AirDiagnostic Error(string code, string message) => new(code, AirDiagnosticSeverity.Error, message);
 }
@@ -94,6 +151,27 @@ internal sealed record AirHoleAxis(Direction3D Direction, bool DefaultedFromEntr
 internal sealed record AirHoleShaft(double Diameter)
 {
     public double Radius => Diameter / 2d;
+}
+
+internal abstract record AirHoleStackComponent(AirHoleStackComponentKind Kind);
+internal sealed record AirHoleShaftComponent(double Diameter, AirHoleEndCondition EndCondition) : AirHoleStackComponent(AirHoleStackComponentKind.Shaft)
+{
+    public double Radius => Diameter / 2d;
+}
+internal sealed record AirHoleCounterboreComponent(double Diameter, double Depth) : AirHoleStackComponent(AirHoleStackComponentKind.Counterbore)
+{
+    public double Radius => Diameter / 2d;
+}
+internal sealed record AirHoleCountersinkComponent(double EntryDiameter, double AngleDegrees) : AirHoleStackComponent(AirHoleStackComponentKind.Countersink)
+{
+    public double EntryRadius => EntryDiameter / 2d;
+    public double DerivedDepthForShaft(AirHoleShaft shaft) => (EntryRadius - shaft.Radius) / System.Math.Tan((AngleDegrees / 2d) * System.Math.PI / 180d);
+}
+internal sealed record AirHoleStack(AirHoleStackKind Kind, IReadOnlyList<AirHoleStackComponent> Components)
+{
+    public static AirHoleStack SimpleShaft(AirHoleShaft shaft, AirHoleEndCondition endCondition) => new(AirHoleStackKind.SimpleShaft, [new AirHoleShaftComponent(shaft.Diameter, endCondition)]);
+    public static AirHoleStack Counterbore(AirHoleCounterboreComponent counterbore, AirHoleShaftComponent shaft) => new(AirHoleStackKind.Counterbore, [counterbore, shaft]);
+    public static AirHoleStack Countersink(AirHoleCountersinkComponent countersink, AirHoleShaftComponent shaft) => new(AirHoleStackKind.Countersink, [countersink, shaft]);
 }
 
 internal abstract record AirHoleEndCondition(AirHoleEndConditionKind Kind)

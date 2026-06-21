@@ -33,10 +33,13 @@ public sealed record ImportedStepTopologyMap(IReadOnlyDictionary<string, string>
 {
     public bool TryResolveFaceEntity(string entityRef, out string faceId) => FaceEntityToFaceId.TryGetValue(entityRef, out faceId!);
 }
-public sealed record FirmamentV2RecognizedRegion(string BodyName, string RegionName, string Kind, IReadOnlyList<string> FaceRefs, string Confidence)
+public sealed record FirmamentV2RecognizedRegion(string BodyName, string RegionName, string Kind, IReadOnlyList<string> FaceRefs, string Confidence, FirmamentV2RecognitionEvidence? Evidence = null, FirmamentV2SemanticProposal? Proposal = null)
 {
     public string TargetSource => $"{BodyName}.region(\"{RegionName}\")";
 }
+
+public sealed record FirmamentV2RecognitionEvidence(IReadOnlyList<string> SurfaceFamilies, double? Radius = null, string? Axis = null, FirmamentV2FaceLocalPoint2D? Center = null, bool? Through = null, IReadOnlyList<string>? Notes = null);
+public sealed record FirmamentV2SemanticProposal(string ProposalKind, string FeatureName, string? PlacementTarget = null, FirmamentV2FaceLocalPoint2D? Center = null, double? Radius = null, string? EndCondition = null);
 
 public sealed record FirmamentV2ReplacementDecl(string ImportedBodyName, string RecognizedRegionName, string ReplacementKind, string ReplacementFeatureName, string PlacementTarget, FirmamentV2FaceLocalPoint2D Center, double Radius, string EndCondition, IReadOnlyList<double> HostSize, string Source)
 {

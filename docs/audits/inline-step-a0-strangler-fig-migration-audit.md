@@ -253,6 +253,9 @@ INLINE-STEP-X4:
 
 INLINE-STEP-X5:
   add residual body accounting, progress metrics, and hybrid STEP verification reports.
+
+INLINE-STEP-X6:
+  add metadata-only recognized-region evidence and semantic proposal records; see `docs/implementation/inline-step-x6-recognition-evidence-proposals.md`.
 ```
 
 X1 and X2 should come before replacement. They force the project to solve provenance, source-ID resolution, unit diagnostics, imported-topology targeting, and AP242 enrichment before adding topology surgery.

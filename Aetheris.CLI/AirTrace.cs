@@ -134,7 +134,7 @@ internal static class AirTraceReportBuilder
         if (isFirmamentV2 && string.Equals(fixture.ExpectedStage, "step-verified", StringComparison.Ordinal))
         {
             var featureArea = fixture.Metadata.GetValueOrDefault("feature-area");
-            var stepVerified = string.Equals(featureArea, "semantic-hole", StringComparison.Ordinal) || string.Equals(featureArea, "semantic-reference", StringComparison.Ordinal) || string.Equals(featureArea, "multi-feature-composition", StringComparison.Ordinal) || string.Equals(featureArea, "semantic-pmi", StringComparison.Ordinal)
+            var stepVerified = string.Equals(featureArea, "semantic-hole", StringComparison.Ordinal) || string.Equals(featureArea, "semantic-reference", StringComparison.Ordinal) || string.Equals(featureArea, "multi-feature-composition", StringComparison.Ordinal) || string.Equals(featureArea, "semantic-pmi", StringComparison.Ordinal) || (featureArea?.StartsWith("inline-step", StringComparison.Ordinal) ?? false)
                 ? TryVerifyV2SemanticHoleStepFixture(fixture)
                 : TryVerifyV2BoxStepFixture(fixture);
             if (stepVerified.Succeeded)

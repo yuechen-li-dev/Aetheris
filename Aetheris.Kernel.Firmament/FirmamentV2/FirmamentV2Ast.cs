@@ -1,6 +1,6 @@
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null)
+public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null)
 {
     public FirmamentV2SolidBinding Solid => Solids[^1];
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
@@ -82,6 +82,9 @@ public sealed record FirmamentV2SemanticHoleDecl(
     double? CounterboreDepth = null,
     double? CountersinkDiameter = null,
     double? CountersinkAngleDegrees = null);
+public sealed record FirmamentV2ConceptDecl(string Name, string RawValue, double NumericValue, string? Unit);
+public sealed record FirmamentV2TemplateDecl(string Process, string Name, IReadOnlyList<FirmamentV2ConceptDecl> Concepts);
+
 public sealed record FirmamentV2ParseResult(bool IsSuccess, FirmamentV2Document? Document, IReadOnlyList<string> Diagnostics)
 {
     public static FirmamentV2ParseResult Success(FirmamentV2Document document, IReadOnlyList<string> diagnostics) => new(true, document, diagnostics);

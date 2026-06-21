@@ -1,0 +1,30 @@
+// fixture-id: template-v2-cnc-min-tool-radius-enforced
+// case: template-v2-cnc-min-tool-radius-enforced
+// category: Templates
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: deterministic rejection
+// current-stage: deterministic rejection
+// expected-diagnostic: firmament-v2-dfm-minimum-tool-radius-violation
+// tier: 5
+// mvp-required: true
+// feature-area: dfm/concept-enforcement
+// build-command: aetheris build
+// notes: STEP-V2-X6 build-verified invalid fixture; CNC minimumToolRadius is enforced against a parsed semantic shaft hole during the real build path.
+model TemplateV2CncMinToolRadiusEnforced {
+  units mm
+  template<CNC> ShopDefault {
+    concept minimumToolRadius: 1 mm
+  }
+  solid base: Box { size: [10, 8, 6] }
+  modify base {
+    hole<shaft> tooSmall {
+      on: face(+Z)
+      center: [0, 0]
+      radius: 0.25
+      end: throughAll
+    }
+  }
+}

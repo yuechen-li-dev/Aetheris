@@ -234,3 +234,4 @@ If it does not emit valid AP242 through the real exporter, it is not MVP-ready.
 ## Implementation notes
 
 * STEP-V2-X2 semantic hole AP242 fixture hardening is documented in `docs/implementation/step-v2-x2-semantic-holes-ap242.md`.
+* STEP-V2-X6 minimal Tier 5 DFM/concept build enforcement is documented in `docs/implementation/step-v2-x6-dfm-concept-enforcement.md`.

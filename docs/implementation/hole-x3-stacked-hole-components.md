@@ -50,3 +50,5 @@ dotnet test Aetheris.slnx -f net10.0 --no-build --filter "Hole|FirmamentV2|Air"
 git diff --check
 git status --short
 ```
+
+Forward link: HOLE-X4 adds the Firmament V2 source hook for `hole<shaft>`, `hole<counterbore>`, and `hole<countersink>` declarations in `docs/implementation/hole-x4-firmament-v2-semantic-hole-source.md`.

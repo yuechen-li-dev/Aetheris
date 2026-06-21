@@ -1,0 +1,22 @@
+// fixture-id: hole-x4-counterbore-through.valid
+// case: hole-x4-counterbore-through.valid
+// category: Hole
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
+model HoleX4CounterboreThrough {
+  units mm
+  solid base: Box { size: [100, 60, 12] }
+  modify base {
+    hole<counterbore> mount {
+      on: face(+Z)
+      center: [0, 0]
+      shaftDiameter: 8
+      counterboreDiameter: 14
+      counterboreDepth: 5
+      end: throughAll
+    }
+  }
+}

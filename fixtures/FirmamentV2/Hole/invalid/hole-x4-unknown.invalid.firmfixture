@@ -1,0 +1,10 @@
+// fixture-id: hole-x4-unknown.invalid
+// case: hole-x4-unknown.invalid
+// category: Hole
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-diagnostic: firmament-fixture-rejected
+// expected-stage: rejected
+model HoleX4Unknown { units mm solid base: Box { size: [10, 8, 6] } modify base { hole<tapped> h { on: face(+Z) center: [0,0] diameter: 2 end: throughAll } } }

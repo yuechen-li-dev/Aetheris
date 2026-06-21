@@ -1,0 +1,10 @@
+// fixture-id: hole-x4-bad-counterbore.invalid
+// case: hole-x4-bad-counterbore.invalid
+// category: Hole
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-diagnostic: firmament-fixture-rejected
+// expected-stage: rejected
+model HoleX4BadCounterbore { units mm solid base: Box { size: [10, 8, 6] } modify base { hole<counterbore> h { on: face(+Z) center: [0,0] shaftDiameter: 4 counterboreDiameter: 3 counterboreDepth: 1 end: throughAll } } }

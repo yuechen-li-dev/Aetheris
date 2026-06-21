@@ -1,0 +1,20 @@
+// fixture-id: hole-x4-shaft-through.valid
+// case: hole-x4-shaft-through.valid
+// category: Hole
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
+model HoleX4ShaftThrough {
+  units mm
+  solid base: Box { size: [100, 60, 12] }
+  modify base {
+    hole<shaft> mount {
+      on: face(+Z)
+      center: [0, 0]
+      diameter: 8
+      end: throughAll
+    }
+  }
+}

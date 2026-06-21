@@ -1,0 +1,22 @@
+// fixture-id: hole-x4-countersink-depth.valid
+// case: hole-x4-countersink-depth.valid
+// category: Hole
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
+model HoleX4CountersinkDepth {
+  units mm
+  solid base: Box { size: [100, 60, 12] }
+  modify base {
+    hole<countersink> flatHead {
+      on: face(+Z)
+      center: [0, 0]
+      shaftDiameter: 6
+      countersinkDiameter: 12
+      countersinkAngle: 82
+      end: depth 10
+    }
+  }
+}

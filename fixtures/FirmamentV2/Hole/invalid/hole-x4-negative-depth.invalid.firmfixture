@@ -1,0 +1,10 @@
+// fixture-id: hole-x4-negative-depth.invalid
+// case: hole-x4-negative-depth.invalid
+// category: Hole
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-diagnostic: firmament-fixture-rejected
+// expected-stage: rejected
+model HoleX4NegativeDepth { units mm solid base: Box { size: [10, 8, 6] } modify base { hole<shaft> h { on: face(+Z) center: [0,0] diameter: 2 end: depth -1 } } }

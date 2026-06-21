@@ -1,0 +1,28 @@
+// fixture-id: pipeline-v2-box-step-verified
+// case: pipeline-v2-box-step-verified
+// category: Primitive
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// expected-feature-air: CreateBox
+// dimensions: 10, 8, 6
+// units: mm
+// tier: 0
+// mvp-required: true
+// feature-area: pipeline/box
+// build-command: aetheris build
+// expected-topology: faces=6, vertices=8, edges=12
+// expected-volume: 480
+// roundtrip-required: true
+// parser-backed: true
+// notes: STEP-V2-A1 Tier 0 V2 Box fixture; verified by build/export integration test through real BrepBody and Step242Exporter.
+
+model BoxStepVerified {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+    }
+}

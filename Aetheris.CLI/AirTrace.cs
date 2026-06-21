@@ -1,9 +1,11 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Air.BRepPlan;
 using Aetheris.Kernel.Core.Air.Regions;
 using Aetheris.Kernel.Core.Brep.Prismatic;
+using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -127,11 +129,21 @@ internal static class AirTraceReportBuilder
         var frontend = isFirmamentV2 ? FirmamentFrontendTraceProbe.ParseV2Only(fixture.SourceBody) : FirmamentFrontendTraceProbe.ParseOnly(fixture.SourceBody);
         var profileEmissionProbe = frontend.ConstructiveAir is null ? null : BoxConstructiveAirToProfileEmissionTraceProbe.Invoke(frontend.ConstructiveAir);
         var actualStage = profileEmissionProbe?.StageReached ?? frontend.FrontendStageReached ?? "frontend-unavailable";
+        var stepVerifiedDiagnostics = Array.Empty<string>();
+        if (isFirmamentV2 && string.Equals(fixture.ExpectedStage, "step-verified", StringComparison.Ordinal))
+        {
+            var stepVerified = TryVerifyV2BoxStepFixture(fixture);
+            if (stepVerified.Succeeded)
+            {
+                actualStage = "step-verified";
+            }
+            stepVerifiedDiagnostics = stepVerified.Diagnostics;
+        }
         var expectedStageSatisfied = string.IsNullOrWhiteSpace(fixture.ExpectedStage) || string.Equals(actualStage, fixture.ExpectedStage, StringComparison.Ordinal);
         var expectationSatisfied = fixture.Expectation == "valid"
             ? frontend.ParseSucceeded && expectedStageSatisfied && (profileEmissionProbe?.Succeeded ?? true)
             : !frontend.ParseSucceeded && expectedStageSatisfied;
-        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. frontend.Diagnostics, .. profileEmissionProbe?.Diagnostics ?? [], "air-x8-parser-backed-fixture-trace-created", "air-x11-parser-backed-fixture-loaded", isFirmamentV2 ? "firmament-v2-parser-invoked" : "air-x11-firmament-parser-invoked", frontend.ParseSucceeded ? (isFirmamentV2 ? "firmament-v2-parse-succeeded" : "air-x11-firmament-parse-succeeded") : (isFirmamentV2 ? "firmament-v2-parse-failed" : "air-x11-firmament-parse-failed"), expectationSatisfied ? "air-x11-parser-backed-expectation-satisfied" : "air-x11-profile-emission-expectation-not-satisfied"]).ToArray();
+        var fxDiagnostics = Stable([.. fixture.Diagnostics, .. frontend.Diagnostics, .. profileEmissionProbe?.Diagnostics ?? [], .. stepVerifiedDiagnostics, "air-x8-parser-backed-fixture-trace-created", "air-x11-parser-backed-fixture-loaded", isFirmamentV2 ? "firmament-v2-parser-invoked" : "air-x11-firmament-parser-invoked", frontend.ParseSucceeded ? (isFirmamentV2 ? "firmament-v2-parse-succeeded" : "air-x11-firmament-parse-succeeded") : (isFirmamentV2 ? "firmament-v2-parse-failed" : "air-x11-firmament-parse-failed"), expectationSatisfied ? "air-x11-parser-backed-expectation-satisfied" : "air-x11-profile-emission-expectation-not-satisfied"]).ToArray();
 
         var featureAir = frontend.FeatureAir is null
             ? null
@@ -172,17 +184,80 @@ internal static class AirTraceReportBuilder
             new(profileEmission?.EmitterName ?? "none", profileEmission?.Succeeded ?? false, profileEmission is null ? "parser-backed fixture stops before profile emission" : "parser-backed fixture invoked existing profile extrusion wrapper/emitter summary"),
             new(profileEmission?.StepSmoke.WasChecked ?? false, profileEmission?.StepSmoke.Succeeded ?? false, profileEmission?.StepSmoke.RequiredMarkersPresent ?? false, profileEmission?.StepSmoke.ForbiddenMarkersAbsent ?? false, profileEmission?.StepSmoke.Diagnostics ?? []),
             new("not-requested", "none", "none", "FirmamentPrimitive", "none", "none", "none", [], [], [], []),
-            [], ["BRepPlan/CIR deferred for parser-backed box fixture", "STEP smoke unavailable for parser-backed box fixture"], fxDiagnostics,
+            [], string.Equals(actualStage, "step-verified", StringComparison.Ordinal) ? ["Box-only BRep/AP242 path verified by build/export", "non-Box V2 features deferred"] : ["BRepPlan/CIR deferred for parser-backed box fixture", "STEP smoke unavailable for parser-backed box fixture"], fxDiagnostics,
             (isFirmamentV2
-                ? ["real Firmament V2 parser invoked", "parser-backed fixture reaches Feature AIR summary", "no V1 parser route", "no production route replacement", "no new geometry"]
+                ? string.Equals(actualStage, "step-verified", StringComparison.Ordinal)
+                    ? ["real Firmament V2 parser invoked", "V2 Box lowered to existing FirmamentLoweredBoxParameters", "existing primitive executor produced BrepBody", "real Step242Exporter emitted AP242", "STEP reimport/topology/volume verified", "no V1 parser route"]
+                    : ["real Firmament V2 parser invoked", "parser-backed fixture reaches Feature AIR summary", "no V1 parser route", "no production route replacement", "no new geometry"]
                 : ["real Firmament parser invoked", "parser-backed fixture reaches Feature AIR summary", "parser-backed fixture reaches Constructive AIR summary", "ProfileExtrude wrapper invoked", "no production grammar expansion", "no production route replacement", "no new geometry", "no profile emitter rewrite"]),
-            ["no production Firmament grammar expansion", "no production route replacement", "no production analyzer behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no CIR evaluator/tape behavior change", "no Boolean behavior change", "no AirEdgeSweep behavior change", "no BrepBoundedChamfer/BrepBoundedFillet behavior change", "no chamfer/fillet/shell geometry change", "no new geometry"],
+            string.Equals(actualStage, "step-verified", StringComparison.Ordinal)
+                ? ["V2 Box only", "no non-Box primitive wiring", "no side-hole exporter reroute", "no patterns", "no PMI", "no DFM enforcement", "no hardcoded STEP template", "no trace-only output"]
+                : ["no production Firmament grammar expansion", "no production route replacement", "no production analyzer behavior change", "no STEP exporter/importer change", "no BRep topology behavior change", "no route-selection/JudgmentUtility behavior change", "no CIR evaluator/tape behavior change", "no Boolean behavior change", "no AirEdgeSweep behavior change", "no BrepBoundedChamfer/BrepBoundedFillet behavior change", "no chamfer/fillet/shell geometry change", "no new geometry"],
             new(fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, true, fxDiagnostics),
             fixture.Path, fixture.Expectation, fixture.CaseName, fixture.ExpectedStage, actualStage!, fixture.ExpectedRoute, fixture.ExpectedReason, expectationSatisfied, fxDiagnostics,
             new(true, frontend.ParserName, frontend.ParseSucceeded, frontend.Diagnostics, actualStage!, frontend.FrontendSummary),
             featureAir, constructiveAir, profileEmission, v2, regions);
     }
 
+
+
+    private static (bool Succeeded, string[] Diagnostics) TryVerifyV2BoxStepFixture(FirmFixture fixture)
+    {
+        var diagnostics = new List<string> { "step-v2-a1-build-command-invoked" };
+        try
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "aetheris-step-v2-a1-trace", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            var stepPath = Path.Combine(dir, "pipeline-v2-box-step-verified.step");
+            var build = FirmamentBuildAndExport.Run(fixture.Path, stepPath);
+            if (!build.IsSuccess)
+            {
+                diagnostics.Add("step-v2-a1-build-failed");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            var stepText = File.ReadAllText(stepPath);
+            if (CountStepEntities(stepText, "ADVANCED_FACE") < 6 || CountStepEntities(stepText, "VERTEX_POINT") <= 0)
+            {
+                diagnostics.Add("step-v2-a1-step-topology-markers-missing");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            var import = Step242Importer.ImportBody(stepText);
+            if (!import.IsSuccess)
+            {
+                diagnostics.Add("step-v2-a1-step-reimport-failed");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            if (import.Value.Topology.Faces.Count() != 6 || import.Value.Topology.Vertices.Count() != 8 || import.Value.Topology.Edges.Count() != 12)
+            {
+                diagnostics.Add("step-v2-a1-topology-count-mismatch");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            var volume = StepAnalyzer.AnalyzeVolume(stepPath);
+            if (!volume.Success || Math.Abs(volume.Volume - 480d) > 1e-9)
+            {
+                diagnostics.Add("step-v2-a1-volume-mismatch");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            diagnostics.Add("step-v2-a1-real-ap242-emitted");
+            diagnostics.Add("step-v2-a1-step-roundtrip-succeeded");
+            diagnostics.Add("step-v2-a1-topology-verified");
+            diagnostics.Add("step-v2-a1-volume-verified");
+            return (true, Stable(diagnostics).ToArray());
+        }
+        catch
+        {
+            diagnostics.Add("step-v2-a1-step-verification-threw");
+            return (false, Stable(diagnostics).ToArray());
+        }
+    }
+
+    private static int CountStepEntities(string stepText, string entityName) =>
+        Regex.Matches(stepText, "=\\s*" + Regex.Escape(entityName) + "\\s*\\(", RegexOptions.CultureInvariant).Count;
 
     private static bool IsMetadataOnlyFixture(FirmFixture fixture)
     {

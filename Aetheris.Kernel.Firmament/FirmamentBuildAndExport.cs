@@ -1,5 +1,8 @@
 using System.Text;
 using Aetheris.Kernel.Core.Results;
+using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament;
 
@@ -11,7 +14,7 @@ public static class FirmamentBuildAndExport
 
         var fullSourcePath = Path.GetFullPath(sourcePath);
         var sourceText = NormalizeLf(File.ReadAllText(fullSourcePath, Encoding.UTF8));
-        var exportResult = FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
+        var exportResult = ExportSource(sourceText);
         if (!exportResult.IsSuccess)
         {
             return KernelResult<FirmamentBuildAndExportResult>.Failure(exportResult.Diagnostics);
@@ -31,6 +34,49 @@ public static class FirmamentBuildAndExport
                 exportResult.Value));
     }
 
+
+    private static KernelResult<FirmamentStepExportResult> ExportSource(string sourceText)
+    {
+        var v2Parse = FirmamentV2Parser.Parse(sourceText);
+        if (v2Parse.IsSuccess && v2Parse.Document is not null)
+        {
+            var lowering = FirmamentV2BuildLowering.LowerBoxOnly(v2Parse.Document);
+            if (!lowering.IsSuccess)
+            {
+                return KernelResult<FirmamentStepExportResult>.Failure(lowering.Diagnostics);
+            }
+
+            var execution = FirmamentPrimitiveExecutor.Execute(lowering.Value);
+            if (!execution.IsSuccess)
+            {
+                return KernelResult<FirmamentStepExportResult>.Failure(execution.Diagnostics);
+            }
+
+            var executedBox = execution.Value.ExecutedPrimitives.LastOrDefault();
+            if (executedBox is null)
+            {
+                return KernelResult<FirmamentStepExportResult>.Failure(execution.Diagnostics);
+            }
+
+            var step = Step242Exporter.ExportBody(executedBox.Body);
+            if (!step.IsSuccess)
+            {
+                return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+            }
+
+            return KernelResult<FirmamentStepExportResult>.Success(
+                new FirmamentStepExportResult(
+                    step.Value,
+                    executedBox.FeatureId,
+                    executedBox.OpIndex,
+                    "primitive",
+                    "box",
+                    DatumInspection: [],
+                    DimensionInspection: []));
+        }
+
+        return FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
+    }
     private static string ResolveDefaultOutputPath(string fullSourcePath)
     {
         var root = FindRepositoryRoot(Path.GetDirectoryName(fullSourcePath)!);

@@ -199,7 +199,10 @@ public sealed class FirmamentFixtureCorpusTests
             }
             else
             {
+                if (!path.Contains("template-v2-", StringComparison.Ordinal))
+            {
                 Assert.False(doc.RootElement.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
+            }
             }
             Assert.DoesNotContain("air-x11-firmament-parse-failed", diagnostics);
         }
@@ -308,7 +311,7 @@ public sealed class FirmamentFixtureCorpusTests
     public void FirmamentV2Templates_MetadataRecognized()
     {
         var fixtures = DiscoverV2Fixtures().Where(p => p.Contains("/Templates/", StringComparison.Ordinal)).ToArray();
-        Assert.Equal(5, fixtures.Length);
+        Assert.Equal(7, fixtures.Length);
         foreach (var path in fixtures)
         {
             var fixture = LoadMetadata(path);
@@ -325,7 +328,10 @@ public sealed class FirmamentFixtureCorpusTests
         {
             using var doc = Trace(path);
             var diagnostics = doc.RootElement.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
-            Assert.False(doc.RootElement.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
+            if (!path.Contains("template-v2-", StringComparison.Ordinal))
+            {
+                Assert.False(doc.RootElement.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
+            }
             Assert.True(doc.RootElement.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean(), path);
             Assert.DoesNotContain("air-x11-firmament-parse-failed", diagnostics);
         }
@@ -337,7 +343,9 @@ public sealed class FirmamentFixtureCorpusTests
         var expected = new[]
         {
             (Path: "Templates/invalid/template-concept-unit-mismatch-v2.invalid.firmfixture", Diagnostic: "firmament-concept-unit-mismatch"),
-            (Path: "Templates/invalid/template-unknown-process-v2.invalid.firmfixture", Diagnostic: "firmament-template-process-unknown")
+            (Path: "Templates/invalid/template-unknown-process-v2.invalid.firmfixture", Diagnostic: "firmament-template-process-unknown"),
+            (Path: "Templates/invalid/template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture", Diagnostic: "firmament-v2-dfm-minimum-tool-radius-violation"),
+            (Path: "Templates/invalid/template-v2-concept-unit-mismatch-rejected-at-build.invalid.firmfixture", Diagnostic: "firmament-v2-dfm-concept-unit-mismatch")
         };
 
         foreach (var item in expected)

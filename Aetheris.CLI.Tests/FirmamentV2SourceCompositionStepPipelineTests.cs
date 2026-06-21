@@ -84,6 +84,30 @@ public sealed class FirmamentV2SourceCompositionStepPipelineTests
         Assert.Contains("expected-diagnostic: firmament-v2-semantic-hole-overlap", fixtureText, StringComparison.Ordinal);
     }
 
+
+    [Theory]
+    [InlineData("Templates/invalid/template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture", "template-v2-cnc-min-tool-radius-enforced", "firmament-v2-dfm-minimum-tool-radius-violation")]
+    [InlineData("Templates/invalid/template-v2-concept-unit-mismatch-rejected-at-build.invalid.firmfixture", "template-v2-concept-unit-mismatch-rejected-at-build", "firmament-v2-dfm-concept-unit-mismatch")]
+    public void STEP_V2_X6_template_dfm_concept_invalid_fixtures_reject_during_real_build(string fixtureRelativePath, string fixtureId, string expectedDiagnostic)
+    {
+        var fixturePath = Fixture(fixtureRelativePath);
+        var stepPath = TempStep(fixtureId);
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exit = Aetheris.CLI.CliRunner.Run(["build", fixturePath, "--out", stepPath, "--json"], stdout, stderr);
+
+        Assert.NotEqual(0, exit);
+        var combined = stdout.ToString() + stderr.ToString();
+        Assert.Contains(expectedDiagnostic, combined, StringComparison.Ordinal);
+        Assert.False(File.Exists(stepPath), fixtureId + " must not emit successful AP242");
+        var fixtureText = File.ReadAllText(fixturePath);
+        Assert.Contains("tier: 5", fixtureText, StringComparison.Ordinal);
+        Assert.Contains("current-stage: deterministic rejection", fixtureText, StringComparison.Ordinal);
+        Assert.Contains("feature-area: dfm/concept-enforcement", fixtureText, StringComparison.Ordinal);
+        Assert.Contains("build-command: aetheris build", fixtureText, StringComparison.Ordinal);
+    }
+
     [Theory]
     [MemberData(nameof(DerivationCases))]
     public void STEP_V2_X3_derivation_fixtures_build_emit_reimport_and_match_box_evidence(string fixtureRelativePath, string fixtureId, double expectedVolume)

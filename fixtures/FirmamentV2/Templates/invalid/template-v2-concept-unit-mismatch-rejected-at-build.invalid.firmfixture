@@ -1,0 +1,30 @@
+// fixture-id: template-v2-concept-unit-mismatch-rejected-at-build
+// case: template-v2-concept-unit-mismatch-rejected-at-build
+// category: Templates
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: deterministic rejection
+// current-stage: deterministic rejection
+// expected-diagnostic: firmament-v2-dfm-concept-unit-mismatch
+// tier: 5
+// mvp-required: true
+// feature-area: dfm/concept-enforcement
+// build-command: aetheris build
+// notes: STEP-V2-X6 build-verified invalid fixture; metadata parses, then build enforcement rejects minimumToolRadius because it is declared in angular units.
+model TemplateV2ConceptUnitMismatchRejectedAtBuild {
+  units mm
+  template<CNC> BadShop {
+    concept minimumToolRadius: 2 deg
+  }
+  solid base: Box { size: [10, 8, 6] }
+  modify base {
+    hole<shaft> buildUse {
+      on: face(+Z)
+      center: [0, 0]
+      radius: 2.5
+      end: throughAll
+    }
+  }
+}

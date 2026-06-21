@@ -41,6 +41,12 @@ public static class FirmamentBuildAndExport
         var v2Parse = FirmamentV2Parser.Parse(sourceText);
         if (v2Parse.IsSuccess && v2Parse.Document is not null)
         {
+            var dfm = FirmamentV2DfmEnforcement.Validate(v2Parse.Document);
+            if (!dfm.IsSuccess)
+            {
+                return KernelResult<FirmamentStepExportResult>.Failure(dfm.Diagnostics);
+            }
+
             if (TryExportV2SemanticHoleBody(v2Parse.Document) is { } semanticHoleExport)
             {
                 return semanticHoleExport;

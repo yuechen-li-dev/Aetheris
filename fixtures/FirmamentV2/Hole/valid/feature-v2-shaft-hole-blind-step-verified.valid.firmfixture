@@ -1,0 +1,33 @@
+// fixture-id: feature-v2-shaft-hole-blind-step-verified
+// case: feature-v2-shaft-hole-blind-step-verified
+// category: Hole
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// expected-feature-air: AirHoleFeature(SimpleShaft)
+// dimensions: base box 10 x 8 x 6; shaft radius 1; blind depth 3
+// units: mm
+// tier: 2
+// mvp-required: true
+// feature-area: semantic-hole
+// build-command: aetheris build
+// expected-volume: 480 - pi * 1^2 * 3
+// expected-topology: advanced_face>0, vertex_point>0, cylindrical-wall-face=true, blind-bottom-face=true
+// roundtrip-required: true
+// parser-backed: true
+// notes: STEP-V2-X2 semantic blind shaft-hole fixture; verified through real build/export, Step242Exporter, reimport, topology markers, and analytic volume.
+model FeatureV2ShaftHoleBlindStepVerified {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+  modify base {
+    hole<shaft> mount {
+      on: face(+Z)
+      center: [0, 0]
+      diameter: 2
+      end: depth 3
+    }
+  }
+}

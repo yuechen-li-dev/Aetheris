@@ -132,7 +132,9 @@ internal static class AirTraceReportBuilder
         var stepVerifiedDiagnostics = Array.Empty<string>();
         if (isFirmamentV2 && string.Equals(fixture.ExpectedStage, "step-verified", StringComparison.Ordinal))
         {
-            var stepVerified = TryVerifyV2BoxStepFixture(fixture);
+            var stepVerified = string.Equals(fixture.Metadata.GetValueOrDefault("feature-area"), "semantic-hole", StringComparison.Ordinal)
+                ? TryVerifyV2SemanticHoleStepFixture(fixture)
+                : TryVerifyV2BoxStepFixture(fixture);
             if (stepVerified.Succeeded)
             {
                 actualStage = "step-verified";
@@ -200,6 +202,71 @@ internal static class AirTraceReportBuilder
     }
 
 
+
+
+    private static (bool Succeeded, string[] Diagnostics) TryVerifyV2SemanticHoleStepFixture(FirmFixture fixture)
+    {
+        var diagnostics = new List<string> { "step-v2-x2-build-command-invoked" };
+        try
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "aetheris-step-v2-x2-trace", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            var stepPath = Path.Combine(dir, fixture.CaseName + ".step");
+            var build = FirmamentBuildAndExport.Run(fixture.Path, stepPath);
+            if (!build.IsSuccess)
+            {
+                diagnostics.Add("step-v2-x2-build-failed");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            var stepText = File.ReadAllText(stepPath);
+            if (CountStepEntities(stepText, "ADVANCED_FACE") <= 0 || CountStepEntities(stepText, "VERTEX_POINT") <= 0)
+            {
+                diagnostics.Add("step-v2-x2-step-topology-markers-missing");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            if (stepText.Contains("trace", StringComparison.OrdinalIgnoreCase) || stepText.Contains("controlled fixture only", StringComparison.OrdinalIgnoreCase))
+            {
+                diagnostics.Add("step-v2-x2-trace-or-controlled-artifact-detected");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            var import = Step242Importer.ImportBody(stepText);
+            if (!import.IsSuccess)
+            {
+                diagnostics.Add("step-v2-x2-step-reimport-failed");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            var volume = StepAnalyzer.AnalyzeVolume(stepPath);
+            var expectedVolume = fixture.CaseName switch
+            {
+                "feature-v2-shaft-hole-through-step-verified" => 480d - Math.PI * 6d,
+                "feature-v2-shaft-hole-blind-step-verified" => 480d - Math.PI * 3d,
+                "feature-v2-counterbore-step-verified" => 480d - ((Math.PI * 6d) + (Math.PI * 3d)),
+                "feature-v2-countersink-step-verified" => 480d - ((Math.PI * 6d) + (Math.PI * 7d / 3d) - Math.PI),
+                _ => double.NaN
+            };
+
+            if (!volume.Success || !volume.Exact || !double.IsFinite(expectedVolume) || Math.Abs(volume.Volume - expectedVolume) > 1e-8)
+            {
+                diagnostics.Add("step-v2-x2-volume-mismatch");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            diagnostics.Add("step-v2-x2-real-ap242-emitted");
+            diagnostics.Add("step-v2-x2-step-roundtrip-succeeded");
+            diagnostics.Add("step-v2-x2-topology-evidence-verified");
+            diagnostics.Add("step-v2-x2-volume-verified");
+            return (true, Stable(diagnostics).ToArray());
+        }
+        catch
+        {
+            diagnostics.Add("step-v2-x2-step-verification-threw");
+            return (false, Stable(diagnostics).ToArray());
+        }
+    }
 
     private static (bool Succeeded, string[] Diagnostics) TryVerifyV2BoxStepFixture(FirmFixture fixture)
     {

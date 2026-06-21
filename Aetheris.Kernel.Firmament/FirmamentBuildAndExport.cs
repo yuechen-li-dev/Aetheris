@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament;
 
@@ -40,6 +41,11 @@ public static class FirmamentBuildAndExport
         var v2Parse = FirmamentV2Parser.Parse(sourceText);
         if (v2Parse.IsSuccess && v2Parse.Document is not null)
         {
+            if (TryExportV2SemanticHoleBody(v2Parse.Document) is { } semanticHoleExport)
+            {
+                return semanticHoleExport;
+            }
+
             var lowering = FirmamentV2BuildLowering.LowerPrimitiveBridge(v2Parse.Document);
             if (!lowering.IsSuccess)
             {
@@ -76,6 +82,53 @@ public static class FirmamentBuildAndExport
         }
 
         return FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
+    }
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2SemanticHoleBody(FirmamentV2Document document)
+    {
+        if (document.ModifyBlocks is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        if (document.Solids.Count != 1 || document.Solid.Primitive is not FirmamentV2BoxRecord box || box.Size.Count != 3)
+        {
+            return null;
+        }
+
+        var semanticHoles = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(document);
+        if (semanticHoles.Count != 1)
+        {
+            return null;
+        }
+
+        var feature = semanticHoles[0];
+        var host = new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], -box.Size[2] / 2d, box.Size[2] / 2d);
+        var materialized = AirHoleSimpleShaftMaterializer.Execute(feature, host);
+        if (!materialized.Succeeded || materialized.Body is null)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(materialized.Diagnostics.Select(d => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+                Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                d,
+                "FirmamentV2.SemanticHoleBuild")).ToArray());
+        }
+
+        var step = Step242Exporter.ExportBody(materialized.Body);
+        if (!step.IsSuccess)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        }
+
+        return KernelResult<FirmamentStepExportResult>.Success(
+            new FirmamentStepExportResult(
+                step.Value,
+                feature.FeatureId,
+                0,
+                nameof(AirHoleSimpleShaftMaterializer),
+                feature.Stack.Kind.ToString(),
+                DatumInspection: [],
+                DimensionInspection: []));
     }
     private static string ResolveDefaultOutputPath(string fullSourcePath)
     {

@@ -1,0 +1,35 @@
+// fixture-id: feature-v2-countersink-step-verified
+// case: feature-v2-countersink-step-verified
+// category: Hole
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// expected-feature-air: AirHoleFeature(Countersink)
+// dimensions: base box 10 x 8 x 6; shaft radius 1 through depth 6; countersink entry radius 2, included angle 90, derived sink depth 1
+// units: mm
+// tier: 2
+// mvp-required: true
+// feature-area: semantic-hole
+// build-command: aetheris build
+// expected-volume: 480 - (pi * 1^2 * 6 + (pi * 1 / 3) * (2^2 + 2 * 1 + 1^2) - pi * 1^2 * 1)
+// expected-topology: advanced_face>0, vertex_point>0, shaft-cylinder=true, countersink-cone=true
+// roundtrip-required: true
+// parser-backed: true
+// notes: STEP-V2-X2 semantic countersink fixture; verified through real build/export, Step242Exporter, reimport, topology markers, and analytic volume.
+model FeatureV2CountersinkStepVerified {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+  modify base {
+    hole<countersink> flatHead {
+      on: face(+Z)
+      center: [0, 0]
+      shaftDiameter: 2
+      countersinkDiameter: 4
+      countersinkAngle: 90
+      end: throughAll
+    }
+  }
+}

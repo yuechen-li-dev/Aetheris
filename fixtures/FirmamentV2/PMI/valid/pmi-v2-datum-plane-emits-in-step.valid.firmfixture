@@ -1,0 +1,34 @@
+// fixture-id: pmi-v2-datum-plane-emits-in-step
+// case: pmi-v2-datum-plane-emits-in-step
+// category: PMI
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// units: mm
+// tier: 6
+// mvp-required: false
+// feature-area: semantic-pmi
+// build-command: aetheris build
+// expected-volume: 480
+// expected-topology: advanced_face>0, vertex_point>0
+// roundtrip-required: true
+// semantic-pmi-required: true
+// graphical-pmi-required: false
+// notes: STEP-V2-X7 semantic-only datum plane PMI; real build/export uses a real Box BrepBody, Step242Exporter semantic PMI, and no graphical PMI.
+model PmiV2DatumPlaneEmitsInStep {
+  units mm
+  solid base: Box {
+    size: [10, 8, 6]
+    expose {
+      face(+Z) => top
+    }
+  }
+  pmi {
+    datum A {
+      target: top
+    }
+  }
+}

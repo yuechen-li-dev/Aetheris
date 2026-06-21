@@ -1,0 +1,38 @@
+// fixture-id: pmi-v2-hole-diameter-callout-emits-in-step
+// case: pmi-v2-hole-diameter-callout-emits-in-step
+// category: PMI
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// units: mm
+// tier: 6
+// mvp-required: false
+// feature-area: semantic-pmi
+// build-command: aetheris build
+// expected-volume: 480 - pi * 1^2 * 6
+// expected-topology: advanced_face>0, vertex_point>0, cylindrical-wall-face=true
+// roundtrip-required: true
+// semantic-pmi-required: true
+// graphical-pmi-required: false
+// notes: STEP-V2-X7 semantic-only hole diameter PMI; real build/export uses AirHoleFeature, BrepBody, Step242Exporter semantic PMI, and no graphical PMI.
+model PmiV2HoleDiameterCalloutEmitsInStep {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+  modify base {
+    hole<shaft> mount {
+      on: face(+Z)
+      center: [0, 0]
+      diameter: 2
+      end: throughAll
+    }
+  }
+  pmi {
+    diameter mountDiameter {
+      target: mount
+      value: 2mm
+    }
+  }
+}

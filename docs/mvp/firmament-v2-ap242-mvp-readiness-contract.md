@@ -160,6 +160,8 @@ Tier 5 is required for MVP readiness if the demo claims DFM/concept enforcement.
 
 Tier 6 is optional for MVP unless the specific pitch/demo requires annotated AP242 output. Do not quietly inflate MVP scope with PMI.
 
+Implementation status: STEP-V2-X7 adds semantic-only AP242 evidence for the two Tier 6 fixtures via `docs/implementation/step-v2-x7-semantic-pmi-ap242.md`; graphical PMI remains out of scope.
+
 ## 12. Fixture metadata requirements
 
 Every V2 fixture should carry metadata with the following fields or equivalent meaning:

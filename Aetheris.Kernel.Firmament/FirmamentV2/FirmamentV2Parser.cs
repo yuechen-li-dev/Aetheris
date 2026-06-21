@@ -80,6 +80,11 @@ public static class FirmamentV2Parser
     public const string InlineStepPathInvalid = "firmament-v2-inline-step-path-invalid";
     public const string InlineStepFileMissing = "firmament-v2-inline-step-file-missing";
     public const string InlineStepRequiresCanonical = "firmament-inline-step-requires-aetheris-canonical-step";
+    public const string InlineStepUnknownBody = "firmament-inline-step-unknown-body";
+    public const string InlineStepUnknownFace = "firmament-inline-step-unknown-face";
+    public const string PmiImportedTargetNotFace = "firmament-pmi-imported-target-not-face";
+    public const string PmiImportedTargetRequiresCanonicalStep = "firmament-pmi-imported-target-requires-canonical-step";
+    public const string PmiInvalidImportedTarget = "firmament-pmi-invalid-imported-target";
 
     private static readonly Regex ModelRegex = new(@"\bmodel\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex UnitsRegex = new(@"\bunits\s+(?<units>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
@@ -100,7 +105,8 @@ public static class FirmamentV2Parser
     private static readonly Regex SemanticHoleHeaderRegex = new(@"\bhole\s*<\s*(?<variant>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex PmiHeaderRegex = new(@"\bpmi\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex PmiEntryHeaderRegex = new(@"\b(?<kind>[A-Za-z_][A-Za-z0-9_]*)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex TargetRegex = new(@"\btarget\s*:\s*(?<target>face\([^)]+\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+    private static readonly Regex TargetRegex = new("\\btarget\\s*:\\s*(?<target>[A-Za-z_][A-Za-z0-9_]*\\.face\\(\\\"#[0-9]+\\\"\\)|[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*\\([^)]*\\)|face\\([^)]+\\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+    private static readonly Regex ImportedFaceTargetRegex = new("^(?<body>[A-Za-z_][A-Za-z0-9_]*)\\.face\\(\\\"(?<entity>#[0-9]+)\\\"\\)$", RegexOptions.CultureInvariant);
     private static readonly Regex ValueRegex = new(@"\b(?:value|diameter)\s*:\s*(?<value>[^\s}]+)", RegexOptions.CultureInvariant);
     private static readonly Regex TemplateHeaderRegex = new(@"\btemplate\s*<\s*(?<process>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex ConceptRegex = new(@"\bconcept\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>[-+0-9.eE]+)\s*(?<unit>[A-Za-z_][A-Za-z0-9_]*)?", RegexOptions.CultureInvariant);
@@ -224,7 +230,23 @@ public static class FirmamentV2Parser
         }
 
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(stepText))).ToLowerInvariant();
-        return new FirmamentV2SolidBinding(name, "InlineStep", new FirmamentV2InlineStepRecord(sourcePath, normalizedPath, hash, true, evidence));
+        return new FirmamentV2SolidBinding(name, "InlineStep", new FirmamentV2InlineStepRecord(sourcePath, normalizedPath, hash, true, evidence, BuildImportedStepTopologyMap(stepText)));
+    }
+
+    private static ImportedStepTopologyMap BuildImportedStepTopologyMap(string stepText)
+    {
+        var faceEntityToFaceId = new Dictionary<string, string>(StringComparer.Ordinal);
+        var faceIdToFaceEntity = new Dictionary<string, string>(StringComparer.Ordinal);
+        var ordinal = 0;
+        foreach (Match match in Regex.Matches(stepText, @"(?m)^\s*(#[0-9]+)\s*=\s*ADVANCED_FACE\s*\(", RegexOptions.CultureInvariant))
+        {
+            ordinal++;
+            var entity = match.Groups[1].Value;
+            var faceId = $"face-{ordinal}";
+            faceEntityToFaceId[entity] = faceId;
+            faceIdToFaceEntity[faceId] = entity;
+        }
+        return new ImportedStepTopologyMap(faceEntityToFaceId, faceIdToFaceEntity);
     }
 
     private static bool IsAetherisCanonicalStep(string stepText, out string evidence)
@@ -255,7 +277,7 @@ public static class FirmamentV2Parser
         return new(name, "Box", new FirmamentV2BoxRecord(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
     }
 
-    private static bool IsFatalDiagnostic(string code) => code is PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical;
+    private static bool IsFatalDiagnostic(string code) => code is PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -570,13 +592,23 @@ public static class FirmamentV2Parser
             var target = targetMatch.Groups["target"].Value.Trim();
             if (string.Equals(kindRaw, "diameter", StringComparison.Ordinal))
             {
-                if (!holeNames.Contains(target)) { diagnostics.Add(PmiTargetUnresolved); continue; }
                 var valueMatch = ValueRegex.Match(eb);
                 if (!valueMatch.Success || !TryParsePositiveNumberWithOptionalMm(valueMatch.Groups["value"].Value, out var value)) { diagnostics.Add(PmiDiameterInvalid); continue; }
+                if (TryValidateImportedFaceTarget(target, solids, diagnostics))
+                {
+                    entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.HoleDiameter, target, value));
+                    continue;
+                }
+                if (!holeNames.Contains(target)) { diagnostics.Add(PmiTargetUnresolved); continue; }
                 entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.HoleDiameter, target, value));
             }
             else if (string.Equals(kindRaw, "datum", StringComparison.Ordinal))
             {
+                if (TryValidateImportedFaceTarget(target, solids, diagnostics))
+                {
+                    entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.DatumPlane, target));
+                    continue;
+                }
                 if (!aliases.Contains(target) && !FaceSelectorRegex.IsMatch(target)) { diagnostics.Add(PmiTargetUnresolved); continue; }
                 entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.DatumPlane, target));
             }
@@ -586,6 +618,45 @@ public static class FirmamentV2Parser
             }
         }
         return entries;
+    }
+
+    private static bool TryValidateImportedFaceTarget(string target, Dictionary<string, FirmamentV2SolidBinding> solids, List<string> diagnostics)
+    {
+        if (target.Contains('.', StringComparison.Ordinal) && !ImportedFaceTargetRegex.IsMatch(target))
+        {
+            diagnostics.Add(PmiInvalidImportedTarget);
+            return false;
+        }
+
+        var imported = ImportedFaceTargetRegex.Match(target);
+        if (!imported.Success) return false;
+        var body = imported.Groups["body"].Value;
+        var entity = imported.Groups["entity"].Value;
+        if (!solids.TryGetValue(body, out var solid))
+        {
+            diagnostics.Add(InlineStepUnknownBody);
+            return false;
+        }
+
+        if (solid.InlineStep is null)
+        {
+            diagnostics.Add(PmiImportedTargetRequiresCanonicalStep);
+            return false;
+        }
+
+        if (!solid.InlineStep.CanonicalInput)
+        {
+            diagnostics.Add(PmiImportedTargetRequiresCanonicalStep);
+            return false;
+        }
+
+        if (!solid.InlineStep.TopologyMap.TryResolveFaceEntity(entity, out _))
+        {
+            diagnostics.Add(InlineStepUnknownFace);
+            return false;
+        }
+
+        return true;
     }
 
     private static bool TryParsePositiveNumberWithOptionalMm(string raw, out double value)
@@ -599,7 +670,7 @@ public static class FirmamentV2Parser
         Regex.IsMatch(source, @"\b(PMI|where|add|shell|fillet|chamfer|regions|profile|material|pattern)\b|<\s*Process\s*>", RegexOptions.CultureInvariant);
 
     private static bool ContainsRawBackendId(string source) =>
-        Regex.IsMatch(source, @"\b(brep|step|backend|coedge)\s*\.|STEP\s*#|#[0-9]+", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+        Regex.IsMatch(source, @"\b(brep|backend|coedge)\s*\.|STEP\s*#", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     private sealed record SolidMatch(string Name, string Target, bool IsWith, string Body);
 

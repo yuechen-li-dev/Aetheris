@@ -147,7 +147,8 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Failure(import.Diagnostics);
         }
 
-        var export = Step242Exporter.ExportBody(import.Value, new Step242ExportOptions
+        var semanticPmi = BuildV2SemanticPmi(document, [], solid.Name);
+        var export = Step242Exporter.ExportBody(import.Value, semanticPmi, new Step242ExportOptions
         {
             ProductName = solid.Name,
             ApplicationName = "Aetheris.Firmament.InlineStep"
@@ -365,9 +366,16 @@ public static class FirmamentBuildAndExport
         var result = new List<Step242SemanticPmi>();
         foreach (var pmi in document.Pmi)
         {
-            if (pmi.Kind == FirmamentV2PmiKind.HoleDiameter && pmi.Value.HasValue && holeByName.TryGetValue(pmi.Target, out var pmiHole))
+            if (pmi.Kind == FirmamentV2PmiKind.HoleDiameter && pmi.Value.HasValue)
             {
-                result.Add(new Step242SemanticPmiHole(pmiHole.FeatureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", null, null));
+                if (holeByName.TryGetValue(pmi.Target, out var pmiHole))
+                {
+                    result.Add(new Step242SemanticPmiHole(pmiHole.FeatureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", null, null));
+                }
+                else if (TryResolveV2ImportedFaceTarget(targetBinding, pmi.Target, out var importedTarget))
+                {
+                    result.Add(new Step242SemanticPmiHole($"{targetSolid}.{pmi.Name}", pmi.Value.Value, null, $"imported_canonical_face:{importedTarget}", null, null));
+                }
             }
             else if (pmi.Kind == FirmamentV2PmiKind.DatumPlane)
             {
@@ -379,8 +387,32 @@ public static class FirmamentBuildAndExport
         return result;
     }
 
+    private static bool TryResolveV2ImportedFaceTarget(FirmamentV2SolidBinding solid, string target, out string resolved)
+    {
+        resolved = string.Empty;
+        const string marker = ".face(\"";
+        if (solid.InlineStep is null || !target.StartsWith(solid.Name + marker, StringComparison.Ordinal) || !target.EndsWith("\")", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var entity = target[(solid.Name.Length + marker.Length)..^2];
+        if (!solid.InlineStep.TopologyMap.TryResolveFaceEntity(entity, out var faceId))
+        {
+            return false;
+        }
+
+        resolved = $"{solid.Name}.{faceId}:{entity}";
+        return true;
+    }
+
     private static string ResolveV2DatumTarget(FirmamentV2SolidBinding solid, string target)
     {
+        if (TryResolveV2ImportedFaceTarget(solid, target, out var importedTarget))
+        {
+            return importedTarget;
+        }
+
         if (target.StartsWith("face(", StringComparison.Ordinal))
         {
             return $"{solid.Name}.{FaceAxisToPort(target)}";

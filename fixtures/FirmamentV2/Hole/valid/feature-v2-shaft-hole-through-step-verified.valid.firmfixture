@@ -1,0 +1,33 @@
+// fixture-id: feature-v2-shaft-hole-through-step-verified
+// case: feature-v2-shaft-hole-through-step-verified
+// category: Hole
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// expected-feature-air: AirHoleFeature(SimpleShaft)
+// dimensions: base box 10 x 8 x 6; shaft radius 1; through depth 6
+// units: mm
+// tier: 2
+// mvp-required: true
+// feature-area: semantic-hole
+// build-command: aetheris build
+// expected-volume: 480 - pi * 1^2 * 6
+// expected-topology: advanced_face>0, vertex_point>0, cylindrical-wall-face=true
+// roundtrip-required: true
+// parser-backed: true
+// notes: STEP-V2-X2 semantic shaft through-hole fixture; verified through real build/export, Step242Exporter, reimport, topology markers, and analytic volume.
+model FeatureV2ShaftHoleThroughStepVerified {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+  modify base {
+    hole<shaft> mount {
+      on: face(+Z)
+      center: [0, 0]
+      diameter: 2
+      end: throughAll
+    }
+  }
+}

@@ -230,3 +230,7 @@ MVP is pitchable when:
 * no MVP claim relies on hardcoded STEP templates, trace-only output, or non-exported AIR.
 
 If it does not emit valid AP242 through the real exporter, it is not MVP-ready.
+
+## Implementation notes
+
+* STEP-V2-X2 semantic hole AP242 fixture hardening is documented in `docs/implementation/step-v2-x2-semantic-holes-ap242.md`.

@@ -33,6 +33,8 @@ public sealed class FirmamentV2SemanticHoleTests
         Assert.Equal(AirHoleStackKind.Counterbore, feature.Stack.Kind);
         Assert.Equal([AirHoleStackComponentKind.Counterbore, AirHoleStackComponentKind.Shaft], feature.Stack.Components.Select(c => c.Kind).ToArray());
         Assert.DoesNotContain("ProfileStackExtrudeSpec", feature.Provenance.ConstructionHistoryKind);
+        Assert.DoesNotContain("CylinderCut", feature.Provenance.ConstructionHistoryKind);
+        Assert.DoesNotContain("ConeCut", feature.Provenance.ConstructionHistoryKind);
     }
 
     [Theory]

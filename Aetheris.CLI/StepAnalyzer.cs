@@ -145,6 +145,12 @@ public sealed record VolumeAnalysisResult(
             return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-torus", true, false, null, null, null, null, null, null, null, notes);
         }
 
+        if (TryComputeAxisAlignedBoxWithZHoleVolume(body, bbox, out var zHoleVolume, out var zHoleBasis))
+        {
+            notes.Add(zHoleBasis);
+            return new VolumeAnalysisResult(stepPath, true, zHoleVolume, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-box-minus-z-hole", true, false, null, null, null, null, null, null, null, notes);
+        }
+
         var shellVolume = TryComputePlanarClosedShellVolume(body, shells, out var planarVolume, out var planarFailureReason);
         if (shellVolume)
         {
@@ -154,6 +160,121 @@ public sealed record VolumeAnalysisResult(
 
         throw new InvalidOperationException(planarFailureReason ?? "Volume analysis currently supports canonical sphere, single-lateral-face cylinder, and enclosed planar closed-shell bodies only.");
     }
+
+    private static bool TryComputeAxisAlignedBoxWithZHoleVolume(BrepBody body, BoundingBox3D bbox, out double volume, out string basis)
+    {
+        volume = 0d;
+        basis = string.Empty;
+
+        var cylinders = new List<(double Radius, double ZMin, double ZMax)>();
+        var cones = new List<(double RadiusAtZMin, double RadiusAtZMax, double ZMin, double ZMax)>();
+
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.TryGetFaceSurface(face.Id, out var surface) || surface is null)
+            {
+                return false;
+            }
+
+            if (surface.Kind == SurfaceGeometryKind.Cylinder && surface.Cylinder is { } cylinder)
+            {
+                if (!IsZAxis(cylinder.Axis.ToVector())) return false;
+                if (!TryResolveFaceZSpan(body, face.Id, out var zMin, out var zMax)) return false;
+                cylinders.Add((cylinder.Radius, zMin, zMax));
+                continue;
+            }
+
+            if (surface.Kind == SurfaceGeometryKind.Cone && surface.Cone is { } cone)
+            {
+                if (!IsZAxis(cone.Axis.ToVector())) return false;
+                if (!TryResolveFaceZSpan(body, face.Id, out var zMin, out var zMax)) return false;
+                if (!TryResolveConeRadiiAtZSpan(body, face.Id, cone.Axis.ToVector(), new Point3D(cone.PlacementOrigin.X, cone.PlacementOrigin.Y, 0d), zMin, zMax, out var rMin, out var rMax)) return false;
+                cones.Add((rMin, rMax, zMin, zMax));
+                continue;
+            }
+
+            if (surface.Kind != SurfaceGeometryKind.Plane)
+            {
+                return false;
+            }
+        }
+
+        if (cylinders.Count == 0 && cones.Count == 0)
+        {
+            return false;
+        }
+
+        var baseVolume = (bbox.Max.X - bbox.Min.X) * (bbox.Max.Y - bbox.Min.Y) * (bbox.Max.Z - bbox.Min.Z);
+        var breakpoints = cylinders.SelectMany(c => new[] { c.ZMin, c.ZMax }).Distinct().OrderBy(z => z).ToArray();
+        var removed = 0d;
+        for (var i = 0; i + 1 < breakpoints.Length; i++)
+        {
+            var a = breakpoints[i];
+            var b = breakpoints[i + 1];
+            var mid = (a + b) / 2d;
+            var radius = cylinders.Where(c => mid >= c.ZMin - 1e-9 && mid <= c.ZMax + 1e-9).Select(c => c.Radius).DefaultIfEmpty(0d).Max();
+            removed += double.Pi * radius * radius * (b - a);
+        }
+
+        foreach (var cone in cones)
+        {
+            var h = cone.ZMax - cone.ZMin;
+            if (h <= 0d) return false;
+            var frustum = double.Pi * h / 3d * (cone.RadiusAtZMin * cone.RadiusAtZMin + cone.RadiusAtZMin * cone.RadiusAtZMax + cone.RadiusAtZMax * cone.RadiusAtZMax);
+            var overlapRadius = cylinders
+                .Where(c => c.ZMin <= cone.ZMin + 1e-9 && c.ZMax >= cone.ZMax - 1e-9)
+                .Select(c => c.Radius)
+                .DefaultIfEmpty(0d)
+                .Min();
+            removed += frustum - double.Pi * overlapRadius * overlapRadius * h;
+        }
+
+        volume = baseVolume - removed;
+        basis = "Exact analytic volume for an axis-aligned rectangular box with supported +Z semantic cylindrical/counterbore/countersink hole intervals.";
+        return double.IsFinite(volume) && volume > 0d;
+    }
+
+    private static bool TryResolveFaceZSpan(BrepBody body, FaceId faceId, out double zMin, out double zMax)
+    {
+        zMin = double.PositiveInfinity;
+        zMax = double.NegativeInfinity;
+        if (!body.Topology.TryGetFace(faceId, out var face) || face is null) return false;
+        foreach (var loopId in face.LoopIds)
+        {
+            var vertices = TryBuildOrientedLoopVertices(body, loopId, out _);
+            if (vertices is null) return false;
+            foreach (var vertex in vertices)
+            {
+                zMin = double.Min(zMin, vertex.Z);
+                zMax = double.Max(zMax, vertex.Z);
+            }
+        }
+
+        return double.IsFinite(zMin) && double.IsFinite(zMax) && zMax > zMin;
+    }
+
+    private static bool TryResolveConeRadiiAtZSpan(BrepBody body, FaceId faceId, Vector3D axis, Point3D axisPoint, double zMin, double zMax, out double radiusAtZMin, out double radiusAtZMax)
+    {
+        radiusAtZMin = 0d;
+        radiusAtZMax = 0d;
+        if (!body.Topology.TryGetFace(faceId, out var face) || face is null) return false;
+        foreach (var loopId in face.LoopIds)
+        {
+            var vertices = TryBuildOrientedLoopVertices(body, loopId, out _);
+            if (vertices is null) return false;
+            foreach (var vertex in vertices)
+            {
+                var radial = new Vector3D(vertex.X - axisPoint.X, vertex.Y - axisPoint.Y, 0d).Length;
+                if (double.Abs(vertex.Z - zMin) <= 1e-7) radiusAtZMin = double.Max(radiusAtZMin, radial);
+                if (double.Abs(vertex.Z - zMax) <= 1e-7) radiusAtZMax = double.Max(radiusAtZMax, radial);
+            }
+        }
+
+        return radiusAtZMin > 0d && radiusAtZMax > 0d;
+    }
+
+    private static bool IsZAxis(Vector3D axis) =>
+        double.Abs(axis.X) <= 1e-9 && double.Abs(axis.Y) <= 1e-9 && double.Abs(double.Abs(axis.Z) - 1d) <= 1e-9;
 
 
     private static BrepBodyShellRepresentation ResolveShellRepresentationForVolume(BrepBody body)

@@ -48,7 +48,9 @@ public sealed class FirmamentV2InlineStepTests
     public static TheoryData<string, string, string, double> InlinePmiCases => new()
     {
         { "inline-step-v2-datum-pmi-on-canonical-face-emits-in-step", "SHAPE_ASPECT('firmament-datum:A'", "PROPERTY_DEFINITION('datum:A:importedPart'", 480d },
-        { "inline-step-v2-hole-diameter-pmi-on-canonical-face-emits-in-step", "SHAPE_DIMENSION_REPRESENTATION('diameter:importedPart.holeDiameter'", "PROPERTY_DEFINITION('diameter:importedPart.holeDiameter'", 480d - Math.PI * 1d * 1d * 6d }
+        { "inline-step-v2-hole-diameter-pmi-on-canonical-face-emits-in-step", "SHAPE_DIMENSION_REPRESENTATION('diameter:importedPart.holeDiameter'", "PROPERTY_DEFINITION('diameter:importedPart.holeDiameter'", 480d - Math.PI * 1d * 1d * 6d },
+        { "inline-step-v2-recognized-face-datum-pmi-emits-in-step", "SHAPE_ASPECT('firmament-datum:A'", "PROPERTY_DEFINITION('datum:A:importedPart'", 480d },
+        { "inline-step-v2-recognized-hole-diameter-pmi-emits-in-step", "SHAPE_DIMENSION_REPRESENTATION('diameter:importedPart.mountHoleDiameter'", "PROPERTY_DEFINITION('diameter:importedPart.mountHoleDiameter'", 480d - Math.PI * 1d * 1d * 6d }
     };
 
     [Theory]
@@ -88,6 +90,55 @@ public sealed class FirmamentV2InlineStepTests
         {
             if (File.Exists(outputPath)) File.Delete(outputPath);
         }
+    }
+
+
+    [Fact]
+    public void InlineStep_RecognizedRegion_ParsesAndStoresMetadata()
+    {
+        var repo = FindRepoRoot();
+        var source = File.ReadAllText(Path.Combine(repo, "fixtures/FirmamentV2/InlineStep/valid/inline-step-v2-recognized-face-datum-pmi-emits-in-step.valid.firmfixture"));
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(repo, "fixtures/FirmamentV2/InlineStep/valid"));
+
+        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+        var region = Assert.Single(parse.Document!.RecognizedRegions!);
+        Assert.Equal("importedPart", region.BodyName);
+        Assert.Equal("topFace", region.RegionName);
+        Assert.Equal("datumPlane", region.Kind);
+        Assert.Equal("#40", Assert.Single(region.FaceRefs));
+        Assert.Equal("high", region.Confidence);
+        Assert.Equal("importedPart.region(\"topFace\")", Assert.Single(parse.Document.Pmi!).Target);
+    }
+
+    [Theory]
+    [InlineData("kind: bogus\n            faces: [\"#40\"]\n            confidence: high", FirmamentV2Parser.InvalidRecognitionKind)]
+    [InlineData("kind: datumPlane\n            faces: [\"#40\"]\n            confidence: maybe", FirmamentV2Parser.InvalidRecognitionConfidence)]
+    [InlineData("kind: datumPlane\n            faces: [\"#999999\"]\n            confidence: high", FirmamentV2Parser.UnknownRecognitionFace)]
+    public void InlineStep_InvalidRecognitionMetadata_RejectsDeterministically(string regionBody, string diagnostic)
+    {
+        var source = $$"""
+model BadRecognition { units mm solid importedPart: InlineStep { path: "../testdata/canonical-box-10x8x6.step" } recognize importedPart { region topFace { {{regionBody}} } } }
+""";
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/FirmamentV2/InlineStep/valid"));
+
+        Assert.False(parse.IsSuccess);
+        Assert.Contains(diagnostic, parse.Diagnostics);
+    }
+
+    [Theory]
+    [InlineData("recognize missingPart { region topFace { kind: datumPlane faces: [\"#40\"] confidence: high } }", FirmamentV2Parser.UnknownRecognitionBody)]
+    [InlineData("recognize importedPart { region topFace { kind: datumPlane faces: [\"#40\"] confidence: high } region topFace { kind: datumPlane faces: [\"#77\"] confidence: high } }", FirmamentV2Parser.DuplicateRegion)]
+    [InlineData("recognize importedPart { region topFace { kind: datumPlane faces: [\"#40\"] confidence: high } } pmi { datum A { target: importedPart.region(\"missingRegion\") } }", FirmamentV2Parser.UnknownRecognitionRegion)]
+    [InlineData("recognize importedPart { region mountHole { kind: holeShaft faces: [\"#40\"] confidence: high } } pmi { datum A { target: importedPart.region(\"mountHole\") } }", FirmamentV2Parser.PmiRecognizedRegionKindMismatch)]
+    public void InlineStep_InvalidRecognizedTargets_RejectDeterministically(string tail, string diagnostic)
+    {
+        var source = $$"""
+model BadRecognitionTarget { units mm solid importedPart: InlineStep { path: "../testdata/canonical-box-10x8x6.step" } {{tail}} }
+""";
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/FirmamentV2/InlineStep/valid"));
+
+        Assert.False(parse.IsSuccess);
+        Assert.Contains(diagnostic, parse.Diagnostics);
     }
 
     [Theory]

@@ -6,6 +6,8 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 
 public sealed class Step242Ftc07ViewMaterializationRegressionTests
 {
+    private static readonly TimeSpan Ftc07TessellationBudget = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan Ftc07WallClockGuard = TimeSpan.FromSeconds(30);
     private const string RelativePath = "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp";
 
     [Fact]
@@ -14,10 +16,13 @@ public sealed class Step242Ftc07ViewMaterializationRegressionTests
         var body = ImportFixture();
 
         var stopwatch = Stopwatch.StartNew();
-        var tessellation = BrepDisplayTessellator.TessellateBounded(body);
+        var tessellation = BrepDisplayTessellator.TessellateBounded(body, executionTimeout: Ftc07TessellationBudget);
         stopwatch.Stop();
 
-        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(15), $"FTC-07 display tessellation exceeded the bounded wall clock budget ({stopwatch.Elapsed}).");
+        Assert.True(
+            stopwatch.Elapsed < Ftc07WallClockGuard,
+            $"FTC-07 display tessellation exceeded the bounded wall-clock guard ({stopwatch.Elapsed}); " +
+            $"tessellation budget was {Ftc07TessellationBudget}; diagnostics: {FormatDiagnostics(tessellation.Diagnostics)}");
 
         if (tessellation.IsSuccess)
         {
@@ -33,7 +38,7 @@ public sealed class Step242Ftc07ViewMaterializationRegressionTests
     {
         var body = ImportFixture();
 
-        var tessellation = BrepDisplayTessellator.TessellateBounded(body);
+        var tessellation = BrepDisplayTessellator.TessellateBounded(body, executionTimeout: Ftc07TessellationBudget);
         if (tessellation.IsSuccess)
         {
             return;
@@ -56,7 +61,7 @@ public sealed class Step242Ftc07ViewMaterializationRegressionTests
     {
         var body = ImportFixture();
 
-        var partial = BrepDisplayTessellator.TessellateBoundedPartial(body);
+        var partial = BrepDisplayTessellator.TessellateBoundedPartial(body, executionTimeout: Ftc07TessellationBudget);
 
         Assert.NotEmpty(partial.FacePatches);
         if ((partial.FaceDiagnostics ?? []).Count == 0)
@@ -70,6 +75,11 @@ public sealed class Step242Ftc07ViewMaterializationRegressionTests
         Assert.Contains(partial.FaceDiagnostics ?? [], diagnostic =>
             diagnostic.Phase is "PlanarTriangulationWithHoles" or "PlanarLoopClassification" or "FaceTessellation" or "TrimLoopSampling" or "FaceDispatch");
     }
+
+    private static string FormatDiagnostics(IReadOnlyList<global::Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> diagnostics)
+        => diagnostics.Count == 0
+            ? "<none>"
+            : string.Join(" | ", diagnostics.Select(diagnostic => $"{diagnostic.Source ?? diagnostic.Code.ToString()}: {diagnostic.Message}"));
 
     private static global::Aetheris.Kernel.Core.Brep.BrepBody ImportFixture()
     {

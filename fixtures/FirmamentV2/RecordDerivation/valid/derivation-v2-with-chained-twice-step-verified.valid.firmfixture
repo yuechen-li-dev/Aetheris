@@ -1,0 +1,37 @@
+// fixture-id: derivation-v2-with-chained-twice-step-verified
+// case: derivation-v2-with-chained-twice-step-verified
+// category: RecordDerivation
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// expected-feature-air: CreateBox
+// expected-solid: taller
+// dimensions: base box 10 x 8 x 6; wider box 12 x 8 x 6; final taller box 12 x 8 x 7
+// units: mm
+// tier: 3
+// mvp-required: true
+// feature-area: derivation
+// build-command: aetheris build
+// expected-volume: 672
+// expected-topology: faces=6, vertices=8, edges=12, advanced_face>0, vertex_point>0
+// roundtrip-required: true
+// parser-backed: true
+// notes: STEP-V2-X3 chained with-derivation fixture proves the final derived record is selected without stale dimensions from earlier derivations.
+model DerivationV2WithChainedTwiceStepVerified {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+    }
+
+    solid wider: base with {
+        size: [12, 8, 6]
+    }
+
+    solid taller: wider with {
+        size: [12, 8, 7]
+    }
+}

@@ -1,0 +1,33 @@
+// fixture-id: derivation-v2-with-size-override-step-verified
+// case: derivation-v2-with-size-override-step-verified
+// category: RecordDerivation
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// expected-feature-air: CreateBox
+// expected-solid: wider
+// dimensions: base box 10 x 8 x 6; derived wider box 12 x 8 x 6
+// units: mm
+// tier: 3
+// mvp-required: true
+// feature-area: derivation
+// build-command: aetheris build
+// expected-volume: 576
+// expected-topology: faces=6, vertices=8, edges=12, advanced_face>0, vertex_point>0
+// roundtrip-required: true
+// parser-backed: true
+// notes: STEP-V2-X3 with-derivation fixture verified through real build/export, Step242Exporter, reimport, canonical box topology, and analytic volume.
+model DerivationV2WithSizeOverrideStepVerified {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+    }
+
+    solid wider: base with {
+        size: [12, 8, 6]
+    }
+}

@@ -132,7 +132,8 @@ internal static class AirTraceReportBuilder
         var stepVerifiedDiagnostics = Array.Empty<string>();
         if (isFirmamentV2 && string.Equals(fixture.ExpectedStage, "step-verified", StringComparison.Ordinal))
         {
-            var stepVerified = string.Equals(fixture.Metadata.GetValueOrDefault("feature-area"), "semantic-hole", StringComparison.Ordinal)
+            var featureArea = fixture.Metadata.GetValueOrDefault("feature-area");
+            var stepVerified = string.Equals(featureArea, "semantic-hole", StringComparison.Ordinal) || string.Equals(featureArea, "semantic-reference", StringComparison.Ordinal)
                 ? TryVerifyV2SemanticHoleStepFixture(fixture)
                 : TryVerifyV2BoxStepFixture(fixture);
             if (stepVerified.Succeeded)
@@ -240,14 +241,16 @@ internal static class AirTraceReportBuilder
             }
 
             var volume = StepAnalyzer.AnalyzeVolume(stepPath);
-            var expectedVolume = fixture.CaseName switch
-            {
-                "feature-v2-shaft-hole-through-step-verified" => 480d - Math.PI * 6d,
-                "feature-v2-shaft-hole-blind-step-verified" => 480d - Math.PI * 3d,
-                "feature-v2-counterbore-step-verified" => 480d - ((Math.PI * 6d) + (Math.PI * 3d)),
-                "feature-v2-countersink-step-verified" => 480d - ((Math.PI * 6d) + (Math.PI * 7d / 3d) - Math.PI),
-                _ => double.NaN
-            };
+            var expectedVolume = fixture.Metadata.TryGetValue("expected-volume", out var expectedVolumeRaw) && double.TryParse(expectedVolumeRaw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedVolume)
+                ? parsedVolume
+                : fixture.CaseName switch
+                {
+                    "feature-v2-shaft-hole-through-step-verified" => 480d - Math.PI * 6d,
+                    "feature-v2-shaft-hole-blind-step-verified" => 480d - Math.PI * 3d,
+                    "feature-v2-counterbore-step-verified" => 480d - ((Math.PI * 6d) + (Math.PI * 3d)),
+                    "feature-v2-countersink-step-verified" => 480d - ((Math.PI * 6d) + (Math.PI * 7d / 3d) - Math.PI),
+                    _ => double.NaN
+                };
 
             if (!volume.Success || !volume.Exact || !double.IsFinite(expectedVolume) || Math.Abs(volume.Volume - expectedVolume) > 1e-8)
             {

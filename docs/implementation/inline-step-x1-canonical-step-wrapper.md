@@ -76,3 +76,8 @@ INLINE-STEP-X1 deliberately does not implement:
 - residual accounting;
 - graphical PMI;
 - multiple imported bodies or assembly STEP support.
+
+
+## Forward link
+
+INLINE-STEP-X2 extends this canonical wrapper with semantic PMI targets on canonical imported faces; see `docs/implementation/inline-step-x2-semantic-pmi-on-canonical-topology.md`.

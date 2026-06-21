@@ -303,3 +303,8 @@ Open questions:
 ## X1 correction: canonical STEP only
 
 INLINE-STEP-X1 narrows the first implementation milestone: Firmament inline STEP source is **Aetheris-canonical AP242 STEP**, not arbitrary raw vendor STEP. Raw external/vendor STEP remains input to `aetheris canon`; Firmament wraps the canonicalized artifact and re-exports it through `Step242Importer` and `Step242Exporter`. See `docs/implementation/inline-step-x1-canonical-step-wrapper.md`.
+
+
+## INLINE-STEP-X2 status
+
+Semantic PMI can now target face entities from an Aetheris-canonical inline STEP body via `importedPart.face("#...")`, resolving through a bounded canonical face map and exporting through the real `Step242Exporter`. Arbitrary vendor STEP references, replacement, recognized regions, residual accounting, and graphical PMI remain deferred.

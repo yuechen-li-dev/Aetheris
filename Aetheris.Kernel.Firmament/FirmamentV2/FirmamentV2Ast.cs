@@ -28,7 +28,10 @@ public sealed record FirmamentV2FaceSelector(string Axis)
 {
     public string Source => $"face({Axis})";
 }
-public sealed record FirmamentV2ModifyBlock(string TargetSolid, IReadOnlyList<FirmamentV2RegionDecl> Regions);
+public sealed record FirmamentV2ModifyBlock(string TargetSolid, IReadOnlyList<FirmamentV2RegionDecl> Regions, IReadOnlyList<FirmamentV2SemanticHoleDecl> SemanticHoles)
+{
+    public FirmamentV2ModifyBlock(string TargetSolid, IReadOnlyList<FirmamentV2RegionDecl> Regions) : this(TargetSolid, Regions, []) { }
+}
 public sealed record FirmamentV2RegionDecl(string Name, string Kind, FirmamentV2FaceTarget Attachment, FirmamentV2CutOperation Cut);
 public sealed record FirmamentV2CutOperation(string OperationKind, FirmamentV2CylinderTool Tool);
 public sealed record FirmamentV2CylinderTool(string ToolType, double Radius, FirmamentV2FaceLocalPoint2D? Center, FirmamentV2FaceTarget Through);
@@ -55,6 +58,20 @@ public sealed record FirmamentV2SideHoleIntent(string TargetSolid, string Region
     public string Route => PolicyRoute.Direction;
     public FirmamentV2SideHoleRoutePolicyEvidence RouteEvidence => PolicyRoute;
 }
+public enum FirmamentV2SemanticHoleVariant { Shaft, Counterbore, Countersink }
+public enum FirmamentV2SemanticHoleEndKind { ThroughAll, Depth }
+public sealed record FirmamentV2SemanticHoleEnd(FirmamentV2SemanticHoleEndKind Kind, double? Depth = null);
+public sealed record FirmamentV2SemanticHoleDecl(
+    string Name,
+    FirmamentV2SemanticHoleVariant Variant,
+    FirmamentV2FaceTarget EntryFace,
+    FirmamentV2FaceLocalPoint2D Center,
+    double ShaftDiameter,
+    FirmamentV2SemanticHoleEnd EndCondition,
+    double? CounterboreDiameter = null,
+    double? CounterboreDepth = null,
+    double? CountersinkDiameter = null,
+    double? CountersinkAngleDegrees = null);
 public sealed record FirmamentV2ParseResult(bool IsSuccess, FirmamentV2Document? Document, IReadOnlyList<string> Diagnostics)
 {
     public static FirmamentV2ParseResult Success(FirmamentV2Document document, IReadOnlyList<string> diagnostics) => new(true, document, diagnostics);

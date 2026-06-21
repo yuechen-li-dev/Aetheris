@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Aetheris.Kernel.Core.Air;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -54,6 +55,15 @@ public static class FirmamentV2Parser
     public const string CylinderCenterArityInvalid = "firmament-v2-cylinder-center-arity-invalid";
     public const string CylinderCenterNotFinite = "firmament-v2-cylinder-center-not-finite";
     public const string SideHoleCenterExceedsClearance = "firmament-v2-side-hole-center-exceeds-clearance";
+    public const string HoleVariantUnknown = "firmament-v2-hole-variant-unknown";
+    public const string HoleEntryFaceMissing = "firmament-v2-hole-entry-face-missing";
+    public const string HoleCenterMissing = "firmament-v2-hole-center-missing";
+    public const string HoleShaftMissing = "firmament-v2-hole-shaft-diameter-missing";
+    public const string HoleEndMissing = "firmament-v2-hole-end-missing";
+    public const string HoleDiameterInvalid = "firmament-v2-hole-diameter-invalid";
+    public const string HoleDepthInvalid = "firmament-v2-hole-depth-invalid";
+    public const string HoleCounterboreInvalid = "firmament-v2-hole-counterbore-invalid";
+    public const string HoleCountersinkInvalid = "firmament-v2-hole-countersink-invalid";
 
     private static readonly Regex ModelRegex = new(@"\bmodel\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex UnitsRegex = new(@"\bunits\s+(?<units>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
@@ -70,6 +80,7 @@ public static class FirmamentV2Parser
     private static readonly Regex RadiusRegex = new(@"\bradius\s*:\s*(?<value>[^\s}]+)", RegexOptions.CultureInvariant);
     private static readonly Regex ThroughRegex = new(@"\bthrough\s*:\s*(?<target>face\([^)]*\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
     private static readonly Regex CenterRegex = new(@"\bcenter\s*:\s*\[(?<values>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
+    private static readonly Regex SemanticHoleHeaderRegex = new(@"\bhole\s*<\s*(?<variant>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
 
     public static FirmamentV2ParseResult Parse(string sourceText)
     {
@@ -147,7 +158,7 @@ public static class FirmamentV2Parser
         return new(name, "Box", new(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
     }
 
-    private static bool IsFatalDiagnostic(string code) => code is MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance;
+    private static bool IsFatalDiagnostic(string code) => code is MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -219,8 +230,11 @@ public static class FirmamentV2Parser
             var close = FindMatchingBrace(source, open);
             if (close < 0) { diagnostics.Add(RegionUnsupported); continue; }
             var body = source[(open + 1)..close];
+            var regions = new List<FirmamentV2RegionDecl>();
             var region = ParseRegion(body, solid, diagnostics);
-            if (region is not null) blocks.Add(new(target, [region]));
+            if (region is not null) regions.Add(region);
+            var holes = ParseSemanticHoles(body, solid, diagnostics);
+            if (regions.Count > 0 || holes.Count > 0) blocks.Add(new(target, regions, holes));
         }
         return blocks;
     }
@@ -228,6 +242,7 @@ public static class FirmamentV2Parser
     private static FirmamentV2RegionDecl? ParseRegion(string body, FirmamentV2SolidBinding solid, List<string> diagnostics)
     {
         var regions = RegionHeaderRegex.Matches(body);
+        if (regions.Count == 0) return null;
         if (regions.Count != 1) { diagnostics.Add(RegionUnsupported); return null; }
         var rm = regions[0];
         if (!string.Equals(rm.Groups["name"].Value, "sideHole", StringComparison.Ordinal)) { diagnostics.Add(RegionUnsupported); return null; }
@@ -247,6 +262,69 @@ public static class FirmamentV2Parser
             diagnostics.Add(SideHoleOnlyPlusXMinusXSupported);
         }
         return diagnostics.Any(IsFatalDiagnostic) ? null : new(rm.Groups["name"].Value, "FaceAttachedRegion", attach, cut);
+    }
+
+    private static IReadOnlyList<FirmamentV2SemanticHoleDecl> ParseSemanticHoles(string body, FirmamentV2SolidBinding solid, List<string> diagnostics)
+    {
+        var holes = new List<FirmamentV2SemanticHoleDecl>();
+        foreach (Match hm in SemanticHoleHeaderRegex.Matches(body))
+        {
+            if (!Enum.TryParse<FirmamentV2SemanticHoleVariant>(hm.Groups["variant"].Value, true, out var variant)) { diagnostics.Add(HoleVariantUnknown); continue; }
+            var open = body.IndexOf('{', hm.Index);
+            var close = FindMatchingBrace(body, open);
+            if (close < 0) { diagnostics.Add(RegionUnsupported); continue; }
+            var hb = body[(open + 1)..close];
+            var on = Regex.Match(hb, @"\bon\s*:\s*(?<target>face\([^)]*\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+            var face = on.Success ? ResolveFaceTarget(on.Groups["target"].Value, solid, HoleEntryFaceMissing, diagnostics) : null;
+            if (face is null) diagnostics.Add(HoleEntryFaceMissing);
+            var center = CenterRegex.IsMatch(hb) ? ParseCenter(hb, diagnostics) : null;
+            if (center is null) diagnostics.Add(HoleCenterMissing);
+            var hasShaftDiameter = ReadPositive(hb, ["shaftDiameter", "diameter"], out var shaftDiameter);
+            double shaftRadius = 0d;
+            var hasShaftRadius = !hasShaftDiameter && ReadPositive(hb, ["shaftRadius", "radius"], out shaftRadius);
+            var shaft = hasShaftDiameter || hasShaftRadius;
+            var shaftDia = hasShaftDiameter ? shaftDiameter : (hasShaftRadius ? shaftRadius * 2d : 0d);
+            if (!shaft) diagnostics.Add(HoleShaftMissing);
+            var end = ParseEnd(hb, diagnostics);
+            double? cbDia = null, cbDepth = null, csDia = null, csAngle = null;
+            if (variant == FirmamentV2SemanticHoleVariant.Counterbore)
+            {
+                if (!(ReadPositive(hb, ["counterboreDiameter"], out var d) || (ReadPositive(hb, ["counterboreRadius"], out var r) && (d = r * 2d) > 0)) || d <= shaftDia) diagnostics.Add(HoleCounterboreInvalid); else cbDia = d;
+                if (!ReadPositive(hb, ["counterboreDepth"], out var depth)) diagnostics.Add(HoleCounterboreInvalid); else cbDepth = depth;
+            }
+            if (variant == FirmamentV2SemanticHoleVariant.Countersink)
+            {
+                if (!(ReadPositive(hb, ["countersinkDiameter"], out var d) || (ReadPositive(hb, ["countersinkRadius"], out var r) && (d = r * 2d) > 0)) || d <= shaftDia) diagnostics.Add(HoleCountersinkInvalid); else csDia = d;
+                if (!ReadPositive(hb, ["countersinkAngle"], out var angle) || angle <= 0 || angle >= 180) diagnostics.Add(HoleCountersinkInvalid); else csAngle = angle;
+            }
+            if (face is not null && center is not null && shaft && end is not null && !diagnostics.Any(IsFatalDiagnostic))
+                holes.Add(new(hm.Groups["name"].Value, variant, face, center with { Convention = FirmamentV2FaceLocalPoint2D.ConventionFor(face.Axis) }, shaftDia, end, cbDia, cbDepth, csDia, csAngle));
+        }
+        return holes;
+    }
+
+    private static FirmamentV2SemanticHoleEnd? ParseEnd(string body, List<string> diagnostics)
+    {
+        var m = Regex.Match(body, @"\bend\s*:\s*(?<kind>throughAll|depth)(?:\s+(?<value>[^\s}]+))?", RegexOptions.CultureInvariant);
+        if (!m.Success) { diagnostics.Add(HoleEndMissing); return null; }
+        if (m.Groups["kind"].Value == "throughAll") return new FirmamentV2SemanticHoleEnd(FirmamentV2SemanticHoleEndKind.ThroughAll);
+        if (!double.TryParse(m.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var depth) || !double.IsFinite(depth) || depth <= 0) { diagnostics.Add(HoleDepthInvalid); return null; }
+        return new FirmamentV2SemanticHoleEnd(FirmamentV2SemanticHoleEndKind.Depth, depth);
+    }
+
+    private static bool ReadPositive(string body, string[] names, out double value)
+    {
+        foreach (var name in names)
+        {
+            var m = Regex.Match(body, $@"\b{name}\s*:\s*(?<value>[^\s}}]+)", RegexOptions.CultureInvariant);
+            if (m.Success)
+            {
+                if (!double.TryParse(m.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value) || !double.IsFinite(value) || value <= 0) return false;
+                return true;
+            }
+        }
+        value = 0;
+        return false;
     }
 
     private static FirmamentV2CutOperation? ParseCut(string body, FirmamentV2SolidBinding solid, List<string> diagnostics)

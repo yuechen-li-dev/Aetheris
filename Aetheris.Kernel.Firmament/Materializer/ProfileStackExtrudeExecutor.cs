@@ -20,7 +20,8 @@ public sealed record ProfileStackLayer(
     double ZMax,
     double? InnerCircleRadius,
     string Role,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics,
+    double? TopInnerCircleRadius = null);
 
 public sealed record ProfileStackExtrudeSpec(
     double Width,
@@ -52,7 +53,7 @@ public static class ProfileStackExtrudeExecutor
         for (var i = 0; i < orderedLayers.Count; i++)
         {
             var l = orderedLayers[i];
-            diagnostics.Add($"profile-stack layer[{i}] role={l.Role} zMin={l.ZMin:0.###} zMax={l.ZMax:0.###} radius={(l.InnerCircleRadius?.ToString("0.###") ?? "none") }.");
+            diagnostics.Add($"profile-stack layer[{i}] role={l.Role} zMin={l.ZMin:0.###} zMax={l.ZMax:0.###} radius={(l.InnerCircleRadius?.ToString("0.###") ?? "none") } topRadius={(l.TopInnerCircleRadius?.ToString("0.###") ?? "same")}.");
         }
 
         if (orderedLayers.All(l => !l.InnerCircleRadius.HasValue))
@@ -71,8 +72,24 @@ public static class ProfileStackExtrudeExecutor
                 : (Math.Abs(l.ZMax - spec.ZMax) < 1e-9
                     ? SupportedBooleanHoleSpanKind.BlindFromTop
                     : SupportedBooleanHoleSpanKind.Contained);
+            if (l.TopInnerCircleRadius.HasValue && Math.Abs(l.TopInnerCircleRadius.Value - l.InnerCircleRadius.Value) > 1e-9)
+            {
+                var bottomRadius = l.InnerCircleRadius.Value;
+                var topRadius = l.TopInnerCircleRadius.Value;
+                var semiAngle = Math.Atan(Math.Abs(topRadius - bottomRadius) / (l.ZMax - l.ZMin));
+                var radiusScale = Math.Tan(semiAngle);
+                var axis = topRadius >= bottomRadius ? zAxis : Direction3D.Create(new Vector3D(0, 0, -1));
+                var axisOriginZ = topRadius >= bottomRadius ? l.ZMin - bottomRadius / radiusScale : l.ZMax + topRadius / radiusScale;
+                var minParam = topRadius >= bottomRadius ? bottomRadius / radiusScale : topRadius / radiusScale;
+                var maxParam = topRadius >= bottomRadius ? topRadius / radiusScale : bottomRadius / radiusScale;
+                var cone = new RecognizedCone(new Point3D(spec.CenterX, spec.CenterY, axisOriginZ), axis, minParam, maxParam, semiAngle, Math.Min(bottomRadius, topRadius), Math.Max(bottomRadius, topRadius));
+                holes.Add(new SupportedBooleanHole(l.Role, new AnalyticSurface(AnalyticSurfaceKind.Cone, Cone: cone), spec.CenterX, spec.CenterY,
+                    new Point3D(spec.CenterX, spec.CenterY, l.ZMin), new Point3D(spec.CenterX, spec.CenterY, l.ZMax), zAxis, xAxis,
+                    bottomRadius, topRadius, span, l.ZMin, l.ZMax));
+                continue;
+            }
             var cyl = new RecognizedCylinder(new Point3D(spec.CenterX, spec.CenterY, 0), zAxis, l.InnerCircleRadius!.Value, l.ZMin, l.ZMax);
-            holes.Add(new SupportedBooleanHole(l.Role, new AnalyticSurface(AnalyticSurfaceKind.Cylinder, Cylinder: cyl), 0, 0,
+            holes.Add(new SupportedBooleanHole(l.Role, new AnalyticSurface(AnalyticSurfaceKind.Cylinder, Cylinder: cyl), spec.CenterX, spec.CenterY,
                 new Point3D(spec.CenterX, spec.CenterY, l.ZMin), new Point3D(spec.CenterX, spec.CenterY, l.ZMax), zAxis, xAxis,
                 l.InnerCircleRadius.Value, l.InnerCircleRadius.Value, span, l.ZMin, l.ZMax));
         }
@@ -121,7 +138,11 @@ public static class ProfileStackExtrudeExecutor
             if (i > 0)
             {
                 var prev = orderedLayers[i - 1];
-                if (Math.Abs(prev.ZMax - l.ZMin) > 1e-9)
+                if (l.ZMin < prev.ZMax - 1e-9)
+                {
+                    diagnostics.Add($"profile-stack validation accepted overlapping semantic entry-prep layer between [{i - 1}] and [{i}].");
+                }
+                else if (Math.Abs(prev.ZMax - l.ZMin) > 1e-9)
                 {
                     diagnostics.Add($"profile-stack validation failed: non-contiguous layer ordering between [{i - 1}] and [{i}].");
                     return false;
@@ -129,7 +150,7 @@ public static class ProfileStackExtrudeExecutor
             }
         }
 
-        if (Math.Abs(orderedLayers[0].ZMin - spec.ZMin) > 1e-9 || Math.Abs(orderedLayers[^1].ZMax - spec.ZMax) > 1e-9)
+        if (orderedLayers[0].ZMin > spec.ZMin + 1e-9 || orderedLayers.Max(l => l.ZMax) < spec.ZMax - 1e-9)
         {
             diagnostics.Add("profile-stack validation failed: layers do not fully cover global z-span.");
             return false;

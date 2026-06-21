@@ -15,7 +15,7 @@ public sealed record InlineStepMigrationReport(
     IReadOnlyList<string> Diagnostics);
 
 public sealed record InlineStepOriginalTopologyAccounting(int FaceCount, int EdgeCount, int VertexCount);
-public sealed record InlineStepRecognizedAccounting(int RegionCount, int ReferencedFaceCount, int DuplicateReferencedFaceCount, int UnresolvedReferenceCount);
+public sealed record InlineStepRecognizedAccounting(int RegionCount, int ReferencedFaceCount, int DuplicateReferencedFaceCount, int UnresolvedReferenceCount, int EvidenceCount = 0, int ProposalCount = 0, int ProposalVerifiedCount = 0, int ProposalUnverifiedCount = 0);
 public sealed record InlineStepReplacementAccounting(int PlannedCount, int VerifiedCount, int EmittedCount, int FailedCount, int ReplacedFaceCount);
 public sealed record InlineStepResidualAccounting(int ResidualFaceCount, int UnclaimedFaceCount);
 public sealed record InlineStepCoverageAccounting(double RecognizedFaceRatio, double ReplacedFaceRatio);
@@ -86,7 +86,7 @@ public static class InlineStepMigrationReportBuilder
             inlineStep.SourcePath,
             inlineStep.ContentHash,
             new InlineStepOriginalTopologyAccounting(originalFaceCount, 0, 0),
-            new InlineStepRecognizedAccounting(regions.Length, uniqueRecognized.Count, duplicateCount, unresolvedCount),
+            new InlineStepRecognizedAccounting(regions.Length, uniqueRecognized.Count, duplicateCount, unresolvedCount, regions.Count(r => r.Evidence is not null), regions.Count(r => r.Proposal is not null), 0, regions.Count(r => r.Proposal is not null)),
             new InlineStepReplacementAccounting(plannedCount, verifiedCount, emittedCount, failedCount, replacedFaces.Count),
             new InlineStepResidualAccounting(residualFaceCount, residualFaceCount),
             new InlineStepCoverageAccounting(Ratio(uniqueRecognized.Count, originalFaceCount), Ratio(replacedFaces.Count, originalFaceCount)),

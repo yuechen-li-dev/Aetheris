@@ -157,6 +157,50 @@ model BadRecognitionTarget { units mm solid importedPart: InlineStep { path: "..
 
 
     [Fact]
+    public void InlineStep_RecognizedRegion_ParsesEvidenceAndSemanticProposalMetadataOnly()
+    {
+        var repo = FindRepoRoot();
+        var fixturePath = Path.Combine(repo, "fixtures/FirmamentV2/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture");
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
+
+        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+        var region = Assert.Single(parse.Document!.RecognizedRegions!);
+        Assert.Equal("holeShaft", region.Kind);
+        Assert.Equal("#191", Assert.Single(region.FaceRefs));
+        Assert.NotNull(region.Evidence);
+        Assert.Equal("cylindrical", Assert.Single(region.Evidence!.SurfaceFamilies));
+        Assert.Equal(1d, region.Evidence.Radius);
+        Assert.Equal("+Z", region.Evidence.Axis);
+        Assert.True(region.Evidence.Through);
+        Assert.NotNull(region.Proposal);
+        Assert.Equal("holeShaft", region.Proposal!.ProposalKind);
+        Assert.Equal("mountHole", region.Proposal.FeatureName);
+        Assert.Equal("importedPart.face(\"#51\")", region.Proposal.PlacementTarget);
+        Assert.Equal(1d, region.Proposal.Radius);
+        Assert.Equal("throughAll", region.Proposal.EndCondition);
+        Assert.Empty(parse.Document.Replacements!);
+    }
+
+    [Theory]
+    [InlineData("evidence { surfaceFamily: cylindrical radius: -1mm axis: +Z through: true }", FirmamentV2Parser.RecognitionEvidenceRadiusInvalid)]
+    [InlineData("evidence { surfaceFamily: spline radius: 1mm axis: +Z through: true }", FirmamentV2Parser.RecognitionEvidenceSurfaceFamilyUnknown)]
+    [InlineData("evidence { surfaceFamily: cylindrical radius: 1mm axis: north through: true }", FirmamentV2Parser.RecognitionEvidenceAxisInvalid)]
+    [InlineData("proposes datumPlane { radius: 1mm end: throughAll }", FirmamentV2Parser.SemanticProposalKindMismatch)]
+    [InlineData("proposes hole<shaft> { radius: -1mm end: throughAll }", FirmamentV2Parser.SemanticProposalRadiusInvalid)]
+    [InlineData("proposes hole<shaft> { on: importedPart.face(\"#999999\") radius: 1mm end: throughAll }", FirmamentV2Parser.SemanticProposalTargetUnresolved)]
+    [InlineData("proposes hole<shaft> { radius: 1mm end: blind }", FirmamentV2Parser.SemanticProposalEndUnsupported)]
+    public void InlineStep_InvalidEvidenceOrProposal_RejectsDeterministically(string metadata, string diagnostic)
+    {
+        var source = $$"""
+model BadRecognitionProposal { units mm solid importedPart: InlineStep { path: "../testdata/canonical-through-hole.step" } recognize importedPart { region mountHole { kind: hole<shaft> faces: ["#191"] confidence: high {{metadata}} } } }
+""";
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/FirmamentV2/InlineStep/valid"));
+
+        Assert.False(parse.IsSuccess);
+        Assert.Contains(diagnostic, parse.Diagnostics);
+    }
+
+    [Fact]
     public void InlineStep_ReplacementDeclaration_ParsesAndReferencesRecognizedRegion()
     {
         var repo = FindRepoRoot();
@@ -237,6 +281,30 @@ model BadReplacement { units mm solid importedPart: InlineStep { path: "../testd
         Assert.Equal(0d, report.Coverage.ReplacedFaceRatio);
         Assert.Contains("recognized", report.ReplacementStates);
         Assert.Contains("residual-emitted", report.ReplacementStates);
+    }
+
+    [Fact]
+    public void InlineStep_MigrationReport_RecognizedProposalCountsDoNotReplace()
+    {
+        var repo = FindRepoRoot();
+        var fixturePath = Path.Combine(repo, "fixtures/FirmamentV2/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture");
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
+        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+
+        var report = InlineStepMigrationReportBuilder.Build(parse.Document!, parse.Document!.Solids.Single());
+
+        Assert.Equal(7, report.OriginalTopology.FaceCount);
+        Assert.Equal(1, report.Recognized.RegionCount);
+        Assert.Equal(1, report.Recognized.EvidenceCount);
+        Assert.Equal(1, report.Recognized.ProposalCount);
+        Assert.Equal(0, report.Recognized.ProposalVerifiedCount);
+        Assert.Equal(1, report.Recognized.ProposalUnverifiedCount);
+        Assert.Equal(0, report.Replacements.PlannedCount);
+        Assert.Equal(0, report.Replacements.VerifiedCount);
+        Assert.Equal(0, report.Replacements.EmittedCount);
+        Assert.Equal(7, report.Residual.ResidualFaceCount);
+        Assert.Equal("canonical-reexport", report.EmissionStrategy);
+        Assert.False(report.ResidualSurgery);
     }
 
     [Fact]

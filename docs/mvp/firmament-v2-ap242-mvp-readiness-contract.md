@@ -10,6 +10,10 @@ MVP-ready requires real AP242 emission through the real `Step242Exporter` from a
 
 This document is not an implementation plan or behavior change. It does not add the build/export pipeline, alter parser/lowering/kernel/materializer/exporter behavior, or define new product semantics.
 
+## Phase closeout
+
+The current phase closeout audit is recorded in `docs/mvp/firmament-v2-ap242-mvp-phase-closeout.md`.
+
 ## 2. Stage taxonomy
 
 Every Firmament V2 fixture should report one precise stage from this taxonomy, or an explicit `blocked` state with a blocker reason.

@@ -30,8 +30,10 @@ public sealed class UvTrimMaskExtractorTests
         Assert.NotNull(second.TrimMask);
         Assert.Equal(first.TrimMask!.OuterLoop, second.TrimMask!.OuterLoop);
 
-        var fallback = DisplayPreparationFallbackBuilder.Build(body);
-        Assert.True(fallback.IsSuccess);
+        // Keep the production default timeout covered by display-preparation tests, but do not
+        // make this scaffold-focused assertion depend on scheduler load from broad solution runs.
+        var fallback = DisplayPreparationFallbackBuilder.Build(body, null, null, TimeSpan.FromSeconds(30));
+        Assert.True(fallback.IsSuccess, FormatDiagnostics(fallback.Diagnostics));
         var existingPatch = Assert.Single(fallback.Value.FacePatches);
 
         var builder = new BsplineUvGridScaffoldBuilder();
@@ -48,6 +50,11 @@ public sealed class UvTrimMaskExtractorTests
         Assert.Equal(BsplineUvGridScaffoldAcceptance.Accepted, scaffold.Acceptance);
         Assert.Equal(BsplineUvGridScaffoldRejectionReason.None, scaffold.RejectionReason);
     }
+
+    private static string FormatDiagnostics(IReadOnlyList<global::Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic> diagnostics)
+        => diagnostics.Count == 0
+            ? "<none>"
+            : string.Join(" | ", diagnostics.Select(diagnostic => $"{diagnostic.Source ?? diagnostic.Code.ToString()}: {diagnostic.Message}"));
 
     [Fact]
     public void TryExtract_RealBsplineFaceWithHole_BuildsDeterministicOuterAndInnerLoops()

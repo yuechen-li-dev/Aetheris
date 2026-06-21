@@ -244,7 +244,7 @@ public sealed class FirmamentFixtureCorpusTests
     public void FirmamentV2RecordDerivation_MetadataRecognized()
     {
         var fixtures = DiscoverV2Fixtures().Where(p => p.Contains("/RecordDerivation/", StringComparison.Ordinal)).ToArray();
-        Assert.Equal(8, fixtures.Length);
+        Assert.Equal(10, fixtures.Length);
         foreach (var path in fixtures)
         {
             var fixture = LoadMetadata(path);

@@ -20,11 +20,6 @@ internal static class FirmamentV2BuildLowering
             return Failure("Firmament V2 build/export currently admits only a single primitive solid with no modify blocks.");
         }
 
-        if (document.Solids.Count != 1)
-        {
-            return Failure("Firmament V2 build/export currently admits exactly one primitive solid.");
-        }
-
         var solid = document.Solid;
         var primitive = ToLoweredPrimitive(solid);
         if (primitive is null)

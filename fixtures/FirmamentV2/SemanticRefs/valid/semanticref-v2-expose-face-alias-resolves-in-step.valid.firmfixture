@@ -1,0 +1,42 @@
+// fixture-id: semanticref-v2-expose-face-alias-resolves-in-step
+// case: semanticref-v2-expose-face-alias-resolves-in-step
+// category: SemanticRefs
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// expected-feature-air: AirHoleFeature(SimpleShaft)
+// dimensions: base box 10 x 8 x 6; top alias resolves to face(+Z); shaft radius 1; through depth 6
+// units: mm
+// tier: 3
+// mvp-required: true
+// feature-area: semantic-reference
+// build-command: aetheris build
+// expected-volume: 461.15044407846124
+// expected-topology: advanced_face>0, vertex_point>0, cylindrical-wall-face=true
+// expected-semantic-evidence: entry face source is alias top and resolved selector is face(+Z)
+// roundtrip-required: true
+// parser-backed: true
+// notes: STEP-V2-X3 face alias fixture proves expose face(+Z) => top is consumed by a later semantic shaft hole before real Step242Exporter output.
+model SemanticRefV2ExposeFaceAliasResolvesInStep {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+
+        expose {
+            face(+Z) => top
+        }
+    }
+
+    modify base {
+        hole<shaft> mount {
+            on: top
+            center: [0, 0]
+            diameter: 2
+            end: throughAll
+        }
+    }
+}

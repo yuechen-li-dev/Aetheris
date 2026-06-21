@@ -103,6 +103,63 @@ public sealed class FirmamentV2ParserTests
         Assert.Equal([10, 8, 12], result.Document.Solids.Single(s => s.Name == "tall").Box.Size);
     }
 
+
+    [Fact]
+    public void FirmamentV2Parser_WithBox_ChainedTwiceLowersWithoutStaleDimensions()
+    {
+        var result = FirmamentFrontendTraceProbe.ParseV2Only(Source("RecordDerivation/valid/derivation-v2-with-chained-twice-step-verified.valid.firmfixture"));
+        Assert.True(result.ParseSucceeded, string.Join(", ", result.Diagnostics));
+        Assert.Equal("CreateBox", result.FeatureAir!.FeatureAirNodeKind);
+        Assert.Equal(12, result.FeatureAir.SourceDimensions!.Width);
+        Assert.Equal(8, result.FeatureAir.SourceDimensions.Depth);
+        Assert.Equal(7, result.FeatureAir.SourceDimensions.Height);
+        Assert.Equal("taller", result.FirmamentV2!.SolidName);
+
+        var parse = FirmamentV2Parser.Parse(Source("RecordDerivation/valid/derivation-v2-with-chained-twice-step-verified.valid.firmfixture"));
+        Assert.True(parse.IsSuccess, string.Join(", ", parse.Diagnostics));
+        Assert.Equal([10, 8, 6], parse.Document!.Solids.Single(s => s.Name == "base").Box!.Size);
+        Assert.Equal([12, 8, 6], parse.Document.Solids.Single(s => s.Name == "wider").Box!.Size);
+        Assert.Equal([12, 8, 7], parse.Document.Solids.Single(s => s.Name == "taller").Box!.Size);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_SemanticFaceAlias_ResolvesBeforeHoleLowering()
+    {
+        var result = FirmamentV2Parser.Parse(Source("SemanticRefs/valid/semanticref-v2-expose-face-alias-resolves-in-step.valid.firmfixture"));
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var hole = Assert.Single(Assert.Single(result.Document!.ModifyBlocks!).SemanticHoles);
+        Assert.Equal("top", hole.EntryFace.Source);
+        Assert.Equal("Alias", hole.EntryFace.Kind);
+        Assert.Equal("+Z", hole.EntryFace.Axis);
+        Assert.Equal("face(+Z)", hole.EntryFace.ResolvedSelector);
+        Assert.Equal(FirmamentV2SemanticHoleVariant.Shaft, hole.Variant);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_SemanticFaceAliasFailure_IsDeterministicDiagnostic()
+    {
+        const string source = """
+model AliasFailure {
+    units mm
+    solid base: Box {
+        size: [10, 8, 6]
+        expose { face(+Z) => top }
+    }
+    modify base {
+        hole<shaft> mount {
+            on: missingAlias
+            center: [0, 0]
+            diameter: 2
+            end: throughAll
+        }
+    }
+}
+""";
+        var result = FirmamentV2Parser.Parse(source);
+        Assert.False(result.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.AliasUnresolved, result.Diagnostics);
+    }
+
     [Fact]
     public void FirmamentV2Parser_WithBox_DegenerateDerivedSize_IsDiagnostic()
     {

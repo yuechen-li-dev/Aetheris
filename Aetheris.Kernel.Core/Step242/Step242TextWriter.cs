@@ -21,13 +21,13 @@ internal sealed class Step242TextWriter
         return id;
     }
 
-    public string Build(string applicationName)
+    public string Build(Step242HeaderMetadata headerMetadata)
     {
         var sb = new StringBuilder();
         sb.AppendLine("ISO-10303-21;");
         sb.AppendLine("HEADER;");
-        sb.AppendLine($"FILE_DESCRIPTION(('Aetheris AP242 subset export'),'2;1');");
-        sb.AppendLine($"FILE_NAME('aetheris_export.step','1970-01-01T00:00:00',('Aetheris'),('{EscapeString(applicationName)}'),'Aetheris.Kernel','Aetheris.Kernel','');");
+        sb.AppendLine($"FILE_DESCRIPTION(('{EscapeString(headerMetadata.Description)}'),'2;1');");
+        sb.AppendLine($"FILE_NAME('{EscapeString(headerMetadata.FileName)}','{EscapeString(headerMetadata.CreationTimestamp)}',('{EscapeString(headerMetadata.Author)}'),('{EscapeString(headerMetadata.Organization)}'),'{EscapeString(headerMetadata.PreprocessorVersion)}','{EscapeString(headerMetadata.OriginatingSystem)}','{EscapeString(headerMetadata.Authorization)}');");
         sb.AppendLine("FILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));");
         sb.AppendLine("ENDSEC;");
         sb.AppendLine("DATA;");

@@ -98,7 +98,7 @@ public static class Step242Exporter
 
         var appContextId = writer.AddEntity("APPLICATION_CONTEXT", Step242TextWriter.String("mechanical design"));
         var productContextId = writer.AddEntity("PRODUCT_CONTEXT", Step242TextWriter.String(""), Step242TextWriter.Ref(appContextId), Step242TextWriter.String("mechanical"));
-        var productId = writer.AddEntity("PRODUCT", Step242TextWriter.String("AETHERIS"), Step242TextWriter.String(options.ProductName), Step242TextWriter.String(""), Step242TextWriter.List(productContextId));
+        var productId = writer.AddEntity("PRODUCT", Step242TextWriter.String(options.ProductId), Step242TextWriter.String(options.ProductName), Step242TextWriter.String(options.ProductDescription), Step242TextWriter.List(productContextId));
         var formationId = writer.AddEntity("PRODUCT_DEFINITION_FORMATION", Step242TextWriter.String(""), Step242TextWriter.String(""), Step242TextWriter.Ref(productId));
         var definitionContextId = writer.AddEntity("PRODUCT_DEFINITION_CONTEXT", Step242TextWriter.String("design"), Step242TextWriter.Ref(appContextId), Step242TextWriter.String("design"));
         var definitionId = writer.AddEntity("PRODUCT_DEFINITION", Step242TextWriter.String(""), Step242TextWriter.String(""), Step242TextWriter.Ref(formationId), Step242TextWriter.Ref(definitionContextId));
@@ -112,7 +112,7 @@ public static class Step242Exporter
         var shapeRepresentationId = writer.AddEntity("SHAPE_REPRESENTATION", Step242TextWriter.String(options.ProductName), Step242TextWriter.List(brepId), Step242TextWriter.Ref(repContextId));
         writer.AddEntity("SHAPE_DEFINITION_REPRESENTATION", Step242TextWriter.Ref(shapeId), Step242TextWriter.Ref(shapeRepresentationId));
 
-        return KernelResult<string>.Success(writer.Build(options.ApplicationName));
+        return KernelResult<string>.Success(writer.Build(options.HeaderMetadata));
     }
 
     private static void EmitAuxiliaryVertexPointForVertexlessAnalyticBody(Step242TextWriter writer, BrepBody body, TopologyModel model)

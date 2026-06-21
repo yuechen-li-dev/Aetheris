@@ -1053,6 +1053,36 @@ public sealed class CliBaselineTests
         File.Delete(outputPath);
     }
 
+
+    [Fact]
+    public void Canon_Command_Production_Mode_Preserves_Supported_Header_And_Product_Metadata()
+    {
+        var sourceText = File.ReadAllText(Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step"))
+            .Replace("FILE_DESCRIPTION(('Aetheris AP242 subset export'),'2;1');", "FILE_DESCRIPTION(('Vendor production description'),'2;1');", StringComparison.Ordinal)
+            .Replace("FILE_NAME('aetheris_export.step','1970-01-01T00:00:00',('Aetheris'),('Aetheris'),'Aetheris.Kernel','Aetheris.Kernel','');", "FILE_NAME('vendor-widget.stp','2024-05-06T07:08:09',('Vendor Author'),('Vendor Org'),'Vendor Preprocessor','Vendor CAD','Vendor Approval');", StringComparison.Ordinal)
+            .Replace("PRODUCT('AETHERIS','AetherisBody','',", "PRODUCT('VENDOR-ID','Vendor Widget','Vendor Product Description',", StringComparison.Ordinal);
+        var inputPath = Path.Combine(Path.GetTempPath(), $"cli-canon-production-input-{Guid.NewGuid():N}.step");
+        var outputPath = Path.Combine(Path.GetTempPath(), $"cli-canon-production-output-{Guid.NewGuid():N}.step");
+        File.WriteAllText(inputPath, sourceText);
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["canon", inputPath, "--out", outputPath, "--mode", "production", "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        var outputText = File.ReadAllText(outputPath);
+        Assert.Contains("FILE_DESCRIPTION(('Vendor production description'),'2;1');", outputText, StringComparison.Ordinal);
+        Assert.Contains("FILE_NAME('vendor-widget.stp','2024-05-06T07:08:09',('Vendor Author'),('Vendor Org'),'Vendor CAD','Vendor CAD','Vendor Approval');", outputText, StringComparison.Ordinal);
+        Assert.Contains("PRODUCT('AETHERIS','Vendor Widget','Vendor Product Description',", outputText, StringComparison.Ordinal);
+        Assert.Contains("MANIFOLD_SOLID_BREP('Vendor Widget'", outputText, StringComparison.Ordinal);
+        Assert.True(Step242Importer.ImportBody(outputText).IsSuccess);
+        Assert.NotEqual(sourceText, outputText);
+
+        File.Delete(inputPath);
+        File.Delete(outputPath);
+    }
+
     [Fact]
     public void Canon_Command_Json_Failure_Contract_Reports_Missing_Input()
     {

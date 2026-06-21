@@ -114,7 +114,7 @@ public static class CliRunner
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
     private const string TraceUsage = "Usage: aetheris trace (--case <name>|--fixture <path>) [--out-dir <dir>] [--json]";
-    private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--json]";
+    private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--mode deterministic|production] [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
     private const string ExperimentalUsage = "Usage: aetheris experimental <airchamfer-cube|airchamfer-corpus|prismatic-corpus|prismatic-map|loop-chamfer-corpus> [options]";
@@ -446,6 +446,7 @@ public static class CliRunner
         var inputPath = args[0];
         string? outputPath = null;
         var json = false;
+        var canonMode = Aetheris.Kernel.Core.Step242.Step242CanonMode.Deterministic;
 
         for (var i = 1; i < args.Length; i++)
         {
@@ -461,6 +462,27 @@ public static class CliRunner
                 case "--json":
                     json = true;
                     break;
+                case "--mode" when i + 1 < args.Length:
+                    var modeValue = args[++i];
+                    if (string.Equals(modeValue, "deterministic", StringComparison.OrdinalIgnoreCase))
+                    {
+                        canonMode = Aetheris.Kernel.Core.Step242.Step242CanonMode.Deterministic;
+                    }
+                    else if (string.Equals(modeValue, "production", StringComparison.OrdinalIgnoreCase) || string.Equals(modeValue, "production-preserve-metadata", StringComparison.OrdinalIgnoreCase))
+                    {
+                        canonMode = Aetheris.Kernel.Core.Step242.Step242CanonMode.ProductionPreserveMetadata;
+                    }
+                    else
+                    {
+                        stderr.WriteLine($"Unknown canon mode '{modeValue}'. Expected deterministic or production.");
+                        stderr.WriteLine(CanonUsage);
+                        return 1;
+                    }
+                    break;
+                case "--mode":
+                    stderr.WriteLine("Canon option --mode requires deterministic or production.");
+                    stderr.WriteLine(CanonUsage);
+                    return 1;
                 case "-h":
                 case "--help":
                     WriteCanonHelp(stdout);
@@ -517,7 +539,11 @@ public static class CliRunner
                 FormatKernelDiagnostics(importResult.Diagnostics));
         }
 
-        var exportResult = Aetheris.Kernel.Core.Step242.Step242Exporter.ExportBody(importResult.Value);
+        var exportOptions = canonMode == Aetheris.Kernel.Core.Step242.Step242CanonMode.ProductionPreserveMetadata
+            ? Aetheris.Kernel.Core.Step242.Step242ExportOptions.FromSourceMetadata(Aetheris.Kernel.Core.Step242.Step242SourceMetadataReader.Read(stepText))
+            : new Aetheris.Kernel.Core.Step242.Step242ExportOptions();
+
+        var exportResult = Aetheris.Kernel.Core.Step242.Step242Exporter.ExportBody(importResult.Value, exportOptions);
         if (!exportResult.IsSuccess)
         {
             return WriteCanonFailure(
@@ -548,12 +574,14 @@ public static class CliRunner
                 inputPath = inputFullPath,
                 outputPath = outputFullPath,
                 bodyCount = topology.Bodies.Count(),
-                shellCount = topology.Shells.Count()
+                shellCount = topology.Shells.Count(),
+                mode = canonMode == Aetheris.Kernel.Core.Step242.Step242CanonMode.ProductionPreserveMetadata ? "production" : "deterministic"
             }, JsonOptions));
         }
         else
         {
             stdout.WriteLine($"Canonical STEP written: {outputFullPath}");
+            stdout.WriteLine($"Canon mode: {(canonMode == Aetheris.Kernel.Core.Step242.Step242CanonMode.ProductionPreserveMetadata ? "production" : "deterministic")}");
         }
 
         return 0;
@@ -2059,7 +2087,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer");
         stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture");
         stdout.WriteLine("  aetheris trace --case prismatic-section-transition --json");
-        stdout.WriteLine("  aetheris canon input.step --out canonical.step --json");
+        stdout.WriteLine("  aetheris canon input.step --out canonical.step --mode production --json");
         stdout.WriteLine("  aetheris asm exec assembly.firmasm --json");
         stdout.WriteLine("  aetheris asm export assembly.firmasm --out out/assembly-roundtrip --json");
         stdout.WriteLine("  aetheris experimental airchamfer-cube --out edge-x10-airchamfer-cube-one-edge.step --json");
@@ -2206,6 +2234,7 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Options:");
         stdout.WriteLine("  --out <path>   Required canonical AP242 output path.");
+        stdout.WriteLine("  --mode <mode>  deterministic (default) or production metadata preservation.");
         stdout.WriteLine("  (Assembly-like multi-root STEP is not canonicalized by this command.)");
         stdout.WriteLine("  --json         Emit machine-readable success/failure JSON.");
         stdout.WriteLine("  -h, --help     Show this help.");

@@ -16,7 +16,7 @@ The symbol name (`importedPart`) is preserved as the exported STEP product name.
 
 ## Canonical STEP requirement
 
-Inline STEP input must be Aetheris-canonical AP242. Raw external/vendor STEP remains import/canon input, not Firmament source. The intended flow is:
+Inline STEP input must be Aetheris-canonical AP242. Raw external/vendor STEP remains import/canon input, not Firmament source. CANON-INLINE-X2-A0 adds the production canon policy for preserving bounded source header/product metadata before wrapping; see `docs/implementation/canon-inline-x2-a0-production-canon-metadata-pmi.md`. The intended flow is:
 
 ```text
 external/vendor STEP -> aetheris canon -> Aetheris-canonical STEP -> Firmament InlineStep -> AP242 re-export

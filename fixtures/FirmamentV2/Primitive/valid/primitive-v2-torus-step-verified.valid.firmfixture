@@ -1,0 +1,29 @@
+// fixture-id: primitive-v2-torus-step-verified
+// case: primitive-v2-torus-step-verified
+// category: Primitive
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// expected-feature-air: CreateTorus
+// dimensions: majorRadius=8, minorRadius=2
+// units: mm
+// tier: 1
+// mvp-required: true
+// feature-area: pipeline/analytic-primitives
+// build-command: aetheris build
+// expected-topology: faces=1
+// expected-volume: 631.6546816697189
+// roundtrip-required: true
+// parser-backed: true
+// notes: STEP-V2-X1 V2 Torus fixture verified through real BrepBody and Step242Exporter.
+
+model TorusStepVerified {
+    units mm
+
+    solid torus: Torus {
+        majorRadius: 8mm
+        minorRadius: 2mm
+    }
+}

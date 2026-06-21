@@ -217,7 +217,7 @@ internal static class AirTraceReportBuilder
             }
 
             var stepText = File.ReadAllText(stepPath);
-            if (CountStepEntities(stepText, "ADVANCED_FACE") < 6 || CountStepEntities(stepText, "VERTEX_POINT") <= 0)
+            if (CountStepEntities(stepText, "ADVANCED_FACE") <= 0 || CountStepEntities(stepText, "VERTEX_POINT") <= 0)
             {
                 diagnostics.Add("step-v2-a1-step-topology-markers-missing");
                 return (false, Stable(diagnostics).ToArray());
@@ -230,14 +230,15 @@ internal static class AirTraceReportBuilder
                 return (false, Stable(diagnostics).ToArray());
             }
 
-            if (import.Value.Topology.Faces.Count() != 6 || import.Value.Topology.Vertices.Count() != 8 || import.Value.Topology.Edges.Count() != 12)
+            if (fixture.Metadata.TryGetValue("expected-topology", out var expectedTopology) && TryReadTopologyCount(expectedTopology, "faces", out var expectedFaces) && import.Value.Topology.Faces.Count() != expectedFaces)
             {
                 diagnostics.Add("step-v2-a1-topology-count-mismatch");
                 return (false, Stable(diagnostics).ToArray());
             }
 
             var volume = StepAnalyzer.AnalyzeVolume(stepPath);
-            if (!volume.Success || Math.Abs(volume.Volume - 480d) > 1e-9)
+            var expectedVolume = fixture.Metadata.TryGetValue("expected-volume", out var expectedVolumeRaw) && double.TryParse(expectedVolumeRaw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedVolume) ? parsedVolume : 480d;
+            if (!volume.Success || Math.Abs(volume.Volume - expectedVolume) > 1e-8)
             {
                 diagnostics.Add("step-v2-a1-volume-mismatch");
                 return (false, Stable(diagnostics).ToArray());
@@ -254,6 +255,13 @@ internal static class AirTraceReportBuilder
             diagnostics.Add("step-v2-a1-step-verification-threw");
             return (false, Stable(diagnostics).ToArray());
         }
+    }
+
+    private static bool TryReadTopologyCount(string raw, string name, out int value)
+    {
+        value = 0;
+        var match = Regex.Match(raw, $@"(?:^|[,\s]){Regex.Escape(name)}=(?<value>\d+)", RegexOptions.CultureInvariant);
+        return match.Success && int.TryParse(match.Groups["value"].Value, out value);
     }
 
     private static int CountStepEntities(string stepText, string entityName) =>

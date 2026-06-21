@@ -5,36 +5,51 @@ using Aetheris.Kernel.Firmament.Lowering;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
+/// <summary>
+/// Compatibility bridge from the parser-owned Firmament V2 primitive AST to the existing lowered primitive records.
+/// This intentionally reuses the production primitive executor and STEP back half without making V2 semantics owned by V1 lowering.
+/// </summary>
 internal static class FirmamentV2BuildLowering
 {
-    public static KernelResult<FirmamentPrimitiveLoweringPlan> LowerBoxOnly(FirmamentV2Document document)
+    public static KernelResult<FirmamentPrimitiveLoweringPlan> LowerPrimitiveBridge(FirmamentV2Document document)
     {
         ArgumentNullException.ThrowIfNull(document);
 
         if (document.ModifyBlocks is { Count: > 0 })
         {
-            return Failure("Firmament V2 build/export currently admits only a single Box solid with no modify blocks.");
+            return Failure("Firmament V2 build/export currently admits only a single primitive solid with no modify blocks.");
         }
 
         if (document.Solids.Count != 1)
         {
-            return Failure("Firmament V2 build/export currently admits exactly one Box solid.");
+            return Failure("Firmament V2 build/export currently admits exactly one primitive solid.");
         }
 
         var solid = document.Solid;
-        if (!string.Equals(solid.RecordType, "Box", StringComparison.Ordinal) || solid.Box.Size.Count != 3)
+        var primitive = ToLoweredPrimitive(solid);
+        if (primitive is null)
         {
-            return Failure("Firmament V2 build/export currently admits only Box solids.");
+            return Failure($"Firmament V2 build/export does not admit primitive record '{solid.RecordType}'.");
         }
 
-        var primitive = new FirmamentLoweredPrimitive(
-            OpIndex: 0,
-            FeatureId: solid.Name,
-            Kind: FirmamentLoweredPrimitiveKind.Box,
-            Parameters: new FirmamentLoweredBoxParameters(solid.Box.Size[0], solid.Box.Size[1], solid.Box.Size[2]),
-            Placement: null);
-
         return KernelResult<FirmamentPrimitiveLoweringPlan>.Success(new FirmamentPrimitiveLoweringPlan([primitive], [], []));
+    }
+
+    private static FirmamentLoweredPrimitive? ToLoweredPrimitive(FirmamentV2SolidBinding solid)
+    {
+        var lowered = solid.Primitive switch
+        {
+            FirmamentV2BoxRecord box when box.Size.Count == 3 => (FirmamentLoweredPrimitiveKind.Box, (FirmamentLoweredPrimitiveParameters)new FirmamentLoweredBoxParameters(box.Size[0], box.Size[1], box.Size[2])),
+            FirmamentV2CylinderRecord cylinder => (FirmamentLoweredPrimitiveKind.Cylinder, new FirmamentLoweredCylinderParameters(cylinder.Radius, cylinder.Height)),
+            FirmamentV2ConeRecord cone => (FirmamentLoweredPrimitiveKind.Cone, new FirmamentLoweredConeParameters(cone.BottomRadius, cone.TopRadius, cone.Height)),
+            FirmamentV2SphereRecord sphere => (FirmamentLoweredPrimitiveKind.Sphere, new FirmamentLoweredSphereParameters(sphere.Radius)),
+            FirmamentV2TorusRecord torus => (FirmamentLoweredPrimitiveKind.Torus, new FirmamentLoweredTorusParameters(torus.MajorRadius, torus.MinorRadius)),
+            _ => default
+        };
+
+        return lowered == default
+            ? null
+            : new FirmamentLoweredPrimitive(0, solid.Name, lowered.Item1, lowered.Item2, null);
     }
 
     private static KernelResult<FirmamentPrimitiveLoweringPlan> Failure(string message) =>

@@ -12,7 +12,7 @@
 model BoxExample {
     units mm
 
-    solid base: Cylinder {
+    solid base: Pyramid {
         size: [10, 8, 6]
     }
 }

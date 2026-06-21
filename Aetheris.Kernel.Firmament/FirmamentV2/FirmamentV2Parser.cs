@@ -13,6 +13,9 @@ public static class FirmamentV2Parser
     public const string UnknownRecordType = "firmament-v2-unknown-record-type";
     public const string BoxMissingSize = "firmament-v2-box-missing-size";
     public const string BoxSizeArity = "firmament-v2-box-size-arity";
+    public const string PrimitiveFieldMissing = "firmament-v2-primitive-field-missing";
+    public const string PrimitiveFieldUnknown = "firmament-v2-primitive-field-unknown";
+    public const string PrimitiveFieldInvalid = "firmament-v2-primitive-field-invalid";
     public const string DegenerateDimension = "firmament-degenerate-dimension";
     public const string NameUnresolved = "firmament-v2-name-unresolved";
     public const string DuplicateName = "firmament-v2-duplicate-name";
@@ -70,6 +73,7 @@ public static class FirmamentV2Parser
     private static readonly Regex SolidHeaderRegex = new(@"\bsolid\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<target>[A-Za-z_][A-Za-z0-9_]*)(?<with>\s+with)?\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex LegacyEqualsSolidRegex = new(@"\bsolid\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<target>[A-Za-z_][A-Za-z0-9_]*)(?<with>\s+with)?\s*\{(?<body>.*?)\}", RegexOptions.CultureInvariant | RegexOptions.Singleline);
     private static readonly Regex SizeRegex = new(@"\bsize\s*:\s*\[(?<values>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
+    private static readonly Regex ScalarFieldRegex = new(@"\b(?<field>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>[-+0-9.eE]+(?:mm)?)", RegexOptions.CultureInvariant);
     private static readonly Regex FieldRegex = new(@"(?<field>@[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_\.]*)\s*:", RegexOptions.CultureInvariant);
     private static readonly Regex ExposeRegex = new(@"\bexpose\s*\{(?<body>.*?)\}", RegexOptions.CultureInvariant | RegexOptions.Singleline);
     private static readonly Regex ExposureLineRegex = new(@"^\s*(?<selector>.+?)\s*=>\s*(?<alias>[A-Za-z_][A-Za-z0-9_]*)\s*$", RegexOptions.CultureInvariant);
@@ -138,10 +142,29 @@ public static class FirmamentV2Parser
 
     private static FirmamentV2SolidBinding? ParseDirect(string name, string recordType, string body, List<string> diagnostics)
     {
-        if (!string.Equals(recordType, "Box", StringComparison.Ordinal)) { diagnostics.Add(UnknownRecordType); return null; }
-        var values = ParseSizeField(body, diagnostics, BoxMissingSize);
-        var exposures = ParseExposures(body, diagnostics);
-        return values is null ? null : new(name, "Box", new(values, exposures));
+        if (string.Equals(recordType, "Box", StringComparison.Ordinal))
+        {
+            var values = ParseSizeField(body, diagnostics, BoxMissingSize);
+            var exposures = ParseExposures(body, diagnostics);
+            return values is null ? null : new(name, "Box", new FirmamentV2BoxRecord(values, exposures));
+        }
+
+        if (recordType is not ("Cylinder" or "Cone" or "Sphere" or "Torus")) { diagnostics.Add(UnknownRecordType); return null; }
+
+        var scalars = ParseScalarFields(body, diagnostics);
+        FirmamentV2PrimitiveRecord? primitive = recordType switch
+        {
+            "Cylinder" => RequireFields(scalars, diagnostics, "radius", "height") is null ? null : new FirmamentV2CylinderRecord(scalars["radius"], scalars["height"]),
+            "Cone" => RequireFields(scalars, diagnostics, "bottomRadius", "topRadius", "height") is null ? null : new FirmamentV2ConeRecord(scalars["bottomRadius"], scalars["topRadius"], scalars["height"]),
+            "Sphere" => RequireFields(scalars, diagnostics, "radius") is null ? null : new FirmamentV2SphereRecord(scalars["radius"]),
+            "Torus" => RequireFields(scalars, diagnostics, "majorRadius", "minorRadius") is null ? null : new FirmamentV2TorusRecord(scalars["majorRadius"], scalars["minorRadius"]),
+            _ => null
+        };
+        if (primitive is null) { return null; }
+        ValidatePrimitive(recordType, scalars, diagnostics);
+        return diagnostics.Contains(DegenerateDimension) || diagnostics.Contains(PrimitiveFieldInvalid) || diagnostics.Contains(PrimitiveFieldUnknown) || diagnostics.Contains(PrimitiveFieldMissing)
+            ? null
+            : new(name, recordType, primitive);
     }
 
     private static FirmamentV2SolidBinding? ParseDerived(string name, string baseName, string body, Dictionary<string, FirmamentV2SolidBinding> byName, List<string> diagnostics)
@@ -155,10 +178,10 @@ public static class FirmamentV2Parser
         if (fields.Any(f => !string.Equals(f, "size", StringComparison.Ordinal))) { diagnostics.Add(WithFieldNotFound); return null; }
         var values = ParseSizeField(body, diagnostics, WithFieldTypeMismatch);
         if (values is null) { diagnostics.Add(WithDerivedRecordInvalid); return null; }
-        return new(name, "Box", new(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
+        return new(name, "Box", new FirmamentV2BoxRecord(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
     }
 
-    private static bool IsFatalDiagnostic(string code) => code is MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid;
+    private static bool IsFatalDiagnostic(string code) => code is PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -217,6 +240,44 @@ public static class FirmamentV2Parser
         return diagnostics.Contains(DegenerateDimension) ? null : values;
     }
 
+    private static Dictionary<string, double> ParseScalarFields(string body, List<string> diagnostics)
+    {
+        var fields = FieldRegex.Matches(body).Select(m => m.Groups["field"].Value).Where(f => !f.StartsWith('@')).ToHashSet(StringComparer.Ordinal);
+        var values = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (Match match in ScalarFieldRegex.Matches(body))
+        {
+            var raw = match.Groups["value"].Value;
+            if (!double.TryParse(raw.EndsWith("mm", StringComparison.Ordinal) ? raw[..^2] : raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !double.IsFinite(value))
+            {
+                diagnostics.Add(PrimitiveFieldInvalid);
+                continue;
+            }
+            values[match.Groups["field"].Value] = value;
+        }
+        foreach (var field in fields)
+            if (!values.ContainsKey(field)) diagnostics.Add(PrimitiveFieldInvalid);
+        return values;
+    }
+
+    private static object? RequireFields(Dictionary<string, double> values, List<string> diagnostics, params string[] required)
+    {
+        foreach (var requiredField in required)
+            if (!values.ContainsKey(requiredField)) diagnostics.Add(PrimitiveFieldMissing);
+        foreach (var field in values.Keys)
+            if (!required.Contains(field, StringComparer.Ordinal)) diagnostics.Add(PrimitiveFieldUnknown);
+        return diagnostics.Contains(PrimitiveFieldMissing) || diagnostics.Contains(PrimitiveFieldUnknown) ? null : new object();
+    }
+
+    private static void ValidatePrimitive(string recordType, Dictionary<string, double> values, List<string> diagnostics)
+    {
+        foreach (var (field, value) in values)
+        {
+            if (recordType == "Cone" && field == "topRadius" && value == 0d) continue;
+            if (value <= 0d) diagnostics.Add(DegenerateDimension);
+        }
+        if (recordType == "Cone" && values.TryGetValue("bottomRadius", out var bottom) && bottom <= 0d) diagnostics.Add(DegenerateDimension);
+        if (recordType == "Torus" && values.TryGetValue("majorRadius", out var major) && values.TryGetValue("minorRadius", out var minor) && major <= minor) diagnostics.Add(PrimitiveFieldInvalid);
+    }
 
     private static IReadOnlyList<FirmamentV2ModifyBlock> ParseModifyBlocks(string source, Dictionary<string, FirmamentV2SolidBinding> byName, List<string> diagnostics)
     {

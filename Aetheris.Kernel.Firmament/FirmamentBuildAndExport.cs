@@ -40,7 +40,7 @@ public static class FirmamentBuildAndExport
         var v2Parse = FirmamentV2Parser.Parse(sourceText);
         if (v2Parse.IsSuccess && v2Parse.Document is not null)
         {
-            var lowering = FirmamentV2BuildLowering.LowerBoxOnly(v2Parse.Document);
+            var lowering = FirmamentV2BuildLowering.LowerPrimitiveBridge(v2Parse.Document);
             if (!lowering.IsSuccess)
             {
                 return KernelResult<FirmamentStepExportResult>.Failure(lowering.Diagnostics);
@@ -52,13 +52,13 @@ public static class FirmamentBuildAndExport
                 return KernelResult<FirmamentStepExportResult>.Failure(execution.Diagnostics);
             }
 
-            var executedBox = execution.Value.ExecutedPrimitives.LastOrDefault();
-            if (executedBox is null)
+            var executedPrimitive = execution.Value.ExecutedPrimitives.LastOrDefault();
+            if (executedPrimitive is null)
             {
                 return KernelResult<FirmamentStepExportResult>.Failure(execution.Diagnostics);
             }
 
-            var step = Step242Exporter.ExportBody(executedBox.Body);
+            var step = Step242Exporter.ExportBody(executedPrimitive.Body);
             if (!step.IsSuccess)
             {
                 return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
@@ -67,10 +67,10 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Success(
                 new FirmamentStepExportResult(
                     step.Value,
-                    executedBox.FeatureId,
-                    executedBox.OpIndex,
+                    executedPrimitive.FeatureId,
+                    executedPrimitive.OpIndex,
                     "primitive",
-                    "box",
+                    v2Parse.Document.Solid.RecordType.ToLowerInvariant(),
                     DatumInspection: [],
                     DimensionInspection: []));
         }

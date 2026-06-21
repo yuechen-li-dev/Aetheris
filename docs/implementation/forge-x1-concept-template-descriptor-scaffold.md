@@ -74,3 +74,7 @@ dotnet test Aetheris.slnx -f net10.0 --no-build --filter "Forge|Standard|Hole|Fi
 git diff --check
 git status --short
 ```
+
+## Forward link: FORGE-X2 built-in Standard concept pack
+
+FORGE-X2 promotes the FORGE-X1 `Standard.Hole` descriptor fixture into a built-in metadata-only Standard concept pack scaffold. See `docs/implementation/forge-x2-standard-concept-pack-scaffold.md` for the package-level descriptor, added concepts, and deferred runtime behavior.

@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -120,6 +121,22 @@ public sealed class FirmamentV2ParserTests
         Assert.Equal([10, 8, 6], parse.Document!.Solids.Single(s => s.Name == "base").Box!.Size);
         Assert.Equal([12, 8, 6], parse.Document.Solids.Single(s => s.Name == "wider").Box!.Size);
         Assert.Equal([12, 8, 7], parse.Document.Solids.Single(s => s.Name == "taller").Box!.Size);
+    }
+
+
+    [Fact]
+    public void FirmamentV2Parser_CompositeMultipleHoles_ParseAndLowerAsDistinctAirHoleFeatures()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Composite/valid/composite-v2-two-independent-holes-step-verified.valid.firmfixture"));
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var holes = Assert.Single(result.Document!.ModifyBlocks!).SemanticHoles;
+        Assert.Equal(["leftMount", "rightMount"], holes.Select(h => h.Name).ToArray());
+        Assert.All(holes, h => Assert.Equal(FirmamentV2SemanticHoleVariant.Shaft, h.Variant));
+
+        var lowered = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(result.Document);
+        Assert.Equal(2, lowered.Count);
+        Assert.Equal(["base.leftMount", "base.rightMount"], lowered.Select(h => h.FeatureId).ToArray());
+        Assert.All(lowered, h => Assert.Equal(AirHoleStackKind.SimpleShaft, h.Stack.Kind));
     }
 
     [Fact]

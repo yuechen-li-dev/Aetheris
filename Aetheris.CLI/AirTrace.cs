@@ -133,7 +133,7 @@ internal static class AirTraceReportBuilder
         if (isFirmamentV2 && string.Equals(fixture.ExpectedStage, "step-verified", StringComparison.Ordinal))
         {
             var featureArea = fixture.Metadata.GetValueOrDefault("feature-area");
-            var stepVerified = string.Equals(featureArea, "semantic-hole", StringComparison.Ordinal) || string.Equals(featureArea, "semantic-reference", StringComparison.Ordinal)
+            var stepVerified = string.Equals(featureArea, "semantic-hole", StringComparison.Ordinal) || string.Equals(featureArea, "semantic-reference", StringComparison.Ordinal) || string.Equals(featureArea, "multi-feature-composition", StringComparison.Ordinal)
                 ? TryVerifyV2SemanticHoleStepFixture(fixture)
                 : TryVerifyV2BoxStepFixture(fixture);
             if (stepVerified.Succeeded)
@@ -142,10 +142,19 @@ internal static class AirTraceReportBuilder
             }
             stepVerifiedDiagnostics = stepVerified.Diagnostics;
         }
+        else if (isFirmamentV2 && string.Equals(fixture.ExpectedStage, "deterministic rejection", StringComparison.Ordinal))
+        {
+            var rejection = TryVerifyV2DeterministicBuildRejection(fixture);
+            if (rejection.Succeeded)
+            {
+                actualStage = "deterministic rejection";
+            }
+            stepVerifiedDiagnostics = rejection.Diagnostics;
+        }
         var expectedStageSatisfied = string.IsNullOrWhiteSpace(fixture.ExpectedStage) || string.Equals(actualStage, fixture.ExpectedStage, StringComparison.Ordinal);
         var expectationSatisfied = fixture.Expectation == "valid"
             ? frontend.ParseSucceeded && expectedStageSatisfied && (profileEmissionProbe?.Succeeded ?? true)
-            : !frontend.ParseSucceeded && expectedStageSatisfied;
+            : ((!frontend.ParseSucceeded) || string.Equals(actualStage, "deterministic rejection", StringComparison.Ordinal)) && expectedStageSatisfied;
         var fxDiagnostics = Stable([.. fixture.Diagnostics, .. frontend.Diagnostics, .. profileEmissionProbe?.Diagnostics ?? [], .. stepVerifiedDiagnostics, "air-x8-parser-backed-fixture-trace-created", "air-x11-parser-backed-fixture-loaded", isFirmamentV2 ? "firmament-v2-parser-invoked" : "air-x11-firmament-parser-invoked", frontend.ParseSucceeded ? (isFirmamentV2 ? "firmament-v2-parse-succeeded" : "air-x11-firmament-parse-succeeded") : (isFirmamentV2 ? "firmament-v2-parse-failed" : "air-x11-firmament-parse-failed"), expectationSatisfied ? "air-x11-parser-backed-expectation-satisfied" : "air-x11-profile-emission-expectation-not-satisfied"]).ToArray();
 
         var featureAir = frontend.FeatureAir is null
@@ -204,6 +213,43 @@ internal static class AirTraceReportBuilder
 
 
 
+
+
+    private static (bool Succeeded, string[] Diagnostics) TryVerifyV2DeterministicBuildRejection(FirmFixture fixture)
+    {
+        var diagnostics = new List<string> { "step-v2-x4-build-command-invoked" };
+        try
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "aetheris-step-v2-x4-reject-trace", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            var stepPath = Path.Combine(dir, fixture.CaseName + ".step");
+            var build = FirmamentBuildAndExport.Run(fixture.Path, stepPath);
+            if (build.IsSuccess || File.Exists(stepPath))
+            {
+                diagnostics.Add("step-v2-x4-invalid-build-unexpectedly-succeeded");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            var messages = string.Join("\n", build.Diagnostics.Select(d => d.Message));
+            if (fixture.Metadata.TryGetValue("expected-diagnostic", out var expected) && !messages.Contains(expected, StringComparison.Ordinal))
+            {
+                diagnostics.Add("step-v2-x4-expected-diagnostic-missing");
+                return (false, Stable(diagnostics).ToArray());
+            }
+
+            if (fixture.Metadata.TryGetValue("expected-diagnostic", out var expectedDiagnostic))
+            {
+                diagnostics.Add(expectedDiagnostic);
+            }
+            diagnostics.Add("step-v2-x4-deterministic-rejection-verified");
+            return (true, Stable(diagnostics).ToArray());
+        }
+        catch
+        {
+            diagnostics.Add("step-v2-x4-rejection-verification-threw");
+            return (false, Stable(diagnostics).ToArray());
+        }
+    }
 
     private static (bool Succeeded, string[] Diagnostics) TryVerifyV2SemanticHoleStepFixture(FirmFixture fixture)
     {

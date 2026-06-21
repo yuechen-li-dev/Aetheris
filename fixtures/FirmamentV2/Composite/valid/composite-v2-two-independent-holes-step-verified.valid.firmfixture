@@ -1,0 +1,39 @@
+// fixture-id: composite-v2-two-independent-holes-step-verified
+// case: composite-v2-two-independent-holes-step-verified
+// category: Composite
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// expected-feature-air: AirHoleFeature(SimpleShaft) x2
+// dimensions: base box 10 x 8 x 6; two shaft radii 1; through depth 6
+// units: mm
+// tier: 4
+// mvp-required: true
+// feature-area: multi-feature-composition
+// build-command: aetheris build
+// expected-volume: 442.3008881569225
+// expected-topology: advanced_face>0, vertex_point>0, cylindrical-wall-face-count=2
+// roundtrip-required: true
+// parser-backed: true
+// notes: STEP-V2-X4 fixture; real build/export path uses semantic AirHoleFeature plans, SafeBooleanComposition, Step242Exporter, reimport, topology markers, and analytic volume.
+model CompositeV2TwoIndependentHolesStepVerified {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+  modify base {
+    hole<shaft> leftMount {
+      on: face(+Z)
+      center: [-2, 0]
+      diameter: 2
+      end: throughAll
+    }
+    hole<shaft> rightMount {
+      on: face(+Z)
+      center: [2, 0]
+      diameter: 2
+      end: throughAll
+    }
+  }
+}

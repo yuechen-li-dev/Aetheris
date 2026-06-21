@@ -166,7 +166,7 @@ public sealed record VolumeAnalysisResult(
         volume = 0d;
         basis = string.Empty;
 
-        var cylinders = new List<(double Radius, double ZMin, double ZMax)>();
+        var cylinders = new List<(double CenterX, double CenterY, double Radius, double ZMin, double ZMax)>();
         var cones = new List<(double RadiusAtZMin, double RadiusAtZMax, double ZMin, double ZMax)>();
 
         foreach (var face in body.Topology.Faces)
@@ -180,7 +180,7 @@ public sealed record VolumeAnalysisResult(
             {
                 if (!IsZAxis(cylinder.Axis.ToVector())) return false;
                 if (!TryResolveFaceZSpan(body, face.Id, out var zMin, out var zMax)) return false;
-                cylinders.Add((cylinder.Radius, zMin, zMax));
+                cylinders.Add((cylinder.Origin.X, cylinder.Origin.Y, cylinder.Radius, zMin, zMax));
                 continue;
             }
 
@@ -212,8 +212,11 @@ public sealed record VolumeAnalysisResult(
             var a = breakpoints[i];
             var b = breakpoints[i + 1];
             var mid = (a + b) / 2d;
-            var radius = cylinders.Where(c => mid >= c.ZMin - 1e-9 && mid <= c.ZMax + 1e-9).Select(c => c.Radius).DefaultIfEmpty(0d).Max();
-            removed += double.Pi * radius * radius * (b - a);
+            var active = cylinders.Where(c => mid >= c.ZMin - 1e-9 && mid <= c.ZMax + 1e-9).ToArray();
+            var removedArea = active
+                .GroupBy(c => (Math.Round(c.CenterX, 9), Math.Round(c.CenterY, 9)))
+                .Sum(g => double.Pi * g.Max(c => c.Radius) * g.Max(c => c.Radius));
+            removed += removedArea * (b - a);
         }
 
         foreach (var cone in cones)

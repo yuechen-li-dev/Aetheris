@@ -1,0 +1,37 @@
+// fixture-id: composite-v2-overlapping-holes-rejected-with-clear-diagnostic
+// case: composite-v2-overlapping-holes-rejected-with-clear-diagnostic
+// category: Composite
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: deterministic rejection
+// current-stage: deterministic rejection
+// expected-feature-air: AirHoleFeature(SimpleShaft) x2 rejected before BRep success
+// dimensions: base box 10 x 8 x 6; two shaft radii 1; center separation 1.5 overlaps
+// units: mm
+// tier: 4
+// mvp-required: true
+// feature-area: multi-feature-composition
+// expected-diagnostic: firmament-v2-semantic-hole-overlap
+// build-command: aetheris build
+// parser-backed: true
+// notes: STEP-V2-X4 invalid fixture; same-face same-axis circular shaft hole overlap is rejected deterministically and must not emit success AP242.
+model CompositeV2OverlappingHolesRejectedWithClearDiagnostic {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+  modify base {
+    hole<shaft> leftMount {
+      on: face(+Z)
+      center: [-0.75, 0]
+      diameter: 2
+      end: throughAll
+    }
+    hole<shaft> rightMount {
+      on: face(+Z)
+      center: [0.75, 0]
+      diameter: 2
+      end: throughAll
+    }
+  }
+}

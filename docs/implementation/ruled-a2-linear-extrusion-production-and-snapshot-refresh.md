@@ -37,6 +37,8 @@ FreeCAD validation remains optional and is not made mandatory for CI. In this en
 .\tools\Validate-Step-FreeCAD.ps1 .\testdata\step242\generated\ruled-a2\ellipse-linear-extrusion-production.step
 ```
 
+For follow-on ruled/swept experimentation, RULED-TOOLING-A0 adds an InlineStep-based probe harness so developers can wrap a small probe asset instead of hand-authoring a full fixture; see `docs/implementation/ruled-tooling-a0-inline-step-probe-harness.md`.
+
 ## NIST snapshot refresh details
 
 The RULED-A1 semantic change preserves exact swept-surface semantics during canonical STEP output. That can change byte-stable canonical hashes without changing import success, diagnostics status, or topology counts. The previously affected audit tests are the NIST per-file and aggregate audit snapshot checks in `Step242NistAuditHarnessTests`:

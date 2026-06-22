@@ -13,6 +13,28 @@ public NIST AP242 STEP model in
 
 The demo does **not** claim exact FTC-11 volume equality. For FTC-11, the current exact volume analyzer reports unsupported curved trimmed-shell integration on cylinder faces, so the demo verifies import/reimport validity and PMI evidence instead.
 
+## Fast path on Windows / PowerShell
+
+Recommended human-friendly demo path:
+
+```powershell
+.\demos\Aetheris.PmiInjectionDemo\Run-PmiInjectionDemo.ps1 -Open
+```
+
+Custom PMI example:
+
+```powershell
+.\demos\Aetheris.PmiInjectionDemo\Run-PmiInjectionDemo.ps1 -PmiValue 33.0 -PmiLabel demoInnerDiameter33 -Open
+```
+
+The script writes to `demo-output/pmi-injection` by default, prints the absolute output path, lists the generated files, and shows the exact `explorer` command to open the folder. A repo-root convenience wrapper is also available:
+
+```powershell
+.\tools\Run-PmiInjectionDemo.ps1 -Open
+```
+
+`dotnet run --project demos/Aetheris.PmiInjectionDemo` still works and keeps the existing demo behavior. The PowerShell script is the recommended path for people running the demo locally.
+
 ## Bundled FTC-11 STEP asset
 
 The bundled STEP file is copied from the repository's vendored NIST PMI FTC-11 test data. The original NIST filename is intentionally preserved so the demo input is easy to trace and compare.
@@ -30,6 +52,14 @@ dotnet run --project demos/Aetheris.PmiInjectionDemo
 Default outputs are written to `demos/Aetheris.PmiInjectionDemo/out`. Without `--keep`, the demo removes only its known generated files before the run and then overwrites them deterministically. With `--keep`, existing files are preserved where possible, while the current run still writes the expected output paths.
 
 A successful default run prints a receipt with the input STEP, canonical STEP, Firmament overlay, enriched AP242 output, checks, and report path.
+
+If you want the more obvious repo-root output location for local demo use, prefer:
+
+```powershell
+.\demos\Aetheris.PmiInjectionDemo\Run-PmiInjectionDemo.ps1
+```
+
+That script passes `--out demo-output/pmi-injection` to the demo without changing the executable's own default behavior.
 
 ## Change the PMI value or label
 
@@ -53,6 +83,12 @@ Then run with the edited overlay:
 
 ```bash
 dotnet run --project demos/Aetheris.PmiInjectionDemo -- --firm demos/Aetheris.PmiInjectionDemo/out/ftc11-pmi-overlay.firm --keep
+```
+
+Or use the PowerShell runner with a visible repo-root output directory:
+
+```powershell
+.\demos\Aetheris.PmiInjectionDemo\Run-PmiInjectionDemo.ps1 -Firm .\demo-output\pmi-injection\ftc11-pmi-overlay.firm -Keep
 ```
 
 For an external overlay path, the demo validates that the file exists and copies it into the output directory before building. It does not overwrite or delete the user-provided source overlay.

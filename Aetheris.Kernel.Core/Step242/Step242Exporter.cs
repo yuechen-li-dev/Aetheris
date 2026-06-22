@@ -396,6 +396,43 @@ public static class Step242Exporter
         return writer.AddEntity("TOROIDAL_SURFACE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(torus.MajorRadius), Step242TextWriter.Number(torus.MinorRadius));
     }
 
+    private static KernelResult<string> BuildLinearExtrusionSurface(Step242TextWriter writer, LinearExtrusionSurface surface)
+    {
+        var directrixIdResult = BuildSurfaceCurve(writer, surface.Directrix, "Surface.Directrix.LinearExtrusion");
+        if (!directrixIdResult.IsSuccess)
+        {
+            return directrixIdResult;
+        }
+
+        var extrusionAxisResult = BuildVector(writer, surface.ExtrusionVector, "Surface.ExtrusionVector");
+        if (!extrusionAxisResult.IsSuccess)
+        {
+            return extrusionAxisResult;
+        }
+
+        return KernelResult<string>.Success(writer.AddEntity(
+            "SURFACE_OF_LINEAR_EXTRUSION",
+            "$",
+            Step242TextWriter.Ref(directrixIdResult.Value),
+            Step242TextWriter.Ref(extrusionAxisResult.Value)));
+    }
+
+    private static KernelResult<string> BuildSurfaceOfRevolutionSurface(Step242TextWriter writer, SurfaceOfRevolutionSurface surface)
+    {
+        var directrixIdResult = BuildSurfaceCurve(writer, surface.Directrix, "Surface.Directrix.SurfaceOfRevolution");
+        if (!directrixIdResult.IsSuccess)
+        {
+            return directrixIdResult;
+        }
+
+        var axisPlacementId = BuildAxis1Placement(writer, surface.AxisOrigin, surface.AxisDirection);
+        return KernelResult<string>.Success(writer.AddEntity(
+            "SURFACE_OF_REVOLUTION",
+            "$",
+            Step242TextWriter.Ref(directrixIdResult.Value),
+            Step242TextWriter.Ref(axisPlacementId)));
+    }
+
     private static string BuildBSplineSurfaceWithKnots(Step242TextWriter writer, BSplineSurfaceWithKnots surface)
     {
         var controlPointRows = surface.ControlPoints
@@ -444,6 +481,8 @@ public static class Step242Exporter
             SurfaceGeometryKind.Cone when surface.Cone is ConeSurface cone => KernelResult<string>.Success(BuildCone(writer, cone)),
             SurfaceGeometryKind.Sphere when surface.Sphere is SphereSurface sphere => KernelResult<string>.Success(BuildSphere(writer, sphere)),
             SurfaceGeometryKind.Torus when surface.Torus is TorusSurface torus => KernelResult<string>.Success(BuildTorus(writer, torus)),
+            SurfaceGeometryKind.LinearExtrusion when surface.LinearExtrusion is LinearExtrusionSurface linearExtrusion => BuildLinearExtrusionSurface(writer, linearExtrusion),
+            SurfaceGeometryKind.SurfaceOfRevolution when surface.SurfaceOfRevolution is SurfaceOfRevolutionSurface surfaceOfRevolution => BuildSurfaceOfRevolutionSurface(writer, surfaceOfRevolution),
             SurfaceGeometryKind.BSplineSurfaceWithKnots when surface.BSplineSurfaceWithKnots is BSplineSurfaceWithKnots bSplineSurface => KernelResult<string>.Success(BuildBSplineSurfaceWithKnots(writer, bSplineSurface)),
             _ => Failure($"Unsupported surface kind '{surface.Kind}'.", $"Face:{faceId.Value}")
         };
@@ -461,6 +500,59 @@ public static class Step242Exporter
         var referenceVector = referenceAxis.ToVector();
         var referenceId = writer.AddEntity("DIRECTION", "$", Step242TextWriter.List(Step242TextWriter.Number(referenceVector.X), Step242TextWriter.Number(referenceVector.Y), Step242TextWriter.Number(referenceVector.Z)));
         return writer.AddEntity("AXIS2_PLACEMENT_3D", "$", Step242TextWriter.Ref(originId), Step242TextWriter.Ref(axisId), Step242TextWriter.Ref(referenceId));
+    }
+
+    private static string BuildAxis1Placement(Step242TextWriter writer, Point3D origin, Direction3D axis)
+    {
+        var originId = writer.AddEntity("CARTESIAN_POINT", "$", PointList(origin));
+        var axisVector = axis.ToVector();
+        var axisId = writer.AddEntity("DIRECTION", "$", Step242TextWriter.List(
+            Step242TextWriter.Number(axisVector.X),
+            Step242TextWriter.Number(axisVector.Y),
+            Step242TextWriter.Number(axisVector.Z)));
+        return writer.AddEntity("AXIS1_PLACEMENT", "$", Step242TextWriter.Ref(originId), Step242TextWriter.Ref(axisId));
+    }
+
+    private static KernelResult<string> BuildVector(Step242TextWriter writer, Vector3D vector, string source)
+    {
+        if (!vector.TryNormalize(out var direction))
+        {
+            return Failure("Vector must be non-zero.", source);
+        }
+
+        var magnitude = vector.Length;
+        if (!double.IsFinite(magnitude) || magnitude <= 0d)
+        {
+            return Failure("Vector magnitude must be finite and greater than zero.", source);
+        }
+
+        var directionId = writer.AddEntity("DIRECTION", "$", Step242TextWriter.List(
+            Step242TextWriter.Number(direction.X),
+            Step242TextWriter.Number(direction.Y),
+            Step242TextWriter.Number(direction.Z)));
+        return KernelResult<string>.Success(writer.AddEntity("VECTOR", "$", Step242TextWriter.Ref(directionId), Step242TextWriter.Number(magnitude)));
+    }
+
+    private static KernelResult<string> BuildSurfaceCurve(Step242TextWriter writer, CurveGeometry curve, string source)
+    {
+        if (curve.Kind == CurveGeometryKind.Line3 && curve.Line3 is Line3Curve line)
+        {
+            var originId = writer.AddEntity("CARTESIAN_POINT", "$", PointList(line.Origin));
+            var directionId = writer.AddEntity("DIRECTION", "$", Step242TextWriter.List(
+                Step242TextWriter.Number(line.Direction.X),
+                Step242TextWriter.Number(line.Direction.Y),
+                Step242TextWriter.Number(line.Direction.Z)));
+            var vectorId = writer.AddEntity("VECTOR", "$", Step242TextWriter.Ref(directionId), Step242TextWriter.Number(1d));
+            return KernelResult<string>.Success(writer.AddEntity("LINE", "$", Step242TextWriter.Ref(originId), Step242TextWriter.Ref(vectorId)));
+        }
+
+        if (curve.Kind == CurveGeometryKind.Circle3 && curve.Circle3 is Circle3Curve circle)
+        {
+            var axisPlacementId = BuildAxisPlacement(writer, circle.Center, circle.Normal, circle.XAxis);
+            return KernelResult<string>.Success(writer.AddEntity("CIRCLE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(circle.Radius)));
+        }
+
+        return Failure($"Unsupported swept directrix curve kind '{curve.Kind}'.", source);
     }
 
     private static KernelResult<string> BuildEdgeCurve(

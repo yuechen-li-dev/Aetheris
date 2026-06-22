@@ -17,17 +17,20 @@ if (-not $freeCadCmd) {
 }
 
 $tempScript = [System.IO.Path]::GetTempFileName() + '.py'
+$resolvedStepFile = (Resolve-Path -LiteralPath $StepFile).Path
 @'
 import sys
 import FreeCAD
 import Import
 
-step_file = sys.argv[1]
+step_file = r'__STEP_FILE__'
 doc = FreeCAD.newDocument('StepImportValidation')
 try:
-    Import.open(step_file)
-    doc = FreeCAD.ActiveDocument or doc
+    Import.insert(step_file, doc.Name)
     objects = list(doc.Objects)
+    if not objects:
+        raise RuntimeError('STEP import produced zero document objects')
+
     valid = True
     invalid = []
     for obj in objects:
@@ -51,10 +54,10 @@ finally:
         FreeCAD.closeDocument(doc.Name)
     except Exception:
         pass
-'@ | Set-Content -LiteralPath $tempScript -Encoding UTF8
+'@.Replace('__STEP_FILE__', $resolvedStepFile) | Set-Content -LiteralPath $tempScript -Encoding UTF8
 
 try {
-    & $freeCadCmd.Source $tempScript (Resolve-Path -LiteralPath $StepFile).Path
+    & $freeCadCmd.Source $tempScript
     exit $LASTEXITCODE
 }
 finally {

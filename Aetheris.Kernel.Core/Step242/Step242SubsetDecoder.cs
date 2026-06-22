@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
@@ -241,6 +242,140 @@ internal static class Step242SubsetDecoder
         }
 
         return KernelResult<Line3Curve>.Success(new Line3Curve(originResult.Value, directionResult.Value));
+    }
+
+    public static KernelResult<Vector3D> ReadVector(Step242ParsedDocument document, int vectorEntityId, string context, string source)
+    {
+        var vectorEntityResult = document.TryGetEntity(vectorEntityId, "VECTOR");
+        if (!vectorEntityResult.IsSuccess)
+        {
+            return KernelResult<Vector3D>.Failure(vectorEntityResult.Diagnostics);
+        }
+
+        return ReadVector(document, vectorEntityResult.Value, context, source);
+    }
+
+    public static KernelResult<Vector3D> ReadVector(Step242ParsedDocument document, Step242ParsedEntity vectorEntity, string context, string source)
+    {
+        var directionRefResult = ReadReference(vectorEntity, 1, $"{context} direction");
+        if (!directionRefResult.IsSuccess)
+        {
+            return KernelResult<Vector3D>.Failure(directionRefResult.Diagnostics);
+        }
+
+        var directionEntityResult = document.TryGetEntity(directionRefResult.Value.TargetId, "DIRECTION");
+        if (!directionEntityResult.IsSuccess)
+        {
+            return KernelResult<Vector3D>.Failure(directionEntityResult.Diagnostics);
+        }
+
+        var directionResult = ReadDirection(directionEntityResult.Value, $"{context} direction");
+        if (!directionResult.IsSuccess)
+        {
+            return KernelResult<Vector3D>.Failure(directionResult.Diagnostics);
+        }
+
+        var magnitudeResult = ReadPositiveNumber(vectorEntity, 2, $"{context} magnitude", source);
+        if (!magnitudeResult.IsSuccess)
+        {
+            return KernelResult<Vector3D>.Failure(magnitudeResult.Diagnostics);
+        }
+
+        return KernelResult<Vector3D>.Success(directionResult.Value.ToVector() * magnitudeResult.Value);
+    }
+
+    public static KernelResult<CurveGeometry> ReadCurveGeometry(Step242ParsedDocument document, int curveEntityId, string context, string source)
+    {
+        var curveEntityResult = document.TryGetEntity(curveEntityId);
+        if (!curveEntityResult.IsSuccess)
+        {
+            return KernelResult<CurveGeometry>.Failure(curveEntityResult.Diagnostics);
+        }
+
+        var curveEntity = curveEntityResult.Value;
+        var lineConstructor = TryGetConstructor(curveEntity.Instance, "LINE");
+        if (lineConstructor is not null)
+        {
+            var lineResult = ReadLineCurve(document, new Step242ParsedEntity(curveEntity.Id, new Step242SimpleEntityInstance(lineConstructor)));
+            return !lineResult.IsSuccess
+                ? KernelResult<CurveGeometry>.Failure(lineResult.Diagnostics)
+                : KernelResult<CurveGeometry>.Success(CurveGeometry.FromLine(lineResult.Value));
+        }
+
+        var circleConstructor = TryGetConstructor(curveEntity.Instance, "CIRCLE");
+        if (circleConstructor is not null)
+        {
+            var circleResult = ReadCircleCurve(document, new Step242ParsedEntity(curveEntity.Id, new Step242SimpleEntityInstance(circleConstructor)));
+            return !circleResult.IsSuccess
+                ? KernelResult<CurveGeometry>.Failure(circleResult.Diagnostics)
+                : KernelResult<CurveGeometry>.Success(CurveGeometry.FromCircle(circleResult.Value));
+        }
+
+        return Failure<CurveGeometry>($"{context}: directrix curve '{curveEntity.Name}' is unsupported.", source);
+    }
+
+    public static KernelResult<LinearExtrusionSurface> ReadLinearExtrusionSurface(Step242ParsedDocument document, Step242ParsedEntity surfaceEntity)
+    {
+        const string source = "Importer.Geometry.LinearExtrusion";
+        var directrixRefResult = ReadReference(surfaceEntity, 1, "SURFACE_OF_LINEAR_EXTRUSION swept_curve");
+        if (!directrixRefResult.IsSuccess)
+        {
+            return KernelResult<LinearExtrusionSurface>.Failure(directrixRefResult.Diagnostics);
+        }
+
+        var directrixResult = ReadCurveGeometry(document, directrixRefResult.Value.TargetId, "SURFACE_OF_LINEAR_EXTRUSION swept_curve", source);
+        if (!directrixResult.IsSuccess)
+        {
+            return KernelResult<LinearExtrusionSurface>.Failure(directrixResult.Diagnostics);
+        }
+
+        var vectorRefResult = ReadReference(surfaceEntity, 2, "SURFACE_OF_LINEAR_EXTRUSION extrusion_axis");
+        if (!vectorRefResult.IsSuccess)
+        {
+            return KernelResult<LinearExtrusionSurface>.Failure(vectorRefResult.Diagnostics);
+        }
+
+        var vectorResult = ReadVector(document, vectorRefResult.Value.TargetId, "SURFACE_OF_LINEAR_EXTRUSION extrusion_axis", source);
+        if (!vectorResult.IsSuccess)
+        {
+            return KernelResult<LinearExtrusionSurface>.Failure(vectorResult.Diagnostics);
+        }
+
+        try
+        {
+            return KernelResult<LinearExtrusionSurface>.Success(new LinearExtrusionSurface(directrixResult.Value, vectorResult.Value));
+        }
+        catch (ArgumentException ex)
+        {
+            return Failure<LinearExtrusionSurface>(KernelDiagnosticCode.InvalidArgument, ex.Message, source);
+        }
+    }
+
+    public static KernelResult<SurfaceOfRevolutionSurface> ReadSurfaceOfRevolution(Step242ParsedDocument document, Step242ParsedEntity surfaceEntity)
+    {
+        const string source = "Importer.Geometry.SurfaceOfRevolution";
+        var directrixRefResult = ReadReference(surfaceEntity, 1, "SURFACE_OF_REVOLUTION swept_curve");
+        if (!directrixRefResult.IsSuccess)
+        {
+            return KernelResult<SurfaceOfRevolutionSurface>.Failure(directrixRefResult.Diagnostics);
+        }
+
+        var directrixResult = ReadCurveGeometry(document, directrixRefResult.Value.TargetId, "SURFACE_OF_REVOLUTION swept_curve", source);
+        if (!directrixResult.IsSuccess)
+        {
+            return KernelResult<SurfaceOfRevolutionSurface>.Failure(directrixResult.Diagnostics);
+        }
+
+        var axisPlacementResult = ReadAxis1Placement(document, surfaceEntity, 2, "SURFACE_OF_REVOLUTION axis_position", source);
+        if (!axisPlacementResult.IsSuccess)
+        {
+            return KernelResult<SurfaceOfRevolutionSurface>.Failure(axisPlacementResult.Diagnostics);
+        }
+
+        return KernelResult<SurfaceOfRevolutionSurface>.Success(new SurfaceOfRevolutionSurface(
+            directrixResult.Value,
+            axisPlacementResult.Value.Origin,
+            axisPlacementResult.Value.Axis));
     }
 
     public static KernelResult<PlaneSurface> ReadPlaneSurface(Step242ParsedDocument document, Step242ParsedEntity planeEntity)
@@ -696,6 +831,58 @@ internal static class Step242SubsetDecoder
         }
 
         return KernelResult<(Point3D, Direction3D, Direction3D)>.Success((originResult.Value, axis, referenceAxis));
+    }
+
+    private static KernelResult<(Point3D Origin, Direction3D Axis)> ReadAxis1Placement(
+        Step242ParsedDocument document,
+        Step242ParsedEntity ownerEntity,
+        int argumentIndex,
+        string context,
+        string geometrySource)
+    {
+        var placementRefResult = ReadReference(ownerEntity, argumentIndex, context);
+        if (!placementRefResult.IsSuccess)
+        {
+            return KernelResult<(Point3D Origin, Direction3D Axis)>.Failure(placementRefResult.Diagnostics);
+        }
+
+        var placementEntityResult = document.TryGetEntity(placementRefResult.Value.TargetId, "AXIS1_PLACEMENT");
+        if (!placementEntityResult.IsSuccess)
+        {
+            return KernelResult<(Point3D Origin, Direction3D Axis)>.Failure(placementEntityResult.Diagnostics);
+        }
+
+        var placementEntity = placementEntityResult.Value;
+        var originRefResult = ReadReference(placementEntity, 1, "AXIS1_PLACEMENT origin");
+        if (!originRefResult.IsSuccess)
+        {
+            return KernelResult<(Point3D Origin, Direction3D Axis)>.Failure(originRefResult.Diagnostics);
+        }
+
+        var originEntityResult = document.TryGetEntity(originRefResult.Value.TargetId, "CARTESIAN_POINT");
+        if (!originEntityResult.IsSuccess)
+        {
+            return KernelResult<(Point3D Origin, Direction3D Axis)>.Failure(originEntityResult.Diagnostics);
+        }
+
+        var originResult = ReadCartesianPoint(originEntityResult.Value, "AXIS1_PLACEMENT origin");
+        if (!originResult.IsSuccess)
+        {
+            return KernelResult<(Point3D Origin, Direction3D Axis)>.Failure(originResult.Diagnostics);
+        }
+
+        var axisResult = ReadPlacementDirection(document, placementEntity, 2, "AXIS1_PLACEMENT axis", new Vector3D(0d, 0d, 1d));
+        if (!axisResult.IsSuccess)
+        {
+            return KernelResult<(Point3D Origin, Direction3D Axis)>.Failure(axisResult.Diagnostics);
+        }
+
+        if (!double.IsFinite(originResult.Value.X) || !double.IsFinite(originResult.Value.Y) || !double.IsFinite(originResult.Value.Z))
+        {
+            return Failure<(Point3D Origin, Direction3D Axis)>(KernelDiagnosticCode.InvalidArgument, "AXIS1_PLACEMENT origin must be finite.", geometrySource);
+        }
+
+        return KernelResult<(Point3D Origin, Direction3D Axis)>.Success((originResult.Value, axisResult.Value.Direction));
     }
 
     private static KernelResult<PlacementDirectionReadResult> ReadPlacementDirection(Step242ParsedDocument document, Step242ParsedEntity placementEntity, int argumentIndex, string context, Vector3D defaultDirection)

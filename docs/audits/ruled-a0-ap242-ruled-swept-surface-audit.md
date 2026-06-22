@@ -1,5 +1,7 @@
 # RULED-A0 AP242 exact ruled/swept surface audit
 
+Status note, 2026-06-22: RULED-A1 has now landed the minimal exact swept-surface skeleton for `SURFACE_OF_LINEAR_EXTRUSION` and `SURFACE_OF_REVOLUTION`, plus degree-1 ruled B-spline classification. See `docs/implementation/ruled-a1-exact-swept-surface-skeleton.md`.
+
 ## 1. Summary verdict
 
 Aetheris currently has a solid elementary-surface AP242 lane for `PLANE`, `CYLINDRICAL_SURFACE`, `CONICAL_SURFACE`, `SPHERICAL_SURFACE`, and `TOROIDAL_SURFACE`, plus a generic `B_SPLINE_SURFACE_WITH_KNOTS` preservation lane. It does **not** currently parse or export `SURFACE_OF_LINEAR_EXTRUSION`, `SURFACE_OF_REVOLUTION`, or `RULED_SURFACE` in the STEP surface binding path.

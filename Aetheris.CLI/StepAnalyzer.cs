@@ -943,6 +943,8 @@ public sealed record VolumeAnalysisResult(
                 case SurfaceGeometryKind.Cone: surfaceFamilies["cone"]++; break;
                 case SurfaceGeometryKind.Sphere: surfaceFamilies["sphere"]++; break;
                 case SurfaceGeometryKind.Torus: surfaceFamilies["torus"]++; break;
+                case SurfaceGeometryKind.LinearExtrusion: surfaceFamilies["linear-extrusion"]++; break;
+                case SurfaceGeometryKind.SurfaceOfRevolution: surfaceFamilies["surface-of-revolution"]++; break;
                 case SurfaceGeometryKind.BSplineSurfaceWithKnots: surfaceFamilies["bspline"]++; break;
                 default: surfaceFamilies["other"]++; break;
             }

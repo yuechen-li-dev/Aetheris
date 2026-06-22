@@ -10,6 +10,6 @@
     <ProjectReference Include="../../Aetheris.Kernel.Firmament/Aetheris.Kernel.Firmament.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="assets\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="assets\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

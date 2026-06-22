@@ -15,10 +15,9 @@ const string volumeUnsupportedMessage = "Exact volume integration is currently u
 try
 {
     var options = DemoOptions.Parse(args);
-    var demoDir = AppContext.BaseDirectory;
-    var repoDemoDir = FindRepoDemoDir() ?? demoDir;
-    var assetInput = Path.Combine(repoDemoDir, "assets", inputFileName);
-    var outDir = Path.GetFullPath(options.OutDir ?? Path.Combine(repoDemoDir, "out"));
+    var assetContext = ResolveAssetContext();
+    var assetInput = Path.Combine(assetContext.AssetRoot, inputFileName);
+    var outDir = Path.GetFullPath(options.OutDir ?? assetContext.DefaultOutputDirectory);
 
     if (!File.Exists(assetInput)) return Fail($"Bundled FTC-11 asset not found: {assetInput}");
     if (options.FirmPath is { } requestedFirm && !File.Exists(requestedFirm)) return Fail($"Firmament overlay not found: {Path.GetFullPath(requestedFirm)}");
@@ -96,7 +95,7 @@ try
         ExpectedPmiEvidence: expectedEvidence);
     File.WriteAllText(reportPath, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
 
-    PrintReceipt(ToDisplayPath(repoDemoDir, assetInput), ToDisplayPath(repoDemoDir, canonicalStep), ToDisplayPath(repoDemoDir, overlayPath), ToDisplayPath(repoDemoDir, outputStep), ToDisplayPath(repoDemoDir, reportPath));
+    PrintReceipt(ToDisplayPath(assetContext.DisplayRoot, assetInput), ToDisplayPath(assetContext.DisplayRoot, canonicalStep), ToDisplayPath(assetContext.DisplayRoot, overlayPath), ToDisplayPath(assetContext.DisplayRoot, outputStep), ToDisplayPath(assetContext.DisplayRoot, reportPath));
     return 0;
 }
 catch (ArgumentException ex)
@@ -170,10 +169,52 @@ static void PrintReceipt(string inputStep, string canonicalStep, string overlayP
 
 static int Fail(string message) { Console.Error.WriteLine(message); return 1; }
 static bool SamePath(string left, string right) => string.Equals(Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar), Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
-static string ToDisplayPath(string repoDemoDir, string path) => Path.GetRelativePath(repoDemoDir, path).Replace(Path.DirectorySeparatorChar, '/');
+static string ToDisplayPath(string displayRoot, string path)
+{
+    var fullPath = Path.GetFullPath(path);
+    var fullRoot = Path.GetFullPath(displayRoot);
+    if (fullPath.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
+    {
+        return Path.GetRelativePath(fullRoot, fullPath).Replace(Path.DirectorySeparatorChar, '/');
+    }
+
+    return fullPath;
+}
+
+static DemoAssetContext ResolveAssetContext()
+{
+    var baseDirectory = Path.GetFullPath(AppContext.BaseDirectory);
+    var publishedAssetRoot = Path.Combine(baseDirectory, "assets");
+    if (File.Exists(Path.Combine(publishedAssetRoot, inputFileName)))
+    {
+        return new(
+            AssetRoot: publishedAssetRoot,
+            DefaultOutputDirectory: Path.Combine(baseDirectory, "output"),
+            DisplayRoot: baseDirectory);
+    }
+
+    var repoDemoDir = FindRepoDemoDir() ?? baseDirectory;
+    var repoAssetRoot = Path.Combine(repoDemoDir, "assets");
+    return new(
+        AssetRoot: repoAssetRoot,
+        DefaultOutputDirectory: Path.Combine(repoDemoDir, "out"),
+        DisplayRoot: repoDemoDir);
+}
+
 static string? FindRepoDemoDir()
 {
-    var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+    foreach (var startPath in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
+    {
+        var dir = new DirectoryInfo(Path.GetFullPath(startPath));
+        var match = SearchRepoDemoDir(dir);
+        if (match is not null) return match;
+    }
+
+    return null;
+}
+
+static string? SearchRepoDemoDir(DirectoryInfo? dir)
+{
     while (dir is not null)
     {
         var candidate = Path.Combine(dir.FullName, "demos", "Aetheris.PmiInjectionDemo");
@@ -184,6 +225,7 @@ static string? FindRepoDemoDir()
 }
 
 sealed record DemoReport(string InputNistStep, string CanonicalStep, string FirmamentOverlay, string? FirmamentOverlaySource, string OutputStep, string PmiLabel, string PmiValue, bool InputStepImported, bool CanonicalStepImported, bool OutputStepImported, bool GeometryRoundTripOk, bool VolumeCheckSupported, string VolumeCheckStatus, string VolumeCheckMessage, double? InputVolume, double? OutputVolume, double? VolumeDelta, bool? VolumeWithinTolerance, bool PmiEvidenceFound, string[] PmiEvidence, string[] ExpectedPmiEvidence);
+sealed record DemoAssetContext(string AssetRoot, string DefaultOutputDirectory, string DisplayRoot);
 sealed record DemoOptions(string? OutDir, double PmiValue, string PmiLabel, bool Keep, string? FirmPath)
 {
     private static readonly Regex Identifier = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant);

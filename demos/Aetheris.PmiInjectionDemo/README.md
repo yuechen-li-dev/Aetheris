@@ -35,6 +35,31 @@ The script writes to `demo-output/pmi-injection` by default, prints the absolute
 
 `dotnet run --project demos/Aetheris.PmiInjectionDemo` still works and keeps the existing demo behavior. The PowerShell script is the recommended path for people running the demo locally.
 
+## Publish a standalone packet
+
+To build the shareable standalone packet under `artifacts/demo-packets/Aetheris.PmiInjectionDemo`, run:
+
+```powershell
+.\tools\Publish-PmiInjectionDemoPacket.ps1
+```
+
+Useful variants:
+
+```powershell
+.\tools\Publish-PmiInjectionDemoPacket.ps1 -Open
+.\tools\Publish-PmiInjectionDemoPacket.ps1 -Zip
+```
+
+By default this publishes a Windows `win-x64` self-contained single-file packet that includes:
+
+* the demo executable and runtime dependencies;
+* `assets/nist_ftc_11_asme1_ap242-e2.stp` with the original NIST filename preserved;
+* `assets/ftc11-pmi-overlay.template.firm`;
+* packet-local `Run-Demo.ps1`;
+* packet-local `README.md`.
+
+The packet-local runner writes generated files to `output/` beside the executable so the shared packet does not depend on repo-relative paths or `bin/Release/net10.0`.
+
 ## Bundled FTC-11 STEP asset
 
 The bundled STEP file is copied from the repository's vendored NIST PMI FTC-11 test data. The original NIST filename is intentionally preserved so the demo input is easy to trace and compare.

@@ -311,6 +311,15 @@ internal static class Step242SubsetDecoder
                 : KernelResult<CurveGeometry>.Success(CurveGeometry.FromCircle(circleResult.Value));
         }
 
+        var ellipseConstructor = TryGetConstructor(curveEntity.Instance, "ELLIPSE");
+        if (ellipseConstructor is not null)
+        {
+            var ellipseResult = ReadEllipseCurve(document, new Step242ParsedEntity(curveEntity.Id, new Step242SimpleEntityInstance(ellipseConstructor)));
+            return !ellipseResult.IsSuccess
+                ? KernelResult<CurveGeometry>.Failure(ellipseResult.Diagnostics)
+                : KernelResult<CurveGeometry>.Success(CurveGeometry.FromEllipse(ellipseResult.Value));
+        }
+
         return Failure<CurveGeometry>($"{context}: directrix curve '{curveEntity.Name}' is unsupported.", source);
     }
 

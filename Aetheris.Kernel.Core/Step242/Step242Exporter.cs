@@ -552,6 +552,12 @@ public static class Step242Exporter
             return KernelResult<string>.Success(writer.AddEntity("CIRCLE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(circle.Radius)));
         }
 
+        if (curve.Kind == CurveGeometryKind.Ellipse3 && curve.Ellipse3 is Ellipse3Curve ellipse)
+        {
+            var axisPlacementId = BuildAxisPlacement(writer, ellipse.Center, ellipse.Normal, ellipse.XAxis);
+            return KernelResult<string>.Success(writer.AddEntity("ELLIPSE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(ellipse.MajorRadius), Step242TextWriter.Number(ellipse.MinorRadius)));
+        }
+
         return Failure($"Unsupported swept directrix curve kind '{curve.Kind}'.", source);
     }
 

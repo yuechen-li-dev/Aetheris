@@ -1,0 +1,16 @@
+// Template used by Aetheris.PmiInjectionDemo. The executable writes a concrete
+// out/ftc11-pmi-overlay.firm with the canonical STEP path, PMI label, and value.
+model AetherisPmiInjectionDemoFtc11 {
+    units mm
+
+    solid ftc11: InlineStep {
+        path: "./nist_ftc_11_asme1_ap242-e2.canonical.step"
+    }
+
+    pmi {
+        diameter demoInnerDiameter {
+            target: ftc11.face("#304")
+            value: 32.2mm
+        }
+    }
+}

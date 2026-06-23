@@ -121,3 +121,7 @@ For `testdata/step242/generated/ruled-a2/ellipse-linear-extrusion-production.ste
 
 
 Forward link: ANALYZE-MAP-A5 adds connected components and suggested probes; see `docs/implementation/analyze-map-a5-components-and-probes.md`.
+
+## Phase closeout
+
+The first LLM-oriented analyze-map phase is summarized in `docs/reports/analyze-map-phase-closeout-a0.md`.

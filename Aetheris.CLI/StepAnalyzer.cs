@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Queries;
+using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
@@ -823,7 +824,7 @@ public sealed record VolumeAnalysisResult(
         var bbox = TryComputeBodyBoundingBox(body) ?? throw new InvalidOperationException("Map probe requires body vertex coordinates to compute a bounding box.");
         var frame = ResolveProjectionFrame(view, bbox);
         var epsilon = Math.Max(ToleranceContext.Default.Linear * 64d, 1e-5d);
-        var faceSurfaceKinds = BuildFaceSurfaceKinds(body);
+        var faceSurfaceKinds = BuildFaceSurfaceKinds(body, familyNames: false);
 
         var grid = new List<IReadOnlyList<OrthographicSample>>(rows);
         var hitSamples = 0;
@@ -925,6 +926,78 @@ public sealed record VolumeAnalysisResult(
         notes.Add("Depth values are measured from the selected view's projection plane on the near bounding-box side, increasing along ray direction.");
 
         return new OrthographicMapResult(metadata, summary, grid, notes);
+    }
+
+    public static RayMapResult AnalyzeRayMap(string stepPath, string plane, string direction, int cols, int rows, (double U, double V)? point = null)
+    {
+        var (fullPath, body) = ImportStepBody(stepPath);
+        return AnalyzeImportedBodyRayMap(body, fullPath, plane, direction, cols, rows, point);
+    }
+
+    public static RayMapResult AnalyzeImportedBodyRayMap(BrepBody body, string stepPath, string plane, string direction, int cols, int rows, (double U, double V)? point = null)
+    {
+        if (rows <= 0 || cols <= 0) throw new InvalidOperationException("Map resolution must be positive.");
+        var bbox = TryComputeBodyBoundingBox(body) ?? throw new InvalidOperationException("Map probe requires body vertex coordinates to compute a bounding box.");
+        var frame = ResolveRayMapFrame(plane, direction, bbox);
+        var faceSurfaceKinds = BuildFaceSurfaceKinds(body, familyNames: true);
+        var diagnostics = new List<string>();
+        var exactUnavailable = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var family in faceSurfaceKinds.Values.Distinct(StringComparer.Ordinal))
+        {
+            if (family is not "plane" and not "cylinder" and not "sphere")
+            {
+                exactUnavailable.Add(family);
+            }
+        }
+
+        foreach (var family in exactUnavailable.OrderBy(v => v, StringComparer.Ordinal))
+        {
+            diagnostics.Add($"Exact ray intersection unavailable for {family}; used tessellated fallback.");
+        }
+
+        var tessellation = BrepDisplayTessellator.TessellateBoundedPartial(body, DisplayTessellationOptions.Default, TimeSpan.FromSeconds(10));
+        foreach (var d in tessellation.FaceDiagnostics ?? [])
+        {
+            diagnostics.Add($"Tessellation diagnostic for face {d.FaceId?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unknown"}: {d.Message}");
+        }
+
+        var samples = new List<RayMapSample>();
+        var allHeights = new List<double>();
+        var surfaceHits = new Dictionary<string, int>(StringComparer.Ordinal);
+        var total = point.HasValue ? 1 : rows * cols;
+        for (var j = 0; j < (point.HasValue ? 1 : rows); j++)
+        {
+            var v = point?.V ?? frame.MinV + (rows == 1 ? 0.5d : j / (double)(rows - 1)) * frame.RangeV;
+            for (var i = 0; i < (point.HasValue ? 1 : cols); i++)
+            {
+                var u = point?.U ?? frame.MinU + (cols == 1 ? 0.5d : i / (double)(cols - 1)) * frame.RangeU;
+                var origin = frame.PlaneOrigin + (frame.UAxis * u) + (frame.VAxis * v) - (frame.RayDirection * Math.Max(1e-5d, ToleranceContext.Default.Linear * 64d));
+                var hits = IntersectTessellatedRay(tessellation, origin, frame.RayDirection, faceSurfaceKinds)
+                    .OrderBy(h => h.T)
+                    .ToArray();
+                var first = hits.FirstOrDefault();
+                var last = hits.LastOrDefault();
+                if (first is not null)
+                {
+                    allHeights.Add(frame.Height(first.Position));
+                    if (first.SurfaceFamily is { } sf)
+                    {
+                        surfaceHits[sf] = surfaceHits.TryGetValue(sf, out var c) ? c + 1 : 1;
+                    }
+                }
+
+                samples.Add(new RayMapSample(i, j, u, v, first is not null, first, last, hits.Length, hits));
+            }
+        }
+
+        var summary = new RayMapSummary(
+            samples.Count(s => s.Hit) / (double)total,
+            allHeights.Count == 0 ? null : [allHeights.Min(), allHeights.Max()],
+            new SortedDictionary<string, int>(surfaceHits, StringComparer.Ordinal));
+        var bounds = new RayMapBounds([frame.MinU, frame.MaxU], [frame.MinV, frame.MaxV]);
+        var mode = point.HasValue ? "point" : "grid";
+        var pointArray = point.HasValue ? new[] { point.Value.U, point.Value.V } : null;
+        return new RayMapResult(mode, plane.ToLowerInvariant(), direction.ToLowerInvariant(), point.HasValue ? null : [cols, rows], pointArray, bounds, samples, samples.Sum(s => s.HitCount), point.HasValue ? samples.Single().Hits : null, summary, "tessellated-fallback", diagnostics);
     }
 
     private static AnalyzeSummary BuildSummary(BrepBody body, ICollection<string> notes)
@@ -1318,7 +1391,7 @@ public sealed record VolumeAnalysisResult(
             _ => "other"
         };
 
-    private static Dictionary<int, string> BuildFaceSurfaceKinds(BrepBody body)
+    private static Dictionary<int, string> BuildFaceSurfaceKinds(BrepBody body, bool familyNames = false)
     {
         var result = new Dictionary<int, string>();
         foreach (var face in body.Topology.Faces)
@@ -1328,7 +1401,7 @@ public sealed record VolumeAnalysisResult(
                 continue;
             }
 
-            result[face.Id.Value] = surface.Kind.ToString();
+            result[face.Id.Value] = familyNames ? ToSurfaceFamilyName(surface.Kind) : surface.Kind.ToString();
         }
 
         return result;
@@ -1763,6 +1836,71 @@ public sealed record VolumeAnalysisResult(
         };
     }
 
+    private static RayMapFrame ResolveRayMapFrame(string plane, string direction, BoundingBox3D bbox)
+    {
+        var dir = direction.ToLowerInvariant() switch
+        {
+            "+x" => new Vector3D(1d, 0d, 0d),
+            "-x" => new Vector3D(-1d, 0d, 0d),
+            "+y" => new Vector3D(0d, 1d, 0d),
+            "-y" => new Vector3D(0d, -1d, 0d),
+            "+z" => new Vector3D(0d, 0d, 1d),
+            "-z" => new Vector3D(0d, 0d, -1d),
+            _ => throw new InvalidOperationException("Analyze map direction must be one of +x, -x, +y, -y, +z, -z.")
+        };
+
+        return plane.ToLowerInvariant() switch
+        {
+            "xy" => new RayMapFrame(new Point3D(0d, 0d, dir.Z < 0 ? bbox.Max.Z : bbox.Min.Z), new Vector3D(1d, 0d, 0d), new Vector3D(0d, 1d, 0d), dir, bbox.Min.X, bbox.Max.X, bbox.Min.Y, bbox.Max.Y, p => p.Z),
+            "xz" => new RayMapFrame(new Point3D(0d, dir.Y < 0 ? bbox.Max.Y : bbox.Min.Y, 0d), new Vector3D(1d, 0d, 0d), new Vector3D(0d, 0d, 1d), dir, bbox.Min.X, bbox.Max.X, bbox.Min.Z, bbox.Max.Z, p => p.Y),
+            "yz" => new RayMapFrame(new Point3D(dir.X < 0 ? bbox.Max.X : bbox.Min.X, 0d, 0d), new Vector3D(0d, 1d, 0d), new Vector3D(0d, 0d, 1d), dir, bbox.Min.Y, bbox.Max.Y, bbox.Min.Z, bbox.Max.Z, p => p.X),
+            _ => throw new InvalidOperationException("Analyze map plane must be xy, xz, or yz.")
+        };
+    }
+
+    private static IReadOnlyList<RayMapHit> IntersectTessellatedRay(DisplayTessellationResult tessellation, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        foreach (var patch in tessellation.FacePatches)
+        {
+            for (var index = 0; index + 2 < patch.TriangleIndices.Count; index += 3)
+            {
+                var a = patch.Positions[patch.TriangleIndices[index]];
+                var b = patch.Positions[patch.TriangleIndices[index + 1]];
+                var c = patch.Positions[patch.TriangleIndices[index + 2]];
+                if (!TryIntersectTriangle(origin, direction, a, b, c, out var t, out var normal)) continue;
+                var p = origin + direction * t;
+                var family = faceSurfaceKinds.TryGetValue(patch.FaceId.Value, out var sf) ? sf : "unknown";
+                if (hits.Any(h => Math.Abs(h.T - t) < 1e-7d && h.FaceIndex == patch.FaceId.Value)) continue;
+                hits.Add(new RayMapHit(t, p, patch.FaceId.Value, family, normal, "tessellated-fallback"));
+            }
+        }
+
+        return hits.OrderBy(h => h.T).ToArray();
+    }
+
+    private static bool TryIntersectTriangle(Point3D origin, Vector3D direction, Point3D a, Point3D b, Point3D c, out double t, out Vector3D normal)
+    {
+        t = 0d;
+        normal = new Vector3D(0d, 0d, 0d);
+        var e1 = b - a;
+        var e2 = c - a;
+        var p = direction.Cross(e2);
+        var det = e1.Dot(p);
+        if (Math.Abs(det) < 1e-10d) return false;
+        var invDet = 1d / det;
+        var tv = origin - a;
+        var u = tv.Dot(p) * invDet;
+        if (u < -1e-9d || u > 1d + 1e-9d) return false;
+        var q = tv.Cross(e1);
+        var v = direction.Dot(q) * invDet;
+        if (v < -1e-9d || u + v > 1d + 1e-9d) return false;
+        t = e2.Dot(q) * invDet;
+        if (t < -1e-9d) return false;
+        normal = e1.Cross(e2);
+        return TryNormalize(normal, out normal);
+    }
+
     private readonly record struct ProjectionFrame(
         Point3D PlaneOrigin,
         Vector3D UAxis,
@@ -1776,6 +1914,21 @@ public sealed record VolumeAnalysisResult(
         string PlaneAxisV,
         string RayDirectionAxis,
         string DepthReference)
+    {
+        public double RangeU => MaxU - MinU;
+        public double RangeV => MaxV - MinV;
+    }
+
+    private readonly record struct RayMapFrame(
+        Point3D PlaneOrigin,
+        Vector3D UAxis,
+        Vector3D VAxis,
+        Vector3D RayDirection,
+        double MinU,
+        double MaxU,
+        double MinV,
+        double MaxV,
+        Func<Point3D, double> Height)
     {
         public double RangeU => MaxU - MinU;
         public double RangeV => MaxV - MinV;

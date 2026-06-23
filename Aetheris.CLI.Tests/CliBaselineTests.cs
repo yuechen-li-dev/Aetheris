@@ -513,6 +513,22 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Analyze_Map_RayProbe_BoxTop_Returns_Llm_Grid_Samples()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-ray-map-box-top");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xy", "--direction", "-z", "--resolution", "5x5");
+        var root = doc.RootElement;
+
+        Assert.Equal("grid", root.GetProperty("mode").GetString());
+        Assert.Equal("xy", root.GetProperty("plane").GetString());
+        Assert.Equal("-z", root.GetProperty("direction").GetString());
+        Assert.Equal(25, root.GetProperty("samples").GetArrayLength());
+        Assert.Equal(1d, root.GetProperty("summary").GetProperty("hitCoverage").GetDouble(), 8);
+        Assert.Equal("plane", root.GetProperty("summary").GetProperty("surfaceFamiliesHit").EnumerateObject().Single().Name);
+        Assert.True(root.GetProperty("samples")[12].GetProperty("firstHit").GetProperty("position").GetProperty("z").GetDouble() > 0d);
+    }
+
+    [Fact]
     public void Analyze_Section_Box_XY_At_Midplane_Produces_One_Closed_Line_Loop()
     {
         var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-section-box");
@@ -1323,6 +1339,16 @@ public sealed class CliBaselineTests
             ["analyze", "map", stepPath, viewFlag, "--rows", rows.ToString(), "--cols", cols.ToString(), "--json"],
             stdout,
             stderr);
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        return JsonDocument.Parse(stdout.ToString());
+    }
+
+    private static JsonDocument RunAnalyzeRayMap(string stepPath, params string[] args)
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "map", stepPath, .. args, "--json"], stdout, stderr);
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
         return JsonDocument.Parse(stdout.ToString());

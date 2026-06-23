@@ -1,0 +1,23 @@
+// fixture-id: let-primitive-literals
+// case: firmament-v2-l1-let-primitive-literals
+// category: Language
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// notes: L1 immutable primitive typed let bindings only; not referenced by PMI/features.
+
+model LetPrimitiveLiteralsExample {
+    units mm
+
+    solid base: Box {
+        size: [10, 8, 6]
+    }
+
+    let holeCount: int = 4
+    let scale: float = 1.25
+    let holeDiameter: length = 6.0mm
+    let draftAngle: angle = 3deg
+    let materialName: string = "Aluminum6061"
+    let inspectionRequired: bool = true
+}

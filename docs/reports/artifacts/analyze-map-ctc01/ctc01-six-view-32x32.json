@@ -1,0 +1,6 @@
+{
+  "mode": "six-view-summary",
+  "resolution": [32, 32],
+  "status": "not-completed",
+  "reason": "Attempted during ANALYZE-MAP-DOGFOOD-CTC01-A0, but stopped after the 16x16 run completed and the 32x32 run remained active for several additional minutes in the bounded dogfood window. No measured 32x32 map evidence is claimed from this artifact."
+}

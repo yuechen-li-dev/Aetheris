@@ -226,3 +226,7 @@ Recommended next modeling primitive:
 **`ANALYZE-MAP-A6 — cross-view component correlation and face/surface-family grids`**
 
 This is the best next milestone for CTC-01. The blocker exposed by this dogfood pass is no longer “can rays hit this model?” The blocker is that the LLM receives uncorrelated components. Cross-view correlation plus component-level face/surface-family grids would make the current measured evidence directly usable for semantic decompilation: holes, rounded slots, lobes, boss boundaries, conical features, and symmetry pairs could become testable candidates instead of prose guesses.
+
+## A6 follow-up
+
+ANALYZE-MAP-A6 addresses this report's locality and ranking findings by adding `--rank-probes` / `--evidence-bundle` output, deterministic component utility scores, section bridge commands, local map window recommendations, and compact point-probe summaries. See `docs/implementation/analyze-map-a6-ranked-probes-and-section-bridge.md`.

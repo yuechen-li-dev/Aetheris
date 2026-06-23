@@ -109,7 +109,7 @@ public static class CliRunner
     private const string TopLevelUsage = "Usage: aetheris <build|analyze|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
-    private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] --json";
+    private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] [--rank-probes|--evidence-bundle] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
@@ -1766,6 +1766,8 @@ public static class CliRunner
         (double U, double V)? point = null;
         var json = false;
         var llm = false;
+        var rankProbes = false;
+        var evidenceBundle = false;
 
         for (var i = 1; i < args.Length; i++)
         {
@@ -1825,6 +1827,15 @@ public static class CliRunner
                     return 1;
                 case "--llm":
                 case "--summary":
+                    llm = true;
+                    break;
+                case "--rank-probes":
+                    rankProbes = true;
+                    llm = true;
+                    break;
+                case "--evidence-bundle":
+                    evidenceBundle = true;
+                    rankProbes = true;
                     llm = true;
                     break;
                 case "--direction":
@@ -1917,7 +1928,7 @@ public static class CliRunner
         try
         {
             map = sixViewMode
-                ? StepAnalyzer.AnalyzeSixViewMapSummary(stepPath, cols.Value, rows.Value)
+                ? (rankProbes || evidenceBundle ? StepAnalyzer.AnalyzeSixViewMapEvidenceBundle(stepPath, cols.Value, rows.Value) : StepAnalyzer.AnalyzeSixViewMapSummary(stepPath, cols.Value, rows.Value))
                 : legacyViewMode
                 ? StepAnalyzer.AnalyzeMap(stepPath, view.GetValueOrDefault(), rows.Value, cols.Value)
                 : StepAnalyzer.AnalyzeRayMap(stepPath, plane!, direction!, cols.Value, rows.Value, point);
@@ -2296,7 +2307,7 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris analyze map part.step --top --rows 48 --cols 64 --json");
-        stdout.WriteLine("  aetheris analyze map part.step --views six --resolution 32x32 --llm --json");
+        stdout.WriteLine("  aetheris analyze map part.step --views six --resolution 16x16 --llm --rank-probes --json");
     }
 
     private static void WriteAnalyzeSectionHelp(TextWriter stdout)

@@ -83,3 +83,7 @@ The full `hits` array is retained.
 - Adaptive refinement around high-ranked components.
 - Cross-view correlation.
 - Face/surface-family grids.
+
+## Phase closeout
+
+The first LLM-oriented analyze-map phase is summarized in `docs/reports/analyze-map-phase-closeout-a0.md`.

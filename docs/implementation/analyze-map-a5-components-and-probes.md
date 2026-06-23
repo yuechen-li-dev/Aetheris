@@ -136,3 +136,7 @@ FTC-09 dogfooding showed that broad six-view facts were useful but not actionabl
 ## A6 follow-up
 
 ANALYZE-MAP-A6 builds on these components by ranking them for LLM CAD reasoning, adding section-probe suggestions, evidence-bundle output, and compact point-probe summaries. See `docs/implementation/analyze-map-a6-ranked-probes-and-section-bridge.md`.
+
+## Phase closeout
+
+The first LLM-oriented analyze-map phase is summarized in `docs/reports/analyze-map-phase-closeout-a0.md`.

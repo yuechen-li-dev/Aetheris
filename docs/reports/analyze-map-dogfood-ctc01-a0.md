@@ -230,3 +230,7 @@ This is the best next milestone for CTC-01. The blocker exposed by this dogfood 
 ## A6 follow-up
 
 ANALYZE-MAP-A6 addresses this report's locality and ranking findings by adding `--rank-probes` / `--evidence-bundle` output, deterministic component utility scores, section bridge commands, local map window recommendations, and compact point-probe summaries. See `docs/implementation/analyze-map-a6-ranked-probes-and-section-bridge.md`.
+
+## Phase closeout
+
+The first LLM-oriented analyze-map phase closeout summarizes this dogfood result alongside FTC-09 and RULED-A2 in `docs/reports/analyze-map-phase-closeout-a0.md`.

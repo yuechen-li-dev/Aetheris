@@ -108,3 +108,7 @@ FTC-09 shows that the current map already measures the model successfully, but i
 ## A5 follow-up
 
 ANALYZE-MAP-A5 was proposed from this dogfood report to turn compact-grid topology into measured connected components and suggested point probes. See `docs/implementation/analyze-map-a5-components-and-probes.md`.
+
+## Phase closeout
+
+The first LLM-oriented analyze-map phase closeout summarizes this dogfood result alongside CTC-01 and RULED-A2 in `docs/reports/analyze-map-phase-closeout-a0.md`.

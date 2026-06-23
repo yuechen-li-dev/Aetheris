@@ -963,10 +963,10 @@ public sealed record VolumeAnalysisResult(
                 diagnostics.Add($"{definition.Name}: {diagnostic}");
             }
 
-            views.Add(BuildSixViewSummary(definition.Name, map, cols, rows));
+            views.Add(BuildSixViewSummary(definition.Name, map, cols, rows, stepPath));
         }
 
-        return new SixViewMapResult("six-view-summary", "analyze-map-v1", [cols, rows], views, diagnostics.ToArray());
+        return new SixViewMapResult("six-view-summary", "analyze-map-v1", [cols, rows], views, views.SelectMany(v => v.SuggestedProbes).Take(30).ToArray(), diagnostics.ToArray());
     }
 
     public static RayMapResult AnalyzeImportedBodyRayMap(BrepBody body, string stepPath, string plane, string direction, int cols, int rows, (double U, double V)? point = null)
@@ -1063,7 +1063,7 @@ public sealed record VolumeAnalysisResult(
         return new RayMapResult(mode, plane.ToLowerInvariant(), direction.ToLowerInvariant(), point.HasValue ? null : [cols, rows], pointArray, bounds, samples, samples.Sum(s => s.HitCount), point.HasValue ? samples.Single().Hits : null, summary, resultMode, "analytic-cir-tessellated-fallback", diagnostics);
     }
 
-    private static SixViewMapView BuildSixViewSummary(string name, RayMapResult map, int cols, int rows)
+    private static SixViewMapView BuildSixViewSummary(string name, RayMapResult map, int cols, int rows, string stepPath)
     {
         var sampleCount = map.Samples.Count;
         var hitCount = map.Samples.Count(s => s.Hit);
@@ -1087,8 +1087,10 @@ public sealed record VolumeAnalysisResult(
             backendHitTotal == 0 ? 0d : map.Summary.TessellatedFallbackHitCount / (double)backendHitTotal);
 
         var compactGrid = cols <= 64 && rows <= 64 ? BuildCompactGrid(map.Samples, cols, rows, bands, map.Direction) : null;
-        var measured = BuildMeasuredSummary(name, map, summary);
-        return new SixViewMapView(name, map.Plane, map.Direction, summary, compactGrid, measured);
+        var components = BuildSixViewComponents(name, map, cols, rows, bands);
+        var probes = BuildSuggestedProbes(name, map.Plane, map.Direction, stepPath, components).Take(10).ToArray();
+        var measured = BuildMeasuredSummary(name, map, summary, components);
+        return new SixViewMapView(name, map.Plane, map.Direction, summary, compactGrid, components, probes, measured);
     }
 
     private static IReadOnlyList<DominantBand> BuildDominantBands(IReadOnlyList<RayMapSample> samples, int sampleCount, string direction)
@@ -1181,7 +1183,126 @@ public sealed record VolumeAnalysisResult(
         }, gridRows);
     }
 
-    private static IReadOnlyList<string> BuildMeasuredSummary(string name, RayMapResult map, SixViewMapSummary summary)
+    private static SixViewMapComponents BuildSixViewComponents(string view, RayMapResult map, int cols, int rows, IReadOnlyList<DominantBand> bands)
+    {
+        const int limit = 10;
+        var noHit = FindComponents(view, "no-hit", cols, rows, map.Samples, s => !s.Hit || s.FirstHit is null, _ => "no-hit")
+            .Select((c, index) => c with
+            {
+                ComponentId = $"{view}.nohit.{index}",
+                ClassificationHint = c.TouchesBorder ? "silhouette-or-exterior-gap" : "interior-opening-candidate",
+                Confidence = c.TouchesBorder ? (c.CellCount >= 8 ? "medium" : "low") : (c.CellCount >= 4 ? "medium" : "low")
+            })
+            .OrderByDescending(c => c.CellCount)
+            .ThenBy(c => c.BboxCells.MinJ)
+            .ThenBy(c => c.BboxCells.MinI)
+            .ToArray();
+
+        var bandValues = bands.Where(b => b.Value.HasValue).Select((b, i) => (Value: b.Value!.Value, Symbol: i.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToDictionary(x => x.Value, x => x.Symbol);
+        var heightBands = FindComponents(view, "height-band", cols, rows, map.Samples, s => s.Hit && s.FirstHit is not null && s.FirstHit.IntersectionMode != "tessellated-fallback", s =>
+            Math.Round(GetRayAxisScalar(s.FirstHit!.Position, map.Direction), 4, MidpointRounding.AwayFromZero).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture))
+            .Select((c, index) =>
+            {
+                var value = double.TryParse(c.Band, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : (double?)null;
+                var symbol = value.HasValue && bandValues.TryGetValue(value.Value, out var b) ? b : c.Band;
+                return c with { ComponentId = $"{view}.band.{index}", Band = symbol, RepresentativeValue = value, Confidence = c.CellCount >= 4 ? "medium" : "low" };
+            })
+            .OrderByDescending(c => c.CellCount)
+            .Where(c => IsSignificantComponent(c, rows * cols)).Take(20)
+            .ToArray();
+
+        var surfaceFamilies = FindComponents(view, "surface-family", cols, rows, map.Samples, s => s.Hit && s.FirstHit is not null, s => s.FirstHit!.SurfaceFamily ?? "unknown")
+            .Select((c, index) => c with { ComponentId = $"{view}.surface.{index}", SurfaceFamily = c.Band, Band = null, Confidence = c.CellCount >= 3 ? "medium" : "low" })
+            .OrderByDescending(c => c.CellCount)
+            .Where(c => IsSignificantComponent(c, rows * cols)).Take(20)
+            .ToArray();
+
+        var fallback = FindComponents(view, "fallback", cols, rows, map.Samples, s => s.FirstHit?.IntersectionMode == "tessellated-fallback", _ => "tessellated-fallback")
+            .Select((c, index) => c with { ComponentId = $"{view}.fallback.{index}", BackendModeDominance = "tessellated-fallback", Confidence = c.CellCount >= 3 ? "medium" : "low" })
+            .OrderByDescending(c => c.CellCount)
+            .ToArray();
+
+        var omitted = Math.Max(0, noHit.Length - limit) + Math.Max(0, heightBands.Length - limit) + Math.Max(0, surfaceFamilies.Length - limit) + Math.Max(0, fallback.Length - limit);
+        return new SixViewMapComponents(noHit.Take(limit).ToArray(), heightBands.Take(limit).ToArray(), surfaceFamilies.Take(limit).ToArray(), fallback.Take(limit).ToArray(), omitted > 0, omitted);
+    }
+
+    private static bool IsSignificantComponent(MapComponent component, int totalCells) => component.CellCount > 1 || component.Coverage >= 0.02d;
+
+    private static IReadOnlyList<MapComponent> FindComponents(string view, string kind, int cols, int rows, IReadOnlyList<RayMapSample> samples, Func<RayMapSample, bool> include, Func<RayMapSample, string> keySelector)
+    {
+        var byCell = samples.ToDictionary(s => (s.I, s.J));
+        var visited = new HashSet<(int I, int J)>();
+        var components = new List<MapComponent>();
+        for (var j = 0; j < rows; j++)
+        for (var i = 0; i < cols; i++)
+        {
+            if (visited.Contains((i, j)) || !byCell.TryGetValue((i, j), out var seed) || !include(seed)) continue;
+            var key = keySelector(seed);
+            var queue = new Queue<RayMapSample>();
+            var cells = new List<RayMapSample>();
+            queue.Enqueue(seed);
+            visited.Add((i, j));
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                cells.Add(current);
+                foreach (var (ni, nj) in new[] { (current.I - 1, current.J), (current.I + 1, current.J), (current.I, current.J - 1), (current.I, current.J + 1) })
+                {
+                    if (ni < 0 || nj < 0 || ni >= cols || nj >= rows || visited.Contains((ni, nj)) || !byCell.TryGetValue((ni, nj), out var next) || !include(next) || keySelector(next) != key) continue;
+                    visited.Add((ni, nj));
+                    queue.Enqueue(next);
+                }
+            }
+
+            var bbox = new CellBoundingBox(cells.Min(c => c.I), cells.Min(c => c.J), cells.Max(c => c.I), cells.Max(c => c.J));
+            var centroidCell = new[] { cells.Average(c => c.I), cells.Average(c => c.J) };
+            var centroidUv = new[] { cells.Average(c => c.U), cells.Average(c => c.V) };
+            var backend = cells.Select(c => c.FirstHit?.IntersectionMode ?? "unsupported").GroupBy(x => x, StringComparer.Ordinal).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).First().Key;
+            components.Add(new MapComponent("", kind, view, cells.Count, cells.Count / (double)(cols * rows), cells.Any(c => c.I == 0 || c.J == 0 || c.I == cols - 1 || c.J == rows - 1), bbox, centroidCell, centroidUv, null, "low", key, null, null, backend));
+        }
+
+        return components;
+    }
+
+    private static IReadOnlyList<SuggestedMapProbe> BuildSuggestedProbes(string view, string plane, string direction, string stepPath, SixViewMapComponents components)
+    {
+        var probes = new List<SuggestedMapProbe>();
+        foreach (var component in components.NoHit.Take(3))
+        {
+            var reason = component.TouchesBorder ? "Border-touching silhouette gap; probe to confirm exterior or edge cutout region." : "Center of interior no-hit component; probe to distinguish through-opening, recess, or missing hit.";
+            probes.Add(MakeProbe($"{component.ComponentId}.center", view, plane, direction, stepPath, component, reason));
+        }
+
+        foreach (var component in components.SurfaceFamilies.Where(c => c.SurfaceFamily is "cylinder" or "cone" or "sphere" or "torus").Take(3))
+        {
+            var family = component.SurfaceFamily == "cylinder" ? "cylindrical" : component.SurfaceFamily;
+            probes.Add(MakeProbe($"{component.ComponentId}.center", view, plane, direction, stepPath, component, $"Center of {family} hit component; inspect possible round or curved feature."));
+        }
+
+        foreach (var component in components.HeightBands.Take(2))
+        {
+            var reason = component == components.HeightBands.FirstOrDefault()
+                ? "Representative point on dominant height plateau."
+                : "Representative point on isolated height band component.";
+            probes.Add(MakeProbe($"{component.ComponentId}.center", view, plane, direction, stepPath, component, reason));
+        }
+
+        foreach (var component in components.Fallback.Take(2))
+        {
+            probes.Add(MakeProbe($"{component.ComponentId}.center", view, plane, direction, stepPath, component, "Center of tessellated fallback component; measurement is approximate and may need analytic support."));
+        }
+
+        return probes.Take(10).ToArray();
+    }
+
+    private static SuggestedMapProbe MakeProbe(string id, string view, string plane, string direction, string stepPath, MapComponent component, string reason)
+    {
+        var pointText = $"{component.CentroidUv[0]:0.####},{component.CentroidUv[1]:0.####}";
+        var command = $"aetheris analyze map {stepPath} --plane {plane} --direction {direction} --point {pointText} --json";
+        return new SuggestedMapProbe(id, view, plane, direction, component.CentroidUv, reason, command, component.ComponentId);
+    }
+
+    private static IReadOnlyList<string> BuildMeasuredSummary(string name, RayMapResult map, SixViewMapSummary summary, SixViewMapComponents? components = null)
     {
         var lines = new List<string>
         {
@@ -1197,6 +1318,16 @@ public sealed record VolumeAnalysisResult(
         if (noHit is not null)
         {
             lines.Add($"{noHit.Coverage:P1} of samples are no-hit, indicating measured empty rays in this view.");
+        }
+
+        if (components is not null)
+        {
+            var interiorNoHit = components.NoHit.Count(c => c.ClassificationHint == "interior-opening-candidate");
+            var borderNoHit = components.NoHit.Count(c => c.ClassificationHint == "silhouette-or-exterior-gap");
+            if (interiorNoHit > 0) lines.Add($"{name} view: found {interiorNoHit} interior no-hit component(s); largest covers {components.NoHit.Where(c => c.ClassificationHint == "interior-opening-candidate").Max(c => c.Coverage):P1} of the sampled view.");
+            if (borderNoHit > 0) lines.Add($"{name} view: found {borderNoHit} border-touching no-hit component(s), likely silhouette or exterior gap regions.");
+            var curved = components.SurfaceFamilies.FirstOrDefault(c => c.SurfaceFamily is "cylinder" or "cone" or "sphere" or "torus");
+            if (curved is not null) lines.Add($"{name} view: largest {curved.SurfaceFamily} hit component is centered near ({curved.CentroidUv[0]:0.####}, {curved.CentroidUv[1]:0.####}); inspect with suggested probe.");
         }
 
         lines.Add(summary.FallbackRatio > 0d

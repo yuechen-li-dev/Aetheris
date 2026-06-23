@@ -124,11 +124,15 @@ public sealed record RayMapHit(double T, Point3D Position, int? FaceIndex, strin
 public sealed record RayMapSample(int I, int J, double U, double V, bool Hit, RayMapHit? FirstHit, RayMapHit? LastHit, int HitCount, IReadOnlyList<RayMapHit> Hits, IReadOnlyDictionary<string, int> IntersectionModes);
 public sealed record RayMapSummary(double HitCoverage, double[]? HeightRange, IReadOnlyDictionary<string, int> SurfaceFamiliesHit, int AnalyticHitCount, int CirHitCount, int TessellatedFallbackHitCount, int UnsupportedSampleCount);
 public sealed record RayMapResult(string Mode, string Plane, string Direction, int[]? Resolution, double[]? Point, RayMapBounds Bounds, IReadOnlyList<RayMapSample> Samples, int HitCount, IReadOnlyList<RayMapHit>? Hits, RayMapSummary Summary, string IntersectionMode, string BackendPolicy, IReadOnlyList<string> Diagnostics);
-public sealed record SixViewMapResult(string Mode, string MapVersion, int[] Resolution, IReadOnlyList<SixViewMapView> Views, IReadOnlyList<string> Diagnostics);
-public sealed record SixViewMapView(string Name, string Plane, string Direction, SixViewMapSummary Summary, CompactGrid? CompactGrid, IReadOnlyList<string> MeasuredSummary);
+public sealed record SixViewMapResult(string Mode, string MapVersion, int[] Resolution, IReadOnlyList<SixViewMapView> Views, IReadOnlyList<SuggestedMapProbe> SuggestedProbes, IReadOnlyList<string> Diagnostics);
+public sealed record SixViewMapView(string Name, string Plane, string Direction, SixViewMapSummary Summary, CompactGrid? CompactGrid, SixViewMapComponents Components, IReadOnlyList<SuggestedMapProbe> SuggestedProbes, IReadOnlyList<string> MeasuredSummary);
 public sealed record SixViewMapSummary(int SampleCount, int HitCount, double HitCoverage, double[]? HeightRange, IReadOnlyList<DominantBand> DominantBands, IReadOnlyDictionary<string, int> SurfaceFamiliesHit, IReadOnlyDictionary<string, int> BackendCounts, double FallbackRatio);
 public sealed record DominantBand(double? Value, int SampleCount, double Coverage, string? Meaning, bool MostlyFallback);
 public sealed record CompactGrid(string Encoding, int Width, int Height, IReadOnlyDictionary<string, string> Legend, IReadOnlyList<string> Rows);
+public sealed record SixViewMapComponents(IReadOnlyList<MapComponent> NoHit, IReadOnlyList<MapComponent> HeightBands, IReadOnlyList<MapComponent> SurfaceFamilies, IReadOnlyList<MapComponent> Fallback, bool Truncated, int OmittedCount);
+public sealed record MapComponent(string ComponentId, string Kind, string View, int CellCount, double Coverage, bool TouchesBorder, CellBoundingBox BboxCells, double[] CentroidCell, double[] CentroidUv, string? ClassificationHint, string Confidence, string? Band, double? RepresentativeValue, string? SurfaceFamily, string? BackendModeDominance);
+public sealed record CellBoundingBox(int MinI, int MinJ, int MaxI, int MaxJ);
+public sealed record SuggestedMapProbe(string ProbeId, string View, string Plane, string Direction, double[] Point, string Reason, string Command, string? SourceComponentId);
 
 public enum SectionPlaneFamily
 {

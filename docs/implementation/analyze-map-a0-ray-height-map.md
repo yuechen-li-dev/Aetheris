@@ -33,3 +33,8 @@ Fallback diagnostics are emitted when exact intersection is unavailable for surf
 ## Limitations
 
 The A0 map is tessellation-backed, so curved and swept surfaces are approximate. It does not classify solid intervals yet, and six-view output is deferred to A1; run the command once per direction for equivalent coverage.
+
+
+## Forward link
+
+ANALYZE-MAP-A1 refactors the ray path to analytic-first backend dispatch with per-hit provenance and explicit tessellated fallback diagnostics. See `docs/implementation/analyze-map-a1-analytic-backend-provenance.md`.

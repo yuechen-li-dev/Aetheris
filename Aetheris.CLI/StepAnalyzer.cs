@@ -941,30 +941,27 @@ public sealed record VolumeAnalysisResult(
         var frame = ResolveRayMapFrame(plane, direction, bbox);
         var faceSurfaceKinds = BuildFaceSurfaceKinds(body, familyNames: true);
         var diagnostics = new List<string>();
-        var exactUnavailable = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var family in faceSurfaceKinds.Values.Distinct(StringComparer.Ordinal))
+        var diagnosticSet = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var family in faceSurfaceKinds.Values.Distinct(StringComparer.Ordinal).Where(f => f is not "plane").OrderBy(f => f, StringComparer.Ordinal))
         {
-            if (family is not "plane" and not "cylinder" and not "sphere")
-            {
-                exactUnavailable.Add(family);
-            }
-        }
-
-        foreach (var family in exactUnavailable.OrderBy(v => v, StringComparer.Ordinal))
-        {
-            diagnostics.Add($"Exact ray intersection unavailable for {family}; used tessellated fallback.");
+            AddDiagnostic(diagnostics, diagnosticSet, $"Exact ray intersection unavailable for {family}; used tessellated fallback.");
         }
 
         var tessellation = BrepDisplayTessellator.TessellateBoundedPartial(body, DisplayTessellationOptions.Default, TimeSpan.FromSeconds(10));
         foreach (var d in tessellation.FaceDiagnostics ?? [])
         {
-            diagnostics.Add($"Tessellation diagnostic for face {d.FaceId?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unknown"}: {d.Message}");
+            AddDiagnostic(diagnostics, diagnosticSet, $"Tessellation diagnostic for face {d.FaceId?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unknown"}: {d.Message}");
         }
 
         var samples = new List<RayMapSample>();
         var allHeights = new List<double>();
         var surfaceHits = new Dictionary<string, int>(StringComparer.Ordinal);
         var total = point.HasValue ? 1 : rows * cols;
+        var analyticHitCount = 0;
+        var cirHitCount = 0;
+        var tessellatedFallbackHitCount = 0;
+        var unsupportedSampleCount = 0;
+
         for (var j = 0; j < (point.HasValue ? 1 : rows); j++)
         {
             var v = point?.V ?? frame.MinV + (rows == 1 ? 0.5d : j / (double)(rows - 1)) * frame.RangeV;
@@ -972,7 +969,18 @@ public sealed record VolumeAnalysisResult(
             {
                 var u = point?.U ?? frame.MinU + (cols == 1 ? 0.5d : i / (double)(cols - 1)) * frame.RangeU;
                 var origin = frame.PlaneOrigin + (frame.UAxis * u) + (frame.VAxis * v) - (frame.RayDirection * Math.Max(1e-5d, ToleranceContext.Default.Linear * 64d));
-                var hits = IntersectTessellatedRay(tessellation, origin, frame.RayDirection, faceSurfaceKinds)
+                var analyticHits = IntersectAnalyticPlaneRay(body, origin, frame.RayDirection, faceSurfaceKinds).ToArray();
+                var tessellatedHits = IntersectTessellatedRay(tessellation, origin, frame.RayDirection, faceSurfaceKinds)
+                    .Where(h => h.SurfaceFamily is not "plane")
+                    .ToArray();
+
+                foreach (var hit in tessellatedHits)
+                {
+                    var family = hit.SurfaceFamily ?? "unknown";
+                    AddDiagnostic(diagnostics, diagnosticSet, $"Exact ray intersection unavailable for {family}; used tessellated fallback.");
+                }
+
+                var hits = analyticHits.Concat(tessellatedHits)
                     .OrderBy(h => h.T)
                     .ToArray();
                 var first = hits.FirstOrDefault();
@@ -985,19 +993,38 @@ public sealed record VolumeAnalysisResult(
                         surfaceHits[sf] = surfaceHits.TryGetValue(sf, out var c) ? c + 1 : 1;
                     }
                 }
+                else
+                {
+                    unsupportedSampleCount++;
+                }
 
-                samples.Add(new RayMapSample(i, j, u, v, first is not null, first, last, hits.Length, hits));
+                var modeCounts = hits.GroupBy(h => h.IntersectionMode, StringComparer.Ordinal)
+                    .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+                modeCounts.TryAdd("analytic", 0);
+                modeCounts.TryAdd("cir-evaluated", 0);
+                modeCounts.TryAdd("tessellated-fallback", 0);
+                modeCounts.TryAdd("unsupported", 0);
+                analyticHitCount += modeCounts["analytic"];
+                cirHitCount += modeCounts["cir-evaluated"];
+                tessellatedFallbackHitCount += modeCounts["tessellated-fallback"];
+
+                samples.Add(new RayMapSample(i, j, u, v, first is not null, first, last, hits.Length, hits, new SortedDictionary<string, int>(modeCounts, StringComparer.Ordinal)));
             }
         }
 
         var summary = new RayMapSummary(
             samples.Count(s => s.Hit) / (double)total,
             allHeights.Count == 0 ? null : [allHeights.Min(), allHeights.Max()],
-            new SortedDictionary<string, int>(surfaceHits, StringComparer.Ordinal));
+            new SortedDictionary<string, int>(surfaceHits, StringComparer.Ordinal),
+            analyticHitCount,
+            cirHitCount,
+            tessellatedFallbackHitCount,
+            unsupportedSampleCount);
         var bounds = new RayMapBounds([frame.MinU, frame.MaxU], [frame.MinV, frame.MaxV]);
         var mode = point.HasValue ? "point" : "grid";
         var pointArray = point.HasValue ? new[] { point.Value.U, point.Value.V } : null;
-        return new RayMapResult(mode, plane.ToLowerInvariant(), direction.ToLowerInvariant(), point.HasValue ? null : [cols, rows], pointArray, bounds, samples, samples.Sum(s => s.HitCount), point.HasValue ? samples.Single().Hits : null, summary, "tessellated-fallback", diagnostics);
+        var resultMode = tessellatedFallbackHitCount > 0 ? "analytic-first-with-tessellated-fallback" : "analytic";
+        return new RayMapResult(mode, plane.ToLowerInvariant(), direction.ToLowerInvariant(), point.HasValue ? null : [cols, rows], pointArray, bounds, samples, samples.Sum(s => s.HitCount), point.HasValue ? samples.Single().Hits : null, summary, resultMode, "analytic-cir-tessellated-fallback", diagnostics);
     }
 
     private static AnalyzeSummary BuildSummary(BrepBody body, ICollection<string> notes)
@@ -1858,6 +1885,105 @@ public sealed record VolumeAnalysisResult(
         };
     }
 
+    private static void AddDiagnostic(ICollection<string> diagnostics, ISet<string> diagnosticSet, string diagnostic)
+    {
+        if (diagnosticSet.Add(diagnostic))
+        {
+            diagnostics.Add(diagnostic);
+        }
+    }
+
+    private static IReadOnlyList<RayMapHit> IntersectAnalyticPlaneRay(BrepBody body, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.TryGetFaceSurface(face.Id, out var surface) || surface?.Plane is not PlaneSurface plane)
+            {
+                continue;
+            }
+
+            var normal = plane.Normal.ToVector();
+            var denom = normal.Dot(direction);
+            if (Math.Abs(denom) < 1e-10d)
+            {
+                continue;
+            }
+
+            var t = (plane.Origin - origin).Dot(normal) / denom;
+            if (t < -1e-9d)
+            {
+                continue;
+            }
+
+            var position = origin + direction * t;
+            if (!IsPointInPlanarFaceBounds(body, face.Id, plane, position))
+            {
+                continue;
+            }
+
+            var family = faceSurfaceKinds.TryGetValue(face.Id.Value, out var sf) ? sf : "plane";
+            hits.Add(new RayMapHit(t, position, face.Id.Value, family, normal, "analytic", "exact", []));
+        }
+
+        return hits.OrderBy(h => h.T).ToArray();
+    }
+
+    private static bool IsPointInPlanarFaceBounds(BrepBody body, FaceId faceId, PlaneSurface plane, Point3D point)
+    {
+        var vertices = body.GetEdges(faceId)
+            .SelectMany(edge => body.GetVertices(edge))
+            .Distinct()
+            .Select(vertex => body.TryGetVertexPoint(vertex, out var p) ? (Point3D?)p : null)
+            .Where(p => p.HasValue)
+            .Select(p => p!.Value)
+            .ToArray();
+        if (vertices.Length < 3)
+        {
+            return false;
+        }
+
+        var uAxis = plane.UAxis.ToVector();
+        var vAxis = plane.VAxis.ToVector();
+        var projected = vertices
+            .Select(v => ((v - plane.Origin).Dot(uAxis), (v - plane.Origin).Dot(vAxis)))
+            .Distinct()
+            .ToArray();
+        if (projected.Length < 3)
+        {
+            return false;
+        }
+
+        var centerU = projected.Average(p => p.Item1);
+        var centerV = projected.Average(p => p.Item2);
+        var polygon = projected
+            .OrderBy(p => Math.Atan2(p.Item2 - centerV, p.Item1 - centerU))
+            .ToArray();
+        var pu = (point - plane.Origin).Dot(uAxis);
+        var pv = (point - plane.Origin).Dot(vAxis);
+        var inside = false;
+        const double epsilon = 1e-8d;
+        for (var i = 0; i < polygon.Length; i++)
+        {
+            var a = polygon[i];
+            var b = polygon[(i + 1) % polygon.Length];
+            var cross = (b.Item1 - a.Item1) * (pv - a.Item2) - (b.Item2 - a.Item2) * (pu - a.Item1);
+            var dot = (pu - a.Item1) * (pu - b.Item1) + (pv - a.Item2) * (pv - b.Item2);
+            if (Math.Abs(cross) <= epsilon && dot <= epsilon)
+            {
+                return true;
+            }
+
+            if (((a.Item2 > pv) != (b.Item2 > pv)) &&
+                pu < (b.Item1 - a.Item1) * (pv - a.Item2) / (b.Item2 - a.Item2) + a.Item1)
+            {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
     private static IReadOnlyList<RayMapHit> IntersectTessellatedRay(DisplayTessellationResult tessellation, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
     {
         var hits = new List<RayMapHit>();
@@ -1872,7 +1998,7 @@ public sealed record VolumeAnalysisResult(
                 var p = origin + direction * t;
                 var family = faceSurfaceKinds.TryGetValue(patch.FaceId.Value, out var sf) ? sf : "unknown";
                 if (hits.Any(h => Math.Abs(h.T - t) < 1e-7d && h.FaceIndex == patch.FaceId.Value)) continue;
-                hits.Add(new RayMapHit(t, p, patch.FaceId.Value, family, normal, "tessellated-fallback"));
+                hits.Add(new RayMapHit(t, p, patch.FaceId.Value, family, normal, "tessellated-fallback", "approximate", [$"Exact ray intersection unavailable for {family}; used tessellated fallback."]));
             }
         }
 

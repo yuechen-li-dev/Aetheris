@@ -525,7 +525,29 @@ public sealed class CliBaselineTests
         Assert.Equal(25, root.GetProperty("samples").GetArrayLength());
         Assert.Equal(1d, root.GetProperty("summary").GetProperty("hitCoverage").GetDouble(), 8);
         Assert.Equal("plane", root.GetProperty("summary").GetProperty("surfaceFamiliesHit").EnumerateObject().Single().Name);
-        Assert.True(root.GetProperty("samples")[12].GetProperty("firstHit").GetProperty("position").GetProperty("z").GetDouble() > 0d);
+        Assert.Equal("analytic-cir-tessellated-fallback", root.GetProperty("backendPolicy").GetString());
+        Assert.True(root.GetProperty("summary").GetProperty("analyticHitCount").GetInt32() > 0);
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        var centerHit = root.GetProperty("samples")[12].GetProperty("firstHit");
+        Assert.True(centerHit.GetProperty("position").GetProperty("z").GetDouble() > 0d);
+        Assert.Equal("plane", centerHit.GetProperty("surfaceFamily").GetString());
+        Assert.Equal("analytic", centerHit.GetProperty("intersectionMode").GetString());
+        Assert.Equal("exact", centerHit.GetProperty("confidence").GetString());
+        Assert.Equal(2, root.GetProperty("samples")[12].GetProperty("intersectionModes").GetProperty("analytic").GetInt32());
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_LinearExtrusion_Discloses_Tessellated_Fallback()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata", "step242", "generated", "ruled-a2", "ellipse-linear-extrusion-production.step");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xy", "--direction", "-z", "--resolution", "4x4");
+        var root = doc.RootElement;
+
+        Assert.Equal("analytic-cir-tessellated-fallback", root.GetProperty("backendPolicy").GetString());
+        Assert.True(root.GetProperty("summary").TryGetProperty("tessellatedFallbackHitCount", out _));
+        Assert.Contains("linear-extrusion", root.GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("Exact ray intersection unavailable for linear-extrusion; used tessellated fallback.", root.GetProperty("diagnostics").EnumerateArray().Select(d => d.GetString()));
+        Assert.Contains("tessellated-fallback", root.GetRawText(), StringComparison.Ordinal);
     }
 
     [Fact]

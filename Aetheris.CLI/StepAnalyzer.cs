@@ -934,6 +934,41 @@ public sealed record VolumeAnalysisResult(
         return AnalyzeImportedBodyRayMap(body, fullPath, plane, direction, cols, rows, point);
     }
 
+    public static SixViewMapResult AnalyzeSixViewMapSummary(string stepPath, int cols, int rows)
+    {
+        var (fullPath, body) = ImportStepBody(stepPath);
+        return AnalyzeImportedBodySixViewMapSummary(body, fullPath, cols, rows);
+    }
+
+    public static SixViewMapResult AnalyzeImportedBodySixViewMapSummary(BrepBody body, string stepPath, int cols, int rows)
+    {
+        if (rows <= 0 || cols <= 0) throw new InvalidOperationException("Map resolution must be positive.");
+        (string Name, string Plane, string Direction)[] definitions =
+        [
+            ("top", "xy", "-z"),
+            ("bottom", "xy", "+z"),
+            ("right", "yz", "-x"),
+            ("left", "yz", "+x"),
+            ("back", "xz", "+y"),
+            ("front", "xz", "-y")
+        ];
+
+        var views = new List<SixViewMapView>();
+        var diagnostics = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var definition in definitions)
+        {
+            var map = AnalyzeImportedBodyRayMap(body, stepPath, definition.Plane, definition.Direction, cols, rows);
+            foreach (var diagnostic in map.Diagnostics)
+            {
+                diagnostics.Add($"{definition.Name}: {diagnostic}");
+            }
+
+            views.Add(BuildSixViewSummary(definition.Name, map, cols, rows));
+        }
+
+        return new SixViewMapResult("six-view-summary", "analyze-map-v1", [cols, rows], views, diagnostics.ToArray());
+    }
+
     public static RayMapResult AnalyzeImportedBodyRayMap(BrepBody body, string stepPath, string plane, string direction, int cols, int rows, (double U, double V)? point = null)
     {
         if (rows <= 0 || cols <= 0) throw new InvalidOperationException("Map resolution must be positive.");
@@ -1026,6 +1061,148 @@ public sealed record VolumeAnalysisResult(
         var pointArray = point.HasValue ? new[] { point.Value.U, point.Value.V } : null;
         var resultMode = tessellatedFallbackHitCount > 0 ? "analytic-first-with-tessellated-fallback" : "analytic";
         return new RayMapResult(mode, plane.ToLowerInvariant(), direction.ToLowerInvariant(), point.HasValue ? null : [cols, rows], pointArray, bounds, samples, samples.Sum(s => s.HitCount), point.HasValue ? samples.Single().Hits : null, summary, resultMode, "analytic-cir-tessellated-fallback", diagnostics);
+    }
+
+    private static SixViewMapView BuildSixViewSummary(string name, RayMapResult map, int cols, int rows)
+    {
+        var sampleCount = map.Samples.Count;
+        var hitCount = map.Samples.Count(s => s.Hit);
+        var bands = BuildDominantBands(map.Samples, sampleCount, map.Direction);
+        var backendCounts = new SortedDictionary<string, int>(StringComparer.Ordinal)
+        {
+            ["analytic"] = map.Summary.AnalyticHitCount,
+            ["cir-evaluated"] = map.Summary.CirHitCount,
+            ["tessellated-fallback"] = map.Summary.TessellatedFallbackHitCount,
+            ["unsupported"] = map.Summary.UnsupportedSampleCount
+        };
+        var backendHitTotal = map.Summary.AnalyticHitCount + map.Summary.CirHitCount + map.Summary.TessellatedFallbackHitCount;
+        var summary = new SixViewMapSummary(
+            sampleCount,
+            hitCount,
+            sampleCount == 0 ? 0d : hitCount / (double)sampleCount,
+            map.Summary.HeightRange,
+            bands,
+            map.Summary.SurfaceFamiliesHit,
+            backendCounts,
+            backendHitTotal == 0 ? 0d : map.Summary.TessellatedFallbackHitCount / (double)backendHitTotal);
+
+        var compactGrid = cols <= 64 && rows <= 64 ? BuildCompactGrid(map.Samples, cols, rows, bands, map.Direction) : null;
+        var measured = BuildMeasuredSummary(name, map, summary);
+        return new SixViewMapView(name, map.Plane, map.Direction, summary, compactGrid, measured);
+    }
+
+    private static IReadOnlyList<DominantBand> BuildDominantBands(IReadOnlyList<RayMapSample> samples, int sampleCount, string direction)
+    {
+        var groups = new Dictionary<double, (int Count, int Fallback)>();
+        var noHit = 0;
+        foreach (var sample in samples)
+        {
+            if (!sample.Hit || sample.FirstHit is null)
+            {
+                noHit++;
+                continue;
+            }
+
+            var value = Math.Round(GetRayAxisScalar(sample.FirstHit.Position, direction), 4, MidpointRounding.AwayFromZero);
+            groups.TryGetValue(value, out var current);
+            var fallback = sample.FirstHit.IntersectionMode == "tessellated-fallback" ? 1 : 0;
+            groups[value] = (current.Count + 1, current.Fallback + fallback);
+        }
+
+        var bands = groups
+            .OrderByDescending(kvp => kvp.Value.Count)
+            .ThenBy(kvp => kvp.Key)
+            .Take(5)
+            .Select(kvp => new DominantBand(kvp.Key, kvp.Value.Count, sampleCount == 0 ? 0d : kvp.Value.Count / (double)sampleCount, null, kvp.Value.Fallback > kvp.Value.Count / 2d))
+            .ToList();
+        if (noHit > 0)
+        {
+            bands.Add(new DominantBand(null, noHit, sampleCount == 0 ? 0d : noHit / (double)sampleCount, "no-hit", false));
+        }
+
+        return bands.OrderByDescending(b => b.SampleCount).ThenBy(b => b.Value ?? double.PositiveInfinity).ToArray();
+    }
+
+    private static double GetRayAxisScalar(Point3D position, string direction)
+    {
+        return direction.EndsWith("x", StringComparison.OrdinalIgnoreCase)
+            ? position.X
+            : direction.EndsWith("y", StringComparison.OrdinalIgnoreCase)
+                ? position.Y
+                : position.Z;
+    }
+
+    private static CompactGrid BuildCompactGrid(IReadOnlyList<RayMapSample> samples, int cols, int rows, IReadOnlyList<DominantBand> bands, string direction)
+    {
+        var symbols = "0123456789";
+        var valueToSymbol = bands.Where(b => b.Value.HasValue)
+            .Select((b, index) => (Value: b.Value!.Value, Symbol: symbols[Math.Min(index, symbols.Length - 1)]))
+            .ToDictionary(x => x.Value, x => x.Symbol);
+        var byCell = samples.ToDictionary(s => (s.I, s.J));
+        var gridRows = new List<string>();
+        for (var j = rows - 1; j >= 0; j--)
+        {
+            var chars = new char[cols];
+            for (var i = 0; i < cols; i++)
+            {
+                if (!byCell.TryGetValue((i, j), out var sample) || !sample.Hit || sample.FirstHit is null)
+                {
+                    chars[i] = '.';
+                    continue;
+                }
+
+                if (sample.FirstHit.IntersectionMode == "tessellated-fallback")
+                {
+                    chars[i] = '~';
+                    continue;
+                }
+
+                if (sample.FirstHit.IntersectionMode == "unsupported")
+                {
+                    chars[i] = '?';
+                    continue;
+                }
+
+                var value = Math.Round(GetRayAxisScalar(sample.FirstHit.Position, direction), 4, MidpointRounding.AwayFromZero);
+                chars[i] = valueToSymbol.TryGetValue(value, out var symbol) ? symbol : '9';
+            }
+
+            gridRows.Add(new string(chars));
+        }
+
+        return new CompactGrid("height-band-ascii", cols, rows, new SortedDictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["."] = "no-hit",
+            ["0"] = "most common rounded first-hit axis value",
+            ["1"] = "next most common rounded first-hit axis value",
+            ["2-9"] = "additional rounded first-hit axis value bands",
+            ["~"] = "tessellated-fallback or approximate first hit",
+            ["?"] = "unsupported or unknown first hit"
+        }, gridRows);
+    }
+
+    private static IReadOnlyList<string> BuildMeasuredSummary(string name, RayMapResult map, SixViewMapSummary summary)
+    {
+        var lines = new List<string>
+        {
+            $"{name} view: {summary.HitCoverage:P1} of samples hit the model."
+        };
+        var dominant = summary.DominantBands.FirstOrDefault(b => b.Value.HasValue);
+        if (dominant is not null)
+        {
+            lines.Add($"Dominant rounded first-hit axis value is {dominant.Value:0.####} across {dominant.Coverage:P1} of samples.");
+        }
+
+        var noHit = summary.DominantBands.FirstOrDefault(b => b.Meaning == "no-hit");
+        if (noHit is not null)
+        {
+            lines.Add($"{noHit.Coverage:P1} of samples are no-hit, indicating measured empty rays in this view.");
+        }
+
+        lines.Add(summary.FallbackRatio > 0d
+            ? $"{name} view includes tessellated fallback hits; fallback ratio is {summary.FallbackRatio:P1} of hit intersections."
+            : $"{name} view hit intersections are reported without tessellated fallback.");
+        return lines;
     }
 
     private static AnalyzeSummary BuildSummary(BrepBody body, ICollection<string> notes)

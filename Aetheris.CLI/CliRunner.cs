@@ -109,7 +109,7 @@ public static class CliRunner
     private const string TopLevelUsage = "Usage: aetheris <build|analyze|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
-    private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> --plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> --resolution <NxM> [--point <u,v>] --json";
+    private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
@@ -1762,8 +1762,10 @@ public static class CliRunner
         int? cols = null;
         string? plane = null;
         string? direction = null;
+        string? views = null;
         (double U, double V)? point = null;
         var json = false;
+        var llm = false;
 
         for (var i = 1; i < args.Length; i++)
         {
@@ -1814,6 +1816,17 @@ public static class CliRunner
                 case "--direction" when i + 1 < args.Length:
                     direction = args[++i];
                     break;
+                case "--views" when i + 1 < args.Length:
+                    views = args[++i];
+                    break;
+                case "--views":
+                    stderr.WriteLine("Analyze map option --views requires six.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
+                case "--llm":
+                case "--summary":
+                    llm = true;
+                    break;
                 case "--direction":
                     stderr.WriteLine("Analyze map option --direction requires +x, -x, +y, -y, +z, or -z.");
                     stderr.WriteLine(AnalyzeMapUsage);
@@ -1852,6 +1865,14 @@ public static class CliRunner
             }
         }
 
+        var sixViewMode = string.Equals(views, "six", StringComparison.OrdinalIgnoreCase);
+        if (views is not null && !sixViewMode)
+        {
+            stderr.WriteLine("Analyze map option --views currently supports only 'six'.");
+            stderr.WriteLine(AnalyzeMapUsage);
+            return 1;
+        }
+
         var legacyViewMode = plane is null && view.HasValue;
         if (legacyViewMode)
         {
@@ -1868,9 +1889,15 @@ public static class CliRunner
             };
         }
 
-        if (plane is null || direction is null || (viewOptionCount > 0 && viewOptionCount != 1))
+        if (!sixViewMode && (plane is null || direction is null || (viewOptionCount > 0 && viewOptionCount != 1)))
         {
             stderr.WriteLine("Analyze map requires --plane and --direction (or one legacy view option --top|--bottom|--front|--back|--left|--right).");
+            return 1;
+        }
+
+        if (sixViewMode && (point.HasValue || plane is not null || direction is not null || viewOptionCount > 0 || !llm))
+        {
+            stderr.WriteLine("Analyze map --views six requires --llm or --summary and cannot be combined with --point, --plane, --direction, or legacy view flags.");
             return 1;
         }
 
@@ -1889,9 +1916,11 @@ public static class CliRunner
         object map;
         try
         {
-            map = legacyViewMode
+            map = sixViewMode
+                ? StepAnalyzer.AnalyzeSixViewMapSummary(stepPath, cols.Value, rows.Value)
+                : legacyViewMode
                 ? StepAnalyzer.AnalyzeMap(stepPath, view.GetValueOrDefault(), rows.Value, cols.Value)
-                : StepAnalyzer.AnalyzeRayMap(stepPath, plane, direction, cols.Value, rows.Value, point);
+                : StepAnalyzer.AnalyzeRayMap(stepPath, plane!, direction!, cols.Value, rows.Value, point);
         }
         catch (Exception ex)
         {
@@ -2255,13 +2284,19 @@ public static class CliRunner
         stdout.WriteLine(AnalyzeMapUsage);
         stdout.WriteLine();
         stdout.WriteLine("Required:");
-        stdout.WriteLine("  exactly one view: --top | --bottom | --front | --back | --left | --right");
+        stdout.WriteLine("  either --plane <xy|xz|yz> with --direction <axis>, exactly one legacy view, or --views six --llm.");
+        stdout.WriteLine("  legacy views: --top | --bottom | --front | --back | --left | --right");
         stdout.WriteLine("  --rows <N>       Positive integer row count.");
         stdout.WriteLine("  --cols <N>       Positive integer column count.");
+        stdout.WriteLine("  --resolution NxM Alternative to --cols N --rows M.");
         stdout.WriteLine("  --json           Required output mode.");
+        stdout.WriteLine();
+        stdout.WriteLine("Six-view convention:");
+        stdout.WriteLine("  top xy/-z, bottom xy/+z, right yz/-x, left yz/+x, back xz/+y, front xz/-y.");
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris analyze map part.step --top --rows 48 --cols 64 --json");
+        stdout.WriteLine("  aetheris analyze map part.step --views six --resolution 32x32 --llm --json");
     }
 
     private static void WriteAnalyzeSectionHelp(TextWriter stdout)

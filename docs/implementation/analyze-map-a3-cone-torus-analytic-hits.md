@@ -81,3 +81,5 @@ testdata/step242/generated/ruled-a2/ellipse-linear-extrusion-production.step
 - No volume integration behavior is changed.
 - No linear-extrusion, surface-of-revolution, or B-spline analytic hits are added.
 - No DisplayIR/frontend changes or new modeling features are included.
+
+Forward link: ANALYZE-MAP-A4 adds compact six-view LLM summaries; see `docs/implementation/analyze-map-a4-six-view-llm-summary.md`.

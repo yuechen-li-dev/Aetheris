@@ -86,3 +86,5 @@ It does not change `analyze volume`, DisplayIR/frontend behavior, modeling capab
 ## Next planned truth pass
 
 The next analytic map pass is expected to focus on cone and torus ray intersections plus a stronger trim-containment story for more complex bounded analytic patches.
+
+Forward link: ANALYZE-MAP-A3 extends this analytic tier to cone and torus hits; see `docs/implementation/analyze-map-a3-cone-torus-analytic-hits.md`.

@@ -942,7 +942,7 @@ public sealed record VolumeAnalysisResult(
         var faceSurfaceKinds = BuildFaceSurfaceKinds(body, familyNames: true);
         var diagnostics = new List<string>();
         var diagnosticSet = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var family in faceSurfaceKinds.Values.Distinct(StringComparer.Ordinal).Where(f => f is not "plane" and not "cylinder" and not "sphere").OrderBy(f => f, StringComparer.Ordinal))
+        foreach (var family in faceSurfaceKinds.Values.Distinct(StringComparer.Ordinal).Where(f => f is not "plane" and not "cylinder" and not "sphere" and not "cone" and not "torus").OrderBy(f => f, StringComparer.Ordinal))
         {
             AddDiagnostic(diagnostics, diagnosticSet, $"Exact ray intersection unavailable for {family}; used tessellated fallback.");
         }
@@ -1918,6 +1918,18 @@ public sealed record VolumeAnalysisResult(
                     continue;
                 }
 
+                if (surface.Cone is ConeSurface cone)
+                {
+                    hits.AddRange(IntersectAnalyticConeFaceRay(body, face, cone, origin, direction, faceSurfaceKinds));
+                    continue;
+                }
+
+                if (surface.Torus is TorusSurface torus)
+                {
+                    hits.AddRange(IntersectAnalyticTorusFaceRay(body, face, torus, origin, direction, faceSurfaceKinds));
+                    continue;
+                }
+
                 continue;
             }
 
@@ -2023,6 +2035,141 @@ public sealed record VolumeAnalysisResult(
         }
 
         return hits;
+    }
+
+
+    private static IReadOnlyList<RayMapHit> IntersectAnalyticConeFaceRay(BrepBody body, Face face, ConeSurface cone, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        var axis = cone.Axis.ToVector();
+        if (!TryNormalize(axis, out axis)) return hits;
+        if (!TryGetFaceAxisSpan(body, face.Id, cone.Apex, axis, out var minAxis, out var maxAxis)) return hits;
+
+        var tan = Math.Tan(cone.SemiAngleRadians);
+        var tan2 = tan * tan;
+        var delta = origin - cone.Apex;
+        var dAxial = direction.Dot(axis);
+        var oAxial = delta.Dot(axis);
+        var dPerp = direction - axis * dAxial;
+        var oPerp = delta - axis * oAxial;
+        var a = dPerp.Dot(dPerp) - tan2 * dAxial * dAxial;
+        var b = 2d * (oPerp.Dot(dPerp) - tan2 * oAxial * dAxial);
+        var c = oPerp.Dot(oPerp) - tan2 * oAxial * oAxial;
+        if (Math.Abs(a) < 1e-14d) return hits;
+
+        foreach (var t in SolveQuadraticNonnegative(a, b, c))
+        {
+            var p = origin + direction * t;
+            var axial = (p - cone.Apex).Dot(axis);
+            if (axial < Math.Max(0d, minAxis) - 1e-7d || axial > maxAxis + 1e-7d) continue;
+            var radial = (p - cone.Apex) - axis * axial;
+            if (!TryNormalize(radial, out var radialNormal)) continue;
+            if (!TryNormalize(radialNormal - axis * tan, out var normal)) continue;
+            var family = faceSurfaceKinds.TryGetValue(face.Id.Value, out var sf) ? sf : "cone";
+            hits.Add(new RayMapHit(t, p, face.Id.Value, family, normal, "analytic", "exact", []));
+        }
+
+        return DeduplicateHits(hits);
+    }
+
+    private static IReadOnlyList<RayMapHit> IntersectAnalyticTorusFaceRay(BrepBody body, Face face, TorusSurface torus, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        if (torus.MajorRadius <= 0d || torus.MinorRadius <= 0d) return hits;
+        if (body.Topology.Faces.Count() != 1)
+        {
+            return hits;
+        }
+
+        if (!TryIntersectBoundingSphere(origin, direction, torus.Center, torus.MajorRadius + torus.MinorRadius, out var near, out var far)) return hits;
+        near = Math.Max(0d, near);
+        if (far < near) return hits;
+
+        const int samples = 1024;
+        var dt = (far - near) / samples;
+        var roots = new List<double>();
+        var prevT = near;
+        var prevF = TorusImplicit(origin + direction * prevT, torus);
+        if (Math.Abs(prevF) <= 1e-9d) roots.Add(prevT);
+        for (var i = 1; i <= samples; i++)
+        {
+            var t = i == samples ? far : near + i * dt;
+            var f = TorusImplicit(origin + direction * t, torus);
+            if (Math.Abs(f) <= 1e-9d) roots.Add(t);
+            if ((prevF < 0d && f > 0d) || (prevF > 0d && f < 0d)) roots.Add(BisectTorusRoot(prevT, t, origin, direction, torus));
+            prevT = t; prevF = f;
+        }
+
+        var family = faceSurfaceKinds.TryGetValue(face.Id.Value, out var sf) ? sf : "torus";
+        foreach (var t in roots.Where(t => t >= -1e-9d).Select(t => Math.Max(0d, t)).OrderBy(t => t))
+        {
+            if (hits.Any(h => Math.Abs(h.T - t) <= 1e-7d)) continue;
+            var p = origin + direction * t;
+            if (!TryTorusNormal(p, torus, out var normal)) continue;
+            hits.Add(new RayMapHit(t, p, face.Id.Value, family, normal, "analytic", "exact", []));
+        }
+        return hits;
+    }
+
+    private static bool TryIntersectBoundingSphere(Point3D origin, Vector3D direction, Point3D center, double radius, out double near, out double far)
+    {
+        near = far = 0d;
+        var oc = origin - center;
+        var b = 2d * oc.Dot(direction);
+        var c = oc.Dot(oc) - radius * radius;
+        var disc = b * b - 4d * direction.Dot(direction) * c;
+        if (disc < -1e-9d) return false;
+        var sqrt = Math.Sqrt(Math.Max(0d, disc));
+        var a2 = 2d * direction.Dot(direction);
+        near = (-b - sqrt) / a2;
+        far = (-b + sqrt) / a2;
+        return far >= -1e-9d;
+    }
+
+    private static double TorusImplicit(Point3D p, TorusSurface torus)
+    {
+        var d = p - torus.Center;
+        var x = d.Dot(torus.XAxis.ToVector());
+        var y = d.Dot(torus.YAxis.ToVector());
+        var z = d.Dot(torus.Axis.ToVector());
+        var sum = x*x + y*y + z*z + torus.MajorRadius*torus.MajorRadius - torus.MinorRadius*torus.MinorRadius;
+        return sum*sum - 4d*torus.MajorRadius*torus.MajorRadius*(x*x + y*y);
+    }
+
+    private static double BisectTorusRoot(double lo, double hi, Point3D origin, Vector3D direction, TorusSurface torus)
+    {
+        var flo = TorusImplicit(origin + direction * lo, torus);
+        for (var i = 0; i < 80; i++)
+        {
+            var mid = (lo + hi) * 0.5d;
+            var fmid = TorusImplicit(origin + direction * mid, torus);
+            if (Math.Abs(fmid) <= 1e-12d || hi - lo <= 1e-9d) return mid;
+            if ((flo < 0d && fmid > 0d) || (flo > 0d && fmid < 0d)) hi = mid;
+            else { lo = mid; flo = fmid; }
+        }
+        return (lo + hi) * 0.5d;
+    }
+
+    private static bool TryTorusNormal(Point3D p, TorusSurface torus, out Vector3D normal)
+    {
+        var d = p - torus.Center;
+        var xAxis = torus.XAxis.ToVector();
+        var yAxis = torus.YAxis.ToVector();
+        var zAxis = torus.Axis.ToVector();
+        var x = d.Dot(xAxis); var y = d.Dot(yAxis); var z = d.Dot(zAxis);
+        var common = x*x + y*y + z*z + torus.MajorRadius*torus.MajorRadius - torus.MinorRadius*torus.MinorRadius;
+        var n = xAxis * (4d*x*(common - 2d*torus.MajorRadius*torus.MajorRadius))
+              + yAxis * (4d*y*(common - 2d*torus.MajorRadius*torus.MajorRadius))
+              + zAxis * (4d*z*common);
+        return TryNormalize(n, out normal);
+    }
+
+    private static IReadOnlyList<RayMapHit> DeduplicateHits(List<RayMapHit> hits)
+    {
+        var ordered = hits.OrderBy(h => h.T).ToList();
+        for (var i = ordered.Count - 1; i > 0; i--)
+            if (Math.Abs(ordered[i].T - ordered[i - 1].T) <= 1e-7d) ordered.RemoveAt(i);
+        return ordered;
     }
 
     private static IReadOnlyList<double> SolveQuadraticNonnegative(double a, double b, double c)

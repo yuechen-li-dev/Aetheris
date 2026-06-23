@@ -515,6 +515,41 @@ public sealed class CliBaselineTests
     }
 
     [Fact]
+    public void Analyze_Map_RankedProbes_Emits_EvidenceBundle_And_SectionCommands()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateCylinder(4d, 10d).Value, "cli-map-a6-cylinder");
+        using var doc = RunAnalyzeSixViewMap(stepPath, "8x8", "--rank-probes", "--evidence-bundle");
+        var root = doc.RootElement;
+
+        var ranked = root.GetProperty("rankedProbes");
+        Assert.True(ranked.GetArrayLength() > 0);
+        var first = ranked[0];
+        Assert.True(first.GetProperty("score").GetDouble() > 0d);
+        Assert.Contains("analytic provenance", first.GetProperty("reasons").EnumerateArray().Select(r => r.GetString()));
+        Assert.Contains(first.GetProperty("recommendedActions").EnumerateArray(), a => a.GetProperty("kind").GetString() == "pointProbe");
+        Assert.Contains(first.GetProperty("recommendedActions").EnumerateArray(), a => a.GetProperty("kind").GetString() == "sectionProbe" && a.GetProperty("command").GetString()!.Contains("analyze section", StringComparison.Ordinal));
+
+        var bundle = root.GetProperty("evidenceBundle");
+        Assert.Equal(6, bundle.GetProperty("coarseMap").GetProperty("views").GetInt32());
+        Assert.True(bundle.GetProperty("rankedQuestions").GetArrayLength() > 0);
+        Assert.True(bundle.GetProperty("suggestedActions").GetArrayLength() > 0);
+    }
+
+    [Fact]
+    public void Analyze_Map_PointProbe_Emits_CompactSummary_And_Retains_Hits()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-map-a6-point-summary");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xy", "--direction", "-z", "--point", "0,0");
+        var root = doc.RootElement;
+        var summary = root.GetProperty("pointSummary");
+        Assert.True(summary.GetProperty("hitCount").GetInt32() >= 2);
+        Assert.Equal("plane", summary.GetProperty("firstHit").GetProperty("family").GetString());
+        Assert.Equal("plane", summary.GetProperty("lastHit").GetProperty("family").GetString());
+        Assert.True(summary.GetProperty("familySequence").GetArrayLength() >= 1);
+        Assert.True(root.GetProperty("hits").GetArrayLength() >= 2);
+    }
+
+    [Fact]
     public void Analyze_Map_RayProbe_BoxTop_Returns_Llm_Grid_Samples()
     {
         var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-ray-map-box-top");
@@ -1542,11 +1577,11 @@ public sealed class CliBaselineTests
         return JsonDocument.Parse(stdout.ToString());
     }
 
-    private static JsonDocument RunAnalyzeSixViewMap(string stepPath, string resolution)
+    private static JsonDocument RunAnalyzeSixViewMap(string stepPath, string resolution, params string[] extraArgs)
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "map", stepPath, "--views", "six", "--resolution", resolution, "--llm", "--json"], stdout, stderr);
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "map", stepPath, "--views", "six", "--resolution", resolution, "--llm", .. extraArgs, "--json"], stdout, stderr);
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
         return JsonDocument.Parse(stdout.ToString());

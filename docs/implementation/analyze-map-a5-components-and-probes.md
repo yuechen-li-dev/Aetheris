@@ -132,3 +132,7 @@ FTC-09 dogfooding showed that broad six-view facts were useful but not actionabl
 - Face-id grids and connected face-region summaries.
 - View-pair correlation to relate a top-view island to front/side evidence.
 - Conservative hole/slot candidate hints that remain measured and explicitly non-semantic.
+
+## A6 follow-up
+
+ANALYZE-MAP-A6 builds on these components by ranking them for LLM CAD reasoning, adding section-probe suggestions, evidence-bundle output, and compact point-probe summaries. See `docs/implementation/analyze-map-a6-ranked-probes-and-section-bridge.md`.

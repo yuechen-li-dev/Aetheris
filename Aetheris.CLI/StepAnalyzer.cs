@@ -940,6 +940,24 @@ public sealed record VolumeAnalysisResult(
         return AnalyzeImportedBodySixViewMapSummary(body, fullPath, cols, rows);
     }
 
+    public static SixViewMapResult AnalyzeSixViewMapEvidenceBundle(string stepPath, int cols, int rows)
+    {
+        var result = AnalyzeSixViewMapSummary(stepPath, cols, rows);
+        var ranked = RankSixViewProbes(result.Views, stepPath, cols, rows, 30).ToArray();
+        return result with
+        {
+            RankedProbes = ranked,
+            EvidenceBundle = new EvidenceBundle(
+                stepPath,
+                new EvidenceBundleCoarseMap([cols, rows], result.Views.Count, true),
+                ranked,
+                ranked.SelectMany(r => r.RecommendedActions).Take(90).ToArray(),
+                Array.Empty<object>(),
+                new EvidenceBundleLimits(30, 0),
+                ["A6 does not execute follow-up probes automatically; commands are bounded local evidence requests.", "Local map bounds are recommendations because analyze map does not yet accept explicit --bounds."])
+        };
+    }
+
     public static SixViewMapResult AnalyzeImportedBodySixViewMapSummary(BrepBody body, string stepPath, int cols, int rows)
     {
         if (rows <= 0 || cols <= 0) throw new InvalidOperationException("Map resolution must be positive.");
@@ -966,7 +984,8 @@ public sealed record VolumeAnalysisResult(
             views.Add(BuildSixViewSummary(definition.Name, map, cols, rows, stepPath));
         }
 
-        return new SixViewMapResult("six-view-summary", "analyze-map-v1", [cols, rows], views, views.SelectMany(v => v.SuggestedProbes).Take(30).ToArray(), diagnostics.ToArray());
+        var suggested = views.SelectMany(v => v.SuggestedProbes).Take(30).ToArray();
+        return new SixViewMapResult("six-view-summary", "analyze-map-v1", [cols, rows], views, suggested, diagnostics.ToArray());
     }
 
     public static RayMapResult AnalyzeImportedBodyRayMap(BrepBody body, string stepPath, string plane, string direction, int cols, int rows, (double U, double V)? point = null)
@@ -1060,7 +1079,8 @@ public sealed record VolumeAnalysisResult(
         var mode = point.HasValue ? "point" : "grid";
         var pointArray = point.HasValue ? new[] { point.Value.U, point.Value.V } : null;
         var resultMode = tessellatedFallbackHitCount > 0 ? "analytic-first-with-tessellated-fallback" : "analytic";
-        return new RayMapResult(mode, plane.ToLowerInvariant(), direction.ToLowerInvariant(), point.HasValue ? null : [cols, rows], pointArray, bounds, samples, samples.Sum(s => s.HitCount), point.HasValue ? samples.Single().Hits : null, summary, resultMode, "analytic-cir-tessellated-fallback", diagnostics);
+        var result = new RayMapResult(mode, plane.ToLowerInvariant(), direction.ToLowerInvariant(), point.HasValue ? null : [cols, rows], pointArray, bounds, samples, samples.Sum(s => s.HitCount), point.HasValue ? samples.Single().Hits : null, summary, resultMode, "analytic-cir-tessellated-fallback", diagnostics);
+        return point.HasValue ? result with { PointSummary = BuildCompactPointProbeSummary(samples.Single(), direction) } : result;
     }
 
     private static SixViewMapView BuildSixViewSummary(string name, RayMapResult map, int cols, int rows, string stepPath)
@@ -1300,6 +1320,60 @@ public sealed record VolumeAnalysisResult(
         var pointText = $"{component.CentroidUv[0]:0.####},{component.CentroidUv[1]:0.####}";
         var command = $"aetheris analyze map {stepPath} --plane {plane} --direction {direction} --point {pointText} --json";
         return new SuggestedMapProbe(id, view, plane, direction, component.CentroidUv, reason, command, component.ComponentId);
+    }
+
+
+    private static CompactPointProbeSummary BuildCompactPointProbeSummary(RayMapSample sample, string direction)
+    {
+        static CompactHitSummary? Hit(RayMapHit? h) => h is null ? null : new CompactHitSummary(h.SurfaceFamily, h.Position, h.FaceIndex, h.IntersectionMode);
+        var sequence = sample.Hits.Select(h => h.SurfaceFamily ?? "unknown").ToArray();
+        if (sequence.Length > 8)
+        {
+            sequence = sequence.Take(4).Concat(["...x" + (sequence.Length - 8).ToString(System.Globalization.CultureInfo.InvariantCulture)]).Concat(sequence.TakeLast(4)).ToArray();
+        }
+
+        var range = sample.Hits.Count == 0 ? null : new[] { sample.Hits.Min(h => h.T), sample.Hits.Max(h => h.T) };
+        return new CompactPointProbeSummary(sample.HitCount, Hit(sample.FirstHit), Hit(sample.LastHit), sequence, sample.IntersectionModes, range, sample.Hits.SelectMany(h => h.Diagnostics).Distinct(StringComparer.Ordinal).Take(8).ToArray());
+    }
+
+    private static IReadOnlyList<RankedMapProbe> RankSixViewProbes(IReadOnlyList<SixViewMapView> views, string stepPath, int cols, int rows, int limit)
+    {
+        var candidates = views.SelectMany(v => v.Components.NoHit.Concat(v.Components.SurfaceFamilies).Concat(v.Components.HeightBands).Concat(v.Components.Fallback).Select(c => (View: v, Component: c)))
+            .Select(x => ScoreComponent(x.View, x.Component, stepPath, cols, rows))
+            .OrderByDescending(x => x.Score).ThenBy(x => x.View).ThenBy(x => x.ComponentId, StringComparer.Ordinal)
+            .Take(limit).ToArray();
+        var max = candidates.Length == 0 ? 1d : Math.Max(1e-9d, candidates.Max(c => c.Score));
+        return candidates.Select((c, i) => c with { Rank = i + 1, NormalizedScore = Math.Round(c.Score / max, 4) }).ToArray();
+    }
+
+    private static RankedMapProbe ScoreComponent(SixViewMapView view, MapComponent c, string stepPath, int cols, int rows)
+    {
+        var reasons = new List<string>(); var terms = new List<string>(); var score = 0.05d;
+        if (c.Kind == "no-hit" && !c.TouchesBorder) { score += 0.45; reasons.Add("interior no-hit component"); terms.Add("interior-no-hit"); }
+        if (c.Kind == "no-hit" && c.TouchesBorder) { score -= 0.10; reasons.Add("border-touching exterior/silhouette candidate"); terms.Add("border-no-hit"); }
+        if (c.SurfaceFamily is "cylinder" or "cone" or "torus") { score += 0.35; reasons.Add($"{c.SurfaceFamily} surface-family cluster"); terms.Add("curved-analytic-family"); }
+        if (c.SurfaceFamily is "sphere") { score += 0.20; reasons.Add("sphere surface-family cluster"); terms.Add("curved-analytic-family"); }
+        if (c.BackendModeDominance == "analytic") { score += 0.12; reasons.Add("analytic provenance"); terms.Add("analytic-provenance"); }
+        if (c.BackendModeDominance == "tessellated-fallback") { score += 0.20; reasons.Add("fallback component needs truth-checking"); terms.Add("fallback-uncertain"); }
+        if (c.Kind == "height-band" && c.Coverage < 0.20) { score += 0.18; reasons.Add("small isolated height-band component"); terms.Add("local-height-band"); }
+        if (!c.TouchesBorder) { score += 0.10; reasons.Add("interior to view bounds"); terms.Add("interior-locality"); }
+        var centerDistance = Math.Abs(c.CentroidCell[0] - (cols - 1) / 2d) / Math.Max(1, cols) + Math.Abs(c.CentroidCell[1] - (rows - 1) / 2d) / Math.Max(1, rows);
+        if (centerDistance < 0.25) { score += 0.08; reasons.Add("central region"); terms.Add("centrality"); }
+        score += Math.Min(0.12, c.CellCount / 64d);
+        var uncertainty = c.BackendModeDominance == "tessellated-fallback" ? 0.55 : c.Confidence == "low" ? 0.35 : 0.2;
+        var classification = c.ClassificationHint ?? (c.SurfaceFamily is null ? c.Kind : c.SurfaceFamily + "-feature-candidate");
+        var actions = BuildEvidenceActions(view, c, stepPath, classification).ToArray();
+        return new RankedMapProbe(0, Math.Round(Math.Clamp(score, 0d, 1d), 4), 0, "componentProbe", view.Name, c.ComponentId, classification, reasons.Count == 0 ? ["bounded component worth sampling"] : reasons, terms, uncertainty, actions.FirstOrDefault()?.Kind ?? "pointProbe", actions);
+    }
+
+    private static IEnumerable<EvidenceAction> BuildEvidenceActions(SixViewMapView view, MapComponent c, string stepPath, string reason)
+    {
+        var pointText = $"{c.CentroidUv[0]:0.####},{c.CentroidUv[1]:0.####}";
+        yield return new EvidenceAction("pointProbe", view.Name, $"aetheris analyze map {stepPath} --plane {view.Plane} --direction {view.Direction} --point {pointText} --json", reason);
+        var axes = view.Plane switch { "xy" => ("--yz", "--xz"), "xz" => ("--yz", "--xy"), "yz" => ("--xz", "--xy"), _ => ("--xy", "--xz") };
+        yield return new EvidenceAction("sectionProbe", view.Name, $"aetheris analyze section {stepPath} {axes.Item1} --offset {c.CentroidUv[0]:0.####} --json", "Section through component centroid along first view axis.");
+        yield return new EvidenceAction("sectionProbe", view.Name, $"aetheris analyze section {stepPath} {axes.Item2} --offset {c.CentroidUv[1]:0.####} --json", "Section through component centroid along second view axis.");
+        yield return new EvidenceAction("localMap", view.Name, $"suggestedLocalMapUnsupported: analyze map does not yet accept explicit local bounds", "Refine around ranked component when --bounds is added.", new { u = new[] { c.CentroidUv[0] - 1d, c.CentroidUv[0] + 1d }, v = new[] { c.CentroidUv[1] - 1d, c.CentroidUv[1] + 1d } }, [16, 16]);
     }
 
     private static IReadOnlyList<string> BuildMeasuredSummary(string name, RayMapResult map, SixViewMapSummary summary, SixViewMapComponents? components = null)

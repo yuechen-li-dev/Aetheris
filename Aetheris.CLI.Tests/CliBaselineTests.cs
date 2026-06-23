@@ -536,6 +536,39 @@ public sealed class CliBaselineTests
         Assert.Equal(2, root.GetProperty("samples")[12].GetProperty("intersectionModes").GetProperty("analytic").GetInt32());
     }
 
+
+    [Fact]
+    public void Analyze_Map_RayProbe_CylinderSide_Uses_Analytic_Exact_Hits()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateCylinder(3d, 8d).Value, "cli-ray-map-cylinder-side");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xz", "--direction", "+y", "--resolution", "5x5", "--point", "0,0");
+        var root = doc.RootElement;
+
+        Assert.True(root.GetProperty("summary").GetProperty("analyticHitCount").GetInt32() > 0);
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        Assert.Equal("analytic", root.GetProperty("intersectionMode").GetString());
+        var hit = root.GetProperty("hits").EnumerateArray().First(h => h.GetProperty("surfaceFamily").GetString() == "cylinder");
+        Assert.Equal("analytic", hit.GetProperty("intersectionMode").GetString());
+        Assert.Equal("exact", hit.GetProperty("confidence").GetString());
+        Assert.Empty(hit.GetProperty("diagnostics").EnumerateArray());
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_Sphere_Uses_Analytic_Exact_Hits()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateSphere(3d).Value, "cli-ray-map-sphere");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xy", "--direction", "-z", "--resolution", "5x5", "--point", "0,0");
+        var root = doc.RootElement;
+
+        Assert.True(root.GetProperty("summary").GetProperty("analyticHitCount").GetInt32() > 0);
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        Assert.Equal("analytic", root.GetProperty("intersectionMode").GetString());
+        var hit = root.GetProperty("hits").EnumerateArray().First(h => h.GetProperty("surfaceFamily").GetString() == "sphere");
+        Assert.Equal("analytic", hit.GetProperty("intersectionMode").GetString());
+        Assert.Equal("exact", hit.GetProperty("confidence").GetString());
+        Assert.Empty(hit.GetProperty("diagnostics").EnumerateArray());
+    }
+
     [Fact]
     public void Analyze_Map_RayProbe_LinearExtrusion_Discloses_Tessellated_Fallback()
     {

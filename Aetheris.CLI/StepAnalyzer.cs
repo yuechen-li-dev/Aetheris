@@ -942,7 +942,7 @@ public sealed record VolumeAnalysisResult(
         var faceSurfaceKinds = BuildFaceSurfaceKinds(body, familyNames: true);
         var diagnostics = new List<string>();
         var diagnosticSet = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var family in faceSurfaceKinds.Values.Distinct(StringComparer.Ordinal).Where(f => f is not "plane").OrderBy(f => f, StringComparer.Ordinal))
+        foreach (var family in faceSurfaceKinds.Values.Distinct(StringComparer.Ordinal).Where(f => f is not "plane" and not "cylinder" and not "sphere").OrderBy(f => f, StringComparer.Ordinal))
         {
             AddDiagnostic(diagnostics, diagnosticSet, $"Exact ray intersection unavailable for {family}; used tessellated fallback.");
         }
@@ -969,9 +969,10 @@ public sealed record VolumeAnalysisResult(
             {
                 var u = point?.U ?? frame.MinU + (cols == 1 ? 0.5d : i / (double)(cols - 1)) * frame.RangeU;
                 var origin = frame.PlaneOrigin + (frame.UAxis * u) + (frame.VAxis * v) - (frame.RayDirection * Math.Max(1e-5d, ToleranceContext.Default.Linear * 64d));
-                var analyticHits = IntersectAnalyticPlaneRay(body, origin, frame.RayDirection, faceSurfaceKinds).ToArray();
+                var analyticHits = IntersectAnalyticRay(body, origin, frame.RayDirection, faceSurfaceKinds).ToArray();
+                var analyticFaceIds = analyticHits.Select(h => h.FaceIndex).Where(id => id.HasValue).Select(id => id!.Value).ToHashSet();
                 var tessellatedHits = IntersectTessellatedRay(tessellation, origin, frame.RayDirection, faceSurfaceKinds)
-                    .Where(h => h.SurfaceFamily is not "plane")
+                    .Where(h => h.SurfaceFamily is not "plane" && (h.FaceIndex is null || !analyticFaceIds.Contains(h.FaceIndex.Value)))
                     .ToArray();
 
                 foreach (var hit in tessellatedHits)
@@ -1893,13 +1894,30 @@ public sealed record VolumeAnalysisResult(
         }
     }
 
-    private static IReadOnlyList<RayMapHit> IntersectAnalyticPlaneRay(BrepBody body, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    private static IReadOnlyList<RayMapHit> IntersectAnalyticRay(BrepBody body, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
     {
         var hits = new List<RayMapHit>();
         foreach (var face in body.Topology.Faces)
         {
-            if (!body.TryGetFaceSurface(face.Id, out var surface) || surface?.Plane is not PlaneSurface plane)
+            if (!body.TryGetFaceSurface(face.Id, out var surface) || surface is null)
             {
+                continue;
+            }
+
+            if (surface.Plane is not PlaneSurface plane)
+            {
+                if (surface.Cylinder is CylinderSurface cylinder)
+                {
+                    hits.AddRange(IntersectAnalyticCylinderFaceRay(body, face, cylinder, origin, direction, faceSurfaceKinds));
+                    continue;
+                }
+
+                if (surface.Sphere is SphereSurface sphere)
+                {
+                    hits.AddRange(IntersectAnalyticSphereFaceRay(body, face, sphere, origin, direction, faceSurfaceKinds));
+                    continue;
+                }
+
                 continue;
             }
 
@@ -1927,6 +1945,128 @@ public sealed record VolumeAnalysisResult(
         }
 
         return hits.OrderBy(h => h.T).ToArray();
+    }
+
+
+    private static IReadOnlyList<RayMapHit> IntersectAnalyticCylinderFaceRay(BrepBody body, Face face, CylinderSurface cylinder, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        var axis = cylinder.Axis.ToVector();
+        if (!TryNormalize(axis, out axis) || cylinder.Radius <= 0d)
+        {
+            return hits;
+        }
+
+        if (!TryGetFaceAxisSpan(body, face.Id, cylinder.Origin, axis, out var minAxis, out var maxAxis))
+        {
+            return hits;
+        }
+
+        var oc = origin - cylinder.Origin;
+        var dParallel = axis * direction.Dot(axis);
+        var oParallel = axis * oc.Dot(axis);
+        var dPerp = direction - dParallel;
+        var oPerp = oc - oParallel;
+        var a = dPerp.Dot(dPerp);
+        var b = 2d * oPerp.Dot(dPerp);
+        var c = oPerp.Dot(oPerp) - (cylinder.Radius * cylinder.Radius);
+        if (Math.Abs(a) < 1e-14d)
+        {
+            return hits;
+        }
+
+        foreach (var t in SolveQuadraticNonnegative(a, b, c))
+        {
+            var p = origin + direction * t;
+            var axial = (p - cylinder.Origin).Dot(axis);
+            if (axial < minAxis - 1e-7d || axial > maxAxis + 1e-7d)
+            {
+                continue;
+            }
+
+            var radial = (p - cylinder.Origin) - (axis * axial);
+            if (!TryNormalize(radial, out var normal))
+            {
+                continue;
+            }
+
+            var family = faceSurfaceKinds.TryGetValue(face.Id.Value, out var sf) ? sf : "cylinder";
+            hits.Add(new RayMapHit(t, p, face.Id.Value, family, normal, "analytic", "exact", []));
+        }
+
+        return hits;
+    }
+
+    private static IReadOnlyList<RayMapHit> IntersectAnalyticSphereFaceRay(BrepBody body, Face face, SphereSurface sphere, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        if (sphere.Radius <= 0d || body.GetEdges(face.Id).Any())
+        {
+            return hits;
+        }
+
+        var oc = origin - sphere.Center;
+        var a = direction.Dot(direction);
+        var b = 2d * oc.Dot(direction);
+        var c = oc.Dot(oc) - (sphere.Radius * sphere.Radius);
+        foreach (var t in SolveQuadraticNonnegative(a, b, c))
+        {
+            var p = origin + direction * t;
+            var radial = p - sphere.Center;
+            if (!TryNormalize(radial, out var normal))
+            {
+                continue;
+            }
+
+            var family = faceSurfaceKinds.TryGetValue(face.Id.Value, out var sf) ? sf : "sphere";
+            hits.Add(new RayMapHit(t, p, face.Id.Value, family, normal, "analytic", "exact", []));
+        }
+
+        return hits;
+    }
+
+    private static IReadOnlyList<double> SolveQuadraticNonnegative(double a, double b, double c)
+    {
+        var discriminant = (b * b) - (4d * a * c);
+        if (discriminant < -1e-10d)
+        {
+            return [];
+        }
+
+        if (Math.Abs(discriminant) <= 1e-10d)
+        {
+            var t = -b / (2d * a);
+            return t >= -1e-9d ? [Math.Max(0d, t)] : [];
+        }
+
+        var sqrt = Math.Sqrt(discriminant);
+        var t0 = (-b - sqrt) / (2d * a);
+        var t1 = (-b + sqrt) / (2d * a);
+        var roots = new List<double>(2);
+        if (t0 >= -1e-9d) roots.Add(Math.Max(0d, t0));
+        if (t1 >= -1e-9d && Math.Abs(t1 - t0) > 1e-8d) roots.Add(Math.Max(0d, t1));
+        roots.Sort();
+        return roots;
+    }
+
+    private static bool TryGetFaceAxisSpan(BrepBody body, FaceId faceId, Point3D axisOrigin, Vector3D axis, out double minAxis, out double maxAxis)
+    {
+        var projections = body.GetEdges(faceId)
+            .SelectMany(edge => body.GetVertices(edge))
+            .Distinct()
+            .Select(vertex => body.TryGetVertexPoint(vertex, out var p) ? (double?)(p - axisOrigin).Dot(axis) : null)
+            .Where(v => v.HasValue)
+            .Select(v => v!.Value)
+            .ToArray();
+        if (projections.Length < 2)
+        {
+            minAxis = maxAxis = 0d;
+            return false;
+        }
+
+        minAxis = projections.Min();
+        maxAxis = projections.Max();
+        return maxAxis - minAxis > 1e-8d;
     }
 
     private static bool IsPointInPlanarFaceBounds(BrepBody body, FaceId faceId, PlaneSurface plane, Point3D point)

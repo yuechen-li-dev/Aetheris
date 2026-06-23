@@ -416,7 +416,7 @@ pmi {
 Recommended post-L0 order:
 
 ```text
-L1: let declarations + primitive typed literals
+L1: let declarations + primitive typed literals — implemented as top-level immutable primitive literals (`int`, `float`, `length`, `angle`, `string`, `bool`) with records, references, arithmetic, and tolerances still deferred to later L-levels.
 L2: let record groups + dotted references
 L3: arithmetic expression graph + acyclic validation
 L4: tolerance syntax and tolerant dimension values

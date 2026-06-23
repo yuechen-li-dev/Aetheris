@@ -867,4 +867,72 @@ model BadPmiDiameter {
         var bodyStart = Array.FindIndex(lines, line => !string.IsNullOrWhiteSpace(line) && !line.TrimStart().StartsWith("//", StringComparison.Ordinal));
         return string.Join(Environment.NewLine, lines.Skip(Math.Max(0, bodyStart)));
     }
+    [Fact]
+    public void FirmamentV2Parser_LetPrimitiveLiterals_ParsesAndBinds()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Language/valid/let-primitive-literals.valid.firmfixture"));
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var lets = result.Document!.Lets!;
+        var boundLets = result.Document!.BoundLets!;
+        Assert.Equal(6, lets.Count);
+        Assert.Equal(6, boundLets.Count);
+        AssertLet(boundLets[0], "holeCount", FirmamentV2PrimitiveType.Int, 4, null);
+        AssertLet(boundLets[1], "scale", FirmamentV2PrimitiveType.Float, 1.25d, null);
+        AssertLet(boundLets[2], "holeDiameter", FirmamentV2PrimitiveType.Length, 6.0d, "mm");
+        AssertLet(boundLets[3], "draftAngle", FirmamentV2PrimitiveType.Angle, 3.0d, "deg");
+        AssertLet(boundLets[4], "materialName", FirmamentV2PrimitiveType.String, "Aluminum6061", null);
+        AssertLet(boundLets[5], "inspectionRequired", FirmamentV2PrimitiveType.Bool, true, null);
+    }
+
+    [Theory]
+    [InlineData("let holeCount: int = 4.0", FirmamentV2Parser.LetTypeMismatch)]
+    [InlineData("let holeDiameter: length = 6.0", FirmamentV2Parser.LetTypeMismatch)]
+    [InlineData("let draftAngle: angle = 3mm", FirmamentV2Parser.LetUnitMismatch)]
+    [InlineData("let scale: float = 1.25mm", FirmamentV2Parser.LetUnitMismatch)]
+    [InlineData("let unknownThing: banana = 1", FirmamentV2Parser.LetUnknownType)]
+    [InlineData("let radius: length = holeDiameter / 2", FirmamentV2Parser.LetLiteralOnly)]
+    [InlineData("let holeDiameter: length = 6.0mm tol 0.05mm", FirmamentV2Parser.LetInvalidLiteral)]
+    public void FirmamentV2Parser_LetPrimitiveLiterals_InvalidCasesAreDiagnostics(string letSource, string expectedDiagnostic)
+    {
+        var result = FirmamentV2Parser.Parse($$"""
+            model LetInvalidExample {
+                units mm
+                solid base: Box {
+                    size: [10, 8, 6]
+                }
+                {{letSource}}
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(expectedDiagnostic, result.Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_LetPrimitiveLiterals_DuplicateNameIsDiagnostic()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model LetDuplicateExample {
+                units mm
+                solid base: Box {
+                    size: [10, 8, 6]
+                }
+                let holeCount: int = 4
+                let holeCount: int = 5
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.LetDuplicateName, result.Diagnostics);
+    }
+
+    private static void AssertLet(FirmamentV2BoundLet actual, string name, FirmamentV2PrimitiveType type, object value, string? unit)
+    {
+        Assert.Equal(name, actual.Name);
+        Assert.Equal(type, actual.Type);
+        Assert.Equal(value, actual.Value.Value);
+        Assert.Equal(unit, actual.Value.Unit);
+    }
+
 }

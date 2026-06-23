@@ -1,6 +1,6 @@
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null)
+public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null)
 {
     public FirmamentV2SolidBinding Solid => Solids[^1];
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
@@ -10,6 +10,12 @@ public sealed record FirmamentV2Document(string ModelName, string Units, IReadOn
         return new FirmamentV2SideHoleIntent(m.TargetSolid, r.Name, r.Attachment.Source, r.Attachment.Kind, r.Attachment.Axis, r.Cut.Tool.Through.Source, r.Cut.Tool.Through.Kind, r.Cut.Tool.Through.Axis, r.Cut.Tool.ToolType, r.Cut.Tool.Radius, r.Cut.Tool.Center?.U ?? 0, r.Cut.Tool.Center?.V ?? 0, r.Cut.Tool.Center is not null, route.CenterFrame, Units, route);
     })).SingleOrDefault();
 }
+
+public sealed record FirmamentV2SourceSpan(int Start, int Length);
+public enum FirmamentV2PrimitiveType { Int, Float, Length, Angle, String, Bool }
+public sealed record FirmamentV2LiteralValue(FirmamentV2PrimitiveType Type, object Value, double? NumericValue = null, string? Unit = null, string? Raw = null);
+public sealed record FirmamentV2LetDeclaration(string Name, FirmamentV2PrimitiveType DeclaredType, FirmamentV2LiteralValue LiteralValue, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2BoundLet(string Name, FirmamentV2PrimitiveType Type, FirmamentV2LiteralValue Value, FirmamentV2SourceSpan SourceSpan);
 
 public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null)
 {

@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Features;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.CLI.Tests;
@@ -567,6 +569,63 @@ public sealed class CliBaselineTests
         Assert.Equal("analytic", hit.GetProperty("intersectionMode").GetString());
         Assert.Equal("exact", hit.GetProperty("confidence").GetString());
         Assert.Empty(hit.GetProperty("diagnostics").EnumerateArray());
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_Cone_Uses_Analytic_Exact_Hits()
+    {
+        var stepPath = ExportPrimitiveToTempStep(CreateCone(4d, 2d, 8d), "cli-ray-map-cone");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xz", "--direction", "+y", "--resolution", "5x5", "--point", "3,0");
+        var root = doc.RootElement;
+
+        Assert.True(root.GetProperty("summary").GetProperty("analyticHitCount").GetInt32() > 0);
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        var hit = root.GetProperty("hits").EnumerateArray().First(h => h.GetProperty("surfaceFamily").GetString() == "cone");
+        Assert.Equal("analytic", hit.GetProperty("intersectionMode").GetString());
+        Assert.Equal("exact", hit.GetProperty("confidence").GetString());
+        Assert.InRange(hit.GetProperty("position").GetProperty("z").GetDouble(), 0d, 8d);
+        Assert.True(hit.TryGetProperty("normal", out _));
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_Torus_CenterHole_Does_Not_Lie()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateTorus(3d, 1d).Value, "cli-ray-map-torus-hole");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xz", "--direction", "+y", "--resolution", "5x5", "--point", "0,0");
+        var root = doc.RootElement;
+
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        Assert.Equal(0, root.GetProperty("hitCount").GetInt32());
+        Assert.DoesNotContain("torus", root.GetRawText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_Torus_RingHit_Uses_Analytic_Exact_Hits()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateTorus(3d, 1d).Value, "cli-ray-map-torus-ring");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xz", "--direction", "+y", "--resolution", "5x5", "--point", "3,0");
+        var root = doc.RootElement;
+
+        Assert.True(root.GetProperty("summary").GetProperty("analyticHitCount").GetInt32() > 0);
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        var hits = root.GetProperty("hits").EnumerateArray().Where(h => h.GetProperty("surfaceFamily").GetString() == "torus").ToArray();
+        Assert.Single(hits);
+        Assert.All(hits, hit =>
+        {
+            Assert.Equal("analytic", hit.GetProperty("intersectionMode").GetString());
+            Assert.Equal("exact", hit.GetProperty("confidence").GetString());
+            Assert.InRange(Math.Abs(hit.GetProperty("position").GetProperty("y").GetDouble()), 0.999d, 1.001d);
+        });
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_Torus_Outside_Misses()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateTorus(3d, 1d).Value, "cli-ray-map-torus-outside");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xz", "--direction", "+y", "--resolution", "5x5", "--point", "5,0");
+
+        Assert.Equal(0, doc.RootElement.GetProperty("hitCount").GetInt32());
+        Assert.Equal(0, doc.RootElement.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
     }
 
     [Fact]
@@ -1420,6 +1479,17 @@ public sealed class CliBaselineTests
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
         return JsonDocument.Parse(stdout.ToString());
+    }
+
+
+    private static BrepBody CreateCone(double bottomRadius, double topRadius, double height)
+    {
+        var result = BrepRevolve.Create(
+            [new ProfilePoint2D(bottomRadius, 0d), new ProfilePoint2D(topRadius, height)],
+            new ExtrudeFrame3D(Point3D.Origin, Direction3D.Create(new Vector3D(0d, 0d, 1d)), Direction3D.Create(new Vector3D(1d, 0d, 0d))),
+            new RevolveAxis3D(Point3D.Origin, new Vector3D(0d, 0d, 1d)));
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        return result.Value;
     }
 
     private static string ExportPrimitiveToTempStep(BrepBody body, string stem)

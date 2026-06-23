@@ -164,6 +164,19 @@ public sealed record VolumeAnalysisResult(
             return new VolumeAnalysisResult(stepPath, true, planarVolume, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "planar-closed-shell", true, false, null, null, null, null, null, null, null, notes);
         }
 
+        var unsupportedSweptSurfaceKind = body.Topology.Faces
+            .Select(face => body.TryGetFaceSurface(face.Id, out var surface) ? surface : null)
+            .Where(surface => surface is not null)
+            .Select(surface => surface!.Kind)
+            .FirstOrDefault(kind => kind is SurfaceGeometryKind.LinearExtrusion or SurfaceGeometryKind.SurfaceOfRevolution);
+        if (unsupportedSweptSurfaceKind is SurfaceGeometryKind.LinearExtrusion or SurfaceGeometryKind.SurfaceOfRevolution)
+        {
+            var surfaceKindName = ToSurfaceFamilyName(unsupportedSweptSurfaceKind);
+            var structural = BuildSummary(body, notes).StructuralAssessment;
+            var bodyDescription = structural == "enclosed-manifold" ? "body" : "open or non-solid body";
+            throw new InvalidOperationException($"Exact volume is not supported for {bodyDescription} containing {surfaceKindName} surfaces.");
+        }
+
         throw new InvalidOperationException(planarFailureReason ?? "Volume analysis currently supports canonical sphere, single-lateral-face cylinder, and enclosed planar closed-shell bodies only.");
     }
 
@@ -925,6 +938,8 @@ public sealed record VolumeAnalysisResult(
             ["sphere"] = 0,
             ["torus"] = 0,
             ["bspline"] = 0,
+            ["linear-extrusion"] = 0,
+            ["surface-of-revolution"] = 0,
             ["other"] = 0
         };
 
@@ -938,15 +953,15 @@ public sealed record VolumeAnalysisResult(
 
             switch (surface.Kind)
             {
-                case SurfaceGeometryKind.Plane: surfaceFamilies["plane"]++; break;
-                case SurfaceGeometryKind.Cylinder: surfaceFamilies["cylinder"]++; break;
-                case SurfaceGeometryKind.Cone: surfaceFamilies["cone"]++; break;
-                case SurfaceGeometryKind.Sphere: surfaceFamilies["sphere"]++; break;
-                case SurfaceGeometryKind.Torus: surfaceFamilies["torus"]++; break;
-                case SurfaceGeometryKind.LinearExtrusion: surfaceFamilies["linear-extrusion"]++; break;
-                case SurfaceGeometryKind.SurfaceOfRevolution: surfaceFamilies["surface-of-revolution"]++; break;
-                case SurfaceGeometryKind.BSplineSurfaceWithKnots: surfaceFamilies["bspline"]++; break;
-                default: surfaceFamilies["other"]++; break;
+                case SurfaceGeometryKind.Plane: IncrementSurfaceFamily(surfaceFamilies, "plane"); break;
+                case SurfaceGeometryKind.Cylinder: IncrementSurfaceFamily(surfaceFamilies, "cylinder"); break;
+                case SurfaceGeometryKind.Cone: IncrementSurfaceFamily(surfaceFamilies, "cone"); break;
+                case SurfaceGeometryKind.Sphere: IncrementSurfaceFamily(surfaceFamilies, "sphere"); break;
+                case SurfaceGeometryKind.Torus: IncrementSurfaceFamily(surfaceFamilies, "torus"); break;
+                case SurfaceGeometryKind.LinearExtrusion: IncrementSurfaceFamily(surfaceFamilies, "linear-extrusion"); break;
+                case SurfaceGeometryKind.SurfaceOfRevolution: IncrementSurfaceFamily(surfaceFamilies, "surface-of-revolution"); break;
+                case SurfaceGeometryKind.BSplineSurfaceWithKnots: IncrementSurfaceFamily(surfaceFamilies, "bspline"); break;
+                default: IncrementSurfaceFamily(surfaceFamilies, "other"); break;
             }
         }
 
@@ -1281,6 +1296,27 @@ public sealed record VolumeAnalysisResult(
 
         return edgeCounts;
     }
+
+
+    private static void IncrementSurfaceFamily(IDictionary<string, int> surfaceFamilies, string family)
+    {
+        surfaceFamilies.TryGetValue(family, out var count);
+        surfaceFamilies[family] = count + 1;
+    }
+
+    private static string ToSurfaceFamilyName(SurfaceGeometryKind kind)
+        => kind switch
+        {
+            SurfaceGeometryKind.Plane => "plane",
+            SurfaceGeometryKind.Cylinder => "cylinder",
+            SurfaceGeometryKind.Cone => "cone",
+            SurfaceGeometryKind.Sphere => "sphere",
+            SurfaceGeometryKind.Torus => "torus",
+            SurfaceGeometryKind.LinearExtrusion => "linear-extrusion",
+            SurfaceGeometryKind.SurfaceOfRevolution => "surface-of-revolution",
+            SurfaceGeometryKind.BSplineSurfaceWithKnots => "bspline",
+            _ => "other"
+        };
 
     private static Dictionary<int, string> BuildFaceSurfaceKinds(BrepBody body)
     {

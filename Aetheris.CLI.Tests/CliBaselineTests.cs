@@ -144,6 +144,88 @@ public sealed class CliBaselineTests
         }
     }
 
+
+    [Fact]
+    public void Analyze_Command_Reports_LinearExtrusion_SurfaceFamily()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/generated/ruled-a2/ellipse-linear-extrusion-production.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var families = doc.RootElement.GetProperty("summary").GetProperty("surfaceFamilies");
+        Assert.True(families.GetProperty("linear-extrusion").GetInt32() >= 1);
+    }
+
+    [Fact]
+    public void AnalyzeVolume_LinearExtrusion_ReturnsFriendlyUnsupportedDiagnostic()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/generated/ruled-a2/ellipse-linear-extrusion-production.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(1, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        var error = doc.RootElement.GetProperty("error").GetString();
+        Assert.Contains("Exact volume is not supported", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("linear-extrusion", error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("given key", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Analyze_Command_Reports_SurfaceOfRevolution_SurfaceFamily()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/probes/surface-of-revolution-line.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var families = doc.RootElement.GetProperty("summary").GetProperty("surfaceFamilies");
+        Assert.True(families.GetProperty("surface-of-revolution").GetInt32() >= 1);
+    }
+
+    [Fact]
+    public void AnalyzeVolume_SurfaceOfRevolution_ReturnsFriendlyUnsupportedDiagnostic()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/probes/surface-of-revolution-line.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(1, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        var error = doc.RootElement.GetProperty("error").GetString();
+        Assert.Contains("Exact volume is not supported", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("surface-of-revolution", error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("given key", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Analyze_Command_Accepts_DegreeOneOneBsplineBilinearProbe()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/probes/bspline-degree-1-1-bilinear.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var families = doc.RootElement.GetProperty("summary").GetProperty("surfaceFamilies");
+        Assert.True(families.GetProperty("bspline").GetInt32() >= 1);
+    }
+
     [Fact]
     public void Analyze_Command_Reports_Summary_Facts_And_Discoverability()
     {
@@ -785,7 +867,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeVolume_MixedCurvedTrimmedBody_FailsClearly()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_sphere_cavity_basic.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
         Assert.Equal(1, exitCode);

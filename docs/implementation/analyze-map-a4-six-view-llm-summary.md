@@ -118,3 +118,6 @@ For `testdata/step242/generated/ruled-a2/ellipse-linear-extrusion-production.ste
 - The route summarizes first-hit measurements; it does not replace detailed single-view sample JSON.
 - The route does not perform feature reconstruction, connected-component naming, rendering, or machine vision.
 - `analyze volume` policy is unchanged.
+
+
+Forward link: ANALYZE-MAP-A5 adds connected components and suggested probes; see `docs/implementation/analyze-map-a5-components-and-probes.md`.

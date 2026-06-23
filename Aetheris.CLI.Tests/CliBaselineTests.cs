@@ -561,7 +561,26 @@ public sealed class CliBaselineTests
             Assert.Equal(8, compactGrid.GetProperty("width").GetInt32());
             Assert.Equal(8, compactGrid.GetProperty("height").GetInt32());
             Assert.Equal(8, compactGrid.GetProperty("rows").GetArrayLength());
+            Assert.True(view.TryGetProperty("components", out var components));
+            Assert.DoesNotContain(components.GetProperty("noHit").EnumerateArray(), c => c.GetProperty("classificationHint").GetString() == "interior-opening-candidate");
+            Assert.NotEmpty(components.GetProperty("heightBands").EnumerateArray());
+            Assert.NotEmpty(components.GetProperty("surfaceFamilies").EnumerateArray());
+            Assert.NotEmpty(view.GetProperty("suggestedProbes").EnumerateArray());
         }
+
+        Assert.NotEmpty(root.GetProperty("suggestedProbes").EnumerateArray());
+    }
+
+    [Fact]
+    public void Analyze_Map_SixView_Llm_Cylinder_Reports_Surface_Component_Probe()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateCylinder(3d, 8d).Value, "cli-six-view-cylinder-component");
+        using var doc = RunAnalyzeSixViewMap(stepPath, "17x17");
+        var views = doc.RootElement.GetProperty("views").EnumerateArray().ToArray();
+        var hasCylinder = views.Any(v => v.GetProperty("components").GetProperty("surfaceFamilies").EnumerateArray().Any(c => c.GetProperty("surfaceFamily").GetString() == "cylinder"));
+
+        Assert.True(hasCylinder, doc.RootElement.GetRawText());
+        Assert.Contains(doc.RootElement.GetProperty("suggestedProbes").EnumerateArray(), p => p.GetProperty("command").GetString()?.Contains("--point", StringComparison.Ordinal) == true);
     }
 
     [Fact]
@@ -576,6 +595,8 @@ public sealed class CliBaselineTests
         Assert.True(top.GetProperty("summary").GetProperty("backendCounts").GetProperty("analytic").GetInt32() > 0);
         Assert.Equal(0, top.GetProperty("summary").GetProperty("backendCounts").GetProperty("tessellated-fallback").GetInt32());
         Assert.DoesNotContain("~", string.Concat(top.GetProperty("compactGrid").GetProperty("rows").EnumerateArray().Select(r => r.GetString())));
+        Assert.Contains(top.GetProperty("components").GetProperty("surfaceFamilies").EnumerateArray(), c => c.GetProperty("surfaceFamily").GetString() == "torus");
+        Assert.Contains(top.GetProperty("suggestedProbes").EnumerateArray(), p => p.GetProperty("reason").GetString()?.Contains("torus", StringComparison.OrdinalIgnoreCase) == true);
     }
 
     [Fact]
@@ -588,6 +609,7 @@ public sealed class CliBaselineTests
         Assert.Contains("linear-extrusion", root.GetRawText(), StringComparison.Ordinal);
         Assert.Contains("tessellated-fallback", root.GetRawText(), StringComparison.Ordinal);
         Assert.Contains(root.GetProperty("diagnostics").EnumerateArray(), d => d.GetString()?.Contains("used tessellated fallback", StringComparison.Ordinal) == true);
+        Assert.Contains(root.GetProperty("views").EnumerateArray(), v => v.GetProperty("components").GetProperty("noHit").GetArrayLength() > 0 || v.GetProperty("components").GetProperty("fallback").GetArrayLength() > 0);
     }
 
 

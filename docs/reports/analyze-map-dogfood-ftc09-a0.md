@@ -103,3 +103,8 @@ Recommended schema improvements:
 **Recommended next milestone:** `ANALYZE-MAP-A5 — connected components and interesting point suggestions`.
 
 FTC-09 shows that the current map already measures the model successfully, but it leaves too much topology interpretation to the LLM. Connected components and suggested point probes are the shortest path from “ASCII measurement grid” to “actionable CAD reasoning loop”: they would identify candidate holes/slots/cutouts conservatively, distinguish border-touching silhouette gaps from interior no-hit islands, and give Codex exact next commands to inspect ambiguous regions without requiring image vision or major feature reconstruction.
+
+
+## A5 follow-up
+
+ANALYZE-MAP-A5 was proposed from this dogfood report to turn compact-grid topology into measured connected components and suggested point probes. See `docs/implementation/analyze-map-a5-components-and-probes.md`.

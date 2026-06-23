@@ -109,3 +109,8 @@ CIR/evaluable intersection remains the next architectural hook once an admitted 
 ```text
 ANALYZE-MAP-A3: analytic cone + torus truth pass
 ```
+
+
+## Forward link
+
+ANALYZE-MAP-A2 extends this analytic tier from planes to cylinders and spheres; see `docs/implementation/analyze-map-a2-cylinder-sphere-analytic-hits.md`.

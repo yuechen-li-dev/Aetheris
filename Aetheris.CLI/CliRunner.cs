@@ -109,7 +109,7 @@ public static class CliRunner
     private const string TopLevelUsage = "Usage: aetheris <build|analyze|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
-    private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json";
+    private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> --plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> --resolution <NxM> [--point <u,v>] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
@@ -1760,6 +1760,9 @@ public static class CliRunner
         var viewOptionCount = 0;
         int? rows = null;
         int? cols = null;
+        string? plane = null;
+        string? direction = null;
+        (double U, double V)? point = null;
         var json = false;
 
         for (var i = 1; i < args.Length; i++)
@@ -1793,6 +1796,37 @@ public static class CliRunner
                 case "--rows" when i + 1 < args.Length && int.TryParse(args[++i], out var parsedRows):
                     rows = parsedRows;
                     break;
+                case "--resolution" when i + 1 < args.Length && TryParseResolution(args[++i], out var parsedCols2, out var parsedRows2):
+                    cols = parsedCols2;
+                    rows = parsedRows2;
+                    break;
+                case "--resolution":
+                    stderr.WriteLine("Analyze map option --resolution requires a value like 32x32.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
+                case "--plane" when i + 1 < args.Length:
+                    plane = args[++i];
+                    break;
+                case "--plane":
+                    stderr.WriteLine("Analyze map option --plane requires xy, xz, or yz.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
+                case "--direction" when i + 1 < args.Length:
+                    direction = args[++i];
+                    break;
+                case "--direction":
+                    stderr.WriteLine("Analyze map option --direction requires +x, -x, +y, -y, +z, or -z.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
+                case "--point" when i + 1 < args.Length && TryParsePoint(args[++i], out var parsedPoint):
+                    point = parsedPoint;
+                    rows ??= 1;
+                    cols ??= 1;
+                    break;
+                case "--point":
+                    stderr.WriteLine("Analyze map option --point requires a comma-separated coordinate like 3,4.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
                 case "--rows":
                     stderr.WriteLine("Analyze map option --rows requires an integer value.");
                     stderr.WriteLine(AnalyzeMapUsage);
@@ -1818,9 +1852,25 @@ public static class CliRunner
             }
         }
 
-        if (!view.HasValue || viewOptionCount != 1)
+        var legacyViewMode = plane is null && view.HasValue;
+        if (legacyViewMode)
         {
-            stderr.WriteLine("Analyze map requires exactly one orthographic view option (--top|--bottom|--front|--back|--left|--right).");
+            var legacyView = view.GetValueOrDefault();
+            (plane, direction) = legacyView switch
+            {
+                OrthographicView.Top => ("xy", "-z"),
+                OrthographicView.Bottom => ("xy", "+z"),
+                OrthographicView.Front => ("xz", "-y"),
+                OrthographicView.Back => ("xz", "+y"),
+                OrthographicView.Left => ("yz", "+x"),
+                OrthographicView.Right => ("yz", "-x"),
+                _ => ("xy", "-z")
+            };
+        }
+
+        if (plane is null || direction is null || (viewOptionCount > 0 && viewOptionCount != 1))
+        {
+            stderr.WriteLine("Analyze map requires --plane and --direction (or one legacy view option --top|--bottom|--front|--back|--left|--right).");
             return 1;
         }
 
@@ -1836,10 +1886,12 @@ public static class CliRunner
             return 1;
         }
 
-        OrthographicMapResult map;
+        object map;
         try
         {
-            map = StepAnalyzer.AnalyzeMap(stepPath, view.Value, rows.Value, cols.Value);
+            map = legacyViewMode
+                ? StepAnalyzer.AnalyzeMap(stepPath, view.GetValueOrDefault(), rows.Value, cols.Value)
+                : StepAnalyzer.AnalyzeRayMap(stepPath, plane, direction, cols.Value, rows.Value, point);
         }
         catch (Exception ex)
         {
@@ -2053,6 +2105,27 @@ public static class CliRunner
     private static bool IsHelpFlag(string value) =>
         string.Equals(value, "--help", StringComparison.Ordinal)
         || string.Equals(value, "-h", StringComparison.Ordinal);
+
+    private static bool TryParseResolution(string value, out int cols, out int rows)
+    {
+        cols = 0;
+        rows = 0;
+        var parts = value.Split('x', 'X');
+        return parts.Length == 2
+            && int.TryParse(parts[0], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out cols)
+            && int.TryParse(parts[1], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out rows);
+    }
+
+    private static bool TryParsePoint(string value, out (double U, double V) point)
+    {
+        point = default;
+        var parts = value.Split(',');
+        if (parts.Length != 2) return false;
+        if (!double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var u)) return false;
+        if (!double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) return false;
+        point = (u, v);
+        return true;
+    }
 
     private static bool IsVersionFlag(string value) =>
         string.Equals(value, "--version", StringComparison.Ordinal)

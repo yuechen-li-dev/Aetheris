@@ -118,6 +118,13 @@ public sealed record OrthographicMapResult(
     IReadOnlyList<IReadOnlyList<OrthographicSample>> Grid,
     IReadOnlyList<string> Notes);
 
+
+public sealed record RayMapBounds(double[] U, double[] V);
+public sealed record RayMapHit(double T, Point3D Position, int? FaceIndex, string? SurfaceFamily, Vector3D? Normal, string IntersectionMode);
+public sealed record RayMapSample(int I, int J, double U, double V, bool Hit, RayMapHit? FirstHit, RayMapHit? LastHit, int HitCount, IReadOnlyList<RayMapHit> Hits);
+public sealed record RayMapSummary(double HitCoverage, double[]? HeightRange, IReadOnlyDictionary<string, int> SurfaceFamiliesHit);
+public sealed record RayMapResult(string Mode, string Plane, string Direction, int[]? Resolution, double[]? Point, RayMapBounds Bounds, IReadOnlyList<RayMapSample> Samples, int HitCount, IReadOnlyList<RayMapHit>? Hits, RayMapSummary Summary, string IntersectionMode, IReadOnlyList<string> Diagnostics);
+
 public enum SectionPlaneFamily
 {
     XY,

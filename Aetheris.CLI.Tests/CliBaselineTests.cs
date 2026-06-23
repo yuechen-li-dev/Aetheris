@@ -538,6 +538,58 @@ public sealed class CliBaselineTests
         Assert.Equal(2, root.GetProperty("samples")[12].GetProperty("intersectionModes").GetProperty("analytic").GetInt32());
     }
 
+    [Fact]
+    public void Analyze_Map_SixView_Llm_Box_Returns_Compact_Summaries()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-six-view-box");
+        using var doc = RunAnalyzeSixViewMap(stepPath, "8x8");
+        var root = doc.RootElement;
+
+        Assert.Equal("six-view-summary", root.GetProperty("mode").GetString());
+        Assert.Equal("analyze-map-v1", root.GetProperty("mapVersion").GetString());
+        Assert.Equal(6, root.GetProperty("views").GetArrayLength());
+        foreach (var view in root.GetProperty("views").EnumerateArray())
+        {
+            var summary = view.GetProperty("summary");
+            Assert.Equal(64, summary.GetProperty("sampleCount").GetInt32());
+            Assert.Equal(64, summary.GetProperty("hitCount").GetInt32());
+            Assert.Equal(1d, summary.GetProperty("hitCoverage").GetDouble(), 8);
+            Assert.True(summary.GetProperty("surfaceFamiliesHit").TryGetProperty("plane", out _));
+            Assert.True(summary.GetProperty("backendCounts").GetProperty("analytic").GetInt32() > 0);
+            Assert.Equal(0d, summary.GetProperty("fallbackRatio").GetDouble(), 8);
+            Assert.True(view.TryGetProperty("compactGrid", out var compactGrid));
+            Assert.Equal(8, compactGrid.GetProperty("width").GetInt32());
+            Assert.Equal(8, compactGrid.GetProperty("height").GetInt32());
+            Assert.Equal(8, compactGrid.GetProperty("rows").GetArrayLength());
+        }
+    }
+
+    [Fact]
+    public void Analyze_Map_SixView_Llm_Torus_Discloses_Analytic_Ring_And_No_Fallback()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateTorus(3d, 1d).Value, "cli-six-view-torus");
+        using var doc = RunAnalyzeSixViewMap(stepPath, "9x9");
+        var root = doc.RootElement;
+        var top = root.GetProperty("views").EnumerateArray().Single(v => v.GetProperty("name").GetString() == "top");
+
+        Assert.True(top.GetProperty("summary").GetProperty("surfaceFamiliesHit").TryGetProperty("torus", out _));
+        Assert.True(top.GetProperty("summary").GetProperty("backendCounts").GetProperty("analytic").GetInt32() > 0);
+        Assert.Equal(0, top.GetProperty("summary").GetProperty("backendCounts").GetProperty("tessellated-fallback").GetInt32());
+        Assert.DoesNotContain("~", string.Concat(top.GetProperty("compactGrid").GetProperty("rows").EnumerateArray().Select(r => r.GetString())));
+    }
+
+    [Fact]
+    public void Analyze_Map_SixView_Llm_LinearExtrusion_Discloses_Fallback()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata", "step242", "generated", "ruled-a2", "ellipse-linear-extrusion-production.step");
+        using var doc = RunAnalyzeSixViewMap(stepPath, "4x4");
+        var root = doc.RootElement;
+
+        Assert.Contains("linear-extrusion", root.GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("tessellated-fallback", root.GetRawText(), StringComparison.Ordinal);
+        Assert.Contains(root.GetProperty("diagnostics").EnumerateArray(), d => d.GetString()?.Contains("used tessellated fallback", StringComparison.Ordinal) == true);
+    }
+
 
     [Fact]
     public void Analyze_Map_RayProbe_CylinderSide_Uses_Analytic_Exact_Hits()
@@ -1463,6 +1515,16 @@ public sealed class CliBaselineTests
         var stdout = new StringWriter();
         var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "map", stepPath, .. args, "--json"], stdout, stderr);
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        return JsonDocument.Parse(stdout.ToString());
+    }
+
+    private static JsonDocument RunAnalyzeSixViewMap(string stepPath, string resolution)
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "map", stepPath, "--views", "six", "--resolution", resolution, "--llm", "--json"], stdout, stderr);
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
         return JsonDocument.Parse(stdout.ToString());

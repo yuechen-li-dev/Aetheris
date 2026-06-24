@@ -116,6 +116,19 @@ public static class FirmamentV2Parser
     public const string PmiTargetUnresolved = "firmament-v2-pmi-target-unresolved";
     public const string PmiDiameterInvalid = "firmament-v2-pmi-diameter-invalid";
     public const string PmiDuplicateName = "firmament-v2-pmi-duplicate-name";
+    public const string PmiDuplicateBlock = "firmament-v2-pmi-duplicate-block";
+    public const string PmiDuplicateRecord = "firmament-v2-pmi-duplicate-record";
+    public const string PmiDuplicateDatum = "firmament-v2-pmi-duplicate-datum";
+    public const string PmiUnknownRecordKind = "firmament-v2-pmi-unknown-record-kind";
+    public const string PmiMissingRequiredField = "firmament-v2-pmi-missing-required-field";
+    public const string PmiUnknownField = "firmament-v2-pmi-unknown-field";
+    public const string PmiDuplicateField = "firmament-v2-pmi-duplicate-field";
+    public const string PmiInvalidTarget = "firmament-v2-pmi-invalid-target";
+    public const string PmiUnknownDatum = "firmament-v2-pmi-unknown-datum";
+    public const string PmiDimensionTypeMismatch = "firmament-v2-pmi-dimension-type-mismatch";
+    public const string PmiDimensionMissingTolerance = "firmament-v2-pmi-dimension-missing-tolerance";
+    public const string PmiToleranceTypeMismatch = "firmament-v2-pmi-tolerance-type-mismatch";
+    public const string PmiUnsupported = "firmament-v2-pmi-unsupported";
     public const string InlineStepPathMissing = "firmament-v2-inline-step-path-missing";
     public const string InlineStepPathInvalid = "firmament-v2-inline-step-path-invalid";
     public const string InlineStepFileMissing = "firmament-v2-inline-step-file-missing";
@@ -252,12 +265,12 @@ public static class FirmamentV2Parser
         var templates = ParseTemplates(source, diagnostics);
         var recognizedRegions = ParseRecognizedRegions(source, byName, diagnostics);
         var replacements = ParseReplacements(source, byName, recognizedRegions, diagnostics);
-        var pmi = ParsePmi(source, byName, modifyBlocks, recognizedRegions, diagnostics);
+        var (pmi, pmiBlock, boundPmi) = ParsePmi(source, byName, modifyBlocks, recognizedRegions, boundLets, boundLetRecords, diagnostics);
         var (manufacturingConcepts, featureConcepts) = ParseConceptApplications(source, boundLets, boundLetRecords, diagnostics);
 
         FirmamentV2Document? document = null;
         if (modelMatch.Success && unitsMatch.Success && solids.Count > 0 && !diagnostics.Any(IsFatalDiagnostic))
-            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks, templates, pmi, recognizedRegions, replacements, lets, boundLets, letRecords, boundLetRecords, manufacturingConcepts, featureConcepts);
+            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks, templates, pmi, recognizedRegions, replacements, lets, boundLets, letRecords, boundLetRecords, manufacturingConcepts, featureConcepts, pmiBlock, boundPmi);
 
         diagnostics.Add(document is null ? "firmament-v2-parse-failed" : "firmament-v2-parse-succeeded");
         diagnostics.Sort(StringComparer.Ordinal);
@@ -679,7 +692,7 @@ public static class FirmamentV2Parser
         return new(name, "Box", new FirmamentV2BoxRecord(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
     }
 
-    private static bool IsFatalDiagnostic(string code) => code is PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetTypeMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable;
+    private static bool IsFatalDiagnostic(string code) => code is PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetTypeMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -1287,74 +1300,117 @@ public static class FirmamentV2Parser
         return imported.Success && string.Equals(imported.Groups["body"].Value, solid.Name, StringComparison.Ordinal) && solid.InlineStep is not null && solid.InlineStep.TopologyMap.TryResolveFaceEntity(imported.Groups["entity"].Value, out _);
     }
 
-    private static IReadOnlyList<FirmamentV2PmiDecl> ParsePmi(string source, Dictionary<string, FirmamentV2SolidBinding> solids, IReadOnlyList<FirmamentV2ModifyBlock> modifyBlocks, IReadOnlyList<FirmamentV2RecognizedRegion> recognizedRegions, List<string> diagnostics)
+    private static (IReadOnlyList<FirmamentV2PmiDecl> Legacy, FirmamentV2PmiBlock? Block, FirmamentV2BoundPmiBlock? Bound) ParsePmi(
+        string source,
+        Dictionary<string, FirmamentV2SolidBinding> solids,
+        IReadOnlyList<FirmamentV2ModifyBlock> modifyBlocks,
+        IReadOnlyList<FirmamentV2RecognizedRegion> recognizedRegions,
+        IReadOnlyList<FirmamentV2BoundLet> boundLets,
+        IReadOnlyList<FirmamentV2BoundLetRecord> boundLetRecords,
+        List<string> diagnostics)
     {
-        var match = PmiHeaderRegex.Match(source);
-        if (!match.Success) return [];
+        var matches = PmiHeaderRegex.Matches(source);
+        if (matches.Count == 0) return ([], null, null);
+        if (matches.Count > 1) diagnostics.Add(PmiDuplicateBlock);
+        var match = matches[0];
         var open = source.IndexOf('{', match.Index);
         var close = FindMatchingBrace(source, open);
-        if (close < 0) { diagnostics.Add(UnsupportedConstruct); return []; }
+        if (close < 0) { diagnostics.Add(UnsupportedConstruct); return ([], null, null); }
         var body = source[(open + 1)..close];
-        var entries = new List<FirmamentV2PmiDecl>();
-        var names = new HashSet<string>(StringComparer.Ordinal);
+        var legacy = new List<FirmamentV2PmiDecl>();
+        var records = new List<FirmamentV2PmiRecord>();
+        var bound = new List<FirmamentV2BoundPmiRecord>();
+        var recordNames = new HashSet<string>(StringComparer.Ordinal);
+        var datumLabels = new HashSet<string>(StringComparer.Ordinal);
+        var knownDatums = new HashSet<string>(StringComparer.Ordinal);
+        var letMap = boundLets.ToDictionary(l => l.Name, StringComparer.Ordinal);
+        var recordMap = boundLetRecords.ToDictionary(r => r.Name, StringComparer.Ordinal);
         var holeNames = modifyBlocks.SelectMany(m => m.SemanticHoles).Select(h => h.Name).ToHashSet(StringComparer.Ordinal);
         var regionByTarget = recognizedRegions.ToDictionary(r => r.TargetSource, r => r, StringComparer.Ordinal);
         var aliases = solids.Values.SelectMany(s => s.Box?.Exposures ?? []).Select(e => e.Alias).ToHashSet(StringComparer.Ordinal);
+
         foreach (Match em in PmiEntryHeaderRegex.Matches(body))
         {
             var kindRaw = em.Groups["kind"].Value;
             var name = em.Groups["name"].Value;
-            if (!names.Add(name)) { diagnostics.Add(PmiDuplicateName); continue; }
+            if (!TryPmiKind(kindRaw, out var kind)) { diagnostics.Add(PmiUnknownRecordKind); diagnostics.Add(PmiKindUnknown); continue; }
+            if (kind == FirmamentV2PmiKind.DatumPlane && !datumLabels.Add(name)) { diagnostics.Add(PmiDuplicateDatum); }
+            if (!recordNames.Add(name)) { diagnostics.Add(PmiDuplicateRecord); diagnostics.Add(PmiDuplicateName); continue; }
             var entryOpen = body.IndexOf('{', em.Index);
             var entryClose = FindMatchingBrace(body, entryOpen);
             if (entryClose < 0) { diagnostics.Add(UnsupportedConstruct); continue; }
             var eb = body[(entryOpen + 1)..entryClose];
-            var targetMatch = TargetRegex.Match(eb);
-            if (!targetMatch.Success) { diagnostics.Add(PmiTargetMissing); continue; }
-            var target = targetMatch.Groups["target"].Value.Trim();
-            if (string.Equals(kindRaw, "diameter", StringComparison.Ordinal))
-            {
-                var valueMatch = ValueRegex.Match(eb);
-                if (!valueMatch.Success || !TryParsePositiveNumberWithOptionalMm(valueMatch.Groups["value"].Value, out var value)) { diagnostics.Add(PmiDiameterInvalid); continue; }
-                if (TryValidateImportedFaceTarget(target, solids, diagnostics))
-                {
-                    entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.HoleDiameter, target, value));
-                    continue;
-                }
-                if (RecognizedRegionTargetRegex.IsMatch(target))
-                {
-                    if (!regionByTarget.TryGetValue(target, out var region)) { diagnostics.Add(UnknownRecognitionRegion); continue; }
-                    if (region.Kind != "holeShaft") { diagnostics.Add(PmiRecognizedRegionKindMismatch); continue; }
-                    entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.HoleDiameter, target, value));
-                    continue;
-                }
-                if (!holeNames.Contains(target)) { diagnostics.Add(PmiTargetUnresolved); continue; }
-                entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.HoleDiameter, target, value));
-            }
-            else if (string.Equals(kindRaw, "datum", StringComparison.Ordinal))
-            {
-                if (TryValidateImportedFaceTarget(target, solids, diagnostics))
-                {
-                    entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.DatumPlane, target));
-                    continue;
-                }
-                if (RecognizedRegionTargetRegex.IsMatch(target))
-                {
-                    if (!regionByTarget.TryGetValue(target, out var region)) { diagnostics.Add(UnknownRecognitionRegion); continue; }
-                    if (region.Kind != "datumPlane") { diagnostics.Add(PmiRecognizedRegionKindMismatch); continue; }
-                    entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.DatumPlane, target));
-                    continue;
-                }
-                if (!aliases.Contains(target) && !FaceSelectorRegex.IsMatch(target)) { diagnostics.Add(PmiTargetUnresolved); continue; }
-                entries.Add(new FirmamentV2PmiDecl(name, FirmamentV2PmiKind.DatumPlane, target));
-            }
-            else
-            {
-                diagnostics.Add(PmiKindUnknown);
-            }
+            var fields = ParsePmiFields(eb, open + 1 + entryOpen, diagnostics);
+            ValidatePmiFieldSet(kindRaw, name, fields, diagnostics);
+            var record = new FirmamentV2PmiRecord(kind, name, fields, new FirmamentV2SourceSpan(open + 1 + em.Index, entryClose - em.Index + 1));
+            records.Add(record);
+            if (!TryBindPmiRecord(record, solids, regionByTarget, aliases, holeNames, letMap, recordMap, knownDatums, diagnostics, out var b)) continue;
+            bound.Add(b);
+            if (kind == FirmamentV2PmiKind.DatumPlane) knownDatums.Add(name);
+            if (kind is FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter)
+                legacy.Add(new FirmamentV2PmiDecl(name, kind, b.Targets[0], b.DimensionValue?.NumericValue));
         }
-        return entries;
+
+        var block = new FirmamentV2PmiBlock(records, new FirmamentV2SourceSpan(match.Index, close - match.Index + 1));
+        var boundBlock = new FirmamentV2BoundPmiBlock(bound.Where(r => r.Kind == FirmamentV2PmiKind.DatumPlane).ToArray(), bound.Where(r => r.Kind is FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Distance).ToArray(), bound.Where(r => r.Kind is FirmamentV2PmiKind.Flatness or FirmamentV2PmiKind.Parallel or FirmamentV2PmiKind.Perpendicular or FirmamentV2PmiKind.Coplanar).ToArray(), diagnostics.Where(d => d.StartsWith("firmament-v2-pmi-", StringComparison.Ordinal)).ToArray());
+        return (legacy, block, boundBlock);
     }
+
+    private static Dictionary<string, FirmamentV2PmiField> ParsePmiFields(string body, int baseOffset, List<string> diagnostics)
+    {
+        var fields = new Dictionary<string, FirmamentV2PmiField>(StringComparer.Ordinal);
+        var fieldRegex = new Regex(@"(?<name>targetA|targetB|target|dimension|value|diameter|tolerance|datum)\s*:\s*(?<value>.*?)(?=\s+(?:targetA|targetB|target|dimension|value|diameter|tolerance|datum)\s*:|$)", RegexOptions.CultureInvariant | RegexOptions.Singleline);
+        foreach (Match m in fieldRegex.Matches(body))
+        {
+            var n = m.Groups["name"].Value;
+            var v = m.Groups["value"].Value.Trim();
+            if (v.EndsWith("}", StringComparison.Ordinal)) v = v[..^1].Trim();
+            if (fields.ContainsKey(n)) { diagnostics.Add(PmiDuplicateField); continue; }
+            fields[n] = new(n, v, new FirmamentV2SourceSpan(baseOffset + m.Index, m.Length), null);
+        }
+        if (fields.Count == 0 && body.Split(['\r','\n'], StringSplitOptions.RemoveEmptyEntries).Any(l => l.Trim().Length > 0)) diagnostics.Add(PmiUnsupported);
+        return fields;
+    }
+
+    private static bool TryPmiKind(string raw, out FirmamentV2PmiKind kind) { kind = raw switch { "diameter"=>FirmamentV2PmiKind.HoleDiameter, "datum"=>FirmamentV2PmiKind.DatumPlane, "distance"=>FirmamentV2PmiKind.Distance, "flatness"=>FirmamentV2PmiKind.Flatness, "parallel"=>FirmamentV2PmiKind.Parallel, "perpendicular"=>FirmamentV2PmiKind.Perpendicular, "coplanar"=>FirmamentV2PmiKind.Coplanar, _=>default }; return raw is "diameter" or "datum" or "distance" or "flatness" or "parallel" or "perpendicular" or "coplanar"; }
+
+    private static void ValidatePmiFieldSet(string kind, string name, IReadOnlyDictionary<string,FirmamentV2PmiField> fields, List<string> diagnostics)
+    {
+        string[] required = kind switch { "datum"=>["target"], "diameter"=> fields.ContainsKey("dimension") ? ["target","dimension"] : fields.ContainsKey("diameter") ? ["target","diameter"] : ["target","value"], "distance"=>["targetA","targetB","dimension"], "flatness"=>["target","tolerance"], "parallel" or "perpendicular" or "coplanar"=>["target","datum","tolerance"], _=>[] };
+        var allowed = required.Concat(kind=="diameter"?["tolerance","diameter","value","dimension"]:[]).ToHashSet(StringComparer.Ordinal);
+        foreach (var r in required) if (!fields.ContainsKey(r)) diagnostics.Add(PmiMissingRequiredField);
+        foreach (var f in fields.Keys) if (!allowed.Contains(f)) diagnostics.Add(PmiUnknownField);
+    }
+
+    private static bool TryBindPmiRecord(FirmamentV2PmiRecord r, Dictionary<string,FirmamentV2SolidBinding> solids, IReadOnlyDictionary<string,FirmamentV2RecognizedRegion> regions, HashSet<string> aliases, HashSet<string> holeNames, IReadOnlyDictionary<string,FirmamentV2BoundLet> lets, IReadOnlyDictionary<string,FirmamentV2BoundLetRecord> records, HashSet<string> datums, List<string> diagnostics, out FirmamentV2BoundPmiRecord bound)
+    {
+        bound=null!;
+        string? target = Field(r,"target"); string? targetA=Field(r,"targetA"); string? targetB=Field(r,"targetB");
+        var targets = new[]{target,targetA,targetB}.Where(t=>t is not null).Cast<string>().ToArray();
+        foreach (var t in targets) ValidateTarget(t, r.Kind, solids, regions, aliases, holeNames, diagnostics);
+        FirmamentV2LiteralValue? dim=null; FirmamentV2Tolerance? dimTol=null; FirmamentV2LiteralValue? ctlTol=null; var datumRefs=new List<string>();
+        if (r.Kind is FirmamentV2PmiKind.HoleDiameter or FirmamentV2PmiKind.Distance)
+        {
+            if (Field(r,"dimension") is string d) { var b=ResolveBoundLet(d, lets, records); if (b is null) diagnostics.Add(PmiDimensionTypeMismatch); else if (b.Type!=FirmamentV2PrimitiveType.Length) diagnostics.Add(PmiDimensionTypeMismatch); else { dim=b.Value; dimTol=b.Tolerance; } }
+            else if (Field(r,"value") is string v && TryParsePmiLength(NormalizePmiLengthLiteral(v), diagnostics, out var lit)) dim=lit;
+            else if (Field(r,"diameter") is string legacy && TryParsePmiLength(NormalizePmiLengthLiteral(legacy), diagnostics, out var legacyLit)) dim=legacyLit;
+            if (Field(r,"tolerance") is string t && TryParseToleranceLiteral(NormalizePmiLengthLiteral(t), diagnostics, out var tol)) dimTol=tol;
+            if (dim is null) { diagnostics.Add(PmiDiameterInvalid); return false; }
+            if (dimTol is null && Field(r,"diameter") is null && Field(r,"value") is null) { diagnostics.Add(PmiDimensionMissingTolerance); return false; }
+        }
+        if (r.Kind is FirmamentV2PmiKind.Flatness or FirmamentV2PmiKind.Parallel or FirmamentV2PmiKind.Perpendicular or FirmamentV2PmiKind.Coplanar)
+        { if (Field(r,"tolerance") is string t && TryParsePmiLength(NormalizePmiLengthLiteral(t), diagnostics, out var lit)) ctlTol=lit; else diagnostics.Add(PmiToleranceTypeMismatch); }
+        if (r.Kind is FirmamentV2PmiKind.Parallel or FirmamentV2PmiKind.Perpendicular or FirmamentV2PmiKind.Coplanar)
+        { var d=Field(r,"datum"); if (d is null || !datums.Contains(d)) diagnostics.Add(PmiUnknownDatum); else datumRefs.Add(d); }
+        bound=new(r.Kind,r.Name,targets,dim,dimTol,ctlTol,datumRefs,r.SourceSpan); return !diagnostics.Any(x=>x.StartsWith("firmament-v2-pmi-",StringComparison.Ordinal) && x is not PmiUnsupported);
+    }
+    private static string? Field(FirmamentV2PmiRecord r,string name)=>r.Fields.TryGetValue(name,out var f)?f.Source:null;
+    private static FirmamentV2BoundLet? ResolveBoundLet(string s,IReadOnlyDictionary<string,FirmamentV2BoundLet> lets,IReadOnlyDictionary<string,FirmamentV2BoundLetRecord> records){var m=DottedReferenceRegex.Match(s); if(m.Success&&records.TryGetValue(m.Groups["record"].Value,out var rec)&&rec.Fields.TryGetValue(m.Groups["field"].Value,out var f))return f; return lets.TryGetValue(s,out var l)?l:null;}
+    private static string NormalizePmiLengthLiteral(string s) => Regex.Replace(s.Trim(), @"(?<=\d)\s+(?=mm$)", "", RegexOptions.CultureInvariant);
+    private static bool TryParsePmiLength(string s,List<string> d,out FirmamentV2LiteralValue lit){lit=null!; var v=ParseLetLiteral(FirmamentV2PrimitiveType.Length,s,d); if(v is null){d.Add(PmiToleranceTypeMismatch); return false;} if(v.NumericValue is < 0){ d.Add(PmiDiameterInvalid); return false; } lit=v; return true;}
+    private static bool TryParseToleranceLiteral(string s,List<string>d,out FirmamentV2Tolerance tol){tol=null!; var t=ParseTolerance(FirmamentV2PrimitiveType.Length,s,d); if(t is null){d.Add(PmiToleranceTypeMismatch); return false;} tol=t; return true;}
+    private static void ValidateTarget(string target,FirmamentV2PmiKind kind,Dictionary<string,FirmamentV2SolidBinding> solids,IReadOnlyDictionary<string,FirmamentV2RecognizedRegion> regions,HashSet<string> aliases,HashSet<string> holeNames,List<string> diagnostics)
+    { if (TryValidateImportedFaceTarget(target, solids, diagnostics)) return; if (RecognizedRegionTargetRegex.IsMatch(target)){ var m=RecognizedRegionTargetRegex.Match(target); var body=m.Groups["body"].Value; if(regions.TryGetValue(target,out var region)){ if((kind==FirmamentV2PmiKind.HoleDiameter&&region.Kind!="holeShaft") || (kind==FirmamentV2PmiKind.DatumPlane&&region.Kind!="datumPlane")) diagnostics.Add(PmiRecognizedRegionKindMismatch); } else if(regions.Values.Any(r=>r.BodyName==body) || diagnostics.Contains(UnknownRecognitionFace)) diagnostics.Add(UnknownRecognitionRegion); return;} if(aliases.Contains(target)||FaceSelectorRegex.IsMatch(target)||holeNames.Contains(target))return; if(!target.Contains(".region(",StringComparison.Ordinal)) { diagnostics.Add(PmiInvalidTarget); diagnostics.Add(PmiTargetUnresolved); } }
 
     private static bool TryValidateImportedFaceTarget(string target, Dictionary<string, FirmamentV2SolidBinding> solids, List<string> diagnostics)
     {

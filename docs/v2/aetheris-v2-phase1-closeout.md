@@ -17,6 +17,8 @@ Phase 1 deliberately closes on a narrow, sellable workflow rather than broad CAD
 
 The Phase 1 scope contract defines the product wedge as adding, inspecting, validating, and transporting manufacturing intent on existing STEP/AP242 models. The concept/template reconciliation note preserves the language doctrine: Firmament remains immutable manufacturing data; concepts annotate and constrain existing geometry; templates and generation remain deferred.
 
+Next phase: [`aetheris-v2-phase2-csharp-interop-scope-contract.md`](aetheris-v2-phase2-csharp-interop-scope-contract.md) opens Phase 2 with the doctrine that Firmament remains data, C# owns logic, and Forge is the typed interop boundary for concept authoring and future automation.
+
 ## 2. Phase 1 product workflow
 
 The completed Phase 1 workflow is:

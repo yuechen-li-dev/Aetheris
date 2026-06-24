@@ -1,0 +1,16 @@
+// syntax-version: FirmamentV2
+// implementation: parser-backed
+// expected-stage: parser
+model LetRecordGroups {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+
+  let MountingPattern {
+    holeDiameter: length = 6.0mm
+    holeSpacingX: length = 80.0mm
+    holeSpacingY: length = 40.0mm
+    holeCount: int = 4
+    label: string = "M6 mount group"
+    inspectionRequired: bool = true
+  }
+}

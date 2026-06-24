@@ -9,7 +9,8 @@ public sealed class CliHelpAndUsageTests
     [Theory]
     [InlineData("--help")]
     [InlineData("-h")]
-    public void Top_Level_Help_Flags_Return_Zero_And_List_Commands(string flag)
+    [InlineData("help")]
+    public void Top_Level_Help_Requests_Return_Zero_And_List_Commands(string flag)
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
@@ -55,6 +56,22 @@ public sealed class CliHelpAndUsageTests
         var text = stdout.ToString();
         Assert.Contains("Usage:", text, StringComparison.Ordinal);
         Assert.Contains("Example", text, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void Invalid_Top_Level_Command_Remains_Nonzero_And_Reports_Usage()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["definitely-not-a-command"], stdout, stderr);
+
+        Assert.NotEqual(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stdout.ToString()));
+        var text = stderr.ToString();
+        Assert.Contains("Unknown command 'definitely-not-a-command'", text, StringComparison.Ordinal);
+        Assert.Contains("aetheris --help", text, StringComparison.Ordinal);
     }
 
     [Fact]

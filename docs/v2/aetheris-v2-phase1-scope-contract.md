@@ -99,7 +99,7 @@ This doctrine exists because Firmament files must be auditable. Humans, LLMs, su
 - L1 primitive immutable typed `let` declarations are implemented.
 - L2 grouped one-level `let` records and exact dotted record-field references are implemented for parser/model/binder exposure.
 - L3 scalar arithmetic expression graph is implemented with strict primitive type rules, evaluated dependencies, and acyclic validation; same-record field expression binding remains deferred.
-- L4 tolerance syntax remains deferred.
+- L4 toleranced dimensional `let` syntax is implemented for `length`/`angle` scalar lets and literal record fields, with exact-alias tolerance preservation and nominal-only arithmetic drop diagnostics; PMI wiring and automatic tolerance propagation remain out of scope.
 
 ## 5. `let` declarations and typed values
 

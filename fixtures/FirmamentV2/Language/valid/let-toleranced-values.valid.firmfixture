@@ -1,0 +1,17 @@
+// fixture: FirmamentV2 toleranced let values
+// syntax-version: FirmamentV2
+model TolerancedValues {
+    units mm
+    solid base: Box { size: [100, 80, 10] }
+
+    let holeDiameter: length = 6.0mm tol 0.05mm
+    let slotWidth: length = 12.0mm tol +0.10mm -0.05mm
+    let draftAngle: angle = 3deg tol 0.5deg
+
+    let MountingPattern {
+        holeDiameter: length = 6.0mm tol 0.05mm
+        holeSpacingX: length = 80.0mm tol +0.10mm -0.05mm
+        holeSpacingY: length = 40.0mm tol 0.10mm
+        holeCount: int = 4
+    }
+}

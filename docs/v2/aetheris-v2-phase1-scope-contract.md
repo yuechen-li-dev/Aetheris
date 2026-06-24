@@ -427,7 +427,7 @@ L1: let declarations + primitive typed literals — implemented as top-level imm
 L2: let record groups + dotted references
 L3: arithmetic expression graph + acyclic validation
 L4: tolerance syntax and tolerant dimension values
-F1: Forge concept-family application syntax
+F1: Forge concept-family application syntax — implemented for descriptor-validated `manufacturing process<CNC>` and `feature name: hole<Concept>` declarations; validation only, with no DFM execution, PMI lowering, or geometry/modeling behavior.
 P1: pmi block v2 record-shaped dimensions/datums/basic controls
 R1: validation/report integration
 D1: demo/update packet for V2.0 Phase 1 workflow

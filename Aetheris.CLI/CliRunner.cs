@@ -144,7 +144,7 @@ public static class CliRunner
             return 1;
         }
 
-        if (IsHelpFlag(args[0]))
+        if (IsTopLevelHelpRequest(args[0]))
         {
             WriteTopLevelHelp(stdout);
             return 0;
@@ -2141,6 +2141,10 @@ public static class CliRunner
         stderr.WriteLine("Run 'aetheris --help' for usage and examples.");
         return 1;
     }
+
+    private static bool IsTopLevelHelpRequest(string value) =>
+        IsHelpFlag(value)
+        || string.Equals(value, "help", StringComparison.Ordinal);
 
     private static bool IsHelpFlag(string value) =>
         string.Equals(value, "--help", StringComparison.Ordinal)

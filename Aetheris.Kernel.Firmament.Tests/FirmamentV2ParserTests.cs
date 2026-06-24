@@ -891,7 +891,7 @@ model BadPmiDiameter {
     [InlineData("let draftAngle: angle = 3mm", FirmamentV2Parser.LetUnitMismatch)]
     [InlineData("let scale: float = 1.25mm", FirmamentV2Parser.LetUnitMismatch)]
     [InlineData("let unknownThing: banana = 1", FirmamentV2Parser.LetUnknownType)]
-    [InlineData("let radius: length = holeDiameter / 2", FirmamentV2Parser.LetLiteralOnly)]
+    [InlineData("let radius: length = holeDiameter / 2", FirmamentV2Parser.ExpressionUnknownSymbol)]
     [InlineData("let holeDiameter: length = 6.0mm tol 0.05mm", FirmamentV2Parser.LetInvalidLiteral)]
     public void FirmamentV2Parser_LetPrimitiveLiterals_InvalidCasesAreDiagnostics(string letSource, string expectedDiagnostic)
     {
@@ -977,6 +977,47 @@ model BadPmiDiameter {
 
         Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
         AssertLet(Assert.Single(result.Document!.BoundLets!), "exportedHoleDiameter", FirmamentV2PrimitiveType.Length, 6.0d, "mm");
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_LetArithmeticExpressions_EvaluateStrictTypedGraph()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Language/valid/let-arithmetic-expressions.valid.firmfixture"));
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var bound = result.Document!.BoundLets!.ToDictionary(l => l.Name);
+        AssertLet(bound["radius"], "radius", FirmamentV2PrimitiveType.Length, 3.0d, "mm");
+        AssertLet(bound["drill"], "drill", FirmamentV2PrimitiveType.Length, 6.25d, "mm");
+        AssertLet(bound["doubled"], "doubled", FirmamentV2PrimitiveType.Int, 8, null);
+        AssertLet(bound["ratio"], "ratio", FirmamentV2PrimitiveType.Float, 2.0d, null);
+        AssertLet(bound["halfAngle"], "halfAngle", FirmamentV2PrimitiveType.Angle, 45.0d, "deg");
+        AssertLet(bound["scaled"], "scaled", FirmamentV2PrimitiveType.Length, 7.5d, "mm");
+        Assert.Contains("diameter", bound["radius"].Dependencies!);
+    }
+
+    [Theory]
+    [InlineData("let diameter: length = 6.0mm\nlet bad: length = diameter + 2", FirmamentV2Parser.ExpressionInvalidOperator)]
+    [InlineData("let diameter: length = 6.0mm\nlet draftAngle: angle = 90deg\nlet bad: length = diameter + draftAngle", FirmamentV2Parser.ExpressionInvalidOperator)]
+    [InlineData("let name: string = \"Aluminum6061\"\nlet bad: string = name + name", FirmamentV2Parser.ExpressionInvalidOperator)]
+    [InlineData("let flag: bool = true\nlet bad: bool = flag * 2", FirmamentV2Parser.ExpressionInvalidOperator)]
+    [InlineData("let diameter: length = 6.0mm\nlet bad: length = diameter / diameter", FirmamentV2Parser.ExpressionTypeMismatch)]
+    [InlineData("let bad: float = 1.0 / 0.0", FirmamentV2Parser.ExpressionDivisionByZero)]
+    [InlineData("let badLength: length = 6.0mm / 0", FirmamentV2Parser.ExpressionDivisionByZero)]
+    [InlineData("let a: length = b + 1.0mm\nlet b: length = a + 1.0mm", FirmamentV2Parser.ExpressionCycle)]
+    [InlineData("let x: length = if true { 1.0mm } else { 2.0mm }", FirmamentV2Parser.ExpressionUnsupported)]
+    [InlineData("let x: length = foo(1.0mm)", FirmamentV2Parser.ExpressionUnsupported)]
+    public void FirmamentV2Parser_LetArithmeticExpressions_InvalidCasesAreDiagnostics(string letSource, string expectedDiagnostic)
+    {
+        var result = FirmamentV2Parser.Parse($$"""
+            model InvalidArithmetic {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                {{letSource}}
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(expectedDiagnostic, result.Diagnostics);
     }
 
     [Theory]

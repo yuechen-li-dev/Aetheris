@@ -1,0 +1,25 @@
+// case: let-arithmetic-expressions
+// expected-stage: parsed
+// syntax-version: FirmamentV2
+// implementation: parser-backed
+
+model LetArithmeticExpressions {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+
+  let diameter: length = 6.0mm
+  let radius: length = diameter / 2
+  let clearance: length = 0.25mm
+  let drill: length = diameter + clearance
+
+  let count: int = 4
+  let doubled: int = count * 2
+  let ratio: float = count / 2
+
+  let draftAngle: angle = 90deg
+  let halfAngle: angle = draftAngle / 2
+
+  let scale: float = 1.25
+  let scaled: length = diameter * scale
+
+}

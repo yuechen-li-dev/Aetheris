@@ -18,6 +18,7 @@ public abstract record FirmamentV2ValueExpression;
 public sealed record FirmamentV2LiteralExpression(FirmamentV2LiteralValue Value) : FirmamentV2ValueExpression;
 public sealed record FirmamentV2DottedReferenceExpression(string RecordName, string FieldName, string Source) : FirmamentV2ValueExpression;
 public sealed record FirmamentV2IdentifierReferenceExpression(string Name, string Source) : FirmamentV2ValueExpression;
+public sealed record FirmamentV2BinaryExpression(FirmamentV2ValueExpression Left, string Operator, FirmamentV2ValueExpression Right, string Source) : FirmamentV2ValueExpression;
 public sealed record FirmamentV2LetDeclaration(string Name, FirmamentV2PrimitiveType DeclaredType, FirmamentV2ValueExpression ValueExpression, FirmamentV2SourceSpan SourceSpan)
 {
     public FirmamentV2LiteralValue LiteralValue => ValueExpression is FirmamentV2LiteralExpression literal ? literal.Value : throw new InvalidOperationException("Let value is not a literal.");
@@ -27,7 +28,8 @@ public sealed record FirmamentV2LetRecordField(string Name, FirmamentV2Primitive
 {
     public FirmamentV2LiteralValue LiteralValue => ValueExpression is FirmamentV2LiteralExpression literal ? literal.Value : throw new InvalidOperationException("Record field value is not a literal.");
 }
-public sealed record FirmamentV2BoundLet(string Name, FirmamentV2PrimitiveType Type, FirmamentV2LiteralValue Value, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2BoundExpression(FirmamentV2PrimitiveType InferredType, FirmamentV2LiteralValue Value, IReadOnlySet<string> Dependencies, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2BoundLet(string Name, FirmamentV2PrimitiveType Type, FirmamentV2LiteralValue Value, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundExpression? Expression = null, IReadOnlySet<string>? Dependencies = null);
 public sealed record FirmamentV2BoundLetRecord(string Name, IReadOnlyDictionary<string, FirmamentV2BoundLet> Fields, FirmamentV2SourceSpan SourceSpan);
 
 public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null)

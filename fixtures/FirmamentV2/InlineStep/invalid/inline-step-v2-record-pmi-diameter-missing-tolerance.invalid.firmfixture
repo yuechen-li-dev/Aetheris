@@ -1,0 +1,9 @@
+// fixture-id: inline-step-v2-record-pmi-diameter-missing-tolerance
+// validity: invalid
+model InlineStepRecordPmiDiameterMissingTolerance {
+    units mm
+    let holeDiameter: length = 6.0mm
+    solid part: InlineStep { path: "../testdata/canonical-through-hole.step" }
+    recognize part { region hole { kind: holeShaft faces: ["#191"] confidence: high } }
+    pmi { diameter d { target: part.region("hole") dimension: holeDiameter } }
+}

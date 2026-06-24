@@ -261,7 +261,12 @@ public static class CliRunner
                 sourcePath = build.Value.SourcePath,
                 outputPath = build.Value.OutputPath,
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
-                inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist
+                inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
+                pmiExportEvidence = new
+                {
+                    datum = (build.Value.Export.DatumInspection ?? []).Select(d => new { kind = "datum", name = d.Label, exportSupport = "supported", exportEvidence = "found", target = d.Target }),
+                    diameter = (build.Value.Export.DimensionInspection ?? []).Where(d => string.Equals(d.Kind, "Diameter", StringComparison.Ordinal)).Select(d => new { kind = "diameter", name = d.CandidateName ?? d.Target, exportSupport = "supported", exportEvidence = "found", target = d.Target, nominal = d.Value })
+                }
             }, JsonOptions));
         }
         else

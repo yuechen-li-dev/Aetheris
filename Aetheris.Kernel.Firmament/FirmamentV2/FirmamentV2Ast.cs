@@ -1,6 +1,6 @@
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null)
+public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null)
 {
     public FirmamentV2SolidBinding Solid => Solids[^1];
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
@@ -33,6 +33,12 @@ public sealed record FirmamentV2LetRecordField(string Name, FirmamentV2Primitive
 public sealed record FirmamentV2BoundExpression(FirmamentV2PrimitiveType InferredType, FirmamentV2LiteralValue Value, IReadOnlySet<string> Dependencies, FirmamentV2SourceSpan SourceSpan, FirmamentV2Tolerance? AliasTolerance = null, bool UsesTolerancedValueInArithmetic = false);
 public sealed record FirmamentV2BoundLet(string Name, FirmamentV2PrimitiveType Type, FirmamentV2LiteralValue Value, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundExpression? Expression = null, IReadOnlySet<string>? Dependencies = null, FirmamentV2Tolerance? Tolerance = null);
 public sealed record FirmamentV2BoundLetRecord(string Name, IReadOnlyDictionary<string, FirmamentV2BoundLet> Fields, FirmamentV2SourceSpan SourceSpan);
+
+public sealed record FirmamentV2ConceptApplication(string FamilyName, string ConceptName, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2ConceptField(string Name, FirmamentV2ValueExpression ValueExpression, string Source, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2BoundConceptField(string Name, FirmamentV2ConceptField Field, FirmamentV2BoundExpression? BoundValue, string? TargetSource = null);
+public sealed record FirmamentV2ManufacturingConceptDeclaration(FirmamentV2ConceptApplication Application, IReadOnlyList<FirmamentV2ConceptField> Fields, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2BoundConceptField>? BoundFields = null);
+public sealed record FirmamentV2FeatureConceptDeclaration(string Name, FirmamentV2ConceptApplication Application, IReadOnlyList<FirmamentV2ConceptField> Fields, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2BoundConceptField>? BoundFields = null);
 
 public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null)
 {

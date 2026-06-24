@@ -1,0 +1,18 @@
+// fixture-id: v2-phase1-validation-report-forge-missing-field
+// case: firmament-v2-phase1-validation-report-forge-missing-field
+// category: Language
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: validation-report
+// expected-parser: FirmamentV2Parser
+// notes: R1 validation report fixture for Forge required-field diagnostics.
+
+model ForgeMissingFieldProbe {
+    units mm
+    solid part: Box { size: [20, 20, 6] }
+    manufacturing process<CNC> {
+        material: "Aluminum6061"
+    }
+}

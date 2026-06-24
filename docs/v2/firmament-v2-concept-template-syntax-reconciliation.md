@@ -149,3 +149,7 @@ Phase 1 defers:
 - PMI lowering for export-deferred controls;
 - graphical PMI;
 - full GD&T/Y14.5 coverage.
+
+## R1 validation report link
+
+The V2 Phase 1 R1 validation/report layer preserves this syntax doctrine while exposing bound lets, Forge concept applications, PMI records, tolerances, export-supported/deferred status, and diagnostics. See [`../implementation/v2-phase1-r1-validation-report.md`](../implementation/v2-phase1-r1-validation-report.md).

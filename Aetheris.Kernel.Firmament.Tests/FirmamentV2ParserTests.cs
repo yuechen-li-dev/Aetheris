@@ -927,6 +927,126 @@ model BadPmiDiameter {
         Assert.Contains(FirmamentV2Parser.LetDuplicateName, result.Diagnostics);
     }
 
+
+    [Fact]
+    public void FirmamentV2Parser_LetRecordGroups_ParseAndBindFields()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Language/valid/let-record-groups.valid.firmfixture"));
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var record = Assert.Single(result.Document!.LetRecords!);
+        Assert.Equal("MountingPattern", record.Name);
+        Assert.Equal(6, record.Fields.Count);
+        var bound = Assert.Single(result.Document!.BoundLetRecords!);
+        Assert.Equal("MountingPattern", bound.Name);
+        AssertLet(bound.Fields["holeDiameter"], "holeDiameter", FirmamentV2PrimitiveType.Length, 6.0d, "mm");
+        AssertLet(bound.Fields["holeSpacingX"], "holeSpacingX", FirmamentV2PrimitiveType.Length, 80.0d, "mm");
+        AssertLet(bound.Fields["holeSpacingY"], "holeSpacingY", FirmamentV2PrimitiveType.Length, 40.0d, "mm");
+        AssertLet(bound.Fields["holeCount"], "holeCount", FirmamentV2PrimitiveType.Int, 4, null);
+        AssertLet(bound.Fields["label"], "label", FirmamentV2PrimitiveType.String, "M6 mount group", null);
+        AssertLet(bound.Fields["inspectionRequired"], "inspectionRequired", FirmamentV2PrimitiveType.Bool, true, null);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_LetRecordGroups_AllowSameFieldNameAcrossRecords()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model MultipleRecords {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                let MountingPattern { holeDiameter: length = 6.0mm }
+                let InspectionPattern { holeDiameter: length = 6.1mm }
+            }
+            """);
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        Assert.Equal(2, result.Document!.BoundLetRecords!.Count);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_DottedReferenceScalarLet_ResolvesRecordFieldValue()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model DottedReference {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                let MountingPattern { holeDiameter: length = 6.0mm }
+                let exportedHoleDiameter: length = MountingPattern.holeDiameter
+            }
+            """);
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        AssertLet(Assert.Single(result.Document!.BoundLets!), "exportedHoleDiameter", FirmamentV2PrimitiveType.Length, 6.0d, "mm");
+    }
+
+    [Theory]
+    [InlineData("let MountingPattern { holeDiameter: length = 6.0mm holeDiameter: length = 7.0mm }", FirmamentV2Parser.LetInvalidLiteral)]
+    [InlineData("let MountingPattern { holeDiameter: length = 6.0mm tol 0.05mm }", FirmamentV2Parser.LetInvalidLiteral)]
+    [InlineData("let MountingPattern { radius: length = holeDiameter / 2 }", FirmamentV2Parser.LetLiteralOnly)]
+    [InlineData("let Process { Tooling { minimumRadius: length = 1.5mm } }", FirmamentV2Parser.LetInvalidLiteral)]
+    public void FirmamentV2Parser_LetRecordGroups_InvalidRecordBodiesAreDiagnostics(string recordSource, string expectedDiagnostic)
+    {
+        var result = FirmamentV2Parser.Parse($$"""
+            model InvalidRecord {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                {{recordSource}}
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(expectedDiagnostic, result.Diagnostics);
+    }
+
+
+    [Fact]
+    public void FirmamentV2Parser_LetRecordGroups_DuplicateFieldAndTopLevelNamesAreDiagnostics()
+    {
+        var duplicateField = FirmamentV2Parser.Parse("""
+            model DuplicateRecordField {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                let MountingPattern {
+                    holeDiameter: length = 6.0mm
+                    holeDiameter: length = 7.0mm
+                }
+            }
+            """);
+        Assert.False(duplicateField.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.LetRecordDuplicateField, duplicateField.Diagnostics);
+
+        var duplicateTopLevel = FirmamentV2Parser.Parse("""
+            model DuplicateTopLevel {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                let holeDiameter: length = 6.0mm
+                let holeDiameter { value: length = 6.0mm }
+            }
+            """);
+        Assert.False(duplicateTopLevel.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.LetDuplicateName, duplicateTopLevel.Diagnostics);
+    }
+
+    [Theory]
+    [InlineData("let exportedHoleDiameter: length = MissingPattern.holeDiameter", FirmamentV2Parser.LetReferenceUnknownRecord)]
+    [InlineData("let MountingPattern { holeDiameter: length = 6.0mm }\nlet exportedHoleDiameter: length = MountingPattern.missingField", FirmamentV2Parser.LetReferenceUnknownField)]
+    [InlineData("let holeDiameter: length = 6.0mm\nlet exported: length = holeDiameter.value", FirmamentV2Parser.LetReferenceNonRecord)]
+    [InlineData("let MountingPattern { holeCount: int = 4 }\nlet exportedHoleDiameter: length = MountingPattern.holeCount", FirmamentV2Parser.LetTypeMismatch)]
+    [InlineData("let MountingPattern { holeDiameter: length = 6.0mm }\nlet exportedHoleDiameter: length = MountingPattern", FirmamentV2Parser.LetReferenceRecordUsedAsValue)]
+    public void FirmamentV2Parser_DottedReference_InvalidReferencesAreDiagnostics(string letSource, string expectedDiagnostic)
+    {
+        var result = FirmamentV2Parser.Parse($$"""
+            model InvalidReference {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                {{letSource}}
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(expectedDiagnostic, result.Diagnostics);
+    }
+
     private static void AssertLet(FirmamentV2BoundLet actual, string name, FirmamentV2PrimitiveType type, object value, string? unit)
     {
         Assert.Equal(name, actual.Name);

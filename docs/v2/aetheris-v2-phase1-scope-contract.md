@@ -94,6 +94,13 @@ Hard doctrine:
 
 This doctrine exists because Firmament files must be auditable. Humans, LLMs, suppliers, manufacturing engineers, and inspection systems must be able to reason about the file without executing hidden behavior. Manufacturing intent must remain visible as data, not concealed behind logic, state, or control flow.
 
+## Phase 1 language status note
+
+- L1 primitive immutable typed `let` declarations are implemented.
+- L2 grouped one-level `let` records and exact dotted record-field references are implemented for parser/model/binder exposure.
+- L3 arithmetic remains deferred.
+- L4 tolerance syntax remains deferred.
+
 ## 5. `let` declarations and typed values
 
 Firmament V2.0 should use `let`, not `param`, for named values.

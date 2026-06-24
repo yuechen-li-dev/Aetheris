@@ -75,7 +75,7 @@ SolidWorks, FreeCAD, Onshape, and similar systems may be used as verification/vi
 
 ## 4. Firmament V2.0 language doctrine
 
-Firmament V2.0 is a **typed manufacturing-intent data language**.
+Firmament V2.0 is a **typed manufacturing-intent data language**. See [`firmament-v2-concept-template-syntax-reconciliation.md`](firmament-v2-concept-template-syntax-reconciliation.md) for the Phase 1 doctrine reconciling immutable `let` data, Forge-backed concepts, and deferred templates.
 
 Firmament V2.0 is **not** a general programming language.
 

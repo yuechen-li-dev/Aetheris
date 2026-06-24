@@ -1,7 +1,14 @@
-// fixture: FirmamentV2 Forge concept-family applications
+// fixture-id: concept-applications-forge
+// case: firmament-v2-f1-concept-applications-forge
+// category: Language
 // syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
 // expected-parser: FirmamentV2Parser
 // expected-concepts: process<CNC>, hole<Countersink>
+// notes: F1 Forge-backed concept-family application syntax; parser recognizes generic conceptFamily<ConceptName> shape.
 
 model ConceptApplicationsForge {
     units mm

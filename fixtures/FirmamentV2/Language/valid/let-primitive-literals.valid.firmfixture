@@ -5,6 +5,7 @@
 // validity: valid
 // implementation: parser-backed
 // expected: valid
+// expected-stage: feature-air
 // notes: L1 immutable primitive typed let bindings only; not referenced by PMI/features.
 
 model LetPrimitiveLiteralsExample {

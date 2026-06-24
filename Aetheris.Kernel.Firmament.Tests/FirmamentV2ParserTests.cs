@@ -892,7 +892,6 @@ model BadPmiDiameter {
     [InlineData("let scale: float = 1.25mm", FirmamentV2Parser.LetUnitMismatch)]
     [InlineData("let unknownThing: banana = 1", FirmamentV2Parser.LetUnknownType)]
     [InlineData("let radius: length = holeDiameter / 2", FirmamentV2Parser.ExpressionUnknownSymbol)]
-    [InlineData("let holeDiameter: length = 6.0mm tol 0.05mm", FirmamentV2Parser.LetInvalidLiteral)]
     public void FirmamentV2Parser_LetPrimitiveLiterals_InvalidCasesAreDiagnostics(string letSource, string expectedDiagnostic)
     {
         var result = FirmamentV2Parser.Parse($$"""
@@ -979,6 +978,79 @@ model BadPmiDiameter {
         AssertLet(Assert.Single(result.Document!.BoundLets!), "exportedHoleDiameter", FirmamentV2PrimitiveType.Length, 6.0d, "mm");
     }
 
+
+    [Fact]
+    public void FirmamentV2Parser_TolerancedValues_ParseBilateralAsymmetricAndRecordFields()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Language/valid/let-toleranced-values.valid.firmfixture"));
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var lets = result.Document!.BoundLets!.ToDictionary(l => l.Name);
+        AssertLet(lets["holeDiameter"], "holeDiameter", FirmamentV2PrimitiveType.Length, 6.0d, "mm");
+        AssertTolerance(lets["holeDiameter"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.05d, 0.05d, "mm");
+        AssertTolerance(lets["slotWidth"].Tolerance, FirmamentV2ToleranceKind.Asymmetric, 0.10d, 0.05d, "mm");
+        AssertTolerance(lets["draftAngle"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.5d, 0.5d, "deg");
+
+        var fields = Assert.Single(result.Document!.BoundLetRecords!).Fields;
+        AssertTolerance(fields["holeDiameter"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.05d, 0.05d, "mm");
+        AssertTolerance(fields["holeSpacingX"].Tolerance, FirmamentV2ToleranceKind.Asymmetric, 0.10d, 0.05d, "mm");
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_TolerancedExpressions_ExplicitToleranceAndAliasesBehaveDeterministically()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model TolerancedExpressions {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                let holeDiameter: length = 6.0mm tol 0.05mm
+                let clearance: length = 0.25mm
+                let drill: length = holeDiameter + clearance tol 0.05mm
+                let radius: length = holeDiameter / 2
+                let exportedHoleDiameter: length = holeDiameter
+                let MountingPattern { fieldDiameter: length = 7.0mm tol 0.1mm }
+                let exportedFieldDiameter: length = MountingPattern.fieldDiameter
+            }
+            """);
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        Assert.Contains(FirmamentV2Parser.ToleranceDroppedThroughArithmetic, result.Diagnostics);
+        var lets = result.Document!.BoundLets!.ToDictionary(l => l.Name);
+        AssertLet(lets["drill"], "drill", FirmamentV2PrimitiveType.Length, 6.25d, "mm");
+        AssertTolerance(lets["drill"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.05d, 0.05d, "mm");
+        AssertLet(lets["radius"], "radius", FirmamentV2PrimitiveType.Length, 3.0d, "mm");
+        Assert.Null(lets["radius"].Tolerance);
+        AssertTolerance(lets["exportedHoleDiameter"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.05d, 0.05d, "mm");
+        AssertTolerance(lets["exportedFieldDiameter"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.1d, 0.1d, "mm");
+    }
+
+    [Theory]
+    [InlineData("let holeCount: int = 4 tol 1", FirmamentV2Parser.ToleranceInvalidType)]
+    [InlineData("let scale: float = 1.25 tol 0.01", FirmamentV2Parser.ToleranceInvalidType)]
+    [InlineData("let name: string = \"Aluminum\" tol 1", FirmamentV2Parser.ToleranceInvalidType)]
+    [InlineData("let flag: bool = true tol 1", FirmamentV2Parser.ToleranceInvalidType)]
+    [InlineData("let holeDiameter: length = 6.0mm tol 0.5deg", FirmamentV2Parser.ToleranceUnitMismatch)]
+    [InlineData("let draftAngle: angle = 3deg tol 0.1mm", FirmamentV2Parser.ToleranceUnitMismatch)]
+    [InlineData("let x: length = 1.0mm tol +0.1mm", FirmamentV2Parser.ToleranceMissingMinus)]
+    [InlineData("let x: length = 1.0mm tol -0.1mm", FirmamentV2Parser.ToleranceNegativeBilateral)]
+    [InlineData("let x: length = 1.0mm tol +0.1mm +0.2mm", FirmamentV2Parser.ToleranceMissingMinus)]
+    [InlineData("let x: length = 1.0mm tol -0.1mm +0.2mm", FirmamentV2Parser.ToleranceMissingPlus)]
+    [InlineData("let x: length = 1.0mm tol 0.1", FirmamentV2Parser.ToleranceInvalidLiteral)]
+    [InlineData("let bad: length = (6.0mm tol 0.05mm) + 1.0mm", FirmamentV2Parser.ToleranceUnsupported)]
+    public void FirmamentV2Parser_TolerancedValues_InvalidCasesAreDiagnostics(string letSource, string expectedDiagnostic)
+    {
+        var result = FirmamentV2Parser.Parse($$"""
+            model InvalidTolerance {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                {{letSource}}
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(expectedDiagnostic, result.Diagnostics);
+    }
+
     [Fact]
     public void FirmamentV2Parser_LetArithmeticExpressions_EvaluateStrictTypedGraph()
     {
@@ -1022,7 +1094,6 @@ model BadPmiDiameter {
 
     [Theory]
     [InlineData("let MountingPattern { holeDiameter: length = 6.0mm holeDiameter: length = 7.0mm }", FirmamentV2Parser.LetInvalidLiteral)]
-    [InlineData("let MountingPattern { holeDiameter: length = 6.0mm tol 0.05mm }", FirmamentV2Parser.LetInvalidLiteral)]
     [InlineData("let MountingPattern { radius: length = holeDiameter / 2 }", FirmamentV2Parser.LetLiteralOnly)]
     [InlineData("let Process { Tooling { minimumRadius: length = 1.5mm } }", FirmamentV2Parser.LetInvalidLiteral)]
     public void FirmamentV2Parser_LetRecordGroups_InvalidRecordBodiesAreDiagnostics(string recordSource, string expectedDiagnostic)
@@ -1094,6 +1165,15 @@ model BadPmiDiameter {
         Assert.Equal(type, actual.Type);
         Assert.Equal(value, actual.Value.Value);
         Assert.Equal(unit, actual.Value.Unit);
+    }
+
+    private static void AssertTolerance(FirmamentV2Tolerance? actual, FirmamentV2ToleranceKind kind, double plus, double minus, string unit)
+    {
+        Assert.NotNull(actual);
+        Assert.Equal(kind, actual.Kind);
+        Assert.Equal(plus, actual.Plus);
+        Assert.Equal(minus, actual.Minus);
+        Assert.Equal(unit, actual.Unit);
     }
 
 }

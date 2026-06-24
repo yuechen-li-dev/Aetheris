@@ -298,6 +298,36 @@ public static class Step242Exporter
                 Step242TextWriter.Ref(propertyDefinitionId),
                 Step242TextWriter.Ref(representationId));
 
+            if (hole.TolerancePlus.HasValue || hole.ToleranceMinus.HasValue)
+            {
+                var tolerancePlus = hole.TolerancePlus ?? hole.ToleranceMinus!.Value;
+                var toleranceMinus = hole.ToleranceMinus ?? hole.TolerancePlus!.Value;
+                var tolerancePlusItemId = writer.AddEntity(
+                    "MEASURE_REPRESENTATION_ITEM",
+                    Step242TextWriter.String("tolerance_plus"),
+                    Step242TextWriter.Number(tolerancePlus),
+                    Step242TextWriter.Ref(lengthUnitId));
+                var toleranceMinusItemId = writer.AddEntity(
+                    "MEASURE_REPRESENTATION_ITEM",
+                    Step242TextWriter.String("tolerance_minus"),
+                    Step242TextWriter.Number(toleranceMinus),
+                    Step242TextWriter.Ref(lengthUnitId));
+                var toleranceRepId = writer.AddEntity(
+                    "SHAPE_DIMENSION_REPRESENTATION",
+                    Step242TextWriter.String($"diameter_tolerance:{hole.FeatureId}"),
+                    Step242TextWriter.List(tolerancePlusItemId, toleranceMinusItemId),
+                    Step242TextWriter.Ref(repContextId));
+                var tolerancePropertyDefinitionId = writer.AddEntity(
+                    "PROPERTY_DEFINITION",
+                    Step242TextWriter.String($"diameter_tolerance:{hole.FeatureId}"),
+                    Step242TextWriter.String("semantic PMI bilateral diameter tolerance"),
+                    Step242TextWriter.Ref(featureShapeAspectId));
+                writer.AddEntity(
+                    "PROPERTY_DEFINITION_REPRESENTATION",
+                    Step242TextWriter.Ref(tolerancePropertyDefinitionId),
+                    Step242TextWriter.Ref(toleranceRepId));
+            }
+
         if (hole.Depth.HasValue)
         {
             var depthItemId = writer.AddEntity(

@@ -860,13 +860,92 @@ model BadPmiDiameter {
         Assert.Contains(FirmamentV2Parser.PmiDiameterInvalid, invalidDiameter.Diagnostics);
     }
 
+
+    [Fact]
+    public void FirmamentV2Parser_RecordPmiDatumDiameter_BindsTolerancedDimensionAndTargets()
+    {
+        var result = FirmamentV2Parser.Parse(Source("InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture"),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/InlineStep/valid")));
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var bound = result.Document!.BoundPmi!;
+        var datum = Assert.Single(bound.Datums);
+        Assert.Equal(FirmamentV2PmiKind.DatumPlane, datum.Kind);
+        Assert.Equal("A", datum.Name);
+        Assert.Equal("part.region(\"baseFace\")", Assert.Single(datum.Targets));
+
+        var diameter = Assert.Single(bound.Dimensions);
+        Assert.Equal(FirmamentV2PmiKind.HoleDiameter, diameter.Kind);
+        Assert.Equal("mountHoleADiameter", diameter.Name);
+        Assert.Equal("part.region(\"mountHoleA\")", Assert.Single(diameter.Targets));
+        Assert.Equal(6.0d, diameter.DimensionValue!.NumericValue);
+        Assert.NotNull(diameter.DimensionTolerance);
+        Assert.Equal(0.05d, diameter.DimensionTolerance!.Plus);
+        Assert.Equal(0.05d, diameter.DimensionTolerance.Minus);
+    }
+
+    [Fact]
+    public void FirmamentV2P2_RecordPmiDatumDiameter_ExportsAp242EvidenceAndReimports()
+    {
+        var fixture = FixturePath("InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture");
+        var output = Path.Combine(Path.GetTempPath(), "aetheris-p2-record-pmi-" + Guid.NewGuid().ToString("N") + ".step");
+
+        var build = FirmamentBuildAndExport.Run(fixture, output);
+
+        Assert.True(build.IsSuccess, string.Join(", ", build.Diagnostics.Select(d => d.Message)));
+        Assert.True(File.Exists(output));
+        var step = File.ReadAllText(output);
+        Assert.Contains("SHAPE_ASPECT('firmament-datum:A'", step, StringComparison.Ordinal);
+        Assert.Contains("PROPERTY_DEFINITION('datum:A:part'", step, StringComparison.Ordinal);
+        Assert.Contains("SHAPE_DIMENSION_REPRESENTATION('diameter:part.mountHoleADiameter'", step, StringComparison.Ordinal);
+        Assert.Contains("PROPERTY_DEFINITION('diameter:part.mountHoleADiameter'", step, StringComparison.Ordinal);
+        Assert.Contains("SHAPE_DIMENSION_REPRESENTATION('diameter_tolerance:part.mountHoleADiameter'", step, StringComparison.Ordinal);
+        Assert.Contains("'tolerance_plus'", step, StringComparison.Ordinal);
+        Assert.Contains("'tolerance_minus'", step, StringComparison.Ordinal);
+
+        var reimport = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(step);
+        Assert.True(reimport.IsSuccess, string.Join(", ", reimport.Diagnostics.Select(d => d.Message)));
+        Assert.Single(build.Value.Export.DatumInspection!);
+        Assert.Single(build.Value.Export.DimensionInspection!);
+    }
+
+    [Fact]
+    public void FirmamentV2P2_RecordPmiDiameterDimensionWithoutTolerance_IsRejected()
+    {
+        var result = FirmamentV2Parser.Parse(Source("InlineStep/invalid/inline-step-v2-record-pmi-diameter-missing-tolerance.invalid.firmfixture"),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/InlineStep/invalid")));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.PmiDimensionMissingTolerance, result.Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2P2_ExportDeferredFlatness_IsReportedAndBuildRejectedDeterministically()
+    {
+        var fixture = FixturePath("InlineStep/invalid/inline-step-v2-record-pmi-export-deferred-flatness.invalid.firmfixture");
+        var parse = FirmamentV2Parser.Parse(Source("InlineStep/invalid/inline-step-v2-record-pmi-export-deferred-flatness.invalid.firmfixture"), Path.GetDirectoryName(fixture));
+        var report = FirmamentV2ValidationReportBuilder.Build(parse, fixture);
+
+        var pmi = Assert.Single(report.Pmi);
+        Assert.Equal("flatness", pmi.Kind);
+        Assert.Equal("deferred", pmi.ExportSupport);
+        Assert.Equal("export-deferred", pmi.Status);
+
+        var build = FirmamentBuildAndExport.Run(fixture, Path.Combine(Path.GetTempPath(), "aetheris-flatness-deferred.step"));
+        Assert.False(build.IsSuccess);
+        Assert.Contains(build.Diagnostics, d => d.Message.Contains("firmament-v2-pmi-export-deferred", StringComparison.Ordinal));
+    }
+
     private static string Source(string relative)
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));
+        var path = FixturePath(relative);
         var lines = File.ReadAllLines(path);
         var bodyStart = Array.FindIndex(lines, line => !string.IsNullOrWhiteSpace(line) && !line.TrimStart().StartsWith("//", StringComparison.Ordinal));
         return string.Join(Environment.NewLine, lines.Skip(Math.Max(0, bodyStart)));
     }
+
+    private static string FixturePath(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));
+
     [Fact]
     public void FirmamentV2Parser_LetPrimitiveLiterals_ParsesAndBinds()
     {

@@ -434,3 +434,9 @@ D1: demo/update packet for V2.0 Phase 1 workflow
 ```
 
 Each milestone should preserve the Phase 1 boundary: existing-model manufacturing intent first, no hidden behavior, no full modeling expansion, and no silent success on unsupported paths.
+
+## Status note: V2-PHASE1-P2 record PMI AP242 export
+
+V2-PHASE1-P2 is implemented for robust AP242 export of record-shaped `pmi` `datum` and toleranced `diameter` records over existing canonical InlineStep models. The proof fixture is `fixtures/FirmamentV2/InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture`; it imports the small canonical through-hole STEP model, recognizes a datum plane and hole region, binds a toleranced record `let`, exports semantic AP242 datum/diameter/tolerance evidence through `Step242Exporter`, and reimports the result in tests.
+
+Distance, flatness, parallel, perpendicular, and coplanar remain export-deferred in Phase 1. Build/export rejects those records deterministically rather than silently dropping unsupported PMI. This status note does not expand scope to graphical PMI, drawing views, full GD&T, modeling behavior, or STEP geometry mutation.

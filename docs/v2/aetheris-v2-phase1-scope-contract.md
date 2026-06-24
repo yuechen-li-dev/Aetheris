@@ -429,7 +429,7 @@ L3: arithmetic expression graph + acyclic validation
 L4: tolerance syntax and tolerant dimension values
 F1: Forge concept-family application syntax — implemented for descriptor-validated `manufacturing process<CNC>` and `feature name: hole<Concept>` declarations; validation only, with no DFM execution, PMI lowering, or geometry/modeling behavior.
 P1: pmi block v2 record-shaped dimensions/datums/basic controls — implemented for `datum`, `diameter`, `distance`, `flatness`, `parallel`, `perpendicular`, and `coplanar` authoring/binding. Datum and diameter can lower through existing semantic AP242 paths when targets resolve; distance/flatness/relation controls are preserved with export deferred.
-R1: validation/report integration
+R1: validation/report integration — implemented as a structured `firmamentV2Validation` report exposed by `aetheris validate <file-or-fixture> --json`, covering bound lets, tolerances, Forge concepts, PMI records, export-supported/deferred status, and fatal/non-fatal diagnostics without adding syntax or AP242 lowering. See [`../implementation/v2-phase1-r1-validation-report.md`](../implementation/v2-phase1-r1-validation-report.md).
 D1: demo/update packet for V2.0 Phase 1 workflow
 ```
 

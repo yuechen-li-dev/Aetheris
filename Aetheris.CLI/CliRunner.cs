@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Firmament.FrictionLab.CIRLab;
 
 namespace Aetheris.CLI;
@@ -106,8 +107,9 @@ public static class CliRunner
         string? Error,
         string? Classification = null,
         int? RigidRootCount = null);
-    private const string TopLevelUsage = "Usage: aetheris <build|analyze|trace|canon|asm|experimental> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|validate|analyze|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
+    private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] [--rank-probes|--evidence-bundle] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
@@ -161,6 +163,7 @@ public static class CliRunner
             return args[0] switch
             {
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
+                "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "trace" => RunTrace(args.Skip(1).ToArray(), stdout, stderr),
                 "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
@@ -267,6 +270,55 @@ public static class CliRunner
         }
 
         return 0;
+    }
+
+
+    private static int RunValidate(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0)
+        {
+            stderr.WriteLine(ValidateUsage);
+            return 1;
+        }
+
+        if (IsHelpFlag(args[0]))
+        {
+            stdout.WriteLine(ValidateUsage);
+            stdout.WriteLine("  --json         Emit Firmament V2 validation report JSON.");
+            return 0;
+        }
+
+        var sourcePath = args[0];
+        var json = false;
+        for (var i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--json":
+                    json = true;
+                    break;
+                case "-h":
+                case "--help":
+                    stdout.WriteLine(ValidateUsage);
+                    return 0;
+                default:
+                    stderr.WriteLine($"Unknown validate option '{args[i]}'.");
+                    stderr.WriteLine(ValidateUsage);
+                    return 1;
+            }
+        }
+
+        if (!File.Exists(sourcePath))
+        {
+            stderr.WriteLine($"Validation input was not found: {sourcePath}");
+            return 1;
+        }
+
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(sourcePath), Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
+        var report = FirmamentV2ValidationReportBuilder.Build(parse, sourcePath);
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = report }, JsonOptions));
+        else stdout.WriteLine($"Firmament V2 validation: {report.Status} ({report.Summary.FatalDiagnosticCount} fatal, {report.Summary.WarningDiagnosticCount} warning)");
+        return report.Status == "invalid" ? 1 : 0;
     }
 
     private static int RunTrace(string[] args, TextWriter stdout, TextWriter stderr)
@@ -2137,7 +2189,7 @@ public static class CliRunner
 
     private static int UnknownCommand(string command, TextWriter stderr)
     {
-        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, analyze, trace, canon, asm, experimental.");
+        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, validate, analyze, trace, canon, asm, experimental.");
         stderr.WriteLine("Run 'aetheris --help' for usage and examples.");
         return 1;
     }
@@ -2189,6 +2241,7 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Commands:");
         stdout.WriteLine("  build      Build a .firmament source file into STEP.");
+        stdout.WriteLine("  validate   Validate Firmament V2 manufacturing intent and emit report JSON.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
         stdout.WriteLine("  trace      Trace built-in AIR lowering cases through route, BRepPlan, STEP smoke, and CIR mirror.");
         stdout.WriteLine("  canon      Import and re-export STEP/AP242 as canonical STEP.");
@@ -2201,6 +2254,7 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris build model.firmament --out model.step");
+        stdout.WriteLine("  aetheris validate fixtures/FirmamentV2/Language/valid/v2-phase1-validation-report.valid.firmfixture --json");
         stdout.WriteLine("  aetheris analyze model.step");
         stdout.WriteLine("  aetheris analyze model.step --json");
         stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer");

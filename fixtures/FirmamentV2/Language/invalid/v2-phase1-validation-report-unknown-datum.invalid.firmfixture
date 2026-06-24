@@ -1,0 +1,18 @@
+// fixture-id: v2-phase1-validation-report-unknown-datum
+// case: firmament-v2-phase1-validation-report-unknown-datum
+// category: Language
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: validation-report
+// expected-parser: FirmamentV2Parser
+// notes: R1 validation report fixture for unknown datum reference.
+
+model UnknownDatumProbe {
+    units mm
+    solid part: Box { size: [20, 20, 6] expose { face(+Z) => top } }
+    pmi {
+        parallel topParallel { target: top datum: A tolerance: 0.05mm }
+    }
+}

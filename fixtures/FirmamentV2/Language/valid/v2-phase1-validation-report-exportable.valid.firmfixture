@@ -1,0 +1,20 @@
+// fixture-id: v2-phase1-validation-report-exportable
+// case: firmament-v2-phase1-validation-report-exportable
+// category: Language
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: validation-report
+// expected-parser: FirmamentV2Parser
+// notes: R1 validation report fixture with only currently export-supported PMI authoring forms.
+
+model ValidationReportExportableProbe {
+    units mm
+    let holeDiameter: length = 6.0mm tol 0.05mm
+    solid part: Box { size: [20, 20, 6] expose { face(+Z) => top } }
+    pmi {
+        datum A { target: top }
+        diameter mountHoleDiameter { target: part.region("mountHoleA") dimension: holeDiameter }
+    }
+}

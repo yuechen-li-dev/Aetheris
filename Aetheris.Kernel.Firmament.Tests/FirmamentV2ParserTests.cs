@@ -1159,6 +1159,132 @@ model BadPmiDiameter {
         Assert.Contains(expectedDiagnostic, result.Diagnostics);
     }
 
+
+    [Fact]
+    public void FirmamentV2Parser_RecordShapedPmi_DatumDiameterAndRelationsBind()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model PmiRecordShaped {
+                units mm
+                let MountingPattern {
+                    holeDiameter: length = 6.0mm tol 0.05mm
+                    holeSpacingX: length = 80.0mm tol +0.10mm -0.05mm
+                }
+                solid part: Box { size: [100, 60, 10] }
+                pmi {
+                    datum A {
+                        target: part.region("baseFace")
+                    }
+                    diameter mountHoleADiameter {
+                        target: part.region("mountHoleA")
+                        dimension: MountingPattern.holeDiameter
+                    }
+                    distance mountHoleSpacingX {
+                        targetA: part.region("mountHoleA")
+                        targetB: part.region("mountHoleB")
+                        dimension: MountingPattern.holeSpacingX
+                    }
+                    flatness baseFlatness {
+                        target: part.region("baseFace")
+                        tolerance: 0.03mm
+                    }
+                    coplanar topToDatumA {
+                        target: part.region("topFace")
+                        datum: A
+                        tolerance: 0.05mm
+                    }
+                    perpendicular sideToDatumA {
+                        target: part.region("sideFace")
+                        datum: A
+                        tolerance: 0.05mm
+                    }
+                    parallel topParallelToDatumA {
+                        target: part.region("topFace")
+                        datum: A
+                        tolerance: 0.05mm
+                    }
+                }
+            }
+            """);
+
+        Assert.True(result.IsSuccess, string.Join(",", result.Diagnostics));
+        var bound = result.Document!.BoundPmi!;
+        Assert.Single(bound.Datums);
+        Assert.Equal("A", bound.Datums[0].Name);
+        var diameter = Assert.Single(bound.Dimensions.Where(d => d.Kind == FirmamentV2PmiKind.HoleDiameter));
+        Assert.Equal(6.0d, diameter.DimensionValue!.NumericValue);
+        AssertTolerance(diameter.DimensionTolerance, FirmamentV2ToleranceKind.Bilateral, 0.05d, 0.05d, "mm");
+        Assert.Contains(bound.Controls, c => c.Kind == FirmamentV2PmiKind.Flatness && c.ControlTolerance!.NumericValue!.Value == 0.03d);
+        Assert.Contains(bound.Controls, c => c.Kind == FirmamentV2PmiKind.Coplanar && c.DatumRefs.Single() == "A");
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_RecordShapedPmi_RejectsDimensionWithoutTolerance()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model PmiMissingTolerance {
+                units mm
+                let holeDiameter: length = 6.0mm
+                solid part: Box { size: [100, 60, 10] }
+                pmi {
+                    diameter mountHoleADiameter {
+                        target: part.region("mountHoleA")
+                        dimension: holeDiameter
+                    }
+                }
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.PmiDimensionMissingTolerance, result.Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_RecordShapedPmi_RejectsTypeMismatchUnknownDatumAndDuplicates()
+    {
+        var typeMismatch = FirmamentV2Parser.Parse("""
+            model PmiBadType {
+                units mm
+                let holeCount: int = 4
+                solid part: Box { size: [10, 8, 6] }
+                pmi { diameter badDiameter {
+                    target: part.region("mountHoleA")
+                    dimension: holeCount
+                } }
+            }
+            """);
+        Assert.False(typeMismatch.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.PmiDimensionTypeMismatch, typeMismatch.Diagnostics);
+
+        var unknownDatum = FirmamentV2Parser.Parse("""
+            model PmiUnknownDatum {
+                units mm
+                solid part: Box { size: [10, 8, 6] }
+                pmi { coplanar topToDatumA {
+                    target: part.region("topFace")
+                    datum: A
+                    tolerance: 0.05mm
+                } }
+            }
+            """);
+        Assert.False(unknownDatum.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.PmiUnknownDatum, unknownDatum.Diagnostics);
+
+        var duplicate = FirmamentV2Parser.Parse("""
+            model PmiDuplicateDatum {
+                units mm
+                solid part: Box { size: [10, 8, 6] }
+                pmi {
+                    datum A { target: part.region("baseFace") }
+                    datum A { target: part.region("topFace") }
+                }
+            }
+            """);
+        Assert.False(duplicate.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.PmiDuplicateRecord, duplicate.Diagnostics);
+        Assert.Contains(FirmamentV2Parser.PmiDuplicateDatum, duplicate.Diagnostics);
+    }
+
     private static void AssertLet(FirmamentV2BoundLet actual, string name, FirmamentV2PrimitiveType type, object value, string? unit)
     {
         Assert.Equal(name, actual.Name);

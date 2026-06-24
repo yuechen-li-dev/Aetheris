@@ -1,7 +1,12 @@
 // fixture-id: pmi-record-shaped-basic
 // case: firmament-v2-p1-record-shaped-pmi
+// category: Language
 // syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
 // expected: valid
+// expected-stage: feature-air
+// notes: P1 record-shaped pmi block parser coverage.
 
 model PmiRecordShapedBasic {
     units mm

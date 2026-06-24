@@ -1,7 +1,12 @@
+// fixture-id: let-arithmetic-expressions
 // case: let-arithmetic-expressions
-// expected-stage: parsed
+// category: Language
 // syntax-version: FirmamentV2
+// validity: valid
 // implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
+// notes: L3 arithmetic expression graph and strict type rules.
 
 model LetArithmeticExpressions {
   units mm

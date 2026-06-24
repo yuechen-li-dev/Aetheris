@@ -1,6 +1,13 @@
+// fixture-id: let-record-groups
+// case: let-record-groups
+// category: Language
 // syntax-version: FirmamentV2
+// validity: valid
 // implementation: parser-backed
-// expected-stage: parser
+// expected: valid
+// expected-stage: feature-air
+// notes: L2 grouped let records and dotted references.
+
 model LetRecordGroups {
   units mm
   solid base: Box { size: [10, 8, 6] }

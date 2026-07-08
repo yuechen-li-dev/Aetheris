@@ -35,6 +35,13 @@ public static class FirmamentV2ForgeConceptRegistry
         return concepts.TryGetValue(conceptName, out descriptor!);
     }
 
+    internal static IReadOnlyList<FirmamentV2ForgeConceptDescriptor> EnumerateDescriptors() =>
+        Families.Values
+            .SelectMany(concepts => concepts.Values)
+            .OrderBy(descriptor => descriptor.FamilyName, StringComparer.Ordinal)
+            .ThenBy(descriptor => descriptor.ConceptName, StringComparer.Ordinal)
+            .ToArray();
+
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, FirmamentV2ForgeConceptDescriptor>> Build()
     {
         var process = new Dictionary<string, FirmamentV2ForgeConceptDescriptor>(StringComparer.Ordinal)

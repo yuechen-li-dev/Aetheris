@@ -155,6 +155,8 @@ The tests cover:
 - in-process registry registration, resolution, and deterministic duplicate behavior;
 - diagnostic facade metadata and serialization basics.
 
+Follow-on milestone: [`forge-cs-a2-standard-concept-descriptors.md`](forge-cs-a2-standard-concept-descriptors.md) mirrors the built-in Phase 1 Forge concepts as runtime C# `IForgeConcept` descriptors while keeping parser/CLI/report/export behavior unchanged.
+
 ## Explicit non-scope
 
 A1 intentionally does not add:

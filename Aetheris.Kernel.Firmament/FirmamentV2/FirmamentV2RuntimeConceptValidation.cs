@@ -5,7 +5,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2.FirmamentInterop;
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 public sealed record FirmamentV2RuntimeConceptValidationResult(
-    string Provider,
+    FirmamentV2ForgeRuntimeMetadata ForgeRuntime,
     IReadOnlyList<FirmamentV2RuntimeConceptValidationEntry> Concepts,
     IReadOnlyList<PmiObligation> PmiObligations,
     IReadOnlyList<FirmamentDiagnostic> Diagnostics);
@@ -26,15 +26,18 @@ public sealed record FirmamentV2RuntimeConceptValidationEntry(
 public static class FirmamentV2RuntimeConceptValidation
 {
     public static FirmamentV2RuntimeConceptValidationResult Validate(FirmamentV2Document? document)
+        => Validate(document, FirmamentV2ForgeRuntimeConfiguration.CreateDefault());
+
+    public static FirmamentV2RuntimeConceptValidationResult Validate(
+        FirmamentV2Document? document,
+        FirmamentV2ForgeRuntimeConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
+
         if (document is null)
         {
-            return new FirmamentV2RuntimeConceptValidationResult(string.Empty, [], [], []);
+            return new FirmamentV2RuntimeConceptValidationResult(configuration.Metadata, [], [], []);
         }
-
-        var registry = new ForgeConceptRegistry();
-        var pack = new StandardForgeRuntimeConceptPack();
-        pack.Register(registry);
 
         var variables = new FirmamentV2VariablesAdapter(document);
         var conceptResults = new List<FirmamentV2RuntimeConceptValidationEntry>();
@@ -46,8 +49,7 @@ public static class FirmamentV2RuntimeConceptValidation
             ValidateApplication(
                 FirmamentV2ConceptApplicationAdapter.Adapt(declaration),
                 variables,
-                pack.Id,
-                registry,
+                configuration,
                 conceptResults,
                 obligations,
                 diagnostics);
@@ -58,15 +60,14 @@ public static class FirmamentV2RuntimeConceptValidation
             ValidateApplication(
                 FirmamentV2ConceptApplicationAdapter.Adapt(declaration),
                 variables,
-                pack.Id,
-                registry,
+                configuration,
                 conceptResults,
                 obligations,
                 diagnostics);
         }
 
         return new FirmamentV2RuntimeConceptValidationResult(
-            pack.Id,
+            configuration.Metadata,
             conceptResults,
             obligations,
             diagnostics);
@@ -75,16 +76,19 @@ public static class FirmamentV2RuntimeConceptValidation
     private static void ValidateApplication(
         FirmamentConceptApplicationView application,
         IFirmamentVariables variables,
-        string provider,
-        IForgeRegistry registry,
+        FirmamentV2ForgeRuntimeConfiguration configuration,
         ICollection<FirmamentV2RuntimeConceptValidationEntry> conceptResults,
         ICollection<PmiObligation> obligations,
         ICollection<FirmamentDiagnostic> diagnostics)
     {
-        if (!registry.TryResolve(application.ConceptId, out var concept))
+        if (!configuration.Registry.TryResolve(application.ConceptId, out var concept))
         {
             return;
         }
+
+        var provider = configuration.ConceptProviders.TryGetValue(application.ConceptId, out var providerId)
+            ? providerId
+            : configuration.Metadata.BuiltInPack;
 
         var context = new ConceptValidationContext(application, variables);
         var conceptDiagnostics = concept.Validate(context)

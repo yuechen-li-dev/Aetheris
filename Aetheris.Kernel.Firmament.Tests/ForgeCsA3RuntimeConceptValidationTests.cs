@@ -124,7 +124,8 @@ public sealed class ForgeCsA3RuntimeConceptValidationTests
     {
         var runtime = FirmamentV2RuntimeConceptValidation.Validate(ParseFixture("Language/valid/concept-applications-forge.valid.firmfixture").Document);
 
-        Assert.Equal("Aetheris.Standard", runtime.Provider);
+        Assert.Equal("Aetheris.Standard", runtime.ForgeRuntime.BuiltInPack);
+        Assert.Empty(runtime.ForgeRuntime.ExternalPacks);
         Assert.Equal(2, runtime.Concepts.Count);
         Assert.All(runtime.Concepts, concept => Assert.Equal("Aetheris.Standard", concept.Provider));
     }

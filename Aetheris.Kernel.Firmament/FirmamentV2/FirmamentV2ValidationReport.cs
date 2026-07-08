@@ -6,6 +6,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 public sealed record FirmamentV2ValidationReport(
     string Source,
     string Status,
+    FirmamentV2ForgeRuntimeMetadata ForgeRuntime,
     IReadOnlyList<FirmamentV2ValidationLet> Lets,
     IReadOnlyList<FirmamentV2ValidationConcept> Concepts,
     IReadOnlyList<FirmamentV2ValidationPmiRecord> Pmi,
@@ -28,9 +29,14 @@ public sealed record FirmamentV2ValidationConceptPmiObligation(string Kind, stri
 
 public static class FirmamentV2ValidationReportBuilder
 {
-    public static FirmamentV2ValidationReport Build(FirmamentV2ParseResult parse, string source = "inline")
+    public static FirmamentV2ValidationReport Build(
+        FirmamentV2ParseResult parse,
+        string source = "inline",
+        FirmamentV2RuntimeConceptValidationResult? runtimeValidation = null,
+        FirmamentV2ForgeConceptCatalog? conceptCatalog = null)
     {
-        var runtimeValidation = FirmamentV2RuntimeConceptValidation.Validate(parse.Document);
+        runtimeValidation ??= FirmamentV2RuntimeConceptValidation.Validate(parse.Document);
+        conceptCatalog ??= FirmamentV2ForgeConceptRegistry.Catalog;
         var diagnostics = parse.Diagnostics
             .Distinct(StringComparer.Ordinal)
             .Select(ToParserDiagnostic)
@@ -42,7 +48,7 @@ public static class FirmamentV2ValidationReportBuilder
         var warningCount = diagnostics.Length - fatalCount;
         var document = parse.Document;
         var lets = document is null ? [] : BuildLets(document);
-        var concepts = document is null ? [] : BuildConcepts(document, runtimeValidation);
+        var concepts = document is null ? [] : BuildConcepts(document, runtimeValidation, conceptCatalog);
         var pmi = document is null ? [] : BuildPmi(document, diagnostics);
         var conceptPmiEvaluation = document is null
             ? new FirmamentV2ConceptPmiObligationEvaluation([], [])
@@ -73,6 +79,7 @@ public static class FirmamentV2ValidationReportBuilder
         return new FirmamentV2ValidationReport(
             source,
             status,
+            runtimeValidation.ForgeRuntime,
             lets,
             concepts,
             pmi,
@@ -109,7 +116,8 @@ public static class FirmamentV2ValidationReportBuilder
 
     private static IReadOnlyList<FirmamentV2ValidationConcept> BuildConcepts(
         FirmamentV2Document document,
-        FirmamentV2RuntimeConceptValidationResult runtimeValidation)
+        FirmamentV2RuntimeConceptValidationResult runtimeValidation,
+        FirmamentV2ForgeConceptCatalog conceptCatalog)
     {
         var runtimeByKey = runtimeValidation.Concepts.ToDictionary(
             result => ConceptKey(result.Kind, result.Name, result.Family, result.Concept),
@@ -118,12 +126,12 @@ public static class FirmamentV2ValidationReportBuilder
         var rows = new List<FirmamentV2ValidationConcept>();
         foreach (var declaration in document.ManufacturingConcepts ?? [])
         {
-            rows.Add(Concept("manufacturing", null, declaration.Application, declaration.BoundFields ?? [], runtimeByKey));
+            rows.Add(Concept("manufacturing", null, declaration.Application, declaration.BoundFields ?? [], runtimeByKey, conceptCatalog));
         }
 
         foreach (var declaration in document.FeatureConcepts ?? [])
         {
-            rows.Add(Concept("feature", declaration.Name, declaration.Application, declaration.BoundFields ?? [], runtimeByKey));
+            rows.Add(Concept("feature", declaration.Name, declaration.Application, declaration.BoundFields ?? [], runtimeByKey, conceptCatalog));
         }
 
         return rows;
@@ -134,7 +142,8 @@ public static class FirmamentV2ValidationReportBuilder
         string? name,
         FirmamentV2ConceptApplication application,
         IReadOnlyList<FirmamentV2BoundConceptField> fields,
-        IReadOnlyDictionary<string, FirmamentV2RuntimeConceptValidationEntry> runtimeByKey)
+        IReadOnlyDictionary<string, FirmamentV2RuntimeConceptValidationEntry> runtimeByKey,
+        FirmamentV2ForgeConceptCatalog conceptCatalog)
     {
         var reportFields = fields
             .Select(field => new FirmamentV2ValidationConceptField(
@@ -144,7 +153,7 @@ public static class FirmamentV2ValidationReportBuilder
                 field.TargetSource ?? field.Field.Source))
             .ToArray();
 
-        var parserValid = FirmamentV2ForgeConceptRegistry.TryGet(application.FamilyName, application.ConceptName, out var descriptor)
+        var parserValid = conceptCatalog.TryGet(application.FamilyName, application.ConceptName, out var descriptor)
             && descriptor.Fields.Values.Where(field => field.Required).All(field => reportFields.Any(reportField => reportField.Name == field.Name))
             && reportFields.All(reportField => reportField.Type != "unknown");
 

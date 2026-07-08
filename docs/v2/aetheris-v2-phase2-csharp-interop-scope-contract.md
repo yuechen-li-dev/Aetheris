@@ -2,6 +2,8 @@
 
 Milestone: **V2-PHASE2-L0**
 
+Status note, July 8 2026: **FORGE-CS-A5 has now implemented trusted local external Forge concept-pack loading for validation only.** The trust boundary in this contract still applies: no sandboxing, no untrusted loading, and no code import from Firmament source.
+
 This document opens Aetheris V2.0 Phase 2 with a documentation-only scope contract for **C#-backed Firmament automation and concept authoring**. It is the architecture doctrine future Phase 2 milestones must obey. It does not add runtime behavior, parser behavior, Firmament syntax, C# plugin loading, Roslyn compilation, template generation, geometry generation, AP242 export behavior, or tests.
 
 Phase 1 closed on this manufacturing-intent path:

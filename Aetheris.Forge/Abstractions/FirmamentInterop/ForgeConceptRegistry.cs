@@ -41,6 +41,12 @@ public sealed class ForgeConceptRegistry : IForgeRegistry
     }
 
     public bool TryResolve(ConceptId id, out IForgeConcept concept) => concepts.TryGetValue(id, out concept!);
+
+    public IReadOnlyList<IForgeConcept> EnumerateConcepts() =>
+        concepts.Values
+            .OrderBy(concept => concept.Id.Family, StringComparer.Ordinal)
+            .ThenBy(concept => concept.Id.Concept, StringComparer.Ordinal)
+            .ToArray();
 }
 
 public sealed class ConceptSchemaBuilder

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Aetheris.Forge.Abstractions.FirmamentInterop;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.FirmamentV2;
@@ -109,7 +110,7 @@ public static class CliRunner
         int? RigidRootCount = null);
     private const string TopLevelUsage = "Usage: aetheris <build|validate|analyze|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
-    private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--json]";
+    private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] [--rank-probes|--evidence-bundle] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
@@ -288,23 +289,30 @@ public static class CliRunner
 
         if (IsHelpFlag(args[0]))
         {
-            stdout.WriteLine(ValidateUsage);
-            stdout.WriteLine("  --json         Emit Firmament V2 validation report JSON.");
+            WriteValidateHelp(stdout);
             return 0;
         }
 
         var sourcePath = args[0];
         var json = false;
+        var forgePackPaths = new List<string>();
         for (var i = 1; i < args.Length; i++)
         {
             switch (args[i])
             {
+                case "--forge-pack" when i + 1 < args.Length:
+                    forgePackPaths.Add(args[++i]);
+                    break;
+                case "--forge-pack":
+                    stderr.WriteLine("Validate option --forge-pack requires a local assembly path.");
+                    stderr.WriteLine(ValidateUsage);
+                    return 1;
                 case "--json":
                     json = true;
                     break;
                 case "-h":
                 case "--help":
-                    stdout.WriteLine(ValidateUsage);
+                    WriteValidateHelp(stdout);
                     return 0;
                 default:
                     stderr.WriteLine($"Unknown validate option '{args[i]}'.");
@@ -319,11 +327,36 @@ public static class CliRunner
             return 1;
         }
 
-        var parse = FirmamentV2Parser.Parse(File.ReadAllText(sourcePath), Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
-        var report = FirmamentV2ValidationReportBuilder.Build(parse, sourcePath);
+        var runtimeConfiguration = CreateValidateForgeRuntimeConfiguration(forgePackPaths);
+        var parse = FirmamentV2Parser.Parse(
+            File.ReadAllText(sourcePath),
+            Path.GetDirectoryName(Path.GetFullPath(sourcePath)),
+            runtimeConfiguration.Catalog);
+        var runtimeValidation = FirmamentV2RuntimeConceptValidation.Validate(parse.Document, runtimeConfiguration);
+        var report = FirmamentV2ValidationReportBuilder.Build(parse, sourcePath, runtimeValidation, runtimeConfiguration.Catalog);
         if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = report }, JsonOptions));
         else stdout.WriteLine($"Firmament V2 validation: {report.Status} ({report.Summary.FatalDiagnosticCount} fatal, {report.Summary.WarningDiagnosticCount} warning)");
         return report.Status == "invalid" ? 1 : 0;
+    }
+
+    private static FirmamentV2ForgeRuntimeConfiguration CreateValidateForgeRuntimeConfiguration(IReadOnlyList<string> forgePackPaths)
+    {
+        if (forgePackPaths.Count == 0)
+        {
+            return FirmamentV2ForgeRuntimeConfiguration.CreateDefault();
+        }
+
+        var loader = new ForgeConceptPackAssemblyLoader();
+        var packs = new List<(IForgeConceptPack Pack, string AssemblyPath)>();
+        foreach (var forgePackPath in forgePackPaths)
+        {
+            foreach (var pack in loader.LoadFromAssemblyPath(forgePackPath))
+            {
+                packs.Add((pack, Path.GetFullPath(forgePackPath)));
+            }
+        }
+
+        return FirmamentV2ForgeRuntimeConfiguration.Create(packs);
     }
 
     private static int RunTrace(string[] args, TextWriter stdout, TextWriter stderr)
@@ -2290,6 +2323,13 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris build part.firmament --out part.step --json");
+    }
+
+    private static void WriteValidateHelp(TextWriter stdout)
+    {
+        stdout.WriteLine(ValidateUsage);
+        stdout.WriteLine("  --json                Emit Firmament V2 validation report JSON.");
+        stdout.WriteLine("  --forge-pack <path>   Load a trusted local .NET assembly containing IForgeConceptPack implementations. This executes local code; Aetheris does not sandbox external packs. Do not load untrusted packs.");
     }
 
     private static void WriteTraceHelp(TextWriter stdout)

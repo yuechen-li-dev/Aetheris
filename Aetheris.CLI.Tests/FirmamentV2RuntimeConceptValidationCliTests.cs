@@ -1,5 +1,4 @@
 using System.Text.Json;
-
 namespace Aetheris.CLI.Tests;
 
 public sealed class FirmamentV2RuntimeConceptValidationCliTests
@@ -47,7 +46,7 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
     }
 
     [Fact]
-    public void ValidateHelp_DoesNotAdvertiseExternalForgePackLoading()
+    public void ValidateHelp_AdvertisesTrustedExternalForgePackLoading()
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
@@ -56,7 +55,8 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
 
         Assert.Equal(0, exitCode);
         Assert.Equal(string.Empty, stderr.ToString());
-        Assert.DoesNotContain("--forge-pack", stdout.ToString(), StringComparison.Ordinal);
+        Assert.Contains("--forge-pack <path>", stdout.ToString(), StringComparison.Ordinal);
+        Assert.Contains("does not sandbox external packs", stdout.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -84,6 +84,95 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
             validation.GetProperty("diagnostics").EnumerateArray(),
             diagnostic => diagnostic.GetProperty("code").GetString() == "forge.pmi.obligation.missing"
                 && diagnostic.GetProperty("severity").GetString() == "warning");
+    }
+
+    [Fact]
+    public void ValidateJson_MissingForgePackPath_FailsClearly()
+    {
+        var fixturePath = FixturePath("Language/valid/concept-applications-forge.valid.firmfixture");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = CliRunner.Run(["validate", fixturePath, "--forge-pack", "does-not-exist.dll", "--json"], stdout, stderr);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(string.Empty, stdout.ToString());
+        Assert.Contains("Forge concept pack assembly was not found", stderr.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidateJson_AssemblyWithoutPacks_FailsClearly()
+    {
+        var fixturePath = FixturePath("Language/valid/concept-applications-forge.valid.firmfixture");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = CliRunner.Run(["validate", fixturePath, "--forge-pack", typeof(CliRunner).Assembly.Location, "--json"], stdout, stderr);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(string.Empty, stdout.ToString());
+        Assert.Contains("contains no public IForgeConceptPack implementations", stderr.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidateJson_ExternalPack_ValidatesExternalConceptAndReportsProvenance()
+    {
+        var fixturePath = FixturePath("Language/invalid/concept-external-boss-hole.invalid.firmfixture");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = CliRunner.Run(["validate", fixturePath, "--forge-pack", typeof(Aetheris.TestForgePack.TestForgePack).Assembly.Location, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(string.Empty, stderr.ToString());
+
+        using var document = JsonDocument.Parse(stdout.ToString());
+        var validation = document.RootElement.GetProperty("firmamentV2Validation");
+        Assert.Equal("valid", validation.GetProperty("status").GetString());
+        Assert.Contains(
+            validation.GetProperty("diagnostics").EnumerateArray(),
+            diagnostic => diagnostic.GetProperty("code").GetString() == "testforge.boss-hole.seen"
+                && diagnostic.GetProperty("severity").GetString() == "warning");
+        var concept = Assert.Single(validation.GetProperty("concepts").EnumerateArray());
+        Assert.Equal("Aetheris.TestForgePack", concept.GetProperty("runtimeValidation").GetProperty("provider").GetString());
+        var forgeRuntime = validation.GetProperty("forgeRuntime");
+        Assert.Equal("Aetheris.Standard", forgeRuntime.GetProperty("builtInPack").GetString());
+        var externalPack = Assert.Single(forgeRuntime.GetProperty("externalPacks").EnumerateArray());
+        Assert.Equal("Aetheris.TestForgePack", externalPack.GetProperty("id").GetString());
+        Assert.Equal("Aetheris.TestForgePack.dll", externalPack.GetProperty("assembly").GetString());
+    }
+
+    [Fact]
+    public void ValidateJson_DuplicateConceptPack_FailsClearly()
+    {
+        var fixturePath = FixturePath("Language/valid/concept-applications-forge.valid.firmfixture");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var duplicatePackPath = Path.Combine(AppContext.BaseDirectory, "Aetheris.TestForgePack.Duplicate.dll");
+
+        var exitCode = CliRunner.Run(["validate", fixturePath, "--forge-pack", duplicatePackPath, "--json"], stdout, stderr);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(string.Empty, stdout.ToString());
+        Assert.Contains("duplicate concept 'hole<Countersink>'", stderr.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidateJson_DefaultRuntime_RemainsBuiltInOnly()
+    {
+        var fixturePath = FixturePath("Language/valid/concept-applications-forge.valid.firmfixture");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = CliRunner.Run(["validate", fixturePath, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(string.Empty, stderr.ToString());
+
+        using var document = JsonDocument.Parse(stdout.ToString());
+        var forgeRuntime = document.RootElement.GetProperty("firmamentV2Validation").GetProperty("forgeRuntime");
+        Assert.Equal("Aetheris.Standard", forgeRuntime.GetProperty("builtInPack").GetString());
+        Assert.Empty(forgeRuntime.GetProperty("externalPacks").EnumerateArray());
     }
 
     private static string FixturePath(string relative) => Path.Combine(FindRepoRoot(), "fixtures", "FirmamentV2", relative);

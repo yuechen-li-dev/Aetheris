@@ -1,0 +1,24 @@
+// fixture-id: concept-external-boss-hole
+// case: forge-cs-a5-external-boss-hole
+// category: Language
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: validation-report
+// expected-diagnostic: firmament-v2-concept-unknown-concept
+// notes: Without --forge-pack this external concept remains unknown; trusted local pack loading can make the same source valid.
+model ExternalBossHole {
+    units mm
+
+    let BossHole {
+        diameter: length = 6.0mm tol 0.05mm
+    }
+
+    solid part: Box { size: [20, 20, 12] }
+
+    feature boss: hole<BossTest> {
+        target: part.region("bossHole")
+        diameter: BossHole.diameter
+    }
+}

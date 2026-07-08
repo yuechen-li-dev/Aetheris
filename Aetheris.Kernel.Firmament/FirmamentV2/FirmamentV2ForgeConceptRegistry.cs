@@ -1,3 +1,6 @@
+using Aetheris.Forge.Abstractions.FirmamentInterop;
+using Aetheris.Forge.Standard;
+
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 public enum FirmamentV2ForgeFieldKind
@@ -5,7 +8,11 @@ public enum FirmamentV2ForgeFieldKind
     Length,
     Angle,
     Target,
-    Material
+    Material,
+    String,
+    Bool,
+    Float,
+    Int
 }
 
 public sealed record FirmamentV2ForgeFieldDescriptor(string Name, FirmamentV2ForgeFieldKind Kind, bool Required)
@@ -15,6 +22,10 @@ public sealed record FirmamentV2ForgeFieldDescriptor(string Name, FirmamentV2For
         FirmamentV2ForgeFieldKind.Length => type == FirmamentV2PrimitiveType.Length,
         FirmamentV2ForgeFieldKind.Angle => type == FirmamentV2PrimitiveType.Angle,
         FirmamentV2ForgeFieldKind.Material => type == FirmamentV2PrimitiveType.String,
+        FirmamentV2ForgeFieldKind.String => type == FirmamentV2PrimitiveType.String,
+        FirmamentV2ForgeFieldKind.Bool => type == FirmamentV2PrimitiveType.Bool,
+        FirmamentV2ForgeFieldKind.Float => type == FirmamentV2PrimitiveType.Float,
+        FirmamentV2ForgeFieldKind.Int => type == FirmamentV2PrimitiveType.Int,
         FirmamentV2ForgeFieldKind.Target => false,
         _ => false
     };
@@ -22,61 +33,109 @@ public sealed record FirmamentV2ForgeFieldDescriptor(string Name, FirmamentV2For
 
 public sealed record FirmamentV2ForgeConceptDescriptor(string FamilyName, string ConceptName, IReadOnlyDictionary<string, FirmamentV2ForgeFieldDescriptor> Fields);
 
-public static class FirmamentV2ForgeConceptRegistry
+public sealed class FirmamentV2ForgeConceptCatalog
 {
-    private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, FirmamentV2ForgeConceptDescriptor>> Families = Build();
+    private readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, FirmamentV2ForgeConceptDescriptor>> families;
 
-    public static bool HasFamily(string familyName) => Families.ContainsKey(familyName);
+    public FirmamentV2ForgeConceptCatalog(IReadOnlyDictionary<string, IReadOnlyDictionary<string, FirmamentV2ForgeConceptDescriptor>> families)
+    {
+        ArgumentNullException.ThrowIfNull(families);
+        this.families = families;
+    }
 
-    public static bool TryGet(string familyName, string conceptName, out FirmamentV2ForgeConceptDescriptor descriptor)
+    public bool HasFamily(string familyName) => families.ContainsKey(familyName);
+
+    public bool TryGet(string familyName, string conceptName, out FirmamentV2ForgeConceptDescriptor descriptor)
     {
         descriptor = null!;
-        if (!Families.TryGetValue(familyName, out var concepts)) return false;
+        if (!families.TryGetValue(familyName, out var concepts))
+        {
+            return false;
+        }
+
         return concepts.TryGetValue(conceptName, out descriptor!);
     }
 
-    internal static IReadOnlyList<FirmamentV2ForgeConceptDescriptor> EnumerateDescriptors() =>
-        Families.Values
+    public IReadOnlyList<FirmamentV2ForgeConceptDescriptor> EnumerateDescriptors() =>
+        families.Values
             .SelectMany(concepts => concepts.Values)
             .OrderBy(descriptor => descriptor.FamilyName, StringComparer.Ordinal)
             .ThenBy(descriptor => descriptor.ConceptName, StringComparer.Ordinal)
             .ToArray();
 
-    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, FirmamentV2ForgeConceptDescriptor>> Build()
+    public static FirmamentV2ForgeConceptCatalog FromConcepts(IEnumerable<IForgeConcept> concepts)
     {
-        var process = new Dictionary<string, FirmamentV2ForgeConceptDescriptor>(StringComparer.Ordinal)
-        {
-            ["CNC"] = Descriptor("process", "CNC",
-                Field("material", FirmamentV2ForgeFieldKind.Material),
-                Field("minimumToolRadius", FirmamentV2ForgeFieldKind.Length))
-        };
+        ArgumentNullException.ThrowIfNull(concepts);
 
-        var hole = new Dictionary<string, FirmamentV2ForgeConceptDescriptor>(StringComparer.Ordinal)
+        var families = new Dictionary<string, Dictionary<string, FirmamentV2ForgeConceptDescriptor>>(StringComparer.Ordinal);
+        foreach (var concept in concepts)
         {
-            ["Countersink"] = Descriptor("hole", "Countersink",
-                Field("target", FirmamentV2ForgeFieldKind.Target),
-                Field("diameter", FirmamentV2ForgeFieldKind.Length),
-                Field("countersinkDiameter", FirmamentV2ForgeFieldKind.Length),
-                Field("angle", FirmamentV2ForgeFieldKind.Angle)),
-            ["Shaft"] = Descriptor("hole", "Shaft",
-                Field("target", FirmamentV2ForgeFieldKind.Target),
-                Field("diameter", FirmamentV2ForgeFieldKind.Length)),
-            ["Counterbore"] = Descriptor("hole", "Counterbore",
-                Field("target", FirmamentV2ForgeFieldKind.Target),
-                Field("diameter", FirmamentV2ForgeFieldKind.Length),
-                Field("counterboreDiameter", FirmamentV2ForgeFieldKind.Length),
-                Field("counterboreDepth", FirmamentV2ForgeFieldKind.Length))
-        };
+            var descriptor = ToDescriptor(concept);
+            if (!families.TryGetValue(descriptor.FamilyName, out var family))
+            {
+                family = new Dictionary<string, FirmamentV2ForgeConceptDescriptor>(StringComparer.Ordinal);
+                families.Add(descriptor.FamilyName, family);
+            }
 
-        return new Dictionary<string, IReadOnlyDictionary<string, FirmamentV2ForgeConceptDescriptor>>(StringComparer.Ordinal)
-        {
-            ["process"] = process,
-            ["hole"] = hole
-        };
+            family.Add(descriptor.ConceptName, descriptor);
+        }
+
+        return new FirmamentV2ForgeConceptCatalog(
+            families.ToDictionary(
+                pair => pair.Key,
+                pair => (IReadOnlyDictionary<string, FirmamentV2ForgeConceptDescriptor>)pair.Value,
+                StringComparer.Ordinal));
     }
 
-    private static FirmamentV2ForgeConceptDescriptor Descriptor(string family, string concept, params FirmamentV2ForgeFieldDescriptor[] fields) =>
-        new(family, concept, fields.ToDictionary(f => f.Name, StringComparer.Ordinal));
+    public static FirmamentV2ForgeConceptCatalog CreateBuiltIn()
+    {
+        var registry = new ForgeConceptRegistry();
+        new StandardForgeRuntimeConceptPack().Register(registry);
+        return FromConcepts(registry.EnumerateConcepts());
+    }
 
-    private static FirmamentV2ForgeFieldDescriptor Field(string name, FirmamentV2ForgeFieldKind kind) => new(name, kind, true);
+    private static FirmamentV2ForgeConceptDescriptor ToDescriptor(IForgeConcept concept)
+    {
+        ArgumentNullException.ThrowIfNull(concept);
+
+        var schema = new ConceptSchemaBuilder();
+        concept.Define(schema);
+        return new FirmamentV2ForgeConceptDescriptor(
+            concept.Id.Family,
+            concept.Id.Concept,
+            schema.Fields.ToDictionary(
+                field => field.Name,
+                field => new FirmamentV2ForgeFieldDescriptor(field.Name, MapFieldKind(field.Kind), field.Required),
+                StringComparer.Ordinal));
+    }
+
+    private static FirmamentV2ForgeFieldKind MapFieldKind(ConceptSchemaValueKind kind) => kind switch
+    {
+        ConceptSchemaValueKind.Length => FirmamentV2ForgeFieldKind.Length,
+        ConceptSchemaValueKind.Angle => FirmamentV2ForgeFieldKind.Angle,
+        ConceptSchemaValueKind.Target => FirmamentV2ForgeFieldKind.Target,
+        ConceptSchemaValueKind.Material => FirmamentV2ForgeFieldKind.Material,
+        ConceptSchemaValueKind.String => FirmamentV2ForgeFieldKind.String,
+        ConceptSchemaValueKind.Bool => FirmamentV2ForgeFieldKind.Bool,
+        ConceptSchemaValueKind.Float => FirmamentV2ForgeFieldKind.Float,
+        ConceptSchemaValueKind.Int => FirmamentV2ForgeFieldKind.Int,
+        _ => throw new InvalidOperationException($"Concept schema kind '{kind}' is not supported by Firmament V2 parser descriptors.")
+    };
+}
+
+public static class FirmamentV2ForgeConceptRegistry
+{
+    private static readonly FirmamentV2ForgeConceptCatalog DefaultCatalog = FirmamentV2ForgeConceptCatalog.CreateBuiltIn();
+
+    public static FirmamentV2ForgeConceptCatalog Catalog => DefaultCatalog;
+
+    public static bool HasFamily(string familyName) => DefaultCatalog.HasFamily(familyName);
+
+    public static bool TryGet(string familyName, string conceptName, out FirmamentV2ForgeConceptDescriptor descriptor)
+    {
+        return DefaultCatalog.TryGet(familyName, conceptName, out descriptor);
+    }
+
+    internal static IReadOnlyList<FirmamentV2ForgeConceptDescriptor> EnumerateDescriptors() =>
+        DefaultCatalog.EnumerateDescriptors();
 }

@@ -211,13 +211,19 @@ public static class FirmamentV2Parser
     private static readonly Regex ConceptRegex = new(@"\bconcept\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>[-+0-9.eE]+)\s*(?<unit>[A-Za-z_][A-Za-z0-9_]*)?", RegexOptions.CultureInvariant);
     private static readonly Regex PathRegex = new("\\bpath\\s*:\\s*\"(?<path>[^\"]+)\"", RegexOptions.CultureInvariant);
 
-    public static FirmamentV2ParseResult Parse(string sourceText) => Parse(sourceText, null);
+    public static FirmamentV2ParseResult Parse(string sourceText) => Parse(sourceText, null, null);
 
-    public static FirmamentV2ParseResult Parse(string sourceText, string? sourceDirectory)
+    public static FirmamentV2ParseResult Parse(string sourceText, string? sourceDirectory) => Parse(sourceText, sourceDirectory, null);
+
+    public static FirmamentV2ParseResult Parse(
+        string sourceText,
+        string? sourceDirectory,
+        FirmamentV2ForgeConceptCatalog? conceptCatalog)
     {
         ArgumentNullException.ThrowIfNull(sourceText);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };
         var source = StripLineComments(sourceText);
+        conceptCatalog ??= FirmamentV2ForgeConceptRegistry.Catalog;
 
         if (ContainsRawBackendId(source)) diagnostics.Add(RawBackendIdReferenceForbidden);
         if (ContainsUnsupportedConstruct(source)) diagnostics.Add(UnsupportedConstruct);
@@ -266,7 +272,7 @@ public static class FirmamentV2Parser
         var recognizedRegions = ParseRecognizedRegions(source, byName, diagnostics);
         var replacements = ParseReplacements(source, byName, recognizedRegions, diagnostics);
         var (pmi, pmiBlock, boundPmi) = ParsePmi(source, byName, modifyBlocks, recognizedRegions, boundLets, boundLetRecords, diagnostics);
-        var (manufacturingConcepts, featureConcepts) = ParseConceptApplications(source, boundLets, boundLetRecords, diagnostics);
+        var (manufacturingConcepts, featureConcepts) = ParseConceptApplications(source, boundLets, boundLetRecords, conceptCatalog, diagnostics);
 
         FirmamentV2Document? document = null;
         if (modelMatch.Success && unitsMatch.Success && solids.Count > 0)
@@ -965,6 +971,7 @@ public static class FirmamentV2Parser
         string source,
         IReadOnlyList<FirmamentV2BoundLet> boundLets,
         IReadOnlyList<FirmamentV2BoundLetRecord> boundLetRecords,
+        FirmamentV2ForgeConceptCatalog conceptCatalog,
         List<string> diagnostics)
     {
         var manufacturing = new List<FirmamentV2ManufacturingConceptDeclaration>();
@@ -975,7 +982,7 @@ public static class FirmamentV2Parser
             if (close < 0) { diagnostics.Add(UnsupportedConstruct); continue; }
             var application = new FirmamentV2ConceptApplication(match.Groups["family"].Value, match.Groups["concept"].Value, new(match.Groups["family"].Index, match.Groups["concept"].Index + match.Groups["concept"].Length - match.Groups["family"].Index));
             var fields = ParseConceptFields(source[(open + 1)..close], open + 1, diagnostics);
-            var bound = ValidateConceptApplication(application, fields, boundLets, boundLetRecords, diagnostics);
+            var bound = ValidateConceptApplication(application, fields, boundLets, boundLetRecords, conceptCatalog, diagnostics);
             manufacturing.Add(new(application, fields, new(match.Index, close - match.Index + 1), bound));
         }
 
@@ -987,7 +994,7 @@ public static class FirmamentV2Parser
             if (close < 0) { diagnostics.Add(UnsupportedConstruct); continue; }
             var application = new FirmamentV2ConceptApplication(match.Groups["family"].Value, match.Groups["concept"].Value, new(match.Groups["family"].Index, match.Groups["concept"].Index + match.Groups["concept"].Length - match.Groups["family"].Index));
             var fields = ParseConceptFields(source[(open + 1)..close], open + 1, diagnostics);
-            var bound = ValidateConceptApplication(application, fields, boundLets, boundLetRecords, diagnostics);
+            var bound = ValidateConceptApplication(application, fields, boundLets, boundLetRecords, conceptCatalog, diagnostics);
             features.Add(new(match.Groups["name"].Value, application, fields, new(match.Index, close - match.Index + 1), bound));
         }
 
@@ -1041,11 +1048,12 @@ public static class FirmamentV2Parser
         IReadOnlyList<FirmamentV2ConceptField> fields,
         IReadOnlyList<FirmamentV2BoundLet> boundLets,
         IReadOnlyList<FirmamentV2BoundLetRecord> boundLetRecords,
+        FirmamentV2ForgeConceptCatalog conceptCatalog,
         List<string> diagnostics)
     {
-        if (!FirmamentV2ForgeConceptRegistry.TryGet(application.FamilyName, application.ConceptName, out var descriptor))
+        if (!conceptCatalog.TryGet(application.FamilyName, application.ConceptName, out var descriptor))
         {
-            diagnostics.Add(FirmamentV2ForgeConceptRegistry.HasFamily(application.FamilyName) ? ConceptUnknownConcept : ConceptUnknownFamily);
+            diagnostics.Add(conceptCatalog.HasFamily(application.FamilyName) ? ConceptUnknownConcept : ConceptUnknownFamily);
             return [];
         }
 

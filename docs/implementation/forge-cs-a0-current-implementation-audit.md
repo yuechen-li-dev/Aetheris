@@ -3,6 +3,8 @@
 Milestone: **FORGE-CS-A0**  
 Scope: audit/design only for the Phase 2 C# interop abstraction layer.
 
+Status note, July 7 2026: **FORGE-CS-A1 has now implemented the first read-only interop facades and V2 adapters described here.** The A0 attachment-point analysis remains the rationale and reference map for those adapters.
+
 Phase 2 doctrine remains:
 
 ```text

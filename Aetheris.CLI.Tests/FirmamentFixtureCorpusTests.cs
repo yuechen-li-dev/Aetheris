@@ -144,16 +144,37 @@ public sealed class FirmamentFixtureCorpusTests
     {
         foreach (var path in DiscoverV2TraceFixtures())
         {
-            using var doc = Trace(path);
-            var root = doc.RootElement;
             var metadata = LoadMetadata(path);
+            if (string.Equals(metadata["expected-stage"], "validation-report", StringComparison.Ordinal))
+            {
+                // Validation-report fixtures prove parser/report behavior through `validate`, not lowering `trace`.
+                using var doc = Validate(path);
+                var validation = doc.RootElement.GetProperty("firmamentV2Validation");
+                var validationStatus = validation.GetProperty("status").GetString();
+                if (metadata["expected"] == "valid")
+                {
+                    Assert.Contains(validationStatus, new[] { "valid", "valid-with-deferred-export" });
+                }
+                else
+                {
+                    Assert.Equal("invalid", validationStatus);
+                }
+                var diagnostics = validation.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetProperty("code").GetString()).ToArray();
+                if (metadata.TryGetValue("expected-diagnostic", out var expectedValidationDiagnostic)) Assert.Contains(expectedValidationDiagnostic, diagnostics);
+                Assert.Contains("firmament-v2-parser-invoked", diagnostics);
+                Assert.DoesNotContain("air-x11-firmament-parse-failed", diagnostics);
+                continue;
+            }
+
+            using var trace = Trace(path);
+            var root = trace.RootElement;
             var isParserBacked = metadata["implementation"] == "parser-backed";
             Assert.Equal(isParserBacked, root.GetProperty("fixture").GetProperty("parserBacked").GetBoolean());
             Assert.True(root.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean(), path);
             Assert.Equal(metadata["expected-stage"], root.GetProperty("actualStageReached").GetString());
-            var diagnostics = root.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
-            if (metadata.TryGetValue("expected-diagnostic", out var expectedDiagnostic)) Assert.Contains(expectedDiagnostic, diagnostics);
-            Assert.DoesNotContain("air-x11-firmament-parse-failed", diagnostics);
+            var traceDiagnostics = root.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
+            if (metadata.TryGetValue("expected-diagnostic", out var expectedTraceDiagnostic)) Assert.Contains(expectedTraceDiagnostic, traceDiagnostics);
+            Assert.DoesNotContain("air-x11-firmament-parse-failed", traceDiagnostics);
         }
     }
 
@@ -454,6 +475,16 @@ public sealed class FirmamentFixtureCorpusTests
         var args = new[] { "trace", "--fixture", fixturePath, "--json" }.Concat(extraArgs).ToArray();
         var exit = Aetheris.CLI.CliRunner.Run(args, stdout, stderr);
         Assert.True(exit == 0, stderr.ToString());
+        return JsonDocument.Parse(stdout.ToString());
+    }
+
+    private static JsonDocument Validate(string fixturePath)
+    {
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exit = Aetheris.CLI.CliRunner.Run(["validate", fixturePath, "--json"], stdout, stderr);
+        var metadata = LoadMetadata(fixturePath);
+        Assert.Equal(metadata["expected"] == "valid" ? 0 : 1, exit);
+        Assert.Equal(string.Empty, stderr.ToString());
         return JsonDocument.Parse(stdout.ToString());
     }
 }

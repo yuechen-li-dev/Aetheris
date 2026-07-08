@@ -52,6 +52,8 @@ Primary fixture:
 
 `fixtures/FirmamentV2/InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture`
 
+Because this fixture imports `canonical-through-hole.step`, its `step-verified` corpus contract includes InlineStep trace metadata for the real through-hole body (`expected-volume: 461.15044407846124`, `expected-topology: faces=7`). Without that metadata, the generic parser-backed trace verifier falls back to the plain 10x8x6 box volume and reports a stale `step-v2-a1-volume-mismatch` even though the AP242 PMI export proof still succeeds.
+
 Invalid/deferred fixtures:
 
 - `fixtures/FirmamentV2/InlineStep/invalid/inline-step-v2-record-pmi-diameter-missing-tolerance.invalid.firmfixture`

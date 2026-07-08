@@ -1,0 +1,23 @@
+// fixture-id: let-record-groups
+// case: let-record-groups
+// category: Language
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
+// notes: L2 grouped let records and dotted references.
+
+model LetRecordGroups {
+  units mm
+  solid base: Box { size: [10, 8, 6] }
+
+  let MountingPattern {
+    holeDiameter: length = 6.0mm
+    holeSpacingX: length = 80.0mm
+    holeSpacingY: length = 40.0mm
+    holeCount: int = 4
+    label: string = "M6 mount group"
+    inspectionRequired: bool = true
+  }
+}

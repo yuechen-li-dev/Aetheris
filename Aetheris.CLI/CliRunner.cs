@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Firmament.FrictionLab.CIRLab;
 
 namespace Aetheris.CLI;
@@ -106,10 +107,11 @@ public static class CliRunner
         string? Error,
         string? Classification = null,
         int? RigidRootCount = null);
-    private const string TopLevelUsage = "Usage: aetheris <build|analyze|trace|canon|asm|experimental> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|validate|analyze|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
+    private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
-    private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--top|--bottom|--front|--back|--left|--right) --rows <N> --cols <N> --json";
+    private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] [--rank-probes|--evidence-bundle] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
@@ -144,7 +146,7 @@ public static class CliRunner
             return 1;
         }
 
-        if (IsHelpFlag(args[0]))
+        if (IsTopLevelHelpRequest(args[0]))
         {
             WriteTopLevelHelp(stdout);
             return 0;
@@ -161,6 +163,7 @@ public static class CliRunner
             return args[0] switch
             {
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
+                "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "trace" => RunTrace(args.Skip(1).ToArray(), stdout, stderr),
                 "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
@@ -258,7 +261,12 @@ public static class CliRunner
                 sourcePath = build.Value.SourcePath,
                 outputPath = build.Value.OutputPath,
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
-                inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist
+                inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
+                pmiExportEvidence = new
+                {
+                    datum = (build.Value.Export.DatumInspection ?? []).Select(d => new { kind = "datum", name = d.Label, exportSupport = "supported", exportEvidence = "found", target = d.Target }),
+                    diameter = (build.Value.Export.DimensionInspection ?? []).Where(d => string.Equals(d.Kind, "Diameter", StringComparison.Ordinal)).Select(d => new { kind = "diameter", name = d.CandidateName ?? d.Target, exportSupport = "supported", exportEvidence = "found", target = d.Target, nominal = d.Value })
+                }
             }, JsonOptions));
         }
         else
@@ -267,6 +275,55 @@ public static class CliRunner
         }
 
         return 0;
+    }
+
+
+    private static int RunValidate(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0)
+        {
+            stderr.WriteLine(ValidateUsage);
+            return 1;
+        }
+
+        if (IsHelpFlag(args[0]))
+        {
+            stdout.WriteLine(ValidateUsage);
+            stdout.WriteLine("  --json         Emit Firmament V2 validation report JSON.");
+            return 0;
+        }
+
+        var sourcePath = args[0];
+        var json = false;
+        for (var i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--json":
+                    json = true;
+                    break;
+                case "-h":
+                case "--help":
+                    stdout.WriteLine(ValidateUsage);
+                    return 0;
+                default:
+                    stderr.WriteLine($"Unknown validate option '{args[i]}'.");
+                    stderr.WriteLine(ValidateUsage);
+                    return 1;
+            }
+        }
+
+        if (!File.Exists(sourcePath))
+        {
+            stderr.WriteLine($"Validation input was not found: {sourcePath}");
+            return 1;
+        }
+
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(sourcePath), Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
+        var report = FirmamentV2ValidationReportBuilder.Build(parse, sourcePath);
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = report }, JsonOptions));
+        else stdout.WriteLine($"Firmament V2 validation: {report.Status} ({report.Summary.FatalDiagnosticCount} fatal, {report.Summary.WarningDiagnosticCount} warning)");
+        return report.Status == "invalid" ? 1 : 0;
     }
 
     private static int RunTrace(string[] args, TextWriter stdout, TextWriter stderr)
@@ -1760,7 +1817,14 @@ public static class CliRunner
         var viewOptionCount = 0;
         int? rows = null;
         int? cols = null;
+        string? plane = null;
+        string? direction = null;
+        string? views = null;
+        (double U, double V)? point = null;
         var json = false;
+        var llm = false;
+        var rankProbes = false;
+        var evidenceBundle = false;
 
         for (var i = 1; i < args.Length; i++)
         {
@@ -1793,6 +1857,57 @@ public static class CliRunner
                 case "--rows" when i + 1 < args.Length && int.TryParse(args[++i], out var parsedRows):
                     rows = parsedRows;
                     break;
+                case "--resolution" when i + 1 < args.Length && TryParseResolution(args[++i], out var parsedCols2, out var parsedRows2):
+                    cols = parsedCols2;
+                    rows = parsedRows2;
+                    break;
+                case "--resolution":
+                    stderr.WriteLine("Analyze map option --resolution requires a value like 32x32.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
+                case "--plane" when i + 1 < args.Length:
+                    plane = args[++i];
+                    break;
+                case "--plane":
+                    stderr.WriteLine("Analyze map option --plane requires xy, xz, or yz.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
+                case "--direction" when i + 1 < args.Length:
+                    direction = args[++i];
+                    break;
+                case "--views" when i + 1 < args.Length:
+                    views = args[++i];
+                    break;
+                case "--views":
+                    stderr.WriteLine("Analyze map option --views requires six.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
+                case "--llm":
+                case "--summary":
+                    llm = true;
+                    break;
+                case "--rank-probes":
+                    rankProbes = true;
+                    llm = true;
+                    break;
+                case "--evidence-bundle":
+                    evidenceBundle = true;
+                    rankProbes = true;
+                    llm = true;
+                    break;
+                case "--direction":
+                    stderr.WriteLine("Analyze map option --direction requires +x, -x, +y, -y, +z, or -z.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
+                case "--point" when i + 1 < args.Length && TryParsePoint(args[++i], out var parsedPoint):
+                    point = parsedPoint;
+                    rows ??= 1;
+                    cols ??= 1;
+                    break;
+                case "--point":
+                    stderr.WriteLine("Analyze map option --point requires a comma-separated coordinate like 3,4.");
+                    stderr.WriteLine(AnalyzeMapUsage);
+                    return 1;
                 case "--rows":
                     stderr.WriteLine("Analyze map option --rows requires an integer value.");
                     stderr.WriteLine(AnalyzeMapUsage);
@@ -1818,9 +1933,39 @@ public static class CliRunner
             }
         }
 
-        if (!view.HasValue || viewOptionCount != 1)
+        var sixViewMode = string.Equals(views, "six", StringComparison.OrdinalIgnoreCase);
+        if (views is not null && !sixViewMode)
         {
-            stderr.WriteLine("Analyze map requires exactly one orthographic view option (--top|--bottom|--front|--back|--left|--right).");
+            stderr.WriteLine("Analyze map option --views currently supports only 'six'.");
+            stderr.WriteLine(AnalyzeMapUsage);
+            return 1;
+        }
+
+        var legacyViewMode = plane is null && view.HasValue;
+        if (legacyViewMode)
+        {
+            var legacyView = view.GetValueOrDefault();
+            (plane, direction) = legacyView switch
+            {
+                OrthographicView.Top => ("xy", "-z"),
+                OrthographicView.Bottom => ("xy", "+z"),
+                OrthographicView.Front => ("xz", "-y"),
+                OrthographicView.Back => ("xz", "+y"),
+                OrthographicView.Left => ("yz", "+x"),
+                OrthographicView.Right => ("yz", "-x"),
+                _ => ("xy", "-z")
+            };
+        }
+
+        if (!sixViewMode && (plane is null || direction is null || (viewOptionCount > 0 && viewOptionCount != 1)))
+        {
+            stderr.WriteLine("Analyze map requires --plane and --direction (or one legacy view option --top|--bottom|--front|--back|--left|--right).");
+            return 1;
+        }
+
+        if (sixViewMode && (point.HasValue || plane is not null || direction is not null || viewOptionCount > 0 || !llm))
+        {
+            stderr.WriteLine("Analyze map --views six requires --llm or --summary and cannot be combined with --point, --plane, --direction, or legacy view flags.");
             return 1;
         }
 
@@ -1836,10 +1981,14 @@ public static class CliRunner
             return 1;
         }
 
-        OrthographicMapResult map;
+        object map;
         try
         {
-            map = StepAnalyzer.AnalyzeMap(stepPath, view.Value, rows.Value, cols.Value);
+            map = sixViewMode
+                ? (rankProbes || evidenceBundle ? StepAnalyzer.AnalyzeSixViewMapEvidenceBundle(stepPath, cols.Value, rows.Value) : StepAnalyzer.AnalyzeSixViewMapSummary(stepPath, cols.Value, rows.Value))
+                : legacyViewMode
+                ? StepAnalyzer.AnalyzeMap(stepPath, view.GetValueOrDefault(), rows.Value, cols.Value)
+                : StepAnalyzer.AnalyzeRayMap(stepPath, plane!, direction!, cols.Value, rows.Value, point);
         }
         catch (Exception ex)
         {
@@ -2045,14 +2194,39 @@ public static class CliRunner
 
     private static int UnknownCommand(string command, TextWriter stderr)
     {
-        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, analyze, trace, canon, asm, experimental.");
+        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, validate, analyze, trace, canon, asm, experimental.");
         stderr.WriteLine("Run 'aetheris --help' for usage and examples.");
         return 1;
     }
 
+    private static bool IsTopLevelHelpRequest(string value) =>
+        IsHelpFlag(value)
+        || string.Equals(value, "help", StringComparison.Ordinal);
+
     private static bool IsHelpFlag(string value) =>
         string.Equals(value, "--help", StringComparison.Ordinal)
         || string.Equals(value, "-h", StringComparison.Ordinal);
+
+    private static bool TryParseResolution(string value, out int cols, out int rows)
+    {
+        cols = 0;
+        rows = 0;
+        var parts = value.Split('x', 'X');
+        return parts.Length == 2
+            && int.TryParse(parts[0], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out cols)
+            && int.TryParse(parts[1], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out rows);
+    }
+
+    private static bool TryParsePoint(string value, out (double U, double V) point)
+    {
+        point = default;
+        var parts = value.Split(',');
+        if (parts.Length != 2) return false;
+        if (!double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var u)) return false;
+        if (!double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) return false;
+        point = (u, v);
+        return true;
+    }
 
     private static bool IsVersionFlag(string value) =>
         string.Equals(value, "--version", StringComparison.Ordinal)
@@ -2072,6 +2246,7 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Commands:");
         stdout.WriteLine("  build      Build a .firmament source file into STEP.");
+        stdout.WriteLine("  validate   Validate Firmament V2 manufacturing intent and emit report JSON.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
         stdout.WriteLine("  trace      Trace built-in AIR lowering cases through route, BRepPlan, STEP smoke, and CIR mirror.");
         stdout.WriteLine("  canon      Import and re-export STEP/AP242 as canonical STEP.");
@@ -2084,6 +2259,7 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris build model.firmament --out model.step");
+        stdout.WriteLine("  aetheris validate fixtures/FirmamentV2/Language/valid/v2-phase1-validation-report.valid.firmfixture --json");
         stdout.WriteLine("  aetheris analyze model.step");
         stdout.WriteLine("  aetheris analyze model.step --json");
         stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer");
@@ -2182,13 +2358,19 @@ public static class CliRunner
         stdout.WriteLine(AnalyzeMapUsage);
         stdout.WriteLine();
         stdout.WriteLine("Required:");
-        stdout.WriteLine("  exactly one view: --top | --bottom | --front | --back | --left | --right");
+        stdout.WriteLine("  either --plane <xy|xz|yz> with --direction <axis>, exactly one legacy view, or --views six --llm.");
+        stdout.WriteLine("  legacy views: --top | --bottom | --front | --back | --left | --right");
         stdout.WriteLine("  --rows <N>       Positive integer row count.");
         stdout.WriteLine("  --cols <N>       Positive integer column count.");
+        stdout.WriteLine("  --resolution NxM Alternative to --cols N --rows M.");
         stdout.WriteLine("  --json           Required output mode.");
+        stdout.WriteLine();
+        stdout.WriteLine("Six-view convention:");
+        stdout.WriteLine("  top xy/-z, bottom xy/+z, right yz/-x, left yz/+x, back xz/+y, front xz/-y.");
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris analyze map part.step --top --rows 48 --cols 64 --json");
+        stdout.WriteLine("  aetheris analyze map part.step --views six --resolution 16x16 --llm --rank-probes --json");
     }
 
     private static void WriteAnalyzeSectionHelp(TextWriter stdout)

@@ -213,6 +213,12 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Failure(import.Diagnostics);
         }
 
+        var semanticPmiValidation = ValidateV2PmiExportSupport(document);
+        if (!semanticPmiValidation.IsSuccess)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(semanticPmiValidation.Diagnostics);
+        }
+
         var semanticPmi = BuildV2SemanticPmi(document, [], solid.Name);
         var export = Step242Exporter.ExportBody(import.Value, semanticPmi, new Step242ExportOptions
         {
@@ -231,8 +237,8 @@ public static class FirmamentBuildAndExport
                 0,
                 "inline-step",
                 "aetheris-canonical-ap242",
-                DatumInspection: [],
-                DimensionInspection: [],
+                DatumInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
+                DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
                 InlineStepMigration: InlineStepMigrationReportBuilder.Build(document, solid, emissionStrategy: "canonical-reexport", residualSurgery: false),
                 InlineStepReplacementAssist: InlineStepReplacementAssistReportBuilder.Build(document)));
     }
@@ -422,6 +428,21 @@ public static class FirmamentBuildAndExport
                 DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", null)).ToArray() ?? []));
     }
 
+    private static KernelResult<bool> ValidateV2PmiExportSupport(FirmamentV2Document document)
+    {
+        var unsupported = document.PmiBlock?.Records.Where(r => r.Kind is not (FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter)).ToArray() ?? [];
+        if (unsupported.Length == 0)
+        {
+            return KernelResult<bool>.Success(true);
+        }
+
+        return KernelResult<bool>.Failure(unsupported.Select(r => new Kernel.Core.Diagnostics.KernelDiagnostic(
+            Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+            Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+            $"firmament-v2-pmi-export-deferred: AP242 export for PMI record '{r.Name}' ({r.Kind.ToString().ToLowerInvariant()}) is deferred in V2 Phase 1 P2; supported export records are datum and diameter.",
+            "FirmamentV2.PmiExport")).ToArray());
+    }
+
     private static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(FirmamentV2Document document, IReadOnlyList<Core.Air.AirHoleFeature> semanticHoles, string targetSolid)
     {
         if (document.Pmi is null || document.Pmi.Count == 0)
@@ -430,19 +451,23 @@ public static class FirmamentBuildAndExport
         }
 
         var holeByName = semanticHoles.SelectMany(h => new[] { new KeyValuePair<string, Core.Air.AirHoleFeature>(h.FeatureId, h), new KeyValuePair<string, Core.Air.AirHoleFeature>(h.Name, h) }).ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
+        var boundPmiByName = (document.BoundPmi?.Datums ?? []).Concat(document.BoundPmi?.Dimensions ?? []).Concat(document.BoundPmi?.Controls ?? []).ToDictionary(p => p.Name, StringComparer.Ordinal);
         var targetBinding = document.Solids.Single(s => string.Equals(s.Name, targetSolid, StringComparison.Ordinal));
         var result = new List<Step242SemanticPmi>();
         foreach (var pmi in document.Pmi)
         {
             if (pmi.Kind == FirmamentV2PmiKind.HoleDiameter && pmi.Value.HasValue)
             {
+                boundPmiByName.TryGetValue(pmi.Name, out var boundPmi);
+                var tolerancePlus = boundPmi?.DimensionTolerance?.Plus;
+                var toleranceMinus = boundPmi?.DimensionTolerance?.Minus;
                 if (holeByName.TryGetValue(pmi.Target, out var pmiHole))
                 {
-                    result.Add(new Step242SemanticPmiHole(pmiHole.FeatureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", null, null));
+                    result.Add(new Step242SemanticPmiHole(pmiHole.FeatureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", tolerancePlus, toleranceMinus));
                 }
                 else if (TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var importedTarget) || TryResolveV2ImportedFaceTarget(targetBinding, pmi.Target, out importedTarget))
                 {
-                    result.Add(new Step242SemanticPmiHole($"{targetSolid}.{pmi.Name}", pmi.Value.Value, null, $"imported_canonical_face:{importedTarget}", null, null));
+                    result.Add(new Step242SemanticPmiHole($"{targetSolid}.{pmi.Name}", pmi.Value.Value, null, $"imported_canonical_face:{importedTarget}", tolerancePlus, toleranceMinus));
                 }
             }
             else if (pmi.Kind == FirmamentV2PmiKind.DatumPlane)

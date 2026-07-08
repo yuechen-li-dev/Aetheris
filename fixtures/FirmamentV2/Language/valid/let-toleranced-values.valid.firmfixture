@@ -1,0 +1,25 @@
+// fixture-id: let-toleranced-values
+// case: firmament-v2-l4-toleranced-values
+// category: Language
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
+// notes: L4 tolerance syntax and toleranced dimension values.
+
+model TolerancedValues {
+    units mm
+    solid base: Box { size: [100, 80, 10] }
+
+    let holeDiameter: length = 6.0mm tol 0.05mm
+    let slotWidth: length = 12.0mm tol +0.10mm -0.05mm
+    let draftAngle: angle = 3deg tol 0.5deg
+
+    let MountingPattern {
+        holeDiameter: length = 6.0mm tol 0.05mm
+        holeSpacingX: length = 80.0mm tol +0.10mm -0.05mm
+        holeSpacingY: length = 40.0mm tol 0.10mm
+        holeCount: int = 4
+    }
+}

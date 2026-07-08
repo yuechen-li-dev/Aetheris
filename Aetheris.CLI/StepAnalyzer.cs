@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Queries;
+using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
@@ -162,6 +163,19 @@ public sealed record VolumeAnalysisResult(
         {
             notes.Add("Exact closed-shell volume from oriented planar-face triangulation and signed tetrahedral accumulation.");
             return new VolumeAnalysisResult(stepPath, true, planarVolume, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "planar-closed-shell", true, false, null, null, null, null, null, null, null, notes);
+        }
+
+        var unsupportedSweptSurfaceKind = body.Topology.Faces
+            .Select(face => body.TryGetFaceSurface(face.Id, out var surface) ? surface : null)
+            .Where(surface => surface is not null)
+            .Select(surface => surface!.Kind)
+            .FirstOrDefault(kind => kind is SurfaceGeometryKind.LinearExtrusion or SurfaceGeometryKind.SurfaceOfRevolution);
+        if (unsupportedSweptSurfaceKind is SurfaceGeometryKind.LinearExtrusion or SurfaceGeometryKind.SurfaceOfRevolution)
+        {
+            var surfaceKindName = ToSurfaceFamilyName(unsupportedSweptSurfaceKind);
+            var structural = BuildSummary(body, notes).StructuralAssessment;
+            var bodyDescription = structural == "enclosed-manifold" ? "body" : "open or non-solid body";
+            throw new InvalidOperationException($"Exact volume is not supported for {bodyDescription} containing {surfaceKindName} surfaces.");
         }
 
         throw new InvalidOperationException(planarFailureReason ?? "Volume analysis currently supports canonical sphere, single-lateral-face cylinder, and enclosed planar closed-shell bodies only.");
@@ -810,7 +824,7 @@ public sealed record VolumeAnalysisResult(
         var bbox = TryComputeBodyBoundingBox(body) ?? throw new InvalidOperationException("Map probe requires body vertex coordinates to compute a bounding box.");
         var frame = ResolveProjectionFrame(view, bbox);
         var epsilon = Math.Max(ToleranceContext.Default.Linear * 64d, 1e-5d);
-        var faceSurfaceKinds = BuildFaceSurfaceKinds(body);
+        var faceSurfaceKinds = BuildFaceSurfaceKinds(body, familyNames: false);
 
         var grid = new List<IReadOnlyList<OrthographicSample>>(rows);
         var hitSamples = 0;
@@ -914,6 +928,488 @@ public sealed record VolumeAnalysisResult(
         return new OrthographicMapResult(metadata, summary, grid, notes);
     }
 
+    public static RayMapResult AnalyzeRayMap(string stepPath, string plane, string direction, int cols, int rows, (double U, double V)? point = null)
+    {
+        var (fullPath, body) = ImportStepBody(stepPath);
+        return AnalyzeImportedBodyRayMap(body, fullPath, plane, direction, cols, rows, point);
+    }
+
+    public static SixViewMapResult AnalyzeSixViewMapSummary(string stepPath, int cols, int rows)
+    {
+        var (fullPath, body) = ImportStepBody(stepPath);
+        return AnalyzeImportedBodySixViewMapSummary(body, fullPath, cols, rows);
+    }
+
+    public static SixViewMapResult AnalyzeSixViewMapEvidenceBundle(string stepPath, int cols, int rows)
+    {
+        var result = AnalyzeSixViewMapSummary(stepPath, cols, rows);
+        var ranked = RankSixViewProbes(result.Views, stepPath, cols, rows, 30).ToArray();
+        return result with
+        {
+            RankedProbes = ranked,
+            EvidenceBundle = new EvidenceBundle(
+                stepPath,
+                new EvidenceBundleCoarseMap([cols, rows], result.Views.Count, true),
+                ranked,
+                ranked.SelectMany(r => r.RecommendedActions).Take(90).ToArray(),
+                Array.Empty<object>(),
+                new EvidenceBundleLimits(30, 0),
+                ["A6 does not execute follow-up probes automatically; commands are bounded local evidence requests.", "Local map bounds are recommendations because analyze map does not yet accept explicit --bounds."])
+        };
+    }
+
+    public static SixViewMapResult AnalyzeImportedBodySixViewMapSummary(BrepBody body, string stepPath, int cols, int rows)
+    {
+        if (rows <= 0 || cols <= 0) throw new InvalidOperationException("Map resolution must be positive.");
+        (string Name, string Plane, string Direction)[] definitions =
+        [
+            ("top", "xy", "-z"),
+            ("bottom", "xy", "+z"),
+            ("right", "yz", "-x"),
+            ("left", "yz", "+x"),
+            ("back", "xz", "+y"),
+            ("front", "xz", "-y")
+        ];
+
+        var views = new List<SixViewMapView>();
+        var diagnostics = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var definition in definitions)
+        {
+            var map = AnalyzeImportedBodyRayMap(body, stepPath, definition.Plane, definition.Direction, cols, rows);
+            foreach (var diagnostic in map.Diagnostics)
+            {
+                diagnostics.Add($"{definition.Name}: {diagnostic}");
+            }
+
+            views.Add(BuildSixViewSummary(definition.Name, map, cols, rows, stepPath));
+        }
+
+        var suggested = views.SelectMany(v => v.SuggestedProbes).Take(30).ToArray();
+        return new SixViewMapResult("six-view-summary", "analyze-map-v1", [cols, rows], views, suggested, diagnostics.ToArray());
+    }
+
+    public static RayMapResult AnalyzeImportedBodyRayMap(BrepBody body, string stepPath, string plane, string direction, int cols, int rows, (double U, double V)? point = null)
+    {
+        if (rows <= 0 || cols <= 0) throw new InvalidOperationException("Map resolution must be positive.");
+        var bbox = TryComputeBodyBoundingBox(body) ?? throw new InvalidOperationException("Map probe requires body vertex coordinates to compute a bounding box.");
+        var frame = ResolveRayMapFrame(plane, direction, bbox);
+        var faceSurfaceKinds = BuildFaceSurfaceKinds(body, familyNames: true);
+        var diagnostics = new List<string>();
+        var diagnosticSet = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var family in faceSurfaceKinds.Values.Distinct(StringComparer.Ordinal).Where(f => f is not "plane" and not "cylinder" and not "sphere" and not "cone" and not "torus").OrderBy(f => f, StringComparer.Ordinal))
+        {
+            AddDiagnostic(diagnostics, diagnosticSet, $"Exact ray intersection unavailable for {family}; used tessellated fallback.");
+        }
+
+        var tessellation = BrepDisplayTessellator.TessellateBoundedPartial(body, DisplayTessellationOptions.Default, TimeSpan.FromSeconds(10));
+        foreach (var d in tessellation.FaceDiagnostics ?? [])
+        {
+            AddDiagnostic(diagnostics, diagnosticSet, $"Tessellation diagnostic for face {d.FaceId?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unknown"}: {d.Message}");
+        }
+
+        var samples = new List<RayMapSample>();
+        var allHeights = new List<double>();
+        var surfaceHits = new Dictionary<string, int>(StringComparer.Ordinal);
+        var total = point.HasValue ? 1 : rows * cols;
+        var analyticHitCount = 0;
+        var cirHitCount = 0;
+        var tessellatedFallbackHitCount = 0;
+        var unsupportedSampleCount = 0;
+
+        for (var j = 0; j < (point.HasValue ? 1 : rows); j++)
+        {
+            var v = point?.V ?? frame.MinV + (rows == 1 ? 0.5d : j / (double)(rows - 1)) * frame.RangeV;
+            for (var i = 0; i < (point.HasValue ? 1 : cols); i++)
+            {
+                var u = point?.U ?? frame.MinU + (cols == 1 ? 0.5d : i / (double)(cols - 1)) * frame.RangeU;
+                var origin = frame.PlaneOrigin + (frame.UAxis * u) + (frame.VAxis * v) - (frame.RayDirection * Math.Max(1e-5d, ToleranceContext.Default.Linear * 64d));
+                var analyticHits = IntersectAnalyticRay(body, origin, frame.RayDirection, faceSurfaceKinds).ToArray();
+                var analyticFaceIds = analyticHits.Select(h => h.FaceIndex).Where(id => id.HasValue).Select(id => id!.Value).ToHashSet();
+                var tessellatedHits = IntersectTessellatedRay(tessellation, origin, frame.RayDirection, faceSurfaceKinds)
+                    .Where(h => h.SurfaceFamily is not "plane" && (h.FaceIndex is null || !analyticFaceIds.Contains(h.FaceIndex.Value)))
+                    .ToArray();
+
+                foreach (var hit in tessellatedHits)
+                {
+                    var family = hit.SurfaceFamily ?? "unknown";
+                    AddDiagnostic(diagnostics, diagnosticSet, $"Exact ray intersection unavailable for {family}; used tessellated fallback.");
+                }
+
+                var hits = analyticHits.Concat(tessellatedHits)
+                    .OrderBy(h => h.T)
+                    .ToArray();
+                var first = hits.FirstOrDefault();
+                var last = hits.LastOrDefault();
+                if (first is not null)
+                {
+                    allHeights.Add(frame.Height(first.Position));
+                    if (first.SurfaceFamily is { } sf)
+                    {
+                        surfaceHits[sf] = surfaceHits.TryGetValue(sf, out var c) ? c + 1 : 1;
+                    }
+                }
+                else
+                {
+                    unsupportedSampleCount++;
+                }
+
+                var modeCounts = hits.GroupBy(h => h.IntersectionMode, StringComparer.Ordinal)
+                    .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+                modeCounts.TryAdd("analytic", 0);
+                modeCounts.TryAdd("cir-evaluated", 0);
+                modeCounts.TryAdd("tessellated-fallback", 0);
+                modeCounts.TryAdd("unsupported", 0);
+                analyticHitCount += modeCounts["analytic"];
+                cirHitCount += modeCounts["cir-evaluated"];
+                tessellatedFallbackHitCount += modeCounts["tessellated-fallback"];
+
+                samples.Add(new RayMapSample(i, j, u, v, first is not null, first, last, hits.Length, hits, new SortedDictionary<string, int>(modeCounts, StringComparer.Ordinal)));
+            }
+        }
+
+        var summary = new RayMapSummary(
+            samples.Count(s => s.Hit) / (double)total,
+            allHeights.Count == 0 ? null : [allHeights.Min(), allHeights.Max()],
+            new SortedDictionary<string, int>(surfaceHits, StringComparer.Ordinal),
+            analyticHitCount,
+            cirHitCount,
+            tessellatedFallbackHitCount,
+            unsupportedSampleCount);
+        var bounds = new RayMapBounds([frame.MinU, frame.MaxU], [frame.MinV, frame.MaxV]);
+        var mode = point.HasValue ? "point" : "grid";
+        var pointArray = point.HasValue ? new[] { point.Value.U, point.Value.V } : null;
+        var resultMode = tessellatedFallbackHitCount > 0 ? "analytic-first-with-tessellated-fallback" : "analytic";
+        var result = new RayMapResult(mode, plane.ToLowerInvariant(), direction.ToLowerInvariant(), point.HasValue ? null : [cols, rows], pointArray, bounds, samples, samples.Sum(s => s.HitCount), point.HasValue ? samples.Single().Hits : null, summary, resultMode, "analytic-cir-tessellated-fallback", diagnostics);
+        return point.HasValue ? result with { PointSummary = BuildCompactPointProbeSummary(samples.Single(), direction) } : result;
+    }
+
+    private static SixViewMapView BuildSixViewSummary(string name, RayMapResult map, int cols, int rows, string stepPath)
+    {
+        var sampleCount = map.Samples.Count;
+        var hitCount = map.Samples.Count(s => s.Hit);
+        var bands = BuildDominantBands(map.Samples, sampleCount, map.Direction);
+        var backendCounts = new SortedDictionary<string, int>(StringComparer.Ordinal)
+        {
+            ["analytic"] = map.Summary.AnalyticHitCount,
+            ["cir-evaluated"] = map.Summary.CirHitCount,
+            ["tessellated-fallback"] = map.Summary.TessellatedFallbackHitCount,
+            ["unsupported"] = map.Summary.UnsupportedSampleCount
+        };
+        var backendHitTotal = map.Summary.AnalyticHitCount + map.Summary.CirHitCount + map.Summary.TessellatedFallbackHitCount;
+        var summary = new SixViewMapSummary(
+            sampleCount,
+            hitCount,
+            sampleCount == 0 ? 0d : hitCount / (double)sampleCount,
+            map.Summary.HeightRange,
+            bands,
+            map.Summary.SurfaceFamiliesHit,
+            backendCounts,
+            backendHitTotal == 0 ? 0d : map.Summary.TessellatedFallbackHitCount / (double)backendHitTotal);
+
+        var compactGrid = cols <= 64 && rows <= 64 ? BuildCompactGrid(map.Samples, cols, rows, bands, map.Direction) : null;
+        var components = BuildSixViewComponents(name, map, cols, rows, bands);
+        var probes = BuildSuggestedProbes(name, map.Plane, map.Direction, stepPath, components).Take(10).ToArray();
+        var measured = BuildMeasuredSummary(name, map, summary, components);
+        return new SixViewMapView(name, map.Plane, map.Direction, summary, compactGrid, components, probes, measured);
+    }
+
+    private static IReadOnlyList<DominantBand> BuildDominantBands(IReadOnlyList<RayMapSample> samples, int sampleCount, string direction)
+    {
+        var groups = new Dictionary<double, (int Count, int Fallback)>();
+        var noHit = 0;
+        foreach (var sample in samples)
+        {
+            if (!sample.Hit || sample.FirstHit is null)
+            {
+                noHit++;
+                continue;
+            }
+
+            var value = Math.Round(GetRayAxisScalar(sample.FirstHit.Position, direction), 4, MidpointRounding.AwayFromZero);
+            groups.TryGetValue(value, out var current);
+            var fallback = sample.FirstHit.IntersectionMode == "tessellated-fallback" ? 1 : 0;
+            groups[value] = (current.Count + 1, current.Fallback + fallback);
+        }
+
+        var bands = groups
+            .OrderByDescending(kvp => kvp.Value.Count)
+            .ThenBy(kvp => kvp.Key)
+            .Take(5)
+            .Select(kvp => new DominantBand(kvp.Key, kvp.Value.Count, sampleCount == 0 ? 0d : kvp.Value.Count / (double)sampleCount, null, kvp.Value.Fallback > kvp.Value.Count / 2d))
+            .ToList();
+        if (noHit > 0)
+        {
+            bands.Add(new DominantBand(null, noHit, sampleCount == 0 ? 0d : noHit / (double)sampleCount, "no-hit", false));
+        }
+
+        return bands.OrderByDescending(b => b.SampleCount).ThenBy(b => b.Value ?? double.PositiveInfinity).ToArray();
+    }
+
+    private static double GetRayAxisScalar(Point3D position, string direction)
+    {
+        return direction.EndsWith("x", StringComparison.OrdinalIgnoreCase)
+            ? position.X
+            : direction.EndsWith("y", StringComparison.OrdinalIgnoreCase)
+                ? position.Y
+                : position.Z;
+    }
+
+    private static CompactGrid BuildCompactGrid(IReadOnlyList<RayMapSample> samples, int cols, int rows, IReadOnlyList<DominantBand> bands, string direction)
+    {
+        var symbols = "0123456789";
+        var valueToSymbol = bands.Where(b => b.Value.HasValue)
+            .Select((b, index) => (Value: b.Value!.Value, Symbol: symbols[Math.Min(index, symbols.Length - 1)]))
+            .ToDictionary(x => x.Value, x => x.Symbol);
+        var byCell = samples.ToDictionary(s => (s.I, s.J));
+        var gridRows = new List<string>();
+        for (var j = rows - 1; j >= 0; j--)
+        {
+            var chars = new char[cols];
+            for (var i = 0; i < cols; i++)
+            {
+                if (!byCell.TryGetValue((i, j), out var sample) || !sample.Hit || sample.FirstHit is null)
+                {
+                    chars[i] = '.';
+                    continue;
+                }
+
+                if (sample.FirstHit.IntersectionMode == "tessellated-fallback")
+                {
+                    chars[i] = '~';
+                    continue;
+                }
+
+                if (sample.FirstHit.IntersectionMode == "unsupported")
+                {
+                    chars[i] = '?';
+                    continue;
+                }
+
+                var value = Math.Round(GetRayAxisScalar(sample.FirstHit.Position, direction), 4, MidpointRounding.AwayFromZero);
+                chars[i] = valueToSymbol.TryGetValue(value, out var symbol) ? symbol : '9';
+            }
+
+            gridRows.Add(new string(chars));
+        }
+
+        return new CompactGrid("height-band-ascii", cols, rows, new SortedDictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["."] = "no-hit",
+            ["0"] = "most common rounded first-hit axis value",
+            ["1"] = "next most common rounded first-hit axis value",
+            ["2-9"] = "additional rounded first-hit axis value bands",
+            ["~"] = "tessellated-fallback or approximate first hit",
+            ["?"] = "unsupported or unknown first hit"
+        }, gridRows);
+    }
+
+    private static SixViewMapComponents BuildSixViewComponents(string view, RayMapResult map, int cols, int rows, IReadOnlyList<DominantBand> bands)
+    {
+        const int limit = 10;
+        var noHit = FindComponents(view, "no-hit", cols, rows, map.Samples, s => !s.Hit || s.FirstHit is null, _ => "no-hit")
+            .Select((c, index) => c with
+            {
+                ComponentId = $"{view}.nohit.{index}",
+                ClassificationHint = c.TouchesBorder ? "silhouette-or-exterior-gap" : "interior-opening-candidate",
+                Confidence = c.TouchesBorder ? (c.CellCount >= 8 ? "medium" : "low") : (c.CellCount >= 4 ? "medium" : "low")
+            })
+            .OrderByDescending(c => c.CellCount)
+            .ThenBy(c => c.BboxCells.MinJ)
+            .ThenBy(c => c.BboxCells.MinI)
+            .ToArray();
+
+        var bandValues = bands.Where(b => b.Value.HasValue).Select((b, i) => (Value: b.Value!.Value, Symbol: i.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToDictionary(x => x.Value, x => x.Symbol);
+        var heightBands = FindComponents(view, "height-band", cols, rows, map.Samples, s => s.Hit && s.FirstHit is not null && s.FirstHit.IntersectionMode != "tessellated-fallback", s =>
+            Math.Round(GetRayAxisScalar(s.FirstHit!.Position, map.Direction), 4, MidpointRounding.AwayFromZero).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture))
+            .Select((c, index) =>
+            {
+                var value = double.TryParse(c.Band, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : (double?)null;
+                var symbol = value.HasValue && bandValues.TryGetValue(value.Value, out var b) ? b : c.Band;
+                return c with { ComponentId = $"{view}.band.{index}", Band = symbol, RepresentativeValue = value, Confidence = c.CellCount >= 4 ? "medium" : "low" };
+            })
+            .OrderByDescending(c => c.CellCount)
+            .Where(c => IsSignificantComponent(c, rows * cols)).Take(20)
+            .ToArray();
+
+        var surfaceFamilies = FindComponents(view, "surface-family", cols, rows, map.Samples, s => s.Hit && s.FirstHit is not null, s => s.FirstHit!.SurfaceFamily ?? "unknown")
+            .Select((c, index) => c with { ComponentId = $"{view}.surface.{index}", SurfaceFamily = c.Band, Band = null, Confidence = c.CellCount >= 3 ? "medium" : "low" })
+            .OrderByDescending(c => c.CellCount)
+            .Where(c => IsSignificantComponent(c, rows * cols)).Take(20)
+            .ToArray();
+
+        var fallback = FindComponents(view, "fallback", cols, rows, map.Samples, s => s.FirstHit?.IntersectionMode == "tessellated-fallback", _ => "tessellated-fallback")
+            .Select((c, index) => c with { ComponentId = $"{view}.fallback.{index}", BackendModeDominance = "tessellated-fallback", Confidence = c.CellCount >= 3 ? "medium" : "low" })
+            .OrderByDescending(c => c.CellCount)
+            .ToArray();
+
+        var omitted = Math.Max(0, noHit.Length - limit) + Math.Max(0, heightBands.Length - limit) + Math.Max(0, surfaceFamilies.Length - limit) + Math.Max(0, fallback.Length - limit);
+        return new SixViewMapComponents(noHit.Take(limit).ToArray(), heightBands.Take(limit).ToArray(), surfaceFamilies.Take(limit).ToArray(), fallback.Take(limit).ToArray(), omitted > 0, omitted);
+    }
+
+    private static bool IsSignificantComponent(MapComponent component, int totalCells) => component.CellCount > 1 || component.Coverage >= 0.02d;
+
+    private static IReadOnlyList<MapComponent> FindComponents(string view, string kind, int cols, int rows, IReadOnlyList<RayMapSample> samples, Func<RayMapSample, bool> include, Func<RayMapSample, string> keySelector)
+    {
+        var byCell = samples.ToDictionary(s => (s.I, s.J));
+        var visited = new HashSet<(int I, int J)>();
+        var components = new List<MapComponent>();
+        for (var j = 0; j < rows; j++)
+        for (var i = 0; i < cols; i++)
+        {
+            if (visited.Contains((i, j)) || !byCell.TryGetValue((i, j), out var seed) || !include(seed)) continue;
+            var key = keySelector(seed);
+            var queue = new Queue<RayMapSample>();
+            var cells = new List<RayMapSample>();
+            queue.Enqueue(seed);
+            visited.Add((i, j));
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                cells.Add(current);
+                foreach (var (ni, nj) in new[] { (current.I - 1, current.J), (current.I + 1, current.J), (current.I, current.J - 1), (current.I, current.J + 1) })
+                {
+                    if (ni < 0 || nj < 0 || ni >= cols || nj >= rows || visited.Contains((ni, nj)) || !byCell.TryGetValue((ni, nj), out var next) || !include(next) || keySelector(next) != key) continue;
+                    visited.Add((ni, nj));
+                    queue.Enqueue(next);
+                }
+            }
+
+            var bbox = new CellBoundingBox(cells.Min(c => c.I), cells.Min(c => c.J), cells.Max(c => c.I), cells.Max(c => c.J));
+            var centroidCell = new[] { cells.Average(c => c.I), cells.Average(c => c.J) };
+            var centroidUv = new[] { cells.Average(c => c.U), cells.Average(c => c.V) };
+            var backend = cells.Select(c => c.FirstHit?.IntersectionMode ?? "unsupported").GroupBy(x => x, StringComparer.Ordinal).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).First().Key;
+            components.Add(new MapComponent("", kind, view, cells.Count, cells.Count / (double)(cols * rows), cells.Any(c => c.I == 0 || c.J == 0 || c.I == cols - 1 || c.J == rows - 1), bbox, centroidCell, centroidUv, null, "low", key, null, null, backend));
+        }
+
+        return components;
+    }
+
+    private static IReadOnlyList<SuggestedMapProbe> BuildSuggestedProbes(string view, string plane, string direction, string stepPath, SixViewMapComponents components)
+    {
+        var probes = new List<SuggestedMapProbe>();
+        foreach (var component in components.NoHit.Take(3))
+        {
+            var reason = component.TouchesBorder ? "Border-touching silhouette gap; probe to confirm exterior or edge cutout region." : "Center of interior no-hit component; probe to distinguish through-opening, recess, or missing hit.";
+            probes.Add(MakeProbe($"{component.ComponentId}.center", view, plane, direction, stepPath, component, reason));
+        }
+
+        foreach (var component in components.SurfaceFamilies.Where(c => c.SurfaceFamily is "cylinder" or "cone" or "sphere" or "torus").Take(3))
+        {
+            var family = component.SurfaceFamily == "cylinder" ? "cylindrical" : component.SurfaceFamily;
+            probes.Add(MakeProbe($"{component.ComponentId}.center", view, plane, direction, stepPath, component, $"Center of {family} hit component; inspect possible round or curved feature."));
+        }
+
+        foreach (var component in components.HeightBands.Take(2))
+        {
+            var reason = component == components.HeightBands.FirstOrDefault()
+                ? "Representative point on dominant height plateau."
+                : "Representative point on isolated height band component.";
+            probes.Add(MakeProbe($"{component.ComponentId}.center", view, plane, direction, stepPath, component, reason));
+        }
+
+        foreach (var component in components.Fallback.Take(2))
+        {
+            probes.Add(MakeProbe($"{component.ComponentId}.center", view, plane, direction, stepPath, component, "Center of tessellated fallback component; measurement is approximate and may need analytic support."));
+        }
+
+        return probes.Take(10).ToArray();
+    }
+
+    private static SuggestedMapProbe MakeProbe(string id, string view, string plane, string direction, string stepPath, MapComponent component, string reason)
+    {
+        var pointText = $"{component.CentroidUv[0]:0.####},{component.CentroidUv[1]:0.####}";
+        var command = $"aetheris analyze map {stepPath} --plane {plane} --direction {direction} --point {pointText} --json";
+        return new SuggestedMapProbe(id, view, plane, direction, component.CentroidUv, reason, command, component.ComponentId);
+    }
+
+
+    private static CompactPointProbeSummary BuildCompactPointProbeSummary(RayMapSample sample, string direction)
+    {
+        static CompactHitSummary? Hit(RayMapHit? h) => h is null ? null : new CompactHitSummary(h.SurfaceFamily, h.Position, h.FaceIndex, h.IntersectionMode);
+        var sequence = sample.Hits.Select(h => h.SurfaceFamily ?? "unknown").ToArray();
+        if (sequence.Length > 8)
+        {
+            sequence = sequence.Take(4).Concat(["...x" + (sequence.Length - 8).ToString(System.Globalization.CultureInfo.InvariantCulture)]).Concat(sequence.TakeLast(4)).ToArray();
+        }
+
+        var range = sample.Hits.Count == 0 ? null : new[] { sample.Hits.Min(h => h.T), sample.Hits.Max(h => h.T) };
+        return new CompactPointProbeSummary(sample.HitCount, Hit(sample.FirstHit), Hit(sample.LastHit), sequence, sample.IntersectionModes, range, sample.Hits.SelectMany(h => h.Diagnostics).Distinct(StringComparer.Ordinal).Take(8).ToArray());
+    }
+
+    private static IReadOnlyList<RankedMapProbe> RankSixViewProbes(IReadOnlyList<SixViewMapView> views, string stepPath, int cols, int rows, int limit)
+    {
+        var candidates = views.SelectMany(v => v.Components.NoHit.Concat(v.Components.SurfaceFamilies).Concat(v.Components.HeightBands).Concat(v.Components.Fallback).Select(c => (View: v, Component: c)))
+            .Select(x => ScoreComponent(x.View, x.Component, stepPath, cols, rows))
+            .OrderByDescending(x => x.Score).ThenBy(x => x.View).ThenBy(x => x.ComponentId, StringComparer.Ordinal)
+            .Take(limit).ToArray();
+        var max = candidates.Length == 0 ? 1d : Math.Max(1e-9d, candidates.Max(c => c.Score));
+        return candidates.Select((c, i) => c with { Rank = i + 1, NormalizedScore = Math.Round(c.Score / max, 4) }).ToArray();
+    }
+
+    private static RankedMapProbe ScoreComponent(SixViewMapView view, MapComponent c, string stepPath, int cols, int rows)
+    {
+        var reasons = new List<string>(); var terms = new List<string>(); var score = 0.05d;
+        if (c.Kind == "no-hit" && !c.TouchesBorder) { score += 0.45; reasons.Add("interior no-hit component"); terms.Add("interior-no-hit"); }
+        if (c.Kind == "no-hit" && c.TouchesBorder) { score -= 0.10; reasons.Add("border-touching exterior/silhouette candidate"); terms.Add("border-no-hit"); }
+        if (c.SurfaceFamily is "cylinder" or "cone" or "torus") { score += 0.35; reasons.Add($"{c.SurfaceFamily} surface-family cluster"); terms.Add("curved-analytic-family"); }
+        if (c.SurfaceFamily is "sphere") { score += 0.20; reasons.Add("sphere surface-family cluster"); terms.Add("curved-analytic-family"); }
+        if (c.BackendModeDominance == "analytic") { score += 0.12; reasons.Add("analytic provenance"); terms.Add("analytic-provenance"); }
+        if (c.BackendModeDominance == "tessellated-fallback") { score += 0.20; reasons.Add("fallback component needs truth-checking"); terms.Add("fallback-uncertain"); }
+        if (c.Kind == "height-band" && c.Coverage < 0.20) { score += 0.18; reasons.Add("small isolated height-band component"); terms.Add("local-height-band"); }
+        if (!c.TouchesBorder) { score += 0.10; reasons.Add("interior to view bounds"); terms.Add("interior-locality"); }
+        var centerDistance = Math.Abs(c.CentroidCell[0] - (cols - 1) / 2d) / Math.Max(1, cols) + Math.Abs(c.CentroidCell[1] - (rows - 1) / 2d) / Math.Max(1, rows);
+        if (centerDistance < 0.25) { score += 0.08; reasons.Add("central region"); terms.Add("centrality"); }
+        score += Math.Min(0.12, c.CellCount / 64d);
+        var uncertainty = c.BackendModeDominance == "tessellated-fallback" ? 0.55 : c.Confidence == "low" ? 0.35 : 0.2;
+        var classification = c.ClassificationHint ?? (c.SurfaceFamily is null ? c.Kind : c.SurfaceFamily + "-feature-candidate");
+        var actions = BuildEvidenceActions(view, c, stepPath, classification).ToArray();
+        return new RankedMapProbe(0, Math.Round(Math.Clamp(score, 0d, 1d), 4), 0, "componentProbe", view.Name, c.ComponentId, classification, reasons.Count == 0 ? ["bounded component worth sampling"] : reasons, terms, uncertainty, actions.FirstOrDefault()?.Kind ?? "pointProbe", actions);
+    }
+
+    private static IEnumerable<EvidenceAction> BuildEvidenceActions(SixViewMapView view, MapComponent c, string stepPath, string reason)
+    {
+        var pointText = $"{c.CentroidUv[0]:0.####},{c.CentroidUv[1]:0.####}";
+        yield return new EvidenceAction("pointProbe", view.Name, $"aetheris analyze map {stepPath} --plane {view.Plane} --direction {view.Direction} --point {pointText} --json", reason);
+        var axes = view.Plane switch { "xy" => ("--yz", "--xz"), "xz" => ("--yz", "--xy"), "yz" => ("--xz", "--xy"), _ => ("--xy", "--xz") };
+        yield return new EvidenceAction("sectionProbe", view.Name, $"aetheris analyze section {stepPath} {axes.Item1} --offset {c.CentroidUv[0]:0.####} --json", "Section through component centroid along first view axis.");
+        yield return new EvidenceAction("sectionProbe", view.Name, $"aetheris analyze section {stepPath} {axes.Item2} --offset {c.CentroidUv[1]:0.####} --json", "Section through component centroid along second view axis.");
+        yield return new EvidenceAction("localMap", view.Name, $"suggestedLocalMapUnsupported: analyze map does not yet accept explicit local bounds", "Refine around ranked component when --bounds is added.", new { u = new[] { c.CentroidUv[0] - 1d, c.CentroidUv[0] + 1d }, v = new[] { c.CentroidUv[1] - 1d, c.CentroidUv[1] + 1d } }, [16, 16]);
+    }
+
+    private static IReadOnlyList<string> BuildMeasuredSummary(string name, RayMapResult map, SixViewMapSummary summary, SixViewMapComponents? components = null)
+    {
+        var lines = new List<string>
+        {
+            $"{name} view: {summary.HitCoverage:P1} of samples hit the model."
+        };
+        var dominant = summary.DominantBands.FirstOrDefault(b => b.Value.HasValue);
+        if (dominant is not null)
+        {
+            lines.Add($"Dominant rounded first-hit axis value is {dominant.Value:0.####} across {dominant.Coverage:P1} of samples.");
+        }
+
+        var noHit = summary.DominantBands.FirstOrDefault(b => b.Meaning == "no-hit");
+        if (noHit is not null)
+        {
+            lines.Add($"{noHit.Coverage:P1} of samples are no-hit, indicating measured empty rays in this view.");
+        }
+
+        if (components is not null)
+        {
+            var interiorNoHit = components.NoHit.Count(c => c.ClassificationHint == "interior-opening-candidate");
+            var borderNoHit = components.NoHit.Count(c => c.ClassificationHint == "silhouette-or-exterior-gap");
+            if (interiorNoHit > 0) lines.Add($"{name} view: found {interiorNoHit} interior no-hit component(s); largest covers {components.NoHit.Where(c => c.ClassificationHint == "interior-opening-candidate").Max(c => c.Coverage):P1} of the sampled view.");
+            if (borderNoHit > 0) lines.Add($"{name} view: found {borderNoHit} border-touching no-hit component(s), likely silhouette or exterior gap regions.");
+            var curved = components.SurfaceFamilies.FirstOrDefault(c => c.SurfaceFamily is "cylinder" or "cone" or "sphere" or "torus");
+            if (curved is not null) lines.Add($"{name} view: largest {curved.SurfaceFamily} hit component is centered near ({curved.CentroidUv[0]:0.####}, {curved.CentroidUv[1]:0.####}); inspect with suggested probe.");
+        }
+
+        lines.Add(summary.FallbackRatio > 0d
+            ? $"{name} view includes tessellated fallback hits; fallback ratio is {summary.FallbackRatio:P1} of hit intersections."
+            : $"{name} view hit intersections are reported without tessellated fallback.");
+        return lines;
+    }
+
     private static AnalyzeSummary BuildSummary(BrepBody body, ICollection<string> notes)
     {
         var topology = body.Topology;
@@ -925,6 +1421,8 @@ public sealed record VolumeAnalysisResult(
             ["sphere"] = 0,
             ["torus"] = 0,
             ["bspline"] = 0,
+            ["linear-extrusion"] = 0,
+            ["surface-of-revolution"] = 0,
             ["other"] = 0
         };
 
@@ -938,15 +1436,15 @@ public sealed record VolumeAnalysisResult(
 
             switch (surface.Kind)
             {
-                case SurfaceGeometryKind.Plane: surfaceFamilies["plane"]++; break;
-                case SurfaceGeometryKind.Cylinder: surfaceFamilies["cylinder"]++; break;
-                case SurfaceGeometryKind.Cone: surfaceFamilies["cone"]++; break;
-                case SurfaceGeometryKind.Sphere: surfaceFamilies["sphere"]++; break;
-                case SurfaceGeometryKind.Torus: surfaceFamilies["torus"]++; break;
-                case SurfaceGeometryKind.LinearExtrusion: surfaceFamilies["linear-extrusion"]++; break;
-                case SurfaceGeometryKind.SurfaceOfRevolution: surfaceFamilies["surface-of-revolution"]++; break;
-                case SurfaceGeometryKind.BSplineSurfaceWithKnots: surfaceFamilies["bspline"]++; break;
-                default: surfaceFamilies["other"]++; break;
+                case SurfaceGeometryKind.Plane: IncrementSurfaceFamily(surfaceFamilies, "plane"); break;
+                case SurfaceGeometryKind.Cylinder: IncrementSurfaceFamily(surfaceFamilies, "cylinder"); break;
+                case SurfaceGeometryKind.Cone: IncrementSurfaceFamily(surfaceFamilies, "cone"); break;
+                case SurfaceGeometryKind.Sphere: IncrementSurfaceFamily(surfaceFamilies, "sphere"); break;
+                case SurfaceGeometryKind.Torus: IncrementSurfaceFamily(surfaceFamilies, "torus"); break;
+                case SurfaceGeometryKind.LinearExtrusion: IncrementSurfaceFamily(surfaceFamilies, "linear-extrusion"); break;
+                case SurfaceGeometryKind.SurfaceOfRevolution: IncrementSurfaceFamily(surfaceFamilies, "surface-of-revolution"); break;
+                case SurfaceGeometryKind.BSplineSurfaceWithKnots: IncrementSurfaceFamily(surfaceFamilies, "bspline"); break;
+                default: IncrementSurfaceFamily(surfaceFamilies, "other"); break;
             }
         }
 
@@ -1282,7 +1780,28 @@ public sealed record VolumeAnalysisResult(
         return edgeCounts;
     }
 
-    private static Dictionary<int, string> BuildFaceSurfaceKinds(BrepBody body)
+
+    private static void IncrementSurfaceFamily(IDictionary<string, int> surfaceFamilies, string family)
+    {
+        surfaceFamilies.TryGetValue(family, out var count);
+        surfaceFamilies[family] = count + 1;
+    }
+
+    private static string ToSurfaceFamilyName(SurfaceGeometryKind kind)
+        => kind switch
+        {
+            SurfaceGeometryKind.Plane => "plane",
+            SurfaceGeometryKind.Cylinder => "cylinder",
+            SurfaceGeometryKind.Cone => "cone",
+            SurfaceGeometryKind.Sphere => "sphere",
+            SurfaceGeometryKind.Torus => "torus",
+            SurfaceGeometryKind.LinearExtrusion => "linear-extrusion",
+            SurfaceGeometryKind.SurfaceOfRevolution => "surface-of-revolution",
+            SurfaceGeometryKind.BSplineSurfaceWithKnots => "bspline",
+            _ => "other"
+        };
+
+    private static Dictionary<int, string> BuildFaceSurfaceKinds(BrepBody body, bool familyNames = false)
     {
         var result = new Dictionary<int, string>();
         foreach (var face in body.Topology.Faces)
@@ -1292,7 +1811,7 @@ public sealed record VolumeAnalysisResult(
                 continue;
             }
 
-            result[face.Id.Value] = surface.Kind.ToString();
+            result[face.Id.Value] = familyNames ? ToSurfaceFamilyName(surface.Kind) : surface.Kind.ToString();
         }
 
         return result;
@@ -1727,6 +2246,456 @@ public sealed record VolumeAnalysisResult(
         };
     }
 
+    private static RayMapFrame ResolveRayMapFrame(string plane, string direction, BoundingBox3D bbox)
+    {
+        var dir = direction.ToLowerInvariant() switch
+        {
+            "+x" => new Vector3D(1d, 0d, 0d),
+            "-x" => new Vector3D(-1d, 0d, 0d),
+            "+y" => new Vector3D(0d, 1d, 0d),
+            "-y" => new Vector3D(0d, -1d, 0d),
+            "+z" => new Vector3D(0d, 0d, 1d),
+            "-z" => new Vector3D(0d, 0d, -1d),
+            _ => throw new InvalidOperationException("Analyze map direction must be one of +x, -x, +y, -y, +z, -z.")
+        };
+
+        return plane.ToLowerInvariant() switch
+        {
+            "xy" => new RayMapFrame(new Point3D(0d, 0d, dir.Z < 0 ? bbox.Max.Z : bbox.Min.Z), new Vector3D(1d, 0d, 0d), new Vector3D(0d, 1d, 0d), dir, bbox.Min.X, bbox.Max.X, bbox.Min.Y, bbox.Max.Y, p => p.Z),
+            "xz" => new RayMapFrame(new Point3D(0d, dir.Y < 0 ? bbox.Max.Y : bbox.Min.Y, 0d), new Vector3D(1d, 0d, 0d), new Vector3D(0d, 0d, 1d), dir, bbox.Min.X, bbox.Max.X, bbox.Min.Z, bbox.Max.Z, p => p.Y),
+            "yz" => new RayMapFrame(new Point3D(dir.X < 0 ? bbox.Max.X : bbox.Min.X, 0d, 0d), new Vector3D(0d, 1d, 0d), new Vector3D(0d, 0d, 1d), dir, bbox.Min.Y, bbox.Max.Y, bbox.Min.Z, bbox.Max.Z, p => p.X),
+            _ => throw new InvalidOperationException("Analyze map plane must be xy, xz, or yz.")
+        };
+    }
+
+    private static void AddDiagnostic(ICollection<string> diagnostics, ISet<string> diagnosticSet, string diagnostic)
+    {
+        if (diagnosticSet.Add(diagnostic))
+        {
+            diagnostics.Add(diagnostic);
+        }
+    }
+
+    private static IReadOnlyList<RayMapHit> IntersectAnalyticRay(BrepBody body, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.TryGetFaceSurface(face.Id, out var surface) || surface is null)
+            {
+                continue;
+            }
+
+            if (surface.Plane is not PlaneSurface plane)
+            {
+                if (surface.Cylinder is CylinderSurface cylinder)
+                {
+                    hits.AddRange(IntersectAnalyticCylinderFaceRay(body, face, cylinder, origin, direction, faceSurfaceKinds));
+                    continue;
+                }
+
+                if (surface.Sphere is SphereSurface sphere)
+                {
+                    hits.AddRange(IntersectAnalyticSphereFaceRay(body, face, sphere, origin, direction, faceSurfaceKinds));
+                    continue;
+                }
+
+                if (surface.Cone is ConeSurface cone)
+                {
+                    hits.AddRange(IntersectAnalyticConeFaceRay(body, face, cone, origin, direction, faceSurfaceKinds));
+                    continue;
+                }
+
+                if (surface.Torus is TorusSurface torus)
+                {
+                    hits.AddRange(IntersectAnalyticTorusFaceRay(body, face, torus, origin, direction, faceSurfaceKinds));
+                    continue;
+                }
+
+                continue;
+            }
+
+            var normal = plane.Normal.ToVector();
+            var denom = normal.Dot(direction);
+            if (Math.Abs(denom) < 1e-10d)
+            {
+                continue;
+            }
+
+            var t = (plane.Origin - origin).Dot(normal) / denom;
+            if (t < -1e-9d)
+            {
+                continue;
+            }
+
+            var position = origin + direction * t;
+            if (!IsPointInPlanarFaceBounds(body, face.Id, plane, position))
+            {
+                continue;
+            }
+
+            var family = faceSurfaceKinds.TryGetValue(face.Id.Value, out var sf) ? sf : "plane";
+            hits.Add(new RayMapHit(t, position, face.Id.Value, family, normal, "analytic", "exact", []));
+        }
+
+        return hits.OrderBy(h => h.T).ToArray();
+    }
+
+
+    private static IReadOnlyList<RayMapHit> IntersectAnalyticCylinderFaceRay(BrepBody body, Face face, CylinderSurface cylinder, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        var axis = cylinder.Axis.ToVector();
+        if (!TryNormalize(axis, out axis) || cylinder.Radius <= 0d)
+        {
+            return hits;
+        }
+
+        if (!TryGetFaceAxisSpan(body, face.Id, cylinder.Origin, axis, out var minAxis, out var maxAxis))
+        {
+            return hits;
+        }
+
+        var oc = origin - cylinder.Origin;
+        var dParallel = axis * direction.Dot(axis);
+        var oParallel = axis * oc.Dot(axis);
+        var dPerp = direction - dParallel;
+        var oPerp = oc - oParallel;
+        var a = dPerp.Dot(dPerp);
+        var b = 2d * oPerp.Dot(dPerp);
+        var c = oPerp.Dot(oPerp) - (cylinder.Radius * cylinder.Radius);
+        if (Math.Abs(a) < 1e-14d)
+        {
+            return hits;
+        }
+
+        foreach (var t in SolveQuadraticNonnegative(a, b, c))
+        {
+            var p = origin + direction * t;
+            var axial = (p - cylinder.Origin).Dot(axis);
+            if (axial < minAxis - 1e-7d || axial > maxAxis + 1e-7d)
+            {
+                continue;
+            }
+
+            var radial = (p - cylinder.Origin) - (axis * axial);
+            if (!TryNormalize(radial, out var normal))
+            {
+                continue;
+            }
+
+            var family = faceSurfaceKinds.TryGetValue(face.Id.Value, out var sf) ? sf : "cylinder";
+            hits.Add(new RayMapHit(t, p, face.Id.Value, family, normal, "analytic", "exact", []));
+        }
+
+        return hits;
+    }
+
+    private static IReadOnlyList<RayMapHit> IntersectAnalyticSphereFaceRay(BrepBody body, Face face, SphereSurface sphere, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        if (sphere.Radius <= 0d || body.GetEdges(face.Id).Any())
+        {
+            return hits;
+        }
+
+        var oc = origin - sphere.Center;
+        var a = direction.Dot(direction);
+        var b = 2d * oc.Dot(direction);
+        var c = oc.Dot(oc) - (sphere.Radius * sphere.Radius);
+        foreach (var t in SolveQuadraticNonnegative(a, b, c))
+        {
+            var p = origin + direction * t;
+            var radial = p - sphere.Center;
+            if (!TryNormalize(radial, out var normal))
+            {
+                continue;
+            }
+
+            var family = faceSurfaceKinds.TryGetValue(face.Id.Value, out var sf) ? sf : "sphere";
+            hits.Add(new RayMapHit(t, p, face.Id.Value, family, normal, "analytic", "exact", []));
+        }
+
+        return hits;
+    }
+
+
+    private static IReadOnlyList<RayMapHit> IntersectAnalyticConeFaceRay(BrepBody body, Face face, ConeSurface cone, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        var axis = cone.Axis.ToVector();
+        if (!TryNormalize(axis, out axis)) return hits;
+        if (!TryGetFaceAxisSpan(body, face.Id, cone.Apex, axis, out var minAxis, out var maxAxis)) return hits;
+
+        var tan = Math.Tan(cone.SemiAngleRadians);
+        var tan2 = tan * tan;
+        var delta = origin - cone.Apex;
+        var dAxial = direction.Dot(axis);
+        var oAxial = delta.Dot(axis);
+        var dPerp = direction - axis * dAxial;
+        var oPerp = delta - axis * oAxial;
+        var a = dPerp.Dot(dPerp) - tan2 * dAxial * dAxial;
+        var b = 2d * (oPerp.Dot(dPerp) - tan2 * oAxial * dAxial);
+        var c = oPerp.Dot(oPerp) - tan2 * oAxial * oAxial;
+        if (Math.Abs(a) < 1e-14d) return hits;
+
+        foreach (var t in SolveQuadraticNonnegative(a, b, c))
+        {
+            var p = origin + direction * t;
+            var axial = (p - cone.Apex).Dot(axis);
+            if (axial < Math.Max(0d, minAxis) - 1e-7d || axial > maxAxis + 1e-7d) continue;
+            var radial = (p - cone.Apex) - axis * axial;
+            if (!TryNormalize(radial, out var radialNormal)) continue;
+            if (!TryNormalize(radialNormal - axis * tan, out var normal)) continue;
+            var family = faceSurfaceKinds.TryGetValue(face.Id.Value, out var sf) ? sf : "cone";
+            hits.Add(new RayMapHit(t, p, face.Id.Value, family, normal, "analytic", "exact", []));
+        }
+
+        return DeduplicateHits(hits);
+    }
+
+    private static IReadOnlyList<RayMapHit> IntersectAnalyticTorusFaceRay(BrepBody body, Face face, TorusSurface torus, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        if (torus.MajorRadius <= 0d || torus.MinorRadius <= 0d) return hits;
+        if (body.Topology.Faces.Count() != 1)
+        {
+            return hits;
+        }
+
+        if (!TryIntersectBoundingSphere(origin, direction, torus.Center, torus.MajorRadius + torus.MinorRadius, out var near, out var far)) return hits;
+        near = Math.Max(0d, near);
+        if (far < near) return hits;
+
+        const int samples = 1024;
+        var dt = (far - near) / samples;
+        var roots = new List<double>();
+        var prevT = near;
+        var prevF = TorusImplicit(origin + direction * prevT, torus);
+        if (Math.Abs(prevF) <= 1e-9d) roots.Add(prevT);
+        for (var i = 1; i <= samples; i++)
+        {
+            var t = i == samples ? far : near + i * dt;
+            var f = TorusImplicit(origin + direction * t, torus);
+            if (Math.Abs(f) <= 1e-9d) roots.Add(t);
+            if ((prevF < 0d && f > 0d) || (prevF > 0d && f < 0d)) roots.Add(BisectTorusRoot(prevT, t, origin, direction, torus));
+            prevT = t; prevF = f;
+        }
+
+        var family = faceSurfaceKinds.TryGetValue(face.Id.Value, out var sf) ? sf : "torus";
+        foreach (var t in roots.Where(t => t >= -1e-9d).Select(t => Math.Max(0d, t)).OrderBy(t => t))
+        {
+            if (hits.Any(h => Math.Abs(h.T - t) <= 1e-7d)) continue;
+            var p = origin + direction * t;
+            if (!TryTorusNormal(p, torus, out var normal)) continue;
+            hits.Add(new RayMapHit(t, p, face.Id.Value, family, normal, "analytic", "exact", []));
+        }
+        return hits;
+    }
+
+    private static bool TryIntersectBoundingSphere(Point3D origin, Vector3D direction, Point3D center, double radius, out double near, out double far)
+    {
+        near = far = 0d;
+        var oc = origin - center;
+        var b = 2d * oc.Dot(direction);
+        var c = oc.Dot(oc) - radius * radius;
+        var disc = b * b - 4d * direction.Dot(direction) * c;
+        if (disc < -1e-9d) return false;
+        var sqrt = Math.Sqrt(Math.Max(0d, disc));
+        var a2 = 2d * direction.Dot(direction);
+        near = (-b - sqrt) / a2;
+        far = (-b + sqrt) / a2;
+        return far >= -1e-9d;
+    }
+
+    private static double TorusImplicit(Point3D p, TorusSurface torus)
+    {
+        var d = p - torus.Center;
+        var x = d.Dot(torus.XAxis.ToVector());
+        var y = d.Dot(torus.YAxis.ToVector());
+        var z = d.Dot(torus.Axis.ToVector());
+        var sum = x*x + y*y + z*z + torus.MajorRadius*torus.MajorRadius - torus.MinorRadius*torus.MinorRadius;
+        return sum*sum - 4d*torus.MajorRadius*torus.MajorRadius*(x*x + y*y);
+    }
+
+    private static double BisectTorusRoot(double lo, double hi, Point3D origin, Vector3D direction, TorusSurface torus)
+    {
+        var flo = TorusImplicit(origin + direction * lo, torus);
+        for (var i = 0; i < 80; i++)
+        {
+            var mid = (lo + hi) * 0.5d;
+            var fmid = TorusImplicit(origin + direction * mid, torus);
+            if (Math.Abs(fmid) <= 1e-12d || hi - lo <= 1e-9d) return mid;
+            if ((flo < 0d && fmid > 0d) || (flo > 0d && fmid < 0d)) hi = mid;
+            else { lo = mid; flo = fmid; }
+        }
+        return (lo + hi) * 0.5d;
+    }
+
+    private static bool TryTorusNormal(Point3D p, TorusSurface torus, out Vector3D normal)
+    {
+        var d = p - torus.Center;
+        var xAxis = torus.XAxis.ToVector();
+        var yAxis = torus.YAxis.ToVector();
+        var zAxis = torus.Axis.ToVector();
+        var x = d.Dot(xAxis); var y = d.Dot(yAxis); var z = d.Dot(zAxis);
+        var common = x*x + y*y + z*z + torus.MajorRadius*torus.MajorRadius - torus.MinorRadius*torus.MinorRadius;
+        var n = xAxis * (4d*x*(common - 2d*torus.MajorRadius*torus.MajorRadius))
+              + yAxis * (4d*y*(common - 2d*torus.MajorRadius*torus.MajorRadius))
+              + zAxis * (4d*z*common);
+        return TryNormalize(n, out normal);
+    }
+
+    private static IReadOnlyList<RayMapHit> DeduplicateHits(List<RayMapHit> hits)
+    {
+        var ordered = hits.OrderBy(h => h.T).ToList();
+        for (var i = ordered.Count - 1; i > 0; i--)
+            if (Math.Abs(ordered[i].T - ordered[i - 1].T) <= 1e-7d) ordered.RemoveAt(i);
+        return ordered;
+    }
+
+    private static IReadOnlyList<double> SolveQuadraticNonnegative(double a, double b, double c)
+    {
+        var discriminant = (b * b) - (4d * a * c);
+        if (discriminant < -1e-10d)
+        {
+            return [];
+        }
+
+        if (Math.Abs(discriminant) <= 1e-10d)
+        {
+            var t = -b / (2d * a);
+            return t >= -1e-9d ? [Math.Max(0d, t)] : [];
+        }
+
+        var sqrt = Math.Sqrt(discriminant);
+        var t0 = (-b - sqrt) / (2d * a);
+        var t1 = (-b + sqrt) / (2d * a);
+        var roots = new List<double>(2);
+        if (t0 >= -1e-9d) roots.Add(Math.Max(0d, t0));
+        if (t1 >= -1e-9d && Math.Abs(t1 - t0) > 1e-8d) roots.Add(Math.Max(0d, t1));
+        roots.Sort();
+        return roots;
+    }
+
+    private static bool TryGetFaceAxisSpan(BrepBody body, FaceId faceId, Point3D axisOrigin, Vector3D axis, out double minAxis, out double maxAxis)
+    {
+        var projections = body.GetEdges(faceId)
+            .SelectMany(edge => body.GetVertices(edge))
+            .Distinct()
+            .Select(vertex => body.TryGetVertexPoint(vertex, out var p) ? (double?)(p - axisOrigin).Dot(axis) : null)
+            .Where(v => v.HasValue)
+            .Select(v => v!.Value)
+            .ToArray();
+        if (projections.Length < 2)
+        {
+            minAxis = maxAxis = 0d;
+            return false;
+        }
+
+        minAxis = projections.Min();
+        maxAxis = projections.Max();
+        return maxAxis - minAxis > 1e-8d;
+    }
+
+    private static bool IsPointInPlanarFaceBounds(BrepBody body, FaceId faceId, PlaneSurface plane, Point3D point)
+    {
+        var vertices = body.GetEdges(faceId)
+            .SelectMany(edge => body.GetVertices(edge))
+            .Distinct()
+            .Select(vertex => body.TryGetVertexPoint(vertex, out var p) ? (Point3D?)p : null)
+            .Where(p => p.HasValue)
+            .Select(p => p!.Value)
+            .ToArray();
+        if (vertices.Length < 3)
+        {
+            return false;
+        }
+
+        var uAxis = plane.UAxis.ToVector();
+        var vAxis = plane.VAxis.ToVector();
+        var projected = vertices
+            .Select(v => ((v - plane.Origin).Dot(uAxis), (v - plane.Origin).Dot(vAxis)))
+            .Distinct()
+            .ToArray();
+        if (projected.Length < 3)
+        {
+            return false;
+        }
+
+        var centerU = projected.Average(p => p.Item1);
+        var centerV = projected.Average(p => p.Item2);
+        var polygon = projected
+            .OrderBy(p => Math.Atan2(p.Item2 - centerV, p.Item1 - centerU))
+            .ToArray();
+        var pu = (point - plane.Origin).Dot(uAxis);
+        var pv = (point - plane.Origin).Dot(vAxis);
+        var inside = false;
+        const double epsilon = 1e-8d;
+        for (var i = 0; i < polygon.Length; i++)
+        {
+            var a = polygon[i];
+            var b = polygon[(i + 1) % polygon.Length];
+            var cross = (b.Item1 - a.Item1) * (pv - a.Item2) - (b.Item2 - a.Item2) * (pu - a.Item1);
+            var dot = (pu - a.Item1) * (pu - b.Item1) + (pv - a.Item2) * (pv - b.Item2);
+            if (Math.Abs(cross) <= epsilon && dot <= epsilon)
+            {
+                return true;
+            }
+
+            if (((a.Item2 > pv) != (b.Item2 > pv)) &&
+                pu < (b.Item1 - a.Item1) * (pv - a.Item2) / (b.Item2 - a.Item2) + a.Item1)
+            {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    private static IReadOnlyList<RayMapHit> IntersectTessellatedRay(DisplayTessellationResult tessellation, Point3D origin, Vector3D direction, IReadOnlyDictionary<int, string> faceSurfaceKinds)
+    {
+        var hits = new List<RayMapHit>();
+        foreach (var patch in tessellation.FacePatches)
+        {
+            for (var index = 0; index + 2 < patch.TriangleIndices.Count; index += 3)
+            {
+                var a = patch.Positions[patch.TriangleIndices[index]];
+                var b = patch.Positions[patch.TriangleIndices[index + 1]];
+                var c = patch.Positions[patch.TriangleIndices[index + 2]];
+                if (!TryIntersectTriangle(origin, direction, a, b, c, out var t, out var normal)) continue;
+                var p = origin + direction * t;
+                var family = faceSurfaceKinds.TryGetValue(patch.FaceId.Value, out var sf) ? sf : "unknown";
+                if (hits.Any(h => Math.Abs(h.T - t) < 1e-7d && h.FaceIndex == patch.FaceId.Value)) continue;
+                hits.Add(new RayMapHit(t, p, patch.FaceId.Value, family, normal, "tessellated-fallback", "approximate", [$"Exact ray intersection unavailable for {family}; used tessellated fallback."]));
+            }
+        }
+
+        return hits.OrderBy(h => h.T).ToArray();
+    }
+
+    private static bool TryIntersectTriangle(Point3D origin, Vector3D direction, Point3D a, Point3D b, Point3D c, out double t, out Vector3D normal)
+    {
+        t = 0d;
+        normal = new Vector3D(0d, 0d, 0d);
+        var e1 = b - a;
+        var e2 = c - a;
+        var p = direction.Cross(e2);
+        var det = e1.Dot(p);
+        if (Math.Abs(det) < 1e-10d) return false;
+        var invDet = 1d / det;
+        var tv = origin - a;
+        var u = tv.Dot(p) * invDet;
+        if (u < -1e-9d || u > 1d + 1e-9d) return false;
+        var q = tv.Cross(e1);
+        var v = direction.Dot(q) * invDet;
+        if (v < -1e-9d || u + v > 1d + 1e-9d) return false;
+        t = e2.Dot(q) * invDet;
+        if (t < -1e-9d) return false;
+        normal = e1.Cross(e2);
+        return TryNormalize(normal, out normal);
+    }
+
     private readonly record struct ProjectionFrame(
         Point3D PlaneOrigin,
         Vector3D UAxis,
@@ -1740,6 +2709,21 @@ public sealed record VolumeAnalysisResult(
         string PlaneAxisV,
         string RayDirectionAxis,
         string DepthReference)
+    {
+        public double RangeU => MaxU - MinU;
+        public double RangeV => MaxV - MinV;
+    }
+
+    private readonly record struct RayMapFrame(
+        Point3D PlaneOrigin,
+        Vector3D UAxis,
+        Vector3D VAxis,
+        Vector3D RayDirection,
+        double MinU,
+        double MaxU,
+        double MinV,
+        double MaxV,
+        Func<Point3D, double> Height)
     {
         public double RangeU => MaxU - MinU;
         public double RangeV => MaxV - MinV;

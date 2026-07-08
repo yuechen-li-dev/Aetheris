@@ -1,0 +1,19 @@
+// fixture-id: v2-phase1-validation-report-missing-tolerance
+// case: firmament-v2-phase1-validation-report-missing-tolerance
+// category: Language
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: validation-report
+// expected-parser: FirmamentV2Parser
+// notes: R1 validation report fixture for missing PMI dimension tolerance.
+
+model MissingToleranceProbe {
+    units mm
+    let holeDiameter: length = 6.0mm
+    solid part: Box { size: [20, 20, 6] }
+    pmi {
+        diameter d1 { target: part.region("holeA") dimension: holeDiameter }
+    }
+}

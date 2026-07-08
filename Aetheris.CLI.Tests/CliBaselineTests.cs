@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Features;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.CLI.Tests;
@@ -142,6 +144,88 @@ public sealed class CliBaselineTests
         {
             Directory.Delete(outputDirectory, recursive: true);
         }
+    }
+
+
+    [Fact]
+    public void Analyze_Command_Reports_LinearExtrusion_SurfaceFamily()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/generated/ruled-a2/ellipse-linear-extrusion-production.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var families = doc.RootElement.GetProperty("summary").GetProperty("surfaceFamilies");
+        Assert.True(families.GetProperty("linear-extrusion").GetInt32() >= 1);
+    }
+
+    [Fact]
+    public void AnalyzeVolume_LinearExtrusion_ReturnsFriendlyUnsupportedDiagnostic()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/generated/ruled-a2/ellipse-linear-extrusion-production.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(1, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        var error = doc.RootElement.GetProperty("error").GetString();
+        Assert.Contains("Exact volume is not supported", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("linear-extrusion", error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("given key", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Analyze_Command_Reports_SurfaceOfRevolution_SurfaceFamily()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/probes/surface-of-revolution-line.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var families = doc.RootElement.GetProperty("summary").GetProperty("surfaceFamilies");
+        Assert.True(families.GetProperty("surface-of-revolution").GetInt32() >= 1);
+    }
+
+    [Fact]
+    public void AnalyzeVolume_SurfaceOfRevolution_ReturnsFriendlyUnsupportedDiagnostic()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/probes/surface-of-revolution-line.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(1, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
+        var error = doc.RootElement.GetProperty("error").GetString();
+        Assert.Contains("Exact volume is not supported", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("surface-of-revolution", error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("given key", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Analyze_Command_Accepts_DegreeOneOneBsplineBilinearProbe()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/probes/bspline-degree-1-1-bilinear.step");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", stepPath, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        using var doc = JsonDocument.Parse(stdout.ToString());
+        var families = doc.RootElement.GetProperty("summary").GetProperty("surfaceFamilies");
+        Assert.True(families.GetProperty("bspline").GetInt32() >= 1);
     }
 
     [Fact]
@@ -428,6 +512,243 @@ public sealed class CliBaselineTests
         Assert.True(grid[0][0].TryGetProperty("entryDepth", out _));
         Assert.True(grid[0][0].TryGetProperty("entryFaceId", out _));
         Assert.True(grid[0][0].TryGetProperty("entrySurfaceType", out _));
+    }
+
+    [Fact]
+    public void Analyze_Map_RankedProbes_Emits_EvidenceBundle_And_SectionCommands()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateCylinder(4d, 10d).Value, "cli-map-a6-cylinder");
+        using var doc = RunAnalyzeSixViewMap(stepPath, "8x8", "--rank-probes", "--evidence-bundle");
+        var root = doc.RootElement;
+
+        var ranked = root.GetProperty("rankedProbes");
+        Assert.True(ranked.GetArrayLength() > 0);
+        var first = ranked[0];
+        Assert.True(first.GetProperty("score").GetDouble() > 0d);
+        Assert.Contains("analytic provenance", first.GetProperty("reasons").EnumerateArray().Select(r => r.GetString()));
+        Assert.Contains(first.GetProperty("recommendedActions").EnumerateArray(), a => a.GetProperty("kind").GetString() == "pointProbe");
+        Assert.Contains(first.GetProperty("recommendedActions").EnumerateArray(), a => a.GetProperty("kind").GetString() == "sectionProbe" && a.GetProperty("command").GetString()!.Contains("analyze section", StringComparison.Ordinal));
+
+        var bundle = root.GetProperty("evidenceBundle");
+        Assert.Equal(6, bundle.GetProperty("coarseMap").GetProperty("views").GetInt32());
+        Assert.True(bundle.GetProperty("rankedQuestions").GetArrayLength() > 0);
+        Assert.True(bundle.GetProperty("suggestedActions").GetArrayLength() > 0);
+    }
+
+    [Fact]
+    public void Analyze_Map_PointProbe_Emits_CompactSummary_And_Retains_Hits()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-map-a6-point-summary");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xy", "--direction", "-z", "--point", "0,0");
+        var root = doc.RootElement;
+        var summary = root.GetProperty("pointSummary");
+        Assert.True(summary.GetProperty("hitCount").GetInt32() >= 2);
+        Assert.Equal("plane", summary.GetProperty("firstHit").GetProperty("family").GetString());
+        Assert.Equal("plane", summary.GetProperty("lastHit").GetProperty("family").GetString());
+        Assert.True(summary.GetProperty("familySequence").GetArrayLength() >= 1);
+        Assert.True(root.GetProperty("hits").GetArrayLength() >= 2);
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_BoxTop_Returns_Llm_Grid_Samples()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-ray-map-box-top");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xy", "--direction", "-z", "--resolution", "5x5");
+        var root = doc.RootElement;
+
+        Assert.Equal("grid", root.GetProperty("mode").GetString());
+        Assert.Equal("xy", root.GetProperty("plane").GetString());
+        Assert.Equal("-z", root.GetProperty("direction").GetString());
+        Assert.Equal(25, root.GetProperty("samples").GetArrayLength());
+        Assert.Equal(1d, root.GetProperty("summary").GetProperty("hitCoverage").GetDouble(), 8);
+        Assert.Equal("plane", root.GetProperty("summary").GetProperty("surfaceFamiliesHit").EnumerateObject().Single().Name);
+        Assert.Equal("analytic-cir-tessellated-fallback", root.GetProperty("backendPolicy").GetString());
+        Assert.True(root.GetProperty("summary").GetProperty("analyticHitCount").GetInt32() > 0);
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        var centerHit = root.GetProperty("samples")[12].GetProperty("firstHit");
+        Assert.True(centerHit.GetProperty("position").GetProperty("z").GetDouble() > 0d);
+        Assert.Equal("plane", centerHit.GetProperty("surfaceFamily").GetString());
+        Assert.Equal("analytic", centerHit.GetProperty("intersectionMode").GetString());
+        Assert.Equal("exact", centerHit.GetProperty("confidence").GetString());
+        Assert.Equal(2, root.GetProperty("samples")[12].GetProperty("intersectionModes").GetProperty("analytic").GetInt32());
+    }
+
+    [Fact]
+    public void Analyze_Map_SixView_Llm_Box_Returns_Compact_Summaries()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateBox(10d, 6d, 4d).Value, "cli-six-view-box");
+        using var doc = RunAnalyzeSixViewMap(stepPath, "8x8");
+        var root = doc.RootElement;
+
+        Assert.Equal("six-view-summary", root.GetProperty("mode").GetString());
+        Assert.Equal("analyze-map-v1", root.GetProperty("mapVersion").GetString());
+        Assert.Equal(6, root.GetProperty("views").GetArrayLength());
+        foreach (var view in root.GetProperty("views").EnumerateArray())
+        {
+            var summary = view.GetProperty("summary");
+            Assert.Equal(64, summary.GetProperty("sampleCount").GetInt32());
+            Assert.Equal(64, summary.GetProperty("hitCount").GetInt32());
+            Assert.Equal(1d, summary.GetProperty("hitCoverage").GetDouble(), 8);
+            Assert.True(summary.GetProperty("surfaceFamiliesHit").TryGetProperty("plane", out _));
+            Assert.True(summary.GetProperty("backendCounts").GetProperty("analytic").GetInt32() > 0);
+            Assert.Equal(0d, summary.GetProperty("fallbackRatio").GetDouble(), 8);
+            Assert.True(view.TryGetProperty("compactGrid", out var compactGrid));
+            Assert.Equal(8, compactGrid.GetProperty("width").GetInt32());
+            Assert.Equal(8, compactGrid.GetProperty("height").GetInt32());
+            Assert.Equal(8, compactGrid.GetProperty("rows").GetArrayLength());
+            Assert.True(view.TryGetProperty("components", out var components));
+            Assert.DoesNotContain(components.GetProperty("noHit").EnumerateArray(), c => c.GetProperty("classificationHint").GetString() == "interior-opening-candidate");
+            Assert.NotEmpty(components.GetProperty("heightBands").EnumerateArray());
+            Assert.NotEmpty(components.GetProperty("surfaceFamilies").EnumerateArray());
+            Assert.NotEmpty(view.GetProperty("suggestedProbes").EnumerateArray());
+        }
+
+        Assert.NotEmpty(root.GetProperty("suggestedProbes").EnumerateArray());
+    }
+
+    [Fact]
+    public void Analyze_Map_SixView_Llm_Cylinder_Reports_Surface_Component_Probe()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateCylinder(3d, 8d).Value, "cli-six-view-cylinder-component");
+        using var doc = RunAnalyzeSixViewMap(stepPath, "17x17");
+        var views = doc.RootElement.GetProperty("views").EnumerateArray().ToArray();
+        var hasCylinder = views.Any(v => v.GetProperty("components").GetProperty("surfaceFamilies").EnumerateArray().Any(c => c.GetProperty("surfaceFamily").GetString() == "cylinder"));
+
+        Assert.True(hasCylinder, doc.RootElement.GetRawText());
+        Assert.Contains(doc.RootElement.GetProperty("suggestedProbes").EnumerateArray(), p => p.GetProperty("command").GetString()?.Contains("--point", StringComparison.Ordinal) == true);
+    }
+
+    [Fact]
+    public void Analyze_Map_SixView_Llm_Torus_Discloses_Analytic_Ring_And_No_Fallback()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateTorus(3d, 1d).Value, "cli-six-view-torus");
+        using var doc = RunAnalyzeSixViewMap(stepPath, "9x9");
+        var root = doc.RootElement;
+        var top = root.GetProperty("views").EnumerateArray().Single(v => v.GetProperty("name").GetString() == "top");
+
+        Assert.True(top.GetProperty("summary").GetProperty("surfaceFamiliesHit").TryGetProperty("torus", out _));
+        Assert.True(top.GetProperty("summary").GetProperty("backendCounts").GetProperty("analytic").GetInt32() > 0);
+        Assert.Equal(0, top.GetProperty("summary").GetProperty("backendCounts").GetProperty("tessellated-fallback").GetInt32());
+        Assert.DoesNotContain("~", string.Concat(top.GetProperty("compactGrid").GetProperty("rows").EnumerateArray().Select(r => r.GetString())));
+        Assert.Contains(top.GetProperty("components").GetProperty("surfaceFamilies").EnumerateArray(), c => c.GetProperty("surfaceFamily").GetString() == "torus");
+        Assert.Contains(top.GetProperty("suggestedProbes").EnumerateArray(), p => p.GetProperty("reason").GetString()?.Contains("torus", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    [Fact]
+    public void Analyze_Map_SixView_Llm_LinearExtrusion_Discloses_Fallback()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata", "step242", "generated", "ruled-a2", "ellipse-linear-extrusion-production.step");
+        using var doc = RunAnalyzeSixViewMap(stepPath, "4x4");
+        var root = doc.RootElement;
+
+        Assert.Contains("linear-extrusion", root.GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("tessellated-fallback", root.GetRawText(), StringComparison.Ordinal);
+        Assert.Contains(root.GetProperty("diagnostics").EnumerateArray(), d => d.GetString()?.Contains("used tessellated fallback", StringComparison.Ordinal) == true);
+        Assert.Contains(root.GetProperty("views").EnumerateArray(), v => v.GetProperty("components").GetProperty("noHit").GetArrayLength() > 0 || v.GetProperty("components").GetProperty("fallback").GetArrayLength() > 0);
+    }
+
+
+    [Fact]
+    public void Analyze_Map_RayProbe_CylinderSide_Uses_Analytic_Exact_Hits()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateCylinder(3d, 8d).Value, "cli-ray-map-cylinder-side");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xz", "--direction", "+y", "--resolution", "5x5", "--point", "0,0");
+        var root = doc.RootElement;
+
+        Assert.True(root.GetProperty("summary").GetProperty("analyticHitCount").GetInt32() > 0);
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        Assert.Equal("analytic", root.GetProperty("intersectionMode").GetString());
+        var hit = root.GetProperty("hits").EnumerateArray().First(h => h.GetProperty("surfaceFamily").GetString() == "cylinder");
+        Assert.Equal("analytic", hit.GetProperty("intersectionMode").GetString());
+        Assert.Equal("exact", hit.GetProperty("confidence").GetString());
+        Assert.Empty(hit.GetProperty("diagnostics").EnumerateArray());
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_Sphere_Uses_Analytic_Exact_Hits()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateSphere(3d).Value, "cli-ray-map-sphere");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xy", "--direction", "-z", "--resolution", "5x5", "--point", "0,0");
+        var root = doc.RootElement;
+
+        Assert.True(root.GetProperty("summary").GetProperty("analyticHitCount").GetInt32() > 0);
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        Assert.Equal("analytic", root.GetProperty("intersectionMode").GetString());
+        var hit = root.GetProperty("hits").EnumerateArray().First(h => h.GetProperty("surfaceFamily").GetString() == "sphere");
+        Assert.Equal("analytic", hit.GetProperty("intersectionMode").GetString());
+        Assert.Equal("exact", hit.GetProperty("confidence").GetString());
+        Assert.Empty(hit.GetProperty("diagnostics").EnumerateArray());
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_Cone_Uses_Analytic_Exact_Hits()
+    {
+        var stepPath = ExportPrimitiveToTempStep(CreateCone(4d, 2d, 8d), "cli-ray-map-cone");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xz", "--direction", "+y", "--resolution", "5x5", "--point", "3,0");
+        var root = doc.RootElement;
+
+        Assert.True(root.GetProperty("summary").GetProperty("analyticHitCount").GetInt32() > 0);
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        var hit = root.GetProperty("hits").EnumerateArray().First(h => h.GetProperty("surfaceFamily").GetString() == "cone");
+        Assert.Equal("analytic", hit.GetProperty("intersectionMode").GetString());
+        Assert.Equal("exact", hit.GetProperty("confidence").GetString());
+        Assert.InRange(hit.GetProperty("position").GetProperty("z").GetDouble(), 0d, 8d);
+        Assert.True(hit.TryGetProperty("normal", out _));
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_Torus_CenterHole_Does_Not_Lie()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateTorus(3d, 1d).Value, "cli-ray-map-torus-hole");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xz", "--direction", "+y", "--resolution", "5x5", "--point", "0,0");
+        var root = doc.RootElement;
+
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        Assert.Equal(0, root.GetProperty("hitCount").GetInt32());
+        Assert.DoesNotContain("torus", root.GetRawText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_Torus_RingHit_Uses_Analytic_Exact_Hits()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateTorus(3d, 1d).Value, "cli-ray-map-torus-ring");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xz", "--direction", "+y", "--resolution", "5x5", "--point", "3,0");
+        var root = doc.RootElement;
+
+        Assert.True(root.GetProperty("summary").GetProperty("analyticHitCount").GetInt32() > 0);
+        Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+        var hits = root.GetProperty("hits").EnumerateArray().Where(h => h.GetProperty("surfaceFamily").GetString() == "torus").ToArray();
+        Assert.Single(hits);
+        Assert.All(hits, hit =>
+        {
+            Assert.Equal("analytic", hit.GetProperty("intersectionMode").GetString());
+            Assert.Equal("exact", hit.GetProperty("confidence").GetString());
+            Assert.InRange(Math.Abs(hit.GetProperty("position").GetProperty("y").GetDouble()), 0.999d, 1.001d);
+        });
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_Torus_Outside_Misses()
+    {
+        var stepPath = ExportPrimitiveToTempStep(BrepPrimitives.CreateTorus(3d, 1d).Value, "cli-ray-map-torus-outside");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xz", "--direction", "+y", "--resolution", "5x5", "--point", "5,0");
+
+        Assert.Equal(0, doc.RootElement.GetProperty("hitCount").GetInt32());
+        Assert.Equal(0, doc.RootElement.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
+    }
+
+    [Fact]
+    public void Analyze_Map_RayProbe_LinearExtrusion_Discloses_Tessellated_Fallback()
+    {
+        var stepPath = Path.Combine(RepoRoot, "testdata", "step242", "generated", "ruled-a2", "ellipse-linear-extrusion-production.step");
+        using var doc = RunAnalyzeRayMap(stepPath, "--plane", "xy", "--direction", "-z", "--resolution", "4x4");
+        var root = doc.RootElement;
+
+        Assert.Equal("analytic-cir-tessellated-fallback", root.GetProperty("backendPolicy").GetString());
+        Assert.True(root.GetProperty("summary").TryGetProperty("tessellatedFallbackHitCount", out _));
+        Assert.Contains("linear-extrusion", root.GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("Exact ray intersection unavailable for linear-extrusion; used tessellated fallback.", root.GetProperty("diagnostics").EnumerateArray().Select(d => d.GetString()));
+        Assert.Contains("tessellated-fallback", root.GetRawText(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -785,7 +1106,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeVolume_MixedCurvedTrimmedBody_FailsClearly()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_sphere_cavity_basic.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
         Assert.Equal(1, exitCode);
@@ -1246,6 +1567,26 @@ public sealed class CliBaselineTests
         return JsonDocument.Parse(stdout.ToString());
     }
 
+    private static JsonDocument RunAnalyzeRayMap(string stepPath, params string[] args)
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "map", stepPath, .. args, "--json"], stdout, stderr);
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        return JsonDocument.Parse(stdout.ToString());
+    }
+
+    private static JsonDocument RunAnalyzeSixViewMap(string stepPath, string resolution, params string[] extraArgs)
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "map", stepPath, "--views", "six", "--resolution", resolution, "--llm", .. extraArgs, "--json"], stdout, stderr);
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        return JsonDocument.Parse(stdout.ToString());
+    }
+
     private static JsonDocument RunAnalyzeSection(string stepPath, string planeFlag, double offset)
     {
         var stdout = new StringWriter();
@@ -1257,6 +1598,17 @@ public sealed class CliBaselineTests
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
         return JsonDocument.Parse(stdout.ToString());
+    }
+
+
+    private static BrepBody CreateCone(double bottomRadius, double topRadius, double height)
+    {
+        var result = BrepRevolve.Create(
+            [new ProfilePoint2D(bottomRadius, 0d), new ProfilePoint2D(topRadius, height)],
+            new ExtrudeFrame3D(Point3D.Origin, Direction3D.Create(new Vector3D(0d, 0d, 1d)), Direction3D.Create(new Vector3D(1d, 0d, 0d))),
+            new RevolveAxis3D(Point3D.Origin, new Vector3D(0d, 0d, 1d)));
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        return result.Value;
     }
 
     private static string ExportPrimitiveToTempStep(BrepBody body, string stem)

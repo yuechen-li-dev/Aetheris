@@ -1,6 +1,6 @@
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null)
+public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null)
 {
     public FirmamentV2SolidBinding Solid => Solids[^1];
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
@@ -10,6 +10,35 @@ public sealed record FirmamentV2Document(string ModelName, string Units, IReadOn
         return new FirmamentV2SideHoleIntent(m.TargetSolid, r.Name, r.Attachment.Source, r.Attachment.Kind, r.Attachment.Axis, r.Cut.Tool.Through.Source, r.Cut.Tool.Through.Kind, r.Cut.Tool.Through.Axis, r.Cut.Tool.ToolType, r.Cut.Tool.Radius, r.Cut.Tool.Center?.U ?? 0, r.Cut.Tool.Center?.V ?? 0, r.Cut.Tool.Center is not null, route.CenterFrame, Units, route);
     })).SingleOrDefault();
 }
+
+public sealed record FirmamentV2SourceSpan(int Start, int Length);
+public enum FirmamentV2PrimitiveType { Int, Float, Length, Angle, String, Bool }
+public enum FirmamentV2ToleranceKind { Bilateral, Asymmetric }
+public sealed record FirmamentV2Tolerance(FirmamentV2ToleranceKind Kind, double Plus, double Minus, string Unit, FirmamentV2PrimitiveType Type, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2LiteralValue(FirmamentV2PrimitiveType Type, object Value, double? NumericValue = null, string? Unit = null, string? Raw = null);
+public abstract record FirmamentV2ValueExpression;
+public sealed record FirmamentV2LiteralExpression(FirmamentV2LiteralValue Value) : FirmamentV2ValueExpression;
+public sealed record FirmamentV2DottedReferenceExpression(string RecordName, string FieldName, string Source) : FirmamentV2ValueExpression;
+public sealed record FirmamentV2IdentifierReferenceExpression(string Name, string Source) : FirmamentV2ValueExpression;
+public sealed record FirmamentV2BinaryExpression(FirmamentV2ValueExpression Left, string Operator, FirmamentV2ValueExpression Right, string Source) : FirmamentV2ValueExpression;
+public sealed record FirmamentV2LetDeclaration(string Name, FirmamentV2PrimitiveType DeclaredType, FirmamentV2ValueExpression ValueExpression, FirmamentV2SourceSpan SourceSpan, FirmamentV2Tolerance? Tolerance = null)
+{
+    public FirmamentV2LiteralValue LiteralValue => ValueExpression is FirmamentV2LiteralExpression literal ? literal.Value : throw new InvalidOperationException("Let value is not a literal.");
+}
+public sealed record FirmamentV2LetRecordDeclaration(string Name, IReadOnlyList<FirmamentV2LetRecordField> Fields, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2LetRecordField(string Name, FirmamentV2PrimitiveType DeclaredType, FirmamentV2ValueExpression ValueExpression, FirmamentV2SourceSpan SourceSpan, FirmamentV2Tolerance? Tolerance = null)
+{
+    public FirmamentV2LiteralValue LiteralValue => ValueExpression is FirmamentV2LiteralExpression literal ? literal.Value : throw new InvalidOperationException("Record field value is not a literal.");
+}
+public sealed record FirmamentV2BoundExpression(FirmamentV2PrimitiveType InferredType, FirmamentV2LiteralValue Value, IReadOnlySet<string> Dependencies, FirmamentV2SourceSpan SourceSpan, FirmamentV2Tolerance? AliasTolerance = null, bool UsesTolerancedValueInArithmetic = false);
+public sealed record FirmamentV2BoundLet(string Name, FirmamentV2PrimitiveType Type, FirmamentV2LiteralValue Value, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundExpression? Expression = null, IReadOnlySet<string>? Dependencies = null, FirmamentV2Tolerance? Tolerance = null);
+public sealed record FirmamentV2BoundLetRecord(string Name, IReadOnlyDictionary<string, FirmamentV2BoundLet> Fields, FirmamentV2SourceSpan SourceSpan);
+
+public sealed record FirmamentV2ConceptApplication(string FamilyName, string ConceptName, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2ConceptField(string Name, FirmamentV2ValueExpression ValueExpression, string Source, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2BoundConceptField(string Name, FirmamentV2ConceptField Field, FirmamentV2BoundExpression? BoundValue, string? TargetSource = null);
+public sealed record FirmamentV2ManufacturingConceptDeclaration(FirmamentV2ConceptApplication Application, IReadOnlyList<FirmamentV2ConceptField> Fields, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2BoundConceptField>? BoundFields = null);
+public sealed record FirmamentV2FeatureConceptDeclaration(string Name, FirmamentV2ConceptApplication Application, IReadOnlyList<FirmamentV2ConceptField> Fields, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2BoundConceptField>? BoundFields = null);
 
 public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null)
 {
@@ -105,8 +134,13 @@ public sealed record FirmamentV2SemanticHoleDecl(
     double? CounterboreDepth = null,
     double? CountersinkDiameter = null,
     double? CountersinkAngleDegrees = null);
-public enum FirmamentV2PmiKind { HoleDiameter, DatumPlane }
+public enum FirmamentV2PmiKind { HoleDiameter, DatumPlane, Distance, Flatness, Parallel, Perpendicular, Coplanar }
 public sealed record FirmamentV2PmiDecl(string Name, FirmamentV2PmiKind Kind, string Target, double? Value = null);
+public sealed record FirmamentV2PmiBlock(IReadOnlyList<FirmamentV2PmiRecord> Records, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2PmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyDictionary<string, FirmamentV2PmiField> Fields, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundPmiRecord? Bound = null);
+public sealed record FirmamentV2PmiField(string Name, string Source, FirmamentV2SourceSpan SourceSpan, FirmamentV2ValueExpression? ValueExpression = null);
+public sealed record FirmamentV2BoundPmiBlock(IReadOnlyList<FirmamentV2BoundPmiRecord> Datums, IReadOnlyList<FirmamentV2BoundPmiRecord> Dimensions, IReadOnlyList<FirmamentV2BoundPmiRecord> Controls, IReadOnlyList<string> Diagnostics);
+public sealed record FirmamentV2BoundPmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyList<string> Targets, FirmamentV2LiteralValue? DimensionValue, FirmamentV2Tolerance? DimensionTolerance, FirmamentV2LiteralValue? ControlTolerance, IReadOnlyList<string> DatumRefs, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2ConceptDecl(string Name, string RawValue, double NumericValue, string? Unit);
 public sealed record FirmamentV2TemplateDecl(string Process, string Name, IReadOnlyList<FirmamentV2ConceptDecl> Concepts);
 

@@ -860,11 +860,525 @@ model BadPmiDiameter {
         Assert.Contains(FirmamentV2Parser.PmiDiameterInvalid, invalidDiameter.Diagnostics);
     }
 
+
+    [Fact]
+    public void FirmamentV2Parser_RecordPmiDatumDiameter_BindsTolerancedDimensionAndTargets()
+    {
+        var result = FirmamentV2Parser.Parse(Source("InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture"),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/InlineStep/valid")));
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var bound = result.Document!.BoundPmi!;
+        var datum = Assert.Single(bound.Datums);
+        Assert.Equal(FirmamentV2PmiKind.DatumPlane, datum.Kind);
+        Assert.Equal("A", datum.Name);
+        Assert.Equal("part.region(\"baseFace\")", Assert.Single(datum.Targets));
+
+        var diameter = Assert.Single(bound.Dimensions);
+        Assert.Equal(FirmamentV2PmiKind.HoleDiameter, diameter.Kind);
+        Assert.Equal("mountHoleADiameter", diameter.Name);
+        Assert.Equal("part.region(\"mountHoleA\")", Assert.Single(diameter.Targets));
+        Assert.Equal(6.0d, diameter.DimensionValue!.NumericValue);
+        Assert.NotNull(diameter.DimensionTolerance);
+        Assert.Equal(0.05d, diameter.DimensionTolerance!.Plus);
+        Assert.Equal(0.05d, diameter.DimensionTolerance.Minus);
+    }
+
+    [Fact]
+    public void FirmamentV2P2_RecordPmiDatumDiameter_ExportsAp242EvidenceAndReimports()
+    {
+        var fixture = FixturePath("InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture");
+        var output = Path.Combine(Path.GetTempPath(), "aetheris-p2-record-pmi-" + Guid.NewGuid().ToString("N") + ".step");
+
+        var build = FirmamentBuildAndExport.Run(fixture, output);
+
+        Assert.True(build.IsSuccess, string.Join(", ", build.Diagnostics.Select(d => d.Message)));
+        Assert.True(File.Exists(output));
+        var step = File.ReadAllText(output);
+        Assert.Contains("SHAPE_ASPECT('firmament-datum:A'", step, StringComparison.Ordinal);
+        Assert.Contains("PROPERTY_DEFINITION('datum:A:part'", step, StringComparison.Ordinal);
+        Assert.Contains("SHAPE_DIMENSION_REPRESENTATION('diameter:part.mountHoleADiameter'", step, StringComparison.Ordinal);
+        Assert.Contains("PROPERTY_DEFINITION('diameter:part.mountHoleADiameter'", step, StringComparison.Ordinal);
+        Assert.Contains("SHAPE_DIMENSION_REPRESENTATION('diameter_tolerance:part.mountHoleADiameter'", step, StringComparison.Ordinal);
+        Assert.Contains("'tolerance_plus'", step, StringComparison.Ordinal);
+        Assert.Contains("'tolerance_minus'", step, StringComparison.Ordinal);
+
+        var reimport = Aetheris.Kernel.Core.Step242.Step242Importer.ImportBody(step);
+        Assert.True(reimport.IsSuccess, string.Join(", ", reimport.Diagnostics.Select(d => d.Message)));
+        Assert.Single(build.Value.Export.DatumInspection!);
+        Assert.Single(build.Value.Export.DimensionInspection!);
+    }
+
+    [Fact]
+    public void FirmamentV2P2_RecordPmiDiameterDimensionWithoutTolerance_IsRejected()
+    {
+        var result = FirmamentV2Parser.Parse(Source("InlineStep/invalid/inline-step-v2-record-pmi-diameter-missing-tolerance.invalid.firmfixture"),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/InlineStep/invalid")));
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.PmiDimensionMissingTolerance, result.Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2P2_ExportDeferredFlatness_IsReportedAndBuildRejectedDeterministically()
+    {
+        var fixture = FixturePath("InlineStep/invalid/inline-step-v2-record-pmi-export-deferred-flatness.invalid.firmfixture");
+        var parse = FirmamentV2Parser.Parse(Source("InlineStep/invalid/inline-step-v2-record-pmi-export-deferred-flatness.invalid.firmfixture"), Path.GetDirectoryName(fixture));
+        var report = FirmamentV2ValidationReportBuilder.Build(parse, fixture);
+
+        var pmi = Assert.Single(report.Pmi);
+        Assert.Equal("flatness", pmi.Kind);
+        Assert.Equal("deferred", pmi.ExportSupport);
+        Assert.Equal("export-deferred", pmi.Status);
+
+        var build = FirmamentBuildAndExport.Run(fixture, Path.Combine(Path.GetTempPath(), "aetheris-flatness-deferred.step"));
+        Assert.False(build.IsSuccess);
+        Assert.Contains(build.Diagnostics, d => d.Message.Contains("firmament-v2-pmi-export-deferred", StringComparison.Ordinal));
+    }
+
     private static string Source(string relative)
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));
+        var path = FixturePath(relative);
         var lines = File.ReadAllLines(path);
         var bodyStart = Array.FindIndex(lines, line => !string.IsNullOrWhiteSpace(line) && !line.TrimStart().StartsWith("//", StringComparison.Ordinal));
         return string.Join(Environment.NewLine, lines.Skip(Math.Max(0, bodyStart)));
     }
+
+    private static string FixturePath(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));
+
+    [Fact]
+    public void FirmamentV2Parser_LetPrimitiveLiterals_ParsesAndBinds()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Language/valid/let-primitive-literals.valid.firmfixture"));
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var lets = result.Document!.Lets!;
+        var boundLets = result.Document!.BoundLets!;
+        Assert.Equal(6, lets.Count);
+        Assert.Equal(6, boundLets.Count);
+        AssertLet(boundLets[0], "holeCount", FirmamentV2PrimitiveType.Int, 4, null);
+        AssertLet(boundLets[1], "scale", FirmamentV2PrimitiveType.Float, 1.25d, null);
+        AssertLet(boundLets[2], "holeDiameter", FirmamentV2PrimitiveType.Length, 6.0d, "mm");
+        AssertLet(boundLets[3], "draftAngle", FirmamentV2PrimitiveType.Angle, 3.0d, "deg");
+        AssertLet(boundLets[4], "materialName", FirmamentV2PrimitiveType.String, "Aluminum6061", null);
+        AssertLet(boundLets[5], "inspectionRequired", FirmamentV2PrimitiveType.Bool, true, null);
+    }
+
+    [Theory]
+    [InlineData("let holeCount: int = 4.0", FirmamentV2Parser.LetTypeMismatch)]
+    [InlineData("let holeDiameter: length = 6.0", FirmamentV2Parser.LetTypeMismatch)]
+    [InlineData("let draftAngle: angle = 3mm", FirmamentV2Parser.LetUnitMismatch)]
+    [InlineData("let scale: float = 1.25mm", FirmamentV2Parser.LetUnitMismatch)]
+    [InlineData("let unknownThing: banana = 1", FirmamentV2Parser.LetUnknownType)]
+    [InlineData("let radius: length = holeDiameter / 2", FirmamentV2Parser.ExpressionUnknownSymbol)]
+    public void FirmamentV2Parser_LetPrimitiveLiterals_InvalidCasesAreDiagnostics(string letSource, string expectedDiagnostic)
+    {
+        var result = FirmamentV2Parser.Parse($$"""
+            model LetInvalidExample {
+                units mm
+                solid base: Box {
+                    size: [10, 8, 6]
+                }
+                {{letSource}}
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(expectedDiagnostic, result.Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_LetPrimitiveLiterals_DuplicateNameIsDiagnostic()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model LetDuplicateExample {
+                units mm
+                solid base: Box {
+                    size: [10, 8, 6]
+                }
+                let holeCount: int = 4
+                let holeCount: int = 5
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.LetDuplicateName, result.Diagnostics);
+    }
+
+
+    [Fact]
+    public void FirmamentV2Parser_LetRecordGroups_ParseAndBindFields()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Language/valid/let-record-groups.valid.firmfixture"));
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var record = Assert.Single(result.Document!.LetRecords!);
+        Assert.Equal("MountingPattern", record.Name);
+        Assert.Equal(6, record.Fields.Count);
+        var bound = Assert.Single(result.Document!.BoundLetRecords!);
+        Assert.Equal("MountingPattern", bound.Name);
+        AssertLet(bound.Fields["holeDiameter"], "holeDiameter", FirmamentV2PrimitiveType.Length, 6.0d, "mm");
+        AssertLet(bound.Fields["holeSpacingX"], "holeSpacingX", FirmamentV2PrimitiveType.Length, 80.0d, "mm");
+        AssertLet(bound.Fields["holeSpacingY"], "holeSpacingY", FirmamentV2PrimitiveType.Length, 40.0d, "mm");
+        AssertLet(bound.Fields["holeCount"], "holeCount", FirmamentV2PrimitiveType.Int, 4, null);
+        AssertLet(bound.Fields["label"], "label", FirmamentV2PrimitiveType.String, "M6 mount group", null);
+        AssertLet(bound.Fields["inspectionRequired"], "inspectionRequired", FirmamentV2PrimitiveType.Bool, true, null);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_LetRecordGroups_AllowSameFieldNameAcrossRecords()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model MultipleRecords {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                let MountingPattern { holeDiameter: length = 6.0mm }
+                let InspectionPattern { holeDiameter: length = 6.1mm }
+            }
+            """);
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        Assert.Equal(2, result.Document!.BoundLetRecords!.Count);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_DottedReferenceScalarLet_ResolvesRecordFieldValue()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model DottedReference {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                let MountingPattern { holeDiameter: length = 6.0mm }
+                let exportedHoleDiameter: length = MountingPattern.holeDiameter
+            }
+            """);
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        AssertLet(Assert.Single(result.Document!.BoundLets!), "exportedHoleDiameter", FirmamentV2PrimitiveType.Length, 6.0d, "mm");
+    }
+
+
+    [Fact]
+    public void FirmamentV2Parser_TolerancedValues_ParseBilateralAsymmetricAndRecordFields()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Language/valid/let-toleranced-values.valid.firmfixture"));
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var lets = result.Document!.BoundLets!.ToDictionary(l => l.Name);
+        AssertLet(lets["holeDiameter"], "holeDiameter", FirmamentV2PrimitiveType.Length, 6.0d, "mm");
+        AssertTolerance(lets["holeDiameter"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.05d, 0.05d, "mm");
+        AssertTolerance(lets["slotWidth"].Tolerance, FirmamentV2ToleranceKind.Asymmetric, 0.10d, 0.05d, "mm");
+        AssertTolerance(lets["draftAngle"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.5d, 0.5d, "deg");
+
+        var fields = Assert.Single(result.Document!.BoundLetRecords!).Fields;
+        AssertTolerance(fields["holeDiameter"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.05d, 0.05d, "mm");
+        AssertTolerance(fields["holeSpacingX"].Tolerance, FirmamentV2ToleranceKind.Asymmetric, 0.10d, 0.05d, "mm");
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_TolerancedExpressions_ExplicitToleranceAndAliasesBehaveDeterministically()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model TolerancedExpressions {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                let holeDiameter: length = 6.0mm tol 0.05mm
+                let clearance: length = 0.25mm
+                let drill: length = holeDiameter + clearance tol 0.05mm
+                let radius: length = holeDiameter / 2
+                let exportedHoleDiameter: length = holeDiameter
+                let MountingPattern { fieldDiameter: length = 7.0mm tol 0.1mm }
+                let exportedFieldDiameter: length = MountingPattern.fieldDiameter
+            }
+            """);
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        Assert.Contains(FirmamentV2Parser.ToleranceDroppedThroughArithmetic, result.Diagnostics);
+        var lets = result.Document!.BoundLets!.ToDictionary(l => l.Name);
+        AssertLet(lets["drill"], "drill", FirmamentV2PrimitiveType.Length, 6.25d, "mm");
+        AssertTolerance(lets["drill"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.05d, 0.05d, "mm");
+        AssertLet(lets["radius"], "radius", FirmamentV2PrimitiveType.Length, 3.0d, "mm");
+        Assert.Null(lets["radius"].Tolerance);
+        AssertTolerance(lets["exportedHoleDiameter"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.05d, 0.05d, "mm");
+        AssertTolerance(lets["exportedFieldDiameter"].Tolerance, FirmamentV2ToleranceKind.Bilateral, 0.1d, 0.1d, "mm");
+    }
+
+    [Theory]
+    [InlineData("let holeCount: int = 4 tol 1", FirmamentV2Parser.ToleranceInvalidType)]
+    [InlineData("let scale: float = 1.25 tol 0.01", FirmamentV2Parser.ToleranceInvalidType)]
+    [InlineData("let name: string = \"Aluminum\" tol 1", FirmamentV2Parser.ToleranceInvalidType)]
+    [InlineData("let flag: bool = true tol 1", FirmamentV2Parser.ToleranceInvalidType)]
+    [InlineData("let holeDiameter: length = 6.0mm tol 0.5deg", FirmamentV2Parser.ToleranceUnitMismatch)]
+    [InlineData("let draftAngle: angle = 3deg tol 0.1mm", FirmamentV2Parser.ToleranceUnitMismatch)]
+    [InlineData("let x: length = 1.0mm tol +0.1mm", FirmamentV2Parser.ToleranceMissingMinus)]
+    [InlineData("let x: length = 1.0mm tol -0.1mm", FirmamentV2Parser.ToleranceNegativeBilateral)]
+    [InlineData("let x: length = 1.0mm tol +0.1mm +0.2mm", FirmamentV2Parser.ToleranceMissingMinus)]
+    [InlineData("let x: length = 1.0mm tol -0.1mm +0.2mm", FirmamentV2Parser.ToleranceMissingPlus)]
+    [InlineData("let x: length = 1.0mm tol 0.1", FirmamentV2Parser.ToleranceInvalidLiteral)]
+    [InlineData("let bad: length = (6.0mm tol 0.05mm) + 1.0mm", FirmamentV2Parser.ToleranceUnsupported)]
+    public void FirmamentV2Parser_TolerancedValues_InvalidCasesAreDiagnostics(string letSource, string expectedDiagnostic)
+    {
+        var result = FirmamentV2Parser.Parse($$"""
+            model InvalidTolerance {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                {{letSource}}
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(expectedDiagnostic, result.Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_LetArithmeticExpressions_EvaluateStrictTypedGraph()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Language/valid/let-arithmetic-expressions.valid.firmfixture"));
+
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var bound = result.Document!.BoundLets!.ToDictionary(l => l.Name);
+        AssertLet(bound["radius"], "radius", FirmamentV2PrimitiveType.Length, 3.0d, "mm");
+        AssertLet(bound["drill"], "drill", FirmamentV2PrimitiveType.Length, 6.25d, "mm");
+        AssertLet(bound["doubled"], "doubled", FirmamentV2PrimitiveType.Int, 8, null);
+        AssertLet(bound["ratio"], "ratio", FirmamentV2PrimitiveType.Float, 2.0d, null);
+        AssertLet(bound["halfAngle"], "halfAngle", FirmamentV2PrimitiveType.Angle, 45.0d, "deg");
+        AssertLet(bound["scaled"], "scaled", FirmamentV2PrimitiveType.Length, 7.5d, "mm");
+        Assert.Contains("diameter", bound["radius"].Dependencies!);
+    }
+
+    [Theory]
+    [InlineData("let diameter: length = 6.0mm\nlet bad: length = diameter + 2", FirmamentV2Parser.ExpressionInvalidOperator)]
+    [InlineData("let diameter: length = 6.0mm\nlet draftAngle: angle = 90deg\nlet bad: length = diameter + draftAngle", FirmamentV2Parser.ExpressionInvalidOperator)]
+    [InlineData("let name: string = \"Aluminum6061\"\nlet bad: string = name + name", FirmamentV2Parser.ExpressionInvalidOperator)]
+    [InlineData("let flag: bool = true\nlet bad: bool = flag * 2", FirmamentV2Parser.ExpressionInvalidOperator)]
+    [InlineData("let diameter: length = 6.0mm\nlet bad: length = diameter / diameter", FirmamentV2Parser.ExpressionTypeMismatch)]
+    [InlineData("let bad: float = 1.0 / 0.0", FirmamentV2Parser.ExpressionDivisionByZero)]
+    [InlineData("let badLength: length = 6.0mm / 0", FirmamentV2Parser.ExpressionDivisionByZero)]
+    [InlineData("let a: length = b + 1.0mm\nlet b: length = a + 1.0mm", FirmamentV2Parser.ExpressionCycle)]
+    [InlineData("let x: length = if true { 1.0mm } else { 2.0mm }", FirmamentV2Parser.ExpressionUnsupported)]
+    [InlineData("let x: length = foo(1.0mm)", FirmamentV2Parser.ExpressionUnsupported)]
+    public void FirmamentV2Parser_LetArithmeticExpressions_InvalidCasesAreDiagnostics(string letSource, string expectedDiagnostic)
+    {
+        var result = FirmamentV2Parser.Parse($$"""
+            model InvalidArithmetic {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                {{letSource}}
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(expectedDiagnostic, result.Diagnostics);
+    }
+
+    [Theory]
+    [InlineData("let MountingPattern { holeDiameter: length = 6.0mm holeDiameter: length = 7.0mm }", FirmamentV2Parser.LetInvalidLiteral)]
+    [InlineData("let MountingPattern { radius: length = holeDiameter / 2 }", FirmamentV2Parser.LetLiteralOnly)]
+    [InlineData("let Process { Tooling { minimumRadius: length = 1.5mm } }", FirmamentV2Parser.LetInvalidLiteral)]
+    public void FirmamentV2Parser_LetRecordGroups_InvalidRecordBodiesAreDiagnostics(string recordSource, string expectedDiagnostic)
+    {
+        var result = FirmamentV2Parser.Parse($$"""
+            model InvalidRecord {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                {{recordSource}}
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(expectedDiagnostic, result.Diagnostics);
+    }
+
+
+    [Fact]
+    public void FirmamentV2Parser_LetRecordGroups_DuplicateFieldAndTopLevelNamesAreDiagnostics()
+    {
+        var duplicateField = FirmamentV2Parser.Parse("""
+            model DuplicateRecordField {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                let MountingPattern {
+                    holeDiameter: length = 6.0mm
+                    holeDiameter: length = 7.0mm
+                }
+            }
+            """);
+        Assert.False(duplicateField.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.LetRecordDuplicateField, duplicateField.Diagnostics);
+
+        var duplicateTopLevel = FirmamentV2Parser.Parse("""
+            model DuplicateTopLevel {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                let holeDiameter: length = 6.0mm
+                let holeDiameter { value: length = 6.0mm }
+            }
+            """);
+        Assert.False(duplicateTopLevel.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.LetDuplicateName, duplicateTopLevel.Diagnostics);
+    }
+
+    [Theory]
+    [InlineData("let exportedHoleDiameter: length = MissingPattern.holeDiameter", FirmamentV2Parser.LetReferenceUnknownRecord)]
+    [InlineData("let MountingPattern { holeDiameter: length = 6.0mm }\nlet exportedHoleDiameter: length = MountingPattern.missingField", FirmamentV2Parser.LetReferenceUnknownField)]
+    [InlineData("let holeDiameter: length = 6.0mm\nlet exported: length = holeDiameter.value", FirmamentV2Parser.LetReferenceNonRecord)]
+    [InlineData("let MountingPattern { holeCount: int = 4 }\nlet exportedHoleDiameter: length = MountingPattern.holeCount", FirmamentV2Parser.LetTypeMismatch)]
+    [InlineData("let MountingPattern { holeDiameter: length = 6.0mm }\nlet exportedHoleDiameter: length = MountingPattern", FirmamentV2Parser.LetReferenceRecordUsedAsValue)]
+    public void FirmamentV2Parser_DottedReference_InvalidReferencesAreDiagnostics(string letSource, string expectedDiagnostic)
+    {
+        var result = FirmamentV2Parser.Parse($$"""
+            model InvalidReference {
+                units mm
+                solid base: Box { size: [10, 8, 6] }
+                {{letSource}}
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(expectedDiagnostic, result.Diagnostics);
+    }
+
+
+    [Fact]
+    public void FirmamentV2Parser_RecordShapedPmi_DatumDiameterAndRelationsBind()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model PmiRecordShaped {
+                units mm
+                let MountingPattern {
+                    holeDiameter: length = 6.0mm tol 0.05mm
+                    holeSpacingX: length = 80.0mm tol +0.10mm -0.05mm
+                }
+                solid part: Box { size: [100, 60, 10] }
+                pmi {
+                    datum A {
+                        target: part.region("baseFace")
+                    }
+                    diameter mountHoleADiameter {
+                        target: part.region("mountHoleA")
+                        dimension: MountingPattern.holeDiameter
+                    }
+                    distance mountHoleSpacingX {
+                        targetA: part.region("mountHoleA")
+                        targetB: part.region("mountHoleB")
+                        dimension: MountingPattern.holeSpacingX
+                    }
+                    flatness baseFlatness {
+                        target: part.region("baseFace")
+                        tolerance: 0.03mm
+                    }
+                    coplanar topToDatumA {
+                        target: part.region("topFace")
+                        datum: A
+                        tolerance: 0.05mm
+                    }
+                    perpendicular sideToDatumA {
+                        target: part.region("sideFace")
+                        datum: A
+                        tolerance: 0.05mm
+                    }
+                    parallel topParallelToDatumA {
+                        target: part.region("topFace")
+                        datum: A
+                        tolerance: 0.05mm
+                    }
+                }
+            }
+            """);
+
+        Assert.True(result.IsSuccess, string.Join(",", result.Diagnostics));
+        var bound = result.Document!.BoundPmi!;
+        Assert.Single(bound.Datums);
+        Assert.Equal("A", bound.Datums[0].Name);
+        var diameter = Assert.Single(bound.Dimensions.Where(d => d.Kind == FirmamentV2PmiKind.HoleDiameter));
+        Assert.Equal(6.0d, diameter.DimensionValue!.NumericValue);
+        AssertTolerance(diameter.DimensionTolerance, FirmamentV2ToleranceKind.Bilateral, 0.05d, 0.05d, "mm");
+        Assert.Contains(bound.Controls, c => c.Kind == FirmamentV2PmiKind.Flatness && c.ControlTolerance!.NumericValue!.Value == 0.03d);
+        Assert.Contains(bound.Controls, c => c.Kind == FirmamentV2PmiKind.Coplanar && c.DatumRefs.Single() == "A");
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_RecordShapedPmi_RejectsDimensionWithoutTolerance()
+    {
+        var result = FirmamentV2Parser.Parse("""
+            model PmiMissingTolerance {
+                units mm
+                let holeDiameter: length = 6.0mm
+                solid part: Box { size: [100, 60, 10] }
+                pmi {
+                    diameter mountHoleADiameter {
+                        target: part.region("mountHoleA")
+                        dimension: holeDiameter
+                    }
+                }
+            }
+            """);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.PmiDimensionMissingTolerance, result.Diagnostics);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_RecordShapedPmi_RejectsTypeMismatchUnknownDatumAndDuplicates()
+    {
+        var typeMismatch = FirmamentV2Parser.Parse("""
+            model PmiBadType {
+                units mm
+                let holeCount: int = 4
+                solid part: Box { size: [10, 8, 6] }
+                pmi { diameter badDiameter {
+                    target: part.region("mountHoleA")
+                    dimension: holeCount
+                } }
+            }
+            """);
+        Assert.False(typeMismatch.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.PmiDimensionTypeMismatch, typeMismatch.Diagnostics);
+
+        var unknownDatum = FirmamentV2Parser.Parse("""
+            model PmiUnknownDatum {
+                units mm
+                solid part: Box { size: [10, 8, 6] }
+                pmi { coplanar topToDatumA {
+                    target: part.region("topFace")
+                    datum: A
+                    tolerance: 0.05mm
+                } }
+            }
+            """);
+        Assert.False(unknownDatum.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.PmiUnknownDatum, unknownDatum.Diagnostics);
+
+        var duplicate = FirmamentV2Parser.Parse("""
+            model PmiDuplicateDatum {
+                units mm
+                solid part: Box { size: [10, 8, 6] }
+                pmi {
+                    datum A { target: part.region("baseFace") }
+                    datum A { target: part.region("topFace") }
+                }
+            }
+            """);
+        Assert.False(duplicate.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.PmiDuplicateRecord, duplicate.Diagnostics);
+        Assert.Contains(FirmamentV2Parser.PmiDuplicateDatum, duplicate.Diagnostics);
+    }
+
+    private static void AssertLet(FirmamentV2BoundLet actual, string name, FirmamentV2PrimitiveType type, object value, string? unit)
+    {
+        Assert.Equal(name, actual.Name);
+        Assert.Equal(type, actual.Type);
+        Assert.Equal(value, actual.Value.Value);
+        Assert.Equal(unit, actual.Value.Unit);
+    }
+
+    private static void AssertTolerance(FirmamentV2Tolerance? actual, FirmamentV2ToleranceKind kind, double plus, double minus, string unit)
+    {
+        Assert.NotNull(actual);
+        Assert.Equal(kind, actual.Kind);
+        Assert.Equal(plus, actual.Plus);
+        Assert.Equal(minus, actual.Minus);
+        Assert.Equal(unit, actual.Unit);
+    }
+
 }

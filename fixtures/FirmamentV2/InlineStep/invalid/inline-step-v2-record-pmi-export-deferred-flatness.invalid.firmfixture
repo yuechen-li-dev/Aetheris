@@ -1,0 +1,8 @@
+// fixture-id: inline-step-v2-record-pmi-export-deferred-flatness
+// validity: invalid
+model InlineStepRecordPmiDeferredFlatness {
+    units mm
+    solid part: InlineStep { path: "../testdata/canonical-through-hole.step" }
+    recognize part { region baseFace { kind: datumPlane faces: ["#51"] confidence: high } }
+    pmi { flatness f { target: part.region("baseFace") tolerance: 0.03mm } }
+}

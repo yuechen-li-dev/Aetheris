@@ -118,6 +118,36 @@ public sealed record OrthographicMapResult(
     IReadOnlyList<IReadOnlyList<OrthographicSample>> Grid,
     IReadOnlyList<string> Notes);
 
+
+public sealed record RayMapBounds(double[] U, double[] V);
+public sealed record RayMapHit(double T, Point3D Position, int? FaceIndex, string? SurfaceFamily, Vector3D? Normal, string IntersectionMode, string Confidence, IReadOnlyList<string> Diagnostics);
+public sealed record RayMapSample(int I, int J, double U, double V, bool Hit, RayMapHit? FirstHit, RayMapHit? LastHit, int HitCount, IReadOnlyList<RayMapHit> Hits, IReadOnlyDictionary<string, int> IntersectionModes);
+public sealed record RayMapSummary(double HitCoverage, double[]? HeightRange, IReadOnlyDictionary<string, int> SurfaceFamiliesHit, int AnalyticHitCount, int CirHitCount, int TessellatedFallbackHitCount, int UnsupportedSampleCount);
+public sealed record RayMapResult(string Mode, string Plane, string Direction, int[]? Resolution, double[]? Point, RayMapBounds Bounds, IReadOnlyList<RayMapSample> Samples, int HitCount, IReadOnlyList<RayMapHit>? Hits, RayMapSummary Summary, string IntersectionMode, string BackendPolicy, IReadOnlyList<string> Diagnostics)
+{
+    public CompactPointProbeSummary? PointSummary { get; init; }
+}
+public sealed record CompactPointProbeSummary(int HitCount, CompactHitSummary? FirstHit, CompactHitSummary? LastHit, IReadOnlyList<string> FamilySequence, IReadOnlyDictionary<string, int> BackendModes, double[]? CoordinateRangeAlongRay, IReadOnlyList<string> Diagnostics);
+public sealed record CompactHitSummary(string? Family, Point3D Position, int? FaceId, string IntersectionMode);
+public sealed record SixViewMapResult(string Mode, string MapVersion, int[] Resolution, IReadOnlyList<SixViewMapView> Views, IReadOnlyList<SuggestedMapProbe> SuggestedProbes, IReadOnlyList<string> Diagnostics)
+{
+    public IReadOnlyList<RankedMapProbe> RankedProbes { get; init; } = Array.Empty<RankedMapProbe>();
+    public EvidenceBundle? EvidenceBundle { get; init; }
+}
+public sealed record SixViewMapView(string Name, string Plane, string Direction, SixViewMapSummary Summary, CompactGrid? CompactGrid, SixViewMapComponents Components, IReadOnlyList<SuggestedMapProbe> SuggestedProbes, IReadOnlyList<string> MeasuredSummary);
+public sealed record SixViewMapSummary(int SampleCount, int HitCount, double HitCoverage, double[]? HeightRange, IReadOnlyList<DominantBand> DominantBands, IReadOnlyDictionary<string, int> SurfaceFamiliesHit, IReadOnlyDictionary<string, int> BackendCounts, double FallbackRatio);
+public sealed record DominantBand(double? Value, int SampleCount, double Coverage, string? Meaning, bool MostlyFallback);
+public sealed record CompactGrid(string Encoding, int Width, int Height, IReadOnlyDictionary<string, string> Legend, IReadOnlyList<string> Rows);
+public sealed record SixViewMapComponents(IReadOnlyList<MapComponent> NoHit, IReadOnlyList<MapComponent> HeightBands, IReadOnlyList<MapComponent> SurfaceFamilies, IReadOnlyList<MapComponent> Fallback, bool Truncated, int OmittedCount);
+public sealed record MapComponent(string ComponentId, string Kind, string View, int CellCount, double Coverage, bool TouchesBorder, CellBoundingBox BboxCells, double[] CentroidCell, double[] CentroidUv, string? ClassificationHint, string Confidence, string? Band, double? RepresentativeValue, string? SurfaceFamily, string? BackendModeDominance);
+public sealed record CellBoundingBox(int MinI, int MinJ, int MaxI, int MaxJ);
+public sealed record SuggestedMapProbe(string ProbeId, string View, string Plane, string Direction, double[] Point, string Reason, string Command, string? SourceComponentId);
+public sealed record EvidenceAction(string Kind, string? View, string Command, string Reason, object? Bounds = null, int[]? Resolution = null);
+public sealed record RankedMapProbe(int Rank, double Score, double NormalizedScore, string Kind, string View, string ComponentId, string? ClassificationHint, IReadOnlyList<string> Reasons, IReadOnlyList<string> EvidenceTerms, double Uncertainty, string RecommendedNextAction, IReadOnlyList<EvidenceAction> RecommendedActions);
+public sealed record EvidenceBundle(string Source, EvidenceBundleCoarseMap CoarseMap, IReadOnlyList<RankedMapProbe> RankedQuestions, IReadOnlyList<EvidenceAction> SuggestedActions, IReadOnlyList<object> ExecutedEvidence, EvidenceBundleLimits Limits, IReadOnlyList<string> Notes);
+public sealed record EvidenceBundleCoarseMap(int[] Resolution, int Views, bool SummaryOnly);
+public sealed record EvidenceBundleLimits(int MaxRankedItems, int MaxExecutedProbes);
+
 public enum SectionPlaneFamily
 {
     XY,

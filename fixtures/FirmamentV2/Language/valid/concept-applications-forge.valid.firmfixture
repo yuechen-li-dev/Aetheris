@@ -1,0 +1,41 @@
+// fixture-id: concept-applications-forge
+// case: firmament-v2-f1-concept-applications-forge
+// category: Language
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
+// expected-parser: FirmamentV2Parser
+// expected-concepts: process<CNC>, hole<Countersink>
+// notes: F1 Forge-backed concept-family application syntax; parser recognizes generic conceptFamily<ConceptName> shape.
+
+model ConceptApplicationsForge {
+    units mm
+
+    let Process {
+        minimumToolRadius: length = 1.5mm
+        materialName: string = "Aluminum6061"
+    }
+
+    let MountingPattern {
+        holeDiameter: length = 6.0mm tol 0.05mm
+        countersinkDiameter: length = 10.0mm tol 0.10mm
+    }
+
+    solid part: Box {
+        size: [20, 20, 6]
+    }
+
+    manufacturing process<CNC> {
+        material: Process.materialName
+        minimumToolRadius: Process.minimumToolRadius
+    }
+
+    feature mountHole: hole<Countersink> {
+        target: part.region("mountHoleA")
+        diameter: MountingPattern.holeDiameter
+        countersinkDiameter: MountingPattern.countersinkDiameter
+        angle: 90deg
+    }
+}

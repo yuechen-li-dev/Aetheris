@@ -1,0 +1,48 @@
+// fixture-id: pmi-record-shaped-basic
+// case: firmament-v2-p1-record-shaped-pmi
+// category: Language
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
+// notes: P1 record-shaped pmi block parser coverage.
+
+model PmiRecordShapedBasic {
+    units mm
+
+    let MountingPattern {
+        holeDiameter: length = 6.0mm tol 0.05mm
+        holeSpacingX: length = 80.0mm tol +0.10mm -0.05mm
+    }
+
+    solid part: Box { size: [100, 60, 10] }
+
+    pmi {
+        datum A {
+            target: part.region("baseFace")
+        }
+
+        diameter mountHoleADiameter {
+            target: part.region("mountHoleA")
+            dimension: MountingPattern.holeDiameter
+        }
+
+        distance mountHoleSpacingX {
+            targetA: part.region("mountHoleA")
+            targetB: part.region("mountHoleB")
+            dimension: MountingPattern.holeSpacingX
+        }
+
+        flatness baseFlatness {
+            target: part.region("baseFace")
+            tolerance: 0.03mm
+        }
+
+        coplanar topToDatumA {
+            target: part.region("topFace")
+            datum: A
+            tolerance: 0.05mm
+        }
+    }
+}

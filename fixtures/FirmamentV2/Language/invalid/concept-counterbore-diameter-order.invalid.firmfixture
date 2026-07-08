@@ -1,0 +1,24 @@
+// fixture-id: concept-counterbore-diameter-order
+// case: forge-cs-a3-counterbore-diameter-order
+// category: Language
+// syntax-version: FirmamentV2
+// validity: invalid
+
+model CounterboreDiameterOrderInvalid {
+    units mm
+
+    let d: length = 8.0mm tol 0.05mm
+    let cbd: length = 6.0mm tol 0.05mm
+    let depth: length = 2.0mm
+
+    solid part: Box {
+        size: [20, 20, 6]
+    }
+
+    feature badHole: hole<Counterbore> {
+        target: part.region("holeA")
+        diameter: d
+        counterboreDiameter: cbd
+        counterboreDepth: depth
+    }
+}

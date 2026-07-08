@@ -1,0 +1,23 @@
+// fixture-id: concept-cnc-minimum-tool-radius
+// case: forge-cs-a3-cnc-minimum-tool-radius
+// category: Language
+// syntax-version: FirmamentV2
+// validity: invalid
+
+model CncMinimumToolRadiusInvalid {
+    units mm
+
+    let Process {
+        minimumToolRadius: length = 0.0mm
+        materialName: string = "Aluminum6061"
+    }
+
+    solid part: Box {
+        size: [20, 20, 6]
+    }
+
+    manufacturing process<CNC> {
+        material: Process.materialName
+        minimumToolRadius: Process.minimumToolRadius
+    }
+}

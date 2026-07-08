@@ -1,4 +1,5 @@
 using System.Globalization;
+using Aetheris.Forge.Abstractions.FirmamentInterop;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -13,11 +14,12 @@ public sealed record FirmamentV2ValidationReport(
     FirmamentV2ValidationSummary Summary);
 
 public sealed record FirmamentV2ValidationSummary(int LetCount, int TolerancedLetCount, int ConceptCount, int ValidConceptCount, int PmiRecordCount, int ExportSupportedPmiCount, int ExportDeferredPmiCount, int FatalDiagnosticCount, int WarningDiagnosticCount);
-public sealed record FirmamentV2ValidationDiagnostic(string Code, string Severity, string Message);
+public sealed record FirmamentV2ValidationDiagnostic(string Code, string Severity, string Message, string? FieldName = null, string? Target = null);
 public sealed record FirmamentV2ValidationExportSupport(int SupportedPmiCount, int DeferredPmiCount, IReadOnlyDictionary<string, string> Matrix);
 public sealed record FirmamentV2ValidationLet(string Name, string Type, string Nominal, FirmamentV2ValidationTolerance? Tolerance, string Source, IReadOnlyList<string> Dependencies, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
 public sealed record FirmamentV2ValidationTolerance(string Kind, string Plus, string Minus);
-public sealed record FirmamentV2ValidationConcept(string Kind, string? Name, string Family, string Concept, string Status, string DfmStatus, IReadOnlyList<FirmamentV2ValidationConceptField> Fields, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
+public sealed record FirmamentV2ValidationConceptRuntimeValidation(string Provider, string Status, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
+public sealed record FirmamentV2ValidationConcept(string Kind, string? Name, string Family, string Concept, string Status, string DfmStatus, IReadOnlyList<FirmamentV2ValidationConceptField> Fields, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics, FirmamentV2ValidationConceptRuntimeValidation? RuntimeValidation = null);
 public sealed record FirmamentV2ValidationConceptField(string Name, string Type, bool HasTolerance, string Source);
 public sealed record FirmamentV2ValidationPmiRecord(string Kind, string Name, string Status, string ExportSupport, string? Target, IReadOnlyList<string> Targets, IReadOnlyList<string> DatumRefs, FirmamentV2ValidationDimension? Dimension, string? Reason, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
 public sealed record FirmamentV2ValidationDimension(string Nominal, FirmamentV2ValidationTolerance? Tolerance);
@@ -26,77 +28,262 @@ public static class FirmamentV2ValidationReportBuilder
 {
     public static FirmamentV2ValidationReport Build(FirmamentV2ParseResult parse, string source = "inline")
     {
-        var diagnostics = parse.Diagnostics.Distinct(StringComparer.Ordinal).Select(ToDiagnostic).ToArray();
-        var fatalCount = diagnostics.Count(d => d.Severity == "fatal");
+        var runtimeValidation = FirmamentV2RuntimeConceptValidation.Validate(parse.Document);
+        var diagnostics = parse.Diagnostics
+            .Distinct(StringComparer.Ordinal)
+            .Select(ToParserDiagnostic)
+            .Concat(runtimeValidation.Diagnostics.Select(ToRuntimeDiagnostic))
+            .Distinct()
+            .ToArray();
+
+        var fatalCount = diagnostics.Count(diagnostic => diagnostic.Severity == "fatal");
         var warningCount = diagnostics.Length - fatalCount;
         var document = parse.Document;
         var lets = document is null ? [] : BuildLets(document);
-        var concepts = document is null ? [] : BuildConcepts(document);
+        var concepts = document is null ? [] : BuildConcepts(document, runtimeValidation);
         var pmi = document is null ? [] : BuildPmi(document, diagnostics);
-        var supported = pmi.Count(p => p.ExportSupport is "supported" or "supported-when-target-resolves");
-        var deferred = pmi.Count(p => p.ExportSupport == "deferred");
+        var supported = pmi.Count(record => record.ExportSupport is "supported" or "supported-when-target-resolves");
+        var deferred = pmi.Count(record => record.ExportSupport == "deferred");
         var status = fatalCount > 0 ? "invalid" : deferred > 0 ? "valid-with-deferred-export" : "valid";
-        var summary = new FirmamentV2ValidationSummary(lets.Count, lets.Count(l => l.Tolerance is not null), concepts.Count, concepts.Count(c => c.Status == "valid"), pmi.Count, supported, deferred, fatalCount, warningCount);
-        return new(source, status, lets, concepts, pmi, new(supported, deferred, ExportMatrix), diagnostics, summary);
+        var summary = new FirmamentV2ValidationSummary(
+            lets.Count,
+            lets.Count(row => row.Tolerance is not null),
+            concepts.Count,
+            concepts.Count(row => row.Status == "valid"),
+            pmi.Count,
+            supported,
+            deferred,
+            fatalCount,
+            warningCount);
+
+        return new FirmamentV2ValidationReport(
+            source,
+            status,
+            lets,
+            concepts,
+            pmi,
+            new FirmamentV2ValidationExportSupport(supported, deferred, ExportMatrix),
+            diagnostics,
+            summary);
     }
 
-    private static IReadOnlyList<FirmamentV2ValidationLet> BuildLets(FirmamentV2Document d)
+    private static IReadOnlyList<FirmamentV2ValidationLet> BuildLets(FirmamentV2Document document)
     {
         var rows = new List<FirmamentV2ValidationLet>();
-        foreach (var l in d.BoundLets ?? []) rows.Add(Let(l.Name, l, "let"));
-        foreach (var r in d.BoundLetRecords ?? []) foreach (var f in r.Fields.Values) rows.Add(Let($"{r.Name}.{f.Name}", f, "let-record"));
-        return rows.OrderBy(l => l.Name, StringComparer.Ordinal).ToArray();
+        foreach (var boundLet in document.BoundLets ?? [])
+        {
+            rows.Add(Let(boundLet.Name, boundLet, "let"));
+        }
+
+        foreach (var record in document.BoundLetRecords ?? [])
+        {
+            foreach (var field in record.Fields.Values)
+            {
+                rows.Add(Let($"{record.Name}.{field.Name}", field, "let-record"));
+            }
+        }
+
+        return rows.OrderBy(row => row.Name, StringComparer.Ordinal).ToArray();
     }
 
-    private static IReadOnlyList<string> Dependencies(FirmamentV2BoundLet l) => l.Dependencies is null ? [] : l.Dependencies.Order(StringComparer.Ordinal).ToArray();
+    private static IReadOnlyList<string> Dependencies(FirmamentV2BoundLet boundLet) =>
+        boundLet.Dependencies is null ? [] : boundLet.Dependencies.Order(StringComparer.Ordinal).ToArray();
 
-    private static FirmamentV2ValidationLet Let(string name, FirmamentV2BoundLet l, string source) => new(name, TypeName(l.Type), FormatValue(l.Value), ToTolerance(l.Tolerance), source, Dependencies(l), []);
+    private static FirmamentV2ValidationLet Let(string name, FirmamentV2BoundLet boundLet, string source) =>
+        new(name, TypeName(boundLet.Type), FormatValue(boundLet.Value), ToTolerance(boundLet.Tolerance), source, Dependencies(boundLet), []);
 
-    private static IReadOnlyList<FirmamentV2ValidationConcept> BuildConcepts(FirmamentV2Document d)
+    private static IReadOnlyList<FirmamentV2ValidationConcept> BuildConcepts(
+        FirmamentV2Document document,
+        FirmamentV2RuntimeConceptValidationResult runtimeValidation)
     {
+        var runtimeByKey = runtimeValidation.Concepts.ToDictionary(
+            result => ConceptKey(result.Kind, result.Name, result.Family, result.Concept),
+            StringComparer.Ordinal);
+
         var rows = new List<FirmamentV2ValidationConcept>();
-        foreach (var c in d.ManufacturingConcepts ?? []) rows.Add(Concept("manufacturing", null, c.Application, c.BoundFields ?? []));
-        foreach (var c in d.FeatureConcepts ?? []) rows.Add(Concept("feature", c.Name, c.Application, c.BoundFields ?? []));
+        foreach (var declaration in document.ManufacturingConcepts ?? [])
+        {
+            rows.Add(Concept("manufacturing", null, declaration.Application, declaration.BoundFields ?? [], runtimeByKey));
+        }
+
+        foreach (var declaration in document.FeatureConcepts ?? [])
+        {
+            rows.Add(Concept("feature", declaration.Name, declaration.Application, declaration.BoundFields ?? [], runtimeByKey));
+        }
+
         return rows;
     }
 
-    private static FirmamentV2ValidationConcept Concept(string kind, string? name, FirmamentV2ConceptApplication app, IReadOnlyList<FirmamentV2BoundConceptField> fields)
+    private static FirmamentV2ValidationConcept Concept(
+        string kind,
+        string? name,
+        FirmamentV2ConceptApplication application,
+        IReadOnlyList<FirmamentV2BoundConceptField> fields,
+        IReadOnlyDictionary<string, FirmamentV2RuntimeConceptValidationEntry> runtimeByKey)
     {
-        var reportFields = fields.Select(f => new FirmamentV2ValidationConceptField(f.Name, f.TargetSource is not null ? "target" : f.BoundValue is null ? "unknown" : TypeName(f.BoundValue.InferredType), f.BoundValue?.AliasTolerance is not null, f.TargetSource ?? f.Field.Source)).ToArray();
-        var valid = FirmamentV2ForgeConceptRegistry.TryGet(app.FamilyName, app.ConceptName, out var descriptor) && descriptor.Fields.Values.Where(f => f.Required).All(f => reportFields.Any(r => r.Name == f.Name)) && reportFields.All(f => f.Type != "unknown");
-        return new(kind, name, app.FamilyName, app.ConceptName, valid ? "valid" : "invalid", "not-run", reportFields, []);
+        var reportFields = fields
+            .Select(field => new FirmamentV2ValidationConceptField(
+                field.Name,
+                field.TargetSource is not null ? "target" : field.BoundValue is null ? "unknown" : TypeName(field.BoundValue.InferredType),
+                field.BoundValue?.AliasTolerance is not null,
+                field.TargetSource ?? field.Field.Source))
+            .ToArray();
+
+        var parserValid = FirmamentV2ForgeConceptRegistry.TryGet(application.FamilyName, application.ConceptName, out var descriptor)
+            && descriptor.Fields.Values.Where(field => field.Required).All(field => reportFields.Any(reportField => reportField.Name == field.Name))
+            && reportFields.All(reportField => reportField.Type != "unknown");
+
+        runtimeByKey.TryGetValue(ConceptKey(kind, name, application.FamilyName, application.ConceptName), out var runtime);
+        var runtimeDiagnostics = runtime?.Diagnostics.Select(ToRuntimeDiagnostic).ToArray() ?? [];
+        var runtimeStatus = runtime is null
+            ? null
+            : new FirmamentV2ValidationConceptRuntimeValidation(runtime.Provider, runtime.Status, runtimeDiagnostics);
+
+        var status = !parserValid || runtime?.Status == "invalid" ? "invalid" : "valid";
+
+        return new FirmamentV2ValidationConcept(
+            kind,
+            name,
+            application.FamilyName,
+            application.ConceptName,
+            status,
+            "not-run",
+            reportFields,
+            runtimeDiagnostics,
+            runtimeStatus);
     }
 
-    private static IReadOnlyList<FirmamentV2ValidationPmiRecord> BuildPmi(FirmamentV2Document d, IReadOnlyList<FirmamentV2ValidationDiagnostic> diagnostics)
+    private static string ConceptKey(FirmamentConceptApplicationKind kind, string? name, string family, string concept) =>
+        ConceptKey(kind == FirmamentConceptApplicationKind.Manufacturing ? "manufacturing" : "feature", name, family, concept);
+
+    private static string ConceptKey(string kind, string? name, string family, string concept) =>
+        string.Join("|", kind, name ?? string.Empty, family, concept);
+
+    private static IReadOnlyList<FirmamentV2ValidationPmiRecord> BuildPmi(
+        FirmamentV2Document document,
+        IReadOnlyList<FirmamentV2ValidationDiagnostic> diagnostics)
     {
-        var bound = (d.BoundPmi?.Datums ?? []).Concat(d.BoundPmi?.Dimensions ?? []).Concat(d.BoundPmi?.Controls ?? []).ToDictionary(r => r.Name, StringComparer.Ordinal);
-        return (d.PmiBlock?.Records ?? []).Select(r =>
+        var bound = (document.BoundPmi?.Datums ?? [])
+            .Concat(document.BoundPmi?.Dimensions ?? [])
+            .Concat(document.BoundPmi?.Controls ?? [])
+            .ToDictionary(record => record.Name, StringComparer.Ordinal);
+
+        return (document.PmiBlock?.Records ?? []).Select(record =>
         {
-            bound.TryGetValue(r.Name, out var b);
-            var export = ExportSupport(r.Kind, b);
-            var itemDiagnostics = b is null ? diagnostics.Where(x => x.Code.StartsWith("firmament-v2-pmi-", StringComparison.Ordinal)).ToArray() : [];
-            var status = itemDiagnostics.Any(x => x.Severity == "fatal") ? "invalid" : export == "deferred" ? "export-deferred" : "valid";
-            return new FirmamentV2ValidationPmiRecord(KindName(r.Kind), r.Name, status, export, b?.Targets.FirstOrDefault() ?? Field(r, "target"), b?.Targets ?? [], b?.DatumRefs ?? [], Dimension(b), export == "deferred" ? DeferredReason(r.Kind) : null, itemDiagnostics);
+            bound.TryGetValue(record.Name, out var boundRecord);
+            var exportSupport = ExportSupport(record.Kind, boundRecord);
+            var itemDiagnostics = boundRecord is null
+                ? diagnostics.Where(diagnostic => diagnostic.Code.StartsWith("firmament-v2-pmi-", StringComparison.Ordinal)).ToArray()
+                : [];
+            var status = itemDiagnostics.Any(diagnostic => diagnostic.Severity == "fatal")
+                ? "invalid"
+                : exportSupport == "deferred"
+                    ? "export-deferred"
+                    : "valid";
+
+            return new FirmamentV2ValidationPmiRecord(
+                KindName(record.Kind),
+                record.Name,
+                status,
+                exportSupport,
+                boundRecord?.Targets.FirstOrDefault() ?? Field(record, "target"),
+                boundRecord?.Targets ?? [],
+                boundRecord?.DatumRefs ?? [],
+                Dimension(boundRecord),
+                exportSupport == "deferred" ? DeferredReason(record.Kind) : null,
+                itemDiagnostics);
         }).ToArray();
     }
 
-    private static FirmamentV2ValidationDimension? Dimension(FirmamentV2BoundPmiRecord? b)
+    private static FirmamentV2ValidationDimension? Dimension(FirmamentV2BoundPmiRecord? boundRecord)
     {
-        if (b is null) return null;
-        if (b.DimensionValue is not null) return new(FormatValue(b.DimensionValue), ToTolerance(b.DimensionTolerance));
-        if (b.ControlTolerance is not null) return new(FormatValue(b.ControlTolerance), null);
+        if (boundRecord is null)
+        {
+            return null;
+        }
+
+        if (boundRecord.DimensionValue is not null)
+        {
+            return new FirmamentV2ValidationDimension(FormatValue(boundRecord.DimensionValue), ToTolerance(boundRecord.DimensionTolerance));
+        }
+
+        if (boundRecord.ControlTolerance is not null)
+        {
+            return new FirmamentV2ValidationDimension(FormatValue(boundRecord.ControlTolerance), null);
+        }
+
         return null;
     }
 
-    private static FirmamentV2ValidationDiagnostic ToDiagnostic(string code) => new(code, FirmamentV2Parser.IsFatalDiagnosticCode(code) ? "fatal" : "warning", Message(code));
-    private static string Message(string code) => code switch { FirmamentV2Parser.PmiDimensionMissingTolerance => "PMI dimension resolves to a value without tolerance evidence.", FirmamentV2Parser.ConceptMissingRequiredField => "Forge concept application is missing a required descriptor field.", FirmamentV2Parser.PmiUnknownDatum => "PMI relation references an unknown datum.", FirmamentV2Parser.ToleranceDroppedThroughArithmetic => "A toleranced value was used in arithmetic and only the nominal value was preserved.", _ => code };
-    private static FirmamentV2ValidationTolerance? ToTolerance(FirmamentV2Tolerance? t) => t is null ? null : new(t.Kind == FirmamentV2ToleranceKind.Bilateral ? "bilateral" : "asymmetric", FormatNumber(t.Plus) + t.Unit, FormatNumber(t.Minus) + t.Unit);
-    private static string FormatValue(FirmamentV2LiteralValue v) => v.Unit is null ? Convert.ToString(v.Value, CultureInfo.InvariantCulture) ?? string.Empty : FormatNumber(v.NumericValue ?? 0) + v.Unit;
+    private static FirmamentV2ValidationDiagnostic ToParserDiagnostic(string code) =>
+        new(code, FirmamentV2Parser.IsFatalDiagnosticCode(code) ? "fatal" : "warning", Message(code));
+
+    private static FirmamentV2ValidationDiagnostic ToRuntimeDiagnostic(FirmamentDiagnostic diagnostic) =>
+        new(
+            diagnostic.Code,
+            diagnostic.Severity switch
+            {
+                FirmamentDiagnosticSeverity.Fatal => "fatal",
+                FirmamentDiagnosticSeverity.Warning => "warning",
+                _ => "info"
+            },
+            diagnostic.Message,
+            diagnostic.FieldName,
+            diagnostic.Target);
+
+    private static string Message(string code) => code switch
+    {
+        FirmamentV2Parser.PmiDimensionMissingTolerance => "PMI dimension resolves to a value without tolerance evidence.",
+        FirmamentV2Parser.ConceptMissingRequiredField => "Forge concept application is missing a required descriptor field.",
+        FirmamentV2Parser.PmiUnknownDatum => "PMI relation references an unknown datum.",
+        FirmamentV2Parser.ToleranceDroppedThroughArithmetic => "A toleranced value was used in arithmetic and only the nominal value was preserved.",
+        _ => code
+    };
+
+    private static FirmamentV2ValidationTolerance? ToTolerance(FirmamentV2Tolerance? tolerance) =>
+        tolerance is null
+            ? null
+            : new(
+                tolerance.Kind == FirmamentV2ToleranceKind.Bilateral ? "bilateral" : "asymmetric",
+                FormatNumber(tolerance.Plus) + tolerance.Unit,
+                FormatNumber(tolerance.Minus) + tolerance.Unit);
+
+    private static string FormatValue(FirmamentV2LiteralValue value) =>
+        value.Unit is null
+            ? Convert.ToString(value.Value, CultureInfo.InvariantCulture) ?? string.Empty
+            : FormatNumber(value.NumericValue ?? 0) + value.Unit;
+
     private static string FormatNumber(double value) => value.ToString("0.############", CultureInfo.InvariantCulture);
-    private static string TypeName(FirmamentV2PrimitiveType t) => t.ToString().ToLowerInvariant();
-    private static string KindName(FirmamentV2PmiKind k) => k switch { FirmamentV2PmiKind.HoleDiameter => "diameter", FirmamentV2PmiKind.DatumPlane => "datum", _ => k.ToString().ToLowerInvariant() };
-    private static string? Field(FirmamentV2PmiRecord r, string name) => r.Fields.TryGetValue(name, out var f) ? f.Source : null;
-    private static string ExportSupport(FirmamentV2PmiKind kind, FirmamentV2BoundPmiRecord? bound) => kind switch { FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter => bound is null ? "supported-when-target-resolves" : "supported", _ => "deferred" };
-    private static string DeferredReason(FirmamentV2PmiKind kind) => $"AP242 lowering for {KindName(kind)} is not implemented in Phase 1 P1.";
-    private static readonly IReadOnlyDictionary<string, string> ExportMatrix = new Dictionary<string, string>(StringComparer.Ordinal) { ["datum"] = "supported-when-target-resolves", ["diameter"] = "supported-when-target-resolves", ["distance"] = "deferred", ["flatness"] = "deferred", ["parallel"] = "deferred", ["perpendicular"] = "deferred", ["coplanar"] = "deferred" };
+
+    private static string TypeName(FirmamentV2PrimitiveType type) => type.ToString().ToLowerInvariant();
+
+    private static string KindName(FirmamentV2PmiKind kind) => kind switch
+    {
+        FirmamentV2PmiKind.HoleDiameter => "diameter",
+        FirmamentV2PmiKind.DatumPlane => "datum",
+        _ => kind.ToString().ToLowerInvariant()
+    };
+
+    private static string? Field(FirmamentV2PmiRecord record, string name) =>
+        record.Fields.TryGetValue(name, out var field) ? field.Source : null;
+
+    private static string ExportSupport(FirmamentV2PmiKind kind, FirmamentV2BoundPmiRecord? boundRecord) => kind switch
+    {
+        FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter => boundRecord is null ? "supported-when-target-resolves" : "supported",
+        _ => "deferred"
+    };
+
+    private static string DeferredReason(FirmamentV2PmiKind kind) =>
+        $"AP242 lowering for {KindName(kind)} is not implemented in Phase 1 P1.";
+
+    private static readonly IReadOnlyDictionary<string, string> ExportMatrix = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["datum"] = "supported-when-target-resolves",
+        ["diameter"] = "supported-when-target-resolves",
+        ["distance"] = "deferred",
+        ["flatness"] = "deferred",
+        ["parallel"] = "deferred",
+        ["perpendicular"] = "deferred",
+        ["coplanar"] = "deferred"
+    };
 }

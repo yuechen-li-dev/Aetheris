@@ -1,0 +1,23 @@
+// fixture-id: concept-countersink-diameter-order
+// case: forge-cs-a3-countersink-diameter-order
+// category: Language
+// syntax-version: FirmamentV2
+// validity: invalid
+
+model CountersinkDiameterOrderInvalid {
+    units mm
+
+    let d: length = 10.0mm tol 0.05mm
+    let csd: length = 8.0mm tol 0.05mm
+
+    solid part: Box {
+        size: [20, 20, 6]
+    }
+
+    feature badHole: hole<Countersink> {
+        target: part.region("holeA")
+        diameter: d
+        countersinkDiameter: csd
+        angle: 90deg
+    }
+}

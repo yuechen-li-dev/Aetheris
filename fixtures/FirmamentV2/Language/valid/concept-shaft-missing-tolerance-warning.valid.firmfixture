@@ -1,0 +1,18 @@
+// fixture-id: concept-shaft-missing-tolerance-warning
+// case: forge-cs-a3-shaft-missing-tolerance-warning
+// category: Language
+// syntax-version: FirmamentV2
+// validity: valid
+
+model ShaftMissingToleranceWarning {
+    units mm
+
+    solid part: Box {
+        size: [20, 20, 6]
+    }
+
+    feature h: hole<Shaft> {
+        target: part.region("holeA")
+        diameter: 6.0mm
+    }
+}

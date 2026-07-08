@@ -47,6 +47,7 @@ public sealed class ConceptSchemaBuilder
     public ConceptSchemaFieldBuilder RequiredTarget(string name) => Add(name, ConceptSchemaValueKind.Target);
     public ConceptSchemaFieldBuilder RequiredLength(string name) => Add(name, ConceptSchemaValueKind.Length);
     public ConceptSchemaFieldBuilder RequiredAngle(string name) => Add(name, ConceptSchemaValueKind.Angle);
+    public ConceptSchemaFieldBuilder RequiredMaterial(string name) => Add(name, ConceptSchemaValueKind.Material);
     public ConceptSchemaFieldBuilder RequiredString(string name) => Add(name, ConceptSchemaValueKind.String);
     public ConceptSchemaFieldBuilder RequiredBool(string name) => Add(name, ConceptSchemaValueKind.Bool);
     public ConceptSchemaFieldBuilder RequiredFloat(string name) => Add(name, ConceptSchemaValueKind.Float);
@@ -100,12 +101,70 @@ public enum ConceptSchemaValueKind
     Target,
     Length,
     Angle,
+    Material,
     String,
     Bool,
     Float,
     Int
 }
 
-public sealed record ConceptValidationContext(
-    FirmamentConceptApplicationView Application,
-    IFirmamentVariables Variables);
+public sealed class ConceptValidationContext
+{
+    private readonly IReadOnlyDictionary<string, FirmamentConceptFieldView> fields;
+
+    public ConceptValidationContext(
+        FirmamentConceptApplicationView application,
+        IFirmamentVariables variables)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        ArgumentNullException.ThrowIfNull(variables);
+
+        Application = application;
+        Variables = variables;
+        fields = application.Fields.ToDictionary(field => field.Name, StringComparer.Ordinal);
+    }
+
+    public FirmamentConceptApplicationView Application { get; }
+
+    public IFirmamentVariables Variables { get; }
+
+    public IReadOnlyDictionary<string, FirmamentConceptFieldView> Fields => fields;
+
+    public bool TryGetField(string name, out FirmamentConceptFieldView field) => fields.TryGetValue(name, out field!);
+
+    public bool TryGetScalar(string name, out FirmamentScalarValue value)
+    {
+        if (TryGetField(name, out var field) && field.Value is FirmamentScalarValue scalar)
+        {
+            value = scalar;
+            return true;
+        }
+
+        value = null!;
+        return false;
+    }
+
+    public bool TryGetNumeric(string name, FirmamentValueKind expectedKind, out double numericValue)
+    {
+        numericValue = 0;
+        if (!TryGetScalar(name, out var value) || value.Kind != expectedKind || value.NumericValue is null)
+        {
+            return false;
+        }
+
+        numericValue = value.NumericValue.Value;
+        return true;
+    }
+
+    public bool TryGetTargetSource(string name, out string targetSource)
+    {
+        if (TryGetField(name, out var field) && !string.IsNullOrWhiteSpace(field.TargetSource))
+        {
+            targetSource = field.TargetSource;
+            return true;
+        }
+
+        targetSource = null!;
+        return false;
+    }
+}

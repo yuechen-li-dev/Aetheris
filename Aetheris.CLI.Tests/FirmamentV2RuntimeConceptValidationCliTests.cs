@@ -59,6 +59,33 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
         Assert.DoesNotContain("--forge-pack", stdout.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ValidateJson_ConceptPmiObligationWarningFixture_ReturnsZeroAndContainsObligationRow()
+    {
+        var fixturePath = FixturePath("Language/valid/concept-pmi-obligation-missing-warning.valid.firmfixture");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = CliRunner.Run(["validate", fixturePath, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(string.Empty, stderr.ToString());
+
+        using var document = JsonDocument.Parse(stdout.ToString());
+        var validation = document.RootElement.GetProperty("firmamentV2Validation");
+        Assert.Equal("valid", validation.GetProperty("status").GetString());
+        Assert.True(validation.TryGetProperty("conceptPmiObligations", out var obligations));
+        Assert.Contains(
+            obligations.EnumerateArray(),
+            obligation => obligation.GetProperty("kind").GetString() == "diameter"
+                && obligation.GetProperty("sourceConcept").GetString() == "hole<Shaft>"
+                && obligation.GetProperty("status").GetString() == "missing");
+        Assert.Contains(
+            validation.GetProperty("diagnostics").EnumerateArray(),
+            diagnostic => diagnostic.GetProperty("code").GetString() == "forge.pmi.obligation.missing"
+                && diagnostic.GetProperty("severity").GetString() == "warning");
+    }
+
     private static string FixturePath(string relative) => Path.Combine(FindRepoRoot(), "fixtures", "FirmamentV2", relative);
 
     private static string FindRepoRoot()

@@ -2,7 +2,7 @@ using Aetheris.Forge.Abstractions.FirmamentInterop;
 
 namespace Aetheris.Forge.Standard;
 
-public sealed class CountersinkHoleConcept : IForgeConcept
+public sealed class CountersinkHoleConcept : IForgeConcept, IForgePmiObligationProvider
 {
     public ConceptId Id => new("hole", "Countersink");
 
@@ -76,5 +76,20 @@ public sealed class CountersinkHoleConcept : IForgeConcept
             diagnostics);
 
         return diagnostics;
+    }
+
+    public IEnumerable<PmiObligation> GetPmiObligations(ConceptValidationContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return
+        [
+            new PmiObligation(
+                "diameter",
+                Id,
+                context.Application.Name,
+                context.TryGetTargetSource("target", out var targetSource) ? targetSource : null,
+                "diameter",
+                FirmamentDiagnosticSeverity.Warning)
+        ];
     }
 }

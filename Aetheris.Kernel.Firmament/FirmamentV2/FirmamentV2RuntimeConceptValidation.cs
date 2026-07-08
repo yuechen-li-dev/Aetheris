@@ -7,6 +7,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 public sealed record FirmamentV2RuntimeConceptValidationResult(
     string Provider,
     IReadOnlyList<FirmamentV2RuntimeConceptValidationEntry> Concepts,
+    IReadOnlyList<PmiObligation> PmiObligations,
     IReadOnlyList<FirmamentDiagnostic> Diagnostics);
 
 public sealed record FirmamentV2RuntimeConceptValidationEntry(
@@ -28,7 +29,7 @@ public static class FirmamentV2RuntimeConceptValidation
     {
         if (document is null)
         {
-            return new FirmamentV2RuntimeConceptValidationResult(string.Empty, [], []);
+            return new FirmamentV2RuntimeConceptValidationResult(string.Empty, [], [], []);
         }
 
         var registry = new ForgeConceptRegistry();
@@ -37,6 +38,7 @@ public static class FirmamentV2RuntimeConceptValidation
 
         var variables = new FirmamentV2VariablesAdapter(document);
         var conceptResults = new List<FirmamentV2RuntimeConceptValidationEntry>();
+        var obligations = new List<PmiObligation>();
         var diagnostics = new List<FirmamentDiagnostic>();
 
         foreach (var declaration in document.ManufacturingConcepts ?? [])
@@ -47,6 +49,7 @@ public static class FirmamentV2RuntimeConceptValidation
                 pack.Id,
                 registry,
                 conceptResults,
+                obligations,
                 diagnostics);
         }
 
@@ -58,12 +61,14 @@ public static class FirmamentV2RuntimeConceptValidation
                 pack.Id,
                 registry,
                 conceptResults,
+                obligations,
                 diagnostics);
         }
 
         return new FirmamentV2RuntimeConceptValidationResult(
             pack.Id,
             conceptResults,
+            obligations,
             diagnostics);
     }
 
@@ -73,6 +78,7 @@ public static class FirmamentV2RuntimeConceptValidation
         string provider,
         IForgeRegistry registry,
         ICollection<FirmamentV2RuntimeConceptValidationEntry> conceptResults,
+        ICollection<PmiObligation> obligations,
         ICollection<FirmamentDiagnostic> diagnostics)
     {
         if (!registry.TryResolve(application.ConceptId, out var concept))
@@ -80,7 +86,8 @@ public static class FirmamentV2RuntimeConceptValidation
             return;
         }
 
-        var conceptDiagnostics = concept.Validate(new ConceptValidationContext(application, variables))
+        var context = new ConceptValidationContext(application, variables);
+        var conceptDiagnostics = concept.Validate(context)
             .Distinct()
             .ToArray();
 
@@ -95,6 +102,21 @@ public static class FirmamentV2RuntimeConceptValidation
         foreach (var diagnostic in conceptDiagnostics)
         {
             diagnostics.Add(diagnostic);
+        }
+
+        if (conceptDiagnostics.Any(diagnostic => diagnostic.Severity == FirmamentDiagnosticSeverity.Fatal))
+        {
+            return;
+        }
+
+        if (concept is not IForgePmiObligationProvider obligationProvider)
+        {
+            return;
+        }
+
+        foreach (var obligation in obligationProvider.GetPmiObligations(context).Distinct())
+        {
+            obligations.Add(obligation);
         }
     }
 }

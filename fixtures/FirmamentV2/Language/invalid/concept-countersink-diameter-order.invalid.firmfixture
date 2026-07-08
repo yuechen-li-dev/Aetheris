@@ -3,6 +3,10 @@
 // category: Language
 // syntax-version: FirmamentV2
 // validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-fixture-rejected
 
 model CountersinkDiameterOrderInvalid {
     units mm

@@ -3,6 +3,9 @@
 // category: Language
 // syntax-version: FirmamentV2
 // validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
 
 model ShaftMissingToleranceWarning {
     units mm

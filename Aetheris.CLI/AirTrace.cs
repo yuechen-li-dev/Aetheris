@@ -407,19 +407,22 @@ internal static class AirTraceReportBuilder
     private static bool IsMetadataOnlyFixture(FirmFixture fixture)
     {
         var implementation = fixture.Metadata.GetValueOrDefault("implementation");
-        if (string.Equals(implementation, "not-implemented", StringComparison.Ordinal) || string.Equals(implementation, "deferred", StringComparison.Ordinal)) return true;
+        if (string.Equals(implementation, "not-implemented", StringComparison.Ordinal)
+            || string.Equals(implementation, "design-only-not-implemented", StringComparison.Ordinal)
+            || string.Equals(implementation, "deferred", StringComparison.Ordinal)) return true;
         return !SupportedFixtureCases.Contains(fixture.CaseName, StringComparer.Ordinal) && string.Equals(implementation, "rejected", StringComparison.Ordinal);
     }
 
     private static AirTraceReport BuildMetadataOnlyFixture(FirmFixture fixture)
     {
         var implementation = fixture.Metadata.GetValueOrDefault("implementation") ?? (fixture.Expectation == "invalid" ? "rejected" : "not-implemented");
-        var expectedDiagnostic = fixture.Metadata.GetValueOrDefault("expected-diagnostic") ?? (implementation == "not-implemented" ? "firmament-feature-not-implemented" : "firmament-fixture-rejected");
-        var actualStage = fixture.ExpectedStage ?? (implementation == "deferred" ? "deferred" : implementation == "rejected" || fixture.Expectation == "invalid" ? "rejected" : "not-implemented");
-        var isNotImplemented = implementation is "not-implemented" or "deferred";
+        var normalizedImplementation = implementation == "design-only-not-implemented" ? "not-implemented" : implementation;
+        var expectedDiagnostic = fixture.Metadata.GetValueOrDefault("expected-diagnostic") ?? (normalizedImplementation == "not-implemented" ? "firmament-feature-not-implemented" : "firmament-fixture-rejected");
+        var actualStage = fixture.ExpectedStage ?? (normalizedImplementation == "deferred" ? "deferred" : normalizedImplementation == "rejected" || fixture.Expectation == "invalid" ? "rejected" : "not-implemented");
+        var isNotImplemented = normalizedImplementation is "not-implemented" or "deferred";
         var expectationSatisfied = fixture.Expectation == "valid"
             ? isNotImplemented && (actualStage is "not-implemented" or "deferred" || fixture.ExpectedStage == actualStage)
-            : implementation == "rejected" || actualStage == "rejected";
+            : normalizedImplementation == "rejected" || actualStage == "rejected";
         var diagnostics = Stable([.. fixture.Diagnostics, "air-firmament-a1-metadata-only-fixture-classified", expectedDiagnostic, isNotImplemented ? "air-firmament-a1-feature-not-implemented" : "air-firmament-a1-fixture-rejected", expectationSatisfied ? "air-firmament-a1-expectation-satisfied" : "air-firmament-a1-expectation-not-satisfied"]).ToArray();
         return new("AIR-FIRMAMENT-A1", "trace", "lowering", "firmfixture", fixture.CaseName, expectationSatisfied, isNotImplemented ? "Fixture is valid Firmament design intent but its lowering/materialization route is deliberately not implemented in A1." : "Fixture is rejected by metadata contract with stable diagnostic.",
             new("FirmamentFixture", "none", fixture.Metadata.GetValueOrDefault("category") ?? "none", "none", "metadata-only-fixture", fixture.CaseName, fixture.Metadata.GetValueOrDefault("fixture-id") ?? fixture.CaseName, "AIR-FIRMAMENT-A1"),

@@ -166,6 +166,8 @@ Added fixtures:
 - `fixtures/FirmamentV2/Language/invalid/concept-cnc-minimum-tool-radius.invalid.firmfixture`
 - `fixtures/FirmamentV2/Language/valid/concept-shaft-missing-tolerance-warning.valid.firmfixture`
 
+Forward link: [`forge-cs-a4-concept-pmi-obligations.md`](forge-cs-a4-concept-pmi-obligations.md) extends the same runtime concept path with report-only PMI obligation rows and warning-only missing-obligation findings.
+
 ## Explicit non-scope
 
 FORGE-CS-A3 does not add:

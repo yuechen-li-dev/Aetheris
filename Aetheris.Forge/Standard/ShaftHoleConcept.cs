@@ -2,7 +2,7 @@ using Aetheris.Forge.Abstractions.FirmamentInterop;
 
 namespace Aetheris.Forge.Standard;
 
-public sealed class ShaftHoleConcept : IForgeConcept
+public sealed class ShaftHoleConcept : IForgeConcept, IForgePmiObligationProvider
 {
     public ConceptId Id => new("hole", "Shaft");
 
@@ -42,5 +42,20 @@ public sealed class ShaftHoleConcept : IForgeConcept
             diagnostics);
 
         return diagnostics;
+    }
+
+    public IEnumerable<PmiObligation> GetPmiObligations(ConceptValidationContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return
+        [
+            new PmiObligation(
+                "diameter",
+                Id,
+                context.Application.Name,
+                context.TryGetTargetSource("target", out var targetSource) ? targetSource : null,
+                "diameter",
+                FirmamentDiagnosticSeverity.Warning)
+        ];
     }
 }

@@ -1,0 +1,30 @@
+// fixture-id: concept-pmi-obligation-with-deferred-export
+// case: forge-cs-a4-concept-pmi-obligation-with-deferred-export
+// category: Language
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
+
+model ConceptPmiObligationWithDeferredExport {
+    units mm
+
+    let d: length = 6.0mm tol 0.05mm
+
+    solid part: Box {
+        size: [20, 20, 6]
+        expose {
+            face(+Z) => top
+        }
+    }
+
+    feature pilotHole: hole<Shaft> {
+        target: part.region("pilotHole")
+        diameter: d
+    }
+
+    pmi {
+        flatness topFlatness { target: top tolerance: 0.03mm }
+    }
+}

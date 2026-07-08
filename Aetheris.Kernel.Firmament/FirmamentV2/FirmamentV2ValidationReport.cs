@@ -9,11 +9,12 @@ public sealed record FirmamentV2ValidationReport(
     IReadOnlyList<FirmamentV2ValidationLet> Lets,
     IReadOnlyList<FirmamentV2ValidationConcept> Concepts,
     IReadOnlyList<FirmamentV2ValidationPmiRecord> Pmi,
+    IReadOnlyList<FirmamentV2ValidationConceptPmiObligation> ConceptPmiObligations,
     FirmamentV2ValidationExportSupport ExportSupport,
     IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics,
     FirmamentV2ValidationSummary Summary);
 
-public sealed record FirmamentV2ValidationSummary(int LetCount, int TolerancedLetCount, int ConceptCount, int ValidConceptCount, int PmiRecordCount, int ExportSupportedPmiCount, int ExportDeferredPmiCount, int FatalDiagnosticCount, int WarningDiagnosticCount);
+public sealed record FirmamentV2ValidationSummary(int LetCount, int TolerancedLetCount, int ConceptCount, int ValidConceptCount, int PmiRecordCount, int ExportSupportedPmiCount, int ExportDeferredPmiCount, int PmiObligationCount, int SatisfiedPmiObligationCount, int MissingPmiObligationCount, int FatalDiagnosticCount, int WarningDiagnosticCount);
 public sealed record FirmamentV2ValidationDiagnostic(string Code, string Severity, string Message, string? FieldName = null, string? Target = null);
 public sealed record FirmamentV2ValidationExportSupport(int SupportedPmiCount, int DeferredPmiCount, IReadOnlyDictionary<string, string> Matrix);
 public sealed record FirmamentV2ValidationLet(string Name, string Type, string Nominal, FirmamentV2ValidationTolerance? Tolerance, string Source, IReadOnlyList<string> Dependencies, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
@@ -23,6 +24,7 @@ public sealed record FirmamentV2ValidationConcept(string Kind, string? Name, str
 public sealed record FirmamentV2ValidationConceptField(string Name, string Type, bool HasTolerance, string Source);
 public sealed record FirmamentV2ValidationPmiRecord(string Kind, string Name, string Status, string ExportSupport, string? Target, IReadOnlyList<string> Targets, IReadOnlyList<string> DatumRefs, FirmamentV2ValidationDimension? Dimension, string? Reason, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
 public sealed record FirmamentV2ValidationDimension(string Nominal, FirmamentV2ValidationTolerance? Tolerance);
+public sealed record FirmamentV2ValidationConceptPmiObligation(string Kind, string SourceConcept, string? SourceName, string? Target, string? ExpectedDimensionField, string Status, string Severity, string? MatchedPmi = null, string? DiagnosticCode = null);
 
 public static class FirmamentV2ValidationReportBuilder
 {
@@ -42,6 +44,15 @@ public static class FirmamentV2ValidationReportBuilder
         var lets = document is null ? [] : BuildLets(document);
         var concepts = document is null ? [] : BuildConcepts(document, runtimeValidation);
         var pmi = document is null ? [] : BuildPmi(document, diagnostics);
+        var conceptPmiEvaluation = document is null
+            ? new FirmamentV2ConceptPmiObligationEvaluation([], [])
+            : BuildConceptPmiObligations(document, runtimeValidation);
+        diagnostics = diagnostics
+            .Concat(conceptPmiEvaluation.Diagnostics)
+            .Distinct()
+            .ToArray();
+        fatalCount = diagnostics.Count(diagnostic => diagnostic.Severity == "fatal");
+        warningCount = diagnostics.Length - fatalCount;
         var supported = pmi.Count(record => record.ExportSupport is "supported" or "supported-when-target-resolves");
         var deferred = pmi.Count(record => record.ExportSupport == "deferred");
         var status = fatalCount > 0 ? "invalid" : deferred > 0 ? "valid-with-deferred-export" : "valid";
@@ -53,6 +64,9 @@ public static class FirmamentV2ValidationReportBuilder
             pmi.Count,
             supported,
             deferred,
+            conceptPmiEvaluation.Obligations.Count,
+            conceptPmiEvaluation.Obligations.Count(row => row.Status == "satisfied"),
+            conceptPmiEvaluation.Obligations.Count(row => row.Status == "missing"),
             fatalCount,
             warningCount);
 
@@ -62,6 +76,7 @@ public static class FirmamentV2ValidationReportBuilder
             lets,
             concepts,
             pmi,
+            conceptPmiEvaluation.Obligations,
             new FirmamentV2ValidationExportSupport(supported, deferred, ExportMatrix),
             diagnostics,
             summary);
@@ -195,6 +210,63 @@ public static class FirmamentV2ValidationReportBuilder
         }).ToArray();
     }
 
+    private static FirmamentV2ConceptPmiObligationEvaluation BuildConceptPmiObligations(
+        FirmamentV2Document document,
+        FirmamentV2RuntimeConceptValidationResult runtimeValidation)
+    {
+        var boundPmiByName = (document.BoundPmi?.Datums ?? [])
+            .Concat(document.BoundPmi?.Dimensions ?? [])
+            .Concat(document.BoundPmi?.Controls ?? [])
+            .ToDictionary(record => record.Name, StringComparer.Ordinal);
+
+        var obligations = new List<FirmamentV2ValidationConceptPmiObligation>();
+        var diagnostics = new List<FirmamentV2ValidationDiagnostic>();
+
+        foreach (var obligation in runtimeValidation.PmiObligations)
+        {
+            var matchedPmi = MatchPmi(obligation, boundPmiByName.Values);
+            var status = matchedPmi is null ? "missing" : "satisfied";
+            var severity = obligation.Severity switch
+            {
+                FirmamentDiagnosticSeverity.Fatal => "fatal",
+                FirmamentDiagnosticSeverity.Warning => "warning",
+                _ => "info"
+            };
+
+            obligations.Add(new FirmamentV2ValidationConceptPmiObligation(
+                obligation.Kind,
+                obligation.SourceConcept.ToString(),
+                obligation.SourceName,
+                obligation.TargetSource,
+                obligation.ExpectedDimensionField,
+                status,
+                severity,
+                matchedPmi?.Name,
+                status == "missing" ? "forge.pmi.obligation.missing" : null));
+
+            if (status == "missing")
+            {
+                diagnostics.Add(new FirmamentV2ValidationDiagnostic(
+                    "forge.pmi.obligation.missing",
+                    severity,
+                    MissingObligationMessage(obligation),
+                    obligation.ExpectedDimensionField,
+                    obligation.TargetSource));
+            }
+        }
+
+        return new FirmamentV2ConceptPmiObligationEvaluation(obligations, diagnostics);
+    }
+
+    private static FirmamentV2BoundPmiRecord? MatchPmi(PmiObligation obligation, IEnumerable<FirmamentV2BoundPmiRecord> records) =>
+        records.FirstOrDefault(record =>
+            string.Equals(KindName(record.Kind), obligation.Kind, StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(obligation.TargetSource)
+            && record.Targets.Any(target => string.Equals(target, obligation.TargetSource, StringComparison.Ordinal)));
+
+    private static string MissingObligationMessage(PmiObligation obligation) =>
+        $"{obligation.SourceConcept} feature {obligation.SourceName ?? "<unnamed>"} has no matching {obligation.Kind} PMI record.";
+
     private static FirmamentV2ValidationDimension? Dimension(FirmamentV2BoundPmiRecord? boundRecord)
     {
         if (boundRecord is null)
@@ -286,4 +358,8 @@ public static class FirmamentV2ValidationReportBuilder
         ["perpendicular"] = "deferred",
         ["coplanar"] = "deferred"
     };
+
+    private sealed record FirmamentV2ConceptPmiObligationEvaluation(
+        IReadOnlyList<FirmamentV2ValidationConceptPmiObligation> Obligations,
+        IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
 }

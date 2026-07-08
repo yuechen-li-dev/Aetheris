@@ -7,6 +7,11 @@ public interface IForgeConcept
     IEnumerable<FirmamentDiagnostic> Validate(ConceptValidationContext context);
 }
 
+public interface IForgePmiObligationProvider
+{
+    IEnumerable<PmiObligation> GetPmiObligations(ConceptValidationContext context);
+}
+
 public interface IForgeConceptPack
 {
     string Id { get; }
@@ -168,3 +173,11 @@ public sealed class ConceptValidationContext
         return false;
     }
 }
+
+public sealed record PmiObligation(
+    string Kind,
+    ConceptId SourceConcept,
+    string? SourceName,
+    string? TargetSource,
+    string? ExpectedDimensionField,
+    FirmamentDiagnosticSeverity Severity);

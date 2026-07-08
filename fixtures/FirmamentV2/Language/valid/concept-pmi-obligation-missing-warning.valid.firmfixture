@@ -1,0 +1,23 @@
+// fixture-id: concept-pmi-obligation-missing-warning
+// case: forge-cs-a4-concept-pmi-obligation-missing-warning
+// category: Language
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
+
+model ConceptPmiObligationMissingWarning {
+    units mm
+
+    let d: length = 6.0mm tol 0.05mm
+
+    solid part: Box {
+        size: [20, 20, 6]
+    }
+
+    feature pilotHole: hole<Shaft> {
+        target: part.region("pilotHole")
+        diameter: d
+    }
+}

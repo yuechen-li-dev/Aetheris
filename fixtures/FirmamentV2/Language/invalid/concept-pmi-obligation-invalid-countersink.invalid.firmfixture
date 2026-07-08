@@ -1,5 +1,5 @@
-// fixture-id: concept-countersink-angle-range
-// case: forge-cs-a3-countersink-angle-range
+// fixture-id: concept-pmi-obligation-invalid-countersink
+// case: forge-cs-a4-concept-pmi-obligation-invalid-countersink
 // category: Language
 // syntax-version: FirmamentV2
 // validity: invalid
@@ -8,11 +8,11 @@
 // expected-stage: rejected
 // expected-diagnostic: firmament-fixture-rejected
 
-model CountersinkAngleRangeInvalid {
+model ConceptPmiObligationInvalidCountersink {
     units mm
 
-    let d: length = 6.0mm tol 0.05mm
-    let csd: length = 10.0mm tol 0.05mm
+    let d: length = 10.0mm tol 0.05mm
+    let csd: length = 8.0mm tol 0.05mm
 
     solid part: Box {
         size: [20, 20, 6]
@@ -22,6 +22,6 @@ model CountersinkAngleRangeInvalid {
         target: part.region("holeA")
         diameter: d
         countersinkDiameter: csd
-        angle: 180deg
+        angle: 90deg
     }
 }

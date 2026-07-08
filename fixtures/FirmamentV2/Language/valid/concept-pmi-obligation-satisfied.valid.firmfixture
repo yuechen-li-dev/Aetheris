@@ -1,0 +1,32 @@
+// fixture-id: concept-pmi-obligation-satisfied
+// case: forge-cs-a4-concept-pmi-obligation-satisfied
+// category: Language
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: feature-air
+
+model ConceptPmiObligationSatisfied {
+    units mm
+
+    let MountingPattern {
+        holeDiameter: length = 6.0mm tol 0.05mm
+        countersinkDiameter: length = 10.0mm tol 0.10mm
+    }
+
+    solid part: Box {
+        size: [20, 20, 6]
+    }
+
+    feature mountHole: hole<Countersink> {
+        target: part.region("mountHoleA")
+        diameter: MountingPattern.holeDiameter
+        countersinkDiameter: MountingPattern.countersinkDiameter
+        angle: 90deg
+    }
+
+    pmi {
+        diameter mountHoleDiameter { target: part.region("mountHoleA") dimension: MountingPattern.holeDiameter }
+    }
+}

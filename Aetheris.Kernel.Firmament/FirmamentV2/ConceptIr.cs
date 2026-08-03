@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-public enum ConceptIrValueKind { Length, Point2, Point3, Vector3, Axis, Plane, Box2, Box3, Region2, PointSet }
+public enum ConceptIrValueKind { Length, Angle, Bool, Int, Float, String, Enum, Point2, Point3, Vector3, Axis, Plane, Box2, Box3, Region2, PointSet }
 
 public sealed record ConceptIrType(string Name, bool IsCollection = false)
 {
@@ -13,6 +13,7 @@ public sealed record ConceptIrType(string Name, bool IsCollection = false)
 
 public sealed record ConceptIrMemberRequirement(string Name, ConceptIrType Type, FirmamentV2SourceSpan SourceSpan);
 public sealed record ConceptIrDefinition(string Name, IReadOnlyDictionary<string, ConceptIrMemberRequirement> Members, FirmamentV2SourceSpan SourceSpan);
+public sealed record ConceptIrEnumDefinition(string Name, IReadOnlyList<string> Variants, FirmamentV2SourceSpan SourceSpan);
 public sealed record ConceptIrPoint3(double X, double Y, double Z);
 public sealed record ConceptIrVector3(double X, double Y, double Z);
 
@@ -23,7 +24,28 @@ public sealed record ConceptIrVector3(double X, double Y, double Z);
 [JsonDerivedType(typeof(ConceptIrRegion2Value), "Region2")]
 [JsonDerivedType(typeof(ConceptIrPoint3Value), "Point3")]
 [JsonDerivedType(typeof(ConceptIrPointSetValue), "PointSet")]
+[JsonDerivedType(typeof(ConceptIrLengthValue), "Length")]
+[JsonDerivedType(typeof(ConceptIrAngleValue), "Angle")]
+[JsonDerivedType(typeof(ConceptIrBoolValue), "Bool")]
+[JsonDerivedType(typeof(ConceptIrIntValue), "Int")]
+[JsonDerivedType(typeof(ConceptIrFloatValue), "Float")]
+[JsonDerivedType(typeof(ConceptIrStringValue), "String")]
+[JsonDerivedType(typeof(ConceptIrEnumValue), "Enum")]
 public abstract record ConceptIrValue(string StableId, ConceptIrValueKind Kind, string Provenance);
+public sealed record ConceptIrLengthValue(string StableId, double Value, string Unit, string Provenance)
+    : ConceptIrValue(StableId, ConceptIrValueKind.Length, Provenance);
+public sealed record ConceptIrAngleValue(string StableId, double Value, string Unit, string Provenance)
+    : ConceptIrValue(StableId, ConceptIrValueKind.Angle, Provenance);
+public sealed record ConceptIrBoolValue(string StableId, bool Value, string Provenance)
+    : ConceptIrValue(StableId, ConceptIrValueKind.Bool, Provenance);
+public sealed record ConceptIrIntValue(string StableId, long Value, string Provenance)
+    : ConceptIrValue(StableId, ConceptIrValueKind.Int, Provenance);
+public sealed record ConceptIrFloatValue(string StableId, double Value, string Provenance)
+    : ConceptIrValue(StableId, ConceptIrValueKind.Float, Provenance);
+public sealed record ConceptIrStringValue(string StableId, string Value, string Provenance)
+    : ConceptIrValue(StableId, ConceptIrValueKind.String, Provenance);
+public sealed record ConceptIrEnumValue(string StableId, string EnumType, string Variant, int Ordinal, string Provenance)
+    : ConceptIrValue(StableId, ConceptIrValueKind.Enum, Provenance);
 public sealed record ConceptIrBox3Value(string StableId, ConceptIrPoint3 Min, ConceptIrPoint3 Max, string Provenance)
     : ConceptIrValue(StableId, ConceptIrValueKind.Box3, Provenance)
 {
@@ -71,13 +93,25 @@ public sealed record ConceptIrMaterializedStruct(
     IReadOnlyList<ConceptIrSemanticMember> ExposedMembers,
     string Conformance);
 public sealed record ConceptIrBinding(string Consumer, string Input, string Provenance, string Kind);
+public sealed record ConceptIrStaticSelection(
+    string Member,
+    string Scrutinee,
+    string ScrutineeType,
+    string ScrutineeValue,
+    string SelectedArm,
+    string ResultKind,
+    string? Result,
+    FirmamentV2SourceSpan SourceSpan,
+    string Provenance);
 public sealed record ConceptIrDocument(
     IReadOnlyList<ConceptIrDefinition> Concepts,
     IReadOnlyList<ConceptIrStructInstance> Structs,
     IReadOnlyList<ConceptIrValue> ResolvedValues,
     ConceptIrMaterializedStruct MaterializedStruct,
     IReadOnlyList<ConceptIrBinding> Bindings,
-    string ErasureStatus = "ErasedBeforeFeatureAir");
+    string ErasureStatus = "ErasedBeforeFeatureAir",
+    IReadOnlyList<ConceptIrEnumDefinition>? Enums = null,
+    IReadOnlyList<ConceptIrStaticSelection>? StaticSelections = null);
 
 internal sealed record ConceptPhase3Resolution(
     string ModelName,
@@ -106,13 +140,25 @@ internal static class ConceptIrResolver
     public const string PointNotOnPlacementPlane = "firmament-concept-point-not-on-placement-plane";
     public const string PointOutsidePlacementFace = "firmament-concept-point-outside-placement-face";
     public const string PointProjectionUnsupported = "firmament-concept-point-projection-unsupported";
+    public const string UnknownEnumType = "firmament-static-enum-unknown-type";
+    public const string UnknownEnumVariant = "firmament-static-enum-unknown-variant";
+    public const string DuplicateEnumVariant = "firmament-static-enum-duplicate-variant";
+    public const string DuplicateMatchArm = "firmament-static-match-duplicate-arm";
+    public const string NonExhaustiveMatch = "firmament-static-match-non-exhaustive";
+    public const string InvalidBooleanArm = "firmament-static-match-invalid-boolean-arm";
+    public const string MatchArmTypeMismatch = "firmament-static-match-arm-type-mismatch";
+    public const string InvalidMatchScrutinee = "firmament-static-match-invalid-scrutinee-type";
+    public const string SelectedBranchEvaluationFailure = "firmament-static-match-selected-branch-evaluation-failure";
+    public const string InvalidEnumName = "firmament-static-enum-invalid-pascal-case";
 
     private static readonly Regex ConceptHeader = new(@"\bConcept\s+(?!Struct\b)(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex ConceptStructHeader = new(@"\bConcept\s+Struct\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*(?<concept>[A-Za-z_][A-Za-z0-9_]*))?\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex MaterializedHeader = new(@"\b(?<kind>Struct|Model)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*(?<concept>[A-Za-z_][A-Za-z0-9_]*))?\s*(?<units>mm\s*)?\{", RegexOptions.CultureInvariant);
+    private static readonly Regex EnumHeader = new(@"\bEnum\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
 
     public static ConceptPhase3Resolution? Resolve(string source, List<string> diagnostics)
     {
+        var enums = ParseEnums(source, diagnostics);
         var definitions = ParseDefinitions(source, diagnostics);
         var materializedMatches = MaterializedHeader.Matches(source).Cast<Match>()
             .Where(m => !IsPrecededByConcept(source, m.Index)).ToArray();
@@ -124,6 +170,7 @@ internal static class ConceptIrResolver
 
         var instanceList = new List<ConceptIrStructInstance>();
         var resolved = new List<ConceptIrValue>();
+        var staticSelections = new List<ConceptIrStaticSelection>();
         var instanceNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match match in ConceptStructHeader.Matches(source))
         {
@@ -133,7 +180,7 @@ internal static class ConceptIrResolver
             var close = FindMatchingBrace(source, open);
             if (close < 0) { diagnostics.Add(InvalidSpatialDerivation); continue; }
             var body = source[(open + 1)..close];
-            var members = ResolveMembers(name, body, open + 1, materialized.Groups["name"].Value, diagnostics);
+            var members = ResolveMembers(name, body, open + 1, materialized.Groups["name"].Value, enums, staticSelections, diagnostics);
             var satisfies = match.Groups["concept"].Success ? new[] { match.Groups["concept"].Value } : [];
             ValidateConformance(name, satisfies, members, definitions, diagnostics);
             var instance = new ConceptIrStructInstance(name, satisfies, members, false, "CompileTimeOnlyErased", new(match.Index, close - match.Index + 1));
@@ -207,12 +254,21 @@ internal static class ConceptIrResolver
             }
             var target = FieldValue(edgeBody, "Target");
             var kind = FieldValue(edgeBody, "Kind");
-            var distance = ParseLength(FieldValue(edgeBody, "Distance"));
+            var distanceSource = FieldValue(edgeBody, "Distance");
+            var distance = ParseLength(distanceSource);
+            var distanceProvenance = $"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.Distance";
+            var distanceRef = Regex.Match(distanceSource, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
+            if (distanceRef.Success && TryMember(allInstances, distanceRef, out ConceptIrLengthValue? resolvedDistance, diagnostics))
+            {
+                distance = resolvedDistance!.Value;
+                distanceProvenance = resolvedDistance.Provenance;
+            }
             if (!Regex.IsMatch(faceAxis, @"^[+-][XYZ]$", RegexOptions.CultureInvariant) || target.Length == 0 || kind.Length == 0 || !double.IsFinite(distance))
             { diagnostics.Add(FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid); return null; }
             finishes.Add(new(edge.Groups["name"].Value, faceAxis, target, kind, distance, new(edgeStart, edgeClose - edgeStart + 1),
-                new Dictionary<string, string>(StringComparer.Ordinal) { ["Face"] = faceProvenance }));
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["Face"] = faceProvenance, ["Distance"] = distanceProvenance }));
             bindings.Add(new($"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.Face", faceSource, faceProvenance, "Plane"));
+            bindings.Add(new($"{materialized.Groups["name"].Value}.{edge.Groups["name"].Value}.Distance", distanceSource, distanceProvenance, "Length"));
         }
 
         var modifyBody = source[(modifyOpen + 1)..modifyClose];
@@ -226,7 +282,8 @@ internal static class ConceptIrResolver
         ValidateMaterializedConformance(materialized.Groups["name"].Value, satisfiesMaterialized, exposed, definitions, diagnostics);
         var conformance = satisfiesMaterialized.Length == 0 ? "NotDeclared" : diagnostics.Any(d => IsConformanceDiagnostic(d)) ? "Invalid" : "Valid";
         var ir = new ConceptIrDocument(definitions, instanceList, resolved,
-            new(materialized.Groups["name"].Value, materialized.Groups["kind"].Value, satisfiesMaterialized, new(materialized.Index, materializedClose - materialized.Index + 1), exposed, conformance), bindings);
+            new(materialized.Groups["name"].Value, materialized.Groups["kind"].Value, satisfiesMaterialized, new(materialized.Index, materializedClose - materialized.Index + 1), exposed, conformance), bindings,
+            Enums: enums, StaticSelections: staticSelections);
         var modifyBlock = new FirmamentV2ModifyBlock(modify.Groups["target"].Value, [], holes, finishes);
         return new(materialized.Groups["name"].Value, materialized.Groups["kind"].Value, "mm", box.Groups["name"].Value, size, boundsProvenance,
             modifyBlock, ir);
@@ -371,7 +428,12 @@ internal static class ConceptIrResolver
         || diagnostic.StartsWith(DuplicateExposedMember, StringComparison.Ordinal) || diagnostic.StartsWith(InvalidMaterializedReference, StringComparison.Ordinal)
         || diagnostic.StartsWith(CircularExposureDependency, StringComparison.Ordinal) || diagnostic.StartsWith(ExposedMemberUnrepresentable, StringComparison.Ordinal);
 
-    private static ConceptIrType TypeOf(ConceptIrValue value) => value is ConceptIrPointSetValue ? new("Point3", true) : new(value.Kind.ToString());
+    private static ConceptIrType TypeOf(ConceptIrValue value) => value switch
+    {
+        ConceptIrPointSetValue => new("Point3", true),
+        ConceptIrEnumValue e => new(e.EnumType),
+        _ => new(value.Kind.ToString())
+    };
 
     private static string ResolvePlaneAxis(string source, IReadOnlyDictionary<string, ConceptIrStructInstance> instances, List<string> diagnostics)
     {
@@ -379,6 +441,107 @@ internal static class ConceptIrResolver
         if (match.Success && TryMember(instances, match, out ConceptIrPlaneValue? plane, diagnostics)) return AxisOf(plane!.Normal);
         return string.Empty;
     }
+
+    private static IReadOnlyList<ConceptIrEnumDefinition> ParseEnums(string source, List<string> diagnostics)
+    {
+        var result = new List<ConceptIrEnumDefinition>();
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match match in EnumHeader.Matches(source))
+        {
+            var name = match.Groups["name"].Value;
+            var open = source.IndexOf('{', match.Index); var close = FindMatchingBrace(source, open);
+            if (close < 0) { diagnostics.Add(InvalidSpatialDerivation); continue; }
+            if (!IsPascalCase(name)) diagnostics.Add($"{InvalidEnumName}:{name}");
+            if (!names.Add(name)) { diagnostics.Add(DuplicateDeclaration + ":Enum:" + name); continue; }
+            var variants = new List<string>(); var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var raw in source[(open + 1)..close].Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+            {
+                var variant = raw.Trim();
+                if (variant.Length == 0) continue;
+                if (!Regex.IsMatch(variant, @"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant) || !IsPascalCase(variant)) { diagnostics.Add($"{InvalidEnumName}:{name}.{variant}"); continue; }
+                if (!seen.Add(variant)) { diagnostics.Add($"{DuplicateEnumVariant}:{name}.{variant}"); continue; }
+                variants.Add(variant);
+            }
+            result.Add(new(name, variants, new(match.Index, close - match.Index + 1)));
+        }
+        return result;
+    }
+
+    private static IReadOnlyDictionary<string, ParsedConceptMember> ParseConceptMembers(string body, int bodyOffset, List<string> diagnostics)
+    {
+        var starts = new List<(int Index, Match Match)>();
+        var depth = 0;
+        for (var lineStart = 0; lineStart < body.Length;)
+        {
+            var lineEnd = body.IndexOf('\n', lineStart); if (lineEnd < 0) lineEnd = body.Length;
+            var line = body[lineStart..lineEnd];
+            if (depth == 0)
+            {
+                var match = Regex.Match(line, @"^\s*(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<rest>.*?)\s*$", RegexOptions.CultureInvariant);
+                if (match.Success) starts.Add((lineStart, match));
+            }
+            depth += line.Count(c => c == '{') - line.Count(c => c == '}');
+            lineStart = lineEnd == body.Length ? body.Length : lineEnd + 1;
+        }
+        var result = new Dictionary<string, ParsedConceptMember>(StringComparer.Ordinal);
+        for (var i = 0; i < starts.Count; i++)
+        {
+            var (start, match) = starts[i]; var end = i + 1 < starts.Count ? starts[i + 1].Index : body.Length;
+            var colon = body.IndexOf(':', start, end - start); var raw = body[(colon + 1)..end].Trim();
+            var assignment = Regex.Match(raw, @"^(?<type>[A-Za-z_][A-Za-z0-9_]*(?:\[\])?)\s*=\s*(?<expression>.*)$", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+            var declaredType = assignment.Success ? assignment.Groups["type"].Value : null;
+            var expression = assignment.Success ? assignment.Groups["expression"].Value.Trim() : raw;
+            var name = match.Groups["name"].Value;
+            if (!result.TryAdd(name, new(name, declaredType, expression, new(bodyOffset + start, end - start)))) diagnostics.Add($"{DuplicateDeclaration}:{name}");
+        }
+        return result;
+    }
+
+    private static IReadOnlyList<ParsedMatchArm> ParseMatchArms(string body, int bodyOffset)
+    {
+        var headers = new List<(int Index, Match Match)>(); var depth = 0;
+        for (var lineStart = 0; lineStart < body.Length;)
+        {
+            var lineEnd = body.IndexOf('\n', lineStart); if (lineEnd < 0) lineEnd = body.Length;
+            var line = body[lineStart..lineEnd];
+            if (depth == 0)
+            {
+                var match = Regex.Match(line, @"^\s*(?<pattern>[A-Za-z_][A-Za-z0-9_]*)\s*=>\s*(?<rest>.*?)\s*$", RegexOptions.CultureInvariant);
+                if (match.Success) headers.Add((lineStart, match));
+            }
+            depth += line.Count(c => c == '{') - line.Count(c => c == '}');
+            lineStart = lineEnd == body.Length ? body.Length : lineEnd + 1;
+        }
+        var result = new List<ParsedMatchArm>();
+        for (var i = 0; i < headers.Count; i++)
+        {
+            var (start, match) = headers[i]; var end = i + 1 < headers.Count ? headers[i + 1].Index : body.Length;
+            var arrow = body.IndexOf("=>", start, end - start, StringComparison.Ordinal);
+            result.Add(new(match.Groups["pattern"].Value, body[(arrow + 2)..end].Trim(), new(bodyOffset + start, end - start)));
+        }
+        return result;
+    }
+
+    private static bool MatchesDeclaredType(string? declaredType, ConceptIrValue value)
+    {
+        if (declaredType is null) return true;
+        var normalized = declaredType == "bool" ? "Bool" : declaredType == "int" ? "Int" : declaredType == "float" ? "Float" : declaredType == "string" ? "String" : declaredType;
+        return string.Equals(normalized, TypeOf(value).ToString(), StringComparison.Ordinal);
+    }
+
+    private static string? FormatValue(ConceptIrValue value) => value switch
+    {
+        ConceptIrLengthValue v => v.Value.ToString("R", CultureInfo.InvariantCulture) + v.Unit,
+        ConceptIrAngleValue v => v.Value.ToString("R", CultureInfo.InvariantCulture) + v.Unit,
+        ConceptIrBoolValue v => v.Value.ToString().ToLowerInvariant(),
+        ConceptIrIntValue v => v.Value.ToString(CultureInfo.InvariantCulture),
+        ConceptIrFloatValue v => v.Value.ToString("R", CultureInfo.InvariantCulture),
+        ConceptIrStringValue v => v.Value,
+        ConceptIrEnumValue v => v.Variant,
+        _ => null
+    };
+
+    private static bool IsPascalCase(string value) => value.Length > 0 && char.IsUpper(value[0]) && value.All(c => char.IsLetterOrDigit(c) || c == '_');
 
     private static IReadOnlyList<ConceptIrDefinition> ParseDefinitions(string source, List<string> diagnostics)
     {
@@ -402,66 +565,176 @@ internal static class ConceptIrResolver
         return result;
     }
 
-    private static IReadOnlyDictionary<string, ConceptIrValue> ResolveMembers(string instanceName, string body, int bodyOffset, string materializedName, List<string> diagnostics)
+    private static IReadOnlyDictionary<string, ConceptIrValue> ResolveMembers(
+        string instanceName,
+        string body,
+        int bodyOffset,
+        string materializedName,
+        IReadOnlyList<ConceptIrEnumDefinition> enums,
+        List<ConceptIrStaticSelection> selections,
+        List<string> diagnostics)
     {
-        var result = new Dictionary<string, ConceptIrValue>(StringComparer.Ordinal);
-        DetectCircularDependencies(body, diagnostics);
-        var boundsMatch = Regex.Match(body, @"\b(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*Box3\s*\{", RegexOptions.CultureInvariant);
-        if (boundsMatch.Success)
+        var members = ParseConceptMembers(body, bodyOffset, diagnostics);
+        return new StaticMemberEvaluator(instanceName, materializedName, members, enums, selections, diagnostics).EvaluateAll();
+    }
+
+    private sealed record ParsedConceptMember(string Name, string? DeclaredType, string Expression, FirmamentV2SourceSpan SourceSpan);
+    private sealed record ParsedMatchArm(string Pattern, string Expression, FirmamentV2SourceSpan SourceSpan);
+
+    private sealed class StaticMemberEvaluator(
+        string instanceName,
+        string materializedName,
+        IReadOnlyDictionary<string, ParsedConceptMember> members,
+        IReadOnlyList<ConceptIrEnumDefinition> enums,
+        List<ConceptIrStaticSelection> selections,
+        List<string> diagnostics)
+    {
+        private readonly Dictionary<string, ConceptIrValue> _resolved = new(StringComparer.Ordinal);
+        private readonly List<string> _stack = [];
+
+        public IReadOnlyDictionary<string, ConceptIrValue> EvaluateAll()
         {
-            var open = body.IndexOf('{', boundsMatch.Index); var close = FindMatchingBrace(body, open);
-            var sizeMatch = close > open ? Regex.Match(body[(open + 1)..close], @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant) : Match.Empty;
-            var size = sizeMatch.Success ? sizeMatch.Groups["values"].Value.Split(',').Select(ParseLength).ToArray() : [];
-            if (size.Length == 3 && size.All(v => double.IsFinite(v) && v > 0))
-            {
-                var name = boundsMatch.Groups["name"].Value; var provenance = $"{instanceName}.{name}";
-                result[name] = new ConceptIrBox3Value(Id(provenance), new(-size[0] / 2d, -size[1] / 2d, 0), new(size[0] / 2d, size[1] / 2d, size[2]), provenance);
-            }
-            else diagnostics.Add(InvalidSpatialDerivation);
+            foreach (var name in members.Keys) EvaluateMember(name);
+            return _resolved;
         }
 
-        foreach (var field in TopLevelFields(body))
+        private ConceptIrValue? EvaluateMember(string name)
         {
-            if (result.ContainsKey(field.Name) || field.Value.StartsWith("Box3", StringComparison.Ordinal) || field.Value.StartsWith("Grid", StringComparison.Ordinal)) continue;
-            if (field.Value.StartsWith(materializedName + ".", StringComparison.Ordinal)) { diagnostics.Add(MaterializedPhaseReference); continue; }
-            var face = Regex.Match(field.Value, @"^(?<box>[A-Za-z_][A-Za-z0-9_]*)\.Face\((?<axis>[+-][XYZ])\)$", RegexOptions.CultureInvariant);
-            var axis = Regex.Match(field.Value, @"^(?<box>[A-Za-z_][A-Za-z0-9_]*)\.Center\.Axis\((?<axis>[+-][XYZ])\)$", RegexOptions.CultureInvariant);
-            if (face.Success && result.TryGetValue(face.Groups["box"].Value, out var boxValue) && boxValue is ConceptIrBox3Value box)
+            if (_resolved.TryGetValue(name, out var existing)) return existing;
+            if (!members.TryGetValue(name, out var member)) return null;
+            var cycleAt = _stack.IndexOf(name);
+            if (cycleAt >= 0)
             {
-                var provenance = $"{instanceName}.{field.Name}"; var a = face.Groups["axis"].Value;
-                result[field.Name] = new ConceptIrPlaneValue(Id(provenance), FaceCenter(box, a), Vector(a), provenance);
+                diagnostics.Add(CircularDependency);
+                diagnostics.Add($"{CircularDependency}:{string.Join(" -> ", _stack.Skip(cycleAt).Append(name))}");
+                return null;
             }
-            else if (axis.Success && result.TryGetValue(axis.Groups["box"].Value, out boxValue) && boxValue is ConceptIrBox3Value axisBox)
+            _stack.Add(name);
+            var value = EvaluateExpression(member.Expression, member, true);
+            _stack.RemoveAt(_stack.Count - 1);
+            if (value is not null && !MatchesDeclaredType(member.DeclaredType, value))
             {
-                var provenance = $"{instanceName}.{field.Name}";
-                result[field.Name] = new ConceptIrAxisValue(Id(provenance), axisBox.Center, Vector(axis.Groups["axis"].Value), provenance);
+                diagnostics.Add($"{TypeMismatch}:{instanceName}.{name}:expected-{member.DeclaredType}:actual-{TypeOf(value)}");
+                return null;
             }
-            else diagnostics.Add(InvalidSpatialDerivation);
+            if (value is not null) _resolved[name] = value;
+            return value;
         }
 
-        foreach (var grid in Regex.Matches(body, @"\b(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*Grid\s*\{", RegexOptions.CultureInvariant).Cast<Match>())
+        private ConceptIrValue? EvaluateExpression(string expression, ParsedConceptMember target, bool reportFailure)
         {
-            var open = body.IndexOf('{', grid.Index); var close = FindMatchingBrace(body, open);
-            if (close < 0) { diagnostics.Add(InvalidSpatialDerivation); continue; }
-            var gridBody = body[(open + 1)..close];
-            var within = Regex.Match(gridBody, @"\bWithin\s*:\s*(?<box>[A-Za-z_][A-Za-z0-9_]*)\.Face\((?<axis>[+-][XYZ])\)\.Inset\((?<inset>[^)]+)\)", RegexOptions.CultureInvariant);
-            var columns = IntField(gridBody, "Columns"); var rows = IntField(gridBody, "Rows");
-            if (!within.Success || columns < 1 || rows < 1 || !result.TryGetValue(within.Groups["box"].Value, out var value) || value is not ConceptIrBox3Value box) { diagnostics.Add(InvalidSpatialDerivation); continue; }
-            var inset = ParseLength(within.Groups["inset"].Value); var region = Region(box, within.Groups["axis"].Value, inset, $"{instanceName}.{grid.Groups["name"].Value}.Within");
-            if (region is null) { diagnostics.Add(InvalidSpatialDerivation); continue; }
-            var points = new List<ConceptIrPoint3Value>();
-            for (var row = 0; row < rows; row++) for (var column = 0; column < columns; column++)
+            expression = expression.Trim();
+            var provenance = $"{instanceName}.{target.Name}";
+            if (expression.StartsWith(materializedName + ".", StringComparison.Ordinal)) { diagnostics.Add(MaterializedPhaseReference); return null; }
+            if (expression.StartsWith("Match ", StringComparison.Ordinal)) return EvaluateMatch(expression, target);
+
+            var box = Regex.Match(expression, @"^Box3\s*\{(?<body>.*)\}$", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+            if (box.Success)
             {
-                var u = columns == 1 ? (region.MinU + region.MaxU) / 2d : region.MinU + column * (region.MaxU - region.MinU) / (columns - 1);
-                var v = rows == 1 ? (region.MinV + region.MaxV) / 2d : region.MinV + row * (region.MaxV - region.MinV) / (rows - 1);
-                var point = new ConceptIrPoint3(region.Center.X + region.U.X * u + region.V.X * v, region.Center.Y + region.U.Y * u + region.V.Y * v, region.Center.Z + region.U.Z * u + region.V.Z * v);
-                var ordinal = points.Count; var provenance = $"{instanceName}.{grid.Groups["name"].Value}[{ordinal}]";
-                points.Add(new(Id(provenance), point, provenance, ordinal));
+                var sizeMatch = Regex.Match(box.Groups["body"].Value, @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant);
+                var size = sizeMatch.Success ? sizeMatch.Groups["values"].Value.Split(',').Select(ParseLength).ToArray() : [];
+                if (size.Length == 3 && size.All(v => double.IsFinite(v) && v > 0))
+                    return new ConceptIrBox3Value(Id(provenance), new(-size[0] / 2d, -size[1] / 2d, 0), new(size[0] / 2d, size[1] / 2d, size[2]), provenance);
+                diagnostics.Add(InvalidSpatialDerivation); return null;
             }
-            var memberName = grid.Groups["name"].Value; var setProvenance = $"{instanceName}.{memberName}";
-            result[memberName] = new ConceptIrPointSetValue(Id(setProvenance), points, setProvenance);
+
+            var grid = Regex.Match(expression, @"^Grid\s*\{(?<body>.*)\}$", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+            if (grid.Success)
+            {
+                var gridBody = grid.Groups["body"].Value;
+                var within = Regex.Match(gridBody, @"\bWithin\s*:\s*(?<box>[A-Za-z_][A-Za-z0-9_]*)\.Face\((?<axis>[+-][XYZ])\)\.Inset\((?<inset>[^)]+)\)", RegexOptions.CultureInvariant);
+                var columns = IntField(gridBody, "Columns"); var rows = IntField(gridBody, "Rows");
+                var boxValue = within.Success ? EvaluateMember(within.Groups["box"].Value) : null;
+                if (!within.Success || columns < 1 || rows < 1 || boxValue is not ConceptIrBox3Value bounds) { diagnostics.Add(InvalidSpatialDerivation); return null; }
+                var inset = ParseLength(within.Groups["inset"].Value); var region = Region(bounds, within.Groups["axis"].Value, inset, provenance + ".Within");
+                if (region is null) { diagnostics.Add(InvalidSpatialDerivation); return null; }
+                var points = new List<ConceptIrPoint3Value>();
+                for (var row = 0; row < rows; row++) for (var column = 0; column < columns; column++)
+                {
+                    var u = columns == 1 ? (region.MinU + region.MaxU) / 2d : region.MinU + column * (region.MaxU - region.MinU) / (columns - 1);
+                    var v = rows == 1 ? (region.MinV + region.MaxV) / 2d : region.MinV + row * (region.MaxV - region.MinV) / (rows - 1);
+                    var point = new ConceptIrPoint3(region.Center.X + region.U.X * u + region.V.X * v, region.Center.Y + region.U.Y * u + region.V.Y * v, region.Center.Z + region.U.Z * u + region.V.Z * v);
+                    var ordinal = points.Count; var pointProvenance = $"{provenance}[{ordinal}]";
+                    points.Add(new(Id(pointProvenance), point, pointProvenance, ordinal));
+                }
+                return new ConceptIrPointSetValue(Id(provenance), points, provenance);
+            }
+
+            var face = Regex.Match(expression, @"^(?<box>[A-Za-z_][A-Za-z0-9_]*)\.Face\((?<axis>[+-][XYZ])\)$", RegexOptions.CultureInvariant);
+            if (face.Success && EvaluateMember(face.Groups["box"].Value) is ConceptIrBox3Value faceBox)
+                return new ConceptIrPlaneValue(Id(provenance), FaceCenter(faceBox, face.Groups["axis"].Value), Vector(face.Groups["axis"].Value), provenance);
+            var axis = Regex.Match(expression, @"^(?<box>[A-Za-z_][A-Za-z0-9_]*)\.Center\.Axis\((?<axis>[+-][XYZ])\)$", RegexOptions.CultureInvariant);
+            if (axis.Success && EvaluateMember(axis.Groups["box"].Value) is ConceptIrBox3Value axisBox)
+                return new ConceptIrAxisValue(Id(provenance), axisBox.Center, Vector(axis.Groups["axis"].Value), provenance);
+
+            if (members.ContainsKey(expression)) return EvaluateMember(expression);
+            if (expression is "true" or "false") return new ConceptIrBoolValue(Id(provenance), expression == "true", provenance);
+            if (expression.StartsWith('"') && expression.EndsWith('"') && expression.Length >= 2) return new ConceptIrStringValue(Id(provenance), expression[1..^1], provenance);
+            if (expression.EndsWith("mm", StringComparison.Ordinal) && double.TryParse(expression[..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out var length)) return new ConceptIrLengthValue(Id(provenance), length, "mm", provenance);
+            if (expression.EndsWith("deg", StringComparison.Ordinal) && double.TryParse(expression[..^3], NumberStyles.Float, CultureInfo.InvariantCulture, out var angle)) return new ConceptIrAngleValue(Id(provenance), angle, "deg", provenance);
+            if (long.TryParse(expression, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer)) return new ConceptIrIntValue(Id(provenance), integer, provenance);
+            if (double.TryParse(expression, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)) return new ConceptIrFloatValue(Id(provenance), number, provenance);
+
+            if (target.DeclaredType is { } declared)
+            {
+                var enumType = enums.SingleOrDefault(e => e.Name == declared);
+                if (enumType is not null)
+                {
+                    var ordinal = enumType.Variants.ToList().IndexOf(expression);
+                    if (ordinal >= 0) return new ConceptIrEnumValue(Id(provenance), enumType.Name, expression, ordinal, provenance);
+                    diagnostics.Add($"{UnknownEnumVariant}:{declared}.{expression}"); return null;
+                }
+                if (IsPascalCase(declared) && declared is not ("Box3" or "Plane" or "Axis" or "Point3")) { diagnostics.Add($"{UnknownEnumType}:{declared}"); return null; }
+            }
+            if (reportFailure) diagnostics.Add($"{InvalidSpatialDerivation}:{instanceName}.{target.Name}:{expression}");
+            return null;
         }
-        return result;
+
+        private ConceptIrValue? EvaluateMatch(string expression, ParsedConceptMember target)
+        {
+            var header = Regex.Match(expression, @"^Match\s+(?<scrutinee>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+            if (!header.Success) { diagnostics.Add(InvalidMatchScrutinee); return null; }
+            var scrutineeName = header.Groups["scrutinee"].Value;
+            var scrutinee = EvaluateMember(scrutineeName);
+            if (scrutinee is not (ConceptIrEnumValue or ConceptIrBoolValue)) { diagnostics.Add($"{InvalidMatchScrutinee}:{instanceName}.{scrutineeName}:{(scrutinee is null ? "unresolved" : TypeOf(scrutinee))}"); return null; }
+            var open = expression.IndexOf('{', header.Index); var close = FindMatchingBrace(expression, open);
+            if (close < 0) { diagnostics.Add(InvalidMatchScrutinee); return null; }
+            var arms = ParseMatchArms(expression[(open + 1)..close], target.SourceSpan.Start + open + 1);
+            var expectedPatterns = scrutinee is ConceptIrEnumValue enumValue
+                ? enums.Single(e => e.Name == enumValue.EnumType).Variants
+                : new[] { "true", "false" };
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var arm in arms)
+            {
+                if (!expectedPatterns.Contains(arm.Pattern, StringComparer.Ordinal))
+                {
+                    diagnostics.Add(scrutinee is ConceptIrBoolValue ? $"{InvalidBooleanArm}:{arm.Pattern}" : $"{UnknownEnumVariant}:{((ConceptIrEnumValue)scrutinee).EnumType}.{arm.Pattern}");
+                    continue;
+                }
+                if (!seen.Add(arm.Pattern)) diagnostics.Add($"{DuplicateMatchArm}:{arm.Pattern}:unreachable");
+            }
+            foreach (var missing in expectedPatterns.Where(p => !seen.Contains(p))) diagnostics.Add($"{NonExhaustiveMatch}:Missing arm: {missing}");
+            if (seen.Count != arms.Count || expectedPatterns.Any(p => !seen.Contains(p))) return null;
+
+            var armValues = new List<(ParsedMatchArm Arm, ConceptIrValue? Value)>();
+            foreach (var arm in arms) armValues.Add((arm, EvaluateExpression(arm.Expression, target, false)));
+            var first = armValues.FirstOrDefault(x => x.Value is not null).Value;
+            if (first is not null)
+            {
+                var expectedType = TypeOf(first);
+                foreach (var (arm, value) in armValues.Where(x => x.Value is not null && TypeOf(x.Value) != expectedType))
+                    diagnostics.Add($"{MatchArmTypeMismatch}:{instanceName}.{target.Name}:{arm.Pattern}:expected-{expectedType}:actual-{TypeOf(value!)}");
+                if (armValues.Any(x => x.Value is not null && TypeOf(x.Value) != expectedType)) return null;
+            }
+            var selectedPattern = scrutinee is ConceptIrEnumValue selectedEnum ? selectedEnum.Variant : ((ConceptIrBoolValue)scrutinee).Value.ToString().ToLowerInvariant();
+            var selected = armValues.Single(x => x.Arm.Pattern == selectedPattern);
+            if (selected.Value is null) { diagnostics.Add($"{SelectedBranchEvaluationFailure}:{instanceName}.{target.Name}:{selectedPattern}"); return null; }
+            selections.Add(new(
+                $"{instanceName}.{target.Name}", $"{instanceName}.{scrutineeName}",
+                scrutinee is ConceptIrEnumValue e ? e.EnumType : "Bool", selectedPattern, selectedPattern,
+                TypeOf(selected.Value).ToString(), FormatValue(selected.Value), target.SourceSpan, $"{instanceName}.{target.Name}"));
+            return selected.Value;
+        }
     }
 
     private static void ValidateIndexedReferences(string body, IReadOnlyList<ConceptIrStructInstance> instances, List<string> diagnostics)
@@ -479,28 +752,6 @@ internal static class ConceptIrResolver
             var index = int.Parse(reference.Groups["index"].Value, CultureInfo.InvariantCulture);
             if (index >= points.Points.Count) diagnostics.Add($"{IndexOutOfRange}:{reference.Value}:count-{points.Points.Count}");
         }
-    }
-
-    private static void DetectCircularDependencies(string body, List<string> diagnostics)
-    {
-        var fields = TopLevelFields(body).ToArray();
-        var names = fields.Select(f => f.Name).ToHashSet(StringComparer.Ordinal);
-        var dependencies = fields.ToDictionary(
-            f => f.Name,
-            f => Regex.Matches(f.Value, @"\b[A-Za-z_][A-Za-z0-9_]*\b", RegexOptions.CultureInvariant).Cast<Match>().Select(m => m.Value).Where(names.Contains).Distinct(StringComparer.Ordinal).ToArray(),
-            StringComparer.Ordinal);
-        var visited = new HashSet<string>(StringComparer.Ordinal);
-        var visiting = new HashSet<string>(StringComparer.Ordinal);
-        bool Visit(string name)
-        {
-            if (visiting.Contains(name)) return true;
-            if (!visited.Add(name)) return false;
-            visiting.Add(name);
-            foreach (var dependency in dependencies[name]) if (Visit(dependency)) return true;
-            visiting.Remove(name);
-            return false;
-        }
-        if (dependencies.Keys.Any(Visit)) diagnostics.Add(CircularDependency);
     }
 
     private static void ValidateConformance(string instance, IReadOnlyList<string> satisfies, IReadOnlyDictionary<string, ConceptIrValue> members, IReadOnlyList<ConceptIrDefinition> definitions, List<string> diagnostics)
@@ -527,21 +778,6 @@ internal static class ConceptIrResolver
         if (!instances.TryGetValue(reference.Groups["instance"].Value, out var instance) || !instance.Members.TryGetValue(reference.Groups["member"].Value, out var raw)) { diagnostics.Add(InvalidSpatialDerivation); return false; }
         if (raw is not T typed) { diagnostics.Add(TypeMismatch); return false; }
         value = typed; return true;
-    }
-
-    private static IEnumerable<(string Name, string Value)> TopLevelFields(string body)
-    {
-        var depth = 0;
-        foreach (var raw in body.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
-        {
-            var line = raw.Trim();
-            if (depth == 0)
-            {
-                var match = Regex.Match(line, @"^(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>.+?)\s*$", RegexOptions.CultureInvariant);
-                if (match.Success) yield return (match.Groups["name"].Value, match.Groups["value"].Value);
-            }
-            depth += line.Count(c => c == '{') - line.Count(c => c == '}');
-        }
     }
 
     private static ConceptIrRegion2Value? Region(ConceptIrBox3Value box, string axis, double inset, string provenance)

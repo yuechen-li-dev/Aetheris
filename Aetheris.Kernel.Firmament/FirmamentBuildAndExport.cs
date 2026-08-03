@@ -185,6 +185,7 @@ public static class FirmamentBuildAndExport
         var featureProvenance = new Dictionary<string, string>(StringComparer.Ordinal);
         if (solid.Provenance?.TryGetValue("Bounds", out var boundsProvenance) == true) featureProvenance["Bounds"] = boundsProvenance;
         if (finish.Provenance?.TryGetValue("Face", out var faceProvenance) == true) featureProvenance["Selection"] = faceProvenance;
+        if (finish.Provenance?.TryGetValue("Distance", out var distanceProvenance) == true) featureProvenance["Distance"] = distanceProvenance;
         var report = new FirmamentAirChamferReport(
             new("Chamfer", compiled.Feature.BodyId, compiled.Feature.FeatureId, compiled.Feature.FeatureName, $"FaceBoundary({compiled.Feature.Selection.FaceAxis})", compiled.Feature.Rule.Distance, compiled.Feature.Rule.Unit, $"{compiled.Feature.SourceSpan.Start}:{compiled.Feature.SourceSpan.Length}", compiled.Feature.Admission.ToString(), compiled.Feature.AdmissionReason, featureProvenance),
             new("SectionTransition", compiled.Construction.Profiles.Count, compiled.Construction.Profiles.Select(p => p.Z).ToArray(), compiled.Construction.Transition.Correspondence, compiled.Construction.Transition.SplitPolicy),

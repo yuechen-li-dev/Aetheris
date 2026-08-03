@@ -226,9 +226,17 @@ public static class FirmamentV2Parser
         var source = StripLineComments(sourceText);
         conceptCatalog ??= FirmamentV2ForgeConceptRegistry.Catalog;
 
+        var templateExpansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
+        if (templateExpansion is null)
+        {
+            diagnostics.Add("firmament-v2-parse-failed");
+            return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
+        }
+        source = templateExpansion.Source;
+
         if (Regex.IsMatch(source, @"\bConcept\s+(?:Struct\s+)?[A-Za-z_]", RegexOptions.CultureInvariant)
             || Regex.IsMatch(source, @"\b(?:Struct|Model)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant))
-            return ParseConceptModelingDocument(source, diagnostics);
+            return ParseConceptModelingDocument(source, diagnostics, templateExpansion.Instantiations);
 
         if (Regex.IsMatch(source, @"^\s*Model\b", RegexOptions.CultureInvariant))
             return ParsePhase3ModelingDocument(source, diagnostics);
@@ -758,7 +766,7 @@ public static class FirmamentV2Parser
         return FirmamentV2ParseResult.Success(document, diagnostics);
     }
 
-    private static FirmamentV2ParseResult ParseConceptModelingDocument(string source, List<string> diagnostics)
+    private static FirmamentV2ParseResult ParseConceptModelingDocument(string source, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations = null)
     {
         var resolution = ConceptIrResolver.Resolve(source, diagnostics);
         if (resolution is null || diagnostics.Any(IsConceptFatalDiagnostic))
@@ -778,9 +786,10 @@ public static class FirmamentV2Parser
             resolution.Units,
             [solid],
             [resolution.ModifyBlock],
-            ConceptIr: resolution.ConceptIr);
+            ConceptIr: resolution.ConceptIr with { TemplateInstantiations = templateInstantiations ?? [] });
         diagnostics.Add("firmament-concept-ir-resolved");
         diagnostics.Add("firmament-concept-struct-erased-before-feature-air");
+        if ((templateInstantiations?.Count ?? 0) > 0) diagnostics.Add("firmament-template-expanded-before-feature-air");
         if (resolution.ModifyBlock.EdgeFinishes?.Count > 0) diagnostics.Add("firmament-v2-phase3-edge-finish-parsed");
         if (resolution.ModifyBlock.SemanticHoles.Count > 0) diagnostics.Add("firmament-concept-point3-semantic-holes-parsed");
         diagnostics.Add("firmament-v2-parse-succeeded");

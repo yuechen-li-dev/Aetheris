@@ -103,6 +103,20 @@ public sealed record ConceptIrStaticSelection(
     string? Result,
     FirmamentV2SourceSpan SourceSpan,
     string Provenance);
+public sealed record ConceptIrPatternExpansion(string Pattern, string Source, string ElementType, int Count, IReadOnlyList<string> GeneratedDeclarations, FirmamentV2SourceSpan SourceSpan, string Status = "ExpandedBeforeFeatureAir");
+/// <summary>Source-map-only evidence for a compile-time template expansion.  This is deliberately not AIR.</summary>
+public sealed record ConceptIrTemplateInstantiation(
+    string Template,
+    string Instance,
+    IReadOnlyDictionary<string, string> TypeArguments,
+    IReadOnlyDictionary<string, string> ValueArguments,
+    IReadOnlyList<string> DefaultedArguments,
+    string SpecializationIdentity,
+    IReadOnlyList<string> GeneratedDeclarations,
+    FirmamentV2SourceSpan TemplateSourceSpan,
+    FirmamentV2SourceSpan ApplicationSourceSpan,
+    string Status = "ExpandedBeforeFeatureAir",
+    IReadOnlyDictionary<string, string>? SelectedMatchArms = null);
 public sealed record ConceptIrDocument(
     IReadOnlyList<ConceptIrDefinition> Concepts,
     IReadOnlyList<ConceptIrStructInstance> Structs,
@@ -111,7 +125,9 @@ public sealed record ConceptIrDocument(
     IReadOnlyList<ConceptIrBinding> Bindings,
     string ErasureStatus = "ErasedBeforeFeatureAir",
     IReadOnlyList<ConceptIrEnumDefinition>? Enums = null,
-    IReadOnlyList<ConceptIrStaticSelection>? StaticSelections = null);
+    IReadOnlyList<ConceptIrStaticSelection>? StaticSelections = null,
+    IReadOnlyList<ConceptIrTemplateInstantiation>? TemplateInstantiations = null,
+    IReadOnlyList<ConceptIrPatternExpansion>? PatternExpansions = null);
 
 internal sealed record ConceptPhase3Resolution(
     string ModelName,
@@ -125,6 +141,8 @@ internal sealed record ConceptPhase3Resolution(
 
 internal static class ConceptIrResolver
 {
+    // Static expansion is deliberately bounded: Pattern is compile-time declaration generation, not iteration.
+    private const int MaxStaticPatternExpansion = 1024;
     public const string MissingMember = "firmament-concept-missing-member";
     public const string UnknownMember = "firmament-concept-unknown-member";
     public const string TypeMismatch = "firmament-concept-type-mismatch";
@@ -158,6 +176,8 @@ internal static class ConceptIrResolver
 
     public static ConceptPhase3Resolution? Resolve(string source, List<string> diagnostics)
     {
+        // Match roles are compile-time conformance metadata. They deliberately do not lower to AIR.
+        source = StripMatchBlocks(source);
         var enums = ParseEnums(source, diagnostics);
         var definitions = ParseDefinitions(source, diagnostics);
         var materializedMatches = MaterializedHeader.Matches(source).Cast<Match>()
@@ -274,6 +294,8 @@ internal static class ConceptIrResolver
         var modifyBody = source[(modifyOpen + 1)..modifyClose];
         var holes = ParseConceptHoles(modifyBody, modifyOpen + 1, box.Groups["name"].Value, resolvedBounds,
             allInstances, materialized.Groups["name"].Value, bindings, diagnostics);
+        var patterns = ParseConceptPatterns(modifyBody, modifyOpen + 1, box.Groups["name"].Value, resolvedBounds, allInstances, materialized.Groups["name"].Value, bindings, diagnostics, out var patternHoles);
+        holes = holes.Concat(patternHoles).ToArray();
         if (holes.Count == 0 && finishes.Count == 0) { diagnostics.Add(FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid); return null; }
 
         var satisfiesMaterialized = materialized.Groups["concept"].Success ? new[] { materialized.Groups["concept"].Value } : [];
@@ -283,7 +305,7 @@ internal static class ConceptIrResolver
         var conformance = satisfiesMaterialized.Length == 0 ? "NotDeclared" : diagnostics.Any(d => IsConformanceDiagnostic(d)) ? "Invalid" : "Valid";
         var ir = new ConceptIrDocument(definitions, instanceList, resolved,
             new(materialized.Groups["name"].Value, materialized.Groups["kind"].Value, satisfiesMaterialized, new(materialized.Index, materializedClose - materialized.Index + 1), exposed, conformance), bindings,
-            Enums: enums, StaticSelections: staticSelections);
+            Enums: enums, StaticSelections: staticSelections, PatternExpansions: patterns);
         var modifyBlock = new FirmamentV2ModifyBlock(modify.Groups["target"].Value, [], holes, finishes);
         return new(materialized.Groups["name"].Value, materialized.Groups["kind"].Value, "mm", box.Groups["name"].Value, size, boundsProvenance,
             modifyBlock, ir);
@@ -304,6 +326,7 @@ internal static class ConceptIrResolver
         var headers = Regex.Matches(body, @"\bhole\s*<\s*(?<variant>[A-Za-z_][A-Za-z0-9_]*)\s*>\s*(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         foreach (Match header in headers)
         {
+            if (IsInsidePattern(body, header.Index)) continue;
             if (!string.Equals(header.Groups["variant"].Value, "shaft", StringComparison.OrdinalIgnoreCase)) { diagnostics.Add(FirmamentV2Parser.HoleVariantUnknown); continue; }
             var open = body.IndexOf('{', header.Index); var close = FindMatchingBrace(body, open);
             if (close < 0) { diagnostics.Add(FirmamentV2Parser.RegionUnsupported); continue; }
@@ -348,6 +371,46 @@ internal static class ConceptIrResolver
         }
         return result;
     }
+
+    private static IReadOnlyList<ConceptIrPatternExpansion> ParseConceptPatterns(string body, int bodyOffset, string boxName, ConceptIrBox3Value? bounds, IReadOnlyDictionary<string, ConceptIrStructInstance> instances, string materializedName, List<ConceptIrBinding> bindings, List<string> diagnostics, out IReadOnlyList<FirmamentV2SemanticHoleDecl> holes)
+    {
+        var reports = new List<ConceptIrPatternExpansion>(); var expanded = new List<FirmamentV2SemanticHoleDecl>();
+        var generatedPaths = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match pattern in Regex.Matches(body, @"\bPattern\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant))
+        {
+            var open = body.IndexOf('{', pattern.Index); var close = FindMatchingBrace(body, open);
+            if (close < 0) { diagnostics.Add("firmament-pattern-invalid-source"); continue; }
+            var patternBody = body[(open + 1)..close];
+            var source = FieldValue(patternBody, "Source");
+            var reference = Regex.Match(source, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
+            if (!reference.Success || !instances.TryGetValue(reference.Groups["instance"].Value, out var instance) || !instance.Members.TryGetValue(reference.Groups["member"].Value, out var member) || member is not ConceptIrPointSetValue points)
+            { diagnostics.Add("firmament-pattern-source-not-static-point3-collection:" + source); continue; }
+            if (points.Points.Count > MaxStaticPatternExpansion)
+            { diagnostics.Add("firmament-pattern-expansion-limit-exceeded:" + points.Points.Count.ToString(CultureInfo.InvariantCulture)); continue; }
+            var feature = Regex.Match(patternBody, @"\bHole\s*<\s*Shaft\s*>\s+(?<item>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            if (!feature.Success) { diagnostics.Add("firmament-pattern-element-type-mismatch"); continue; }
+            var featureOpen = patternBody.IndexOf('{', feature.Index); var featureClose = FindMatchingBrace(patternBody, featureOpen);
+            if (featureClose < 0) { diagnostics.Add("firmament-pattern-element-type-mismatch"); continue; }
+            var item = feature.Groups["item"].Value; var featureBody = patternBody[(featureOpen + 1)..featureClose];
+            if (!Regex.IsMatch(featureBody, $@"\bCenter\s*:\s*{Regex.Escape(item)}\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)) { diagnostics.Add("firmament-pattern-unbound-item"); continue; }
+            var generatedNames = new List<string>();
+            for (var index = 0; index < points.Points.Count; index++)
+            {
+                var generatedName = pattern.Groups["name"].Value + "_" + index.ToString(CultureInfo.InvariantCulture);
+                var concreteBody = Regex.Replace(featureBody, $@"\b{Regex.Escape(item)}\b", source + "[" + index.ToString(CultureInfo.InvariantCulture) + "]");
+                var concrete = $"hole<Shaft> {generatedName} {{{concreteBody}}}";
+                var one = ParseConceptHoles(concrete, bodyOffset + open + featureOpen, boxName, bounds, instances, materializedName, bindings, diagnostics);
+                if (one.Count != 1) continue;
+                var readable = pattern.Groups["name"].Value + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+                var generatedPath = materializedName + "::" + readable;
+                if (!generatedPaths.Add(generatedPath)) { diagnostics.Add("firmament-pattern-generated-declaration-collision:" + generatedPath); continue; }
+                expanded.Add(one[0] with { Name = readable }); generatedNames.Add(generatedPath);
+            }
+            reports.Add(new(materializedName + "::" + pattern.Groups["name"].Value, materializedName + "::" + source, "Point3", points.Points.Count, generatedNames, new(bodyOffset + pattern.Index, close - pattern.Index + 1)));
+        }
+        holes = expanded; return reports;
+    }
+
 
     private static IReadOnlyList<ConceptIrSemanticMember> ParseExposedMembers(
         string body,
@@ -804,7 +867,8 @@ internal static class ConceptIrResolver
     };
     private static ConceptIrVector3 Vector(string axis) => axis switch { "+X" => new(1, 0, 0), "-X" => new(-1, 0, 0), "+Y" => new(0, 1, 0), "-Y" => new(0, -1, 0), "+Z" => new(0, 0, 1), "-Z" => new(0, 0, -1), _ => new(0, 0, 0) };
     private static string AxisOf(ConceptIrVector3 v) => (v.X, v.Y, v.Z) switch { (1, 0, 0) => "+X", (-1, 0, 0) => "-X", (0, 1, 0) => "+Y", (0, -1, 0) => "-Y", (0, 0, 1) => "+Z", (0, 0, -1) => "-Z", _ => string.Empty };
-    private static string FieldValue(string body, string name) { var m = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[^\r\n}}]+)", RegexOptions.CultureInvariant); return m.Success ? m.Groups["value"].Value.Trim() : string.Empty; }
+    private static bool IsInsidePattern(string body, int index) => Regex.Matches(body, @"\bPattern\s+[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant).Cast<Match>().Any(p => { var close = FindMatchingBrace(body, body.IndexOf('{', p.Index)); return p.Index < index && close > index; });
+    private static string FieldValue(string body, string name) { var m = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[^\r\n}}]+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant); return m.Success ? m.Groups["value"].Value.Trim() : string.Empty; }
     private static int IntField(string body, string name) => int.TryParse(FieldValue(body, name), NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : -1;
     private static double ParseLength(string source) { source = source.Trim(); return source.EndsWith("mm", StringComparison.Ordinal) && double.TryParse(source[..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : double.NaN; }
     private static double ParseLengthOrUnitless(string source)
@@ -816,4 +880,14 @@ internal static class ConceptIrResolver
     private static string Id(string provenance) => "concept:" + provenance;
     private static bool IsPrecededByConcept(string source, int index) { var start = Math.Max(0, index - 10); return Regex.IsMatch(source[start..index], @"Concept\s+$", RegexOptions.CultureInvariant); }
     private static int FindMatchingBrace(string source, int open) { if (open < 0 || open >= source.Length || source[open] != '{') return -1; var depth = 0; for (var i = open; i < source.Length; i++) { if (source[i] == '{') depth++; else if (source[i] == '}' && --depth == 0) return i; } return -1; }
+    private static string StripMatchBlocks(string source)
+    {
+        foreach (Match match in Regex.Matches(source, @"\bMatch\s*\{", RegexOptions.CultureInvariant).Cast<Match>().Reverse())
+        {
+            var open = source.IndexOf('{', match.Index);
+            var close = FindMatchingBrace(source, open);
+            if (close >= 0) source = source.Remove(open, close - open + 1).Insert(open, new string(' ', close - open + 1));
+        }
+        return source;
+    }
 }

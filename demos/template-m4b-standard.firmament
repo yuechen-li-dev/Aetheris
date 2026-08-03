@@ -1,0 +1,42 @@
+Enum BracketVariant {
+    Compact
+    Standard
+}
+
+Template < Width: Length, Depth: Length, Height: Length, Variant: BracketVariant, HoleDiameter: Length = 8.5mm >
+Struct MountingBracket {
+    Concept Struct Design {
+        Bounds: Box3 {
+            Size: [Width, Depth, Height]
+        }
+        TopPlane: Bounds.Face(+Z)
+        MountPoints: Match Variant {
+            Compact => Grid {
+                Within: Bounds.Face(+Z).Inset(8mm)
+                Columns: 2
+                Rows: 1
+            }
+            Standard => Grid {
+                Within: Bounds.Face(+Z).Inset(10mm)
+                Columns: 2
+                Rows: 1
+            }
+        }
+    }
+    Box Base {
+        Bounds: Design.Bounds
+    }
+    Modify Base {
+        Pattern MountHoles {
+            Source: Design.MountPoints
+            Hole<Shaft> Item {
+                on: Base.Top
+                center: Item
+                diameter: HoleDiameter
+                end: ThroughAll
+            }
+        }
+    }
+}
+
+Struct StandardBracket = MountingBracket < Width: 80mm, Depth: 50mm, Height: 25mm, Variant: Standard >

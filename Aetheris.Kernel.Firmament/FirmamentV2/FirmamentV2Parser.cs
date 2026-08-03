@@ -226,6 +226,10 @@ public static class FirmamentV2Parser
         var source = StripLineComments(sourceText);
         conceptCatalog ??= FirmamentV2ForgeConceptRegistry.Catalog;
 
+        if (Regex.IsMatch(source, @"\bConcept\s+(?:Struct\s+)?[A-Za-z_]", RegexOptions.CultureInvariant)
+            || Regex.IsMatch(source, @"\b(?:Struct|Model)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant))
+            return ParseConceptModelingDocument(source, diagnostics);
+
         if (Regex.IsMatch(source, @"^\s*Model\b", RegexOptions.CultureInvariant))
             return ParsePhase3ModelingDocument(source, diagnostics);
 
@@ -754,6 +758,36 @@ public static class FirmamentV2Parser
         return FirmamentV2ParseResult.Success(document, diagnostics);
     }
 
+    private static FirmamentV2ParseResult ParseConceptModelingDocument(string source, List<string> diagnostics)
+    {
+        var resolution = ConceptIrResolver.Resolve(source, diagnostics);
+        if (resolution is null || diagnostics.Any(IsConceptFatalDiagnostic))
+        {
+            diagnostics.Add("firmament-v2-parse-failed");
+            diagnostics.Sort(StringComparer.Ordinal);
+            return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+        }
+
+        var solid = new FirmamentV2SolidBinding(
+            resolution.BoxName,
+            "Box",
+            new FirmamentV2BoxRecord(resolution.BoxSize, []),
+            Provenance: new Dictionary<string, string>(StringComparer.Ordinal) { ["Bounds"] = resolution.BoxBoundsProvenance });
+        var document = new FirmamentV2Document(
+            resolution.ModelName,
+            resolution.Units,
+            [solid],
+            [resolution.ModifyBlock],
+            ConceptIr: resolution.ConceptIr);
+        diagnostics.Add("firmament-concept-ir-resolved");
+        diagnostics.Add("firmament-concept-struct-erased-before-feature-air");
+        if (resolution.ModifyBlock.EdgeFinishes?.Count > 0) diagnostics.Add("firmament-v2-phase3-edge-finish-parsed");
+        if (resolution.ModifyBlock.SemanticHoles.Count > 0) diagnostics.Add("firmament-concept-point3-semantic-holes-parsed");
+        diagnostics.Add("firmament-v2-parse-succeeded");
+        diagnostics.Sort(StringComparer.Ordinal);
+        return FirmamentV2ParseResult.Success(document, diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+    }
+
     private static double ParsePhase3Length(string source)
     {
         source = source.Trim();
@@ -761,7 +795,24 @@ public static class FirmamentV2Parser
         return double.TryParse(source[..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : double.NaN;
     }
 
-    public static bool IsFatalDiagnosticCode(string code) => code is Phase3EdgeFinishSyntaxInvalid or PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetTypeMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch;
+    private static bool IsConceptFatalDiagnostic(string code) =>
+        code.StartsWith(ConceptIrResolver.MissingMember, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.UnknownMember, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.TypeMismatch, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.InvalidSpatialDerivation, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.IndexOutOfRange, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.CircularDependency, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.MaterializedPhaseReference, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.DuplicateDeclaration, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.DuplicateExposedMember, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.InvalidMaterializedReference, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.ExposedMemberUnrepresentable, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.CircularExposureDependency, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.PointNotOnPlacementPlane, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.PointOutsidePlacementFace, StringComparison.Ordinal)
+        || code.StartsWith(ConceptIrResolver.PointProjectionUnsupported, StringComparison.Ordinal);
+
+    public static bool IsFatalDiagnosticCode(string code) => IsConceptFatalDiagnostic(code) || code is Phase3EdgeFinishSyntaxInvalid or PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetTypeMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {

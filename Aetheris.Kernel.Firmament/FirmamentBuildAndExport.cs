@@ -182,8 +182,11 @@ public static class FirmamentBuildAndExport
         var top = plan.Vertices.Where(v => v.SectionIndex == 2).Select(v => v.Point).ToArray();
         var sourceBounds = Bounds(compiled.Body);
         var reimportedBounds = Bounds(reimported);
+        var featureProvenance = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (solid.Provenance?.TryGetValue("Bounds", out var boundsProvenance) == true) featureProvenance["Bounds"] = boundsProvenance;
+        if (finish.Provenance?.TryGetValue("Face", out var faceProvenance) == true) featureProvenance["Selection"] = faceProvenance;
         var report = new FirmamentAirChamferReport(
-            new("Chamfer", compiled.Feature.BodyId, compiled.Feature.FeatureId, compiled.Feature.FeatureName, $"FaceBoundary({compiled.Feature.Selection.FaceAxis})", compiled.Feature.Rule.Distance, compiled.Feature.Rule.Unit, $"{compiled.Feature.SourceSpan.Start}:{compiled.Feature.SourceSpan.Length}", compiled.Feature.Admission.ToString(), compiled.Feature.AdmissionReason),
+            new("Chamfer", compiled.Feature.BodyId, compiled.Feature.FeatureId, compiled.Feature.FeatureName, $"FaceBoundary({compiled.Feature.Selection.FaceAxis})", compiled.Feature.Rule.Distance, compiled.Feature.Rule.Unit, $"{compiled.Feature.SourceSpan.Start}:{compiled.Feature.SourceSpan.Length}", compiled.Feature.Admission.ToString(), compiled.Feature.AdmissionReason, featureProvenance),
             new("SectionTransition", compiled.Construction.Profiles.Count, compiled.Construction.Profiles.Select(p => p.Z).ToArray(), compiled.Construction.Transition.Correspondence, compiled.Construction.Transition.SplitPolicy),
             new(compiled.BRepPlan.IsAuthoritative, plan.Vertices.Count, plan.Edges.Count, plan.Faces.Count, plan.ExpectedLoopCount, plan.ExpectedCoedgeCount, compiled.BRepPlan.Summary.ChamferFaceCount, plan.SplitPolicy, plan.DeterministicSignature),
             new(AirTopFaceBoundaryChamferCompileResult.ProductionRoute, false, manifold, compiled.Topology.VertexCount, compiled.Topology.EdgeCount, compiled.Topology.FaceCount, sourceBounds,
@@ -192,7 +195,7 @@ public static class FirmamentBuildAndExport
                 reimported.Topology.Vertices.Count(), reimported.Topology.Edges.Count(), reimported.Topology.Faces.Count(), reimportedBounds, reimportedManifold));
 
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
-            step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "top-face-boundary-chamfer", Air: report));
+            step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "top-face-boundary-chamfer", Air: report, ConceptIr: document.ConceptIr));
     }
 
     private static string Bounds(BrepBody body)
@@ -462,7 +465,11 @@ public static class FirmamentBuildAndExport
         }
 
         var feature = semanticHoles[0];
-        var host = new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], -box.Size[2] / 2d, box.Size[2] / 2d);
+        // Concept Box3 uses an XY-centered frame with Z in [0, height]. Preserve that frame for
+        // Concept-driven holes so the materialized face and resolved Point3 share coordinates.
+        var host = document.ConceptIr is null
+            ? new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], -box.Size[2] / 2d, box.Size[2] / 2d)
+            : new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], 0d, box.Size[2]);
         Aetheris.Kernel.Core.Brep.BrepBody? body;
         IReadOnlyList<string> diagnostics;
         if (semanticHoles.Count == 1)
@@ -493,6 +500,20 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
         }
 
+        var featureReports = semanticHoles.Select(h => new FirmamentHoleFeatureReport(
+            h.Name,
+            "Hole",
+            h.FeatureId,
+            h.Shaft.Diameter,
+            h.Placement.U,
+            h.Placement.V,
+            h.Placement.ResolvedPoint3 is { } p ? new[] { p.X, p.Y, p.Z } : null,
+            h.Placement.ResolvedPoint3 is { } sourcePoint ? sourcePoint.Ordinal is { } ordinal ? $"{sourcePoint.SourceMember}[{ordinal}]" : sourcePoint.SourceMember : null,
+            h.Placement.ResolvedPoint3?.StableId,
+            h.Placement.ResolvedPoint3?.Ordinal,
+            h.Placement.ResolvedPoint3?.PlacementFace ?? h.Placement.EntryFaceName,
+            h.Placement.ResolvedPoint3?.SourceSpan,
+            semanticHoles.Count == 1 ? nameof(AirHoleSimpleShaftMaterializer) : nameof(AirHoleCompositeMaterializer))).ToArray();
         return KernelResult<FirmamentStepExportResult>.Success(
             new FirmamentStepExportResult(
                 step.Value,
@@ -501,7 +522,9 @@ public static class FirmamentBuildAndExport
                 semanticHoles.Count == 1 ? nameof(AirHoleSimpleShaftMaterializer) : nameof(AirHoleCompositeMaterializer),
                 semanticHoles.Count == 1 ? feature.Stack.Kind.ToString() : "CompositeSimpleShaft",
                 DatumInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
-                DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", null)).ToArray() ?? []));
+                DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", null)).ToArray() ?? [],
+                ConceptIr: document.ConceptIr,
+                Features: featureReports));
     }
 
     private static KernelResult<bool> ValidateV2PmiExportSupport(FirmamentV2Document document)

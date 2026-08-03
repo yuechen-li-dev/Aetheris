@@ -1,5 +1,11 @@
 # Firmament Overview
 
+Firmament now includes bounded static logic: PascalCase `Enum` declarations and exhaustive enum/boolean `Match` expressions are evaluated into typed Concept IR and erased before Feature AIR. This is compile-time selection, not runtime behavior or general scripting. See [CONCEPT-STATIC-LOGIC-M3](concept-static-logic-m3.md).
+
+The current language Concept implementation is documented by [CONCEPT-EXPANSION-M1](concept-expansion-m1.md) and [CONCEPT-MATERIALIZATION-M2](concept-materialization-m2.md). M2 adds typed Concept `Point3` consumption by semantic holes and explicit `Expose`-based structural conformance for materialized `Struct`/`Model` declarations; neither path performs automatic BRep semantic inference.
+
+The production PascalCase front end now includes compile-time `Concept` contracts, non-materialized `Concept Struct` spatial values, and interchangeable materialized `Struct` / `Model` aliases. See [CONCEPT-EXPANSION-M1](concept-expansion-m1.md) for syntax, Concept IR, static expansion, conformance, erasure, provenance, and the distinction from Forge C# concepts.
+
 Firmament is the Aetheris DSL for defining a small, ordered 3D feature program in `.firmament` files.
 
 In v1 today, the implemented golden path is:

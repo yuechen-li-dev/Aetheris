@@ -1,0 +1,14 @@
+Model AirChamferDistance2 mm
+
+Box Base {
+    Size: [10mm, 8mm, 6mm]
+}
+
+Modify Base {
+    EdgeFinish TopBreak {
+        Face: +Z
+        Target: Boundary
+        Kind: Chamfer
+        Distance: 2mm
+    }
+}

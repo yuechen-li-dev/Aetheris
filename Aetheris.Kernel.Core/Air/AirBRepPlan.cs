@@ -73,7 +73,11 @@ internal sealed record AirBRepPlan(
     AirBRepPlanSummary Summary,
     IReadOnlyList<AirDiagnostic> Diagnostics,
     IReadOnlyList<string> Guarantees,
-    AirBRepPlanFeatureContext? FeatureContext = null);
+    AirBRepPlanFeatureContext? FeatureContext = null,
+    PrismaticSectionTransitionTopologyPlan? RealizationPlan = null)
+{
+    public bool IsAuthoritative => RealizationPlan is not null;
+}
 
 internal sealed record AirBRepPlanResult(AirBRepPlan? Plan, AirBRepPlanValidationResult Validation)
 {
@@ -110,14 +114,15 @@ internal static class AirPrismaticSectionTransitionBRepPlanner
             return new AirBRepPlanResult(null, Validation(false, sourceAirNodeId, diagnostics, rejected));
         }
 
-        var elements = BuildElements(request, sourceAirNodeId, provenance, diagnostics);
-        var summary = Summary(request, sourceAirNodeId, diagnostics, RouteGuarantees);
+        var realizationPlan = PrismaticSectionTransitionTopologyPlanner.Create(request);
+        var elements = BuildElements(realizationPlan, sourceAirNodeId, provenance, diagnostics);
+        var summary = Summary(realizationPlan, sourceAirNodeId, diagnostics, RouteGuarantees);
         diagnostics.Add(D("air-x3-prismatic-plan-created"));
         diagnostics.Add(D("air-x3-prismatic-plan-validated"));
         diagnostics.AddRange(RouteGuarantees.Select(g => D("air-x3-" + g.Replace(" ", "-").Replace("STEP", "step").Replace("BRep", "brep").Replace("AirEdgeSweep", "air-edge-sweep").Replace("Boolean", "boolean"))));
         diagnostics = Stable(diagnostics).ToList();
         summary = summary with { Diagnostics = diagnostics };
-        var plan = new AirBRepPlan("brep-plan:prismatic-section-transition:" + sourceAirNodeId, AirBRepPlanKind.PrismaticSectionTransition, sourceAirNodeId, provenance, elements, summary, diagnostics, RouteGuarantees);
+        var plan = new AirBRepPlan("brep-plan:prismatic-section-transition:" + sourceAirNodeId, AirBRepPlanKind.PrismaticSectionTransition, sourceAirNodeId, provenance, elements, summary, diagnostics, RouteGuarantees, RealizationPlan: realizationPlan);
         return new AirBRepPlanResult(plan, new AirBRepPlanValidationResult(true, diagnostics, [], [], summary));
     }
 
@@ -142,22 +147,37 @@ internal static class AirPrismaticSectionTransitionBRepPlanner
         return null;
     }
 
-    private static IReadOnlyList<AirBRepPlanElement> BuildElements(PrismaticSectionTransitionRequest request, string sourceAirNodeId, AirProvenance provenance, List<AirDiagnostic> diagnostics)
+    private static IReadOnlyList<AirBRepPlanElement> BuildElements(PrismaticSectionTransitionTopologyPlan plan, string sourceAirNodeId, AirProvenance provenance, List<AirDiagnostic> diagnostics)
     {
         var e = new List<AirBRepPlanElement>();
-        var n = request.Sections[0].OuterLoop.Count;
-        for (var s = 0; s < request.Sections.Count; s++) for (var i = 0; i < n; i++) e.Add(E($"v:s{s}:{i}", AirBRepPlanElementKind.Vertex, AirBRepPlanRole.SectionVertex, s, i));
+        foreach (var vertex in plan.Vertices) e.Add(E(vertex.Id, AirBRepPlanElementKind.Vertex, AirBRepPlanRole.SectionVertex, vertex.SectionIndex, vertex.ProfileVertexIndex));
         diagnostics.Add(D("air-x3-section-vertices-planned"));
-        for (var s = 0; s < request.Sections.Count; s++) for (var i = 0; i < n; i++) { e.Add(E($"c:section:{s}:{i}", AirBRepPlanElementKind.Curve, AirBRepPlanRole.SectionEdge, s, null, null, i)); e.Add(E($"e:section:{s}:{i}", AirBRepPlanElementKind.Edge, AirBRepPlanRole.SectionEdge, s, null, null, i)); }
+        foreach (var edge in plan.Edges)
+        {
+            var role = edge.Kind == PrismaticPlannedEdgeKind.Section ? AirBRepPlanRole.SectionEdge : AirBRepPlanRole.VerticalTransitionEdge;
+            e.Add(E(edge.Id.Replace("e:", "c:", StringComparison.Ordinal), AirBRepPlanElementKind.Curve, role, edge.SectionIndex, null, edge.IntervalIndex, edge.ProfileEdgeIndex));
+            e.Add(E(edge.Id, AirBRepPlanElementKind.Edge, role, edge.SectionIndex, null, edge.IntervalIndex, edge.ProfileEdgeIndex));
+        }
         diagnostics.Add(D("air-x3-section-edges-planned"));
-        for (var s = 0; s < request.Sections.Count - 1; s++) for (var i = 0; i < n; i++) { e.Add(E($"c:transition:{s}:{i}", AirBRepPlanElementKind.Curve, AirBRepPlanRole.VerticalTransitionEdge, null, null, s, i)); e.Add(E($"e:transition:{s}:{i}", AirBRepPlanElementKind.Edge, AirBRepPlanRole.VerticalTransitionEdge, null, null, s, i)); }
         diagnostics.Add(D("air-x3-transition-edges-planned"));
-        e.Add(E("surf:cap:bottom", AirBRepPlanElementKind.Surface, AirBRepPlanRole.CapFace)); e.Add(E("loop:face:cap:bottom", AirBRepPlanElementKind.Loop, AirBRepPlanRole.SectionLoop)); e.Add(E("f:cap:bottom", AirBRepPlanElementKind.Face, AirBRepPlanRole.CapFace, faceRole: "bottom-cap"));
-        e.Add(E("surf:cap:top", AirBRepPlanElementKind.Surface, AirBRepPlanRole.CapFace)); e.Add(E("loop:face:cap:top", AirBRepPlanElementKind.Loop, AirBRepPlanRole.SectionLoop)); e.Add(E("f:cap:top", AirBRepPlanElementKind.Face, AirBRepPlanRole.CapFace, faceRole: "top-cap"));
+        var coedgeIndex = 0;
+        foreach (var face in plan.Faces)
+        {
+            var role = face.Kind switch
+            {
+                PrismaticPlannedFaceKind.BottomCap or PrismaticPlannedFaceKind.TopCap => AirBRepPlanRole.CapFace,
+                PrismaticPlannedFaceKind.StableSide => AirBRepPlanRole.SideFace,
+                _ => AirBRepPlanRole.TransitionFace,
+            };
+            var faceRole = face.Kind switch { PrismaticPlannedFaceKind.BottomCap => "bottom-cap", PrismaticPlannedFaceKind.TopCap => "top-cap", PrismaticPlannedFaceKind.StableSide => "side", _ => "transition" };
+            var suffix = face.Id[2..];
+            e.Add(E($"surf:{suffix}", AirBRepPlanElementKind.Surface, role, interval: face.IntervalIndex, edge: face.ProfileEdgeIndex));
+            e.Add(E($"loop:face:{suffix}", AirBRepPlanElementKind.Loop, role, interval: face.IntervalIndex, edge: face.ProfileEdgeIndex));
+            e.Add(E(face.Id, AirBRepPlanElementKind.Face, role, interval: face.IntervalIndex, edge: face.ProfileEdgeIndex, faceRole: faceRole));
+            foreach (var _ in face.Boundary) e.Add(E($"coedge:{coedgeIndex++:00}", AirBRepPlanElementKind.Coedge, role, interval: face.IntervalIndex, edge: face.ProfileEdgeIndex));
+        }
         diagnostics.Add(D("air-x3-cap-faces-planned"));
-        for (var s = 0; s < request.Sections.Count - 1; s++) for (var i = 0; i < n; i++) { var role = s == 0 ? AirBRepPlanRole.SideFace : AirBRepPlanRole.TransitionFace; var label = s == 0 ? "side" : "transition"; e.Add(E($"surf:{label}:interval{s}:edge{i}", AirBRepPlanElementKind.Surface, role, null, null, s, i)); e.Add(E($"loop:face:{label}:interval{s}:edge{i}", AirBRepPlanElementKind.Loop, role, null, null, s, i)); e.Add(E($"f:{label}:interval{s}:edge{i}", AirBRepPlanElementKind.Face, role, null, null, s, i, label)); }
         diagnostics.Add(D("air-x3-transition-faces-planned"));
-        for (var i = 0; i < 40; i++) e.Add(E($"coedge:{i:00}", AirBRepPlanElementKind.Coedge, AirBRepPlanRole.Unknown));
         e.Add(E("shell:body:0", AirBRepPlanElementKind.Shell, AirBRepPlanRole.BodyShell)); diagnostics.Add(D("air-x3-shell-planned"));
         e.Add(E("body:0", AirBRepPlanElementKind.Body, AirBRepPlanRole.Body)); diagnostics.Add(D("air-x3-body-planned"));
         diagnostics.Add(D("air-x3-stable-planned-ids-created"));
@@ -165,12 +185,13 @@ internal static class AirPrismaticSectionTransitionBRepPlanner
         AirBRepPlanElement E(string id, AirBRepPlanElementKind kind, AirBRepPlanRole role, int? section = null, int? vertex = null, int? interval = null, int? edge = null, string? faceRole = null) => new(new AirBRepPlanId(id), kind, role, sourceAirNodeId, provenance, section, vertex, interval, edge, faceRole, [], role == AirBRepPlanRole.TransitionFace ? [AirBRepPlanRole.PrismaticTransitionFace] : [role]);
     }
 
-    private static AirBRepPlanSummary Summary(PrismaticSectionTransitionRequest request, string sourceAirNodeId, IReadOnlyList<AirDiagnostic> diagnostics, IReadOnlyList<string> guarantees)
+    private static AirBRepPlanSummary Summary(PrismaticSectionTransitionTopologyPlan plan, string sourceAirNodeId, IReadOnlyList<AirDiagnostic> diagnostics, IReadOnlyList<string> guarantees)
     {
-        var n = request.Sections[0].OuterLoop.Count; var intervals = request.Sections.Count - 1; var faces = 2 + intervals * n;
-        var allX = request.Sections.SelectMany(s => s.OuterLoop.Select(p => p.X)); var allY = request.Sections.SelectMany(s => s.OuterLoop.Select(p => p.Y));
-        var bounds = FormattableString.Invariant($"[{allX.Min():0.###},{allY.Min():0.###},{request.Sections.Min(s => s.Z):0.###}]..[{allX.Max():0.###},{allY.Max():0.###},{request.Sections.Max(s => s.Z):0.###}]");
-        return new(AirBRepPlanKind.PrismaticSectionTransition, sourceAirNodeId, request.Sections.Count * n, request.Sections.Count * n + intervals * n, request.Sections.Count * n + intervals * n, (2 * n) + (4 * intervals * n), faces, faces, faces, 1, 1, 2, n, n, 0, bounds, PreserveSectionSplits, diagnostics, guarantees);
+        var bounds = FormattableString.Invariant($"[{plan.Vertices.Min(v => v.Point.X):0.###},{plan.Vertices.Min(v => v.Point.Y):0.###},{plan.Vertices.Min(v => v.Point.Z):0.###}]..[{plan.Vertices.Max(v => v.Point.X):0.###},{plan.Vertices.Max(v => v.Point.Y):0.###},{plan.Vertices.Max(v => v.Point.Z):0.###}]");
+        var caps = plan.Faces.Count(f => f.Kind is PrismaticPlannedFaceKind.BottomCap or PrismaticPlannedFaceKind.TopCap);
+        var sides = plan.Faces.Count(f => f.Kind == PrismaticPlannedFaceKind.StableSide);
+        var transitions = plan.Faces.Count(f => f.Kind == PrismaticPlannedFaceKind.Transition);
+        return new(AirBRepPlanKind.PrismaticSectionTransition, sourceAirNodeId, plan.Vertices.Count, plan.Edges.Count, plan.Edges.Count, plan.ExpectedCoedgeCount, plan.ExpectedLoopCount, plan.Faces.Count, plan.Faces.Count, 1, 1, caps, sides, transitions, 0, bounds, plan.SplitPolicy, diagnostics, guarantees);
     }
 
     private static AirBRepPlanValidationResult Validation(bool succeeded, string sourceAirNodeId, List<AirDiagnostic> diagnostics, AirDiagnostic error)
@@ -214,8 +235,8 @@ internal static class AirTopFaceLoopChamferBRepPlanner
             AirSelectionClass.FaceBoundaryLoop,
             AirRuleKind.UniformChamfer,
             "generated/history-known",
-            false,
-            ["Class B face-boundary loop uniform chamfer lowered through the prismatic section-transition plan.", "not-four-independent-single-edge-chamfers"]);
+            true,
+            ["Class B face-boundary loop uniform chamfer lowered through the authoritative prismatic section-transition plan.", "not-four-independent-single-edge-chamfers"]);
 
         var prismatic = AirPrismaticSectionTransitionBRepPlanner.Plan(
             new PrismaticSectionTransitionRequest(PrismaticTopFaceLoopChamferPrototype.CreateSectionStack(request), PrismaticCorrespondenceMap.Identity(4), new PrismaticSectionTransitionOptions(RunStepSmoke: request.ExportStep, TraceLabel: "air-x4-top-face-loop-chamfer-brep-plan")),

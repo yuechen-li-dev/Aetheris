@@ -1,6 +1,6 @@
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null)
+public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null, ConceptIrDocument? ConceptIr = null)
 {
     public FirmamentV2SolidBinding Solid => Solids[^1];
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
@@ -40,7 +40,7 @@ public sealed record FirmamentV2BoundConceptField(string Name, FirmamentV2Concep
 public sealed record FirmamentV2ManufacturingConceptDeclaration(FirmamentV2ConceptApplication Application, IReadOnlyList<FirmamentV2ConceptField> Fields, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2BoundConceptField>? BoundFields = null);
 public sealed record FirmamentV2FeatureConceptDeclaration(string Name, FirmamentV2ConceptApplication Application, IReadOnlyList<FirmamentV2ConceptField> Fields, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2BoundConceptField>? BoundFields = null);
 
-public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null)
+public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null, IReadOnlyDictionary<string, string>? Provenance = null)
 {
     public bool IsDerived => !string.IsNullOrWhiteSpace(DerivedFrom);
     public FirmamentV2BoxRecord? Box => Primitive as FirmamentV2BoxRecord;
@@ -90,10 +90,22 @@ public sealed record FirmamentV2FaceSelector(string Axis)
 {
     public string Source => $"face({Axis})";
 }
-public sealed record FirmamentV2ModifyBlock(string TargetSolid, IReadOnlyList<FirmamentV2RegionDecl> Regions, IReadOnlyList<FirmamentV2SemanticHoleDecl> SemanticHoles)
+public sealed record FirmamentV2ModifyBlock(
+    string TargetSolid,
+    IReadOnlyList<FirmamentV2RegionDecl> Regions,
+    IReadOnlyList<FirmamentV2SemanticHoleDecl> SemanticHoles,
+    IReadOnlyList<FirmamentV2EdgeFinishDecl>? EdgeFinishes = null)
 {
     public FirmamentV2ModifyBlock(string TargetSolid, IReadOnlyList<FirmamentV2RegionDecl> Regions) : this(TargetSolid, Regions, []) { }
 }
+public sealed record FirmamentV2EdgeFinishDecl(
+    string Name,
+    string FaceAxis,
+    string Target,
+    string Kind,
+    double Distance,
+    FirmamentV2SourceSpan SourceSpan,
+    IReadOnlyDictionary<string, string>? Provenance = null);
 public sealed record FirmamentV2RegionDecl(string Name, string Kind, FirmamentV2FaceTarget Attachment, FirmamentV2CutOperation Cut);
 public sealed record FirmamentV2CutOperation(string OperationKind, FirmamentV2CylinderTool Tool);
 public sealed record FirmamentV2CylinderTool(string ToolType, double Radius, FirmamentV2FaceLocalPoint2D? Center, FirmamentV2FaceTarget Through);
@@ -123,6 +135,16 @@ public sealed record FirmamentV2SideHoleIntent(string TargetSolid, string Region
 public enum FirmamentV2SemanticHoleVariant { Shaft, Counterbore, Countersink }
 public enum FirmamentV2SemanticHoleEndKind { ThroughAll, Depth }
 public sealed record FirmamentV2SemanticHoleEnd(FirmamentV2SemanticHoleEndKind Kind, double? Depth = null);
+public sealed record FirmamentV2ResolvedPoint3(
+    double X,
+    double Y,
+    double Z,
+    string StableId,
+    string SourceMember,
+    int? Ordinal,
+    string PlacementFace,
+    double PlaneDistance,
+    FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2SemanticHoleDecl(
     string Name,
     FirmamentV2SemanticHoleVariant Variant,
@@ -133,7 +155,9 @@ public sealed record FirmamentV2SemanticHoleDecl(
     double? CounterboreDiameter = null,
     double? CounterboreDepth = null,
     double? CountersinkDiameter = null,
-    double? CountersinkAngleDegrees = null);
+    double? CountersinkAngleDegrees = null,
+    FirmamentV2ResolvedPoint3? ResolvedCenter = null,
+    FirmamentV2SourceSpan? SourceSpan = null);
 public enum FirmamentV2PmiKind { HoleDiameter, DatumPlane, Distance, Flatness, Parallel, Perpendicular, Coplanar }
 public sealed record FirmamentV2PmiDecl(string Name, FirmamentV2PmiKind Kind, string Target, double? Value = null);
 public sealed record FirmamentV2PmiBlock(IReadOnlyList<FirmamentV2PmiRecord> Records, FirmamentV2SourceSpan SourceSpan);

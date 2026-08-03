@@ -73,7 +73,16 @@ internal static class PrismaticSectionTransitionEmitter
     private static readonly string[] RequiredStepMarkers = ["ISO-10303-21", "MANIFOLD_SOLID_BREP", "ADVANCED_FACE", "PLANE"];
     private static readonly string[] ForbiddenStepMarkers = ["CYLINDRICAL_SURFACE", "BREP_WITH_VOIDS"];
 
-    public static PrismaticSectionTransitionResult Emit(PrismaticSectionTransitionRequest request)
+    public static PrismaticSectionTransitionResult Emit(PrismaticSectionTransitionRequest request) => EmitCore(request, null);
+
+    public static PrismaticSectionTransitionResult Emit(
+        PrismaticSectionTransitionTopologyPlan authoritativePlan,
+        PrismaticSectionTransitionOptions? options = null) =>
+        EmitCore(authoritativePlan.Construction with { Options = options ?? authoritativePlan.Construction.Options }, authoritativePlan);
+
+    private static PrismaticSectionTransitionResult EmitCore(
+        PrismaticSectionTransitionRequest request,
+        PrismaticSectionTransitionTopologyPlan? authoritativePlan)
     {
         var diagnostics = new List<string> { "edge-prismatic-v1-emitter-started" };
         if (!string.IsNullOrWhiteSpace(request.Options?.TraceLabel))
@@ -93,7 +102,17 @@ internal static class PrismaticSectionTransitionEmitter
             diagnostics.Add("edge-prismatic-v1-transition-interval-created");
         }
 
-        var built = TryBuildBody(request.Sections, request.Correspondence!);
+        var realizationPlan = authoritativePlan ?? PrismaticSectionTransitionTopologyPlanner.Create(request);
+        if (realizationPlan.SplitPolicy != PrismaticSectionTransitionTopologyPlanner.PreserveSectionSplits)
+        {
+            diagnostics.Add("edge-prismatic-v1-request-rejected:unsupported-split-policy");
+            return Stop(PrismaticSectionTransitionStatus.Rejected, diagnostics, "prismatic-section-transition-invalid-rejected");
+        }
+
+        diagnostics.Add(authoritativePlan is null
+            ? "edge-prismatic-v1-topology-plan-created"
+            : "edge-prismatic-v1-authoritative-topology-plan-consumed");
+        var built = TryBuildBody(realizationPlan);
         if (built.Body is null)
         {
             diagnostics.Add($"edge-prismatic-v1-request-rejected:{built.Diagnostic}");
@@ -337,50 +356,24 @@ internal static class PrismaticSectionTransitionEmitter
             && topology.CoedgeCount == (2 * n) + (4 * (sectionCount - 1) * n);
     }
 
-    private static (BrepBody? Body, string Diagnostic) TryBuildBody(IReadOnlyList<PrismaticSection> sections, PrismaticCorrespondenceMap correspondence)
+    private static (BrepBody? Body, string Diagnostic) TryBuildBody(PrismaticSectionTransitionTopologyPlan plan)
     {
-        _ = correspondence;
+        var sections = plan.Construction.Sections;
         var n = sections[0].OuterLoop.Count;
-        var points = sections
-            .SelectMany(s => s.OuterLoop.Select(p => new Point3D(p.X, p.Y, s.Z)))
-            .ToArray();
+        var points = plan.Vertices.Select(v => v.Point).ToArray();
 
         var b = new TopologyBuilder();
         var vertices = points.Select(_ => b.AddVertex()).ToArray();
-        var profileEdges = new EdgeId[sections.Count][];
-        for (var s = 0; s < sections.Count; s++)
+        var edges = new EdgeId[plan.Edges.Count];
+        for (var i = 0; i < plan.Edges.Count; i++)
         {
-            profileEdges[s] = new EdgeId[n];
-            for (var i = 0; i < n; i++)
-            {
-                profileEdges[s][i] = b.AddEdge(vertices[(s * n) + i], vertices[(s * n) + ((i + 1) % n)]);
-            }
+            var edge = plan.Edges[i];
+            edges[i] = b.AddEdge(vertices[edge.StartVertexIndex], vertices[edge.EndVertexIndex]);
         }
 
-        var transitionEdges = new EdgeId[sections.Count - 1][];
-        for (var s = 0; s < sections.Count - 1; s++)
-        {
-            transitionEdges[s] = new EdgeId[n];
-            for (var i = 0; i < n; i++)
-            {
-                transitionEdges[s][i] = b.AddEdge(vertices[(s * n) + i], vertices[((s + 1) * n) + i]);
-            }
-        }
-
-        var faces = new List<FaceId>
-        {
-            AddFaceWithLoop(b, profileEdges[0].Select(Use.F).ToArray()),
-            AddFaceWithLoop(b, profileEdges[^1].Select(Use.R).ToArray()),
-        };
-
-        for (var s = 0; s < sections.Count - 1; s++)
-        {
-            for (var i = 0; i < n; i++)
-            {
-                var next = (i + 1) % n;
-                faces.Add(AddFaceWithLoop(b, [Use.F(profileEdges[s][i]), Use.F(transitionEdges[s][next]), Use.R(profileEdges[s + 1][i]), Use.R(transitionEdges[s][i])]));
-            }
-        }
+        var faces = plan.Faces
+            .Select(face => AddFaceWithLoop(b, face.Boundary.Select(use => new Use(edges[use.EdgeIndex], use.Reversed)).ToArray()))
+            .ToList();
 
         var shell = b.AddShell(faces);
         b.AddBody([shell]);

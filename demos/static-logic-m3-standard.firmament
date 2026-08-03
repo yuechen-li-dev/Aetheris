@@ -1,0 +1,30 @@
+Enum BracketVariant {
+    Compact
+    Standard
+}
+
+Concept Struct BracketConcept {
+    Variant: BracketVariant = Standard
+
+    Bounds: Match Variant {
+        Compact => Box3 { Size: [60mm, 40mm, 20mm] }
+        Standard => Box3 { Size: [80mm, 50mm, 25mm] }
+    }
+
+    ChamferDistance: Match Variant {
+        Compact => 1mm
+        Standard => 1.5mm
+    }
+}
+
+Struct Bracket {
+    Box Base { Bounds: BracketConcept.Bounds }
+    Modify Base {
+        EdgeFinish TopBreak {
+            Face: +Z
+            Target: Boundary
+            Kind: Chamfer
+            Distance: BracketConcept.ChamferDistance
+        }
+    }
+}

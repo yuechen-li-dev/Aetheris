@@ -108,7 +108,7 @@ public static class CliRunner
         string? Error,
         string? Classification = null,
         int? RigidRootCount = null);
-    private const string TopLevelUsage = "Usage: aetheris <build|validate|analyze|trace|canon|asm|experimental> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|validate|analyze|match|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
@@ -116,6 +116,7 @@ public static class CliRunner
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
+    private const string MatchUsage = "Usage: aetheris match <file.step> <concept.firmament> [--linear-tolerance <mm>] [--angular-tolerance <deg>] [--json]";
     private const string TraceUsage = "Usage: aetheris trace (--case <name>|--fixture <path>) [--out-dir <dir>] [--json]";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--mode deterministic|production] [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
@@ -166,6 +167,7 @@ public static class CliRunner
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
+                "match" => RunMatch(args.Skip(1).ToArray(), stdout, stderr),
                 "trace" => RunTrace(args.Skip(1).ToArray(), stdout, stderr),
                 "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
                 "asm" => RunAsm(args.Skip(1).ToArray(), stdout, stderr),
@@ -178,6 +180,28 @@ public static class CliRunner
             stderr.WriteLine(ex.Message);
             return 1;
         }
+    }
+
+    private static int RunMatch(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            WriteMatchHelp(stdout);
+            return args.Length == 0 ? 1 : 0;
+        }
+        if (args.Length < 2 || args[0].StartsWith("-", StringComparison.Ordinal) || args[1].StartsWith("-", StringComparison.Ordinal)) { stderr.WriteLine(MatchUsage); return 1; }
+        var step = args[0]; var concept = args[1]; var json = false; var linear = 0.01d; var angular = 0.1d;
+        for (var i = 2; i < args.Length; i++)
+        {
+            if (args[i] == "--json") { json = true; continue; }
+            if (args[i] == "--linear-tolerance" && i + 1 < args.Length && double.TryParse(args[++i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out linear) && linear >= 0) continue;
+            if (args[i] == "--angular-tolerance" && i + 1 < args.Length && double.TryParse(args[++i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out angular) && angular >= 0) continue;
+            stderr.WriteLine($"Unknown or invalid match option '{args[i]}'."); stderr.WriteLine(MatchUsage); return 1;
+        }
+        var report = ConceptStepMatcher.Match(step, concept, new(linear, angular, linear));
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { conceptStepMatch = report }, JsonOptions));
+        else stdout.WriteLine($"{report.Status}: {report.ConceptStruct} against {step} ({report.Members.Count} members)");
+        return report.Status is ConceptStepOverallStatus.Conflicted or ConceptStepOverallStatus.InvalidConcept or ConceptStepOverallStatus.InvalidStep ? 1 : 0;
     }
 
     private static int RunBuild(string[] args, TextWriter stdout, TextWriter stderr)
@@ -261,6 +285,9 @@ public static class CliRunner
                 success = true,
                 sourcePath = build.Value.SourcePath,
                 outputPath = build.Value.OutputPath,
+                conceptIr = build.Value.Export.ConceptIr,
+                air = build.Value.Export.Air,
+                features = build.Value.Export.Features,
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
                 pmiExportEvidence = new
@@ -2281,6 +2308,7 @@ public static class CliRunner
         stdout.WriteLine("  build      Build a .firmament source file into STEP.");
         stdout.WriteLine("  validate   Validate Firmament V2 manufacturing intent and emit report JSON.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
+        stdout.WriteLine("  match      Match a compile-time Concept Struct against observed STEP geometry.");
         stdout.WriteLine("  trace      Trace built-in AIR lowering cases through route, BRepPlan, STEP smoke, and CIR mirror.");
         stdout.WriteLine("  canon      Import and re-export STEP/AP242 as canonical STEP.");
         stdout.WriteLine("  asm        Execute/export .firmasm assembly IR using rigid world-space composition.");
@@ -2295,6 +2323,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris validate fixtures/FirmamentV2/Language/valid/v2-phase1-validation-report.valid.firmfixture --json");
         stdout.WriteLine("  aetheris analyze model.step");
         stdout.WriteLine("  aetheris analyze model.step --json");
+        stdout.WriteLine("  aetheris match model.step concept.firmament --json");
         stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer");
         stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture");
         stdout.WriteLine("  aetheris trace --case prismatic-section-transition --json");
@@ -2323,6 +2352,18 @@ public static class CliRunner
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris build part.firmament --out part.step --json");
+    }
+
+    private static void WriteMatchHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Match a compile-time Concept Struct against observed STEP geometry.");
+        stdout.WriteLine("This does not reconstruct the original feature history.");
+        stdout.WriteLine();
+        stdout.WriteLine(MatchUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Supported M5 evidence: body bounds, analytic planar faces, cylindrical axes, and declared hole-center point sets.");
+        stdout.WriteLine("Use `Match { MountPoints As HoleCenters { Diameter: 8.5mm Axis: +Z Kind: Through } }` in the source for point-set hole matching.");
+        stdout.WriteLine("Matched and Partial exit 0; Conflicted or invalid input exits 1.");
     }
 
     private static void WriteValidateHelp(TextWriter stdout)

@@ -146,7 +146,24 @@ internal sealed record AirHoleFeature(
     private static AirDiagnostic Error(string code, string message) => new(code, AirDiagnosticSeverity.Error, message);
 }
 
-internal sealed record AirFaceLocalHolePlacement(string EntryFaceName, double U, double V, string FrameConvention, string? StableFaceSelector = null);
+internal sealed record AirResolvedPoint3PlacementSource(
+    double X,
+    double Y,
+    double Z,
+    string StableId,
+    string SourceMember,
+    int? Ordinal,
+    string PlacementFace,
+    double PlaneDistance,
+    string SourceSpan);
+
+internal sealed record AirFaceLocalHolePlacement(
+    string EntryFaceName,
+    double U,
+    double V,
+    string FrameConvention,
+    string? StableFaceSelector = null,
+    AirResolvedPoint3PlacementSource? ResolvedPoint3 = null);
 internal sealed record AirHoleAxis(Direction3D Direction, bool DefaultedFromEntryFaceNormal);
 internal sealed record AirHoleShaft(double Diameter)
 {

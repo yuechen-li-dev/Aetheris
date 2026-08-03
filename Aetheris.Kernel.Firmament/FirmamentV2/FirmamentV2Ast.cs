@@ -90,10 +90,21 @@ public sealed record FirmamentV2FaceSelector(string Axis)
 {
     public string Source => $"face({Axis})";
 }
-public sealed record FirmamentV2ModifyBlock(string TargetSolid, IReadOnlyList<FirmamentV2RegionDecl> Regions, IReadOnlyList<FirmamentV2SemanticHoleDecl> SemanticHoles)
+public sealed record FirmamentV2ModifyBlock(
+    string TargetSolid,
+    IReadOnlyList<FirmamentV2RegionDecl> Regions,
+    IReadOnlyList<FirmamentV2SemanticHoleDecl> SemanticHoles,
+    IReadOnlyList<FirmamentV2EdgeFinishDecl>? EdgeFinishes = null)
 {
     public FirmamentV2ModifyBlock(string TargetSolid, IReadOnlyList<FirmamentV2RegionDecl> Regions) : this(TargetSolid, Regions, []) { }
 }
+public sealed record FirmamentV2EdgeFinishDecl(
+    string Name,
+    string FaceAxis,
+    string Target,
+    string Kind,
+    double Distance,
+    FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2RegionDecl(string Name, string Kind, FirmamentV2FaceTarget Attachment, FirmamentV2CutOperation Cut);
 public sealed record FirmamentV2CutOperation(string OperationKind, FirmamentV2CylinderTool Tool);
 public sealed record FirmamentV2CylinderTool(string ToolType, double Radius, FirmamentV2FaceLocalPoint2D? Center, FirmamentV2FaceTarget Through);

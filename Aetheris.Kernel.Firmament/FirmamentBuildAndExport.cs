@@ -1,4 +1,6 @@
 using System.Text;
+using System.Security.Cryptography;
+using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Brep;
@@ -53,6 +55,11 @@ public static class FirmamentBuildAndExport
             if (!dfm.IsSuccess)
             {
                 return KernelResult<FirmamentStepExportResult>.Failure(dfm.Diagnostics);
+            }
+
+            if (TryExportV2AirChamferBody(v2Parse.Document) is { } airChamferExport)
+            {
+                return airChamferExport;
             }
 
             if (TryExportV2SemanticHoleBody(v2Parse.Document) is { } semanticHoleExport)
@@ -131,6 +138,75 @@ public static class FirmamentBuildAndExport
 
         return FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
     }
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2AirChamferBody(FirmamentV2Document document)
+    {
+        var finishes = (document.ModifyBlocks ?? []).SelectMany(m => (m.EdgeFinishes ?? []).Select(f => (Modify: m, Finish: f))).ToArray();
+        if (finishes.Length == 0) return null;
+        if (finishes.Length != 1 || document.Solids.Count != 1 || document.ModifyBlocks!.Count != 1
+            || document.ModifyBlocks[0].Regions.Count != 0 || document.ModifyBlocks[0].SemanticHoles.Count != 0)
+            return AirChamferFailure("air-chamfer-production-route-requires-one-box-and-one-edge-finish");
+
+        var (modify, finish) = finishes[0];
+        var solid = document.Solids.SingleOrDefault(s => s.Name == modify.TargetSolid);
+        if (solid?.Primitive is not FirmamentV2BoxRecord box || box.Size.Count != 3)
+            return AirChamferFailure("air-chamfer-history-known-rectangular-prism-required");
+
+        var compiled = AirTopFaceBoundaryChamferCompiler.Compile(new(
+            solid.Name,
+            $"{solid.Name}.{finish.Name}",
+            finish.Name,
+            box.Size[0], box.Size[1], box.Size[2],
+            finish.FaceAxis, finish.Target, finish.Kind, finish.Distance,
+            new AirSourceSpan(finish.SourceSpan.Start, finish.SourceSpan.Length, document.ModelName)));
+        if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.RealizationPlan is null || compiled.Topology is null)
+            return AirChamferFailure(compiled.Feature.AdmissionReason, compiled.Diagnostics);
+
+        var manifold = FirmamentManifoldChecker.IsManifold(compiled.Body);
+        if (!manifold) return AirChamferFailure("air-chamfer-emitted-body-is-not-manifold", compiled.Diagnostics);
+
+        var step = Step242Exporter.ExportBody(compiled.Body, new Step242ExportOptions
+        {
+            ProductName = compiled.Feature.FeatureName,
+            ApplicationName = AirTopFaceBoundaryChamferCompileResult.ProductionRoute,
+        });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(reimport.Diagnostics);
+        var reimported = reimport.Value;
+        var reimportedManifold = FirmamentManifoldChecker.IsManifold(reimported);
+        if (!reimportedManifold) return AirChamferFailure("air-chamfer-step-reimport-is-not-manifold");
+
+        var plan = compiled.BRepPlan.RealizationPlan;
+        var top = plan.Vertices.Where(v => v.SectionIndex == 2).Select(v => v.Point).ToArray();
+        var sourceBounds = Bounds(compiled.Body);
+        var reimportedBounds = Bounds(reimported);
+        var report = new FirmamentAirChamferReport(
+            new("Chamfer", compiled.Feature.BodyId, compiled.Feature.FeatureId, compiled.Feature.FeatureName, $"FaceBoundary({compiled.Feature.Selection.FaceAxis})", compiled.Feature.Rule.Distance, compiled.Feature.Rule.Unit, $"{compiled.Feature.SourceSpan.Start}:{compiled.Feature.SourceSpan.Length}", compiled.Feature.Admission.ToString(), compiled.Feature.AdmissionReason),
+            new("SectionTransition", compiled.Construction.Profiles.Count, compiled.Construction.Profiles.Select(p => p.Z).ToArray(), compiled.Construction.Transition.Correspondence, compiled.Construction.Transition.SplitPolicy),
+            new(compiled.BRepPlan.IsAuthoritative, plan.Vertices.Count, plan.Edges.Count, plan.Faces.Count, plan.ExpectedLoopCount, plan.ExpectedCoedgeCount, compiled.BRepPlan.Summary.ChamferFaceCount, plan.SplitPolicy, plan.DeterministicSignature),
+            new(AirTopFaceBoundaryChamferCompileResult.ProductionRoute, false, manifold, compiled.Topology.VertexCount, compiled.Topology.EdgeCount, compiled.Topology.FaceCount, sourceBounds,
+                top.Min(p => p.X) - (-box.Size[0] / 2d), top.Min(p => p.Y) - (-box.Size[1] / 2d)),
+            new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true,
+                reimported.Topology.Vertices.Count(), reimported.Topology.Edges.Count(), reimported.Topology.Faces.Count(), reimportedBounds, reimportedManifold));
+
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
+            step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "top-face-boundary-chamfer", Air: report));
+    }
+
+    private static string Bounds(BrepBody body)
+    {
+        var points = body.Topology.Vertices.Select(v => body.TryGetVertexPoint(v.Id, out var point) ? point : throw new InvalidOperationException($"Missing point for vertex {v.Id}.")).ToArray();
+        return FormattableString.Invariant($"[{points.Min(p => p.X):0.###},{points.Min(p => p.Y):0.###},{points.Min(p => p.Z):0.###}]..[{points.Max(p => p.X):0.###},{points.Max(p => p.Y):0.###},{points.Max(p => p.Z):0.###}]");
+    }
+
+    private static KernelResult<FirmamentStepExportResult> AirChamferFailure(string primary, IEnumerable<string>? details = null) =>
+        KernelResult<FirmamentStepExportResult>.Failure((new[] { primary }).Concat(details ?? []).Distinct().Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
+            Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+            Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+            message,
+            "FirmamentV2.AirChamfer")).ToArray());
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2InlineStepReplacementBody(FirmamentV2Document document)
     {

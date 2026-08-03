@@ -1,7 +1,9 @@
 # PHASE3-ARCH-A0 — AIR compiler architecture investigation addendum
 
-Status: investigation result; not production doctrine  
+Status: investigation result; production follow-through implemented by AIR-CHAMFER-PRODUCTION-M1
 Date: 2026-08-03
+
+> Implementation update (2026-08-03): the bounded rectangular-prism `+Z` outer-boundary chamfer now follows the corrected architecture in this addendum. `PrismaticSectionTransitionTopologyPlan` is shared authority for `AirBRepPlan` and `PrismaticSectionTransitionEmitter`; the production emitter consumes the plan rather than being independently predicted after emission. See `docs/implementation/air-chamfer-production-m1.md`.
 
 This addendum tests, rather than assumes, the proposed pipeline:
 

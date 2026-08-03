@@ -1,0 +1,14 @@
+Model AirChamferNonSquare mm
+
+Box Base {
+    Size: [12mm, 5mm, 7mm]
+}
+
+Modify Base {
+    EdgeFinish TopBreak {
+        Face: +Z
+        Target: Boundary
+        Kind: Chamfer
+        Distance: 1mm
+    }
+}

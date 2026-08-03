@@ -261,6 +261,7 @@ public static class CliRunner
                 success = true,
                 sourcePath = build.Value.SourcePath,
                 outputPath = build.Value.OutputPath,
+                air = build.Value.Export.Air,
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
                 pmiExportEvidence = new

@@ -1,6 +1,8 @@
 # Aetheris V2.0 Phase 3 AIR chamfer MVP scope contract
 
-Milestone: **PHASE3-L0**
+Milestone: **PHASE3-L0**; bounded implementation completed by **AIR-CHAMFER-PRODUCTION-M1**
+
+Implementation note (2026-08-03): the PascalCase `Box` plus `Modify`/`EdgeFinish` source form described here is now implemented for the exact `Face: +Z`, `Target: Boundary`, uniform equal-distance domain. The final path uses Feature AIR, ordered-profile Construction AIR, an authoritative shared topology realization plan, real changed BRep geometry, AP242 export, and immediate reimport verification. See `docs/implementation/air-chamfer-production-m1.md`. Broader chamfer claims remain out of scope.
 
 This document opens Aetheris V2.0 Phase 3 with a documentation-only scope contract for productionizing the AIR chamfer MVP.
 

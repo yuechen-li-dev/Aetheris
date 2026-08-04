@@ -40,7 +40,12 @@ public sealed record FirmamentV2BoundConceptField(string Name, FirmamentV2Concep
 public sealed record FirmamentV2ManufacturingConceptDeclaration(FirmamentV2ConceptApplication Application, IReadOnlyList<FirmamentV2ConceptField> Fields, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2BoundConceptField>? BoundFields = null);
 public sealed record FirmamentV2FeatureConceptDeclaration(string Name, FirmamentV2ConceptApplication Application, IReadOnlyList<FirmamentV2ConceptField> Fields, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2BoundConceptField>? BoundFields = null);
 
-public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null, IReadOnlyDictionary<string, string>? Provenance = null)
+public enum FirmamentV2ConstructionPolicy { Solid, Hollow }
+
+/// <summary>Source-owned hollow intent.  This is deliberately not a Boolean tool description.</summary>
+public sealed record FirmamentV2HollowIntent(double WallThickness, IReadOnlyList<string> Openings, FirmamentV2SourceSpan SourceSpan);
+
+public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null, IReadOnlyDictionary<string, string>? Provenance = null, FirmamentV2ConstructionPolicy ConstructionPolicy = FirmamentV2ConstructionPolicy.Solid, FirmamentV2HollowIntent? Hollow = null)
 {
     public bool IsDerived => !string.IsNullOrWhiteSpace(DerivedFrom);
     public FirmamentV2BoxRecord? Box => Primitive as FirmamentV2BoxRecord;
@@ -48,6 +53,7 @@ public sealed record FirmamentV2SolidBinding(string Name, string RecordType, Fir
     public FirmamentV2ConeRecord? Cone => Primitive as FirmamentV2ConeRecord;
     public FirmamentV2SphereRecord? Sphere => Primitive as FirmamentV2SphereRecord;
     public FirmamentV2TorusRecord? Torus => Primitive as FirmamentV2TorusRecord;
+    public FirmamentV2RoundedBoxRecord? RoundedBox => Primitive as FirmamentV2RoundedBoxRecord;
     public FirmamentV2InlineStepRecord? InlineStep => Primitive as FirmamentV2InlineStepRecord;
 }
 
@@ -57,6 +63,10 @@ public sealed record FirmamentV2CylinderRecord(double Radius, double Height) : F
 public sealed record FirmamentV2ConeRecord(double BottomRadius, double TopRadius, double Height) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2SphereRecord(double Radius) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2TorusRecord(double MajorRadius, double MinorRadius) : FirmamentV2PrimitiveRecord;
+/// <summary>Silhouette-defined rounded rectangle swept along +Z; CornerRadius is not an edge finish.</summary>
+public sealed record FirmamentV2RoundedBoxRecord(IReadOnlyList<double> Size, double CornerRadius) : FirmamentV2PrimitiveRecord;
+/// <summary>Exact conical-frustum primitive identity; unlike Cone it cannot silently collapse into a generic primitive name.</summary>
+public sealed record FirmamentV2FrustumRecord(double BottomRadius, double TopRadius, double Height) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2InlineStepRecord(string SourcePath, string NormalizedPath, string ContentHash, bool CanonicalInput, string CanonicalEvidence, ImportedStepTopologyMap TopologyMap) : FirmamentV2PrimitiveRecord;
 public sealed record ImportedStepTopologyMap(IReadOnlyDictionary<string, string> FaceEntityToFaceId, IReadOnlyDictionary<string, string> FaceIdToFaceEntity)
 {

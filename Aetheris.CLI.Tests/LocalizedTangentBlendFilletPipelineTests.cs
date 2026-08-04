@@ -101,6 +101,38 @@ public sealed class LocalizedTangentBlendFilletPipelineTests
         Assert.Equal(1, closure.GetProperty("sharedEdges").GetInt32());
     }
 
+    [Theory]
+    [InlineData(10d, 8d, 6d, 1d)]
+    [InlineData(10d, 8d, 6d, 2d)]
+    [InlineData(12d, 5d, 7d, 1d)]
+    public void LocalizedTangentBlend_ThreeEdgeTrihedral_ExportsSphericalOctant(double width, double depth, double height, double radius)
+    {
+        var run = Run($$"""
+            Model Trihedral mm
+            Box Base { Size: [{{width}}mm, {{depth}}mm, {{height}}mm] }
+            Modify Base {
+                EdgeFinish XZ { Face: +X Target: SharedEdgePlusZ Kind: Fillet Distance: {{radius}}mm }
+                EdgeFinish YZ { Face: +Y Target: SharedEdgePlusZ Kind: Fillet Distance: {{radius}}mm }
+                EdgeFinish XY { Face: +X Target: SharedEdgePlusY Kind: Fillet Distance: {{radius}}mm }
+            }
+            """);
+        Assert.Equal(0, run.Exit);
+        using var json = JsonDocument.Parse(run.Output);
+        var air = json.RootElement.GetProperty("air");
+        var junction = air.GetProperty("localizedEdgeJunction");
+        Assert.Equal("LocalizedTrihedralFillet", junction.GetProperty("construction").GetString());
+        Assert.Equal("SphericalOctant", junction.GetProperty("cornerPatch").GetString());
+        Assert.Equal(3, junction.GetProperty("replacementFaces").GetInt32());
+        Assert.Equal(1, junction.GetProperty("junctionFaces").GetInt32());
+        Assert.Equal(3, junction.GetProperty("closure").GetProperty("sharedEdges").GetInt32());
+        Assert.Equal(3, air.GetProperty("materialization").GetProperty("cylindricalFaces").GetInt32());
+        Assert.Equal(1, air.GetProperty("materialization").GetProperty("sphericalFaces").GetInt32());
+        Assert.True(air.GetProperty("step").GetProperty("reimportSucceeded").GetBoolean());
+        var step = File.ReadAllText(json.RootElement.GetProperty("outputPath").GetString()!);
+        Assert.Contains("SPHERICAL_SURFACE", step, StringComparison.Ordinal);
+        Assert.Contains("CYLINDRICAL_SURFACE", step, StringComparison.Ordinal);
+    }
+
     private static (int Exit, string Output) Run(string source)
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-localized-fillet", Guid.NewGuid().ToString("N"));

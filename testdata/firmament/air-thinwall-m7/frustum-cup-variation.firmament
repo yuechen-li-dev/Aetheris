@@ -1,0 +1,9 @@
+Struct InwardCup {
+    Frustum<Hollow> Body {
+        BottomRadius: 40mm
+        TopRadius: 30mm
+        Height: 70mm
+        WallThickness: 1.5mm
+        Openings: [Top]
+    }
+}

@@ -57,6 +57,16 @@ public static class FirmamentBuildAndExport
                 return KernelResult<FirmamentStepExportResult>.Failure(dfm.Diagnostics);
             }
 
+            if (TryExportV2HollowBody(v2Parse.Document) is { } hollowExport)
+            {
+                return hollowExport;
+            }
+
+            if (TryExportV2RoundedBoxBody(v2Parse.Document) is { } roundedBoxExport)
+            {
+                return roundedBoxExport;
+            }
+
             if (TryExportV2AirChamferBody(v2Parse.Document) is { } airChamferExport)
             {
                 return airChamferExport;
@@ -140,8 +150,10 @@ public static class FirmamentBuildAndExport
         var trimmedSource = sourceText.TrimStart();
         var isV2ModelSource = trimmedSource.StartsWith("model ", StringComparison.Ordinal)
             || trimmedSource.StartsWith("Model ", StringComparison.Ordinal)
+            || (trimmedSource.StartsWith("Struct ", StringComparison.Ordinal) && sourceText.Contains("<Hollow>", StringComparison.Ordinal))
             || sourceText.Contains("\nmodel ", StringComparison.Ordinal)
-            || sourceText.Contains("\nModel ", StringComparison.Ordinal);
+            || sourceText.Contains("\nModel ", StringComparison.Ordinal)
+            || (sourceText.Contains("\nStruct ", StringComparison.Ordinal) && sourceText.Contains("<Hollow>", StringComparison.Ordinal));
         if (isV2ModelSource && fatalV2Diagnostics.Length > 0)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(fatalV2Diagnostics.Select(code => new Kernel.Core.Diagnostics.KernelDiagnostic(
@@ -176,10 +188,21 @@ public static class FirmamentBuildAndExport
                 return AirChamferFailure("localized-fillet-junction-unsupported-history:expected-history-known-box");
             return ExportV2LocalizedEdgeJunctionFillet(document, junctionSolid, finishes[0].Finish, finishes[1].Finish, junctionBox);
         }
+        if (finishes.Length == 3 && finishes.All(x => string.Equals(x.Finish.Kind, "Fillet", StringComparison.Ordinal)))
+        {
+            if (document.Solids.Count != 1 || document.ModifyBlocks!.Count != 1 || document.ModifyBlocks[0].Regions.Count != 0 || document.ModifyBlocks[0].SemanticHoles.Count != 0)
+                return AirChamferFailure("localized-trihedral-fillet-production-route-requires-one-box-and-one-modify-block");
+            var junctionSolid = document.Solids.SingleOrDefault(s => s.Name == finishes[0].Modify.TargetSolid);
+            if (junctionSolid?.Primitive is not FirmamentV2BoxRecord junctionBox || junctionBox.Size.Count != 3)
+                return AirChamferFailure("localized-trihedral-fillet-unsupported-history:expected-history-known-box");
+            return ExportV2LocalizedTrihedralFillet(document, junctionSolid, finishes.Select(x => x.Finish).ToArray(), junctionBox);
+        }
+        if (finishes.Length == 3)
+            return AirChamferFailure("localized-trihedral-fillet-unsupported-finish-combination:mixed-families");
         if (finishes.Length == 2)
             return AirChamferFailure("localized-junction-unsupported-finish-combination:mixed-families");
         if (finishes.Length > 2)
-            return AirChamferFailure("localized-junction-unsupported-valence:two-selected-edges-maximum");
+            return AirChamferFailure("localized-trihedral-fillet-unsupported-valence:three-selected-edges-maximum");
         if (finishes.Length != 1 || document.Solids.Count != 1 || document.ModifyBlocks!.Count != 1
             || document.ModifyBlocks[0].Regions.Count != 0 || document.ModifyBlocks[0].SemanticHoles.Count != 0)
             return AirChamferFailure("air-chamfer-production-route-requires-one-box-and-one-edge-finish");
@@ -390,6 +413,211 @@ public static class FirmamentBuildAndExport
                 new(true, topology.DeterministicSignature), "valid", false, 1, 1,
                 new("DirectIntersection", "Cylinder", "Cylinder", "Ellipse", true, 1, compiled.Construction.Closure.Branch)));
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{first.Name}.{second.Name}", 0, "air-fillet", "localized-edge-junction-fillet", Air: report, ConceptIr: document.ConceptIr));
+    }
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2HollowBody(FirmamentV2Document document)
+    {
+        if (document.Solids.Count != 1 || document.Solid.ConstructionPolicy != FirmamentV2ConstructionPolicy.Hollow)
+            return null;
+        var solid = document.Solid;
+        if (solid.Hollow is null || solid.Hollow.Openings.Count != 1 || solid.Hollow.Openings[0] != "Top")
+            return HollowFailure("UnsupportedOpening");
+
+        KernelResult<ThinWalledBodyRealization> realization = solid.Primitive switch
+        {
+            FirmamentV2RoundedBoxRecord rounded when rounded.Size.Count == 3 => ThinWalledBodyBRepPlanner.CreateRoundedBox(rounded.Size[0], rounded.Size[1], rounded.Size[2], rounded.CornerRadius, solid.Hollow.WallThickness),
+            FirmamentV2FrustumRecord frustum => ThinWalledBodyBRepPlanner.CreateFrustum(frustum.BottomRadius, frustum.TopRadius, frustum.Height, solid.Hollow.WallThickness),
+            _ => throw new InvalidOperationException("Parser admitted a Hollow policy without a HollowConstructible witness.")
+        };
+        if (!realization.IsSuccess || realization.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(realization.Diagnostics);
+        var body = realization.Value.Body;
+        var preflight = BrepExportPreflight.Validate(body);
+        if (!preflight.IsValid) return HollowFailure("VerificationFailure");
+        if (!FirmamentManifoldChecker.IsManifold(body)) return HollowFailure("VerificationFailure: vessel boundary is not a closed manifold");
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        {
+            ProductName = solid.Name,
+            ApplicationName = "Aetheris.Firmament.Primitive<Hollow>",
+            BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+            BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+        });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(reimport.Diagnostics);
+        var reimportedManifold = FirmamentManifoldChecker.IsManifold(reimport.Value);
+        if (!reimportedManifold) return HollowFailure("VerificationFailure: STEP reimport vessel boundary is not manifold");
+        var surfaces = body.Geometry.Surfaces.Select(x => x.Value.Kind).ToArray();
+        var r = realization.Value;
+        var volume = r.Feature.PrimitiveKind == "RoundedBox"
+            ? RoundedHollowVolume((FirmamentV2RoundedBoxRecord)solid.Primitive, r.Feature.WallThickness)
+            : FrustumHollowVolume((FirmamentV2FrustumRecord)solid.Primitive, r.Feature.WallThickness);
+        var report = new FirmamentHollowBodyReport(r.Feature.PrimitiveKind, "Hollow", r.Feature.WallThickness, r.Feature.Openings, r.Feature.Witness.Kind, r.Feature.Witness.Exact,
+            r.Feature.ThicknessPolicy, r.Construction.ThicknessWitnesses.All(w => w.Exact && double.Abs(w.Distance - r.Feature.WallThickness) <= 1e-9), r.Plan.Kind, r.Plan.IsAuthoritative, r.Plan.DeterministicSignature,
+            body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(), surfaces.Count(x => x == SurfaceGeometryKind.Plane), surfaces.Count(x => x == SurfaceGeometryKind.Cylinder), surfaces.Count(x => x == SurfaceGeometryKind.Cone), r.Plan.RimFaces.Count,
+            volume, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, reimportedManifold);
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, solid.Name, 0, "air-hollow", "thin-walled-body", Hollow: report));
+    }
+
+    private static string RoundedHollowVolume(FirmamentV2RoundedBoxRecord rounded, double t)
+    {
+        var outerArea = RoundedRectangleArea(rounded.Size[0], rounded.Size[1], rounded.CornerRadius);
+        var innerArea = RoundedRectangleArea(rounded.Size[0] - 2d * t, rounded.Size[1] - 2d * t, rounded.CornerRadius - t);
+        var analytic = outerArea * rounded.Size[2] - innerArea * (rounded.Size[2] - t);
+        var numerical = RoundedRectangleAreaNumerical(rounded.Size[0], rounded.Size[1], rounded.CornerRadius) * rounded.Size[2]
+            - RoundedRectangleAreaNumerical(rounded.Size[0] - 2d * t, rounded.Size[1] - 2d * t, rounded.CornerRadius - t) * (rounded.Size[2] - t);
+        return FormattableString.Invariant($"analytic={analytic:R};numericalSimpson={numerical:R};delta={double.Abs(analytic - numerical):R}");
+    }
+
+    private static string FrustumHollowVolume(FirmamentV2FrustumRecord frustum, double t)
+    {
+        var k = (frustum.TopRadius - frustum.BottomRadius) / frustum.Height;
+        var q = t * double.Sqrt(1d + k * k);
+        var ib = frustum.BottomRadius + k * t - q; var it = frustum.TopRadius - q;
+        var outer = double.Pi * frustum.Height * (frustum.BottomRadius * frustum.BottomRadius + frustum.BottomRadius * frustum.TopRadius + frustum.TopRadius * frustum.TopRadius) / 3d;
+        var innerHeight = frustum.Height - t;
+        var inner = double.Pi * innerHeight * (ib * ib + ib * it + it * it) / 3d;
+        var analytic = outer - inner;
+        var numerical = Simpson(0d, frustum.Height, z => double.Pi * double.Pow(frustum.BottomRadius + k * z, 2d))
+            - Simpson(t, frustum.Height, z => double.Pi * double.Pow(frustum.BottomRadius + k * z - q, 2d));
+        return FormattableString.Invariant($"analytic={analytic:R};numericalSimpson={numerical:R};delta={double.Abs(analytic - numerical):R}");
+    }
+
+    private static double RoundedRectangleArea(double width, double depth, double radius) => width * depth - (4d - double.Pi) * radius * radius;
+
+    private static double RoundedRectangleAreaNumerical(double width, double depth, double radius)
+    {
+        // Parameterizing each quarter-circle by theta avoids the square-root endpoint singularity
+        // of direct Cartesian sampling, while still providing an independent numerical integral.
+        var straight = (width - 2d * radius) * depth;
+        var cornerBands = 4d * radius * (depth / 2d - radius);
+        var quarterCircleIntegral = Simpson(0d, double.Pi / 2d, theta => double.Cos(theta) * double.Cos(theta));
+        return straight + cornerBands + 4d * radius * radius * quarterCircleIntegral;
+    }
+
+    private static double Simpson(double start, double end, Func<double, double> f)
+    {
+        const int segments = 16384; // even; deterministic numerical evidence, independent of closed-form volume.
+        var step = (end - start) / segments; var sum = f(start) + f(end);
+        for (var i = 1; i < segments; i++) sum += (i % 2 == 0 ? 2d : 4d) * f(start + i * step);
+        return sum * step / 3d;
+    }
+
+    private static KernelResult<FirmamentStepExportResult> HollowFailure(string message) =>
+        KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "FirmamentV2.Hollow")]);
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2RoundedBoxBody(FirmamentV2Document document)
+    {
+        if (document.Solids.Count != 1 || document.Solids[0].Primitive is not FirmamentV2RoundedBoxRecord rounded || rounded.Size.Count != 3)
+            return null;
+        var solid = document.Solids[0];
+        var finishes = (document.ModifyBlocks ?? []).SelectMany(m => m.EdgeFinishes ?? []).ToArray();
+        if (finishes.Length > 1) return RoundedBoxFailure("unsupported top/whole-body or mixed edge-finish request");
+        double? fillet = null;
+        if (finishes.Length == 1)
+        {
+            var finish = finishes[0];
+            if (!string.Equals(finish.FaceAxis, "+Z", StringComparison.Ordinal) || !string.Equals(finish.Target, "Boundary", StringComparison.Ordinal) || !string.Equals(finish.Kind, "Fillet", StringComparison.Ordinal))
+                return RoundedBoxFailure("UnsupportedSupportPair");
+            fillet = finish.Distance;
+        }
+        var realization = RoundedBoxBRepPlanner.Create(rounded.Size[0], rounded.Size[1], rounded.Size[2], rounded.CornerRadius, fillet);
+        if (!realization.IsSuccess || realization.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(realization.Diagnostics);
+        var body = realization.Value.Body; var plan = realization.Value.Plan;
+        if (!FirmamentManifoldChecker.IsManifold(body)) return RoundedBoxFailure("VerificationFailure: rounded-box body is not manifold");
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        {
+            ProductName = solid.Name,
+            ApplicationName = "AIR-ROUNDED-BOX-M6",
+            BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+            BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+        });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var imported = Step242Importer.ImportBody(step.Value);
+        if (!imported.IsSuccess || imported.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(imported.Diagnostics);
+        if (!FirmamentManifoldChecker.IsManifold(imported.Value)) return RoundedBoxFailure("VerificationFailure: STEP reimport is not manifold");
+        var surfaces = body.Geometry.Surfaces.Select(x => x.Value.Kind).ToArray();
+        var preflight = BrepExportPreflight.Validate(body);
+        var report = new FirmamentRoundedBoxReport(
+            new("RoundedBoxFeature", "RoundedRectangleProfile -> LinearSweep", rounded.Size[0], rounded.Size[1], rounded.Size[2], rounded.CornerRadius,
+                4, surfaces.Count(x => x == SurfaceGeometryKind.Cylinder) - (fillet is null ? 0 : 4), false),
+            fillet is null ? null : new("TopBoundary", "Fillet", fillet.Value, 4, 4, rounded.CornerRadius - fillet.Value, fillet.Value,
+                $"torus axis=+Z; center is each corner cylinder axis at z=top-{fillet.Value:R}; major=Rc-Rf={rounded.CornerRadius - fillet.Value:R}; minor=Rf={fillet.Value:R}; v=pi/2 is the top-plane trim and v=0 is the retained corner-cylinder trim."),
+            new(plan.IsAuthoritative, plan.DeterministicSignature, plan.ExpectedVertexCount, plan.ExpectedEdgeCount, plan.ExpectedFaceCount, plan.ExpectedLoopCount, plan.ExpectedCoedgeCount, plan.FaceRoles),
+            new(Bounds(body), true, surfaces.Count(x => x == SurfaceGeometryKind.Plane), surfaces.Count(x => x == SurfaceGeometryKind.Cylinder), surfaces.Count(x => x == SurfaceGeometryKind.Torus), RoundedBoxAnalyticVolume(rounded.Size[0], rounded.Size[1], rounded.Size[2], rounded.CornerRadius, fillet), preflight.IsValid ? "valid" : "invalid"),
+            new(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, true, imported.Value.Topology.Faces.Count(), Bounds(imported.Value)));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, solid.Name, 0, "air-rounded-box", fillet is null ? "rounded-box-primitive" : "rounded-box-top-boundary-fillet", RoundedBox: report));
+    }
+
+    private static KernelResult<FirmamentStepExportResult> RoundedBoxFailure(string message) =>
+        KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "FirmamentV2.RoundedBox")]);
+
+    // Exact volume of the admitted family.  Each straight finish removes a
+    // square-minus-quarter-circle section; each corner is that section swept
+    // through a quadrant about the corner-cylinder axis.
+    private static double RoundedBoxAnalyticVolume(double width, double depth, double height, double cornerRadius, double? topFilletRadius)
+    {
+        var primitive = (width * depth - ((4d - double.Pi) * cornerRadius * cornerRadius)) * height;
+        if (topFilletRadius is not double r) return primitive;
+        var section = r * r * (1d - double.Pi / 4d);
+        var straightRemoval = section * (2d * ((width - 2d * cornerRadius) + (depth - 2d * cornerRadius)));
+        var cornerFirstMoment = r * r * r * (5d / 6d - double.Pi / 4d);
+        var cornerRemoval = 2d * double.Pi * ((cornerRadius * section) - cornerFirstMoment);
+        return primitive - straightRemoval - cornerRemoval;
+    }
+
+    private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedTrihedralFillet(
+        FirmamentV2Document document,
+        FirmamentV2SolidBinding solid,
+        IReadOnlyList<FirmamentV2EdgeFinishDecl> finishes,
+        FirmamentV2BoxRecord box)
+    {
+        // The compiler owns canonical classification; source order carries no topology meaning.
+        var xz = finishes.SingleOrDefault(f => string.Equals(f.FaceAxis, "+X", StringComparison.Ordinal) && string.Equals(f.Target, "SharedEdgePlusZ", StringComparison.Ordinal));
+        var yz = finishes.SingleOrDefault(f => string.Equals(f.FaceAxis, "+Y", StringComparison.Ordinal) && string.Equals(f.Target, "SharedEdgePlusZ", StringComparison.Ordinal));
+        var xy = finishes.SingleOrDefault(f => string.Equals(f.FaceAxis, "+X", StringComparison.Ordinal) && string.Equals(f.Target, "SharedEdgePlusY", StringComparison.Ordinal));
+        if (xz is null || yz is null || xy is null)
+            return AirChamferFailure("localized-trihedral-fillet-edges-do-not-share-canonical-vertex");
+        var compiled = AirLocalizedTrihedralFilletCompiler.Compile(new(
+            solid.Name, $"{solid.Name}.{xz.Name}.{yz.Name}.{xy.Name}", $"{xz.Name}+{yz.Name}+{xy.Name}", box.Size[0], box.Size[1], box.Size[2],
+            xz.FaceAxis, xz.Target, yz.FaceAxis, yz.Target, xy.FaceAxis, xy.Target, xz.Distance, yz.Distance, xy.Distance,
+            new AirSourceSpan(xz.SourceSpan.Start, xz.SourceSpan.Length + yz.SourceSpan.Length + xy.SourceSpan.Length, document.ModelName)));
+        if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.LocalizedEdgeJunctionRealizationPlan is null)
+            return AirChamferFailure(compiled.Error?.Code ?? "localized-trihedral-fillet-spherical-octant-required", compiled.Diagnostics);
+
+        var body = compiled.Body;
+        var preflight = BrepExportPreflight.Validate(body);
+        if (!preflight.IsValid) return AirChamferFailure("localized-trihedral-fillet-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
+        if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-trihedral-fillet-emitted-body-is-not-manifold");
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        {
+            ProductName = compiled.Construction.ConstructionId,
+            ApplicationName = AirLocalizedTrihedralFilletCompileResult.ProductionRoute,
+            BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+            BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+        });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value))
+            return AirChamferFailure("localized-trihedral-fillet-step-reimport-verification-failed", reimport.Diagnostics.Select(d => d.Message));
+
+        var topology = compiled.Construction.TopologyPlan;
+        var cylinders = body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder);
+        var spheres = body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Sphere);
+        var planes = body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Plane);
+        var report = new FirmamentAirChamferReport(
+            new("Fillet", solid.Name, $"{solid.Name}.{xz.Name}.{yz.Name}.{xy.Name}", $"{xz.Name}+{yz.Name}+{xy.Name}", "SharedEdge(+X,+Z),SharedEdge(+Y,+Z),SharedEdge(+X,+Y)", xz.Distance, "mm",
+                $"{xz.SourceSpan.Start}:{xz.SourceSpan.Length}|{yz.SourceSpan.Start}:{yz.SourceSpan.Length}|{xy.SourceSpan.Start}:{xy.SourceSpan.Length}", "Admitted", "localized-trihedral-fillet-spherical-octant-candidate",
+                new Dictionary<string, string> { ["Selection"] = "semantic Face(+X),Face(+Z); Face(+Y),Face(+Z); Face(+X),Face(+Y)", ["MaterialSide"] = compiled.Construction.MaterialSide, ["SphereCenter"] = $"({compiled.Construction.SphericalCornerPatch.Center.X:R},{compiled.Construction.SphericalCornerPatch.Center.Y:R},{compiled.Construction.SphericalCornerPatch.Center.Z:R})", ["Continuity"] = "G0=Exact;G1=normal-deviation:0" }),
+            new("LocalizedTrihedralFillet", 0, [], "ordered-explicit-loops", "SphereCylinderSharedSeams",
+                "replacementFaces=3;junctionFaces=1;sharedEdges=3;patch=SphericalOctant;G0=Exact;G1=WithinTolerance", true),
+            new(true, topology.ExpectedVertexCount, topology.ExpectedEdgeCount, topology.ExpectedFaceCount, topology.ExpectedLoopCount, topology.ExpectedCoedgeCount, 0,
+                "SphereCylinderSharedSeams", topology.DeterministicSignature, "LocalizedEdgeJunction"),
+            new(AirLocalizedTrihedralFilletCompileResult.ProductionRoute, false, true, body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(), Bounds(body), xz.Distance, xz.Distance, cylinders, 0, planes, spheres),
+            new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), Bounds(reimport.Value), true),
+            LocalizedEdgeJunction: new(["SharedEdge(+X,+Z)", "SharedEdge(+Y,+Z)", "SharedEdge(+X,+Y)"], "Fillet", "EqualConstantRadius", xz.Distance, "Direct", "LocalizedTrihedralFillet", "SphericalOctant", 3, 1,
+                new(true, topology.DeterministicSignature), "valid", false, 1, 1,
+                new("SphericalOctant", "Sphere", "Cylinder", "Circle", true, 3, "+X,+Y,+Z octant")));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{xz.Name}.{yz.Name}.{xy.Name}", 0, "air-fillet", "localized-trihedral-fillet", Air: report, ConceptIr: document.ConceptIr));
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedTangentBlendSingleEdgeFillet(

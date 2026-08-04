@@ -287,6 +287,8 @@ public static class CliRunner
                 outputPath = build.Value.OutputPath,
                 conceptIr = build.Value.Export.ConceptIr,
                 air = build.Value.Export.Air,
+                roundedBox = build.Value.Export.RoundedBox,
+                hollow = build.Value.Export.Hollow,
                 features = build.Value.Export.Features,
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,

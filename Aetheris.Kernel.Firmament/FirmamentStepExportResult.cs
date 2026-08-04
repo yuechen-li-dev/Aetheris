@@ -47,7 +47,25 @@ public sealed record FirmamentAirChamferReport(
     FirmamentAirChamferStepReport Step,
     FirmamentLocalizedChamferTrace? LocalizedChamfer = null,
     FirmamentLocalizedFilletTrace? LocalizedFillet = null,
-    FirmamentLocalizedEdgeFinishTrace? LocalizedEdgeFinish = null);
+    FirmamentLocalizedEdgeFinishTrace? LocalizedEdgeFinish = null,
+    FirmamentLocalizedEdgeJunctionTrace? LocalizedEdgeJunction = null);
+
+/// <summary>Evidence for the combined two-edge realization; both replacements share one plan.</summary>
+public sealed record FirmamentLocalizedEdgeJunctionTrace(
+    IReadOnlyList<string> Edges,
+    string FinishKind,
+    string Rule,
+    double Value,
+    string SelectionMode,
+    string Construction,
+    string CornerPatch,
+    int ReplacementFaces,
+    int JunctionFaces,
+    FirmamentLocalizedChamferPlanTrace BRepPlan,
+    string Preflight,
+    bool LegacyFallback,
+    int CandidatePlans,
+    int HardValidPlans);
 
 /// <summary>Authoritative shared semantic evidence for localized edge replacement routes.</summary>
 public sealed record FirmamentLocalizedEdgeFinishTrace(

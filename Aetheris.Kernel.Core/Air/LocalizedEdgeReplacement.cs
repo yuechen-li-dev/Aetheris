@@ -161,6 +161,72 @@ internal static class LocalizedEdgeReplacementCompilerModel
         return check.IsSuccess ? new(true, body, ["localized-edge-replacement-plan-emitted"]) : new(false, null, check.Diagnostics.Select(d => d.Message).ToArray());
     }
 
+    /// <summary>
+    /// Shared plan-consuming emitter for finite planar replacement realizations.  Junction
+    /// compilers give it complete ordered loops; it never discovers or stitches topology.
+    /// </summary>
+    internal static AirLocalizedEdgeReplacementEmissionResult EmitPlanarPolyhedron(
+        IReadOnlyList<Point3D> points, IReadOnlyList<IReadOnlyList<int>> faceLoops)
+    {
+        if (points.Count < 4 || faceLoops.Count < 4 || faceLoops.Any(loop => loop.Count < 3 || loop.Any(index => index < 0 || index >= points.Count)))
+            return new(false, null, ["localized-edge-replacement-invalid-planar-polyhedron-plan"]);
+
+        var builder = new TopologyBuilder();
+        var vertices = points.Select(_ => builder.AddVertex()).ToArray();
+        var edges = new Dictionary<(int A, int B), EdgeId>();
+        var edgeDirection = new Dictionary<(int A, int B), (int Start, int End)>();
+        var faces = new List<FaceId>();
+        foreach (var indices in faceLoops)
+        {
+            var uses = new Use[indices.Count];
+            for (var i = 0; i < indices.Count; i++)
+            {
+                var start = indices[i]; var end = indices[(i + 1) % indices.Count];
+                var key = start < end ? (start, end) : (end, start);
+                if (!edges.TryGetValue(key, out var edge))
+                {
+                    edge = builder.AddEdge(vertices[start], vertices[end]);
+                    edges[key] = edge;
+                    edgeDirection[key] = (start, end);
+                }
+                var direction = edgeDirection[key];
+                uses[i] = direction.Start == start && direction.End == end ? Use.F(edge) : Use.R(edge);
+            }
+            faces.Add(AddFace(builder, uses));
+        }
+        var shell = builder.AddShell(faces); builder.AddBody([shell]);
+        var geometry = new BrepGeometryStore(); var bindings = new BrepBindingModel(); var curveNumber = 1;
+        foreach (var pair in edges.OrderBy(pair => pair.Value.Value))
+        {
+            var direction = edgeDirection[pair.Key];
+            var a = points[direction.Start]; var b = points[direction.End];
+            var curveId = new CurveGeometryId(curveNumber++);
+            geometry.AddCurve(curveId, CurveGeometry.FromLine(new Line3Curve(a, Direction3D.Create(b - a))));
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(pair.Value, curveId, new ParameterInterval(0, (b - a).Length)));
+        }
+        var surfaceNumber = 1;
+        for (var i = 0; i < faces.Count; i++)
+        {
+            var loop = faceLoops[i];
+            var origin = points[loop[0]];
+            var u = points[loop[1]] - origin;
+            Vector3D? normal = null;
+            for (var j = 2; j < loop.Count; j++)
+            {
+                var candidate = u.Cross(points[loop[j]] - origin);
+                if (candidate.Length > Tolerance) { normal = candidate; break; }
+            }
+            if (normal is null) return new(false, null, ["localized-edge-replacement-degenerate-planar-face"]);
+            var surfaceId = new SurfaceGeometryId(surfaceNumber++);
+            geometry.AddSurface(surfaceId, SurfaceGeometry.FromPlane(new PlaneSurface(origin, Direction3D.Create(normal.Value), Direction3D.Create(u))));
+            bindings.AddFaceBinding(new FaceGeometryBinding(faces[i], surfaceId));
+        }
+        var vertexPoints = vertices.Select((vertex, index) => new KeyValuePair<VertexId, Point3D>(vertex, points[index])).ToDictionary();
+        var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints);
+        var check = BrepBindingValidator.Validate(body, true);
+        return check.IsSuccess ? new(true, body, ["localized-edge-replacement-plan-emitted"]) : new(false, null, check.Diagnostics.Select(d => d.Message).ToArray());
+    }
+
     private static AirBRepPlanRole Role(string faceRole, int faceIndex) =>
         faceRole.StartsWith("RetainedSupportFaceA", StringComparison.Ordinal) ? AirBRepPlanRole.RetainedSupportFaceA :
         faceRole.StartsWith("RetainedSupportFaceB", StringComparison.Ordinal) ? AirBRepPlanRole.RetainedSupportFaceB :

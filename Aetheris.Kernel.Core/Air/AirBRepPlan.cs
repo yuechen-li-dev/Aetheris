@@ -3,9 +3,9 @@ using Aetheris.Kernel.Core.Brep.Prismatic;
 
 namespace Aetheris.Kernel.Core.Air.BRepPlan;
 
-internal enum AirBRepPlanKind { PrismaticSectionTransition, RevolvedProfile, LocalizedPlanarReplacement, LocalizedTangentBlend, Unsupported }
+internal enum AirBRepPlanKind { PrismaticSectionTransition, RevolvedProfile, LocalizedPlanarReplacement, LocalizedTangentBlend, LocalizedEdgeJunction, Unsupported }
 internal enum AirBRepPlanElementKind { Vertex, Curve, Edge, Coedge, Loop, Surface, Face, Shell, Body }
-internal enum AirBRepPlanRole { Unknown, SectionVertex, SectionEdge, VerticalTransitionEdge, SectionLoop, ProfileVertex, ProfileSegment, CircularRim, SeamEdge, CapFace, SideFace, CylindricalFace, ConicalTransitionFace, TransitionFace, PrismaticTransitionFace, ChamferFace, FilletFace, ReplacementFace, ReplacementBoundaryA, ReplacementBoundaryB, RetainedSupportFaceA, RetainedSupportFaceB, EndpointTransitionStart, EndpointTransitionEnd, UnaffectedFace, BodyShell, Body }
+internal enum AirBRepPlanRole { Unknown, SectionVertex, SectionEdge, VerticalTransitionEdge, SectionLoop, ProfileVertex, ProfileSegment, CircularRim, SeamEdge, CapFace, SideFace, CylindricalFace, ConicalTransitionFace, TransitionFace, PrismaticTransitionFace, ChamferFace, FilletFace, ReplacementFace, ReplacementFaceA, ReplacementFaceB, ReplacementBoundaryA, ReplacementBoundaryB, SharedJunction, CornerPatch, RetainedSupportFaceA, RetainedSupportFaceB, EndpointTransitionStart, EndpointTransitionEnd, RemoteEndpointA, RemoteEndpointB, UnaffectedFace, BodyShell, Body }
 
 internal readonly record struct AirBRepPlanId(string Value)
 {
@@ -79,9 +79,10 @@ internal sealed record AirBRepPlan(
     RevolvedProfileTopologyPlan? RevolvedRealizationPlan = null,
     AirLocalizedPlanarReplacementTopologyPlan? LocalizedPlanarReplacementRealizationPlan = null,
     AirLocalizedTangentBlendTopologyPlan? LocalizedTangentBlendRealizationPlan = null,
-    LocalizedEdgeReplacementTopologyPlan? LocalizedEdgeReplacementRealizationPlan = null)
+    LocalizedEdgeReplacementTopologyPlan? LocalizedEdgeReplacementRealizationPlan = null,
+    LocalizedEdgeJunctionTopologyPlan? LocalizedEdgeJunctionRealizationPlan = null)
 {
-    public bool IsAuthoritative => RealizationPlan is not null || RevolvedRealizationPlan is not null || LocalizedPlanarReplacementRealizationPlan is not null || LocalizedTangentBlendRealizationPlan is not null || LocalizedEdgeReplacementRealizationPlan is not null;
+    public bool IsAuthoritative => RealizationPlan is not null || RevolvedRealizationPlan is not null || LocalizedPlanarReplacementRealizationPlan is not null || LocalizedTangentBlendRealizationPlan is not null || LocalizedEdgeReplacementRealizationPlan is not null || LocalizedEdgeJunctionRealizationPlan is not null;
 }
 
 internal sealed record AirBRepPlanResult(AirBRepPlan? Plan, AirBRepPlanValidationResult Validation)

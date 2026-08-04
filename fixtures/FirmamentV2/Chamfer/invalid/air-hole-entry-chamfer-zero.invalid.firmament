@@ -1,0 +1,16 @@
+// fixture-id: chamfer-m6-through-hole-entry-zero-distance
+// expected-error: firmament-v2-hole-countersink-invalid
+model ChamferM6ThroughHoleEntryZero {
+    units mm
+    solid base: Box { size: [20, 18, 10] }
+    modify base {
+        hole<countersink> chamferedEntry {
+            on: face(+Z)
+            center: [0, 0]
+            shaftDiameter: 6
+            countersinkDiameter: 6
+            countersinkAngle: 90
+            end: throughAll
+        }
+    }
+}

@@ -1,0 +1,19 @@
+// fixture-id: chamfer-m6-through-hole-entry
+// semantic-target: equal-distance 1mm entry chamfer on a 6mm through shaft
+// construction-family: HoleProfileStack (90-degree conical entry, entry diameter = shaft diameter + 2d)
+// admitted-domain: history-known +Z semantic through hole in rectangular host
+// expected-surfaces: planar entry face, conical transition wall, cylindrical shaft wall
+model ChamferM6ThroughHoleEntry {
+    units mm
+    solid base: Box { size: [30, 24, 12] }
+    modify base {
+        hole<countersink> chamferedEntry {
+            on: face(+Z)
+            center: [0, 0]
+            shaftDiameter: 6
+            countersinkDiameter: 8
+            countersinkAngle: 90
+            end: throughAll
+        }
+    }
+}

@@ -1,10 +1,11 @@
+using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Brep.Prismatic;
 
 namespace Aetheris.Kernel.Core.Air.BRepPlan;
 
-internal enum AirBRepPlanKind { PrismaticSectionTransition, Unsupported }
+internal enum AirBRepPlanKind { PrismaticSectionTransition, RevolvedProfile, Unsupported }
 internal enum AirBRepPlanElementKind { Vertex, Curve, Edge, Coedge, Loop, Surface, Face, Shell, Body }
-internal enum AirBRepPlanRole { Unknown, SectionVertex, SectionEdge, VerticalTransitionEdge, SectionLoop, CapFace, SideFace, TransitionFace, PrismaticTransitionFace, ChamferFace, BodyShell, Body }
+internal enum AirBRepPlanRole { Unknown, SectionVertex, SectionEdge, VerticalTransitionEdge, SectionLoop, ProfileVertex, ProfileSegment, CircularRim, SeamEdge, CapFace, SideFace, CylindricalFace, ConicalTransitionFace, TransitionFace, PrismaticTransitionFace, ChamferFace, BodyShell, Body }
 
 internal readonly record struct AirBRepPlanId(string Value)
 {
@@ -74,9 +75,10 @@ internal sealed record AirBRepPlan(
     IReadOnlyList<AirDiagnostic> Diagnostics,
     IReadOnlyList<string> Guarantees,
     AirBRepPlanFeatureContext? FeatureContext = null,
-    PrismaticSectionTransitionTopologyPlan? RealizationPlan = null)
+    PrismaticSectionTransitionTopologyPlan? RealizationPlan = null,
+    RevolvedProfileTopologyPlan? RevolvedRealizationPlan = null)
 {
-    public bool IsAuthoritative => RealizationPlan is not null;
+    public bool IsAuthoritative => RealizationPlan is not null || RevolvedRealizationPlan is not null;
 }
 
 internal sealed record AirBRepPlanResult(AirBRepPlan? Plan, AirBRepPlanValidationResult Validation)

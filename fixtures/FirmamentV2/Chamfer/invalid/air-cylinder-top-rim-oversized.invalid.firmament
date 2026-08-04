@@ -1,0 +1,6 @@
+// fixture-id: chamfer-m6-cylinder-top-rim-oversized
+// expected-error-kind: DistanceTooLarge
+// expected-error: chamfer-distance-too-large:circular-top-rim
+Model ChamferM6CylinderTopRimOversized mm
+Cylinder Base { Radius: 5mm Height: 20mm }
+Modify Base { EdgeFinish TopRim { Face: +Z Target: Boundary Kind: Chamfer Distance: 5mm } }

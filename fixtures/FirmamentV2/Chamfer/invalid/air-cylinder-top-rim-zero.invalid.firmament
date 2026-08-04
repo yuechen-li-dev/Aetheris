@@ -1,0 +1,6 @@
+// fixture-id: chamfer-m6-cylinder-top-rim-zero
+// expected-error-kind: InvalidAuthoredInput
+// expected-error: chamfer-invalid-distance:must-be-positive
+Model ChamferM6CylinderTopRimZero mm
+Cylinder Base { Radius: 20mm Height: 50mm }
+Modify Base { EdgeFinish TopRim { Face: +Z Target: Boundary Kind: Chamfer Distance: 0mm } }

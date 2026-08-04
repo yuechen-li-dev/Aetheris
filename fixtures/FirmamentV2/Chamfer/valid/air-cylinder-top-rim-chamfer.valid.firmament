@@ -1,0 +1,16 @@
+// fixture-id: chamfer-m6-cylinder-top-rim-canonical
+// semantic-target: complete convex outer boundary of the +Z circular cap
+// construction-family: RevolutionProfileRewrite
+// admitted-domain: history-known right circular cylinder, uniform equal distance, d < min(radius,height)
+// expected-surfaces: plane=2,cylinder=1,cone=1
+// expected-topology: vertices=6,edges=5,faces=4
+Model ChamferM6CylinderTopRimCanonical mm
+    Cylinder Base { Radius: 20mm Height: 50mm }
+    Modify Base {
+        EdgeFinish TopRim {
+            Face: +Z
+            Target: Boundary
+            Kind: Chamfer
+            Distance: 1mm
+        }
+    }

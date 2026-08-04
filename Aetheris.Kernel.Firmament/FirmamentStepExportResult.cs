@@ -29,7 +29,15 @@ public sealed record FirmamentHoleFeatureReport(
     int? PointOrdinal,
     string PlacementFace,
     string? SourceSpan,
-    string MaterializationRoute);
+    string MaterializationRoute,
+    string? ConstructionKind = null,
+    string? StackKind = null,
+    string? WitnessSummary = null,
+    int CylindricalFaces = 0,
+    int ConicalFaces = 0,
+    int PlanarFaces = 0,
+    string? StepSha256 = null,
+    bool StepReimportSucceeded = false);
 
 public sealed record FirmamentAirChamferReport(
     FirmamentAirChamferFeatureReport Feature,
@@ -39,9 +47,18 @@ public sealed record FirmamentAirChamferReport(
     FirmamentAirChamferStepReport Step);
 
 public sealed record FirmamentAirChamferFeatureReport(string Kind, string Body, string FeatureId, string FeatureName, string Selection, double Distance, string Unit, string SourceSpan, string Admission, string AdmissionReason, IReadOnlyDictionary<string, string>? Provenance = null);
-public sealed record FirmamentAirChamferConstructionReport(string Kind, int SectionCount, IReadOnlyList<double> SectionZ, string Correspondence, string SplitPolicy);
-public sealed record FirmamentAirChamferBRepPlanReport(bool Authoritative, int ExpectedVertices, int ExpectedEdges, int ExpectedFaces, int ExpectedLoops, int ExpectedCoedges, int ChamferFaces, string SplitPolicy, string DeterministicSignature);
-public sealed record FirmamentAirChamferMaterializationReport(string Route, bool LegacyFallback, bool EnclosedManifold, int Vertices, int Edges, int Faces, string Bounds, double MeasuredTopInsetX, double MeasuredTopInsetY);
+public sealed record FirmamentAirChamferConstructionReport(
+    string Kind,
+    int SectionCount,
+    IReadOnlyList<double> SectionZ,
+    string Correspondence,
+    string SplitPolicy,
+    string? WitnessSummary = null,
+    bool CompilerGeneratedWitness = false,
+    IReadOnlyList<IReadOnlyList<double>>? SharpProfile = null,
+    IReadOnlyList<IReadOnlyList<double>>? ReplacementProfile = null);
+public sealed record FirmamentAirChamferBRepPlanReport(bool Authoritative, int ExpectedVertices, int ExpectedEdges, int ExpectedFaces, int ExpectedLoops, int ExpectedCoedges, int ChamferFaces, string SplitPolicy, string DeterministicSignature, string? PlanKind = null);
+public sealed record FirmamentAirChamferMaterializationReport(string Route, bool LegacyFallback, bool EnclosedManifold, int Vertices, int Edges, int Faces, string Bounds, double MeasuredTopInsetX, double MeasuredTopInsetY, int CylindricalFaces = 0, int ConicalFaces = 0, int PlanarFaces = 0);
 public sealed record FirmamentAirChamferStepReport(string Schema, string Sha256, bool ReimportSucceeded, int ReimportedVertices, int ReimportedEdges, int ReimportedFaces, string ReimportedBounds, bool ReimportedManifold);
 
 public sealed record FirmamentPmiInspectionDatum(

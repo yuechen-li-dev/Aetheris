@@ -10,8 +10,9 @@ public static class ProfileAuthoringParser
     private static readonly Regex Point = new(@"\bPoint2\s+(?<n>\w+)\s*\{\s*Position\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\]", RegexOptions.Singleline);
     private static readonly Regex Line = new(@"\bLine2\s+(?<n>\w+)\s*\{\s*From\s*:\s*(?<a>\w+)\s*;?\s*To\s*:\s*(?<b>\w+)", RegexOptions.Singleline);
     private static readonly Regex Circle = new(@"\bCircle2\s+(?<n>\w+)\s*\{\s*Center\s*:\s*(?<c>\w+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\d]+)mm", RegexOptions.Singleline);
+    private static readonly Regex Rect = new(@"\bRect2\s+(?<n>\w+)\s*\{\s*Center\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\]\s*;?\s*Size\s*:\s*\[(?<w>[-+.\d]+)mm\s*,\s*(?<h>[-+.\d]+)mm\]", RegexOptions.Singleline);
     private static readonly Regex Header = new(@"\bProfile\s+(?<n>\w+)\s+Using\s+(?<layout>\w+)\s*\{(?<body>[\s\S]*)", RegexOptions.CultureInvariant);
-    private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>\w+)\s*;?\s*From\s*:\s*(?<from>\w+)\s*;?\s*To\s*:\s*(?<to>\w+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline);
+    private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline);
     private static readonly Regex Extrude = new(@"\bExtrude\s+\w+\s*\{\s*Profile\s*:\s*(?<p>\w+)\s*;?\s*From\s*:\s*(?<a>[-+.\d]+)mm\s*;?\s*To\s*:\s*(?<b>[-+.\d]+)mm", RegexOptions.Singleline);
 
     public static bool IsProfileSource(string source) => Header.IsMatch(source);
@@ -20,8 +21,20 @@ public static class ProfileAuthoringParser
         var d=new List<string>(); var h=Header.Match(source); if(!h.Success)return(null,0,["profile-source-missing-profile"]);
         var pts=new Dictionary<string,(double X,double Y)>(StringComparer.Ordinal);
         foreach(Match m in Point.Matches(source))pts[m.Groups["n"].Value]=(N(m,"x"),N(m,"y"));
+        foreach (Match m in Rect.Matches(source))
+        {
+            var w=N(m,"w"); var rectHeight=N(m,"h"); var x=N(m,"x"); var y=N(m,"y"); var n=m.Groups["n"].Value;
+            if (!double.IsFinite(w) || !double.IsFinite(rectHeight) || w<=0 || rectHeight<=0) { d.Add($"rect2-invalid-size:{n}"); continue; }
+            pts[$"{n}.BottomLeft"]=(x-w/2,y-rectHeight/2); pts[$"{n}.BottomRight"]=(x+w/2,y-rectHeight/2); pts[$"{n}.TopRight"]=(x+w/2,y+rectHeight/2); pts[$"{n}.TopLeft"]=(x-w/2,y+rectHeight/2);
+        }
         var lines=new Dictionary<string,LineArcLineSegment2D>(StringComparer.Ordinal);
         foreach(Match m in Line.Matches(source)){if(!pts.TryGetValue(m.Groups["a"].Value,out var a)||!pts.TryGetValue(m.Groups["b"].Value,out var b))d.Add($"profile-layout-unresolved-line:{m.Groups["n"].Value}");else lines[m.Groups["n"].Value]=new(a,b);}
+        foreach (Match m in Rect.Matches(source))
+        {
+            var n=m.Groups["n"].Value;
+            if (pts.TryGetValue($"{n}.BottomLeft",out var bl) && pts.TryGetValue($"{n}.BottomRight",out var br) && pts.TryGetValue($"{n}.TopRight",out var tr) && pts.TryGetValue($"{n}.TopLeft",out var tl))
+            { lines[$"{n}.Bottom"]=new(bl,br); lines[$"{n}.Right"]=new(br,tr); lines[$"{n}.Top"]=new(tr,tl); lines[$"{n}.Left"]=new(tl,bl); }
+        }
         var circles=new Dictionary<string,((double X,double Y) C,double R)>(StringComparer.Ordinal);
         foreach(Match m in Circle.Matches(source)){if(!pts.TryGetValue(m.Groups["c"].Value,out var c))d.Add($"profile-layout-unresolved-circle:{m.Groups["n"].Value}");else circles[m.Groups["n"].Value]=(c,N(m,"r"));}
         var segments=new List<ResolvedProfileSegment2D>();

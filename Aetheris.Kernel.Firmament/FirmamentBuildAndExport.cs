@@ -49,6 +49,19 @@ public static class FirmamentBuildAndExport
 
     private static KernelResult<FirmamentStepExportResult> ExportSource(string sourceText, string? sourceDirectory = null)
     {
+        if (PrismaticProfileCompositionParser.IsCompositionSource(sourceText))
+        {
+            var parsed = PrismaticProfileCompositionParser.Parse(sourceText);
+            var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
+            if (stack is null)
+                return KernelResult<FirmamentStepExportResult>.Failure(diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition")).ToArray());
+            var emitted = PrismaticSectionStackEmitter.Emit(stack);
+            if (emitted.Body is null)
+                return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition")).ToArray());
+            var step = Step242Exporter.ExportBody(emitted.Body);
+            if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, stack.Feature.Name, 0, "prismatic-section-stack", "line-arc-profile-composition"));
+        }
         if (ProfileAuthoringParser.IsProfileSource(sourceText))
         {
             var parsed = ProfileAuthoringParser.Parse(sourceText);

@@ -1,0 +1,9 @@
+Concept Struct PocketLayout On XY {
+    Point2 A { Position: [-10mm, -10mm] } Point2 B { Position: [10mm, -10mm] } Point2 C { Position: [10mm, 10mm] } Point2 D { Position: [-10mm, 10mm] }
+    Point2 E { Position: [-4mm, -4mm] } Point2 F { Position: [4mm, -4mm] } Point2 G { Position: [4mm, 4mm] } Point2 H { Position: [-4mm, 4mm] }
+    Line2 AB { From: A; To: B } Line2 BC { From: B; To: C } Line2 CD { From: C; To: D } Line2 DA { From: D; To: A }
+    Line2 EF { From: E; To: F } Line2 FG { From: F; To: G } Line2 GH { From: G; To: H } Line2 HE { From: H; To: E }
+}
+Profile Plate Using PocketLayout { Loop Outer { Segment AB { Trace: AB; From: A; To: B } Segment BC { Trace: BC; From: B; To: C } Segment CD { Trace: CD; From: C; To: D } Segment DA { Trace: DA; From: D; To: A } } }
+Profile Pocket Using PocketLayout { Loop Outer { Segment EF { Trace: EF; From: E; To: F } Segment FG { Trace: FG; From: F; To: G } Segment GH { Trace: GH; From: G; To: H } Segment HE { Trace: HE; From: H; To: E } } }
+Struct Pocket { Compose Body { Base PrimaryPlate { Profile: Plate; From: 0mm; To: 10mm; Role: Stock } Remove TopPocket { Profile: Pocket; From: 7mm; To: 10mm; Role: Relief } } }

@@ -112,10 +112,11 @@ public static class CliRunner
         string? Error,
         string? Classification = null,
         int? RigidRootCount = null);
-    private const string TopLevelUsage = "Usage: aetheris <build|validate|inspect-profile|analyze|verify|match|trace|canon|asm|experimental> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|validate|inspect-profile|inspect-compose|analyze|verify|match|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
+    private const string InspectComposeUsage = "Usage: aetheris inspect-compose <file.firmament> [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] [--rank-probes|--evidence-bundle] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
@@ -173,6 +174,7 @@ public static class CliRunner
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-profile" => RunInspectProfile(args.Skip(1).ToArray(), stdout, stderr),
+                "inspect-compose" => RunInspectCompose(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "verify" => RunVerify(args.Skip(1).ToArray(), stdout, stderr),
                 "match" => RunMatch(args.Skip(1).ToArray(), stdout, stderr),
@@ -417,13 +419,88 @@ public static class CliRunner
             {
                 parsed.Profile.Name, parsed.Profile.PlaneFrame,
                 loops = parsed.Profile.Loops.Count,
-                segments = parsed.Profile.Loops.SelectMany(x => x.Segments).Select(x => new { x.Name, guide = x.Provenance.ConceptStableId, stableId = x.Provenance.StableId, derivation = x.Provenance.Derivation, geometry = x.Geometry.GetType().Name }),
+                segments = parsed.Profile.Loops.SelectMany(x => x.Segments).Select(x =>
+                {
+                    var guide = DescribeProfileGuide(x.Provenance.ConceptStableId);
+                    return new { x.Name, guide = guide.Name, guideKind = guide.Kind, parentGuide = guide.Parent, stableId = x.Provenance.StableId, derivation = x.Provenance.Derivation, geometry = x.Geometry.GetType().Name };
+                }),
                 validation.IsValid, validation.SignedArea, validation.Diagnostics,
                 extrusionHeight = parsed.Height
             }
         };
         if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions)); else stdout.WriteLine($"Profile {parsed.Profile.Name}: {(validation.IsValid ? "valid" : "invalid")}");
         return validation.IsValid ? 0 : 1;
+    }
+
+    private static (string Name, string Kind, string? Parent) DescribeProfileGuide(string stableId)
+    {
+        const string prefix = "concept:";
+        var path = stableId.StartsWith(prefix, StringComparison.Ordinal) ? stableId[prefix.Length..] : stableId;
+        var components = path.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        if (components.Length >= 3 && components[^1] is "Top" or "Bottom" or "Left" or "Right")
+        {
+            return ($"{components[^2]}.{components[^1]}", "Rect2Side", components[^2]);
+        }
+
+        return (stableId, "ConceptGuide", null);
+    }
+
+    private static int RunInspectCompose(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(InspectComposeUsage); return args.Length == 0 ? 1 : 0; }
+        var json = args.Skip(1).All(x => x == "--json");
+        if (!json) { stderr.WriteLine(InspectComposeUsage); return 1; }
+        if (!File.Exists(args[0])) { stderr.WriteLine($"Composition source was not found: {args[0]}"); return 1; }
+        var parsed = PrismaticProfileCompositionParser.Parse(File.ReadAllText(args[0]));
+        var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
+        if (stack is null) { stderr.WriteLine(string.Join(Environment.NewLine, diagnostics)); return 1; }
+        var emitted = PrismaticSectionStackEmitter.Emit(stack);
+        var mass = emitted.Body is null ? null : BrepMassProperties.Evaluate(emitted.Body);
+        var report = new
+        {
+            composition = new
+            {
+                name = stack.Feature.Name, frame = stack.Feature.Frame, axis = stack.Feature.Axis,
+                operations = stack.Feature.Operations.Select(x => new { x.Name, intent = x.Intent.ToString(), profile = x.ProfileReference, x.From, x.To, x.SemanticRole, x.SourceSpan }),
+                criticalLevels = stack.Feature.CriticalLevels,
+                slabs = stack.Slabs.Select(x => new
+                {
+                    x.From,
+                    x.To,
+                    x.ActiveOperations,
+                    area = PrismaticSectionStackCompiler.Area(x.Region),
+                    outerLoops = 1,
+                    innerLoops = x.Region.Holes.Count,
+                    loops = new[]
+                    {
+                        new { role = "Outer", signedAreaInProfileFrame = PrismaticSectionStackCompiler.ProfileArea(x.Region.Outer), sourceWinding = PrismaticSectionStackCompiler.ProfileArea(x.Region.Outer) >= 0d ? "CounterClockwise" : "Clockwise", materialFacingWinding = "CounterClockwise" }
+                    }.Concat(x.Region.Holes.Select(h => new { role = "Inner", signedAreaInProfileFrame = PrismaticSectionStackCompiler.ProfileArea(h), sourceWinding = PrismaticSectionStackCompiler.ProfileArea(h) >= 0d ? "CounterClockwise" : "Clockwise", materialFacingWinding = "Clockwise" })),
+                    lineSegments = x.Region.Outer.Loops[0].Segments.Count(s => s.Geometry is LineArcLineSegment2D),
+                    arcSegments = x.Region.Outer.Loops[0].Segments.Count(s => s.Geometry is LineArcCircularArc2D)
+                    , arrangement = x.Arrangement is null ? null : new
+                    {
+                        sourceSegmentCount = x.Arrangement.SourceCurves.Count,
+                        intersectionVertexCount = x.Arrangement.IntersectionVertices.Count,
+                        atomicFragmentCount = x.Arrangement.AtomicFragments.Count,
+                        coincidentFragmentCount = x.Arrangement.CoincidentFragmentCount,
+                        retainedBoundaryFragmentCount = x.Arrangement.RetainedBoundaryFragmentCount,
+                        resultLoopCount = x.Arrangement.ResultLoops.Count,
+                        perimeter = x.Arrangement.ResultLoops.Sum(loop => loop.Perimeter),
+                        timingsMilliseconds = new { intersections = x.Arrangement.IntersectionTime.TotalMilliseconds, splitting = x.Arrangement.SplitTime.TotalMilliseconds, classification = x.Arrangement.ClassificationTime.TotalMilliseconds, reconstruction = x.Arrangement.ReconstructionTime.TotalMilliseconds },
+                        provenance = x.Region.Provenance,
+                        diagnostics = x.Arrangement.Diagnostics
+                    }
+                }),
+                transitions = stack.Transitions.Select(x => new { x.Level, upwardArea = x.UpwardRegion is null ? 0d : PrismaticSectionStackCompiler.Area(x.UpwardRegion), downwardArea = x.DownwardRegion is null ? 0d : PrismaticSectionStackCompiler.Area(x.DownwardRegion) }),
+                analyticVolume = stack.AnalyticVolume,
+                bRepVolume = mass?.AbsoluteVolume,
+                volumeDelta = mass is null ? (double?)null : mass.AbsoluteVolume - stack.AnalyticVolume,
+                bRepPlan = emitted.Plan,
+                diagnostics = emitted.Diagnostics
+            }
+        };
+        stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
+        return 0;
     }
 
     private static int RunValidate(string[] args, TextWriter stdout, TextWriter stderr)
@@ -2428,6 +2505,7 @@ public static class CliRunner
         stdout.WriteLine("  build      Build a .firmament source file into STEP.");
         stdout.WriteLine("  validate   Validate Firmament V2 manufacturing intent and emit report JSON.");
         stdout.WriteLine("  inspect-profile  Resolve and validate a scaffold-referenced Profile.");
+        stdout.WriteLine("  inspect-compose  Normalize and inspect a profile-composition section stack.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
         stdout.WriteLine("  verify     Reimport STEP and emit independent B-rep/external-display evidence.");
         stdout.WriteLine("  match      Match a compile-time Concept Struct against observed STEP geometry.");

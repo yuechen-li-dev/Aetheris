@@ -1629,20 +1629,61 @@ public static class Step242Importer
             return KernelResult<IReadOnlyList<LoopBuildData>>.Success(loops);
         }
 
+        // STEP carries loop role explicitly: FACE_OUTER_BOUND is not a hint to be
+        // replaced by an area/winding heuristic.  Reordering or reversing a
+        // declared EDGE_LOOP here loses source topology and can turn a void into
+        // material after a round trip.  The legacy classifier is used only as a
+        // derivative validator when a declared outer bound exists; its rewritten
+        // traversal is never substituted for the imported evidence.
+        var declaredOuterCount = loops.Count(loop => loop.IsDeclaredOuter);
+        if (declaredOuterCount == 1)
+        {
+            if (surface.Kind == SurfaceGeometryKind.Sphere)
+            {
+                // A spherical lattice node uses multiple trim loops as source
+                // topology rather than a planar material-region-with-hole.  It
+                // has an explicit outer-bound declaration, so retain that
+                // evidence without inventing a planar containment model.
+                return KernelResult<IReadOnlyList<LoopBuildData>>.Success(loops);
+            }
+
+            // Keep the declared traversal authoritative, but still run the
+            // established geometric classifier as a *derivative validator*.
+            // Besides rejecting a declared hole outside its outer bound, this
+            // retains the periodic-surface projection diagnostics used by the
+            // corpus tests.  Its normalized output is deliberately discarded:
+            // import must not silently reorder or reverse STEP evidence.
+            var validation = surface.Kind switch
+            {
+                SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
+                SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(faceEntityId, loops, surface.Cylinder!.Value),
+                SurfaceGeometryKind.Torus => ClassifyAndNormalizeToroidalLoops(faceEntityId, loops, surface.Torus!.Value),
+                SurfaceGeometryKind.Cone => ClassifyAndNormalizeConicalLoops(faceEntityId, loops, surface.Cone!.Value),
+                _ => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
+                    $"Multi-loop hole classification is unsupported for surface type '{surface.Kind}'.",
+                    $"Importer.LoopRole.UnsupportedSurfaceForHoles.{surface.Kind}")
+            };
+
+            return validation.IsSuccess
+                ? KernelResult<IReadOnlyList<LoopBuildData>>.Success(loops)
+                : KernelResult<IReadOnlyList<LoopBuildData>>.Failure(validation.Diagnostics);
+        }
+        if (declaredOuterCount > 1)
+        {
+            return LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
+                $"FACE has {declaredOuterCount} FACE_OUTER_BOUND declarations; exactly one is required.",
+                $"Importer.LoopRole.DuplicateDeclaredOuter.Face:{faceEntityId}");
+        }
+
         return surface.Kind switch
         {
             SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
             SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(faceEntityId, loops, surface.Cylinder!.Value),
             SurfaceGeometryKind.Torus => ClassifyAndNormalizeToroidalLoops(faceEntityId, loops, surface.Torus!.Value),
             SurfaceGeometryKind.Cone => ClassifyAndNormalizeConicalLoops(faceEntityId, loops, surface.Cone!.Value),
-            // A sphere has no privileged planar-style outer loop.  In particular,
-            // a constructive lattice node carries one disjoint circular trim for
-            // every incident member.  The STEP face preserves each loop's exact
-            // orientation already, so deterministic loop-id order is sufficient
-            // and avoids inventing a containment relationship on a periodic
-            // spherical parameter domain.
-            SurfaceGeometryKind.Sphere => KernelResult<IReadOnlyList<LoopBuildData>>.Success(
-                loops.OrderBy(loop => loop.LoopId.Value).ToArray()),
+            SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
+                "Multi-loop spherical faces require an explicit FACE_OUTER_BOUND declaration.",
+                "Importer.LoopRole.UnsupportedSurfaceForHoles.Sphere"),
             _ => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 $"Multi-loop hole classification is unsupported for surface type '{surface.Kind}'.",
                 $"Importer.LoopRole.UnsupportedSurfaceForHoles.{surface.Kind}")

@@ -1,0 +1,25 @@
+Concept Struct Layout On XY {
+    Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [20mm, 20mm]; Role: ProfileGuide }
+    Point2 RoundCenter { Position: [0mm, 12mm] }
+    Point2 RoundBottom { Position: [0mm, 7mm] }
+    Point2 RoundRight { Position: [5mm, 12mm] }
+    Point2 RoundTop { Position: [0mm, 17mm] }
+    Point2 RoundLeft { Position: [-5mm, 12mm] }
+    Circle2 RoundGuide { Center: RoundCenter; Radius: 5mm }
+}
+Profile BaseProfile Using Layout { Loop Outer {
+    Segment South { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+    Segment East { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+    Segment North { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+    Segment West { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
+} }
+Profile RoundPad Using Layout { Loop Outer {
+    Segment ArcEast { Trace: RoundGuide; From: RoundBottom; To: RoundRight; Sweep: CounterClockwise }
+    Segment ArcNorth { Trace: RoundGuide; From: RoundRight; To: RoundTop; Sweep: CounterClockwise }
+    Segment ArcWest { Trace: RoundGuide; From: RoundTop; To: RoundLeft; Sweep: CounterClockwise }
+    Segment ArcSouth { Trace: RoundGuide; From: RoundLeft; To: RoundBottom; Sweep: CounterClockwise }
+} }
+Struct Composition { Compose Body {
+    Base Stock { Profile: BaseProfile; From: 0mm; To: 15mm; Role: Stock }
+    Add Round { Profile: RoundPad; From: 10mm; To: 15mm; Role: Pad }
+} }

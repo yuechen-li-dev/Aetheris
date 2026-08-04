@@ -1,0 +1,28 @@
+Concept Struct Layout On XY {
+    Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [20mm, 20mm]; Role: ProfileGuide }
+    Rect2 LeftGuide { Center: [-3mm, 10mm]; Size: [10mm, 10mm]; Role: ProfileGuide }
+    Rect2 RightGuide { Center: [3mm, 10mm]; Size: [10mm, 10mm]; Role: ProfileGuide }
+}
+Profile BaseProfile Using Layout { Loop Outer {
+    Segment South { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+    Segment East { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+    Segment North { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+    Segment West { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
+} }
+Profile LeftProfile Using Layout { Loop Outer {
+    Segment South { Trace: LeftGuide.Bottom; From: LeftGuide.BottomLeft; To: LeftGuide.BottomRight }
+    Segment East { Trace: LeftGuide.Right; From: LeftGuide.BottomRight; To: LeftGuide.TopRight }
+    Segment North { Trace: LeftGuide.Top; From: LeftGuide.TopRight; To: LeftGuide.TopLeft }
+    Segment West { Trace: LeftGuide.Left; From: LeftGuide.TopLeft; To: LeftGuide.BottomLeft }
+} }
+Profile RightProfile Using Layout { Loop Outer {
+    Segment South { Trace: RightGuide.Bottom; From: RightGuide.BottomLeft; To: RightGuide.BottomRight }
+    Segment East { Trace: RightGuide.Right; From: RightGuide.BottomRight; To: RightGuide.TopRight }
+    Segment North { Trace: RightGuide.Top; From: RightGuide.TopRight; To: RightGuide.TopLeft }
+    Segment West { Trace: RightGuide.Left; From: RightGuide.TopLeft; To: RightGuide.BottomLeft }
+} }
+Struct Composition { Compose Body {
+    Base Stock { Profile: BaseProfile; From: 0mm; To: 15mm; Role: Stock }
+    Add Left { Profile: LeftProfile; From: 10mm; To: 15mm; Role: Pad }
+    Add Right { Profile: RightProfile; From: 10mm; To: 15mm; Role: Pad }
+} }

@@ -1,0 +1,12 @@
+Concept Struct Rect2Layout On XY {
+    Rect2 Base { Center: [0mm, 0mm]; Size: [20mm, 10mm]; Role: ProfileGuide }
+}
+Profile MainPlate Using Rect2Layout {
+    Loop Outer {
+        Segment South { Trace: Base.Bottom; From: Base.BottomLeft; To: Base.BottomRight }
+        Segment East { Trace: Base.Right; From: Base.BottomRight; To: Base.TopRight }
+        Segment North { Trace: Base.Top; From: Base.TopRight; To: Base.TopLeft }
+        Segment West { Trace: Base.Left; From: Base.TopLeft; To: Base.BottomLeft }
+    }
+}
+Struct Plate { Extrude MainPlate { Profile: MainPlate; From: 0mm; To: 5mm } }

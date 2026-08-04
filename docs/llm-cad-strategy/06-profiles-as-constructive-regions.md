@@ -391,6 +391,10 @@ Precision is not the same as intent. A coordinate-perfect loop can still be a po
 
 This lesson extends the spatial decomposition approach from [04 — Spatial decomposition first pass](04-spatial-decomposition-first-pass.md). Constructive profiles are part of the shape spine and blockout layer: they help an LLM decide what the gross 2D mass is before adding smaller children and finish details.
 
+## Section-stack composition
+
+When several named profiles describe one stepped prismatic body, author one shared Concept scaffold, inspect every Profile, then declare explicit `Base`, `Add`, and `Remove` axial intervals in `Compose`. Inspect the normalized section stack before building. The compiler must resolve material per open Z interval and emit one final topology plan; do not construct temporary solids and ask generic 3D Booleans to recover the intended topology afterward. See [profile composition X1](../firmament/profile-composition-x1.md) for the admitted contact policy and current verification boundary.
+
 It also follows [05 — CAD as semantic dependency graph](05-cad-as-semantic-dependency-graph.md). Raw boundaries are lowered forms. Constructive profile regions belong before extrusion when they define the trunk shape. Profile cornering belongs before extrusion when it changes the silhouette. 3D edge finish remains a late decorator in the dependency graph.
 
 The dependency question is therefore: does this 2D curve define the region that becomes mass, or does it decorate an edge after mass exists? Answer that before choosing profile syntax.

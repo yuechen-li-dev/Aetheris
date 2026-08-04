@@ -6,7 +6,7 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242OrientationSemanticsTests
 {
     [Fact]
-    public void ImportBody_EdgeCurveSameSenseFalse_ImportsAndFlipsCoedgeReversalState()
+    public void ImportBody_EdgeCurveSameSenseFalse_DoesNotAlterCoedgeReversalState()
     {
         var forward = Step242Importer.ImportBody(BuildSingleTriangleStep(edgeCurveSameSense: true, faceBoundOrientation: true, advancedFaceSameSense: true));
         var reversed = Step242Importer.ImportBody(BuildSingleTriangleStep(edgeCurveSameSense: false, faceBoundOrientation: true, advancedFaceSameSense: true));
@@ -16,7 +16,7 @@ public sealed class Step242OrientationSemanticsTests
 
         var forwardCoedge = Assert.Single(forward.Value.Topology.Coedges);
         var reversedCoedge = Assert.Single(reversed.Value.Topology.Coedges);
-        Assert.NotEqual(forwardCoedge.IsReversed, reversedCoedge.IsReversed);
+        Assert.Equal(forwardCoedge.IsReversed, reversedCoedge.IsReversed);
     }
 
     [Fact]

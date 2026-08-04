@@ -357,19 +357,18 @@ public static class Step242Importer
                         return KernelResult<BrepBody>.Failure(edgeIdResult.Diagnostics);
                     }
 
-                    var edgeSameSenseResult = Step242SubsetDecoder.ReadBoolean(edgeCurveEntityResult.Value, 4, "EDGE_CURVE same_sense");
-                    if (!edgeSameSenseResult.IsSuccess)
-                    {
-                        return KernelResult<BrepBody>.Failure(edgeSameSenseResult.Diagnostics);
-                    }
-
                     var orientedSenseResult = Step242SubsetDecoder.ReadBoolean(orientedEdgeEntity, 4, "ORIENTED_EDGE orientation");
                     if (!orientedSenseResult.IsSuccess)
                     {
                         return KernelResult<BrepBody>.Failure(orientedSenseResult.Diagnostics);
                     }
 
-                    var isReversed = orientedSenseResult.Value != edgeSameSenseResult.Value;
+                    // ORIENTED_EDGE orientation is relative to EDGE_CURVE's
+                    // topology vertices. EDGE_CURVE same_sense instead relates
+                    // curve parameter direction to those vertices and is stored
+                    // on the edge binding by EnsureEdge. Combining both here
+                    // reverses a coedge twice when same_sense is false.
+                    var isReversed = !orientedSenseResult.Value;
 
                     var coedge = new Coedge(
                         coedgeIds[i],
@@ -2104,16 +2103,12 @@ public static class Step242Importer
 
     private static LoopBuildData NormalizeLoopWinding(LoopBuildData loop, double signedArea, bool shouldBePositive)
     {
-        if (shouldBePositive ? signedArea >= 0d : signedArea <= 0d)
-        {
-            return loop;
-        }
-
-        var flippedCoedges = loop.Coedges
-            .Select(c => c with { IsReversed = !c.IsReversed })
-            .ToList();
-
-        return new LoopBuildData(loop.LoopId, flippedCoedges, loop.Samples, loop.HasDisconnectedCoedgeGap);
+        // STEP EDGE_LOOP order is topology, not presentation.  Classification
+        // may diagnose winding, but it must never mutate declared coedge
+        // traversal: face SameSense governs material orientation separately.
+        _ = signedArea;
+        _ = shouldBePositive;
+        return loop;
     }
 
     private static bool LoopsOverlap(PlanarLoopInfo a, PlanarLoopInfo b, double containmentTolerance)

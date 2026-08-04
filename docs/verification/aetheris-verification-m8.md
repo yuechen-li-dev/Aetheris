@@ -4,6 +4,10 @@
 
 `aetheris verify model.step` is the artifact-level verifier. It writes a hash-tied report under `artifacts/verification/<fixture>/<step-sha256>/` by default, including a copied STEP artifact and `verification-report.json`.
 
+## M8-HOLE-LOOP-X1 topology policy
+
+Directed topology uses are resolved exclusively through `DirectedEdgeUse.Resolve`: edge start/end establish topology direction and a coedge reverses it once. Curve `same_sense` and face `SameSense` do not participate in loop connectivity. Ordered endpoints, including the closing pair, are required; geometrically coincident periodic seam vertices are admitted only by binding-aware validation. See [M8 hole-loop policy](m8-hole-loop-x1.md).
+
 ## Independent B-rep mass properties
 
 The evaluator consumes a materialized `BrepBody`, never fixture expected-volume values, AIR, CIR, or `StepAnalyzer`'s legacy planar signed-shell routine. It first gates the body on one body, closed cyclic loops, two uses per edge (with the closed parametric-sphere exception), connected shells, face bindings, and coincident geometric endpoints where the kernel represents periodic seam vertices separately.

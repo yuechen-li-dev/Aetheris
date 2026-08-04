@@ -145,14 +145,22 @@ public static class BrepExportPreflight
 
                 var nextId = loop.CoedgeIds[(i + 1) % loop.CoedgeIds.Count];
                 if (!model.TryGetCoedge(nextId, out var next) || next is null || !model.TryGetEdge(next.EdgeId, out var nextEdge) || nextEdge is null) continue;
-                var end = coedge.IsReversed ? edge.StartVertexId : edge.EndVertexId;
-                var expectedStart = next.IsReversed ? nextEdge.EndVertexId : nextEdge.StartVertexId;
-                if (end != expectedStart)
-                    AddError(i == loop.CoedgeIds.Count - 1 ? "brep-preflight-loop-not-closed" : "brep-preflight-coedge-disconnected", "loop", $"Coedge chain is disconnected: expected vertex {end.Value}, actual vertex {expectedStart.Value}.", faceId.Value, loop.Id.Value, i, coedge.EdgeId.Value);
+                var directedUse = DirectedEdgeUse.Resolve(edge, coedge);
+                var nextDirectedUse = DirectedEdgeUse.Resolve(nextEdge, next);
+                if (!VerticesMatch(directedUse.EndVertexId, nextDirectedUse.StartVertexId))
+                    AddError(i == loop.CoedgeIds.Count - 1 ? "brep-preflight-loop-not-closed" : "brep-preflight-coedge-disconnected", "loop", $"Coedge chain is disconnected: expected vertex {directedUse.EndVertexId.Value}, actual vertex {nextDirectedUse.StartVertexId.Value}.", faceId.Value, loop.Id.Value, i, coedge.EdgeId.Value);
 
                 if (coedge.NextCoedgeId != nextId)
                     AddError("brep-preflight-coedge-link-mismatch", "loop", "Coedge NextCoedgeId does not match declared loop order.", faceId.Value, loop.Id.Value, i, coedge.EdgeId.Value);
             }
+        }
+
+        bool VerticesMatch(VertexId left, VertexId right)
+        {
+            if (left == right) return true;
+            return body.TryGetVertexPoint(left, out var a)
+                && body.TryGetVertexPoint(right, out var b)
+                && Distance(a, b) <= Tolerances.Linear;
         }
 
         void ValidateEdge(Edge edge)

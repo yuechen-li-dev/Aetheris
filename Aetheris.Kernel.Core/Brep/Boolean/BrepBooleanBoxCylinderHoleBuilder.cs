@@ -776,8 +776,12 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         var holeFaces = new List<FaceId>(holes.Count);
         foreach (var hole in holeTopology)
         {
+            // A cylindrical wall must traverse from the top seam endpoint to
+            // the bottom circle, back up the reversed seam, then the top
+            // circle.  The previous top/bottom ordering was incidence-manifold
+            // but disconnected in declared coedge traversal.
             holeFaces.Add(builder.AddFace([
-                AddLoop(builder, [Forward(hole.Seam), Reversed(hole.TopCircle), Reversed(hole.Seam), Forward(hole.BottomCircle)])
+                AddLoop(builder, [Forward(hole.Seam), Forward(hole.BottomCircle), Reversed(hole.Seam), Reversed(hole.TopCircle)])
             ]));
         }
 

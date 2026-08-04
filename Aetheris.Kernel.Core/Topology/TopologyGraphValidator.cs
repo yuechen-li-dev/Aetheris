@@ -48,6 +48,21 @@ public static class TopologyGraphValidator
                     diagnostics.Add(Error($"Coedge {coedge.Id.Value} belongs to loop {coedge.LoopId.Value}, but is listed on loop {loop.Id.Value}."));
                 }
             }
+
+            for (var index = 0; index < loop.CoedgeIds.Count; index++)
+            {
+                if (!model.TryGetCoedge(loop.CoedgeIds[index], out var coedge) || coedge is null
+                    || !model.TryGetEdge(coedge.EdgeId, out var edge) || edge is null
+                    || !model.TryGetCoedge(loop.CoedgeIds[(index + 1) % loop.CoedgeIds.Count], out var next) || next is null
+                    || !model.TryGetEdge(next.EdgeId, out var nextEdge) || nextEdge is null)
+                {
+                    continue;
+                }
+
+                // A topology-only model cannot determine whether distinct
+                // vertices are coincident (for example at a periodic seam).
+                // BrepExportPreflight and M8 perform the binding-aware check.
+            }
         }
 
         foreach (var edge in model.Edges)

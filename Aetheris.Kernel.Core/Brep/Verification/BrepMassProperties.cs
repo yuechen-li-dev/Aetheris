@@ -413,11 +413,11 @@ public static class BrepMassProperties
                         if (!body.Topology.TryGetCoedge(loop.CoedgeIds[i], out var coedge) || coedge is null || !body.Topology.TryGetEdge(coedge.EdgeId, out var edge) || edge is null) { loopsClosed = false; messages.Add($"Loop {loopId.Value} references missing coedge or edge."); continue; }
                         var expectedNext = loop.CoedgeIds[(i + 1) % loop.CoedgeIds.Count];
                         if (coedge.NextCoedgeId != expectedNext) { loopsClosed = false; messages.Add($"Loop {loopId.Value} next-link is not cyclic."); }
-                        var end = coedge.IsReversed ? edge.StartVertexId : edge.EndVertexId;
                         var next = body.Topology.GetCoedge(expectedNext);
                         var nextEdge = body.Topology.GetEdge(next.EdgeId);
-                        var start = next.IsReversed ? nextEdge.EndVertexId : nextEdge.StartVertexId;
-                        if (!VerticesCoincident(body, end, start)) { loopsClosed = false; messages.Add($"Loop {loopId.Value} has disconnected coedges at {coedge.Id.Value}."); }
+                        var directedUse = DirectedEdgeUse.Resolve(edge, coedge);
+                        var nextDirectedUse = DirectedEdgeUse.Resolve(nextEdge, next);
+                        if (!VerticesCoincident(body, directedUse.EndVertexId, nextDirectedUse.StartVertexId)) { loopsClosed = false; messages.Add($"Loop {loopId.Value} has disconnected coedges at {coedge.Id.Value}: end vertex {directedUse.EndVertexId.Value}, next start vertex {nextDirectedUse.StartVertexId.Value}."); }
                         if (!edgeUses.TryGetValue(edge.Id, out var uses)) edgeUses[edge.Id] = uses = [];
                         uses.Add((faceId, coedge.IsReversed));
                     }

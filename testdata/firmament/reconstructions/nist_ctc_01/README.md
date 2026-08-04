@@ -20,3 +20,13 @@ cylindrical subtract chain in cp2 (`BlindContinuationOutsideBoundedFamily`).
 
 As a result, this attempt currently reaches meaningful progression through cp1,
 with cp2+ retained as explicit next-step probes.
+
+## CTC01-RECONSTRUCTION-A1
+
+`ctc01_reconstruction_a1.firmament` is the separate Firmament V2 pressure-test
+result. It does not extend the parser or geometry kernel and does not reuse the
+legacy Boolean checkpoint chain. It compiles a Concept Struct scaffold, a
+rectangular primary-plate subset, and two exact four-hole patterns through the
+current production route. The full audit, comparison, M8 contradiction, and gap
+ledger are in `docs/reconstruction/ctc01-reconstruction-a1.md` and
+`artifacts/reconstruction/ctc01/`.

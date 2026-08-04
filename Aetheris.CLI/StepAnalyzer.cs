@@ -616,7 +616,7 @@ public sealed record VolumeAnalysisResult(
                 return null;
             }
 
-            var vertexId = coedge.IsReversed ? edge.EndVertexId : edge.StartVertexId;
+            var vertexId = DirectedEdgeUse.Resolve(edge, coedge).StartVertexId;
             if (!body.TryGetVertexPoint(vertexId, out var point))
             {
                 failureReason = $"Volume analysis loop {loopId.Value} is missing vertex coordinate for vertex {vertexId.Value}.";
@@ -1493,8 +1493,15 @@ public sealed record VolumeAnalysisResult(
         var edgeUseCounts = BuildEdgeFaceIncidenceCounts(body);
         var leakyEdges = edgeUseCounts.Count(kvp => kvp.Value == 1);
         var nonManifoldEdges = edgeUseCounts.Count(kvp => kvp.Value != 2);
-        var structural = nonManifoldEdges == 0 ? "enclosed-manifold" : (leakyEdges > 0 ? "leaky-or-open" : "non-manifold");
-        var basis = "derived from imported topology edge-to-face coedge incidence counts";
+        var loopsConnected = AreOrderedLoopsConnected(body, out var disconnectedLoop);
+        if (!loopsConnected)
+        {
+            notes.Add($"Face loop {disconnectedLoop} is not connected in declared coedge order; edge-use manifold incidence is insufficient for enclosed-manifold.");
+        }
+        var structural = nonManifoldEdges == 0 && loopsConnected
+            ? "enclosed-manifold"
+            : !loopsConnected ? "invalid-face-loops" : (leakyEdges > 0 ? "leaky-or-open" : "non-manifold");
+        var basis = "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts";
 
         return new AnalyzeSummary(
             topology.Bodies.Count(),
@@ -1511,6 +1518,42 @@ public sealed record VolumeAnalysisResult(
             BuildIdRange(topology.Faces.Select(f => f.Id.Value)),
             BuildIdRange(topology.Edges.Select(e => e.Id.Value)),
             BuildIdRange(topology.Vertices.Select(v => v.Id.Value)));
+    }
+
+    private static bool AreOrderedLoopsConnected(BrepBody body, out int disconnectedLoop)
+    {
+        foreach (var loop in body.Topology.Loops.OrderBy(loop => loop.Id.Value))
+        {
+            if (loop.CoedgeIds.Count == 0) { disconnectedLoop = loop.Id.Value; return false; }
+            for (var index = 0; index < loop.CoedgeIds.Count; index++)
+            {
+                if (!body.Topology.TryGetCoedge(loop.CoedgeIds[index], out var coedge) || coedge is null
+                    || !body.Topology.TryGetEdge(coedge.EdgeId, out var edge) || edge is null
+                    || !body.Topology.TryGetCoedge(loop.CoedgeIds[(index + 1) % loop.CoedgeIds.Count], out var next) || next is null
+                    || !body.Topology.TryGetEdge(next.EdgeId, out var nextEdge) || nextEdge is null)
+                {
+                    disconnectedLoop = loop.Id.Value;
+                    return false;
+                }
+                var end = DirectedEdgeUse.Resolve(edge, coedge).EndVertexId;
+                var start = DirectedEdgeUse.Resolve(nextEdge, next).StartVertexId;
+                if (!VerticesMatch(body, end, start))
+                {
+                    disconnectedLoop = loop.Id.Value;
+                    return false;
+                }
+            }
+        }
+        disconnectedLoop = 0;
+        return true;
+    }
+
+    private static bool VerticesMatch(BrepBody body, VertexId left, VertexId right)
+    {
+        if (left == right) return true;
+        return body.TryGetVertexPoint(left, out var a)
+            && body.TryGetVertexPoint(right, out var b)
+            && (a - b).Length <= 1e-6d;
     }
 
     private static FaceDetail BuildFaceDetail(BrepBody body, FaceId faceId, ICollection<string> notes)

@@ -54,6 +54,23 @@ public sealed class BrepExportPreflightTests
     }
 
     [Fact]
+    public void CurveTrimEndpointsThatDisagreeWithTopologyVertices_AreRejected()
+    {
+        var circle = new Circle3Curve(Point3D.Origin, Z, 2, X);
+        var body = ClosedCircleBody(
+            SurfaceGeometry.FromCylinder(new CylinderSurface(Point3D.Origin, Z, 2, X)),
+            circle,
+            new Point3D(0, 2, 0));
+
+        var report = BrepExportPreflight.Validate(body);
+
+        Assert.False(report.IsValid);
+        Assert.Contains(report.Diagnostics, diagnostic =>
+            diagnostic.Code == "brep-preflight-edge-curve-endpoint-mismatch" &&
+            diagnostic.Classification == BrepExportPreflightFindingClassification.InvalidTopology);
+    }
+
+    [Fact]
     public void DisconnectedLoop_IsClassifiedAsInvalidTopology()
     {
         var report = BrepExportPreflight.Validate(DisconnectedLoopBody());
@@ -63,7 +80,7 @@ public sealed class BrepExportPreflightTests
             diagnostic.Classification == BrepExportPreflightFindingClassification.InvalidTopology);
     }
 
-    private static BrepBody ClosedCircleBody(SurfaceGeometry surface, Circle3Curve circle)
+    private static BrepBody ClosedCircleBody(SurfaceGeometry surface, Circle3Curve circle, Point3D? topologyVertexPoint = null)
     {
         var topology = new TopologyModel();
         var vertex = new VertexId(1); var edge = new EdgeId(1); var coedge = new CoedgeId(1); var loop = new LoopId(1); var face = new FaceId(1); var shell = new ShellId(1);
@@ -72,7 +89,7 @@ public sealed class BrepExportPreflightTests
         topology.AddFace(new Face(face, [loop])); topology.AddShell(new Shell(shell, [face])); topology.AddBody(new Body(new BodyId(1), [shell]));
         var geometry = new BrepGeometryStore(); geometry.AddCurve(new CurveGeometryId(1), CurveGeometry.FromCircle(circle)); geometry.AddSurface(new SurfaceGeometryId(1), surface);
         var bindings = new BrepBindingModel(); bindings.AddEdgeBinding(new EdgeGeometryBinding(edge, new CurveGeometryId(1), new ParameterInterval(0, 2 * double.Pi))); bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(1)));
-        return new BrepBody(topology, geometry, bindings, new Dictionary<VertexId, Point3D> { [vertex] = circle.Evaluate(0) });
+        return new BrepBody(topology, geometry, bindings, new Dictionary<VertexId, Point3D> { [vertex] = topologyVertexPoint ?? circle.Evaluate(0) });
     }
 
     private static BrepBody DisconnectedLoopBody()

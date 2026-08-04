@@ -174,13 +174,7 @@ public static class FirmamentBuildAndExport
             var junctionSolid = document.Solids.SingleOrDefault(s => s.Name == finishes[0].Modify.TargetSolid);
             if (junctionSolid?.Primitive is not FirmamentV2BoxRecord junctionBox || junctionBox.Size.Count != 3)
                 return AirChamferFailure("localized-fillet-junction-unsupported-history:expected-history-known-box");
-            var filletInvestigation = AirLocalizedEdgeJunctionFilletCompiler.Compile(new(
-                junctionSolid.Name, $"{junctionSolid.Name}.{finishes[0].Finish.Name}.{finishes[1].Finish.Name}", $"{finishes[0].Finish.Name}+{finishes[1].Finish.Name}",
-                junctionBox.Size[0], junctionBox.Size[1], junctionBox.Size[2],
-                finishes[0].Finish.FaceAxis, finishes[0].Finish.Target, finishes[1].Finish.FaceAxis, finishes[1].Finish.Target,
-                finishes[0].Finish.Distance, finishes[1].Finish.Distance,
-                new AirSourceSpan(finishes[0].Finish.SourceSpan.Start, finishes[0].Finish.SourceSpan.Length + finishes[1].Finish.SourceSpan.Length, document.ModelName)));
-            return AirChamferFailure(filletInvestigation.Error?.Code ?? "localized-fillet-junction-construction-witness-required", filletInvestigation.Diagnostics);
+            return ExportV2LocalizedEdgeJunctionFillet(document, junctionSolid, finishes[0].Finish, finishes[1].Finish, junctionBox);
         }
         if (finishes.Length == 2)
             return AirChamferFailure("localized-junction-unsupported-finish-combination:mixed-families");
@@ -347,6 +341,55 @@ public static class FirmamentBuildAndExport
             LocalizedEdgeJunction: new(["SharedEdge(+X,+Z)", "SharedEdge(+Y,+Z)"], "Chamfer", "EqualDistance", first.Distance, "Direct", "LocalizedEdgeJunction", compiled.Construction.CornerPatch.Kind, 2, 0,
                 new(true, topology.DeterministicSignature), "valid", false, 1, 1));
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{first.Name}.{second.Name}", 0, "air-chamfer", "localized-edge-junction-chamfer", Air: report, ConceptIr: document.ConceptIr));
+    }
+
+    private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedEdgeJunctionFillet(
+        FirmamentV2Document document,
+        FirmamentV2SolidBinding solid,
+        FirmamentV2EdgeFinishDecl first,
+        FirmamentV2EdgeFinishDecl second,
+        FirmamentV2BoxRecord box)
+    {
+        var compiled = AirLocalizedEdgeJunctionFilletCompiler.Compile(new(
+            solid.Name, $"{solid.Name}.{first.Name}.{second.Name}", $"{first.Name}+{second.Name}", box.Size[0], box.Size[1], box.Size[2],
+            first.FaceAxis, first.Target, second.FaceAxis, second.Target, first.Distance, second.Distance,
+            new AirSourceSpan(first.SourceSpan.Start, first.SourceSpan.Length + second.SourceSpan.Length, document.ModelName)));
+        if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.LocalizedEdgeJunctionRealizationPlan is null)
+            return AirChamferFailure(compiled.Error?.Code ?? "localized-fillet-junction-direct-intersection-required", compiled.Diagnostics);
+
+        var body = compiled.Body;
+        var preflight = BrepExportPreflight.Validate(body);
+        if (!preflight.IsValid) return AirChamferFailure("localized-fillet-junction-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
+        if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-fillet-junction-emitted-body-is-not-manifold");
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        {
+            ProductName = compiled.Construction.ConstructionId,
+            ApplicationName = AirLocalizedEdgeJunctionFilletCompileResult.ProductionRoute,
+            BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+            BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+        });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value))
+            return AirChamferFailure("localized-fillet-junction-step-reimport-verification-failed");
+
+        var topology = compiled.Construction.TopologyPlan;
+        var cylinders = body.Geometry.Surfaces.Count(surface => surface.Value.Kind == SurfaceGeometryKind.Cylinder);
+        var planes = body.Geometry.Surfaces.Count(surface => surface.Value.Kind == SurfaceGeometryKind.Plane);
+        var report = new FirmamentAirChamferReport(
+            new("Fillet", solid.Name, $"{solid.Name}.{first.Name}.{second.Name}", $"{first.Name}+{second.Name}", "SharedEdge(+X,+Z),SharedEdge(+Y,+Z)", first.Distance, "mm",
+                $"{first.SourceSpan.Start}:{first.SourceSpan.Length}|{second.SourceSpan.Start}:{second.SourceSpan.Length}", "Admitted", "localized-fillet-junction-direct-intersection-candidate",
+                new Dictionary<string, string> { ["Selection"] = "semantic Face(+X),Face(+Z); Face(+Y),Face(+Z)", ["MaterialSide"] = compiled.Construction.MaterialSide, ["Branch"] = compiled.Construction.Closure.Branch }),
+            new("LocalizedEdgeJunction", 0, [], "ordered-explicit-loops", "DirectIntersectionEllipse",
+                $"replacementFaces=2;junctionFaces=0;sharedEdges=1;curve=Ellipse;branch={compiled.Construction.Closure.Branch}", true),
+            new(true, topology.ExpectedVertexCount, topology.ExpectedEdgeCount, topology.ExpectedFaceCount, topology.ExpectedLoopCount, topology.ExpectedCoedgeCount, 0,
+                "DirectIntersectionEllipse", topology.DeterministicSignature, "LocalizedEdgeJunction"),
+            new(AirLocalizedEdgeJunctionFilletCompileResult.ProductionRoute, false, true, body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(), Bounds(body), first.Distance, first.Distance, cylinders, 0, planes),
+            new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), Bounds(reimport.Value), true),
+            LocalizedEdgeJunction: new(["SharedEdge(+X,+Z)", "SharedEdge(+Y,+Z)"], "Fillet", "ConstantRadius", first.Distance, "Direct", "LocalizedEdgeJunction", "None(DirectIntersection)", 2, 0,
+                new(true, topology.DeterministicSignature), "valid", false, 1, 1,
+                new("DirectIntersection", "Cylinder", "Cylinder", "Ellipse", true, 1, compiled.Construction.Closure.Branch)));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{first.Name}.{second.Name}", 0, "air-fillet", "localized-edge-junction-fillet", Air: report, ConceptIr: document.ConceptIr));
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedTangentBlendSingleEdgeFillet(

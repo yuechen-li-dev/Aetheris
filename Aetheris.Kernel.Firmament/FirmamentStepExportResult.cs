@@ -65,7 +65,17 @@ public sealed record FirmamentLocalizedEdgeJunctionTrace(
     string Preflight,
     bool LegacyFallback,
     int CandidatePlans,
-    int HardValidPlans);
+    int HardValidPlans,
+    FirmamentLocalizedJunctionClosureTrace? Closure = null);
+
+public sealed record FirmamentLocalizedJunctionClosureTrace(
+    string Kind,
+    string SurfaceA,
+    string SurfaceB,
+    string CurveKind,
+    bool Exact,
+    int SharedEdges,
+    string Branch);
 
 /// <summary>Authoritative shared semantic evidence for localized edge replacement routes.</summary>
 public sealed record FirmamentLocalizedEdgeFinishTrace(

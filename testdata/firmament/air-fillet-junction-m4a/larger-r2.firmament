@@ -1,0 +1,6 @@
+Model Localized mm
+Box Base { Size: [10mm, 8mm, 6mm] }
+Modify Base {
+    EdgeFinish First { Face: +X Target: SharedEdgePlusZ Kind: Fillet Distance: 2mm }
+    EdgeFinish Second { Face: +Y Target: SharedEdgePlusZ Kind: Fillet Distance: 2mm }
+}

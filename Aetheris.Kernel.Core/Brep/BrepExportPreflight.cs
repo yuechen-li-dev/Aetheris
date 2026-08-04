@@ -173,6 +173,17 @@ public static class BrepExportPreflight
             var b = Evaluate(curve, binding.TrimInterval.Value.End);
             if (a is null || b is null || !Finite(a.Value) || !Finite(b.Value))
                 AddError("brep-preflight-edge-degenerate", "edge", "Edge curve endpoint is non-finite or unsupported.", edgeId: edge.Id.Value);
+            if (a is not null && b is not null
+                && body.TryGetVertexPoint(edge.StartVertexId, out var startPoint)
+                && body.TryGetVertexPoint(edge.EndVertexId, out var endPoint))
+            {
+                var expectedStart = binding.OrientedEdgeSense ? startPoint : endPoint;
+                var expectedEnd = binding.OrientedEdgeSense ? endPoint : startPoint;
+                var startDeviation = Distance(a.Value, expectedStart);
+                var endDeviation = Distance(b.Value, expectedEnd);
+                if (startDeviation > Tolerances.Linear || endDeviation > Tolerances.Linear)
+                    AddError("brep-preflight-edge-curve-endpoint-mismatch", "edge", "Edge curve trim endpoints do not match the topology edge endpoints.", edgeId: edge.Id.Value, deviation: double.Max(startDeviation, endDeviation));
+            }
             if (a is not null && b is not null && curve.Kind is CurveGeometryKind.Line3 && Distance(a.Value, b.Value) <= Tolerances.Linear)
                 AddError("brep-preflight-edge-degenerate", "edge", "Line edge has zero geometric length.", edgeId: edge.Id.Value, deviation: Distance(a.Value, b.Value));
         }

@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Core.Air.BRepPlan;
 
 internal enum AirBRepPlanKind { PrismaticSectionTransition, RevolvedProfile, LocalizedPlanarReplacement, LocalizedTangentBlend, LocalizedEdgeJunction, Unsupported }
 internal enum AirBRepPlanElementKind { Vertex, Curve, Edge, Coedge, Loop, Surface, Face, Shell, Body }
-internal enum AirBRepPlanRole { Unknown, SectionVertex, SectionEdge, VerticalTransitionEdge, SectionLoop, ProfileVertex, ProfileSegment, CircularRim, SeamEdge, CapFace, SideFace, CylindricalFace, ConicalTransitionFace, TransitionFace, PrismaticTransitionFace, ChamferFace, FilletFace, ReplacementFace, ReplacementFaceA, ReplacementFaceB, ReplacementBoundaryA, ReplacementBoundaryB, SharedJunction, CornerPatch, RetainedSupportFaceA, RetainedSupportFaceB, EndpointTransitionStart, EndpointTransitionEnd, RemoteEndpointA, RemoteEndpointB, UnaffectedFace, BodyShell, Body }
+internal enum AirBRepPlanRole { Unknown, SectionVertex, SectionEdge, VerticalTransitionEdge, SectionLoop, ProfileVertex, ProfileSegment, CircularRim, SeamEdge, CapFace, SideFace, CylindricalFace, ConicalTransitionFace, TransitionFace, PrismaticTransitionFace, ChamferFace, FilletFace, ReplacementFace, ReplacementFaceA, ReplacementFaceB, ReplacementBoundaryA, ReplacementBoundaryB, SharedJunction, DirectJunctionBoundary, CornerPatch, RetainedSupportFaceA, RetainedSupportFaceB, EndpointTransitionStart, EndpointTransitionEnd, RemoteEndpointA, RemoteEndpointB, UnaffectedFace, BodyShell, Body }
 
 internal readonly record struct AirBRepPlanId(string Value)
 {

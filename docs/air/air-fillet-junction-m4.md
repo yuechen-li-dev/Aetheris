@@ -1,78 +1,102 @@
-# AIR-FILLET-JUNCTION-M4 — two-edge equal-radius fillet investigation
+# AIR-FILLET-DIRECT-JUNCTION-M4A
 
-## Result
+## Corrected conclusion
 
-M4 does **not** admit a two-edge fillet STEP route yet.  It closes the former
-implicit rejection with a typed Construction AIR investigation and an exact
-geometric witness.  No BRep, STEP, or legacy fallback is emitted for this case.
+The M4 spherical investigation was valuable negative evidence but its architectural
+conclusion was too broad.  A sphere is the three-edge corner candidate; it is not
+required for two equal-radius fillets.  The two selected replacement cylinders
+close directly.
 
-The investigated source domain is a history-known axis-aligned box with:
+## Admitted construction
 
-```text
-SharedEdge(+X,+Z), SharedEdge(+Y,+Z), equal constant radius R, convex +X/+Y/+Z corner
-```
-
-It validates `10 x 8 x 6, R=1`, `10 x 8 x 6, R=2`, and `12 x 5 x 7, R=1`
-up to shared-patch admission.  Zero, oversized, unequal, non-sharing, and
-no-history inputs are rejected before topology emission.
-
-## Exact candidate derivation
-
-Let the box's positive corner be `(hx, hy, hz)`.  The two single-edge cylinders
-have common radius `R` and axes through
+Only a history-known axis-aligned box with the convex positive corner is admitted:
 
 ```text
-C = (hx-R, hy-R, hz-R)
-axis A = +Y   for SharedEdge(+X,+Z)
-axis B = +X   for SharedEdge(+Y,+Z)
+SharedEdge(+X,+Z), SharedEdge(+Y,+Z), constant equal radius R
 ```
 
-The only simple equal-radius spherical candidate tangent to both cylinders is
-the sphere centered at `C` with radius `R`.  Its two shared seams have zero
-positional and tangent-plane deviation from the selected cylinders.
+Feature AIR owns two `AirEdgeFinishFeature` intents.  Construction AIR owns the
+two exact `CylinderSurface` replacements and one
+`LocalizedEdgeJunctionDirectIntersectionClosure`.  The closure is `Direct`, not
+`Patch`; there is no spherical face and no legacy BRep surgery.
 
-However, its remaining exact boundary is the quarter circle in `z = hz-R`
-between `(hx, hy-R, hz-R)` and `(hx-R, hy, hz-R)`.  This is precisely the seam
-of the unselected radius-`R` cylinder about `+Z` — the fillet for
-`SharedEdge(+X,+Y)`.  The sphere meets each retained support plane only at its
-one tangency point, so it has no non-degenerate trim curve on `+X`, `+Y`, or
-`+Z` with which to close the two-edge shell.
+Let the positive box corner be `(hx, hy, hz)` and set:
 
-Consequently a spherical/octant patch would covertly materialize a third fillet
-and is rejected.  A torus cannot supply the forced spherical tangent seams, and
-no other exact supported surface family has been proven to meet the two
-cylinders and retained planes with G0/G1 closure.  M4 returns the typed
-`CornerPatchSurfaceRequired` error with the sphere center, radius, zero cylinder
-tangency deviation, missing third-boundary length `pi*R/2`, and required third
-surface as evidence.
+```text
+C  = (hx-R, hy-R, hz-R)
+A  = cylinder through C, axis +Y, radius R
+B  = cylinder through C, axis +X, radius R
+```
 
-## Construction AIR and policy
+Their equations are:
 
-The compiler constructs the two semantic `AirEdgeFinishFeature` fillet intents
-and the immutable spherical candidate witness before rejecting it.  It uses no
-topology identifiers in Firmament and produces no BRepPlan because no
-hard-valid plan exists.  Candidate count is zero hard-valid plans; utility
-scoring is deliberately dormant.
+```text
+(x-cx)^2 + (z-cz)^2 = R^2
+(y-cy)^2 + (z-cz)^2 = R^2
+```
 
-The existing two-edge chamfer remains the sole authoritative
-`LocalizedEdgeJunction` BRepPlan route.  It must not be repurposed for fillets.
+The material-side branch is `x-cx = y-cy >= 0`, `z-cz >= 0`.  With parameter
+`t in [0, pi/2]`, its exact finite seam is:
 
-## Continuity, preflight, STEP, and volume
+```text
+P(t) = C + (R cos(t), R cos(t), R sin(t))
+```
 
-The rejected sphere candidate has exact G0/G1 cylinder seams (`0` measured
-deviation).  The unowned third seam has length `pi*R/2`, so there is no closed,
-manifold two-edge shell to preflight or export.  Accordingly no STEP hash,
-reimport, CAD Assistant session, or volume claim is produced for M4; exporting
-an analytically invalid shell would be false evidence.  Existing sphere and
-cylinder containment checks in `BrepExportPreflight` already cover a future
-valid analytic plan, but no patch-specific preflight is added until a closing
-surface is proven.
+This lies in `x-y = cx-cy` and is an exact planar ellipse: major radius
+`sqrt(2) R`, minor radius `R`, plane normal `(1,-1,0)`, major direction
+`(1,1,0)`.  It runs from `(hx,hy,hz-R)` to `(hx-R,hy-R,hz)`.  Substitution in
+both cylinder equations gives zero containment deviation.  The opposite-sign
+branch is outside the selected convex replacement regions and is not admitted.
 
-## Deferred scope and next milestone
+Each cylinder is trimmed by its remote quarter-circle, two planar tangent
+boundaries, and this shared ellipse.  The result is a closed eight-face shell:
+six retained/unaffected planes plus two cylinders, 11 vertices, 17 edges, and
+one shared ellipse.  No corner patch is present.
 
-This result does not claim rolling-ball, chain, three-edge, mixed, variable-
-radius, concave, curved-support, or imported-body fillets.  The next bounded
-milestone should either admit the three equal-radius edges at this corner (where
-the derived spherical patch has all three cylindrical seams), or derive and
-prove a separate exact two-cylinder-to-support corner surface before adding a
-two-edge emission path.
+For an independent volume cross-check (not the signed-shell volume path), the
+two single-edge removals overlap by
+
+```text
+R^3 (5/3 - pi/2) = integral[0,R] (R - sqrt(R^2-z^2))^2 dz.
+```
+
+Thus the expected retained volume is
+`W*D*H - R^2(1-pi/4)(W+D) + R^3(5/3-pi/2)`.  The test suite checks this exact
+overlap against a 100,000-interval independent trapezoidal integration.
+
+## Plan, preflight, and STEP
+
+One authoritative `LocalizedEdgeJunctionTopologyPlan` drives the emitter.  Its
+shared edge has `DirectJunctionBoundary` and `SharedJunction` roles.  Export
+preflight validates the ellipse on both cylinder faces (endpoints and midpoint)
+and, additionally, verifies that every edge-curve trim endpoint agrees with its
+topology edge endpoint in the binding's orientation.  The latter check caught a
+reversed remote-B circular cap binding: although its geometric locus was right,
+its parameter direction disagreed with the BRep edge and CAD Assistant folded
+the far-end closure.  The cap now has the same direction as its topology edge;
+the old binding fails Enforce preflight.  STEP exports the analytic `ELLIPSE` and
+two `CYLINDRICAL_SURFACE` supports; no spline or faceting is used.
+
+The CLI report exposes `closure.kind=DirectIntersection`, `curveKind=Ellipse`,
+`exact=true`, `sharedEdges=1`, `replacementFaces=2`, and `junctionFaces=0`.
+There is one hard-valid plan, so selection is `Direct` and utility scoring remains
+dormant.
+
+CAD Assistant opened the regenerated canonical `R=1` and `R=2` AP242 artifacts
+in shaded-with-edges mode. Both rendered as continuous rounded box corners with
+no gap, inversion, fold, or extra face visible, including the previously bad
+remote-B closure. The viewer does not visibly draw the analytic direct seam in
+its default display; its exactness remains established by STEP reimport and
+two-cylinder containment checks rather than raster appearance alone. Hashes:
+`E2CF4D60A5A6CA99AB045CFCA5FABAA7EF933E7DD55866D8433F5FD49A429AEA` (R=1)
+and `A4CCE35767C3BC296E0E24C39C3887EDC3B6FFFAF72990AF7D58D50F32770218` (R=2).
+
+## Spherical negative evidence and scope
+
+The former radius-R sphere centered at `C` has a third seam for the unselected
+`SharedEdge(+X,+Y)` cylinder.  That is exactly why it is the three-edge equal-
+radius corner construction, not the two-edge direct chain construction.
+
+Deferred: unequal/variable radii, mixed finishes, three selected edges, concave
+or non-orthogonal/curved supports, imported bodies, long chains, and oversized
+radii.  The next separate milestone is the three-edge spherical corner.

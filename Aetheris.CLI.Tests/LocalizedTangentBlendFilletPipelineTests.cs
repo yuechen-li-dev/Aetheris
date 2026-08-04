@@ -77,7 +77,7 @@ public sealed class LocalizedTangentBlendFilletPipelineTests
     }
 
     [Fact]
-    public void LocalizedTangentBlend_TwoEdgeJunction_RequiresExplicitConstructionWitness()
+    public void LocalizedTangentBlend_TwoEdgeJunction_ExportsDirectCylinderIntersection()
     {
         var run = Run("""
             Model Localized mm
@@ -87,8 +87,18 @@ public sealed class LocalizedTangentBlendFilletPipelineTests
                 EdgeFinish Second { Face: +Y Target: SharedEdgePlusZ Kind: Fillet Distance: 1mm }
             }
             """);
-        Assert.Equal(1, run.Exit);
-        Assert.Contains("localized-fillet-junction-corner-patch-surface-required", run.Output, StringComparison.Ordinal);
+        Assert.Equal(0, run.Exit);
+        using var json = JsonDocument.Parse(run.Output);
+        var junction = json.RootElement.GetProperty("air").GetProperty("localizedEdgeJunction");
+        Assert.Equal("Fillet", junction.GetProperty("finishKind").GetString());
+        Assert.Equal("Direct", junction.GetProperty("selectionMode").GetString());
+        Assert.Equal(2, junction.GetProperty("replacementFaces").GetInt32());
+        Assert.Equal(0, junction.GetProperty("junctionFaces").GetInt32());
+        var closure = junction.GetProperty("closure");
+        Assert.Equal("DirectIntersection", closure.GetProperty("kind").GetString());
+        Assert.Equal("Ellipse", closure.GetProperty("curveKind").GetString());
+        Assert.True(closure.GetProperty("exact").GetBoolean());
+        Assert.Equal(1, closure.GetProperty("sharedEdges").GetInt32());
     }
 
     private static (int Exit, string Output) Run(string source)

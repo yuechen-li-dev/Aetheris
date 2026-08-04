@@ -39,9 +39,9 @@ public static class PrismaticSectionStackCompiler
             var downwardResult = ProfileArrangementBuilder.Difference(parsed.Feature.Frame, above, below, $"transition={level:R}:above-minus-below");
             d.AddRange(upwardResult.Arrangement.Diagnostics);
             d.AddRange(downwardResult.Arrangement.Diagnostics);
-            var upward = upwardResult.Region;
-            var downward = downwardResult.Region;
-            if (upward is not null || downward is not null) transitions.Add(new(level, upward, downward));
+            var upward = upwardResult.MaterialRegions;
+            var downward = downwardResult.MaterialRegions;
+            if (upward.Count > 0 || downward.Count > 0) transitions.Add(new(level, upward, downward));
         }
         var volume = slabs.Sum(s => Area(s.Region) * (s.To - s.From));
         diagnostics = d.Distinct().ToArray();
@@ -82,7 +82,7 @@ public static class PrismaticSectionStackEmitter
         var vertices = new Dictionary<(long X, long Y, long Z), VertexId>(); var edges = new Dictionary<string, EdgeId>();
         var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface)>(); var capFaces = new List<(FaceId Face, double Z, bool Up)>();
         var splitPoints = stack.Slabs.SelectMany(s => Loops(s.Region)).Concat(stack.Transitions.SelectMany(t =>
-                new[] { t.UpwardRegion, t.DownwardRegion }.Where(r => r is not null).SelectMany(r => Loops(r!))))
+                t.UpwardRegions.Concat(t.DownwardRegions).SelectMany(Loops)))
             .SelectMany(x => x.Profile.Loops[0].Segments).SelectMany(x => Ends(x.Geometry)).DistinctBy(p => $"{Math.Round(p.X / Tol):F0},{Math.Round(p.Y / Tol):F0}").ToArray();
         (long X, long Y, long Z) Key((double X, double Y) p, double z) => ((long)Math.Round(p.X / Tol), (long)Math.Round(p.Y / Tol), (long)Math.Round(z / Tol));
         VertexId Vertex((double X, double Y) p, double z) { var key = Key(p, z); if (vertices.TryGetValue(key, out var id)) return id; id = builder.AddVertex(); vertices[key] = id; points[id] = new(p.X, p.Y, z); return id; }
@@ -110,8 +110,8 @@ public static class PrismaticSectionStackEmitter
                 }
         foreach (var transition in stack.Transitions)
         {
-            if (transition.UpwardRegion is not null) capFaces.Add((AddCap(builder, transition.UpwardRegion, transition.Level, Edge, splitPoints), transition.Level, true));
-            if (transition.DownwardRegion is not null) capFaces.Add((AddCap(builder, transition.DownwardRegion, transition.Level, Edge, splitPoints), transition.Level, false));
+            foreach (var region in transition.UpwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints), transition.Level, true));
+            foreach (var region in transition.DownwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints), transition.Level, false));
         }
         var faces = new List<FaceId>();
         foreach (var cap in capFaces) faces.Add(cap.Face);

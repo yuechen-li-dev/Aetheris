@@ -1,0 +1,148 @@
+// CTC-BLOCKOUT-X2. Coordinates are in the reference frame (no Z translation).
+// Materialized regions are limited to Observed and StrongInference evidence.
+Concept Struct Ctc01BlockoutScaffold On XY {
+  Rect2 PrimaryWebGuide { Center: [0mm, 0mm]; Size: [800mm, 250mm]; Role: ProfileGuide }
+  Rect2 MidLevelGuide { Center: [0mm, 0mm]; Size: [500mm, 300mm]; Role: ProfileGuide }
+
+  Point2 LTopOuterBottom { Position: [-400mm, 125mm] }
+  Point2 LTopInnerBottom { Position: [-250mm, 125mm] }
+  Point2 LTopInnerArc { Position: [-250mm, 175mm] }
+  Point2 LTopInnerTop { Position: [-300mm, 225mm] }
+  Point2 LTopOuterTop { Position: [-350mm, 225mm] }
+  Point2 LTopOuterArc { Position: [-400mm, 175mm] }
+  Point2 LTopInnerCenter { Position: [-300mm, 175mm] }
+  Point2 LTopOuterCenter { Position: [-350mm, 175mm] }
+  Circle2 LTopInnerR50 { Center: LTopInnerCenter; Radius: 50mm }
+  Circle2 LTopOuterR50 { Center: LTopOuterCenter; Radius: 50mm }
+  Line2 LTopBottom { From: LTopOuterBottom; To: LTopInnerBottom }
+  Line2 LTopInnerSide { From: LTopInnerBottom; To: LTopInnerArc }
+  Line2 LTopCrown { From: LTopInnerTop; To: LTopOuterTop }
+  Line2 LTopOuterSide { From: LTopOuterArc; To: LTopOuterBottom }
+
+  Point2 RTopInnerBottom { Position: [250mm, 125mm] }
+  Point2 RTopOuterBottom { Position: [400mm, 125mm] }
+  Point2 RTopOuterArc { Position: [400mm, 175mm] }
+  Point2 RTopOuterTop { Position: [350mm, 225mm] }
+  Point2 RTopInnerTop { Position: [300mm, 225mm] }
+  Point2 RTopInnerArc { Position: [250mm, 175mm] }
+  Point2 RTopOuterCenter { Position: [350mm, 175mm] }
+  Point2 RTopInnerCenter { Position: [300mm, 175mm] }
+  Circle2 RTopOuterR50 { Center: RTopOuterCenter; Radius: 50mm }
+  Circle2 RTopInnerR50 { Center: RTopInnerCenter; Radius: 50mm }
+  Line2 RTopBottom { From: RTopInnerBottom; To: RTopOuterBottom }
+  Line2 RTopOuterSide { From: RTopOuterBottom; To: RTopOuterArc }
+  Line2 RTopCrown { From: RTopOuterTop; To: RTopInnerTop }
+  Line2 RTopInnerSide { From: RTopInnerArc; To: RTopInnerBottom }
+
+  Point2 LBottomOuterBottom { Position: [-350mm, -225mm] }
+  Point2 LBottomInnerBottom { Position: [-300mm, -225mm] }
+  Point2 LBottomInnerArc { Position: [-250mm, -175mm] }
+  Point2 LBottomInnerTop { Position: [-250mm, -125mm] }
+  Point2 LBottomOuterTop { Position: [-400mm, -125mm] }
+  Point2 LBottomOuterArc { Position: [-400mm, -175mm] }
+  Point2 LBottomInnerCenter { Position: [-300mm, -175mm] }
+  Point2 LBottomOuterCenter { Position: [-350mm, -175mm] }
+  Circle2 LBottomInnerR50 { Center: LBottomInnerCenter; Radius: 50mm }
+  Circle2 LBottomOuterR50 { Center: LBottomOuterCenter; Radius: 50mm }
+  Line2 LBottomCrown { From: LBottomOuterBottom; To: LBottomInnerBottom }
+  Line2 LBottomInnerSide { From: LBottomInnerArc; To: LBottomInnerTop }
+  Line2 LBottomTop { From: LBottomInnerTop; To: LBottomOuterTop }
+  Line2 LBottomOuterSide { From: LBottomOuterTop; To: LBottomOuterArc }
+
+  Point2 RBottomInnerBottom { Position: [300mm, -225mm] }
+  Point2 RBottomOuterBottom { Position: [350mm, -225mm] }
+  Point2 RBottomOuterArc { Position: [400mm, -175mm] }
+  Point2 RBottomOuterTop { Position: [400mm, -125mm] }
+  Point2 RBottomInnerTop { Position: [250mm, -125mm] }
+  Point2 RBottomInnerArc { Position: [250mm, -175mm] }
+  Point2 RBottomInnerCenter { Position: [300mm, -175mm] }
+  Point2 RBottomOuterCenter { Position: [350mm, -175mm] }
+  Circle2 RBottomInnerR50 { Center: RBottomInnerCenter; Radius: 50mm }
+  Circle2 RBottomOuterR50 { Center: RBottomOuterCenter; Radius: 50mm }
+  Line2 RBottomCrown { From: RBottomInnerBottom; To: RBottomOuterBottom }
+  Line2 RBottomOuterSide { From: RBottomOuterArc; To: RBottomOuterTop }
+  Line2 RBottomTop { From: RBottomOuterTop; To: RBottomInnerTop }
+  Line2 RBottomInnerSide { From: RBottomInnerTop; To: RBottomInnerArc }
+
+  Point2 HexSouth { Position: [0mm, -57.7350538379252mm] }
+  Point2 HexSouthEast { Position: [50mm, -28.8675403784439mm] }
+  Point2 HexNorthEast { Position: [50mm, 28.8674865405187mm] }
+  Point2 HexNorth { Position: [0mm, 57.735mm] }
+  Point2 HexNorthWest { Position: [-50mm, 28.8674865405186mm] }
+  Point2 HexSouthWest { Position: [-50mm, -28.8675403784438mm] }
+  Line2 HexSE { From: HexSouth; To: HexSouthEast }
+  Line2 HexE { From: HexSouthEast; To: HexNorthEast }
+  Line2 HexNE { From: HexNorthEast; To: HexNorth }
+  Line2 HexNW { From: HexNorth; To: HexNorthWest }
+  Line2 HexW { From: HexNorthWest; To: HexSouthWest }
+  Line2 HexSW { From: HexSouthWest; To: HexSouth }
+}
+
+Profile PrimaryWeb Using Ctc01BlockoutScaffold { Loop Outer {
+  Segment South { Trace: PrimaryWebGuide.Bottom; From: PrimaryWebGuide.BottomLeft; To: PrimaryWebGuide.BottomRight }
+  Segment East { Trace: PrimaryWebGuide.Right; From: PrimaryWebGuide.BottomRight; To: PrimaryWebGuide.TopRight }
+  Segment North { Trace: PrimaryWebGuide.Top; From: PrimaryWebGuide.TopRight; To: PrimaryWebGuide.TopLeft }
+  Segment West { Trace: PrimaryWebGuide.Left; From: PrimaryWebGuide.TopLeft; To: PrimaryWebGuide.BottomLeft }
+} }
+Profile MidLevelWeb Using Ctc01BlockoutScaffold { Loop Outer {
+  Segment South { Trace: MidLevelGuide.Bottom; From: MidLevelGuide.BottomLeft; To: MidLevelGuide.BottomRight }
+  Segment East { Trace: MidLevelGuide.Right; From: MidLevelGuide.BottomRight; To: MidLevelGuide.TopRight }
+  Segment North { Trace: MidLevelGuide.Top; From: MidLevelGuide.TopRight; To: MidLevelGuide.TopLeft }
+  Segment West { Trace: MidLevelGuide.Left; From: MidLevelGuide.TopLeft; To: MidLevelGuide.BottomLeft }
+} }
+Profile LeftTopEar Using Ctc01BlockoutScaffold { Loop Outer {
+  Segment Bottom { Trace: LTopBottom; From: LTopOuterBottom; To: LTopInnerBottom }
+  Segment InnerSide { Trace: LTopInnerSide; From: LTopInnerBottom; To: LTopInnerArc }
+  Segment InnerRound { Trace: LTopInnerR50; From: LTopInnerArc; To: LTopInnerTop; Sweep: CounterClockwise }
+  Segment Crown { Trace: LTopCrown; From: LTopInnerTop; To: LTopOuterTop }
+  Segment OuterRound { Trace: LTopOuterR50; From: LTopOuterTop; To: LTopOuterArc; Sweep: CounterClockwise }
+  Segment OuterSide { Trace: LTopOuterSide; From: LTopOuterArc; To: LTopOuterBottom }
+} }
+Profile RightTopEar Using Ctc01BlockoutScaffold { Loop Outer {
+  Segment Bottom { Trace: RTopBottom; From: RTopInnerBottom; To: RTopOuterBottom }
+  Segment OuterSide { Trace: RTopOuterSide; From: RTopOuterBottom; To: RTopOuterArc }
+  Segment OuterRound { Trace: RTopOuterR50; From: RTopOuterArc; To: RTopOuterTop; Sweep: CounterClockwise }
+  Segment Crown { Trace: RTopCrown; From: RTopOuterTop; To: RTopInnerTop }
+  Segment InnerRound { Trace: RTopInnerR50; From: RTopInnerTop; To: RTopInnerArc; Sweep: CounterClockwise }
+  Segment InnerSide { Trace: RTopInnerSide; From: RTopInnerArc; To: RTopInnerBottom }
+} }
+Profile LeftBottomEar Using Ctc01BlockoutScaffold { Loop Outer {
+  Segment Crown { Trace: LBottomCrown; From: LBottomOuterBottom; To: LBottomInnerBottom }
+  Segment InnerRound { Trace: LBottomInnerR50; From: LBottomInnerBottom; To: LBottomInnerArc; Sweep: CounterClockwise }
+  Segment InnerSide { Trace: LBottomInnerSide; From: LBottomInnerArc; To: LBottomInnerTop }
+  Segment Top { Trace: LBottomTop; From: LBottomInnerTop; To: LBottomOuterTop }
+  Segment OuterSide { Trace: LBottomOuterSide; From: LBottomOuterTop; To: LBottomOuterArc }
+  Segment OuterRound { Trace: LBottomOuterR50; From: LBottomOuterArc; To: LBottomOuterBottom; Sweep: CounterClockwise }
+} }
+Profile RightBottomEar Using Ctc01BlockoutScaffold { Loop Outer {
+  Segment Crown { Trace: RBottomCrown; From: RBottomInnerBottom; To: RBottomOuterBottom }
+  Segment OuterRound { Trace: RBottomOuterR50; From: RBottomOuterBottom; To: RBottomOuterArc; Sweep: CounterClockwise }
+  Segment OuterSide { Trace: RBottomOuterSide; From: RBottomOuterArc; To: RBottomOuterTop }
+  Segment Top { Trace: RBottomTop; From: RBottomOuterTop; To: RBottomInnerTop }
+  Segment InnerSide { Trace: RBottomInnerSide; From: RBottomInnerTop; To: RBottomInnerArc }
+  Segment InnerRound { Trace: RBottomInnerR50; From: RBottomInnerArc; To: RBottomInnerBottom; Sweep: CounterClockwise }
+} }
+Profile CentralHex Using Ctc01BlockoutScaffold { Loop Outer {
+  Segment SouthEast { Trace: HexSE; From: HexSouth; To: HexSouthEast }
+  Segment East { Trace: HexE; From: HexSouthEast; To: HexNorthEast }
+  Segment NorthEast { Trace: HexNE; From: HexNorthEast; To: HexNorth }
+  Segment NorthWest { Trace: HexNW; From: HexNorth; To: HexNorthWest }
+  Segment West { Trace: HexW; From: HexNorthWest; To: HexSouthWest }
+  Segment SouthWest { Trace: HexSW; From: HexSouthWest; To: HexSouth }
+} }
+
+Struct Composition { Compose Ctc01PrismaticBlockoutX2 {
+  Placement ReferenceWorld {
+    Anchor: [0mm, 0mm, 0mm]
+    ProfilePlane: XY
+    Axis: +Z
+    ReferenceDirection: +X
+  }
+  Base PrimaryPlate { Profile: PrimaryWeb; From: -100mm; To: 0mm; Role: ObservedPrimaryWeb }
+  Add LeftTopLobe { Profile: LeftTopEar; From: -100mm; To: 0mm; Role: StrongInferenceR50Lobe }
+  Add RightTopLobe { Profile: RightTopEar; From: -100mm; To: 0mm; Role: StrongInferenceR50Lobe }
+  Add LeftBottomLobe { Profile: LeftBottomEar; From: -100mm; To: 0mm; Role: StrongInferenceR50Lobe }
+  Add RightBottomLobe { Profile: RightBottomEar; From: -100mm; To: 0mm; Role: StrongInferenceR50Lobe }
+  Add MidLevelPlate { Profile: MidLevelWeb; From: -60mm; To: 0mm; Role: StrongInferenceMidLevel }
+  Add CentralRaisedRegion { Profile: CentralHex; From: 0mm; To: 50mm; Role: StrongInferenceCentralRaisedRegion }
+} }

@@ -1,0 +1,25 @@
+Concept Struct Layout On XY {
+  Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [20mm, 20mm]; Role: ProfileGuide }
+  Point2 CutCenter { Position: [6mm, 0mm] }
+  Point2 CutEast { Position: [10mm, 0mm] }
+  Point2 CutNorth { Position: [6mm, 4mm] }
+  Point2 CutWest { Position: [2mm, 0mm] }
+  Point2 CutSouth { Position: [6mm, -4mm] }
+  Circle2 CutCircle { Center: CutCenter; Radius: 4mm }
+}
+Profile BaseProfile Using Layout { Loop Outer {
+  Segment S { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+  Segment E { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+  Segment N { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+  Segment W { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
+} }
+Profile TangentVoid Using Layout { Loop Outer {
+  Segment NorthEast { Trace: CutCircle; From: CutEast; To: CutNorth; Sweep: CounterClockwise }
+  Segment NorthWest { Trace: CutCircle; From: CutNorth; To: CutWest; Sweep: CounterClockwise }
+  Segment SouthWest { Trace: CutCircle; From: CutWest; To: CutSouth; Sweep: CounterClockwise }
+  Segment SouthEast { Trace: CutCircle; From: CutSouth; To: CutEast; Sweep: CounterClockwise }
+} }
+Struct Composition { Compose AmbiguousTangentCrossing {
+  Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
+  Remove TangentCut { Profile: TangentVoid; From: 5mm; To: 10mm; Role: Relief }
+} }

@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Brep.Verification;
+using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Materializer;
 
@@ -6,6 +7,99 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class PrismaticProfileCompositionRoundTripTests
 {
+    [Theory]
+    [InlineData("add-overlapped-by-remove.firmament", 418d, 4090d, 1)]
+    [InlineData("overlapping-removes.firmament", 304d, 5520d, 1)]
+    [InlineData("shared-boundary-adds.firmament", 600d, 5000d, 0)]
+    [InlineData("crossing-removal-notch.firmament", 352d, 3760d, 0)]
+    public void RemainingMaterialPolicies_AgreeAcrossArrangementBrepStepAndM8(string fixture, double finalArea, double volume, int holes)
+    {
+        var source = File.ReadAllText(CompositionFixture(fixture));
+        var parsed = PrismaticProfileCompositionParser.Parse(source);
+        Assert.Empty(parsed.Diagnostics);
+        var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
+        Assert.Empty(diagnostics);
+        var finalSlab = stack.Slabs.OrderBy(x => x.To).Last();
+        Assert.Equal(finalArea, PrismaticSectionStackCompiler.Area(finalSlab.Region), 8);
+        Assert.Equal(holes, finalSlab.Region.Holes.Count);
+        Assert.Equal(volume, stack.AnalyticVolume, 8);
+
+        var emitted = PrismaticSectionStackEmitter.Emit(stack);
+        var body = Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(emitted.Body);
+        var inMemory = BrepMassProperties.Evaluate(body);
+        Assert.NotEqual(BrepMassPropertiesStatus.Unavailable, inMemory.Status);
+        Assert.InRange(Math.Abs(inMemory.AbsoluteVolume - volume), 0d, 0.01d);
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions { BrepExportPreflightMode = BrepExportPreflightMode.Enforce });
+        Assert.True(step.IsSuccess, string.Join(" | ", step.Diagnostics.Select(x => x.Message)));
+        var imported = Step242Importer.ImportBody(step.Value);
+        Assert.True(imported.IsSuccess, string.Join(" | ", imported.Diagnostics.Select(x => x.Message)));
+        var m8 = BrepMassProperties.Evaluate(imported.Value);
+        Assert.NotEqual(BrepMassPropertiesStatus.Unavailable, m8.Status);
+        Assert.InRange(Math.Abs(m8.AbsoluteVolume - volume), 0d, 0.01d);
+    }
+
+    [Fact]
+    public void AddOverlappedByRemove_OperationEnumerationDoesNotChangeNormalizedMaterial()
+    {
+        var source = File.ReadAllText(CompositionFixture("add-overlapped-by-remove.firmament"));
+        var reversed = source.Replace(
+            "  Add Pad { Profile: AddProfile; From: 5mm; To: 10mm; Role: Pad }\n  Remove Relief { Profile: RemoveProfile; From: 5mm; To: 10mm; Role: Relief }",
+            "  Remove Relief { Profile: RemoveProfile; From: 5mm; To: 10mm; Role: Relief }\n  Add Pad { Profile: AddProfile; From: 5mm; To: 10mm; Role: Pad }",
+            StringComparison.Ordinal);
+        var a = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(PrismaticProfileCompositionParser.Parse(source), out var da));
+        var b = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(PrismaticProfileCompositionParser.Parse(reversed), out var db));
+        Assert.Empty(da); Assert.Empty(db);
+        Assert.Equal(a.AnalyticVolume, b.AnalyticVolume, 10);
+        Assert.Equal(a.Slabs.Select(x => PrismaticSectionStackCompiler.Area(x.Region)), b.Slabs.Select(x => PrismaticSectionStackCompiler.Area(x.Region)));
+        Assert.Equal(a.Slabs.Select(x => x.Region.Holes.Count), b.Slabs.Select(x => x.Region.Holes.Count));
+    }
+
+    [Theory]
+    [InlineData("Anchor: [0mm, 0mm, 0mm]", "Anchor: [1mm, 0mm, 0mm]", "compose-placement-unsupported-nonzero-anchor")]
+    [InlineData("Axis: +Z", "Axis: -Z", "compose-placement-unsupported-orientation")]
+    public void ExplicitComposePlacement_RejectsUnsupportedTransformInsteadOfIgnoringIt(string before, string after, string expected)
+    {
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "testdata", "firmament", "reconstructions", "nist_ctc_01", "ctc01_prismatic_blockout_x2.firmament")));
+        var parsed = PrismaticProfileCompositionParser.Parse(source.Replace(before, after, StringComparison.Ordinal));
+        Assert.Null(parsed.Feature);
+        Assert.Contains(parsed.Diagnostics, diagnostic => diagnostic.Contains(expected, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("point-only-tangent-connection.firmament", "point-only-tangent-or-zero-width-ligament")]
+    [InlineData("zero-width-ligament.firmament", "point-only-tangent-or-zero-width-ligament")]
+    [InlineData("contradictory-coincident-add-remove.firmament", "contradictory-coincident-add-remove-boundary")]
+    [InlineData("ambiguous-tangent-crossing.firmament", "ambiguous-tangent-crossing")]
+    [InlineData("dangling-arrangement-fragment.firmament", "endpoint mismatch")]
+    [InlineData("disconnected-final-material.firmament", "disconnected-or-invalid-material")]
+    [InlineData("unresolved-angular-ordering.firmament", "unresolved-angular-order")]
+    public void InvalidMaterialPolicies_RejectBeforeBrepEmission(string fixture, string expectedDiagnostic)
+    {
+        var parsed = PrismaticProfileCompositionParser.Parse(File.ReadAllText(CompositionFixture(Path.Combine("invalid", fixture))));
+        var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
+        Assert.Null(stack);
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Contains(expectedDiagnostic, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Ctc01Blockout_AllAuthoritativeFacesTessellateForM8()
+    {
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "testdata", "firmament", "reconstructions", "nist_ctc_01", "ctc01_prismatic_blockout_x2.firmament")));
+        var parsed = PrismaticProfileCompositionParser.Parse(source);
+        var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
+        Assert.Empty(diagnostics);
+        var emitted = PrismaticSectionStackEmitter.Emit(stack);
+        var body = Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(emitted.Body);
+        Assert.Equal(2, Assert.Single(stack.Transitions, transition => transition.Level == -60d).DownwardRegions.Count);
+        var mesh = BrepDisplayTessellator.Tessellate(body, DisplayTessellationOptions.Default);
+        Assert.True(mesh.IsSuccess, string.Join(" | ", mesh.Diagnostics.Select(x => x.Message)));
+        var empty = body.Topology.Faces.Where(face => !mesh.Value.FacePatches.Any(patch => patch.FaceId == face.Id && patch.TriangleIndices.Count >= 3)).Select(face => face.Id.Value).ToArray();
+        Assert.True(empty.Length == 0, $"empty faces={string.Join(',', empty)}; diagnostics={string.Join(" | ", mesh.Diagnostics.Select(x => x.Message))}");
+        var m8 = BrepMassProperties.Evaluate(body);
+        Assert.NotEqual(BrepMassPropertiesStatus.Unavailable, m8.Status);
+        Assert.InRange(Math.Abs(m8.AbsoluteVolume - stack.AnalyticVolume), 0d, 5d);
+    }
+
     [Fact]
     public void MixedLineArcAdditiveOverlap_PreservesAnalyticCurvesAcrossStepRoundTrip()
     {
@@ -141,4 +235,7 @@ public sealed class PrismaticProfileCompositionRoundTripTests
             Segment West { Trace: {{guide}}.Left; From: {{guide}}.TopLeft; To: {{guide}}.BottomLeft }
         } }
         """;
+
+    private static string CompositionFixture(string name) => Path.GetFullPath(Path.Combine(
+        AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "FirmamentV2", "ProfileComposition", name));
 }

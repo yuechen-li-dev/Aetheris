@@ -198,8 +198,19 @@ internal static class PlanarPolygonTriangulator
 
         if (!TryEarClipLinkedPolygon(outerNode, allProjected, out var result))
         {
-            failure = PlanarPolygonTriangulationFailure.TriangulationFailed;
-            return false;
+            // A nearest visible bridge is deterministic but is not always ear-clippable
+            // for a deeply concave outer ring.  The CTC-01 blockout exposed this with
+            // one central hexagonal hole inside a line/arc lobe outline.  For the bounded
+            // single-hole case, retry the remaining visible outer vertices in stable
+            // score order, rebuilding the rings for every attempt because SplitPolygon
+            // is intentionally destructive.
+            if (holePolygonPoints.Count != 1 || !TryTriangulateSingleHoleByBridgeSearch(
+                    outerPolygonPoints, holePolygonPoints[0], projection,
+                    out allPoints, out result))
+            {
+                failure = PlanarPolygonTriangulationFailure.TriangulationFailed;
+                return false;
+            }
         }
 
         OrientTrianglesToExpectedNormal(allPoints, projection.Normal, result);
@@ -207,6 +218,57 @@ internal static class PlanarPolygonTriangulator
         triangulationPoints = allPoints;
         indices = result;
         return true;
+    }
+
+    private static bool TryTriangulateSingleHoleByBridgeSearch(
+        IReadOnlyList<Point3D> outerPoints,
+        IReadOnlyList<Point3D> holePoints,
+        PlaneProjection projection,
+        out List<Point3D> triangulationPoints,
+        out List<int> indices)
+    {
+        triangulationPoints = [];
+        indices = [];
+        var outerProjected = ProjectPoints(outerPoints, projection);
+        var holeProjected = ProjectPoints(holePoints, projection);
+
+        // Determine the stable candidate count without retaining mutable ring nodes.
+        var candidateCount = outerPoints.Count;
+        for (var candidateRank = 1; candidateRank < candidateCount; candidateRank++)
+        {
+            var points = new List<Point3D>();
+            var projected = new List<Point2>();
+            var outer = CreateLinkedRing(outerPoints, outerProjected, clockwise: false, points, projected);
+            var hole = CreateLinkedRing(holePoints, holeProjected, clockwise: true, points, projected);
+            if (outer is null || hole is null) return false;
+            var anchor = SelectBridgeHoleVertex(hole);
+            var candidates = EnumerateNodes(outer)
+                .Where(candidate => IsBridgeVisible(candidate, anchor, outer, hole, []))
+                .OrderBy(candidate => DistanceSquared(anchor.Point, candidate.Point))
+                .ThenBy(candidate => candidate.Point.X)
+                .ThenBy(candidate => candidate.Point.Y)
+                .ThenBy(candidate => candidate.Index)
+                .ToArray();
+            if (candidateRank >= candidates.Length) break;
+
+            var bridged = FilterPoints(SplitPolygon(candidates[candidateRank], anchor, points, projected));
+            if (bridged is null || !TryEarClipLinkedPolygon(bridged, projected, out var candidateIndices)) continue;
+            triangulationPoints = points;
+            indices = candidateIndices;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<Node> EnumerateNodes(Node start)
+    {
+        var node = start;
+        do
+        {
+            yield return node;
+            node = node.Next!;
+        } while (node != start);
     }
 
     private static bool TryCreateProjection(

@@ -1,0 +1,20 @@
+Concept Struct Layout On XY {
+  Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [20mm, 20mm]; Role: ProfileGuide }
+  Rect2 NorthEast { Center: [12mm, 12mm]; Size: [4mm, 4mm]; Role: ProfileGuide }
+}
+Profile BaseProfile Using Layout { Loop Outer {
+  Segment S { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+  Segment E { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+  Segment N { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+  Segment W { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
+} }
+Profile NorthEastProfile Using Layout { Loop Outer {
+  Segment S { Trace: NorthEast.Bottom; From: NorthEast.BottomLeft; To: NorthEast.BottomRight }
+  Segment E { Trace: NorthEast.Right; From: NorthEast.BottomRight; To: NorthEast.TopRight }
+  Segment N { Trace: NorthEast.Top; From: NorthEast.TopRight; To: NorthEast.TopLeft }
+  Segment W { Trace: NorthEast.Left; From: NorthEast.TopLeft; To: NorthEast.BottomLeft }
+} }
+Struct Composition { Compose UnresolvedAngularOrdering {
+  Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
+  Add NorthEastPad { Profile: NorthEastProfile; From: 5mm; To: 10mm; Role: Pad }
+} }

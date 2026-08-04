@@ -410,7 +410,27 @@ public static class CliRunner
         var json = args.Skip(1).All(x => x == "--json");
         if (!json) { stderr.WriteLine(InspectProfileUsage); return 1; }
         if (!File.Exists(args[0])) { stderr.WriteLine($"Profile source was not found: {args[0]}"); return 1; }
-        var parsed = ProfileAuthoringParser.Parse(File.ReadAllText(args[0]));
+        var source = File.ReadAllText(args[0]);
+        if (PrismaticProfileCompositionParser.IsCompositionSource(source))
+        {
+            var composition = PrismaticProfileCompositionParser.Parse(source);
+            if (composition.Profiles.Count == 0) { stderr.WriteLine(string.Join(Environment.NewLine, composition.Diagnostics)); return 1; }
+            var profiles = composition.Profiles.Values.OrderBy(x => x.Name, StringComparer.Ordinal).Select(profile =>
+            {
+                var validation = ResolvedProfile2DValidator.Validate(profile);
+                return new
+                {
+                    profile.Name, profile.PlaneFrame, loops = profile.Loops.Count,
+                    lineSegments = profile.Loops.SelectMany(x => x.Segments).Count(x => x.Geometry is LineArcLineSegment2D),
+                    arcSegments = profile.Loops.SelectMany(x => x.Segments).Count(x => x.Geometry is LineArcCircularArc2D),
+                    validation.IsValid, validation.SignedArea, validation.Diagnostics,
+                    provenance = profile.Loops.SelectMany(x => x.Segments).Select(x => new { x.Name, x.Provenance.StableId, x.Provenance.ConceptStableId, x.Provenance.Derivation })
+                };
+            }).ToArray();
+            stdout.WriteLine(JsonSerializer.Serialize(new { profiles, diagnostics = composition.Diagnostics }, JsonOptions));
+            return composition.Diagnostics.Count == 0 && profiles.All(x => x.IsValid) ? 0 : 1;
+        }
+        var parsed = ProfileAuthoringParser.Parse(source);
         if (parsed.Profile is null) { stderr.WriteLine(string.Join(Environment.NewLine, parsed.Diagnostics)); return 1; }
         var validation = ResolvedProfile2DValidator.Validate(parsed.Profile);
         var report = new
@@ -461,6 +481,7 @@ public static class CliRunner
             composition = new
             {
                 name = stack.Feature.Name, frame = stack.Feature.Frame, axis = stack.Feature.Axis,
+                placement = new { stack.Feature.Placement.Name, anchor = new[] { stack.Feature.Placement.AnchorX, stack.Feature.Placement.AnchorY, stack.Feature.Placement.AnchorZ }, profilePlane = stack.Feature.Placement.ProfilePlane, stack.Feature.Placement.Axis, stack.Feature.Placement.ReferenceDirection, stack.Feature.Placement.IsExplicit },
                 operations = stack.Feature.Operations.Select(x => new { x.Name, intent = x.Intent.ToString(), profile = x.ProfileReference, x.From, x.To, x.SemanticRole, x.SourceSpan }),
                 criticalLevels = stack.Feature.CriticalLevels,
                 slabs = stack.Slabs.Select(x => new
@@ -491,10 +512,14 @@ public static class CliRunner
                         diagnostics = x.Arrangement.Diagnostics
                     }
                 }),
-                transitions = stack.Transitions.Select(x => new { x.Level, upwardArea = x.UpwardRegion is null ? 0d : PrismaticSectionStackCompiler.Area(x.UpwardRegion), downwardArea = x.DownwardRegion is null ? 0d : PrismaticSectionStackCompiler.Area(x.DownwardRegion) }),
+                transitions = stack.Transitions.Select(x => new { x.Level, upwardRegionCount = x.UpwardRegions.Count, downwardRegionCount = x.DownwardRegions.Count, upwardArea = x.UpwardRegions.Sum(PrismaticSectionStackCompiler.Area), downwardArea = x.DownwardRegions.Sum(PrismaticSectionStackCompiler.Area) }),
                 analyticVolume = stack.AnalyticVolume,
+                bRepStatus = mass?.Status.ToString(),
                 bRepVolume = mass?.AbsoluteVolume,
                 volumeDelta = mass is null ? (double?)null : mass.AbsoluteVolume - stack.AnalyticVolume,
+                bRepErrorBound = mass?.ErrorBound,
+                bRepEnclosed = mass?.IsEnclosed,
+                bRepDiagnostics = mass?.Diagnostics,
                 bRepPlan = emitted.Plan,
                 diagnostics = emitted.Diagnostics
             }

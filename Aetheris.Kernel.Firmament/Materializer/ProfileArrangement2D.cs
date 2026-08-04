@@ -8,7 +8,7 @@ namespace Aetheris.Kernel.Firmament.Materializer;
 /// result loops contain only boundary fragments that separate material from void.
 /// </summary>
 public sealed record ArrangementSourceCurve2D(
-    string StableId, string Operation, string Profile, string Loop, string Segment,
+    string StableId, string Operation, PrismaticProfileIntent Intent, string Profile, string Loop, string Segment,
     LineArcProfileCurve2D Geometry, ProfileSegmentProvenance Provenance);
 public sealed record ArrangementVertex2D(string StableId, (double X, double Y) Position);
 public sealed record ArrangementFragment2D(
@@ -25,7 +25,13 @@ public sealed record ProfileArrangement2D(
     public int RetainedBoundaryFragmentCount => AtomicFragments.Count(x => x.Retained);
 }
 
-public sealed record ProfileArrangementResult(ProfileArrangement2D Arrangement, PrismaticSectionRegion? Region);
+public sealed record ProfileArrangementResult(
+    ProfileArrangement2D Arrangement, PrismaticSectionRegion? Region,
+    IReadOnlyList<PrismaticSectionRegion>? RegionSet = null)
+{
+    public IReadOnlyList<PrismaticSectionRegion> MaterialRegions =>
+        RegionSet ?? (Region is null ? [] : [Region]);
+}
 
 public static class ProfileArrangementBuilder
 {
@@ -41,13 +47,13 @@ public static class ProfileArrangementBuilder
         var sources = active.SelectMany(operation => profiles[operation.ProfileReference].Loops.SelectMany(loop => loop.Segments.Select(segment =>
             new ArrangementSourceCurve2D(
                 $"compose:{operation.Name}.{operation.ProfileReference}.{loop.Name}.{segment.Name}", operation.Name,
-                operation.ProfileReference, loop.Name, segment.Name, segment.Geometry, segment.Provenance)))).ToArray();
+                operation.Intent, operation.ProfileReference, loop.Name, segment.Name, segment.Geometry, segment.Provenance)))).ToArray();
         var positive = active.Where(x => x.Intent is PrismaticProfileIntent.Base or PrismaticProfileIntent.Add)
             .Select(x => profiles[x.ProfileReference]).ToArray();
         var negative = active.Where(x => x.Intent == PrismaticProfileIntent.Remove)
             .Select(x => profiles[x.ProfileReference]).ToArray();
         return Build(frame, sources, p => positive.Any(profile => PointInProfile(profile, p) == ArrangementPointLocation.Inside)
-            && !negative.Any(profile => PointInProfile(profile, p) == ArrangementPointLocation.Inside), context);
+            && !negative.Any(profile => PointInProfile(profile, p) == ArrangementPointLocation.Inside), context, rejectAmbiguousTangencies: true, allowMultipleRegions: false);
     }
 
     /// <summary>Exact region subtraction used only to derive horizontal section transitions.</summary>
@@ -57,7 +63,7 @@ public static class ProfileArrangementBuilder
         var sourceRegions = new[] { (Name: "left", Region: left), (Name: "right", Region: right) }
             .Where(x => x.Region is not null).ToArray();
         var sources = sourceRegions.SelectMany(item => RegionSources(item.Name, item.Region!)).ToArray();
-        return Build(frame, sources, p => InRegion(left, p) && !InRegion(right, p), context);
+        return Build(frame, sources, p => InRegion(left, p) && !InRegion(right, p), context, rejectAmbiguousTangencies: false, allowMultipleRegions: true);
     }
 
     public static ArrangementPointLocation PointInProfile(ResolvedProfile2D profile, (double X, double Y) point)
@@ -74,7 +80,7 @@ public static class ProfileArrangementBuilder
     {
         foreach (var item in new[] { (region.Outer, "Outer") }.Concat(region.Holes.Select(x => (x, "Inner"))))
             foreach (var segment in item.Item1.Loops[0].Segments)
-                yield return new ArrangementSourceCurve2D($"transition:{name}.{item.Item2}.{segment.Name}", name, item.Item1.Name, item.Item2,
+                yield return new ArrangementSourceCurve2D($"transition:{name}.{item.Item2}.{segment.Name}", name, PrismaticProfileIntent.Base, item.Item1.Name, item.Item2,
                     segment.Name, segment.Geometry, segment.Provenance);
     }
 
@@ -84,7 +90,7 @@ public static class ProfileArrangementBuilder
         return !region.Holes.Any(hole => PointInProfile(hole, point) == ArrangementPointLocation.Inside);
     }
 
-    private static ProfileArrangementResult Build(string frame, IReadOnlyList<ArrangementSourceCurve2D> sources, Func<(double X, double Y), bool> material, string context)
+    private static ProfileArrangementResult Build(string frame, IReadOnlyList<ArrangementSourceCurve2D> sources, Func<(double X, double Y), bool> material, string context, bool rejectAmbiguousTangencies, bool allowMultipleRegions)
     {
         var diagnostics = new List<string>();
         var intersectionClock = Stopwatch.StartNew();
@@ -93,9 +99,12 @@ public static class ProfileArrangementBuilder
         for (var i = 0; i < sources.Count; i++)
         for (var j = i + 1; j < sources.Count; j++)
         {
-            var intersections = Intersections(sources[i].Geometry, sources[j].Geometry, out var coincident);
+            var intersections = Intersections(sources[i].Geometry, sources[j].Geometry, out var coincident, out var tangent);
             if (coincident)
             {
+                if ((sources[i].Intent == PrismaticProfileIntent.Remove ^ sources[j].Intent == PrismaticProfileIntent.Remove)
+                    && HasPositiveCoincidentOverlap(sources[i].Geometry, sources[j].Geometry))
+                    diagnostics.Add($"arrangement-rejected:contradictory-coincident-add-remove-boundary:{sources[i].StableId}:{sources[j].StableId}:context={context}");
                 // Collinear/co-circular support needs endpoint transfer before side
                 // classification; otherwise an internal shared interval can leave a
                 // mismatched fragment at a transition boundary.
@@ -105,6 +114,8 @@ public static class ProfileArrangementBuilder
                     if (OnCurve(sources[i].Geometry, point, out var parameter)) { parameters[sources[i].StableId].Add(parameter); vertices.Add(point); }
                 continue;
             }
+            if (rejectAmbiguousTangencies && tangent && sources[i].Operation != sources[j].Operation)
+                diagnostics.Add($"arrangement-rejected:ambiguous-tangent-crossing:{sources[i].StableId}:{sources[j].StableId}:context={context}");
             foreach (var hit in intersections)
             {
                 if (!OnCurve(sources[i].Geometry, hit, out var a) || !OnCurve(sources[j].Geometry, hit, out var b)) continue;
@@ -146,6 +157,7 @@ public static class ProfileArrangementBuilder
         // Multiple source curves can normalize to the same material-oriented support interval.  Keep the lowest semantic id.
         var retained = oriented.GroupBy(x => GeometryKey(x.Geometry), StringComparer.Ordinal).Select(x => x.OrderBy(y => y.StableId, StringComparer.Ordinal).First()).ToArray();
         var coincidentCount = oriented.Count - retained.Length;
+        ValidateBoundaryVertexIncidence(retained, diagnostics, context);
         classificationClock.Stop();
 
         var reconstructionClock = Stopwatch.StartNew();
@@ -155,8 +167,32 @@ public static class ProfileArrangementBuilder
         var arrangement = new ProfileArrangement2D(frame, sources, vertices.DistinctBy(VertexKey).OrderBy(VertexKey).Select((p, i) => new ArrangementVertex2D($"vertex:{i}", p)).ToArray(),
             allFragments, loops, coincidentCount, diagnostics.Distinct().ToArray(), intersectionClock.Elapsed, splitClock.Elapsed, classificationClock.Elapsed, reconstructionClock.Elapsed);
         if (diagnostics.Any(x => x.StartsWith("arrangement-rejected", StringComparison.Ordinal))) return new(arrangement, null);
+        if (allowMultipleRegions)
+        {
+            var regions = ToRegions(loops, diagnostics, context);
+            return new(arrangement with { Diagnostics = diagnostics.Distinct().ToArray() }, regions.Count == 1 ? regions[0] : null, regions);
+        }
         var region = ToRegion(loops, diagnostics, context);
         return new(arrangement with { Diagnostics = diagnostics.Distinct().ToArray() }, region);
+    }
+
+    private static void ValidateBoundaryVertexIncidence(IReadOnlyList<ArrangementFragment2D> fragments, List<string> diagnostics, string context)
+    {
+        var incoming = fragments.GroupBy(x => VertexKey(Ends(x.Geometry).End), StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Count(), StringComparer.Ordinal);
+        var outgoing = fragments.GroupBy(x => VertexKey(Ends(x.Geometry).Start), StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Count(), StringComparer.Ordinal);
+        foreach (var vertex in incoming.Keys.Concat(outgoing.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
+        {
+            var inCount = incoming.GetValueOrDefault(vertex);
+            var outCount = outgoing.GetValueOrDefault(vertex);
+            if (inCount == 1 && outCount == 1) continue;
+            if (inCount == 0 || outCount == 0)
+                diagnostics.Add($"arrangement-rejected:dangling-arrangement-fragment:vertex={vertex}:incoming={inCount}:outgoing={outCount}:context={context}");
+            else
+            {
+                diagnostics.Add($"arrangement-rejected:point-only-tangent-or-zero-width-ligament:vertex={vertex}:incoming={inCount}:outgoing={outCount}:context={context}");
+                diagnostics.Add($"arrangement-rejected:unresolved-angular-order:vertex={vertex}:incoming={inCount}:outgoing={outCount}:context={context}");
+            }
+        }
     }
 
     private static IReadOnlyList<ArrangementLoop2D> Reconstruct(IReadOnlyList<ArrangementFragment2D> fragments, List<string> diagnostics, string context)
@@ -200,6 +236,24 @@ public static class ProfileArrangementBuilder
         return new PrismaticSectionRegion(outer, holes, loops.SelectMany(x => x.Fragments).Select(x => x.Source.StableId).Distinct().OrderBy(x => x, StringComparer.Ordinal).ToArray());
     }
 
+    private static IReadOnlyList<PrismaticSectionRegion> ToRegions(IReadOnlyList<ArrangementLoop2D> loops, List<string> diagnostics, string context)
+    {
+        if (loops.Count == 0) return [];
+        var result = new List<PrismaticSectionRegion>();
+        var inner = loops.Where(x => !x.IsOuter).ToArray();
+        foreach (var outerLoop in loops.Where(x => x.IsOuter).OrderByDescending(x => x.SignedArea))
+        {
+            var outer = ToProfile(outerLoop, "Outer");
+            var nested = inner.Where(loop => PointInProfile(outer, Ends(loop.Fragments[0].Geometry).Start) == ArrangementPointLocation.Inside).ToArray();
+            var holes = nested.Select((loop, index) => ToProfile(loop, $"Inner{index}")).ToArray();
+            result.Add(new PrismaticSectionRegion(outer, holes, outerLoop.Fragments.Concat(nested.SelectMany(x => x.Fragments))
+                .Select(x => x.Source.StableId).Distinct().OrderBy(x => x, StringComparer.Ordinal).ToArray()));
+        }
+        if (inner.Any(loop => !result.Any(region => PointInProfile(region.Outer, Ends(loop.Fragments[0].Geometry).Start) == ArrangementPointLocation.Inside)))
+            diagnostics.Add($"arrangement-rejected:inner-loop-not-nested:context={context}");
+        return result;
+    }
+
     private static ResolvedProfile2D ToProfile(ArrangementLoop2D loop, string role)
     {
         // The section-stack emitter's explicit inner-loop contract stores source loops CCW
@@ -220,17 +274,56 @@ public static class ProfileArrangementBuilder
         return delta;
     }
 
-    private static IReadOnlyList<(double X, double Y)> Intersections(LineArcProfileCurve2D a, LineArcProfileCurve2D b, out bool coincident)
+    private static IReadOnlyList<(double X, double Y)> Intersections(LineArcProfileCurve2D a, LineArcProfileCurve2D b, out bool coincident, out bool tangent)
     {
         coincident = false;
+        tangent = false;
         return (a, b) switch
         {
             (LineArcLineSegment2D x, LineArcLineSegment2D y) => LineLine(x, y, ref coincident),
-            (LineArcLineSegment2D x, LineArcCircularArc2D y) => LineCircle(x, y),
-            (LineArcCircularArc2D x, LineArcLineSegment2D y) => LineCircle(y, x),
-            (LineArcCircularArc2D x, LineArcCircularArc2D y) => CircleCircle(x, y, ref coincident),
+            (LineArcLineSegment2D x, LineArcCircularArc2D y) => LineCircle(x, y, ref tangent),
+            (LineArcCircularArc2D x, LineArcLineSegment2D y) => LineCircle(y, x, ref tangent),
+            (LineArcCircularArc2D x, LineArcCircularArc2D y) => CircleCircle(x, y, ref coincident, ref tangent),
             _ => []
         };
+    }
+
+    private static bool HasPositiveCoincidentOverlap(LineArcProfileCurve2D a, LineArcProfileCurve2D b)
+    {
+        // Coincidence above describes the infinite line or full circle support.
+        // A contradictory material boundary exists only when the bounded source
+        // domains overlap by positive length; a shared endpoint is not enough.
+        if (a is LineArcLineSegment2D aLine && b is LineArcLineSegment2D bLine)
+        {
+            var dx = aLine.End.X - aLine.Start.X;
+            var dy = aLine.End.Y - aLine.Start.Y;
+            var lengthSquared = dx * dx + dy * dy;
+            var t0 = ((bLine.Start.X - aLine.Start.X) * dx + (bLine.Start.Y - aLine.Start.Y) * dy) / lengthSquared;
+            var t1 = ((bLine.End.X - aLine.Start.X) * dx + (bLine.End.Y - aLine.Start.Y) * dy) / lengthSquared;
+            var overlap = Math.Min(1d, Math.Max(t0, t1)) - Math.Max(0d, Math.Min(t0, t1));
+            return overlap * Math.Sqrt(lengthSquared) > Tol;
+        }
+
+        if (a is LineArcCircularArc2D aArc && b is LineArcCircularArc2D bArc)
+        {
+            var aIntervals = AngularIntervals(aArc);
+            var bIntervals = AngularIntervals(bArc);
+            return aIntervals.Any(ai => bIntervals.Any(bi =>
+                (Math.Min(ai.End, bi.End) - Math.Max(ai.Start, bi.Start)) * aArc.Radius > Tol));
+        }
+
+        return false;
+    }
+
+    private static IReadOnlyList<(double Start, double End)> AngularIntervals(LineArcCircularArc2D arc)
+    {
+        const double turn = 2d * Math.PI;
+        var start = arc.SweepAngleRadians >= 0d ? arc.StartAngleRadians : arc.StartAngleRadians + arc.SweepAngleRadians;
+        var length = Math.Min(turn, Math.Abs(arc.SweepAngleRadians));
+        start = ((start % turn) + turn) % turn;
+        if (length >= turn - Tol) return [(0d, turn)];
+        var end = start + length;
+        return end <= turn ? [(start, end)] : [(start, turn), (0d, end - turn)];
     }
 
     private static IReadOnlyList<(double X, double Y)> LineLine(LineArcLineSegment2D a, LineArcLineSegment2D b, ref bool coincident)
@@ -242,24 +335,28 @@ public static class ProfileArrangementBuilder
         return t >= -Tol && t <= 1d + Tol && u >= -Tol && u <= 1d + Tol ? [(a.Start.X + t * r.X, a.Start.Y + t * r.Y)] : [];
     }
 
-    private static IReadOnlyList<(double X, double Y)> LineCircle(LineArcLineSegment2D line, LineArcCircularArc2D arc)
+    private static IReadOnlyList<(double X, double Y)> LineCircle(LineArcLineSegment2D line, LineArcCircularArc2D arc, ref bool tangent)
     {
         var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y; var fx = line.Start.X - arc.Center.X; var fy = line.Start.Y - arc.Center.Y;
         var aa = dx * dx + dy * dy; var bb = 2d * (fx * dx + fy * dy); var cc = fx * fx + fy * fy - arc.Radius * arc.Radius; var discriminant = bb * bb - 4d * aa * cc;
-        if (discriminant < -Tol) return []; if (Math.Abs(discriminant) <= Tol) discriminant = 0d;
+        if (discriminant < -Tol) return []; var isTangent = Math.Abs(discriminant) <= Tol; if (isTangent) discriminant = 0d;
         var root = Math.Sqrt(discriminant); double[] values = root <= Tol ? [(-bb) / (2d * aa)] : [(-bb - root) / (2d * aa), (-bb + root) / (2d * aa)];
-        return values.Where(t => t >= -Tol && t <= 1d + Tol).Select(t => (line.Start.X + dx * t, line.Start.Y + dy * t)).Where(p => OnCurve(arc, p, out _)).ToArray();
+        var result = values.Where(t => t >= -Tol && t <= 1d + Tol).Select(t => (line.Start.X + dx * t, line.Start.Y + dy * t)).Where(p => OnCurve(arc, p, out _)).ToArray();
+        tangent = isTangent && result.Length > 0;
+        return result;
     }
 
-    private static IReadOnlyList<(double X, double Y)> CircleCircle(LineArcCircularArc2D a, LineArcCircularArc2D b, ref bool coincident)
+    private static IReadOnlyList<(double X, double Y)> CircleCircle(LineArcCircularArc2D a, LineArcCircularArc2D b, ref bool coincident, ref bool tangent)
     {
         var dx = b.Center.X - a.Center.X; var dy = b.Center.Y - a.Center.Y; var d = Math.Sqrt(dx * dx + dy * dy);
         if (d <= Tol) { coincident = Math.Abs(a.Radius - b.Radius) <= Tol; return []; }
         if (d > a.Radius + b.Radius + Tol || d < Math.Abs(a.Radius - b.Radius) - Tol) return [];
         var x = (a.Radius * a.Radius - b.Radius * b.Radius + d * d) / (2d * d); var h2 = a.Radius * a.Radius - x * x;
-        if (h2 < -Tol) return []; var h = Math.Sqrt(Math.Max(0d, h2)); var px = a.Center.X + x * dx / d; var py = a.Center.Y + x * dy / d;
+        if (h2 < -Tol) return []; var isTangent = Math.Abs(h2) <= Tol; var h = Math.Sqrt(Math.Max(0d, h2)); var px = a.Center.X + x * dx / d; var py = a.Center.Y + x * dy / d;
         (double X, double Y)[] candidates = h <= Tol ? [(px, py)] : [(px + -dy * h / d, py + dx * h / d), (px - -dy * h / d, py - dx * h / d)];
-        return candidates.Where(p => OnCurve(a, p, out _) && OnCurve(b, p, out _)).ToArray();
+        var result = candidates.Where(p => OnCurve(a, p, out _) && OnCurve(b, p, out _)).ToArray();
+        tangent = isTangent && result.Length > 0;
+        return result;
     }
 
     private static bool OnCurve(LineArcProfileCurve2D curve, (double X, double Y) p, out double parameter)

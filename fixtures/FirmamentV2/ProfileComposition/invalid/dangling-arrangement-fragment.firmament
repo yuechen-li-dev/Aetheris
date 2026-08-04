@@ -1,0 +1,11 @@
+Concept Struct Layout On XY {
+  Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [20mm, 20mm]; Role: ProfileGuide }
+}
+Profile DanglingProfile Using Layout { Loop Outer {
+  Segment S { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+  Segment E { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+  Segment N { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+} }
+Struct Composition { Compose DanglingArrangementFragment {
+  Base Stock { Profile: DanglingProfile; From: 0mm; To: 10mm; Role: Stock }
+} }

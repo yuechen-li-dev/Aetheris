@@ -1,0 +1,20 @@
+Concept Struct Layout On XY {
+  Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [20mm, 20mm]; Role: ProfileGuide }
+  Rect2 SplitGuide { Center: [0mm, 0mm]; Size: [2mm, 24mm]; Role: ProfileGuide }
+}
+Profile BaseProfile Using Layout { Loop Outer {
+  Segment S { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+  Segment E { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+  Segment N { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+  Segment W { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
+} }
+Profile SplitProfile Using Layout { Loop Outer {
+  Segment S { Trace: SplitGuide.Bottom; From: SplitGuide.BottomLeft; To: SplitGuide.BottomRight }
+  Segment E { Trace: SplitGuide.Right; From: SplitGuide.BottomRight; To: SplitGuide.TopRight }
+  Segment N { Trace: SplitGuide.Top; From: SplitGuide.TopRight; To: SplitGuide.TopLeft }
+  Segment W { Trace: SplitGuide.Left; From: SplitGuide.TopLeft; To: SplitGuide.BottomLeft }
+} }
+Struct Composition { Compose DisconnectedFinalMaterial {
+  Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
+  Remove Split { Profile: SplitProfile; From: 5mm; To: 10mm; Role: Relief }
+} }

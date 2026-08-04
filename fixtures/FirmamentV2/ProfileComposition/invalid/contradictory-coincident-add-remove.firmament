@@ -1,0 +1,21 @@
+Concept Struct Layout On XY {
+  Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [20mm, 20mm]; Role: ProfileGuide }
+  Rect2 CoincidentGuide { Center: [0mm, 12mm]; Size: [8mm, 4mm]; Role: ProfileGuide }
+}
+Profile BaseProfile Using Layout { Loop Outer {
+  Segment S { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+  Segment E { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+  Segment N { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+  Segment W { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
+} }
+Profile CoincidentProfile Using Layout { Loop Outer {
+  Segment S { Trace: CoincidentGuide.Bottom; From: CoincidentGuide.BottomLeft; To: CoincidentGuide.BottomRight }
+  Segment E { Trace: CoincidentGuide.Right; From: CoincidentGuide.BottomRight; To: CoincidentGuide.TopRight }
+  Segment N { Trace: CoincidentGuide.Top; From: CoincidentGuide.TopRight; To: CoincidentGuide.TopLeft }
+  Segment W { Trace: CoincidentGuide.Left; From: CoincidentGuide.TopLeft; To: CoincidentGuide.BottomLeft }
+} }
+Struct Composition { Compose ContradictoryCoincident {
+  Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
+  Add Pad { Profile: CoincidentProfile; From: 5mm; To: 10mm; Role: Pad }
+  Remove Relief { Profile: CoincidentProfile; From: 5mm; To: 10mm; Role: Relief }
+} }

@@ -1,0 +1,28 @@
+Concept Struct Layout On XY {
+  Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [20mm, 20mm]; Role: ProfileGuide }
+  Rect2 AddGuide { Center: [0mm, 10mm]; Size: [10mm, 10mm]; Role: ProfileGuide }
+  Rect2 RemoveGuide { Center: [2mm, 10mm]; Size: [4mm, 8mm]; Role: ProfileGuide }
+}
+Profile BaseProfile Using Layout { Loop Outer {
+  Segment South { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+  Segment East { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+  Segment North { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+  Segment West { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
+} }
+Profile AddProfile Using Layout { Loop Outer {
+  Segment South { Trace: AddGuide.Bottom; From: AddGuide.BottomLeft; To: AddGuide.BottomRight }
+  Segment East { Trace: AddGuide.Right; From: AddGuide.BottomRight; To: AddGuide.TopRight }
+  Segment North { Trace: AddGuide.Top; From: AddGuide.TopRight; To: AddGuide.TopLeft }
+  Segment West { Trace: AddGuide.Left; From: AddGuide.TopLeft; To: AddGuide.BottomLeft }
+} }
+Profile RemoveProfile Using Layout { Loop Outer {
+  Segment South { Trace: RemoveGuide.Bottom; From: RemoveGuide.BottomLeft; To: RemoveGuide.BottomRight }
+  Segment East { Trace: RemoveGuide.Right; From: RemoveGuide.BottomRight; To: RemoveGuide.TopRight }
+  Segment North { Trace: RemoveGuide.Top; From: RemoveGuide.TopRight; To: RemoveGuide.TopLeft }
+  Segment West { Trace: RemoveGuide.Left; From: RemoveGuide.TopLeft; To: RemoveGuide.BottomLeft }
+} }
+Struct Composition { Compose AddOverlappedByRemove {
+  Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
+  Add Pad { Profile: AddProfile; From: 5mm; To: 10mm; Role: Pad }
+  Remove Relief { Profile: RemoveProfile; From: 5mm; To: 10mm; Role: Relief }
+} }

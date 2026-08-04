@@ -11,15 +11,19 @@ public enum PrismaticProfileIntent { Base, Add, Remove }
 public sealed record PrismaticProfileOperation(
     string Name, PrismaticProfileIntent Intent, string ProfileReference, double From, double To,
     string SemanticRole, string SourceSpan);
+public sealed record PrismaticProfilePlacement(
+    string Name, double AnchorX, double AnchorY, double AnchorZ,
+    string ProfilePlane, string Axis, string ReferenceDirection, bool IsExplicit);
 public sealed record PrismaticProfileCompositionFeature(
-    string Name, string Frame, string Axis, IReadOnlyList<PrismaticProfileOperation> Operations,
+    string Name, string Frame, string Axis, PrismaticProfilePlacement Placement, IReadOnlyList<PrismaticProfileOperation> Operations,
     IReadOnlyList<double> CriticalLevels, string Provenance);
 public sealed record PrismaticSectionRegion(
     ResolvedProfile2D Outer, IReadOnlyList<ResolvedProfile2D> Holes, IReadOnlyList<string> Provenance);
 public sealed record PrismaticSectionSlab(
     double From, double To, PrismaticSectionRegion Region, IReadOnlyList<string> ActiveOperations,
     ProfileArrangement2D? Arrangement = null);
-public sealed record PrismaticSectionTransition(double Level, PrismaticSectionRegion? UpwardRegion, PrismaticSectionRegion? DownwardRegion);
+public sealed record PrismaticSectionTransition(
+    double Level, IReadOnlyList<PrismaticSectionRegion> UpwardRegions, IReadOnlyList<PrismaticSectionRegion> DownwardRegions);
 public sealed record PrismaticSectionStackConstruction(
     PrismaticProfileCompositionFeature Feature, IReadOnlyList<PrismaticSectionSlab> Slabs,
     IReadOnlyList<PrismaticSectionTransition> Transitions, double AnalyticVolume, IReadOnlyList<string> Diagnostics);
@@ -39,6 +43,7 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex ProfileHead = new(@"\bProfile\s+(?<n>\w+)\s+Using\s+(?<layout>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex ComposeHead = new(@"\bCompose\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex Placement = new(@"\bPlacement\s+(?<n>\w+)\s*\{\s*Anchor\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\s*,\s*(?<z>[-+.\d]+)mm\]\s*;?\s*ProfilePlane\s*:\s*(?<plane>\w+)\s*;?\s*Axis\s*:\s*(?<axis>[+-][XYZ])\s*;?\s*ReferenceDirection\s*:\s*(?<reference>[+-][XYZ])", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Operation = new(@"\b(?<intent>Base|Add|Remove)\s+(?<n>\w+)\s*\{\s*Profile\s*:\s*(?<profile>\w+)\s*;?\s*From\s*:\s*(?<from>[-+.\d]+)mm\s*;?\s*To\s*:\s*(?<to>[-+.\d]+)mm(?:\s*;?\s*Role\s*:\s*(?<role>\w+))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
 
     public static bool IsCompositionSource(string source) => ComposeHead.IsMatch(source);
@@ -107,6 +112,16 @@ public static class PrismaticProfileCompositionParser
         if (!compose.Success) return new(null, profiles, diagnostics.Append("compose-source-missing-compose").ToArray());
         var composeBody = Block(source, compose.Index + compose.Length - 1);
         if (composeBody is null) return new(null, profiles, diagnostics.Append("compose-source-unclosed-compose").ToArray());
+        var placementMatch = Placement.Match(composeBody);
+        var placement = new PrismaticProfilePlacement("LegacyImplicitWorldXY", 0d, 0d, 0d, "XY", "+Z", "+X", false);
+        if (placementMatch.Success)
+        {
+            placement = new(placementMatch.Groups["n"].Value, N(placementMatch, "x"), N(placementMatch, "y"), N(placementMatch, "z"), placementMatch.Groups["plane"].Value, placementMatch.Groups["axis"].Value, placementMatch.Groups["reference"].Value, true);
+            if (placement.ProfilePlane != "XY" || placement.Axis != "+Z" || placement.ReferenceDirection != "+X")
+                diagnostics.Add($"compose-placement-unsupported-orientation:{placement.Name}:plane={placement.ProfilePlane}:axis={placement.Axis}:reference={placement.ReferenceDirection}");
+            if (Math.Abs(placement.AnchorX) > 1e-12d || Math.Abs(placement.AnchorY) > 1e-12d || Math.Abs(placement.AnchorZ) > 1e-12d)
+                diagnostics.Add($"compose-placement-unsupported-nonzero-anchor:{placement.Name}:[{placement.AnchorX:R},{placement.AnchorY:R},{placement.AnchorZ:R}]");
+        }
         var operations = new List<PrismaticProfileOperation>();
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match match in Operation.Matches(composeBody))
@@ -121,7 +136,7 @@ public static class PrismaticProfileCompositionParser
         }
         if (operations.Count(o => o.Intent == PrismaticProfileIntent.Base) != 1) diagnostics.Add("compose-requires-exactly-one-base-operation");
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", operations, levels, "parser-backed-scaffold-profile-composition") : null;
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition") : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray());
     }
 

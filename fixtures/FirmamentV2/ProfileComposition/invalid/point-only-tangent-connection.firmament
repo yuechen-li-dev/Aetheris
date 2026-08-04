@@ -1,0 +1,20 @@
+Concept Struct Layout On XY {
+  Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [20mm, 20mm]; Role: ProfileGuide }
+  Rect2 TangentGuide { Center: [12mm, 12mm]; Size: [4mm, 4mm]; Role: ProfileGuide }
+}
+Profile BaseProfile Using Layout { Loop Outer {
+  Segment S { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+  Segment E { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+  Segment N { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+  Segment W { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
+} }
+Profile TangentProfile Using Layout { Loop Outer {
+  Segment S { Trace: TangentGuide.Bottom; From: TangentGuide.BottomLeft; To: TangentGuide.BottomRight }
+  Segment E { Trace: TangentGuide.Right; From: TangentGuide.BottomRight; To: TangentGuide.TopRight }
+  Segment N { Trace: TangentGuide.Top; From: TangentGuide.TopRight; To: TangentGuide.TopLeft }
+  Segment W { Trace: TangentGuide.Left; From: TangentGuide.TopLeft; To: TangentGuide.BottomLeft }
+} }
+Struct Composition { Compose PointOnlyTangent {
+  Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
+  Add TangentPad { Profile: TangentProfile; From: 5mm; To: 10mm; Role: Pad }
+} }

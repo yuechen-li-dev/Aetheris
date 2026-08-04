@@ -1,0 +1,38 @@
+Concept Struct Layout On XY {
+  Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [30mm, 20mm]; Role: ProfileGuide }
+  Point2 LeftCenter { Position: [-4mm, 0mm] }
+  Point2 LeftEast { Position: [0mm, 0mm] }
+  Point2 LeftNorth { Position: [-4mm, 4mm] }
+  Point2 LeftWest { Position: [-8mm, 0mm] }
+  Point2 LeftSouth { Position: [-4mm, -4mm] }
+  Point2 RightCenter { Position: [4mm, 0mm] }
+  Point2 RightEast { Position: [8mm, 0mm] }
+  Point2 RightNorth { Position: [4mm, 4mm] }
+  Point2 RightWest { Position: [0mm, 0mm] }
+  Point2 RightSouth { Position: [4mm, -4mm] }
+  Circle2 LeftCircle { Center: LeftCenter; Radius: 4mm }
+  Circle2 RightCircle { Center: RightCenter; Radius: 4mm }
+}
+Profile BaseProfile Using Layout { Loop Outer {
+  Segment S { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+  Segment E { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+  Segment N { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+  Segment W { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
+} }
+Profile LeftVoid Using Layout { Loop Outer {
+  Segment NE { Trace: LeftCircle; From: LeftEast; To: LeftNorth; Sweep: CounterClockwise }
+  Segment NW { Trace: LeftCircle; From: LeftNorth; To: LeftWest; Sweep: CounterClockwise }
+  Segment SW { Trace: LeftCircle; From: LeftWest; To: LeftSouth; Sweep: CounterClockwise }
+  Segment SE { Trace: LeftCircle; From: LeftSouth; To: LeftEast; Sweep: CounterClockwise }
+} }
+Profile RightVoid Using Layout { Loop Outer {
+  Segment NE { Trace: RightCircle; From: RightEast; To: RightNorth; Sweep: CounterClockwise }
+  Segment NW { Trace: RightCircle; From: RightNorth; To: RightWest; Sweep: CounterClockwise }
+  Segment SW { Trace: RightCircle; From: RightWest; To: RightSouth; Sweep: CounterClockwise }
+  Segment SE { Trace: RightCircle; From: RightSouth; To: RightEast; Sweep: CounterClockwise }
+} }
+Struct Composition { Compose ZeroWidthLigament {
+  Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
+  Remove Left { Profile: LeftVoid; From: 5mm; To: 10mm; Role: Relief }
+  Remove Right { Profile: RightVoid; From: 5mm; To: 10mm; Role: Relief }
+} }

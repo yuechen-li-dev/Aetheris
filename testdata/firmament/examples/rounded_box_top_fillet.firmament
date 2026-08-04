@@ -1,0 +1,15 @@
+Struct Enclosure {
+    RoundedBox Body {
+        Size: [120mm, 80mm, 18mm]
+        CornerRadius: 12mm
+    }
+
+    Modify Body {
+        EdgeFinish TopRound {
+            Face: +Z
+            Target: Boundary
+            Kind: Fillet
+            Radius: 2mm
+        }
+    }
+}

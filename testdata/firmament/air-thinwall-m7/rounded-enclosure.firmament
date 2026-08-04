@@ -1,0 +1,8 @@
+Struct Enclosure {
+    RoundedBox<Hollow> Body {
+        Size: [120mm, 80mm, 24mm]
+        CornerRadius: 12mm
+        WallThickness: 2mm
+        Openings: [Top]
+    }
+}

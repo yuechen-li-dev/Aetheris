@@ -1,0 +1,6 @@
+Struct Enclosure {
+    RoundedBox Body {
+        Size: [120mm, 80mm, 18mm]
+        CornerRadius: 12mm
+    }
+}

@@ -1,0 +1,6 @@
+Struct M8RoundedBoxPrimitive {
+    RoundedBox Body {
+        Size: [80mm, 50mm, 20mm]
+        CornerRadius: 8mm
+    }
+}

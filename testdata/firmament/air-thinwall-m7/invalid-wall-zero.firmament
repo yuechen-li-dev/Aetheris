@@ -1,0 +1,8 @@
+Struct InvalidWall {
+    RoundedBox<Hollow> Body {
+        Size: [120mm, 80mm, 24mm]
+        CornerRadius: 12mm
+        WallThickness: 0mm
+        Openings: [Top]
+    }
+}

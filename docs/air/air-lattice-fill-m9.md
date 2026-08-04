@@ -1,5 +1,7 @@
 # AIR-LATTICE-FILL-M9 — explicit-region lattice-fill foundation
 
+> Status after M9R: this is a deferred host-replacement design, not a materialized STEP route. The completed lattice capability is the standalone CubicTruss proof documented in [AIR-LATTICE-PRIMITIVE-M9R](air-lattice-primitive-m9r.md).
+
 > Aetheris does not guess which material is expendable.
 >
 > The FillRegion is an explicit engineering authority boundary.

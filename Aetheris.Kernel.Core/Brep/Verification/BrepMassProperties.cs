@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Topology;
 
@@ -77,6 +78,17 @@ public static class BrepMassProperties
             return Unavailable(effective, topology, "Mass properties require a closed, orientable material boundary.");
         }
 
+        // A lattice node is an exact spherical surface with several disjoint
+        // circular openings.  Its trim arrangement is deliberately richer than
+        // the display tessellator's one-loop sphere path, but its material
+        // measure is available directly from the emitted B-rep supports and
+        // seam circles.  This route consumes topology/bindings only; it never
+        // consults the lattice construction plan.
+        if (TryEvaluateExactSphereCylinderSeamBody(body, effective, topology, out var exact))
+        {
+            return exact;
+        }
+
         var coarse = EvaluateAtResolution(body, effective, refinement: 1);
         if (coarse.Error is not null)
         {
@@ -135,6 +147,174 @@ public static class BrepMassProperties
 
     private static BrepMassPropertiesResult Unavailable(BrepMassPropertiesOptions options, BrepMassPropertiesTopologyDiagnostics topology, string reason)
         => new(BrepMassPropertiesStatus.Unavailable, 0d, 0d, 0d, null, topology.IsEnclosed, topology.IsOrientationConsistent, [], "DeterministicTrimmedFaceTriangulationBoundaryIntegral", null, options, topology, topology.Messages.Append(reason).ToArray());
+
+    private static bool TryEvaluateExactSphereCylinderSeamBody(
+        BrepBody body,
+        BrepMassPropertiesOptions options,
+        BrepMassPropertiesTopologyDiagnostics topology,
+        out BrepMassPropertiesResult result)
+    {
+        result = default!;
+        var faces = body.Topology.Faces.OrderBy(face => face.Id.Value).ToArray();
+        if (faces.Length == 0)
+        {
+            return false;
+        }
+
+        var sphereFaces = new List<(FaceId Id, Geometry.Surfaces.SphereSurface Surface)>();
+        var cylinderFaces = new List<(FaceId Id, Geometry.Surfaces.CylinderSurface Surface)>();
+        foreach (var face in faces)
+        {
+            if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null)
+            {
+                return false;
+            }
+
+            if (surface.Kind == SurfaceGeometryKind.Sphere && surface.Sphere is { } sphere)
+            {
+                sphereFaces.Add((face.Id, sphere));
+            }
+            else if (surface.Kind == SurfaceGeometryKind.Cylinder && surface.Cylinder is { } cylinder)
+            {
+                cylinderFaces.Add((face.Id, cylinder));
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        if (sphereFaces.Count == 0 || cylinderFaces.Count == 0)
+        {
+            return false;
+        }
+
+        var volume = 0d;
+        var area = 0d;
+        var moment = new Vector3D(0d, 0d, 0d);
+        var contributions = new List<BrepMassPropertiesFaceContribution>(faces.Length);
+
+        foreach (var (faceId, sphere) in sphereFaces)
+        {
+            var capVolume = 0d;
+            var capArea = 0d;
+            var capMoment = new Vector3D(0d, 0d, 0d);
+            var loops = body.GetLoopIds(faceId);
+            if (loops.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (var loopId in loops)
+            {
+                if (!TryGetSingleFullCircle(body, loopId, out var circle))
+                {
+                    return false;
+                }
+
+                var offset = circle.Center - sphere.Center;
+                var distance = offset.Length;
+                if (distance <= 1e-9d || distance >= sphere.Radius || double.Abs(circle.Radius * circle.Radius + distance * distance - sphere.Radius * sphere.Radius) > sphere.Radius * sphere.Radius * 1e-6d)
+                {
+                    return false;
+                }
+
+                var height = sphere.Radius - distance;
+                var removedVolume = double.Pi * height * height * (sphere.Radius - height / 3d);
+                var removedArea = 2d * double.Pi * sphere.Radius * height;
+                var axialCentroid = (double.Pi / 4d) * double.Pow(sphere.Radius * sphere.Radius - distance * distance, 2d) / removedVolume;
+                var normal = offset / distance;
+                var capCentroid = sphere.Center + normal * axialCentroid;
+                capVolume += removedVolume;
+                capArea += removedArea;
+                capMoment += ToVector(capCentroid) * removedVolume;
+            }
+
+            var fullVolume = 4d * double.Pi * double.Pow(sphere.Radius, 3d) / 3d;
+            var faceVolume = fullVolume - capVolume;
+            if (faceVolume <= 1e-12d)
+            {
+                return false;
+            }
+
+            var faceArea = 4d * double.Pi * sphere.Radius * sphere.Radius - capArea;
+            volume += faceVolume;
+            area += faceArea;
+            moment += ToVector(sphere.Center) * fullVolume - capMoment;
+            contributions.Add(new(faceId, SurfaceGeometryKind.Sphere, faceVolume, faceArea, 0, true, true, true));
+        }
+
+        foreach (var (faceId, cylinder) in cylinderFaces)
+        {
+            var loops = body.GetLoopIds(faceId);
+            if (loops.Count != 2 || !TryGetSingleFullCircle(body, loops[0], out var first) || !TryGetSingleFullCircle(body, loops[1], out var second))
+            {
+                return false;
+            }
+
+            var length = (second.Center - first.Center).Length;
+            if (length <= 1e-9d || double.Abs(first.Radius - cylinder.Radius) > cylinder.Radius * 1e-6d || double.Abs(second.Radius - cylinder.Radius) > cylinder.Radius * 1e-6d)
+            {
+                return false;
+            }
+
+            var faceVolume = double.Pi * cylinder.Radius * cylinder.Radius * length;
+            var faceArea = 2d * double.Pi * cylinder.Radius * length;
+            var centroid = new Point3D((first.Center.X + second.Center.X) / 2d, (first.Center.Y + second.Center.Y) / 2d, (first.Center.Z + second.Center.Z) / 2d);
+            volume += faceVolume;
+            area += faceArea;
+            moment += ToVector(centroid) * faceVolume;
+            contributions.Add(new(faceId, SurfaceGeometryKind.Cylinder, faceVolume, faceArea, 0, true, true, true));
+        }
+
+        if (volume <= 1e-12d)
+        {
+            return false;
+        }
+
+        var centroidResult = new Point3D(moment.X / volume, moment.Y / volume, moment.Z / volume);
+        result = new BrepMassPropertiesResult(
+            BrepMassPropertiesStatus.NumericalConverged,
+            volume,
+            volume,
+            area,
+            centroidResult,
+            topology.IsEnclosed,
+            topology.IsOrientationConsistent,
+            contributions,
+            "ExactAnalyticSphereCylinderSeamBoundaryIntegral",
+            0d,
+            options,
+            topology,
+            topology.Messages.Append("Exact sphere-cylinder seam integration used emitted B-rep supports and trim circles; no construction-plan data was consumed.").ToArray());
+        return true;
+    }
+
+    private static bool TryGetSingleFullCircle(BrepBody body, LoopId loopId, out Circle3Curve circle)
+    {
+        circle = default;
+        var coedges = body.GetCoedgeIds(loopId);
+        if (coedges.Count != 1)
+        {
+            return false;
+        }
+
+        var coedge = body.Topology.GetCoedge(coedges[0]);
+        if (!body.TryGetEdgeCurveGeometry(coedge.EdgeId, out var curve)
+            || curve?.Kind != CurveGeometryKind.Circle3
+            || curve.Circle3 is not { } circleValue
+            || !body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding)
+            || binding.TrimInterval is not { } interval
+            || double.Abs((interval.End - interval.Start) - 2d * double.Pi) > 1e-6d)
+        {
+            return false;
+        }
+
+        circle = circleValue;
+        return true;
+    }
+
+    private static Vector3D ToVector(Point3D point) => new(point.X, point.Y, point.Z);
 
     private static Evaluation EvaluateAtResolution(BrepBody body, BrepMassPropertiesOptions options, int refinement)
     {

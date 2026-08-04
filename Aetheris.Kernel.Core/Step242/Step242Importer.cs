@@ -1636,9 +1636,14 @@ public static class Step242Importer
             SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(faceEntityId, loops, surface.Cylinder!.Value),
             SurfaceGeometryKind.Torus => ClassifyAndNormalizeToroidalLoops(faceEntityId, loops, surface.Torus!.Value),
             SurfaceGeometryKind.Cone => ClassifyAndNormalizeConicalLoops(faceEntityId, loops, surface.Cone!.Value),
-            SurfaceGeometryKind.Sphere => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
-                "Multi-loop hole classification is unsupported for surface type 'Sphere'.",
-                "Importer.LoopRole.UnsupportedSurfaceForHoles.Sphere"),
+            // A sphere has no privileged planar-style outer loop.  In particular,
+            // a constructive lattice node carries one disjoint circular trim for
+            // every incident member.  The STEP face preserves each loop's exact
+            // orientation already, so deterministic loop-id order is sufficient
+            // and avoids inventing a containment relationship on a periodic
+            // spherical parameter domain.
+            SurfaceGeometryKind.Sphere => KernelResult<IReadOnlyList<LoopBuildData>>.Success(
+                loops.OrderBy(loop => loop.LoopId.Value).ToArray()),
             _ => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                 $"Multi-loop hole classification is unsupported for surface type '{surface.Kind}'.",
                 $"Importer.LoopRole.UnsupportedSurfaceForHoles.{surface.Kind}")

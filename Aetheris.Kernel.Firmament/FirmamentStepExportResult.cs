@@ -16,7 +16,41 @@ public sealed record FirmamentStepExportResult(
     Aetheris.Kernel.Firmament.FirmamentV2.ConceptIrDocument? ConceptIr = null,
     IReadOnlyList<FirmamentHoleFeatureReport>? Features = null,
     FirmamentRoundedBoxReport? RoundedBox = null,
-    FirmamentHollowBodyReport? Hollow = null);
+    FirmamentHollowBodyReport? Hollow = null,
+    FirmamentStandaloneLatticeReport? Lattice = null);
+
+public sealed record FirmamentStandaloneLatticeReport(
+    string Template,
+    string Pattern,
+    IReadOnlyList<int> Cells,
+    double CellSize,
+    double StrutRadius,
+    double NodeRadius,
+    IReadOnlyList<double> DomainSize,
+    string Placement,
+    int Nodes,
+    int Members,
+    int Seams,
+    int Valence3,
+    int Valence4,
+    int Valence5,
+    int Valence6,
+    bool AuthoritativePlan,
+    string Signature,
+    int Vertices,
+    int Edges,
+    int Faces,
+    int SphericalFaces,
+    int CylindricalFaces,
+    double AnalyticVolume,
+    double BrepVolume,
+    double VolumeDelta,
+    double SurfaceArea,
+    IReadOnlyList<double> Centroid,
+    string StepSha256,
+    bool ReimportSucceeded,
+    bool ReimportedManifold,
+    bool LegacyFallback = false);
 
 /// <summary>Export evidence for the generic Primitive&lt;Hollow&gt; path.</summary>
 public sealed record FirmamentHollowBodyReport(

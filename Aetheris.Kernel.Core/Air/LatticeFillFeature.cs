@@ -40,6 +40,27 @@ public sealed record LatticeFillFeature(
     AdditiveManufacturingContext AdditiveContext,
     LatticeFillProvenance Provenance);
 
+/// <summary>M9R's standalone intent. Host replacement remains a separate, deferred M9 route.</summary>
+public enum CubicLatticePlacementPolicy { MaterialBounds }
+public sealed record CubicLatticeAdditiveContext(string Template, string Process, double MinimumStrutDiameter, double MinimumNodeDiameter, double MinimumFeatureSpacing, string Provenance);
+public sealed record CubicLatticeFeature(
+    string FeatureId,
+    LatticeFillRegion Domain,
+    int CellsX,
+    int CellsY,
+    int CellsZ,
+    double CellSize,
+    double StrutRadius,
+    double NodeRadius,
+    CubicLatticePlacementPolicy PlacementPolicy,
+    CubicLatticeAdditiveContext AdditiveContext,
+    LatticeFillProvenance Provenance)
+{
+    public string Pattern => "CubicTruss";
+    public string Materialization => "StandaloneBody";
+    public string? HostId => null;
+}
+
 public sealed record LatticeNodeInstance(string Id, Point3D Position, string Role);
 public sealed record LatticeMemberInstance(string Id, string StartNodeId, string EndNodeId, Point3D Start, Point3D End, string Role);
 public sealed record LatticeBoundaryIncident(string MemberId, string NodeId, string BoundaryPlane, Point3D Point);

@@ -47,6 +47,14 @@ public static class FirmamentV2Parser
     public const string FillInvalidStrutRadius = "firmament-v2-fill-invalid-strut-radius";
     public const string FillUnsupportedBoundaryPolicy = "firmament-v2-fill-unsupported-boundary-policy";
     public const string FillMultipleUnsupported = "firmament-v2-fill-multiple-unsupported";
+    public const string StandaloneFillRegionRequired = "standalone-fill-region-required";
+    public const string UnsupportedStandaloneFillPattern = "unsupported-standalone-fill-pattern";
+    public const string InvalidCellCount = "invalid-cell-count";
+    public const string CellSizeMustBePositive = "cell-size-must-be-positive";
+    public const string StrutRadiusMustBePositive = "strut-radius-must-be-positive";
+    public const string NodeRadiusMustBePositive = "node-radius-must-be-positive";
+    public const string MaterialBoundsMismatch = "material-bounds-mismatch";
+    public const string StandaloneFillMultipleUnsupported = "standalone-fill-multiple-unsupported";
     public const string UnknownConstructionPolicy = "firmament-v2-unknown-construction-policy";
     public const string PrimitiveDoesNotSatisfyHollowConstructible = "firmament-v2-primitive-does-not-satisfy-hollow-constructible";
     public const string WallThicknessRequired = "firmament-v2-wall-thickness-required";
@@ -275,7 +283,8 @@ public static class FirmamentV2Parser
 
         var solidMatches = FindSolids(source).ToArray();
         if (solidMatches.Length == 0 && LegacyEqualsSolidRegex.IsMatch(source)) diagnostics.Add(UnsupportedConstruct);
-        if (solidMatches.Length == 0) diagnostics.Add(MissingSolid);
+        var appearsStandaloneLattice = Regex.IsMatch(source, @"\bfill\s+[A-Za-z_][A-Za-z0-9_]*\s*\{[\s\S]*?\bpattern\s*:\s*CubicTruss\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+        if (solidMatches.Length == 0 && !appearsStandaloneLattice) diagnostics.Add(MissingSolid);
 
         var solids = new List<FirmamentV2SolidBinding>();
         var byName = new Dictionary<string, FirmamentV2SolidBinding>(StringComparer.Ordinal);
@@ -308,14 +317,15 @@ public static class FirmamentV2Parser
         var modifyBlocks = ParseModifyBlocks(source, byName, diagnostics);
         var templates = ParseTemplates(source, diagnostics);
         var latticeFills = ParseLatticeFills(source, byName, diagnostics);
+        var standaloneLatticeFills = ParseStandaloneLatticeFills(source, diagnostics);
         var recognizedRegions = ParseRecognizedRegions(source, byName, diagnostics);
         var replacements = ParseReplacements(source, byName, recognizedRegions, diagnostics);
         var (pmi, pmiBlock, boundPmi) = ParsePmi(source, byName, modifyBlocks, recognizedRegions, boundLets, boundLetRecords, diagnostics);
         var (manufacturingConcepts, featureConcepts) = ParseConceptApplications(source, boundLets, boundLetRecords, conceptCatalog, diagnostics);
 
         FirmamentV2Document? document = null;
-        if (modelMatch.Success && unitsMatch.Success && solids.Count > 0 && !diagnostics.Any(d => d.StartsWith("firmament-v2-fill-", StringComparison.Ordinal)))
-            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks, templates, pmi, recognizedRegions, replacements, lets, boundLets, letRecords, boundLetRecords, manufacturingConcepts, featureConcepts, pmiBlock, boundPmi, null, latticeFills);
+        if (modelMatch.Success && unitsMatch.Success && (solids.Count > 0 || standaloneLatticeFills.Count > 0) && !diagnostics.Any(d => d.StartsWith("firmament-v2-fill-", StringComparison.Ordinal)))
+            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks, templates, pmi, recognizedRegions, replacements, lets, boundLets, letRecords, boundLetRecords, manufacturingConcepts, featureConcepts, pmiBlock, boundPmi, null, latticeFills, standaloneLatticeFills);
 
         var hasFatalDiagnostics = diagnostics.Any(IsFatalDiagnosticCode);
         diagnostics.Add(document is null || hasFatalDiagnostics ? "firmament-v2-parse-failed" : "firmament-v2-parse-succeeded");
@@ -986,7 +996,7 @@ public static class FirmamentV2Parser
         || code.StartsWith(ConceptIrResolver.PointProjectionUnsupported, StringComparison.Ordinal)
         || code.StartsWith("firmament-static-", StringComparison.Ordinal);
 
-    public static bool IsFatalDiagnosticCode(string code) => IsConceptFatalDiagnostic(code) || code is UnknownConstructionPolicy or PrimitiveDoesNotSatisfyHollowConstructible or WallThicknessRequired or WallThicknessMustBePositive or UnsupportedOpening or MultipleOpeningsNotSupported or Phase3EdgeFinishSyntaxInvalid or PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetTypeMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch;
+    public static bool IsFatalDiagnosticCode(string code) => IsConceptFatalDiagnostic(code) || code is UnknownConstructionPolicy or PrimitiveDoesNotSatisfyHollowConstructible or WallThicknessRequired or WallThicknessMustBePositive or UnsupportedOpening or MultipleOpeningsNotSupported or Phase3EdgeFinishSyntaxInvalid or PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetTypeMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch or StandaloneFillRegionRequired or UnsupportedStandaloneFillPattern or InvalidCellCount or CellSizeMustBePositive or StrutRadiusMustBePositive or NodeRadiusMustBePositive or MaterialBoundsMismatch or StandaloneFillMultipleUnsupported;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -1425,7 +1435,8 @@ public static class FirmamentV2Parser
             var boxBody = body[(boxOpen + 1)..boxClose];
             var size = Regex.Match(boxBody, @"\bsize\s*:\s*\[(?<v>[^\]]+)\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
             var center = Regex.Match(boxBody, @"\bcenter\s*:\s*\[(?<v>[^\]]+)\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-            if (!size.Success || !center.Success || !TryParseLatticeTriple(size.Groups["v"].Value, positive: true, out var sizeValues) || !TryParseLatticeTriple(center.Groups["v"].Value, positive: false, out var centerValues)) { diagnostics.Add(FillRegionInvalid); continue; }
+            IReadOnlyList<double> centerValues = [0d, 0d, 0d];
+            if (!size.Success || !TryParseLatticeTriple(size.Groups["v"].Value, positive: true, out var sizeValues) || (center.Success && !TryParseLatticeTriple(center.Groups["v"].Value, positive: false, out centerValues))) { diagnostics.Add(FillRegionInvalid); continue; }
             if (!regions.TryAdd(match.Groups["name"].Value, new(match.Groups["name"].Value, sizeValues, centerValues, new(match.Index, close - match.Index + 1)))) diagnostics.Add(FillRegionInvalid);
         }
 
@@ -1437,9 +1448,10 @@ public static class FirmamentV2Parser
             if (close < 0) { diagnostics.Add(FillRegionInvalid); continue; }
             var body = source[(open + 1)..close];
             if (!regions.TryGetValue(match.Groups["name"].Value, out var region)) { diagnostics.Add(FillUnknownRegion); continue; }
-            var host = Regex.Match(body, @"\bhost\s*:\s*(?<v>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-            if (!host.Success || !solids.ContainsKey(host.Groups["v"].Value)) { diagnostics.Add(FillUnknownHost); continue; }
             var pattern = Regex.Match(body, @"\bpattern\s*:\s*(?<v>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            var host = Regex.Match(body, @"\bhost\s*:\s*(?<v>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            if (!host.Success && pattern.Success && string.Equals(pattern.Groups["v"].Value, "CubicTruss", StringComparison.OrdinalIgnoreCase)) continue;
+            if (!host.Success || !solids.ContainsKey(host.Groups["v"].Value)) { diagnostics.Add(FillUnknownHost); continue; }
             if (!pattern.Success || !string.Equals(pattern.Groups["v"].Value, "OctetTruss", StringComparison.OrdinalIgnoreCase)) { diagnostics.Add(FillUnsupportedPattern); continue; }
             var patternOpen = body.IndexOf('{', pattern.Index);
             var patternClose = FindMatchingBrace(body, patternOpen);
@@ -1452,6 +1464,64 @@ public static class FirmamentV2Parser
         }
         if (fills.Count > 1) diagnostics.Add(FillMultipleUnsupported);
         return fills;
+    }
+
+    private static IReadOnlyList<FirmamentV2StandaloneLatticeFillDecl> ParseStandaloneLatticeFills(string source, List<string> diagnostics)
+    {
+        var regions = new Dictionary<string, FirmamentV2FillRegionDecl>(StringComparer.Ordinal);
+        foreach (Match match in FillRegionHeaderRegex.Matches(source))
+        {
+            var open = source.IndexOf('{', match.Index); var close = FindMatchingBrace(source, open);
+            if (close < 0) continue;
+            var body = source[(open + 1)..close]; var box = Regex.Match(body, @"\bbox\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            if (!box.Success) continue;
+            var boxOpen = body.IndexOf('{', box.Index); var boxClose = FindMatchingBrace(body, boxOpen);
+            if (boxClose < 0) { diagnostics.Add(StandaloneFillRegionRequired); continue; }
+            var boxBody = body[(boxOpen + 1)..boxClose];
+            var size = Regex.Match(boxBody, @"\bsize\s*:\s*\[(?<v>[^\]]+)\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            var center = Regex.Match(boxBody, @"\bcenter\s*:\s*\[(?<v>[^\]]+)\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            IReadOnlyList<double> location = [0d, 0d, 0d];
+            if (!size.Success || !TryParseLatticeTriple(size.Groups["v"].Value, positive: true, out var dimensions) || (center.Success && !TryParseLatticeTriple(center.Groups["v"].Value, positive: false, out location))) { diagnostics.Add(StandaloneFillRegionRequired); continue; }
+            regions[match.Groups["name"].Value] = new FirmamentV2FillRegionDecl(match.Groups["name"].Value, dimensions, location, new FirmamentV2SourceSpan(match.Index, close - match.Index + 1));
+        }
+
+        var fills = new List<FirmamentV2StandaloneLatticeFillDecl>();
+        foreach (Match match in FillHeaderRegex.Matches(source))
+        {
+            var open = source.IndexOf('{', match.Index); var close = FindMatchingBrace(source, open);
+            if (close < 0) continue;
+            var body = source[(open + 1)..close];
+            var pattern = Regex.Match(body, @"\bpattern\s*:\s*(?<v>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            if (!pattern.Success || !string.Equals(pattern.Groups["v"].Value, "CubicTruss", StringComparison.OrdinalIgnoreCase)) continue;
+            if (Regex.IsMatch(body, @"\bhost\s*:", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)) { diagnostics.Add(UnsupportedStandaloneFillPattern); continue; }
+            if (!regions.TryGetValue(match.Groups["name"].Value, out var region)) { diagnostics.Add(StandaloneFillRegionRequired); continue; }
+            var patternOpen = body.IndexOf('{', pattern.Index); var patternClose = FindMatchingBrace(body, patternOpen);
+            if (patternClose < 0) { diagnostics.Add(UnsupportedStandaloneFillPattern); continue; }
+            var p = body[(patternOpen + 1)..patternClose];
+            var cells = Regex.Match(p, @"\bcells\s*:\s*\[(?<v>[^\]]+)\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            if (!cells.Success || !TryParseLatticeCellTriple(cells.Groups["v"].Value, out var counts)) { diagnostics.Add(InvalidCellCount); continue; }
+            if (!TryReadLatticePositive(p, "cellSize", out var cellSize)) { diagnostics.Add(CellSizeMustBePositive); continue; }
+            if (!TryReadLatticePositive(p, "strutRadius", out var strutRadius)) { diagnostics.Add(StrutRadiusMustBePositive); continue; }
+            if (!TryReadLatticePositive(p, "nodeRadius", out var nodeRadius)) { diagnostics.Add(NodeRadiusMustBePositive); continue; }
+            var placement = Regex.Match(body, @"\bplacement\s*:\s*(?<v>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            if (!placement.Success || !string.Equals(placement.Groups["v"].Value, "MaterialBounds", StringComparison.OrdinalIgnoreCase)) { diagnostics.Add(MaterialBoundsMismatch); continue; }
+            fills.Add(new(match.Groups["name"].Value, region, "CubicTruss", counts[0], counts[1], counts[2], cellSize, strutRadius, nodeRadius, "MaterialBounds", new FirmamentV2SourceSpan(match.Index, close - match.Index + 1)));
+        }
+        if (fills.Count > 1) diagnostics.Add(StandaloneFillMultipleUnsupported);
+        return fills;
+    }
+
+    private static bool TryParseLatticeCellTriple(string text, out IReadOnlyList<int> values)
+    {
+        var parts = text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var parsed = new List<int>(3);
+        foreach (var part in parts)
+        {
+            if (!int.TryParse(part, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) || value <= 0) { values = []; return false; }
+            parsed.Add(value);
+        }
+        values = parsed;
+        return parsed.Count == 3;
     }
 
     private static bool TryReadLatticePositive(string body, string name, out double value)

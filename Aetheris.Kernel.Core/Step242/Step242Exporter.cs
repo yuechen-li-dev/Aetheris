@@ -65,7 +65,7 @@ public static class Step242Exporter
         var bsplineIds = new Dictionary<EdgeId, string>();
         var ellipseIds = new Dictionary<EdgeId, string>();
 
-        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds);
+        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, options.EmitFullCircleTrimmedCurves);
         EmitAuxiliaryVertexPointForVertexlessAnalyticBody(writer, body, model);
         if (outerClosedShellId is null)
         {
@@ -82,7 +82,7 @@ public static class Step242Exporter
             var orientedVoidShellIds = new List<string>();
             foreach (var innerShellId in shellRepresentation.InnerShellIds.OrderBy(id => id.Value))
             {
-                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds);
+                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, options.EmitFullCircleTrimmedCurves);
                 if (innerClosedShellId is null)
                 {
                     return Failure($"Shell {innerShellId.Value} could not be exported.", $"Shell:{innerShellId.Value}");
@@ -158,7 +158,8 @@ public static class Step242Exporter
         Dictionary<EdgeId, string> lineIds,
         Dictionary<EdgeId, string> circleIds,
         Dictionary<EdgeId, string> bsplineIds,
-        Dictionary<EdgeId, string> ellipseIds)
+        Dictionary<EdgeId, string> ellipseIds,
+        bool emitFullCircleTrimmedCurves)
     {
         if (!model.TryGetShell(shellId, out var shell) || shell is null)
         {
@@ -203,7 +204,7 @@ public static class Step242Exporter
 
                     if (!edgeCurveIds.TryGetValue(coedge.EdgeId, out var edgeCurveId))
                     {
-                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds, ellipseIds);
+                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds, ellipseIds, emitFullCircleTrimmedCurves);
                         if (!edgeResult.IsSuccess)
                         {
                             return null;
@@ -614,7 +615,8 @@ public static class Step242Exporter
         IDictionary<EdgeId, string> lineIds,
         IDictionary<EdgeId, string> circleIds,
         IDictionary<EdgeId, string> bsplineIds,
-        IDictionary<EdgeId, string> ellipseIds)
+        IDictionary<EdgeId, string> ellipseIds,
+        bool emitFullCircleTrimmedCurves)
     {
         var edge = model.GetEdge(edgeId);
 
@@ -704,7 +706,7 @@ public static class Step242Exporter
             // analytic edge, rather than relying on a viewer to infer it from a wire.
             var trim = edgeBinding.TrimInterval.Value;
             var isFullCircle = double.Abs((trim.End - trim.Start) - (2d * double.Pi)) <= 1e-12d;
-            geometryCurveId = isFullCircle
+            geometryCurveId = isFullCircle && !emitFullCircleTrimmedCurves
                 ? circleId
                 : writer.AddEntity("TRIMMED_CURVE", "$", Step242TextWriter.Ref(circleId),
                     Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.Start)})"),

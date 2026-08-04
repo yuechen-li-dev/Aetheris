@@ -83,6 +83,44 @@ internal static class FirmamentV2DfmEnforcement
             }
         }
 
+        foreach (var fill in document.StandaloneLatticeFills ?? [])
+        {
+            var template = (document.Templates ?? []).SingleOrDefault(t => string.Equals(t.Process, "Additive", StringComparison.OrdinalIgnoreCase));
+            if (template is null)
+            {
+                diagnostics.Add(Error("additive-template-required: standalone CubicTruss requires one Template<Additive> context."));
+                continue;
+            }
+
+            double Concept(string name)
+            {
+                var concept = template.Concepts.SingleOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (concept is null || !string.Equals(concept.Unit, document.Units, StringComparison.OrdinalIgnoreCase))
+                {
+                    diagnostics.Add(Error($"additive-concept-required: template '{template.Name}' requires typed length concept '{name}' in '{document.Units}'."));
+                    return double.NaN;
+                }
+                return concept.NumericValue;
+            }
+
+            var minStrut = Concept("MinimumStrutDiameter");
+            var minNode = Concept("MinimumNodeDiameter");
+            var minSpacing = Concept("MinimumFeatureSpacing");
+            if (!double.IsFinite(minStrut) || !double.IsFinite(minNode) || !double.IsFinite(minSpacing)) continue;
+            var strutDiameter = 2d * fill.StrutRadius;
+            var nodeDiameter = 2d * fill.NodeRadius;
+            var spacing = fill.CellSize - 2d * fill.NodeRadius;
+            if (strutDiameter + 1e-9d < minStrut) diagnostics.Add(Error($"minimum-strut-diameter-violation: template '{template.Name}', feature '{fill.Name}', actual {strutDiameter:R}{document.Units}, required {minStrut:R}{document.Units}."));
+            if (nodeDiameter + 1e-9d < minNode) diagnostics.Add(Error($"minimum-node-diameter-violation: template '{template.Name}', feature '{fill.Name}', actual {nodeDiameter:R}{document.Units}, required {minNode:R}{document.Units}."));
+            if (spacing + 1e-9d < minSpacing) diagnostics.Add(Error($"minimum-feature-spacing-violation: template '{template.Name}', feature '{fill.Name}', actual {spacing:R}{document.Units}, required {minSpacing:R}{document.Units}."));
+            if (fill.NodeRadius <= double.Sqrt(2d) * fill.StrutRadius) diagnostics.Add(Error($"node-radius-too-small-for-struts: feature '{fill.Name}', nodeRadius {fill.NodeRadius:R}{document.Units}, strutRadius {fill.StrutRadius:R}{document.Units}."));
+            var seam = double.IsFinite(fill.NodeRadius) && double.IsFinite(fill.StrutRadius) && fill.NodeRadius > fill.StrutRadius
+                ? double.Sqrt(fill.NodeRadius * fill.NodeRadius - fill.StrutRadius * fill.StrutRadius) : double.PositiveInfinity;
+            if (fill.CellSize - 2d * seam <= 1e-9d) diagnostics.Add(Error($"member-consumed-by-nodes: feature '{fill.Name}', exposedLength {fill.CellSize - 2d * seam:R}{document.Units}."));
+            var expected = new[] { fill.CellsX * fill.CellSize + 2d * fill.NodeRadius, fill.CellsY * fill.CellSize + 2d * fill.NodeRadius, fill.CellsZ * fill.CellSize + 2d * fill.NodeRadius };
+            if (fill.Region.Size.Count != 3 || expected.Where((value, index) => double.Abs(value - fill.Region.Size[index]) > 1e-9d).Any()) diagnostics.Add(Error($"material-bounds-mismatch: feature '{fill.Name}' requires domain [{expected[0]:R}, {expected[1]:R}, {expected[2]:R}]{document.Units} for exact MaterialBounds placement."));
+        }
+
         return diagnostics.Count == 0
             ? KernelResult<object>.Success(new object())
             : KernelResult<object>.Failure(diagnostics);

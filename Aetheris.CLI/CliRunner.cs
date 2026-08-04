@@ -379,6 +379,7 @@ public static class CliRunner
                 air = build.Value.Export.Air,
                 roundedBox = build.Value.Export.RoundedBox,
                 hollow = build.Value.Export.Hollow,
+                lattice = build.Value.Export.Lattice,
                 features = build.Value.Export.Features,
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,

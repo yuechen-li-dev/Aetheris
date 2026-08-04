@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
@@ -55,6 +56,11 @@ public static class FirmamentBuildAndExport
             if (!dfm.IsSuccess)
             {
                 return KernelResult<FirmamentStepExportResult>.Failure(dfm.Diagnostics);
+            }
+
+            if (TryExportV2StandaloneCubicLattice(v2Parse.Document) is { } latticeExport)
+            {
+                return latticeExport;
             }
 
             if (TryExportV2HollowBody(v2Parse.Document) is { } hollowExport)
@@ -176,6 +182,64 @@ public static class FirmamentBuildAndExport
         }
 
         return FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
+    }
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2StandaloneCubicLattice(FirmamentV2Document document)
+    {
+        var fills = document.StandaloneLatticeFills ?? [];
+        if (fills.Count == 0) return null;
+        if (fills.Count != 1)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, "standalone-fill-multiple-unsupported", "FirmamentV2.CubicLattice")]);
+        }
+
+        var fill = fills[0];
+        var center = new Point3D(fill.Region.Center[0], fill.Region.Center[1], fill.Region.Center[2]);
+        var realization = CubicLatticeBRepPlanner.Create(fill.CellsX, fill.CellsY, fill.CellsZ, fill.CellSize, fill.StrutRadius, fill.NodeRadius, center);
+        if (!realization.IsSuccess || realization.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(realization.Diagnostics);
+        var body = realization.Value.Body;
+        var preflight = BrepExportPreflight.Validate(body);
+        if (!preflight.IsValid || !FirmamentManifoldChecker.IsManifold(body))
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, "lattice-topology-verification-failed", "FirmamentV2.CubicLattice")]);
+        }
+
+        var mass = BrepMassProperties.Evaluate(body);
+        if (mass.Status == BrepMassPropertiesStatus.Unavailable || mass.AbsoluteVolume <= 0d || mass.Centroid is null)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, "lattice-topology-verification-failed: BRep mass properties unavailable", "FirmamentV2.CubicLattice")]);
+        }
+
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        {
+            ProductName = fill.Name,
+            ApplicationName = "Aetheris.Firmament.CubicTruss.M9R",
+            BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+            BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+            EmitFullCircleTrimmedCurves = true,
+        });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value))
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(reimport.IsSuccess
+                ? [new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, "lattice-topology-verification-failed: STEP reimport is not manifold", "FirmamentV2.CubicLattice")]
+                : reimport.Diagnostics);
+        }
+
+        var template = (document.Templates ?? []).Single(template => string.Equals(template.Process, "Additive", StringComparison.OrdinalIgnoreCase));
+        var graph = realization.Value.Plan.Construction;
+        var centroid = mass.Centroid.Value;
+        var report = new FirmamentStandaloneLatticeReport(
+            template.Name, fill.Pattern, [fill.CellsX, fill.CellsY, fill.CellsZ], fill.CellSize, fill.StrutRadius, fill.NodeRadius, fill.Region.Size, fill.Placement,
+            graph.Nodes.Count, graph.Members.Count, realization.Value.Plan.SeamCount,
+            graph.Nodes.Count(node => node.Valence == 3), graph.Nodes.Count(node => node.Valence == 4), graph.Nodes.Count(node => node.Valence == 5), graph.Nodes.Count(node => node.Valence == 6),
+            realization.Value.Plan.IsAuthoritative, realization.Value.Plan.Signature,
+            body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(),
+            body.Geometry.Surfaces.Count(pair => pair.Value.Kind == SurfaceGeometryKind.Sphere), body.Geometry.Surfaces.Count(pair => pair.Value.Kind == SurfaceGeometryKind.Cylinder),
+            realization.Value.AnalyticVolume, mass.AbsoluteVolume, double.Abs(realization.Value.AnalyticVolume - mass.AbsoluteVolume), mass.SurfaceArea,
+            [centroid.X, centroid.Y, centroid.Z], Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))).ToLowerInvariant(), true, true);
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, fill.Name, 0, "standalone-lattice", "cubic-truss", Lattice: report));
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2AirChamferBody(FirmamentV2Document document)

@@ -38,6 +38,9 @@ public sealed class Step242ExportOptions
     /// <summary>Records why this route selected its preflight mode.</summary>
     public BrepExportPreflightPolicy BrepExportPreflightPolicy { get; init; } = BrepExportPreflightPolicy.LegacyRoute;
 
+    /// <summary>Preserve a full circular edge's declared parameter interval as TRIMMED_CURVE.</summary>
+    public bool EmitFullCircleTrimmedCurves { get; init; }
+
     public static Step242ExportOptions FromSourceMetadata(Step242SourceMetadata metadata)
     {
         static string Coalesce(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value!;

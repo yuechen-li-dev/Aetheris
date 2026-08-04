@@ -1,0 +1,26 @@
+model CubicLatticeSample {
+    units mm
+
+    template<Additive> PolymerLattice {
+        concept MinimumStrutDiameter: 1.0mm
+        concept MinimumNodeDiameter: 2.0mm
+        concept MinimumFeatureSpacing: 0.5mm
+    }
+
+    region Domain {
+        box {
+            size: [26.4mm, 26.4mm, 26.4mm]
+        }
+    }
+
+    fill Domain {
+        pattern: CubicTruss {
+            cells: [3, 3, 3]
+            cellSize: 8mm
+            strutRadius: 0.8mm
+            nodeRadius: 1.2mm
+        }
+
+        placement: MaterialBounds
+    }
+}

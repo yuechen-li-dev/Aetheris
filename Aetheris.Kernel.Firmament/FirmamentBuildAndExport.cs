@@ -241,7 +241,7 @@ public static class FirmamentBuildAndExport
             solid.Name, $"{solid.Name}.{finish.Name}", finish.Name, box.Size[0], box.Size[1], box.Size[2],
             finish.FaceAxis, "+Z", finish.Kind, finish.Distance,
             new AirSourceSpan(finish.SourceSpan.Start, finish.SourceSpan.Length, document.ModelName)));
-        if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.LocalizedPlanarReplacementRealizationPlan is null)
+        if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.LocalizedEdgeReplacementRealizationPlan is null)
             return AirChamferFailure(compiled.Error?.Code ?? compiled.Feature.AdmissionReason, compiled.Diagnostics);
 
         var body = compiled.Body;
@@ -273,7 +273,8 @@ public static class FirmamentBuildAndExport
                 "ExplicitOwnedEndpoints", plan.DeterministicSignature, "LocalizedPlanarReplacement"),
             new(AirLocalizedPlanarReplacementChamferCompileResult.ProductionRoute, false, true, body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(), Bounds(body), finish.Distance, finish.Distance, 0, 0, planes),
             new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), Bounds(reimport.Value), true),
-            new("SharedEdge(+X,+Z)", "LocalizedPlanarReplacement", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false));
+            new("SharedEdge(+X,+Z)", "LocalizedPlanarReplacement", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false),
+            LocalizedEdgeFinish: new("Chamfer", "SharedEdge(+X,+Z)", "EqualDistance", finish.Distance, "LocalizedEdgeReplacement", "PlanarChamfer", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false));
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "localized-planar-single-edge-chamfer", Air: report, ConceptIr: document.ConceptIr));
     }
 
@@ -287,7 +288,7 @@ public static class FirmamentBuildAndExport
             solid.Name, $"{solid.Name}.{finish.Name}", finish.Name, box.Size[0], box.Size[1], box.Size[2],
             finish.FaceAxis, finish.Target switch { "SharedEdgePlusZ" => "+Z", "SharedEdgePlusY" => "+Y", _ => finish.Target }, finish.Kind, finish.Distance,
             new AirSourceSpan(finish.SourceSpan.Start, finish.SourceSpan.Length, document.ModelName)));
-        if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.LocalizedTangentBlendRealizationPlan is null)
+        if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.LocalizedEdgeReplacementRealizationPlan is null)
             return AirChamferFailure(compiled.Error?.Code ?? compiled.Feature.AdmissionReason, compiled.Diagnostics);
 
         var body = compiled.Body;
@@ -320,7 +321,8 @@ public static class FirmamentBuildAndExport
                 "ExplicitOwnedEndpoints", plan.DeterministicSignature, "LocalizedTangentBlend"),
             new(AirLocalizedTangentBlendFilletCompileResult.ProductionRoute, false, true, body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(), Bounds(body), finish.Distance, finish.Distance, cylinders, 0, planes),
             new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), Bounds(reimport.Value), true),
-            LocalizedFillet: new("SharedEdge(+X,+Z)", "ConstantRadius", finish.Distance, "LocalizedTangentBlend", "QuarterCircle", "Linear", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false));
+            LocalizedFillet: new("SharedEdge(+X,+Z)", "ConstantRadius", finish.Distance, "LocalizedTangentBlend", "QuarterCircle", "Linear", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false),
+            LocalizedEdgeFinish: new("Fillet", "SharedEdge(+X,+Z)", "ConstantRadius", finish.Distance, "LocalizedEdgeReplacement", "CylindricalFillet", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false));
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "air-fillet", "localized-tangent-blend-single-edge-fillet", Air: report, ConceptIr: document.ConceptIr));
     }
 

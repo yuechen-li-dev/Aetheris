@@ -56,3 +56,6 @@ Deferred: concave or imported bodies, different support pairs, edge chains, mult
 edges, endpoint/corner interactions, variable/asymmetric radius, and rolling-ball or
 toroidal corner resolution. The recommended next milestone is a second straight edge
 with an explicit junction Construction AIR witness and deterministic corner policy.
+## Status note
+
+This historical tangent-blend evidence is now implemented through the shared [AIR edge-finish consolidation M2](air/air-edge-finish-consolidation-m2.md) topology authority. The exact cylindrical quarter-arc geometry and existing compatibility report remain unchanged.

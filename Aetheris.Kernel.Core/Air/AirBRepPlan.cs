@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Core.Air.BRepPlan;
 
 internal enum AirBRepPlanKind { PrismaticSectionTransition, RevolvedProfile, LocalizedPlanarReplacement, LocalizedTangentBlend, Unsupported }
 internal enum AirBRepPlanElementKind { Vertex, Curve, Edge, Coedge, Loop, Surface, Face, Shell, Body }
-internal enum AirBRepPlanRole { Unknown, SectionVertex, SectionEdge, VerticalTransitionEdge, SectionLoop, ProfileVertex, ProfileSegment, CircularRim, SeamEdge, CapFace, SideFace, CylindricalFace, ConicalTransitionFace, TransitionFace, PrismaticTransitionFace, ChamferFace, FilletFace, RetainedSupportFaceA, RetainedSupportFaceB, EndpointTransitionStart, EndpointTransitionEnd, UnaffectedFace, BodyShell, Body }
+internal enum AirBRepPlanRole { Unknown, SectionVertex, SectionEdge, VerticalTransitionEdge, SectionLoop, ProfileVertex, ProfileSegment, CircularRim, SeamEdge, CapFace, SideFace, CylindricalFace, ConicalTransitionFace, TransitionFace, PrismaticTransitionFace, ChamferFace, FilletFace, ReplacementFace, ReplacementBoundaryA, ReplacementBoundaryB, RetainedSupportFaceA, RetainedSupportFaceB, EndpointTransitionStart, EndpointTransitionEnd, UnaffectedFace, BodyShell, Body }
 
 internal readonly record struct AirBRepPlanId(string Value)
 {
@@ -78,9 +78,10 @@ internal sealed record AirBRepPlan(
     PrismaticSectionTransitionTopologyPlan? RealizationPlan = null,
     RevolvedProfileTopologyPlan? RevolvedRealizationPlan = null,
     AirLocalizedPlanarReplacementTopologyPlan? LocalizedPlanarReplacementRealizationPlan = null,
-    AirLocalizedTangentBlendTopologyPlan? LocalizedTangentBlendRealizationPlan = null)
+    AirLocalizedTangentBlendTopologyPlan? LocalizedTangentBlendRealizationPlan = null,
+    LocalizedEdgeReplacementTopologyPlan? LocalizedEdgeReplacementRealizationPlan = null)
 {
-    public bool IsAuthoritative => RealizationPlan is not null || RevolvedRealizationPlan is not null || LocalizedPlanarReplacementRealizationPlan is not null || LocalizedTangentBlendRealizationPlan is not null;
+    public bool IsAuthoritative => RealizationPlan is not null || RevolvedRealizationPlan is not null || LocalizedPlanarReplacementRealizationPlan is not null || LocalizedTangentBlendRealizationPlan is not null || LocalizedEdgeReplacementRealizationPlan is not null;
 }
 
 internal sealed record AirBRepPlanResult(AirBRepPlan? Plan, AirBRepPlanValidationResult Validation)

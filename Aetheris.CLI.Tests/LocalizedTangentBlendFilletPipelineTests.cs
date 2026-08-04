@@ -33,6 +33,12 @@ public sealed class LocalizedTangentBlendFilletPipelineTests
         Assert.Equal(2, localized.GetProperty("retainedFaces").GetInt32());
         Assert.Equal(1, localized.GetProperty("replacementFaces").GetInt32());
         Assert.Equal("valid", localized.GetProperty("preflight").GetString());
+        var shared = air.GetProperty("localizedEdgeFinish");
+        Assert.Equal("Fillet", shared.GetProperty("kind").GetString());
+        Assert.Equal("LocalizedEdgeReplacement", shared.GetProperty("construction").GetString());
+        Assert.Equal("CylindricalFillet", shared.GetProperty("replacementGeometry").GetString());
+        Assert.Equal("ExplicitOwnedEndpoints", shared.GetProperty("endpointPolicy").GetString());
+        Assert.True(shared.GetProperty("bRepPlan").GetProperty("authoritative").GetBoolean());
         Assert.True(air.GetProperty("step").GetProperty("reimportSucceeded").GetBoolean());
 
         var stepPath = json.RootElement.GetProperty("outputPath").GetString()!;

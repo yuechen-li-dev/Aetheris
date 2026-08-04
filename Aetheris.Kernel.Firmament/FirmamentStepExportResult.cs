@@ -46,7 +46,24 @@ public sealed record FirmamentAirChamferReport(
     FirmamentAirChamferMaterializationReport Materialization,
     FirmamentAirChamferStepReport Step,
     FirmamentLocalizedChamferTrace? LocalizedChamfer = null,
-    FirmamentLocalizedFilletTrace? LocalizedFillet = null);
+    FirmamentLocalizedFilletTrace? LocalizedFillet = null,
+    FirmamentLocalizedEdgeFinishTrace? LocalizedEdgeFinish = null);
+
+/// <summary>Authoritative shared semantic evidence for localized edge replacement routes.</summary>
+public sealed record FirmamentLocalizedEdgeFinishTrace(
+    string Kind,
+    string Selection,
+    string RuleKind,
+    double Value,
+    string Construction,
+    string ReplacementGeometry,
+    string SelectionMode,
+    int RetainedFaces,
+    int ReplacementFaces,
+    string EndpointPolicy,
+    FirmamentLocalizedChamferPlanTrace BRepPlan,
+    string Preflight,
+    bool LegacyFallback);
 
 /// <summary>Bounded report of the localized AIR path; it is evidence, never input to emission.</summary>
 public sealed record FirmamentLocalizedChamferTrace(

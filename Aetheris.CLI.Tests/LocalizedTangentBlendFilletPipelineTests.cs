@@ -88,7 +88,7 @@ public sealed class LocalizedTangentBlendFilletPipelineTests
             }
             """);
         Assert.Equal(1, run.Exit);
-        Assert.Contains("localized-fillet-construction-witness-required:two-edge-junction", run.Output, StringComparison.Ordinal);
+        Assert.Contains("localized-junction-unsupported-finish-combination:fillet-shared-patch-surface-required", run.Output, StringComparison.Ordinal);
     }
 
     private static (int Exit, string Output) Run(string source)

@@ -74,7 +74,7 @@ public sealed class LocalizedPlanarSingleEdgeChamferPipelineTests
     }
 
     [Fact]
-    public void LocalizedPlanarReplacement_TwoEdgeJunction_RequiresExplicitConstructionWitness()
+    public void LocalizedPlanarReplacement_TwoEdgeJunction_ExportsOneAuthoritativeMiterPlan()
     {
         var run = Run("""
             Model Localized mm
@@ -84,8 +84,23 @@ public sealed class LocalizedPlanarSingleEdgeChamferPipelineTests
                 EdgeFinish Second { Face: +Y Target: SharedEdgePlusZ Kind: Chamfer Distance: 1mm }
             }
             """);
-        Assert.Equal(1, run.Exit);
-        Assert.Contains("localized-chamfer-construction-witness-required:two-edge-junction", run.Output, StringComparison.Ordinal);
+        Assert.Equal(0, run.Exit);
+        using var json = JsonDocument.Parse(run.Output);
+        var junction = json.RootElement.GetProperty("air").GetProperty("localizedEdgeJunction");
+        Assert.Equal("Direct", junction.GetProperty("selectionMode").GetString());
+        Assert.Equal("MiteredReplacementBoundary", junction.GetProperty("cornerPatch").GetString());
+        Assert.Equal(2, junction.GetProperty("replacementFaces").GetInt32());
+        Assert.Equal(0, junction.GetProperty("junctionFaces").GetInt32());
+        Assert.Equal(1, junction.GetProperty("candidatePlans").GetInt32());
+        Assert.Equal(1, junction.GetProperty("hardValidPlans").GetInt32());
+        Assert.True(junction.GetProperty("bRepPlan").GetProperty("authoritative").GetBoolean());
+        Assert.Equal("valid", junction.GetProperty("preflight").GetString());
+        Assert.False(junction.GetProperty("legacyFallback").GetBoolean());
+        var imported = Step242Importer.ImportBody(File.ReadAllText(json.RootElement.GetProperty("outputPath").GetString()!));
+        Assert.True(imported.IsSuccess);
+        Assert.Equal(11, imported.Value!.Topology.Vertices.Count());
+        Assert.Equal(17, imported.Value.Topology.Edges.Count());
+        Assert.Equal(8, imported.Value.Topology.Faces.Count());
     }
 
     private static (int Exit, string Output) Run(string source)

@@ -158,10 +158,21 @@ public static class FirmamentBuildAndExport
     {
         var finishes = (document.ModifyBlocks ?? []).SelectMany(m => (m.EdgeFinishes ?? []).Select(f => (Modify: m, Finish: f))).ToArray();
         if (finishes.Length == 0) return null;
-        if (finishes.Length == 2 && finishes.All(x => string.Equals(x.Finish.Kind, "Fillet", StringComparison.Ordinal)))
-            return AirChamferFailure("localized-fillet-construction-witness-required:two-edge-junction");
         if (finishes.Length == 2 && finishes.All(x => string.Equals(x.Finish.Kind, "Chamfer", StringComparison.Ordinal)))
-            return AirChamferFailure("localized-chamfer-construction-witness-required:two-edge-junction");
+        {
+            if (document.Solids.Count != 1 || document.ModifyBlocks!.Count != 1 || document.ModifyBlocks[0].Regions.Count != 0 || document.ModifyBlocks[0].SemanticHoles.Count != 0)
+                return AirChamferFailure("localized-junction-production-route-requires-one-box-and-one-modify-block");
+            var junctionSolid = document.Solids.SingleOrDefault(s => s.Name == finishes[0].Modify.TargetSolid);
+            if (junctionSolid?.Primitive is not FirmamentV2BoxRecord junctionBox || junctionBox.Size.Count != 3)
+                return AirChamferFailure("localized-junction-unsupported-history:expected-history-known-box");
+            return ExportV2LocalizedEdgeJunctionChamfer(document, junctionSolid, finishes[0].Finish, finishes[1].Finish, junctionBox);
+        }
+        if (finishes.Length == 2 && finishes.All(x => string.Equals(x.Finish.Kind, "Fillet", StringComparison.Ordinal)))
+            return AirChamferFailure("localized-junction-unsupported-finish-combination:fillet-shared-patch-surface-required");
+        if (finishes.Length == 2)
+            return AirChamferFailure("localized-junction-unsupported-finish-combination:mixed-families");
+        if (finishes.Length > 2)
+            return AirChamferFailure("localized-junction-unsupported-valence:two-selected-edges-maximum");
         if (finishes.Length != 1 || document.Solids.Count != 1 || document.ModifyBlocks!.Count != 1
             || document.ModifyBlocks[0].Regions.Count != 0 || document.ModifyBlocks[0].SemanticHoles.Count != 0)
             return AirChamferFailure("air-chamfer-production-route-requires-one-box-and-one-edge-finish");
@@ -276,6 +287,53 @@ public static class FirmamentBuildAndExport
             new("SharedEdge(+X,+Z)", "LocalizedPlanarReplacement", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false),
             LocalizedEdgeFinish: new("Chamfer", "SharedEdge(+X,+Z)", "EqualDistance", finish.Distance, "LocalizedEdgeReplacement", "PlanarChamfer", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false));
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "localized-planar-single-edge-chamfer", Air: report, ConceptIr: document.ConceptIr));
+    }
+
+    private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedEdgeJunctionChamfer(
+        FirmamentV2Document document,
+        FirmamentV2SolidBinding solid,
+        FirmamentV2EdgeFinishDecl first,
+        FirmamentV2EdgeFinishDecl second,
+        FirmamentV2BoxRecord box)
+    {
+        var compiled = AirLocalizedEdgeJunctionChamferCompiler.Compile(new(
+            solid.Name, $"{solid.Name}.{first.Name}.{second.Name}", $"{first.Name}+{second.Name}", box.Size[0], box.Size[1], box.Size[2],
+            first.FaceAxis, first.Target, second.FaceAxis, second.Target, first.Distance, second.Distance,
+            new AirSourceSpan(first.SourceSpan.Start, first.SourceSpan.Length + second.SourceSpan.Length, document.ModelName)));
+        if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.LocalizedEdgeJunctionRealizationPlan is null)
+            return AirChamferFailure(compiled.Error?.Code ?? "localized-junction-construction-witness-required", compiled.Diagnostics);
+
+        var body = compiled.Body;
+        var preflight = BrepExportPreflight.Validate(body);
+        if (!preflight.IsValid) return AirChamferFailure("localized-junction-chamfer-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
+        if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-junction-chamfer-emitted-body-is-not-manifold");
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        {
+            ProductName = compiled.Construction.ConstructionId,
+            ApplicationName = AirLocalizedEdgeJunctionChamferCompileResult.ProductionRoute,
+            BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+            BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+        });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value))
+            return AirChamferFailure("localized-junction-chamfer-step-reimport-verification-failed");
+
+        var topology = compiled.Construction.TopologyPlan;
+        var planes = body.Geometry.Surfaces.Count(surface => surface.Value.Kind == SurfaceGeometryKind.Plane);
+        var report = new FirmamentAirChamferReport(
+            new("Chamfer", solid.Name, $"{solid.Name}.{first.Name}.{second.Name}", $"{first.Name}+{second.Name}", "SharedEdge(+X,+Z),SharedEdge(+Y,+Z)", first.Distance, "mm",
+                $"{first.SourceSpan.Start}:{first.SourceSpan.Length}|{second.SourceSpan.Start}:{second.SourceSpan.Length}", "Admitted", "localized-junction-direct-single-miter-candidate",
+                new Dictionary<string, string> { ["Selection"] = "semantic Face(+X),Face(+Z); Face(+Y),Face(+Z)", ["MaterialSide"] = compiled.Construction.MaterialSide }),
+            new("LocalizedEdgeJunction", 0, [], "ordered-explicit-loops", "SharedMiterEdge",
+                $"replacementFaces=2;junctionFaces=0;cornerPatch={compiled.Construction.CornerPatch.Kind};boundaryOwnership={compiled.Construction.BoundaryOwnership}", true),
+            new(true, topology.ExpectedVertexCount, topology.ExpectedEdgeCount, topology.ExpectedFaceCount, topology.ExpectedLoopCount, topology.ExpectedCoedgeCount, 2,
+                "SharedMiterEdge", topology.DeterministicSignature, "LocalizedEdgeJunction"),
+            new(AirLocalizedEdgeJunctionChamferCompileResult.ProductionRoute, false, true, body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(), Bounds(body), first.Distance, first.Distance, 0, 0, planes),
+            new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), Bounds(reimport.Value), true),
+            LocalizedEdgeJunction: new(["SharedEdge(+X,+Z)", "SharedEdge(+Y,+Z)"], "Chamfer", "EqualDistance", first.Distance, "Direct", "LocalizedEdgeJunction", compiled.Construction.CornerPatch.Kind, 2, 0,
+                new(true, topology.DeterministicSignature), "valid", false, 1, 1));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, $"{solid.Name}.{first.Name}.{second.Name}", 0, "air-chamfer", "localized-edge-junction-chamfer", Air: report, ConceptIr: document.ConceptIr));
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedTangentBlendSingleEdgeFillet(

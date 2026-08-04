@@ -49,6 +49,15 @@ public static class FirmamentBuildAndExport
 
     private static KernelResult<FirmamentStepExportResult> ExportSource(string sourceText, string? sourceDirectory = null)
     {
+        if (ProfileAuthoringParser.IsProfileSource(sourceText))
+        {
+            var parsed = ProfileAuthoringParser.Parse(sourceText);
+            if (parsed.Profile is null) return KernelResult<FirmamentStepExportResult>.Failure(parsed.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
+            var emitted = ResolvedProfile2DValidator.Extrude(parsed.Profile, parsed.Height);
+            if (emitted.Status != LineArcProfileExtrudeStatus.Succeeded || emitted.Body is null) return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
+            var step = Step242Exporter.ExportBody(emitted.Body); if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, parsed.Profile.Name, 0, "profile-extrude", "line-arc-profile"));
+        }
         var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory);
         if (v2Parse.IsSuccess && v2Parse.Document is not null)
         {

@@ -7,6 +7,7 @@ using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Firmament.FrictionLab.CIRLab;
 
 namespace Aetheris.CLI;
@@ -111,9 +112,10 @@ public static class CliRunner
         string? Error,
         string? Classification = null,
         int? RigidRootCount = null);
-    private const string TopLevelUsage = "Usage: aetheris <build|validate|analyze|verify|match|trace|canon|asm|experimental> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|validate|inspect-profile|analyze|verify|match|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
+    private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] [--rank-probes|--evidence-bundle] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
@@ -170,6 +172,7 @@ public static class CliRunner
             {
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
+                "inspect-profile" => RunInspectProfile(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "verify" => RunVerify(args.Skip(1).ToArray(), stdout, stderr),
                 "match" => RunMatch(args.Skip(1).ToArray(), stdout, stderr),
@@ -398,6 +401,30 @@ public static class CliRunner
         return 0;
     }
 
+
+    private static int RunInspectProfile(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(InspectProfileUsage); return args.Length == 0 ? 1 : 0; }
+        var json = args.Skip(1).All(x => x == "--json");
+        if (!json) { stderr.WriteLine(InspectProfileUsage); return 1; }
+        if (!File.Exists(args[0])) { stderr.WriteLine($"Profile source was not found: {args[0]}"); return 1; }
+        var parsed = ProfileAuthoringParser.Parse(File.ReadAllText(args[0]));
+        if (parsed.Profile is null) { stderr.WriteLine(string.Join(Environment.NewLine, parsed.Diagnostics)); return 1; }
+        var validation = ResolvedProfile2DValidator.Validate(parsed.Profile);
+        var report = new
+        {
+            profile = new
+            {
+                parsed.Profile.Name, parsed.Profile.PlaneFrame,
+                loops = parsed.Profile.Loops.Count,
+                segments = parsed.Profile.Loops.SelectMany(x => x.Segments).Select(x => new { x.Name, guide = x.Provenance.ConceptStableId, stableId = x.Provenance.StableId, derivation = x.Provenance.Derivation, geometry = x.Geometry.GetType().Name }),
+                validation.IsValid, validation.SignedArea, validation.Diagnostics,
+                extrusionHeight = parsed.Height
+            }
+        };
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions)); else stdout.WriteLine($"Profile {parsed.Profile.Name}: {(validation.IsValid ? "valid" : "invalid")}");
+        return validation.IsValid ? 0 : 1;
+    }
 
     private static int RunValidate(string[] args, TextWriter stdout, TextWriter stderr)
     {
@@ -2400,6 +2427,7 @@ public static class CliRunner
         stdout.WriteLine("Commands:");
         stdout.WriteLine("  build      Build a .firmament source file into STEP.");
         stdout.WriteLine("  validate   Validate Firmament V2 manufacturing intent and emit report JSON.");
+        stdout.WriteLine("  inspect-profile  Resolve and validate a scaffold-referenced Profile.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
         stdout.WriteLine("  verify     Reimport STEP and emit independent B-rep/external-display evidence.");
         stdout.WriteLine("  match      Match a compile-time Concept Struct against observed STEP geometry.");
@@ -2415,6 +2443,7 @@ public static class CliRunner
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris build model.firmament --out model.step");
         stdout.WriteLine("  aetheris validate fixtures/FirmamentV2/Language/valid/v2-phase1-validation-report.valid.firmfixture --json");
+        stdout.WriteLine("  aetheris inspect-profile fixtures/FirmamentV2/Profile/valid/scaffold-rectangle.firmament --json");
         stdout.WriteLine("  aetheris analyze model.step");
         stdout.WriteLine("  aetheris analyze model.step --json");
         stdout.WriteLine("  aetheris match model.step concept.firmament --json");

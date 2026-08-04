@@ -7,16 +7,16 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
 
-internal abstract record LineArcProfileCurve2D;
-internal sealed record LineArcLineSegment2D((double X, double Y) Start, (double X, double Y) End) : LineArcProfileCurve2D;
-internal sealed record LineArcCircularArc2D((double X, double Y) Center, double Radius, double StartAngleRadians, double SweepAngleRadians) : LineArcProfileCurve2D;
-internal sealed record LineArcFullCircle2D((double X, double Y) Center, double Radius) : LineArcProfileCurve2D;
-internal sealed record LineArcProfileLoop2D(IReadOnlyList<LineArcProfileCurve2D> Curves, bool IsHole);
-internal sealed record LineArcProfileExtrudeRequest(IReadOnlyList<LineArcProfileLoop2D> Loops, double Height);
-internal enum LineArcProfileExtrudeStatus { Succeeded, Rejected, Deferred, Failed }
-internal sealed record LineArcProfileExtrudeResult(LineArcProfileExtrudeStatus Status, BrepBody? Body, IReadOnlyList<string> Diagnostics);
+public abstract record LineArcProfileCurve2D;
+public sealed record LineArcLineSegment2D((double X, double Y) Start, (double X, double Y) End) : LineArcProfileCurve2D;
+public sealed record LineArcCircularArc2D((double X, double Y) Center, double Radius, double StartAngleRadians, double SweepAngleRadians) : LineArcProfileCurve2D;
+public sealed record LineArcFullCircle2D((double X, double Y) Center, double Radius) : LineArcProfileCurve2D;
+public sealed record LineArcProfileLoop2D(IReadOnlyList<LineArcProfileCurve2D> Curves, bool IsHole);
+public sealed record LineArcProfileExtrudeRequest(IReadOnlyList<LineArcProfileLoop2D> Loops, double Height);
+public enum LineArcProfileExtrudeStatus { Succeeded, Rejected, Deferred, Failed }
+public sealed record LineArcProfileExtrudeResult(LineArcProfileExtrudeStatus Status, BrepBody? Body, IReadOnlyList<string> Diagnostics);
 
-internal static class LineArcProfileExtrudeEmitter
+public static class LineArcProfileExtrudeEmitter
 {
     private const double Tol = 1e-6;
 
@@ -63,6 +63,27 @@ internal static class LineArcProfileExtrudeEmitter
         var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface, string Diag)>();
         var points = new Dictionary<VertexId, Point3D>();
         var edgeCurves = new Dictionary<EdgeId, CurveGeometry>();
+        // A profile loop owns its vertices.  Adjacent curves that meet at the same
+        // resolved point must reuse the same top/bottom vertices and vertical edge;
+        // geometric coincidence is not an authoritative topology connection.
+        var bottomVertices = new Dictionary<(long X, long Y), VertexId>();
+        var topVertices = new Dictionary<(long X, long Y), VertexId>();
+        var verticalEdges = new Dictionary<(long X, long Y), EdgeId>();
+        (long X, long Y) Key((double X, double Y) p) => ((long)Math.Round(p.X / Tol), (long)Math.Round(p.Y / Tol));
+        VertexId Vertex((double X, double Y) p, double z, Dictionary<(long X, long Y), VertexId> cache)
+        {
+            var key = Key(p);
+            if (cache.TryGetValue(key, out var existing)) return existing;
+            var created = b.AddVertex(); points[created] = new Point3D(p.X, p.Y, z); cache.Add(key, created); return created;
+        }
+        EdgeId Vertical((double X, double Y) p, VertexId bottom, VertexId top)
+        {
+            var key = Key(p);
+            if (verticalEdges.TryGetValue(key, out var existing)) return existing;
+            var created = b.AddEdge(bottom, top);
+            edgeCurves[created] = CurveGeometry.FromLine(new Line3Curve(points[bottom], Direction3D.Create(points[top] - points[bottom])));
+            verticalEdges.Add(key, created); return created;
+        }
 
         foreach (var loop in profile.Loops)
         {
@@ -73,15 +94,11 @@ internal static class LineArcProfileExtrudeEmitter
                 {
                     case LineArcLineSegment2D line:
                     {
-                        var vb0 = b.AddVertex(); var vb1 = b.AddVertex(); var vt0 = b.AddVertex(); var vt1 = b.AddVertex();
-                        points[vb0] = new(line.Start.X, line.Start.Y, z0); points[vb1] = new(line.End.X, line.End.Y, z0);
-                        points[vt0] = new(line.Start.X, line.Start.Y, z1); points[vt1] = new(line.End.X, line.End.Y, z1);
-                        var eb = b.AddEdge(vb0, vb1); var et = b.AddEdge(vt0, vt1); var es0 = b.AddEdge(vb0, vt0); var es1 = b.AddEdge(vb1, vt1);
+                        var vb0 = Vertex(line.Start, z0, bottomVertices); var vb1 = Vertex(line.End, z0, bottomVertices); var vt0 = Vertex(line.Start, z1, topVertices); var vt1 = Vertex(line.End, z1, topVertices);
+                        var eb = b.AddEdge(vb0, vb1); var et = b.AddEdge(vt0, vt1); var es0 = Vertical(line.Start, vb0, vt0); var es1 = Vertical(line.End, vb1, vt1);
                         edgeCurves[eb] = CurveGeometry.FromLine(new Line3Curve(points[vb0], Direction3D.Create(points[vb1] - points[vb0])));
                         edgeCurves[et] = CurveGeometry.FromLine(new Line3Curve(points[vt0], Direction3D.Create(points[vt1] - points[vt0])));
-                        edgeCurves[es0] = CurveGeometry.FromLine(new Line3Curve(points[vb0], Direction3D.Create(points[vt0] - points[vb0])));
-                        edgeCurves[es1] = CurveGeometry.FromLine(new Line3Curve(points[vb1], Direction3D.Create(points[vt1] - points[vb1])));
-                        bottomUses.Add(loop.IsHole ? Use.R(eb) : Use.F(eb)); topUses.Add(loop.IsHole ? Use.F(et) : Use.R(et));
+                        bottomUses.Add(loop.IsHole ? Use.R(eb) : Use.F(eb)); topUses.Add(loop.IsHole ? Use.R(et) : Use.F(et));
                         var loopId = AddLoop(b, [Use.F(eb), Use.F(es1), Use.R(et), Use.R(es0)]);
                         var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y; var nx = loop.IsHole ? -dy : dy; var ny = loop.IsHole ? dx : -dx;
                         sideFaces.Add((loopId, SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(line.Start.X, line.Start.Y, z0), Direction3D.Create(new Vector3D(nx, ny, 0)), Direction3D.Create(new Vector3D(0, 0, 1)))), "v2-v4-line-edge-side-face-emitted"));
@@ -91,12 +108,11 @@ internal static class LineArcProfileExtrudeEmitter
                     {
                         var s = (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians));
                         var e = (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians + arc.SweepAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians + arc.SweepAngleRadians));
-                        var vb0=b.AddVertex();var vb1=b.AddVertex();var vt0=b.AddVertex();var vt1=b.AddVertex(); points[vb0]=new(s.Item1,s.Item2,z0); points[vb1]=new(e.Item1,e.Item2,z0); points[vt0]=new(s.Item1,s.Item2,z1); points[vt1]=new(e.Item1,e.Item2,z1);
-                        var eb=b.AddEdge(vb0,vb1); var et=b.AddEdge(vt0,vt1); var es0=b.AddEdge(vb0,vt0); var es1=b.AddEdge(vb1,vt1);
+                        var vb0=Vertex(s,z0,bottomVertices);var vb1=Vertex(e,z0,bottomVertices);var vt0=Vertex(s,z1,topVertices);var vt1=Vertex(e,z1,topVertices);
+                        var eb=b.AddEdge(vb0,vb1); var et=b.AddEdge(vt0,vt1); var es0=Vertical(s,vb0,vt0); var es1=Vertical(e,vb1,vt1);
                         edgeCurves[eb]=CurveGeometry.FromCircle(new Circle3Curve(new Point3D(arc.Center.X,arc.Center.Y,z0),Direction3D.Create(new Vector3D(0,0,1)),arc.Radius,Direction3D.Create(new Vector3D(1,0,0))));
                         edgeCurves[et]=CurveGeometry.FromCircle(new Circle3Curve(new Point3D(arc.Center.X,arc.Center.Y,z1),Direction3D.Create(new Vector3D(0,0,1)),arc.Radius,Direction3D.Create(new Vector3D(1,0,0))));
-                        edgeCurves[es0]=CurveGeometry.FromLine(new Line3Curve(points[vb0], Direction3D.Create(points[vt0]-points[vb0]))); edgeCurves[es1]=CurveGeometry.FromLine(new Line3Curve(points[vb1], Direction3D.Create(points[vt1]-points[vb1])));
-                        bottomUses.Add(loop.IsHole ? Use.R(eb) : Use.F(eb)); topUses.Add(loop.IsHole ? Use.F(et) : Use.R(et));
+                        bottomUses.Add(loop.IsHole ? Use.R(eb) : Use.F(eb)); topUses.Add(loop.IsHole ? Use.R(et) : Use.F(et));
                         sideFaces.Add((AddLoop(b,[Use.F(eb),Use.F(es1),Use.R(et),Use.R(es0)]), SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(arc.Center.X,arc.Center.Y,z0),Direction3D.Create(new Vector3D(0,0,1)),arc.Radius,Direction3D.Create(new Vector3D(1,0,0)))), "v2-v4-arc-edge-side-face-emitted"));
                         break;
                     }
@@ -107,7 +123,7 @@ internal static class LineArcProfileExtrudeEmitter
                         edgeCurves[eb]=CurveGeometry.FromCircle(new Circle3Curve(points[vb],Direction3D.Create(new Vector3D(0,0,1)),circle.Radius,Direction3D.Create(new Vector3D(1,0,0))));
                         edgeCurves[et]=CurveGeometry.FromCircle(new Circle3Curve(points[vt],Direction3D.Create(new Vector3D(0,0,1)),circle.Radius,Direction3D.Create(new Vector3D(1,0,0))));
                         edgeCurves[es]=CurveGeometry.FromLine(new Line3Curve(points[vb],Direction3D.Create(points[vt]-points[vb])));
-                        bottomUses.Add(loop.IsHole ? Use.R(eb) : Use.F(eb)); topUses.Add(loop.IsHole ? Use.F(et) : Use.R(et));
+                        bottomUses.Add(loop.IsHole ? Use.R(eb) : Use.F(eb)); topUses.Add(loop.IsHole ? Use.R(et) : Use.F(et));
                         sideFaces.Add((AddLoop(b,[Use.F(eb),Use.F(es),Use.R(et),Use.R(es)]), SurfaceGeometry.FromCylinder(new CylinderSurface(points[vb],Direction3D.Create(new Vector3D(0,0,1)),circle.Radius,Direction3D.Create(new Vector3D(1,0,0)))), "v2-v4-full-circle-side-face-emitted"));
                         break;
                     }

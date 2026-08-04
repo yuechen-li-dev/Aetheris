@@ -1,0 +1,37 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.Materializer;
+
+namespace Aetheris.Kernel.Firmament.FirmamentV2;
+
+/// <summary>Bounded parser for the first scaffold-referenced profile source route.</summary>
+public static class ProfileAuthoringParser
+{
+    private static readonly Regex Point = new(@"\bPoint2\s+(?<n>\w+)\s*\{\s*Position\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\]", RegexOptions.Singleline);
+    private static readonly Regex Line = new(@"\bLine2\s+(?<n>\w+)\s*\{\s*From\s*:\s*(?<a>\w+)\s*;?\s*To\s*:\s*(?<b>\w+)", RegexOptions.Singleline);
+    private static readonly Regex Circle = new(@"\bCircle2\s+(?<n>\w+)\s*\{\s*Center\s*:\s*(?<c>\w+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\d]+)mm", RegexOptions.Singleline);
+    private static readonly Regex Header = new(@"\bProfile\s+(?<n>\w+)\s+Using\s+(?<layout>\w+)\s*\{(?<body>[\s\S]*)", RegexOptions.CultureInvariant);
+    private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>\w+)\s*;?\s*From\s*:\s*(?<from>\w+)\s*;?\s*To\s*:\s*(?<to>\w+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline);
+    private static readonly Regex Extrude = new(@"\bExtrude\s+\w+\s*\{\s*Profile\s*:\s*(?<p>\w+)\s*;?\s*From\s*:\s*(?<a>[-+.\d]+)mm\s*;?\s*To\s*:\s*(?<b>[-+.\d]+)mm", RegexOptions.Singleline);
+
+    public static bool IsProfileSource(string source) => Header.IsMatch(source);
+    public static (ResolvedProfile2D? Profile, double Height, IReadOnlyList<string> Diagnostics) Parse(string source)
+    {
+        var d=new List<string>(); var h=Header.Match(source); if(!h.Success)return(null,0,["profile-source-missing-profile"]);
+        var pts=new Dictionary<string,(double X,double Y)>(StringComparer.Ordinal);
+        foreach(Match m in Point.Matches(source))pts[m.Groups["n"].Value]=(N(m,"x"),N(m,"y"));
+        var lines=new Dictionary<string,LineArcLineSegment2D>(StringComparer.Ordinal);
+        foreach(Match m in Line.Matches(source)){if(!pts.TryGetValue(m.Groups["a"].Value,out var a)||!pts.TryGetValue(m.Groups["b"].Value,out var b))d.Add($"profile-layout-unresolved-line:{m.Groups["n"].Value}");else lines[m.Groups["n"].Value]=new(a,b);}
+        var circles=new Dictionary<string,((double X,double Y) C,double R)>(StringComparer.Ordinal);
+        foreach(Match m in Circle.Matches(source)){if(!pts.TryGetValue(m.Groups["c"].Value,out var c))d.Add($"profile-layout-unresolved-circle:{m.Groups["n"].Value}");else circles[m.Groups["n"].Value]=(c,N(m,"r"));}
+        var segments=new List<ResolvedProfileSegment2D>();
+        foreach(Match m in Segment.Matches(h.Groups["body"].Value))
+        { var n=m.Groups["n"].Value; if(!pts.TryGetValue(m.Groups["from"].Value,out var a)||!pts.TryGetValue(m.Groups["to"].Value,out var b)){d.Add($"profile-segment-unresolved:{n}");continue;} var trace=m.Groups["trace"].Value; LineArcProfileCurve2D? g=null;
+          if(lines.TryGetValue(trace,out var line)){if(!OnLine(a,line)||!OnLine(b,line))d.Add($"profile-endpoint-not-on-guide:{n}:{trace}"); g=new LineArcLineSegment2D(a,b);}
+          else if(circles.TryGetValue(trace,out var circle)){if(!OnCircle(a,circle)||!OnCircle(b,circle)||!m.Groups["sweep"].Success){d.Add($"profile-arc-invalid:{n}:{trace}");continue;}var sa=Math.Atan2(a.Y-circle.C.Y,a.X-circle.C.X);var sw=Math.Atan2(b.Y-circle.C.Y,b.X-circle.C.X)-sa;var ccw=m.Groups["sweep"].Value=="CounterClockwise";while(ccw&&sw<=0)sw+=2*Math.PI;while(!ccw&&sw>=0)sw-=2*Math.PI;g=new LineArcCircularArc2D(circle.C,circle.R,sa,sw);}
+          else {d.Add($"profile-guide-missing:{n}:{trace}");continue;} segments.Add(new(n,g,new($"profile:{h.Groups["n"].Value}.Outer.{n}",$"concept:{h.Groups["layout"].Value}.{trace}","source",$"Trace({trace})","XY"))); }
+        var e=Extrude.Match(source);var height=e.Success?Math.Abs(N(e,"b")-N(e,"a")):0;if(!e.Success||e.Groups["p"].Value!=h.Groups["n"].Value)d.Add("profile-extrude-missing-or-mismatched");
+        return d.Count>0?(null,height,d):(new ResolvedProfile2D(h.Groups["n"].Value,"XY",[new ResolvedProfileLoop2D("Outer",true,segments)]),height,d);
+    }
+    private static double N(Match m,string n)=>double.Parse(m.Groups[n].Value,CultureInfo.InvariantCulture); private static bool OnLine((double X,double Y)p,LineArcLineSegment2D l)=>Math.Abs((l.End.X-l.Start.X)*(p.Y-l.Start.Y)-(l.End.Y-l.Start.Y)*(p.X-l.Start.X))<1e-7; private static bool OnCircle((double X,double Y)p,((double X,double Y)C,double R)c)=>Math.Abs(Math.Sqrt((p.X-c.C.X)*(p.X-c.C.X)+(p.Y-c.C.Y)*(p.Y-c.C.Y))-c.R)<1e-7;
+}

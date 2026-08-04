@@ -29,6 +29,16 @@ Introduces internal `LineArcProfileExtrudeEmitter` as a production-adjacent emit
 - `BREP_WITH_VOIDS` is not used in covered cases.
 - Diagnostic includes explicit `v2-v4-no-3d-boolean-used`.
 
+### Topology stitching repair
+
+The emitter now reuses the top and bottom vertex pair and vertical edge at every
+coincident resolved profile endpoint. A four-segment rectangle therefore has
+eight cap vertices and twelve edges, rather than independent vertices for each
+curve occurrence. This is a necessary prerequisite for a future authoritative
+named-profile route: adjacency is represented by topology, not merely by equal
+coordinates. It does not itself add parser syntax, Profile IR provenance, or a
+production route claim.
+
 ## Invalid/deferred behavior
 Current implementation rejects invalid height, unsupported topology (not exactly one outer), and basic invalid curve dimensions before emission.
 

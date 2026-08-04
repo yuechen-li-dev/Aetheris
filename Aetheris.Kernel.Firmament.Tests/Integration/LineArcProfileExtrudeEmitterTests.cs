@@ -34,6 +34,18 @@ public class LineArcProfileExtrudeEmitterTests
         Assert.Contains(result.Diagnostics, x => x.Contains("invalid height", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void StitchesAdjacentProfileSegmentsIntoSharedTopology()
+    {
+        var result = LineArcProfileExtrudeEmitter.TryEmit(new LineArcProfileExtrudeRequest([RectOuter(20, 10)], 5));
+        var body = Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(result.Body);
+
+        // Four profile vertices at each cap, and one vertical edge at each profile vertex.
+        // The former emitter allocated an independent vertex pair for each segment.
+        Assert.Equal(8, body.Topology.Vertices.Count());
+        Assert.Equal(12, body.Topology.Edges.Count());
+    }
+
     public static IEnumerable<object[]> ValidCases()
     {
         yield return ["rectangle", new LineArcProfileExtrudeRequest([RectOuter(20, 10)], 5), 6, 0];

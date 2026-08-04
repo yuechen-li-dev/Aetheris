@@ -1,0 +1,25 @@
+model LightweightBracket {
+  units mm
+
+  template<Additive> PolymerPrototype {
+    concept MinimumWallThickness: 1.2mm
+    concept MinimumStrutDiameter: 1.0mm
+    concept MinimumBondDiameter: 1.2mm
+    concept MinimumHoleDiameter: 2.0mm
+  }
+
+  solid Body: Box { size: [80, 50, 20] }
+  modify Body {
+    hole<Shaft> MountHole { on: face(+Z) center: [0, 0] diameter: 12 end: throughAll }
+  }
+
+  region LightweightCore {
+    box { size: [24mm, 24mm, 16mm] center: [22mm, 0mm, 0mm] }
+  }
+
+  fill LightweightCore {
+    host: Body
+    pattern: OctetTruss { cellSize: 8mm strutRadius: 0.8mm }
+    boundaryPolicy: Bond
+  }
+}

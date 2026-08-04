@@ -57,6 +57,18 @@ public static class FirmamentBuildAndExport
                 return KernelResult<FirmamentStepExportResult>.Failure(dfm.Diagnostics);
             }
 
+            // Do not let the existing semantic-hole route silently export the unmodified host.
+            // M9 has an explicit AIR/graph contract, but the authoritative single-body merge
+            // (retained box-with-void plus analytic struts/nodes/bonds) is not yet materialized.
+            if (v2Parse.Document.LatticeFills is { Count: > 0 })
+            {
+                return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented,
+                    Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                    "lattice-fill-brep-plan-not-materialized: M9 parsed and DFM-validated the explicit FillRegion, but the current BRep backend cannot emit the required single authoritative body combining an internal box cavity, a preserved through-hole, and bonded analytic lattice members. No STEP artifact was emitted.",
+                    "FirmamentV2.LatticeFill")]);
+            }
+
             if (TryExportV2AirChamferBody(v2Parse.Document) is { } airChamferExport)
             {
                 return airChamferExport;

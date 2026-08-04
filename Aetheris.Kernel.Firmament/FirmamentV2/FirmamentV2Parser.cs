@@ -39,6 +39,14 @@ public static class FirmamentV2Parser
     public const string DfmConceptUnitMismatch = "firmament-v2-dfm-concept-unit-mismatch";
     public const string DfmMinimumToolRadiusViolation = "firmament-v2-dfm-minimum-tool-radius-violation";
     public const string Phase3EdgeFinishSyntaxInvalid = "firmament-v2-phase3-edge-finish-syntax-invalid";
+    public const string FillRegionInvalid = "firmament-v2-fill-region-invalid";
+    public const string FillUnknownRegion = "firmament-v2-fill-unknown-region";
+    public const string FillUnknownHost = "firmament-v2-fill-unknown-host";
+    public const string FillUnsupportedPattern = "firmament-v2-fill-unsupported-pattern";
+    public const string FillInvalidCellSize = "firmament-v2-fill-invalid-cell-size";
+    public const string FillInvalidStrutRadius = "firmament-v2-fill-invalid-strut-radius";
+    public const string FillUnsupportedBoundaryPolicy = "firmament-v2-fill-unsupported-boundary-policy";
+    public const string FillMultipleUnsupported = "firmament-v2-fill-multiple-unsupported";
 
     public const string ConceptUnknownFamily = "firmament-v2-concept-unknown-family";
     public const string ConceptUnknownConcept = "firmament-v2-concept-unknown-concept";
@@ -211,6 +219,8 @@ public static class FirmamentV2Parser
     private static readonly Regex TemplateHeaderRegex = new(@"\btemplate\s*<\s*(?<process>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex ConceptRegex = new(@"\bconcept\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>[-+0-9.eE]+)\s*(?<unit>[A-Za-z_][A-Za-z0-9_]*)?", RegexOptions.CultureInvariant);
     private static readonly Regex PathRegex = new("\\bpath\\s*:\\s*\"(?<path>[^\"]+)\"", RegexOptions.CultureInvariant);
+    private static readonly Regex FillRegionHeaderRegex = new(@"\bregion\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex FillHeaderRegex = new(@"\bfill\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
 
     public static FirmamentV2ParseResult Parse(string sourceText) => Parse(sourceText, null, null);
 
@@ -285,14 +295,15 @@ public static class FirmamentV2Parser
 
         var modifyBlocks = ParseModifyBlocks(source, byName, diagnostics);
         var templates = ParseTemplates(source, diagnostics);
+        var latticeFills = ParseLatticeFills(source, byName, diagnostics);
         var recognizedRegions = ParseRecognizedRegions(source, byName, diagnostics);
         var replacements = ParseReplacements(source, byName, recognizedRegions, diagnostics);
         var (pmi, pmiBlock, boundPmi) = ParsePmi(source, byName, modifyBlocks, recognizedRegions, boundLets, boundLetRecords, diagnostics);
         var (manufacturingConcepts, featureConcepts) = ParseConceptApplications(source, boundLets, boundLetRecords, conceptCatalog, diagnostics);
 
         FirmamentV2Document? document = null;
-        if (modelMatch.Success && unitsMatch.Success && solids.Count > 0)
-            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks, templates, pmi, recognizedRegions, replacements, lets, boundLets, letRecords, boundLetRecords, manufacturingConcepts, featureConcepts, pmiBlock, boundPmi);
+        if (modelMatch.Success && unitsMatch.Success && solids.Count > 0 && !diagnostics.Any(d => d.StartsWith("firmament-v2-fill-", StringComparison.Ordinal)))
+            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks, templates, pmi, recognizedRegions, replacements, lets, boundLets, letRecords, boundLetRecords, manufacturingConcepts, featureConcepts, pmiBlock, boundPmi, null, latticeFills);
 
         var hasFatalDiagnostics = diagnostics.Any(IsFatalDiagnosticCode);
         diagnostics.Add(document is null || hasFatalDiagnostics ? "firmament-v2-parse-failed" : "firmament-v2-parse-succeeded");
@@ -1267,6 +1278,79 @@ public static class FirmamentV2Parser
         return templates;
     }
 
+    // M9's region and fill declarations are top-level authority declarations. They do not reuse
+    // Modify/Region, whose existing meaning is a face-attached side-hole construction island.
+    private static IReadOnlyList<FirmamentV2LatticeFillDecl> ParseLatticeFills(string source, Dictionary<string, FirmamentV2SolidBinding> solids, List<string> diagnostics)
+    {
+        var regions = new Dictionary<string, FirmamentV2FillRegionDecl>(StringComparer.Ordinal);
+        foreach (Match match in FillRegionHeaderRegex.Matches(source))
+        {
+            var open = source.IndexOf('{', match.Index);
+            var close = FindMatchingBrace(source, open);
+            if (close < 0) { diagnostics.Add(FillRegionInvalid); continue; }
+            var body = source[(open + 1)..close];
+            // Do not interpret the legacy `region X on face(...)` syntax as a FillRegion.
+            if (Regex.IsMatch(source.Substring(match.Index, open - match.Index), @"\bon\s+", RegexOptions.CultureInvariant)) continue;
+            var box = Regex.Match(body, @"\bbox\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            // Recognition regions also use the word `region`; without an explicit Box they are
+            // unrelated metadata and must not be reinterpreted as a material-authority boundary.
+            if (!box.Success) continue;
+            var boxOpen = body.IndexOf('{', box.Index);
+            var boxClose = FindMatchingBrace(body, boxOpen);
+            if (boxClose < 0) { diagnostics.Add(FillRegionInvalid); continue; }
+            var boxBody = body[(boxOpen + 1)..boxClose];
+            var size = Regex.Match(boxBody, @"\bsize\s*:\s*\[(?<v>[^\]]+)\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            var center = Regex.Match(boxBody, @"\bcenter\s*:\s*\[(?<v>[^\]]+)\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            if (!size.Success || !center.Success || !TryParseLatticeTriple(size.Groups["v"].Value, positive: true, out var sizeValues) || !TryParseLatticeTriple(center.Groups["v"].Value, positive: false, out var centerValues)) { diagnostics.Add(FillRegionInvalid); continue; }
+            if (!regions.TryAdd(match.Groups["name"].Value, new(match.Groups["name"].Value, sizeValues, centerValues, new(match.Index, close - match.Index + 1)))) diagnostics.Add(FillRegionInvalid);
+        }
+
+        var fills = new List<FirmamentV2LatticeFillDecl>();
+        foreach (Match match in FillHeaderRegex.Matches(source))
+        {
+            var open = source.IndexOf('{', match.Index);
+            var close = FindMatchingBrace(source, open);
+            if (close < 0) { diagnostics.Add(FillRegionInvalid); continue; }
+            var body = source[(open + 1)..close];
+            if (!regions.TryGetValue(match.Groups["name"].Value, out var region)) { diagnostics.Add(FillUnknownRegion); continue; }
+            var host = Regex.Match(body, @"\bhost\s*:\s*(?<v>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            if (!host.Success || !solids.ContainsKey(host.Groups["v"].Value)) { diagnostics.Add(FillUnknownHost); continue; }
+            var pattern = Regex.Match(body, @"\bpattern\s*:\s*(?<v>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            if (!pattern.Success || !string.Equals(pattern.Groups["v"].Value, "OctetTruss", StringComparison.OrdinalIgnoreCase)) { diagnostics.Add(FillUnsupportedPattern); continue; }
+            var patternOpen = body.IndexOf('{', pattern.Index);
+            var patternClose = FindMatchingBrace(body, patternOpen);
+            var patternBody = patternClose < 0 ? string.Empty : body[(patternOpen + 1)..patternClose];
+            if (!TryReadLatticePositive(patternBody, "cellSize", out var cellSize)) { diagnostics.Add(FillInvalidCellSize); continue; }
+            if (!TryReadLatticePositive(patternBody, "strutRadius", out var strutRadius)) { diagnostics.Add(FillInvalidStrutRadius); continue; }
+            var policy = Regex.Match(body, @"\bboundaryPolicy\s*:\s*(?<v>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            if (!policy.Success || !string.Equals(policy.Groups["v"].Value, "Bond", StringComparison.OrdinalIgnoreCase)) { diagnostics.Add(FillUnsupportedBoundaryPolicy); continue; }
+            fills.Add(new(match.Groups["name"].Value, host.Groups["v"].Value, region, "OctetTruss", cellSize, strutRadius, "Bond", new(match.Index, close - match.Index + 1)));
+        }
+        if (fills.Count > 1) diagnostics.Add(FillMultipleUnsupported);
+        return fills;
+    }
+
+    private static bool TryReadLatticePositive(string body, string name, out double value)
+    {
+        value = 0d;
+        var match = Regex.Match(body, $@"\b{name}\s*:\s*(?<v>[-+0-9.eE]+)\s*(?:mm)?", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+        return match.Success && double.TryParse(match.Groups["v"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value) && value > 0d;
+    }
+
+    private static bool TryParseLatticeTriple(string text, bool positive, out IReadOnlyList<double> values)
+    {
+        var parts = text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var parsed = new List<double>(3);
+        foreach (var part in parts)
+        {
+            var raw = part.EndsWith("mm", StringComparison.OrdinalIgnoreCase) ? part[..^2] : part;
+            if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !double.IsFinite(value) || (positive && value <= 0d)) { values = []; return false; }
+            parsed.Add(value);
+        }
+        values = parsed;
+        return parsed.Count == 3;
+    }
+
 
     private static IReadOnlyList<FirmamentV2RecognizedRegion> ParseRecognizedRegions(string source, Dictionary<string, FirmamentV2SolidBinding> solids, List<string> diagnostics)
     {
@@ -1620,7 +1704,7 @@ public static class FirmamentV2Parser
     }
 
     private static bool ContainsUnsupportedConstruct(string source) =>
-        Regex.IsMatch(source, @"\b(PMI|where|add|shell|fillet|chamfer|regions|profile|pattern)\b|<\s*Process\s*>", RegexOptions.CultureInvariant);
+        Regex.IsMatch(source, @"\b(PMI|where|add|shell|fillet|chamfer|regions|profile)\b|<\s*Process\s*>", RegexOptions.CultureInvariant);
 
     private static bool ContainsRawBackendId(string source) =>
         Regex.IsMatch(source, @"\b(brep|backend|coedge)\s*\.|STEP\s*#", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);

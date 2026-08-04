@@ -1,0 +1,7 @@
+// fixture-id: chamfer-m6-adjacent-edge-junction
+// semantic-target: two adjacent convex box edges meeting at one vertex
+// attempted-witness: two bounded planar replacement strips sharing a corner
+// expected-error-kind: CornerPolicyRequired
+// expected-error: chamfer-corner-policy-required:multiple-valid-corner-patches
+// ambiguity: miter, setback, or explicit three-face corner patch are all geometrically valid
+// recommended-construction: SupportSurfaceDependencyGraph plus explicit CornerPatch policy

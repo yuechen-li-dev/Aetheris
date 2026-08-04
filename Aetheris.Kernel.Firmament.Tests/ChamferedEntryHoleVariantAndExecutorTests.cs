@@ -62,6 +62,15 @@ public sealed class ChamferedEntryHoleVariantAndExecutorTests
         var result = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
         Assert.NotNull(result.Body);
+        AssertAllFaceLoopsAreTopologicallyClosed(result.Body!);
+        var inwardFaces = result.Body!.Bindings.FaceBindings
+            .Where(binding => result.Body.Geometry.GetSurface(binding.SurfaceGeometryId).Kind is
+                Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone or
+                Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder)
+            .ToArray();
+        Assert.Equal(2, inwardFaces.Length);
+        Assert.All(inwardFaces, binding => Assert.False(binding.SameSense));
+        AssertConeBoundaryVerticesLieOnSupport(result.Body!);
         Assert.Contains(result.Diagnostics, d => d.Contains("cylinder subtract invoked", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Diagnostics, d => d.Contains("chamfer cone subtract invoked", StringComparison.OrdinalIgnoreCase));
     }
@@ -151,4 +160,49 @@ public sealed class ChamferedEntryHoleVariantAndExecutorTests
         => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(2.8d, 2d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -4.5d))));
     private static CirNode BuildCountersinkBottom()
         => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(4d, 2d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -3d))));
+
+    private static void AssertAllFaceLoopsAreTopologicallyClosed(Aetheris.Kernel.Core.Brep.BrepBody body)
+    {
+        foreach (var loop in body.Topology.Loops)
+        {
+            var coedges = loop.CoedgeIds.Select(body.Topology.GetCoedge).ToArray();
+            for (var i = 0; i < coedges.Length; i++)
+            {
+                var current = coedges[i];
+                var next = coedges[(i + 1) % coedges.Length];
+                var currentEdge = body.Topology.GetEdge(current.EdgeId);
+                var nextEdge = body.Topology.GetEdge(next.EdgeId);
+                var currentEnd = current.IsReversed ? currentEdge.StartVertexId : currentEdge.EndVertexId;
+                var nextStart = next.IsReversed ? nextEdge.EndVertexId : nextEdge.StartVertexId;
+                Assert.True(currentEnd == nextStart,
+                    $"Loop {loop.Id.Value} is disconnected between coedges {current.Id.Value} and {next.Id.Value}: " +
+                    $"vertex {currentEnd.Value} != {nextStart.Value}.");
+            }
+        }
+    }
+
+    private static void AssertConeBoundaryVerticesLieOnSupport(Aetheris.Kernel.Core.Brep.BrepBody body)
+    {
+        var binding = Assert.Single(body.Bindings.FaceBindings, candidate =>
+            body.Geometry.GetSurface(candidate.SurfaceGeometryId).Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cone);
+        var cone = body.Geometry.GetSurface(binding.SurfaceGeometryId).Cone!.Value;
+        var face = body.Topology.GetFace(binding.FaceId);
+        foreach (var vertexId in face.LoopIds
+                     .Select(body.Topology.GetLoop)
+                     .SelectMany(loop => loop.CoedgeIds)
+                     .Select(body.Topology.GetCoedge)
+                     .SelectMany(coedge =>
+                     {
+                         var edge = body.Topology.GetEdge(coedge.EdgeId);
+                         return new[] { edge.StartVertexId, edge.EndVertexId };
+                     })
+                     .Distinct())
+        {
+            Assert.True(body.TryGetVertexPoint(vertexId, out var point));
+            var fromApex = point - cone.Apex;
+            var axial = fromApex.Dot(cone.Axis.ToVector());
+            var radialSquared = Math.Max(0d, fromApex.Dot(fromApex) - axial * axial);
+            Assert.Equal(axial * Math.Tan(cone.SemiAngleRadians), Math.Sqrt(radialSquared), 9);
+        }
+    }
 }

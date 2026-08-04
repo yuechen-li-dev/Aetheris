@@ -64,7 +64,8 @@ public static class BrepExtrude
         var faces = new List<FaceId>(n + 2)
         {
             AddFaceWithLoop(builder, bottomEdges.Select(EdgeUse.Forward).ToArray()),
-            AddFaceWithLoop(builder, topEdges.Select(EdgeUse.Reversed).ToArray()),
+            // Reversing a boundary reverses both each coedge sense and its cyclic order.
+            AddFaceWithLoop(builder, topEdges.Reverse().Select(EdgeUse.Reversed).ToArray()),
         };
 
         for (var i = 0; i < n; i++)

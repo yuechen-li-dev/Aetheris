@@ -1,0 +1,7 @@
+// fixture-id: chamfer-m6-rectangular-pocket-inner-rim
+// semantic-target: complete concave inner loop at a rectangular pocket entry
+// attempted-witness: host outer section + pocket opening inner loop + inset/lowered inner transition loop
+// expected-error-kind: MissingConstructionWitness
+// expected-error: chamfer-missing-construction-witness:section-transition-does-not-support-holes
+// missing-capability: BRepPlan loops-with-holes and retained/replacement region ownership
+// recommended-construction: RegionSectionTransition with explicit outer/inner loop correspondence

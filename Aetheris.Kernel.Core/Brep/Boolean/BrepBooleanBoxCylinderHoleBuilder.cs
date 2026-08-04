@@ -955,16 +955,16 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         var entryVertex = builder.AddVertex();
         var transitionVertex = builder.AddVertex();
         var deepEndVertex = builder.AddVertex();
-        var coneSeamStartVertex = builder.AddVertex();
-        var coneSeamEndVertex = builder.AddVertex();
-        var cylinderSeamStartVertex = builder.AddVertex();
-        var cylinderSeamEndVertex = builder.AddVertex();
 
         var entryCircle = builder.AddEdge(entryVertex, entryVertex);
         var transitionCircle = builder.AddEdge(transitionVertex, transitionVertex);
         var deepEndCircle = builder.AddEdge(deepEndVertex, deepEndVertex);
-        var coneSeam = builder.AddEdge(coneSeamStartVertex, coneSeamEndVertex);
-        var cylinderSeam = builder.AddEdge(cylinderSeamStartVertex, cylinderSeamEndVertex);
+        // A periodic face seam must meet the circular boundary at the same topological
+        // vertex, not merely at a second vertex with coincident coordinates.  Separate
+        // seam vertices produce disconnected EDGE_LOOP wires in STEP even though simple
+        // edge-incidence checks still describe a closed shell.
+        var coneSeam = builder.AddEdge(entryVertex, transitionVertex);
+        var cylinderSeam = builder.AddEdge(transitionVertex, deepEndVertex);
 
         var bottomOuterLoop = AddLoop(builder, [Forward(e1), Forward(e2), Forward(e3), Forward(e4)]);
         var topOuterLoop = AddLoop(builder, [Forward(e5), Forward(e6), Forward(e7), Forward(e8)]);
@@ -996,10 +996,10 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         var yMinFace = builder.AddFace([AddLoop(builder, [Forward(e4), Forward(e9), Reversed(e8), Reversed(e12)])]);
 
         var countersinkConeFace = builder.AddFace([
-            AddLoop(builder, [Forward(coneSeam), Reversed(entryCircle), Reversed(coneSeam), Forward(transitionCircle)])
+            AddLoop(builder, [Forward(coneSeam), Forward(transitionCircle), Reversed(coneSeam), Reversed(entryCircle)])
         ]);
         var continuationCylinderFace = builder.AddFace([
-            AddLoop(builder, [Forward(cylinderSeam), Reversed(transitionCircle), Reversed(cylinderSeam), Forward(deepEndCircle)])
+            AddLoop(builder, [Forward(cylinderSeam), Forward(deepEndCircle), Reversed(cylinderSeam), Reversed(transitionCircle)])
         ]);
 
         FaceId? deepBottomFace = null;
@@ -1098,11 +1098,17 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         geometry.AddSurface(new SurfaceGeometryId(5), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0d, box.MaxY, 0d), Direction3D.Create(new Vector3D(0d, 1d, 0d)), Direction3D.Create(new Vector3D(-1d, 0d, 0d)))));
         geometry.AddSurface(new SurfaceGeometryId(6), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(box.MinX, 0d, 0d), Direction3D.Create(new Vector3D(-1d, 0d, 0d)), yAxis)));
 
-        var cone = countersinkProfile.EntryCone.Surface.Cone!.Value;
-        var coneOriginParameter = System.Math.Min(cone.MinAxisParameter, cone.MaxAxisParameter);
-        var coneOrigin = cone.PointAtAxisParameter(coneOriginParameter);
-        var coneRadius = cone.RadiusAtAxisParameter(coneOriginParameter);
-        geometry.AddSurface(new SurfaceGeometryId(7), SurfaceGeometry.FromCone(new ConeSurface(coneOrigin, cone.Axis, coneRadius, cone.SemiAngleRadians, countersinkProfile.EntryCone.ReferenceAxis)));
+        // Construct the support cone directly from the admitted entry profile.  The
+        // recognized subtract cone may carry an axis convention chosen for boolean
+        // classification; reusing that convention here previously placed the STEP
+        // cone at radius 3 on z=6 while its trim edge was at radius 4.
+        var coneAxis = countersinkProfile.EntryFromTop ? zAxis : Direction3D.Create(new Vector3D(0d, 0d, -1d));
+        geometry.AddSurface(new SurfaceGeometryId(7), SurfaceGeometry.FromCone(new ConeSurface(
+            transitionCenter,
+            coneAxis,
+            countersinkProfile.ContinuationRadius,
+            countersinkProfile.EntryCone.Surface.Cone!.Value.SemiAngleRadians,
+            countersinkProfile.EntryCone.ReferenceAxis)));
         geometry.AddSurface(new SurfaceGeometryId(8), SurfaceGeometry.FromCylinder(new CylinderSurface(deepEndCenter, zAxis, countersinkProfile.ContinuationRadius, xAxis)));
         if (deepBottomFace is not null)
         {
@@ -1127,8 +1133,11 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         bindings.AddFaceBinding(new FaceGeometryBinding(xMaxFace, new SurfaceGeometryId(4)));
         bindings.AddFaceBinding(new FaceGeometryBinding(yMaxFace, new SurfaceGeometryId(5)));
         bindings.AddFaceBinding(new FaceGeometryBinding(yMinFace, new SurfaceGeometryId(6)));
-        bindings.AddFaceBinding(new FaceGeometryBinding(countersinkConeFace, new SurfaceGeometryId(7)));
-        bindings.AddFaceBinding(new FaceGeometryBinding(continuationCylinderFace, new SurfaceGeometryId(8)));
+        // The analytic cone/cylinder normals point radially away from the hole axis.
+        // For an internal void the solid's outward normal points toward the axis, so
+        // these faces must reverse the support-surface sense in STEP.
+        bindings.AddFaceBinding(new FaceGeometryBinding(countersinkConeFace, new SurfaceGeometryId(7), SameSense: false));
+        bindings.AddFaceBinding(new FaceGeometryBinding(continuationCylinderFace, new SurfaceGeometryId(8), SameSense: false));
         if (deepBottomFace is FaceId deepBottomBinding)
         {
             bindings.AddFaceBinding(new FaceGeometryBinding(deepBottomBinding, new SurfaceGeometryId(9)));
@@ -1147,10 +1156,6 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             [entryVertex] = coneSeamStart,
             [transitionVertex] = coneSeamEnd,
             [deepEndVertex] = cylinderSeamEnd,
-            [coneSeamStartVertex] = coneSeamStart,
-            [coneSeamEndVertex] = coneSeamEnd,
-            [cylinderSeamStartVertex] = cylinderSeamStart,
-            [cylinderSeamEndVertex] = cylinderSeamEnd,
         };
 
         var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints, composition);

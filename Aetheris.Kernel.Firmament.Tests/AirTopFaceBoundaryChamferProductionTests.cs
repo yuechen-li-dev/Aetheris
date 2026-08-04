@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Air;
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Prismatic;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -46,6 +47,7 @@ public sealed class AirTopFaceBoundaryChamferProductionTests
         Assert.Equal(20, result.Body.Topology.Edges.Count());
         Assert.Equal(10, result.Body.Topology.Faces.Count());
         Assert.Contains("edge-prismatic-v1-authoritative-topology-plan-consumed", result.Diagnostics);
+        Assert.True(BrepExportPreflight.Validate(result.Body!).IsValid);
 
         var top = result.BRepPlan.RealizationPlan.Vertices.Where(v => v.SectionIndex == 2).Select(v => v.Point).ToArray();
         Assert.Equal((-width / 2d) + distance, top.Min(p => p.X), 9);

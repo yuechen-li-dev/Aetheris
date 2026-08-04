@@ -62,7 +62,8 @@ internal static class PrismaticSectionTransitionTopologyPlanner
         var faces = new List<PrismaticPlannedFace>
         {
             new("f:cap:bottom", PrismaticPlannedFaceKind.BottomCap, Enumerable.Range(0, n).Select(i => new PrismaticPlannedEdgeUse(sectionEdges[0, i], false)).ToArray(), null, null),
-            new("f:cap:top", PrismaticPlannedFaceKind.TopCap, Enumerable.Range(0, n).Select(i => new PrismaticPlannedEdgeUse(sectionEdges[sections.Count - 1, i], true)).ToArray(), null, null),
+            // Reversing an oriented loop requires reversing its coedge order too.
+            new("f:cap:top", PrismaticPlannedFaceKind.TopCap, Enumerable.Range(0, n).Reverse().Select(i => new PrismaticPlannedEdgeUse(sectionEdges[sections.Count - 1, i], true)).ToArray(), null, null),
         };
         for (var s = 0; s < sections.Count - 1; s++)
         for (var i = 0; i < n; i++)

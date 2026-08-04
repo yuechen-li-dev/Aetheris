@@ -136,6 +136,21 @@ public static class FirmamentBuildAndExport
                 "FirmamentV2.InlineStep")).ToArray());
         }
 
+        var fatalV2Diagnostics = v2Parse.Diagnostics.Where(FirmamentV2Parser.IsFatalDiagnosticCode).Distinct(StringComparer.Ordinal).ToArray();
+        var trimmedSource = sourceText.TrimStart();
+        var isV2ModelSource = trimmedSource.StartsWith("model ", StringComparison.Ordinal)
+            || trimmedSource.StartsWith("Model ", StringComparison.Ordinal)
+            || sourceText.Contains("\nmodel ", StringComparison.Ordinal)
+            || sourceText.Contains("\nModel ", StringComparison.Ordinal);
+        if (isV2ModelSource && fatalV2Diagnostics.Length > 0)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(fatalV2Diagnostics.Select(code => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+                Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                code,
+                "FirmamentV2.Parse")).ToArray());
+        }
+
         return FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
     }
 
@@ -143,14 +158,29 @@ public static class FirmamentBuildAndExport
     {
         var finishes = (document.ModifyBlocks ?? []).SelectMany(m => (m.EdgeFinishes ?? []).Select(f => (Modify: m, Finish: f))).ToArray();
         if (finishes.Length == 0) return null;
+        if (finishes.Length == 2 && finishes.All(x => string.Equals(x.Finish.Kind, "Fillet", StringComparison.Ordinal)))
+            return AirChamferFailure("localized-fillet-construction-witness-required:two-edge-junction");
+        if (finishes.Length == 2 && finishes.All(x => string.Equals(x.Finish.Kind, "Chamfer", StringComparison.Ordinal)))
+            return AirChamferFailure("localized-chamfer-construction-witness-required:two-edge-junction");
         if (finishes.Length != 1 || document.Solids.Count != 1 || document.ModifyBlocks!.Count != 1
             || document.ModifyBlocks[0].Regions.Count != 0 || document.ModifyBlocks[0].SemanticHoles.Count != 0)
             return AirChamferFailure("air-chamfer-production-route-requires-one-box-and-one-edge-finish");
 
         var (modify, finish) = finishes[0];
         var solid = document.Solids.SingleOrDefault(s => s.Name == modify.TargetSolid);
+        if (solid?.Primitive is FirmamentV2CylinderRecord cylinder)
+            return ExportV2CircularRimChamfer(document, solid, finish, cylinder);
         if (solid?.Primitive is not FirmamentV2BoxRecord box || box.Size.Count != 3)
-            return AirChamferFailure("air-chamfer-history-known-rectangular-prism-required");
+            return AirChamferFailure("chamfer-unsupported-history:expected-history-known-box-or-right-circular-cylinder");
+
+        // AIR-FILLET-LOCALIZED-M1: semantic support-face selection only; emitted BRep IDs never enter Firmament.
+        if (string.Equals(finish.Kind, "Fillet", StringComparison.Ordinal))
+            return ExportV2LocalizedTangentBlendSingleEdgeFillet(document, solid, finish, box);
+
+        // AIR-CHAMFER-LOCALIZED-PLAN-A1: a semantic face-pair selector, never an emitted edge id.
+        if (string.Equals(finish.FaceAxis, "+X", StringComparison.Ordinal)
+            && string.Equals(finish.Target, "SharedEdgePlusZ", StringComparison.Ordinal))
+            return ExportV2LocalizedPlanarSingleEdgeChamfer(document, solid, finish, box);
 
         var compiled = AirTopFaceBoundaryChamferCompiler.Compile(new(
             solid.Name,
@@ -169,6 +199,8 @@ public static class FirmamentBuildAndExport
         {
             ProductName = compiled.Feature.FeatureName,
             ApplicationName = AirTopFaceBoundaryChamferCompileResult.ProductionRoute,
+            BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+            BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
         });
         if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
 
@@ -198,6 +230,161 @@ public static class FirmamentBuildAndExport
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
             step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "top-face-boundary-chamfer", Air: report, ConceptIr: document.ConceptIr));
     }
+
+    private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedPlanarSingleEdgeChamfer(
+        FirmamentV2Document document,
+        FirmamentV2SolidBinding solid,
+        FirmamentV2EdgeFinishDecl finish,
+        FirmamentV2BoxRecord box)
+    {
+        var compiled = AirLocalizedPlanarReplacementChamferCompiler.Compile(new(
+            solid.Name, $"{solid.Name}.{finish.Name}", finish.Name, box.Size[0], box.Size[1], box.Size[2],
+            finish.FaceAxis, "+Z", finish.Kind, finish.Distance,
+            new AirSourceSpan(finish.SourceSpan.Start, finish.SourceSpan.Length, document.ModelName)));
+        if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.LocalizedPlanarReplacementRealizationPlan is null)
+            return AirChamferFailure(compiled.Error?.Code ?? compiled.Feature.AdmissionReason, compiled.Diagnostics);
+
+        var body = compiled.Body;
+        var preflight = BrepExportPreflight.Validate(body);
+        if (!preflight.IsValid) return AirChamferFailure("localized-chamfer-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
+        if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-chamfer-emitted-body-is-not-manifold");
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        {
+            ProductName = compiled.Feature.FeatureName,
+            ApplicationName = AirLocalizedPlanarReplacementChamferCompileResult.ProductionRoute,
+            BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+            BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+        });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value))
+            return AirChamferFailure("localized-chamfer-step-reimport-verification-failed");
+
+        var plan = compiled.Construction.TopologyPlan;
+        var witness = compiled.Construction.Witness;
+        var planes = body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Plane);
+        var report = new FirmamentAirChamferReport(
+            new("Chamfer", compiled.Feature.BodyId, compiled.Feature.FeatureId, compiled.Feature.FeatureName, "SharedEdge(+X,+Z)", finish.Distance, "mm",
+                $"{compiled.Feature.SourceSpan.Start}:{compiled.Feature.SourceSpan.Length}", compiled.Feature.Admission.ToString(), compiled.Feature.AdmissionReason,
+                new Dictionary<string, string> { ["Selection"] = "semantic Face(+X),Face(+Z)", ["MaterialSide"] = witness.MaterialSide }),
+            new("LocalizedPlanarReplacement", 0, [], "ordered-explicit-loops", "ExplicitOwnedEndpoints",
+                $"retainedFaces=2;replacementFaces=1;endpointPolicy={witness.EndpointPolicy}", true),
+            new(true, plan.ExpectedVertexCount, plan.ExpectedEdgeCount, plan.ExpectedFaceCount, plan.ExpectedLoopCount, plan.ExpectedCoedgeCount, 1,
+                "ExplicitOwnedEndpoints", plan.DeterministicSignature, "LocalizedPlanarReplacement"),
+            new(AirLocalizedPlanarReplacementChamferCompileResult.ProductionRoute, false, true, body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(), Bounds(body), finish.Distance, finish.Distance, 0, 0, planes),
+            new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), Bounds(reimport.Value), true),
+            new("SharedEdge(+X,+Z)", "LocalizedPlanarReplacement", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "localized-planar-single-edge-chamfer", Air: report, ConceptIr: document.ConceptIr));
+    }
+
+    private static KernelResult<FirmamentStepExportResult> ExportV2LocalizedTangentBlendSingleEdgeFillet(
+        FirmamentV2Document document,
+        FirmamentV2SolidBinding solid,
+        FirmamentV2EdgeFinishDecl finish,
+        FirmamentV2BoxRecord box)
+    {
+        var compiled = AirLocalizedTangentBlendFilletCompiler.Compile(new(
+            solid.Name, $"{solid.Name}.{finish.Name}", finish.Name, box.Size[0], box.Size[1], box.Size[2],
+            finish.FaceAxis, finish.Target switch { "SharedEdgePlusZ" => "+Z", "SharedEdgePlusY" => "+Y", _ => finish.Target }, finish.Kind, finish.Distance,
+            new AirSourceSpan(finish.SourceSpan.Start, finish.SourceSpan.Length, document.ModelName)));
+        if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.LocalizedTangentBlendRealizationPlan is null)
+            return AirChamferFailure(compiled.Error?.Code ?? compiled.Feature.AdmissionReason, compiled.Diagnostics);
+
+        var body = compiled.Body;
+        var preflight = BrepExportPreflight.Validate(body);
+        if (!preflight.IsValid) return AirChamferFailure("localized-fillet-preflight-verification-failed", preflight.Diagnostics.Select(d => d.Code));
+        if (!FirmamentManifoldChecker.IsManifold(body)) return AirChamferFailure("localized-fillet-emitted-body-is-not-manifold");
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions
+        {
+            ProductName = compiled.Feature.FeatureName,
+            ApplicationName = AirLocalizedTangentBlendFilletCompileResult.ProductionRoute,
+            BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+            BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+        });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value))
+            return AirChamferFailure("localized-fillet-step-reimport-verification-failed");
+
+        var plan = compiled.Construction.TopologyPlan;
+        var witness = compiled.Construction.Witness;
+        var cylinders = body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder);
+        var planes = body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Plane);
+        var report = new FirmamentAirChamferReport(
+            new("Fillet", compiled.Feature.BodyId, compiled.Feature.FeatureId, compiled.Feature.FeatureName, "SharedEdge(+X,+Z)", finish.Distance, "mm",
+                $"{compiled.Feature.SourceSpan.Start}:{compiled.Feature.SourceSpan.Length}", compiled.Feature.Admission.ToString(), compiled.Feature.AdmissionReason,
+                new Dictionary<string, string> { ["Selection"] = "semantic Face(+X),Face(+Z)", ["MaterialSide"] = witness.MaterialSide, ["History"] = witness.Provenance }),
+            new("LocalizedTangentBlend", 0, [], "ordered-explicit-loops", "ExplicitOwnedEndpoints",
+                $"profile=QuarterCircle;sweep=Linear;radius={witness.Radius:R};axis=+Y;retainedFaces=2;replacementFaces=1", true),
+            new(true, plan.ExpectedVertexCount, plan.ExpectedEdgeCount, plan.ExpectedFaceCount, plan.ExpectedLoopCount, plan.ExpectedCoedgeCount, 0,
+                "ExplicitOwnedEndpoints", plan.DeterministicSignature, "LocalizedTangentBlend"),
+            new(AirLocalizedTangentBlendFilletCompileResult.ProductionRoute, false, true, body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(), Bounds(body), finish.Distance, finish.Distance, cylinders, 0, planes),
+            new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true, reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), Bounds(reimport.Value), true),
+            LocalizedFillet: new("SharedEdge(+X,+Z)", "ConstantRadius", finish.Distance, "LocalizedTangentBlend", "QuarterCircle", "Linear", "Direct", 2, 1, "ExplicitOwnedEndpoints", new(true, plan.DeterministicSignature), "valid", false));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "air-fillet", "localized-tangent-blend-single-edge-fillet", Air: report, ConceptIr: document.ConceptIr));
+    }
+
+    private static KernelResult<FirmamentStepExportResult> ExportV2CircularRimChamfer(
+        FirmamentV2Document document,
+        FirmamentV2SolidBinding solid,
+        FirmamentV2EdgeFinishDecl finish,
+        FirmamentV2CylinderRecord cylinder)
+    {
+        var compiled = AirCylinderTopRimChamferCompiler.Compile(new(
+            solid.Name,
+            $"{solid.Name}.{finish.Name}",
+            finish.Name,
+            cylinder.Radius,
+            cylinder.Height,
+            finish.FaceAxis,
+            finish.Target,
+            finish.Kind,
+            finish.Distance,
+            new AirSourceSpan(finish.SourceSpan.Start, finish.SourceSpan.Length, document.ModelName)));
+        if (!compiled.Succeeded || compiled.Body is null || compiled.Construction is null || compiled.BRepPlan?.RevolvedRealizationPlan is null)
+            return AirChamferFailure(compiled.Error?.Code ?? compiled.Feature.AdmissionReason, compiled.Diagnostics);
+
+        var manifold = FirmamentManifoldChecker.IsManifold(compiled.Body);
+        if (!manifold) return AirChamferFailure("chamfer-backend-circular-rim-body-is-not-manifold", compiled.Diagnostics);
+        var step = Step242Exporter.ExportBody(compiled.Body, new Step242ExportOptions
+        {
+            ProductName = compiled.Feature.FeatureName,
+            ApplicationName = AirCylinderTopRimChamferCompileResult.ProductionRoute,
+            BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+            BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+        });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(reimport.Diagnostics);
+        var reimportedManifold = FirmamentManifoldChecker.IsManifold(reimport.Value);
+        if (!reimportedManifold) return AirChamferFailure("chamfer-verification-circular-rim-step-reimport-is-not-manifold");
+
+        var topology = compiled.Construction.TopologyPlan;
+        var surfaces = compiled.Body.Geometry.Surfaces.Select(s => s.Value.Kind).ToArray();
+        var sharp = compiled.Construction.Witness.SharpProfile.Select(p => (IReadOnlyList<double>)new[] { p.X, p.Y }).ToArray();
+        var replacement = compiled.Construction.Witness.ReplacementProfile.Select(p => (IReadOnlyList<double>)new[] { p.X, p.Y }).ToArray();
+        var featureProvenance = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (solid.Provenance?.TryGetValue("Bounds", out var boundsProvenance) == true) featureProvenance["Bounds"] = boundsProvenance;
+        if (finish.Provenance?.TryGetValue("Face", out var faceProvenance) == true) featureProvenance["Selection"] = faceProvenance;
+        if (finish.Provenance?.TryGetValue("Distance", out var distanceProvenance) == true) featureProvenance["Distance"] = distanceProvenance;
+        var report = new FirmamentAirChamferReport(
+            new("Chamfer", compiled.Feature.BodyId, compiled.Feature.FeatureId, compiled.Feature.FeatureName, "FaceBoundary(+Z,circular,outer,complete)", compiled.Feature.Rule.Distance, compiled.Feature.Rule.Unit,
+                $"{compiled.Feature.SourceSpan.Start}:{compiled.Feature.SourceSpan.Length}", compiled.Feature.Admission.ToString(), compiled.Feature.AdmissionReason, featureProvenance),
+            new("RevolutionProfileRewrite", 0, [], "ordered-radial-profile", "preserve-profile-corners",
+                $"axis={compiled.Construction.Witness.Axis};materialSide={compiled.Construction.Witness.MaterialSide}", compiled.Construction.Witness.CompilerGenerated, sharp, replacement),
+            new(true, topology.ExpectedVertexCount, topology.ExpectedEdgeCount, topology.ExpectedFaceCount, topology.ExpectedLoopCount, topology.ExpectedCoedgeCount, 1,
+                "preserve-profile-corners", topology.DeterministicSignature, "RevolvedProfile"),
+            new(AirCylinderTopRimChamferCompileResult.ProductionRoute, false, manifold,
+                compiled.Body.Topology.Vertices.Count(), compiled.Body.Topology.Edges.Count(), compiled.Body.Topology.Faces.Count(), CircularBounds(cylinder.Radius, cylinder.Height), finish.Distance, finish.Distance,
+                surfaces.Count(k => k == SurfaceGeometryKind.Cylinder), surfaces.Count(k => k == SurfaceGeometryKind.Cone), surfaces.Count(k => k == SurfaceGeometryKind.Plane)),
+            new("AP242", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), true,
+                reimport.Value.Topology.Vertices.Count(), reimport.Value.Topology.Edges.Count(), reimport.Value.Topology.Faces.Count(), CircularBounds(cylinder.Radius, cylinder.Height), reimportedManifold));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
+            step.Value, compiled.Feature.FeatureId, 0, "air-chamfer", "circular-top-rim-chamfer", Air: report, ConceptIr: document.ConceptIr));
+    }
+
+    private static string CircularBounds(double radius, double height) =>
+        FormattableString.Invariant($"[{-radius:0.###},{-radius:0.###},{-height / 2d:0.###}]..[{radius:0.###},{radius:0.###},{height / 2d:0.###}]");
 
     private static string Bounds(BrepBody body)
     {
@@ -495,11 +682,19 @@ public static class FirmamentBuildAndExport
         }
 
         var semanticPmi = BuildV2SemanticPmi(document, semanticHoles, modifyTargets[0]);
+        // Semantic-hole/profile-stack and bounded-Boolean routes remain Audit until their
+        // historical coincident/seam topology is remediated producer-by-producer.
         var step = Step242Exporter.ExportBody(body, semanticPmi);
         if (!step.IsSuccess)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
         }
+
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null)
+            return KernelResult<FirmamentStepExportResult>.Failure(reimport.Diagnostics);
+        var stepHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value)));
+        var surfaceKinds = body.Geometry.Surfaces.Select(s => s.Value.Kind).ToArray();
 
         var featureReports = semanticHoles.Select(h => new FirmamentHoleFeatureReport(
             h.Name,
@@ -514,7 +709,21 @@ public static class FirmamentBuildAndExport
             h.Placement.ResolvedPoint3?.Ordinal,
             h.Placement.ResolvedPoint3?.PlacementFace ?? h.Placement.EntryFaceName,
             h.Placement.ResolvedPoint3?.SourceSpan,
-            semanticHoles.Count == 1 ? nameof(AirHoleSimpleShaftMaterializer) : nameof(AirHoleCompositeMaterializer))).ToArray();
+            semanticHoles.Count == 1 ? nameof(AirHoleSimpleShaftMaterializer) : nameof(AirHoleCompositeMaterializer),
+            "HoleProfileStack",
+            h.Stack.Kind.ToString(),
+            string.Join(" -> ", h.Stack.Components.Select(component => component switch
+            {
+                AirHoleCountersinkComponent countersink => $"conical-entry(entryRadius={countersink.EntryRadius:R},angle={countersink.AngleDegrees:R})",
+                AirHoleCounterboreComponent counterbore => $"counterbore(radius={counterbore.Radius:R},depth={counterbore.Depth:R})",
+                AirHoleShaftComponent shaft => $"cylindrical-shaft(radius={shaft.Radius:R},{shaft.EndCondition.Kind})",
+                _ => component.Kind.ToString(),
+            })),
+            surfaceKinds.Count(k => k == SurfaceGeometryKind.Cylinder),
+            surfaceKinds.Count(k => k == SurfaceGeometryKind.Cone),
+            surfaceKinds.Count(k => k == SurfaceGeometryKind.Plane),
+            stepHash,
+            true)).ToArray();
         return KernelResult<FirmamentStepExportResult>.Success(
             new FirmamentStepExportResult(
                 step.Value,

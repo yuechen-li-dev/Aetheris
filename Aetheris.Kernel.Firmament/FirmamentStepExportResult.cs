@@ -29,19 +29,68 @@ public sealed record FirmamentHoleFeatureReport(
     int? PointOrdinal,
     string PlacementFace,
     string? SourceSpan,
-    string MaterializationRoute);
+    string MaterializationRoute,
+    string? ConstructionKind = null,
+    string? StackKind = null,
+    string? WitnessSummary = null,
+    int CylindricalFaces = 0,
+    int ConicalFaces = 0,
+    int PlanarFaces = 0,
+    string? StepSha256 = null,
+    bool StepReimportSucceeded = false);
 
 public sealed record FirmamentAirChamferReport(
     FirmamentAirChamferFeatureReport Feature,
     FirmamentAirChamferConstructionReport Construction,
     FirmamentAirChamferBRepPlanReport BRepPlan,
     FirmamentAirChamferMaterializationReport Materialization,
-    FirmamentAirChamferStepReport Step);
+    FirmamentAirChamferStepReport Step,
+    FirmamentLocalizedChamferTrace? LocalizedChamfer = null,
+    FirmamentLocalizedFilletTrace? LocalizedFillet = null);
+
+/// <summary>Bounded report of the localized AIR path; it is evidence, never input to emission.</summary>
+public sealed record FirmamentLocalizedChamferTrace(
+    string Selection,
+    string Construction,
+    string SelectionMode,
+    int RetainedFaces,
+    int ReplacementFaces,
+    string EndpointPolicy,
+    FirmamentLocalizedChamferPlanTrace BRepPlan,
+    string Preflight,
+    bool LegacyFallback);
+
+public sealed record FirmamentLocalizedChamferPlanTrace(bool Authoritative, string Signature);
+
+/// <summary>Evidence emitted by the narrow AIR-FILLET-LOCALIZED-M1 production route.</summary>
+public sealed record FirmamentLocalizedFilletTrace(
+    string Selection,
+    string Rule,
+    double Radius,
+    string Construction,
+    string Profile,
+    string Sweep,
+    string SelectionMode,
+    int RetainedFaces,
+    int ReplacementFaces,
+    string EndpointPolicy,
+    FirmamentLocalizedChamferPlanTrace BRepPlan,
+    string Preflight,
+    bool LegacyFallback);
 
 public sealed record FirmamentAirChamferFeatureReport(string Kind, string Body, string FeatureId, string FeatureName, string Selection, double Distance, string Unit, string SourceSpan, string Admission, string AdmissionReason, IReadOnlyDictionary<string, string>? Provenance = null);
-public sealed record FirmamentAirChamferConstructionReport(string Kind, int SectionCount, IReadOnlyList<double> SectionZ, string Correspondence, string SplitPolicy);
-public sealed record FirmamentAirChamferBRepPlanReport(bool Authoritative, int ExpectedVertices, int ExpectedEdges, int ExpectedFaces, int ExpectedLoops, int ExpectedCoedges, int ChamferFaces, string SplitPolicy, string DeterministicSignature);
-public sealed record FirmamentAirChamferMaterializationReport(string Route, bool LegacyFallback, bool EnclosedManifold, int Vertices, int Edges, int Faces, string Bounds, double MeasuredTopInsetX, double MeasuredTopInsetY);
+public sealed record FirmamentAirChamferConstructionReport(
+    string Kind,
+    int SectionCount,
+    IReadOnlyList<double> SectionZ,
+    string Correspondence,
+    string SplitPolicy,
+    string? WitnessSummary = null,
+    bool CompilerGeneratedWitness = false,
+    IReadOnlyList<IReadOnlyList<double>>? SharpProfile = null,
+    IReadOnlyList<IReadOnlyList<double>>? ReplacementProfile = null);
+public sealed record FirmamentAirChamferBRepPlanReport(bool Authoritative, int ExpectedVertices, int ExpectedEdges, int ExpectedFaces, int ExpectedLoops, int ExpectedCoedges, int ChamferFaces, string SplitPolicy, string DeterministicSignature, string? PlanKind = null);
+public sealed record FirmamentAirChamferMaterializationReport(string Route, bool LegacyFallback, bool EnclosedManifold, int Vertices, int Edges, int Faces, string Bounds, double MeasuredTopInsetX, double MeasuredTopInsetY, int CylindricalFaces = 0, int ConicalFaces = 0, int PlanarFaces = 0);
 public sealed record FirmamentAirChamferStepReport(string Schema, string Sha256, bool ReimportSucceeded, int ReimportedVertices, int ReimportedEdges, int ReimportedFaces, string ReimportedBounds, bool ReimportedManifold);
 
 public sealed record FirmamentPmiInspectionDatum(

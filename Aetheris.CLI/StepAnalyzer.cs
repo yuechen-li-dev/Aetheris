@@ -93,6 +93,15 @@ public sealed record VolumeAnalysisResult(
         }
 
         var cylFaces = body.Topology.Faces.Where(f => body.TryGetFaceSurface(f.Id, out var sf) && sf?.Cylinder is not null).ToArray();
+        var coneFaces = body.Topology.Faces.Where(f => body.TryGetFaceSurface(f.Id, out var sf) && sf?.Cone is not null).ToArray();
+        if (cylFaces.Length + coneFaces.Length >= 2
+            && body.Topology.Faces.Count() == cylFaces.Length + coneFaces.Length + 2
+            && TryComputePiecewiseLinearRevolvedProfileVolume(body, out var revolvedVolume, out var revolvedBasis))
+        {
+            notes.Add(revolvedBasis);
+            return new VolumeAnalysisResult(stepPath, true, revolvedVolume, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-piecewise-linear-revolved-profile", true, false, null, null, null, null, null, null, null, notes);
+        }
+
         if (cylFaces.Length == 1 && body.Topology.Faces.Count() == 3)
         {
             body.TryGetFaceSurface(cylFaces[0].Id, out var cs);
@@ -112,7 +121,6 @@ public sealed record VolumeAnalysisResult(
             return new VolumeAnalysisResult(stepPath, true, vol, "model-unit", "model-unit^3", new VolumeBoundingBox(bbox.Min, bbox.Max), "analytic-cylinder", true, false, null, null, null, null, null, null, null, notes);
         }
 
-        var coneFaces = body.Topology.Faces.Where(f => body.TryGetFaceSurface(f.Id, out var sf) && sf?.Cone is not null).ToArray();
         if (coneFaces.Length == 1 && body.Topology.Faces.Count() == 3)
         {
             body.TryGetFaceSurface(coneFaces[0].Id, out var coneSurface);
@@ -179,6 +187,31 @@ public sealed record VolumeAnalysisResult(
         }
 
         throw new InvalidOperationException(planarFailureReason ?? "Volume analysis currently supports canonical sphere, single-lateral-face cylinder, and enclosed planar closed-shell bodies only.");
+    }
+
+    private static bool TryComputePiecewiseLinearRevolvedProfileVolume(BrepBody body, out double volume, out string basis)
+    {
+        volume = 0;
+        basis = string.Empty;
+        var circles = body.Geometry.Curves.Select(c => c.Value.Circle3).Where(c => c.HasValue).Select(c => c!.Value).ToArray();
+        if (circles.Length < 3) return false;
+        var axis = circles[0].Normal.ToVector();
+        if (circles.Any(c => double.Abs(double.Abs(c.Normal.ToVector().Dot(axis)) - 1d) > 1e-8)) return false;
+        var origin = circles[0].Center;
+        var profile = circles
+            .Select(c => (T: (c.Center - origin).Dot(axis), c.Radius))
+            .OrderBy(p => p.T)
+            .ToArray();
+        if (profile.Zip(profile.Skip(1)).Any(p => p.Second.T - p.First.T <= 1e-9)) return false;
+        for (var i = 0; i < profile.Length - 1; i++)
+        {
+            var h = profile[i + 1].T - profile[i].T;
+            var r0 = profile[i].Radius;
+            var r1 = profile[i + 1].Radius;
+            volume += double.Pi * h / 3d * (r0 * r0 + r0 * r1 + r1 * r1);
+        }
+        basis = $"Exact analytic volume from {profile.Length}-point coaxial circular profile and cylindrical/conical segment integration.";
+        return double.IsFinite(volume) && volume > 0;
     }
 
     private static bool TryComputeAxisAlignedBoxWithXHoleVolume(BrepBody body, BoundingBox3D bbox, out double volume, out string basis)
@@ -1675,9 +1708,27 @@ public sealed record VolumeAnalysisResult(
             .Select(v => body.TryGetVertexPoint(v.Id, out var point) ? (Point3D?)point : null)
             .Where(p => p.HasValue)
             .Select(p => p!.Value)
-            .ToArray();
+            .ToList();
 
-        if (points.Length > 0)
+        // Periodic circle edges commonly use one seam vertex, so vertex-only bounds collapse
+        // their radial extent. Include exact axis-aligned extrema for full-circle bindings.
+        var hasAxialCircularSurface = body.Geometry.Surfaces.Any(s => s.Value.Kind is SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone);
+        foreach (var binding in hasAxialCircularSurface ? body.Bindings.EdgeBindings : [])
+        {
+            if (binding.TrimInterval is not { } interval || interval.End - interval.Start < 2d * Math.PI - 1e-9
+                || !body.Geometry.TryGetCurve(binding.CurveGeometryId, out var geometry)
+                || geometry?.Circle3 is not { } circle)
+                continue;
+            var x = circle.XAxis.ToVector();
+            var y = circle.YAxis.ToVector();
+            var dx = circle.Radius * Math.Sqrt(x.X * x.X + y.X * y.X);
+            var dy = circle.Radius * Math.Sqrt(x.Y * x.Y + y.Y * y.Y);
+            var dz = circle.Radius * Math.Sqrt(x.Z * x.Z + y.Z * y.Z);
+            points.Add(new Point3D(circle.Center.X - dx, circle.Center.Y - dy, circle.Center.Z - dz));
+            points.Add(new Point3D(circle.Center.X + dx, circle.Center.Y + dy, circle.Center.Z + dz));
+        }
+
+        if (points.Count > 0)
         {
             return ComputeBoundingBox(points);
         }

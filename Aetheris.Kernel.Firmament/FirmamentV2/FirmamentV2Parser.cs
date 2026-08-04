@@ -718,48 +718,77 @@ public static class FirmamentV2Parser
     private static FirmamentV2ParseResult ParsePhase3ModelingDocument(string source, List<string> diagnostics)
     {
         var model = Regex.Match(source, @"^\s*Model\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s+(?<units>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
-        var box = Regex.Match(source, @"\bBox\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+        var primitive = Regex.Match(source, @"\b(?<type>Box|Cylinder)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
         var modify = Regex.Match(source, @"\bModify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-        var edge = Regex.Match(source, @"\bEdgeFinish\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-        if (!model.Success || !box.Success || !modify.Success || !edge.Success || model.Groups["units"].Value != "mm"
-            || Regex.Matches(source, @"\bBox\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1
+        var edges = Regex.Matches(source, @"\bEdgeFinish\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
+        var edge = edges.FirstOrDefault() ?? Match.Empty;
+        if (!model.Success || !primitive.Success || !modify.Success || !edge.Success || model.Groups["units"].Value != "mm"
+            || Regex.Matches(source, @"\b(?:Box|Cylinder)\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1
             || Regex.Matches(source, @"\bModify\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1
-            || Regex.Matches(source, @"\bEdgeFinish\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1)
+            || edges.Length is < 1 or > 2)
             diagnostics.Add(Phase3EdgeFinishSyntaxInvalid);
 
         if (diagnostics.Contains(Phase3EdgeFinishSyntaxInvalid))
             return FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").Order().ToArray());
 
-        var boxOpen = source.IndexOf('{', box.Index);
-        var boxClose = FindMatchingBrace(source, boxOpen);
+        var primitiveOpen = source.IndexOf('{', primitive.Index);
+        var primitiveClose = FindMatchingBrace(source, primitiveOpen);
         var modifyOpen = source.IndexOf('{', modify.Index);
         var modifyClose = FindMatchingBrace(source, modifyOpen);
         var edgeOpen = source.IndexOf('{', edge.Index);
         var edgeClose = FindMatchingBrace(source, edgeOpen);
-        if (boxClose < 0 || modifyClose < 0 || edgeClose < 0 || edge.Index < modifyOpen || edgeClose > modifyClose)
+        if (primitiveClose < 0 || modifyClose < 0 || edgeClose < 0 || edge.Index < modifyOpen || edgeClose > modifyClose)
         {
             diagnostics.Add(Phase3EdgeFinishSyntaxInvalid);
             return FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").Order().ToArray());
         }
 
-        var sizeMatch = Regex.Match(source[(boxOpen + 1)..boxClose], @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant);
+        var primitiveBody = source[(primitiveOpen + 1)..primitiveClose];
+        var sizeMatch = Regex.Match(primitiveBody, @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant);
         var values = sizeMatch.Success ? sizeMatch.Groups["values"].Value.Split(',').Select(ParsePhase3Length).ToArray() : [];
+        var radiusMatch = Regex.Match(primitiveBody, @"\bRadius\s*:\s*(?<value>[-+0-9.eE]+mm)\b", RegexOptions.CultureInvariant);
+        var heightMatch = Regex.Match(primitiveBody, @"\bHeight\s*:\s*(?<value>[-+0-9.eE]+mm)\b", RegexOptions.CultureInvariant);
+        var radiusValue = radiusMatch.Success ? ParsePhase3Length(radiusMatch.Groups["value"].Value) : double.NaN;
+        var heightValue = heightMatch.Success ? ParsePhase3Length(heightMatch.Groups["value"].Value) : double.NaN;
         var edgeBody = source[(edgeOpen + 1)..edgeClose];
         var face = Regex.Match(edgeBody, @"\bFace\s*:\s*(?<value>[+-][XYZ])", RegexOptions.CultureInvariant);
         var target = Regex.Match(edgeBody, @"\bTarget\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
         var kind = Regex.Match(edgeBody, @"\bKind\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
         var distance = Regex.Match(edgeBody, @"\bDistance\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
-        if (values.Length != 3 || values.Any(v => !double.IsFinite(v) || v <= 0d) || !face.Success || !target.Success || !kind.Success || !distance.Success
+        var primitiveValid = primitive.Groups["type"].Value == "Box"
+            ? values.Length == 3 && values.All(v => double.IsFinite(v) && v > 0d)
+            : double.IsFinite(radiusValue) && radiusValue > 0d && double.IsFinite(heightValue) && heightValue > 0d;
+        if (!primitiveValid || !face.Success || !target.Success || !kind.Success || !distance.Success
             || !double.TryParse(distance.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var distanceValue) || !double.IsFinite(distanceValue)
-            || box.Groups["name"].Value != modify.Groups["target"].Value)
+            || primitive.Groups["name"].Value != modify.Groups["target"].Value)
         {
             diagnostics.Add(Phase3EdgeFinishSyntaxInvalid);
             return FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").Order().ToArray());
         }
 
-        var solid = new FirmamentV2SolidBinding(box.Groups["name"].Value, "Box", new FirmamentV2BoxRecord(values, []));
-        var finish = new FirmamentV2EdgeFinishDecl(edge.Groups["name"].Value, face.Groups["value"].Value, target.Groups["value"].Value, kind.Groups["value"].Value, distanceValue, new FirmamentV2SourceSpan(edge.Index, edgeClose - edge.Index + 1));
-        var document = new FirmamentV2Document(model.Groups["name"].Value, "mm", [solid], [new FirmamentV2ModifyBlock(solid.Name, [], [], [finish])]);
+        FirmamentV2PrimitiveRecord primitiveRecord = primitive.Groups["type"].Value == "Box"
+            ? new FirmamentV2BoxRecord(values, [])
+            : new FirmamentV2CylinderRecord(radiusValue, heightValue);
+        var solid = new FirmamentV2SolidBinding(primitive.Groups["name"].Value, primitive.Groups["type"].Value, primitiveRecord);
+        var finishes = new List<FirmamentV2EdgeFinishDecl> { new(edge.Groups["name"].Value, face.Groups["value"].Value, target.Groups["value"].Value, kind.Groups["value"].Value, distanceValue, new FirmamentV2SourceSpan(edge.Index, edgeClose - edge.Index + 1)) };
+        foreach (var additionalEdge in edges.Skip(1))
+        {
+            var additionalOpen = source.IndexOf('{', additionalEdge.Index);
+            var additionalClose = FindMatchingBrace(source, additionalOpen);
+            var additionalBody = additionalClose < 0 ? string.Empty : source[(additionalOpen + 1)..additionalClose];
+            var additionalFace = Regex.Match(additionalBody, @"\bFace\s*:\s*(?<value>[+-][XYZ])", RegexOptions.CultureInvariant);
+            var additionalTarget = Regex.Match(additionalBody, @"\bTarget\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+            var additionalKind = Regex.Match(additionalBody, @"\bKind\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+            var additionalDistance = Regex.Match(additionalBody, @"\bDistance\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+            if (additionalClose < 0 || !additionalFace.Success || !additionalTarget.Success || !additionalKind.Success
+                || !additionalDistance.Success || !double.TryParse(additionalDistance.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var additionalDistanceValue) || !double.IsFinite(additionalDistanceValue))
+            {
+                diagnostics.Add(Phase3EdgeFinishSyntaxInvalid);
+                return FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").Order().ToArray());
+            }
+            finishes.Add(new(additionalEdge.Groups["name"].Value, additionalFace.Groups["value"].Value, additionalTarget.Groups["value"].Value, additionalKind.Groups["value"].Value, additionalDistanceValue, new FirmamentV2SourceSpan(additionalEdge.Index, additionalClose - additionalEdge.Index + 1)));
+        }
+        var document = new FirmamentV2Document(model.Groups["name"].Value, "mm", [solid], [new FirmamentV2ModifyBlock(solid.Name, [], [], finishes)]);
         diagnostics.Add("firmament-v2-phase3-edge-finish-parsed");
         diagnostics.Add("firmament-v2-parse-succeeded");
         diagnostics.Sort(StringComparer.Ordinal);

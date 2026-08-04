@@ -83,12 +83,18 @@ public static class BrepBoundedChamfer
             return KernelResult<BrepBody>.Failure([Failure($"Bounded chamfer corner resolution rejected: {reason}", "firmament.chamfer-bounded")]);
         }
 
-        if (!context.IsTrustedOrthogonalBody || !context.HasOrthogonalGeometryConstructor)
+        if (context.IsTrustedOrthogonalBody && context.HasOrthogonalGeometryConstructor)
         {
-            return CreateTrustedPolyhedralSingleCornerPlanarChamferBody(sourceBody, context);
+            // The trusted-body context does not carry AxisAlignedBoxExtents. Passing its
+            // default Box into CreateSingleCornerPlanarChamferBody used to throw while
+            // creating a zero-length edge. Reject before topology instead of claiming a
+            // geometry success; the synthetic constructor remains separately callable.
+            return KernelResult<BrepBody>.Failure([Failure(
+                "Bounded chamfer trusted orthogonal corner requires an explicit authoritative extents/topology witness.",
+                "firmament.chamfer-bounded")]);
         }
 
-        return CreateSingleCornerPlanarChamferBody(context);
+        return CreateTrustedPolyhedralSingleCornerPlanarChamferBody(sourceBody, context);
     }
 
     public static KernelResult<BrepBody> ChamferAxisAlignedBoxVerticalEdge(

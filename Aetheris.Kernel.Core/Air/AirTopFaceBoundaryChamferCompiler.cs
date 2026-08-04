@@ -76,20 +76,12 @@ internal static class AirTopFaceBoundaryChamferCompiler
         if (status != AirFeatureAdmissionStatus.Admitted)
             return new(false, feature, null, null, null, null, [reason]);
 
-        var geometricRequest = new PrismaticTopFaceLoopChamferRequest(input.Width, input.Depth, input.Height, input.Distance);
-        var sections = PrismaticTopFaceLoopChamferPrototype.CreateSectionStack(geometricRequest);
-        var profiles = sections.Select((section, index) => new AirPlanarProfileNode(
-            $"{input.FeatureId}:profile:{index}", index, section.Z, section.OuterLoop.ToArray())).ToArray();
-        var request = new PrismaticSectionTransitionRequest(
-            sections,
-            PrismaticCorrespondenceMap.Identity(4),
-            new PrismaticSectionTransitionOptions(false, AirTopFaceBoundaryChamferCompileResult.ProductionRoute));
-        var transition = new AirSectionTransitionNode(
-            $"{input.FeatureId}:section-transition",
-            profiles.Select(p => p.NodeId).ToArray(),
-            "identity-by-profile-index",
-            PrismaticSectionTransitionTopologyPlanner.PreserveSectionSplits);
-        var construction = new AirChamferConstruction($"construction:{input.FeatureId}", input.FeatureId, profiles, transition, request);
+        var lowered = Lower(input);
+        if (!lowered.IsSuccess)
+            return new(false, feature, null, null, null, null, [lowered.Error!.Code]);
+        var construction = lowered.Value!;
+        var geometricRequest = construction.Request;
+        var sections = geometricRequest.Sections;
 
         var featureContext = new AirBRepPlanFeatureContext(
             AirNodeKind.TopFaceLoopChamfer,
@@ -99,7 +91,7 @@ internal static class AirTopFaceBoundaryChamferCompiler
             feature.ConstructionHistoryKind,
             "BoundedProductionAdmission",
             ["complete +Z outer boundary loop", "uniform equal-distance rule"]);
-        var planned = AirTopFaceLoopChamferBRepPlanner.Plan(geometricRequest, featureContext, input.FeatureId);
+        var planned = AirTopFaceLoopChamferBRepPlanner.Plan(new PrismaticTopFaceLoopChamferRequest(input.Width, input.Depth, input.Height, input.Distance), featureContext, input.FeatureId);
         if (!planned.Succeeded || planned.Plan?.RealizationPlan is null)
             return new(false, feature, construction, planned.Plan, null, null, planned.Validation.Diagnostics.Select(d => d.Code).ToArray());
 
@@ -127,6 +119,35 @@ internal static class AirTopFaceBoundaryChamferCompiler
 
         return new(true, feature, construction, planned.Plan, emitted.Body, emitted.Topology,
             emitted.Diagnostics.Concat(["air-chamfer-feature-admitted", "air-chamfer-authoritative-brep-plan-consumed", "air-chamfer-top-inset-verified"]).Distinct().Order().ToArray());
+    }
+
+    public static ChamferLoweringResult<AirChamferConstruction> Lower(AirTopFaceBoundaryChamferCompileRequest input)
+    {
+        var (status, reason) = Admit(input);
+        if (status != AirFeatureAdmissionStatus.Admitted)
+        {
+            var kind = reason switch
+            {
+                "air-chamfer-distance-too-large-rejected" => ChamferLoweringErrorKind.DistanceTooLarge,
+                "air-chamfer-imported-no-history-body-deferred" => ChamferLoweringErrorKind.UnsupportedHistory,
+                var value when value.StartsWith("air-chamfer-unsupported-selection", StringComparison.Ordinal) || value.StartsWith("air-chamfer-unsupported-face", StringComparison.Ordinal) => ChamferLoweringErrorKind.UnsupportedSelection,
+                _ => ChamferLoweringErrorKind.InvalidAuthoredInput,
+            };
+            return ChamferLoweringResult<AirChamferConstruction>.Err(new(kind, reason, "Rectangular loop chamfer input is outside the exact admitted domain.", "FeatureAIR->ConstructionAIR"));
+        }
+
+        var geometricRequest = new PrismaticTopFaceLoopChamferRequest(input.Width, input.Depth, input.Height, input.Distance);
+        var sections = PrismaticTopFaceLoopChamferPrototype.CreateSectionStack(geometricRequest);
+        var profiles = sections.Select((section, index) => new AirPlanarProfileNode(
+            $"{input.FeatureId}:profile:{index}", index, section.Z, section.OuterLoop.ToArray())).ToArray();
+        var request = new PrismaticSectionTransitionRequest(
+            sections,
+            PrismaticCorrespondenceMap.Identity(4),
+            new PrismaticSectionTransitionOptions(false, AirTopFaceBoundaryChamferCompileResult.ProductionRoute));
+        var transition = new AirSectionTransitionNode(
+            $"{input.FeatureId}:section-transition", profiles.Select(p => p.NodeId).ToArray(), "identity-by-profile-index",
+            PrismaticSectionTransitionTopologyPlanner.PreserveSectionSplits);
+        return ChamferLoweringResult<AirChamferConstruction>.Ok(new($"construction:{input.FeatureId}", input.FeatureId, profiles, transition, request));
     }
 
     private static (AirFeatureAdmissionStatus Status, string Reason) Admit(AirTopFaceBoundaryChamferCompileRequest input)

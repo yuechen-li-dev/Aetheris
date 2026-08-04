@@ -1,0 +1,7 @@
+// fixture-id: chamfer-m6-single-straight-convex-edge
+// semantic-target: shared edge between history-known +X and +Z box faces
+// attempted-witness: retained face regions + bounded diagonal support plane + two trim boundaries
+// expected-error-kind: MissingConstructionWitness
+// expected-error: chamfer-missing-construction-witness:localized-planar-replacement-not-implemented
+// missing-capability: authoritative localized retained/replacement region topology plan
+// warning: prior cube relabeling/closed-witness chains are explicitly not geometry proof

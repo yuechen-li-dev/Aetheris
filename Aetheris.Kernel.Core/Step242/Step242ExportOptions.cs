@@ -1,5 +1,20 @@
 namespace Aetheris.Kernel.Core.Step242;
 
+/// <summary>Controls whether export preflight findings are only reported or block serialization.</summary>
+public enum BrepExportPreflightMode
+{
+    Disabled,
+    Audit,
+    Enforce,
+}
+
+/// <summary>Named evidence tier for an export route; avoids fixture-specific exporter policy.</summary>
+public enum BrepExportPreflightPolicy
+{
+    LegacyRoute,
+    TrustedProductionRoute,
+}
+
 public sealed class Step242ExportOptions
 {
     public string ProductName { get; init; } = "AetherisBody";
@@ -13,6 +28,15 @@ public sealed class Step242ExportOptions
     public string AuthoringSystem { get; init; } = "Aetheris.Kernel";
 
     public Step242HeaderMetadata HeaderMetadata { get; init; } = Step242HeaderMetadata.Deterministic;
+
+    /// <summary>
+    /// Audit is the compatibility default while legacy producers are being remediated.
+    /// Enforce is the fail-fast production policy once their audit corpus is clean.
+    /// </summary>
+    public BrepExportPreflightMode BrepExportPreflightMode { get; init; } = BrepExportPreflightMode.Audit;
+
+    /// <summary>Records why this route selected its preflight mode.</summary>
+    public BrepExportPreflightPolicy BrepExportPreflightPolicy { get; init; } = BrepExportPreflightPolicy.LegacyRoute;
 
     public static Step242ExportOptions FromSourceMetadata(Step242SourceMetadata metadata)
     {

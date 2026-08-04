@@ -574,10 +574,13 @@ public sealed record VolumeAnalysisResult(
                         return false;
                     }
 
-                    var loopOrientationSign = loopSignedArea >= 0d ? 1d : -1d;
                     foreach (var triangle in triangles)
                     {
-                        faceSignedVolume += loopOrientationSign * SignedTetraVolume(triangle.A, triangle.B, triangle.C);
+                        // TriangulateLoopOnPlane already emits winding relative to the
+                        // face plane. Applying the loop's projected-area sign a second
+                        // time inverted valid Box faces and was the source of the four
+                        // generic Box/derivation/PMI volume failures.
+                        faceSignedVolume += SignedTetraVolume(triangle.A, triangle.B, triangle.C);
                     }
                 }
 

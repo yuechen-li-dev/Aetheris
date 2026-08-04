@@ -604,6 +604,11 @@ public static class BrepDisplayTessellator
     private static KernelResult<DisplayFaceMeshPatch> TessellateConeFace(BrepBody body, FaceId faceId, ConeSurface cone, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
         var loopIds = body.GetLoopIds(faceId);
+        if (TryResolveFullPeriodicConeBetweenCircularTrimLoops(body, faceId, loopIds, cone, options, out var fullFrustumPatch, out var fullFrustumDiagnostics))
+        {
+            return KernelResult<DisplayFaceMeshPatch>.Success(fullFrustumPatch, fullFrustumDiagnostics);
+        }
+
         if (loopIds.Count > 0)
         {
             var uvLoopsResult = TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToConeUv(cone, point), options, executionBudget, SurfaceGeometryKind.Cone);
@@ -637,6 +642,107 @@ public static class BrepDisplayTessellator
         }
 
         return TessellateLegacyConeFace(body, faceId, cone, options);
+    }
+
+    /// <summary>
+    /// Resolves the deliberately narrow full-frustum cone family used by hollow frusta:
+    /// two separate closed circular trim loops are the lower and upper generator bounds,
+    /// not an outer loop plus a hole.  The generic UV trim path represents each full
+    /// circle as a periodic ring; treating the second ring as a hole cancels the entire
+    /// periodic domain and used to yield zero triangles for both material cone faces.
+    /// </summary>
+    private static bool TryResolveFullPeriodicConeBetweenCircularTrimLoops(
+        BrepBody body,
+        FaceId faceId,
+        IReadOnlyList<LoopId> loopIds,
+        ConeSurface cone,
+        DisplayTessellationOptions options,
+        out DisplayFaceMeshPatch patch,
+        out IReadOnlyList<KernelDiagnostic> diagnostics)
+    {
+        patch = default!;
+        diagnostics = [];
+        if (loopIds.Count != 2)
+        {
+            return false;
+        }
+
+        var trimLevels = new List<(double Axial, double Radius)>();
+        var tolerance = System.Math.Max(1e-6d, options.ChordTolerance * 1e-3d);
+        var axis = cone.Axis.ToVector();
+        foreach (var loopId in loopIds.OrderBy(id => id.Value))
+        {
+            var coedgeIds = body.GetCoedgeIds(loopId);
+            if (coedgeIds.Count != 1)
+            {
+                return false;
+            }
+
+            var coedge = body.Topology.GetCoedge(coedgeIds[0]);
+            var edge = body.Topology.GetEdge(coedge.EdgeId);
+            if (edge.StartVertexId != edge.EndVertexId
+                || !body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var edgeBinding)
+                || edgeBinding.TrimInterval is not { } trim
+                || System.Math.Abs((trim.End - trim.Start) - (2d * double.Pi)) > 1e-5d
+                || body.GetEdgeCurve(coedge.EdgeId).Circle3 is not { } circle)
+            {
+                return false;
+            }
+
+            // A full circular trim must be coaxial with the support and lie on its
+            // equation.  Sampling four quadrants makes the authority explicit: these
+            // levels come from BRep trim topology, never fixture dimensions.
+            if (System.Math.Abs(circle.Normal.ToVector().Dot(axis)) < (1d - 1e-6d))
+            {
+                return false;
+            }
+
+            var centerOffset = circle.Center - cone.Apex;
+            var axial = centerOffset.Dot(axis);
+            var axisResidual = (centerOffset - (axis * axial)).Length;
+            var expectedRadius = axial * double.Tan(cone.SemiAngleRadians);
+            var supportTolerance = System.Math.Max(tolerance, System.Math.Max(circle.Radius, expectedRadius) * 1e-6d);
+            if (axial <= supportTolerance
+                || axisResidual > supportTolerance
+                || System.Math.Abs(circle.Radius - expectedRadius) > supportTolerance)
+            {
+                return false;
+            }
+
+            for (var sample = 0; sample < 4; sample++)
+            {
+                var point = circle.Evaluate(sample * (double.Pi / 2d));
+                if (TryProjectPointToConeUv(cone, point) is null)
+                {
+                    return false;
+                }
+            }
+
+            trimLevels.Add((axial, circle.Radius));
+        }
+
+        var ordered = trimLevels.OrderBy(level => level.Axial).ToArray();
+        if (ordered[1].Axial - ordered[0].Axial <= tolerance)
+        {
+            return false;
+        }
+
+        var angularSegments = CalculateSegmentCount(2d * double.Pi, ordered.Max(level => level.Radius), options);
+        var axialSegments = CalculateAxialSegments(ordered[0].Axial, ordered[1].Axial, options);
+        patch = CreatePeriodicGridPatch(
+            faceId,
+            angularSegments,
+            axialSegments,
+            (u, v) => cone.Evaluate(u, v),
+            (u, _) => cone.Normal(u).ToVector(),
+            ordered[0].Axial,
+            ordered[1].Axial);
+        diagnostics = [new KernelDiagnostic(
+            KernelDiagnosticCode.Unknown,
+            KernelDiagnosticSeverity.Info,
+            $"Face {faceId.Value} tessellated as a topology-derived full-period cone strip: angularSegments={angularSegments}, generatorSegments={axialSegments}, trimAxial=[{ordered[0].Axial:R},{ordered[1].Axial:R}].",
+            "Viewer.Cone.FullPeriodicCircularTrims")];
+        return true;
     }
 
 
@@ -3349,7 +3455,7 @@ public static class BrepDisplayTessellator
                     AppendUniquePoint(flattened, segmentEnd);
                     break;
                 case CurveGeometryKind.Circle3:
-                    var arcPointsResult = SampleCircleArc(body, coedge, isTraversalSwapped, curve.Circle3!.Value, segmentStart, segmentEnd, plane, faceId);
+                    var arcPointsResult = SampleCircleArc(body, coedge, isTraversalSwapped, curve.Circle3!.Value, segmentStart, segmentEnd, plane, faceId, options);
                     if (!arcPointsResult.IsSuccess)
                     {
                         return KernelResult<IReadOnlyList<Point3D>>.Failure(arcPointsResult.Diagnostics);
@@ -3410,7 +3516,8 @@ public static class BrepDisplayTessellator
         Point3D start,
         Point3D end,
         PlaneSurface plane,
-        FaceId faceId)
+        FaceId faceId,
+        DisplayTessellationOptions options)
     {
         var effectiveIsReversed = coedge.IsReversed ^ traversalSwapped;
         if (body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding)
@@ -3421,7 +3528,8 @@ public static class BrepDisplayTessellator
                 effectiveIsReversed ? !binding.OrientedEdgeSense : binding.OrientedEdgeSense,
                 out var sampledPoints,
                 out var isClosed,
-                out var usedShorterArcFallback))
+                out var usedShorterArcFallback,
+                options))
         {
             var points = new List<Point3D>(sampledPoints.Count - 1);
             for (var i = 1; i < sampledPoints.Count; i++)
@@ -3451,7 +3559,7 @@ public static class BrepDisplayTessellator
         }
 
         var (startAngle, delta) = deltaResult.Value;
-        var samples = CurveSampler.SampleCircleArc(circle, startAngle, delta);
+        var samples = CurveSampler.SampleCircleArc(circle, startAngle, delta, options);
         var pointsFallback = new List<Point3D>(samples.Count - 1);
         for (var i = 1; i < samples.Count; i++)
         {

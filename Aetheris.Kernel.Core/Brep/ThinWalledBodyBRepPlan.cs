@@ -122,7 +122,10 @@ public static class ThinWalledBodyBRepPlanner
         for (var i = 0; i < 8; i++) { outerVertical[i] = AddLine(v[0, i], v[1, i], points, b, g, bindings); innerVertical[i] = AddLine(v[2, i], v[3, i], points, b, g, bindings); rim[i] = AddLine(v[1, i], v[3, i], points, b, g, bindings); }
         var faces = new List<FaceId>();
         var outerBottom = AddFace(b, [Reverse(Row(edges, 0))]); BindPlane(outerBottom, new Point3D(0, 0, 0), MinusZ, g, bindings); faces.Add(outerBottom);
-        var innerBottom = AddFace(b, [Forward(Row(edges, 2))]); BindPlane(innerBottom, new Point3D(0, 0, t), PlusZ, g, bindings, false); faces.Add(innerBottom);
+        // The inner material boundary faces into the cavity (+Z).  Keep the
+        // planar support and SameSense canonical rather than encoding the same
+        // orientation as (-Z, false), because STEP import normalizes planes.
+        var innerBottom = AddFace(b, [Forward(Row(edges, 2))]); BindPlane(innerBottom, new Point3D(0, 0, t), PlusZ, g, bindings); faces.Add(innerBottom);
         for (var i = 0; i < 8; i++) { var face = AddFace(b, [[new(edges[0, i], false), new(outerVertical[(i + 1) % 8], false), new(edges[1, i], true), new(outerVertical[i], true)]]); BindSurface(face, SideSurface(i, outer, radius, 0d), g, bindings); faces.Add(face); }
         for (var i = 0; i < 8; i++) { var face = AddFace(b, [[new(edges[2, i], false), new(innerVertical[(i + 1) % 8], false), new(edges[3, i], true), new(innerVertical[i], true)]]); BindSurface(face, SideSurface(i, inner, radius - t, t), g, bindings, false); faces.Add(face); }
         for (var i = 0; i < 8; i++) { var face = AddFace(b, [[new(edges[1, i], false), new(rim[(i + 1) % 8], false), new(edges[3, i], true), new(rim[i], true)]]); BindPlane(face, new Point3D(0, 0, height), PlusZ, g, bindings); faces.Add(face); }
@@ -143,7 +146,8 @@ public static class ThinWalledBodyBRepPlanner
         BindSurface(outerCone, SurfaceGeometry.FromCone(outerSupport), g, bindings);
         BindSurface(innerCone, SurfaceGeometry.FromCone(innerSupport), g, bindings, false);
         BindPlane(outerBottom, new Point3D(0, 0, 0), MinusZ, g, bindings);
-        BindPlane(innerBottomFace, new Point3D(0, 0, t), PlusZ, g, bindings, false);
+        // Canonical material-facing inner bottom; see rounded-box counterpart.
+        BindPlane(innerBottomFace, new Point3D(0, 0, t), PlusZ, g, bindings);
         BindPlane(rim, new Point3D(0, 0, h), PlusZ, g, bindings);
         var shell = b.AddShell([outerCone, innerCone, outerBottom, innerBottomFace, rim]); b.AddBody([shell]); return new BrepBody(b.Model, g, bindings, points);
     }
@@ -168,7 +172,7 @@ public static class ThinWalledBodyBRepPlanner
     private static EdgeId AddCircle(VertexId vertex, double radius, double z, TopologyBuilder b, BrepGeometryStore g, BrepBindingModel bindings) { var edge = b.AddEdge(vertex, vertex); AddCurve(edge, CurveGeometry.FromCircle(new Circle3Curve(new Point3D(0, 0, z), PlusZ, radius, PlusX)), 0, 2d * double.Pi, g, bindings); return edge; }
     private static EdgeId AddLine(VertexId start, VertexId end, IReadOnlyDictionary<VertexId, Point3D> points, TopologyBuilder b, BrepGeometryStore g, BrepBindingModel bindings) { var edge=b.AddEdge(start,end); var a=points[start]; var q=points[end]; AddCurve(edge,CurveGeometry.FromLine(new Line3Curve(a,Direction3D.Create(q-a))),0,(q-a).Length,g,bindings); return edge; }
     private static Point3D CornerCenter(int i, (double X, double Y)[] p, double z) => i switch { 0 => new(p[i].X,p[(i+1)%8].Y,z), 2 => new(p[(i+1)%8].X,p[i].Y,z), 4 => new(p[i].X,p[(i+1)%8].Y,z), _ => new(p[(i+1)%8].X,p[i].Y,z) };
-    private static SurfaceGeometry SideSurface(int i, (double X, double Y)[] profile, double radius, double z) { if (i % 2 == 0) return SurfaceGeometry.FromCylinder(new CylinderSurface(CornerCenter(i, profile, z), PlusZ, radius, PlusX)); var a=new Point3D(profile[i].X,profile[i].Y,z); var q=new Point3D(profile[(i+1)%8].X,profile[(i+1)%8].Y,z); var tangent=Direction3D.Create(q-a); return SurfaceGeometry.FromPlane(new PlaneSurface(a,Direction3D.Create(tangent.ToVector().Cross(PlusZ.ToVector())),PlusZ)); }
+    private static SurfaceGeometry SideSurface(int i, (double X, double Y)[] profile, double radius, double z) { if (i % 2 == 0) return SurfaceGeometry.FromCylinder(new CylinderSurface(CornerCenter(i, profile, z), PlusZ, radius, PlusX)); var a=new Point3D(profile[i].X,profile[i].Y,z); var q=new Point3D(profile[(i+1)%8].X,profile[(i+1)%8].Y,z); var tangent=Direction3D.Create(q-a); return SurfaceGeometry.FromPlane(new PlaneSurface(a,Direction3D.Create(PlusZ.ToVector().Cross(tangent.ToVector())),PlusZ)); }
     private static void AddCurve(EdgeId edge, CurveGeometry curve, double start, double end, BrepGeometryStore g, BrepBindingModel bindings) { var id=new CurveGeometryId(g.Curves.Count()+1); g.AddCurve(id,curve); bindings.AddEdgeBinding(new EdgeGeometryBinding(edge,id,new ParameterInterval(start,end))); }
     private static void BindSurface(FaceId face, SurfaceGeometry surface, BrepGeometryStore g, BrepBindingModel bindings, bool sameSense=true) { var id=new SurfaceGeometryId(g.Surfaces.Count()+1); g.AddSurface(id,surface); bindings.AddFaceBinding(new FaceGeometryBinding(face,id,sameSense)); }
     private static void BindPlane(FaceId face, Point3D origin, Direction3D normal, BrepGeometryStore g, BrepBindingModel bindings, bool sameSense=true) => BindSurface(face, SurfaceGeometry.FromPlane(new PlaneSurface(origin,normal,PlusX)),g,bindings,sameSense);

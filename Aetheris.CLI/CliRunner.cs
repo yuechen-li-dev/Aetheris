@@ -1,6 +1,9 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aetheris.Forge.Abstractions.FirmamentInterop;
+using Aetheris.Kernel.Core.Brep.Verification;
+using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.FirmamentV2;
@@ -108,7 +111,7 @@ public static class CliRunner
         string? Error,
         string? Classification = null,
         int? RigidRootCount = null);
-    private const string TopLevelUsage = "Usage: aetheris <build|validate|analyze|match|trace|canon|asm|experimental> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|validate|analyze|verify|match|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
@@ -116,6 +119,7 @@ public static class CliRunner
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
+    private const string VerifyUsage = "Usage: aetheris verify <artifact.step> [--expected-volume <value>] [--cad-assistant] [--cad-assistant-path <path>] [--timeout <seconds>] [--evidence-dir <path>] [--require-external] [--json]";
     private const string MatchUsage = "Usage: aetheris match <file.step> <concept.firmament> [--linear-tolerance <mm>] [--angular-tolerance <deg>] [--json]";
     private const string TraceUsage = "Usage: aetheris trace (--case <name>|--fixture <path>) [--out-dir <dir>] [--json]";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--mode deterministic|production] [--json]";
@@ -167,6 +171,7 @@ public static class CliRunner
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
+                "verify" => RunVerify(args.Skip(1).ToArray(), stdout, stderr),
                 "match" => RunMatch(args.Skip(1).ToArray(), stdout, stderr),
                 "trace" => RunTrace(args.Skip(1).ToArray(), stdout, stderr),
                 "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
@@ -180,6 +185,91 @@ public static class CliRunner
             stderr.WriteLine(ex.Message);
             return 1;
         }
+    }
+
+    private static int RunVerify(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { WriteVerifyHelp(stdout); return args.Length == 0 ? 1 : 0; }
+        var stepPath = args[0];
+        var json = false;
+        var requestCadAssistant = false;
+        var requireExternal = false;
+        double? expectedVolume = null;
+        string? cadPath = null;
+        string? evidenceRoot = null;
+        var timeout = TimeSpan.FromSeconds(30);
+        for (var i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--cad-assistant": requestCadAssistant = true; break;
+                case "--cad-assistant-path" when i + 1 < args.Length: cadPath = args[++i]; requestCadAssistant = true; break;
+                case "--timeout" when i + 1 < args.Length && double.TryParse(args[++i], out var seconds) && seconds > 0d: timeout = TimeSpan.FromSeconds(seconds); break;
+                case "--evidence-dir" when i + 1 < args.Length: evidenceRoot = args[++i]; break;
+                case "--expected-volume" when i + 1 < args.Length && double.TryParse(args[++i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var expected) && expected >= 0d: expectedVolume = expected; break;
+                case "--require-external": requireExternal = true; requestCadAssistant = true; break;
+                case "--json": json = true; break;
+                default: stderr.WriteLine($"Unknown verify option '{args[i]}'."); stderr.WriteLine(VerifyUsage); return 1;
+            }
+        }
+        if (!File.Exists(stepPath)) { stderr.WriteLine($"STEP artifact '{stepPath}' does not exist."); return 1; }
+        var fullPath = Path.GetFullPath(stepPath);
+        var hash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(fullPath))).ToLowerInvariant();
+        var fixtureName = Path.GetFileNameWithoutExtension(fullPath);
+        var evidenceDir = Path.GetFullPath(evidenceRoot ?? Path.Combine("artifacts", "verification", fixtureName, hash));
+        Directory.CreateDirectory(evidenceDir);
+        File.Copy(fullPath, Path.Combine(evidenceDir, "model.step"), overwrite: true);
+
+        object report;
+        CadAssistantInspectionResult? external = null;
+        BrepMassPropertiesResult? massProperties = null;
+        AnalyzeResult? reimportAnalysis = null;
+        try
+        {
+            var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));
+            if (!import.IsSuccess) throw new InvalidOperationException(string.Join("; ", import.Diagnostics.Select(d => d.Message)));
+            massProperties = BrepMassProperties.Evaluate(import.Value);
+            reimportAnalysis = StepAnalyzer.AnalyzeImportedBody(import.Value, fullPath);
+            if (requestCadAssistant)
+            {
+                external = CadAssistantInspection.Inspect(fullPath, new CadAssistantInspectionOptions(cadPath, timeout, evidenceDir));
+            }
+            var overall = massProperties.Status == BrepMassPropertiesStatus.Unavailable
+                ? "BRepRejected"
+                : external?.Status == CadAssistantInspectionStatus.Unavailable
+                ? "ExternalInspectionPending"
+                : external is null ? "ExternalInspectionPending"
+                : external.Status is CadAssistantInspectionStatus.Displayed or CadAssistantInspectionStatus.InspectionCompleted ? "ExternallyDisplayed"
+                : massProperties.Status != BrepMassPropertiesStatus.Unavailable ? "BRepVerified" : "Rejected";
+            ArtifactMassComparisonEvidence? comparison = null;
+            if (expectedVolume.HasValue && massProperties.Status != BrepMassPropertiesStatus.Unavailable)
+            {
+                var delta = massProperties.AbsoluteVolume - expectedVolume.Value;
+                var relative = expectedVolume.Value > 1e-12d ? delta / expectedVolume.Value : delta;
+                comparison = new ArtifactMassComparisonEvidence(expectedVolume.Value, massProperties.AbsoluteVolume, delta, relative, Math.Abs(delta) <= (massProperties.ErrorBound ?? 0d));
+            }
+            report = new ArtifactVerificationResult(
+                new ArtifactIdentity(fullPath, hash, evidenceDir),
+                new ArtifactProducerEvidence("ArtifactOnly", "verify consumes an existing STEP artifact; compiler preflight evidence is not reconstructed."),
+                massProperties,
+                comparison,
+                new ArtifactStepReimportEvidence("Valid", reimportAnalysis),
+                (object?)external ?? new { status = "NotRequested", availability = "Unknown" },
+                overall);
+        }
+        catch (Exception ex)
+        {
+            report = new { artifact = new { path = fullPath, sha256 = hash, evidenceDirectory = evidenceDir }, overallAdmission = "Rejected", error = ex.Message };
+        }
+        var reportPath = Path.Combine(evidenceDir, "verification-report.json");
+        File.WriteAllText(reportPath, JsonSerializer.Serialize(report, JsonOptions));
+        if (massProperties is not null) File.WriteAllText(Path.Combine(evidenceDir, "mass-properties.json"), JsonSerializer.Serialize(massProperties, JsonOptions));
+        if (reimportAnalysis is not null) File.WriteAllText(Path.Combine(evidenceDir, "aetheris-analyze.json"), JsonSerializer.Serialize(reimportAnalysis, JsonOptions));
+        if (external is not null) File.WriteAllText(Path.Combine(evidenceDir, "cad-assistant-inspection.json"), JsonSerializer.Serialize(external, JsonOptions));
+        File.WriteAllText(Path.Combine(evidenceDir, "verification-summary.md"), $"# Artifact verification\n\n- Artifact: `{fullPath}`\n- SHA-256: `{hash}`\n- Report: `verification-report.json`\n- External inspection: `{external?.Status.ToString() ?? "NotRequested"}`\n");
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
+        else stdout.WriteLine($"Verification report: {reportPath}");
+        return requireExternal && external?.Status == CadAssistantInspectionStatus.Unavailable ? 2 : 0;
     }
 
     private static int RunMatch(string[] args, TextWriter stdout, TextWriter stderr)
@@ -2310,6 +2400,7 @@ public static class CliRunner
         stdout.WriteLine("  build      Build a .firmament source file into STEP.");
         stdout.WriteLine("  validate   Validate Firmament V2 manufacturing intent and emit report JSON.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
+        stdout.WriteLine("  verify     Reimport STEP and emit independent B-rep/external-display evidence.");
         stdout.WriteLine("  match      Match a compile-time Concept Struct against observed STEP geometry.");
         stdout.WriteLine("  trace      Trace built-in AIR lowering cases through route, BRepPlan, STEP smoke, and CIR mirror.");
         stdout.WriteLine("  canon      Import and re-export STEP/AP242 as canonical STEP.");
@@ -2337,6 +2428,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris analyze map model.step --top --rows 40 --cols 60 --json");
         stdout.WriteLine("  aetheris analyze section model.step --xy --offset 2.5 --json");
         stdout.WriteLine("  aetheris analyze volume model.step --json");
+        stdout.WriteLine("  aetheris verify model.step --json");
         stdout.WriteLine();
         stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");
     }
@@ -2491,6 +2583,23 @@ public static class CliRunner
         stdout.WriteLine("  aetheris analyze volume part.step");
         stdout.WriteLine("  aetheris analyze volume part.step --json");
         stdout.WriteLine("  aetheris analyze volume part.step --approximate --resolution 64 --json");
+    }
+
+    private static void WriteVerifyHelp(TextWriter stdout)
+    {
+        stdout.WriteLine(VerifyUsage);
+        stdout.WriteLine();
+        stdout.WriteLine("Reimport a STEP artifact, evaluate independent B-rep mass properties, and optionally run bounded external CAD display inspection.");
+        stdout.WriteLine("The report is hash-tied to artifacts/verification/<fixture>/<sha256>/ by default.");
+        stdout.WriteLine();
+        stdout.WriteLine("Options:");
+        stdout.WriteLine("  --expected-volume <value>   Compare independent measured volume with external analytic evidence; never used by the evaluator.");
+        stdout.WriteLine("  --cad-assistant              Launch configured CAD Assistant for external display observation.");
+        stdout.WriteLine("  --cad-assistant-path <path> Explicit CAD Assistant executable; otherwise AETHERIS_CAD_ASSISTANT_PATH and two standard install paths are checked.");
+        stdout.WriteLine("  --timeout <seconds>          External inspection timeout (default 30).");
+        stdout.WriteLine("  --evidence-dir <path>        Override hash-tied evidence directory.");
+        stdout.WriteLine("  --require-external           Return exit 2 when CAD Assistant is unavailable.");
+        stdout.WriteLine("  --json                       Emit the unified report on stdout.");
     }
 
     private static void WriteCanonHelp(TextWriter stdout)

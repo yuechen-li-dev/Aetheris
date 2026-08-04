@@ -172,7 +172,11 @@ public static class RoundedBoxBRepPlanner
     {
         if (i % 2 == 0) return SurfaceGeometry.FromCylinder(new CylinderSurface(CornerCenter(i, ProfilePoints(a, c, r, 0), r, z), PlusZ, r, PlusX));
         var p = new Point3D(start.X, start.Y, z); var tangent = Direction3D.Create(new Vector3D(end.X - start.X, end.Y - start.Y, 0));
-        var outward = Direction3D.Create(tangent.ToVector().Cross(PlusZ.ToVector()));
+        // The profile runs clockwise when viewed from +Z, so +Z × tangent is
+        // the material-outward planar normal. The previous tangent × +Z
+        // convention inverted each straight wall and made its signed boundary
+        // contribution cancel the caps/corner cylinders.
+        var outward = Direction3D.Create(PlusZ.ToVector().Cross(tangent.ToVector()));
         return SurfaceGeometry.FromPlane(new PlaneSurface(p, outward, PlusZ));
     }
 

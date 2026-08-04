@@ -13,9 +13,9 @@ internal static class CurveSampler
     public static IReadOnlyList<Point3D> SampleLine(Line3Curve line, ParameterInterval interval)
         => [line.Evaluate(interval.Start), line.Evaluate(interval.End)];
 
-    public static IReadOnlyList<Point3D> SampleCircleArc(Circle3Curve circle, double startAngle, double delta)
+    public static IReadOnlyList<Point3D> SampleCircleArc(Circle3Curve circle, double startAngle, double delta, DisplayTessellationOptions? options = null)
     {
-        var segmentCount = ResolveCircleSegmentCount(delta);
+        var segmentCount = ResolveCircleSegmentCount(delta, circle.Radius, options);
         var points = new List<Point3D>(segmentCount + 1);
         for (var i = 0; i <= segmentCount; i++)
         {
@@ -52,7 +52,8 @@ internal static class CurveSampler
         bool orientedEdgeSense,
         out IReadOnlyList<Point3D> points,
         out bool isClosed,
-        out bool usedShorterArcFallback)
+        out bool usedShorterArcFallback,
+        DisplayTessellationOptions? options = null)
     {
         const double endpointTolerance = 1e-6d;
         const double fullCircleEpsilon = 1e-6d;
@@ -115,7 +116,7 @@ internal static class CurveSampler
             delta = sign * System.Math.Clamp(double.Abs(delta), minDelta, maxDelta);
         }
 
-        var sampled = SampleCircleArc(circle, thetaStart, delta).ToArray();
+        var sampled = SampleCircleArc(circle, thetaStart, delta, options).ToArray();
         sampled[0] = startProjected;
         sampled[^1] = endProjected;
         points = sampled;
@@ -141,7 +142,7 @@ internal static class CurveSampler
         return normalized;
     }
 
-    private static int ResolveCircleSegmentCount(double delta)
+    private static int ResolveCircleSegmentCount(double delta, double radius, DisplayTessellationOptions? options)
     {
         var absoluteDelta = double.Abs(delta);
         if (absoluteDelta <= 1e-12d)
@@ -149,7 +150,20 @@ internal static class CurveSampler
             return MinimumCircleSegments;
         }
 
-        var segments = (int)double.Ceiling(absoluteDelta / AngularStepRadians);
-        return System.Math.Clamp(segments, MinimumCircleSegments, MaximumCircleSegments);
+        if (options is null)
+        {
+            var displaySegments = (int)double.Ceiling(absoluteDelta / AngularStepRadians);
+            return System.Math.Clamp(displaySegments, MinimumCircleSegments, MaximumCircleSegments);
+        }
+
+        var angular = (int)double.Ceiling(absoluteDelta / options.AngularToleranceRadians);
+        var chord = 0;
+        if (radius > options.ChordTolerance)
+        {
+            var halfStep = double.Acos(System.Math.Clamp(1d - (options.ChordTolerance / radius), -1d, 1d));
+            chord = halfStep > 0d ? (int)double.Ceiling(absoluteDelta / (2d * halfStep)) : 0;
+        }
+
+        return System.Math.Clamp(System.Math.Max(options.MinimumSegments, System.Math.Max(angular, chord)), options.MinimumSegments, options.MaximumSegments);
     }
 }

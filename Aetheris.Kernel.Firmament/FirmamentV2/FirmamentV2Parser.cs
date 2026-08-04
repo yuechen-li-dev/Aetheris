@@ -47,6 +47,12 @@ public static class FirmamentV2Parser
     public const string FillInvalidStrutRadius = "firmament-v2-fill-invalid-strut-radius";
     public const string FillUnsupportedBoundaryPolicy = "firmament-v2-fill-unsupported-boundary-policy";
     public const string FillMultipleUnsupported = "firmament-v2-fill-multiple-unsupported";
+    public const string UnknownConstructionPolicy = "firmament-v2-unknown-construction-policy";
+    public const string PrimitiveDoesNotSatisfyHollowConstructible = "firmament-v2-primitive-does-not-satisfy-hollow-constructible";
+    public const string WallThicknessRequired = "firmament-v2-wall-thickness-required";
+    public const string WallThicknessMustBePositive = "firmament-v2-wall-thickness-must-be-positive";
+    public const string UnsupportedOpening = "firmament-v2-unsupported-opening";
+    public const string MultipleOpeningsNotSupported = "firmament-v2-multiple-openings-not-supported";
 
     public const string ConceptUnknownFamily = "firmament-v2-concept-unknown-family";
     public const string ConceptUnknownConcept = "firmament-v2-concept-unknown-concept";
@@ -243,6 +249,12 @@ public static class FirmamentV2Parser
             return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
         }
         source = templateExpansion.Source;
+
+        if (Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant))
+            return ParsePrimitiveConstructionPolicyDocument(source, diagnostics);
+
+        if (Regex.IsMatch(source, @"\bRoundedBox\s+[A-Za-z_]", RegexOptions.CultureInvariant))
+            return ParseRoundedBoxModelingDocument(source, diagnostics);
 
         if (Regex.IsMatch(source, @"\bConcept\s+(?:Struct\s+)?[A-Za-z_]", RegexOptions.CultureInvariant)
             || Regex.IsMatch(source, @"\b(?:Struct|Model)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant))
@@ -736,7 +748,7 @@ public static class FirmamentV2Parser
         if (!model.Success || !primitive.Success || !modify.Success || !edge.Success || model.Groups["units"].Value != "mm"
             || Regex.Matches(source, @"\b(?:Box|Cylinder)\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1
             || Regex.Matches(source, @"\bModify\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1
-            || edges.Length is < 1 or > 2)
+            || edges.Length is < 1 or > 3)
             diagnostics.Add(Phase3EdgeFinishSyntaxInvalid);
 
         if (diagnostics.Contains(Phase3EdgeFinishSyntaxInvalid))
@@ -806,6 +818,118 @@ public static class FirmamentV2Parser
         return FirmamentV2ParseResult.Success(document, diagnostics);
     }
 
+    /// <summary>Bounded direct syntax for AIR-ROUNDED-BOX-M6.  It intentionally
+    /// accepts only one history-known rounded box and its single complete +Z boundary finish.</summary>
+    private static FirmamentV2ParseResult ParseRoundedBoxModelingDocument(string source, List<string> diagnostics)
+    {
+        var model = Regex.Match(source, @"^\s*(?:Model|Struct)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)(?:\s+(?<units>[A-Za-z_][A-Za-z0-9_]*))?\s*\{?", RegexOptions.CultureInvariant);
+        var primitive = Regex.Match(source, @"\bRoundedBox\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+        if (!model.Success || !primitive.Success || Regex.Matches(source, @"\bRoundedBox\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1)
+            return RoundedBoxParseFailure(diagnostics);
+        if (model.Groups["units"].Success && model.Groups["units"].Value != "mm") return RoundedBoxParseFailure(diagnostics);
+        var open = source.IndexOf('{', primitive.Index); var close = FindMatchingBrace(source, open);
+        if (close < 0) return RoundedBoxParseFailure(diagnostics);
+        var body = source[(open + 1)..close];
+        var size = Regex.Match(body, @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant);
+        var corner = Regex.Match(body, @"\bCornerRadius\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+        var values = size.Success ? size.Groups["values"].Value.Split(',').Select(ParsePhase3Length).ToArray() : [];
+        if (values.Length != 3 || values.Any(v => !double.IsFinite(v) || v <= 0d) || !corner.Success || !double.TryParse(corner.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var rc) || !double.IsFinite(rc) || rc <= 0d || rc >= double.Min(values[0], values[1]) / 2d)
+            return RoundedBoxParseFailure(diagnostics);
+
+        var solid = new FirmamentV2SolidBinding(primitive.Groups["name"].Value, "RoundedBox", new FirmamentV2RoundedBoxRecord(values, rc));
+        var modifies = Regex.Matches(source, @"\bModify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
+        if (modifies.Length > 1 || (modifies.Length == 1 && modifies[0].Groups["target"].Value != solid.Name)) return RoundedBoxParseFailure(diagnostics);
+        var blocks = new List<FirmamentV2ModifyBlock>();
+        if (modifies.Length == 1)
+        {
+            var modify = modifies[0]; var modifyOpen = source.IndexOf('{', modify.Index); var modifyClose = FindMatchingBrace(source, modifyOpen);
+            var finishes = Regex.Matches(source, @"\bEdgeFinish\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
+            if (modifyClose < 0 || finishes.Length != 1) return RoundedBoxParseFailure(diagnostics);
+            var edge = finishes[0]; var edgeOpen = source.IndexOf('{', edge.Index); var edgeClose = FindMatchingBrace(source, edgeOpen);
+            if (edgeClose < 0 || edge.Index < modifyOpen || edgeClose > modifyClose) return RoundedBoxParseFailure(diagnostics);
+            var edgeBody = source[(edgeOpen + 1)..edgeClose];
+            var face = Regex.Match(edgeBody, @"\bFace\s*:\s*(?<value>[+-][XYZ])", RegexOptions.CultureInvariant);
+            var target = Regex.Match(edgeBody, @"\bTarget\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+            var kind = Regex.Match(edgeBody, @"\bKind\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+            var radius = Regex.Match(edgeBody, @"\bRadius\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+            if (!face.Success || !target.Success || !kind.Success || !radius.Success || !double.TryParse(radius.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var rf) || !double.IsFinite(rf)) return RoundedBoxParseFailure(diagnostics);
+            blocks.Add(new FirmamentV2ModifyBlock(solid.Name, [], [], [new FirmamentV2EdgeFinishDecl(edge.Groups["name"].Value, face.Groups["value"].Value, target.Groups["value"].Value, kind.Groups["value"].Value, rf, new FirmamentV2SourceSpan(edge.Index, edgeClose - edge.Index + 1))]));
+        }
+        diagnostics.Add("firmament-v2-rounded-box-parsed"); diagnostics.Add("firmament-v2-parse-succeeded"); diagnostics.Sort(StringComparer.Ordinal);
+        return FirmamentV2ParseResult.Success(new FirmamentV2Document(model.Groups["name"].Value, "mm", [solid], blocks), diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+    }
+
+    private static FirmamentV2ParseResult RoundedBoxParseFailure(List<string> diagnostics)
+    {
+        diagnostics.Add(Phase3EdgeFinishSyntaxInvalid); diagnostics.Add("firmament-v2-parse-failed");
+        return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
+    }
+
+    /// <summary>
+    /// Bounded generic primitive construction syntax.  Angle brackets are not a general type-argument escape hatch:
+    /// this parser accepts only the named construction policies and witnesses admitted by the production compiler.
+    /// </summary>
+    private static FirmamentV2ParseResult ParsePrimitiveConstructionPolicyDocument(string source, List<string> diagnostics)
+    {
+        var model = Regex.Match(source, @"^\s*(?:Struct|Model)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+        var primitive = Regex.Match(source, @"\b(?<type>[A-Za-z_][A-Za-z0-9_]*)\s*<\s*(?<policy>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+        if (!model.Success || !primitive.Success || Regex.Matches(source, @"\b(?:RoundedBox|Frustum|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1)
+            return ConstructionPolicyParseFailure(diagnostics);
+
+        var type = primitive.Groups["type"].Value;
+        var policy = primitive.Groups["policy"].Value;
+        if (policy != "Hollow") { diagnostics.Add(UnknownConstructionPolicy); return ConstructionPolicyParseFailure(diagnostics); }
+        if (type is not ("RoundedBox" or "Frustum")) { diagnostics.Add(PrimitiveDoesNotSatisfyHollowConstructible); return ConstructionPolicyParseFailure(diagnostics); }
+        var open = source.IndexOf('{', primitive.Index); var close = FindMatchingBrace(source, open);
+        if (close < 0) return ConstructionPolicyParseFailure(diagnostics);
+        var body = source[(open + 1)..close];
+        var thickness = Regex.Match(body, @"\bWallThickness\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+        if (!thickness.Success) { diagnostics.Add(WallThicknessRequired); return ConstructionPolicyParseFailure(diagnostics); }
+        if (!double.TryParse(thickness.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var wall) || !double.IsFinite(wall) || wall <= 0d)
+        { diagnostics.Add(WallThicknessMustBePositive); return ConstructionPolicyParseFailure(diagnostics); }
+        var openings = Regex.Match(body, @"\bOpenings\s*:\s*\[(?<items>[^\]]*)\]", RegexOptions.CultureInvariant);
+        var openingItems = openings.Success ? openings.Groups["items"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) : [];
+        if (openingItems.Length != 1 || openingItems[0] != "Top")
+        {
+            diagnostics.Add(openingItems.Length > 1 ? MultipleOpeningsNotSupported : UnsupportedOpening);
+            return ConstructionPolicyParseFailure(diagnostics);
+        }
+
+        FirmamentV2PrimitiveRecord? record = null;
+        if (type == "RoundedBox")
+        {
+            var size = Regex.Match(body, @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant);
+            var corner = Regex.Match(body, @"\bCornerRadius\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+            var values = size.Success ? size.Groups["values"].Value.Split(',').Select(ParsePhase3Length).ToArray() : [];
+            if (values.Length != 3 || values.Any(v => !double.IsFinite(v) || v <= 0d) || !corner.Success || !double.TryParse(corner.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius) || !double.IsFinite(radius) || radius <= 0d)
+                return ConstructionPolicyParseFailure(diagnostics);
+            record = new FirmamentV2RoundedBoxRecord(values, radius);
+        }
+        else
+        {
+            double Read(string field)
+            {
+                var m = Regex.Match(body, $@"\b{field}\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+                return m.Success && double.TryParse(m.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : double.NaN;
+            }
+            var bottom = Read("BottomRadius"); var top = Read("TopRadius"); var height = Read("Height");
+            if (!double.IsFinite(bottom) || !double.IsFinite(top) || !double.IsFinite(height) || bottom <= 0d || top <= 0d || height <= 0d || double.Abs(top - bottom) <= 1e-12d)
+                return ConstructionPolicyParseFailure(diagnostics);
+            record = new FirmamentV2FrustumRecord(bottom, top, height);
+        }
+
+        var hollow = new FirmamentV2HollowIntent(wall, ["Top"], new FirmamentV2SourceSpan(primitive.Index, close - primitive.Index + 1));
+        var solid = new FirmamentV2SolidBinding(primitive.Groups["name"].Value, type, record, ConstructionPolicy: FirmamentV2ConstructionPolicy.Hollow, Hollow: hollow);
+        diagnostics.Add("firmament-v2-hollow-policy-parsed"); diagnostics.Add("firmament-v2-parse-succeeded"); diagnostics.Sort(StringComparer.Ordinal);
+        return FirmamentV2ParseResult.Success(new FirmamentV2Document(model.Groups["name"].Value, "mm", [solid]), diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+    }
+
+    private static FirmamentV2ParseResult ConstructionPolicyParseFailure(List<string> diagnostics)
+    {
+        diagnostics.Add("firmament-v2-parse-failed");
+        return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
+    }
+
     private static FirmamentV2ParseResult ParseConceptModelingDocument(string source, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations = null)
     {
         var resolution = ConceptIrResolver.Resolve(source, diagnostics);
@@ -862,7 +986,7 @@ public static class FirmamentV2Parser
         || code.StartsWith(ConceptIrResolver.PointProjectionUnsupported, StringComparison.Ordinal)
         || code.StartsWith("firmament-static-", StringComparison.Ordinal);
 
-    public static bool IsFatalDiagnosticCode(string code) => IsConceptFatalDiagnostic(code) || code is Phase3EdgeFinishSyntaxInvalid or PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetTypeMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch;
+    public static bool IsFatalDiagnosticCode(string code) => IsConceptFatalDiagnostic(code) || code is UnknownConstructionPolicy or PrimitiveDoesNotSatisfyHollowConstructible or WallThicknessRequired or WallThicknessMustBePositive or UnsupportedOpening or MultipleOpeningsNotSupported or Phase3EdgeFinishSyntaxInvalid or PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetTypeMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {

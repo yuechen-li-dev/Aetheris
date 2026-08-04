@@ -1,0 +1,9 @@
+Struct InvalidCup {
+    Frustum<Hollow> Body {
+        BottomRadius: 32mm
+        TopRadius: 43mm
+        Height: 90mm
+        WallThickness: 2mm
+        Openings: [Top, Bottom]
+    }
+}

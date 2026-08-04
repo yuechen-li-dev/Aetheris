@@ -168,7 +168,20 @@ public static class FirmamentBuildAndExport
             return ExportV2LocalizedEdgeJunctionChamfer(document, junctionSolid, finishes[0].Finish, finishes[1].Finish, junctionBox);
         }
         if (finishes.Length == 2 && finishes.All(x => string.Equals(x.Finish.Kind, "Fillet", StringComparison.Ordinal)))
-            return AirChamferFailure("localized-junction-unsupported-finish-combination:fillet-shared-patch-surface-required");
+        {
+            if (document.Solids.Count != 1 || document.ModifyBlocks!.Count != 1 || document.ModifyBlocks[0].Regions.Count != 0 || document.ModifyBlocks[0].SemanticHoles.Count != 0)
+                return AirChamferFailure("localized-fillet-junction-production-route-requires-one-box-and-one-modify-block");
+            var junctionSolid = document.Solids.SingleOrDefault(s => s.Name == finishes[0].Modify.TargetSolid);
+            if (junctionSolid?.Primitive is not FirmamentV2BoxRecord junctionBox || junctionBox.Size.Count != 3)
+                return AirChamferFailure("localized-fillet-junction-unsupported-history:expected-history-known-box");
+            var filletInvestigation = AirLocalizedEdgeJunctionFilletCompiler.Compile(new(
+                junctionSolid.Name, $"{junctionSolid.Name}.{finishes[0].Finish.Name}.{finishes[1].Finish.Name}", $"{finishes[0].Finish.Name}+{finishes[1].Finish.Name}",
+                junctionBox.Size[0], junctionBox.Size[1], junctionBox.Size[2],
+                finishes[0].Finish.FaceAxis, finishes[0].Finish.Target, finishes[1].Finish.FaceAxis, finishes[1].Finish.Target,
+                finishes[0].Finish.Distance, finishes[1].Finish.Distance,
+                new AirSourceSpan(finishes[0].Finish.SourceSpan.Start, finishes[0].Finish.SourceSpan.Length + finishes[1].Finish.SourceSpan.Length, document.ModelName)));
+            return AirChamferFailure(filletInvestigation.Error?.Code ?? "localized-fillet-junction-construction-witness-required", filletInvestigation.Diagnostics);
+        }
         if (finishes.Length == 2)
             return AirChamferFailure("localized-junction-unsupported-finish-combination:mixed-families");
         if (finishes.Length > 2)

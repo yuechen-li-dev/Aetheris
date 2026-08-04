@@ -88,7 +88,7 @@ public sealed class LocalizedTangentBlendFilletPipelineTests
             }
             """);
         Assert.Equal(1, run.Exit);
-        Assert.Contains("localized-junction-unsupported-finish-combination:fillet-shared-patch-surface-required", run.Output, StringComparison.Ordinal);
+        Assert.Contains("localized-fillet-junction-corner-patch-surface-required", run.Output, StringComparison.Ordinal);
     }
 
     private static (int Exit, string Output) Run(string source)

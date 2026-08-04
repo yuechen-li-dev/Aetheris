@@ -37,9 +37,9 @@ internal static class AirDeferredChamferLowerer
                 "chamfer-missing-construction-witness:localized-planar-replacement-not-implemented",
                 "A bounded support plane is insufficient without an authoritative retained/replacement region topology plan.", request),
             AirDeferredChamferFamily.AdjacentEdgeJunction => Error(
-                ChamferLoweringErrorKind.CornerPolicyRequired,
-                "chamfer-corner-policy-required:multiple-valid-corner-patches",
-                "The two edge strips admit multiple valid junction patches (miter, setback, or explicit corner face).", request),
+                ChamferLoweringErrorKind.ConstructionWitnessRequired,
+                "chamfer-corner-construction-witness-required:authoritative-brep-plan",
+                "The two edge strips do not yet own a hard-validated junction construction and authoritative BRepPlan; legacy miter/setback/patch alternatives are not proof of modern admissibility.", request),
             _ => Error(ChamferLoweringErrorKind.UnsupportedJunction, "chamfer-unsupported-junction", "No bounded construction family is registered.", request),
         };
     }

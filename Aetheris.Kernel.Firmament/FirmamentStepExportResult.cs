@@ -44,7 +44,39 @@ public sealed record FirmamentAirChamferReport(
     FirmamentAirChamferConstructionReport Construction,
     FirmamentAirChamferBRepPlanReport BRepPlan,
     FirmamentAirChamferMaterializationReport Materialization,
-    FirmamentAirChamferStepReport Step);
+    FirmamentAirChamferStepReport Step,
+    FirmamentLocalizedChamferTrace? LocalizedChamfer = null,
+    FirmamentLocalizedFilletTrace? LocalizedFillet = null);
+
+/// <summary>Bounded report of the localized AIR path; it is evidence, never input to emission.</summary>
+public sealed record FirmamentLocalizedChamferTrace(
+    string Selection,
+    string Construction,
+    string SelectionMode,
+    int RetainedFaces,
+    int ReplacementFaces,
+    string EndpointPolicy,
+    FirmamentLocalizedChamferPlanTrace BRepPlan,
+    string Preflight,
+    bool LegacyFallback);
+
+public sealed record FirmamentLocalizedChamferPlanTrace(bool Authoritative, string Signature);
+
+/// <summary>Evidence emitted by the narrow AIR-FILLET-LOCALIZED-M1 production route.</summary>
+public sealed record FirmamentLocalizedFilletTrace(
+    string Selection,
+    string Rule,
+    double Radius,
+    string Construction,
+    string Profile,
+    string Sweep,
+    string SelectionMode,
+    int RetainedFaces,
+    int ReplacementFaces,
+    string EndpointPolicy,
+    FirmamentLocalizedChamferPlanTrace BRepPlan,
+    string Preflight,
+    bool LegacyFallback);
 
 public sealed record FirmamentAirChamferFeatureReport(string Kind, string Body, string FeatureId, string FeatureName, string Selection, double Distance, string Unit, string SourceSpan, string Admission, string AdmissionReason, IReadOnlyDictionary<string, string>? Provenance = null);
 public sealed record FirmamentAirChamferConstructionReport(

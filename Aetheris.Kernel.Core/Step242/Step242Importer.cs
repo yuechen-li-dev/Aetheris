@@ -750,6 +750,32 @@ public static class Step242Importer
         bool edgeSameSense,
         int edgeCurveEntityId)
     {
+        ParameterInterval? explicitTrim = null;
+        var trimmedConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "TRIMMED_CURVE");
+        if (trimmedConstructor is not null)
+        {
+            if (trimmedConstructor.Arguments.Count != 6
+                || trimmedConstructor.Arguments[1] is not Step242EntityReference basisReference)
+            {
+                return FailureCurveBinding("TRIMMED_CURVE must provide a basis curve and two parameter trims.", SourceFor(edgeCurveEntityId, "Importer.Geometry.TrimmedCurve"));
+            }
+
+            var trimResult = ReadParameterTrim(trimmedConstructor.Arguments[2], trimmedConstructor.Arguments[3], trimmedConstructor.Arguments[4], edgeCurveEntityId);
+            if (!trimResult.IsSuccess)
+            {
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
+            }
+
+            var basisResult = document.TryGetEntity(basisReference.TargetId);
+            if (!basisResult.IsSuccess)
+            {
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(basisResult.Diagnostics);
+            }
+
+            curveEntity = basisResult.Value;
+            explicitTrim = trimResult.Value;
+        }
+
         var lineConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "LINE");
         if (lineConstructor is not null)
         {
@@ -788,7 +814,9 @@ public static class Step242Importer
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(circleResult.Diagnostics);
             }
 
-            var trimResult = ComputeCircleTrim(circleResult.Value, startPoint, endPoint, edgeSameSense);
+            var trimResult = explicitTrim is { } specified
+                ? KernelResult<ParameterInterval>.Success(specified)
+                : ComputeCircleTrim(circleResult.Value, startPoint, endPoint, edgeSameSense);
             if (!trimResult.IsSuccess)
             {
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
@@ -878,6 +906,42 @@ public static class Step242Importer
         }
 
         return FailureCurveBinding($"EDGE_CURVE geometry '{curveEntity.Name}' is unsupported.", SourceFor(curveEntity.Id, "Importer.EntityFamily"));
+    }
+
+    private static KernelResult<ParameterInterval> ReadParameterTrim(
+        Step242Value startValue,
+        Step242Value endValue,
+        Step242Value senseValue,
+        int edgeCurveEntityId)
+    {
+        static bool TryReadParameter(Step242Value value, out double parameter)
+        {
+            parameter = double.NaN;
+            if (value is not Step242ListValue { Items.Count: 1 } list
+                || list.Items[0] is not Step242TypedValue { Name: var typeName, Arguments.Count: 1 } typed
+                || !string.Equals(typeName, "PARAMETER_VALUE", StringComparison.OrdinalIgnoreCase)
+                || typed.Arguments[0] is not Step242NumberValue number
+                || !double.IsFinite(number.Value))
+            {
+                return false;
+            }
+            parameter = number.Value;
+            return true;
+        }
+
+        if (!TryReadParameter(startValue, out var start) || !TryReadParameter(endValue, out var end)
+            || senseValue is not Step242BooleanValue { Value: var sameSense })
+        {
+            var failure = FailureCurveBinding("TRIMMED_CURVE parameter trim is malformed.", SourceFor(edgeCurveEntityId, "Importer.Geometry.TrimmedCurve"));
+            return KernelResult<ParameterInterval>.Failure(failure.Diagnostics);
+        }
+        if (!sameSense) (start, end) = (end, start);
+        if (end < start || !double.IsFinite(start) || !double.IsFinite(end))
+        {
+            var failure = FailureCurveBinding("TRIMMED_CURVE parameter interval is invalid.", SourceFor(edgeCurveEntityId, "Importer.Geometry.TrimmedCurve"));
+            return KernelResult<ParameterInterval>.Failure(failure.Diagnostics);
+        }
+        return KernelResult<ParameterInterval>.Success(new(start, end));
     }
 
     private static Step242ParsedEntity? ResolveBSplineCurveEntity(Step242ParsedEntity curveEntity)

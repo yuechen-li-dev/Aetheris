@@ -30,7 +30,8 @@ public sealed class ChamferM6FixturePipelineTests
 
         var imported = Step242Importer.ImportBody(File.ReadAllText(first.StepPath, Encoding.UTF8));
         Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(d => d.Message)));
-        Assert.Equal(6, imported.Value.Topology.Vertices.Count());
+        // Periodic rims share seam vertices after the producer topology repair.
+        Assert.Equal(3, imported.Value.Topology.Vertices.Count());
         Assert.Equal(5, imported.Value.Topology.Edges.Count());
         Assert.Equal(4, imported.Value.Topology.Faces.Count());
         Assert.Equal(1, imported.Value.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder));

@@ -53,7 +53,9 @@ internal static class RevolvedProfileStackEmitter
         var signature = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(signatureText)));
         return KernelResult<RevolvedProfileTopologyPlan>.Success(new(
             profile.ToArray(), frame, axis,
-            ExpectedVertexCount: n * 2,
+            // A periodic rim and its generating seam meet at the same topology vertex.
+            // Keeping separate coincident vertices creates disconnected face loops.
+            ExpectedVertexCount: n,
             ExpectedEdgeCount: (n - 1) + n,
             ExpectedFaceCount: (n - 1) + 2,
             ExpectedLoopCount: (n - 1) + 2,
@@ -72,9 +74,8 @@ internal static class RevolvedProfileStackEmitter
         var rims = profile.Select((p, i) => centers[i] + radialDirection.ToVector() * p.X).ToArray();
         var builder = new TopologyBuilder();
         var seamVertices = profile.Select(_ => builder.AddVertex()).ToArray();
-        var rimVertices = profile.Select(_ => builder.AddVertex()).ToArray();
         var seamEdges = Enumerable.Range(0, profile.Count - 1).Select(i => builder.AddEdge(seamVertices[i], seamVertices[i + 1])).ToArray();
-        var circleEdges = Enumerable.Range(0, profile.Count).Select(i => builder.AddEdge(rimVertices[i], rimVertices[i])).ToArray();
+        var circleEdges = Enumerable.Range(0, profile.Count).Select(i => builder.AddEdge(seamVertices[i], seamVertices[i])).ToArray();
 
         var sideFaces = new FaceId[profile.Count - 1];
         for (var i = 0; i < sideFaces.Length; i++)
@@ -137,7 +138,6 @@ internal static class RevolvedProfileStackEmitter
         for (var i = 0; i < profile.Count; i++)
         {
             vertexPoints[seamVertices[i]] = rims[i];
-            vertexPoints[rimVertices[i]] = rims[i];
         }
         var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints);
         var bindingValidation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);

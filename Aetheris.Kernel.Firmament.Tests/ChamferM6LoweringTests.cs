@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Air;
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
 
 namespace Aetheris.Kernel.Firmament.Tests;
@@ -20,13 +21,16 @@ public sealed class ChamferM6LoweringTests
             result.Construction.Witness.ReplacementProfile.Select(p => (p.X, p.Y)).ToArray());
         Assert.True(result.BRepPlan!.IsAuthoritative);
         Assert.NotNull(result.BRepPlan.RevolvedRealizationPlan);
-        Assert.Equal(6, result.Body!.Topology.Vertices.Count());
+        // Periodic rims now share their seam vertices; the old six-vertex shape was
+        // coincident but topologically disconnected and could not be enforced.
+        Assert.Equal(3, result.Body!.Topology.Vertices.Count());
         Assert.Equal(5, result.Body.Topology.Edges.Count());
         Assert.Equal(4, result.Body.Topology.Faces.Count());
         Assert.Equal(1, result.Body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder));
         Assert.Equal(1, result.Body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cone));
         Assert.Equal(2, result.Body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Plane));
         Assert.Contains("revolved-profile-authoritative-topology-plan-consumed", result.Diagnostics);
+        Assert.True(BrepExportPreflight.Validate(result.Body!).IsValid);
     }
 
     [Theory]
@@ -47,7 +51,7 @@ public sealed class ChamferM6LoweringTests
     [Theory]
     [InlineData("RectangularConcavePocketRim", "MissingConstructionWitness", "chamfer-missing-construction-witness:section-transition-does-not-support-holes")]
     [InlineData("SingleStraightConvexEdge", "MissingConstructionWitness", "chamfer-missing-construction-witness:localized-planar-replacement-not-implemented")]
-    [InlineData("AdjacentEdgeJunction", "CornerPolicyRequired", "chamfer-corner-policy-required:multiple-valid-corner-patches")]
+    [InlineData("AdjacentEdgeJunction", "ConstructionWitnessRequired", "chamfer-corner-construction-witness-required:authoritative-brep-plan")]
     public void DeferredFamilies_ReturnPreciseConstructionErrors(
         string family, string kind, string code)
     {

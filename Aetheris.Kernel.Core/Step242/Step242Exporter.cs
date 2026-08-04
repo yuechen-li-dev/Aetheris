@@ -21,6 +21,14 @@ public static class Step242Exporter
     {
         options ??= new Step242ExportOptions();
 
+        var preflight = options.BrepExportPreflightMode == BrepExportPreflightMode.Disabled
+            ? null
+            : BrepExportPreflight.Validate(body);
+        if (preflight is { IsValid: false } && options.BrepExportPreflightMode == BrepExportPreflightMode.Enforce)
+        {
+            return KernelResult<string>.Failure(ToKernelDiagnostics(preflight, errorsAsWarnings: false));
+        }
+
         var model = body.Topology;
         var bodyNodes = model.Bodies.OrderBy(b => b.Id.Value).ToArray();
         if (bodyNodes.Length != 1)
@@ -112,7 +120,9 @@ public static class Step242Exporter
         var shapeRepresentationId = writer.AddEntity("SHAPE_REPRESENTATION", Step242TextWriter.String(options.ProductName), Step242TextWriter.List(brepId), Step242TextWriter.Ref(repContextId));
         writer.AddEntity("SHAPE_DEFINITION_REPRESENTATION", Step242TextWriter.Ref(shapeId), Step242TextWriter.Ref(shapeRepresentationId));
 
-        return KernelResult<string>.Success(writer.Build(options.HeaderMetadata));
+        return KernelResult<string>.Success(
+            writer.Build(options.HeaderMetadata),
+            preflight is null ? null : ToKernelDiagnostics(preflight, errorsAsWarnings: true));
     }
 
     private static void EmitAuxiliaryVertexPointForVertexlessAnalyticBody(Step242TextWriter writer, BrepBody body, TopologyModel model)
@@ -185,7 +195,9 @@ public static class Step242Exporter
                 var loop = model.GetLoop(loopId);
                 var oriented = new List<string>();
 
-                foreach (var coedgeId in loop.CoedgeIds.OrderBy(id => id.Value))
+                // Loop.CoedgeIds is the authoritative cyclic order. Sorting this list can
+                // silently turn a coherent loop into a disconnected STEP EDGE_LOOP.
+                foreach (var coedgeId in loop.CoedgeIds)
                 {
                     var coedge = model.GetCoedge(coedgeId);
 
@@ -687,7 +699,17 @@ public static class Step242Exporter
                 circleIds[edgeId] = circleId;
             }
 
-            geometryCurveId = circleId;
+            // EDGE_CURVE endpoints alone do not disambiguate the minor and major arcs
+            // of a CIRCLE for all downstream CAD kernels. Preserve the actual bounded
+            // analytic edge, rather than relying on a viewer to infer it from a wire.
+            var trim = edgeBinding.TrimInterval.Value;
+            var isFullCircle = double.Abs((trim.End - trim.Start) - (2d * double.Pi)) <= 1e-12d;
+            geometryCurveId = isFullCircle
+                ? circleId
+                : writer.AddEntity("TRIMMED_CURVE", "$", Step242TextWriter.Ref(circleId),
+                    Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.Start)})"),
+                    Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.End)})"),
+                    Step242TextWriter.BooleanLogical(true), Step242TextWriter.Enum("PARAMETER"));
         }
         else if (curve.Kind == CurveGeometryKind.BSpline3 && curve.BSpline3 is BSpline3Curve spline)
         {
@@ -987,6 +1009,17 @@ public static class Step242Exporter
                 message,
                 source)
         ]);
+
+    private static IEnumerable<KernelDiagnostic> ToKernelDiagnostics(BrepExportPreflightResult result, bool errorsAsWarnings) =>
+        result.Diagnostics.Select(diagnostic => new KernelDiagnostic(
+            KernelDiagnosticCode.ValidationFailed,
+            errorsAsWarnings && diagnostic.Severity == BrepExportPreflightSeverity.Error
+                ? KernelDiagnosticSeverity.Warning
+                : diagnostic.Severity == BrepExportPreflightSeverity.Error
+                    ? KernelDiagnosticSeverity.Error
+                    : KernelDiagnosticSeverity.Warning,
+            $"{diagnostic.Code}: {diagnostic.Message}",
+            diagnostic.Context));
 
     private static KernelResult<Point3D> FailurePoint(string message, string source) =>
         KernelResult<Point3D>.Failure([

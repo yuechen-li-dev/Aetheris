@@ -18,6 +18,14 @@ internal enum ChamferLoweringErrorKind
     UnsupportedJunction,
     BackendMaterializationDefect,
     VerificationFailure,
+    NoCandidatePolicy,
+    UnsupportedValence,
+    UnsupportedSurfaceCombination,
+    AmbiguousWithoutPreference,
+    InvalidMaterialSide,
+    MissingRetainedRegion,
+    MissingReplacementRegion,
+    ConstructionWitnessRequired,
 }
 
 internal sealed record ChamferLoweringError(

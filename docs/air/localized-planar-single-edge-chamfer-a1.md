@@ -25,3 +25,6 @@ Utility scoring remains unused: the admitted single-edge context has exactly one
 The reusable fillet infrastructure is semantic selection, retained/replacement ownership,
 endpoint policy, authoritative plan emission, admission, preflight, and STEP proof. Fillets still
 need tangent arc/blend geometry, cylindrical/toroidal surfaces, and continuity/radius admission.
+## Status note
+
+This historical planar-route evidence is now implemented through the shared [AIR edge-finish consolidation M2](air-edge-finish-consolidation-m2.md) topology authority. The exact planar replacement geometry and existing compatibility report remain unchanged.

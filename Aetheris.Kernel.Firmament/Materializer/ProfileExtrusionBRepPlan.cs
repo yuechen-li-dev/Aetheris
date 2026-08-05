@@ -174,8 +174,12 @@ public static class ProfileExtrusionBRepPlanner
         faces.Add(startFace); faces.Add(endFace);
         foreach (var (sideLoop, surface, segmentSource, loopSource, startEdge, endEdge, startLongitudinal, endLongitudinal, isHole) in sideSpecs)
         {
-            var plannedSurface = new ProfileExtrusionPlanSurface($"plan:{segmentSource}:surface:side", new SurfaceGeometryId(nextSurface++), surface, true, segmentSource, ProfileExtrusionPlanRole.SideFace); surfaces.Add(plannedSurface);
-            var sideFace = new ProfileExtrusionPlanFace($"plan:{segmentSource}:face:side", new FaceId(nextFace++), [sideLoop.Id], plannedSurface.Id, true, segmentSource, ProfileExtrusionPlanRole.SideFace); faces.Add(sideFace);
+            // A cylindrical inner loop bounds void material: retain its analytic
+            // outward support normal but reverse the face sense, so shell/mass
+            // orientation subtracts rather than adds the circular shaft.
+            var sideSameSense = !isHole;
+            var plannedSurface = new ProfileExtrusionPlanSurface($"plan:{segmentSource}:surface:side", new SurfaceGeometryId(nextSurface++), surface, sideSameSense, segmentSource, ProfileExtrusionPlanRole.SideFace); surfaces.Add(plannedSurface);
+            var sideFace = new ProfileExtrusionPlanFace($"plan:{segmentSource}:face:side", new FaceId(nextFace++), [sideLoop.Id], plannedSurface.Id, sideSameSense, segmentSource, ProfileExtrusionPlanRole.SideFace); faces.Add(sideFace);
             if (sourceProfile is not null)
             {
                 var prefix = $"material:{sourceProfile.Name}:{segmentSource}";

@@ -1,0 +1,8 @@
+Concept Struct SideLayout {
+    PositiveXDatum: Plane { Origin: [-50mm, 0mm, 0mm]; Normal: [1, 0, 0]; Up: [0, 0, 1] }
+}
+Construction Plane PositiveXWorkplane { Trace: SideLayout.PositiveXDatum }
+Struct SideHoleBracket {
+    Box Base { Size: [100mm, 60mm, 12mm] }
+    Modify Base { Hole<Shaft> SideMount { From: PositiveXWorkplane; From: PositiveXWorkplane; Center: Point2(10mm, 6mm); Diameter: 8mm; End: ThroughAll } }
+}

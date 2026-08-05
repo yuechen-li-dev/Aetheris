@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -217,7 +218,12 @@ internal static class ConceptIrResolver
         var box = Regex.Match(bodyText, @"\bBox\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
         var modify = Regex.Match(bodyText, @"\bModify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
         var edge = Regex.Match(bodyText, @"\bEdgeFinish\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-        if (!box.Success || !modify.Success) { diagnostics.Add(FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid); return null; }
+        if (!box.Success || !modify.Success)
+        {
+            var constructionPlaneHole = Regex.IsMatch(bodyText, @"\bHole\s*<\s*Shaft\s*>[\s\S]*?\bFrom\s*:", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            diagnostics.Add(constructionPlaneHole ? FirmamentV2Parser.HoleConstructionPlaneHostUnsupported : FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid);
+            return null;
+        }
         var boxOpen = materializedOpen + 1 + bodyText.IndexOf('{', box.Index);
         var boxClose = FindMatchingBrace(source, boxOpen);
         var modifyStart = materializedOpen + 1 + modify.Index;
@@ -293,10 +299,14 @@ internal static class ConceptIrResolver
 
         var modifyBody = source[(modifyOpen + 1)..modifyClose];
         var holes = ParseConceptHoles(modifyBody, modifyOpen + 1, box.Groups["name"].Value, resolvedBounds,
-            allInstances, materialized.Groups["name"].Value, bindings, diagnostics);
+            allInstances, materialized.Groups["name"].Value, bindings, diagnostics, source);
         var patterns = ParseConceptPatterns(modifyBody, modifyOpen + 1, box.Groups["name"].Value, resolvedBounds, allInstances, materialized.Groups["name"].Value, bindings, diagnostics, out var patternHoles);
         holes = holes.Concat(patternHoles).ToArray();
-        if (holes.Count == 0 && finishes.Count == 0) { diagnostics.Add(FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid); return null; }
+        if (holes.Count == 0 && finishes.Count == 0)
+        {
+            if (!diagnostics.Any(FirmamentV2Parser.IsConceptFatalDiagnostic)) diagnostics.Add(FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid);
+            return null;
+        }
 
         var satisfiesMaterialized = materialized.Groups["concept"].Success ? new[] { materialized.Groups["concept"].Value } : [];
         var exposed = ParseExposedMembers(bodyText, materializedOpen + 1, materialized.Groups["name"].Value, box.Groups["name"].Value, resolvedBounds,
@@ -341,7 +351,8 @@ internal static class ConceptIrResolver
         IReadOnlyDictionary<string, ConceptIrStructInstance> instances,
         string materializedName,
         List<ConceptIrBinding> bindings,
-        List<string> diagnostics)
+        List<string> diagnostics,
+        string? fullSource = null)
     {
         const double tolerance = 1e-9;
         var result = new List<FirmamentV2SemanticHoleDecl>();
@@ -353,7 +364,30 @@ internal static class ConceptIrResolver
             var open = body.IndexOf('{', header.Index); var close = FindMatchingBrace(body, open);
             if (close < 0) { diagnostics.Add(FirmamentV2Parser.RegionUnsupported); continue; }
             var holeBody = body[(open + 1)..close];
+            var from = FieldValue(holeBody, "from");
             var on = FieldValue(holeBody, "on");
+            if (FieldCount(holeBody, "from") > 1 || FieldCount(holeBody, "on") > 1)
+            { diagnostics.Add(FirmamentV2Parser.HolePlacementDuplicate); continue; }
+            if (!string.IsNullOrWhiteSpace(from))
+            {
+                if (!string.IsNullOrWhiteSpace(on)) { diagnostics.Add(FirmamentV2Parser.HolePlacementMixed); continue; }
+                if (!TryResolveConstructionPlane(fullSource, from, out var constructionPlane, out var planeDiagnostic))
+                { diagnostics.Add(planeDiagnostic ?? FirmamentV2Parser.HoleConstructionPlaneNotFound); continue; }
+                var localCenter = ParsePoint2(FieldValue(holeBody, "center"));
+                if (localCenter is null) { diagnostics.Add(FirmamentV2Parser.HoleConstructionPlaneCenterMissing); continue; }
+                var localDiameter = ParseLengthOrUnitless(FieldValue(holeBody, "diameter"));
+                if (!double.IsFinite(localDiameter) || localDiameter <= 0) { diagnostics.Add(FirmamentV2Parser.HoleDiameterInvalid); continue; }
+                var localEnd = FieldValue(holeBody, "end");
+                if (!string.Equals(localEnd, "throughAll", StringComparison.OrdinalIgnoreCase) && !string.Equals(localEnd, "Through", StringComparison.OrdinalIgnoreCase))
+                { diagnostics.Add(FirmamentV2Parser.HoleConstructionPlaneExtentUnsupported); continue; }
+                var constructionSourceSpan = new FirmamentV2SourceSpan(bodyOffset + header.Index, close - header.Index + 1);
+                var center = new FirmamentV2FaceLocalPoint2D(localCenter.Value.U, localCenter.Value.V, "ConstructionPlaneLocalXY");
+                result.Add(new(header.Groups["name"].Value, FirmamentV2SemanticHoleVariant.Shaft, FirmamentV2FaceTarget.Direct("+Z"), center,
+                    localDiameter, new(FirmamentV2SemanticHoleEndKind.ThroughAll), SourceSpan: constructionSourceSpan,
+                    Placement: new FirmamentV2ConstructionPlaneHolePlacement(constructionPlane!, center, constructionSourceSpan)));
+                bindings.Add(new($"{materializedName}.{header.Groups["name"].Value}.ConstructionPlane", from, constructionPlane!.SourceConceptId, "ConstructionPlane"));
+                continue;
+            }
             var faceAxis = on switch
             {
                 "face(+Z)" => "+Z",
@@ -905,7 +939,28 @@ internal static class ConceptIrResolver
     private static ConceptIrVector3 Vector(string axis) => axis switch { "+X" => new(1, 0, 0), "-X" => new(-1, 0, 0), "+Y" => new(0, 1, 0), "-Y" => new(0, -1, 0), "+Z" => new(0, 0, 1), "-Z" => new(0, 0, -1), _ => new(0, 0, 0) };
     private static string AxisOf(ConceptIrVector3 v) => (v.X, v.Y, v.Z) switch { (1, 0, 0) => "+X", (-1, 0, 0) => "-X", (0, 1, 0) => "+Y", (0, -1, 0) => "-Y", (0, 0, 1) => "+Z", (0, 0, -1) => "-Z", _ => string.Empty };
     private static bool IsInsidePattern(string body, int index) => Regex.Matches(body, @"\bPattern\s+[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant).Cast<Match>().Any(p => { var close = FindMatchingBrace(body, body.IndexOf('{', p.Index)); return p.Index < index && close > index; });
-    private static string FieldValue(string body, string name) { var m = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[^\r\n}}]+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant); return m.Success ? m.Groups["value"].Value.Trim() : string.Empty; }
+    private static string FieldValue(string body, string name) { var m = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[^\r\n;}}]+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant); return m.Success ? m.Groups["value"].Value.Trim() : string.Empty; }
+    private static int FieldCount(string body, string name) => Regex.Matches(body, $@"\b{Regex.Escape(name)}\s*:", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant).Count;
+    private static (double U, double V)? ParsePoint2(string source)
+    {
+        var match = Regex.Match(source, @"^Point2\s*\(\s*(?<u>[^,]+)\s*,\s*(?<v>[^)]+)\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (!match.Success) return null;
+        var u = ParseLengthOrUnitless(match.Groups["u"].Value.Trim()); var v = ParseLengthOrUnitless(match.Groups["v"].Value.Trim());
+        return double.IsFinite(u) && double.IsFinite(v) ? (u, v) : null;
+    }
+
+    private static bool TryResolveConstructionPlane(string? source, string name, out ConstructionPlane? plane, out string? diagnostic)
+    {
+        plane = null; diagnostic = null;
+        if (string.IsNullOrWhiteSpace(source)) { diagnostic = FirmamentV2Parser.HoleConstructionPlaneNotFound; return false; }
+        var declaration = Regex.Match(source, $@"\bConstruction\s+Plane\s+{Regex.Escape(name)}\s*\{{\s*Trace\s*:\s*(?<trace>[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (!declaration.Success) { diagnostic = FirmamentV2Parser.HoleConstructionPlaneNotFound; return false; }
+        if (!TryResolvePlane(source, declaration.Groups["trace"].Value, out var conceptPlane, out var conceptDiagnostic))
+        { diagnostic = conceptDiagnostic ?? FirmamentV2Parser.HoleConstructionPlaneNotFound; return false; }
+        if (!ConstructionPlane.TryTrace("construction:" + name, conceptPlane!, $"{declaration.Index}:{declaration.Length}", out plane, out var frameDiagnostic))
+        { diagnostic = frameDiagnostic ?? "HoleConstructionPlaneInvalid"; return false; }
+        return true;
+    }
     private static int IntField(string body, string name) => int.TryParse(FieldValue(body, name), NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : -1;
     private static double ParseLength(string source) { source = source.Trim(); return source.EndsWith("mm", StringComparison.Ordinal) && double.TryParse(source[..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : double.NaN; }
     private static double ParseLengthOrUnitless(string source)

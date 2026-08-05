@@ -60,6 +60,23 @@ public sealed class FirmamentV2SideHoleRealExporterPipelineTests
         Assert.InRange(Math.Abs(volume.Volume - expectedVolume), 0d, 1e-8);
     }
 
+    [Fact]
+    public void ConstructionPlaneHole_AnalyticVolumeCountsOnePartitionedPhysicalCylinder()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
+        var fixture = Path.Combine(root, "fixtures", "FirmamentV2", "Hole", "valid", "construction-plane-through-hole.firmament");
+        var stepPath = Path.Combine(Path.GetTempPath(), "aetheris-construction-plane-hole-" + Guid.NewGuid().ToString("N") + ".step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+
+        Assert.Equal(0, Aetheris.CLI.CliRunner.Run(["build", fixture, "--out", stepPath, "--json"], stdout, stderr));
+        var volume = StepAnalyzer.AnalyzeVolume(stepPath);
+
+        Assert.True(volume.Success, "construction-plane source reaches independent STEP volume analysis");
+        Assert.True(volume.Exact);
+        Assert.Equal("analytic-box-minus-x-hole", volume.Method);
+        Assert.Equal(72000d - Math.PI * 4d * 4d * 100d, volume.Volume, 8);
+    }
+
     private static int CountStepEntities(string stepText, string entityName) =>
         Regex.Matches(stepText, "=\\s*" + Regex.Escape(entityName) + "\\s*\\(", RegexOptions.CultureInvariant).Count;
 }

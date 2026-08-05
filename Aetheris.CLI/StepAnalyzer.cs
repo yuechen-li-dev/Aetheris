@@ -219,7 +219,7 @@ public sealed record VolumeAnalysisResult(
     {
         volume = 0d;
         basis = string.Empty;
-        var cylinders = new List<(double Radius, double XMin, double XMax)>();
+        var cylinders = new List<(double CenterY, double CenterZ, double Radius, double XMin, double XMax)>();
 
         foreach (var face in body.Topology.Faces)
         {
@@ -232,7 +232,7 @@ public sealed record VolumeAnalysisResult(
             {
                 if (!IsXAxis(cylinder.Axis.ToVector())) return false;
                 if (!TryResolveFaceXSpan(body, face.Id, out var xMin, out var xMax)) return false;
-                cylinders.Add((cylinder.Radius, xMin, xMax));
+                cylinders.Add((cylinder.Origin.Y, cylinder.Origin.Z, cylinder.Radius, xMin, xMax));
                 continue;
             }
 
@@ -248,7 +248,12 @@ public sealed record VolumeAnalysisResult(
         }
 
         var baseVolume = (bbox.Max.X - bbox.Min.X) * (bbox.Max.Y - bbox.Min.Y) * (bbox.Max.Z - bbox.Min.Z);
-        var removed = cylinders.Sum(c => double.Pi * c.Radius * c.Radius * (c.XMax - c.XMin));
+        // One analytic cylinder may be represented by multiple trimmed faces
+        // (the local-frame hole planner deliberately uses two arcs to avoid a
+        // reused longitudinal seam). Deduplicate that partition before adding
+        // physical removal volumes; distinct centers remain distinct holes.
+        var physicalCylinders = cylinders.DistinctBy(c => (c.CenterY, c.CenterZ, c.Radius, c.XMin, c.XMax));
+        var removed = physicalCylinders.Sum(c => double.Pi * c.Radius * c.Radius * (c.XMax - c.XMin));
         volume = baseVolume - removed;
         basis = "Exact analytic volume for an axis-aligned rectangular box with supported locked Firmament V2 +X/-X cylindrical side-hole interval.";
         return double.IsFinite(volume) && volume > 0d;

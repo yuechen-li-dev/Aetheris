@@ -1,3 +1,5 @@
+using Aetheris.Kernel.Firmament.Materializer;
+
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null, ConceptIrDocument? ConceptIr = null, IReadOnlyList<FirmamentV2LatticeFillDecl>? LatticeFills = null, IReadOnlyList<FirmamentV2StandaloneLatticeFillDecl>? StandaloneLatticeFills = null)
@@ -155,6 +157,10 @@ public sealed record FirmamentV2ResolvedPoint3(
     string PlacementFace,
     double PlaneDistance,
     FirmamentV2SourceSpan SourceSpan);
+/// <summary>Bound placement mode: new sources use a traced immutable Construction Plane; legacy sources retain face-local placement.</summary>
+public abstract record FirmamentV2BoundHolePlacement;
+public sealed record FirmamentV2FaceLocalHolePlacement(FirmamentV2FaceTarget EntryFace, FirmamentV2FaceLocalPoint2D Center) : FirmamentV2BoundHolePlacement;
+public sealed record FirmamentV2ConstructionPlaneHolePlacement(ConstructionPlane Plane, FirmamentV2FaceLocalPoint2D Center, FirmamentV2SourceSpan SourceSpan) : FirmamentV2BoundHolePlacement;
 public sealed record FirmamentV2SemanticHoleDecl(
     string Name,
     FirmamentV2SemanticHoleVariant Variant,
@@ -167,7 +173,8 @@ public sealed record FirmamentV2SemanticHoleDecl(
     double? CountersinkDiameter = null,
     double? CountersinkAngleDegrees = null,
     FirmamentV2ResolvedPoint3? ResolvedCenter = null,
-    FirmamentV2SourceSpan? SourceSpan = null);
+    FirmamentV2SourceSpan? SourceSpan = null,
+    FirmamentV2BoundHolePlacement? Placement = null);
 public enum FirmamentV2PmiKind { HoleDiameter, DatumPlane, Distance, Flatness, Parallel, Perpendicular, Coplanar }
 public sealed record FirmamentV2PmiDecl(string Name, FirmamentV2PmiKind Kind, string Target, double? Value = null);
 public sealed record FirmamentV2PmiBlock(IReadOnlyList<FirmamentV2PmiRecord> Records, FirmamentV2SourceSpan SourceSpan);

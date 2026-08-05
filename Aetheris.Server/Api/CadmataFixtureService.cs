@@ -15,6 +15,7 @@ internal static class CadmataFixtureService
         ["construction-plane-positive-x"] = "fixtures/FirmamentV2/Profile/valid/construction-plane-positive-x.firmament",
         ["split-compose-chamfer"] = "fixtures/FirmamentV2/ProfileComposition/valid/semantic-split-compose-chamfer.firmament",
         ["semantic-shaft-hole"] = "fixtures/FirmamentV2/Hole/valid/semantic-shaft-selection.firmament",
+        ["construction-plane-through-hole"] = "fixtures/FirmamentV2/Hole/valid/construction-plane-through-hole.firmament",
         ["ctc-01-x3"] = "testdata/firmament/reconstructions/nist_ctc_01/ctc01_prismatic_blockout_x3.firmament",
         ["ctc-01-x4"] = "testdata/firmament/reconstructions/nist_ctc_01/ctc01_prismatic_blockout_x4.firmament",
         ["semantic-capsule-slot"] = "fixtures/FirmamentV2/ProfileComposition/valid/semantic-capsule-slot-through.firmament",
@@ -28,13 +29,13 @@ internal static class CadmataFixtureService
         if (!File.Exists(sourcePath)) { error = $"Cadmata fixture source is unavailable: {relative}."; return false; }
         var source = File.ReadAllText(sourcePath);
         BrepBody? body = null; SemanticTopologyCorrespondence? correspondence = null; IReadOnlyList<ResolvedProfile2D> profiles = []; IReadOnlyList<PrismaticShaftHoleFeature> shaftHoles = []; IReadOnlyList<PrismaticCapsuleSlotFeature> capsuleSlots = []; IReadOnlyList<PrismaticRoundedRectangleSlotFeature> roundedRectangleSlots = [];
-        var diagnostics = new List<string>();
-        if (fixtureId == "semantic-shaft-hole")
+        var diagnostics = new List<string>(); SemanticHoleSourceInspectionEvidence? semanticHoleEvidence = null;
+        if (fixtureId is "semantic-shaft-hole" or "construction-plane-through-hole")
         {
             var parsed = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(sourcePath));
             if (!parsed.IsSuccess || parsed.Document is null) { error = string.Join("; ", parsed.Diagnostics); return false; }
             var inspected = SemanticHoleInspection.Inspect(parsed.Document);
-            body = inspected.Body; correspondence = inspected.Correspondence; diagnostics.AddRange(inspected.Diagnostics);
+            body = inspected.Body; correspondence = inspected.Correspondence; semanticHoleEvidence = inspected.Evidence; diagnostics.AddRange(inspected.Diagnostics);
         }
         else if (PrismaticProfileCompositionParser.IsCompositionSource(source))
         {
@@ -59,12 +60,12 @@ internal static class CadmataFixtureService
         }
         if (body is null) { error = "The compiler did not materialize a body for this Cadmata fixture."; return false; }
         var added = document.AddBody(body, $"Cadmata: {fixtureId}");
-        var artifact = BuildArtifact(fixtureId, relative, profiles, shaftHoles, capsuleSlots, roundedRectangleSlots, correspondence, diagnostics, body);
+        var artifact = BuildArtifact(fixtureId, relative, profiles, shaftHoles, capsuleSlots, roundedRectangleSlots, correspondence, diagnostics, body, semanticHoleEvidence);
         response = new(document.Id.ToString(), added.OccurrenceId.ToString(), added.DefinitionId.ToString(), fixtureId, artifact);
         return true;
     }
 
-    private static CadmataVisualizationArtifactDto BuildArtifact(string fixtureId, string sourcePath, IReadOnlyList<ResolvedProfile2D> profiles, IReadOnlyList<PrismaticShaftHoleFeature> shaftHoles, IReadOnlyList<PrismaticCapsuleSlotFeature> capsuleSlots, IReadOnlyList<PrismaticRoundedRectangleSlotFeature> roundedRectangleSlots, SemanticTopologyCorrespondence? correspondence, IReadOnlyList<string> diagnostics, BrepBody body)
+    private static CadmataVisualizationArtifactDto BuildArtifact(string fixtureId, string sourcePath, IReadOnlyList<ResolvedProfile2D> profiles, IReadOnlyList<PrismaticShaftHoleFeature> shaftHoles, IReadOnlyList<PrismaticCapsuleSlotFeature> capsuleSlots, IReadOnlyList<PrismaticRoundedRectangleSlotFeature> roundedRectangleSlots, SemanticTopologyCorrespondence? correspondence, IReadOnlyList<string> diagnostics, BrepBody body, SemanticHoleSourceInspectionEvidence? semanticHoleEvidence = null)
     {
         var entities = new List<CadmataVisualizationEntityDto>();
         foreach (var profile in profiles)
@@ -87,6 +88,19 @@ internal static class CadmataFixtureService
             const string id = "hole:base.mount";
             entities.Add(new(id, "HoleFeature", "mount", "conceptAxes", "SemanticHole", new("circle", Center: new(1.5, -1, 5), Radius: 2), "offset:0", null, null, null, correspondence?.Descendants.Select(d => d.StableId).ToArray(), null, null, "AirHoleSimpleShaftMaterializer", null, new Dictionary<string, string> { ["diameter"] = "4 mm", ["axis"] = "+Z", ["endCondition"] = "throughAll" }));
             entities.Add(new("concept:base.mount.axis", "ConceptAxis", "mount axis", "conceptAxes", "HoleAxis", new("polyline", [new(1.5, -1, -5), new(1.5, -1, 5)]), "offset:0", [id], null, null, null, null, null, null, null, null));
+        }
+        if (semanticHoleEvidence is { PlacementKind: "ConstructionPlane", FrameOrigin: { } origin, AxisX: { } axisX, AxisY: { } axisY, AxisZ: { } axisZ, WorldMouthCenter: { } mouth, HostInterval: { } interval })
+        {
+            CadmataPointDto P(double[] v) => new(v[0], v[1], v[2]);
+            var frameOrigin = P(origin); var x = P(axisX); var y = P(axisY); var z = P(axisZ); var mouthPoint = P(mouth);
+            CadmataPointDto Add(CadmataPointDto a, CadmataPointDto direction, double scale) => new(a.X + direction.X * scale, a.Y + direction.Y * scale, a.Z + direction.Z * scale);
+            var featureId = "hole:" + semanticHoleEvidence.FeatureId;
+            var frameAxes = new[] { frameOrigin, Add(frameOrigin, x, 8), frameOrigin, Add(frameOrigin, y, 8), frameOrigin, Add(frameOrigin, z, 8) };
+            entities.Add(new(semanticHoleEvidence.ConstructionPlaneId!, "ConstructionPlane", semanticHoleEvidence.ConstructionPlaneId!, "constructionPlanes", "ConstructionFrame", new("polyline", frameAxes), semanticHoleEvidence.SourceSpan, [semanticHoleEvidence.SourceConceptPlaneId!], [featureId], null, null, null, null, null, null, new Dictionary<string, string> { ["sourceConceptId"] = semanticHoleEvidence.SourceConceptPlaneId! }));
+            entities.Add(new(semanticHoleEvidence.SourceConceptPlaneId!, "ConceptPlane", semanticHoleEvidence.SourceConceptPlaneId!, "conceptPlanes", "ConceptGuide", new("polyline", frameAxes), semanticHoleEvidence.SourceSpan, null, [semanticHoleEvidence.ConstructionPlaneId!], null, null, null, null, null, null, null));
+            var descendants = correspondence?.Descendants.Select(d => d.StableId).ToArray() ?? [];
+            entities.Add(new(featureId, "HoleFeature", semanticHoleEvidence.FeatureId, "conceptAxes", "SemanticHole", new("circle", Center: mouthPoint, Radius: semanticHoleEvidence.Radius), semanticHoleEvidence.SourceSpan, [semanticHoleEvidence.ConstructionPlaneId!], null, null, descendants, null, null, "LocalFrameHoleBRepPlan", null, new Dictionary<string, string> { ["placementKind"] = "ConstructionPlane", ["extent"] = semanticHoleEvidence.Extent, ["hostInterval"] = $"{interval[0]:R}..{interval[1]:R}" }));
+            entities.Add(new(featureId + ".axis", "ConceptAxis", "drilling axis", "conceptAxes", "HoleAxis", new("polyline", [mouthPoint, Add(mouthPoint, z, interval[1] - interval[0])]), semanticHoleEvidence.SourceSpan, [featureId], null, null, null, null, null, null, null, null));
         }
         foreach (var hole in shaftHoles)
         {
@@ -121,8 +135,8 @@ internal static class CadmataFixtureService
         {
             entities.Add(new(descendant.StableId, $"BRep{descendant.Kind}", descendant.Role.ToString(), descendant.Kind == "Face" ? "selections" : "brepEdges", descendant.Role.ToString(), null, null, [descendant.SourceStableId], null, null, null, new(descendant.Face is { } face ? [face.Value] : null, descendant.Edge is { } edge ? [edge.Value] : null, descendant.Loop is { } loop ? [loop.Value] : null, descendant.Vertex is { } vertex ? [vertex.Value] : null), null, null, null, null));
         }
-        var hasSemanticFeatures = fixtureId == "semantic-shaft-hole" || shaftHoles.Count > 0 || capsuleSlots.Count > 0 || roundedRectangleSlots.Count > 0;
-        var selectionSourceIds = fixtureId == "semantic-shaft-hole" ? new[] { "hole:base.mount" } : capsuleSlots.Count > 0 ? capsuleSlots.Select(slot => slot.StableId).ToArray() : roundedRectangleSlots.Count > 0 ? roundedRectangleSlots.Select(slot => slot.StableId).ToArray() : shaftHoles.Count > 0 ? shaftHoles.Select(hole => hole.StableId).ToArray() : entities.Where(e => e.Kind == "ProfileSegment").Select(e => e.StableId).ToArray();
+        var hasSemanticFeatures = fixtureId is "semantic-shaft-hole" or "construction-plane-through-hole" || shaftHoles.Count > 0 || capsuleSlots.Count > 0 || roundedRectangleSlots.Count > 0;
+        var selectionSourceIds = fixtureId == "semantic-shaft-hole" ? new[] { "hole:base.mount" } : fixtureId == "construction-plane-through-hole" && semanticHoleEvidence is not null ? new[] { "hole:" + semanticHoleEvidence.FeatureId } : capsuleSlots.Count > 0 ? capsuleSlots.Select(slot => slot.StableId).ToArray() : roundedRectangleSlots.Count > 0 ? roundedRectangleSlots.Select(slot => slot.StableId).ToArray() : shaftHoles.Count > 0 ? shaftHoles.Select(hole => hole.StableId).ToArray() : entities.Where(e => e.Kind == "ProfileSegment").Select(e => e.StableId).ToArray();
         var selection = new CadmataVisualizationSelectionDto($"selection:{fixtureId}", hasSemanticFeatures ? "semantic feature descendants" : "compiler-published profile boundary", hasSemanticFeatures ? "FaceSet" : "LoopSet", selectionSourceIds, selectionSourceIds, !hasSemanticFeatures, []);
         return new("cadmata-concept-viz-x1", fixtureId, sourcePath, entities, [selection], diagnostics.Select(d => new CadmataVisualizationDiagnosticDto("Compiler.Trace", d, "info")).ToArray(), new Dictionary<string, double> { ["entityCount"] = entities.Count, ["faceCount"] = body.Topology.Faces.Count(), ["edgeCount"] = body.Topology.Edges.Count() });
     }

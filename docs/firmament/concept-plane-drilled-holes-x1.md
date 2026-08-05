@@ -103,3 +103,8 @@ vulnerability warnings from the JavaScript SDK audit; it has no .NET errors.
 ## LOCAL-FRAME-HOLE-X2 extension point
 
 PROFILE-EXTRUSION-BREPPLAN-X1 supplies the required single topology authority for a future local-frame hole. A Hole should lower to local Construction AIR and append/reuse `ProfileExtrusionBRepPlan` primitives for mouth loops, shaft cylinders, optional cone/tip entities, and plan-owned semantic descendants. It reuses the immutable frame, local/world mapping, cap and cylinder orientations, directed loop closure, materializer, STEP emission, and Cadmata correspondence. Host subtraction and drill-point cones remain deliberately unimplemented here.
+
+X3 implements the bounded source-to-material successor for a Box `ThroughAll`
+shaft: new sources lower directly to `AirConstructionPlaneHolePlacement`, then
+to `LocalFrameHoleBRepPlan`. Blind DrillPoint remains the next extension, not a
+claimed capability; see [Construction Plane Hole source X3](construction-plane-hole-source-x3.md).

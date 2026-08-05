@@ -134,6 +134,12 @@ public static class FirmamentV2Parser
     public const string HoleDepthInvalid = "firmament-v2-hole-depth-invalid";
     public const string HoleCounterboreInvalid = "firmament-v2-hole-counterbore-invalid";
     public const string HoleCountersinkInvalid = "firmament-v2-hole-countersink-invalid";
+    public const string HoleConstructionPlaneNotFound = "HoleConstructionPlaneNotFound";
+    public const string HolePlacementMixed = "HolePlacementMixed";
+    public const string HolePlacementDuplicate = "HolePlacementDuplicate";
+    public const string HoleConstructionPlaneHostUnsupported = "HoleConstructionPlaneHostUnsupported";
+    public const string HoleConstructionPlaneCenterMissing = "HoleLocalCenterInvalid";
+    public const string HoleConstructionPlaneExtentUnsupported = "HoleConstructionPlaneExtentUnsupported";
     public const string PmiKindUnknown = "firmament-v2-pmi-kind-unknown";
     public const string PmiTargetMissing = "firmament-v2-pmi-target-missing";
     public const string PmiTargetUnresolved = "firmament-v2-pmi-target-unresolved";
@@ -978,7 +984,9 @@ public static class FirmamentV2Parser
         return double.TryParse(source[..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : double.NaN;
     }
 
-    private static bool IsConceptFatalDiagnostic(string code) =>
+    internal static bool IsConceptFatalDiagnostic(string code) =>
+        code is HoleConstructionPlaneNotFound or HolePlacementMixed or HolePlacementDuplicate or HoleConstructionPlaneCenterMissing or HoleConstructionPlaneExtentUnsupported or HoleConstructionPlaneHostUnsupported
+        ||
         code.StartsWith(ConceptIrResolver.MissingMember, StringComparison.Ordinal)
         || code.StartsWith(ConceptIrResolver.UnknownMember, StringComparison.Ordinal)
         || code.StartsWith(ConceptIrResolver.TypeMismatch, StringComparison.Ordinal)

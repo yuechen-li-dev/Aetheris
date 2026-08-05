@@ -88,3 +88,10 @@ replacement faces must not be inferred heuristically.
 ## Profile extrusion BRepPlan X1
 
 For ordinary Profile extrusion, Cadmata continues to receive the Concept plane, Construction Plane, local Profile, world BRep body, and semantic descendants. The new plan inspector can supply a debug-only source segment → planned entity → material descendant chain without duplicating a frontend topology model. Cadmata must reference plan correspondence rather than reconstruct roles from viewport geometry.
+
+The `construction-plane-through-hole` fixture extends this handoff with a
+Construction Plane Hole. It publishes the source Concept Plane, Construction
+Plane, local-center marker, local-`+Z` drill axis, analytic shaft envelope,
+Mouth/Exit loops, and Shaft-wall faces. The Hole and plane reference each other
+through stable ids, so selection highlights compiler-published consumers and
+descendants rather than tessellation-derived cylinders.

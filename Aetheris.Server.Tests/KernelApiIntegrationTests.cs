@@ -877,6 +877,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
 
     [Theory]
     [InlineData("semantic-shaft-hole", "hole:base.mount")]
+    [InlineData("construction-plane-through-hole", "hole:Base.SideMount")]
     [InlineData("split-compose-chamfer", "profile:BaseProfile.Outer.South")]
     [InlineData("ctc-01-x3", "profile:CentralHex.Outer.SouthEast")]
     [InlineData("ctc-01-x4", "hole:Ctc01PrismaticBlockoutX4.LeftTopMount")]

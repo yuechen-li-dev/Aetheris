@@ -7,6 +7,22 @@ internal static class FirmamentV2SemanticHoleLowering
 {
     public static AirHoleFeature Lower(FirmamentV2Document document, FirmamentV2ModifyBlock modify, FirmamentV2SemanticHoleDecl hole)
     {
+        if (hole.Placement is FirmamentV2ConstructionPlaneHolePlacement construction)
+        {
+            var plane = construction.Plane;
+            var constructionPlacement = new AirConstructionPlaneHolePlacement(plane.StableId, plane.SourceConceptId, plane.Origin, plane.AxisX, plane.AxisY, plane.AxisZ,
+                construction.Center.U, construction.Center.V, $"{construction.SourceSpan.Start}:{construction.SourceSpan.Length}", plane.Provenance);
+            AirHoleEndCondition constructionEnd = hole.EndCondition.Kind == FirmamentV2SemanticHoleEndKind.ThroughAll
+                ? new AirHoleEndCondition.ThroughAll()
+                : new AirHoleEndCondition.Depth(hole.EndCondition.Depth!.Value);
+            var constructionProvenance = new AirProvenance("CONSTRUCTION-PLANE-HOLE-SOURCE-X3", "Construction Plane semantic hole source", hole.Name,
+                $"{modify.TargetSolid}.{hole.Name}", nameof(AirConstructionPlaneHolePlacement), AirSelectionClass.None, AirRuleKind.None,
+                "FirmamentV2 Hole<Shaft> From ConstructionPlane", true,
+                [$"target-solid:{modify.TargetSolid}", $"construction-plane:{plane.StableId}", $"source-concept-plane:{plane.SourceConceptId}",
+                    $"local-center:[{construction.Center.U:R},{construction.Center.V:R}]", "extent:ThroughAll"]);
+            return AirHoleFeature.CreateConstructionPlaneSimpleShaft(hole.Name, $"{modify.TargetSolid}.{hole.Name}", modify.TargetSolid, constructionPlacement,
+                new AirHoleShaft(hole.ShaftDiameter), constructionEnd, constructionProvenance);
+        }
         var pointSource = hole.ResolvedCenter is null ? null : new AirResolvedPoint3PlacementSource(
             hole.ResolvedCenter.X, hole.ResolvedCenter.Y, hole.ResolvedCenter.Z, hole.ResolvedCenter.StableId,
             hole.ResolvedCenter.SourceMember, hole.ResolvedCenter.Ordinal, hole.ResolvedCenter.PlacementFace,

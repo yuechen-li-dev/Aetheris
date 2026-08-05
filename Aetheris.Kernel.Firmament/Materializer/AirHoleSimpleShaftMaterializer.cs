@@ -1,11 +1,17 @@
 using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
 
-public sealed record SemanticHoleInspectionResult(bool Succeeded, string? HoleId, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence, IReadOnlyList<string> Diagnostics);
+public sealed record SemanticHoleSourceInspectionEvidence(
+    string FeatureId, string PlacementKind, string? ConstructionPlaneId, string? SourceConceptPlaneId,
+    double[]? FrameOrigin, double[]? AxisX, double[]? AxisY, double[]? AxisZ,
+    double[] LocalCenter, double[]? WorldMouthCenter, double Diameter, double Radius,
+    string Extent, double[]? HostInterval, string? PlanId, string? SourceSpan);
+public sealed record SemanticHoleInspectionResult(bool Succeeded, string? HoleId, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence, IReadOnlyList<string> Diagnostics, SemanticHoleSourceInspectionEvidence? Evidence = null);
 public static class SemanticHoleInspection
 {
     public static SemanticHoleInspectionResult Inspect(FirmamentV2Document document)
@@ -15,7 +21,17 @@ public static class SemanticHoleInspection
         if (holes.Count != 1 || binding?.Primitive is not FirmamentV2BoxRecord box || box.Size.Count != 3) return new(false, null, null, null, ["MissingCorrespondenceEvidence: bounded inspection requires one shaft hole in one Box host."]);
         var host = document.ConceptIr is null ? new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], -box.Size[2] / 2d, box.Size[2] / 2d) : new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], 0d, box.Size[2]);
         var result = AirHoleSimpleShaftMaterializer.Execute(holes[0], host);
-        return new(result.Succeeded && result.Correspondence is not null, holes[0].FeatureId, result.Body, result.Correspondence, result.Diagnostics);
+        var feature = holes[0]; var placement = feature.ConstructionPlanePlacement;
+        double[] Vector(Aetheris.Kernel.Core.Math.Vector3D v) => [v.X, v.Y, v.Z];
+        var evidence = placement is null
+            ? new SemanticHoleSourceInspectionEvidence(feature.FeatureId, "FaceLocal", null, null, null, null, null, null,
+                [feature.Placement.U, feature.Placement.V], null, feature.Shaft.Diameter, feature.Shaft.Radius, feature.EndCondition.Kind.ToString(), null, null, null)
+            : new SemanticHoleSourceInspectionEvidence(feature.FeatureId, "ConstructionPlane", placement.ConstructionPlaneId, placement.SourceConceptPlaneId,
+                [placement.FrameOrigin.X, placement.FrameOrigin.Y, placement.FrameOrigin.Z], Vector(placement.AxisX.ToVector()), Vector(placement.AxisY.ToVector()), Vector(placement.AxisZ.ToVector()),
+                [placement.LocalCenterX, placement.LocalCenterY], [placement.WorldMouthCenter.X, placement.WorldMouthCenter.Y, placement.WorldMouthCenter.Z],
+                feature.Shaft.Diameter, feature.Shaft.Radius, "ThroughAll", result.Plan?.HoleBRepPlan is { } plan ? [plan.HostMaterialInterval.Start, plan.HostMaterialInterval.End] : null,
+                result.Plan?.HoleBRepPlan?.StableId, placement.SourceSpan);
+        return new(result.Succeeded && result.Correspondence is not null, feature.FeatureId, result.Body, result.Correspondence, result.Diagnostics, evidence);
     }
 }
 
@@ -54,7 +70,8 @@ internal sealed record AirHoleSimpleShaftMaterializationPlan(
     AirHoleStackKind StackKind,
     IReadOnlyList<AirHoleStackComponentKind> StackComponentRoles,
     ProfileStackExtrudeSpec ProfileStackSpec,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics,
+    LocalFrameHoleBRepPlan? HoleBRepPlan = null);
 
 internal sealed record AirHoleSimpleShaftMaterializationResult(
     AirHoleSimpleShaftMaterializationStatus Status,
@@ -72,6 +89,9 @@ internal static class AirHoleSimpleShaftMaterializer
 
     public static AirHoleSimpleShaftMaterializationResult Execute(AirHoleFeature feature, AirHoleSimpleShaftHost host)
     {
+        if (feature.ConstructionPlanePlacement is { } constructionPlacement)
+            return ExecuteConstructionPlaneThroughAll(feature, host, constructionPlacement);
+
         var planResult = TryCreatePlan(feature, host);
         if (planResult.Status != AirHoleSimpleShaftMaterializationStatus.Succeeded || planResult.Plan is null)
         {
@@ -105,6 +125,11 @@ internal static class AirHoleSimpleShaftMaterializer
             diagnostics.Add("air-hole-x2 rejected: semantic hole invalid before materialization.");
             return new(AirHoleSimpleShaftMaterializationStatus.InvalidSemanticHole, null, null, diagnostics);
         }
+        if (feature.Placement is not AirFaceLocalHolePlacement placement)
+        {
+            diagnostics.Add("HoleConstructionPlaneHostUnsupported: the legacy profile-stack route accepts face-local placements only.");
+            return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
+        }
 
         if (!IsFinite(host.Width) || !IsFinite(host.Depth) || !IsFinite(host.ZMin) || !IsFinite(host.ZMax) || host.Width <= 0d || host.Depth <= 0d || host.Thickness <= Tolerance)
         {
@@ -112,16 +137,16 @@ internal static class AirHoleSimpleShaftMaterializer
             return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
         }
 
-        if (Math.Abs(feature.Placement.U) + feature.Shaft.Radius > host.Width / 2d + Tolerance ||
-            Math.Abs(feature.Placement.V) + feature.Shaft.Radius > host.Depth / 2d + Tolerance)
+        if (Math.Abs(placement.U) + feature.Shaft.Radius > host.Width / 2d + Tolerance ||
+            Math.Abs(placement.V) + feature.Shaft.Radius > host.Depth / 2d + Tolerance)
         {
             diagnostics.Add("air-hole-x2 rejected: face-local center/radius does not fit within the supported rectangular entry face.");
             return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
         }
 
         var axisZ = feature.Axis.Direction.Z;
-        var top = string.Equals(feature.Placement.EntryFaceName, host.TopFaceName, StringComparison.OrdinalIgnoreCase) && axisZ > 1d - Tolerance;
-        var bottom = string.Equals(feature.Placement.EntryFaceName, host.BottomFaceName, StringComparison.OrdinalIgnoreCase) && axisZ < -1d + Tolerance;
+        var top = string.Equals(placement.EntryFaceName, host.TopFaceName, StringComparison.OrdinalIgnoreCase) && axisZ > 1d - Tolerance;
+        var bottom = string.Equals(placement.EntryFaceName, host.BottomFaceName, StringComparison.OrdinalIgnoreCase) && axisZ < -1d + Tolerance;
         if (!top && !bottom)
         {
             diagnostics.Add("air-hole-x2 rejected: only planar top/+Z and bottom/-Z face-local placements are supported by this rectangular profile-stack lowering lane.");
@@ -138,10 +163,10 @@ internal static class AirHoleSimpleShaftMaterializer
         var layers = BuildLayers(feature, host, cutZMin, cutZMax).ToArray();
         var spec = new ProfileStackExtrudeSpec(host.Width, host.Depth, host.ZMin, host.ZMax, layers,
             [$"air-hole-x2 provenance featureId={feature.FeatureId}", $"air-hole-x2 provenance source={nameof(AirHoleFeature)}"],
-            feature.Placement.U,
-            feature.Placement.V);
-        var plan = new AirHoleSimpleShaftMaterializationPlan(feature, host, feature.FeatureId, nameof(AirHoleFeature), feature.Placement.EntryFaceName,
-            feature.Placement.U, feature.Placement.V, axisZ, feature.Shaft.Radius, cutZMin, cutZMax, feature.EndCondition.Kind, feature.Stack.Kind, feature.Stack.Components.Select(c => c.Kind).ToArray(), spec, diagnostics.ToArray());
+            placement.U,
+            placement.V);
+        var plan = new AirHoleSimpleShaftMaterializationPlan(feature, host, feature.FeatureId, nameof(AirHoleFeature), placement.EntryFaceName,
+            placement.U, placement.V, axisZ, feature.Shaft.Radius, cutZMin, cutZMax, feature.EndCondition.Kind, feature.Stack.Kind, feature.Stack.Components.Select(c => c.Kind).ToArray(), spec, diagnostics.ToArray());
         diagnostics.Add("air-hole-x2/x3 plan created; semantic AirHoleFeature remains parent intent and owns stack components.");
         return new(AirHoleSimpleShaftMaterializationStatus.Succeeded, plan, null, diagnostics);
     }
@@ -202,4 +227,107 @@ internal static class AirHoleSimpleShaftMaterializer
     }
 
     private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+
+    /// <summary>
+    /// The initial LOCAL-FRAME-HOLES-X2 host query.  A rectangular Box is admitted
+    /// only when the supplied proper frame is a signed permutation of the host
+    /// world axes.  In that case transforming the eight Box corners proves one
+    /// exact local-Z material interval; there is no spatial search or oversized
+    /// cutting tool.  The resulting host-with-hole is planned as one ordinary
+    /// circular-inner-loop local profile extrusion.
+    /// </summary>
+    private static AirHoleSimpleShaftMaterializationResult ExecuteConstructionPlaneThroughAll(
+        AirHoleFeature feature, AirHoleSimpleShaftHost host, AirConstructionPlaneHolePlacement placement)
+    {
+        var diagnostics = new List<string> { "LocalFrameHoleConstructionPlanePlacement", "HoleBRepPlan", "HostMaterialIntervalQuery:BoxSignedPermutation" };
+        if (!feature.IsValid)
+        {
+            diagnostics.AddRange(feature.Diagnostics.Select(d => $"semantic diagnostic {d.Code}: {d.Message}"));
+            return new(AirHoleSimpleShaftMaterializationStatus.InvalidSemanticHole, null, null, diagnostics);
+        }
+        if (feature.EndCondition is not AirHoleEndCondition.ThroughAll)
+        {
+            diagnostics.Add("HoleConstructionPlaneExtentUnsupported: construction-plane execution currently admits ThroughAll only; blind termination remains unimplemented.");
+            return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
+        }
+        if (feature.Stack.Kind != AirHoleStackKind.SimpleShaft)
+        {
+            diagnostics.Add("HoleConstructionPlaneHostUnsupported: construction-plane execution currently admits a simple Box host and simple cylindrical shaft only.");
+            return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
+        }
+        if (!IsSignedAxis(placement.AxisX) || !IsSignedAxis(placement.AxisY) || !IsSignedAxis(placement.AxisZ) ||
+            Math.Abs(placement.AxisX.ToVector().Dot(placement.AxisY.ToVector())) > Tolerance ||
+            Math.Abs(placement.AxisX.ToVector().Dot(placement.AxisZ.ToVector())) > Tolerance ||
+            Math.Abs(placement.AxisY.ToVector().Dot(placement.AxisZ.ToVector())) > Tolerance)
+        {
+            diagnostics.Add("HoleConstructionPlaneOrientationUnsupported: admitted Box host requires a proper signed-permutation Construction Plane frame.");
+            return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
+        }
+
+        var worldCorners = new[]
+        {
+            new Aetheris.Kernel.Core.Math.Point3D(-host.Width / 2d, -host.Depth / 2d, host.ZMin), new Aetheris.Kernel.Core.Math.Point3D(host.Width / 2d, -host.Depth / 2d, host.ZMin),
+            new Aetheris.Kernel.Core.Math.Point3D(-host.Width / 2d, host.Depth / 2d, host.ZMin), new Aetheris.Kernel.Core.Math.Point3D(host.Width / 2d, host.Depth / 2d, host.ZMin),
+            new Aetheris.Kernel.Core.Math.Point3D(-host.Width / 2d, -host.Depth / 2d, host.ZMax), new Aetheris.Kernel.Core.Math.Point3D(host.Width / 2d, -host.Depth / 2d, host.ZMax),
+            new Aetheris.Kernel.Core.Math.Point3D(-host.Width / 2d, host.Depth / 2d, host.ZMax), new Aetheris.Kernel.Core.Math.Point3D(host.Width / 2d, host.Depth / 2d, host.ZMax)
+        };
+        (double X, double Y, double Z) Local(Aetheris.Kernel.Core.Math.Point3D point)
+        {
+            var delta = point - placement.FrameOrigin;
+            return (delta.Dot(placement.AxisX.ToVector()), delta.Dot(placement.AxisY.ToVector()), delta.Dot(placement.AxisZ.ToVector()));
+        }
+        var local = worldCorners.Select(Local).ToArray();
+        var xmin = local.Min(p => p.X); var xmax = local.Max(p => p.X); var ymin = local.Min(p => p.Y); var ymax = local.Max(p => p.Y);
+        var zmin = local.Min(p => p.Z); var zmax = local.Max(p => p.Z);
+        if (Math.Abs(zmin) > Tolerance || zmax <= Tolerance)
+        {
+            diagnostics.Add($"HoleDirectionDoesNotEnterHost: mouth localZ interval is [{zmin:R},{zmax:R}], expected [0,+). constructionPlane={placement.ConstructionPlaneId}");
+            return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
+        }
+        if (placement.LocalCenterX - feature.Shaft.Radius < xmin - Tolerance || placement.LocalCenterX + feature.Shaft.Radius > xmax + Tolerance ||
+            placement.LocalCenterY - feature.Shaft.Radius < ymin - Tolerance || placement.LocalCenterY + feature.Shaft.Radius > ymax + Tolerance)
+        {
+            diagnostics.Add("HoleMouthMissesHost: local circular mouth does not lie fully within the admitted Box cross-section.");
+            return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
+        }
+
+        var frame = new ConstructionPlane(placement.ConstructionPlaneId, placement.SourceConceptPlaneId, placement.FrameOrigin,
+            placement.AxisX, placement.AxisY, placement.AxisZ, placement.SourceSpan, placement.Provenance);
+        var outer = new LineArcProfileLoop2D([
+            new LineArcLineSegment2D((xmin, ymin), (xmax, ymin)), new LineArcLineSegment2D((xmax, ymin), (xmax, ymax)),
+            new LineArcLineSegment2D((xmax, ymax), (xmin, ymax)), new LineArcLineSegment2D((xmin, ymax), (xmin, ymin))], false);
+        // A deterministic two-arc loop avoids a reused longitudinal seam edge.
+        // It is still one exact circle/cylinder support, but yields normal
+        // DirectedEdgeUse closure and correct signed mass integration.
+        var inner = new LineArcProfileLoop2D([
+            new LineArcCircularArc2D((placement.LocalCenterX, placement.LocalCenterY), feature.Shaft.Radius, 0d, -Math.PI),
+            new LineArcCircularArc2D((placement.LocalCenterX, placement.LocalCenterY), feature.Shaft.Radius, Math.PI, -Math.PI)], true);
+        var planned = ProfileExtrusionBRepPlanner.TryPlan(new LineArcProfileExtrudeRequest([outer, inner], zmax, frame, 0d, zmax));
+        if (!planned.Succeeded || planned.Plan is null)
+        {
+            diagnostics.AddRange(planned.Diagnostics); diagnostics.Add("HolePlanInvalid: local-frame circular extrusion plan was not created.");
+            return new(AirHoleSimpleShaftMaterializationStatus.ExecutionFailed, null, null, diagnostics);
+        }
+        var holePlan = LocalFrameHoleBRepPlan.FromProfilePlan(feature, placement, (0d, zmax), planned.Plan);
+        var materialized = ProfileExtrusionBRepMaterializer.TryMaterialize(planned.Plan);
+        diagnostics.AddRange(materialized.Diagnostics);
+        if (!materialized.Succeeded || materialized.Body is null)
+        {
+            diagnostics.Add("HoleMaterializerDiverged: authoritative HoleBRepPlan failed materialization.");
+            return new(AirHoleSimpleShaftMaterializationStatus.ExecutionFailed, null, null, diagnostics);
+        }
+        var spec = new ProfileStackExtrudeSpec(host.Width, host.Depth, host.ZMin, host.ZMax, [], [], placement.LocalCenterX, placement.LocalCenterY);
+        var plan = new AirHoleSimpleShaftMaterializationPlan(feature, host, feature.FeatureId, nameof(AirHoleFeature), placement.ConstructionPlaneId,
+            placement.LocalCenterX, placement.LocalCenterY, 1d, feature.Shaft.Radius, 0d, zmax, feature.EndCondition.Kind, feature.Stack.Kind,
+            feature.Stack.Components.Select(c => c.Kind).ToArray(), spec, diagnostics.ToArray(), holePlan);
+        diagnostics.Add($"HostMaterialIntervals:[0,{zmax:R}] local-Z; constructionPlane={placement.ConstructionPlaneId}; sourceConceptPlane={placement.SourceConceptPlaneId}.");
+        diagnostics.Add("local-frame-hole materialization succeeded: authoritative HoleBRepPlan -> ProfileExtrusionBRepMaterializer.");
+        return new(AirHoleSimpleShaftMaterializationStatus.Succeeded, plan, materialized.Body, diagnostics, holePlan.Correspondence);
+    }
+
+    private static bool IsSignedAxis(Aetheris.Kernel.Core.Math.Direction3D axis)
+    {
+        var values = new[] { Math.Abs(axis.ToVector().X), Math.Abs(axis.ToVector().Y), Math.Abs(axis.ToVector().Z) };
+        return values.Count(v => Math.Abs(v - 1d) <= Tolerance) == 1 && values.Count(v => v <= Tolerance) == 2;
+    }
 }

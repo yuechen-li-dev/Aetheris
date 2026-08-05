@@ -1205,19 +1205,23 @@ public static class FirmamentBuildAndExport
         var stepHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value)));
         var surfaceKinds = body.Geometry.Surfaces.Select(s => s.Value.Kind).ToArray();
 
-        var featureReports = semanticHoles.Select(h => new FirmamentHoleFeatureReport(
+        var featureReports = semanticHoles.Select(h =>
+        {
+            var legacyPlacement = h.Placement as AirFaceLocalHolePlacement;
+            var constructionPlacement = h.ConstructionPlanePlacement;
+            return new FirmamentHoleFeatureReport(
             h.Name,
             "Hole",
             h.FeatureId,
             h.Shaft.Diameter,
             h.Placement.U,
             h.Placement.V,
-            h.Placement.ResolvedPoint3 is { } p ? new[] { p.X, p.Y, p.Z } : null,
-            h.Placement.ResolvedPoint3 is { } sourcePoint ? sourcePoint.Ordinal is { } ordinal ? $"{sourcePoint.SourceMember}[{ordinal}]" : sourcePoint.SourceMember : null,
-            h.Placement.ResolvedPoint3?.StableId,
-            h.Placement.ResolvedPoint3?.Ordinal,
-            h.Placement.ResolvedPoint3?.PlacementFace ?? h.Placement.EntryFaceName,
-            h.Placement.ResolvedPoint3?.SourceSpan,
+            legacyPlacement?.ResolvedPoint3 is { } p ? new[] { p.X, p.Y, p.Z } : constructionPlacement is { } cp ? new[] { cp.WorldMouthCenter.X, cp.WorldMouthCenter.Y, cp.WorldMouthCenter.Z } : null,
+            legacyPlacement?.ResolvedPoint3 is { } sourcePoint ? sourcePoint.Ordinal is { } ordinal ? $"{sourcePoint.SourceMember}[{ordinal}]" : sourcePoint.SourceMember : constructionPlacement?.SourceConceptPlaneId,
+            legacyPlacement?.ResolvedPoint3?.StableId ?? constructionPlacement?.SourceConceptPlaneId,
+            legacyPlacement?.ResolvedPoint3?.Ordinal,
+            legacyPlacement?.ResolvedPoint3?.PlacementFace ?? constructionPlacement?.ConstructionPlaneId ?? legacyPlacement?.EntryFaceName ?? "unplaced",
+            legacyPlacement?.ResolvedPoint3?.SourceSpan ?? constructionPlacement?.SourceSpan,
             semanticHoles.Count == 1 ? nameof(AirHoleSimpleShaftMaterializer) : nameof(AirHoleCompositeMaterializer),
             "HoleProfileStack",
             h.Stack.Kind.ToString(),
@@ -1232,7 +1236,8 @@ public static class FirmamentBuildAndExport
             surfaceKinds.Count(k => k == SurfaceGeometryKind.Cone),
             surfaceKinds.Count(k => k == SurfaceGeometryKind.Plane),
             stepHash,
-            true)).ToArray();
+            true);
+        }).ToArray();
         return KernelResult<FirmamentStepExportResult>.Success(
             new FirmamentStepExportResult(
                 step.Value,

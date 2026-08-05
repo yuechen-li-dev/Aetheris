@@ -63,7 +63,10 @@ public static class SemanticTopologySelectionResolver
             foreach (var candidate in candidates)
             {
                 var loop = body.Topology.Loops.Single(x => x.Id == candidate.Loop!.Value);
-                if (loop.CoedgeIds.Count < 3) return Fail(SemanticSelectionFailure.DescendantsDoNotClose, "DescendantsDoNotClose", "A loop descendant is degenerate.", candidates);
+                // Exact circular boundaries can be represented by two analytic
+                // arc uses; directed closure below remains the authoritative
+                // non-degeneracy test.
+                if (loop.CoedgeIds.Count < 2) return Fail(SemanticSelectionFailure.DescendantsDoNotClose, "DescendantsDoNotClose", "A loop descendant is degenerate.", candidates);
                 var uses = loop.CoedgeIds.Select(id => body.Topology.Coedges.Single(x => x.Id == id)).Select(c => DirectedEdgeUse.Resolve(body.Topology.Edges.Single(e => e.Id == c.EdgeId), c)).ToArray();
                 if (uses.Where((use, index) => use.EndVertexId != uses[(index + 1) % uses.Length].StartVertexId).Any())
                     return Fail(SemanticSelectionFailure.DescendantsDoNotClose, "DescendantsDoNotClose", "A loop descendant does not have directed closure.", candidates);

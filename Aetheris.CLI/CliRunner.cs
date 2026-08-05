@@ -501,6 +501,7 @@ public static class CliRunner
         if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(InspectSelectionsUsage); return args.Length == 0 ? 1 : 0; }
         if (args.Length != 2 || args[1] != "--json") { stderr.WriteLine(InspectSelectionsUsage); return 1; }
         if (!File.Exists(args[0])) { stderr.WriteLine($"Selection source was not found: {args[0]}"); return 1; }
+        var totalClock = Stopwatch.StartNew();
         var source = File.ReadAllText(args[0]);
         if (PrismaticProfileCompositionParser.IsCompositionSource(source))
         {
@@ -519,12 +520,44 @@ public static class CliRunner
             }, JsonOptions));
             return composeDiagnostics.Count == 0 && composeParseDiagnostics.Count == 0 && composeResults.All(x => x.Succeeded) ? 0 : 1;
         }
+        var parseClock = Stopwatch.StartNew();
         var v2 = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(Path.GetFullPath(args[0])));
+        parseClock.Stop();
         if (v2.IsSuccess && v2.Document is not null && v2.Document.ModifyBlocks?.SelectMany(x => x.SemanticHoles).Any() == true)
         {
+            var inspectClock = Stopwatch.StartNew();
             var hole = SemanticHoleInspection.Inspect(v2.Document);
+            inspectClock.Stop();
             if (!hole.Succeeded || hole.Correspondence is null) { stderr.WriteLine(string.Join(Environment.NewLine, hole.Diagnostics)); return 1; }
-            stdout.WriteLine(JsonSerializer.Serialize(new { body = hole.Correspondence.BodyStableId, hole = hole.HoleId, descendants = hole.Correspondence.Descendants.Select(x => new { x.StableId, x.Kind, role = x.Role.ToString(), x.SourceStableId, x.ParentStableId }), provenance = hole.Correspondence.ProvenanceChain, diagnostics = hole.Diagnostics }, JsonOptions));
+            var selectionResults = new[]
+            {
+                new SemanticSelectionRequest("inspect:mouth-loop", "MouthLoop", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleEntryLoop, SemanticSelectionRequirement.ClosedLoop, "inspect-selections"),
+                new SemanticSelectionRequest("inspect:exit-loop", "ExitLoop", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleExitLoop, SemanticSelectionRequirement.ClosedLoop, "inspect-selections"),
+                new SemanticSelectionRequest("inspect:shaft-wall-faces", "ShaftWallFaces", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleWallFace, SemanticSelectionRequirement.NonEmptyFaceSet, "inspect-selections")
+            }.Select(request => SemanticTopologySelectionResolver.Resolve(hole.Body!, hole.Correspondence, request)).ToArray();
+            totalClock.Stop();
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                body = hole.Correspondence.BodyStableId,
+                hole = hole.HoleId,
+                sourceDeclaration = new { kind = "Hole<Shaft>", featureId = hole.HoleId, sourceSpan = hole.Evidence?.SourceSpan },
+                boundPlacement = hole.Evidence is null ? null : new { kind = hole.Evidence.PlacementKind, hole.Evidence.ConstructionPlaneId, hole.Evidence.SourceConceptPlaneId, hole.Evidence.LocalCenter },
+                airPlacement = hole.Evidence is null ? null : new { kind = hole.Evidence.PlacementKind == "ConstructionPlane" ? "AirConstructionPlaneHolePlacement" : "AirFaceLocalHolePlacement", featureId = hole.Evidence.FeatureId, hole.Evidence.ConstructionPlaneId, hole.Evidence.LocalCenter },
+                plan = hole.Evidence?.PlanId is null ? null : new { kind = "LocalFrameHoleBRepPlan", stableId = hole.Evidence.PlanId, hostInterval = hole.Evidence.HostInterval },
+                summary = hole.Evidence is null ? null : new
+                {
+                    hole.Evidence.FeatureId, hole.Evidence.PlacementKind, hole.Evidence.ConstructionPlaneId, hole.Evidence.SourceConceptPlaneId,
+                    frameOrigin = hole.Evidence.FrameOrigin, axisX = hole.Evidence.AxisX, axisY = hole.Evidence.AxisY, axisZ = hole.Evidence.AxisZ,
+                    localCenter = hole.Evidence.LocalCenter, worldMouthCenter = hole.Evidence.WorldMouthCenter,
+                    hole.Evidence.Diameter, hole.Evidence.Radius, extent = hole.Evidence.Extent, hostInterval = hole.Evidence.HostInterval,
+                    hole.Evidence.PlanId, hole.Evidence.SourceSpan
+                },
+                descendants = hole.Correspondence.Descendants.Select(x => new { x.StableId, x.Kind, role = x.Role.ToString(), x.SourceStableId, x.ParentStableId, edge = x.Edge?.Value, face = x.Face?.Value, loop = x.Loop?.Value }),
+                selectionResults = selectionResults.Select(result => new { name = result.Request.Label, stableId = result.Request.StableId, topologyRole = result.Request.Role?.ToString(), expectedShape = result.Request.Require.ToString(), succeeded = result.Succeeded, failure = result.Failure.ToString(), materializedDescendants = result.Descendants.Select(x => x.StableId), diagnostics = result.Diagnostics }),
+                provenance = hole.Correspondence.ProvenanceChain,
+                diagnostics = hole.Diagnostics,
+                timings = new { parseMs = parseClock.Elapsed.TotalMilliseconds, inspectMs = inspectClock.Elapsed.TotalMilliseconds, totalMs = totalClock.Elapsed.TotalMilliseconds }
+            }, JsonOptions));
             return 0;
         }
         var parsed = ProfileAuthoringParser.Parse(source);

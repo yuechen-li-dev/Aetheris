@@ -44,6 +44,12 @@ The verification artifact is `artifacts/semantic-top-boundary-chamfer.step`, SHA
 
 This is the Cadmata handoff shape. It intentionally includes geometry preview only where the producer has one, and does not add rendering or interactive selection editing.
 
+For a Construction Plane Hole, `inspect-selections` additionally resolves the
+compiler-published `MouthLoop`, `ExitLoop`, and `ShaftWallFaces` roles. The
+source frame, AIR placement, local-frame plan, final topology ids, and each
+result appear together; no geometric predicate is introduced. See
+[Construction Plane Hole source X3](construction-plane-hole-source-x3.md).
+
 ## Compose X2 extension
 
 The section-stack emitter now publishes correspondence while it consumes normalized arrangement fragments. Each retained Profile segment retains its `arrangement.partN` provenance interval and becomes a stable BRepPlan-side edge/face descendant carrying its slab context. CTC X3 resolves `LeftTopEar.Outer.OuterArc` as one open top-boundary chain and all six `CentralHex` segments as one closed top-boundary loop. No CTC finish is claimed: the current chamfer materializer is intentionally limited to its history-known rectangular profile case.

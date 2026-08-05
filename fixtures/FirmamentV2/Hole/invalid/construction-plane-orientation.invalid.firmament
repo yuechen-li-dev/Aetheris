@@ -1,0 +1,8 @@
+Concept Struct SideLayout {
+    DiagonalDatum: Plane { Origin: [-50mm, 0mm, 0mm]; Normal: [0.7071067811865476, 0.7071067811865476, 0]; Up: [0, 0, 1] }
+}
+Construction Plane DiagonalWorkplane { Trace: SideLayout.DiagonalDatum }
+Struct SideHoleBracket {
+    Box Base { Size: [100mm, 60mm, 12mm] }
+    Modify Base { Hole<Shaft> SideMount { From: DiagonalWorkplane; Center: Point2(10mm, 6mm); Diameter: 8mm; End: ThroughAll } }
+}

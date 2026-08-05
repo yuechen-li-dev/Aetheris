@@ -20,6 +20,29 @@ public sealed class InspectSelectionsTests
         Assert.Equal("EdgeFinish", selection.GetProperty("consumer").GetString());
     }
 
+    [Fact]
+    public void InspectSelections_ReportsConstructionPlaneHoleSourceToPlanEvidence()
+    {
+        var root = FindRepoRoot();
+        var source = Path.Combine(root, "fixtures", "FirmamentV2", "Hole", "valid", "construction-plane-through-hole.firmament");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+
+        var exit = Aetheris.CLI.CliRunner.Run(["inspect-selections", source, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exit); Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        using var json = JsonDocument.Parse(stdout.ToString());
+        var summary = json.RootElement.GetProperty("summary");
+        Assert.Equal("ConstructionPlane", summary.GetProperty("placementKind").GetString());
+        Assert.Equal("construction:PositiveXWorkplane", summary.GetProperty("constructionPlaneId").GetString());
+        Assert.Equal("concept:SideLayout.PositiveXDatum", summary.GetProperty("sourceConceptPlaneId").GetString());
+        Assert.Equal("ThroughAll", summary.GetProperty("extent").GetString());
+        Assert.Equal(100, summary.GetProperty("hostInterval")[1].GetDouble());
+        Assert.Equal("LocalFrameHoleBRepPlan", json.RootElement.GetProperty("plan").GetProperty("kind").GetString());
+        Assert.Contains(json.RootElement.GetProperty("descendants").EnumerateArray(), descendant => descendant.GetProperty("role").GetString() == "HoleExitLoop");
+        Assert.Equal(2, json.RootElement.GetProperty("descendants").EnumerateArray().Count(descendant => descendant.GetProperty("role").GetString() == "HoleWallFace"));
+        Assert.All(json.RootElement.GetProperty("selectionResults").EnumerateArray(), result => Assert.True(result.GetProperty("succeeded").GetBoolean()));
+    }
+
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

@@ -11,7 +11,7 @@ internal sealed record AirHoleFeature(
     string Name,
     string FeatureId,
     string? TargetBodyId,
-    AirFaceLocalHolePlacement Placement,
+    AirHolePlacement Placement,
     AirHoleAxis Axis,
     AirHoleShaft Shaft,
     AirHoleEndCondition EndCondition,
@@ -25,6 +25,7 @@ internal sealed record AirHoleFeature(
     public const string UnsupportedThreadDiagnostic = "hole-x1-thread-deferred";
 
     public bool IsValid => Diagnostics.All(d => d.Severity != AirDiagnosticSeverity.Error);
+    public AirConstructionPlaneHolePlacement? ConstructionPlanePlacement => Placement as AirConstructionPlaneHolePlacement;
 
     public static AirHoleFeature CreateSimpleShaft(
         string name,
@@ -48,6 +49,21 @@ internal sealed record AirHoleFeature(
             AirHoleStack.SimpleShaft(shaft, endCondition),
             provenance ?? DefaultProvenance(name, featureId),
             diagnostics);
+    }
+
+    public static AirHoleFeature CreateConstructionPlaneSimpleShaft(
+        string name,
+        string featureId,
+        string? targetBodyId,
+        AirConstructionPlaneHolePlacement placement,
+        AirHoleShaft shaft,
+        AirHoleEndCondition endCondition,
+        AirProvenance? provenance = null)
+    {
+        var diagnostics = ValidateConstructionPlane(name, featureId, placement, shaft, endCondition).ToArray();
+        return new AirHoleFeature(name, featureId, targetBodyId, placement,
+            new AirHoleAxis(placement.AxisZ, false), shaft, endCondition, AirHoleStack.SimpleShaft(shaft, endCondition),
+            provenance ?? DefaultProvenance(name, featureId), diagnostics);
     }
 
 
@@ -142,6 +158,16 @@ internal sealed record AirHoleFeature(
         }
     }
 
+    private static IEnumerable<AirDiagnostic> ValidateConstructionPlane(string name, string featureId, AirConstructionPlaneHolePlacement placement, AirHoleShaft shaft, AirHoleEndCondition endCondition)
+    {
+        if (string.IsNullOrWhiteSpace(name)) yield return Error("hole-x2-name-required", "Hole feature name is required.");
+        if (string.IsNullOrWhiteSpace(featureId)) yield return Error("hole-x2-feature-id-required", "Hole feature id is required.");
+        if (string.IsNullOrWhiteSpace(placement.ConstructionPlaneId) || string.IsNullOrWhiteSpace(placement.SourceConceptPlaneId)) yield return Error("HoleConstructionPlaneInvalid", "Construction Plane placement requires stable construction and Concept Plane identities.");
+        if (!IsFinite(placement.LocalCenterX) || !IsFinite(placement.LocalCenterY)) yield return Error("HoleLocalCenterInvalid", "Construction Plane local center coordinates must be finite.");
+        if (!IsFinite(shaft.Diameter) || shaft.Diameter <= 0d) yield return Error("hole-x2-diameter-invalid", "Hole diameter must be greater than zero.");
+        if (endCondition is AirHoleEndCondition.Depth depth && (!IsFinite(depth.Value) || depth.Value <= 0d)) yield return Error("HoleExtentInvalid", "Bounded shaft depth must be greater than zero.");
+    }
+
     private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
     private static AirDiagnostic Error(string code, string message) => new(code, AirDiagnosticSeverity.Error, message);
 }
@@ -157,13 +183,43 @@ internal sealed record AirResolvedPoint3PlacementSource(
     double PlaneDistance,
     string SourceSpan);
 
+internal abstract record AirHolePlacement(double U, double V)
+{
+    public virtual string? EntryFaceName => null;
+    public virtual AirResolvedPoint3PlacementSource? ResolvedPoint3 => null;
+}
+
 internal sealed record AirFaceLocalHolePlacement(
-    string EntryFaceName,
+    string FaceName,
     double U,
     double V,
     string FrameConvention,
     string? StableFaceSelector = null,
-    AirResolvedPoint3PlacementSource? ResolvedPoint3 = null);
+    AirResolvedPoint3PlacementSource? Point3Source = null) : AirHolePlacement(U, V)
+{
+    public override string EntryFaceName => FaceName;
+    public override AirResolvedPoint3PlacementSource? ResolvedPoint3 => Point3Source;
+}
+
+/// <summary>
+/// Immutable local-frame placement for new semantic holes.  Unlike the legacy
+/// <see cref="AirFaceLocalHolePlacement"/>, this is authored from construction
+/// evidence, never from a materialized face name or topology id.
+/// </summary>
+internal sealed record AirConstructionPlaneHolePlacement(
+    string ConstructionPlaneId,
+    string SourceConceptPlaneId,
+    Point3D FrameOrigin,
+    Direction3D AxisX,
+    Direction3D AxisY,
+    Direction3D AxisZ,
+    double LocalCenterX,
+    double LocalCenterY,
+    string SourceSpan,
+    string Provenance) : AirHolePlacement(LocalCenterX, LocalCenterY)
+{
+    public Point3D WorldMouthCenter => FrameOrigin + AxisX.ToVector() * LocalCenterX + AxisY.ToVector() * LocalCenterY;
+}
 internal sealed record AirHoleAxis(Direction3D Direction, bool DefaultedFromEntryFaceNormal);
 internal sealed record AirHoleShaft(double Diameter)
 {

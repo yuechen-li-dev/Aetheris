@@ -39,4 +39,9 @@ Semantic descendants now publish `LocalStartBoundary`, `LocalEndBoundary`, `Loca
 
 Construction Planes define local material coordinates. Authoritative BRepPlans carry those coordinates into exact topology. `ProfileExtrusionConstructionAir` normalizes a local Profile plus the immutable frame and local interval; `ProfileExtrusionBRepPlan` owns all vertices, supports, edges, directed uses, loops, faces, senses, shell/body, and source correspondence before any BRep is made. The default world-XY frame is the same route, not a parallel planner. `inspect-profile --json` includes that pre-materialization plan.
 
+Construction Plane semantic shaft Holes now use the same source-level frame
+contract: `From: Workplane`, local `Center: Point2(...)`, and local `+Z`
+`ThroughAll`. The bounded X3 route and compatibility policy are documented in
+[Construction Plane Hole source X3](construction-plane-hole-source-x3.md).
+
 Current scope is a proper rigid frame and standalone/additive planar line/arc Profile extrusion. Reflections, scaling, shearing, arbitrary completed-plan transforms, mutable face attachment, generic constraints, and host-subtracted local-frame holes remain unsupported. LOCAL-FRAME-HOLE-X2 should consume `ConstructionPlane` directly for placement and add only the bounded host/subtraction contract; it must not add topology attachment or recompute the frame.

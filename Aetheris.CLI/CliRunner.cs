@@ -113,11 +113,12 @@ public static class CliRunner
         string? Error,
         string? Classification = null,
         int? RigidRootCount = null);
-    private const string TopLevelUsage = "Usage: aetheris <build|validate|inspect-profile|inspect-compose|sections|analyze|verify|match|trace|canon|asm|experimental> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|validate|inspect-profile|inspect-compose|inspect-selections|sections|analyze|verify|match|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string InspectComposeUsage = "Usage: aetheris inspect-compose <file.firmament> --json [--materialize]";
+    private const string InspectSelectionsUsage = "Usage: aetheris inspect-selections <file.firmament> --json";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] [--rank-probes|--evidence-bundle] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
@@ -177,6 +178,7 @@ public static class CliRunner
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-profile" => RunInspectProfile(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-compose" => RunInspectCompose(args.Skip(1).ToArray(), stdout, stderr),
+                "inspect-selections" => RunInspectSelections(args.Skip(1).ToArray(), stdout, stderr),
                 "sections" => RunSections(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "verify" => RunVerify(args.Skip(1).ToArray(), stdout, stderr),
@@ -466,6 +468,61 @@ public static class CliRunner
         }
 
         return (stableId, "ConceptGuide", null);
+    }
+
+    private static int RunInspectSelections(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(InspectSelectionsUsage); return args.Length == 0 ? 1 : 0; }
+        if (args.Length != 2 || args[1] != "--json") { stderr.WriteLine(InspectSelectionsUsage); return 1; }
+        if (!File.Exists(args[0])) { stderr.WriteLine($"Selection source was not found: {args[0]}"); return 1; }
+        var source = File.ReadAllText(args[0]);
+        if (PrismaticProfileCompositionParser.IsCompositionSource(source))
+        {
+            var parsedCompose = PrismaticProfileCompositionParser.Parse(source);
+            var stack = PrismaticSectionStackCompiler.Normalize(parsedCompose, out var composeDiagnostics);
+            var emittedCompose = stack is null ? null : PrismaticSectionStackEmitter.Emit(stack);
+            if (stack is null || emittedCompose?.Body is null || emittedCompose.Correspondence is null) { stderr.WriteLine(string.Join(Environment.NewLine, composeDiagnostics)); return 1; }
+            var composeRequests = SemanticSelectionSourceParser.Parse(source, parsedCompose.Profiles.Values.First(), stack.Feature.Name, out var composeParseDiagnostics);
+            var composeResults = composeRequests.Select(request => SemanticTopologySelectionResolver.Resolve(emittedCompose.Body, emittedCompose.Correspondence, request)).ToArray();
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                body = emittedCompose.Correspondence.BodyStableId,
+                selections = composeResults.Select(result => new { name = result.Request.Label, stableId = result.Request.StableId, sourceIdentities = result.Request.SourceStableIds, body = result.Request.BodyStableId, expectedShape = result.Request.Require.ToString(), topologyRole = result.Request.Role?.ToString(), succeeded = result.Succeeded, failure = result.Failure.ToString(), connectivity = new { result.IsConnected, result.IsClosed }, traversalOrder = result.OrderedChain.Select(x => x.StableId), materializedDescendants = result.Descendants.Select(x => new { x.StableId, x.Kind, role = x.Role.ToString(), x.SourceStableId, x.ParentStableId }), provenance = emittedCompose.Correspondence.ProvenanceChain, consumer = result.Request.Consumer, diagnostics = result.Diagnostics }),
+                arrangement = stack.Slabs.Select(s => new { slab = new[] { s.From, s.To }, fragments = s.Arrangement?.AtomicFragments.Select(f => new { f.StableId, source = f.Source.Provenance.StableId, f.FromParameter, f.ToParameter, f.MaterialOnLeft, f.Retained }) }),
+                diagnostics = composeDiagnostics.Concat(composeParseDiagnostics).Distinct()
+            }, JsonOptions));
+            return composeDiagnostics.Count == 0 && composeParseDiagnostics.Count == 0 && composeResults.All(x => x.Succeeded) ? 0 : 1;
+        }
+        var v2 = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(Path.GetFullPath(args[0])));
+        if (v2.IsSuccess && v2.Document is not null && v2.Document.ModifyBlocks?.SelectMany(x => x.SemanticHoles).Any() == true)
+        {
+            var hole = SemanticHoleInspection.Inspect(v2.Document);
+            if (!hole.Succeeded || hole.Correspondence is null) { stderr.WriteLine(string.Join(Environment.NewLine, hole.Diagnostics)); return 1; }
+            stdout.WriteLine(JsonSerializer.Serialize(new { body = hole.Correspondence.BodyStableId, hole = hole.HoleId, descendants = hole.Correspondence.Descendants.Select(x => new { x.StableId, x.Kind, role = x.Role.ToString(), x.SourceStableId, x.ParentStableId }), provenance = hole.Correspondence.ProvenanceChain, diagnostics = hole.Diagnostics }, JsonOptions));
+            return 0;
+        }
+        var parsed = ProfileAuthoringParser.Parse(source);
+        if (parsed.Profile is null) { stderr.WriteLine(string.Join(Environment.NewLine, parsed.Diagnostics)); return 1; }
+        var emitted = ResolvedProfile2DValidator.Extrude(parsed.Profile, parsed.Height);
+        if (emitted.Body is null || emitted.Correspondence is null) { stderr.WriteLine(string.Join(Environment.NewLine, emitted.Diagnostics)); return 1; }
+        var requests = SemanticSelectionSourceParser.Parse(source, parsed.Profile, parsed.Profile.Name, out var parseDiagnostics);
+        var results = requests.Select(request => SemanticTopologySelectionResolver.Resolve(emitted.Body, emitted.Correspondence, request)).ToArray();
+        stdout.WriteLine(JsonSerializer.Serialize(new
+        {
+            body = emitted.Correspondence.BodyStableId,
+            selections = results.Select(result => new
+            {
+                name = result.Request.Label, stableId = result.Request.StableId, sourceIdentities = result.Request.SourceStableIds,
+                body = result.Request.BodyStableId, expectedShape = result.Request.Require.ToString(), topologyRole = result.Request.Role?.ToString(),
+                succeeded = result.Succeeded, failure = result.Failure.ToString(), connectivity = new { result.IsConnected, result.IsClosed },
+                traversalOrder = result.OrderedChain.Select(x => x.StableId),
+                materializedDescendants = result.Descendants.Select(x => new { x.StableId, x.Kind, role = x.Role.ToString(), x.SourceStableId, x.ParentStableId, sourceSpan = result.Request.SourceSpan }),
+                provenance = emitted.Correspondence.ProvenanceChain, consumer = result.Request.Consumer,
+                diagnostics = result.Diagnostics
+            }),
+            diagnostics = parseDiagnostics
+        }, JsonOptions));
+        return parseDiagnostics.Count == 0 && results.All(x => x.Succeeded) ? 0 : 1;
     }
 
     private static int RunInspectCompose(string[] args, TextWriter stdout, TextWriter stderr)
@@ -2564,6 +2621,7 @@ public static class CliRunner
         stdout.WriteLine("  validate   Validate Firmament V2 manufacturing intent and emit report JSON.");
         stdout.WriteLine("  inspect-profile  Resolve and validate a scaffold-referenced Profile.");
         stdout.WriteLine("  inspect-compose  Normalize and inspect a profile-composition section stack.");
+        stdout.WriteLine("  inspect-selections  Resolve source-grounded topology selections without STEP analysis.");
         stdout.WriteLine("  sections   Normalize exact horizontal STEP section fragments.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
         stdout.WriteLine("  verify     Reimport STEP and emit independent B-rep/external-display evidence.");

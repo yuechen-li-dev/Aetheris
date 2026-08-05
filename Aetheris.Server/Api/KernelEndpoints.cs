@@ -31,6 +31,12 @@ public static class KernelEndpoints
             return ApiMappings.Ok(new DocumentCreateResponseDto(created.Id, created.Name, Volatile: true));
         });
 
+        documents.MapPost("/{documentId:guid}/cadmata/fixtures/{fixtureId}", (Guid documentId, string fixtureId, KernelDocumentStore store) =>
+            WithDocument(store, documentId, document =>
+                CadmataFixtureService.TryLoad(fixtureId, document, out var fixture, out var error)
+                    ? ApiMappings.Ok(fixture!)
+                    : ApiMappings.BadRequestFromMessage(error, "cadmata.fixture")));
+
         documents.MapGet("/{documentId:guid}", (Guid documentId, KernelDocumentStore store) =>
         {
             if (!store.TryGet(documentId, out var document))

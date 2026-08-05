@@ -7,8 +7,8 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
 
-public sealed record PrismaticSectionStackBrepPlan(string Signature, int Vertices, int Edges, int Faces, string Policy, bool Authoritative);
-public sealed record PrismaticSectionStackEmissionResult(BrepBody? Body, PrismaticSectionStackBrepPlan? Plan, IReadOnlyList<string> Diagnostics);
+public sealed record PrismaticSectionStackBrepPlan(string Signature, int Vertices, int Edges, int Faces, string Policy, bool Authoritative, SemanticTopologyCorrespondence? Correspondence = null);
+public sealed record PrismaticSectionStackEmissionResult(BrepBody? Body, PrismaticSectionStackBrepPlan? Plan, IReadOnlyList<string> Diagnostics, SemanticTopologyCorrespondence? Correspondence = null);
 
 /// <summary>Normalizes bounded line/arc Profiles through a planar material arrangement into slabs.</summary>
 public static class PrismaticSectionStackCompiler
@@ -80,7 +80,7 @@ public static class PrismaticSectionStackEmitter
         var d = stack.Diagnostics.ToList();
         var builder = new TopologyBuilder(); var points = new Dictionary<VertexId, Point3D>(); var curves = new Dictionary<EdgeId, CurveGeometry>(); var profileCurves = new Dictionary<EdgeId, LineArcProfileCurve2D>();
         var vertices = new Dictionary<(long X, long Y, long Z), VertexId>(); var edges = new Dictionary<string, EdgeId>();
-        var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface)>(); var capFaces = new List<(FaceId Face, double Z, bool Up)>();
+        var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface, string Source, string Construction, double From, double To)>(); var capFaces = new List<(FaceId Face, double Z, bool Up)>();
         var splitPoints = stack.Slabs.SelectMany(s => Loops(s.Region)).Concat(stack.Transitions.SelectMany(t =>
                 t.UpwardRegions.Concat(t.DownwardRegions).SelectMany(Loops)))
             .SelectMany(x => x.Profile.Loops[0].Segments).SelectMany(x => Ends(x.Geometry)).DistinctBy(p => $"{Math.Round(p.X / Tol):F0},{Math.Round(p.Y / Tol):F0}").ToArray();
@@ -106,7 +106,8 @@ public static class PrismaticSectionStackEmitter
                 {
                     var endpoints = Ends(curve); var a = endpoints[0]; var b = endpoints[1]; var bottom = Edge(curve, slab.From); var top = Edge(curve, slab.To); var v0 = Vertical(a, slab.From, slab.To); var v1 = Vertical(b, slab.From, slab.To);
                     var loop = AddLoop(builder, [new(bottom.Edge, bottom.Reverse), new(v1.Edge, v1.Reverse), new(top.Edge, !top.Reverse), new(v0.Edge, !v0.Reverse)]);
-                    sideFaces.Add((loop, SideSurface(curve, slab.From, item.IsHole)));
+                    var source = SourceId(segment.Provenance.StableId);
+                    sideFaces.Add((loop, SideSurface(curve, slab.From, item.IsHole), source, $"slab:{slab.From:R}..{slab.To:R}:{segment.Provenance.Derivation}", slab.From, slab.To));
                 }
         foreach (var transition in stack.Transitions)
         {
@@ -136,9 +137,35 @@ public static class PrismaticSectionStackEmitter
             d.Add($"compose-rejected:non-manifold-edge-use:edge={incidence.Key.Value}:uses={incidence.Count()}:curve={curves[incidence.Key].Kind}:from=({a.X:R},{a.Y:R},{a.Z:R}):to=({b.X:R},{b.Y:R},{b.Z:R})");
         }
         var body = new BrepBody(builder.Model, geometry, bindings, points);
-        var plan = new PrismaticSectionStackBrepPlan($"compose:{stack.Feature.Name}:slabs={stack.Slabs.Count}:transitions={stack.Transitions.Count}", points.Count, builder.Model.Edges.Count(), faces.Count, "deterministic-slab-partitions", true);
+        var descendants = new List<SemanticTopologyDescendant>();
+        var topLevels = stack.Feature.Operations.GroupBy(x => x.ProfileReference, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Max(y => y.To), StringComparer.Ordinal);
+        var bottomLevels = stack.Feature.Operations.GroupBy(x => x.ProfileReference, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Min(y => y.From), StringComparer.Ordinal);
+        for (var i = 0; i < sideFaces.Count; i++)
+        {
+            var side = sideFaces[i]; var face = faces[capFaces.Count + i]; var loop = builder.Model.Loops.Single(x => x.Id == side.Loop);
+            foreach (var coedgeId in loop.CoedgeIds)
+            {
+                var coedge = builder.Model.Coedges.Single(x => x.Id == coedgeId);
+                var edge = builder.Model.Edges.Single(x => x.Id == coedge.EdgeId);
+                // Horizontal uses are cap/boundary descendants; vertical uses are side descendants.
+                var horizontal = Math.Abs(points[edge.StartVertexId].Z - points[edge.EndVertexId].Z) <= Tol;
+                if (!horizontal) continue;
+                var z = points[edge.StartVertexId].Z;
+                var profile = side.Source.StartsWith("profile:", StringComparison.Ordinal) ? side.Source["profile:".Length..].Split('.')[0] : string.Empty;
+                if (Math.Abs(z - side.To) <= Tol && topLevels.TryGetValue(profile, out var topLevel) && Math.Abs(z - topLevel) <= Tol) descendants.Add(new($"plan:{stack.Feature.Name}:{side.Construction}:edge:{edge.Id.Value}:top", "Edge", SemanticTopologyRole.TopBoundary, side.Source, Edge: edge.Id, ParentStableId: side.Construction));
+                if (Math.Abs(z - side.From) <= Tol && bottomLevels.TryGetValue(profile, out var bottomLevel) && Math.Abs(z - bottomLevel) <= Tol) descendants.Add(new($"plan:{stack.Feature.Name}:{side.Construction}:edge:{edge.Id.Value}:bottom", "Edge", SemanticTopologyRole.BottomBoundary, side.Source, Edge: edge.Id, ParentStableId: side.Construction));
+            }
+            descendants.Add(new($"plan:{stack.Feature.Name}:{side.Construction}:face:{face.Value}", "Face", SemanticTopologyRole.ExtrusionSideFace, side.Source, Face: face, ParentStableId: side.Construction));
+        }
+        foreach (var fragment in stack.Slabs.Where(s => s.Arrangement is not null).SelectMany(s => s.Arrangement!.AtomicFragments))
+        {
+            var source = fragment.Source.Provenance.StableId;
+            descendants.Add(new($"construction:{stack.Feature.Name}:{fragment.StableId}", "ArrangementFragment", SemanticTopologyRole.Unknown, source, ParentStableId: fragment.Source.StableId));
+        }
+        var correspondence = new SemanticTopologyCorrespondence(stack.Feature.Name, descendants.DistinctBy(x => x.StableId).ToArray(), ["ProfileArrangement2D", "PrismaticSectionStackConstruction", "PrismaticSectionStackBrepPlan", "AuthoritativeBRepPlan"]);
+        var plan = new PrismaticSectionStackBrepPlan($"compose:{stack.Feature.Name}:slabs={stack.Slabs.Count}:transitions={stack.Transitions.Count}", points.Count, builder.Model.Edges.Count(), faces.Count, "deterministic-slab-partitions", true, correspondence);
         d.Add("compose-authoritative-section-stack-brep-plan"); d.Add("compose-no-3d-boolean-used");
-        return new(body, plan, d.Distinct().ToArray());
+        return new(body, plan, d.Distinct().ToArray(), correspondence);
     }
     private static FaceId AddCap(TopologyBuilder builder, PrismaticSectionRegion region, double z, Func<LineArcProfileCurve2D, double, (EdgeId Edge, bool Reverse)> edge, IReadOnlyList<(double X, double Y)> splitPoints)
     {
@@ -174,6 +201,12 @@ public static class PrismaticSectionStackEmitter
     };
     private static string P((double X, double Y) point) => $"{Q(point.X)},{Q(point.Y)}";
     private static long Q(double value) => (long)Math.Round(value / Tol);
+    private static string SourceId(string stableId)
+    {
+        const string marker = ".arrangement.";
+        var index = stableId.IndexOf(marker, StringComparison.Ordinal);
+        return index >= 0 ? stableId[..index] : stableId;
+    }
     private static (ParameterInterval Trim, bool Oriented) CurveTrim(LineArcProfileCurve2D curve) => curve switch
     {
         LineArcLineSegment2D line => (new ParameterInterval(0d, Math.Sqrt((line.End.X - line.Start.X) * (line.End.X - line.Start.X) + (line.End.Y - line.Start.Y) * (line.End.Y - line.Start.Y))), true),

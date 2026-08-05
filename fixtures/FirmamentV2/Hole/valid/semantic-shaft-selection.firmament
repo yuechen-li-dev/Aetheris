@@ -1,0 +1,5 @@
+model SemanticShaftSelection {
+  units mm
+  solid base: Box { size: [20, 20, 10] }
+  modify base { hole<shaft> mount { on: face(+Z) center: [1.5, -1] diameter: 4 end: throughAll } }
+}

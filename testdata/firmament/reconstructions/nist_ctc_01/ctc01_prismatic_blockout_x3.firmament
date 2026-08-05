@@ -37,3 +37,14 @@ Struct Composition { Compose Ctc01PrismaticBlockoutX3 {
  Add MidLevelPlate { Profile: MidLevelWeb; From: -60mm; To: 0mm; Role: StrongInferenceMidLevel }
  Add CentralRaisedRegion { Profile: CentralHex; From: 0mm; To: 50mm; Role: StrongInferenceCentralRaisedRegion }
 } }
+
+Selection LeftTopLobeOuterArc {
+ Target: TopBoundary
+ Source: LeftTopEar.ProfileSegments([OuterArc])
+ Require: ConnectedChain
+}
+Selection CentralHexTopLoop {
+ Target: TopBoundary
+ Source: CentralHex.ProfileSegments([SouthEast, East, NorthEast, NorthWest, West, SouthWest])
+ Require: ClosedLoop
+}

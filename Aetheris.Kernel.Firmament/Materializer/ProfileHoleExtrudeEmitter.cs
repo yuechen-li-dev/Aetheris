@@ -13,7 +13,8 @@ internal sealed record ProfileHoleExtrudeRequest(
     double Width,
     double Depth,
     double Height,
-    IReadOnlyList<ProfileHoleLoop2D> Holes);
+    IReadOnlyList<ProfileHoleLoop2D> Holes,
+    IReadOnlyList<string>? HoleStableIds = null);
 
 internal enum ProfileHoleExtrudeStatus
 {
@@ -25,7 +26,8 @@ internal enum ProfileHoleExtrudeStatus
 internal sealed record ProfileHoleExtrudeResult(
     ProfileHoleExtrudeStatus Status,
     BrepBody? Body,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics,
+    SemanticTopologyCorrespondence? Correspondence = null);
 
 internal static class ProfileHoleExtrudeEmitter
 {
@@ -47,7 +49,7 @@ internal static class ProfileHoleExtrudeEmitter
         }
 
         d.Add("v2-v1-profile-hole-extrude-succeeded");
-        return new(ProfileHoleExtrudeStatus.Succeeded, built.Body, d);
+        return new(ProfileHoleExtrudeStatus.Succeeded, built.Body, d, built.Correspondence);
     }
 
     private static bool TryValidate(ProfileHoleExtrudeRequest req, List<string> d)
@@ -92,7 +94,7 @@ internal static class ProfileHoleExtrudeEmitter
         return true;
     }
 
-    private static (bool IsSuccess, BrepBody? Body, string Diagnostic) BuildBody(ProfileHoleExtrudeRequest request)
+    private static (bool IsSuccess, BrepBody? Body, string Diagnostic, SemanticTopologyCorrespondence? Correspondence) BuildBody(ProfileHoleExtrudeRequest request)
     {
         var minX = -request.Width / 2d;
         var maxX = request.Width / 2d;
@@ -188,7 +190,18 @@ internal static class ProfileHoleExtrudeEmitter
         bind.AddFaceBinding(new FaceGeometryBinding(faces[4], new SurfaceGeometryId(5)));
         bind.AddFaceBinding(new FaceGeometryBinding(faces[5], new SurfaceGeometryId(6)));
         for (var i = 0; i < holeCount; i++) bind.AddFaceBinding(new FaceGeometryBinding(faces[6 + i], new SurfaceGeometryId(7 + i)));
-        return (true, new BrepBody(b.Model, g, bind, map), string.Empty);
+        var body = new BrepBody(b.Model, g, bind, map);
+        var descendants = new List<SemanticTopologyDescendant>();
+        for (var i = 0; i < holeCount; i++)
+        {
+            var source = request.HoleStableIds is { Count: > 0 } && i < request.HoleStableIds.Count ? request.HoleStableIds[i] : $"hole:{i}";
+            descendants.Add(new($"material:{source}:entry-edge", "Edge", SemanticTopologyRole.TopBoundary, source, Edge: hte[i], ParentStableId: source));
+            descendants.Add(new($"material:{source}:exit-edge", "Edge", SemanticTopologyRole.BottomBoundary, source, Edge: hbe[i], ParentStableId: source));
+            descendants.Add(new($"material:{source}:entry-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, source, Loop: topLoops[i + 1], ParentStableId: source));
+            descendants.Add(new($"material:{source}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, source, Loop: bottomLoops[i + 1], ParentStableId: source));
+            descendants.Add(new($"material:{source}:wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: faces[6 + i], ParentStableId: source));
+        }
+        return (true, body, string.Empty, new SemanticTopologyCorrespondence("ProfileHoleExtrude", descendants, ["HoleAIR", "ProfileHoleExtrude", "AuthoritativeBRepPlan"]));
     }
 
     private static LoopId AddLoop(TopologyBuilder b, IReadOnlyList<Use> uses)

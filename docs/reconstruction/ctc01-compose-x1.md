@@ -12,6 +12,10 @@ CTC-DATA-TEMPLATES-X1 adds `ctc01_prismatic_blockout_x3.firmament`. X2 is the pr
 
 `inspect-profile --json` and `inspect-compose --json` include `expansion` evidence for X3: source record keys, template-produced concept members, generated profiles, and the individual operations erased from `Add Lobes`. This preserves reviewability while eliminating repeated declaration trees.
 
+## Semantic-selection X1 handoff
+
+SEMANTIC-DESCENDANTS-COMPOSE-X2 extends this to the section-stack emitter. Retained arrangement fragments preserve their source parameter intervals and the emitted plan publishes final top/bottom boundary-edge and side-face descendants with slab provenance. `inspect-selections` now resolves the generated `LeftTopEar.Outer.OuterArc` top chain and the six-source `CentralHex` top loop from the X3 source, without coordinate/radius matching or BRep IDs. The current finish materializer remains intentionally rectangular-profile-only, so CTC finishing is not claimed.
+
 ## Verdict
 
 CTC-BLOCKOUT-X2 succeeds as a bounded prismatic pressure test. The current scaffold-backed Profile + Compose route naturally expresses the dominant plate/web, four observed R50 end transitions, the Z=-60 central plate level, and the central hexagonal raised region. It lowers through three normalized material slabs, four horizontal transitions, one authoritative `PrismaticSectionStackBrepPlan`, and no 3D operation-solid Boolean.

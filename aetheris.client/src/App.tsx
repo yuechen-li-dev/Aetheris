@@ -8,6 +8,7 @@ import {
     exportDefinitionStep,
     getDocumentSummary,
     importStep,
+    loadCadmataFixture,
     pickBody,
     prepareBodyDisplay,
     translateBody,
@@ -22,6 +23,8 @@ import { Button } from './components/ui/button';
 import { AetherisViewport } from './viewer/AetherisViewport';
 import { buildDisplaySceneData } from './viewer/displaySceneBuilder';
 import { STEP_UPLOAD_LIMIT_BYTES, STEP_UPLOAD_LIMIT_MB, formatMegabytes } from './config/stepUpload';
+import { DEFAULT_CADMATA_LAYERS, type CadmataLayerVisibility } from './viewer/CadmataOverlay';
+import { parseCadmataVisualizationArtifact, resolveCadmataSelection, type CadmataVisualizationArtifact } from './viewer/conceptVisualization';
 
 type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
 type BooleanOperationUi = 'Union' | 'Subtract' | 'Intersect';
@@ -123,6 +126,9 @@ function App() {
     const [isResetting, setIsResetting] = useState(false);
     const [isGridVisible, setIsGridVisible] = useState(true);
     const [isCoordVisible, setIsCoordVisible] = useState(true);
+    const [cadmataArtifact, setCadmataArtifact] = useState<CadmataVisualizationArtifact | null>(null);
+    const [cadmataLayers, setCadmataLayers] = useState<CadmataLayerVisibility>(DEFAULT_CADMATA_LAYERS);
+    const [selectedCadmataId, setSelectedCadmataId] = useState<string | null>(null);
 
     const resetSessionState = useCallback(() => {
         setBodyIds([]);
@@ -142,6 +148,8 @@ function App() {
         setStepCanonicalHash(null);
         setCopyHashMessage('');
         setDiagnostics([]);
+        setCadmataArtifact(null);
+        setSelectedCadmataId(null);
         setImportStatusMessage('Preparing workspace…');
     }, []);
 
@@ -553,6 +561,18 @@ function App() {
         }
     }, [activeBodyId, documentId]);
 
+    const handleLoadCadmataFixture = useCallback(async (fixtureId: string) => {
+        if (!documentId) return;
+        await runAction(`Load Cadmata ${fixtureId}`, async () => {
+            const loaded = await loadCadmataFixture(documentId, fixtureId);
+            const artifact = parseCadmataVisualizationArtifact(loaded.visualization);
+            setCadmataArtifact(artifact);
+            setSelectedCadmataId(artifact.entities[0]?.stableId ?? null);
+            await refreshSummaryAndActiveTessellation(loaded.bodyId);
+            setStatusMessage(`Cadmata fixture '${fixtureId}' loaded with compiler-published correspondence.`);
+        });
+    }, [documentId, refreshSummaryAndActiveTessellation, runAction]);
+
     const displayScene = useMemo(() => buildDisplaySceneData(displayPreparation), [displayPreparation]);
     const displayRenderableCounts = useMemo(() => {
         const renderables = displayScene.displayScene?.renderables ?? [];
@@ -566,6 +586,7 @@ function App() {
     const nearestHit = pickHits[0] ?? null;
     const highlightedFaceId = nearestHit?.entityKind === 'Face' ? nearestHit.faceId : null;
     const highlightedEdgeId = nearestHit?.entityKind === 'Edge' ? nearestHit.edgeId : null;
+    const cadmataSelection = useMemo(() => cadmataArtifact ? resolveCadmataSelection(cadmataArtifact, selectedCadmataId) : null, [cadmataArtifact, selectedCadmataId]);
     const canImportStep = Boolean(
         serverStatus === 'connected'
         && documentStatus === 'ready'
@@ -655,6 +676,8 @@ function App() {
                                 aria-pressed={isGridVisible}>
                                 GRID
                             </button>
+                            <button type="button" className={cadmataLayers.profileLoops ? 'viewport-segmented__button is-active' : 'viewport-segmented__button'} onClick={() => setCadmataLayers((layers) => ({ ...layers, profileLoops: !layers.profileLoops, profileGuides: !layers.profileGuides }))} aria-pressed={cadmataLayers.profileLoops}>PROFILE</button>
+                            <button type="button" className={cadmataLayers.selections ? 'viewport-segmented__button is-active' : 'viewport-segmented__button'} onClick={() => setCadmataLayers((layers) => ({ ...layers, selections: !layers.selections }))} aria-pressed={cadmataLayers.selections}>SEMANTIC</button>
                             <button
                                 type="button"
                                 className={isCoordVisible ? 'viewport-segmented__button is-active' : 'viewport-segmented__button'}
@@ -665,11 +688,17 @@ function App() {
                         </div>
                         <AetherisViewport
                             displayScene={displayScene.displayScene}
-                            highlightedFaceId={highlightedFaceId}
-                            highlightedEdgeId={highlightedEdgeId}
+                            highlightedFaceId={cadmataSelection?.faceIds.values().next().value ?? highlightedFaceId}
+                            highlightedEdgeId={cadmataSelection?.edgeIds.values().next().value ?? highlightedEdgeId}
+                            highlightedFaceIds={cadmataSelection?.faceIds}
+                            highlightedEdgeIds={cadmataSelection?.edgeIds}
                             showGrid={isGridVisible}
                             showAxisGuide={isCoordVisible}
                             onPickRay={(origin, direction) => void handlePickRay(origin, direction)}
+                            cadmataArtifact={cadmataArtifact}
+                            cadmataLayers={cadmataLayers}
+                            selectedCadmataIds={cadmataSelection?.entityIds}
+                            onCadmataSelect={setSelectedCadmataId}
                         />
                     </div>
                 </section>
@@ -677,6 +706,17 @@ function App() {
                 <aside className="tool-rail">
                     {activeTab === 'viewer' ? (
                         <>
+                            <section className="tool-section cadmata-inspector">
+                                <h2 className="section-title">Cadmata compiler evidence</h2>
+                                <div className="stack-row">
+                                    {['direct-profile', 'split-compose-chamfer', 'semantic-shaft-hole', 'ctc-01-x3'].map((fixtureId) => <Button key={fixtureId} type="button" variant="outline" onClick={() => void handleLoadCadmataFixture(fixtureId)} disabled={!documentId || status === 'loading'}>{fixtureId}</Button>)}
+                                </div>
+                                {cadmataArtifact ? <>
+                                    <p><strong>{cadmataArtifact.fixtureId}</strong> · {cadmataArtifact.metrics?.entityCount ?? 0} evidence entities</p>
+                                    <label>Entity <select value={selectedCadmataId ?? ''} onChange={(event) => setSelectedCadmataId(event.target.value || null)}><option value="">No selection</option>{cadmataArtifact.entities.map((entity) => <option key={entity.stableId} value={entity.stableId}>{entity.kind}: {entity.label}</option>)}</select></label>
+                                    {selectedCadmataId ? (() => { const entity = cadmataArtifact.entities.find((candidate) => candidate.stableId === selectedCadmataId); return entity ? <div className="cadmata-inspector__details"><p><strong>{entity.label}</strong></p><p>{entity.kind} · {entity.role ?? 'unclassified'}</p><p className="mono-value">{entity.stableId}</p><p>Source: {entity.sourceSpan ?? cadmataArtifact.sourcePath}</p><p>Material descendants: {entity.materializedDescendantIds?.length ?? 0}; faces: {cadmataSelection?.faceIds.size ?? 0}; edges: {cadmataSelection?.edgeIds.size ?? 0}</p>{[...(entity.diagnostics ?? []), ...(cadmataSelection?.diagnostics ?? [])].map((diagnostic, index) => <p key={`${diagnostic.code}-${index}`}>[{diagnostic.severity}] {diagnostic.code}: {diagnostic.message}</p>)}</div> : null; })() : null}
+                                </> : <p>Load a real Firmament fixture to inspect its compiler correspondence.</p>}
+                            </section>
                             <section className="tool-section tool-section--import">
                                 <h2 className="section-title">Step Import</h2>
                                 <StepImportDropzone

@@ -1,7 +1,23 @@
 using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
+
+public sealed record SemanticHoleInspectionResult(bool Succeeded, string? HoleId, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence, IReadOnlyList<string> Diagnostics);
+public static class SemanticHoleInspection
+{
+    public static SemanticHoleInspectionResult Inspect(FirmamentV2Document document)
+    {
+        var holes = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(document);
+        var binding = document.Solids.FirstOrDefault();
+        if (holes.Count != 1 || binding?.Primitive is not FirmamentV2BoxRecord box || box.Size.Count != 3) return new(false, null, null, null, ["MissingCorrespondenceEvidence: bounded inspection requires one shaft hole in one Box host."]);
+        var host = document.ConceptIr is null ? new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], -box.Size[2] / 2d, box.Size[2] / 2d) : new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], 0d, box.Size[2]);
+        var result = AirHoleSimpleShaftMaterializer.Execute(holes[0], host);
+        return new(result.Succeeded && result.Correspondence is not null, holes[0].FeatureId, result.Body, result.Correspondence, result.Diagnostics);
+    }
+}
 
 internal enum AirHoleSimpleShaftMaterializationStatus
 {
@@ -44,7 +60,8 @@ internal sealed record AirHoleSimpleShaftMaterializationResult(
     AirHoleSimpleShaftMaterializationStatus Status,
     AirHoleSimpleShaftMaterializationPlan? Plan,
     BrepBody? Body,
-    IReadOnlyList<string> Diagnostics)
+    IReadOnlyList<string> Diagnostics,
+    SemanticTopologyCorrespondence? Correspondence = null)
 {
     public bool Succeeded => Status == AirHoleSimpleShaftMaterializationStatus.Succeeded;
 }
@@ -74,7 +91,9 @@ internal static class AirHoleSimpleShaftMaterializer
         }
 
         diagnostics.Add("air-hole-x2 materialization succeeded with semantic parent preserved; ProfileStackExtrudeSpec is lowering furniture, not source truth.");
-        return new(AirHoleSimpleShaftMaterializationStatus.Succeeded, planResult.Plan, execution.Body, diagnostics);
+        var correspondence = BuildCorrespondence(planResult.Plan, execution.Body);
+        diagnostics.Add("air-hole-x2 semantic correspondence published: entry/exit loops and edges plus shaft wall face.");
+        return new(AirHoleSimpleShaftMaterializationStatus.Succeeded, planResult.Plan, execution.Body, diagnostics, correspondence);
     }
 
     public static AirHoleSimpleShaftMaterializationResult TryCreatePlan(AirHoleFeature feature, AirHoleSimpleShaftHost host)
@@ -132,6 +151,29 @@ internal static class AirHoleSimpleShaftMaterializer
         if (feature.EndCondition is AirHoleEndCondition.ThroughAll) return (host.ZMin, host.ZMax);
         var depth = ((AirHoleEndCondition.Depth)feature.EndCondition).Value;
         return top ? (Math.Max(host.ZMin, host.ZMax - depth), host.ZMax) : (host.ZMin, Math.Min(host.ZMax, host.ZMin + depth));
+    }
+
+    private static SemanticTopologyCorrespondence? BuildCorrespondence(AirHoleSimpleShaftMaterializationPlan plan, BrepBody body)
+    {
+        // The bounded ProfileStack executor emits the retained box faces first and shaft walls in ProfileStack order.
+        // This is construction-plan ownership, not a post-hoc geometric recognizer.
+        if (plan.EndConditionKind != AirHoleEndConditionKind.ThroughAll || plan.StackKind != AirHoleStackKind.SimpleShaft) return null;
+        var faces = body.Topology.Faces.OrderBy(x => x.Id.Value).ToArray();
+        if (faces.Length < 7) return null;
+        var bottom = faces[0]; var top = faces[1]; var wall = faces[6];
+        if (top.LoopIds.Count < 2 || bottom.LoopIds.Count < 2) return null;
+        var entryLoop = top.LoopIds[^1]; var exitLoop = bottom.LoopIds[^1];
+        EdgeId EdgeOf(LoopId loopId) => body.Topology.Coedges.Single(x => x.Id == body.Topology.Loops.Single(l => l.Id == loopId).CoedgeIds[0]).EdgeId;
+        var source = $"hole:{plan.SemanticFeatureId}";
+        var descendants = new SemanticTopologyDescendant[]
+        {
+            new($"material:{source}:entry-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, source, Loop: entryLoop, ParentStableId: plan.SemanticFeatureId),
+            new($"material:{source}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, source, Loop: exitLoop, ParentStableId: plan.SemanticFeatureId),
+            new($"material:{source}:entry-edge", "Edge", SemanticTopologyRole.TopBoundary, source, Edge: EdgeOf(entryLoop), ParentStableId: plan.SemanticFeatureId),
+            new($"material:{source}:exit-edge", "Edge", SemanticTopologyRole.BottomBoundary, source, Edge: EdgeOf(exitLoop), ParentStableId: plan.SemanticFeatureId),
+            new($"material:{source}:wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: wall.Id, ParentStableId: plan.SemanticFeatureId)
+        };
+        return new(plan.SemanticFeature.TargetBodyId ?? "semantic-hole-host", descendants, ["HoleAIR", "AirHoleSimpleShaftMaterializationPlan", "ProfileStackExtrudeSpec", "AuthoritativeBRepPlan"]);
     }
 
     private static IEnumerable<ProfileStackLayer> BuildLayers(AirHoleFeature feature, AirHoleSimpleShaftHost host, double cutZMin, double cutZMax)

@@ -37,7 +37,7 @@ public static class ResolvedProfile2DValidator
     public static LineArcProfileExtrudeResult Extrude(ResolvedProfile2D profile,double height)
     {
         var validation=Validate(profile); if(!validation.IsValid)return new(LineArcProfileExtrudeStatus.Rejected,null,validation.Diagnostics);
-        return LineArcProfileExtrudeEmitter.TryEmit(new(profile.Loops.Select(l=>new LineArcProfileLoop2D(l.Segments.Select(s=>s.Geometry).ToArray(),!l.IsOuter)).ToArray(),height));
+        return LineArcProfileExtrudeEmitter.TryEmit(profile, height);
     }
     private static bool Endpoints(LineArcProfileCurve2D c,out (double X,double Y) a,out (double X,double Y) b){switch(c){case LineArcLineSegment2D l:a=l.Start;b=l.End;return true;case LineArcCircularArc2D x:a=(x.Center.X+x.Radius*Math.Cos(x.StartAngleRadians),x.Center.Y+x.Radius*Math.Sin(x.StartAngleRadians));b=(x.Center.X+x.Radius*Math.Cos(x.StartAngleRadians+x.SweepAngleRadians),x.Center.Y+x.Radius*Math.Sin(x.StartAngleRadians+x.SweepAngleRadians));return true;default:a=default;b=default;return false;}}
     private static double Distance((double X,double Y)a,(double X,double Y)b)=>Math.Sqrt((a.X-b.X)*(a.X-b.X)+(a.Y-b.Y)*(a.Y-b.Y));

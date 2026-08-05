@@ -7,6 +7,8 @@ import { BufferAttribute, BufferGeometry, Color, DoubleSide, MeshStandardMateria
 import type { DisplayScene } from './displayRenderables';
 import { computeDisplaySceneBounds, computeOrthographicCameraFit } from './displaySceneBounds';
 import { selectLogarithmicGridScales } from './logarithmicGrid';
+import { CadmataOverlay, type CadmataLayerVisibility } from './CadmataOverlay';
+import type { CadmataVisualizationArtifact } from './conceptVisualization';
 
 const VIEWPORT_THEME = {
   surfaceColor: '#969ba1',
@@ -454,9 +456,15 @@ export interface AetherisViewportProps {
   displayScene?: DisplayScene | null;
   highlightedFaceId?: number | null;
   highlightedEdgeId?: number | null;
+  highlightedFaceIds?: Set<number>;
+  highlightedEdgeIds?: Set<number>;
   showGrid?: boolean;
   showAxisGuide?: boolean;
   onPickRay?: (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }) => void;
+  cadmataArtifact?: CadmataVisualizationArtifact | null;
+  cadmataLayers?: CadmataLayerVisibility;
+  selectedCadmataIds?: Set<string>;
+  onCadmataSelect?: (stableId: string) => void;
 }
 
 function FaceMesh({ positions, normals, indices, isHighlighted }: { positions: Float32Array; normals: Float32Array; indices: Uint32Array; isHighlighted: boolean }) {
@@ -622,9 +630,15 @@ export function AetherisViewport({
   displayScene = null,
   highlightedFaceId = null,
   highlightedEdgeId = null,
+  highlightedFaceIds,
+  highlightedEdgeIds,
   showGrid = true,
   showAxisGuide = true,
   onPickRay,
+  cadmataArtifact = null,
+  cadmataLayers,
+  selectedCadmataIds = new Set(),
+  onCadmataSelect = () => undefined,
 }: AetherisViewportProps) {
   return (
     <Canvas style={{ display: 'block', width: '100%', height: '100%' }} orthographic camera={{ position: [6, 6, 6], zoom: 90, near: -10000, far: 10000 }} gl={{ alpha: true }}>
@@ -636,19 +650,20 @@ export function AetherisViewport({
         {showAxisGuide ? <AxisGuide /> : null}
         {displayScene?.renderables.map((renderable) => {
           if (renderable.kind === 'AnalyticPatch') {
-            return <FaceMesh key={`analytic-${renderable.faceId}`} positions={renderable.previewMesh.positions} normals={renderable.previewMesh.normals} indices={renderable.previewMesh.indices} isHighlighted={highlightedFaceId === renderable.faceId} />;
+            return <FaceMesh key={`analytic-${renderable.faceId}`} positions={renderable.previewMesh.positions} normals={renderable.previewMesh.normals} indices={renderable.previewMesh.indices} isHighlighted={highlightedFaceIds?.has(renderable.faceId) ?? highlightedFaceId === renderable.faceId} />;
           }
 
           if (renderable.kind === 'MeshPatch') {
-            return <FaceMesh key={`mesh-${renderable.faceId}`} positions={renderable.mesh.positions} normals={renderable.mesh.normals} indices={renderable.mesh.indices} isHighlighted={highlightedFaceId === renderable.faceId} />;
+            return <FaceMesh key={`mesh-${renderable.faceId}`} positions={renderable.mesh.positions} normals={renderable.mesh.normals} indices={renderable.mesh.indices} isHighlighted={highlightedFaceIds?.has(renderable.faceId) ?? highlightedFaceId === renderable.faceId} />;
           }
 
           if (renderable.kind === 'WirePatch') {
-            return renderable.wires.map((wire) => <EdgeLine key={`wire-${renderable.faceId}-${wire.edgeId}`} points={wire.points} isHighlighted={highlightedFaceId === renderable.faceId || highlightedEdgeId === wire.edgeId} />);
+            return renderable.wires.map((wire) => <EdgeLine key={`wire-${renderable.faceId}-${wire.edgeId}`} points={wire.points} isHighlighted={(highlightedFaceIds?.has(renderable.faceId) ?? highlightedFaceId === renderable.faceId) || (highlightedEdgeIds?.has(wire.edgeId) ?? highlightedEdgeId === wire.edgeId)} />);
           }
 
           return null;
         })}
+        {cadmataLayers ? <CadmataOverlay artifact={cadmataArtifact} layers={cadmataLayers} selectedIds={selectedCadmataIds} onSelect={onCadmataSelect} /> : null}
         <PickRayCapture onPickRay={onPickRay} />
         <OrbitControls makeDefault enablePan enableZoom />
       </Canvas>

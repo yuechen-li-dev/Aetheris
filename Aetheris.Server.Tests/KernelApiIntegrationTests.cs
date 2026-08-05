@@ -875,6 +875,26 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         return prepared;
     }
 
+    [Theory]
+    [InlineData("semantic-shaft-hole", "hole:base.mount")]
+    [InlineData("split-compose-chamfer", "profile:BaseProfile.Outer.South")]
+    [InlineData("ctc-01-x3", "profile:CentralHex.Outer.SouthEast")]
+    public async Task CadmataFixture_LoadsCompilerBodyAndPublishedCorrespondence(string fixtureId, string expectedEntityId)
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var response = await _client.PostAsync($"/api/v1/documents/{document.Data!.DocumentId}/cadmata/fixtures/{fixtureId}", null);
+        response.EnsureSuccessStatusCode();
+        var loaded = await response.Content.ReadFromJsonAsync<ApiResponseDto<CadmataFixtureLoadResponseDto>>();
+
+        Assert.NotNull(loaded);
+        Assert.True(loaded!.Success);
+        Assert.NotNull(loaded.Data);
+        Assert.Equal("cadmata-concept-viz-x1", loaded.Data!.Visualization.SchemaVersion);
+        Assert.Contains(loaded.Data.Visualization.Entities, entity => entity.StableId == expectedEntityId);
+        Assert.True(loaded.Data.Visualization.Metrics["faceCount"] > 0);
+        Assert.True(Guid.TryParse(loaded.Data.BodyId, out _));
+    }
+
     private static string GetRepositoryPath(string relativePath)
         => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", relativePath));
 

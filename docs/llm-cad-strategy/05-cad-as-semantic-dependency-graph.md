@@ -154,6 +154,10 @@ The output should make dependency claims explicit. If a dependency is only guess
 
 ## 7. CTC-01 example
 
+### Topology-selection handoff
+
+For later finishing, a dependency graph must retain authored Profile/Compose identities through the authoritative BRepPlan. SEMANTIC-LOOPS-X1 establishes this for direct Profile extrusion: source segment descendants are selected with explicit body/role/cardinality contracts, never by raw BRep id or geometric rediscovery. The CTC X3 lobe data is ready as a source side of that relation, but its arrangement/transition emitter still needs to publish descendant correspondence before a finish target is admitted. This is an honest compiler boundary, not a license to match the closest cylindrical edge.
+
 Use CTC-01 as a conceptual example of better reasoning, not as a historical reconstruction of the original authoring tree.
 
 A naive feature tree might be guessed as:

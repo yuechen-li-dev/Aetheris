@@ -1,0 +1,25 @@
+Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [20mm, 10mm] }
+Rect2 ExtensionGuide { Center: [5mm, 0mm]; Size: [20mm, 10mm] }
+Profile BaseProfile Using ComposeGuide { Loop Outer {
+ Segment South { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+ Segment East { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+ Segment North { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+ Segment West { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
+} }
+Profile ExtensionProfile Using ComposeGuide { Loop Outer {
+ Segment South { Trace: ExtensionGuide.Bottom; From: ExtensionGuide.BottomLeft; To: ExtensionGuide.BottomRight }
+ Segment East { Trace: ExtensionGuide.Right; From: ExtensionGuide.BottomRight; To: ExtensionGuide.TopRight }
+ Segment North { Trace: ExtensionGuide.Top; From: ExtensionGuide.TopRight; To: ExtensionGuide.TopLeft }
+ Segment West { Trace: ExtensionGuide.Left; From: ExtensionGuide.TopLeft; To: ExtensionGuide.BottomLeft }
+} }
+Compose JoinedPlate {
+ Base Plate { Profile: BaseProfile; From: -5mm; To: 5mm }
+ Add Extension { Profile: ExtensionProfile; From: -5mm; To: 5mm }
+}
+Selection JoinedTopBoundary {
+ Target: TopBoundary
+ Source: BaseProfile.ProfileSegments([South, East, North, West])
+ Source: ExtensionProfile.ProfileSegments([South, East, North, West])
+ Require: ClosedLoop
+}
+EdgeFinish TopBreak { Target: JoinedTopBoundary; Kind: Chamfer; Distance: 1mm }

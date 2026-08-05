@@ -80,6 +80,15 @@ public sealed record EdgePolylineDto(int EdgeId, IReadOnlyList<Point3Dto> Points
 
 public sealed record DisplayPrepareRequestDto(TessellationOptionsDto? TessellationOptions);
 
+public sealed record CadmataPointDto(double X, double Y, double Z);
+public sealed record CadmataGeometryDto(string Type, IReadOnlyList<CadmataPointDto>? Points = null, CadmataPointDto? Center = null, double? Radius = null, CadmataPointDto? Origin = null, CadmataPointDto? U = null, CadmataPointDto? V = null, bool Closed = false);
+public sealed record CadmataVisualizationDiagnosticDto(string Code, string Message, string Severity);
+public sealed record CadmataTopologyDto(IReadOnlyList<int>? FaceIds = null, IReadOnlyList<int>? EdgeIds = null, IReadOnlyList<int>? LoopIds = null, IReadOnlyList<int>? VertexIds = null, IReadOnlyList<int>? DirectedEdgeIds = null);
+public sealed record CadmataVisualizationEntityDto(string StableId, string Kind, string Label, string Layer, string? Role, CadmataGeometryDto? Geometry, string? SourceSpan, IReadOnlyList<string>? ParentIds, IReadOnlyList<string>? ChildIds, IReadOnlyList<string>? ConstructionDescendantIds, IReadOnlyList<string>? MaterializedDescendantIds, CadmataTopologyDto? Topology, IReadOnlyList<string>? SelectionIds, string? Consumer, IReadOnlyList<CadmataVisualizationDiagnosticDto>? Diagnostics, IReadOnlyDictionary<string, string>? Metadata);
+public sealed record CadmataVisualizationSelectionDto(string StableId, string Label, string Kind, IReadOnlyList<string> EntityIds, IReadOnlyList<string>? OrderedEntityIds, bool Closed, IReadOnlyList<CadmataVisualizationDiagnosticDto>? Diagnostics);
+public sealed record CadmataVisualizationArtifactDto(string SchemaVersion, string FixtureId, string SourcePath, IReadOnlyList<CadmataVisualizationEntityDto> Entities, IReadOnlyList<CadmataVisualizationSelectionDto> Selections, IReadOnlyList<CadmataVisualizationDiagnosticDto> Diagnostics, IReadOnlyDictionary<string, double> Metrics);
+public sealed record CadmataFixtureLoadResponseDto(string DocumentId, string BodyId, string DefinitionId, string FixtureId, CadmataVisualizationArtifactDto Visualization);
+
 public sealed record AnalyticDisplayFaceDomainHintDto(double? MinV, double? MaxV);
 
 public sealed record AnalyticDisplayPlaneGeometryDto(

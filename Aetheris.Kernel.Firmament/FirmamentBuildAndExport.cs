@@ -1,5 +1,6 @@
 using System.Text;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Step242;
@@ -58,6 +59,8 @@ public static class FirmamentBuildAndExport
             var emitted = PrismaticSectionStackEmitter.Emit(stack);
             if (emitted.Body is null)
                 return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition")).ToArray());
+            if (sourceText.Contains("EdgeFinish", StringComparison.Ordinal))
+                return ExportComposedSemanticTopBoundaryChamfer(sourceText, parsed, stack, emitted);
             var step = Step242Exporter.ExportBody(emitted.Body);
             if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, stack.Feature.Name, 0, "prismatic-section-stack", "line-arc-profile-composition"));
@@ -68,6 +71,8 @@ public static class FirmamentBuildAndExport
             if (parsed.Profile is null) return KernelResult<FirmamentStepExportResult>.Failure(parsed.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
             var emitted = ResolvedProfile2DValidator.Extrude(parsed.Profile, parsed.Height);
             if (emitted.Status != LineArcProfileExtrudeStatus.Succeeded || emitted.Body is null) return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
+            if (sourceText.Contains("EdgeFinish", StringComparison.Ordinal))
+                return ExportProfileSemanticTopBoundaryChamfer(sourceText, parsed.Profile, parsed.Height, emitted);
             var step = Step242Exporter.ExportBody(emitted.Body); if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, parsed.Profile.Name, 0, "profile-extrude", "line-arc-profile"));
         }
@@ -204,6 +209,68 @@ public static class FirmamentBuildAndExport
         }
 
         return FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
+    }
+
+    private static KernelResult<FirmamentStepExportResult> ExportComposedSemanticTopBoundaryChamfer(
+        string source, PrismaticProfileCompositionParseResult parsed, PrismaticSectionStackConstruction stack, PrismaticSectionStackEmissionResult emitted)
+    {
+        KernelResult<FirmamentStepExportResult> Fail(string code) => KernelResult<FirmamentStepExportResult>.Failure([
+            new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.ComposeSemanticSelection")]);
+        if (emitted.Body is null || emitted.Correspondence is null) return Fail("MissingCorrespondenceEvidence");
+        var selections = SemanticSelectionSourceParser.Parse(source, parsed.Profiles.Values.First(), stack.Feature.Name, out var diagnostics);
+        if (diagnostics.Count != 0 || selections.Count != 1) return Fail(diagnostics.FirstOrDefault() ?? "SemanticSourceNotFound");
+        var selection = SemanticTopologySelectionResolver.Resolve(emitted.Body, emitted.Correspondence, selections[0]);
+        if (!selection.Succeeded || !selection.IsClosed || selection.Request.Require != SemanticSelectionRequirement.ClosedLoop) return Fail(selection.Failure == SemanticSelectionFailure.None ? "SelectionConsumerMismatch" : selection.Failure.ToString());
+        var finish = Regex.Match(source, @"\bEdgeFinish\s+(?<name>\w+)\s*\{\s*Target\s*:\s*(?<target>\w+)\s*;?\s*Kind\s*:\s*(?<kind>Chamfer)\s*;?\s*Distance\s*:\s*(?<amount>[-+.\d]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        if (!finish.Success || finish.Groups["target"].Value != selection.Request.Label) return Fail("SelectionConsumerMismatch");
+        var topSlab = stack.Slabs.MaxBy(s => s.To)!;
+        var curves = topSlab.Region.Outer.Loops.Single().Segments.Select(x => x.Geometry).ToArray();
+        if (curves.Length < 4 || curves.Any(x => x is not LineArcLineSegment2D)) return Fail("UnsupportedTopologyChange");
+        var points = curves.Cast<LineArcLineSegment2D>().SelectMany(x => new[] { x.Start, x.End }).ToArray();
+        var minX = points.Min(x => x.X); var maxX = points.Max(x => x.X); var minY = points.Min(x => x.Y); var maxY = points.Max(x => x.Y);
+        if (points.Any(p => p.X != minX && p.X != maxX && p.Y != minY && p.Y != maxY)) return Fail("UnsupportedTopologyChange");
+        var compiled = AirTopFaceBoundaryChamferCompiler.Compile(new(stack.Feature.Name, $"{stack.Feature.Name}.{finish.Groups["name"].Value}", finish.Groups["name"].Value, maxX - minX, maxY - minY, stack.Feature.CriticalLevels.Max() - stack.Feature.CriticalLevels.Min(), "+Z", "Boundary", "Chamfer", double.Parse(finish.Groups["amount"].Value, System.Globalization.CultureInfo.InvariantCulture), new AirSourceSpan(finish.Index, finish.Length, stack.Feature.Name)));
+        if (!compiled.Succeeded || compiled.Body is null || compiled.BRepPlan?.RealizationPlan is null) return Fail(compiled.Diagnostics.FirstOrDefault() ?? "UnsupportedTopologyChange");
+        var step = Step242Exporter.ExportBody(compiled.Body, new Step242ExportOptions { ProductName = compiled.Feature.FeatureName, ApplicationName = AirTopFaceBoundaryChamferCompileResult.ProductionRoute, BrepExportPreflightMode = BrepExportPreflightMode.Enforce, BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value)) return Fail("semantic-compose-finish-step-reimport-failed");
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "semantic-compose-edge-finish", "source-grounded-composed-top-boundary-chamfer"));
+    }
+
+    private static KernelResult<FirmamentStepExportResult> ExportProfileSemanticTopBoundaryChamfer(
+        string source,
+        ResolvedProfile2D profile,
+        double height,
+        LineArcProfileExtrudeResult emitted)
+    {
+        KernelResult<FirmamentStepExportResult> Fail(string code) => KernelResult<FirmamentStepExportResult>.Failure([
+            new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.SemanticSelection")]);
+        if (emitted.Body is null || emitted.Correspondence is null) return Fail("NoMaterializedDescendants");
+        var selections = SemanticSelectionSourceParser.Parse(source, profile, profile.Name, out var selectionDiagnostics);
+        if (selectionDiagnostics.Count > 0 || selections.Count != 1) return Fail(selectionDiagnostics.FirstOrDefault() ?? "SemanticSourceNotFound");
+        var selection = SemanticTopologySelectionResolver.Resolve(emitted.Body, emitted.Correspondence, selections[0]);
+        if (!selection.Succeeded) return Fail(selection.Failure.ToString());
+        var finish = Regex.Match(source, @"\bEdgeFinish\s+(?<name>\w+)\s*\{\s*Target\s*:\s*(?<target>\w+)\s*;?\s*Kind\s*:\s*(?<kind>Chamfer|Fillet)\s*;?\s*(?:Distance|Radius)\s*:\s*(?<amount>[-+.\d]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        if (!finish.Success || !string.Equals(finish.Groups["target"].Value, selection.Request.Label, StringComparison.Ordinal)) return Fail("SelectionConsumerMismatch");
+        if (!string.Equals(finish.Groups["kind"].Value, "Chamfer", StringComparison.Ordinal) || selection.Request.Require != SemanticSelectionRequirement.ClosedLoop || !selection.IsClosed) return Fail("SelectionConsumerMismatch");
+        var lines = profile.Loops.Single().Segments.Select(x => x.Geometry).OfType<LineArcLineSegment2D>().ToArray();
+        if (lines.Length != 4 || profile.Loops.Single().Segments.Count != 4) return Fail("UnsupportedTopologyChange");
+        var points = lines.SelectMany(x => new[] { x.Start, x.End }).ToArray();
+        var minX = points.Min(x => x.X); var maxX = points.Max(x => x.X); var minY = points.Min(x => x.Y); var maxY = points.Max(x => x.Y);
+        if (lines.Any(x => Math.Abs(x.Start.X - x.End.X) > 1e-9 && Math.Abs(x.Start.Y - x.End.Y) > 1e-9)) return Fail("UnsupportedTopologyChange");
+        var compiled = AirTopFaceBoundaryChamferCompiler.Compile(new(
+            profile.Name, $"{profile.Name}.{finish.Groups["name"].Value}", finish.Groups["name"].Value,
+            maxX - minX, maxY - minY, height, "+Z", "Boundary", "Chamfer",
+            double.Parse(finish.Groups["amount"].Value, System.Globalization.CultureInfo.InvariantCulture),
+            new AirSourceSpan(finish.Index, finish.Length, profile.Name)));
+        if (!compiled.Succeeded || compiled.Body is null || compiled.BRepPlan?.RealizationPlan is null) return Fail(compiled.Diagnostics.FirstOrDefault() ?? "UnsupportedTopologyChange");
+        if (!FirmamentManifoldChecker.IsManifold(compiled.Body)) return Fail("semantic-selection-finish-nonmanifold");
+        var step = Step242Exporter.ExportBody(compiled.Body, new Step242ExportOptions { ProductName = compiled.Feature.FeatureName, ApplicationName = AirTopFaceBoundaryChamferCompileResult.ProductionRoute, BrepExportPreflightMode = BrepExportPreflightMode.Enforce, BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value)) return Fail("semantic-selection-finish-step-reimport-failed");
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "semantic-profile-edge-finish", "source-grounded-top-boundary-chamfer"));
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2StandaloneCubicLattice(FirmamentV2Document document)

@@ -247,6 +247,9 @@ export interface DisplayPreparationResponseDto {
     displayLanes?: DisplayLaneDto[] | null;
 }
 
+export interface CadmataVisualizationArtifactDto { schemaVersion: 'cadmata-concept-viz-x1'; fixtureId: string; sourcePath: string; entities: unknown[]; selections: unknown[]; diagnostics: unknown[]; metrics: Record<string, number>; }
+export interface CadmataFixtureLoadResponseDto { documentId: string; bodyId: string; definitionId: string; fixtureId: string; visualization: CadmataVisualizationArtifactDto; }
+
 export interface PickOptionsDto {
     nearestOnly?: boolean;
     includeBackfaces?: boolean;
@@ -351,6 +354,10 @@ export async function prepareBodyDisplay(documentId: string, bodyId: string): Pr
         method: 'POST',
         body: JSON.stringify({ tessellationOptions: null }),
     });
+}
+
+export async function loadCadmataFixture(documentId: string, fixtureId: string): Promise<CadmataFixtureLoadResponseDto> {
+    return request<CadmataFixtureLoadResponseDto>(`/api/v1/documents/${documentId}/cadmata/fixtures/${fixtureId}`, { method: 'POST' });
 }
 
 export async function pickBody(documentId: string, bodyId: string, pickRequest: PickRequestDto): Promise<PickResponseDto> {

@@ -14,7 +14,7 @@ public sealed record LineArcFullCircle2D((double X, double Y) Center, double Rad
 public sealed record LineArcProfileLoop2D(IReadOnlyList<LineArcProfileCurve2D> Curves, bool IsHole);
 public sealed record LineArcProfileExtrudeRequest(IReadOnlyList<LineArcProfileLoop2D> Loops, double Height);
 public enum LineArcProfileExtrudeStatus { Succeeded, Rejected, Deferred, Failed }
-public sealed record LineArcProfileExtrudeResult(LineArcProfileExtrudeStatus Status, BrepBody? Body, IReadOnlyList<string> Diagnostics);
+public sealed record LineArcProfileExtrudeResult(LineArcProfileExtrudeStatus Status, BrepBody? Body, IReadOnlyList<string> Diagnostics, SemanticTopologyCorrespondence? Correspondence = null);
 
 public static class LineArcProfileExtrudeEmitter
 {
@@ -25,12 +25,26 @@ public static class LineArcProfileExtrudeEmitter
         var d = new List<string> { "v2-v4-line-arc-profile-extrude-attempted" };
         if (!Validate(request, d)) return new(LineArcProfileExtrudeStatus.Rejected, null, d);
         d.Add("v2-v4-profile-validated");
-        var ok = TryBuild(request, d, out var body);
+        var ok = TryBuild(request, null, d, out var body, out var correspondence);
         if (!ok || body is null) return new(LineArcProfileExtrudeStatus.Failed, null, d.Append("v2-v4-line-arc-profile-extrude-rejected:emitter validation failed").ToArray());
         d.Add("v2-v4-cap-faces-emitted");
         d.Add("v2-v4-no-3d-boolean-used");
         d.Add("v2-v4-line-arc-profile-extrude-succeeded");
-        return new(LineArcProfileExtrudeStatus.Succeeded, body, d.Distinct().OrderBy(x => x).ToArray());
+        return new(LineArcProfileExtrudeStatus.Succeeded, body, d.Distinct().OrderBy(x => x).ToArray(), correspondence);
+    }
+
+    /// <summary>Materializes a resolved authored Profile and retains direct plan-to-topology correspondence.</summary>
+    public static LineArcProfileExtrudeResult TryEmit(ResolvedProfile2D profile, double height)
+    {
+        var validation = ResolvedProfile2DValidator.Validate(profile);
+        if (!validation.IsValid) return new(LineArcProfileExtrudeStatus.Rejected, null, validation.Diagnostics);
+        var request = new LineArcProfileExtrudeRequest(profile.Loops.Select(l => new LineArcProfileLoop2D(l.Segments.Select(s => s.Geometry).ToArray(), !l.IsOuter)).ToArray(), height);
+        var diagnostics = new List<string> { "v2-v4-line-arc-profile-extrude-attempted", "semantic-selection-correspondence-requested" };
+        if (!Validate(request, diagnostics)) return new(LineArcProfileExtrudeStatus.Rejected, null, diagnostics);
+        var ok = TryBuild(request, profile, diagnostics, out var body, out var correspondence);
+        return ok && body is not null
+            ? new(LineArcProfileExtrudeStatus.Succeeded, body, diagnostics.Distinct().OrderBy(x => x).ToArray(), correspondence)
+            : new(LineArcProfileExtrudeStatus.Failed, null, diagnostics.Append("v2-v4-line-arc-profile-extrude-rejected:emitter validation failed").ToArray());
     }
 
     private static bool Validate(LineArcProfileExtrudeRequest req, List<string> d)
@@ -53,14 +67,15 @@ public static class LineArcProfileExtrudeEmitter
         return true;
     }
 
-    private static bool TryBuild(LineArcProfileExtrudeRequest profile, List<string> d, out BrepBody? body)
+    private static bool TryBuild(LineArcProfileExtrudeRequest profile, ResolvedProfile2D? sourceProfile, List<string> d, out BrepBody? body, out SemanticTopologyCorrespondence? correspondence)
     {
-        body = null;
+        body = null; correspondence = null;
         var h = profile.Height;
         var b = new TopologyBuilder();
         var z0 = -h / 2d; var z1 = h / 2d;
         var bottomLoops = new List<LoopId>(); var topLoops = new List<LoopId>();
-        var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface, string Diag)>();
+        var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface, string Diag, string? Source, EdgeId Bottom, EdgeId Top, EdgeId StartVertical, EdgeId EndVertical)>();
+        var descendants = new List<SemanticTopologyDescendant>();
         var points = new Dictionary<VertexId, Point3D>();
         var edgeCurves = new Dictionary<EdgeId, CurveGeometry>();
         // A profile loop owns its vertices.  Adjacent curves that meet at the same
@@ -85,11 +100,14 @@ public static class LineArcProfileExtrudeEmitter
             verticalEdges.Add(key, created); return created;
         }
 
-        foreach (var loop in profile.Loops)
+        for (var loopIndex = 0; loopIndex < profile.Loops.Count; loopIndex++)
         {
+            var loop = profile.Loops[loopIndex];
             var bottomUses = new List<Use>(); var topUses = new List<Use>();
-            foreach (var curve in loop.Curves)
+            for (var curveIndex = 0; curveIndex < loop.Curves.Count; curveIndex++)
             {
+                var curve = loop.Curves[curveIndex];
+                var source = sourceProfile?.Loops[loopIndex].Segments[curveIndex].Provenance.StableId;
                 switch (curve)
                 {
                     case LineArcLineSegment2D line:
@@ -101,7 +119,7 @@ public static class LineArcProfileExtrudeEmitter
                         bottomUses.Add(loop.IsHole ? Use.R(eb) : Use.F(eb)); topUses.Add(loop.IsHole ? Use.R(et) : Use.F(et));
                         var loopId = AddLoop(b, [Use.F(eb), Use.F(es1), Use.R(et), Use.R(es0)]);
                         var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y; var nx = loop.IsHole ? -dy : dy; var ny = loop.IsHole ? dx : -dx;
-                        sideFaces.Add((loopId, SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(line.Start.X, line.Start.Y, z0), Direction3D.Create(new Vector3D(nx, ny, 0)), Direction3D.Create(new Vector3D(0, 0, 1)))), "v2-v4-line-edge-side-face-emitted"));
+                        sideFaces.Add((loopId, SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(line.Start.X, line.Start.Y, z0), Direction3D.Create(new Vector3D(nx, ny, 0)), Direction3D.Create(new Vector3D(0, 0, 1)))), "v2-v4-line-edge-side-face-emitted", source, eb, et, es0, es1));
                         break;
                     }
                     case LineArcCircularArc2D arc:
@@ -113,7 +131,7 @@ public static class LineArcProfileExtrudeEmitter
                         edgeCurves[eb]=CurveGeometry.FromCircle(new Circle3Curve(new Point3D(arc.Center.X,arc.Center.Y,z0),Direction3D.Create(new Vector3D(0,0,1)),arc.Radius,Direction3D.Create(new Vector3D(1,0,0))));
                         edgeCurves[et]=CurveGeometry.FromCircle(new Circle3Curve(new Point3D(arc.Center.X,arc.Center.Y,z1),Direction3D.Create(new Vector3D(0,0,1)),arc.Radius,Direction3D.Create(new Vector3D(1,0,0))));
                         bottomUses.Add(loop.IsHole ? Use.R(eb) : Use.F(eb)); topUses.Add(loop.IsHole ? Use.R(et) : Use.F(et));
-                        sideFaces.Add((AddLoop(b,[Use.F(eb),Use.F(es1),Use.R(et),Use.R(es0)]), SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(arc.Center.X,arc.Center.Y,z0),Direction3D.Create(new Vector3D(0,0,1)),arc.Radius,Direction3D.Create(new Vector3D(1,0,0)))), "v2-v4-arc-edge-side-face-emitted"));
+                        sideFaces.Add((AddLoop(b,[Use.F(eb),Use.F(es1),Use.R(et),Use.R(es0)]), SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(arc.Center.X,arc.Center.Y,z0),Direction3D.Create(new Vector3D(0,0,1)),arc.Radius,Direction3D.Create(new Vector3D(1,0,0)))), "v2-v4-arc-edge-side-face-emitted", source, eb, et, es0, es1));
                         break;
                     }
                     case LineArcFullCircle2D circle:
@@ -124,7 +142,7 @@ public static class LineArcProfileExtrudeEmitter
                         edgeCurves[et]=CurveGeometry.FromCircle(new Circle3Curve(points[vt],Direction3D.Create(new Vector3D(0,0,1)),circle.Radius,Direction3D.Create(new Vector3D(1,0,0))));
                         edgeCurves[es]=CurveGeometry.FromLine(new Line3Curve(points[vb],Direction3D.Create(points[vt]-points[vb])));
                         bottomUses.Add(loop.IsHole ? Use.R(eb) : Use.F(eb)); topUses.Add(loop.IsHole ? Use.R(et) : Use.F(et));
-                        sideFaces.Add((AddLoop(b,[Use.F(eb),Use.F(es),Use.R(et),Use.R(es)]), SurfaceGeometry.FromCylinder(new CylinderSurface(points[vb],Direction3D.Create(new Vector3D(0,0,1)),circle.Radius,Direction3D.Create(new Vector3D(1,0,0)))), "v2-v4-full-circle-side-face-emitted"));
+                        sideFaces.Add((AddLoop(b,[Use.F(eb),Use.F(es),Use.R(et),Use.R(es)]), SurfaceGeometry.FromCylinder(new CylinderSurface(points[vb],Direction3D.Create(new Vector3D(0,0,1)),circle.Radius,Direction3D.Create(new Vector3D(1,0,0)))), "v2-v4-full-circle-side-face-emitted", source, eb, et, es, es));
                         break;
                     }
                 }
@@ -142,7 +160,28 @@ public static class LineArcProfileExtrudeEmitter
         g.AddSurface(new SurfaceGeometryId(2), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0,0,z1),Direction3D.Create(new Vector3D(0,0,1)),Direction3D.Create(new Vector3D(1,0,0)))));
         bind.AddFaceBinding(new FaceGeometryBinding(bottomFace, new SurfaceGeometryId(1))); bind.AddFaceBinding(new FaceGeometryBinding(topFace, new SurfaceGeometryId(2)));
         var sid = 3; for (var i = 0; i < sideFaces.Count; i++) { g.AddSurface(new SurfaceGeometryId(sid), sideFaces[i].Surface); bind.AddFaceBinding(new FaceGeometryBinding(faceIds[2+i], new SurfaceGeometryId(sid))); sid++; }
-        body = new BrepBody(b.Model, g, bind, points); return true;
+        body = new BrepBody(b.Model, g, bind, points);
+        if (sourceProfile is not null)
+        {
+            for (var i = 0; i < sideFaces.Count; i++)
+            {
+                var side = sideFaces[i]; if (side.Source is null) continue;
+                var prefix = $"material:{sourceProfile.Name}:{side.Source}";
+                descendants.Add(new($"{prefix}:bottom", "Edge", SemanticTopologyRole.BottomBoundary, side.Source, Edge: side.Bottom, ParentStableId: side.Source));
+                descendants.Add(new($"{prefix}:top", "Edge", SemanticTopologyRole.TopBoundary, side.Source, Edge: side.Top, ParentStableId: side.Source));
+                descendants.Add(new($"{prefix}:vertical-start", "Edge", SemanticTopologyRole.VerticalExtrusionEdge, side.Source, Edge: side.StartVertical, ParentStableId: side.Source));
+                descendants.Add(new($"{prefix}:vertical-end", "Edge", SemanticTopologyRole.VerticalExtrusionEdge, side.Source, Edge: side.EndVertical, ParentStableId: side.Source));
+                descendants.Add(new($"{prefix}:side", "Face", SemanticTopologyRole.ExtrusionSideFace, side.Source, Face: faceIds[2 + i], ParentStableId: side.Source));
+            }
+            for (var i = 0; i < sourceProfile.Loops.Count; i++)
+            {
+                var loopSource = $"profile:{sourceProfile.Name}.{sourceProfile.Loops[i].Name}";
+                descendants.Add(new($"material:{sourceProfile.Name}:{loopSource}:bottom-loop", "Loop", SemanticTopologyRole.BottomFaceBoundaryLoop, loopSource, Loop: bottomLoops[i], ParentStableId: loopSource));
+                descendants.Add(new($"material:{sourceProfile.Name}:{loopSource}:top-loop", "Loop", SemanticTopologyRole.TopFaceBoundaryLoop, loopSource, Loop: topLoops[i], ParentStableId: loopSource));
+            }
+            correspondence = new(sourceProfile.Name, descendants, ["Profile", "ResolvedProfile2D", "LineArcProfileExtrude", "AuthoritativeBRepPlan"]);
+        }
+        return true;
     }
 
     private static LoopId AddLoop(TopologyBuilder b, IReadOnlyList<Use> uses){ var lid=b.AllocateLoopId(); var cids=uses.Select(_=>b.AllocateCoedgeId()).ToArray(); for(var i=0;i<uses.Count;i++){var n=cids[(i+1)%cids.Length];var p=cids[(i+cids.Length-1)%cids.Length]; b.AddCoedge(new Coedge(cids[i],uses[i].Edge,lid,n,p,uses[i].Rev));} b.AddLoop(new Loop(lid,cids)); return lid; }

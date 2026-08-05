@@ -16,6 +16,10 @@ public sealed class AirHoleSimpleShaftMaterializerTests
         Assert.True(result.Succeeded, string.Join("\n", result.Diagnostics));
         Assert.NotNull(result.Body);
         Assert.NotNull(result.Plan);
+        var correspondence = Assert.IsType<SemanticTopologyCorrespondence>(result.Correspondence);
+        Assert.Contains(correspondence.Descendants, x => x.Role == SemanticTopologyRole.HoleEntryLoop);
+        Assert.Contains(correspondence.Descendants, x => x.Role == SemanticTopologyRole.HoleExitLoop);
+        Assert.Contains(correspondence.Descendants, x => x.Role == SemanticTopologyRole.HoleWallFace);
         Assert.Same(feature, result.Plan.SemanticFeature);
         Assert.Equal("hole-001", result.Plan.SemanticFeatureId);
         Assert.Equal(nameof(AirHoleFeature), result.Plan.SemanticSourceKind);

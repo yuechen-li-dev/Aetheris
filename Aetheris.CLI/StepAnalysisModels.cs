@@ -190,17 +190,58 @@ public sealed record SectionSegment(
     double? Radius,
     string? Direction,
     double? SweepRadians,
-    string? UnsupportedReason);
+    string? UnsupportedReason,
+    int? SourceFace = null,
+    string? SourceEntity = null,
+    string? SurfaceFamily = null,
+    string? ParameterKind = null,
+    double? ParameterFrom = null,
+    double? ParameterTo = null,
+    string? MaterialSideEvidence = null);
+
+public sealed record SectionFragmentEvidence(
+    string FragmentId,
+    int SourceFace,
+    string SourceEntity,
+    string SurfaceFamily,
+    string CurveFamily,
+    string ParameterKind,
+    double ParameterFrom,
+    double ParameterTo,
+    Point2D Start,
+    Point2D End,
+    Point2D? Center,
+    double? Radius,
+    string MaterialSideEvidence);
 
 public sealed record SectionLoop(
     int LoopId,
     bool IsClosed,
     string? Winding,
     BoundingBox2D? BoundingBox2D,
-    IReadOnlyList<SectionSegment> Segments);
+    IReadOnlyList<SectionSegment> Segments,
+    string? Role = null);
+
+/// <summary>Accounting for the deterministic analytic section-normalization route.</summary>
+public sealed record SectionNormalizationDiagnostics(
+    int RawFragmentCount,
+    int CanonicalVertexCount,
+    int AtomicFragmentCount,
+    int CollapsedDuplicateCount,
+    int NormalizedLoopCount,
+    int OuterLoopCount,
+    int InnerLoopCount,
+    int UnaccountedFragmentCount,
+    IReadOnlyList<SectionFragmentEvidence> RawFragments,
+    IReadOnlyList<string> Diagnostics,
+    double IntersectionMilliseconds,
+    double SplittingMilliseconds,
+    double GraphConstructionMilliseconds,
+    double LoopWalkingMilliseconds);
 
 public sealed record SectionAnalysisResult(
     SectionAnalysisMetadata Metadata,
     SectionAnalysisSummary Summary,
     IReadOnlyList<SectionLoop> Loops,
-    IReadOnlyList<string> Notes);
+    IReadOnlyList<string> Notes,
+    SectionNormalizationDiagnostics? Normalization = null);

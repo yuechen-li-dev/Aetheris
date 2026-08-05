@@ -36,6 +36,10 @@ public sealed record ProfileArrangementResult(
 public static class ProfileArrangementBuilder
 {
     private const double Tol = 1e-7;
+    // Imported STEP trimming commonly carries a few microns of endpoint residual;
+    // support geometry remains unmodified while graph vertices use this explicit
+    // topology bucket. Profile intersections still use the stricter analytic Tol.
+    private const double VertexTol = 1e-5;
     private const double SideSample = 1e-5;
 
     public static ProfileArrangementResult Compose(
@@ -71,6 +75,71 @@ public static class ProfileArrangementBuilder
         var loop = profile.Loops.SingleOrDefault();
         if (loop is null) return ArrangementPointLocation.Outside;
         return PointInLoop(loop.Segments.Select(x => x.Geometry).ToArray(), point);
+    }
+
+    /// <summary>
+    /// Normalizes an unoriented analytic boundary supplied by an importer. This is the
+    /// section counterpart of <see cref="Compose"/>: it reuses the same bounded
+    /// line/arc intersection and parameter-splitting rules, but deliberately does
+    /// not invent a material side. Callers must classify winding/nesting afterwards.
+    /// A rejected graph never returns provisional loops.
+    /// </summary>
+    public static ProfileArrangement2D NormalizeBoundary(string frame, IReadOnlyList<ArrangementSourceCurve2D> sources, string context)
+    {
+        var diagnostics = new List<string>();
+        var intersectionClock = Stopwatch.StartNew();
+        var parameters = sources.ToDictionary(x => x.StableId, _ => new List<double> { 0d, 1d }, StringComparer.Ordinal);
+        var vertices = new List<(double X, double Y)>();
+        for (var i = 0; i < sources.Count; i++) for (var j = i + 1; j < sources.Count; j++)
+        {
+            var hits = Intersections(sources[i].Geometry, sources[j].Geometry, out var coincident, out _);
+            if (coincident)
+            {
+                foreach (var p in new[] { Ends(sources[i].Geometry).Start, Ends(sources[i].Geometry).End }) if (OnCurve(sources[j].Geometry, p, out var t)) { parameters[sources[j].StableId].Add(t); vertices.Add(p); }
+                foreach (var p in new[] { Ends(sources[j].Geometry).Start, Ends(sources[j].Geometry).End }) if (OnCurve(sources[i].Geometry, p, out var t)) { parameters[sources[i].StableId].Add(t); vertices.Add(p); }
+            }
+            foreach (var p in hits)
+                if (OnCurve(sources[i].Geometry, p, out var a) && OnCurve(sources[j].Geometry, p, out var b)) { parameters[sources[i].StableId].Add(a); parameters[sources[j].StableId].Add(b); vertices.Add(p); }
+        }
+        intersectionClock.Stop();
+        var splitClock = Stopwatch.StartNew();
+        var atomic = new List<ArrangementFragment2D>();
+        foreach (var source in sources.OrderBy(x => x.StableId, StringComparer.Ordinal))
+        {
+            if (source.Geometry is LineArcFullCircle2D)
+            {
+                diagnostics.Add($"UnsupportedSectionCurve:full-circle-source-must-be-adapted:{source.StableId}:context={context}");
+                continue;
+            }
+            var ordered = parameters[source.StableId].Order().Aggregate(new List<double>(), (a, x) => { if (a.Count == 0 || Math.Abs(a[^1] - x) > Tol) a.Add(Math.Clamp(x, 0d, 1d)); return a; });
+            for (var i = 0; i < ordered.Count - 1; i++)
+            {
+                if (ordered[i + 1] - ordered[i] <= Tol) { diagnostics.Add($"DegenerateLoop:zero-length-parameter:{source.StableId}:context={context}"); continue; }
+                atomic.Add(new($"{source.StableId}.part{i}", source, ordered[i], ordered[i + 1], Trim(source.Geometry, ordered[i], ordered[i + 1]), false, true));
+            }
+        }
+        splitClock.Stop();
+        // Coincident source ownership is retained in source provenance but one geometric atom is sufficient for topology.
+        var retained = new List<ArrangementFragment2D>();
+        foreach (var group in atomic.GroupBy(x => UndirectedGeometryKey(x.Geometry), StringComparer.Ordinal).OrderBy(x => x.Key, StringComparer.Ordinal))
+        {
+            var ordered = group.OrderBy(x => x.StableId, StringComparer.Ordinal).ToArray();
+            // Imported section sources are directed material-left. Coincident atoms
+            // with opposite direction therefore disagree about material ownership.
+            if (ordered.Skip(1).Any(x => !SameDirection(ordered[0].Geometry, x.Geometry)) )
+                diagnostics.Add($"DuplicateCoincidentFragmentConflict:fragments={string.Join(',', ordered.Select(x => x.StableId))}:context={context}");
+            retained.Add(ordered[0]);
+        }
+        var collapsed = atomic.Count - retained.Count;
+        var graphClock = Stopwatch.StartNew();
+        var incident = retained.SelectMany(x => new[] { (Key: VertexKey(Ends(x.Geometry).Start), Fragment: x), (Key: VertexKey(Ends(x.Geometry).End), Fragment: x) })
+            .GroupBy(x => x.Key, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Select(y => y.Fragment).DistinctBy(y => y.StableId).OrderBy(y => y.StableId, StringComparer.Ordinal).ToArray(), StringComparer.Ordinal);
+        ValidateBoundaryVertexIncidence(retained, diagnostics, context);
+        graphClock.Stop();
+        var walkClock = Stopwatch.StartNew();
+        var loops = diagnostics.Any(x => x.StartsWith("DuplicateCoincidentFragmentConflict", StringComparison.Ordinal)) ? [] : Reconstruct(retained, diagnostics, context).ToList();
+        walkClock.Stop();
+        return new(frame, sources, vertices.Concat(retained.SelectMany(x => new[] { Ends(x.Geometry).Start, Ends(x.Geometry).End })).DistinctBy(VertexKey).OrderBy(VertexKey).Select((p,i) => new ArrangementVertex2D($"vertex:{i}",p)).ToArray(), atomic, loops, collapsed, diagnostics.Distinct().Order().ToArray(), intersectionClock.Elapsed, splitClock.Elapsed, graphClock.Elapsed, walkClock.Elapsed);
     }
 
     private static ProfileArrangementResult Empty(string frame, string context) =>
@@ -445,7 +514,29 @@ public static class ProfileArrangementBuilder
             _ => throw new NotSupportedException()
         };
     }
-    private static string VertexKey((double X, double Y) p) => $"{Math.Round(p.X / Tol):F0},{Math.Round(p.Y / Tol):F0}";
+    private static string UndirectedGeometryKey(LineArcProfileCurve2D curve)
+    {
+        var (a, b) = Ends(curve); var ka = VertexKey(a); var kb = VertexKey(b);
+        if (string.CompareOrdinal(ka, kb) > 0) (ka, kb) = (kb, ka);
+        return curve switch
+        {
+            LineArcLineSegment2D => $"L:{ka}:{kb}",
+            LineArcCircularArc2D arc => $"A:{VertexKey(arc.Center)}:{Math.Round(arc.Radius / Tol):F0}:{ka}:{kb}",
+            _ => throw new NotSupportedException()
+        };
+    }
+    private static bool SameDirection(LineArcProfileCurve2D a, LineArcProfileCurve2D b)
+    {
+        var (as_, ae) = Ends(a); var (bs, be) = Ends(b);
+        return VertexKey(as_) == VertexKey(bs) && VertexKey(ae) == VertexKey(be)
+            && (a, b) switch
+            {
+                (LineArcLineSegment2D, LineArcLineSegment2D) => true,
+                (LineArcCircularArc2D aa, LineArcCircularArc2D bb) => Math.Sign(aa.SweepAngleRadians) == Math.Sign(bb.SweepAngleRadians),
+                _ => false
+            };
+    }
+    private static string VertexKey((double X, double Y) p) => $"{Math.Round(p.X / VertexTol):F0},{Math.Round(p.Y / VertexTol):F0}";
     private static double Cross((double X, double Y) a, (double X, double Y) b) => a.X * b.Y - a.Y * b.X;
     private static double Distance((double X, double Y) a, (double X, double Y) b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
 }

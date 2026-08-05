@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aetheris.Forge.Abstractions.FirmamentInterop;
@@ -112,16 +113,17 @@ public static class CliRunner
         string? Error,
         string? Classification = null,
         int? RigidRootCount = null);
-    private const string TopLevelUsage = "Usage: aetheris <build|validate|inspect-profile|inspect-compose|analyze|verify|match|trace|canon|asm|experimental> <path> [options]";
+    private const string TopLevelUsage = "Usage: aetheris <build|validate|inspect-profile|inspect-compose|sections|analyze|verify|match|trace|canon|asm|experimental> <path> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
-    private const string InspectComposeUsage = "Usage: aetheris inspect-compose <file.firmament> [--json]";
+    private const string InspectComposeUsage = "Usage: aetheris inspect-compose <file.firmament> --json [--materialize]";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] [--rank-probes|--evidence-bundle] --json";
     private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
+    private const string SectionsUsage = "Usage: aetheris sections <artifact.step> --axis Z --levels <z,...> [--epsilon <mm>] --json";
     private const string VerifyUsage = "Usage: aetheris verify <artifact.step> [--expected-volume <value>] [--cad-assistant] [--cad-assistant-path <path>] [--timeout <seconds>] [--evidence-dir <path>] [--require-external] [--json]";
     private const string MatchUsage = "Usage: aetheris match <file.step> <concept.firmament> [--linear-tolerance <mm>] [--angular-tolerance <deg>] [--json]";
     private const string TraceUsage = "Usage: aetheris trace (--case <name>|--fixture <path>) [--out-dir <dir>] [--json]";
@@ -175,6 +177,7 @@ public static class CliRunner
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-profile" => RunInspectProfile(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-compose" => RunInspectCompose(args.Skip(1).ToArray(), stdout, stderr),
+                "sections" => RunSections(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "verify" => RunVerify(args.Skip(1).ToArray(), stdout, stderr),
                 "match" => RunMatch(args.Skip(1).ToArray(), stdout, stderr),
@@ -427,7 +430,7 @@ public static class CliRunner
                     provenance = profile.Loops.SelectMany(x => x.Segments).Select(x => new { x.Name, x.Provenance.StableId, x.Provenance.ConceptStableId, x.Provenance.Derivation })
                 };
             }).ToArray();
-            stdout.WriteLine(JsonSerializer.Serialize(new { profiles, diagnostics = composition.Diagnostics }, JsonOptions));
+            stdout.WriteLine(JsonSerializer.Serialize(new { profiles, expansion = composition.Expansion, diagnostics = composition.Diagnostics }, JsonOptions));
             return composition.Diagnostics.Count == 0 && profiles.All(x => x.IsValid) ? 0 : 1;
         }
         var parsed = ProfileAuthoringParser.Parse(source);
@@ -468,28 +471,36 @@ public static class CliRunner
     private static int RunInspectCompose(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(InspectComposeUsage); return args.Length == 0 ? 1 : 0; }
-        var json = args.Skip(1).All(x => x == "--json");
-        if (!json) { stderr.WriteLine(InspectComposeUsage); return 1; }
+        var json = args.Skip(1).Any(x => x == "--json");
+        var materialize = args.Skip(1).Any(x => x == "--materialize");
+        if (!json || args.Skip(1).Any(x => x is not "--json" and not "--materialize")) { stderr.WriteLine(InspectComposeUsage); return 1; }
         if (!File.Exists(args[0])) { stderr.WriteLine($"Composition source was not found: {args[0]}"); return 1; }
+        var total = Stopwatch.StartNew();
+        var parseClock = Stopwatch.StartNew();
         var parsed = PrismaticProfileCompositionParser.Parse(File.ReadAllText(args[0]));
+        parseClock.Stop(); var normalizeClock = Stopwatch.StartNew();
         var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
+        normalizeClock.Stop();
         if (stack is null) { stderr.WriteLine(string.Join(Environment.NewLine, diagnostics)); return 1; }
-        var emitted = PrismaticSectionStackEmitter.Emit(stack);
-        var mass = emitted.Body is null ? null : BrepMassProperties.Evaluate(emitted.Body);
+        PrismaticSectionStackEmissionResult? emitted = null; BrepMassPropertiesResult? mass = null;
+        var materializeClock = TimeSpan.Zero;
+        if (materialize) { var clock = Stopwatch.StartNew(); emitted = PrismaticSectionStackEmitter.Emit(stack); mass = emitted.Body is null ? null : BrepMassProperties.Evaluate(emitted.Body); clock.Stop(); materializeClock = clock.Elapsed; }
+        total.Stop();
         var report = new
         {
             composition = new
             {
                 name = stack.Feature.Name, frame = stack.Feature.Frame, axis = stack.Feature.Axis,
                 placement = new { stack.Feature.Placement.Name, anchor = new[] { stack.Feature.Placement.AnchorX, stack.Feature.Placement.AnchorY, stack.Feature.Placement.AnchorZ }, profilePlane = stack.Feature.Placement.ProfilePlane, stack.Feature.Placement.Axis, stack.Feature.Placement.ReferenceDirection, stack.Feature.Placement.IsExplicit },
-                operations = stack.Feature.Operations.Select(x => new { x.Name, intent = x.Intent.ToString(), profile = x.ProfileReference, x.From, x.To, x.SemanticRole, x.SourceSpan }),
+                signatures = new { composition = CompositionSignature(stack), profiles = parsed.Profiles.OrderBy(x => x.Key, StringComparer.Ordinal).ToDictionary(x => x.Key, x => ProfileSignature(x.Value), StringComparer.Ordinal) },
+                operations = stack.Feature.Operations.Select(x => new { x.Name, intent = x.Intent.ToString(), profile = x.ProfileReference, x.From, x.To, x.SemanticRole, x.SourceSpan, signature = Hash($"{x.Intent}|{x.ProfileReference}|{x.From:R}|{x.To:R}|{x.SemanticRole}") }),
                 criticalLevels = stack.Feature.CriticalLevels,
                 slabs = stack.Slabs.Select(x => new
                 {
                     x.From,
                     x.To,
                     x.ActiveOperations,
-                    area = PrismaticSectionStackCompiler.Area(x.Region),
+                    area = PrismaticSectionStackCompiler.Area(x.Region), signature = ProfileSignature(x.Region.Outer),
                     outerLoops = 1,
                     innerLoops = x.Region.Holes.Count,
                     loops = new[]
@@ -514,14 +525,11 @@ public static class CliRunner
                 }),
                 transitions = stack.Transitions.Select(x => new { x.Level, upwardRegionCount = x.UpwardRegions.Count, downwardRegionCount = x.DownwardRegions.Count, upwardArea = x.UpwardRegions.Sum(PrismaticSectionStackCompiler.Area), downwardArea = x.DownwardRegions.Sum(PrismaticSectionStackCompiler.Area) }),
                 analyticVolume = stack.AnalyticVolume,
-                bRepStatus = mass?.Status.ToString(),
-                bRepVolume = mass?.AbsoluteVolume,
-                volumeDelta = mass is null ? (double?)null : mass.AbsoluteVolume - stack.AnalyticVolume,
-                bRepErrorBound = mass?.ErrorBound,
-                bRepEnclosed = mass?.IsEnclosed,
-                bRepDiagnostics = mass?.Diagnostics,
-                bRepPlan = emitted.Plan,
-                diagnostics = emitted.Diagnostics
+                materialization = materialize ? new { bRepStatus = mass?.Status.ToString(), bRepVolume = mass?.AbsoluteVolume, volumeDelta = mass is null ? (double?)null : mass.AbsoluteVolume - stack.AnalyticVolume, bRepErrorBound = mass?.ErrorBound, bRepEnclosed = mass?.IsEnclosed, bRepDiagnostics = mass?.Diagnostics, bRepPlan = emitted?.Plan } : null,
+                expansion = parsed.Expansion,
+                timingsMilliseconds = new { parse = parseClock.Elapsed.TotalMilliseconds, normalize = normalizeClock.Elapsed.TotalMilliseconds, materialize = materializeClock.TotalMilliseconds, total = total.Elapsed.TotalMilliseconds },
+                executionBoundary = new { inspectionOnly = !materialize, bRepMaterialized = materialize, stepExported = false, m8Executed = false, cirExecuted = false },
+                diagnostics = emitted?.Diagnostics ?? stack.Diagnostics
             }
         };
         stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
@@ -2392,6 +2400,31 @@ public static class CliRunner
         return 0;
     }
 
+    private static int RunSections(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(SectionsUsage); return args.Length == 0 ? 1 : 0; }
+        var step = args[0]; string? axis = null; string? levelText = null; var epsilon = .001d; var json = false;
+        for (var i = 1; i < args.Length; i++)
+            switch (args[i])
+            {
+                case "--axis" when i + 1 < args.Length: axis = args[++i]; break;
+                case "--levels" when i + 1 < args.Length: levelText = args[++i]; break;
+                case "--epsilon" when i + 1 < args.Length && double.TryParse(args[++i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var e) && e > 0: epsilon = e; break;
+                case "--json": json = true; break;
+                default: stderr.WriteLine(SectionsUsage); return 1;
+            }
+        if (!json || !string.Equals(axis, "Z", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(levelText)) { stderr.WriteLine(SectionsUsage); return 1; }
+        var levels = levelText.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => double.TryParse(x, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var z) ? (double?)z : null).ToArray();
+        if (levels.Length == 0 || levels.Any(x => x is null)) { stderr.WriteLine("--levels requires comma-separated numeric values."); return 1; }
+        try
+        {
+            var result = new { artifact = Path.GetFullPath(step), axis = "Z", epsilon, policy = "Below/Above are requested level ± epsilon; At is never shifted and is diagnostic.", levels = levels.Select(x => new { requestedLevel = x!.Value, below = StepAnalyzer.AnalyzeSection(step, SectionPlaneFamily.XY, x.Value - epsilon), at = StepAnalyzer.AnalyzeSection(step, SectionPlaneFamily.XY, x.Value), above = StepAnalyzer.AnalyzeSection(step, SectionPlaneFamily.XY, x.Value + epsilon) }).ToArray() };
+            stdout.WriteLine(JsonSerializer.Serialize(result, JsonOptions)); return 0;
+        }
+        catch (Exception ex) { stderr.WriteLine($"sections failed: {ex.Message}"); return 1; }
+    }
+
+
     private static void WriteSummaryText(AnalyzeResult analysis, TextWriter stdout)
     {
         var summary = analysis.Summary;
@@ -2531,6 +2564,7 @@ public static class CliRunner
         stdout.WriteLine("  validate   Validate Firmament V2 manufacturing intent and emit report JSON.");
         stdout.WriteLine("  inspect-profile  Resolve and validate a scaffold-referenced Profile.");
         stdout.WriteLine("  inspect-compose  Normalize and inspect a profile-composition section stack.");
+        stdout.WriteLine("  sections   Normalize exact horizontal STEP section fragments.");
         stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
         stdout.WriteLine("  verify     Reimport STEP and emit independent B-rep/external-display evidence.");
         stdout.WriteLine("  match      Match a compile-time Concept Struct against observed STEP geometry.");
@@ -2560,6 +2594,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris experimental prismatic-map --case rectangle-inset --rows 16 --cols 16 --json");
         stdout.WriteLine("  aetheris analyze map model.step --top --rows 40 --cols 60 --json");
         stdout.WriteLine("  aetheris analyze section model.step --xy --offset 2.5 --json");
+        stdout.WriteLine("  aetheris sections model.step --axis Z --levels -100,-60,-50,0,5,50 --json");
         stdout.WriteLine("  aetheris analyze volume model.step --json");
         stdout.WriteLine("  aetheris verify model.step --json");
         stdout.WriteLine();
@@ -2930,4 +2965,15 @@ public static class CliRunner
         vector is null ? "n/a" : $"({vector.Value.X:F6},{vector.Value.Y:F6},{vector.Value.Z:F6})";
 
     private static string FormatDouble(double? value) => value?.ToString("G17") ?? "n/a";
+
+    private static string ProfileSignature(ResolvedProfile2D profile) => Hash(string.Join(";", profile.Loops.SelectMany(l => l.Segments).Select(s => s.Geometry switch
+    {
+        LineArcLineSegment2D line => $"L:{Q(line.Start.X)},{Q(line.Start.Y)}:{Q(line.End.X)},{Q(line.End.Y)}",
+        LineArcCircularArc2D arc => $"A:{Q(arc.Center.X)},{Q(arc.Center.Y)}:{Q(arc.Radius)}:{Q(arc.StartAngleRadians)}:{Q(arc.SweepAngleRadians)}",
+        _ => s.Geometry.GetType().Name
+    }).OrderBy(x => x, StringComparer.Ordinal)));
+
+    private static string CompositionSignature(PrismaticSectionStackConstruction stack) => Hash(string.Join("|", stack.Slabs.Select(s => $"{Q(s.From)}:{Q(s.To)}:{ProfileSignature(s.Region.Outer)}:{Q(PrismaticSectionStackCompiler.Area(s.Region))}")));
+    private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
+    private static long Q(double value) => (long)Math.Round(value * 1_000_000d, MidpointRounding.AwayFromZero);
 }

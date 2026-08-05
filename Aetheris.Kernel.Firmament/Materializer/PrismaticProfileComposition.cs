@@ -28,7 +28,8 @@ public sealed record PrismaticSectionStackConstruction(
     PrismaticProfileCompositionFeature Feature, IReadOnlyList<PrismaticSectionSlab> Slabs,
     IReadOnlyList<PrismaticSectionTransition> Transitions, double AnalyticVolume, IReadOnlyList<string> Diagnostics);
 public sealed record PrismaticProfileCompositionParseResult(
-    PrismaticProfileCompositionFeature? Feature, IReadOnlyDictionary<string, ResolvedProfile2D> Profiles, IReadOnlyList<string> Diagnostics);
+    PrismaticProfileCompositionFeature? Feature, IReadOnlyDictionary<string, ResolvedProfile2D> Profiles, IReadOnlyList<string> Diagnostics,
+    StaticGeometryExpansionEvidence? Expansion = null);
 
 /// <summary>
 /// Bounded parser for the composition source form.  It intentionally reuses the
@@ -50,6 +51,9 @@ public static class PrismaticProfileCompositionParser
 
     public static PrismaticProfileCompositionParseResult Parse(string source)
     {
+        var expansion = StaticGeometryExpansion.Expand(source);
+        if (expansion.Diagnostics.Count > 0) return new(null, new Dictionary<string, ResolvedProfile2D>(), expansion.Diagnostics, expansion.Evidence);
+        source = expansion.Source;
         var diagnostics = new List<string>();
         var points = Point.Matches(source).ToDictionary(m => m.Groups["n"].Value, m => (X: N(m, "x"), Y: N(m, "y")), StringComparer.Ordinal);
         foreach (Match match in Rect.Matches(source))
@@ -137,7 +141,7 @@ public static class PrismaticProfileCompositionParser
         if (operations.Count(o => o.Intent == PrismaticProfileIntent.Base) != 1) diagnostics.Add("compose-requires-exactly-one-base-operation");
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
         var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition") : null;
-        return new(feature, profiles, diagnostics.Distinct().ToArray());
+        return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
     }
 
     private static double N(Match match, string name) => double.Parse(match.Groups[name].Value, CultureInfo.InvariantCulture);

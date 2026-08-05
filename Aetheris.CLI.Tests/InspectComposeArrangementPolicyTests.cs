@@ -11,7 +11,7 @@ public sealed class InspectComposeArrangementPolicyTests
     {
         var source = Path.Combine(RepoRoot, "testdata/firmament/reconstructions/nist_ctc_01/ctc01_prismatic_blockout_x2.firmament");
         var stdout = new StringWriter(); var stderr = new StringWriter();
-        var exit = Aetheris.CLI.CliRunner.Run(["inspect-compose", source, "--json"], stdout, stderr);
+        var exit = Aetheris.CLI.CliRunner.Run(["inspect-compose", source, "--json", "--materialize"], stdout, stderr);
         Assert.Equal(0, exit); Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
         using var json = JsonDocument.Parse(stdout.ToString());
         var composition = json.RootElement.GetProperty("composition");
@@ -21,11 +21,11 @@ public sealed class InspectComposeArrangementPolicyTests
         Assert.Equal("XY", placement.GetProperty("profilePlane").GetString());
         Assert.Equal("+Z", placement.GetProperty("axis").GetString());
         Assert.Equal("+X", placement.GetProperty("referenceDirection").GetString());
-        Assert.Equal("NumericalWithBound", composition.GetProperty("bRepStatus").GetString());
-        Assert.True(composition.GetProperty("bRepEnclosed").GetBoolean());
+        Assert.Equal("NumericalWithBound", composition.GetProperty("materialization").GetProperty("bRepStatus").GetString());
+        Assert.True(composition.GetProperty("materialization").GetProperty("bRepEnclosed").GetBoolean());
         var shoulder = Assert.Single(composition.GetProperty("transitions").EnumerateArray(), item => item.GetProperty("level").GetDouble() == -60d);
         Assert.Equal(2, shoulder.GetProperty("downwardRegionCount").GetInt32());
-        Assert.True(composition.GetProperty("bRepPlan").GetProperty("authoritative").GetBoolean());
+        Assert.True(composition.GetProperty("materialization").GetProperty("bRepPlan").GetProperty("authoritative").GetBoolean());
     }
 
     [Fact]

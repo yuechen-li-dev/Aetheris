@@ -22,9 +22,12 @@ public sealed record BrepMassPropertiesOptions(
     double AngularToleranceRadians,
     double ConvergenceTolerance,
     int MinimumSegments = 12,
-    int MaximumSegments = 512)
+    int MaximumSegments = 16)
 {
-    public static BrepMassPropertiesOptions Default { get; } = new(1e-4d, double.Pi / 48d, 1e-5d);
+    // M8 is a bounded independent estimate, not the primary mass analyzer. Keep
+    // its mesh deliberately coarse enough for interactive verification and make
+    // the resulting conservative bound explicit to callers.
+    public static BrepMassPropertiesOptions Default { get; } = new(0.1d, double.Pi / 12d, 1d, MaximumSegments: 16);
 }
 
 public sealed record BrepMassPropertiesFaceContribution(

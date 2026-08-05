@@ -8,6 +8,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.CLI;
 
@@ -831,10 +832,31 @@ public sealed record VolumeAnalysisResult(
             if (surface.Kind == SurfaceGeometryKind.Cylinder && surface.Cylinder is CylinderSurface cylinder)
             {
                 rawSegments.AddRange(BuildCylinderFaceSectionSegments(body, face, cylinder, frame, epsilon, notes));
+                continue;
             }
+
+            if (surface.Kind == SurfaceGeometryKind.Cone && surface.Cone is ConeSurface cone)
+            {
+                rawSegments.AddRange(BuildConeFaceSectionSegments(body, face, cone, frame, epsilon, notes));
+                continue;
+            }
+
+            notes.Add($"UnsupportedSectionCurve:face={face.Id.Value}:surface={surface.Kind}:plane={frame.FixedAxis}={offset:R}:bounded analytic intersection adapter is not implemented");
         }
 
-        var loops = BuildLoops(rawSegments, epsilon);
+        // Importer fragments are normalized by the shared analytic arrangement; do
+        // not reintroduce the former first-neighbour greedy chain walker here.
+        var arrangement = NormalizeSectionFragments(rawSegments, frame, offset, notes);
+        var loops = arrangement.Diagnostics.Count == 0
+            ? arrangement.ResultLoops.Select((loop, index) => new SectionLoop(index + 1, true, loop.SignedArea > 0d ? "ccw" : "cw", ComputeBoundingBox2D(loop.Fragments.SelectMany(x => x.Geometry switch
+                {
+                    LineArcLineSegment2D l => new[] { new Point2D(l.Start.X, l.Start.Y), new Point2D(l.End.X, l.End.Y) },
+                    LineArcCircularArc2D a => new[] { new Point2D(a.Center.X + a.Radius * Math.Cos(a.StartAngleRadians), a.Center.Y + a.Radius * Math.Sin(a.StartAngleRadians)), new Point2D(a.Center.X + a.Radius * Math.Cos(a.StartAngleRadians + a.SweepAngleRadians), a.Center.Y + a.Radius * Math.Sin(a.StartAngleRadians + a.SweepAngleRadians)) },
+                    _ => [] }).ToArray()), loop.Fragments.Select(ToSectionSegment).ToArray(), loop.IsOuter ? "Outer" : "Inner"))
+                .Concat(rawSegments.Where(x => x.IsClosed).GroupBy(x => $"{x.Center!.U:R}:{x.Center.V:R}:{x.Radius:R}", StringComparer.Ordinal).Select((g, index) => FullCircleLoop(arrangement.ResultLoops.Count + index + 1, g.First()))).ToArray()
+            : Array.Empty<SectionLoop>();
+        notes.AddRange(arrangement.Diagnostics);
+        notes.Add($"section-normalization:raw={rawSegments.Count}:canonicalVertices={arrangement.IntersectionVertices.Count}:atomic={arrangement.AtomicFragments.Count}:collapsedDuplicates={arrangement.CoincidentFragmentCount}:loops={loops.Length}");
         var metadata = new SectionAnalysisMetadata(
             stepPath,
             bbox,
@@ -846,7 +868,45 @@ public sealed record VolumeAnalysisResult(
             frame.AxisV,
             frame.MappingDescription);
         var summary = BuildSectionSummary(loops);
-        return new SectionAnalysisResult(metadata, summary, loops, notes);
+        var unaccounted = arrangement.Diagnostics.Where(x => x.StartsWith("OpenSection:unaccounted-atomic-fragments:", StringComparison.Ordinal)).Select(x => x.Split(':')).Select(x => x.Length > 2 && int.TryParse(x[2], out var n) ? n : 0).Sum();
+        var normalization = new SectionNormalizationDiagnostics(rawSegments.Count, arrangement.IntersectionVertices.Count, arrangement.AtomicFragments.Count,
+            arrangement.CoincidentFragmentCount, loops.Length, loops.Count(x => x.Role == "Outer"), loops.Count(x => x.Role == "Inner"), unaccounted, rawSegments.Select((x, i) => new SectionFragmentEvidence($"raw:{i}", x.SourceFace, x.SourceEntity ?? $"ADVANCED_FACE:{x.SourceFace}", x.SurfaceFamily ?? "Unknown", x.Kind.ToString(), x.Kind == RawSectionSegmentKind.Arc ? "AngularRadians" : "NormalizedLinear", 0d, x.Kind == RawSectionSegmentKind.Arc ? x.SweepRadians ?? 0d : 1d, x.Start, x.End, x.Center, x.Radius, x.MaterialSideEvidence ?? "unresolved")).ToArray(), arrangement.Diagnostics,
+            arrangement.IntersectionTime.TotalMilliseconds, arrangement.SplitTime.TotalMilliseconds,
+            arrangement.ClassificationTime.TotalMilliseconds, arrangement.ReconstructionTime.TotalMilliseconds);
+        return new SectionAnalysisResult(metadata, summary, loops, notes, normalization);
+    }
+
+    private static ProfileArrangement2D NormalizeSectionFragments(IReadOnlyList<RawSectionSegment> raw, SectionFrame frame, double offset, ICollection<string> notes)
+    {
+        var sources = new List<ArrangementSourceCurve2D>();
+        foreach (var (segment, index) in raw.Select((x, i) => (x, i)))
+        {
+            var provenance = new ProfileSegmentProvenance($"step-section:{frame.FixedAxis}:{offset:R}:{index}", segment.SourceEntity ?? $"face:{segment.SourceFace}", $"face:{segment.SourceFace}", $"STEP plane/surface intersection; {segment.MaterialSideEvidence ?? "material-side-unresolved"}", "XY");
+            var common = (StableId: $"step:{segment.SourceFace}:{index}", Provenance: provenance);
+            switch (segment.Kind)
+            {
+                case RawSectionSegmentKind.Line:
+                    sources.Add(new(common.StableId, $"face:{segment.SourceFace}", PrismaticProfileIntent.Base, "STEP", "Boundary", $"segment:{index}", new LineArcLineSegment2D((segment.Start.U, segment.Start.V), (segment.End.U, segment.End.V)), common.Provenance));
+                    break;
+                case RawSectionSegmentKind.Arc when segment.Center is not null && segment.Radius is not null && segment.SweepRadians is not null:
+                    var start = Math.Atan2(segment.Start.V - segment.Center.V, segment.Start.U - segment.Center.U);
+                    var sweep = string.Equals(segment.Direction, "cw", StringComparison.Ordinal) ? -Math.Abs(segment.SweepRadians.Value) : Math.Abs(segment.SweepRadians.Value);
+                    // A full circle is already a closed analytic component. It is
+                    // accounted for separately by the caller; adding a synthetic
+                    // seam to the graph would turn a valid circle into a false
+                    // high-valence coincidence with adjacent face partitions.
+                    if (Math.Abs(sweep) >= 2d * Math.PI - 1e-9d)
+                    {
+                        notes.Add($"section-normalization:closed-full-circle:fragment={index}:face={segment.SourceFace}");
+                    }
+                    else sources.Add(new(common.StableId, $"face:{segment.SourceFace}", PrismaticProfileIntent.Base, "STEP", "Boundary", $"segment:{index}", new LineArcCircularArc2D((segment.Center.U, segment.Center.V), segment.Radius.Value, start, sweep), common.Provenance));
+                    break;
+                default:
+                    notes.Add($"UnsupportedSectionCurve:fragment={index}:face={segment.SourceFace}:family={segment.Kind}:reason={segment.UnsupportedReason ?? "missing analytic support"}");
+                    break;
+            }
+        }
+        return ProfileArrangementBuilder.NormalizeBoundary("XY", sources, $"section:{frame.FixedAxis}={offset:R}");
     }
 
     public static OrthographicMapResult AnalyzeImportedBodyMap(BrepBody body, string stepPath, OrthographicView view, int rows, int cols)
@@ -1963,13 +2023,16 @@ public sealed record VolumeAnalysisResult(
             .Select(point => (Point: point, T: (point - linePoint).Dot(lineDirection)))
             .OrderBy(item => item.T)
             .ToArray();
-        if (ordered.Length != 2)
+        if (ordered.Length % 2 != 0)
         {
-            notes.Add($"Skipped planar face {face.Id.Value}: section clipping produced {ordered.Length} intersections (v1 supports 2-point clipping only).");
+            notes.Add($"OpenSection:planar-face-odd-intersection-count:face={face.Id.Value}:count={ordered.Length}");
             return [];
         }
 
-        return [RawSectionSegment.Line(ProjectPoint(frame, ordered[0].Point), ProjectPoint(frame, ordered[1].Point))];
+        var outward = facePlane.Normal.ToVector();
+        var hasFaceBinding = body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding);
+        if (hasFaceBinding && !faceBinding.SameSense) outward = -outward;
+        return Enumerable.Range(0, ordered.Length / 2).Select(i => OrientForMaterialLeft(RawSectionSegment.Line(ProjectPoint(frame, ordered[i * 2].Point), ProjectPoint(frame, ordered[i * 2 + 1].Point)) with { SourceFace = face.Id.Value, SurfaceFamily = "Plane", SourceEntity = $"ADVANCED_FACE:{face.Id.Value}", MaterialSideEvidence = $"faceSameSense={(hasFaceBinding ? faceBinding.SameSense : null)}" }, frame, outward)).ToArray();
     }
 
     private static IReadOnlyList<RawSectionSegment> BuildCylinderFaceSectionSegments(BrepBody body, Face face, CylinderSurface cylinder, SectionFrame frame, double epsilon, ICollection<string> notes)
@@ -2009,8 +2072,63 @@ public sealed record VolumeAnalysisResult(
         var axisOriginCoord = (cylinder.Origin - Point3D.Origin).Dot(frame.Normal);
         var center3D = cylinder.Origin + (cylinder.Axis.ToVector() * (frame.Offset - axisOriginCoord));
         var center = ProjectPoint(frame, center3D);
-        var start = new Point2D(center.U + cylinder.Radius, center.V);
-        return [RawSectionSegment.Arc(start, start, center, cylinder.Radius, "ccw", 2d * double.Pi)];
+        // A cylindrical B-rep face may be angularly trimmed by vertical seam edges.
+        // The old extractor emitted its entire support circle for every such face,
+        // leaving the planar-outline fragments dangling. Preserve the bounded trim.
+        var angles = body.GetEdges(face.Id).SelectMany(edge => IntersectEdgeWithSectionPlane(body, edge, frame, epsilon)).Select(p => ProjectPoint(frame, p)).Where(p => Math.Abs(Math.Sqrt((p.U-center.U)*(p.U-center.U)+(p.V-center.V)*(p.V-center.V))-cylinder.Radius) <= epsilon * 32d).Select(p => Math.Atan2(p.V-center.V,p.U-center.U)).Order().Aggregate(new List<double>(), (a,x) => { if(a.Count==0 || Math.Abs(a[^1]-x)>1e-7d) a.Add(x); return a; });
+        if (angles.Count == 2)
+        {
+            var sweep = angles[1] - angles[0];
+            if (sweep > Math.PI) { (angles[0], angles[1]) = (angles[1], angles[0]); sweep = 2d * Math.PI - sweep; }
+            var start = new Point2D(center.U + cylinder.Radius * Math.Cos(angles[0]), center.V + cylinder.Radius * Math.Sin(angles[0]));
+            var end = new Point2D(center.U + cylinder.Radius * Math.Cos(angles[0] + sweep), center.V + cylinder.Radius * Math.Sin(angles[0] + sweep));
+            var sameSense = body.Bindings.TryGetFaceBinding(face.Id, out var binding) && binding.SameSense;
+            notes.Add($"section-fragment:cylinder:face={face.Id.Value}:sameSense={sameSense}:center=({center.U:R},{center.V:R}):radius={cylinder.Radius:R}:angles=({angles[0]:R},{angles[1]:R}):sweep={sweep:R}:start=({start.U:R},{start.V:R}):end=({end.U:R},{end.V:R})");
+            var midAngle = angles[0] + sweep * .5d;
+            var radial = (center3D - cylinder.Origin) + (frame.UAxis * (cylinder.Radius * Math.Cos(midAngle))) + (frame.VAxis * (cylinder.Radius * Math.Sin(midAngle)));
+            var hasCylinderBinding = body.Bindings.TryGetFaceBinding(face.Id, out var cylinderBinding);
+            if (hasCylinderBinding && !cylinderBinding.SameSense) radial = -radial;
+            return [OrientForMaterialLeft(RawSectionSegment.Arc(start, end, center, cylinder.Radius, "ccw", sweep) with { SourceFace = face.Id.Value, SurfaceFamily = "Cylinder", SourceEntity = $"ADVANCED_FACE:{face.Id.Value}", MaterialSideEvidence = $"faceSameSense={(hasCylinderBinding ? cylinderBinding.SameSense : null)}" }, frame, radial)];
+        }
+        if (angles.Count > 2) notes.Add($"UnsupportedSectionCurve:cylinder-trim-ambiguous:face={face.Id.Value}:angularVertices={angles.Count}");
+        var fullStart = new Point2D(center.U + cylinder.Radius, center.V);
+        return [RawSectionSegment.Arc(fullStart, fullStart, center, cylinder.Radius, "ccw", 2d * double.Pi) with { SourceFace = face.Id.Value, SurfaceFamily = "Cylinder", SourceEntity = $"ADVANCED_FACE:{face.Id.Value}", MaterialSideEvidence = "full-circle:face-boundary" }];
+    }
+
+    private static IReadOnlyList<RawSectionSegment> BuildConeFaceSectionSegments(BrepBody body, Face face, ConeSurface cone, SectionFrame frame, double epsilon, ICollection<string> notes)
+    {
+        var axisDot = Math.Abs(cone.Axis.ToVector().Dot(frame.Normal));
+        if (axisDot < 1d - epsilon * 8d) { notes.Add($"UnsupportedSectionCurve:face={face.Id.Value}:surface=Cone:plane-not-normal-to-axis"); return []; }
+        var v = (frame.Offset - (cone.Apex - Point3D.Origin).Dot(frame.Normal)) / (cone.Axis.ToVector().Dot(frame.Normal));
+        var radius = Math.Abs(v * Math.Tan(cone.SemiAngleRadians));
+        if (radius <= epsilon) { notes.Add($"DegenerateLoop:cone-apex-section:face={face.Id.Value}"); return []; }
+        var center3D = cone.Apex + cone.Axis.ToVector() * v;
+        var center = ProjectPoint(frame, center3D);
+        var edgeHits = body.GetEdges(face.Id).SelectMany(edge => IntersectEdgeWithSectionPlane(body, edge, frame, epsilon)).Select(p => ProjectPoint(frame, p)).Where(p => Math.Abs(Math.Sqrt((p.U-center.U)*(p.U-center.U)+(p.V-center.V)*(p.V-center.V))-radius) <= epsilon * 32d).ToArray();
+        var angles = edgeHits.Select(p => Math.Atan2(p.V-center.V,p.U-center.U)).Order().Aggregate(new List<double>(), (a,x) => { if(a.Count==0 || Math.Abs(a[^1]-x)>1e-7d) a.Add(x); return a; });
+        if (angles.Count == 2)
+        {
+            var sweep = angles[1]-angles[0]; if (sweep > Math.PI) { (angles[0],angles[1])=(angles[1],angles[0]); sweep=2*Math.PI-sweep; }
+            var start = new Point2D(center.U+radius*Math.Cos(angles[0]),center.V+radius*Math.Sin(angles[0]));
+            var end = new Point2D(center.U+radius*Math.Cos(angles[0]+sweep),center.V+radius*Math.Sin(angles[0]+sweep));
+            notes.Add($"section-fragment:cone:face={face.Id.Value}:center=({center.U:R},{center.V:R}):radius={radius:R}:sweep={sweep:R}");
+            return [RawSectionSegment.Arc(start,end,center,radius,"ccw",sweep) with { SourceFace=face.Id.Value, SurfaceFamily="Cone" }];
+        }
+        if (angles.Count > 2) { notes.Add($"UnsupportedSectionCurve:cone-trim-ambiguous:face={face.Id.Value}:angularVertices={angles.Count}"); return []; }
+        var fullStart = new Point2D(center.U+radius,center.V);
+        return [RawSectionSegment.Arc(fullStart,fullStart,center,radius,"ccw",2*Math.PI) with { SourceFace=face.Id.Value, SurfaceFamily="Cone" }];
+    }
+
+    private static RawSectionSegment OrientForMaterialLeft(RawSectionSegment segment, SectionFrame frame, Vector3D outwardNormal)
+    {
+        // For a section plane with normal N, T = N x outward has solid material
+        // on its left (the left in-plane normal is -outward's in-plane component).
+        var desired = frame.Normal.Cross(outwardNormal);
+        var du = desired.Dot(frame.UAxis); var dv = desired.Dot(frame.VAxis);
+        var tangent = segment.Kind == RawSectionSegmentKind.Arc && segment.Center is not null && segment.Radius is not null && segment.SweepRadians is not null
+            ? new Point2D(-Math.Sin(Math.Atan2(segment.Start.V-segment.Center.V, segment.Start.U-segment.Center.U) + segment.SweepRadians.Value*.5d) * Math.Sign(segment.SweepRadians.Value), Math.Cos(Math.Atan2(segment.Start.V-segment.Center.V, segment.Start.U-segment.Center.U) + segment.SweepRadians.Value*.5d) * Math.Sign(segment.SweepRadians.Value))
+            : new Point2D(segment.End.U-segment.Start.U, segment.End.V-segment.Start.V);
+        return tangent.U * du + tangent.V * dv < 0d ? segment.Reversed() : segment;
     }
 
     private static IReadOnlyList<Point3D> IntersectEdgeWithSectionPlane(BrepBody body, EdgeId edgeId, SectionFrame frame, double epsilon)
@@ -2069,45 +2187,6 @@ public sealed record VolumeAnalysisResult(
         return [circle.Evaluate(trim.Start), circle.Evaluate(trim.End)];
     }
 
-    private static List<SectionLoop> BuildLoops(IReadOnlyList<RawSectionSegment> rawSegments, double epsilon)
-    {
-        var unused = rawSegments.ToList();
-        var loops = new List<SectionLoop>();
-        var nextId = 1;
-        while (unused.Count > 0)
-        {
-            var chain = new List<RawSectionSegment>();
-            var first = unused[0];
-            unused.RemoveAt(0);
-            chain.Add(first);
-            var cursor = first.End;
-
-            while (!first.IsClosed && !PointsClose(cursor, first.Start, epsilon))
-            {
-                var index = FindConnectingSegment(unused, cursor, epsilon, out var reverse);
-                if (index < 0)
-                {
-                    break;
-                }
-
-                var segment = unused[index];
-                unused.RemoveAt(index);
-                if (reverse)
-                {
-                    segment = segment.Reversed();
-                }
-
-                chain.Add(segment);
-                cursor = segment.End;
-            }
-
-            var closed = first.IsClosed || PointsClose(chain[0].Start, chain[^1].End, epsilon);
-            loops.Add(new SectionLoop(nextId++, closed, closed ? ComputeWinding(chain) : null, ComputeBoundingBox2D(chain.SelectMany(segment => segment.Points()).ToArray()), chain.Select(ToSectionSegment).ToArray()));
-        }
-
-        return loops.OrderByDescending(loop => loop.BoundingBox2D is null ? 0d : Area(loop.BoundingBox2D)).ToList();
-    }
-
     private static SectionAnalysisSummary BuildSectionSummary(IReadOnlyList<SectionLoop> loops)
     {
         var segments = loops.SelectMany(loop => loop.Segments).ToArray();
@@ -2134,61 +2213,24 @@ public sealed record VolumeAnalysisResult(
     private static SectionSegment ToSectionSegment(RawSectionSegment raw) =>
         raw.Kind switch
         {
-            RawSectionSegmentKind.Line => new SectionSegment("line", raw.Start, raw.End, null, null, null, null, null),
-            RawSectionSegmentKind.Arc => new SectionSegment("arc", raw.Start, raw.End, raw.Center, raw.Radius, raw.Direction, raw.SweepRadians, null),
-            _ => new SectionSegment("unsupported", raw.Start, raw.End, null, null, null, null, raw.UnsupportedReason ?? "unsupported")
+            RawSectionSegmentKind.Line => new SectionSegment("line", raw.Start, raw.End, null, null, null, null, null, raw.SourceFace, raw.SourceEntity, raw.SurfaceFamily, "NormalizedLinear", 0d, 1d, raw.MaterialSideEvidence),
+            RawSectionSegmentKind.Arc => new SectionSegment("arc", raw.Start, raw.End, raw.Center, raw.Radius, raw.Direction, raw.SweepRadians, null, raw.SourceFace, raw.SourceEntity, raw.SurfaceFamily, "AngularRadians", 0d, raw.SweepRadians, raw.MaterialSideEvidence),
+            _ => new SectionSegment("unsupported", raw.Start, raw.End, null, null, null, null, raw.UnsupportedReason ?? "unsupported", raw.SourceFace, raw.SourceEntity, raw.SurfaceFamily, null, null, null, raw.MaterialSideEvidence)
         };
 
-    private static int FindConnectingSegment(IReadOnlyList<RawSectionSegment> segments, Point2D cursor, double epsilon, out bool reverse)
+    private static SectionSegment ToSectionSegment(ArrangementFragment2D fragment) => fragment.Geometry switch
     {
-        for (var i = 0; i < segments.Count; i++)
-        {
-            if (PointsClose(segments[i].Start, cursor, epsilon))
-            {
-                reverse = false;
-                return i;
-            }
+        LineArcLineSegment2D line => new("line", new(line.Start.X, line.Start.Y), new(line.End.X, line.End.Y), null, null, null, null, null),
+        LineArcCircularArc2D arc => new("arc", new(arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians)), new(arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians + arc.SweepAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians + arc.SweepAngleRadians)), new(arc.Center.X, arc.Center.Y), arc.Radius, arc.SweepAngleRadians >= 0d ? "ccw" : "cw", arc.SweepAngleRadians, null),
+        _ => new("unsupported", new(0, 0), new(0, 0), null, null, null, null, "UnsupportedSectionCurve")
+    };
 
-            if (PointsClose(segments[i].End, cursor, epsilon))
-            {
-                reverse = true;
-                return i;
-            }
-        }
-
-        reverse = false;
-        return -1;
-    }
-
-    private static bool PointsClose(Point2D a, Point2D b, double epsilon)
+    private static SectionLoop FullCircleLoop(int id, RawSectionSegment segment)
     {
-        var du = a.U - b.U;
-        var dv = a.V - b.V;
-        return (du * du) + (dv * dv) <= (epsilon * epsilon * 16d);
-    }
-
-    private static string? ComputeWinding(IReadOnlyList<RawSectionSegment> segments)
-    {
-        var points = segments.Select(segment => segment.Start).ToArray();
-        if (points.Length < 3)
-        {
-            return null;
-        }
-
-        var signedArea2 = 0d;
-        for (var i = 0; i < points.Length; i++)
-        {
-            var a = points[i];
-            var b = points[(i + 1) % points.Length];
-            signedArea2 += (a.U * b.V) - (b.U * a.V);
-        }
-
-        if (double.Abs(signedArea2) <= 1e-12d)
-        {
-            return null;
-        }
-
-        return signedArea2 > 0d ? "ccw" : "cw";
+        var center = segment.Center ?? throw new InvalidOperationException("Full circle is missing a center.");
+        var radius = segment.Radius ?? throw new InvalidOperationException("Full circle is missing a radius.");
+        var role = segment.MaterialSideEvidence?.Contains("False", StringComparison.Ordinal) == true ? "Inner" : "Outer";
+        return new(id, true, "ccw", new BoundingBox2D(new(center.U - radius, center.V - radius), new(center.U + radius, center.V + radius)), [ToSectionSegment(segment)], role);
     }
 
     private static BoundingBox2D? ComputeBoundingBox2D(IReadOnlyList<Point2D> points)
@@ -2852,7 +2894,11 @@ public sealed record VolumeAnalysisResult(
         double? Radius,
         string? Direction,
         double? SweepRadians,
-        string? UnsupportedReason)
+        string? UnsupportedReason,
+        int SourceFace = -1,
+        string? SurfaceFamily = null,
+        string? SourceEntity = null,
+        string? MaterialSideEvidence = null)
     {
         public bool IsClosed =>
             Kind == RawSectionSegmentKind.Arc

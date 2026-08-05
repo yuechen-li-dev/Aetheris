@@ -1,4 +1,16 @@
-# CTC-01 Profile + Compose blockout X2
+# CTC-01 Profile + Compose blockout X2/X3
+
+CTC-DATA-TEMPLATES-X1 adds `ctc01_prismatic_blockout_x3.firmament`. X2 is the preserved evidence baseline; X3 makes the four R50 lobes table-shaped: four `LobeSpec` rows, one `RoundedLobe` template, one bounded `Expand Lobes With RoundedLobe`, and one grouped `Add Lobes`. The compiler resolves those to the same four individually named Profiles and Adds before the section-stack compiler. The central hex remains a six-line Profile rather than introducing a polygon-solid shortcut.
+
+| Measure | X2 | X3 source |
+|---|---:|---:|
+| Lobe data rows | 0 | 4 |
+| Lobe templates | 0 | 1 |
+| Expanded lobe Profiles | 4 | 4 |
+| Expanded lobe Adds | 4 | 4 |
+| Source lines | 148 | 39 |
+
+`inspect-profile --json` and `inspect-compose --json` include `expansion` evidence for X3: source record keys, template-produced concept members, generated profiles, and the individual operations erased from `Add Lobes`. This preserves reviewability while eliminating repeated declaration trees.
 
 ## Verdict
 

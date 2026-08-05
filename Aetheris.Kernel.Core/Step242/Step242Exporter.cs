@@ -64,8 +64,9 @@ public static class Step242Exporter
         var circleIds = new Dictionary<EdgeId, string>();
         var bsplineIds = new Dictionary<EdgeId, string>();
         var ellipseIds = new Dictionary<EdgeId, string>();
+        var hyperbolaIds = new Dictionary<EdgeId, string>();
 
-        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, options.EmitFullCircleTrimmedCurves);
+        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, options.EmitFullCircleTrimmedCurves);
         EmitAuxiliaryVertexPointForVertexlessAnalyticBody(writer, body, model);
         if (outerClosedShellId is null)
         {
@@ -82,7 +83,7 @@ public static class Step242Exporter
             var orientedVoidShellIds = new List<string>();
             foreach (var innerShellId in shellRepresentation.InnerShellIds.OrderBy(id => id.Value))
             {
-                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, options.EmitFullCircleTrimmedCurves);
+                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, options.EmitFullCircleTrimmedCurves);
                 if (innerClosedShellId is null)
                 {
                     return Failure($"Shell {innerShellId.Value} could not be exported.", $"Shell:{innerShellId.Value}");
@@ -159,6 +160,7 @@ public static class Step242Exporter
         Dictionary<EdgeId, string> circleIds,
         Dictionary<EdgeId, string> bsplineIds,
         Dictionary<EdgeId, string> ellipseIds,
+        Dictionary<EdgeId, string> hyperbolaIds,
         bool emitFullCircleTrimmedCurves)
     {
         if (!model.TryGetShell(shellId, out var shell) || shell is null)
@@ -204,7 +206,7 @@ public static class Step242Exporter
 
                     if (!edgeCurveIds.TryGetValue(coedge.EdgeId, out var edgeCurveId))
                     {
-                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds, ellipseIds, emitFullCircleTrimmedCurves);
+                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, emitFullCircleTrimmedCurves);
                         if (!edgeResult.IsSuccess)
                         {
                             return null;
@@ -601,6 +603,14 @@ public static class Step242Exporter
             return KernelResult<string>.Success(writer.AddEntity("ELLIPSE", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(ellipse.MajorRadius), Step242TextWriter.Number(ellipse.MinorRadius)));
         }
 
+        if (curve.Kind == CurveGeometryKind.Hyperbola3 && curve.Hyperbola3 is Hyperbola3Curve hyperbola)
+        {
+            var exportedAxisU = hyperbola.Branch == HyperbolaBranch.PositiveAxisU ? hyperbola.AxisU : Direction3D.Create(-hyperbola.AxisU.ToVector());
+            var exportedNormal = hyperbola.Branch == HyperbolaBranch.PositiveAxisU ? hyperbola.PlaneNormal : Direction3D.Create(-hyperbola.PlaneNormal.ToVector());
+            var axisPlacementId = BuildAxisPlacement(writer, hyperbola.Center, exportedNormal, exportedAxisU);
+            return KernelResult<string>.Success(writer.AddEntity("HYPERBOLA", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(hyperbola.SemiAxisA), Step242TextWriter.Number(hyperbola.SemiAxisB)));
+        }
+
         return Failure($"Unsupported swept directrix curve kind '{curve.Kind}'.", source);
     }
 
@@ -616,6 +626,7 @@ public static class Step242Exporter
         IDictionary<EdgeId, string> circleIds,
         IDictionary<EdgeId, string> bsplineIds,
         IDictionary<EdgeId, string> ellipseIds,
+        IDictionary<EdgeId, string> hyperbolaIds,
         bool emitFullCircleTrimmedCurves)
     {
         var edge = model.GetEdge(edgeId);
@@ -633,7 +644,8 @@ public static class Step242Exporter
         if (curve.Kind != CurveGeometryKind.Line3
             && curve.Kind != CurveGeometryKind.Circle3
             && curve.Kind != CurveGeometryKind.BSpline3
-            && curve.Kind != CurveGeometryKind.Ellipse3)
+            && curve.Kind != CurveGeometryKind.Ellipse3
+            && curve.Kind != CurveGeometryKind.Hyperbola3)
         {
             return Failure($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}");
         }
@@ -752,6 +764,29 @@ public static class Step242Exporter
             }
 
             geometryCurveId = ellipseId;
+        }
+        else if (curve.Kind == CurveGeometryKind.Hyperbola3 && curve.Hyperbola3 is Hyperbola3Curve hyperbola)
+        {
+            if (!hyperbolaIds.TryGetValue(edgeId, out var hyperbolaId))
+            {
+                // STEP HYPERBOLA represents its one exported branch through AXIS2_PLACEMENT_3D.
+                // Encode the branch in the support frame (rather than approximating it as a spline).
+                var exportedAxisU = hyperbola.Branch == HyperbolaBranch.PositiveAxisU
+                    ? hyperbola.AxisU
+                    : Direction3D.Create(-hyperbola.AxisU.ToVector());
+                var exportedNormal = hyperbola.Branch == HyperbolaBranch.PositiveAxisU
+                    ? hyperbola.PlaneNormal
+                    : Direction3D.Create(-hyperbola.PlaneNormal.ToVector());
+                var axisPlacementId = BuildAxisPlacement(writer, hyperbola.Center, exportedNormal, exportedAxisU);
+                hyperbolaId = writer.AddEntity("HYPERBOLA", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(hyperbola.SemiAxisA), Step242TextWriter.Number(hyperbola.SemiAxisB));
+                hyperbolaIds[edgeId] = hyperbolaId;
+            }
+
+            var trim = edgeBinding.TrimInterval.Value;
+            geometryCurveId = writer.AddEntity("TRIMMED_CURVE", "$", Step242TextWriter.Ref(hyperbolaId),
+                Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.Start)})"),
+                Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.End)})"),
+                Step242TextWriter.BooleanLogical(true), Step242TextWriter.Enum("PARAMETER"));
         }
         else
         {
@@ -994,6 +1029,7 @@ public static class Step242Exporter
             CurveGeometryKind.Circle3 when curve.Circle3 is Circle3Curve circle => KernelResult<Point3D>.Success(circle.Evaluate(parameter)),
             CurveGeometryKind.BSpline3 when curve.BSpline3 is BSpline3Curve spline => KernelResult<Point3D>.Success(spline.Evaluate(parameter)),
             CurveGeometryKind.Ellipse3 when curve.Ellipse3 is Ellipse3Curve ellipse => KernelResult<Point3D>.Success(ellipse.Evaluate(parameter)),
+            CurveGeometryKind.Hyperbola3 when curve.Hyperbola3 is Hyperbola3Curve hyperbola => KernelResult<Point3D>.Success(hyperbola.Evaluate(parameter)),
             _ => FailurePoint($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}")
         };
     }

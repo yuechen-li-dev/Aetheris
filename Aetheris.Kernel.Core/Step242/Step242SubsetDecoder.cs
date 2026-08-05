@@ -320,6 +320,15 @@ internal static class Step242SubsetDecoder
                 : KernelResult<CurveGeometry>.Success(CurveGeometry.FromEllipse(ellipseResult.Value));
         }
 
+        var hyperbolaConstructor = TryGetConstructor(curveEntity.Instance, "HYPERBOLA");
+        if (hyperbolaConstructor is not null)
+        {
+            var hyperbolaResult = ReadHyperbolaCurve(document, new Step242ParsedEntity(curveEntity.Id, new Step242SimpleEntityInstance(hyperbolaConstructor)));
+            return !hyperbolaResult.IsSuccess
+                ? KernelResult<CurveGeometry>.Failure(hyperbolaResult.Diagnostics)
+                : KernelResult<CurveGeometry>.Success(CurveGeometry.FromHyperbola(hyperbolaResult.Value));
+        }
+
         return Failure<CurveGeometry>($"{context}: directrix curve '{curveEntity.Name}' is unsupported.", source);
     }
 
@@ -495,6 +504,46 @@ internal static class Step242SubsetDecoder
         catch (ArgumentException)
         {
             return FailureEllipse("Invalid ELLIPSE placement produced degenerate frame.", "Importer.Geometry.Ellipse");
+        }
+    }
+
+    /// <summary>
+    /// Decodes the exact STEP HYPERBOLA support. STEP stores one branch through its
+    /// AXIS2_PLACEMENT_3D; the imported support is therefore canonicalized to PositiveAxisU.
+    /// </summary>
+    public static KernelResult<Hyperbola3Curve> ReadHyperbolaCurve(Step242ParsedDocument document, Step242ParsedEntity hyperbolaEntity)
+    {
+        var placementResult = ReadAxis2Placement3D(document, hyperbolaEntity, 1, "HYPERBOLA position", "Importer.Geometry.Hyperbola");
+        if (!placementResult.IsSuccess)
+        {
+            return KernelResult<Hyperbola3Curve>.Failure(placementResult.Diagnostics);
+        }
+
+        var semiAxisResult = ReadPositiveNumber(hyperbolaEntity, 2, "HYPERBOLA semi_axis", "Importer.Geometry.Hyperbola");
+        if (!semiAxisResult.IsSuccess)
+        {
+            return KernelResult<Hyperbola3Curve>.Failure(semiAxisResult.Diagnostics);
+        }
+
+        var semiImaginaryAxisResult = ReadPositiveNumber(hyperbolaEntity, 3, "HYPERBOLA semi_imaginary_axis", "Importer.Geometry.Hyperbola");
+        if (!semiImaginaryAxisResult.IsSuccess)
+        {
+            return KernelResult<Hyperbola3Curve>.Failure(semiImaginaryAxisResult.Diagnostics);
+        }
+
+        try
+        {
+            return KernelResult<Hyperbola3Curve>.Success(new Hyperbola3Curve(
+                placementResult.Value.Origin,
+                placementResult.Value.Axis,
+                placementResult.Value.ReferenceAxis,
+                semiAxisResult.Value,
+                semiImaginaryAxisResult.Value,
+                HyperbolaBranch.PositiveAxisU));
+        }
+        catch (ArgumentException)
+        {
+            return FailureHyperbola("Invalid HYPERBOLA placement produced a degenerate frame.", "Importer.Geometry.HyperbolaFrameInvalid");
         }
     }
 
@@ -1356,6 +1405,8 @@ internal static class Step242SubsetDecoder
     private static KernelResult<Circle3Curve> FailureCircle(string message, string source) => Failure<Circle3Curve>(KernelDiagnosticCode.InvalidArgument, message, source);
 
     private static KernelResult<Ellipse3Curve> FailureEllipse(string message, string source) => Failure<Ellipse3Curve>(KernelDiagnosticCode.InvalidArgument, message, source);
+
+    private static KernelResult<Hyperbola3Curve> FailureHyperbola(string message, string source) => Failure<Hyperbola3Curve>(KernelDiagnosticCode.InvalidArgument, message, source);
 
     private static KernelResult<BSpline3Curve> FailureBSplineCurve(string message, string source) => Failure<BSpline3Curve>(KernelDiagnosticCode.InvalidArgument, message, source);
 

@@ -3493,6 +3493,19 @@ public static class BrepDisplayTessellator
                     }
 
                     break;
+                case CurveGeometryKind.Hyperbola3:
+                    var hyperbolaPointsResult = SamplePlanarHyperbola(body, coedge, isTraversalSwapped, curve.Hyperbola3!.Value, segmentStart, segmentEnd, plane, faceId, options);
+                    if (!hyperbolaPointsResult.IsSuccess)
+                    {
+                        return KernelResult<IReadOnlyList<Point3D>>.Failure(hyperbolaPointsResult.Diagnostics);
+                    }
+
+                    foreach (var point in hyperbolaPointsResult.Value)
+                    {
+                        AppendUniquePoint(flattened, point);
+                    }
+
+                    break;
                 default:
                     var curveKind = curve.UnsupportedKind ?? curve.Kind.ToString();
                     return KernelResult<IReadOnlyList<Point3D>>.Failure([
@@ -3940,6 +3953,13 @@ public static class BrepDisplayTessellator
                     SampleEllipseCurve(ellipse, interval, segments),
                     IsClosed: false));
 
+            case CurveGeometryKind.Hyperbola3:
+                var hyperbola = curve.Hyperbola3!.Value;
+                return KernelResult<DisplayEdgePolyline>.Success(new DisplayEdgePolyline(
+                    edgeId,
+                    SampleHyperbolaCurve(hyperbola, interval, options),
+                    IsClosed: false));
+
             default:
                 return KernelResult<DisplayEdgePolyline>.Failure([CreateNotImplemented($"Edge {edgeId.Value} has unsupported curve kind '{curve.Kind}'.")]);
         }
@@ -4032,6 +4052,7 @@ public static class BrepDisplayTessellator
             CurveGeometryKind.Circle3 => KernelResult<Point3D>.Success(curve.Circle3!.Value.Evaluate(parameter)),
             CurveGeometryKind.BSpline3 => KernelResult<Point3D>.Success(curve.BSpline3!.Value.Evaluate(parameter)),
             CurveGeometryKind.Ellipse3 => KernelResult<Point3D>.Success(curve.Ellipse3!.Value.Evaluate(parameter)),
+            CurveGeometryKind.Hyperbola3 => KernelResult<Point3D>.Success(curve.Hyperbola3!.Value.Evaluate(parameter)),
             _ => KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} endpoint evaluation does not support curve kind '{curve.UnsupportedKind ?? curve.Kind.ToString()}'.", PlanarCurveFlatteningUnsupportedSource)]),
         };
     }
@@ -4057,6 +4078,7 @@ public static class BrepDisplayTessellator
             CurveGeometryKind.Circle3 => KernelResult<Point3D>.Success(curve.Circle3!.Value.Evaluate(parameter)),
             CurveGeometryKind.BSpline3 => KernelResult<Point3D>.Success(curve.BSpline3!.Value.Evaluate(parameter)),
             CurveGeometryKind.Ellipse3 => KernelResult<Point3D>.Success(curve.Ellipse3!.Value.Evaluate(parameter)),
+            CurveGeometryKind.Hyperbola3 => KernelResult<Point3D>.Success(curve.Hyperbola3!.Value.Evaluate(parameter)),
             _ => KernelResult<Point3D>.Failure([CreateNotImplemented($"Edge {edgeId.Value} endpoint evaluation does not support curve kind '{curve.UnsupportedKind ?? curve.Kind.ToString()}'.", PlanarCurveFlatteningUnsupportedSource)]),
         };
     }
@@ -4098,6 +4120,73 @@ public static class BrepDisplayTessellator
         var span = double.Abs(end - start);
         var segmentCount = (int)double.Ceiling(span / maxSegmentAngle);
         return System.Math.Max(2, segmentCount);
+    }
+
+    private static KernelResult<IReadOnlyList<Point3D>> SamplePlanarHyperbola(
+        BrepBody body,
+        Coedge coedge,
+        bool traversalSwapped,
+        Hyperbola3Curve hyperbola,
+        Point3D start,
+        Point3D end,
+        PlaneSurface plane,
+        FaceId faceId,
+        DisplayTessellationOptions options)
+    {
+        const double planeContainmentTolerance = 1e-7d;
+        var normalAlignment = double.Abs(hyperbola.PlaneNormal.ToVector().Dot(plane.Normal.ToVector()));
+        var centerOffset = double.Abs((hyperbola.Center - plane.Origin).Dot(plane.Normal.ToVector()));
+        if (normalAlignment < 1d - 1e-7d || centerOffset > planeContainmentTolerance)
+        {
+            return KernelResult<IReadOnlyList<Point3D>>.Failure([
+                CreateNotImplemented($"Face {faceId.Value} edge {coedge.EdgeId.Value} planar hyperbola flattening requires the hyperbola plane to match the face plane.", PlanarCurveFlatteningUnsupportedSource)]);
+        }
+
+        if (!body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding) || binding.TrimInterval is not ParameterInterval trim)
+        {
+            return KernelResult<IReadOnlyList<Point3D>>.Failure([
+                CreateInvalidArgument($"Face {faceId.Value} edge {coedge.EdgeId.Value} requires a bounded hyperbola trim.", PlanarCurveFlatteningFailedSource)]);
+        }
+
+        var sampled = SampleHyperbolaCurve(hyperbola, trim, options).ToList();
+        if (coedge.IsReversed ^ traversalSwapped ^ !binding.OrientedEdgeSense)
+        {
+            sampled.Reverse();
+        }
+        sampled[0] = start;
+        sampled[^1] = end;
+        return KernelResult<IReadOnlyList<Point3D>>.Success(sampled.Skip(1).ToArray());
+    }
+
+    private static IReadOnlyList<Point3D> SampleHyperbolaCurve(Hyperbola3Curve hyperbola, ParameterInterval trim, DisplayTessellationOptions options)
+    {
+        // This is a display/M8 carrier only.  It adaptively controls the exact
+        // midpoint-to-chord deviation and tangent turn, while preserving the exact
+        // bounded support endpoints.  The B-rep still owns Hyperbola3Curve.
+        var points = new List<Point3D> { hyperbola.Evaluate(trim.Start) };
+        AppendHyperbolaSegment(hyperbola, trim.Start, trim.End, hyperbola.Evaluate(trim.Start), hyperbola.Evaluate(trim.End), options, points, 0);
+        return points;
+    }
+
+    private static void AppendHyperbolaSegment(Hyperbola3Curve hyperbola, double start, double end, Point3D startPoint, Point3D endPoint, DisplayTessellationOptions options, List<Point3D> points, int depth)
+    {
+        var middle = start + ((end - start) * 0.5d);
+        var middlePoint = hyperbola.Evaluate(middle);
+        var chord = endPoint - startPoint;
+        var chordLength = chord.Length;
+        var midpointDeviation = chordLength <= 1e-14d
+            ? (middlePoint - startPoint).Length
+            : ((middlePoint - startPoint).Cross(chord).Length / chordLength);
+        var tangentTurn = double.Acos(System.Math.Clamp(
+            hyperbola.Tangent(start).ToVector().Dot(hyperbola.Tangent(end).ToVector()), -1d, 1d));
+        var canSplit = depth < 32 && points.Count < options.MaximumSegments;
+        if (canSplit && (midpointDeviation > options.ChordTolerance || tangentTurn > options.AngularToleranceRadians))
+        {
+            AppendHyperbolaSegment(hyperbola, start, middle, startPoint, middlePoint, options, points, depth + 1);
+            AppendHyperbolaSegment(hyperbola, middle, end, middlePoint, endPoint, options, points, depth + 1);
+            return;
+        }
+        if ((endPoint - points[^1]).LengthSquared > 1e-24d) points.Add(endPoint);
     }
 
     private static int CalculateSegmentCount(double angleSpan, double radius, DisplayTessellationOptions options)

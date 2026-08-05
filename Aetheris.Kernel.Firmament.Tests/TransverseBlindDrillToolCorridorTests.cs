@@ -7,16 +7,21 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class TransverseBlindDrillToolCorridorTests
 {
     [Fact]
-    public void PlusXBlindDrill_ProvesCompleteShaftAndConeAcrossTwoZSlabs()
+    public void PlusXBlindDrill_ProvesFullRadiusClearanceAcrossTwoZSlabs()
     {
         var stack = Stack(40, 20); var placement = Placement(); var feature = Feature(4, 10, placement);
 
         var proof = TransverseBlindDrillToolCorridor.Prove(feature, stack, placement);
 
         Assert.True(proof.Classification == BlindDrillToolCorridorClassification.CorridorProven, string.Join(" | ", proof.Diagnostics));
+        Assert.Equal(BlindDrillClearancePolicy.FullRadiusThroughTotalDepth, proof.ValidationPolicy);
         Assert.Equal(2, proof.ShaftSliceProofs.Count);
-        Assert.Equal(2, proof.ConeSliceProofs.Count);
-        Assert.All(proof.ShaftSliceProofs.Concat(proof.ConeSliceProofs), x => Assert.Equal(SectionRectangleCorridorClassification.FullyContained, x.Classification));
+        Assert.Empty(proof.ConeSliceProofs);
+        Assert.All(proof.ShaftSliceProofs, x =>
+        {
+            Assert.Equal("FullRadiusClearance", x.ToolPart);
+            Assert.Equal(SectionRectangleCorridorClassification.FullyContained, x.Classification);
+        });
         Assert.Equal(10d, proof.ShaftDepth);
         Assert.InRange(proof.TipLength, 1.2d, 1.21d);
     }
@@ -28,8 +33,8 @@ public sealed class TransverseBlindDrillToolCorridorTests
 
         var proof = TransverseBlindDrillToolCorridor.Prove(feature, stack, placement);
 
-        Assert.Equal(BlindDrillToolCorridorClassification.ShaftBoundaryCrossing, proof.Classification);
-        Assert.Contains(proof.Diagnostics, x => x.StartsWith("ToolCorridorFailure: part=Shaft", StringComparison.Ordinal));
+        Assert.Equal(BlindDrillToolCorridorClassification.FullRadiusTipClearanceFailed, proof.Classification);
+        Assert.Contains(proof.Diagnostics, x => x.StartsWith("ToolCorridorFailure: part=FullRadiusClearance", StringComparison.Ordinal));
     }
 
     private static PrismaticSectionStackConstruction Stack(double width, double depth)

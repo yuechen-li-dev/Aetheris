@@ -234,6 +234,7 @@ public static class BrepExportPreflight
         CurveGeometryKind.Line3 when curve.Line3 is Line3Curve line => line.Evaluate(t),
         CurveGeometryKind.Circle3 when curve.Circle3 is Circle3Curve circle => circle.Evaluate(t),
         CurveGeometryKind.Ellipse3 when curve.Ellipse3 is Ellipse3Curve ellipse => ellipse.Evaluate(t),
+        CurveGeometryKind.Hyperbola3 when curve.Hyperbola3 is Hyperbola3Curve hyperbola => hyperbola.Evaluate(t),
         CurveGeometryKind.BSpline3 when curve.BSpline3 is BSpline3Curve spline => spline.Evaluate(t),
         _ => null,
     };

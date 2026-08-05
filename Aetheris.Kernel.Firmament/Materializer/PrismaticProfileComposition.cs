@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
 
@@ -15,6 +17,13 @@ public sealed record PrismaticProfileOperation(
 public sealed record PrismaticShaftHoleFeature(
     string Name, string StableId, string ProfileReference, double CenterX, double CenterY, double Diameter,
     double From, double To, string SemanticRole, string SourceSpan);
+/// <summary>Source-owned transverse blind drill; its cavity is planned after host construction.</summary>
+public sealed record PrismaticConstructionPlaneBlindDrillFeature(
+    string Name, string StableId, string ConstructionPlaneId, string SourceConceptPlaneId,
+    Point3D FrameOrigin, Direction3D AxisX, Direction3D AxisY, Direction3D AxisZ,
+    double LocalCenterX, double LocalCenterY, double Diameter, double DeclaredDepth,
+    bool DeclaredDepthIsTotal, double PointAngleDegrees, string SemanticRole, string SourceSpan,
+    string Provenance);
 /// <summary>Compiler-owned capsule contract; the generated Profile remains lowering detail.</summary>
 public sealed record PrismaticCapsuleSlotFeature(
     string Name, string StableId, string ProfileReference, double CenterX, double CenterY,
@@ -36,7 +45,8 @@ public sealed record PrismaticProfileCompositionFeature(
     string Name, string Frame, string Axis, PrismaticProfilePlacement Placement, IReadOnlyList<PrismaticProfileOperation> Operations,
     IReadOnlyList<double> CriticalLevels, string Provenance, IReadOnlyList<PrismaticShaftHoleFeature>? ShaftHoles = null,
     IReadOnlyList<PrismaticCapsuleSlotFeature>? CapsuleSlots = null,
-    IReadOnlyList<PrismaticRoundedRectangleSlotFeature>? RoundedRectangleSlots = null)
+    IReadOnlyList<PrismaticRoundedRectangleSlotFeature>? RoundedRectangleSlots = null,
+    IReadOnlyList<PrismaticConstructionPlaneBlindDrillFeature>? ConstructionPlaneBlindDrills = null)
 {
     public IEnumerable<(string Name, string StableId, string ProfileReference)> AllSlotProfiles =>
         (CapsuleSlots ?? []).Select(x => (x.Name, x.StableId, x.ProfileReference))
@@ -73,8 +83,12 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex Operation = new(@"\b(?<intent>Base|Add|Remove)\s+(?<n>\w+)\s*\{\s*Profile\s*:\s*(?<profile>\w+)\s*;?\s*From\s*:\s*(?<from>[-+.\d]+)mm\s*;?\s*To\s*:\s*(?<to>[-+.\d]+)mm(?:\s*;?\s*Role\s*:\s*(?<role>\w+))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex HoleHeader = new(@"\bHole\s*<\s*(?<variant>\w+)\s*>\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleCenter = new(@"\bCenter\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HolePoint2Center = new(@"\bCenter\s*:\s*Point2\s*\(\s*(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleDiameter = new(@"\bDiameter\s*:\s*(?<d>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleEnd = new(@"\bEnd\s*:\s*(?<end>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleDepthEnd = new(@"\bEnd\s*:\s*(?<kind>ShaftDepth|TotalDepth)\s*\(\s*(?<depth>[-+.\d]+)mm\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleFrom = new(@"\bFrom\s*:\s*(?<plane>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleTermination = new(@"\bTermination\s*:\s*DrillPoint\b(?:\s*\{\s*PointAngle\s*:\s*(?<angle>[-+.\d]+)deg\s*\})?", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleRole = new(@"\bRole\s*:\s*(?<role>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex SlotHeader = new(@"\bSlot\s*<\s*(?<variant>\w+)\s*>\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex SlotCenter = new(@"\bCenter\s*:\s*(?:Point2\s*\()?\[?(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\]?\)?", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -177,6 +191,7 @@ public static class PrismaticProfileCompositionParser
         }
         if (operations.Count(o => o.Intent == PrismaticProfileIntent.Base) != 1) diagnostics.Add("compose-requires-exactly-one-base-operation");
         var shaftHoles = new List<PrismaticShaftHoleFeature>();
+        var constructionPlaneBlindDrills = new List<PrismaticConstructionPlaneBlindDrillFeature>();
         var capsuleSlots = new List<PrismaticCapsuleSlotFeature>();
         var roundedRectangleSlots = new List<PrismaticRoundedRectangleSlotFeature>();
         var materialFrom = operations.Count == 0 ? 0d : operations.Min(x => x.From);
@@ -186,7 +201,32 @@ public static class PrismaticProfileCompositionParser
             var name = header.Groups["n"].Value;
             var body = Block(composeBody, header.Index + header.Length - 1);
             if (body is null) { diagnostics.Add($"compose-hole-unclosed:{name}"); continue; }
-            var center = HoleCenter.Match(body); var diameter = HoleDiameter.Match(body); var end = HoleEnd.Match(body); var role = HoleRole.Match(body);
+            var center = HoleCenter.Match(body); if (!center.Success) center = HolePoint2Center.Match(body);
+            var diameter = HoleDiameter.Match(body); var end = HoleEnd.Match(body); var role = HoleRole.Match(body);
+            var from = HoleFrom.Match(body); var depthEnd = HoleDepthEnd.Match(body); var termination = HoleTermination.Match(body);
+            if (from.Success)
+            {
+                if (!string.Equals(header.Groups["variant"].Value, "Shaft", StringComparison.OrdinalIgnoreCase)
+                    || !depthEnd.Success || !termination.Success)
+                { diagnostics.Add($"compose-construction-plane-blind-hole-invalid-contract:{name}"); continue; }
+                if (!center.Success || !diameter.Success) { diagnostics.Add($"compose-construction-plane-blind-hole-missing-center-or-diameter:{name}"); continue; }
+                var trace = ResolveConstructionPlaneTrace(source, from.Groups["plane"].Value);
+                string? planeDiagnostic = null; string? frameDiagnostic = null;
+                if (trace is null || !ConceptIrResolver.TryResolvePlane(source, trace, out var conceptPlane, out planeDiagnostic)
+                    || conceptPlane is null
+                    || !ConstructionPlane.TryTrace($"construction:{from.Groups["plane"].Value}", conceptPlane, $"offset:{header.Index}", out var plane, out frameDiagnostic))
+                { diagnostics.Add(planeDiagnostic ?? frameDiagnostic ?? $"compose-construction-plane-not-found:{from.Groups["plane"].Value}"); continue; }
+                var localX = N(center, "x"); var localY = N(center, "y"); var localDiameter = N(diameter, "d"); var declaredDepth = N(depthEnd, "depth");
+                var angle = termination.Groups["angle"].Success ? N(termination, "angle") : 118d;
+                if (!double.IsFinite(localX) || !double.IsFinite(localY) || !double.IsFinite(localDiameter) || localDiameter <= 0d || !double.IsFinite(declaredDepth) || declaredDepth < 0d || !double.IsFinite(angle) || angle <= 0d || angle >= 180d)
+                { diagnostics.Add($"compose-construction-plane-blind-hole-invalid-geometry:{name}"); continue; }
+                if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
+                var blindStableId = $"hole:{compose.Groups["n"].Value}.{name}";
+                constructionPlaneBlindDrills.Add(new(name, blindStableId, plane!.StableId, plane.SourceConceptId, plane.Origin, plane.AxisX, plane.AxisY, plane.AxisZ,
+                    localX, localY, localDiameter, declaredDepth, string.Equals(depthEnd.Groups["kind"].Value, "TotalDepth", StringComparison.OrdinalIgnoreCase), angle,
+                    role.Success ? role.Groups["role"].Value : "BlindDrillPoint", $"offset:{header.Index}", plane.Provenance));
+                continue;
+            }
             if (!string.Equals(header.Groups["variant"].Value, "Shaft", StringComparison.OrdinalIgnoreCase)
                 || !end.Success || !string.Equals(end.Groups["end"].Value, "ThroughAll", StringComparison.OrdinalIgnoreCase))
             { diagnostics.Add($"compose-hole-unsupported-variant-or-end:{name}"); continue; }
@@ -239,7 +279,7 @@ public static class PrismaticProfileCompositionParser
             }
         }
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots) : null;
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
     }
 
@@ -273,6 +313,11 @@ public static class PrismaticProfileCompositionParser
     }
 
     private static double N(Match match, string name) => double.Parse(match.Groups[name].Value, CultureInfo.InvariantCulture);
+    private static string? ResolveConstructionPlaneTrace(string source, string name)
+    {
+        var declaration = Regex.Match(source, $@"\bConstruction\s+Plane\s+{Regex.Escape(name)}\s*\{{\s*Trace\s*:\s*(?<trace>[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        return declaration.Success ? declaration.Groups["trace"].Value : null;
+    }
     private static string? Block(string text, int open)
     {
         var depth = 0;

@@ -92,6 +92,18 @@ public static class BrepMassProperties
             return exact;
         }
 
+        // A normalized section stack is an exact Z-prism whose boundary is
+        // composed only of horizontal planes and vertical planes/cylinders.
+        // The display-tessellation M8 lane otherwise measures arc chord error
+        // rather than the authoritative analytic boundary.  This recognizer
+        // consumes only the materialized B-rep graph and bindings: for every
+        // constant-Z interval it integrates the oriented line/arc section
+        // boundary exactly.  It deliberately declines any non-prismatic face.
+        if (TryEvaluateExactVerticalLineArcPrism(body, effective, topology, out exact))
+        {
+            return exact;
+        }
+
         var coarse = EvaluateAtResolution(body, effective, refinement: 1);
         if (coarse.Error is not null)
         {
@@ -150,6 +162,239 @@ public static class BrepMassProperties
 
     private static BrepMassPropertiesResult Unavailable(BrepMassPropertiesOptions options, BrepMassPropertiesTopologyDiagnostics topology, string reason)
         => new(BrepMassPropertiesStatus.Unavailable, 0d, 0d, 0d, null, topology.IsEnclosed, topology.IsOrientationConsistent, [], "DeterministicTrimmedFaceTriangulationBoundaryIntegral", null, options, topology, topology.Messages.Append(reason).ToArray());
+
+    /// <summary>
+    /// Exact volume recognizer for a materialized line/arc prismatic shell.
+    /// It intentionally has no knowledge of Firmament section stacks: its only
+    /// inputs are topology, vertex positions, and exact plane/cylinder curves.
+    /// </summary>
+    private static bool TryEvaluateExactVerticalLineArcPrism(
+        BrepBody body,
+        BrepMassPropertiesOptions options,
+        BrepMassPropertiesTopologyDiagnostics topology,
+        out BrepMassPropertiesResult result)
+    {
+        result = default!;
+        const double tolerance = 1e-8d;
+        var vertices = body.Topology.Vertices
+            .Select(vertex => body.TryGetVertexPoint(vertex.Id, out var point) ? (vertex.Id, Point: (Point3D?)point) : (vertex.Id, Point: (Point3D?)null))
+            .ToDictionary(x => x.Id, x => x.Point);
+        if (vertices.Count == 0 || vertices.Values.Any(point => point is null)) return false;
+
+        var levels = vertices.Values.Select(point => point!.Value.Z).DistinctBy(z => System.Math.Round(z / tolerance)).OrderBy(z => z).ToArray();
+        if (levels.Length < 2) return false;
+
+        var faces = body.Topology.Faces.ToArray();
+        if (faces.Length == 0) return false;
+        foreach (var face in faces)
+        {
+            if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null
+                || surface.Kind is not (SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder))
+                return false;
+            if (surface.Kind == SurfaceGeometryKind.Cylinder && System.Math.Abs(surface.Cylinder!.Value.Axis.ToVector().Z) < 1d - tolerance)
+                return false;
+            if (surface.Kind == SurfaceGeometryKind.Plane
+                && System.Math.Abs(surface.Plane!.Value.Normal.ToVector().Z) > tolerance
+                && System.Math.Abs(surface.Plane!.Value.Normal.ToVector().Z) < 1d - tolerance)
+                return false;
+        }
+
+        var total = 0d;
+        var intervalEvidence = new List<string>();
+        var contributions = new List<BrepMassPropertiesFaceContribution>();
+        for (var index = 0; index < levels.Length - 1; index++)
+        {
+            var from = levels[index];
+            var to = levels[index + 1];
+            if (to - from <= tolerance) continue;
+            var boundaryEdges = new HashSet<EdgeId>();
+            foreach (var face in faces)
+            {
+                if (!IsVerticalSideFace(body, face, vertices, from, to, tolerance)) continue;
+                foreach (var loopId in face.LoopIds)
+                foreach (var coedgeId in body.GetCoedgeIds(loopId))
+                {
+                    var edgeId = body.GetCoedgeEdgeId(coedgeId);
+                    var edge = body.Topology.GetEdge(edgeId);
+                    var a = vertices[edge.StartVertexId]!.Value;
+                    var b = vertices[edge.EndVertexId]!.Value;
+                    if (System.Math.Abs(a.Z - from) <= tolerance && System.Math.Abs(b.Z - from) <= tolerance)
+                        boundaryEdges.Add(edgeId);
+                }
+            }
+
+            if (boundaryEdges.Count == 0) return false;
+            if (!TryEvaluateSectionArea(boundaryEdges, body, vertices, out var area)) return false;
+            if (area <= tolerance) return false;
+            total += area * (to - from);
+            intervalEvidence.Add($"z=[{from:R},{to:R}];area={area:R}");
+        }
+
+        if (total <= tolerance) return false;
+        foreach (var face in faces)
+        {
+            var kind = body.TryGetFaceSurfaceGeometry(face.Id, out var surface) ? surface?.Kind : null;
+            contributions.Add(new(face.Id, kind, 0d, 0d, 0, body.Bindings.TryGetFaceBinding(face.Id, out var binding), binding.SameSense, true));
+        }
+        var analyticRoundoffBound = System.Math.Max(1e-8d, System.Math.Abs(total) * 1e-14d);
+        result = new BrepMassPropertiesResult(
+            BrepMassPropertiesStatus.NumericalConverged,
+            total,
+            total,
+            0d,
+            null,
+            topology.IsEnclosed,
+            topology.IsOrientationConsistent,
+            contributions,
+            "ExactVerticalLineArcPrismSectionIntegration",
+            analyticRoundoffBound,
+            options,
+            topology,
+            ["Exact materialized plane/cylinder section integration; no construction metadata or tessellation was used.", ..intervalEvidence]);
+        return true;
+    }
+
+    /// <summary>
+    /// Reconstructs the section's closed line loops from side-face boundary edges
+    /// and classifies containment geometrically.  Side-face loop winding is a 3D
+    /// shell convention and is not the 2D material-loop winding; treating its
+    /// raw edge binding direction as area orientation was the source of the
+    /// nested Remove regression.
+    /// </summary>
+    private static bool TryEvaluateSectionArea(
+        IReadOnlyCollection<EdgeId> edgeIds,
+        BrepBody body,
+        IReadOnlyDictionary<VertexId, Point3D?> vertices,
+        out double area)
+    {
+        area = 0d;
+        var adjacency = new Dictionary<VertexId, List<(EdgeId Edge, VertexId Other)>>();
+        foreach (var edgeId in edgeIds)
+        {
+            if (!body.TryGetEdgeCurveGeometry(edgeId, out var curve) || curve?.Kind is not (CurveGeometryKind.Line3 or CurveGeometryKind.Circle3)) return false;
+            var edge = body.Topology.GetEdge(edgeId);
+            if (!adjacency.TryAdd(edge.StartVertexId, [(edgeId, edge.EndVertexId)])) adjacency[edge.StartVertexId].Add((edgeId, edge.EndVertexId));
+            if (!adjacency.TryAdd(edge.EndVertexId, [(edgeId, edge.StartVertexId)])) adjacency[edge.EndVertexId].Add((edgeId, edge.StartVertexId));
+        }
+        if (adjacency.Count == 0 || adjacency.Values.Any(uses => uses.Count != 2)) return false;
+
+        var remaining = new HashSet<EdgeId>(edgeIds);
+        var loops = new List<(List<Point3D> Points, List<(EdgeId Edge, VertexId From)> Uses)>();
+        while (remaining.Count > 0)
+        {
+            var firstEdge = remaining.OrderBy(id => id.Value).First();
+            var first = body.Topology.GetEdge(firstEdge);
+            var start = first.StartVertexId;
+            var current = start;
+            var loop = new List<Point3D>();
+            var uses = new List<(EdgeId Edge, VertexId From)>();
+            while (true)
+            {
+                if (!vertices.TryGetValue(current, out var point) || point is null) return false;
+                loop.Add(point.Value);
+                var next = adjacency[current].Where(candidate => remaining.Contains(candidate.Edge)).OrderBy(candidate => candidate.Edge.Value).FirstOrDefault();
+                if (next == default) return false;
+                remaining.Remove(next.Edge);
+                uses.Add((next.Edge, current));
+                current = next.Other;
+                if (current == start) break;
+                if (loop.Count > edgeIds.Count + 1) return false;
+            }
+            if (loop.Count < 3) return false;
+            loops.Add((loop, uses));
+        }
+
+        for (var i = 0; i < loops.Count; i++)
+        {
+            var candidate = loops[i];
+            var signedArea = 0d;
+            foreach (var use in candidate.Uses)
+            {
+                if (!TrySignedPlanarCurveAreaTwice(body, use.Edge, use.From, out var contribution)) return false;
+                signedArea += contribution / 2d;
+            }
+            var probe = new Point3D(candidate.Points.Average(p => p.X), candidate.Points.Average(p => p.Y), candidate.Points[0].Z);
+            var depth = loops.Where((_, index) => index != i).Count(loop => PointInPolygon(probe, loop.Points));
+            area += (depth & 1) == 0 ? System.Math.Abs(signedArea) : -System.Math.Abs(signedArea);
+        }
+        return area > 0d;
+    }
+
+    private static bool PointInPolygon(Point3D point, IReadOnlyList<Point3D> polygon)
+    {
+        var inside = false;
+        for (int i = 0, j = polygon.Count - 1; i < polygon.Count; j = i++)
+        {
+            var a = polygon[i]; var b = polygon[j];
+            if ((a.Y > point.Y) == (b.Y > point.Y)) continue;
+            var x = ((b.X - a.X) * (point.Y - a.Y) / (b.Y - a.Y)) + a.X;
+            if (point.X < x) inside = !inside;
+        }
+        return inside;
+    }
+
+    private static bool IsVerticalSideFace(
+        BrepBody body,
+        Face face,
+        IReadOnlyDictionary<VertexId, Point3D?> vertices,
+        double from,
+        double to,
+        double tolerance)
+    {
+        if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null) return false;
+        if (surface.Kind == SurfaceGeometryKind.Plane && System.Math.Abs(surface.Plane!.Value.Normal.ToVector().Z) > tolerance) return false;
+        var hasFullVertical = false;
+        foreach (var loopId in face.LoopIds)
+        foreach (var coedgeId in body.GetCoedgeIds(loopId))
+        {
+            var edge = body.Topology.GetEdge(body.GetCoedgeEdgeId(coedgeId));
+            var a = vertices[edge.StartVertexId]!.Value;
+            var b = vertices[edge.EndVertexId]!.Value;
+            if (System.Math.Abs(a.X - b.X) <= tolerance && System.Math.Abs(a.Y - b.Y) <= tolerance
+                && ((System.Math.Abs(a.Z - from) <= tolerance && System.Math.Abs(b.Z - to) <= tolerance)
+                    || (System.Math.Abs(a.Z - to) <= tolerance && System.Math.Abs(b.Z - from) <= tolerance)))
+            {
+                hasFullVertical = true;
+                break;
+            }
+        }
+        return hasFullVertical;
+    }
+
+    private static bool TrySignedPlanarCurveAreaTwice(BrepBody body, EdgeId edgeId, VertexId fromVertex, out double areaTwice)
+    {
+        areaTwice = 0d;
+        if (!body.Bindings.TryGetEdgeBinding(edgeId, out var binding)
+            || binding.TrimInterval is not { } trim
+            || !body.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve)
+            || curve is null)
+            return false;
+        var edge = body.Topology.GetEdge(edgeId);
+        var isTopologyForward = edge.StartVertexId == fromVertex;
+        if (!isTopologyForward && edge.EndVertexId != fromVertex) return false;
+        var followsTrim = isTopologyForward == binding.OrientedEdgeSense;
+        var (start, end) = followsTrim ? (trim.Start, trim.End) : (trim.End, trim.Start);
+        switch (curve.Kind)
+        {
+            case CurveGeometryKind.Line3 when curve.Line3 is { } line:
+            {
+                var a = line.Evaluate(start); var b = line.Evaluate(end);
+                areaTwice = a.X * b.Y - b.X * a.Y;
+                return true;
+            }
+            case CurveGeometryKind.Circle3 when curve.Circle3 is { } circle && System.Math.Abs(circle.Normal.ToVector().Z) > 1d - 1e-8d:
+            {
+                var sign = circle.Normal.ToVector().Z >= 0d ? 1d : -1d;
+                var a = start * sign; var b = end * sign;
+                areaTwice = (circle.Center.X * circle.Radius * (System.Math.Sin(b) - System.Math.Sin(a)))
+                    - (circle.Center.Y * circle.Radius * (System.Math.Cos(b) - System.Math.Cos(a)))
+                    + (circle.Radius * circle.Radius * (b - a));
+                return true;
+            }
+            default:
+                return false;
+        }
+    }
 
     private static bool TryEvaluateExactSphereCylinderSeamBody(
         BrepBody body,

@@ -846,6 +846,28 @@ public static class Step242Importer
                 trimResult.Value));
         }
 
+        var hyperbolaConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "HYPERBOLA");
+        if (hyperbolaConstructor is not null)
+        {
+            var hyperbolaResult = Step242SubsetDecoder.ReadHyperbolaCurve(document, WithConstructor(curveEntity, hyperbolaConstructor));
+            if (!hyperbolaResult.IsSuccess)
+            {
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(hyperbolaResult.Diagnostics);
+            }
+
+            var trimResult = explicitTrim is { } specified
+                ? KernelResult<ParameterInterval>.Success(specified)
+                : ComputeHyperbolaTrim(hyperbolaResult.Value, startPoint, endPoint, edgeSameSense);
+            if (!trimResult.IsSuccess)
+            {
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(trimResult.Diagnostics);
+            }
+
+            return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
+                CurveGeometry.FromHyperbola(hyperbolaResult.Value),
+                trimResult.Value));
+        }
+
         var splineEntity = ResolveBSplineCurveEntity(curveEntity);
         if (splineEntity is not null)
         {
@@ -2152,6 +2174,53 @@ public static class Step242Importer
         return loop;
     }
 
+    private static KernelResult<ParameterInterval> ComputeHyperbolaTrim(Hyperbola3Curve hyperbola, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
+    {
+        var scale = System.Math.Max(hyperbola.SemiAxisA, System.Math.Max(hyperbola.SemiAxisB, System.Math.Max((startPoint - hyperbola.Center).Length, (endPoint - hyperbola.Center).Length)));
+        var tolerance = System.Math.Max(1e-7d, scale * 1e-8d);
+        var startResult = ProjectPointToHyperbolaParameter(hyperbola, startPoint, tolerance);
+        if (!startResult.IsSuccess) return KernelResult<ParameterInterval>.Failure(startResult.Diagnostics);
+        var endResult = ProjectPointToHyperbolaParameter(hyperbola, endPoint, tolerance);
+        if (!endResult.IsSuccess) return KernelResult<ParameterInterval>.Failure(endResult.Diagnostics);
+
+        var start = startResult.Value;
+        var end = endResult.Value;
+        if (end < start)
+        {
+            if (edgeSameSense)
+            {
+                return FailureHyperbolaTrim("EDGE_CURVE hyperbola parameterization is opposite to vertex ordering.", "Importer.Geometry.HyperbolaTrim.Direction");
+            }
+            return KernelResult<ParameterInterval>.Success(new ParameterInterval(end, start));
+        }
+        return KernelResult<ParameterInterval>.Success(new ParameterInterval(start, end));
+    }
+
+    private static KernelResult<double> ProjectPointToHyperbolaParameter(Hyperbola3Curve hyperbola, Point3D point, double tolerance)
+    {
+        var delta = point - hyperbola.Center;
+        var normalError = double.Abs(delta.Dot(hyperbola.PlaneNormal.ToVector()));
+        if (normalError > tolerance)
+        {
+            return FailureHyperbolaTrimParameter($"HYPERBOLA endpoint is off its support plane by {normalError:G17}.", "Importer.Geometry.HyperbolaEndpointMismatch");
+        }
+
+        var u = delta.Dot(hyperbola.AxisU.ToVector());
+        var v = delta.Dot(hyperbola.AxisV.ToVector());
+        if ((u * hyperbola.BranchSign) < hyperbola.SemiAxisA - tolerance)
+        {
+            return FailureHyperbolaTrimParameter("HYPERBOLA endpoint lies on the opposite branch or inside the vertex line.", "Importer.Geometry.HyperbolaBranchAmbiguous");
+        }
+
+        var parameter = double.Asinh(v / hyperbola.SemiAxisB);
+        var expected = hyperbola.Evaluate(parameter);
+        if ((expected - point).Length > tolerance)
+        {
+            return FailureHyperbolaTrimParameter("HYPERBOLA endpoint does not lie on the analytic support.", "Importer.Geometry.HyperbolaEndpointMismatch");
+        }
+        return KernelResult<double>.Success(parameter);
+    }
+
     private static bool LoopsOverlap(PlanarLoopInfo a, PlanarLoopInfo b, double containmentTolerance)
     {
         var aPoint = ChooseContainmentPoint(a.ProjectedPoints, containmentTolerance);
@@ -3243,6 +3312,11 @@ public static class Step242Importer
                 var ellipseSegmentCount = ComputeAdaptiveCircleSegmentCount(ellipseSpan);
                 points = SampleEllipticalTrim(ellipse, ellipseTrim, ellipseSegmentCount);
                 break;
+            case CurveGeometryKind.Hyperbola3:
+                var hyperbola = curve.Hyperbola3!.Value;
+                var hyperbolaTrim = edgeBinding.TrimInterval ?? new ParameterInterval(-1d, 1d);
+                points = SampleHyperbolicTrim(hyperbola, hyperbolaTrim, ComputeAdaptiveCircleSegmentCount(hyperbolaTrim.End - hyperbolaTrim.Start));
+                break;
             case CurveGeometryKind.BSpline3:
                 var spline = curve.BSpline3!.Value;
                 var splineTrim = edgeBinding.TrimInterval ?? new ParameterInterval(spline.DomainStart, spline.DomainEnd);
@@ -3291,6 +3365,14 @@ public static class Step242Importer
             points.Add(ellipse.Evaluate(trim.Start + (step * i)));
         }
 
+        return points;
+    }
+
+    private static List<Point3D> SampleHyperbolicTrim(Hyperbola3Curve hyperbola, ParameterInterval trim, int segmentCount)
+    {
+        var points = new List<Point3D>(segmentCount + 1);
+        var step = (trim.End - trim.Start) / segmentCount;
+        for (var i = 0; i <= segmentCount; i++) points.Add(hyperbola.Evaluate(trim.Start + (step * i)));
         return points;
     }
 
@@ -3567,6 +3649,12 @@ public static class Step242Importer
         Step242ImportSharedUtilities.ValidationFailure<ParameterInterval>(message, source ?? "Importer.Geometry.EllipseTrim");
 
     private static KernelResult<double> FailureEllipseTrimAngle(string message, string source) =>
+        Step242ImportSharedUtilities.ValidationFailure<double>(message, source);
+
+    private static KernelResult<ParameterInterval> FailureHyperbolaTrim(string message, string source) =>
+        Step242ImportSharedUtilities.ValidationFailure<ParameterInterval>(message, source);
+
+    private static KernelResult<double> FailureHyperbolaTrimParameter(string message, string source) =>
         Step242ImportSharedUtilities.ValidationFailure<double>(message, source);
 
     private static KernelResult<T> OrientationFailure<T>(string message, string source) =>

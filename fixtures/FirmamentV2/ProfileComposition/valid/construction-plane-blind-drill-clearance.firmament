@@ -1,0 +1,26 @@
+// BLIND-DRILL-CLEARANCE-CONTRACT-X1: the validation envelope is a full-radius
+// cylinder through the DrillPoint Tip; the emitted cavity remains cylinder+cone.
+Concept Struct SideLayout {
+    PositiveXDatum: Plane { Origin: [-20mm, 0mm, 0mm]; Normal: [1, 0, 0]; Up: [0, 0, 1] }
+}
+
+Construction Plane PositiveXWorkplane { Trace: SideLayout.PositiveXDatum }
+
+Concept Struct Layout On XY { Rect2 Guide { Center: [0mm, 0mm]; Size: [40mm, 20mm] } }
+Profile Stock Using Layout { Loop Outer {
+    Segment South { Trace: Guide.Bottom; From: Guide.BottomLeft; To: Guide.BottomRight }
+    Segment East { Trace: Guide.Right; From: Guide.BottomRight; To: Guide.TopRight }
+    Segment North { Trace: Guide.Top; From: Guide.TopRight; To: Guide.TopLeft }
+    Segment West { Trace: Guide.Left; From: Guide.TopLeft; To: Guide.BottomLeft }
+} }
+Struct Composition { Compose SideBlindHost {
+    Base StockBody { Profile: Stock; From: -10mm; To: 10mm }
+    Hole<Shaft> SideBlind {
+        From: PositiveXWorkplane
+        Center: Point2(0mm, 0mm)
+        Diameter: 2mm
+        End: ShaftDepth(10mm)
+        Termination: DrillPoint
+        Role: SideBlindDrill
+    }
+} }

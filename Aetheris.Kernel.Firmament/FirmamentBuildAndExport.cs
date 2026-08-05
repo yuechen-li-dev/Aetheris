@@ -59,6 +59,16 @@ public static class FirmamentBuildAndExport
             var emitted = PrismaticSectionStackEmitter.Emit(stack);
             if (emitted.Body is null)
                 return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition")).ToArray());
+            if ((stack.Feature.ConstructionPlaneBlindDrills?.Count ?? 0) > 0)
+            {
+                var finalPlan = SectionStackBlindDrillComposeBridge.TryApply(stack, emitted.Plan!, out var bridgeDiagnostics, out _);
+                if (finalPlan?.TopologyPlan is null)
+                    return KernelResult<FirmamentStepExportResult>.Failure(bridgeDiagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition.BlindDrill")).ToArray());
+                var materialized = PrismaticSectionStackBrepMaterializer.TryMaterialize(finalPlan.TopologyPlan);
+                if (materialized.Body is null)
+                    return KernelResult<FirmamentStepExportResult>.Failure(materialized.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition.BlindDrill")).ToArray());
+                emitted = new PrismaticSectionStackEmissionResult(materialized.Body, finalPlan, emitted.Diagnostics.Concat(bridgeDiagnostics).ToArray(), finalPlan.Correspondence);
+            }
             if (sourceText.Contains("EdgeFinish", StringComparison.Ordinal))
                 return ExportComposedSemanticTopBoundaryChamfer(sourceText, parsed, stack, emitted);
             var step = Step242Exporter.ExportBody(emitted.Body);

@@ -7,8 +7,75 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
 
-public sealed record PrismaticSectionStackBrepPlan(string Signature, int Vertices, int Edges, int Faces, string Policy, bool Authoritative, SemanticTopologyCorrespondence? Correspondence = null);
+/// <summary>Construction-owned face identity used by feature planners; never recovered from final geometry.</summary>
+public sealed record PrismaticSectionStackFacePlanMapping(
+    FaceId FaceId, string Kind, string SourceStableId, string ConstructionStableId,
+    double? SlabFrom, double? SlabTo, IReadOnlyList<string> Provenance);
+
+/// <summary>
+/// Immutable-by-convention entity plan for a normalized section stack.  The
+/// materializer may instantiate this topology but must not decide its faces,
+/// senses, bindings, or provenance.
+/// </summary>
+public sealed record PrismaticSectionStackTopologyPlan(
+    string StableId, TopologyModel Topology, BrepGeometryStore Geometry, BrepBindingModel Bindings,
+    IReadOnlyDictionary<VertexId, Point3D> VertexPoints, IReadOnlyList<PrismaticSectionStackFacePlanMapping> FaceMappings,
+    SemanticTopologyCorrespondence Correspondence, IReadOnlyList<string> Provenance);
+
+public sealed record PrismaticSectionStackBrepPlan(string Signature, int Vertices, int Edges, int Faces, string Policy, bool Authoritative,
+    SemanticTopologyCorrespondence? Correspondence = null, PrismaticSectionStackTopologyPlan? TopologyPlan = null);
 public sealed record PrismaticSectionStackEmissionResult(BrepBody? Body, PrismaticSectionStackBrepPlan? Plan, IReadOnlyList<string> Diagnostics, SemanticTopologyCorrespondence? Correspondence = null);
+public sealed record PrismaticSectionStackPlanResult(PrismaticSectionStackBrepPlan? Plan, IReadOnlyList<string> Diagnostics, SemanticTopologyCorrespondence? Correspondence = null);
+
+/// <summary>Instantiates a section-stack body from a fully-decided plan.</summary>
+public static class PrismaticSectionStackBrepMaterializer
+{
+    public static (BrepBody? Body, IReadOnlyList<string> Diagnostics) TryMaterialize(PrismaticSectionStackTopologyPlan plan)
+    {
+        var diagnostics = new List<string>();
+        if (plan.Topology.Bodies.Count() != 1 || plan.Topology.Shells.Count() != 1)
+            diagnostics.Add("SectionStackPlanInvalidShellCardinality");
+        foreach (var face in plan.Topology.Faces)
+            if (!plan.Bindings.TryGetFaceBinding(face.Id, out _)) diagnostics.Add($"SectionStackPlanMissingFaceBinding:face={face.Id.Value}");
+        foreach (var edge in plan.Topology.Edges)
+            if (!plan.Bindings.TryGetEdgeBinding(edge.Id, out _)) diagnostics.Add($"SectionStackPlanMissingEdgeBinding:edge={edge.Id.Value}");
+        if (diagnostics.Count != 0) return (null, diagnostics);
+        // A body must not share the plan's mutable backing stores.  Feature
+        // planners can retain the immutable plan as the authority while the
+        // materialized body remains an independently instantiable snapshot.
+        return (new BrepBody(CloneTopology(plan.Topology), CloneGeometry(plan.Geometry), CloneBindings(plan.Bindings),
+            plan.VertexPoints.ToDictionary(x => x.Key, x => x.Value)), diagnostics);
+    }
+
+    private static TopologyModel CloneTopology(TopologyModel source)
+    {
+        var clone = new TopologyModel();
+        foreach (var vertex in source.Vertices.OrderBy(x => x.Id.Value)) clone.AddVertex(vertex);
+        foreach (var edge in source.Edges.OrderBy(x => x.Id.Value)) clone.AddEdge(edge);
+        foreach (var coedge in source.Coedges.OrderBy(x => x.Id.Value)) clone.AddCoedge(coedge);
+        foreach (var loop in source.Loops.OrderBy(x => x.Id.Value)) clone.AddLoop(new Loop(loop.Id, loop.CoedgeIds.ToArray()));
+        foreach (var face in source.Faces.OrderBy(x => x.Id.Value)) clone.AddFace(new Face(face.Id, face.LoopIds.ToArray()));
+        foreach (var shell in source.Shells.OrderBy(x => x.Id.Value)) clone.AddShell(new Shell(shell.Id, shell.FaceIds.ToArray()));
+        foreach (var body in source.Bodies.OrderBy(x => x.Id.Value)) clone.AddBody(new Body(body.Id, body.ShellIds.ToArray()));
+        return clone;
+    }
+
+    private static BrepGeometryStore CloneGeometry(BrepGeometryStore source)
+    {
+        var clone = new BrepGeometryStore();
+        foreach (var curve in source.Curves.OrderBy(x => x.Key.Value)) clone.AddCurve(curve.Key, curve.Value);
+        foreach (var surface in source.Surfaces.OrderBy(x => x.Key.Value)) clone.AddSurface(surface.Key, surface.Value);
+        return clone;
+    }
+
+    private static BrepBindingModel CloneBindings(BrepBindingModel source)
+    {
+        var clone = new BrepBindingModel();
+        foreach (var binding in source.EdgeBindings.OrderBy(x => x.EdgeId.Value)) clone.AddEdgeBinding(binding);
+        foreach (var binding in source.FaceBindings.OrderBy(x => x.FaceId.Value)) clone.AddFaceBinding(binding);
+        return clone;
+    }
+}
 
 /// <summary>Normalizes bounded line/arc Profiles through a planar material arrangement into slabs.</summary>
 public static class PrismaticSectionStackCompiler
@@ -77,6 +144,19 @@ public static class PrismaticSectionStackEmitter
     private const double Tol = 1e-6;
     public static PrismaticSectionStackEmissionResult Emit(PrismaticSectionStackConstruction stack)
     {
+        var planned = TryPlan(stack);
+        if (planned.Plan?.TopologyPlan is null) return new(null, planned.Plan, planned.Diagnostics, planned.Correspondence);
+        var materialized = PrismaticSectionStackBrepMaterializer.TryMaterialize(planned.Plan.TopologyPlan);
+        return new(materialized.Body, planned.Plan, planned.Diagnostics.Concat(materialized.Diagnostics).Distinct().ToArray(), planned.Correspondence);
+    }
+
+    /// <summary>
+    /// The authoritative construction phase.  It makes every topology and
+    /// provenance decision before the materializer is permitted to create a
+    /// <see cref="BrepBody"/>.
+    /// </summary>
+    public static PrismaticSectionStackPlanResult TryPlan(PrismaticSectionStackConstruction stack)
+    {
         var d = stack.Diagnostics.ToList();
         var builder = new TopologyBuilder(); var points = new Dictionary<VertexId, Point3D>(); var curves = new Dictionary<EdgeId, CurveGeometry>(); var profileCurves = new Dictionary<EdgeId, LineArcProfileCurve2D>();
         var vertices = new Dictionary<(long X, long Y, long Z), VertexId>(); var edges = new Dictionary<string, EdgeId>();
@@ -136,7 +216,6 @@ public static class PrismaticSectionStackEmitter
             var a = points[edge.StartVertexId]; var b = points[edge.EndVertexId];
             d.Add($"compose-rejected:non-manifold-edge-use:edge={incidence.Key.Value}:uses={incidence.Count()}:curve={curves[incidence.Key].Kind}:from=({a.X:R},{a.Y:R},{a.Z:R}):to=({b.X:R},{b.Y:R},{b.Z:R})");
         }
-        var body = new BrepBody(builder.Model, geometry, bindings, points);
         var descendants = new List<SemanticTopologyDescendant>();
         var topLevels = stack.Feature.Operations.GroupBy(x => x.ProfileReference, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Max(y => y.To), StringComparer.Ordinal);
         var bottomLevels = stack.Feature.Operations.GroupBy(x => x.ProfileReference, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Min(y => y.From), StringComparer.Ordinal);
@@ -223,9 +302,22 @@ public static class PrismaticSectionStackEmitter
         if ((stack.Feature.ShaftHoles?.Count ?? 0) > 0) provenance.Insert(0, "SemanticHoleComposeLowering");
         if (stack.Feature.AllSlotProfiles.Any()) provenance.Insert(0, "SemanticSlotComposeLowering");
         var correspondence = new SemanticTopologyCorrespondence(stack.Feature.Name, descendants.DistinctBy(x => x.StableId).ToArray(), provenance);
-        var plan = new PrismaticSectionStackBrepPlan($"compose:{stack.Feature.Name}:slabs={stack.Slabs.Count}:transitions={stack.Transitions.Count}", points.Count, builder.Model.Edges.Count(), faces.Count, "deterministic-slab-partitions", true, correspondence);
+        var faceMappings = new List<PrismaticSectionStackFacePlanMapping>();
+        foreach (var cap in capFaces)
+            faceMappings.Add(new(cap.Face, "TransitionCap", $"transition:{cap.Z:R}", $"transition:{cap.Z:R}", null, null,
+                ["PrismaticSectionTransition", cap.Up ? "UpwardRegion" : "DownwardRegion"]));
+        for (var i = 0; i < sideFaces.Count; i++)
+        {
+            var side = sideFaces[i]; var face = faces[capFaces.Count + i];
+            faceMappings.Add(new(face, "PrismaticSide", side.Source, side.Construction, side.From, side.To,
+                ["PrismaticSectionStackConstruction", "ProfileArrangement2D", side.Source, side.Construction]));
+        }
+        var topologyPlan = new PrismaticSectionStackTopologyPlan($"compose-plan:{stack.Feature.Name}", builder.Model, geometry, bindings,
+            points.ToDictionary(x => x.Key, x => x.Value), faceMappings, correspondence, provenance);
+        var plan = new PrismaticSectionStackBrepPlan($"compose:{stack.Feature.Name}:slabs={stack.Slabs.Count}:transitions={stack.Transitions.Count}", points.Count, builder.Model.Edges.Count(), faces.Count, "deterministic-slab-partitions", true, correspondence, topologyPlan);
         d.Add("compose-authoritative-section-stack-brep-plan"); d.Add("compose-no-3d-boolean-used");
-        return new(body, plan, d.Distinct().ToArray(), correspondence);
+        d.Add("compose-plan-first-materialization-boundary");
+        return new(plan, d.Distinct().ToArray(), correspondence);
     }
     private static FaceId AddCap(TopologyBuilder builder, PrismaticSectionRegion region, double z, Func<LineArcProfileCurve2D, double, (EdgeId Edge, bool Reverse)> edge, IReadOnlyList<(double X, double Y)> splitPoints)
     {

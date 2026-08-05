@@ -509,14 +509,48 @@ public static class CliRunner
             var stack = PrismaticSectionStackCompiler.Normalize(parsedCompose, out var composeDiagnostics);
             var emittedCompose = stack is null ? null : PrismaticSectionStackEmitter.Emit(stack);
             if (stack is null || emittedCompose?.Body is null || emittedCompose.Correspondence is null) { stderr.WriteLine(string.Join(Environment.NewLine, composeDiagnostics)); return 1; }
-            var composeRequests = SemanticSelectionSourceParser.Parse(source, parsedCompose.Profiles.Values.First(), stack.Feature.Name, out var composeParseDiagnostics);
+            BlindDrillToolCorridorEvidence? corridor = null;
+            var bridgeDiagnostics = Array.Empty<string>();
+            if ((stack.Feature.ConstructionPlaneBlindDrills?.Count ?? 0) > 0)
+            {
+                var finalPlan = SectionStackBlindDrillComposeBridge.TryApply(stack, emittedCompose.Plan!, out var bridge, out corridor);
+                bridgeDiagnostics = bridge.ToArray();
+                if (finalPlan?.TopologyPlan is null) { stderr.WriteLine(string.Join(Environment.NewLine, bridgeDiagnostics)); return 1; }
+                var materialized = PrismaticSectionStackBrepMaterializer.TryMaterialize(finalPlan.TopologyPlan);
+                if (materialized.Body is null) { stderr.WriteLine(string.Join(Environment.NewLine, materialized.Diagnostics)); return 1; }
+                emittedCompose = new PrismaticSectionStackEmissionResult(materialized.Body, finalPlan, emittedCompose.Diagnostics.Concat(bridgeDiagnostics).ToArray(), finalPlan.Correspondence);
+            }
+            var composeRequests = SemanticSelectionSourceParser.Parse(source, parsedCompose.Profiles.Values.First(), stack.Feature.Name, out var composeParseDiagnostics).ToList();
+            if (corridor is not null)
+            {
+                composeRequests.AddRange([
+                    new("inspect:mouth-loop", "MouthLoop", stack.Feature.Name, [corridor.HoleId], SemanticTopologyRole.HoleEntryLoop, SemanticSelectionRequirement.ClosedLoop, "inspect-selections"),
+                    new("inspect:shaft-wall-faces", "ShaftWallFaces", stack.Feature.Name, [corridor.HoleId], SemanticTopologyRole.HoleWallFace, SemanticSelectionRequirement.NonEmptyFaceSet, "inspect-selections"),
+                    new("inspect:shaft-to-drill-point-loop", "ShaftToDrillPointLoop", stack.Feature.Name, [corridor.HoleId], SemanticTopologyRole.HoleShaftToDrillPointLoop, SemanticSelectionRequirement.ClosedLoop, "inspect-selections"),
+                    new("inspect:drill-point-faces", "DrillPointFaces", stack.Feature.Name, [corridor.HoleId], SemanticTopologyRole.HoleDrillPointFace, SemanticSelectionRequirement.NonEmptyFaceSet, "inspect-selections"),
+                    new("inspect:tip-vertex", "TipVertex", stack.Feature.Name, [corridor.HoleId], SemanticTopologyRole.HoleTipVertex, SemanticSelectionRequirement.ExactlyOne, "inspect-selections")
+                ]);
+            }
             var composeResults = composeRequests.Select(request => SemanticTopologySelectionResolver.Resolve(emittedCompose.Body, emittedCompose.Correspondence, request)).ToArray();
             stdout.WriteLine(JsonSerializer.Serialize(new
             {
                 body = emittedCompose.Correspondence.BodyStableId,
                 selections = composeResults.Select(result => new { name = result.Request.Label, stableId = result.Request.StableId, sourceIdentities = result.Request.SourceStableIds, body = result.Request.BodyStableId, expectedShape = result.Request.Require.ToString(), topologyRole = result.Request.Role?.ToString(), succeeded = result.Succeeded, failure = result.Failure.ToString(), connectivity = new { result.IsConnected, result.IsClosed }, traversalOrder = result.OrderedChain.Select(x => x.StableId), materializedDescendants = result.Descendants.Select(x => new { x.StableId, x.Kind, role = x.Role.ToString(), x.SourceStableId, x.ParentStableId }), provenance = emittedCompose.Correspondence.ProvenanceChain, consumer = result.Request.Consumer, diagnostics = result.Diagnostics }),
+                holeContract = corridor is null ? null : new
+                {
+                    ValidationPolicy = corridor.ValidationPolicy.ToString(), corridor.HoleId, corridor.HostId, corridor.ConstructionPlaneId,
+                    corridor.Radius, corridor.ShaftDepth, corridor.TipLength, corridor.TotalDepth,
+                    ClearanceCylinderLength = corridor.TotalDepth,
+                    HostTraversalClassification = corridor.Classification.ToString(),
+                    RelevantHostSlabs = corridor.ShaftSliceProofs.Select(x => new { z = new[] { x.ZFrom, x.ZTo }, x.Provenance }),
+                    ChordProofs = corridor.ShaftSliceProofs.Select(x => new { z = new[] { x.ZFrom, x.ZTo }, axial = new[] { x.AxisFrom, x.AxisTo }, cross = new[] { x.CrossFrom, x.CrossTo }, x.ToolPart, classification = x.Classification.ToString(), x.Detail, x.Provenance }),
+                    corridor.RemainingWall,
+                    ContractSatisfied = corridor.Classification == BlindDrillToolCorridorClassification.CorridorProven,
+                    ConservativeRejection = corridor.Classification == BlindDrillToolCorridorClassification.FullRadiusTipClearanceFailed,
+                    diagnostics = corridor.Diagnostics
+                },
                 arrangement = stack.Slabs.Select(s => new { slab = new[] { s.From, s.To }, fragments = s.Arrangement?.AtomicFragments.Select(f => new { f.StableId, source = f.Source.Provenance.StableId, f.FromParameter, f.ToParameter, f.MaterialOnLeft, f.Retained }) }),
-                diagnostics = composeDiagnostics.Concat(composeParseDiagnostics).Distinct()
+                diagnostics = composeDiagnostics.Concat(composeParseDiagnostics).Concat(bridgeDiagnostics).Distinct()
             }, JsonOptions));
             return composeDiagnostics.Count == 0 && composeParseDiagnostics.Count == 0 && composeResults.All(x => x.Succeeded) ? 0 : 1;
         }

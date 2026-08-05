@@ -3,12 +3,15 @@ using Aetheris.Kernel.Core.Geometry.Curves;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
 
-/// <summary>Classification of the complete, transverse blind drilling tool volume.</summary>
+/// <summary>The deliberately conservative semantic admission rule for Blind DrillPoint holes.</summary>
+public enum BlindDrillClearancePolicy { FullRadiusThroughTotalDepth }
+
+/// <summary>Classification of the full-radius transverse blind clearance corridor.</summary>
 public enum BlindDrillToolCorridorClassification
 {
     CorridorProven, MouthUnsupported, ShaftBoundaryCrossing, ShaftVoidIntersection,
     ConeBoundaryCrossing, ConeVoidIntersection, TipOutsideMaterial,
-    DisconnectedHostCorridor, TangentialAmbiguity, Unsupported
+    FullRadiusTipClearanceFailed, InnerVoidIntersection, DisconnectedHostCorridor, TangentialAmbiguity, Unsupported
 }
 
 public enum SectionRectangleCorridorClassification { FullyContained, CrossesOuterBoundary, IntersectsInnerVoid, Tangential, Ambiguous, UnsupportedBoundary }
@@ -23,16 +26,16 @@ public sealed record BlindDrillToolCorridorEvidence(
     double Radius, double ShaftDepth, double TipLength, double TotalDepth, double PointAngle,
     IReadOnlyList<SectionRectangleCorridorProof> ShaftSliceProofs,
     IReadOnlyList<SectionRectangleCorridorProof> ConeSliceProofs,
+    BlindDrillClearancePolicy ValidationPolicy,
     double? RemainingWall, BlindDrillToolCorridorClassification Classification,
     IReadOnlyList<string> Diagnostics, IReadOnlyList<string> Provenance);
 
 /// <summary>
 /// Bounded transverse (+/-X, +/-Y) blind-drill proof. At each world-Z slab it
-/// proves a tool envelope in the slab's native XY material region. The shaft
-/// envelope follows the exact circular YZ/XZ chord; the cone uses the enclosing
-/// analytic rectangle for that slab. This is conservative for the cone and is
-/// intentionally rejected rather than approximated when its enclosure cannot
-/// be proven.
+/// proves the full shaft-radius cylindrical clearance envelope in the slab's
+/// native XY material region. The actual B-rep remains a shaft plus conical
+/// DrillPoint; this clearance cylinder is a visible, deliberate semantic
+/// superset through TotalDepth.
 /// </summary>
 internal static class TransverseBlindDrillToolCorridor
 {
@@ -63,7 +66,7 @@ internal static class TransverseBlindDrillToolCorridor
         var positive = axis.X > 0d || axis.Y > 0d; var xAxis = Math.Abs(axis.X) > .5d;
         var axialMouth = xAxis ? mouth.X : mouth.Y; var crossCenter = xAxis ? mouth.Y : mouth.X;
         var shaftEnd = axialMouth + (positive ? shaft : -shaft); var tipEnd = axialMouth + (positive ? total : -total);
-        var shaftProofs = new List<SectionRectangleCorridorProof>(); var coneProofs = new List<SectionRectangleCorridorProof>();
+        var clearanceProofs = new List<SectionRectangleCorridorProof>();
         foreach (var slab in slabs)
         {
             var z0 = Math.Max(slab.From, radialZMin); var z1 = Math.Min(slab.To, radialZMax);
@@ -72,24 +75,11 @@ internal static class TransverseBlindDrillToolCorridor
             // closure supplies the exact circular Mouth support separately in a
             // host-integrated plan. No alternative mouth is searched for here.
             var insideMouth = axialMouth + (positive ? EntryInset : -EntryInset);
-            var shaftProof = QueryRectangle(slab.Region, z0, z1, insideMouth, shaftEnd,
-                crossCenter - maxChord, crossCenter + maxChord, xAxis, "Shaft");
-            shaftProofs.Add(shaftProof);
-
-            // At fixed Z the exact cone is curved in the axial/cross plane. The
-            // rectangle below is its analytic enclosing envelope: s is bounded
-            // by L(1-|dz|/r), and the maximum cross chord occurs at s=0. A host
-            // containing this rectangle necessarily contains the full cone slice.
-            var dz = Math.Abs(NearestTo(mouth.Z, z0, z1) - mouth.Z);
-            var coneLength = tip * Math.Max(0d, 1d - dz / radius);
-            var coneEnd = shaftEnd + (positive ? coneLength : -coneLength);
-            var coneProof = QueryRectangle(slab.Region, z0, z1, shaftEnd, coneEnd,
-                crossCenter - maxChord, crossCenter + maxChord, xAxis, "DrillPoint");
-            coneProofs.Add(coneProof);
+            clearanceProofs.Add(QueryRectangle(slab.Region, z0, z1, insideMouth, tipEnd,
+                crossCenter - maxChord, crossCenter + maxChord, xAxis, "FullRadiusClearance"));
         }
 
-        var all = shaftProofs.Concat(coneProofs).ToArray();
-        var classification = Classify(all, diagnostics);
+        var classification = Classify(clearanceProofs, diagnostics);
         double? remaining = null;
         // The physical RemainingWall is direction-specific distance beyond the
         // tip and needs host-boundary correspondence. This proof does not invent
@@ -98,14 +88,15 @@ internal static class TransverseBlindDrillToolCorridor
             diagnostics.Add("RemainingWallRequiresHostBoundaryCorrespondence: corridor is proven but no final host boundary distance was inferred.");
         return new(feature.FeatureId, feature.TargetBodyId ?? stack.Feature.Name, placement.ConstructionPlaneId,
             [mouth.X, mouth.Y, mouth.Z], [axis.X, axis.Y, axis.Z], radius, shaft, tip, total, point.PointAngleDegrees,
-            shaftProofs, coneProofs, remaining, classification, diagnostics, ["PrismaticSectionStackConstruction", "ProfileArrangement2D", "TransverseYZorXZChord", "ConservativeAnalyticConeEnvelope", "NoTessellation"]);
+            clearanceProofs, [], BlindDrillClearancePolicy.FullRadiusThroughTotalDepth, remaining, classification, diagnostics,
+            ["PrismaticSectionStackConstruction", "ProfileArrangement2D", "TransverseYZorXZChord", "FullRadiusThroughTotalDepth", "NoConeEnvelopeAcceptance", "NoTessellation"]);
 
         BlindDrillToolCorridorEvidence Fail(string diagnostic, BlindDrillToolCorridorClassification kind)
         {
             diagnostics.Add(diagnostic);
             return new(feature.FeatureId, feature.TargetBodyId ?? stack.Feature.Name, placement.ConstructionPlaneId,
                 [mouth.X, mouth.Y, mouth.Z], [axis.X, axis.Y, axis.Z], feature.Shaft.Radius, 0d, 0d, 0d,
-                feature.Termination is AirHoleTermination.DrillPoint p ? p.PointAngleDegrees : 0d, [], [], null, kind, diagnostics,
+                feature.Termination is AirHoleTermination.DrillPoint p ? p.PointAngleDegrees : 0d, [], [], BlindDrillClearancePolicy.FullRadiusThroughTotalDepth, null, kind, diagnostics,
                 ["PrismaticSectionStackConstruction", "NoBoxIntervalFallback"]);
         }
     }
@@ -117,8 +108,8 @@ internal static class TransverseBlindDrillToolCorridor
         diagnostics.Add($"ToolCorridorFailure: part={failure.ToolPart}; z=[{failure.ZFrom:R},{failure.ZTo:R}]; axial=[{failure.AxisFrom:R},{failure.AxisTo:R}]; cross=[{failure.CrossFrom:R},{failure.CrossTo:R}]; detail={failure.Detail}.");
         return failure.Classification switch
         {
-            SectionRectangleCorridorClassification.IntersectsInnerVoid => failure.ToolPart == "Shaft" ? BlindDrillToolCorridorClassification.ShaftVoidIntersection : BlindDrillToolCorridorClassification.ConeVoidIntersection,
-            SectionRectangleCorridorClassification.CrossesOuterBoundary => failure.ToolPart == "Shaft" ? BlindDrillToolCorridorClassification.ShaftBoundaryCrossing : BlindDrillToolCorridorClassification.ConeBoundaryCrossing,
+            SectionRectangleCorridorClassification.IntersectsInnerVoid => BlindDrillToolCorridorClassification.InnerVoidIntersection,
+            SectionRectangleCorridorClassification.CrossesOuterBoundary => BlindDrillToolCorridorClassification.FullRadiusTipClearanceFailed,
             SectionRectangleCorridorClassification.Tangential => BlindDrillToolCorridorClassification.TangentialAmbiguity,
             _ => BlindDrillToolCorridorClassification.Unsupported
         };

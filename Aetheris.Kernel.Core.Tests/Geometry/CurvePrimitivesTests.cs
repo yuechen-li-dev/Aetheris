@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 
@@ -96,6 +97,54 @@ public sealed class CurvePrimitivesTests
                 majorRadius: 2,
                 minorRadius: 3,
                 referenceAxis: Direction3D.Create(new Vector3D(1, 0, 0))));
+    }
+
+    [Fact]
+    public void Hyperbola_EvaluateDerivativesAndReverse_AreAnalyticAndDeterministic()
+    {
+        var hyperbola = new Hyperbola3Curve(
+            new Point3D(3d, -2d, 5d),
+            Direction3D.Create(new Vector3D(0d, 0d, 1d)),
+            Direction3D.Create(new Vector3D(1d, 0d, 0d)),
+            semiAxisA: 4d,
+            semiAxisB: 3d,
+            HyperbolaBranch.PositiveAxisU);
+
+        AssertPoint(hyperbola.Evaluate(0d), new Point3D(7d, -2d, 5d));
+        AssertVector(hyperbola.FirstDerivative(0d), new Vector3D(0d, 3d, 0d));
+        AssertVector(hyperbola.SecondDerivative(0d), new Vector3D(4d, 0d, 0d));
+        AssertPoint(hyperbola.Reverse().Evaluate(0.7d), hyperbola.Evaluate(-0.7d));
+        AssertVector(hyperbola.AxisU.ToVector().Cross(hyperbola.AxisV.ToVector()), hyperbola.PlaneNormal.ToVector());
+    }
+
+    [Theory]
+    [InlineData("x")]
+    [InlineData("minus-x")]
+    [InlineData("y")]
+    [InlineData("minus-y")]
+    public void TransverseConeWorldZIntersection_ProducesForwardHyperbolaOnCone(string orientation)
+    {
+        var axis = orientation switch
+        {
+            "x" => new Vector3D(1d, 0d, 0d),
+            "minus-x" => new Vector3D(-1d, 0d, 0d),
+            "y" => new Vector3D(0d, 1d, 0d),
+            _ => new Vector3D(0d, -1d, 0d),
+        };
+        var reference = Direction3D.Create(new Vector3D(0d, 0d, 1d));
+        var cone = new ConeSurface(new Point3D(1d, 2d, 3d), Direction3D.Create(axis), double.Pi / 6d, reference);
+        var result = TransverseConePlaneIntersection.IntersectWorldZ(cone, 5d);
+
+        Assert.True(result.IsSuccess);
+        var curve = result.Value;
+        var point = curve.Evaluate(0.4d);
+        var offset = point - cone.Apex;
+        var axial = offset.Dot(cone.Axis.ToVector());
+        var radial = (offset - (cone.Axis.ToVector() * axial)).Length;
+        Assert.True(axial > 0d);
+        Assert.Equal(axial * double.Tan(cone.SemiAngleRadians), radial, 10);
+        Assert.Equal(2d / double.Tan(cone.SemiAngleRadians), curve.SemiAxisA, 10);
+        Assert.Equal(2d, curve.SemiAxisB, 10);
     }
 
     private static void AssertPoint(Point3D actual, Point3D expected)

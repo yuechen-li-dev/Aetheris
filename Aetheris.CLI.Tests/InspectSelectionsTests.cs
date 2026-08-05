@@ -43,6 +43,26 @@ public sealed class InspectSelectionsTests
         Assert.All(json.RootElement.GetProperty("selectionResults").EnumerateArray(), result => Assert.True(result.GetProperty("succeeded").GetBoolean()));
     }
 
+    [Fact]
+    public void InspectSelections_ComposedBlindDrillReportsConservativeClearanceContract()
+    {
+        var root = FindRepoRoot();
+        var source = Path.Combine(root, "fixtures", "FirmamentV2", "ProfileComposition", "valid", "construction-plane-blind-drill-clearance.firmament");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+
+        var exit = Aetheris.CLI.CliRunner.Run(["inspect-selections", source, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exit); Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        using var json = JsonDocument.Parse(stdout.ToString());
+        var contract = json.RootElement.GetProperty("holeContract");
+        Assert.Equal("FullRadiusThroughTotalDepth", contract.GetProperty("validationPolicy").GetString());
+        Assert.True(contract.GetProperty("contractSatisfied").GetBoolean());
+        Assert.Equal("CorridorProven", contract.GetProperty("hostTraversalClassification").GetString());
+        Assert.All(contract.GetProperty("chordProofs").EnumerateArray(), proof => Assert.Equal("FullRadiusClearance", proof.GetProperty("toolPart").GetString()));
+        Assert.Equal(5, json.RootElement.GetProperty("selections").GetArrayLength());
+        Assert.All(json.RootElement.GetProperty("selections").EnumerateArray(), result => Assert.True(result.GetProperty("succeeded").GetBoolean()));
+    }
+
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

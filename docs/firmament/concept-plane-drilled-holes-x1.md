@@ -2,7 +2,10 @@
 
 ## Status
 
-This milestone is **not implemented** in the current production compiler.  This
+This Hole milestone is **not implemented** in the current production compiler.  The
+immutable local material-frame prerequisite is now implemented by
+[CONSTRUCTION-PLANES-X1](construction-planes-x1.md); local-frame host subtraction and
+drill-point cones remain deferred. This
 document records the verified boundary so that a future implementation can extend
 the existing compiler-owned `AirHoleFeature` family instead of creating a parallel
 feature system or accidentally treating a mutable BRep face as an authoring
@@ -96,4 +99,3 @@ it must not infer values from screenshots.
 `dotnet build Aetheris.slnx -f net10.0 --no-restore /m:1` both succeeded on the
 current worktree. The build reports pre-existing JavaScript dependency
 vulnerability warnings from the JavaScript SDK audit; it has no .NET errors.
-

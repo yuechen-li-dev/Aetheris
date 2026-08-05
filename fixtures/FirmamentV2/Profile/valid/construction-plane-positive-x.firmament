@@ -1,0 +1,15 @@
+Concept Struct SideLayout {
+    PositiveXDatum: Plane { Origin: [10mm, 2mm, 3mm]; Normal: [1, 0, 0]; Up: [0, 0, 1] }
+}
+
+Construction Plane PositiveXWorkplane { Trace: SideLayout.PositiveXDatum }
+
+Profile SideProfile Using PositiveXWorkplane {
+    Rect2 Outline { Center: [0mm, 0mm]; Size: [20mm, 10mm] }
+    Segment Bottom { Trace: Outline.Bottom; From: Outline.BottomLeft; To: Outline.BottomRight }
+    Segment Right { Trace: Outline.Right; From: Outline.BottomRight; To: Outline.TopRight }
+    Segment Top { Trace: Outline.Top; From: Outline.TopRight; To: Outline.TopLeft }
+    Segment Left { Trace: Outline.Left; From: Outline.TopLeft; To: Outline.BottomLeft }
+}
+
+Extrude Solid { Profile: SideProfile; From: -5mm; To: 5mm }

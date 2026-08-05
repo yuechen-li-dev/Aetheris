@@ -443,6 +443,7 @@ public static class CliRunner
             profile = new
             {
                 parsed.Profile.Name, parsed.Profile.PlaneFrame,
+                constructionPlane = DescribeConstructionPlane(parsed.Profile.EffectiveConstructionPlane),
                 loops = parsed.Profile.Loops.Count,
                 segments = parsed.Profile.Loops.SelectMany(x => x.Segments).Select(x =>
                 {
@@ -456,6 +457,16 @@ public static class CliRunner
         if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions)); else stdout.WriteLine($"Profile {parsed.Profile.Name}: {(validation.IsValid ? "valid" : "invalid")}");
         return validation.IsValid ? 0 : 1;
     }
+
+    private static object DescribeConstructionPlane(ConstructionPlane plane) => new
+    {
+        plane.StableId, plane.SourceConceptId,
+        origin = new[] { plane.Origin.X, plane.Origin.Y, plane.Origin.Z },
+        axisX = new[] { plane.AxisX.ToVector().X, plane.AxisX.ToVector().Y, plane.AxisX.ToVector().Z },
+        axisY = new[] { plane.AxisY.ToVector().X, plane.AxisY.ToVector().Y, plane.AxisY.ToVector().Z },
+        axisZ = new[] { plane.AxisZ.ToVector().X, plane.AxisZ.ToVector().Y, plane.AxisZ.ToVector().Z },
+        plane.Handedness, plane.Determinant, plane.SourceSpan, plane.Provenance
+    };
 
     private static (string Name, string Kind, string? Parent) DescribeProfileGuide(string stableId)
     {

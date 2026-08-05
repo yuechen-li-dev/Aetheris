@@ -12,6 +12,7 @@ internal static class CadmataFixtureService
     private static readonly IReadOnlyDictionary<string, string> FixturePaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["direct-profile"] = "fixtures/FirmamentV2/Profile/valid/scaffold-rectangle.firmament",
+        ["construction-plane-positive-x"] = "fixtures/FirmamentV2/Profile/valid/construction-plane-positive-x.firmament",
         ["split-compose-chamfer"] = "fixtures/FirmamentV2/ProfileComposition/valid/semantic-split-compose-chamfer.firmament",
         ["semantic-shaft-hole"] = "fixtures/FirmamentV2/Hole/valid/semantic-shaft-selection.firmament",
         ["ctc-01-x3"] = "testdata/firmament/reconstructions/nist_ctc_01/ctc01_prismatic_blockout_x3.firmament",
@@ -67,12 +68,19 @@ internal static class CadmataFixtureService
     {
         var entities = new List<CadmataVisualizationEntityDto>();
         foreach (var profile in profiles)
+        {
+            var frame = profile.EffectiveConstructionPlane;
+            var axes = new[] { frame.Origin, frame.Origin + frame.AxisX.ToVector() * 8, frame.Origin, frame.Origin + frame.AxisY.ToVector() * 8, frame.Origin, frame.Origin + frame.AxisZ.ToVector() * 8 }
+                .Select(p => new CadmataPointDto(p.X, p.Y, p.Z)).ToArray();
+            entities.Add(new(frame.StableId, "ConstructionPlane", profile.PlaneFrame, "constructionPlanes", "ConstructionFrame", new("polyline", axes), frame.SourceSpan, [frame.SourceConceptId], null, null, null, null, null, null, null, new Dictionary<string, string> { ["sourceConceptId"] = frame.SourceConceptId, ["handedness"] = frame.Handedness, ["determinant"] = frame.Determinant.ToString("R") }));
+            entities.Add(new(frame.SourceConceptId, "ConceptPlane", frame.SourceConceptId, "conceptPlanes", "ConceptGuide", new("polyline", axes), frame.SourceSpan, null, null, null, [frame.StableId], null, null, null, null, null));
         foreach (var segment in profile.Loops.SelectMany(loop => loop.Segments))
         {
             var guideId = segment.Provenance.ConceptStableId;
-            entities.Add(new(guideId, "ConceptGuide", guideId.Replace("concept:", "", StringComparison.Ordinal), "profileGuides", "ConstructionGuide", Geometry(segment.Geometry), segment.Provenance.SourceSpan, null, [segment.Provenance.StableId], null, null, null, null, null, null, null));
+            entities.Add(new(guideId, "ConceptGuide", guideId.Replace("concept:", "", StringComparison.Ordinal), "profileGuides", "ConstructionGuide", Geometry(segment.Geometry, frame), segment.Provenance.SourceSpan, [frame.StableId], [segment.Provenance.StableId], null, null, null, null, null, null, null));
             var descendants = correspondence?.Descendants.Where(d => d.SourceStableId == segment.Provenance.StableId).ToArray() ?? [];
-            entities.Add(new(segment.Provenance.StableId, "ProfileSegment", segment.Name, "profileLoops", "ProfileBoundary", Geometry(segment.Geometry), segment.Provenance.SourceSpan, [guideId], null, descendants.Where(d => d.Kind == "ArrangementFragment").Select(d => d.StableId).ToArray(), descendants.Where(d => d.Kind != "ArrangementFragment").Select(d => d.StableId).ToArray(), null, null, null, null, new Dictionary<string, string> { ["derivation"] = segment.Provenance.Derivation }));
+            entities.Add(new(segment.Provenance.StableId, "ProfileSegment", segment.Name, "profileLoops", "ProfileBoundary", Geometry(segment.Geometry, frame), segment.Provenance.SourceSpan, [guideId, frame.StableId], null, descendants.Where(d => d.Kind == "ArrangementFragment").Select(d => d.StableId).ToArray(), descendants.Where(d => d.Kind != "ArrangementFragment").Select(d => d.StableId).ToArray(), null, null, null, null, new Dictionary<string, string> { ["derivation"] = segment.Provenance.Derivation, ["constructionPlaneId"] = frame.StableId }));
+        }
         }
         if (fixtureId == "semantic-shaft-hole")
         {
@@ -118,12 +126,13 @@ internal static class CadmataFixtureService
         var selection = new CadmataVisualizationSelectionDto($"selection:{fixtureId}", hasSemanticFeatures ? "semantic feature descendants" : "compiler-published profile boundary", hasSemanticFeatures ? "FaceSet" : "LoopSet", selectionSourceIds, selectionSourceIds, !hasSemanticFeatures, []);
         return new("cadmata-concept-viz-x1", fixtureId, sourcePath, entities, [selection], diagnostics.Select(d => new CadmataVisualizationDiagnosticDto("Compiler.Trace", d, "info")).ToArray(), new Dictionary<string, double> { ["entityCount"] = entities.Count, ["faceCount"] = body.Topology.Faces.Count(), ["edgeCount"] = body.Topology.Edges.Count() });
     }
-    private static CadmataGeometryDto Geometry(LineArcProfileCurve2D curve) => curve switch
+    private static CadmataGeometryDto Geometry(LineArcProfileCurve2D curve, ConstructionPlane frame) => curve switch
     {
-        LineArcLineSegment2D line => new("polyline", [new(line.Start.X, line.Start.Y, 0), new(line.End.X, line.End.Y, 0)]),
-        LineArcCircularArc2D arc => new("polyline", ArcPoints(arc)),
+        LineArcLineSegment2D line => new("polyline", [World(line.Start, frame), World(line.End, frame)]),
+        LineArcCircularArc2D arc => new("polyline", ArcPoints(arc).Select(p => World((p.X, p.Y), frame)).ToArray()),
         _ => new("polyline", []),
     };
+    private static CadmataPointDto World((double X, double Y) local, ConstructionPlane frame) { var point = frame.ToWorld(local); return new(point.X, point.Y, point.Z); }
     private static IReadOnlyList<CadmataPointDto> ArcPoints(LineArcCircularArc2D arc) => Enumerable.Range(0, 25).Select(i => { var a = arc.StartAngleRadians + arc.SweepAngleRadians * i / 24d; return new CadmataPointDto(arc.Center.X + arc.Radius * Math.Cos(a), arc.Center.Y + arc.Radius * Math.Sin(a), 0); }).ToArray();
     private static string FindRepositoryRoot()
     {

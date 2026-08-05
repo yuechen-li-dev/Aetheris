@@ -52,7 +52,7 @@ public sealed record ConceptIrBox3Value(string StableId, ConceptIrPoint3 Min, Co
     public IReadOnlyList<double> Size => [Max.X - Min.X, Max.Y - Min.Y, Max.Z - Min.Z];
     public ConceptIrPoint3 Center => new((Min.X + Max.X) / 2d, (Min.Y + Max.Y) / 2d, (Min.Z + Max.Z) / 2d);
 }
-public sealed record ConceptIrPlaneValue(string StableId, ConceptIrPoint3 Origin, ConceptIrVector3 Normal, string Provenance)
+public sealed record ConceptIrPlaneValue(string StableId, ConceptIrPoint3 Origin, ConceptIrVector3 Normal, string Provenance, ConceptIrVector3? OrientationHint = null)
     : ConceptIrValue(StableId, ConceptIrValueKind.Plane, Provenance);
 public sealed record ConceptIrAxisValue(string StableId, ConceptIrPoint3 Origin, ConceptIrVector3 Direction, string Provenance)
     : ConceptIrValue(StableId, ConceptIrValueKind.Axis, Provenance);
@@ -309,6 +309,28 @@ internal static class ConceptIrResolver
         var modifyBlock = new FirmamentV2ModifyBlock(modify.Groups["target"].Value, [], holes, finishes);
         return new(materialized.Groups["name"].Value, materialized.Groups["kind"].Value, "mm", box.Groups["name"].Value, size, boundsProvenance,
             modifyBlock, ir);
+    }
+
+    /// <summary>Resolves a compile-time Concept plane for a Construction Plane trace without materializing a BRep feature.</summary>
+    public static bool TryResolvePlane(string source, string reference, out ConceptIrPlaneValue? plane, out string? diagnostic)
+    {
+        plane = null; diagnostic = null;
+        var match = Regex.Match(reference, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
+        if (!match.Success) { diagnostic = "ConstructionPlaneTraceMissing: Trace must name ConceptStruct.Plane"; return false; }
+        var diagnostics = new List<string>(); var selections = new List<ConceptIrStaticSelection>();
+        var instances = new Dictionary<string, ConceptIrStructInstance>(StringComparer.Ordinal);
+        foreach (Match declaration in ConceptStructHeader.Matches(source))
+        {
+            var open = source.IndexOf('{', declaration.Index); var close = FindMatchingBrace(source, open);
+            if (close < 0) { diagnostic = InvalidSpatialDerivation; return false; }
+            var name = declaration.Groups["name"].Value;
+            var body = source[(open + 1)..close];
+            instances[name] = new(name, [], ResolveMembers(name, body, open + 1, "", ParseEnums(source, diagnostics), selections, diagnostics), false, "CompileTimeOnlyErased", new(declaration.Index, close - declaration.Index + 1));
+        }
+        if (!instances.TryGetValue(match.Groups["instance"].Value, out var instance) || !instance.Members.TryGetValue(match.Groups["member"].Value, out var value))
+        { diagnostic = "ConceptPlaneNotFound: " + reference; return false; }
+        if (value is not ConceptIrPlaneValue resolved) { diagnostic = "ConstructionPlaneTraceMissing: " + reference + " is not a Plane"; return false; }
+        plane = resolved; return true;
     }
 
     private static IReadOnlyList<FirmamentV2SemanticHoleDecl> ParseConceptHoles(
@@ -726,6 +748,14 @@ internal static class ConceptIrResolver
             var face = Regex.Match(expression, @"^(?<box>[A-Za-z_][A-Za-z0-9_]*)\.Face\((?<axis>[+-][XYZ])\)$", RegexOptions.CultureInvariant);
             if (face.Success && EvaluateMember(face.Groups["box"].Value) is ConceptIrBox3Value faceBox)
                 return new ConceptIrPlaneValue(Id(provenance), FaceCenter(faceBox, face.Groups["axis"].Value), Vector(face.Groups["axis"].Value), provenance);
+            var plane = Regex.Match(expression, @"^Plane\s*\{(?<body>.*)\}$", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+            if (plane.Success)
+            {
+                var planeBody = plane.Groups["body"].Value;
+                if (!TryVectorField(planeBody, "Origin", out var origin) || !TryVectorField(planeBody, "Normal", out var normal)) { diagnostics.Add(InvalidSpatialDerivation); return null; }
+                var hasUp = TryVectorField(planeBody, "Up", out var up);
+                return new ConceptIrPlaneValue(Id(provenance), new(origin.X, origin.Y, origin.Z), new(normal.X, normal.Y, normal.Z), provenance, hasUp ? new(up.X, up.Y, up.Z) : null);
+            }
             var axis = Regex.Match(expression, @"^(?<box>[A-Za-z_][A-Za-z0-9_]*)\.Center\.Axis\((?<axis>[+-][XYZ])\)$", RegexOptions.CultureInvariant);
             if (axis.Success && EvaluateMember(axis.Groups["box"].Value) is ConceptIrBox3Value axisBox)
                 return new ConceptIrAxisValue(Id(provenance), axisBox.Center, Vector(axis.Groups["axis"].Value), provenance);
@@ -751,6 +781,13 @@ internal static class ConceptIrResolver
             }
             if (reportFailure) diagnostics.Add($"{InvalidSpatialDerivation}:{instanceName}.{target.Name}:{expression}");
             return null;
+        }
+
+        private static bool TryVectorField(string body, string name, out (double X, double Y, double Z) vector)
+        {
+            var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*\[(?<x>[-+.\d]+)(?:mm)?\s*,\s*(?<y>[-+.\d]+)(?:mm)?\s*,\s*(?<z>[-+.\d]+)(?:mm)?\s*\]", RegexOptions.CultureInvariant);
+            if (match.Success && double.TryParse(match.Groups["x"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var x) && double.TryParse(match.Groups["y"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var y) && double.TryParse(match.Groups["z"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var z) && double.IsFinite(x) && double.IsFinite(y) && double.IsFinite(z)) { vector = (x, y, z); return true; }
+            vector = default; return false;
         }
 
         private ConceptIrValue? EvaluateMatch(string expression, ParsedConceptMember target)

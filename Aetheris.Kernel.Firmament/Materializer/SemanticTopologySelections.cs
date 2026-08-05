@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 namespace Aetheris.Kernel.Firmament.Materializer;
 
 /// <summary>Stable roles assigned while an authoritative plan is materialized.  These are not geometric queries.</summary>
-public enum SemanticTopologyRole { Unknown, ProfileVertex, VerticalExtrusionEdge, TopBoundary, BottomBoundary, ExtrusionSideFace, TopFaceBoundaryLoop, BottomFaceBoundaryLoop, HoleEntryLoop, HoleExitLoop, HoleWallFace, SlotEntryLoop, SlotExitLoop, SlotWallFace, SlotStraightWallFace, SlotEndWallFace, ComposeTransition }
+public enum SemanticTopologyRole { Unknown, ProfileVertex, VerticalExtrusionEdge, LocalStartBoundary, LocalEndBoundary, LocalStartCapLoop, LocalEndCapLoop, TopBoundary, BottomBoundary, ExtrusionSideFace, TopFaceBoundaryLoop, BottomFaceBoundaryLoop, HoleEntryLoop, HoleExitLoop, HoleWallFace, SlotEntryLoop, SlotExitLoop, SlotWallFace, SlotStraightWallFace, SlotEndWallFace, ComposeTransition }
 public enum SemanticSelectionRequirement { ExactlyOne, OneOrMore, ConnectedChain, ClosedLoop, NonEmptyFaceSet }
 public enum SemanticSelectionFailure { None, SemanticSourceNotFound, NoMaterializedDescendants, AmbiguousBodyContext, SelectionCardinalityMismatch, DescendantsNotConnected, DescendantsBranch, DescendantsDoNotClose, MixedBoundaryRoles, UnsupportedTopologyChange, SelectionConsumerMismatch }
 

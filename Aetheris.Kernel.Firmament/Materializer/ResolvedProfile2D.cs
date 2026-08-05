@@ -4,7 +4,10 @@ namespace Aetheris.Kernel.Firmament.Materializer;
 public sealed record ProfileSegmentProvenance(string StableId, string ConceptStableId, string SourceSpan, string Derivation, string SourceFrame);
 public sealed record ResolvedProfileSegment2D(string Name, LineArcProfileCurve2D Geometry, ProfileSegmentProvenance Provenance);
 public sealed record ResolvedProfileLoop2D(string Name, bool IsOuter, IReadOnlyList<ResolvedProfileSegment2D> Segments);
-public sealed record ResolvedProfile2D(string Name, string PlaneFrame, IReadOnlyList<ResolvedProfileLoop2D> Loops);
+public sealed record ResolvedProfile2D(string Name, string PlaneFrame, IReadOnlyList<ResolvedProfileLoop2D> Loops, ConstructionPlane? ConstructionPlane = null)
+{
+    public ConstructionPlane EffectiveConstructionPlane => ConstructionPlane ?? Materializer.ConstructionPlane.WorldXY;
+}
 public sealed record ResolvedProfileValidationResult(bool IsValid, double SignedArea, IReadOnlyList<string> Diagnostics);
 
 public static class ResolvedProfile2DValidator

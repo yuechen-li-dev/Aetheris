@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Brep.Tessellation;
+using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Materializer;
 
@@ -101,6 +102,31 @@ public sealed class PrismaticProfileCompositionRoundTripTests
     }
 
     [Fact]
+    public void Ctc01X4_MultipleCurvedInnerLoopsTessellateAndRespectVoidOrientation()
+    {
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "testdata", "firmament", "reconstructions", "nist_ctc_01", "ctc01_prismatic_blockout_x4.firmament")));
+        var parsed = PrismaticProfileCompositionParser.Parse(source);
+        var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
+        Assert.Empty(diagnostics);
+
+        var emitted = PrismaticSectionStackEmitter.Emit(stack);
+        var body = Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(emitted.Body);
+        var holeWalls = emitted.Correspondence!.Descendants
+            .Where(descendant => descendant.Role == SemanticTopologyRole.HoleWallFace)
+            .Select(descendant => descendant.Face!.Value)
+            .Distinct()
+            .ToArray();
+        Assert.Equal(32, holeWalls.Length);
+        Assert.All(holeWalls, face => Assert.False(body.Bindings.FaceBindings.Single(binding => binding.FaceId == face).SameSense));
+
+        var m8 = BrepMassProperties.Evaluate(body);
+        Assert.NotEqual(BrepMassPropertiesStatus.Unavailable, m8.Status);
+        Assert.True(m8.IsEnclosed, string.Join(" | ", m8.Diagnostics));
+        Assert.True(m8.IsOrientationConsistent, string.Join(" | ", m8.Diagnostics));
+        Assert.InRange(Math.Abs(m8.AbsoluteVolume - stack.AnalyticVolume), 0d, m8.ErrorBound ?? 0d);
+    }
+
+    [Fact]
     public void MixedLineArcAdditiveOverlap_PreservesAnalyticCurvesAcrossStepRoundTrip()
     {
         var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "FirmamentV2", "ProfileComposition", "mixed-line-arc-additive-overlap.firmament")));
@@ -185,6 +211,70 @@ public sealed class PrismaticProfileCompositionRoundTripTests
         var reimported = BrepMassProperties.Evaluate(imported.Value);
         Assert.True(reimported.IsEnclosed, string.Join(" | ", reimported.Diagnostics));
         Assert.Equal(expectedVolume, reimported.AbsoluteVolume, 6);
+    }
+
+    [Fact]
+    public void SemanticThroughShaftHoles_UseActualHostBoundaryAndPublishTypedCorrespondence()
+    {
+        var source = """
+            Concept Struct Layout On XY {
+                Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [30mm, 20mm]; Role: ProfileGuide }
+                Rect2 PadGuide { Center: [0mm, 0mm]; Size: [6mm, 6mm]; Role: ProfileGuide }
+            }
+            Profile BaseProfile Using Layout { Loop Outer {
+                Segment South { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
+                Segment East { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
+                Segment North { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
+                Segment West { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
+            } }
+            Profile PadProfile Using Layout { Loop Outer {
+                Segment South { Trace: PadGuide.Bottom; From: PadGuide.BottomLeft; To: PadGuide.BottomRight }
+                Segment East { Trace: PadGuide.Right; From: PadGuide.BottomRight; To: PadGuide.TopRight }
+                Segment North { Trace: PadGuide.Top; From: PadGuide.TopRight; To: PadGuide.TopLeft }
+                Segment West { Trace: PadGuide.Left; From: PadGuide.TopLeft; To: PadGuide.BottomLeft }
+            } }
+            Struct Composition { Compose Body {
+                Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
+                Add Pad { Profile: PadProfile; From: 10mm; To: 15mm; Role: Pad }
+                Hole<Shaft> LeftMount { Center: [-10mm, 3mm]; Diameter: 4mm; End: ThroughAll; Role: MountingHole }
+                Hole<Shaft> RightMount { Center: [10mm, 3mm]; Diameter: 4mm; End: ThroughAll; Role: MountingHole }
+            } }
+            """;
+
+        var parsed = PrismaticProfileCompositionParser.Parse(source);
+        Assert.Empty(parsed.Diagnostics);
+        Assert.Equal(2, parsed.Feature!.ShaftHoles!.Count);
+        var normalized = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
+        Assert.True(normalized is not null, string.Join(" | ", diagnostics));
+        var stack = normalized!;
+        Assert.Empty(diagnostics);
+        Assert.Equal(2, Assert.Single(stack.Slabs, slab => slab.From == 0d && slab.To == 10d).Region.Holes.Count);
+        Assert.Equal(6180d - 80d * Math.PI, stack.AnalyticVolume, 8);
+
+        var emitted = PrismaticSectionStackEmitter.Emit(stack);
+        Assert.DoesNotContain(emitted.Diagnostics, diagnostic => diagnostic.StartsWith("compose-rejected", StringComparison.Ordinal));
+        var body = Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(emitted.Body);
+        var correspondence = Assert.IsType<SemanticTopologyCorrespondence>(emitted.Correspondence);
+        const string sourceId = "hole:Body.LeftMount";
+        Assert.Single(correspondence.Descendants, descendant => descendant.SourceStableId == sourceId && descendant.Role == SemanticTopologyRole.HoleEntryLoop);
+        Assert.Single(correspondence.Descendants, descendant => descendant.SourceStableId == sourceId && descendant.Role == SemanticTopologyRole.HoleExitLoop);
+        Assert.Equal(4, correspondence.Descendants.Count(descendant => descendant.SourceStableId == sourceId && descendant.Role == SemanticTopologyRole.HoleWallFace));
+        var wallFaceIds = correspondence.Descendants.Where(descendant => descendant.SourceStableId == sourceId && descendant.Role == SemanticTopologyRole.HoleWallFace).Select(descendant => descendant.Face!.Value).ToHashSet();
+        var wallDisplayFaces = AnalyticDisplayPacketBuilder.Build(body).AnalyticFaces.Where(face => wallFaceIds.Contains(face.FaceId)).ToArray();
+        Assert.Equal(4, wallDisplayFaces.Length);
+        Assert.All(wallDisplayFaces, face =>
+        {
+            Assert.NotNull(face.DomainHint);
+            Assert.Equal(Math.PI / 2d, face.DomainHint!.Value.MaxU!.Value - face.DomainHint.Value.MinU!.Value, 8);
+            Assert.Equal(10d, face.DomainHint.Value.MaxV!.Value - face.DomainHint.Value.MinV!.Value, 8);
+        });
+        var entry = SemanticTopologySelectionResolver.Resolve(body, correspondence,
+            new("selection:left-entry", "LeftEntry", "Body", [sourceId], SemanticTopologyRole.HoleEntryLoop, SemanticSelectionRequirement.ClosedLoop, "test"));
+        Assert.True(entry.Succeeded, string.Join(" | ", entry.Diagnostics));
+        Assert.True(entry.IsClosed);
+        var entryEdge = body.Topology.Edges.Single(edge => edge.Id == body.Topology.Coedges.First(coedge => coedge.LoopId == entry.Descendants.Single().Loop).EdgeId);
+        Assert.True(body.TryGetVertexPoint(entryEdge.StartVertexId, out var entryPoint));
+        Assert.Equal(10d, entryPoint.Z, 8);
     }
 
     private static string Source(string kind) => $$"""

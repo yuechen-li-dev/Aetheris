@@ -70,7 +70,7 @@ internal static class StaticGeometryExpansion
         }
         scaffold.Append("}\n");
         // Keep the non-repetitive primary/mid/hex declarations authored in the source.
-        var suffixStart = source.IndexOf("// X3 static expansion keeps", StringComparison.Ordinal);
+        var suffixStart = source.IndexOf("Profile PrimaryWeb", StringComparison.Ordinal);
         var suffix = suffixStart >= 0 ? source[suffixStart..] : string.Empty;
         var result = scaffold + profiles.ToString() + suffix;
         // A group is source-only.  Its members retain the data key in the lowered

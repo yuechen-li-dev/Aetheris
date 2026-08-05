@@ -14,13 +14,15 @@ only those links; it never guesses a BRep match from rendered triangles.
 real compiler fixtures directly through the existing Profile, composition, and
 semantic-hole materializers, adds the resulting body to the document, and returns
 the matching artifact. Available fixture IDs are `direct-profile`,
-`split-compose-chamfer`, `semantic-shaft-hole`, and `ctc-01-x3`.
+`split-compose-chamfer`, `semantic-shaft-hole`, `ctc-01-x3`, and `ctc-01-x4`.
 
 The bridge uses the compiler's `SemanticTopologyCorrespondence`.  In particular,
 the shaft-hole route exposes the authored `hole:base.mount`, its axis and entry
 circle, entry/exit loops and edges, and its wall face. Composition routes expose
 Profile guides/segments plus arrangement/materialized descendants from the
-authoritative section-stack plan.
+authoritative section-stack plan. CTC-01 X4 additionally exposes each authored
+composed-host shaft Hole as one `HoleFeature`; its erased four-arc lowering
+Profiles are deliberately omitted from the author-facing scene.
 
 ## Viewport architecture
 
@@ -60,13 +62,15 @@ surface identity and normals.
 
 The existing renderer keeps one mesh per face, so smooth normals cannot bridge
 real BRep face boundaries. Cylindrical/conical faces may use the analytic preview
-or bounded fallback mesh according to DisplayIR. Exact trim/silhouette curves,
-analytic-normal shaders, and display LOD remain future work.
+or bounded fallback mesh according to DisplayIR. DisplayIR publishes face-local
+angular and axial domain hints for trimmed cylinders and cones, and the preview
+tessellates only that bounded `(u,v)` domain. Exact trim/silhouette curve
+rendering, analytic-normal shaders, and display LOD remain future work.
 
 ## Evidence and limits
 
 The fixture bridge has been compiled against direct Profile extrusion,
-split-compose, semantic shaft-hole, and CTC-01 X3 sources. CTC X3 supplies the
+split-compose, semantic shaft-hole, and CTC-01 X3/X4 sources. CTC X3 supplies the
 expanded lobe/scaffold/Profile/Compose evidence emitted by the composition
 materializer. The split-compose fixture currently visualizes the source-grounded
 pre-finish composition correspondence; its EdgeFinish consumer is recorded by
@@ -75,7 +79,8 @@ post-finish correspondence producer before it can truthfully claim descendant
 faces. This is intentionally surfaced as a current limitation rather than
 heuristically mapped.
 
-The next reconstruction pressure test should be CTC-01 with the central hex top
-loop and one lobe outer-arc selection carried through a real feature consumer,
-so arrangement fragments, an ordered selection, and replacement topology can be
-validated together.
+CTC X4 carries the four Ø35 semantic shaft holes through arrangement and the
+authoritative section stack. Selecting a Hole follows its compiler-published
+entry/exit loops, boundary edges, and all slab-split wall faces. The next
+visualization pressure case remains post-EdgeFinish replacement correspondence;
+replacement faces must not be inferred heuristically.

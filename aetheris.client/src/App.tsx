@@ -709,7 +709,7 @@ function App() {
                             <section className="tool-section cadmata-inspector">
                                 <h2 className="section-title">Cadmata compiler evidence</h2>
                                 <div className="stack-row">
-                                    {['direct-profile', 'split-compose-chamfer', 'semantic-shaft-hole', 'ctc-01-x3'].map((fixtureId) => <Button key={fixtureId} type="button" variant="outline" onClick={() => void handleLoadCadmataFixture(fixtureId)} disabled={!documentId || status === 'loading'}>{fixtureId}</Button>)}
+                                    {['direct-profile', 'split-compose-chamfer', 'semantic-shaft-hole', 'ctc-01-x3', 'ctc-01-x4'].map((fixtureId) => <Button key={fixtureId} type="button" variant="outline" onClick={() => void handleLoadCadmataFixture(fixtureId)} disabled={!documentId || status === 'loading'}>{fixtureId}</Button>)}
                                 </div>
                                 {cadmataArtifact ? <>
                                     <p><strong>{cadmataArtifact.fixtureId}</strong> · {cadmataArtifact.metrics?.entityCount ?? 0} evidence entities</p>

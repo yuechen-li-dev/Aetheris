@@ -80,7 +80,7 @@ public static class ApiMappings
                 face.SurfaceGeometryId.Value,
                 face.SurfaceKind.ToString(),
                 face.LoopCount,
-                face.DomainHint is { } hint ? new AnalyticDisplayFaceDomainHintDto(hint.MinV, hint.MaxV) : null,
+                face.DomainHint is { } hint ? new AnalyticDisplayFaceDomainHintDto(hint.MinU, hint.MaxU, hint.MinV, hint.MaxV) : null,
                 face.SurfaceGeometry.Plane is { } plane ? new AnalyticDisplayPlaneGeometryDto(
                     ToPointDto(plane.Origin),
                     ToVectorDto(plane.Normal.ToVector()),

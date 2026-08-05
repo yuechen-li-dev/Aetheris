@@ -176,4 +176,46 @@ describe('DisplayIRMapper', () => {
     expect(scene?.renderables[0].materializationLane).toBe('BoundedMesh');
     expect(scene?.renderables[0].status).toBe('Mesh');
   });
+
+  it('BuildsAnalyticCylinderPreviewOnlyOverPublishedAngularTrim', () => {
+    const scene = mapDisplayPreparationToDisplayScene(prepWithFaces([{
+      faceId: 13,
+      shellId: 1,
+      surfaceKind: 'Cylinder',
+      status: 'Analytic',
+      patchKind: 'AnalyticPatch',
+      materializationLane: 'AnalyticPatch',
+      diagnostics: [],
+      wirePatch: null,
+      meshPatch: null,
+      analyticPatch: {
+        faceId: 13,
+        shellId: 1,
+        shellRole: 'Outer',
+        surfaceGeometryId: 15,
+        surfaceKind: 'Cylinder',
+        loopCount: 1,
+        domainHint: { minU: 0, maxU: Math.PI / 2, minV: 0, maxV: 2 },
+        planeGeometry: null,
+        coneGeometry: null,
+        sphereGeometry: null,
+        torusGeometry: null,
+        cylinderGeometry: {
+          origin: { x: 0, y: 0, z: 0 },
+          axis: { x: 0, y: 0, z: 1 },
+          xAxis: { x: 1, y: 0, z: 0 },
+          yAxis: { x: 0, y: 1, z: 0 },
+          radius: 1,
+        },
+      },
+    }]));
+
+    const renderable = scene?.renderables[0];
+    expect(renderable?.kind).toBe('AnalyticPatch');
+    if (renderable?.kind !== 'AnalyticPatch') throw new Error('Expected analytic patch.');
+    expect(renderable.previewMesh.positions).toHaveLength(42); // seven points, bottom and top
+    const values = [...renderable.previewMesh.positions];
+    expect(Math.min(...values.filter((_, index) => index % 3 === 0))).toBeGreaterThanOrEqual(-1e-6);
+    expect(Math.min(...values.filter((_, index) => index % 3 === 1))).toBeGreaterThanOrEqual(-1e-6);
+  });
 });

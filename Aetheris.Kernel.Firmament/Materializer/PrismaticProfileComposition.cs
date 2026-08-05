@@ -10,13 +10,17 @@ namespace Aetheris.Kernel.Firmament.Materializer;
 public enum PrismaticProfileIntent { Base, Add, Remove }
 public sealed record PrismaticProfileOperation(
     string Name, PrismaticProfileIntent Intent, string ProfileReference, double From, double To,
-    string SemanticRole, string SourceSpan);
+    string SemanticRole, string SourceSpan, string? SemanticFeatureId = null, string? SemanticFeatureKind = null,
+    double? Diameter = null);
+public sealed record PrismaticShaftHoleFeature(
+    string Name, string StableId, string ProfileReference, double CenterX, double CenterY, double Diameter,
+    double From, double To, string SemanticRole, string SourceSpan);
 public sealed record PrismaticProfilePlacement(
     string Name, double AnchorX, double AnchorY, double AnchorZ,
     string ProfilePlane, string Axis, string ReferenceDirection, bool IsExplicit);
 public sealed record PrismaticProfileCompositionFeature(
     string Name, string Frame, string Axis, PrismaticProfilePlacement Placement, IReadOnlyList<PrismaticProfileOperation> Operations,
-    IReadOnlyList<double> CriticalLevels, string Provenance);
+    IReadOnlyList<double> CriticalLevels, string Provenance, IReadOnlyList<PrismaticShaftHoleFeature>? ShaftHoles = null);
 public sealed record PrismaticSectionRegion(
     ResolvedProfile2D Outer, IReadOnlyList<ResolvedProfile2D> Holes, IReadOnlyList<string> Provenance);
 public sealed record PrismaticSectionSlab(
@@ -46,6 +50,11 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex ComposeHead = new(@"\bCompose\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex Placement = new(@"\bPlacement\s+(?<n>\w+)\s*\{\s*Anchor\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\s*,\s*(?<z>[-+.\d]+)mm\]\s*;?\s*ProfilePlane\s*:\s*(?<plane>\w+)\s*;?\s*Axis\s*:\s*(?<axis>[+-][XYZ])\s*;?\s*ReferenceDirection\s*:\s*(?<reference>[+-][XYZ])", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Operation = new(@"\b(?<intent>Base|Add|Remove)\s+(?<n>\w+)\s*\{\s*Profile\s*:\s*(?<profile>\w+)\s*;?\s*From\s*:\s*(?<from>[-+.\d]+)mm\s*;?\s*To\s*:\s*(?<to>[-+.\d]+)mm(?:\s*;?\s*Role\s*:\s*(?<role>\w+))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    private static readonly Regex HoleHeader = new(@"\bHole\s*<\s*(?<variant>\w+)\s*>\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleCenter = new(@"\bCenter\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleDiameter = new(@"\bDiameter\s*:\s*(?<d>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleEnd = new(@"\bEnd\s*:\s*(?<end>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleRole = new(@"\bRole\s*:\s*(?<role>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     public static bool IsCompositionSource(string source) => ComposeHead.IsMatch(source);
 
@@ -139,9 +148,47 @@ public static class PrismaticProfileCompositionParser
             operations.Add(new(name, Enum.Parse<PrismaticProfileIntent>(match.Groups["intent"].Value), profile, from, to, match.Groups["role"].Success ? match.Groups["role"].Value : match.Groups["intent"].Value, $"offset:{match.Index}"));
         }
         if (operations.Count(o => o.Intent == PrismaticProfileIntent.Base) != 1) diagnostics.Add("compose-requires-exactly-one-base-operation");
+        var shaftHoles = new List<PrismaticShaftHoleFeature>();
+        var materialFrom = operations.Count == 0 ? 0d : operations.Min(x => x.From);
+        var materialTo = operations.Count == 0 ? 0d : operations.Max(x => x.To);
+        foreach (Match header in HoleHeader.Matches(composeBody))
+        {
+            var name = header.Groups["n"].Value;
+            var body = Block(composeBody, header.Index + header.Length - 1);
+            if (body is null) { diagnostics.Add($"compose-hole-unclosed:{name}"); continue; }
+            var center = HoleCenter.Match(body); var diameter = HoleDiameter.Match(body); var end = HoleEnd.Match(body); var role = HoleRole.Match(body);
+            if (!string.Equals(header.Groups["variant"].Value, "Shaft", StringComparison.OrdinalIgnoreCase)
+                || !end.Success || !string.Equals(end.Groups["end"].Value, "ThroughAll", StringComparison.OrdinalIgnoreCase))
+            { diagnostics.Add($"compose-hole-unsupported-variant-or-end:{name}"); continue; }
+            if (!center.Success || !diameter.Success) { diagnostics.Add($"compose-hole-missing-center-or-diameter:{name}"); continue; }
+            var x = N(center, "x"); var y = N(center, "y"); var d = N(diameter, "d");
+            if (!double.IsFinite(x) || !double.IsFinite(y) || !double.IsFinite(d) || d <= 0d) { diagnostics.Add($"compose-hole-invalid-center-or-diameter:{name}"); continue; }
+            if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
+            var profileName = $"{name}ShaftProfile";
+            if (profiles.ContainsKey(profileName)) { diagnostics.Add($"compose-hole-profile-name-collision:{name}:{profileName}"); continue; }
+            var stableId = $"hole:{compose.Groups["n"].Value}.{name}";
+            var holeProfile = CircleProfile(profileName, x, y, d / 2d, stableId, $"offset:{header.Index}");
+            var validation = ResolvedProfile2DValidator.Validate(holeProfile);
+            diagnostics.AddRange(validation.Diagnostics);
+            if (!validation.IsValid) continue;
+            profiles.Add(profileName, holeProfile);
+            var semanticRole = role.Success ? role.Groups["role"].Value : "ShaftHole";
+            var sourceSpan = $"offset:{header.Index}";
+            shaftHoles.Add(new(name, stableId, profileName, x, y, d, materialFrom, materialTo, semanticRole, sourceSpan));
+            operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, materialFrom, materialTo, semanticRole, sourceSpan, stableId, "Hole<Shaft>", d));
+        }
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition") : null;
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
+    }
+
+    private static ResolvedProfile2D CircleProfile(string profileName, double x, double y, double radius, string holeStableId, string sourceSpan)
+    {
+        var names = new[] { "EastToNorth", "NorthToWest", "WestToSouth", "SouthToEast" };
+        var segments = Enumerable.Range(0, 4).Select(i => new ResolvedProfileSegment2D(
+            names[i], new LineArcCircularArc2D((x, y), radius, i * Math.PI / 2d, Math.PI / 2d),
+            new($"profile:{profileName}.Outer.{names[i]}", $"{holeStableId}.axis", sourceSpan, $"Hole<Shaft>({holeStableId})", "XY"))).ToArray();
+        return new(profileName, "XY", [new ResolvedProfileLoop2D("Outer", true, segments)]);
     }
 
     private static double N(Match match, string name) => double.Parse(match.Groups[name].Value, CultureInfo.InvariantCulture);

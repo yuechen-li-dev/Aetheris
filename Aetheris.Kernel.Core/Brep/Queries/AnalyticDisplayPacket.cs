@@ -20,7 +20,7 @@ public enum AnalyticDisplayShellRole
     Unknown,
 }
 
-public readonly record struct AnalyticDisplayFaceDomainHint(double? MinV, double? MaxV);
+public readonly record struct AnalyticDisplayFaceDomainHint(double? MinU, double? MaxU, double? MinV, double? MaxV);
 
 public sealed record AnalyticDisplayFaceEntry(
     FaceId FaceId,
@@ -108,11 +108,13 @@ public static class AnalyticDisplayPacketBuilder
         switch (surface.Kind)
         {
             case SurfaceGeometryKind.Cylinder when surface.Cylinder is CylinderSurface cylinder:
-                ResolveAxialBounds(body, faceId, cylinder.Axis, cylinder.Origin, out var cylinderMin, out var cylinderMax);
-                return new AnalyticDisplayFaceDomainHint(cylinderMin, cylinderMax);
+                return ResolveFaceDomain(body, faceId, cylinder.Origin, cylinder.Axis, cylinder.XAxis, cylinder.YAxis);
             case SurfaceGeometryKind.Cone when surface.Cone is ConeSurface cone:
-                ResolveAxialBounds(body, faceId, cone.Axis, cone.Apex, out var coneMin, out var coneMax);
-                return new AnalyticDisplayFaceDomainHint(coneMin, coneMax);
+                var coneAxis = cone.Axis.ToVector();
+                var reference = cone.ReferenceAxis.ToVector();
+                var coneX = Direction3D.Create(reference - (coneAxis * reference.Dot(coneAxis)));
+                var coneY = Direction3D.Create(coneAxis.Cross(coneX.ToVector()));
+                return ResolveFaceDomain(body, faceId, cone.Apex, cone.Axis, coneX, coneY);
             default:
                 return null;
         }
@@ -144,34 +146,58 @@ public static class AnalyticDisplayPacketBuilder
         return result;
     }
 
-    private static void ResolveAxialBounds(BrepBody body, FaceId sideFaceId, Direction3D axis, Point3D axisOrigin, out double? minV, out double? maxV)
+    private static AnalyticDisplayFaceDomainHint ResolveFaceDomain(BrepBody body, FaceId faceId, Point3D origin, Direction3D axis, Direction3D xAxis, Direction3D yAxis)
     {
-        minV = null;
-        maxV = null;
-        var axisVector = axis.ToVector();
-
-        foreach (var faceBinding in body.Bindings.FaceBindings.OrderBy(binding => binding.FaceId.Value))
+        var samples = new List<Point3D>();
+        var hasFullCircleBoundary = false;
+        foreach (var loopId in body.Topology.GetFace(faceId).LoopIds)
+        foreach (var coedgeId in body.Topology.GetLoop(loopId).CoedgeIds)
         {
-            if (faceBinding.FaceId == sideFaceId)
+            var edgeId = body.Topology.GetCoedge(coedgeId).EdgeId;
+            var edge = body.Topology.GetEdge(edgeId);
+            if (body.TryGetVertexPoint(edge.StartVertexId, out var start)) samples.Add(start);
+            if (body.TryGetVertexPoint(edge.EndVertexId, out var end)) samples.Add(end);
+            if (!body.Bindings.TryGetEdgeBinding(edgeId, out var binding)
+                || binding.TrimInterval is not { } trim
+                || !body.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve)
+                || curve?.Circle3 is not { } circle)
             {
                 continue;
             }
-
-            var surface = body.Geometry.GetSurface(faceBinding.SurfaceGeometryId);
-            if (surface.Kind != SurfaceGeometryKind.Plane || surface.Plane is not PlaneSurface plane)
-            {
-                continue;
-            }
-
-            var dot = plane.Normal.ToVector().Dot(axisVector);
-            if (double.Abs(double.Abs(dot) - 1d) > 1e-6d)
-            {
-                continue;
-            }
-
-            var v = (plane.Origin - axisOrigin).Dot(axisVector);
-            minV = minV.HasValue ? double.Min(minV.Value, v) : v;
-            maxV = maxV.HasValue ? double.Max(maxV.Value, v) : v;
+            if (trim.End - trim.Start >= (2d * double.Pi) - 1e-7d) hasFullCircleBoundary = true;
+            else samples.Add(circle.Evaluate((trim.Start + trim.End) / 2d));
         }
+
+        var axisVector = axis.ToVector();
+        var axial = samples.Select(point => (point - origin).Dot(axisVector)).ToArray();
+        var minV = axial.Length > 0 ? axial.Min() : (double?)null;
+        var maxV = axial.Length > 0 ? axial.Max() : (double?)null;
+        if (hasFullCircleBoundary) return new(null, null, minV, maxV);
+
+        var x = xAxis.ToVector();
+        var y = yAxis.ToVector();
+        var angles = samples.Select(point => point - origin)
+            .Select(radial => double.Atan2(radial.Dot(y), radial.Dot(x)))
+            .Select(angle => angle < 0d ? angle + (2d * double.Pi) : angle)
+            .Order()
+            .Aggregate(new List<double>(), (unique, angle) =>
+            {
+                if (unique.Count == 0 || double.Abs(unique[^1] - angle) > 1e-7d) unique.Add(angle);
+                return unique;
+            });
+        if (angles.Count < 2) return new(null, null, minV, maxV);
+
+        var largestGap = double.NegativeInfinity;
+        var gapIndex = 0;
+        for (var i = 0; i < angles.Count; i++)
+        {
+            var next = i + 1 < angles.Count ? angles[i + 1] : angles[0] + (2d * double.Pi);
+            var gap = next - angles[i];
+            if (gap > largestGap) { largestGap = gap; gapIndex = i; }
+        }
+        var minU = angles[(gapIndex + 1) % angles.Count];
+        var maxU = angles[gapIndex];
+        if (maxU < minU) maxU += 2d * double.Pi;
+        return new(minU, maxU, minV, maxV);
     }
 }

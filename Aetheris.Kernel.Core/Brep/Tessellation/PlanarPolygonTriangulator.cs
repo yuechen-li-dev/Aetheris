@@ -577,6 +577,7 @@ internal static class PlanarPolygonTriangulator
         }
 
         var node = start;
+        var end = start;
         var changed = false;
         do
         {
@@ -584,23 +585,31 @@ internal static class PlanarPolygonTriangulator
 
             if (PointsAlmostEqual(node.Point, node.Next!.Point))
             {
+                if (node == node.Next) return null;
+                var removesEnd = node == end;
+                var previous = node.Prev!;
                 RemoveNode(node);
-                node = node.Prev!;
+                node = previous;
+                if (removesEnd) end = previous;
                 changed = true;
             }
             else if (double.Abs(Orientation(node.Prev!.Point, node.Point, node.Next.Point)) <= Epsilon)
             {
+                if (node == node.Next) return null;
+                var removesEnd = node == end;
+                var previous = node.Prev!;
                 RemoveNode(node);
-                node = node.Prev!;
+                node = previous;
+                if (removesEnd) end = previous;
                 changed = true;
             }
             else
             {
                 node = node.Next!;
             }
-        } while (changed || node != start);
+        } while (changed || node != end);
 
-        return node;
+        return end;
     }
 
     private static void RemoveNode(Node node)

@@ -550,7 +550,8 @@ public static class CliRunner
                 name = stack.Feature.Name, frame = stack.Feature.Frame, axis = stack.Feature.Axis,
                 placement = new { stack.Feature.Placement.Name, anchor = new[] { stack.Feature.Placement.AnchorX, stack.Feature.Placement.AnchorY, stack.Feature.Placement.AnchorZ }, profilePlane = stack.Feature.Placement.ProfilePlane, stack.Feature.Placement.Axis, stack.Feature.Placement.ReferenceDirection, stack.Feature.Placement.IsExplicit },
                 signatures = new { composition = CompositionSignature(stack), profiles = parsed.Profiles.OrderBy(x => x.Key, StringComparer.Ordinal).ToDictionary(x => x.Key, x => ProfileSignature(x.Value), StringComparer.Ordinal) },
-                operations = stack.Feature.Operations.Select(x => new { x.Name, intent = x.Intent.ToString(), profile = x.ProfileReference, x.From, x.To, x.SemanticRole, x.SourceSpan, signature = Hash($"{x.Intent}|{x.ProfileReference}|{x.From:R}|{x.To:R}|{x.SemanticRole}") }),
+                operations = stack.Feature.Operations.Select(x => new { x.Name, intent = x.Intent.ToString(), profile = x.ProfileReference, x.From, x.To, x.SemanticRole, x.SourceSpan, x.SemanticFeatureId, x.SemanticFeatureKind, x.Diameter, signature = Hash($"{x.Intent}|{x.ProfileReference}|{x.From:R}|{x.To:R}|{x.SemanticRole}|{x.SemanticFeatureId}|{x.Diameter:R}") }),
+                shaftHoles = (stack.Feature.ShaftHoles ?? []).Select(x => new { x.Name, x.StableId, profile = x.ProfileReference, center = new[] { x.CenterX, x.CenterY }, x.Diameter, x.From, x.To, endCondition = "ThroughAll", x.SemanticRole, x.SourceSpan }),
                 criticalLevels = stack.Feature.CriticalLevels,
                 slabs = stack.Slabs.Select(x => new
                 {

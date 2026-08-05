@@ -89,7 +89,7 @@ public sealed record CadmataVisualizationSelectionDto(string StableId, string La
 public sealed record CadmataVisualizationArtifactDto(string SchemaVersion, string FixtureId, string SourcePath, IReadOnlyList<CadmataVisualizationEntityDto> Entities, IReadOnlyList<CadmataVisualizationSelectionDto> Selections, IReadOnlyList<CadmataVisualizationDiagnosticDto> Diagnostics, IReadOnlyDictionary<string, double> Metrics);
 public sealed record CadmataFixtureLoadResponseDto(string DocumentId, string BodyId, string DefinitionId, string FixtureId, CadmataVisualizationArtifactDto Visualization);
 
-public sealed record AnalyticDisplayFaceDomainHintDto(double? MinV, double? MaxV);
+public sealed record AnalyticDisplayFaceDomainHintDto(double? MinU, double? MaxU, double? MinV, double? MaxV);
 
 public sealed record AnalyticDisplayPlaneGeometryDto(
     Point3Dto Origin,

@@ -30,3 +30,11 @@ rectangular primary-plate subset, and two exact four-hole patterns through the
 current production route. The full audit, comparison, M8 contradiction, and gap
 ledger are in `docs/reconstruction/ctc01-reconstruction-a1.md` and
 `artifacts/reconstruction/ctc01/`.
+
+## Semantic prismatic reconstruction
+
+- `ctc01_prismatic_blockout_x2.firmament`: initial exact Profile/Compose blockout.
+- `ctc01_prismatic_blockout_x3.firmament`: shared Concept/template scaffold, exact lobe arcs, mid-level web, central hex, and stable semantic selections.
+- `ctc01_prismatic_blockout_x4.firmament`: preserves X3 and adds the four reference-backed Ø35 mounting holes as semantic `Hole<Shaft>/ThroughAll` features inside the composition.
+
+The X4 investigation, feature ranking, Cadmata evidence, verification, and LLM-authoring friction log are in `docs/reconstruction/ctc01-llm-pressure-x4.md`.

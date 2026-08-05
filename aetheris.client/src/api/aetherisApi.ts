@@ -104,6 +104,8 @@ export interface TessellationResponseDto {
 }
 
 export interface AnalyticDisplayFaceDomainHintDto {
+    minU?: number | null;
+    maxU?: number | null;
     minV: number | null;
     maxV: number | null;
 }

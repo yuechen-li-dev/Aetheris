@@ -45,3 +45,20 @@ The CTC-01 blockout remains one `PrismaticSectionStackBrepPlan` with three norma
 `Rect2` may replace manually declared rectangular corners and sides in this source route. It uses `Center: [xmm, ymm]` and `Size: [wmm, hmm]`; derived finite sides are traced as `Base.Bottom`, `Base.Right`, `Base.Top`, and `Base.Left` with corresponding named corners.
 
 Profiles are a bounded planar blockout and escape-hatch mechanism. Higher-level semantic CNC features remain preferred where they express the actual intent.
+
+## Semantic shaft holes in a composition
+
+`Compose` admits one bounded semantic subtractive form when a circle Profile would hide manufacturing intent:
+
+```firmament
+Hole<Shaft> Mount {
+    Center: [25mm, 10mm]
+    Diameter: 8mm
+    End: ThroughAll
+    Role: MountingHole
+}
+```
+
+This X1 route accepts `Shaft` and `ThroughAll` only. It statically lowers the declaration to an erased four-arc removal Profile across the composition interval, participates in the same exact arrangement/set semantics, and emits no 3D Boolean tool. The semantic Hole stable ID remains the source for entry/exit loops and edges plus all cylindrical wall-face descendants. Entry and exit are derived from the retained host boundary, so `ThroughAll` remains correct when material at the hole center occupies only part of the composition's global axial range.
+
+Use `inspect-compose --json` for the compact `shaftHoles` table and `inspect-selections --json` with `Source: Hole(Name)` plus `Target: HoleEntry`, `HoleExit`, or `HoleWall`. Stepped, blind, counterbored, countersunk, or non-`+Z` composed-host holes remain outside this bounded route.

@@ -1,0 +1,67 @@
+// CTC-01 X4: preserve the X3 prismatic blockout and add the four observed
+// diameter-35 mounting shaft holes through the full lobe/web thickness.
+Record LobeSpec { Key: Symbol; Path: Point2[]; InnerCenter: Point2; OuterCenter: Point2; Radius: Length; InnerStart: Point2; InnerEnd: Point2; OuterStart: Point2; OuterEnd: Point2; Sweep: ArcSweep; Role: ConceptRole }
+Let Lobes: LobeSpec[] = [
+  LobeSpec { Key: LeftTop; Path: [[-400mm,125mm],[-250mm,125mm],[-250mm,175mm],[-300mm,225mm],[-350mm,225mm],[-400mm,175mm]]; InnerCenter: [-300mm,175mm]; OuterCenter: [-350mm,175mm]; Radius: 50mm; InnerStart: [-250mm,175mm]; InnerEnd: [-300mm,225mm]; OuterStart: [-350mm,225mm]; OuterEnd: [-400mm,175mm]; Sweep: CounterClockwise; Role: StrongInferenceR50Lobe }
+  LobeSpec { Key: RightTop; Path: [[250mm,125mm],[400mm,125mm],[400mm,175mm],[350mm,225mm],[300mm,225mm],[250mm,175mm]]; InnerCenter: [300mm,175mm]; OuterCenter: [350mm,175mm]; Radius: 50mm; InnerStart: [300mm,225mm]; InnerEnd: [250mm,175mm]; OuterStart: [400mm,175mm]; OuterEnd: [350mm,225mm]; Sweep: CounterClockwise; Role: StrongInferenceR50Lobe }
+  LobeSpec { Key: LeftBottom; Path: [[-350mm,-225mm],[-300mm,-225mm],[-250mm,-175mm],[-250mm,-125mm],[-400mm,-125mm],[-400mm,-175mm]]; InnerCenter: [-300mm,-175mm]; OuterCenter: [-350mm,-175mm]; Radius: 50mm; InnerStart: [-300mm,-225mm]; InnerEnd: [-250mm,-175mm]; OuterStart: [-400mm,-175mm]; OuterEnd: [-350mm,-225mm]; Sweep: CounterClockwise; Role: StrongInferenceR50Lobe }
+  LobeSpec { Key: RightBottom; Path: [[300mm,-225mm],[350mm,-225mm],[400mm,-175mm],[400mm,-125mm],[250mm,-125mm],[250mm,-175mm]]; InnerCenter: [300mm,-175mm]; OuterCenter: [350mm,-175mm]; Radius: 50mm; InnerStart: [250mm,-175mm]; InnerEnd: [300mm,-225mm]; OuterStart: [350mm,-225mm]; OuterEnd: [400mm,-175mm]; Sweep: CounterClockwise; Role: StrongInferenceR50Lobe }
+]
+Template RoundedLobe<Spec: LobeSpec> { Concept Struct Layout { } Profile Shape { } }
+Expand Lobes With RoundedLobe
+
+Profile PrimaryWeb Using Ctc01BlockoutScaffold { Loop Outer {
+  Segment South { Trace: PrimaryWebGuide.Bottom; From: PrimaryWebGuide.BottomLeft; To: PrimaryWebGuide.BottomRight }
+  Segment East { Trace: PrimaryWebGuide.Right; From: PrimaryWebGuide.BottomRight; To: PrimaryWebGuide.TopRight }
+  Segment North { Trace: PrimaryWebGuide.Top; From: PrimaryWebGuide.TopRight; To: PrimaryWebGuide.TopLeft }
+  Segment West { Trace: PrimaryWebGuide.Left; From: PrimaryWebGuide.TopLeft; To: PrimaryWebGuide.BottomLeft }
+} }
+Profile MidLevelWeb Using Ctc01BlockoutScaffold { Loop Outer {
+  Segment South { Trace: MidLevelGuide.Bottom; From: MidLevelGuide.BottomLeft; To: MidLevelGuide.BottomRight }
+  Segment East { Trace: MidLevelGuide.Right; From: MidLevelGuide.BottomRight; To: MidLevelGuide.TopRight }
+  Segment North { Trace: MidLevelGuide.Top; From: MidLevelGuide.TopRight; To: MidLevelGuide.TopLeft }
+  Segment West { Trace: MidLevelGuide.Left; From: MidLevelGuide.TopLeft; To: MidLevelGuide.BottomLeft }
+} }
+Concept Struct Ctc01HexGuide On XY {
+  Point2 HexSouth { Position: [0mm,-57.7350538379252mm] } Point2 HexSouthEast { Position: [50mm,-28.8675403784439mm] } Point2 HexNorthEast { Position: [50mm,28.8674865405187mm] } Point2 HexNorth { Position: [0mm,57.735mm] } Point2 HexNorthWest { Position: [-50mm,28.8674865405186mm] } Point2 HexSouthWest { Position: [-50mm,-28.8675403784438mm] }
+  Line2 HexSE { From: HexSouth; To: HexSouthEast } Line2 HexE { From: HexSouthEast; To: HexNorthEast } Line2 HexNE { From: HexNorthEast; To: HexNorth } Line2 HexNW { From: HexNorth; To: HexNorthWest } Line2 HexW { From: HexNorthWest; To: HexSouthWest } Line2 HexSW { From: HexSouthWest; To: HexSouth }
+}
+Profile CentralHex Using Ctc01HexGuide { Loop Outer {
+ Segment SouthEast { Trace: HexSE; From: HexSouth; To: HexSouthEast } Segment East { Trace: HexE; From: HexSouthEast; To: HexNorthEast } Segment NorthEast { Trace: HexNE; From: HexNorthEast; To: HexNorth } Segment NorthWest { Trace: HexNW; From: HexNorth; To: HexNorthWest } Segment West { Trace: HexW; From: HexNorthWest; To: HexSouthWest } Segment SouthWest { Trace: HexSW; From: HexSouthWest; To: HexSouth }
+} }
+
+Struct Composition { Compose Ctc01PrismaticBlockoutX4 {
+ Placement ReferenceWorld { Anchor: [0mm,0mm,0mm]; ProfilePlane: XY; Axis: +Z; ReferenceDirection: +X }
+ Base PrimaryPlate { Profile: PrimaryWeb; From: -100mm; To: 0mm; Role: ObservedPrimaryWeb }
+ Add Lobes { Profiles: [LeftTopEar, RightTopEar, LeftBottomEar, RightBottomEar]; From: -100mm; To: 0mm; Role: StrongInferenceR50Lobe }
+ Add MidLevelPlate { Profile: MidLevelWeb; From: -60mm; To: 0mm; Role: StrongInferenceMidLevel }
+ Add CentralRaisedRegion { Profile: CentralHex; From: 0mm; To: 50mm; Role: StrongInferenceCentralRaisedRegion }
+
+ // Reference STEP faces 72..77 and 90..91 prove four split cylindrical walls,
+ // radius 17.5 mm, axis -Z, spanning Z=-100..0; AP242 PMI independently gives diameter 35 mm.
+ Hole<Shaft> LeftTopMount { Center: [-325mm,175mm]; Diameter: 35mm; End: ThroughAll; Role: ObservedMountingHole }
+ Hole<Shaft> RightTopMount { Center: [325mm,175mm]; Diameter: 35mm; End: ThroughAll; Role: ObservedMountingHole }
+ Hole<Shaft> LeftBottomMount { Center: [-325mm,-175mm]; Diameter: 35mm; End: ThroughAll; Role: ObservedMountingHole }
+ Hole<Shaft> RightBottomMount { Center: [325mm,-175mm]; Diameter: 35mm; End: ThroughAll; Role: ObservedMountingHole }
+} }
+
+Selection LeftTopLobeOuterArc {
+ Target: TopBoundary
+ Source: LeftTopEar.ProfileSegments([OuterArc])
+ Require: ConnectedChain
+}
+Selection CentralHexTopLoop {
+ Target: TopBoundary
+ Source: CentralHex.ProfileSegments([SouthEast, East, NorthEast, NorthWest, West, SouthWest])
+ Require: ClosedLoop
+}
+Selection LeftTopMountEntry {
+ Target: HoleEntry
+ Source: Hole(LeftTopMount)
+ Require: ClosedLoop
+}
+Selection LeftTopMountWall {
+ Target: HoleWall
+ Source: Hole(LeftTopMount)
+ Require: NonEmptyFaceSet
+}

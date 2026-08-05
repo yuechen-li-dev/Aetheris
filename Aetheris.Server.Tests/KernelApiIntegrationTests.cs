@@ -879,6 +879,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     [InlineData("semantic-shaft-hole", "hole:base.mount")]
     [InlineData("split-compose-chamfer", "profile:BaseProfile.Outer.South")]
     [InlineData("ctc-01-x3", "profile:CentralHex.Outer.SouthEast")]
+    [InlineData("ctc-01-x4", "hole:Ctc01PrismaticBlockoutX4.LeftTopMount")]
     public async Task CadmataFixture_LoadsCompilerBodyAndPublishedCorrespondence(string fixtureId, string expectedEntityId)
     {
         var document = await CreateDocumentAsync("/api/v1/documents");

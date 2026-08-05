@@ -160,16 +160,18 @@ function buildCylinderPatch(face: AnalyticDisplayFaceDto): RenderFacePatch | nul
   const xAxis = toArray(face.cylinderGeometry.xAxis);
   const yAxis = toArray(face.cylinderGeometry.yAxis);
   const radius = face.cylinderGeometry.radius;
+  const minU = face.domainHint?.minU ?? 0;
+  const maxU = face.domainHint?.maxU ?? TAU;
   const minV = face.domainHint?.minV ?? -0.5;
   const maxV = face.domainHint?.maxV ?? 0.5;
-  const angularSegments = 24;
+  const angularSegments = Math.max(1, Math.ceil(24 * Math.abs(maxU - minU) / TAU));
 
   const positions: number[] = [];
   const normals: number[] = [];
   const indices: number[] = [];
 
   for (let i = 0; i <= angularSegments; i += 1) {
-    const u = (i / angularSegments) * TAU;
+    const u = minU + ((i / angularSegments) * (maxU - minU));
     const cosU = Math.cos(u);
     const sinU = Math.sin(u);
     const radial = add(mul(xAxis, radius * cosU), mul(yAxis, radius * sinU));
@@ -213,15 +215,17 @@ function buildConePatch(face: AnalyticDisplayFaceDto): RenderFacePatch | null {
   const yAxis = toArray(face.coneGeometry.yAxis);
   const minV = Math.max(face.domainHint?.minV ?? 0.1, 0.001);
   const maxV = Math.max(face.domainHint?.maxV ?? 1, minV + 0.001);
+  const minU = face.domainHint?.minU ?? 0;
+  const maxU = face.domainHint?.maxU ?? TAU;
   const tanSemi = Math.tan(face.coneGeometry.semiAngleRadians);
-  const angularSegments = 24;
+  const angularSegments = Math.max(1, Math.ceil(24 * Math.abs(maxU - minU) / TAU));
 
   const positions: number[] = [];
   const normals: number[] = [];
   const indices: number[] = [];
 
   for (let i = 0; i <= angularSegments; i += 1) {
-    const u = (i / angularSegments) * TAU;
+    const u = minU + ((i / angularSegments) * (maxU - minU));
     const cosU = Math.cos(u);
     const sinU = Math.sin(u);
     const radialDirection = normalize(add(mul(xAxis, cosU), mul(yAxis, sinU)));

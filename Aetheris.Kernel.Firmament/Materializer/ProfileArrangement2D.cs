@@ -147,7 +147,7 @@ public static class ProfileArrangementBuilder
 
     private static IEnumerable<ArrangementSourceCurve2D> RegionSources(string name, PrismaticSectionRegion region)
     {
-        foreach (var item in new[] { (region.Outer, "Outer") }.Concat(region.Holes.Select(x => (x, "Inner"))))
+        foreach (var item in new[] { (region.Outer, "Outer") }.Concat(region.Holes.Select((x, index) => (x, $"Inner{index}"))))
             foreach (var segment in item.Item1.Loops[0].Segments)
                 yield return new ArrangementSourceCurve2D($"transition:{name}.{item.Item2}.{segment.Name}", name, PrismaticProfileIntent.Base, item.Item1.Name, item.Item2,
                     segment.Name, segment.Geometry, segment.Provenance);

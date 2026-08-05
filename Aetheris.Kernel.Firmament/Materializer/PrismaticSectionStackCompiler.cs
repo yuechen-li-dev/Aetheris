@@ -80,7 +80,7 @@ public static class PrismaticSectionStackEmitter
         var d = stack.Diagnostics.ToList();
         var builder = new TopologyBuilder(); var points = new Dictionary<VertexId, Point3D>(); var curves = new Dictionary<EdgeId, CurveGeometry>(); var profileCurves = new Dictionary<EdgeId, LineArcProfileCurve2D>();
         var vertices = new Dictionary<(long X, long Y, long Z), VertexId>(); var edges = new Dictionary<string, EdgeId>();
-        var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface, string Source, string Construction, double From, double To)>(); var capFaces = new List<(FaceId Face, double Z, bool Up)>();
+        var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface, bool SameSense, string Source, string Construction, double From, double To)>(); var capFaces = new List<(FaceId Face, double Z, bool Up)>();
         var splitPoints = stack.Slabs.SelectMany(s => Loops(s.Region)).Concat(stack.Transitions.SelectMany(t =>
                 t.UpwardRegions.Concat(t.DownwardRegions).SelectMany(Loops)))
             .SelectMany(x => x.Profile.Loops[0].Segments).SelectMany(x => Ends(x.Geometry)).DistinctBy(p => $"{Math.Round(p.X / Tol):F0},{Math.Round(p.Y / Tol):F0}").ToArray();
@@ -107,7 +107,7 @@ public static class PrismaticSectionStackEmitter
                     var endpoints = Ends(curve); var a = endpoints[0]; var b = endpoints[1]; var bottom = Edge(curve, slab.From); var top = Edge(curve, slab.To); var v0 = Vertical(a, slab.From, slab.To); var v1 = Vertical(b, slab.From, slab.To);
                     var loop = AddLoop(builder, [new(bottom.Edge, bottom.Reverse), new(v1.Edge, v1.Reverse), new(top.Edge, !top.Reverse), new(v0.Edge, !v0.Reverse)]);
                     var source = SourceId(segment.Provenance.StableId);
-                    sideFaces.Add((loop, SideSurface(curve, slab.From, item.IsHole), source, $"slab:{slab.From:R}..{slab.To:R}:{segment.Provenance.Derivation}", slab.From, slab.To));
+                    sideFaces.Add((loop, SideSurface(curve, slab.From, item.IsHole), !(item.IsHole && curve is LineArcCircularArc2D), source, $"slab:{slab.From:R}..{slab.To:R}:{segment.Provenance.Derivation}", slab.From, slab.To));
                 }
         foreach (var transition in stack.Transitions)
         {
@@ -129,7 +129,7 @@ public static class PrismaticSectionStackEmitter
         }
         var surfaceId = 1;
         foreach (var cap in capFaces) { geometry.AddSurface(new SurfaceGeometryId(surfaceId), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0, 0, cap.Z), Direction3D.Create(new Vector3D(0, 0, cap.Up ? 1 : -1)), Direction3D.Create(new Vector3D(1, 0, 0))))); bindings.AddFaceBinding(new FaceGeometryBinding(cap.Face, new SurfaceGeometryId(surfaceId++))); }
-        foreach (var side in sideFaces) { var face = faces[capFaces.Count + sideFaces.IndexOf(side)]; geometry.AddSurface(new SurfaceGeometryId(surfaceId), side.Surface); bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(surfaceId++))); }
+        foreach (var side in sideFaces) { var face = faces[capFaces.Count + sideFaces.IndexOf(side)]; geometry.AddSurface(new SurfaceGeometryId(surfaceId), side.Surface); bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(surfaceId++), side.SameSense)); }
         foreach (var incidence in builder.Model.Coedges.GroupBy(x => x.EdgeId).Where(x => x.Count() != 2))
         {
             var edge = builder.Model.Edges.Single(x => x.Id == incidence.Key);
@@ -162,7 +162,40 @@ public static class PrismaticSectionStackEmitter
             var source = fragment.Source.Provenance.StableId;
             descendants.Add(new($"construction:{stack.Feature.Name}:{fragment.StableId}", "ArrangementFragment", SemanticTopologyRole.Unknown, source, ParentStableId: fragment.Source.StableId));
         }
-        var correspondence = new SemanticTopologyCorrespondence(stack.Feature.Name, descendants.DistinctBy(x => x.StableId).ToArray(), ["ProfileArrangement2D", "PrismaticSectionStackConstruction", "PrismaticSectionStackBrepPlan", "AuthoritativeBRepPlan"]);
+        foreach (var hole in stack.Feature.ShaftHoles ?? [])
+        {
+            var profilePrefix = $"profile:{hole.ProfileReference}.Outer.";
+            // ThroughAll is declared over the composition interval, but a removal can only exist where
+            // its host has material.  Derive entry and exit from the retained wall boundary rather than
+            // from the declaration's nominal levels (for CTC-01 the host stops at Z=0 although the
+            // composition continues to Z=50 elsewhere).
+            var holeSides = sideFaces.Select((side, index) => (Side: side, Face: faces[capFaces.Count + index]))
+                .Where(x => x.Side.Source.StartsWith(profilePrefix, StringComparison.Ordinal)).ToArray();
+            var horizontalEdges = holeSides.SelectMany(x => builder.Model.Loops.Single(loop => loop.Id == x.Side.Loop).CoedgeIds)
+                .Select(id => builder.Model.Coedges.Single(coedge => coedge.Id == id).EdgeId).Distinct()
+                .Select(id => (Edge: id, Topology: builder.Model.Edges.Single(edge => edge.Id == id)))
+                .Where(x => Math.Abs(points[x.Topology.StartVertexId].Z - points[x.Topology.EndVertexId].Z) <= Tol)
+                .Select(x => (x.Edge, Z: points[x.Topology.StartVertexId].Z)).ToArray();
+            var entryZ = horizontalEdges.Max(x => x.Z);
+            var exitZ = horizontalEdges.Min(x => x.Z);
+            var entryEdges = horizontalEdges.Where(x => Math.Abs(x.Z - entryZ) <= Tol).Select(x => x.Edge).Distinct().OrderBy(x => x.Value).ToArray();
+            var exitEdges = horizontalEdges.Where(x => Math.Abs(x.Z - exitZ) <= Tol).Select(x => x.Edge).Distinct().OrderBy(x => x.Value).ToArray();
+            var wallFaces = holeSides.Select(x => x.Face).Distinct().OrderBy(x => x.Value).ToArray();
+            foreach (var edge in entryEdges) descendants.Add(new($"material:{hole.StableId}:entry-edge:{edge.Value}", "Edge", SemanticTopologyRole.TopBoundary, hole.StableId, Edge: edge, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
+            foreach (var edge in exitEdges) descendants.Add(new($"material:{hole.StableId}:exit-edge:{edge.Value}", "Edge", SemanticTopologyRole.BottomBoundary, hole.StableId, Edge: edge, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
+            foreach (var face in wallFaces) descendants.Add(new($"material:{hole.StableId}:wall:{face.Value}", "Face", SemanticTopologyRole.HoleWallFace, hole.StableId, Face: face, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
+            LoopId? LoopFor(IReadOnlyList<EdgeId> boundary)
+            {
+                var expected = boundary.ToHashSet();
+                return builder.Model.Loops.Select(loop => (loop.Id, Edges: loop.CoedgeIds.Select(id => builder.Model.Coedges.Single(x => x.Id == id).EdgeId).ToHashSet()))
+                    .Where(x => x.Edges.SetEquals(expected)).Select(x => (LoopId?)x.Id).SingleOrDefault();
+            }
+            if (entryEdges.Length > 0 && LoopFor(entryEdges) is { } entryLoop) descendants.Add(new($"material:{hole.StableId}:entry-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, hole.StableId, Loop: entryLoop, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
+            if (exitEdges.Length > 0 && LoopFor(exitEdges) is { } exitLoop) descendants.Add(new($"material:{hole.StableId}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, hole.StableId, Loop: exitLoop, ParentStableId: hole.StableId, GeometryPreview: $"diameter={hole.Diameter:R}"));
+        }
+        var provenance = new List<string> { "ProfileArrangement2D", "PrismaticSectionStackConstruction", "PrismaticSectionStackBrepPlan", "AuthoritativeBRepPlan" };
+        if ((stack.Feature.ShaftHoles?.Count ?? 0) > 0) provenance.Insert(0, "SemanticHoleComposeLowering");
+        var correspondence = new SemanticTopologyCorrespondence(stack.Feature.Name, descendants.DistinctBy(x => x.StableId).ToArray(), provenance);
         var plan = new PrismaticSectionStackBrepPlan($"compose:{stack.Feature.Name}:slabs={stack.Slabs.Count}:transitions={stack.Transitions.Count}", points.Count, builder.Model.Edges.Count(), faces.Count, "deterministic-slab-partitions", true, correspondence);
         d.Add("compose-authoritative-section-stack-brep-plan"); d.Add("compose-no-3d-boolean-used");
         return new(body, plan, d.Distinct().ToArray(), correspondence);

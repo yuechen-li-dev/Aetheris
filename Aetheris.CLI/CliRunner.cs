@@ -438,6 +438,9 @@ public static class CliRunner
         var parsed = ProfileAuthoringParser.Parse(source);
         if (parsed.Profile is null) { stderr.WriteLine(string.Join(Environment.NewLine, parsed.Diagnostics)); return 1; }
         var validation = ResolvedProfile2DValidator.Validate(parsed.Profile);
+        var plan = validation.IsValid
+            ? ProfileExtrusionBRepPlanner.TryPlan(new LineArcProfileExtrudeRequest(parsed.Profile.Loops.Select(l => new LineArcProfileLoop2D(l.Segments.Select(s => s.Geometry).ToArray(), !l.IsOuter)).ToArray(), parsed.Height, parsed.Profile.EffectiveConstructionPlane, parsed.Profile.LocalStartDepth, parsed.Profile.LocalEndDepth), parsed.Profile)
+            : new ProfileExtrusionPlanResult(false, null, validation.Diagnostics);
         var report = new
         {
             profile = new
@@ -451,7 +454,19 @@ public static class CliRunner
                     return new { x.Name, guide = guide.Name, guideKind = guide.Kind, parentGuide = guide.Parent, stableId = x.Provenance.StableId, derivation = x.Provenance.Derivation, geometry = x.Geometry.GetType().Name };
                 }),
                 validation.IsValid, validation.SignedArea, validation.Diagnostics,
-                extrusionHeight = parsed.Height
+                extrusionHeight = parsed.Height,
+                brepPlan = plan.Plan is null ? null : new
+                {
+                    plan.Plan.StableId, authoritative = plan.Plan.IsAuthoritative,
+                    constructionPlane = DescribeConstructionPlane(plan.Plan.Construction.Frame),
+                    localDepth = new { start = plan.Plan.Construction.LocalStartDepth, end = plan.Plan.Construction.LocalEndDepth },
+                    topology = new { vertices = plan.Plan.Vertices.Count, curves = plan.Plan.Curves.Count, edges = plan.Plan.Edges.Count, loops = plan.Plan.Loops.Count, coedges = plan.Plan.CoedgeCount, surfaces = plan.Plan.Surfaces.Count, faces = plan.Plan.Faces.Count, shells = 1, bodies = 1 },
+                    roles = plan.Plan.Faces.Select(x => new { x.StableId, role = x.Role.ToString(), loops = x.LoopIds.Select(id => id.Value), x.SameSense }),
+                    correspondence = plan.Plan.Correspondence.Descendants.Select(x => new { x.StableId, role = x.Role.ToString(), x.SourceStableId, edge = x.Edge?.Value, face = x.Face?.Value, loop = x.Loop?.Value }),
+                    materializer = "ProfileExtrusionBRepMaterializer",
+                    plan.Plan.Provenance,
+                    plan.Plan.Diagnostics
+                }
             }
         };
         if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions)); else stdout.WriteLine($"Profile {parsed.Profile.Name}: {(validation.IsValid ? "valid" : "invalid")}");

@@ -95,6 +95,38 @@ public sealed class ConstructionPlaneExtrudeTests
         }
     }
 
+    [Fact]
+    public void AuthoritativePlan_ClosesDirectedUsesBeforeMaterialization_AndCarriesNonZInnerCylinder()
+    {
+        var plane = Trace("plan-x", new(10, 2, 3), new(1, 0, 0), new(0, 0, 1));
+        var request = new LineArcProfileExtrudeRequest([Rectangle(), new LineArcProfileLoop2D([new LineArcFullCircle2D((0, 0), .5)], true)], 4, plane);
+        var planned = ProfileExtrusionBRepPlanner.TryPlan(request);
+        var plan = Assert.IsType<ProfileExtrusionBRepPlan>(planned.Plan);
+        Assert.True(plan.IsAuthoritative);
+        Assert.Equal("construction:plan-x", plan.Construction.Frame.StableId);
+        Assert.All(plan.Loops, loop => Assert.All(loop.Uses.Select((use, i) => (use, next: loop.Uses[(i + 1) % loop.Uses.Count])), pair => Assert.Equal(pair.use.Traversal.EndVertexId, pair.next.Traversal.StartVertexId)));
+        Assert.Contains(plan.Surfaces, s => s.Geometry.Cylinder is { } c && Math.Abs(c.Axis.ToVector().Dot(plane.AxisZ.ToVector()) - 1d) < 1e-12);
+        var materialized = ProfileExtrusionBRepMaterializer.TryMaterialize(plan);
+        Assert.True(materialized.Succeeded, string.Join("; ", materialized.Diagnostics));
+        var step = Step242Exporter.ExportBody(materialized.Body!);
+        Assert.True(step.IsSuccess);
+        Assert.True(Step242Importer.ImportBody(step.Value!).IsSuccess);
+    }
+
+    [Fact]
+    public void ResolvedInnerCircularLoop_PublishesPlanOwnedCylindricalWallCorrespondence()
+    {
+        var plane = Trace("inner-x", new(10, 0, 0), new(1, 0, 0), new(0, 0, 1));
+        var outer = Rectangle().Curves.Select((curve, index) => new ResolvedProfileSegment2D($"E{index}", curve, new($"profile:InnerProfile.Outer.E{index}", $"concept:E{index}", "fixture", "fixture", "XY"))).ToArray();
+        var profile = new ResolvedProfile2D("InnerProfile", "inner-x", [
+            new ResolvedProfileLoop2D("Outer", true, outer),
+            new ResolvedProfileLoop2D("Bore", false, [new("Circle", new LineArcFullCircle2D((0, 0), .5), new("profile:InnerProfile.Bore.Circle", "concept:Circle", "fixture", "fixture", "XY"))])], plane);
+        var result = LineArcProfileExtrudeEmitter.TryEmit(profile, 4);
+        Assert.Equal(LineArcProfileExtrudeStatus.Succeeded, result.Status);
+        Assert.NotNull(result.BRepPlan);
+        Assert.Contains(result.Correspondence!.Descendants, x => x.SourceStableId == "profile:InnerProfile.Bore" && x.Role == SemanticTopologyRole.HoleWallFace && x.Face is not null);
+    }
+
     private static ConstructionPlane Trace(string id, ConceptIrPoint3 origin, ConceptIrVector3 normal, ConceptIrVector3 up)
     {
         Assert.True(ConstructionPlane.TryTrace("construction:" + id, new("concept:" + id, origin, normal, "fixture", up), "fixture", out var plane, out var diagnostic), diagnostic);

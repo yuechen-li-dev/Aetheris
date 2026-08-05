@@ -84,3 +84,7 @@ authoritative section stack. Selecting a Hole follows its compiler-published
 entry/exit loops, boundary edges, and all slab-split wall faces. The next
 visualization pressure case remains post-EdgeFinish replacement correspondence;
 replacement faces must not be inferred heuristically.
+
+## Profile extrusion BRepPlan X1
+
+For ordinary Profile extrusion, Cadmata continues to receive the Concept plane, Construction Plane, local Profile, world BRep body, and semantic descendants. The new plan inspector can supply a debug-only source segment → planned entity → material descendant chain without duplicating a frontend topology model. Cadmata must reference plan correspondence rather than reconstruct roles from viewport geometry.

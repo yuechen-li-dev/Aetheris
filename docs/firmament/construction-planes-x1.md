@@ -35,4 +35,8 @@ Semantic descendants now publish `LocalStartBoundary`, `LocalEndBoundary`, `Loca
 
 `aetheris inspect-profile <file> --json` reports the compact construction-frame tuple near the Profile identity. Cadmata receives compiler-owned Concept-plane, Construction-plane, and world-mapped Profile entities; it does not infer a frame from BRep geometry.
 
+## Profile extrusion BRepPlan X1
+
+Construction Planes define local material coordinates. Authoritative BRepPlans carry those coordinates into exact topology. `ProfileExtrusionConstructionAir` normalizes a local Profile plus the immutable frame and local interval; `ProfileExtrusionBRepPlan` owns all vertices, supports, edges, directed uses, loops, faces, senses, shell/body, and source correspondence before any BRep is made. The default world-XY frame is the same route, not a parallel planner. `inspect-profile --json` includes that pre-materialization plan.
+
 Current scope is a proper rigid frame and standalone/additive planar line/arc Profile extrusion. Reflections, scaling, shearing, arbitrary completed-plan transforms, mutable face attachment, generic constraints, and host-subtracted local-frame holes remain unsupported. LOCAL-FRAME-HOLE-X2 should consume `ConstructionPlane` directly for placement and add only the bounded host/subtraction contract; it must not add topology attachment or recompute the frame.

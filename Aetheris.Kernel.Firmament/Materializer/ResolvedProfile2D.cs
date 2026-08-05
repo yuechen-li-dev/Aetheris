@@ -4,7 +4,7 @@ namespace Aetheris.Kernel.Firmament.Materializer;
 public sealed record ProfileSegmentProvenance(string StableId, string ConceptStableId, string SourceSpan, string Derivation, string SourceFrame);
 public sealed record ResolvedProfileSegment2D(string Name, LineArcProfileCurve2D Geometry, ProfileSegmentProvenance Provenance);
 public sealed record ResolvedProfileLoop2D(string Name, bool IsOuter, IReadOnlyList<ResolvedProfileSegment2D> Segments);
-public sealed record ResolvedProfile2D(string Name, string PlaneFrame, IReadOnlyList<ResolvedProfileLoop2D> Loops, ConstructionPlane? ConstructionPlane = null)
+public sealed record ResolvedProfile2D(string Name, string PlaneFrame, IReadOnlyList<ResolvedProfileLoop2D> Loops, ConstructionPlane? ConstructionPlane = null, double? LocalStartDepth = null, double? LocalEndDepth = null)
 {
     public ConstructionPlane EffectiveConstructionPlane => ConstructionPlane ?? Materializer.ConstructionPlane.WorldXY;
 }
@@ -16,24 +16,29 @@ public static class ResolvedProfile2DValidator
     public static ResolvedProfileValidationResult Validate(ResolvedProfile2D profile)
     {
         var d = new List<string>();
-        if (profile.Loops.Count != 1 || !profile.Loops[0].IsOuter) d.Add($"profile:{profile.Name}: exactly one declared outer loop is required");
-        var loop = profile.Loops.SingleOrDefault();
-        if (loop is null || loop.Segments.Count < 3) return new(false, 0, d.Append($"profile:{profile.Name}: outer loop requires at least three segments").ToArray());
+        if (profile.Loops.Count == 0 || profile.Loops.Count(x => x.IsOuter) != 1) d.Add($"profile:{profile.Name}: exactly one declared outer loop is required");
+        var outer = profile.Loops.SingleOrDefault(x => x.IsOuter);
+        if (outer is null) return new(false, 0, d.Append($"profile:{profile.Name}: outer loop is required").ToArray());
         var names = new HashSet<string>(StringComparer.Ordinal);
-        for (var i=0;i<loop.Segments.Count;i++)
+        foreach (var loop in profile.Loops)
         {
-            var s=loop.Segments[i]; if(!names.Add(s.Name))d.Add($"profile:{profile.Name}: duplicate segment '{s.Name}'");
-            if(!Endpoints(s.Geometry,out var start,out var end)){d.Add($"profile:{profile.Name}: unsupported unbounded segment '{s.Name}'");continue;}
-            if(Distance(start,end)<=Tol)d.Add($"profile:{profile.Name}: zero-length segment '{s.Name}'");
-            var next=loop.Segments[(i+1)%loop.Segments.Count]; if(Endpoints(next.Geometry,out var ns,out _)&&Distance(end,ns)>Tol)d.Add($"profile:{profile.Name}: endpoint mismatch '{s.Name}' -> '{next.Name}'");
+            if (loop.Segments.Count == 0 || (loop.Segments.Count < 3 && !(loop.Segments.Count == 1 && loop.Segments[0].Geometry is LineArcFullCircle2D))) d.Add($"profile:{profile.Name}: loop '{loop.Name}' requires a closed boundary");
+            for (var i=0;i<loop.Segments.Count;i++)
+            {
+                var s=loop.Segments[i]; if(!names.Add(s.Name))d.Add($"profile:{profile.Name}: duplicate segment '{s.Name}'");
+                if (s.Geometry is LineArcFullCircle2D && loop.Segments.Count == 1) continue;
+                if(!Endpoints(s.Geometry,out var start,out var end)){d.Add($"profile:{profile.Name}: unsupported unbounded segment '{s.Name}'");continue;}
+                if(Distance(start,end)<=Tol)d.Add($"profile:{profile.Name}: zero-length segment '{s.Name}'");
+                var next=loop.Segments[(i+1)%loop.Segments.Count]; if(Endpoints(next.Geometry,out var ns,out _)&&Distance(end,ns)>Tol)d.Add($"profile:{profile.Name}: endpoint mismatch '{s.Name}' -> '{next.Name}'");
+            }
+            for (var i=0;i<loop.Segments.Count;i++) for (var j=i+1;j<loop.Segments.Count;j++)
+            {
+                var a=loop.Segments[i]; var b=loop.Segments[j];
+                if (SameLine(a.Geometry,b.Geometry)) d.Add($"profile:{profile.Name}: duplicate coincident segment '{a.Name}' / '{b.Name}'");
+                if (!Adjacent(i,j,loop.Segments.Count) && a.Geometry is LineArcLineSegment2D && b.Geometry is LineArcLineSegment2D && Endpoints(a.Geometry,out var as_,out var ae) && Endpoints(b.Geometry,out var bs,out var be) && ProperIntersection(as_,ae,bs,be)) d.Add($"profile:{profile.Name}: self-intersection '{a.Name}' / '{b.Name}'");
+            }
         }
-        for (var i=0;i<loop.Segments.Count;i++) for (var j=i+1;j<loop.Segments.Count;j++)
-        {
-            var a=loop.Segments[i]; var b=loop.Segments[j];
-            if (SameLine(a.Geometry,b.Geometry)) d.Add($"profile:{profile.Name}: duplicate coincident segment '{a.Name}' / '{b.Name}'");
-            if (!Adjacent(i,j,loop.Segments.Count) && a.Geometry is LineArcLineSegment2D && b.Geometry is LineArcLineSegment2D && Endpoints(a.Geometry,out var as_,out var ae) && Endpoints(b.Geometry,out var bs,out var be) && ProperIntersection(as_,ae,bs,be)) d.Add($"profile:{profile.Name}: self-intersection '{a.Name}' / '{b.Name}'");
-        }
-        var area=loop.Segments.Sum(s=>Endpoints(s.Geometry,out var a,out var b)?a.X*b.Y-b.X*a.Y:0)/2d;
+        var area=outer.Segments.Sum(s=>Endpoints(s.Geometry,out var a,out var b)?a.X*b.Y-b.X*a.Y:0)/2d;
         if(area<=Tol)d.Add($"profile:{profile.Name}: outer winding must be CounterClockwise with nonzero area");
         return new(d.Count==0,area,d);
     }

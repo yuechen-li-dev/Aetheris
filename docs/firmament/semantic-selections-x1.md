@@ -26,7 +26,7 @@ X1 admits direct, scaffold-authored Profile extrusion. `ProfileSegments` is sour
 
 The immutable result forms are `VertexSet`, `EdgeSet`, `FaceSet`, `LoopSet`, and `Chain`. Every materialized descendant has a stable diagnostic id, source identity, topology role, parent/source relationship, and optional exact topology handle used internally by the materializer. Authoring never receives mutable BRep collections.
 
-The profile emitter records correspondence while it creates the authoritative body: profile segment to top/bottom boundary edge, vertical extrusion edges, and side face; profile loop to cap boundary loop. The resolver consumes only that correspondence plus the body planned by the emitter. It does not scan emitted STEP, inspect coordinates, or recognize radii.
+The Profile extrusion planner records correspondence before materialization: profile segment to local start/end boundary edge, longitudinal edge, and side face; profile loop to local start/end cap loop; circular inner wall to its cylinder face. The resolver consumes that plan-owned correspondence plus the materialized body. It does not scan emitted STEP, inspect coordinates, or recognize radii.
 
 `ExactlyOne`, `OneOrMore`, `ConnectedChain`, `ClosedLoop`, and `NonEmptyFaceSet` are explicit contracts. Chain/loop validation uses `DirectedEdgeUse`: duplicate edges, disconnected components, branch vertices, missing closure, and a closed result requested as an open chain fail deterministically.
 

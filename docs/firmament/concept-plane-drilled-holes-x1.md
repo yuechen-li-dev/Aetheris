@@ -99,3 +99,7 @@ it must not infer values from screenshots.
 `dotnet build Aetheris.slnx -f net10.0 --no-restore /m:1` both succeeded on the
 current worktree. The build reports pre-existing JavaScript dependency
 vulnerability warnings from the JavaScript SDK audit; it has no .NET errors.
+
+## LOCAL-FRAME-HOLE-X2 extension point
+
+PROFILE-EXTRUSION-BREPPLAN-X1 supplies the required single topology authority for a future local-frame hole. A Hole should lower to local Construction AIR and append/reuse `ProfileExtrusionBRepPlan` primitives for mouth loops, shaft cylinders, optional cone/tip entities, and plan-owned semantic descendants. It reuses the immutable frame, local/world mapping, cap and cylinder orientations, directed loop closure, materializer, STEP emission, and Cadmata correspondence. Host subtraction and drill-point cones remain deliberately unimplemented here.

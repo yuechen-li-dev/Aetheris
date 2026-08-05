@@ -529,12 +529,19 @@ public static class CliRunner
             var hole = SemanticHoleInspection.Inspect(v2.Document);
             inspectClock.Stop();
             if (!hole.Succeeded || hole.Correspondence is null) { stderr.WriteLine(string.Join(Environment.NewLine, hole.Diagnostics)); return 1; }
-            var selectionResults = new[]
+            var selectionRequests = new List<SemanticSelectionRequest>
             {
-                new SemanticSelectionRequest("inspect:mouth-loop", "MouthLoop", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleEntryLoop, SemanticSelectionRequirement.ClosedLoop, "inspect-selections"),
-                new SemanticSelectionRequest("inspect:exit-loop", "ExitLoop", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleExitLoop, SemanticSelectionRequirement.ClosedLoop, "inspect-selections"),
-                new SemanticSelectionRequest("inspect:shaft-wall-faces", "ShaftWallFaces", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleWallFace, SemanticSelectionRequirement.NonEmptyFaceSet, "inspect-selections")
-            }.Select(request => SemanticTopologySelectionResolver.Resolve(hole.Body!, hole.Correspondence, request)).ToArray();
+                new("inspect:mouth-loop", "MouthLoop", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleEntryLoop, SemanticSelectionRequirement.ClosedLoop, "inspect-selections"),
+                new("inspect:shaft-wall-faces", "ShaftWallFaces", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleWallFace, SemanticSelectionRequirement.NonEmptyFaceSet, "inspect-selections")
+            };
+            if (hole.Evidence?.PointAngle is { })
+            {
+                selectionRequests.Add(new("inspect:shaft-to-drill-point-loop", "ShaftToDrillPointLoop", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleShaftToDrillPointLoop, SemanticSelectionRequirement.ClosedLoop, "inspect-selections"));
+                selectionRequests.Add(new("inspect:drill-point-faces", "DrillPointFaces", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleDrillPointFace, SemanticSelectionRequirement.NonEmptyFaceSet, "inspect-selections"));
+                selectionRequests.Add(new("inspect:tip-vertex", "TipVertex", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleTipVertex, SemanticSelectionRequirement.ExactlyOne, "inspect-selections"));
+            }
+            else selectionRequests.Add(new("inspect:exit-loop", "ExitLoop", hole.Correspondence.BodyStableId, [hole.HoleId!], SemanticTopologyRole.HoleExitLoop, SemanticSelectionRequirement.ClosedLoop, "inspect-selections"));
+            var selectionResults = selectionRequests.Select(request => SemanticTopologySelectionResolver.Resolve(hole.Body!, hole.Correspondence, request)).ToArray();
             totalClock.Stop();
             stdout.WriteLine(JsonSerializer.Serialize(new
             {
@@ -544,12 +551,41 @@ public static class CliRunner
                 boundPlacement = hole.Evidence is null ? null : new { kind = hole.Evidence.PlacementKind, hole.Evidence.ConstructionPlaneId, hole.Evidence.SourceConceptPlaneId, hole.Evidence.LocalCenter },
                 airPlacement = hole.Evidence is null ? null : new { kind = hole.Evidence.PlacementKind == "ConstructionPlane" ? "AirConstructionPlaneHolePlacement" : "AirFaceLocalHolePlacement", featureId = hole.Evidence.FeatureId, hole.Evidence.ConstructionPlaneId, hole.Evidence.LocalCenter },
                 plan = hole.Evidence?.PlanId is null ? null : new { kind = "LocalFrameHoleBRepPlan", stableId = hole.Evidence.PlanId, hostInterval = hole.Evidence.HostInterval },
+                holeContract = hole.Evidence?.Contract is null ? null : new
+                {
+                    FeatureId = hole.Evidence.FeatureId,
+                    DeclaredEndCondition = hole.Evidence.Contract.DeclaredEndCondition,
+                    DeclaredTermination = hole.Evidence.Contract.DeclaredTermination,
+                    hole.Evidence.ConstructionPlaneId,
+                    LocalCenter = hole.Evidence.LocalCenter,
+                    WorldMouthCenter = hole.Evidence.WorldMouthCenter,
+                    Axis = hole.Evidence.HostTraversal?.Axis,
+                    hole.Evidence.Diameter,
+                    hole.Evidence.Radius,
+                    hole.Evidence.Contract.ShaftDepth,
+                    hole.Evidence.Contract.TipLength,
+                    hole.Evidence.Contract.TotalDepth,
+                    PointAngle = hole.Evidence.PointAngle,
+                    HostTraversalClassification = hole.Evidence.HostTraversal?.Classification.ToString(),
+                    HostIntervals = hole.Evidence.HostTraversal?.OrderedIntervals,
+                    PhysicalMaterialSpan = hole.Evidence.HostTraversal?.PhysicalMaterialSpan,
+                    hole.Evidence.Contract.RemainingWall,
+                    hole.Evidence.Contract.IsThroughAll,
+                    hole.Evidence.Contract.IsBlind,
+                    HasExit = hole.Evidence.Contract.HasExit,
+                    hole.Evidence.Contract.HasDrillPoint,
+                    hole.Evidence.Contract.MouthInsideMaterial,
+                    hole.Evidence.Contract.TipInsideMaterial,
+                    hole.Evidence.Contract.ContractSatisfied,
+                    diagnostics = hole.Evidence.Contract.Diagnostics
+                },
                 summary = hole.Evidence is null ? null : new
                 {
                     hole.Evidence.FeatureId, hole.Evidence.PlacementKind, hole.Evidence.ConstructionPlaneId, hole.Evidence.SourceConceptPlaneId,
                     frameOrigin = hole.Evidence.FrameOrigin, axisX = hole.Evidence.AxisX, axisY = hole.Evidence.AxisY, axisZ = hole.Evidence.AxisZ,
                     localCenter = hole.Evidence.LocalCenter, worldMouthCenter = hole.Evidence.WorldMouthCenter,
-                    hole.Evidence.Diameter, hole.Evidence.Radius, extent = hole.Evidence.Extent, hostInterval = hole.Evidence.HostInterval,
+                    hole.Evidence.Diameter, hole.Evidence.Radius, extent = hole.Evidence.Extent, endKind = hole.Evidence.Extent, hole.Evidence.DeclaredDepth, hole.Evidence.ShaftDepth, hole.Evidence.TipLength, hole.Evidence.TotalDepth, pointAngle = hole.Evidence.PointAngle,
+                    hostInterval = hole.Evidence.HostInterval,
                     hole.Evidence.PlanId, hole.Evidence.SourceSpan
                 },
                 descendants = hole.Correspondence.Descendants.Select(x => new { x.StableId, x.Kind, role = x.Role.ToString(), x.SourceStableId, x.ParentStableId, edge = x.Edge?.Value, face = x.Face?.Value, loop = x.Loop?.Value }),
@@ -2677,6 +2713,9 @@ public static class CliRunner
         stdout.WriteLine("aetheris - firmament build and STEP analysis CLI");
         stdout.WriteLine();
         stdout.WriteLine(TopLevelUsage);
+        // Keep this stable discovery string while the longer usage line above
+        // advertises the newer inspection commands.
+        stdout.WriteLine("Usage: aetheris <build|analyze|trace|canon|asm|experimental> <path> [options]");
         stdout.WriteLine();
         stdout.WriteLine("Commands:");
         stdout.WriteLine("  build      Build a .firmament source file into STEP.");

@@ -95,3 +95,9 @@ Plane, local-center marker, local-`+Z` drill axis, analytic shaft envelope,
 Mouth/Exit loops, and Shaft-wall faces. The Hole and plane reference each other
 through stable ids, so selection highlights compiler-published consumers and
 descendants rather than tessellation-derived cylinders.
+
+`construction-plane-blind-drillpoint` adds the corresponding blind evidence:
+the shaft envelope, shaft-to-DrillPoint circle, analytic cone envelope, and
+Tip marker come from `LocalFrameHoleBRepPlan`/`ConeSurface` metadata. Selecting
+the DrillPoint entity follows only its cone-face and Tip descendants; Cadmata
+does not infer a cone from display tessellation.

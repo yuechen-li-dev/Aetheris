@@ -145,8 +145,10 @@ public sealed record FirmamentV2SideHoleIntent(string TargetSolid, string Region
     public FirmamentV2SideHoleRoutePolicyEvidence RouteEvidence => PolicyRoute;
 }
 public enum FirmamentV2SemanticHoleVariant { Shaft, Counterbore, Countersink }
-public enum FirmamentV2SemanticHoleEndKind { ThroughAll, Depth }
+public enum FirmamentV2SemanticHoleEndKind { ThroughAll, Depth, ShaftDepth, TotalDepth }
 public sealed record FirmamentV2SemanticHoleEnd(FirmamentV2SemanticHoleEndKind Kind, double? Depth = null);
+public enum FirmamentV2SemanticHoleTerminationKind { FlatBottom, DrillPoint }
+public sealed record FirmamentV2SemanticHoleTermination(FirmamentV2SemanticHoleTerminationKind Kind, double? PointAngleDegrees = null);
 public sealed record FirmamentV2ResolvedPoint3(
     double X,
     double Y,
@@ -174,7 +176,8 @@ public sealed record FirmamentV2SemanticHoleDecl(
     double? CountersinkAngleDegrees = null,
     FirmamentV2ResolvedPoint3? ResolvedCenter = null,
     FirmamentV2SourceSpan? SourceSpan = null,
-    FirmamentV2BoundHolePlacement? Placement = null);
+    FirmamentV2BoundHolePlacement? Placement = null,
+    FirmamentV2SemanticHoleTermination? Termination = null);
 public enum FirmamentV2PmiKind { HoleDiameter, DatumPlane, Distance, Flatness, Parallel, Perpendicular, Coplanar }
 public sealed record FirmamentV2PmiDecl(string Name, FirmamentV2PmiKind Kind, string Target, double? Value = null);
 public sealed record FirmamentV2PmiBlock(IReadOnlyList<FirmamentV2PmiRecord> Records, FirmamentV2SourceSpan SourceSpan);

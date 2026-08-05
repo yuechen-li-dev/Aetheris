@@ -10,7 +10,9 @@ public sealed record SemanticHoleSourceInspectionEvidence(
     string FeatureId, string PlacementKind, string? ConstructionPlaneId, string? SourceConceptPlaneId,
     double[]? FrameOrigin, double[]? AxisX, double[]? AxisY, double[]? AxisZ,
     double[] LocalCenter, double[]? WorldMouthCenter, double Diameter, double Radius,
-    string Extent, double[]? HostInterval, string? PlanId, string? SourceSpan);
+    string Extent, double[]? HostInterval, string? PlanId, string? SourceSpan,
+    double? DeclaredDepth = null, double? ShaftDepth = null, double? TipLength = null, double? TotalDepth = null, double? PointAngle = null,
+    HoleHostTraversalEvidence? HostTraversal = null, HoleEndConditionContractEvidence? Contract = null);
 public sealed record SemanticHoleInspectionResult(bool Succeeded, string? HoleId, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence, IReadOnlyList<string> Diagnostics, SemanticHoleSourceInspectionEvidence? Evidence = null);
 public static class SemanticHoleInspection
 {
@@ -22,6 +24,11 @@ public static class SemanticHoleInspection
         var host = document.ConceptIr is null ? new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], -box.Size[2] / 2d, box.Size[2] / 2d) : new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], 0d, box.Size[2]);
         var result = AirHoleSimpleShaftMaterializer.Execute(holes[0], host);
         var feature = holes[0]; var placement = feature.ConstructionPlanePlacement;
+        var drill = feature.Termination as AirHoleTermination.DrillPoint;
+        var tipLength = drill is null ? (double?)null : feature.Shaft.Radius / Math.Tan(drill.PointAngleDegrees * Math.PI / 360d);
+        double? declaredDepth = feature.EndCondition switch { AirHoleEndCondition.ShaftDepth d => d.Value, AirHoleEndCondition.TotalDepth d => d.Value, _ => null };
+        double? shaftDepth = drill is null ? null : feature.EndCondition switch { AirHoleEndCondition.ShaftDepth d => d.Value, AirHoleEndCondition.TotalDepth d => d.Value - tipLength!.Value, _ => null };
+        double? totalDepth = drill is null ? null : shaftDepth!.Value + tipLength!.Value;
         double[] Vector(Aetheris.Kernel.Core.Math.Vector3D v) => [v.X, v.Y, v.Z];
         var evidence = placement is null
             ? new SemanticHoleSourceInspectionEvidence(feature.FeatureId, "FaceLocal", null, null, null, null, null, null,
@@ -29,8 +36,9 @@ public static class SemanticHoleInspection
             : new SemanticHoleSourceInspectionEvidence(feature.FeatureId, "ConstructionPlane", placement.ConstructionPlaneId, placement.SourceConceptPlaneId,
                 [placement.FrameOrigin.X, placement.FrameOrigin.Y, placement.FrameOrigin.Z], Vector(placement.AxisX.ToVector()), Vector(placement.AxisY.ToVector()), Vector(placement.AxisZ.ToVector()),
                 [placement.LocalCenterX, placement.LocalCenterY], [placement.WorldMouthCenter.X, placement.WorldMouthCenter.Y, placement.WorldMouthCenter.Z],
-                feature.Shaft.Diameter, feature.Shaft.Radius, "ThroughAll", result.Plan?.HoleBRepPlan is { } plan ? [plan.HostMaterialInterval.Start, plan.HostMaterialInterval.End] : null,
-                result.Plan?.HoleBRepPlan?.StableId, placement.SourceSpan);
+                feature.Shaft.Diameter, feature.Shaft.Radius, feature.EndCondition.Kind.ToString(), result.Plan?.HoleBRepPlan is { } plan ? [plan.HostMaterialInterval.Start, plan.HostMaterialInterval.End] : null,
+                result.Plan?.HoleBRepPlan?.StableId, placement.SourceSpan, declaredDepth, shaftDepth, tipLength, totalDepth, drill?.PointAngleDegrees,
+                result.Plan?.HoleBRepPlan?.TraversalEvidence, result.Plan?.HoleBRepPlan?.ContractEvidence);
         return new(result.Succeeded && result.Correspondence is not null, feature.FeatureId, result.Body, result.Correspondence, result.Diagnostics, evidence);
     }
 }
@@ -245,9 +253,9 @@ internal static class AirHoleSimpleShaftMaterializer
             diagnostics.AddRange(feature.Diagnostics.Select(d => $"semantic diagnostic {d.Code}: {d.Message}"));
             return new(AirHoleSimpleShaftMaterializationStatus.InvalidSemanticHole, null, null, diagnostics);
         }
-        if (feature.EndCondition is not AirHoleEndCondition.ThroughAll)
+        if (feature.EndCondition is not AirHoleEndCondition.ThroughAll && feature.Termination is not AirHoleTermination.DrillPoint)
         {
-            diagnostics.Add("HoleConstructionPlaneExtentUnsupported: construction-plane execution currently admits ThroughAll only; blind termination remains unimplemented.");
+            diagnostics.Add("HoleConstructionPlaneExtentUnsupported: Construction Plane bounded holes require DrillPoint termination and explicit ShaftDepth or TotalDepth.");
             return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
         }
         if (feature.Stack.Kind != AirHoleStackKind.SimpleShaft)
@@ -284,11 +292,78 @@ internal static class AirHoleSimpleShaftMaterializer
             diagnostics.Add($"HoleDirectionDoesNotEnterHost: mouth localZ interval is [{zmin:R},{zmax:R}], expected [0,+). constructionPlane={placement.ConstructionPlaneId}");
             return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
         }
-        if (placement.LocalCenterX - feature.Shaft.Radius < xmin - Tolerance || placement.LocalCenterX + feature.Shaft.Radius > xmax + Tolerance ||
-            placement.LocalCenterY - feature.Shaft.Radius < ymin - Tolerance || placement.LocalCenterY + feature.Shaft.Radius > ymax + Tolerance)
+        var footprintSupported = placement.LocalCenterX - feature.Shaft.Radius >= xmin - Tolerance && placement.LocalCenterX + feature.Shaft.Radius <= xmax + Tolerance &&
+            placement.LocalCenterY - feature.Shaft.Radius >= ymin - Tolerance && placement.LocalCenterY + feature.Shaft.Radius <= ymax + Tolerance;
+        var traversal = new HoleHostTraversalEvidence(
+            feature.FeatureId, feature.TargetBodyId ?? "semantic-hole-host", placement.ConstructionPlaneId,
+            [placement.WorldMouthCenter.X, placement.WorldMouthCenter.Y, placement.WorldMouthCenter.Z],
+            [placement.AxisZ.ToVector().X, placement.AxisZ.ToVector().Y, placement.AxisZ.ToVector().Z], feature.Shaft.Radius,
+            HoleHostTraversalClassification.OneContiguousInterval,
+            [new HoleHostMaterialIntervalEvidence(0d, zmax, "box:single-material-span", "BoxSignedPermutation", footprintSupported, "Mouth", "FarBoundary")],
+            ["HostMaterialIntervalQuery:BoxSignedPermutation", "HostMaterialSpan:[0," + zmax.ToString("R") + "]"]);
+        var contract = HoleEndConditionContract.Evaluate(feature, traversal);
+        diagnostics.AddRange(traversal.Diagnostics);
+        diagnostics.AddRange(contract.Diagnostics);
+        if (!footprintSupported)
         {
             diagnostics.Add("HoleMouthMissesHost: local circular mouth does not lie fully within the admitted Box cross-section.");
-            return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
+            return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics.Distinct().ToArray());
+        }
+        if (!contract.MouthInsideMaterial || !contract.ContractSatisfied)
+            return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics.Distinct().ToArray());
+
+        if (feature.Termination is AirHoleTermination.DrillPoint point)
+        {
+            var halfAngleRadians = point.PointAngleDegrees * Math.PI / 360d;
+            var tipLength = feature.Shaft.Radius / Math.Tan(halfAngleRadians);
+            double shaftDepth; double totalDepth;
+            switch (feature.EndCondition)
+            {
+                case AirHoleEndCondition.ShaftDepth declared:
+                    shaftDepth = declared.Value; totalDepth = shaftDepth + tipLength; break;
+                case AirHoleEndCondition.TotalDepth declared:
+                    totalDepth = declared.Value; shaftDepth = totalDepth - tipLength; break;
+                default:
+                    diagnostics.Add("HoleBlindDepthMissing: DrillPoint requires ShaftDepth or TotalDepth.");
+                    return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
+            }
+            if (feature.EndCondition is AirHoleEndCondition.TotalDepth && totalDepth < tipLength - Tolerance)
+            {
+                diagnostics.Add($"HoleTotalDepthShorterThanTip: feature={feature.FeatureId}; totalDepth={totalDepth:R}; tipLength={tipLength:R}; pointAngle={point.PointAngleDegrees:R}deg.");
+                return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
+            }
+            if (!double.IsFinite(tipLength) || tipLength <= Tolerance || !double.IsFinite(shaftDepth) || shaftDepth < -Tolerance || !double.IsFinite(totalDepth) || totalDepth <= Tolerance)
+            {
+                diagnostics.Add($"HoleBlindDepthInvalid: feature={feature.FeatureId}; shaftDepth={shaftDepth:R}; tipLength={tipLength:R}; totalDepth={totalDepth:R}.");
+                return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
+            }
+            if (totalDepth >= zmax - Tolerance)
+            {
+                diagnostics.Add($"HoleDrillPointExitsHost: feature={feature.FeatureId}; constructionPlane={placement.ConstructionPlaneId}; localCenter=[{placement.LocalCenterX:R},{placement.LocalCenterY:R}]; diameter={feature.Shaft.Diameter:R}; shaftDepth={shaftDepth:R}; tipLength={tipLength:R}; totalDepth={totalDepth:R}; hostInterval=[0,{zmax:R}].");
+                return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics.Distinct().ToArray());
+            }
+            var blind = BlindDrillPointBRepPlanner.TryPlan(feature, placement, (xmin, xmax, ymin, ymax, zmax), Math.Max(0d, shaftDepth), tipLength);
+            if (!blind.Succeeded || blind.Plan is null)
+            {
+                diagnostics.AddRange(blind.Diagnostics); diagnostics.Add("HoleDrillPointPlanInvalid: authoritative blind local-frame plan was not created.");
+                return new(AirHoleSimpleShaftMaterializationStatus.ExecutionFailed, null, null, diagnostics);
+            }
+            var materializedBlind = ProfileExtrusionBRepMaterializer.TryMaterialize(blind.Plan);
+            diagnostics.AddRange(materializedBlind.Diagnostics);
+            if (!materializedBlind.Succeeded || materializedBlind.Body is null)
+            {
+                diagnostics.Add("HoleDrillPointMaterializerDiverged: authoritative blind plan failed materialization.");
+                return new(AirHoleSimpleShaftMaterializationStatus.ExecutionFailed, null, null, diagnostics);
+            }
+            var provenance = blind.Plan.Correspondence.ProvenanceChain.Concat(["HostMaterialIntervalQuery:BoxSignedPermutation", "DrillPointTermination"]).ToArray();
+            var blindHolePlan = new LocalFrameHoleBRepPlan($"brep-plan:hole:{feature.FeatureId}:{placement.ConstructionPlaneId}", feature.FeatureId, placement, (0d, zmax), blind.Plan,
+                blind.Plan.Correspondence with { ProvenanceChain = provenance }, provenance, traversal, contract);
+            var specBlind = new ProfileStackExtrudeSpec(host.Width, host.Depth, host.ZMin, host.ZMax, [], [], placement.LocalCenterX, placement.LocalCenterY);
+            var planBlind = new AirHoleSimpleShaftMaterializationPlan(feature, host, feature.FeatureId, nameof(AirHoleFeature), placement.ConstructionPlaneId,
+                placement.LocalCenterX, placement.LocalCenterY, 1d, feature.Shaft.Radius, 0d, totalDepth, feature.EndCondition.Kind, feature.Stack.Kind,
+                feature.Stack.Components.Select(c => c.Kind).ToArray(), specBlind, diagnostics.ToArray(), blindHolePlan);
+            diagnostics.Add($"BlindDrillPoint: declared={feature.EndCondition.Kind}; shaftDepth={shaftDepth:R}; tipLength={tipLength:R}; totalDepth={totalDepth:R}; pointAngle={point.PointAngleDegrees:R}deg; hostInterval=[0,{zmax:R}].");
+            return new(AirHoleSimpleShaftMaterializationStatus.Succeeded, planBlind, materializedBlind.Body, diagnostics, blindHolePlan.Correspondence);
         }
 
         var frame = new ConstructionPlane(placement.ConstructionPlaneId, placement.SourceConceptPlaneId, placement.FrameOrigin,
@@ -308,7 +383,7 @@ internal static class AirHoleSimpleShaftMaterializer
             diagnostics.AddRange(planned.Diagnostics); diagnostics.Add("HolePlanInvalid: local-frame circular extrusion plan was not created.");
             return new(AirHoleSimpleShaftMaterializationStatus.ExecutionFailed, null, null, diagnostics);
         }
-        var holePlan = LocalFrameHoleBRepPlan.FromProfilePlan(feature, placement, (0d, zmax), planned.Plan);
+        var holePlan = LocalFrameHoleBRepPlan.FromProfilePlan(feature, placement, (0d, zmax), planned.Plan, traversal, contract);
         var materialized = ProfileExtrusionBRepMaterializer.TryMaterialize(planned.Plan);
         diagnostics.AddRange(materialized.Diagnostics);
         if (!materialized.Succeeded || materialized.Body is null)

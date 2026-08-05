@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 namespace Aetheris.Kernel.Firmament.Materializer;
 
 /// <summary>Stable roles assigned while an authoritative plan is materialized.  These are not geometric queries.</summary>
-public enum SemanticTopologyRole { Unknown, ProfileVertex, VerticalExtrusionEdge, LocalStartBoundary, LocalEndBoundary, LocalStartCapLoop, LocalEndCapLoop, TopBoundary, BottomBoundary, ExtrusionSideFace, TopFaceBoundaryLoop, BottomFaceBoundaryLoop, HoleEntryLoop, HoleExitLoop, HoleWallFace, SlotEntryLoop, SlotExitLoop, SlotWallFace, SlotStraightWallFace, SlotEndWallFace, ComposeTransition }
+public enum SemanticTopologyRole { Unknown, ProfileVertex, VerticalExtrusionEdge, LocalStartBoundary, LocalEndBoundary, LocalStartCapLoop, LocalEndCapLoop, TopBoundary, BottomBoundary, ExtrusionSideFace, TopFaceBoundaryLoop, BottomFaceBoundaryLoop, HoleEntryLoop, HoleExitLoop, HoleWallFace, HoleShaftToDrillPointLoop, HoleShaftToDrillPointEdge, HoleDrillPointFace, HoleTipVertex, SlotEntryLoop, SlotExitLoop, SlotWallFace, SlotStraightWallFace, SlotEndWallFace, ComposeTransition }
 public enum SemanticSelectionRequirement { ExactlyOne, OneOrMore, ConnectedChain, ClosedLoop, NonEmptyFaceSet }
 public enum SemanticSelectionFailure { None, SemanticSourceNotFound, NoMaterializedDescendants, AmbiguousBodyContext, SelectionCardinalityMismatch, DescendantsNotConnected, DescendantsBranch, DescendantsDoNotClose, MixedBoundaryRoles, UnsupportedTopologyChange, SelectionConsumerMismatch }
 
@@ -130,7 +130,7 @@ public static class SemanticSelectionSourceParser
     private static readonly Regex LoopSource = new(@"\bSource\s*:\s*(?<profile>\w+)\.ProfileLoop\s*\(\s*(?<loop>\w+)\s*\)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex HoleSource = new(@"\bSource\s*:\s*Hole\s*\(\s*(?<hole>\w+)\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex SlotSource = new(@"\bSource\s*:\s*Slot\s*\(\s*(?<slot>\w+)\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-    private static readonly Regex Target = new(@"\bTarget\s*:\s*(?<role>TopBoundary|BottomBoundary|SideBoundary|HoleEntry|HoleExit|HoleWall|SlotEntry|SlotExit|SlotWall|SlotStraightWall|SlotEndWall)", RegexOptions.CultureInvariant);
+    private static readonly Regex Target = new(@"\bTarget\s*:\s*(?<role>TopBoundary|BottomBoundary|SideBoundary|HoleEntry|HoleExit|HoleWall|ShaftToDrillPoint|DrillPoint|Tip|SlotEntry|SlotExit|SlotWall|SlotStraightWall|SlotEndWall)", RegexOptions.CultureInvariant);
     private static readonly Regex Require = new(@"\bRequire\s*:\s*(?<shape>ExactlyOne|OneOrMore|ConnectedChain|ClosedLoop|NonEmptyFaceSet)", RegexOptions.CultureInvariant);
 
     public static IReadOnlyList<SemanticSelectionRequest> Parse(string source, ResolvedProfile2D profile, string bodyStableId, out IReadOnlyList<string> diagnostics)
@@ -146,7 +146,7 @@ public static class SemanticSelectionSourceParser
             var role = slotMatch.Success
                 ? boundary switch { "SlotEntry" => SemanticTopologyRole.SlotEntryLoop, "SlotExit" => SemanticTopologyRole.SlotExitLoop, "SlotWall" => SemanticTopologyRole.SlotWallFace, "SlotStraightWall" => SemanticTopologyRole.SlotStraightWallFace, "SlotEndWall" => SemanticTopologyRole.SlotEndWallFace, _ => SemanticTopologyRole.Unknown }
                 : holeMatch.Success
-                ? boundary switch { "HoleEntry" => SemanticTopologyRole.HoleEntryLoop, "HoleExit" => SemanticTopologyRole.HoleExitLoop, "HoleWall" => SemanticTopologyRole.HoleWallFace, _ => SemanticTopologyRole.Unknown }
+                ? boundary switch { "HoleEntry" => SemanticTopologyRole.HoleEntryLoop, "HoleExit" => SemanticTopologyRole.HoleExitLoop, "HoleWall" => SemanticTopologyRole.HoleWallFace, "ShaftToDrillPoint" => SemanticTopologyRole.HoleShaftToDrillPointLoop, "DrillPoint" => SemanticTopologyRole.HoleDrillPointFace, "Tip" => SemanticTopologyRole.HoleTipVertex, _ => SemanticTopologyRole.Unknown }
                 : loopMatch.Success
                 ? boundary switch { "TopBoundary" => SemanticTopologyRole.TopFaceBoundaryLoop, "BottomBoundary" => SemanticTopologyRole.BottomFaceBoundaryLoop, _ => SemanticTopologyRole.ExtrusionSideFace }
                 : boundary switch { "TopBoundary" => SemanticTopologyRole.TopBoundary, "BottomBoundary" => SemanticTopologyRole.BottomBoundary, _ => SemanticTopologyRole.ExtrusionSideFace };

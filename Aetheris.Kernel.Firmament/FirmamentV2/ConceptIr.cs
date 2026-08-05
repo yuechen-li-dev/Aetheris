@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
@@ -377,14 +378,24 @@ internal static class ConceptIrResolver
                 if (localCenter is null) { diagnostics.Add(FirmamentV2Parser.HoleConstructionPlaneCenterMissing); continue; }
                 var localDiameter = ParseLengthOrUnitless(FieldValue(holeBody, "diameter"));
                 if (!double.IsFinite(localDiameter) || localDiameter <= 0) { diagnostics.Add(FirmamentV2Parser.HoleDiameterInvalid); continue; }
-                var localEnd = FieldValue(holeBody, "end");
-                if (!string.Equals(localEnd, "throughAll", StringComparison.OrdinalIgnoreCase) && !string.Equals(localEnd, "Through", StringComparison.OrdinalIgnoreCase))
-                { diagnostics.Add(FirmamentV2Parser.HoleConstructionPlaneExtentUnsupported); continue; }
+                var localEndText = FieldValue(holeBody, "end");
+                var localEnd = ParseConstructionPlaneHoleEnd(localEndText);
+                if (localEnd is null) { diagnostics.Add(string.Equals(localEndText, "Blind", StringComparison.OrdinalIgnoreCase) ? FirmamentV2Parser.HoleConstructionPlaneExtentUnsupported : FirmamentV2Parser.HoleBlindDepthInvalid); continue; }
+                var termination = ParseConstructionPlaneHoleTermination(holeBody, diagnostics);
+                if (localEnd.Kind == FirmamentV2SemanticHoleEndKind.ThroughAll)
+                {
+                    if (termination is not null) { diagnostics.Add(FirmamentV2Parser.HoleTerminationConflictsWithExtent); continue; }
+                }
+                else
+                {
+                    if (termination is null) { diagnostics.Add(FirmamentV2Parser.HoleBlindDepthMissing); continue; }
+                    if (termination.Kind != FirmamentV2SemanticHoleTerminationKind.DrillPoint) { diagnostics.Add(FirmamentV2Parser.HoleConstructionPlaneExtentUnsupported); continue; }
+                }
                 var constructionSourceSpan = new FirmamentV2SourceSpan(bodyOffset + header.Index, close - header.Index + 1);
                 var center = new FirmamentV2FaceLocalPoint2D(localCenter.Value.U, localCenter.Value.V, "ConstructionPlaneLocalXY");
                 result.Add(new(header.Groups["name"].Value, FirmamentV2SemanticHoleVariant.Shaft, FirmamentV2FaceTarget.Direct("+Z"), center,
-                    localDiameter, new(FirmamentV2SemanticHoleEndKind.ThroughAll), SourceSpan: constructionSourceSpan,
-                    Placement: new FirmamentV2ConstructionPlaneHolePlacement(constructionPlane!, center, constructionSourceSpan)));
+                    localDiameter, localEnd, SourceSpan: constructionSourceSpan,
+                    Placement: new FirmamentV2ConstructionPlaneHolePlacement(constructionPlane!, center, constructionSourceSpan), Termination: termination));
                 bindings.Add(new($"{materializedName}.{header.Groups["name"].Value}.ConstructionPlane", from, constructionPlane!.SourceConceptId, "ConstructionPlane"));
                 continue;
             }
@@ -940,6 +951,29 @@ internal static class ConceptIrResolver
     private static string AxisOf(ConceptIrVector3 v) => (v.X, v.Y, v.Z) switch { (1, 0, 0) => "+X", (-1, 0, 0) => "-X", (0, 1, 0) => "+Y", (0, -1, 0) => "-Y", (0, 0, 1) => "+Z", (0, 0, -1) => "-Z", _ => string.Empty };
     private static bool IsInsidePattern(string body, int index) => Regex.Matches(body, @"\bPattern\s+[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant).Cast<Match>().Any(p => { var close = FindMatchingBrace(body, body.IndexOf('{', p.Index)); return p.Index < index && close > index; });
     private static string FieldValue(string body, string name) { var m = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[^\r\n;}}]+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant); return m.Success ? m.Groups["value"].Value.Trim() : string.Empty; }
+    private static FirmamentV2SemanticHoleEnd? ParseConstructionPlaneHoleEnd(string value)
+    {
+        if (string.Equals(value, "ThroughAll", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "Through", StringComparison.OrdinalIgnoreCase)) return new(FirmamentV2SemanticHoleEndKind.ThroughAll);
+        var match = Regex.Match(value, @"^(?<kind>ShaftDepth|TotalDepth)\s*\(\s*(?<value>[^)]+)\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (!match.Success) return null;
+        var depth = ParseLengthOrUnitless(match.Groups["value"].Value);
+        if (!double.IsFinite(depth) || (string.Equals(match.Groups["kind"].Value, "ShaftDepth", StringComparison.OrdinalIgnoreCase) ? depth < 0d : depth <= 0d)) return null;
+        return new(string.Equals(match.Groups["kind"].Value, "ShaftDepth", StringComparison.OrdinalIgnoreCase) ? FirmamentV2SemanticHoleEndKind.ShaftDepth : FirmamentV2SemanticHoleEndKind.TotalDepth, depth);
+    }
+    private static FirmamentV2SemanticHoleTermination? ParseConstructionPlaneHoleTermination(string body, List<string> diagnostics)
+    {
+        var match = Regex.Match(body, @"\btermination\s*:\s*(?<kind>DrillPoint)\b(?:\s*\{\s*PointAngle\s*:\s*(?<angle>[^}\r\n;]+)\s*\})?", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (!match.Success) return null;
+        var angle = AirHoleTermination.DrillPoint.DefaultPointAngleDegrees;
+        if (match.Groups["angle"].Success)
+        {
+            var raw = match.Groups["angle"].Value.Trim();
+            if (raw.EndsWith("deg", StringComparison.OrdinalIgnoreCase)) raw = raw[..^3];
+            if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out angle) || !double.IsFinite(angle) || angle <= 0d || angle >= 180d)
+            { diagnostics.Add(FirmamentV2Parser.HoleDrillPointAngleInvalid); return null; }
+        }
+        return new(FirmamentV2SemanticHoleTerminationKind.DrillPoint, angle);
+    }
     private static int FieldCount(string body, string name) => Regex.Matches(body, $@"\b{Regex.Escape(name)}\s*:", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant).Count;
     private static (double U, double V)? ParsePoint2(string source)
     {

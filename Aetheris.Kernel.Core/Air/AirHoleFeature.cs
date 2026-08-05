@@ -2,7 +2,8 @@ using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Kernel.Core.Air;
 
-internal enum AirHoleEndConditionKind { ThroughAll, Depth }
+internal enum AirHoleEndConditionKind { ThroughAll, Depth, ShaftDepth, TotalDepth }
+internal enum AirHoleTerminationKind { FlatBottom, DrillPoint }
 internal enum AirHoleLoweringRouteKind { NotLowered, SimpleShaftProfileStackCandidate, StackedProfileStackCandidate }
 internal enum AirHoleStackKind { SimpleShaft, Counterbore, Countersink }
 internal enum AirHoleStackComponentKind { Shaft, Counterbore, Countersink }
@@ -15,6 +16,7 @@ internal sealed record AirHoleFeature(
     AirHoleAxis Axis,
     AirHoleShaft Shaft,
     AirHoleEndCondition EndCondition,
+    AirHoleTermination Termination,
     AirHoleStack Stack,
     AirProvenance Provenance,
     IReadOnlyList<AirDiagnostic> Diagnostics)
@@ -46,6 +48,7 @@ internal sealed record AirHoleFeature(
             axis,
             shaft,
             endCondition,
+            new AirHoleTermination.FlatBottom(),
             AirHoleStack.SimpleShaft(shaft, endCondition),
             provenance ?? DefaultProvenance(name, featureId),
             diagnostics);
@@ -58,11 +61,13 @@ internal sealed record AirHoleFeature(
         AirConstructionPlaneHolePlacement placement,
         AirHoleShaft shaft,
         AirHoleEndCondition endCondition,
-        AirProvenance? provenance = null)
+        AirProvenance? provenance = null,
+        AirHoleTermination? termination = null)
     {
-        var diagnostics = ValidateConstructionPlane(name, featureId, placement, shaft, endCondition).ToArray();
+        var resolvedTermination = termination ?? new AirHoleTermination.FlatBottom();
+        var diagnostics = ValidateConstructionPlane(name, featureId, placement, shaft, endCondition, resolvedTermination).ToArray();
         return new AirHoleFeature(name, featureId, targetBodyId, placement,
-            new AirHoleAxis(placement.AxisZ, false), shaft, endCondition, AirHoleStack.SimpleShaft(shaft, endCondition),
+            new AirHoleAxis(placement.AxisZ, false), shaft, endCondition, resolvedTermination, AirHoleStack.SimpleShaft(shaft, endCondition),
             provenance ?? DefaultProvenance(name, featureId), diagnostics);
     }
 
@@ -80,7 +85,7 @@ internal sealed record AirHoleFeature(
     {
         var stack = AirHoleStack.Counterbore(counterbore, new AirHoleShaftComponent(shaft.Diameter, endCondition));
         var diagnostics = Validate(name, featureId, placement, axis, shaft, endCondition).Concat(ValidateStack(stack, shaft, endCondition)).ToArray();
-        return new AirHoleFeature(name, featureId, targetBodyId, placement, axis, shaft, endCondition, stack, provenance ?? DefaultProvenance(name, featureId), diagnostics);
+        return new AirHoleFeature(name, featureId, targetBodyId, placement, axis, shaft, endCondition, new AirHoleTermination.FlatBottom(), stack, provenance ?? DefaultProvenance(name, featureId), diagnostics);
     }
 
     public static AirHoleFeature CreateCountersink(
@@ -96,7 +101,7 @@ internal sealed record AirHoleFeature(
     {
         var stack = AirHoleStack.Countersink(countersink, new AirHoleShaftComponent(shaft.Diameter, endCondition));
         var diagnostics = Validate(name, featureId, placement, axis, shaft, endCondition).Concat(ValidateStack(stack, shaft, endCondition)).ToArray();
-        return new AirHoleFeature(name, featureId, targetBodyId, placement, axis, shaft, endCondition, stack, provenance ?? DefaultProvenance(name, featureId), diagnostics);
+        return new AirHoleFeature(name, featureId, targetBodyId, placement, axis, shaft, endCondition, new AirHoleTermination.FlatBottom(), stack, provenance ?? DefaultProvenance(name, featureId), diagnostics);
     }
 
     public AirHoleLoweringPlan CreateSimpleShaftLoweringPlan()
@@ -158,7 +163,7 @@ internal sealed record AirHoleFeature(
         }
     }
 
-    private static IEnumerable<AirDiagnostic> ValidateConstructionPlane(string name, string featureId, AirConstructionPlaneHolePlacement placement, AirHoleShaft shaft, AirHoleEndCondition endCondition)
+    private static IEnumerable<AirDiagnostic> ValidateConstructionPlane(string name, string featureId, AirConstructionPlaneHolePlacement placement, AirHoleShaft shaft, AirHoleEndCondition endCondition, AirHoleTermination termination)
     {
         if (string.IsNullOrWhiteSpace(name)) yield return Error("hole-x2-name-required", "Hole feature name is required.");
         if (string.IsNullOrWhiteSpace(featureId)) yield return Error("hole-x2-feature-id-required", "Hole feature id is required.");
@@ -166,6 +171,12 @@ internal sealed record AirHoleFeature(
         if (!IsFinite(placement.LocalCenterX) || !IsFinite(placement.LocalCenterY)) yield return Error("HoleLocalCenterInvalid", "Construction Plane local center coordinates must be finite.");
         if (!IsFinite(shaft.Diameter) || shaft.Diameter <= 0d) yield return Error("hole-x2-diameter-invalid", "Hole diameter must be greater than zero.");
         if (endCondition is AirHoleEndCondition.Depth depth && (!IsFinite(depth.Value) || depth.Value <= 0d)) yield return Error("HoleExtentInvalid", "Bounded shaft depth must be greater than zero.");
+        if (termination is AirHoleTermination.DrillPoint point)
+        {
+            if (endCondition is AirHoleEndCondition.ThroughAll) yield return Error("HoleTerminationConflictsWithExtent", "DrillPoint requires ShaftDepth or TotalDepth, never ThroughAll.");
+            if (!IsFinite(point.PointAngleDegrees) || point.PointAngleDegrees <= 0d || point.PointAngleDegrees >= 180d) yield return Error("HoleDrillPointAngleInvalid", "DrillPoint PointAngle must be finite and between 0deg and 180deg.");
+            if (endCondition is not (AirHoleEndCondition.ShaftDepth or AirHoleEndCondition.TotalDepth)) yield return Error("HoleBlindDepthMissing", "DrillPoint requires an explicit ShaftDepth or TotalDepth.");
+        }
     }
 
     private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
@@ -251,6 +262,18 @@ internal abstract record AirHoleEndCondition(AirHoleEndConditionKind Kind)
 {
     public sealed record ThroughAll() : AirHoleEndCondition(AirHoleEndConditionKind.ThroughAll);
     public sealed record Depth(double Value) : AirHoleEndCondition(AirHoleEndConditionKind.Depth);
+    public sealed record ShaftDepth(double Value) : AirHoleEndCondition(AirHoleEndConditionKind.ShaftDepth);
+    public sealed record TotalDepth(double Value) : AirHoleEndCondition(AirHoleEndConditionKind.TotalDepth);
+}
+
+/// <summary>Mechanical termination owned by Hole AIR.  118deg is the compiler default included drill angle.</summary>
+internal abstract record AirHoleTermination(AirHoleTerminationKind Kind)
+{
+    public sealed record FlatBottom() : AirHoleTermination(AirHoleTerminationKind.FlatBottom);
+    public sealed record DrillPoint(double PointAngleDegrees = AirHoleTermination.DrillPoint.DefaultPointAngleDegrees) : AirHoleTermination(AirHoleTerminationKind.DrillPoint)
+    {
+        public const double DefaultPointAngleDegrees = 118d;
+    }
 }
 
 internal sealed record AirHoleLoweringPlan(

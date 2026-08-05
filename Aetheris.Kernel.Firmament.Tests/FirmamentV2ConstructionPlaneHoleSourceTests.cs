@@ -7,6 +7,25 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class FirmamentV2ConstructionPlaneHoleSourceTests
 {
     [Fact]
+    public void Source_ConstructionPlaneBlindDrillPoint_LowersWithUnambiguousDepth()
+    {
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Hole/valid/construction-plane-blind-drillpoint-shaft-depth.firmament")));
+        var parsed = FirmamentV2Parser.Parse(source);
+        Assert.True(parsed.IsSuccess, string.Join(Environment.NewLine, parsed.Diagnostics));
+        var hole = Assert.Single(Assert.Single(parsed.Document!.ModifyBlocks!).SemanticHoles);
+        Assert.Equal(FirmamentV2SemanticHoleEndKind.ShaftDepth, hole.EndCondition.Kind);
+        Assert.Equal(30d, hole.EndCondition.Depth);
+        Assert.Equal(FirmamentV2SemanticHoleTerminationKind.DrillPoint, hole.Termination!.Kind);
+        Assert.Equal(118d, hole.Termination.PointAngleDegrees);
+        var air = Assert.Single(FirmamentV2SemanticHoleLowering.LowerSemanticHoles(parsed.Document));
+        Assert.IsType<AirHoleEndCondition.ShaftDepth>(air.EndCondition);
+        Assert.IsType<AirHoleTermination.DrillPoint>(air.Termination);
+        var materialized = AirHoleSimpleShaftMaterializer.Execute(air, new AirHoleSimpleShaftHost(100, 60, -20, 20));
+        Assert.True(materialized.Succeeded, string.Join(" | ", materialized.Diagnostics));
+        Assert.Contains(materialized.Correspondence!.Descendants, d => d.Role == SemanticTopologyRole.HoleTipVertex);
+    }
+
+    [Fact]
     public void Source_ConstructionPlaneHole_LowersDirectlyAndPublishesSelectableDescendants()
     {
         var parsed = FirmamentV2Parser.Parse(File.ReadAllText(Fixture));

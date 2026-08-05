@@ -1,0 +1,16 @@
+Concept Struct SideLayout {
+    NegativeXDatum: Plane { Origin: [50mm, 0mm, 0mm]; Normal: [-1, 0, 0]; Up: [0, 0, 1] }
+}
+Construction Plane NegativeXWorkplane { Trace: SideLayout.NegativeXDatum }
+Struct SideBlindBracket {
+    Box Base { Size: [100mm, 60mm, 40mm] }
+    Modify Base {
+        Hole<Shaft> SideBlindTotal {
+            From: NegativeXWorkplane
+            Center: Point2(10mm, 6mm)
+            Diameter: 8mm
+            End: TotalDepth(32.4mm)
+            Termination: DrillPoint
+        }
+    }
+}

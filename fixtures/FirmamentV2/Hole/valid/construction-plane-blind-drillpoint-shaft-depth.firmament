@@ -1,0 +1,19 @@
+// LOCAL-FRAME-DRILLPOINT-X4: exact +X blind drilled shaft with the compiler 118deg point.
+Concept Struct SideLayout {
+    PositiveXDatum: Plane { Origin: [-50mm, 0mm, 0mm]; Normal: [1, 0, 0]; Up: [0, 0, 1] }
+}
+
+Construction Plane PositiveXWorkplane { Trace: SideLayout.PositiveXDatum }
+
+Struct SideBlindBracket {
+    Box Base { Size: [100mm, 60mm, 40mm] }
+    Modify Base {
+        Hole<Shaft> SideBlind {
+            From: PositiveXWorkplane
+            Center: Point2(10mm, 6mm)
+            Diameter: 8mm
+            End: ShaftDepth(30mm)
+            Termination: DrillPoint
+        }
+    }
+}

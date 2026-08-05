@@ -15,10 +15,13 @@ internal sealed record LocalFrameHoleBRepPlan(
     (double Start, double End) HostMaterialInterval,
     ProfileExtrusionBRepPlan Topology,
     SemanticTopologyCorrespondence Correspondence,
-    IReadOnlyList<string> Provenance)
+    IReadOnlyList<string> Provenance,
+    HoleHostTraversalEvidence? TraversalEvidence = null,
+    HoleEndConditionContractEvidence? ContractEvidence = null)
 {
     public static LocalFrameHoleBRepPlan FromProfilePlan(AirHoleFeature feature, AirConstructionPlaneHolePlacement placement,
-        (double Start, double End) interval, ProfileExtrusionBRepPlan topology)
+        (double Start, double End) interval, ProfileExtrusionBRepPlan topology,
+        HoleHostTraversalEvidence? traversalEvidence = null, HoleEndConditionContractEvidence? contractEvidence = null)
     {
         var innerStart = topology.Loops.Single(x => x.Role == ProfileExtrusionPlanRole.LocalStartCapLoop && x.SourceStableId.EndsWith("Loop1", StringComparison.Ordinal));
         var innerEnd = topology.Loops.Single(x => x.Role == ProfileExtrusionPlanRole.LocalEndCapLoop && x.SourceStableId.EndsWith("Loop1", StringComparison.Ordinal));
@@ -38,6 +41,6 @@ internal sealed record LocalFrameHoleBRepPlan(
         var provenance = new[] { "HoleBRepPlan", "ConstructionPlanePlacement", "HostMaterialIntervalQuery", "ProfileExtrusionBRepPlan", "AuthoritativeBRepPlan",
             "ConstructionPlane:" + placement.ConstructionPlaneId, "ConceptPlane:" + placement.SourceConceptPlaneId };
         return new($"brep-plan:hole:{source}:{placement.ConstructionPlaneId}", source, placement, interval, topology,
-            new SemanticTopologyCorrespondence(feature.TargetBodyId ?? "semantic-hole-host", descendants, provenance), provenance);
+            new SemanticTopologyCorrespondence(feature.TargetBodyId ?? "semantic-hole-host", descendants, provenance), provenance, traversalEvidence, contractEvidence);
     }
 }

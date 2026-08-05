@@ -140,6 +140,12 @@ public static class FirmamentV2Parser
     public const string HoleConstructionPlaneHostUnsupported = "HoleConstructionPlaneHostUnsupported";
     public const string HoleConstructionPlaneCenterMissing = "HoleLocalCenterInvalid";
     public const string HoleConstructionPlaneExtentUnsupported = "HoleConstructionPlaneExtentUnsupported";
+    public const string HoleBlindDepthMissing = "HoleBlindDepthMissing";
+    public const string HoleBlindDepthInvalid = "HoleBlindDepthInvalid";
+    public const string HoleDrillPointAngleInvalid = "HoleDrillPointAngleInvalid";
+    public const string HoleTotalDepthShorterThanTip = "HoleTotalDepthShorterThanTip";
+    public const string HoleTerminationConflictsWithExtent = "HoleTerminationConflictsWithExtent";
+    public const string HoleDrillPointExitsHost = "HoleDrillPointExitsHost";
     public const string PmiKindUnknown = "firmament-v2-pmi-kind-unknown";
     public const string PmiTargetMissing = "firmament-v2-pmi-target-missing";
     public const string PmiTargetUnresolved = "firmament-v2-pmi-target-unresolved";
@@ -985,7 +991,7 @@ public static class FirmamentV2Parser
     }
 
     internal static bool IsConceptFatalDiagnostic(string code) =>
-        code is HoleConstructionPlaneNotFound or HolePlacementMixed or HolePlacementDuplicate or HoleConstructionPlaneCenterMissing or HoleConstructionPlaneExtentUnsupported or HoleConstructionPlaneHostUnsupported
+        code is HoleConstructionPlaneNotFound or HolePlacementMixed or HolePlacementDuplicate or HoleConstructionPlaneCenterMissing or HoleConstructionPlaneExtentUnsupported or HoleConstructionPlaneHostUnsupported or HoleBlindDepthMissing or HoleBlindDepthInvalid or HoleDrillPointAngleInvalid or HoleTerminationConflictsWithExtent
         ||
         code.StartsWith(ConceptIrResolver.MissingMember, StringComparison.Ordinal)
         || code.StartsWith(ConceptIrResolver.UnknownMember, StringComparison.Ordinal)

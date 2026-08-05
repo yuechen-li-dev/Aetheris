@@ -1,0 +1,16 @@
+Concept Struct SideLayout {
+    PositiveYDatum: Plane { Origin: [0mm, -30mm, 0mm]; Normal: [0, 1, 0]; Up: [0, 0, 1] }
+}
+Construction Plane PositiveYWorkplane { Trace: SideLayout.PositiveYDatum }
+Struct SideBlindBracket {
+    Box Base { Size: [100mm, 60mm, 40mm] }
+    Modify Base {
+        Hole<Shaft> SideBlindOverride {
+            From: PositiveYWorkplane
+            Center: Point2(10mm, 6mm)
+            Diameter: 8mm
+            End: ShaftDepth(20mm)
+            Termination: DrillPoint { PointAngle: 100deg }
+        }
+    }
+}

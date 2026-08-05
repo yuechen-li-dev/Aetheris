@@ -16,6 +16,7 @@ internal static class CadmataFixtureService
         ["split-compose-chamfer"] = "fixtures/FirmamentV2/ProfileComposition/valid/semantic-split-compose-chamfer.firmament",
         ["semantic-shaft-hole"] = "fixtures/FirmamentV2/Hole/valid/semantic-shaft-selection.firmament",
         ["construction-plane-through-hole"] = "fixtures/FirmamentV2/Hole/valid/construction-plane-through-hole.firmament",
+        ["construction-plane-blind-drillpoint"] = "fixtures/FirmamentV2/Hole/valid/construction-plane-blind-drillpoint-shaft-depth.firmament",
         ["ctc-01-x3"] = "testdata/firmament/reconstructions/nist_ctc_01/ctc01_prismatic_blockout_x3.firmament",
         ["ctc-01-x4"] = "testdata/firmament/reconstructions/nist_ctc_01/ctc01_prismatic_blockout_x4.firmament",
         ["semantic-capsule-slot"] = "fixtures/FirmamentV2/ProfileComposition/valid/semantic-capsule-slot-through.firmament",
@@ -30,7 +31,7 @@ internal static class CadmataFixtureService
         var source = File.ReadAllText(sourcePath);
         BrepBody? body = null; SemanticTopologyCorrespondence? correspondence = null; IReadOnlyList<ResolvedProfile2D> profiles = []; IReadOnlyList<PrismaticShaftHoleFeature> shaftHoles = []; IReadOnlyList<PrismaticCapsuleSlotFeature> capsuleSlots = []; IReadOnlyList<PrismaticRoundedRectangleSlotFeature> roundedRectangleSlots = [];
         var diagnostics = new List<string>(); SemanticHoleSourceInspectionEvidence? semanticHoleEvidence = null;
-        if (fixtureId is "semantic-shaft-hole" or "construction-plane-through-hole")
+        if (fixtureId is "semantic-shaft-hole" or "construction-plane-through-hole" or "construction-plane-blind-drillpoint")
         {
             var parsed = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(sourcePath));
             if (!parsed.IsSuccess || parsed.Document is null) { error = string.Join("; ", parsed.Diagnostics); return false; }
@@ -101,6 +102,15 @@ internal static class CadmataFixtureService
             var descendants = correspondence?.Descendants.Select(d => d.StableId).ToArray() ?? [];
             entities.Add(new(featureId, "HoleFeature", semanticHoleEvidence.FeatureId, "conceptAxes", "SemanticHole", new("circle", Center: mouthPoint, Radius: semanticHoleEvidence.Radius), semanticHoleEvidence.SourceSpan, [semanticHoleEvidence.ConstructionPlaneId!], null, null, descendants, null, null, "LocalFrameHoleBRepPlan", null, new Dictionary<string, string> { ["placementKind"] = "ConstructionPlane", ["extent"] = semanticHoleEvidence.Extent, ["hostInterval"] = $"{interval[0]:R}..{interval[1]:R}" }));
             entities.Add(new(featureId + ".axis", "ConceptAxis", "drilling axis", "conceptAxes", "HoleAxis", new("polyline", [mouthPoint, Add(mouthPoint, z, interval[1] - interval[0])]), semanticHoleEvidence.SourceSpan, [featureId], null, null, null, null, null, null, null, null));
+            if (semanticHoleEvidence.PointAngle is { } angle && semanticHoleEvidence.ShaftDepth is { } shaftDepth && semanticHoleEvidence.TotalDepth is { } totalDepth)
+            {
+                var transition = Add(mouthPoint, z, shaftDepth); var tip = Add(mouthPoint, z, totalDepth);
+                var pointDescendants = correspondence?.Descendants.Where(d => d.Role is SemanticTopologyRole.HoleDrillPointFace or SemanticTopologyRole.HoleTipVertex).Select(d => d.StableId).ToArray() ?? [];
+                entities.Add(new(featureId + ".shaft-envelope", "ShaftEnvelope", "shaft envelope", "conceptAxes", "Shaft", new("polyline", [mouthPoint, transition]), semanticHoleEvidence.SourceSpan, [featureId], null, null, null, null, null, null, null, new Dictionary<string, string> { ["radius"] = semanticHoleEvidence.Radius.ToString("R"), ["shaftDepth"] = shaftDepth.ToString("R") }));
+                entities.Add(new(featureId + ".transition", "TransitionLoop", "shaft-to-DrillPoint transition", "profileLoops", "ShaftToDrillPointLoop", new("circle", Center: transition, Radius: semanticHoleEvidence.Radius), semanticHoleEvidence.SourceSpan, [featureId], null, null, correspondence?.Descendants.Where(d => d.Role == SemanticTopologyRole.HoleShaftToDrillPointLoop).Select(d => d.StableId).ToArray(), null, null, "LocalFrameHoleBRepPlan", null, null));
+                entities.Add(new(featureId + ".drill-point", "DrillPoint", "exact DrillPoint cone", "conceptAxes", "DrillPoint", new("polyline", [transition, tip]), semanticHoleEvidence.SourceSpan, [featureId], null, null, pointDescendants, null, null, "ConeSurface", null, new Dictionary<string, string> { ["includedPointAngle"] = $"{angle:R} deg", ["tipLength"] = semanticHoleEvidence.TipLength?.ToString("R") ?? string.Empty, ["analytic"] = "ConeSurface" }));
+                entities.Add(new(featureId + ".tip", "TipVertex", "DrillPoint tip", "conceptPoints", "TipVertex", new("polyline", [tip]), semanticHoleEvidence.SourceSpan, [featureId + ".drill-point"], null, null, correspondence?.Descendants.Where(d => d.Role == SemanticTopologyRole.HoleTipVertex).Select(d => d.StableId).ToArray(), null, null, "LocalFrameHoleBRepPlan", null, null));
+            }
         }
         foreach (var hole in shaftHoles)
         {
@@ -135,8 +145,8 @@ internal static class CadmataFixtureService
         {
             entities.Add(new(descendant.StableId, $"BRep{descendant.Kind}", descendant.Role.ToString(), descendant.Kind == "Face" ? "selections" : "brepEdges", descendant.Role.ToString(), null, null, [descendant.SourceStableId], null, null, null, new(descendant.Face is { } face ? [face.Value] : null, descendant.Edge is { } edge ? [edge.Value] : null, descendant.Loop is { } loop ? [loop.Value] : null, descendant.Vertex is { } vertex ? [vertex.Value] : null), null, null, null, null));
         }
-        var hasSemanticFeatures = fixtureId is "semantic-shaft-hole" or "construction-plane-through-hole" || shaftHoles.Count > 0 || capsuleSlots.Count > 0 || roundedRectangleSlots.Count > 0;
-        var selectionSourceIds = fixtureId == "semantic-shaft-hole" ? new[] { "hole:base.mount" } : fixtureId == "construction-plane-through-hole" && semanticHoleEvidence is not null ? new[] { "hole:" + semanticHoleEvidence.FeatureId } : capsuleSlots.Count > 0 ? capsuleSlots.Select(slot => slot.StableId).ToArray() : roundedRectangleSlots.Count > 0 ? roundedRectangleSlots.Select(slot => slot.StableId).ToArray() : shaftHoles.Count > 0 ? shaftHoles.Select(hole => hole.StableId).ToArray() : entities.Where(e => e.Kind == "ProfileSegment").Select(e => e.StableId).ToArray();
+        var hasSemanticFeatures = fixtureId is "semantic-shaft-hole" or "construction-plane-through-hole" or "construction-plane-blind-drillpoint" || shaftHoles.Count > 0 || capsuleSlots.Count > 0 || roundedRectangleSlots.Count > 0;
+        var selectionSourceIds = fixtureId == "semantic-shaft-hole" ? new[] { "hole:base.mount" } : (fixtureId is "construction-plane-through-hole" or "construction-plane-blind-drillpoint") && semanticHoleEvidence is not null ? new[] { "hole:" + semanticHoleEvidence.FeatureId } : capsuleSlots.Count > 0 ? capsuleSlots.Select(slot => slot.StableId).ToArray() : roundedRectangleSlots.Count > 0 ? roundedRectangleSlots.Select(slot => slot.StableId).ToArray() : shaftHoles.Count > 0 ? shaftHoles.Select(hole => hole.StableId).ToArray() : entities.Where(e => e.Kind == "ProfileSegment").Select(e => e.StableId).ToArray();
         var selection = new CadmataVisualizationSelectionDto($"selection:{fixtureId}", hasSemanticFeatures ? "semantic feature descendants" : "compiler-published profile boundary", hasSemanticFeatures ? "FaceSet" : "LoopSet", selectionSourceIds, selectionSourceIds, !hasSemanticFeatures, []);
         return new("cadmata-concept-viz-x1", fixtureId, sourcePath, entities, [selection], diagnostics.Select(d => new CadmataVisualizationDiagnosticDto("Compiler.Trace", d, "info")).ToArray(), new Dictionary<string, double> { ["entityCount"] = entities.Count, ["faceCount"] = body.Topology.Faces.Count(), ["edgeCount"] = body.Topology.Edges.Count() });
     }

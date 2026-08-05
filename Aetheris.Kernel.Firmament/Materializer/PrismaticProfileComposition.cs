@@ -15,12 +15,33 @@ public sealed record PrismaticProfileOperation(
 public sealed record PrismaticShaftHoleFeature(
     string Name, string StableId, string ProfileReference, double CenterX, double CenterY, double Diameter,
     double From, double To, string SemanticRole, string SourceSpan);
+/// <summary>Compiler-owned capsule contract; the generated Profile remains lowering detail.</summary>
+public sealed record PrismaticCapsuleSlotFeature(
+    string Name, string StableId, string ProfileReference, double CenterX, double CenterY,
+    double DirectionX, double DirectionY, double Length, double Width, double From, double To,
+    string Extent, string SemanticRole, string SourceSpan)
+{
+    public double Radius => Width / 2d;
+    public double StraightSpan => Length - Width;
+}
+/// <summary>Compiler-owned rounded-rectangle slot contract; corner radii are explicit authored semantics.</summary>
+public sealed record PrismaticRoundedRectangleSlotFeature(
+    string Name, string StableId, string ProfileReference, double CenterX, double CenterY,
+    double DirectionX, double DirectionY, double Length, double Width, double CornerRadius, double From, double To,
+    string Extent, string SemanticRole, string SourceSpan);
 public sealed record PrismaticProfilePlacement(
     string Name, double AnchorX, double AnchorY, double AnchorZ,
     string ProfilePlane, string Axis, string ReferenceDirection, bool IsExplicit);
 public sealed record PrismaticProfileCompositionFeature(
     string Name, string Frame, string Axis, PrismaticProfilePlacement Placement, IReadOnlyList<PrismaticProfileOperation> Operations,
-    IReadOnlyList<double> CriticalLevels, string Provenance, IReadOnlyList<PrismaticShaftHoleFeature>? ShaftHoles = null);
+    IReadOnlyList<double> CriticalLevels, string Provenance, IReadOnlyList<PrismaticShaftHoleFeature>? ShaftHoles = null,
+    IReadOnlyList<PrismaticCapsuleSlotFeature>? CapsuleSlots = null,
+    IReadOnlyList<PrismaticRoundedRectangleSlotFeature>? RoundedRectangleSlots = null)
+{
+    public IEnumerable<(string Name, string StableId, string ProfileReference)> AllSlotProfiles =>
+        (CapsuleSlots ?? []).Select(x => (x.Name, x.StableId, x.ProfileReference))
+            .Concat((RoundedRectangleSlots ?? []).Select(x => (x.Name, x.StableId, x.ProfileReference)));
+}
 public sealed record PrismaticSectionRegion(
     ResolvedProfile2D Outer, IReadOnlyList<ResolvedProfile2D> Holes, IReadOnlyList<string> Provenance);
 public sealed record PrismaticSectionSlab(
@@ -55,6 +76,13 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex HoleDiameter = new(@"\bDiameter\s*:\s*(?<d>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleEnd = new(@"\bEnd\s*:\s*(?<end>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleRole = new(@"\bRole\s*:\s*(?<role>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex SlotHeader = new(@"\bSlot\s*<\s*(?<variant>\w+)\s*>\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex SlotCenter = new(@"\bCenter\s*:\s*(?:Point2\s*\()?\[?(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\]?\)?", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex SlotDirection = new(@"\bDirection\s*:\s*(?:Vector2\s*\()?\[?(?<x>[-+.\d]+)\s*,\s*(?<y>[-+.\d]+)\]?\)?", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex SlotLength = new(@"\bLength\s*:\s*(?<v>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex SlotWidth = new(@"\bWidth\s*:\s*(?<v>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex SlotCornerRadius = new(@"\bCornerRadius\s*:\s*(?<v>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex SlotExtent = new(@"\bExtent\s*:\s*(?<v>ThroughAll|Between\s*\(\s*(?<from>[-+.\d]+)mm\s*,\s*(?<to>[-+.\d]+)mm\s*\))", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     public static bool IsCompositionSource(string source) => ComposeHead.IsMatch(source);
 
@@ -149,6 +177,8 @@ public static class PrismaticProfileCompositionParser
         }
         if (operations.Count(o => o.Intent == PrismaticProfileIntent.Base) != 1) diagnostics.Add("compose-requires-exactly-one-base-operation");
         var shaftHoles = new List<PrismaticShaftHoleFeature>();
+        var capsuleSlots = new List<PrismaticCapsuleSlotFeature>();
+        var roundedRectangleSlots = new List<PrismaticRoundedRectangleSlotFeature>();
         var materialFrom = operations.Count == 0 ? 0d : operations.Min(x => x.From);
         var materialTo = operations.Count == 0 ? 0d : operations.Max(x => x.To);
         foreach (Match header in HoleHeader.Matches(composeBody))
@@ -177,8 +207,39 @@ public static class PrismaticProfileCompositionParser
             shaftHoles.Add(new(name, stableId, profileName, x, y, d, materialFrom, materialTo, semanticRole, sourceSpan));
             operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, materialFrom, materialTo, semanticRole, sourceSpan, stableId, "Hole<Shaft>", d));
         }
+        foreach (Match header in SlotHeader.Matches(composeBody))
+        {
+            var name = header.Groups["n"].Value; var body = Block(composeBody, header.Index + header.Length - 1);
+            if (body is null) { diagnostics.Add($"SlotProfileDegenerate:{name}:unclosed"); continue; }
+            var center = SlotCenter.Match(body); var direction = SlotDirection.Match(body); var length = SlotLength.Match(body); var width = SlotWidth.Match(body); var extent = SlotExtent.Match(body); var role = HoleRole.Match(body);
+            var variant=header.Groups["variant"].Value;
+            if (!string.Equals(variant,"Capsule",StringComparison.OrdinalIgnoreCase) && !string.Equals(variant,"RoundedRectangle",StringComparison.OrdinalIgnoreCase)) { diagnostics.Add($"UnsupportedSlotHostTopology:{name}:supported variants are Capsule and RoundedRectangle"); continue; }
+            if (!center.Success || !direction.Success || !length.Success || !width.Success || !extent.Success) { diagnostics.Add($"SlotProfileDegenerate:{name}:missing Center, Direction, Length, Width, or Extent"); continue; }
+            var x=N(center,"x"); var y=N(center,"y"); var dx=N(direction,"x"); var dy=N(direction,"y"); var l=N(length,"v"); var w=N(width,"v");
+            if (l <= 0 || !double.IsFinite(l)) { diagnostics.Add($"SlotLengthMustBePositive:{name}:length={l:R}"); continue; }
+            if (w <= 0 || !double.IsFinite(w)) { diagnostics.Add($"SlotWidthMustBePositive:{name}:width={w:R}"); continue; }
+            if (string.Equals(variant,"Capsule",StringComparison.OrdinalIgnoreCase) && l < w) { diagnostics.Add($"SlotLengthLessThanWidth:{name}:length={l:R}:width={w:R}"); continue; }
+            if (string.Equals(variant,"Capsule",StringComparison.OrdinalIgnoreCase) && l == w) { diagnostics.Add($"SlotProfileDegenerate:{name}:Length == Width is rejected; use Hole<Shaft> for a circular opening"); continue; }
+            var norm=Math.Sqrt(dx*dx+dy*dy); if (!double.IsFinite(norm) || norm <= 1e-12) { diagnostics.Add($"SlotDirectionDegenerate:{name}:direction=[{dx:R},{dy:R}]"); continue; }
+            if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
+            var from=materialFrom; var to=materialTo; var extentText=extent.Groups["v"].Value;
+            if (!string.Equals(extentText, "ThroughAll", StringComparison.OrdinalIgnoreCase)) { from=N(extent,"from"); to=N(extent,"to"); if (from >= to) { diagnostics.Add($"SlotExtentInvalid:{name}:entry={from:R}:exit={to:R}"); continue; } if (to <= materialFrom || from >= materialTo) { diagnostics.Add($"SlotDoesNotIntersectMaterial:{name}:host=[{materialFrom:R},{materialTo:R}]"); continue; } from=Math.Max(from,materialFrom); to=Math.Min(to,materialTo); }
+            dx/=norm; dy/=norm; var stableId=$"slot:{compose.Groups["n"].Value}.{name}"; var sourceSpan=$"offset:{header.Index}"; var semanticRole=role.Success ? role.Groups["role"].Value : $"{variant}Slot";
+            if (string.Equals(variant,"Capsule",StringComparison.OrdinalIgnoreCase))
+            {
+                var profileName=$"{name}CapsuleProfile"; var profile=CapsuleProfile(profileName,x,y,dx,dy,l,w,stableId,sourceSpan); var validation=ResolvedProfile2DValidator.Validate(profile); diagnostics.AddRange(validation.Diagnostics); if (!validation.IsValid) { diagnostics.Add($"SlotProfileDegenerate:{name}"); continue; }
+                profiles.Add(profileName,profile); capsuleSlots.Add(new(name,stableId,profileName,x,y,dx,dy,l,w,from,to,extentText,semanticRole,sourceSpan)); operations.Add(new(name,PrismaticProfileIntent.Remove,profileName,from,to,semanticRole,sourceSpan,stableId,"Slot<Capsule>"));
+            }
+            else
+            {
+                var corner=SlotCornerRadius.Match(body); if (!corner.Success) { diagnostics.Add($"SlotProfileDegenerate:{name}:RoundedRectangle requires CornerRadius"); continue; }
+                var r=N(corner,"v"); if (!double.IsFinite(r) || r <= 0 || 2*r > Math.Min(l,w)) { diagnostics.Add($"SlotProfileDegenerate:{name}:CornerRadius={r:R} must be positive and no greater than min(Length,Width)/2"); continue; }
+                var profileName=$"{name}RoundedRectangleProfile"; var profile=RoundedRectangleProfile(profileName,x,y,dx,dy,l,w,r,stableId,sourceSpan); var validation=ResolvedProfile2DValidator.Validate(profile); diagnostics.AddRange(validation.Diagnostics); if (!validation.IsValid) { diagnostics.Add($"SlotProfileDegenerate:{name}"); continue; }
+                profiles.Add(profileName,profile); roundedRectangleSlots.Add(new(name,stableId,profileName,x,y,dx,dy,l,w,r,from,to,extentText,semanticRole,sourceSpan)); operations.Add(new(name,PrismaticProfileIntent.Remove,profileName,from,to,semanticRole,sourceSpan,stableId,"Slot<RoundedRectangle>"));
+            }
+        }
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles) : null;
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
     }
 
@@ -189,6 +250,26 @@ public static class PrismaticProfileCompositionParser
             names[i], new LineArcCircularArc2D((x, y), radius, i * Math.PI / 2d, Math.PI / 2d),
             new($"profile:{profileName}.Outer.{names[i]}", $"{holeStableId}.axis", sourceSpan, $"Hole<Shaft>({holeStableId})", "XY"))).ToArray();
         return new(profileName, "XY", [new ResolvedProfileLoop2D("Outer", true, segments)]);
+    }
+    private static ResolvedProfile2D CapsuleProfile(string profileName, double x, double y, double dx, double dy, double length, double width, string slotId, string sourceSpan)
+    {
+        var r=width/2d; var h=(length-width)/2d; var nx=-dy; var ny=dx;
+        var a=(X:x-dx*h,Y:y-dy*h); var b=(X:x+dx*h,Y:y+dy*h);
+        var p0=(X:a.X+nx*r,Y:a.Y+ny*r); var p1=(X:b.X+nx*r,Y:b.Y+ny*r); var p2=(X:b.X-nx*r,Y:b.Y-ny*r); var p3=(X:a.X-nx*r,Y:a.Y-ny*r);
+        var start=Math.Atan2(ny,nx); var end=Math.Atan2(-ny,-nx);
+        ResolvedProfileSegment2D S(string role, LineArcProfileCurve2D curve) => new(role,curve,new($"profile:{profileName}.Outer.{role}",$"{slotId}.{role}",sourceSpan,$"Slot<Capsule>({slotId})","XY"));
+        return new(profileName,"XY",[new ResolvedProfileLoop2D("Outer",true,[S("NegativeSide",new LineArcLineSegment2D(p3,p2)),S("EndCap",new LineArcCircularArc2D(b,r,end,Math.PI)),S("PositiveSide",new LineArcLineSegment2D(p1,p0)),S("StartCap",new LineArcCircularArc2D(a,r,start,Math.PI))])]);
+    }
+    private static ResolvedProfile2D RoundedRectangleProfile(string profileName, double x, double y, double dx, double dy, double length, double width, double r, string slotId, string sourceSpan)
+    {
+        var nx=-dy; var ny=dx; (double X,double Y) P(double u,double v)=>(x+dx*u+nx*v,y+dy*u+ny*v); var hx=length/2d; var hy=width/2d;
+        ResolvedProfileSegment2D S(string role,LineArcProfileCurve2D curve)=>new(role,curve,new($"profile:{profileName}.Outer.{role}",$"{slotId}.{role}",sourceSpan,$"Slot<RoundedRectangle>({slotId})","XY"));
+        return new(profileName,"XY",[new ResolvedProfileLoop2D("Outer",true,[
+            S("NegativeSide",new LineArcLineSegment2D(P(-hx+r,-hy),P(hx-r,-hy))), S("EndNegativeCorner",new LineArcCircularArc2D(P(hx-r,-hy+r),r,Math.Atan2(-ny, -nx),Math.PI/2d)),
+            S("EndSide",new LineArcLineSegment2D(P(hx,-hy+r),P(hx,hy-r))), S("EndPositiveCorner",new LineArcCircularArc2D(P(hx-r,hy-r),r,Math.Atan2(dy,dx),Math.PI/2d)),
+            S("PositiveSide",new LineArcLineSegment2D(P(hx-r,hy),P(-hx+r,hy))), S("StartPositiveCorner",new LineArcCircularArc2D(P(-hx+r,hy-r),r,Math.Atan2(ny,nx),Math.PI/2d)),
+            S("StartSide",new LineArcLineSegment2D(P(-hx,hy-r),P(-hx,-hy+r))), S("StartNegativeCorner",new LineArcCircularArc2D(P(-hx+r,-hy+r),r,Math.Atan2(-dy,-dx),Math.PI/2d))
+        ])]);
     }
 
     private static double N(Match match, string name) => double.Parse(match.Groups[name].Value, CultureInfo.InvariantCulture);

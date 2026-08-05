@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 namespace Aetheris.Kernel.Firmament.Materializer;
 
 /// <summary>Stable roles assigned while an authoritative plan is materialized.  These are not geometric queries.</summary>
-public enum SemanticTopologyRole { Unknown, ProfileVertex, VerticalExtrusionEdge, TopBoundary, BottomBoundary, ExtrusionSideFace, TopFaceBoundaryLoop, BottomFaceBoundaryLoop, HoleEntryLoop, HoleExitLoop, HoleWallFace, ComposeTransition }
+public enum SemanticTopologyRole { Unknown, ProfileVertex, VerticalExtrusionEdge, TopBoundary, BottomBoundary, ExtrusionSideFace, TopFaceBoundaryLoop, BottomFaceBoundaryLoop, HoleEntryLoop, HoleExitLoop, HoleWallFace, SlotEntryLoop, SlotExitLoop, SlotWallFace, SlotStraightWallFace, SlotEndWallFace, ComposeTransition }
 public enum SemanticSelectionRequirement { ExactlyOne, OneOrMore, ConnectedChain, ClosedLoop, NonEmptyFaceSet }
 public enum SemanticSelectionFailure { None, SemanticSourceNotFound, NoMaterializedDescendants, AmbiguousBodyContext, SelectionCardinalityMismatch, DescendantsNotConnected, DescendantsBranch, DescendantsDoNotClose, MixedBoundaryRoles, UnsupportedTopologyChange, SelectionConsumerMismatch }
 
@@ -126,7 +126,8 @@ public static class SemanticSelectionSourceParser
     private static readonly Regex Source = new(@"\bSource\s*:\s*(?<profile>\w+)\.ProfileSegments\s*\(\s*\[(?<members>[\w\s,]+)\]\s*\)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex LoopSource = new(@"\bSource\s*:\s*(?<profile>\w+)\.ProfileLoop\s*\(\s*(?<loop>\w+)\s*\)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex HoleSource = new(@"\bSource\s*:\s*Hole\s*\(\s*(?<hole>\w+)\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-    private static readonly Regex Target = new(@"\bTarget\s*:\s*(?<role>TopBoundary|BottomBoundary|SideBoundary|HoleEntry|HoleExit|HoleWall)", RegexOptions.CultureInvariant);
+    private static readonly Regex SlotSource = new(@"\bSource\s*:\s*Slot\s*\(\s*(?<slot>\w+)\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex Target = new(@"\bTarget\s*:\s*(?<role>TopBoundary|BottomBoundary|SideBoundary|HoleEntry|HoleExit|HoleWall|SlotEntry|SlotExit|SlotWall|SlotStraightWall|SlotEndWall)", RegexOptions.CultureInvariant);
     private static readonly Regex Require = new(@"\bRequire\s*:\s*(?<shape>ExactlyOne|OneOrMore|ConnectedChain|ClosedLoop|NonEmptyFaceSet)", RegexOptions.CultureInvariant);
 
     public static IReadOnlyList<SemanticSelectionRequest> Parse(string source, ResolvedProfile2D profile, string bodyStableId, out IReadOnlyList<string> diagnostics)
@@ -136,22 +137,26 @@ public static class SemanticSelectionSourceParser
         {
             var body = Block(source, header.Index + header.Length - 1);
             if (body is null) { errors.Add($"selection-unclosed:{header.Groups["name"].Value}"); continue; }
-            var sourceMatches = Source.Matches(body); var loopMatch = LoopSource.Match(body); var holeMatch = HoleSource.Match(body); var target = Target.Match(body); var require = Require.Match(body);
-            if (!target.Success || !require.Success || (sourceMatches.Count == 0 && !loopMatch.Success && !holeMatch.Success)) { errors.Add($"selection-invalid:{header.Groups["name"].Value}"); continue; }
+            var sourceMatches = Source.Matches(body); var loopMatch = LoopSource.Match(body); var holeMatch = HoleSource.Match(body); var slotMatch = SlotSource.Match(body); var target = Target.Match(body); var require = Require.Match(body);
+            if (!target.Success || !require.Success || (sourceMatches.Count == 0 && !loopMatch.Success && !holeMatch.Success && !slotMatch.Success)) { errors.Add($"selection-invalid:{header.Groups["name"].Value}"); continue; }
             var boundary = target.Groups["role"].Value;
-            var role = holeMatch.Success
+            var role = slotMatch.Success
+                ? boundary switch { "SlotEntry" => SemanticTopologyRole.SlotEntryLoop, "SlotExit" => SemanticTopologyRole.SlotExitLoop, "SlotWall" => SemanticTopologyRole.SlotWallFace, "SlotStraightWall" => SemanticTopologyRole.SlotStraightWallFace, "SlotEndWall" => SemanticTopologyRole.SlotEndWallFace, _ => SemanticTopologyRole.Unknown }
+                : holeMatch.Success
                 ? boundary switch { "HoleEntry" => SemanticTopologyRole.HoleEntryLoop, "HoleExit" => SemanticTopologyRole.HoleExitLoop, "HoleWall" => SemanticTopologyRole.HoleWallFace, _ => SemanticTopologyRole.Unknown }
                 : loopMatch.Success
                 ? boundary switch { "TopBoundary" => SemanticTopologyRole.TopFaceBoundaryLoop, "BottomBoundary" => SemanticTopologyRole.BottomFaceBoundaryLoop, _ => SemanticTopologyRole.ExtrusionSideFace }
                 : boundary switch { "TopBoundary" => SemanticTopologyRole.TopBoundary, "BottomBoundary" => SemanticTopologyRole.BottomBoundary, _ => SemanticTopologyRole.ExtrusionSideFace };
-            var sources = holeMatch.Success
+            var sources = slotMatch.Success
+                ? new[] { $"slot:{bodyStableId}.{slotMatch.Groups["slot"].Value}" }
+                : holeMatch.Success
                 ? new[] { $"hole:{bodyStableId}.{holeMatch.Groups["hole"].Value}" }
                 : sourceMatches.Count > 0
                 ? sourceMatches.SelectMany(match => match.Groups["members"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(x => $"profile:{match.Groups["profile"].Value}.Outer.{x}")).ToArray()
                 : [$"profile:{loopMatch.Groups["profile"].Value}.{loopMatch.Groups["loop"].Value}"];
             // Compose selections may name any one of the parsed profiles; body context is checked by the resolver.
             output.Add(new($"selection:{header.Groups["name"].Value}", header.Groups["name"].Value, bodyStableId, sources, role,
-                Enum.Parse<SemanticSelectionRequirement>(require.Groups["shape"].Value), $"offset:{header.Index}", holeMatch.Success ? "Hole" : "EdgeFinish"));
+                Enum.Parse<SemanticSelectionRequirement>(require.Groups["shape"].Value), $"offset:{header.Index}", slotMatch.Success ? "Slot" : holeMatch.Success ? "Hole" : "EdgeFinish"));
         }
         diagnostics = errors; return output;
     }

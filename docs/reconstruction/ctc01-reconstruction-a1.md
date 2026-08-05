@@ -47,8 +47,8 @@ The current analyzer labels imported length units as assumed rather than preserv
 
 - The dominant construction family is a multi-level prismatic plate/web in XY. The absence of freeform surfaces and the repeated Z planes are strong evidence.
 - The four Ø35 and four Ø25 split-cylinder groups are through-hole families. The current Concept matcher finds zero center/diameter deviation but returns `Candidate`, not `Matched`, because each physical hole contributes two split analytic candidates.
-- R20 supports 80 mm apart at Y=0 define a natural 40 mm-wide left capsule slot.
-- Four R10 centers at X `245..325`, Y `-15..15`, together with adjacent planes, define a right rounded-rectangular opening candidate.
+- R20 supports 80 mm apart at Y=0 define a natural 40 mm-wide `−X` capsule slot.
+- Four R10 centers at X `245..325`, Y `-15..15`, together with adjacent planes, define a `+X` rounded-rectangular opening candidate.
 - The central feature is a raised hexagonal region reaching Z=50, with six planar sides and R5 edge supports at three in-plane orientations.
 - The shape has strong paired structure about X=0 and partial paired structure about Y=0. It should use patterns/mirroring where semantics are identical, but exact global mirror symmetry is not asserted.
 
@@ -65,7 +65,7 @@ The current analyzer labels imported length units as assumed rather than preserv
 | Raised/recessed regions | Strong inference: broad Z=0/-50/-60 plateaus plus central Z=50 raised region |
 | Through holes | Strong: four Ø35 and four Ø25 Z-axis groups; likely additional smaller Z groups |
 | Blind holes | Uncertain; analyzer lacks cylinder-span/face-group reporting needed to distinguish every R10/R25 family |
-| Slots | Strong: left R20 capsule; right R10 rounded rectangle/opening candidate |
+| Slots | Strong: `−X` R20 capsule; `+X` R10 rounded rectangle/opening candidate |
 | Pockets | Strong but not fully grouped: lowered planar regions and right opening/relief |
 | Boss | Strong: central hexagonal raised region |
 | Ears/lobes | Strong: paired end regions using R50 outer supports and Ø35 holes |

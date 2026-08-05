@@ -1,0 +1,14 @@
+Concept Struct SlotLayout On XY { Rect2 Stock { Center: [0mm,0mm]; Size: [200mm,100mm] } }
+Profile Plate Using SlotLayout { Loop Outer {
+  Segment South { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
+  Segment East { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+  Segment North { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+  Segment West { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+} }
+Struct RoundedSlotFixture { Compose RoundedSlotBody {
+  Base Stock { Profile: Plate; From: -10mm; To: 10mm; Role: Stock }
+  Slot<RoundedRectangle> PlusXOpening { Center: Point2(40mm,0mm); Direction: Vector2(1,0); Length: 80mm; Width: 40mm; CornerRadius: 10mm; Extent: ThroughAll; Role: PlusXOpening }
+} }
+Selection PlusXEntry { Target: SlotEntry Source: Slot(PlusXOpening) Require: ClosedLoop }
+Selection PlusXStraightWalls { Target: SlotStraightWall Source: Slot(PlusXOpening) Require: NonEmptyFaceSet }
+Selection PlusXEndWalls { Target: SlotEndWall Source: Slot(PlusXOpening) Require: NonEmptyFaceSet }

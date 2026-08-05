@@ -1,0 +1,19 @@
+// Frame-stable naming: the capsule occupies the −X side; the rounded rectangle occupies +X.
+Concept Struct TwoSlotPlateLayout On XY {
+  Rect2 Stock { Center: [0mm,0mm]; Size: [240mm,120mm] }
+}
+Profile Plate Using TwoSlotPlateLayout { Loop Outer {
+  Segment South { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
+  Segment East { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+  Segment North { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+  Segment West { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+} }
+Struct TwoSlotPlate { Compose TwoSlotPlateBody {
+  Base Stock { Profile: Plate; From: -10mm; To: 10mm; Role: Plate }
+  Slot<Capsule> MinusXCapsule { Center: Point2(-60mm,0mm); Direction: Vector2(1,0); Length: 80mm; Width: 40mm; Extent: ThroughAll; Role: MinusXCapsule }
+  Slot<RoundedRectangle> PlusXRoundedRectangle { Center: Point2(60mm,0mm); Direction: Vector2(1,0); Length: 80mm; Width: 40mm; CornerRadius: 10mm; Extent: ThroughAll; Role: PlusXRoundedRectangle }
+} }
+Selection MinusXCapsuleEntry { Target: SlotEntry Source: Slot(MinusXCapsule) Require: ClosedLoop }
+Selection MinusXCapsuleWalls { Target: SlotWall Source: Slot(MinusXCapsule) Require: NonEmptyFaceSet }
+Selection PlusXRoundedRectangleEntry { Target: SlotEntry Source: Slot(PlusXRoundedRectangle) Require: ClosedLoop }
+Selection PlusXRoundedRectangleWalls { Target: SlotWall Source: Slot(PlusXRoundedRectangle) Require: NonEmptyFaceSet }

@@ -8,6 +8,48 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class PrismaticProfileCompositionRoundTripTests
 {
+    [Fact]
+    public void SemanticCapsuleSlot_LowersToExactProfileAndPublishesStableDescendants()
+    {
+        var source = File.ReadAllText(CompositionFixture(Path.Combine("valid", "semantic-capsule-slot-through.firmament")));
+        var parsed = PrismaticProfileCompositionParser.Parse(source);
+        Assert.Empty(parsed.Diagnostics);
+        var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
+        Assert.Empty(diagnostics);
+        var slot = Assert.Single(stack.Feature.CapsuleSlots!);
+        Assert.Equal(20d, slot.Radius); Assert.Equal(40d, slot.StraightSpan);
+        var profile = parsed.Profiles[slot.ProfileReference];
+        Assert.Equal(2, profile.Loops.Single().Segments.Count(x => x.Geometry is LineArcLineSegment2D));
+        Assert.Equal(2, profile.Loops.Single().Segments.Count(x => x.Geometry is LineArcCircularArc2D));
+        Assert.Equal(20d * 40d + Math.PI * 20d * 20d, 2056.6370614359173d, 8);
+        Assert.Equal((200d * 100d - (40d * 40d + Math.PI * 20d * 20d)) * 20d, stack.AnalyticVolume, 8);
+        var emitted = PrismaticSectionStackEmitter.Emit(stack);
+        Assert.NotNull(emitted.Body); Assert.NotNull(emitted.Correspondence);
+        Assert.Contains(emitted.Correspondence!.Descendants, x => x.Role == SemanticTopologyRole.SlotEntryLoop);
+        Assert.Equal(2, emitted.Correspondence.Descendants.Count(x => x.Role == SemanticTopologyRole.SlotStraightWallFace));
+        Assert.Equal(2, emitted.Correspondence.Descendants.Count(x => x.Role == SemanticTopologyRole.SlotEndWallFace));
+    }
+
+    [Fact]
+    public void SemanticRoundedRectangleSlot_LowersToExactProfileAndPublishesStableDescendants()
+    {
+        var source = File.ReadAllText(CompositionFixture(Path.Combine("valid", "semantic-rounded-rectangle-slot-through.firmament")));
+        var parsed = PrismaticProfileCompositionParser.Parse(source);
+        Assert.Empty(parsed.Diagnostics);
+        var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
+        Assert.Empty(diagnostics);
+        var slot = Assert.Single(stack.Feature.RoundedRectangleSlots!);
+        Assert.Equal(10d, slot.CornerRadius);
+        var segments = parsed.Profiles[slot.ProfileReference].Loops.Single().Segments;
+        Assert.Equal(4, segments.Count(x => x.Geometry is LineArcLineSegment2D));
+        Assert.Equal(4, segments.Count(x => x.Geometry is LineArcCircularArc2D));
+        var expectedArea = 80d * 40d - (4d - Math.PI) * 10d * 10d;
+        Assert.Equal((200d * 100d - expectedArea) * 20d, stack.AnalyticVolume, 8);
+        var emitted = PrismaticSectionStackEmitter.Emit(stack);
+        Assert.Equal(4, emitted.Correspondence!.Descendants.Count(x => x.Role == SemanticTopologyRole.SlotStraightWallFace));
+        Assert.Equal(4, emitted.Correspondence.Descendants.Count(x => x.Role == SemanticTopologyRole.SlotEndWallFace));
+    }
+
     [Theory]
     [InlineData("add-overlapped-by-remove.firmament", 418d, 4090d, 1)]
     [InlineData("overlapping-removes.firmament", 304d, 5520d, 1)]

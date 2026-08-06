@@ -1,0 +1,18 @@
+Model CountersinkHole {
+    Units: mm
+
+    Box Base {
+        Size: [80mm, 50mm, 25mm]
+    }
+
+    Modify Base {
+        Hole<Countersink> Mount {
+            On: +Z
+            Center: Point2(0mm, 0mm)
+            Diameter: 6mm
+            CountersinkDiameter: 12mm
+            CountersinkAngle: 90deg
+            End: ThroughAll
+        }
+    }
+}

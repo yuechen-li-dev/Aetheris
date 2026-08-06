@@ -67,6 +67,8 @@ public static class FirmamentV2Parser
     public const string CanonicalPrimitiveMalformed = "firmament-v2-canonical-primitive-malformed";
     public const string CanonicalPoint2Invalid = "firmament-v2-canonical-point2-invalid";
     public const string CanonicalModifyMalformed = "firmament-v2-canonical-modify-malformed";
+    public const string CanonicalDeclarationUnrecognized = "firmament-v2-canonical-declaration-unrecognized";
+    public const string CanonicalFieldUnknown = "firmament-v2-canonical-field-unknown";
     public const string SelectionMalformed = "firmament-v2-selection-malformed";
     public const string SelectionDuplicateName = "firmament-v2-selection-duplicate-name";
     public const string SelectionUnknownSource = "firmament-v2-selection-unknown-source";
@@ -259,9 +261,15 @@ public static class FirmamentV2Parser
     private static readonly Regex FillHeaderRegex = new(@"\bfill\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalModelRegex = new(@"^\s*Model\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalPrimitiveHeaderRegex = new(@"\b(?<type>Box|Cylinder|RoundedBox|Frustum)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex CanonicalInlineStepHeaderRegex = new(@"\bInlineStep\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalModifyHeaderRegex = new(@"\bModify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex CanonicalHoleHeaderRegex = new(@"\bHole\s*<\s*(?<variant>Shaft|Counterbore|Countersink)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    // Match the declaration-shaped header first; variant admission belongs in the
+    // binder so a misspelled family can never disappear from a Modify block.
+    private static readonly Regex CanonicalHoleHeaderRegex = new(@"\bHole\s*<\s*(?<variant>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalEdgeHeaderRegex = new(@"\bEdgeFinish\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex CanonicalRecognizeHeaderRegex = new(@"\bRecognize\s+(?<body>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex CanonicalRegionHeaderRegex = new(@"\bRegion\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex CanonicalReplaceHeaderRegex = new(@"\bReplace\s+(?<body>[A-Za-z_][A-Za-z0-9_]*)\.(?<region>[A-Za-z_][A-Za-z0-9_]*)\s+With\s+(?<kind>[A-Za-z_][A-Za-z0-9_]*(?:\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>)?)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
 
     public static FirmamentV2ParseResult Parse(string sourceText) => Parse(sourceText, null, null);
 
@@ -305,7 +313,7 @@ public static class FirmamentV2Parser
         {
             var parsed = Recognized(ContainsCanonicalAdvancedDeclaration(source)
                 ? ParseCanonicalAdvancedDocument(source, diagnostics, templateExpansion.Instantiations)
-                : ParseCanonicalDocument(source, diagnostics));
+                : ParseCanonicalDocument(source, diagnostics, sourceDirectory));
             if (parsed.Document is null) return parsed;
 
             var normalized = parsed.Document with { StaticAuthoring = canonicalStaticExpansion.Document };
@@ -768,7 +776,7 @@ public static class FirmamentV2Parser
 
     private static FirmamentV2SolidBinding? ParseInlineStep(string name, string body, List<string> diagnostics, string? sourceDirectory)
     {
-        var match = PathRegex.Match(body);
+        var match = Regex.Match(body, "\\b(?:path|Path)\\s*:\\s*\\\"(?<path>[^\\\"]+)\\\"", RegexOptions.CultureInvariant);
         if (!match.Success) { diagnostics.Add(InlineStepPathMissing); return null; }
 
         var sourcePath = match.Groups["path"].Value;
@@ -866,6 +874,8 @@ public static class FirmamentV2Parser
         var units = Regex.Match(body, @"\bUnits\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
         if (!units.Success || units.Groups["value"].Value != "mm")
             return CanonicalFailure(diagnostics, CanonicalUnitsInvalid);
+        if (Regex.IsMatch(body, @"\b(?!(?:InlineStep|Recognize|Replace)\b)(?:Inline[A-Za-z_][A-Za-z0-9_]*|Recogniz[A-Za-z_][A-Za-z0-9_]*|Replac[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant))
+            return CanonicalFailure(diagnostics, CanonicalDeclarationUnrecognized);
         var adapterSource = Regex.Replace(body, @"(?m)^\s*Units\s*:\s*mm\s*$", string.Empty, RegexOptions.CultureInvariant);
 
         if (PrismaticProfileCompositionParser.IsCompositionSource(adapterSource))
@@ -1034,7 +1044,7 @@ public static class FirmamentV2Parser
         return true;
     }
 
-    private static FirmamentV2ParseResult ParseCanonicalDocument(string source, List<string> diagnostics)
+    private static FirmamentV2ParseResult ParseCanonicalDocument(string source, List<string> diagnostics, string? sourceDirectory)
     {
         var model = CanonicalModelRegex.Match(source);
         var rootOpen = model.Success ? source.IndexOf('{', model.Index) : -1;
@@ -1046,6 +1056,8 @@ public static class FirmamentV2Parser
         var units = Regex.Match(body, @"\bUnits\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
         if (!units.Success || units.Groups["value"].Value != "mm")
             return CanonicalFailure(diagnostics, CanonicalUnitsInvalid);
+        if (Regex.IsMatch(body, @"\b(?!(?:InlineStep|Recognize|Replace)\b)(?:Inline[A-Za-z_][A-Za-z0-9_]*|Recogniz[A-Za-z_][A-Za-z0-9_]*|Recognis[A-Za-z_][A-Za-z0-9_]*|Replac[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant))
+            return CanonicalFailure(diagnostics, CanonicalDeclarationUnrecognized);
 
         var solids = new List<FirmamentV2SolidBinding>();
         var byName = new Dictionary<string, FirmamentV2SolidBinding>(StringComparer.Ordinal);
@@ -1063,6 +1075,18 @@ public static class FirmamentV2Parser
             byName[name] = solid;
             solids.Add(solid);
         }
+        foreach (Match inlineStep in CanonicalInlineStepHeaderRegex.Matches(body))
+        {
+            var open = body.IndexOf('{', inlineStep.Index);
+            var close = FindMatchingBrace(body, open);
+            if (close < 0) return CanonicalFailure(diagnostics, CanonicalPrimitiveMalformed);
+            var name = inlineStep.Groups["name"].Value;
+            if (!byName.TryAdd(name, null!)) return CanonicalFailure(diagnostics, DuplicateName);
+            var binding = ParseInlineStep(name, body[(open + 1)..close], diagnostics, sourceDirectory);
+            if (binding is null) return CanonicalFailure(diagnostics, InlineStepPathMissing);
+            byName[name] = binding;
+            solids.Add(binding);
+        }
         if (solids.Count == 0) return CanonicalFailure(diagnostics, MissingSolid);
 
         var modifies = new List<FirmamentV2ModifyBlock>();
@@ -1077,17 +1101,22 @@ public static class FirmamentV2Parser
             var modifyBody = body[(open + 1)..close];
             var holes = ParseCanonicalHoles(modifyBody, solid, rootOpen + 1 + open + 1, diagnostics);
             var finishes = ParseCanonicalEdgeFinishes(modifyBody, rootOpen + 1 + open + 1, diagnostics);
-            if (diagnostics.Any(IsFatalDiagnosticCode) || diagnostics.Contains(CanonicalPoint2Invalid) || diagnostics.Contains(CanonicalModifyMalformed))
+            if (diagnostics.Any(IsFatalDiagnosticCode) || diagnostics.Contains(CanonicalPoint2Invalid) || diagnostics.Contains(CanonicalModifyMalformed) || diagnostics.Contains(CanonicalFieldUnknown))
                 return CanonicalFailure(diagnostics, CanonicalModifyMalformed);
             // Empty Modify blocks are valid; feature admission belongs to the selected
             // production route, not to a phase parser's minimum-count rule.
             modifies.Add(new FirmamentV2ModifyBlock(target, [], holes, finishes));
         }
 
+        var recognizedRegions = ParseCanonicalRecognizedRegions(body, byName, diagnostics);
+        var replacements = ParseCanonicalReplacements(body, byName, recognizedRegions, diagnostics);
+        if (diagnostics.Any(IsFatalDiagnosticCode) || diagnostics.Contains(CanonicalDeclarationUnrecognized) || diagnostics.Contains(CanonicalFieldUnknown))
+            return CanonicalFailure(diagnostics, CanonicalDeclarationUnrecognized);
+
         diagnostics.Add("firmament-v2-unified-canonical-parsed");
         diagnostics.Add("firmament-v2-parse-succeeded");
         diagnostics.Sort(StringComparer.Ordinal);
-        return FirmamentV2ParseResult.Success(new FirmamentV2Document(model.Groups["name"].Value, "mm", solids, modifies), diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+        return FirmamentV2ParseResult.Success(new FirmamentV2Document(model.Groups["name"].Value, "mm", solids, modifies, RecognizedRegions: recognizedRegions, Replacements: replacements), diagnostics.Distinct(StringComparer.Ordinal).ToArray());
     }
 
     private static FirmamentV2PrimitiveRecord? ParseCanonicalPrimitive(string type, string body, List<string> diagnostics)
@@ -1118,11 +1147,34 @@ public static class FirmamentV2Parser
     private static IReadOnlyList<FirmamentV2SemanticHoleDecl> ParseCanonicalHoles(string body, FirmamentV2SolidBinding solid, int bodyOffset, List<string> diagnostics)
     {
         var holes = new List<FirmamentV2SemanticHoleDecl>();
-        foreach (Match hole in CanonicalHoleHeaderRegex.Matches(body))
+        var headers = CanonicalHoleHeaderRegex.Matches(body);
+        if (Regex.Matches(body, @"\bHole\s*<", RegexOptions.CultureInvariant).Count != headers.Count)
+        {
+            diagnostics.Add(CanonicalModifyMalformed);
+            return holes;
+        }
+        foreach (Match hole in headers)
         {
             var open = body.IndexOf('{', hole.Index); var close = FindMatchingBrace(body, open);
             if (close < 0) { diagnostics.Add(CanonicalModifyMalformed); continue; }
             var holeBody = body[(open + 1)..close];
+            if (!Enum.TryParse<FirmamentV2SemanticHoleVariant>(hole.Groups["variant"].Value, ignoreCase: false, out var variant))
+            {
+                diagnostics.Add(HoleVariantUnknown);
+                continue;
+            }
+
+            var knownFields = variant switch
+            {
+                FirmamentV2SemanticHoleVariant.Counterbore => new[] { "On", "Center", "Diameter", "CounterboreDiameter", "CounterboreDepth", "End" },
+                FirmamentV2SemanticHoleVariant.Countersink => new[] { "On", "Center", "Diameter", "CountersinkDiameter", "CountersinkAngle", "End" },
+                _ => new[] { "On", "Center", "Diameter", "End" }
+            };
+            if (CanonicalBodyHasUnknownField(holeBody, knownFields))
+            {
+                diagnostics.Add(CanonicalFieldUnknown);
+                continue;
+            }
             var on = Regex.Match(holeBody, @"\bOn\s*:\s*(?<face>[+-][XYZ])\b", RegexOptions.CultureInvariant);
             var point = Regex.Match(holeBody, @"\bCenter\s*:\s*Point2\(\s*(?<u>[-+0-9.eE]+)mm\s*,\s*(?<v>[-+0-9.eE]+)mm\s*\)", RegexOptions.CultureInvariant);
             var diameter = Regex.Match(holeBody, @"\bDiameter\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
@@ -1130,15 +1182,179 @@ public static class FirmamentV2Parser
             if (!on.Success || !diameter.Success || !end.Success) { diagnostics.Add(CanonicalModifyMalformed); continue; }
             if (!point.Success || !double.TryParse(point.Groups["u"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var u) || !double.TryParse(point.Groups["v"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) || !double.IsFinite(u) || !double.IsFinite(v)) { diagnostics.Add(CanonicalPoint2Invalid); continue; }
             if (!double.TryParse(diameter.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var shaft) || !double.IsFinite(shaft) || shaft <= 0d) { diagnostics.Add(HoleDiameterInvalid); continue; }
-            if (!Enum.TryParse<FirmamentV2SemanticHoleVariant>(hole.Groups["variant"].Value, out var variant)) { diagnostics.Add(HoleVariantUnknown); continue; }
             FirmamentV2SemanticHoleEnd endValue;
             if (end.Groups["kind"].Value == "ThroughAll") endValue = new(FirmamentV2SemanticHoleEndKind.ThroughAll);
             else if (double.TryParse(end.Groups["depth"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var depth) && depth > 0d && double.IsFinite(depth)) endValue = new(FirmamentV2SemanticHoleEndKind.Depth, depth);
             else { diagnostics.Add(HoleBlindDepthInvalid); continue; }
+            double? counterboreDiameter = null, counterboreDepth = null, countersinkDiameter = null, countersinkAngle = null;
+            if (variant == FirmamentV2SemanticHoleVariant.Counterbore)
+            {
+                var cbDiameter = Regex.Match(holeBody, @"\bCounterboreDiameter\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+                var cbDepth = Regex.Match(holeBody, @"\bCounterboreDepth\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+                if (!cbDiameter.Success || !cbDepth.Success ||
+                    !double.TryParse(cbDiameter.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var diameterValue) ||
+                    !double.TryParse(cbDepth.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var depthValue) ||
+                    !double.IsFinite(diameterValue) || !double.IsFinite(depthValue) || diameterValue <= shaft || depthValue <= 0d)
+                {
+                    diagnostics.Add(HoleCounterboreInvalid);
+                    continue;
+                }
+                counterboreDiameter = diameterValue;
+                counterboreDepth = depthValue;
+            }
+            if (variant == FirmamentV2SemanticHoleVariant.Countersink)
+            {
+                var csDiameter = Regex.Match(holeBody, @"\bCountersinkDiameter\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+                var csAngle = Regex.Match(holeBody, @"\bCountersinkAngle\s*:\s*(?<value>[-+0-9.eE]+)deg\b", RegexOptions.CultureInvariant);
+                if (!csDiameter.Success || !csAngle.Success ||
+                    !double.TryParse(csDiameter.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var diameterValue) ||
+                    !double.TryParse(csAngle.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var angleValue) ||
+                    !double.IsFinite(diameterValue) || !double.IsFinite(angleValue) || diameterValue <= shaft || angleValue <= 0d || angleValue >= 180d)
+                {
+                    diagnostics.Add(HoleCountersinkInvalid);
+                    continue;
+                }
+                countersinkDiameter = diameterValue;
+                countersinkAngle = angleValue;
+            }
             var face = FirmamentV2FaceTarget.Direct(on.Groups["face"].Value);
-            holes.Add(new(hole.Groups["name"].Value, variant, face, new FirmamentV2FaceLocalPoint2D(u, v, FirmamentV2FaceLocalPoint2D.ConventionFor(face.Axis)), shaft, endValue, SourceSpan: new FirmamentV2SourceSpan(bodyOffset + hole.Index, close - hole.Index + 1)));
+            holes.Add(new(hole.Groups["name"].Value, variant, face, new FirmamentV2FaceLocalPoint2D(u, v, FirmamentV2FaceLocalPoint2D.ConventionFor(face.Axis)), shaft, endValue,
+                counterboreDiameter, counterboreDepth, countersinkDiameter, countersinkAngle,
+                SourceSpan: new FirmamentV2SourceSpan(bodyOffset + hole.Index, close - hole.Index + 1)));
         }
         return holes;
+    }
+
+    private static bool CanonicalBodyHasUnknownField(string body, IReadOnlyCollection<string> knownFields) =>
+        Regex.Matches(body, @"(?m)^\s*(?<field>[A-Za-z_][A-Za-z0-9_]*)\s*:", RegexOptions.CultureInvariant)
+            .Cast<Match>()
+            .Any(match => !knownFields.Contains(match.Groups["field"].Value, StringComparer.Ordinal));
+
+    // Canonical semantic STEP declarations bind directly to the normalized V2 nodes
+    // used by the compatibility parser.  FaceRefs deliberately remain STEP entities
+    // downstream; the public canonical surface accepts analysis-facing ordinals.
+    private static IReadOnlyList<FirmamentV2RecognizedRegion> ParseCanonicalRecognizedRegions(string source, Dictionary<string, FirmamentV2SolidBinding> solids, List<string> diagnostics)
+    {
+        var regions = new List<FirmamentV2RecognizedRegion>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match recognize in CanonicalRecognizeHeaderRegex.Matches(source))
+        {
+            var bodyName = recognize.Groups["body"].Value;
+            if (!solids.TryGetValue(bodyName, out var solid) || solid.InlineStep is null) { diagnostics.Add(UnknownRecognitionBody); continue; }
+            var open = source.IndexOf('{', recognize.Index); var close = FindMatchingBrace(source, open);
+            if (close < 0) { diagnostics.Add(CanonicalDeclarationUnrecognized); continue; }
+            var recognizeBody = source[(open + 1)..close];
+            foreach (Match region in CanonicalRegionHeaderRegex.Matches(recognizeBody))
+            {
+                var name = region.Groups["name"].Value;
+                if (!seen.Add($"{bodyName}.{name}")) { diagnostics.Add(DuplicateRegion); continue; }
+                var regionOpen = recognizeBody.IndexOf('{', region.Index); var regionClose = FindMatchingBrace(recognizeBody, regionOpen);
+                if (regionClose < 0) { diagnostics.Add(CanonicalDeclarationUnrecognized); continue; }
+                var regionBody = recognizeBody[(regionOpen + 1)..regionClose];
+                var kindMatch = Regex.Match(regionBody, @"\bKind\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*(?:\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>)?)", RegexOptions.CultureInvariant);
+                var kind = kindMatch.Success ? NormalizeRecognitionKind(kindMatch.Groups["value"].Value) : string.Empty;
+                if (kind is not ("datumPlane" or "holeShaft")) { diagnostics.Add(InvalidRecognitionKind); continue; }
+                var confidenceMatch = Regex.Match(regionBody, @"\bConfidence\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+                var confidence = confidenceMatch.Success ? confidenceMatch.Groups["value"].Value.ToLowerInvariant() : "medium";
+                if (confidence is not ("low" or "medium" or "high" or "certain")) { diagnostics.Add(InvalidRecognitionConfidence); continue; }
+                var faces = ParseCanonicalFaceReferences(regionBody, solid.InlineStep.TopologyMap, diagnostics);
+                if (faces.Count == 0) continue;
+                var evidence = ParseCanonicalRecognitionEvidence(regionBody, diagnostics);
+                regions.Add(new FirmamentV2RecognizedRegion(bodyName, name, kind, faces, confidence, evidence));
+            }
+        }
+        return regions;
+    }
+
+    private static IReadOnlyList<string> ParseCanonicalFaceReferences(string regionBody, ImportedStepTopologyMap topologyMap, List<string> diagnostics)
+    {
+        var faces = new List<string>();
+        var friendly = Regex.Match(regionBody, @"\bFaces\s*:\s*\[(?<faces>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
+        var raw = Regex.Match(regionBody, @"\bStepFaceEntities\s*:\s*\[(?<faces>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
+        if (friendly.Success && raw.Success) { diagnostics.Add(UnknownRecognitionFace); return []; }
+        if (friendly.Success)
+        {
+            foreach (var token in friendly.Groups["faces"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (!int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out var faceId) || faceId <= 0 || !topologyMap.TryResolveSequentialFaceId(faceId, out var entity)) { diagnostics.Add(UnknownRecognitionFace); return []; }
+                faces.Add(entity);
+            }
+        }
+        else if (raw.Success)
+        {
+            foreach (Match entity in Regex.Matches(raw.Groups["faces"].Value, "\\\"(?<entity>#[0-9]+)\\\"", RegexOptions.CultureInvariant))
+            {
+                var value = entity.Groups["entity"].Value;
+                if (!topologyMap.TryResolveFaceEntity(value, out _)) { diagnostics.Add(UnknownRecognitionFace); return []; }
+                faces.Add(value);
+            }
+        }
+        if (faces.Count == 0 || faces.Distinct(StringComparer.Ordinal).Count() != faces.Count) { diagnostics.Add(UnknownRecognitionFace); return []; }
+        return faces;
+    }
+
+    private static FirmamentV2RecognitionEvidence? ParseCanonicalRecognitionEvidence(string regionBody, List<string> diagnostics)
+    {
+        var header = Regex.Match(regionBody, @"\bEvidence\s*:\?\s*\{", RegexOptions.CultureInvariant);
+        if (!header.Success) return null;
+        var open = regionBody.IndexOf('{', header.Index); var close = FindMatchingBrace(regionBody, open);
+        if (close < 0) { diagnostics.Add(CanonicalDeclarationUnrecognized); return null; }
+        var body = regionBody[(open + 1)..close];
+        var surface = Regex.Match(body, @"\bSurfaceFamily\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
+        var families = new List<string>();
+        if (surface.Success)
+        {
+            var family = surface.Groups["value"].Value.ToLowerInvariant();
+            if (family is not ("cylindrical" or "planar")) diagnostics.Add(RecognitionEvidenceSurfaceFamilyUnknown); else families.Add(family);
+        }
+        double? radius = null;
+        if (Regex.IsMatch(body, @"\bRadius\s*:", RegexOptions.CultureInvariant))
+        {
+            var match = Regex.Match(body, @"\bRadius\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+            if (!match.Success || !double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || value <= 0d || !double.IsFinite(value)) diagnostics.Add(RecognitionEvidenceRadiusInvalid); else radius = value;
+        }
+        bool? through = null;
+        var throughMatch = Regex.Match(body, @"\bThrough\s*:\s*(?<value>true|false)\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+        if (throughMatch.Success) through = bool.Parse(throughMatch.Groups["value"].Value);
+        return new FirmamentV2RecognitionEvidence(families, radius, Through: through, Notes: []);
+    }
+
+    private static IReadOnlyList<FirmamentV2ReplacementDecl> ParseCanonicalReplacements(string source, Dictionary<string, FirmamentV2SolidBinding> solids, IReadOnlyList<FirmamentV2RecognizedRegion> recognizedRegions, List<string> diagnostics)
+    {
+        var replacements = new List<FirmamentV2ReplacementDecl>();
+        foreach (Match replace in CanonicalReplaceHeaderRegex.Matches(source))
+        {
+            var bodyName = replace.Groups["body"].Value; var regionName = replace.Groups["region"].Value;
+            if (!solids.TryGetValue(bodyName, out var solid) || solid.InlineStep is null) { diagnostics.Add(UnknownReplacementBody); continue; }
+            var region = recognizedRegions.SingleOrDefault(candidate => candidate.BodyName == bodyName && candidate.RegionName == regionName);
+            if (region is null) { diagnostics.Add(UnknownReplacementRegion); continue; }
+            var kind = NormalizeRecognitionKind(replace.Groups["kind"].Value);
+            if (kind != "holeShaft") { diagnostics.Add(ReplacementUnsupportedKind); continue; }
+            if (region.Kind != kind) { diagnostics.Add(ReplacementKindMismatch); continue; }
+            var open = source.IndexOf('{', replace.Index); var close = FindMatchingBrace(source, open);
+            if (close < 0) { diagnostics.Add(CanonicalDeclarationUnrecognized); continue; }
+            var body = source[(open + 1)..close];
+            var face = Regex.Match(body, @"\bOn\s*:\s*(?<body>[A-Za-z_][A-Za-z0-9_]*)\.Face\(\s*(?<face>[0-9]+)\s*\)", RegexOptions.CultureInvariant);
+            if (!face.Success || face.Groups["body"].Value != bodyName || !int.TryParse(face.Groups["face"].Value, out var faceId) || !solid.InlineStep.TopologyMap.TryResolveSequentialFaceId(faceId, out var entity)) { diagnostics.Add(ReplacementFaceUnresolved); continue; }
+            var center = Regex.Match(body, @"\bCenter\s*:\s*Point2\(\s*(?<u>[-+0-9.eE]+)mm\s*,\s*(?<v>[-+0-9.eE]+)mm\s*\)", RegexOptions.CultureInvariant);
+            if (!center.Success || !double.TryParse(center.Groups["u"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var u) || !double.TryParse(center.Groups["v"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var v)) { diagnostics.Add(HoleCenterMissing); continue; }
+            var diameter = Regex.Match(body, @"\bDiameter\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+            if (!diameter.Success || !double.TryParse(diameter.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) || d <= 0d || !double.IsFinite(d)) { diagnostics.Add(ReplacementRadiusInvalid); continue; }
+            if (!Regex.IsMatch(body, @"\bEnd\s*:\s*ThroughAll\b", RegexOptions.CultureInvariant)) { diagnostics.Add(ReplacementEndUnsupported); continue; }
+            var host = Regex.Match(body, @"\bHostSize\s*:\s*\[(?<values>[^\]]*)\]", RegexOptions.CultureInvariant);
+            var hostSize = host.Success ? ParseCanonicalLengthTriple(host.Groups["values"].Value) : null;
+            if (hostSize is null) { diagnostics.Add(ReplacementVerificationFailed); continue; }
+            replacements.Add(new FirmamentV2ReplacementDecl(bodyName, regionName, kind, replace.Groups["name"].Value, $"{bodyName}.face(\"{entity}\")", new FirmamentV2FaceLocalPoint2D(u, v, string.Empty), d / 2d, "throughAll", hostSize, replace.Value));
+        }
+        return replacements;
+    }
+
+    private static IReadOnlyList<double>? ParseCanonicalLengthTriple(string raw)
+    {
+        var values = raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(ParsePhase3Length)
+            .ToArray();
+        return values.Length == 3 && values.All(value => double.IsFinite(value) && value > 0d) ? values : null;
     }
 
     private static IReadOnlyList<FirmamentV2EdgeFinishDecl> ParseCanonicalEdgeFinishes(string body, int bodyOffset, List<string> diagnostics)
@@ -2012,7 +2228,9 @@ public static class FirmamentV2Parser
     private static string NormalizeRecognitionKind(string raw)
     {
         raw = raw.Trim().Trim('"').Replace(" ", string.Empty, StringComparison.Ordinal);
-        return string.Equals(raw, "hole<shaft>", StringComparison.Ordinal) ? "holeShaft" : raw;
+        return string.Equals(raw, "hole<shaft>", StringComparison.OrdinalIgnoreCase) || string.Equals(raw, "holeShaft", StringComparison.OrdinalIgnoreCase)
+            ? "holeShaft"
+            : string.Equals(raw, "datumPlane", StringComparison.OrdinalIgnoreCase) ? "datumPlane" : raw;
     }
 
     private static FirmamentV2RecognitionEvidence? ParseRecognitionEvidence(string regionBody, List<string> diagnostics)

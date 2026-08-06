@@ -9,6 +9,7 @@ using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.Materializer;
+using System.Text.RegularExpressions;
 
 namespace Aetheris.CLI;
 
@@ -38,7 +39,16 @@ public sealed record VolumeAnalysisResult(
     public static AnalyzeResult Analyze(string stepPath, int? faceId = null, int? edgeId = null, int? vertexId = null)
     {
         var (fullPath, body) = ImportStepBody(stepPath);
-        return AnalyzeImportedBody(body, fullPath, faceId, edgeId, vertexId);
+        var analysis = AnalyzeImportedBody(body, fullPath, faceId, edgeId, vertexId);
+        if (analysis.Face is null) return analysis;
+
+        // Imported B-rep IDs are the public sequential vocabulary.  Preserve the
+        // originating ADVANCED_FACE alongside it for traceability, never as a
+        // requirement for normal authoring.
+        var entities = Regex.Matches(File.ReadAllText(fullPath), @"(?m)^\s*(#[0-9]+)\s*=\s*ADVANCED_FACE\s*\(", RegexOptions.CultureInvariant)
+            .Cast<Match>().Select(match => match.Groups[1].Value).ToArray();
+        var entity = analysis.Face.FaceId > 0 && analysis.Face.FaceId <= entities.Length ? entities[analysis.Face.FaceId - 1] : null;
+        return analysis with { Face = analysis.Face with { StepEntity = entity } };
     }
 
     public static AnalyzeResult AnalyzeImportedBody(BrepBody body, string stepPath, int? faceId = null, int? edgeId = null, int? vertexId = null)

@@ -40,7 +40,8 @@ public sealed record FaceDetail(
     double? MajorRadius,
     double? MinorRadius,
     double? SemiAngleRadians,
-    IReadOnlyList<int> AdjacentEdgeIds);
+    IReadOnlyList<int> AdjacentEdgeIds,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? StepEntity = null);
 
 public sealed record EdgeDetail(
     int EdgeId,

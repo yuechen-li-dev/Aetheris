@@ -1,0 +1,18 @@
+Model CounterboreHole {
+    Units: mm
+
+    Box Base {
+        Size: [80mm, 50mm, 25mm]
+    }
+
+    Modify Base {
+        Hole<Counterbore> Mount {
+            On: +Z
+            Center: Point2(0mm, 0mm)
+            Diameter: 6mm
+            CounterboreDiameter: 11mm
+            CounterboreDepth: 4mm
+            End: ThroughAll
+        }
+    }
+}

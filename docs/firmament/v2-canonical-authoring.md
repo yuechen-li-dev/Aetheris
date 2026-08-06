@@ -1,5 +1,15 @@
 # Firmament V2 canonical authoring
 
+`Hole<Shaft>`, `Hole<Counterbore>`, and `Hole<Countersink>` are canonical
+families. Counterbore requires `CounterboreDiameter` and `CounterboreDepth`;
+Countersink requires `CountersinkDiameter` and `CountersinkAngle` in `deg`.
+Unknown families (for example `Hole<Blind>`) are rejected immediately.
+
+Canonical `InlineStep`, `Recognize`, and `Replace` use the sequential face IDs
+reported by `aetheris analyze`; raw STEP entity IDs are an explicit advanced
+form only. See [semantic labeling](v2-semantic-labeling.md) for a copyable
+analyze-to-replacement workflow.
+
 Firmament V2 is one language. Backend specialization is not an author-facing dialect. Parse the document first; route its semantics after parsing.
 
 Use this form for ordinary parts:

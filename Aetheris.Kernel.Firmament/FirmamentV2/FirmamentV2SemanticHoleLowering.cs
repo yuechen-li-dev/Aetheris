@@ -7,6 +7,9 @@ internal static class FirmamentV2SemanticHoleLowering
 {
     public static AirHoleFeature Lower(FirmamentV2Document document, FirmamentV2ModifyBlock modify, FirmamentV2SemanticHoleDecl hole)
     {
+        // This lowerer receives parser-validated declarations.  Keep the contract
+        // explicit nevertheless: optional parsed scalars are never dereferenced.
+        static double Required(double? value, string field) => value ?? throw new ArgumentException($"Validated hole is missing {field}.", nameof(value));
         if (hole.Placement is FirmamentV2ConstructionPlaneHolePlacement construction)
         {
             var plane = construction.Plane;
@@ -15,9 +18,9 @@ internal static class FirmamentV2SemanticHoleLowering
             AirHoleEndCondition constructionEnd = hole.EndCondition.Kind switch
             {
                 FirmamentV2SemanticHoleEndKind.ThroughAll => new AirHoleEndCondition.ThroughAll(),
-                FirmamentV2SemanticHoleEndKind.ShaftDepth => new AirHoleEndCondition.ShaftDepth(hole.EndCondition.Depth!.Value),
-                FirmamentV2SemanticHoleEndKind.TotalDepth => new AirHoleEndCondition.TotalDepth(hole.EndCondition.Depth!.Value),
-                _ => new AirHoleEndCondition.Depth(hole.EndCondition.Depth!.Value)
+                FirmamentV2SemanticHoleEndKind.ShaftDepth => new AirHoleEndCondition.ShaftDepth(Required(hole.EndCondition.Depth, "end depth")),
+                FirmamentV2SemanticHoleEndKind.TotalDepth => new AirHoleEndCondition.TotalDepth(Required(hole.EndCondition.Depth, "end depth")),
+                _ => new AirHoleEndCondition.Depth(Required(hole.EndCondition.Depth, "end depth"))
             };
             AirHoleTermination? constructionTermination = hole.Termination?.Kind switch
             {
@@ -40,7 +43,7 @@ internal static class FirmamentV2SemanticHoleLowering
         var placement = new AirFaceLocalHolePlacement(hole.EntryFace.Axis switch { "+Z" => "top", "-Z" => "bottom", _ => hole.EntryFace.Source }, hole.Center.U, hole.Center.V, FirmamentV2FaceLocalPoint2D.ConventionFor(hole.EntryFace.Axis), hole.EntryFace.ResolvedSelector, pointSource);
         var axis = new AirHoleAxis(Direction3D.Create(hole.EntryFace.Axis switch { "-Z" => new Vector3D(0,0,-1), "+Z" => new Vector3D(0,0,1), "+X" => new Vector3D(1,0,0), "-X" => new Vector3D(-1,0,0), "+Y" => new Vector3D(0,1,0), _ => new Vector3D(0,-1,0) }), true);
         var shaft = new AirHoleShaft(hole.ShaftDiameter);
-        AirHoleEndCondition endCondition = hole.EndCondition.Kind == FirmamentV2SemanticHoleEndKind.ThroughAll ? new AirHoleEndCondition.ThroughAll() : new AirHoleEndCondition.Depth(hole.EndCondition.Depth!.Value);
+        AirHoleEndCondition endCondition = hole.EndCondition.Kind == FirmamentV2SemanticHoleEndKind.ThroughAll ? new AirHoleEndCondition.ThroughAll() : new AirHoleEndCondition.Depth(Required(hole.EndCondition.Depth, "end depth"));
         var notes = new List<string> { $"source-variant:{hole.Variant}", $"target-solid:{modify.TargetSolid}", $"entry-face:{hole.EntryFace.Source}" };
         if (hole.ResolvedCenter is { } center)
         {
@@ -52,8 +55,8 @@ internal static class FirmamentV2SemanticHoleLowering
         var provenance = new AirProvenance("CONCEPT-MATERIALIZATION-M2", "Typed Concept Point3 semantic hole source", hole.Name, $"{modify.TargetSolid}.{hole.Name}", nameof(AirHoleFeature), AirSelectionClass.None, AirRuleKind.None, $"FirmamentV2 hole<{hole.Variant}>", true, notes);
         return hole.Variant switch
         {
-            FirmamentV2SemanticHoleVariant.Counterbore => AirHoleFeature.CreateCounterbore(hole.Name, $"{modify.TargetSolid}.{hole.Name}", modify.TargetSolid, placement, axis, shaft, endCondition, new AirHoleCounterboreComponent(hole.CounterboreDiameter!.Value, hole.CounterboreDepth!.Value), provenance),
-            FirmamentV2SemanticHoleVariant.Countersink => AirHoleFeature.CreateCountersink(hole.Name, $"{modify.TargetSolid}.{hole.Name}", modify.TargetSolid, placement, axis, shaft, endCondition, new AirHoleCountersinkComponent(hole.CountersinkDiameter!.Value, hole.CountersinkAngleDegrees!.Value), provenance),
+            FirmamentV2SemanticHoleVariant.Counterbore => AirHoleFeature.CreateCounterbore(hole.Name, $"{modify.TargetSolid}.{hole.Name}", modify.TargetSolid, placement, axis, shaft, endCondition, new AirHoleCounterboreComponent(Required(hole.CounterboreDiameter, "CounterboreDiameter"), Required(hole.CounterboreDepth, "CounterboreDepth")), provenance),
+            FirmamentV2SemanticHoleVariant.Countersink => AirHoleFeature.CreateCountersink(hole.Name, $"{modify.TargetSolid}.{hole.Name}", modify.TargetSolid, placement, axis, shaft, endCondition, new AirHoleCountersinkComponent(Required(hole.CountersinkDiameter, "CountersinkDiameter"), Required(hole.CountersinkAngleDegrees, "CountersinkAngle")), provenance),
             _ => AirHoleFeature.CreateSimpleShaft(hole.Name, $"{modify.TargetSolid}.{hole.Name}", modify.TargetSolid, placement, axis, shaft, endCondition, provenance)
         };
     }

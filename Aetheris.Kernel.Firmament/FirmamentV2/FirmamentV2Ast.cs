@@ -75,6 +75,23 @@ public sealed record FirmamentV2InlineStepRecord(string SourcePath, string Norma
 public sealed record ImportedStepTopologyMap(IReadOnlyDictionary<string, string> FaceEntityToFaceId, IReadOnlyDictionary<string, string> FaceIdToFaceEntity)
 {
     public bool TryResolveFaceEntity(string entityRef, out string faceId) => FaceEntityToFaceId.TryGetValue(entityRef, out faceId!);
+    public bool TryResolveSequentialFaceId(int faceId, out string entityRef) => FaceIdToFaceEntity.TryGetValue($"face-{faceId}", out entityRef!);
+    public bool TryResolveFaceReference(string reference, out string entityRef)
+    {
+        if (reference.StartsWith('#'))
+        {
+            if (FaceEntityToFaceId.ContainsKey(reference)) { entityRef = reference; return true; }
+            entityRef = string.Empty;
+            return false;
+        }
+        if (int.TryParse(reference, out var sequential) && TryResolveSequentialFaceId(sequential, out var resolved))
+        {
+            entityRef = resolved;
+            return true;
+        }
+        entityRef = string.Empty;
+        return false;
+    }
 }
 public sealed record FirmamentV2RecognizedRegion(string BodyName, string RegionName, string Kind, IReadOnlyList<string> FaceRefs, string Confidence, FirmamentV2RecognitionEvidence? Evidence = null, FirmamentV2SemanticProposal? Proposal = null)
 {

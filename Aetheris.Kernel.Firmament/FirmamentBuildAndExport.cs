@@ -22,6 +22,7 @@ namespace Aetheris.Kernel.Firmament;
 
 public static class FirmamentBuildAndExport
 {
+    public const string EdgeFinishProfileComposeBoundaryUnsupported = "EdgeFinishProfileComposeBoundaryUnsupported";
     private enum ExportRouteDisposition { Declined, Failed, Succeeded }
     private sealed record ExportRouteResult(string Route, ExportRouteDisposition Disposition, KernelResult<FirmamentStepExportResult>? Artifact = null)
     {
@@ -243,6 +244,9 @@ public static class FirmamentBuildAndExport
         KernelResult<FirmamentStepExportResult> Fail(string code) => KernelResult<FirmamentStepExportResult>.Failure([
             new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.ComposeSemanticSelection")]);
         if (emitted.Body is null || emitted.Correspondence is null) return Fail("MissingCorrespondenceEvidence");
+        var composedCurves = stack.Slabs.MaxBy(s => s.To)!.Region.Outer.Loops.Single().Segments.Select(segment => segment.Geometry).ToArray();
+        if (!IsAdmittedPrimitiveBoundary(composedCurves))
+            return Fail($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={stack.Feature.Name}:construction=Compose:face=+Z:target=Boundary:supported=primitive-box-or-explicit-semantic-chain:Profile/Compose polygon-boundary materialization is not implemented.");
         var selections = SemanticSelectionSourceParser.Parse(source, parsed.Profiles.Values.First(), stack.Feature.Name, out var diagnostics);
         if (diagnostics.Count != 0 || selections.Count != 1) return Fail(diagnostics.FirstOrDefault() ?? "SemanticSourceNotFound");
         var selection = SemanticTopologySelectionResolver.Resolve(emitted.Body, emitted.Correspondence, selections[0]);
@@ -273,6 +277,8 @@ public static class FirmamentBuildAndExport
         KernelResult<FirmamentStepExportResult> Fail(string code) => KernelResult<FirmamentStepExportResult>.Failure([
             new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.SemanticSelection")]);
         if (emitted.Body is null || emitted.Correspondence is null) return Fail("NoMaterializedDescendants");
+        if (!IsAdmittedPrimitiveBoundary(profile.Loops.Single().Segments.Select(segment => segment.Geometry).ToArray()))
+            return Fail($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={profile.Name}:construction=Profile:face=+Z:target=Boundary:supported=primitive-box-or-explicit-semantic-chain:Profile/Compose polygon-boundary materialization is not implemented.");
         var selections = SemanticSelectionSourceParser.Parse(source, profile, profile.Name, out var selectionDiagnostics);
         if (selectionDiagnostics.Count > 0 || selections.Count != 1) return Fail(selectionDiagnostics.FirstOrDefault() ?? "SemanticSourceNotFound");
         var selection = SemanticTopologySelectionResolver.Resolve(emitted.Body, emitted.Correspondence, selections[0]);
@@ -298,6 +304,11 @@ public static class FirmamentBuildAndExport
         if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value)) return Fail("semantic-selection-finish-step-reimport-failed");
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, compiled.Feature.FeatureId, 0, "semantic-profile-edge-finish", "source-grounded-top-boundary-chamfer"));
     }
+
+    private static bool IsAdmittedPrimitiveBoundary(IReadOnlyList<LineArcProfileCurve2D> curves) =>
+        curves.Count == 4
+        && curves.All(curve => curve is LineArcLineSegment2D)
+        && curves.Cast<LineArcLineSegment2D>().All(line => Math.Abs(line.Start.X - line.End.X) < 1e-9 || Math.Abs(line.Start.Y - line.End.Y) < 1e-9);
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2StandaloneCubicLattice(FirmamentV2Document document)
     {

@@ -68,6 +68,9 @@ public static class FirmamentV2Parser
     public const string CanonicalPoint2Invalid = "firmament-v2-canonical-point2-invalid";
     public const string CanonicalModifyMalformed = "firmament-v2-canonical-modify-malformed";
     public const string CanonicalDeclarationUnrecognized = "firmament-v2-canonical-declaration-unrecognized";
+    public const string CanonicalDeclarationUnknown = "firmament-v2-canonical-declaration-unknown";
+    public const string CanonicalConstructNotYetSupported = "firmament-v2-canonical-construct-not-yet-supported";
+    public const string EdgeFinishProfileComposeBoundaryUnsupported = "EdgeFinishProfileComposeBoundaryUnsupported";
     public const string CanonicalFieldUnknown = "firmament-v2-canonical-field-unknown";
     public const string SelectionMalformed = "firmament-v2-selection-malformed";
     public const string SelectionDuplicateName = "firmament-v2-selection-duplicate-name";
@@ -86,6 +89,9 @@ public static class FirmamentV2Parser
     public const string LetDuplicateName = "firmament-v2-let-duplicate-name";
     public const string LetUnknownType = "firmament-v2-let-unknown-type";
     public const string LetTypeMismatch = "firmament-v2-let-type-mismatch";
+    // Alias retained inside the compact fatal-diagnostic switch below; both
+    // spellings denote the same public diagnostic.
+    private const string LetMismatch = LetTypeMismatch;
     public const string LetInvalidLiteral = "firmament-v2-let-invalid-literal";
     public const string LetUnitMismatch = "firmament-v2-let-unit-mismatch";
     public const string LetLiteralOnly = "firmament-v2-let-literal-only";
@@ -244,7 +250,8 @@ public static class FirmamentV2Parser
     private static readonly Regex ReplaceHeaderRegex = new("\\breplace\\s+(?<target>[A-Za-z_][A-Za-z0-9_]*\\.region\\(\"[A-Za-z_][A-Za-z0-9_]*\"\\))\\s+with\\s+(?<kind>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*[A-Za-z_][A-Za-z0-9_]*\\s*>)?)\\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\\s*\\{", RegexOptions.CultureInvariant);
     private static readonly Regex OnRegex = new("\\bon\\s*:\\s*(?<target>[A-Za-z_][A-Za-z0-9_]*\\.face\\(\"#[0-9]+\"\\)|face\\([^)]+\\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
     private static readonly Regex HostSizeRegex = new(@"\bhostSize\s*:\s*\[(?<values>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
-    private static readonly Regex PmiHeaderRegex = new(@"\bpmi\s*\{", RegexOptions.CultureInvariant);
+    // Pmi is canonical; lowercase pmi remains a bounded compatibility spelling.
+    private static readonly Regex PmiHeaderRegex = new(@"\b(?:Pmi|pmi)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex PmiEntryHeaderRegex = new(@"\b(?<kind>[A-Za-z_][A-Za-z0-9_]*)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex TargetRegex = new(@"\btarget\s*:\s*(?<target>[A-Za-z_][A-Za-z0-9_]*\.(?:face|region)\(""[#A-Za-z0-9_]+""\)|[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*\([^)]*\)|face\([^)]+\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
     private static readonly Regex ImportedFaceTargetRegex = new("^(?<body>[A-Za-z_][A-Za-z0-9_]*)\\.face\\(\\\"(?<entity>#[0-9]+)\\\"\\)$", RegexOptions.CultureInvariant);
@@ -311,6 +318,12 @@ public static class FirmamentV2Parser
         // an author must select for ordinary mechanical work.
         if (CanonicalModelRegex.IsMatch(source))
         {
+            var declarationDiagnostics = ScanCanonicalTopLevelDeclarations(source);
+            if (declarationDiagnostics.Count > 0)
+            {
+                diagnostics.AddRange(declarationDiagnostics);
+                return Recognized(CanonicalFailure(diagnostics, CanonicalDocumentMalformed));
+            }
             var parsed = Recognized(ContainsCanonicalAdvancedDeclaration(source)
                 ? ParseCanonicalAdvancedDocument(source, diagnostics, templateExpansion.Instantiations)
                 : ParseCanonicalDocument(source, diagnostics, sourceDirectory));
@@ -858,6 +871,54 @@ public static class FirmamentV2Parser
         Regex.IsMatch(source, @"\b(?:Concept|Struct|Construction\s+Plane|Profile|Compose|Selection|Template|Enum|Pattern|Require|Match)\b", RegexOptions.CultureInvariant);
 
     /// <summary>
+    /// Canonical roots have one owner for every declaration-shaped block.  This
+    /// deliberately scans only brace-depth zero, so fields and feature blocks
+    /// retain their more specific parsers and diagnostics.
+    /// </summary>
+    private static IReadOnlyList<string> ScanCanonicalTopLevelDeclarations(string source)
+    {
+        var model = CanonicalModelRegex.Match(source);
+        var rootOpen = model.Success ? source.IndexOf('{', model.Index) : -1;
+        var rootClose = rootOpen < 0 ? -1 : FindMatchingBrace(source, rootOpen);
+        if (rootClose < 0) return [];
+
+        var known = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "Box", "Cylinder", "RoundedBox", "Frustum", "Concept", "Struct", "Construction", "Profile", "Compose", "EdgeFinish",
+            "Record", "Static", "Template", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require"
+        };
+        var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "Solid", "Let", "Fill", "Manufacturing", "Feature", "Expose"
+        };
+        var diagnostics = new List<string>();
+        var header = new Regex(@"(?m)^\s*(?<keyword>[A-Za-z_][A-Za-z0-9_]*)(?:\s*<[^{}>]+>)?(?:\s+[A-Za-z_][A-Za-z0-9_]*){0,4}\s*\{", RegexOptions.CultureInvariant);
+        foreach (Match candidate in header.Matches(source[(rootOpen + 1)..rootClose]))
+        {
+            var absolute = rootOpen + 1 + candidate.Index;
+            if (BraceDepth(source, rootOpen + 1, absolute) != 0) continue;
+            var keyword = candidate.Groups["keyword"].Value;
+            if (known.Contains(keyword)) continue;
+            diagnostics.Add((compatibilityOnly.Contains(keyword) ? CanonicalConstructNotYetSupported : CanonicalDeclarationUnknown) + ":" + keyword);
+        }
+        return diagnostics.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static int BraceDepth(string source, int start, int end)
+    {
+        var depth = 0;
+        var quoted = false;
+        for (var index = start; index < end; index++)
+        {
+            if (source[index] == '"' && (index == 0 || source[index - 1] != '\\')) quoted = !quoted;
+            if (quoted) continue;
+            if (source[index] == '{') depth++;
+            else if (source[index] == '}') depth--;
+        }
+        return depth;
+    }
+
+    /// <summary>
     /// Parser-owned canonical admission for advanced declarations.  The existing
     /// production profile and section-stack readers remain semantic adapters; this
     /// method owns the root, units, disposition, and normalized declaration list.
@@ -895,12 +956,28 @@ public static class FirmamentV2Parser
                 diagnostics.AddRange(compositionSelectionDiagnostics);
                 return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
             }
+            var compositionSolids = new Dictionary<string, FirmamentV2SolidBinding>(StringComparer.Ordinal)
+            {
+                [feature.Name] = new FirmamentV2SolidBinding(feature.Name, "Compose", new FirmamentV2AdvancedMaterialRecord("Compose"))
+            };
+            var (compositionPmi, compositionPmiBlock, compositionBoundPmi) = ParsePmi(
+                source, compositionSolids, [], [], [], [], diagnostics, (feature.ShaftHoles ?? []).Select(hole => hole.Name));
+            if (Regex.IsMatch(body, @"\bEdgeFinish\b", RegexOptions.CultureInvariant)
+                && composition.Profiles.Values.Any(profile => profile.Loops.Single().Segments.Count != 4))
+            {
+                diagnostics.Add($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={feature.Name}:construction=Compose:face=+Z:target=Boundary:supported=primitive-box-or-explicit-semantic-chain:Profile/Compose polygon-boundary materialization is not implemented.");
+                return CanonicalFailure(diagnostics, EdgeFinishProfileComposeBoundaryUnsupported);
+            }
+            if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
             var document = new FirmamentV2Document(
                 model.Groups["name"].Value,
                 "mm",
                 [new FirmamentV2SolidBinding(feature.Name, "Compose", new FirmamentV2AdvancedMaterialRecord("Compose"))],
                 Profiles: composition.Profiles.Values.Select(profile => new FirmamentV2ProfileDecl(profile.Name, profile.EffectiveConstructionPlane.StableId, profile.LocalStartDepth ?? 0d, profile.LocalEndDepth ?? 0d, new(0, 0))).ToArray(),
                 Composes: [new FirmamentV2ComposeDecl(feature.Name, feature.Operations.Select(operation => operation.Name).ToArray(), new(0, body.Length))],
+                Pmi: compositionPmi,
+                PmiBlock: compositionPmiBlock,
+                BoundPmi: compositionBoundPmi,
                 Selections: compositionSelections);
             diagnostics.Add("firmament-v2-unified-canonical-advanced-parsed");
             diagnostics.Add("firmament-v2-profile-compose-adapted");
@@ -926,11 +1003,26 @@ public static class FirmamentV2Parser
                 diagnostics.AddRange(profileSelectionDiagnostics);
                 return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
             }
+            var profileSolids = new Dictionary<string, FirmamentV2SolidBinding>(StringComparer.Ordinal)
+            {
+                [resolved.Name] = new FirmamentV2SolidBinding(resolved.Name, "Profile", new FirmamentV2AdvancedMaterialRecord("Profile"))
+            };
+            var (profilePmi, profilePmiBlock, profileBoundPmi) = ParsePmi(source, profileSolids, [], [], [], [], diagnostics);
+            if (Regex.IsMatch(body, @"\bEdgeFinish\b", RegexOptions.CultureInvariant)
+                && resolved.Loops.Single().Segments.Count != 4)
+            {
+                diagnostics.Add($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={resolved.Name}:construction=Profile:face=+Z:target=Boundary:supported=primitive-box-or-explicit-semantic-chain:Profile/Compose polygon-boundary materialization is not implemented.");
+                return CanonicalFailure(diagnostics, EdgeFinishProfileComposeBoundaryUnsupported);
+            }
+            if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
             var document = new FirmamentV2Document(
                 model.Groups["name"].Value,
                 "mm",
                 [new FirmamentV2SolidBinding(resolved.Name, "Profile", new FirmamentV2AdvancedMaterialRecord("Profile"))],
                 Profiles: [new FirmamentV2ProfileDecl(resolved.Name, resolved.EffectiveConstructionPlane.StableId, resolved.LocalStartDepth ?? 0d, resolved.LocalEndDepth ?? profile.Height, new(0, body.Length))],
+                Pmi: profilePmi,
+                PmiBlock: profilePmiBlock,
+                BoundPmi: profileBoundPmi,
                 Selections: profileSelections);
             diagnostics.Add("firmament-v2-unified-canonical-advanced-parsed");
             diagnostics.Add("firmament-v2-profile-adapted");
@@ -1110,13 +1202,14 @@ public static class FirmamentV2Parser
 
         var recognizedRegions = ParseCanonicalRecognizedRegions(body, byName, diagnostics);
         var replacements = ParseCanonicalReplacements(body, byName, recognizedRegions, diagnostics);
+        var (pmi, pmiBlock, boundPmi) = ParsePmi(source, byName, modifies, recognizedRegions, [], [], diagnostics);
         if (diagnostics.Any(IsFatalDiagnosticCode) || diagnostics.Contains(CanonicalDeclarationUnrecognized) || diagnostics.Contains(CanonicalFieldUnknown))
             return CanonicalFailure(diagnostics, CanonicalDeclarationUnrecognized);
 
         diagnostics.Add("firmament-v2-unified-canonical-parsed");
         diagnostics.Add("firmament-v2-parse-succeeded");
         diagnostics.Sort(StringComparer.Ordinal);
-        return FirmamentV2ParseResult.Success(new FirmamentV2Document(model.Groups["name"].Value, "mm", solids, modifies, RecognizedRegions: recognizedRegions, Replacements: replacements), diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+        return FirmamentV2ParseResult.Success(new FirmamentV2Document(model.Groups["name"].Value, "mm", solids, modifies, Pmi: pmi, RecognizedRegions: recognizedRegions, Replacements: replacements, PmiBlock: pmiBlock, BoundPmi: boundPmi), diagnostics.Distinct(StringComparer.Ordinal).ToArray());
     }
 
     private static FirmamentV2PrimitiveRecord? ParseCanonicalPrimitive(string type, string body, List<string> diagnostics)
@@ -1632,7 +1725,7 @@ public static class FirmamentV2Parser
         || code.StartsWith(ConceptIrResolver.PointProjectionUnsupported, StringComparison.Ordinal)
         || code.StartsWith("firmament-static-", StringComparison.Ordinal);
 
-    public static bool IsFatalDiagnosticCode(string code) => IsConceptFatalDiagnostic(code) || code is UnknownConstructionPolicy or PrimitiveDoesNotSatisfyHollowConstructible or WallThicknessRequired or WallThicknessMustBePositive or UnsupportedOpening or MultipleOpeningsNotSupported or Phase3EdgeFinishSyntaxInvalid or PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetTypeMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch or StandaloneFillRegionRequired or UnsupportedStandaloneFillPattern or InvalidCellCount or CellSizeMustBePositive or StrutRadiusMustBePositive or NodeRadiusMustBePositive or MaterialBoundsMismatch or StandaloneFillMultipleUnsupported;
+    public static bool IsFatalDiagnosticCode(string code) => code.StartsWith(CanonicalDeclarationUnknown + ":", StringComparison.Ordinal) || code.StartsWith(CanonicalConstructNotYetSupported + ":", StringComparison.Ordinal) || code.StartsWith(EdgeFinishProfileComposeBoundaryUnsupported, StringComparison.Ordinal) || IsConceptFatalDiagnostic(code) || code is UnknownConstructionPolicy or PrimitiveDoesNotSatisfyHollowConstructible or WallThicknessRequired or WallThicknessMustBePositive or UnsupportedOpening or MultipleOpeningsNotSupported or Phase3EdgeFinishSyntaxInvalid or PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch or StandaloneFillRegionRequired or UnsupportedStandaloneFillPattern or InvalidCellCount or CellSizeMustBePositive or StrutRadiusMustBePositive or NodeRadiusMustBePositive or MaterialBoundsMismatch or StandaloneFillMultipleUnsupported;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {
@@ -2384,7 +2477,8 @@ public static class FirmamentV2Parser
         IReadOnlyList<FirmamentV2RecognizedRegion> recognizedRegions,
         IReadOnlyList<FirmamentV2BoundLet> boundLets,
         IReadOnlyList<FirmamentV2BoundLetRecord> boundLetRecords,
-        List<string> diagnostics)
+        List<string> diagnostics,
+        IEnumerable<string>? additionalHoleNames = null)
     {
         var matches = PmiHeaderRegex.Matches(source);
         if (matches.Count == 0) return ([], null, null);
@@ -2402,13 +2496,13 @@ public static class FirmamentV2Parser
         var knownDatums = new HashSet<string>(StringComparer.Ordinal);
         var letMap = boundLets.ToDictionary(l => l.Name, StringComparer.Ordinal);
         var recordMap = boundLetRecords.ToDictionary(r => r.Name, StringComparer.Ordinal);
-        var holeNames = modifyBlocks.SelectMany(m => m.SemanticHoles).Select(h => h.Name).ToHashSet(StringComparer.Ordinal);
+        var holeNames = modifyBlocks.SelectMany(m => m.SemanticHoles).Select(h => h.Name).Concat(additionalHoleNames ?? []).ToHashSet(StringComparer.Ordinal);
         var regionByTarget = recognizedRegions.ToDictionary(r => r.TargetSource, r => r, StringComparer.Ordinal);
         var aliases = solids.Values.SelectMany(s => s.Box?.Exposures ?? []).Select(e => e.Alias).ToHashSet(StringComparer.Ordinal);
 
         foreach (Match em in PmiEntryHeaderRegex.Matches(body))
         {
-            var kindRaw = em.Groups["kind"].Value;
+            var kindRaw = NormalizePmiKind(em.Groups["kind"].Value);
             var name = em.Groups["name"].Value;
             if (!TryPmiKind(kindRaw, out var kind)) { diagnostics.Add(PmiUnknownRecordKind); diagnostics.Add(PmiKindUnknown); continue; }
             if (kind == FirmamentV2PmiKind.DatumPlane && !datumLabels.Add(name)) { diagnostics.Add(PmiDuplicateDatum); }
@@ -2436,12 +2530,17 @@ public static class FirmamentV2Parser
     private static Dictionary<string, FirmamentV2PmiField> ParsePmiFields(string body, int baseOffset, List<string> diagnostics)
     {
         var fields = new Dictionary<string, FirmamentV2PmiField>(StringComparer.Ordinal);
-        var fieldRegex = new Regex(@"(?<name>targetA|targetB|target|dimension|value|diameter|tolerance|datum)\s*:\s*(?<value>.*?)(?=\s+(?:targetA|targetB|target|dimension|value|diameter|tolerance|datum)\s*:|$)", RegexOptions.CultureInvariant | RegexOptions.Singleline);
+        // Capture every field first.  A whitelist-only capture silently lost
+        // misspellings such as Tolerence, precisely what canonical PMI must not do.
+        var fieldRegex = new Regex(@"(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>.*?)(?=\s+[A-Za-z_][A-Za-z0-9_]*\s*:|$)", RegexOptions.CultureInvariant | RegexOptions.Singleline);
         foreach (Match m in fieldRegex.Matches(body))
         {
-            var n = m.Groups["name"].Value;
+            var n = NormalizePmiField(m.Groups["name"].Value);
             var v = m.Groups["value"].Value.Trim();
             if (v.EndsWith("}", StringComparison.Ordinal)) v = v[..^1].Trim();
+            if (string.Equals(m.Groups["name"].Value, "DatumRefs", StringComparison.Ordinal)
+                && v.StartsWith("[", StringComparison.Ordinal) && v.EndsWith("]", StringComparison.Ordinal))
+                v = v[1..^1].Trim();
             if (fields.ContainsKey(n)) { diagnostics.Add(PmiDuplicateField); continue; }
             fields[n] = new(n, v, new FirmamentV2SourceSpan(baseOffset + m.Index, m.Length), null);
         }
@@ -2449,12 +2548,38 @@ public static class FirmamentV2Parser
         return fields;
     }
 
+    private static string NormalizePmiKind(string raw) => raw switch
+    {
+        "Datum" => "datum",
+        "HoleDiameter" => "diameter",
+        "Distance" => "distance",
+        "Flatness" => "flatness",
+        "Parallel" => "parallel",
+        "Perpendicular" => "perpendicular",
+        "Coplanar" => "coplanar",
+        _ => raw
+    };
+
+    private static string NormalizePmiField(string raw) => raw switch
+    {
+        "Target" => "target",
+        "TargetA" => "targetA",
+        "TargetB" => "targetB",
+        "Dimension" => "dimension",
+        "Value" => "value",
+        "Diameter" => "diameter",
+        "Tolerance" => "tolerance",
+        "Datum" => "datum",
+        "DatumRefs" => "datum",
+        _ => raw
+    };
+
     private static bool TryPmiKind(string raw, out FirmamentV2PmiKind kind) { kind = raw switch { "diameter"=>FirmamentV2PmiKind.HoleDiameter, "datum"=>FirmamentV2PmiKind.DatumPlane, "distance"=>FirmamentV2PmiKind.Distance, "flatness"=>FirmamentV2PmiKind.Flatness, "parallel"=>FirmamentV2PmiKind.Parallel, "perpendicular"=>FirmamentV2PmiKind.Perpendicular, "coplanar"=>FirmamentV2PmiKind.Coplanar, _=>default }; return raw is "diameter" or "datum" or "distance" or "flatness" or "parallel" or "perpendicular" or "coplanar"; }
 
     private static void ValidatePmiFieldSet(string kind, string name, IReadOnlyDictionary<string,FirmamentV2PmiField> fields, List<string> diagnostics)
     {
         string[] required = kind switch { "datum"=>["target"], "diameter"=> fields.ContainsKey("dimension") ? ["target","dimension"] : fields.ContainsKey("diameter") ? ["target","diameter"] : ["target","value"], "distance"=>["targetA","targetB","dimension"], "flatness"=>["target","tolerance"], "parallel" or "perpendicular" or "coplanar"=>["target","datum","tolerance"], _=>[] };
-        var allowed = required.Concat(kind=="diameter"?["tolerance","diameter","value","dimension"]:[]).ToHashSet(StringComparer.Ordinal);
+        var allowed = required.Concat(kind=="diameter"?["tolerance","diameter","value","dimension","datum"]:[]).ToHashSet(StringComparer.Ordinal);
         foreach (var r in required) if (!fields.ContainsKey(r)) diagnostics.Add(PmiMissingRequiredField);
         foreach (var f in fields.Keys) if (!allowed.Contains(f)) diagnostics.Add(PmiUnknownField);
     }
@@ -2479,13 +2604,28 @@ public static class FirmamentV2Parser
         { if (Field(r,"tolerance") is string t && TryParsePmiLength(NormalizePmiLengthLiteral(t), diagnostics, out var lit)) ctlTol=lit; else diagnostics.Add(PmiToleranceTypeMismatch); }
         if (r.Kind is FirmamentV2PmiKind.Parallel or FirmamentV2PmiKind.Perpendicular or FirmamentV2PmiKind.Coplanar)
         { var d=Field(r,"datum"); if (d is null || !datums.Contains(d)) diagnostics.Add(PmiUnknownDatum); else datumRefs.Add(d); }
+        if (r.Kind == FirmamentV2PmiKind.HoleDiameter && Field(r,"datum") is string datum)
+        { if (!datums.Contains(datum)) diagnostics.Add(PmiUnknownDatum); else datumRefs.Add(datum); }
         bound=new(r.Kind,r.Name,targets,dim,dimTol,ctlTol,datumRefs,r.SourceSpan); return !diagnostics.Any(x=>x.StartsWith("firmament-v2-pmi-",StringComparison.Ordinal) && x is not PmiUnsupported);
     }
     private static string? Field(FirmamentV2PmiRecord r,string name)=>r.Fields.TryGetValue(name,out var f)?f.Source:null;
     private static FirmamentV2BoundLet? ResolveBoundLet(string s,IReadOnlyDictionary<string,FirmamentV2BoundLet> lets,IReadOnlyDictionary<string,FirmamentV2BoundLetRecord> records){var m=DottedReferenceRegex.Match(s); if(m.Success&&records.TryGetValue(m.Groups["record"].Value,out var rec)&&rec.Fields.TryGetValue(m.Groups["field"].Value,out var f))return f; return lets.TryGetValue(s,out var l)?l:null;}
     private static string NormalizePmiLengthLiteral(string s) => Regex.Replace(s.Trim(), @"(?<=\d)\s+(?=mm$)", "", RegexOptions.CultureInvariant);
     private static bool TryParsePmiLength(string s,List<string> d,out FirmamentV2LiteralValue lit){lit=null!; var v=ParseLetLiteral(FirmamentV2PrimitiveType.Length,s,d); if(v is null){d.Add(PmiToleranceTypeMismatch); return false;} if(v.NumericValue is < 0){ d.Add(PmiDiameterInvalid); return false; } lit=v; return true;}
-    private static bool TryParseToleranceLiteral(string s,List<string>d,out FirmamentV2Tolerance tol){tol=null!; var t=ParseTolerance(FirmamentV2PrimitiveType.Length,s,d); if(t is null){d.Add(PmiToleranceTypeMismatch); return false;} tol=t; return true;}
+    private static bool TryParseToleranceLiteral(string s,List<string>d,out FirmamentV2Tolerance tol)
+    {
+        tol=null!;
+        var plusMinus = Regex.Match(s, @"^PlusMinus\(\s*(?<plus>[-+]?\d+(?:\.\d+)?)mm\s*,\s*(?<minus>[-+]?\d+(?:\.\d+)?)mm\s*\)$", RegexOptions.CultureInvariant);
+        if (plusMinus.Success)
+        {
+            var plus = double.Parse(plusMinus.Groups["plus"].Value, CultureInfo.InvariantCulture);
+            var minus = double.Parse(plusMinus.Groups["minus"].Value, CultureInfo.InvariantCulture);
+            if (plus < 0 || minus < 0) { d.Add(PmiToleranceTypeMismatch); return false; }
+            tol = new(FirmamentV2ToleranceKind.Asymmetric, plus, minus, "mm", FirmamentV2PrimitiveType.Length, new(0, s.Length));
+            return true;
+        }
+        var t=ParseTolerance(FirmamentV2PrimitiveType.Length,s,d); if(t is null){d.Add(PmiToleranceTypeMismatch); return false;} tol=t; return true;
+    }
     private static void ValidateTarget(string target,FirmamentV2PmiKind kind,Dictionary<string,FirmamentV2SolidBinding> solids,IReadOnlyDictionary<string,FirmamentV2RecognizedRegion> regions,HashSet<string> aliases,HashSet<string> holeNames,List<string> diagnostics)
     { if (TryValidateImportedFaceTarget(target, solids, diagnostics)) return; if (RecognizedRegionTargetRegex.IsMatch(target)){ var m=RecognizedRegionTargetRegex.Match(target); var body=m.Groups["body"].Value; if(regions.TryGetValue(target,out var region)){ if((kind==FirmamentV2PmiKind.HoleDiameter&&region.Kind!="holeShaft") || (kind==FirmamentV2PmiKind.DatumPlane&&region.Kind!="datumPlane")) diagnostics.Add(PmiRecognizedRegionKindMismatch); } else if(regions.Values.Any(r=>r.BodyName==body) || diagnostics.Contains(UnknownRecognitionFace)) diagnostics.Add(UnknownRecognitionRegion); return;} if(aliases.Contains(target)||FaceSelectorRegex.IsMatch(target)||holeNames.Contains(target))return; if(!target.Contains(".region(",StringComparison.Ordinal)) { diagnostics.Add(PmiInvalidTarget); diagnostics.Add(PmiTargetUnresolved); } }
 

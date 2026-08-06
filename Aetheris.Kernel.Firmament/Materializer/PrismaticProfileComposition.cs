@@ -72,6 +72,7 @@ public sealed record PrismaticProfileCompositionParseResult(
 /// </summary>
 public static class PrismaticProfileCompositionParser
 {
+    public const string SegmentEndpointMustReferenceNamedPoint = "ProfileSegmentEndpointMustReferenceNamedPoint";
     private static readonly Regex Point = new(@"\bPoint2\s+(?<n>\w+)\s*\{\s*Position\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\s*(?:\]|\))", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Line = new(@"\bLine2\s+(?<n>\w+)\s*\{\s*From\s*:\s*(?<a>\w+)\s*;?\s*To\s*:\s*(?<b>\w+)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Circle = new(@"\bCircle2\s+(?<n>\w+)\s*\{\s*Center\s*:\s*(?<c>\w+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\d]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
@@ -138,6 +139,8 @@ public static class PrismaticProfileCompositionParser
         {
             var body = Block(source, header.Index + header.Length - 1);
             if (body is null) { diagnostics.Add($"compose-profile-unclosed:{header.Groups["n"].Value}"); continue; }
+            foreach (Match rawSegment in Regex.Matches(body, @"\bSegment\s+(?<name>\w+)\s*\{[\s\S]*?\b(?<endpoint>From|To)\s*:\s*(?<value>\[[^\]]*\]|Point2\s*\([^)]*\))", RegexOptions.CultureInvariant))
+                diagnostics.Add($"{SegmentEndpointMustReferenceNamedPoint}:{rawSegment.Groups["name"].Value}:{rawSegment.Groups["endpoint"].Value}");
             var segments = new List<ResolvedProfileSegment2D>();
             foreach (Match match in Segment.Matches(body))
             {

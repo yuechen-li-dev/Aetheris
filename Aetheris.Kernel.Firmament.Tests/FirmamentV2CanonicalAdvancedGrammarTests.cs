@@ -285,4 +285,66 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
         Assert.True(compose.IsSuccess, string.Join(Environment.NewLine, compose.Diagnostics));
         Assert.Equal("Body", Assert.Single(compose.Document!.Composes!).Name);
     }
+
+    [Fact]
+    public void CanonicalMultiRectProfileComposeFixture_IsDiscoverableAndBuilds()
+    {
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket.firmament"));
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(path));
+        var output = Path.Combine(Path.GetTempPath(), "aetheris-l-profile-" + Guid.NewGuid().ToString("N") + ".step");
+        try
+        {
+            Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+            Assert.Equal("BracketBody", Assert.Single(parse.Document!.Composes!).Name);
+            var build = FirmamentBuildAndExport.Run(path, output);
+            Assert.True(build.IsSuccess, string.Join(Environment.NewLine, build.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        }
+        finally
+        {
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void ProfileComposePolygonEdgeFinish_ReportsHostAdmissionInsteadOfMissingSemanticSource()
+    {
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Canonical/invalid/profile-compose-l-bracket-edgefinish-unsupported.firmament"));
+        var output = Path.Combine(Path.GetTempPath(), "aetheris-l-profile-finish-" + Guid.NewGuid().ToString("N") + ".step");
+        try
+        {
+            var parse = FirmamentV2Parser.Parse(File.ReadAllText(path));
+            Assert.False(parse.IsSuccess);
+            Assert.Contains(FirmamentV2Parser.EdgeFinishProfileComposeBoundaryUnsupported, parse.Diagnostics);
+            var build = FirmamentBuildAndExport.Run(path, output);
+            Assert.False(build.IsSuccess);
+            var diagnostic = Assert.Single(build.Diagnostics);
+            Assert.Contains(FirmamentBuildAndExport.EdgeFinishProfileComposeBoundaryUnsupported, diagnostic.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("SemanticSourceNotFound", diagnostic.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void ProfileCoordinateEndpoint_ReportsNamedPointDiagnosticBeforeLoopValidation()
+    {
+        var parse = FirmamentV2Parser.Parse("""
+            Model RawEndpoint {
+                Units: mm
+                Concept Struct Layout On XY { Rect2 Stock { Center: [0mm, 0mm]; Size: [20mm, 10mm] } }
+                Profile Plate Using Layout { Loop Outer {
+                    Segment South { Trace: Stock.Bottom; From: [0mm, -5mm]; To: Stock.BottomRight }
+                    Segment East { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+                    Segment North { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+                    Segment West { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+                } }
+                Struct Body { Extrude Plate { Profile: Plate; From: 0mm; To: 1mm } }
+            }
+            """);
+
+        Assert.False(parse.IsSuccess);
+        Assert.Contains(ProfileAuthoringParser.SegmentEndpointMustReferenceNamedPoint + ":South:From", parse.Diagnostics);
+    }
 }

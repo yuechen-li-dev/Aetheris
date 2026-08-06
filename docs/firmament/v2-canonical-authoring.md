@@ -51,6 +51,13 @@ Model Bracket {
 - A shaft hole uses `On`, `Center`, `Diameter`, and `End`. `End: ThroughAll` is the simple through-hole; `End: Blind <depth>mm` is the canonical blind spelling.
 - An edge finish uses `Face`, `Target`, `Kind`, and either `Distance` (chamfer) or `Radius` (fillet).
 
+### PMI
+
+`Pmi` is a canonical top-level block. Use PascalCase record and field names;
+it binds to semantic features rather than raw topology IDs. See
+[PMI authoring](v2-pmi-authoring.md) for the complete `Datum` plus
+`HoleDiameter` example and tolerance syntax.
+
 The currently proven low-ceremony production shape is one Box, one top-face ThroughAll shaft Hole, and one disjoint `+Z Boundary Chamfer`. It routes to `CombinedHoleEdgeFinish`, then authoritative STEP export and STEP reimport verification.
 
 ## Advanced declarations in the same document
@@ -146,6 +153,22 @@ Profile-guide `Point2` and `Rect2` declarations accept typed `Point2(x, y)`
 literals, including values substituted from a static record. Bracket
 coordinates remain accepted for existing fixtures during migration.
 
+### Non-rectangular Profile composition
+
+`Segment.From` and `Segment.To` reference named points only: a declared
+`Point2` or a named `Rect2` corner such as `Guide.TopLeft`. Coordinate literals
+are not endpoints. A segment traces the infinite `Line2` or Rect2-side
+support, so aligned named points can be collinear even when they are not the
+guide's original endpoints. Close the loop and use counter-clockwise winding.
+
+The multi-guide L example is
+`fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket.firmament`.
+It uses two overlapping `Rect2` guides plus a named notch point. The valid
+fixture intentionally has no EdgeFinish: arbitrary Profile/Compose polygon
+boundary chamfer and fillet materialization is not yet admitted. Such a finish
+reports `EdgeFinishProfileComposeBoundaryUnsupported`, rather than a missing
+semantic source; see the paired invalid fixture.
+
 ## Canonical examples
 
 - `fixtures/FirmamentV2/Canonical/valid/bare-box.firmament`
@@ -156,6 +179,8 @@ coordinates remain accepted for existing fixtures during migration.
 - `fixtures/FirmamentV2/Canonical/valid/box-hole-chamfer.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/profile-line-extrusion.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/profile-compose-base.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/box-hole-pmi.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/semantic-slot-capsule.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/semantic-slot-rounded-rectangle.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/semantic-selection-chamfer.firmament`

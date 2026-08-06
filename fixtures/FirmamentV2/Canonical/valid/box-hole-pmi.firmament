@@ -1,0 +1,22 @@
+Model CanonicalPmiMount {
+    Units: mm
+
+    Box Base { Size: [80mm, 50mm, 12mm] }
+    Modify Base {
+        Hole<Shaft> Mount {
+            On: +Z
+            Center: Point2(0mm, 0mm)
+            Diameter: 8mm
+            End: ThroughAll
+        }
+    }
+    Pmi {
+        Datum A { Target: face(+Z) }
+        HoleDiameter MountDiameter {
+            Target: Mount
+            Value: 8mm
+            Tolerance: PlusMinus(0.05mm, 0.02mm)
+            DatumRefs: [A]
+        }
+    }
+}

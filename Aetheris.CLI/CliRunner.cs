@@ -532,6 +532,19 @@ public static class CliRunner
                 ]);
             }
             var composeResults = composeRequests.Select(request => SemanticTopologySelectionResolver.Resolve(emittedCompose.Body, emittedCompose.Correspondence, request)).ToArray();
+            var mouthEdges = corridor is null ? [] : emittedCompose.Correspondence.Descendants
+                .Where(x => x.SourceStableId == corridor.HoleId && x.Role == SemanticTopologyRole.TopBoundary && x.Edge is not null)
+                .Select(x => x.Edge!.Value).OrderBy(x => x.Value).ToArray();
+            var mouthTopology = corridor is null ? null : new
+            {
+                MouthOwnership = emittedCompose.Correspondence.ProvenanceChain.Contains("MultiFaceCoplanarMouth", StringComparer.Ordinal) ? "MultiFaceCoplanar" : "SingleFace",
+                affectedHostFaceIds = emittedCompose.Plan?.TopologyPlan?.FaceMappings.Where(x => x.Kind == "HostFaceReplacement").Select(x => x.FaceId.Value).OrderBy(x => x).ToArray(),
+                planningSeam = emittedCompose.Correspondence.ProvenanceChain.Contains("ExactLineCircleSplit", StringComparer.Ordinal) ? "section-stack-internal" : null,
+                mouthArcDescendants = mouthEdges.Select(x => x.Value),
+                intersectionVertices = emittedCompose.Plan?.TopologyPlan?.Topology.Edges.Where(x => mouthEdges.Contains(x.Id)).SelectMany(x => new[] { x.StartVertexId.Value, x.EndVertexId.Value }).Distinct().OrderBy(x => x).ToArray(),
+                semanticMouthLoopOrder = composeResults.Where(x => x.Request.Role == SemanticTopologyRole.HoleEntryLoop).SelectMany(x => x.OrderedChain).Select(x => x.StableId),
+                noCap = emittedCompose.Correspondence.ProvenanceChain.Contains("NoInternalCaps", StringComparer.Ordinal)
+            };
             stdout.WriteLine(JsonSerializer.Serialize(new
             {
                 body = emittedCompose.Correspondence.BodyStableId,
@@ -549,6 +562,7 @@ public static class CliRunner
                     ConservativeRejection = corridor.Classification == BlindDrillToolCorridorClassification.FullRadiusTipClearanceFailed,
                     diagnostics = corridor.Diagnostics
                 },
+                mouthTopology,
                 arrangement = stack.Slabs.Select(s => new { slab = new[] { s.From, s.To }, fragments = s.Arrangement?.AtomicFragments.Select(f => new { f.StableId, source = f.Source.Provenance.StableId, f.FromParameter, f.ToParameter, f.MaterialOnLeft, f.Retained }) }),
                 diagnostics = composeDiagnostics.Concat(composeParseDiagnostics).Concat(bridgeDiagnostics).Distinct()
             }, JsonOptions));

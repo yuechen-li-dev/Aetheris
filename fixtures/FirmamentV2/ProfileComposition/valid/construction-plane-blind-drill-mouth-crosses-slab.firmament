@@ -1,4 +1,5 @@
-// Tangency is not admitted: X1 requires two exact circle/seam intersections.
+// One physical side surface is planned as two coplanar section-stack faces.
+// The circular Mouth crosses their internal z=0 planning seam.
 Concept Struct SideLayout {
     PositiveXDatum: Plane { Origin: [-20mm, 0mm, 0mm]; Normal: [1, 0, 0]; Up: [0, 0, 1] }
 }
@@ -15,7 +16,7 @@ Struct Composition { Compose SideBlindHost {
     Add Upper { Profile: Stock; From: 0mm; To: 10mm }
     Hole<Shaft> SideBlind {
         From: PositiveXWorkplane
-        Center: Point2(0mm, 1mm)
+        Center: Point2(0mm, 0mm)
         Diameter: 2mm
         End: ShaftDepth(10mm)
         Termination: DrillPoint

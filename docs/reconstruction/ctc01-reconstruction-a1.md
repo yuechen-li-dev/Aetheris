@@ -395,3 +395,6 @@ No production geometry feature, parser feature, STEP importer/exporter behavior,
 - Firmament filtered tests: 497 passed, 2 failed. Failures are `FirmamentV2StaticLogicTests.Match_NonExhaustive_ReportsEveryMissingVariant` and `EnumDuplicate_InvalidScrutinee_AndSelectedFailureAreDiagnosed`; both are in the pre-existing modified parser area and were not changed for this audit.
 - CLI filtered tests: 128 passed, 0 failed.
 - Final reconstruction build: passed and reproduced SHA-256 `202d0599248beb926cdfe55f1a1fd833b8db17bfb411871276d6ba92b3903937`.
+# CTC-01 reconstruction A1
+
+Section-stack planning seams are ownership partitions, not physical material boundaries. The bounded blind DrillPoint lane can now preserve one semantic circular Mouth when it crosses one internal coplanar seam: two exact descendant arcs carry face ownership, while the semantic Hole, shaft, cone, and Tip remain singular. This is sufficient for CTC-01-style composed-host authoring in the admitted one-seam case; arbitrary face arrangements remain out of scope.

@@ -22,7 +22,11 @@ Corridor evidence proves that the drilling tool fits. The cavity plan proves tha
 - It adds one exact cylindrical shaft wall, one shaft-to-DrillPoint loop, one exact conical wall, and one Tip to the same authoritative shell. There is no Exit or cap at the shaft/cone seam.
 - The replacement map and plan-owned semantic descendants are published before `PrismaticSectionStackBrepMaterializer` consumes the final plan.
 
-The current admitted topology insertion deliberately requires the complete Mouth to lie in one planar side-face partition. It does not yet split a Mouth across host partitions or split a transverse cylinder/cone along world-Z host partitions. Those cases remain rejected at the planner boundary rather than being represented with false caps or detached tool bodies.
+The planner additionally admits one exact circular Mouth across one internal
+coplanar planning seam. It splits the Mouth into two owned circular arcs and
+replaces the affected outer loops, retaining only the seam segments outside the
+opening. The shaft and cone are not partitioned. Non-coplanar, physical-edge,
+tangent, and arbitrary multi-face cases remain rejected at the planner boundary.
 
 `SectionStackBlindDrillComposeBridge` is the source-facing seam used by the
 compose exporter and selection inspection. It converts the source-owned

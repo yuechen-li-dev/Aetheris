@@ -32,14 +32,93 @@ public sealed class SectionStackBlindDrillCavityPlanTests
     }
 
     [Fact]
-    public void ComposeSource_MouthCrossingInternalSlabIsRejectedBeforeTopologyMaterialization()
+    public void ComposeSource_MouthCrossingInternalSlab_IsOneExactMultiFaceMouth()
+    {
+        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/ProfileComposition/valid/construction-plane-blind-drill-mouth-crosses-slab.firmament"));
+        var output = Path.Combine(Path.GetTempPath(), "aetheris-seam-mouth-" + Guid.NewGuid().ToString("N") + ".step");
+
+        try
+        {
+            var exported = FirmamentBuildAndExport.Run(source, output);
+
+            Assert.True(exported.IsSuccess, string.Join(" | ", exported.Diagnostics.Select(x => x.Message)));
+            var imported = Step242Importer.ImportBody(File.ReadAllText(output));
+            Assert.True(imported.IsSuccess, string.Join(" | ", imported.Diagnostics.Select(x => x.Message)));
+            var mass = BrepMassProperties.Evaluate(imported.Value);
+            Assert.True(mass.IsEnclosed, string.Join(" | ", mass.Diagnostics));
+            Assert.True(mass.IsOrientationConsistent, string.Join(" | ", mass.Diagnostics));
+        }
+        finally
+        {
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void ComposeSource_MouthTangentToInternalSlab_IsRejectedWithTypedDiagnostic()
     {
         var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/ProfileComposition/invalid/construction-plane-blind-drill-mouth-crosses-slab.firmament"));
-
-        var exported = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), "aetheris-unreachable.step"));
-
+        var exported = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), "aetheris-tangent-unreachable.step"));
         Assert.False(exported.IsSuccess);
-        Assert.Contains(exported.Diagnostics, x => x.Message == "SectionStackBlindDrillMouthCrossesHostPlanningPartition");
+        Assert.Contains(exported.Diagnostics, x => x.Message == "SectionStackMouthSeamTangent");
+    }
+
+    [Fact]
+    public void CoplanarSeamMouth_UsesSharedIntersectionVertices_AndRemovesTheSeamAcrossOpening()
+    {
+        var stack = Stack(); var host = PrismaticSectionStackEmitter.TryPlan(stack).Plan!;
+        var placement = new AirConstructionPlaneHolePlacement("construction:+X", "concept:+X", new Point3D(-20, 0, 5),
+            Direction3D.Create(new Vector3D(0, 1, 0)), Direction3D.Create(new Vector3D(0, 0, 1)), Direction3D.Create(new Vector3D(1, 0, 0)), 0, 0, "test", "test");
+        var feature = AirHoleFeature.CreateConstructionPlaneSimpleShaft("SeamBlind", "Host.SeamBlind", "Host", placement, new AirHoleShaft(2),
+            new AirHoleEndCondition.ShaftDepth(10), new AirProvenance("test", "test", "SeamBlind", "Host.SeamBlind", "test", AirSelectionClass.None, AirRuleKind.None, "test", true, []), new AirHoleTermination.DrillPoint());
+        var corridor = TransverseBlindDrillToolCorridor.Prove(feature, stack, placement);
+        var mouthFaces = host.TopologyPlan!.FaceMappings.Where(mapping => mapping.Kind == "PrismaticSide" && mapping.SourceStableId.Contains("West", StringComparison.Ordinal)).Select(mapping => mapping.FaceId).OrderBy(id => id.Value).ToArray();
+
+        var cavity = SectionStackBlindDrillCavityPlanner.TryPlan(new(stack, host, feature, placement, corridor, mouthFaces), out var diagnostics);
+
+        Assert.NotNull(cavity); Assert.Equal(2, cavity!.FaceReplacements.Count);
+        Assert.Contains("SectionStackMouthOwnershipMultiFaceCoplanar", diagnostics);
+        var plan = cavity.ReplacementHostPlan.TopologyPlan!;
+        var originalSeam = host.TopologyPlan.Topology.Loops
+            .Where(loop => mouthFaces.Contains(host.TopologyPlan.Topology.Faces.Single(face => face.LoopIds.Contains(loop.Id)).Id))
+            .SelectMany(loop => loop.CoedgeIds).Select(id => host.TopologyPlan.Topology.Coedges.Single(coedge => coedge.Id == id).EdgeId)
+            .GroupBy(id => id).Single(group => group.Count() == 2).Key;
+        var mouthEdges = plan.Correspondence.Descendants.Where(x => x.SourceStableId == feature.FeatureId && x.Role == SemanticTopologyRole.TopBoundary).Select(x => x.Edge!.Value).ToArray();
+        Assert.Equal(2, mouthEdges.Distinct().Count());
+        Assert.Single(plan.Correspondence.Descendants.Where(x => x.SourceStableId == feature.FeatureId && x.Role == SemanticTopologyRole.HoleEntryLoop));
+        var intersectionVertices = plan.Topology.Edges.Where(edge => mouthEdges.Contains(edge.Id)).SelectMany(edge => new[] { edge.StartVertexId, edge.EndVertexId }).Distinct().ToArray();
+        Assert.Equal(2, intersectionVertices.Length);
+        Assert.All(cavity.FaceReplacements, replacement =>
+        {
+            var face = plan.Topology.Faces.Single(x => x.Id == replacement.ReplacementFaceIds.Single());
+            var edges = face.LoopIds.SelectMany(loopId => plan.Topology.Loops.Single(loop => loop.Id == loopId).CoedgeIds).Select(coedgeId => plan.Topology.Coedges.Single(coedge => coedge.Id == coedgeId).EdgeId).ToArray();
+            Assert.Contains(edges, edge => mouthEdges.Contains(edge));
+            Assert.DoesNotContain(originalSeam, edges);
+        });
+        var materialized = PrismaticSectionStackBrepMaterializer.TryMaterialize(plan);
+        Assert.NotNull(materialized.Body); Assert.Empty(materialized.Diagnostics);
+        var mass = BrepMassProperties.Evaluate(materialized.Body!);
+        Assert.True(mass.IsEnclosed, string.Join(" | ", mass.Diagnostics));
+        Assert.True(mass.IsOrientationConsistent, string.Join(" | ", mass.Diagnostics));
+    }
+
+    [Fact]
+    public void CoplanarSeamMouth_OffCenter_UsesAsymmetricExactArcTrims()
+    {
+        var stack = Stack(); var host = PrismaticSectionStackEmitter.TryPlan(stack).Plan!;
+        var placement = new AirConstructionPlaneHolePlacement("construction:+X", "concept:+X", new Point3D(-20, 0, 4.5),
+            Direction3D.Create(new Vector3D(0, 1, 0)), Direction3D.Create(new Vector3D(0, 0, 1)), Direction3D.Create(new Vector3D(1, 0, 0)), 0, 0, "test", "test");
+        var feature = AirHoleFeature.CreateConstructionPlaneSimpleShaft("SeamBlindOffset", "Host.SeamBlindOffset", "Host", placement, new AirHoleShaft(2),
+            new AirHoleEndCondition.ShaftDepth(10), new AirProvenance("test", "test", "SeamBlindOffset", "Host.SeamBlindOffset", "test", AirSelectionClass.None, AirRuleKind.None, "test", true, []), new AirHoleTermination.DrillPoint());
+        var corridor = TransverseBlindDrillToolCorridor.Prove(feature, stack, placement);
+        var faces = host.TopologyPlan!.FaceMappings.Where(x => x.Kind == "PrismaticSide" && x.SourceStableId.Contains("West", StringComparison.Ordinal)).Select(x => x.FaceId).ToArray();
+        var cavity = SectionStackBlindDrillCavityPlanner.TryPlan(new(stack, host, feature, placement, corridor, faces), out _);
+
+        Assert.NotNull(cavity);
+        var plan = cavity!.ReplacementHostPlan.TopologyPlan!;
+        var arcs = plan.Correspondence.Descendants.Where(x => x.SourceStableId == feature.FeatureId && x.Role == SemanticTopologyRole.TopBoundary).Select(x => plan.Bindings.EdgeBindings.Single(binding => binding.EdgeId == x.Edge).TrimInterval!.Value).ToArray();
+        Assert.Equal(2, arcs.Length);
+        Assert.NotEqual(arcs[0].End - arcs[0].Start, arcs[1].End - arcs[1].Start);
     }
 
     [Fact]

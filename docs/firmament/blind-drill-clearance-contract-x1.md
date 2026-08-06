@@ -45,9 +45,8 @@ clearance-cylinder length, slab chord proofs, classification, semantic
 descendants, and the no-cap plan provenance under `holeContract`. The emitted
 cavity still contains no validation-cylinder geometry.
 
-The current Mouth operation is intentionally narrower than the clearance
-proof: the complete Mouth circle must fit in exactly one planar host-side
-face partition. A Mouth which crosses an internal section-stack planning seam
-is rejected as `SectionStackBlindDrillMouthCrossesHostPlanningPartition`.
-This prevents an untrue single-face ownership claim while the explicit
-multi-face circular-Mouth replacement operation remains future work.
+The clearance proof remains independent from topology ownership. X1 also
+admits one circular Mouth crossing one internal coplanar section-stack planning
+seam when it has exactly two line-circle intersections. The planner replaces
+the two host outer loops with complementary exact arc ownership and removes
+the seam through the opening; tangent and ambiguous cases remain typed rejects.

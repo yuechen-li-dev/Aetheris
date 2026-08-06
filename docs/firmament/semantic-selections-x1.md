@@ -45,8 +45,10 @@ The verification artifact is `artifacts/semantic-top-boundary-chamfer.step`, SHA
 This is the Cadmata handoff shape. It intentionally includes geometry preview only where the producer has one, and does not add rendering or interactive selection editing.
 
 For a Construction Plane Hole, `inspect-selections` additionally resolves the
-compiler-published `MouthLoop`, `ExitLoop`, and `ShaftWallFaces` roles. The
-source frame, AIR placement, local-frame plan, final topology ids, and each
+compiler-published `MouthLoop`, `ExitLoop`, and `ShaftWallFaces` roles. A
+coplanar section-stack seam can distribute one physical Mouth across exact arc
+descendants, but still resolves one semantic `MouthLoop`; no geometric fallback
+is introduced. The source frame, AIR placement, local-frame plan, final topology ids, and each
 result appear together; no geometric predicate is introduced. See
 [Construction Plane Hole source X3](construction-plane-hole-source-x3.md).
 

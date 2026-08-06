@@ -178,8 +178,9 @@ internal static class ConceptIrResolver
 
     public static ConceptPhase3Resolution? Resolve(string source, List<string> diagnostics)
     {
-        // Match roles are compile-time conformance metadata. They deliberately do not lower to AIR.
-        source = StripMatchBlocks(source);
+        // Match roles are compile-time conformance metadata. They deliberately do not lower to AIR,
+        // but they must remain available to the static evaluator so invalid domains and selected-arm
+        // failures are diagnosed before feature lowering.
         var enums = ParseEnums(source, diagnostics);
         var definitions = ParseDefinitions(source, diagnostics);
         var materializedMatches = MaterializedHeader.Matches(source).Cast<Match>()

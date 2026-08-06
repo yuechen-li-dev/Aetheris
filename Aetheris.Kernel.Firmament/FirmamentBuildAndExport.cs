@@ -58,9 +58,32 @@ public static class FirmamentBuildAndExport
 
     private static KernelResult<FirmamentStepExportResult> ExportSource(string sourceText, string? sourceDirectory = null)
     {
-        if (PrismaticProfileCompositionParser.IsCompositionSource(sourceText))
+        // The V2 parser owns canonical-root admission.  Profile/composition
+        // materializers consume only the extracted normalized declaration body,
+        // so their historical top-level spelling is no longer author-visible.
+        // Static authoring is intentionally erased before this boundary, too:
+        // parser admission alone is insufficient because the profile/composition
+        // materializers read source declarations directly.
+        var staticDiagnostics = new List<string>();
+        var staticExpansion = CanonicalStaticAuthoring.Expand(sourceText, staticDiagnostics);
+        if (staticExpansion is null)
         {
-            var parsed = PrismaticProfileCompositionParser.Parse(sourceText);
+            return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+                .Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+                    Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                    diagnostic,
+                    "FirmamentV2.StaticAuthoring"))
+                .ToArray());
+        }
+        var materializerInput = staticExpansion.Source;
+        var canonicalAdvanced = FirmamentV2Parser.TryGetCanonicalAdvancedBody(materializerInput, out var canonicalBody);
+        var materializerSource = canonicalAdvanced ? canonicalBody : materializerInput;
+        if (PrismaticProfileCompositionParser.IsCompositionSource(materializerSource))
+        {
+            var parsed = PrismaticProfileCompositionParser.Parse(materializerSource);
             var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
             if (stack is null)
                 return KernelResult<FirmamentStepExportResult>.Failure(diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition")).ToArray());
@@ -77,20 +100,25 @@ public static class FirmamentBuildAndExport
                     return KernelResult<FirmamentStepExportResult>.Failure(materialized.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition.BlindDrill")).ToArray());
                 emitted = new PrismaticSectionStackEmissionResult(materialized.Body, finalPlan, emitted.Diagnostics.Concat(bridgeDiagnostics).ToArray(), finalPlan.Correspondence);
             }
-            if (sourceText.Contains("EdgeFinish", StringComparison.Ordinal))
-                return ExportComposedSemanticTopBoundaryChamfer(sourceText, parsed, stack, emitted);
-            var step = Step242Exporter.ExportBody(emitted.Body);
+            if (materializerSource.Contains("EdgeFinish", StringComparison.Ordinal))
+                return ExportComposedSemanticTopBoundaryChamfer(materializerSource, parsed, stack, emitted);
+            // The composition route either retained the checked body above or
+            // replaced it with a checked blind-drill materialization.
+            var completedBody = emitted.Body;
+            if (completedBody is null)
+                return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, "profile-composition-materialization-missing-body", "FirmamentV2.ProfileComposition")]);
+            var step = Step242Exporter.ExportBody(completedBody);
             if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, stack.Feature.Name, 0, "prismatic-section-stack", "line-arc-profile-composition"));
         }
-        if (ProfileAuthoringParser.IsProfileSource(sourceText))
+        if (ProfileAuthoringParser.IsProfileSource(materializerSource))
         {
-            var parsed = ProfileAuthoringParser.Parse(sourceText);
+            var parsed = ProfileAuthoringParser.Parse(materializerSource);
             if (parsed.Profile is null) return KernelResult<FirmamentStepExportResult>.Failure(parsed.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
             var emitted = ResolvedProfile2DValidator.Extrude(parsed.Profile, parsed.Height);
             if (emitted.Status != LineArcProfileExtrudeStatus.Succeeded || emitted.Body is null) return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
-            if (sourceText.Contains("EdgeFinish", StringComparison.Ordinal))
-                return ExportProfileSemanticTopBoundaryChamfer(sourceText, parsed.Profile, parsed.Height, emitted);
+            if (materializerSource.Contains("EdgeFinish", StringComparison.Ordinal))
+                return ExportProfileSemanticTopBoundaryChamfer(materializerSource, parsed.Profile, parsed.Height, emitted);
             var step = Step242Exporter.ExportBody(emitted.Body); if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, parsed.Profile.Name, 0, "profile-extrude", "line-arc-profile"));
         }

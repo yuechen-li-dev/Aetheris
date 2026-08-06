@@ -169,18 +169,19 @@ internal static class SectionStackBlindDrillCavityPlanner
         if (point is null || input.Hole.EndCondition is AirHoleEndCondition.ThroughAll) d.Add("SectionStackBlindDrillRequiresBlindDrillPoint");
         if (source is null) d.Add("SectionStackBlindDrillMissingAuthoritativeHostPlan");
         if (d.Count != 0) { diagnostics = d; return null; }
+        if (source is null) { diagnostics = ["SectionStackBlindDrillMissingAuthoritativeHostPlan"]; return null; }
 
         var faceIds = input.MouthHostFaceIds.Distinct().OrderBy(x => x.Value).ToArray();
         if (faceIds.Length != 2) { diagnostics = ["SectionStackMouthArcOwnershipAmbiguous"]; return null; }
-        var mappings = faceIds.Select(id => source!.FaceMappings.SingleOrDefault(x => x.FaceId == id && x.Kind == "PrismaticSide")).ToArray();
+        var mappings = faceIds.Select(id => source.FaceMappings.SingleOrDefault(x => x.FaceId == id && x.Kind == "PrismaticSide")).ToArray();
         if (mappings.Any(x => x is null)) d.Add("SectionStackBlindDrillMouthFaceProvenanceMissing");
-        var faces = faceIds.Select(id => source!.Topology.TryGetFace(id, out var face) ? face : null).ToArray();
+        var faces = faceIds.Select(id => source.Topology.TryGetFace(id, out var face) ? face : null).ToArray();
         if (faces.Any(x => x is null)) d.Add("SectionStackBlindDrillMouthFaceMissing");
         var bindings = new FaceGeometryBinding?[2];
         var surfaces = new SurfaceGeometry?[2];
         for (var index = 0; index < faceIds.Length; index++)
         {
-            if (source!.Bindings.TryGetFaceBinding(faceIds[index], out var binding))
+            if (source.Bindings.TryGetFaceBinding(faceIds[index], out var binding))
             {
                 bindings[index] = binding;
                 if (source.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var surface)) surfaces[index] = surface;
@@ -204,12 +205,15 @@ internal static class SectionStackBlindDrillCavityPlanner
             d.Add("SectionStackMouthSeamPhysicalBoundary");
         if (d.Count != 0) { diagnostics = d; return null; }
 
-        var loops = faces.Select(face => source!.Topology.Loops.Single(loop => loop.Id == face!.LoopIds.Single())).ToArray();
-        var edgeSets = loops.Select(loop => loop.CoedgeIds.Select(id => source!.Topology.Coedges.Single(c => c.Id == id).EdgeId).ToHashSet()).ToArray();
+        var loops = faces.Select(face => source.Topology.Loops.Single(loop => loop.Id == face!.LoopIds.Single())).ToArray();
+        var edgeSets = loops.Select(loop => loop.CoedgeIds.Select(id => source.Topology.Coedges.Single(c => c.Id == id).EdgeId).ToHashSet()).ToArray();
         var common = edgeSets[0].Intersect(edgeSets[1]).OrderBy(id => id.Value).ToArray();
         if (common.Length != 1) { diagnostics = ["SectionStackMouthSeamPhysicalBoundary"]; return null; }
-        var seamId = common[0]; var seam = source!.Topology.Edges.Single(edge => edge.Id == seamId);
-        if (!source.Bindings.TryGetEdgeBinding(seamId, out var seamBinding) || !source.Geometry.TryGetCurve(seamBinding.CurveGeometryId, out var seamCurve) || seamCurve.Kind != CurveGeometryKind.Line3)
+        var seamId = common[0]; var seam = source.Topology.Edges.Single(edge => edge.Id == seamId);
+        if (!source.Bindings.TryGetEdgeBinding(seamId, out var seamBinding)
+            || !source.Geometry.TryGetCurve(seamBinding.CurveGeometryId, out var seamCurve)
+            || seamCurve is null
+            || seamCurve.Kind != CurveGeometryKind.Line3)
         { diagnostics = ["SectionStackMouthSeamPhysicalBoundary"]; return null; }
         var seamStart = source.VertexPoints[seam.StartVertexId]; var seamEnd = source.VertexPoints[seam.EndVertexId];
         var seamVector = seamEnd - seamStart; var seamLength = seamVector.Length;
@@ -371,10 +375,10 @@ public static class SectionStackBlindDrillComposeBridge
         var mouth = placement.WorldMouthCenter; var axis = placement.AxisZ.ToVector();
         var compatible = plan.FaceMappings.Where(x => x.Kind == "PrismaticSide")
             .Where(x => plan.Bindings.TryGetFaceBinding(x.FaceId, out var binding)
-                        && plan.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var surface)
-                        && surface.Kind == SurfaceGeometryKind.Plane
-                        && Math.Abs(Math.Abs(surface.Plane!.Value.Normal.ToVector().Dot(axis)) - 1d) <= Tol
-                        && Math.Abs((mouth - surface.Plane.Value.Origin).Dot(surface.Plane.Value.Normal.ToVector())) <= Tol)
+                         && plan.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var surface)
+                         && surface is { Kind: SurfaceGeometryKind.Plane, Plane: { } plane }
+                         && Math.Abs(Math.Abs(plane.Normal.ToVector().Dot(axis)) - 1d) <= Tol
+                         && Math.Abs((mouth - plane.Origin).Dot(plane.Normal.ToVector())) <= Tol)
             .ToArray();
         var candidates = compatible.Where(x => x.SlabFrom is { } from && x.SlabTo is { } to && mouth.Z - radius >= from - Tol && mouth.Z + radius <= to + Tol).ToArray();
         if (candidates.Length == 1)

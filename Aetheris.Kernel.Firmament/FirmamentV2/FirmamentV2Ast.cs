@@ -2,7 +2,7 @@ using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null, ConceptIrDocument? ConceptIr = null, IReadOnlyList<FirmamentV2LatticeFillDecl>? LatticeFills = null, IReadOnlyList<FirmamentV2StandaloneLatticeFillDecl>? StandaloneLatticeFills = null)
+public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null, ConceptIrDocument? ConceptIr = null, IReadOnlyList<FirmamentV2LatticeFillDecl>? LatticeFills = null, IReadOnlyList<FirmamentV2StandaloneLatticeFillDecl>? StandaloneLatticeFills = null, IReadOnlyList<FirmamentV2ProfileDecl>? Profiles = null, IReadOnlyList<FirmamentV2ComposeDecl>? Composes = null, IReadOnlyList<FirmamentV2SelectionDecl>? Selections = null, FirmamentV2StaticAuthoringDocument? StaticAuthoring = null, FirmamentV2CanonicalSymbolTable? SymbolTable = null)
 {
     public FirmamentV2SolidBinding Solid => Solids[^1];
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
@@ -69,6 +69,8 @@ public sealed record FirmamentV2TorusRecord(double MajorRadius, double MinorRadi
 public sealed record FirmamentV2RoundedBoxRecord(IReadOnlyList<double> Size, double CornerRadius) : FirmamentV2PrimitiveRecord;
 /// <summary>Exact conical-frustum primitive identity; unlike Cone it cannot silently collapse into a generic primitive name.</summary>
 public sealed record FirmamentV2FrustumRecord(double BottomRadius, double TopRadius, double Height) : FirmamentV2PrimitiveRecord;
+/// <summary>Resolved by the profile/composition materialization routes rather than primitive lowering.</summary>
+public sealed record FirmamentV2AdvancedMaterialRecord(string Kind) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2InlineStepRecord(string SourcePath, string NormalizedPath, string ContentHash, bool CanonicalInput, string CanonicalEvidence, ImportedStepTopologyMap TopologyMap) : FirmamentV2PrimitiveRecord;
 public sealed record ImportedStepTopologyMap(IReadOnlyDictionary<string, string> FaceEntityToFaceId, IReadOnlyDictionary<string, string> FaceIdToFaceEntity)
 {
@@ -188,6 +190,18 @@ public sealed record FirmamentV2BoundPmiRecord(FirmamentV2PmiKind Kind, string N
 public sealed record FirmamentV2ConceptDecl(string Name, string RawValue, double NumericValue, string? Unit);
 public sealed record FirmamentV2TemplateDecl(string Process, string Name, IReadOnlyList<FirmamentV2ConceptDecl> Concepts);
 public sealed record FirmamentV2FillRegionDecl(string Name, IReadOnlyList<double> Size, IReadOnlyList<double> Center, FirmamentV2SourceSpan SourceSpan);
+/// <summary>Parser-owned normalized declaration evidence for the advanced material routes.
+/// The materializers consume the same resolved profile/composition semantics regardless of source origin.</summary>
+public sealed record FirmamentV2ProfileDecl(string Name, string Frame, double From, double To, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2ComposeDecl(string Name, IReadOnlyList<string> Operations, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2SelectionDecl(string Name, string Target, string Source, string Requirement, FirmamentV2SourceSpan SourceSpan);
+/// <summary>Normalized, erased-before-materialization evidence for canonical static authoring.</summary>
+public sealed record FirmamentV2StaticAuthoringDocument(IReadOnlyList<FirmamentV2RecordTypeDecl> RecordTypes, IReadOnlyList<FirmamentV2StaticArrayDecl> Arrays, IReadOnlyList<FirmamentV2CanonicalTemplateDecl> Templates, IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<FirmamentV2RequireDecl> Requires);
+public sealed record FirmamentV2RecordTypeDecl(string Name, IReadOnlyDictionary<string, string> Fields, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2StaticArrayDecl(string Name, string ElementType, IReadOnlyList<IReadOnlyDictionary<string, string>> Elements, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2CanonicalTemplateDecl(string Name, string ParameterType, string ParameterName, string Body, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2CanonicalPatternDecl(string Name, string Source, string Template, int GeneratedCount, IReadOnlyList<string> GeneratedIds, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2RequireDecl(string Name, string Expression, bool Value, FirmamentV2SourceSpan SourceSpan, string? Provenance = null);
 public sealed record FirmamentV2LatticeFillDecl(string Name, string Host, FirmamentV2FillRegionDecl Region, string Pattern, double CellSize, double StrutRadius, string BoundaryPolicy, FirmamentV2SourceSpan SourceSpan);
 /// <summary>M9R's admitted standalone material body. It is intentionally distinct from the deferred host-replacement Fill.</summary>
 public sealed record FirmamentV2StandaloneLatticeFillDecl(string Name, FirmamentV2FillRegionDecl Region, string Pattern, int CellsX, int CellsY, int CellsZ, double CellSize, double StrutRadius, double NodeRadius, string Placement, FirmamentV2SourceSpan SourceSpan);

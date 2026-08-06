@@ -1,0 +1,21 @@
+Model GeneratedMounts {
+    Units: mm
+    Record MountSpec { Center: Point2 Diameter: Length }
+    Static Mounts: MountSpec[] = [
+        MountSpec { Center: Point2(-20mm, 0mm) Diameter: 8mm }
+        MountSpec { Center: Point2(20mm, 0mm) Diameter: 8mm }
+    ]
+    Require ValidDiameter => 8mm > 0mm
+    Template MountHole(MountSpec spec) {
+        Hole<Shaft> Mount {
+            On: +Z
+            Center: spec.Center
+            Diameter: spec.Diameter
+            End: ThroughAll
+        }
+    }
+    Box Base { Size: [80mm, 40mm, 10mm] }
+    Modify Base {
+        Pattern MountPattern Over Mounts { MountHole(Current) }
+    }
+}

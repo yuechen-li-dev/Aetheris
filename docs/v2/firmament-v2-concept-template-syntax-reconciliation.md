@@ -1,5 +1,15 @@
 # Firmament V2 concept/template syntax reconciliation
 
+## X3 canonical-root update
+
+Advanced Profile/Compose, semantic Slots, and source-grounded Selections are
+now admitted under `Model { Units: mm }`. Their production readers are
+adapter-only; the canonical parser records normalized declarations first.
+Selection names are unique in the canonical Selection namespace and bind only
+to authored Profile/Hole/Slot provenance, never raw topology IDs. Templates,
+records, arrays, and general Pattern syntax still retain separate migration
+work; see [`../firmament/v2-static-authoring-closure-x3.md`](../firmament/v2-static-authoring-closure-x3.md).
+
 Milestone: **V2-FIRMAMENT-SYNTAX-RECONCILE-A0**
 
 This note is the Phase 1 reference for how `let`, Forge-backed concepts, and future templates relate in Firmament V2. It is intentionally narrow: it reconciles source syntax and fixture doctrine without adding language/runtime behavior.

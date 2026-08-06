@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Air;
+using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -66,6 +67,10 @@ public static class FirmamentV2Parser
     public const string CanonicalPrimitiveMalformed = "firmament-v2-canonical-primitive-malformed";
     public const string CanonicalPoint2Invalid = "firmament-v2-canonical-point2-invalid";
     public const string CanonicalModifyMalformed = "firmament-v2-canonical-modify-malformed";
+    public const string SelectionMalformed = "firmament-v2-selection-malformed";
+    public const string SelectionDuplicateName = "firmament-v2-selection-duplicate-name";
+    public const string SelectionUnknownSource = "firmament-v2-selection-unknown-source";
+    public const string SelectionResultKindInvalid = "firmament-v2-selection-result-kind-invalid";
 
     public const string ConceptUnknownFamily = "firmament-v2-concept-unknown-family";
     public const string ConceptUnknownConcept = "firmament-v2-concept-unknown-concept";
@@ -273,6 +278,15 @@ public static class FirmamentV2Parser
         var v2AdmissionCandidate = IsV2AdmissionCandidate(source);
         conceptCatalog ??= FirmamentV2ForgeConceptRegistry.Catalog;
 
+        var canonicalStaticExpansion = CanonicalStaticAuthoring.Expand(source, diagnostics);
+        if (canonicalStaticExpansion is null)
+        {
+            diagnostics.Add("firmament-v2-parse-failed");
+            return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(),
+                v2AdmissionCandidate ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.NotRecognized);
+        }
+        source = canonicalStaticExpansion.Source;
+
         var templateExpansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
         if (templateExpansion is null)
         {
@@ -288,7 +302,27 @@ public static class FirmamentV2Parser
         // adapters below remain only for old fixtures and no longer define the language
         // an author must select for ordinary mechanical work.
         if (CanonicalModelRegex.IsMatch(source))
-            return Recognized(ParseCanonicalDocument(source, diagnostics));
+        {
+            var parsed = Recognized(ContainsCanonicalAdvancedDeclaration(source)
+                ? ParseCanonicalAdvancedDocument(source, diagnostics, templateExpansion.Instantiations)
+                : ParseCanonicalDocument(source, diagnostics));
+            if (parsed.Document is null) return parsed;
+
+            var normalized = parsed.Document with { StaticAuthoring = canonicalStaticExpansion.Document };
+            var symbolBinding = FirmamentV2CanonicalSymbolBinder.Bind(normalized, source);
+            if (symbolBinding.Diagnostics.Count > 0)
+            {
+                return FirmamentV2ParseResult.Failure(
+                    parsed.Diagnostics.Concat(symbolBinding.Diagnostics).Distinct(StringComparer.Ordinal).Order().ToArray(),
+                    FirmamentV2ParseDisposition.RecognizedInvalid);
+            }
+
+            return parsed with
+            {
+                Document = normalized with { SymbolTable = symbolBinding.Table },
+                Diagnostics = parsed.Diagnostics.Append("firmament-v2-unified-canonical-symbols-bound").Distinct(StringComparer.Ordinal).Order().ToArray()
+            };
+        }
 
         if (Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant))
             return Recognized(ParsePrimitiveConstructionPolicyDocument(source, diagnostics));
@@ -812,6 +846,194 @@ public static class FirmamentV2Parser
     /// document as all compatibility forms: materializer selection sees primitive
     /// and feature semantics, never the spelling that introduced them.
     /// </summary>
+    private static bool ContainsCanonicalAdvancedDeclaration(string source) =>
+        Regex.IsMatch(source, @"\b(?:Concept|Struct|Construction\s+Plane|Profile|Compose|Selection|Template|Enum|Pattern|Require|Match)\b", RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Parser-owned canonical admission for advanced declarations.  The existing
+    /// production profile and section-stack readers remain semantic adapters; this
+    /// method owns the root, units, disposition, and normalized declaration list.
+    /// </summary>
+    private static FirmamentV2ParseResult ParseCanonicalAdvancedDocument(string source, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations)
+    {
+        var model = CanonicalModelRegex.Match(source);
+        var rootOpen = model.Success ? source.IndexOf('{', model.Index) : -1;
+        var rootClose = rootOpen >= 0 ? FindMatchingBrace(source, rootOpen) : -1;
+        if (!model.Success || rootClose < 0 || !string.IsNullOrWhiteSpace(source[(rootClose + 1)..]))
+            return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
+
+        var body = source[(rootOpen + 1)..rootClose];
+        var units = Regex.Match(body, @"\bUnits\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
+        if (!units.Success || units.Groups["value"].Value != "mm")
+            return CanonicalFailure(diagnostics, CanonicalUnitsInvalid);
+        var adapterSource = Regex.Replace(body, @"(?m)^\s*Units\s*:\s*mm\s*$", string.Empty, RegexOptions.CultureInvariant);
+
+        if (PrismaticProfileCompositionParser.IsCompositionSource(adapterSource))
+        {
+            var composition = PrismaticProfileCompositionParser.Parse(adapterSource);
+            if (composition.Feature is null)
+            {
+                diagnostics.AddRange(composition.Diagnostics);
+                return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
+            }
+            var feature = composition.Feature;
+            var compositionSelectionDiagnostics = new List<string>();
+            var compositionSelections = ParseCanonicalSelections(body, rootOpen + 1, compositionSelectionDiagnostics);
+            ValidateCanonicalSelectionSources(body, compositionSelections, composition.Profiles.Keys, compositionSelectionDiagnostics);
+            if (compositionSelectionDiagnostics.Count > 0)
+            {
+                diagnostics.AddRange(compositionSelectionDiagnostics);
+                return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
+            }
+            var document = new FirmamentV2Document(
+                model.Groups["name"].Value,
+                "mm",
+                [new FirmamentV2SolidBinding(feature.Name, "Compose", new FirmamentV2AdvancedMaterialRecord("Compose"))],
+                Profiles: composition.Profiles.Values.Select(profile => new FirmamentV2ProfileDecl(profile.Name, profile.EffectiveConstructionPlane.StableId, profile.LocalStartDepth ?? 0d, profile.LocalEndDepth ?? 0d, new(0, 0))).ToArray(),
+                Composes: [new FirmamentV2ComposeDecl(feature.Name, feature.Operations.Select(operation => operation.Name).ToArray(), new(0, body.Length))],
+                Selections: compositionSelections);
+            diagnostics.Add("firmament-v2-unified-canonical-advanced-parsed");
+            diagnostics.Add("firmament-v2-profile-compose-adapted");
+            diagnostics.Add("firmament-v2-parse-succeeded");
+            diagnostics.Sort(StringComparer.Ordinal);
+            return FirmamentV2ParseResult.Success(document, diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+        }
+
+        if (ProfileAuthoringParser.IsProfileSource(adapterSource))
+        {
+            var profile = ProfileAuthoringParser.Parse(adapterSource);
+            if (profile.Profile is null)
+            {
+                diagnostics.AddRange(profile.Diagnostics);
+                return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
+            }
+            var resolved = profile.Profile;
+            var profileSelectionDiagnostics = new List<string>();
+            var profileSelections = ParseCanonicalSelections(body, rootOpen + 1, profileSelectionDiagnostics);
+            ValidateCanonicalSelectionSources(body, profileSelections, [resolved.Name], profileSelectionDiagnostics);
+            if (profileSelectionDiagnostics.Count > 0)
+            {
+                diagnostics.AddRange(profileSelectionDiagnostics);
+                return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
+            }
+            var document = new FirmamentV2Document(
+                model.Groups["name"].Value,
+                "mm",
+                [new FirmamentV2SolidBinding(resolved.Name, "Profile", new FirmamentV2AdvancedMaterialRecord("Profile"))],
+                Profiles: [new FirmamentV2ProfileDecl(resolved.Name, resolved.EffectiveConstructionPlane.StableId, resolved.LocalStartDepth ?? 0d, resolved.LocalEndDepth ?? profile.Height, new(0, body.Length))],
+                Selections: profileSelections);
+            diagnostics.Add("firmament-v2-unified-canonical-advanced-parsed");
+            diagnostics.Add("firmament-v2-profile-adapted");
+            diagnostics.Add("firmament-v2-parse-succeeded");
+            diagnostics.Sort(StringComparer.Ordinal);
+            return FirmamentV2ParseResult.Success(document, diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+        }
+
+        var concept = ParseConceptModelingDocument(adapterSource, diagnostics, templateInstantiations);
+        if (!concept.IsSuccess || concept.Document is null) return concept;
+        var conceptSelectionDiagnostics = new List<string>();
+        var conceptSelections = ParseCanonicalSelections(body, rootOpen + 1, conceptSelectionDiagnostics);
+        ValidateCanonicalSelectionSources(body, conceptSelections, [], conceptSelectionDiagnostics);
+        if (conceptSelectionDiagnostics.Count > 0)
+        {
+            diagnostics.AddRange(conceptSelectionDiagnostics);
+            return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
+        }
+        var normalized = concept.Document with
+        {
+            ModelName = model.Groups["name"].Value,
+            Selections = conceptSelections
+        };
+        diagnostics.Add("firmament-v2-unified-canonical-advanced-parsed");
+        diagnostics.Sort(StringComparer.Ordinal);
+        return FirmamentV2ParseResult.Success(normalized, diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+    }
+
+    private static IReadOnlyList<FirmamentV2SelectionDecl> ParseCanonicalSelections(string body, int offset, List<string> diagnostics)
+    {
+        var selections = new List<FirmamentV2SelectionDecl>();
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match header in Regex.Matches(body, @"\bSelection\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant))
+        {
+            var name = header.Groups["name"].Value;
+            var open = body.IndexOf('{', header.Index);
+            var close = FindMatchingBrace(body, open);
+            if (close < 0)
+            {
+                diagnostics.Add($"{SelectionMalformed}:{name}");
+                continue;
+            }
+
+            if (!names.Add(name))
+            {
+                diagnostics.Add($"{SelectionDuplicateName}:{name}");
+                continue;
+            }
+
+            var content = body[(open + 1)..close];
+            string Field(string field) => Regex.Match(content, $@"\b{Regex.Escape(field)}\s*:\s*(?<value>[\s\S]*?)(?=\s+(?:Target|Source|Require)\s*:|\z)", RegexOptions.CultureInvariant).Groups["value"].Value.Trim();
+            var target = Field("Target");
+            var source = Field("Source");
+            var requirement = Field("Require");
+            if (string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(requirement))
+            {
+                diagnostics.Add($"{SelectionMalformed}:{name}");
+                continue;
+            }
+
+            selections.Add(new(name, target, source, requirement, new(offset + header.Index, close - header.Index + 1)));
+        }
+
+        return selections;
+    }
+
+    private static void ValidateCanonicalSelectionSources(
+        string body,
+        IReadOnlyList<FirmamentV2SelectionDecl> selections,
+        IEnumerable<string> profileNames,
+        List<string> diagnostics)
+    {
+        var profiles = profileNames.ToHashSet(StringComparer.Ordinal);
+        var slots = Regex.Matches(body, @"\bSlot\s*<[^>]+>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant)
+            .Select(match => match.Groups["name"].Value)
+            .ToHashSet(StringComparer.Ordinal);
+        var holes = Regex.Matches(body, @"\bHole\s*<[^>]+>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant)
+            .Select(match => match.Groups["name"].Value)
+            .ToHashSet(StringComparer.Ordinal);
+        var allowedTargets = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "TopBoundary", "BottomBoundary", "SideBoundary", "HoleEntry", "HoleExit", "HoleWall", "ShaftToDrillPoint", "DrillPoint", "Tip",
+            "SlotEntry", "SlotExit", "SlotWall", "SlotStraightWall", "SlotEndWall"
+        };
+
+        foreach (var selection in selections)
+        {
+            if (!allowedTargets.Contains(selection.Target)) diagnostics.Add($"{SelectionResultKindInvalid}:{selection.Name}:{selection.Target}");
+            var profile = Regex.Match(selection.Source, @"^(?<profile>[A-Za-z_][A-Za-z0-9_]*)\.Profile(?:Segments|Loop)\s*\(", RegexOptions.CultureInvariant);
+            var slot = Regex.Match(selection.Source, @"^Slot\s*\(\s*(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\)$", RegexOptions.CultureInvariant);
+            var hole = Regex.Match(selection.Source, @"^Hole\s*\(\s*(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\)$", RegexOptions.CultureInvariant);
+            if (profile.Success && !profiles.Contains(profile.Groups["profile"].Value)) diagnostics.Add($"{SelectionUnknownSource}:{selection.Name}:{profile.Groups["profile"].Value}");
+            else if (slot.Success && !slots.Contains(slot.Groups["name"].Value)) diagnostics.Add($"{SelectionUnknownSource}:{selection.Name}:{slot.Groups["name"].Value}");
+            else if (hole.Success && !holes.Contains(hole.Groups["name"].Value)) diagnostics.Add($"{SelectionUnknownSource}:{selection.Name}:{hole.Groups["name"].Value}");
+            else if (!profile.Success && !slot.Success && !hole.Success) diagnostics.Add($"{SelectionUnknownSource}:{selection.Name}");
+        }
+    }
+
+    /// <summary>Extracts an already admitted canonical advanced body for the
+    /// production materializer boundary.  It is intentionally not a second parser.</summary>
+    public static bool TryGetCanonicalAdvancedBody(string source, out string body)
+    {
+        body = string.Empty;
+        var model = CanonicalModelRegex.Match(source);
+        if (!model.Success || !ContainsCanonicalAdvancedDeclaration(source)) return false;
+        var open = source.IndexOf('{', model.Index); var close = FindMatchingBrace(source, open);
+        if (open < 0 || close < 0 || !string.IsNullOrWhiteSpace(source[(close + 1)..])) return false;
+        var candidate = source[(open + 1)..close];
+        if (!Regex.IsMatch(candidate, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant)) return false;
+        body = Regex.Replace(candidate, @"(?m)^\s*Units\s*:\s*mm\s*$", string.Empty, RegexOptions.CultureInvariant);
+        return true;
+    }
+
     private static FirmamentV2ParseResult ParseCanonicalDocument(string source, List<string> diagnostics)
     {
         var model = CanonicalModelRegex.Match(source);

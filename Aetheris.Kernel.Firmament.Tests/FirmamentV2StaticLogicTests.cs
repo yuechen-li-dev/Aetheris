@@ -140,5 +140,5 @@ public sealed class FirmamentV2StaticLogicTests
                 }
             }
         }
-        """;
+        """.ReplaceLineEndings("\n");
 }

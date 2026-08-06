@@ -92,16 +92,14 @@ public static class BrepMassProperties
             return exact;
         }
 
-        // A normalized section stack is an exact Z-prism whose boundary is
-        // composed only of horizontal planes and vertical planes/cylinders.
-        // The display-tessellation M8 lane otherwise measures arc chord error
-        // rather than the authoritative analytic boundary.  This recognizer
-        // consumes only the materialized B-rep graph and bindings: for every
-        // constant-Z interval it integrates the oriented line/arc section
-        // boundary exactly.  It deliberately declines any non-prismatic face.
+        // The exact-Z-prism lane is authoritative for section volume. Its first
+        // implementation did not populate surface area or centroid, which made
+        // a WorldXY extrusion observably less complete than a rotated equivalent
+        // frame. Complete those public fields from the independent boundary
+        // evaluator while retaining the exact section-volume evidence.
         if (TryEvaluateExactVerticalLineArcPrism(body, effective, topology, out exact))
         {
-            return exact;
+            return CompleteExactPrismResult(body, effective, exact);
         }
 
         var coarse = EvaluateAtResolution(body, effective, refinement: 1);
@@ -162,6 +160,28 @@ public static class BrepMassProperties
 
     private static BrepMassPropertiesResult Unavailable(BrepMassPropertiesOptions options, BrepMassPropertiesTopologyDiagnostics topology, string reason)
         => new(BrepMassPropertiesStatus.Unavailable, 0d, 0d, 0d, null, topology.IsEnclosed, topology.IsOrientationConsistent, [], "DeterministicTrimmedFaceTriangulationBoundaryIntegral", null, options, topology, topology.Messages.Append(reason).ToArray());
+
+    private static BrepMassPropertiesResult CompleteExactPrismResult(BrepBody body, BrepMassPropertiesOptions options, BrepMassPropertiesResult exact)
+    {
+        var boundary = EvaluateAtResolution(body, options, refinement: 2);
+        if (boundary.Error is not null || System.Math.Abs(boundary.SignedVolume) <= 1e-18d)
+            return exact;
+
+        var centroid = new Point3D(
+            boundary.CentroidNumerator.X / boundary.SignedVolume,
+            boundary.CentroidNumerator.Y / boundary.SignedVolume,
+            boundary.CentroidNumerator.Z / boundary.SignedVolume);
+        var error = System.Math.Max(exact.ErrorBound ?? 0d, boundary.SurfaceArea * options.LinearTolerance * 4d);
+        return exact with
+        {
+            SurfaceArea = boundary.SurfaceArea,
+            Centroid = centroid,
+            FaceContributions = boundary.Contributions,
+            EvaluationMethod = "ExactVerticalLineArcPrismSectionIntegration+DeterministicTrimmedFaceTriangulationBoundaryIntegral",
+            ErrorBound = error,
+            Diagnostics = exact.Diagnostics.Append("Exact section volume was completed with deterministic boundary area and centroid evidence.").ToArray()
+        };
+    }
 
     /// <summary>
     /// Exact volume recognizer for a materialized line/arc prismatic shell.

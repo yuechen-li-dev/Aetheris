@@ -1,0 +1,20 @@
+Model ComposePlate {
+    Units: mm
+
+    Concept Struct Layout On XY {
+        Rect2 Stock { Center: [0mm, 0mm]; Size: [20mm, 10mm] }
+    }
+
+    Profile Plate Using Layout { Loop Outer {
+        Segment South { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
+        Segment East { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+        Segment North { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+        Segment West { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+    } }
+
+    Struct PlateBody {
+        Compose Body {
+            Base Stock { Profile: Plate; From: -2mm; To: 2mm; Role: Stock }
+        }
+    }
+}

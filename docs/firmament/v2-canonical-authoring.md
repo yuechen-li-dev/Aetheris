@@ -43,7 +43,98 @@ Model Bracket {
 
 The currently proven low-ceremony production shape is one Box, one top-face ThroughAll shaft Hole, and one disjoint `+Z Boundary Chamfer`. It routes to `CombinedHoleEdgeFinish`, then authoritative STEP export and STEP reimport verification.
 
-Concept-first authoring remains available for construction planes, profiles, composition, templates, semantic selections, and spatial contracts. It is an escalation for spatial complexity, not a prerequisite for a primitive or ordinary host-relative Hole.
+## Advanced declarations in the same document
+
+Advanced source uses the same `Model { Units: mm }` root. Declarations may be
+ordered before their material `Struct`; the parser resolves the bounded static
+graph before materialization.
+
+```firmament
+Model SideHolePart {
+    Units: mm
+
+    Concept Struct SideLayout {
+        Datum: Plane { Origin: [-50mm, 0mm, 0mm]; Normal: [1, 0, 0]; Up: [0, 0, 1] }
+    }
+    Construction Plane PositiveXWorkplane { Trace: SideLayout.Datum }
+
+    Struct Bracket {
+        Box Base { Size: [100mm, 60mm, 12mm] }
+        Modify Base {
+            Hole<Shaft> SideMount {
+                From: PositiveXWorkplane
+                Center: Point2(10mm, 6mm)
+                Diameter: 8mm
+                End: ThroughAll
+            }
+        }
+    }
+}
+```
+
+Profiles and `Compose` use that same root and retain their production
+materializers. `Profile`, `Compose`, and `Selection` are recorded in the
+normalized V2 document; the build route consumes the parser-admitted body,
+not a raw leading-token dialect choice. See the canonical fixtures below.
+
+### Semantic Slots and Selections
+
+Slots are compiler-owned semantic removals inside an admitted `Compose`. Their
+geometry still lowers through the established exact profile route; the
+canonical root is the only document entry point.
+
+```firmament
+Slot<Capsule> Relief {
+    Center: Point2(0mm, 0mm)
+    Direction: Vector2(1, 0)
+    Length: 80mm
+    Width: 40mm
+    Extent: ThroughAll
+}
+Selection ReliefEntry {
+    Target: SlotEntry
+    Source: Slot(Relief)
+    Require: ClosedLoop
+}
+```
+
+`Slot<RoundedRectangle>` additionally requires `CornerRadius`. A selection is
+source-grounded: use `ProfileSegments(...)`, `ProfileLoop(...)`, `Hole(...)`,
+or `Slot(...)`, never a B-rep identifier. The canonical parser rejects a
+missing field, duplicate selection name, unknown source, or an incompatible
+selection result kind before materialization.
+
+### Bounded static authoring
+
+The current canonical static route admits typed records, static record arrays,
+one typed Template parameter, Pattern expansion, and static Require checks.
+They erase to ordinary admitted declarations before material lowering.
+
+```firmament
+Record MountSpec { Center: Point2 Diameter: Length }
+Static Mounts: MountSpec[] = [
+    MountSpec { Center: Point2(-20mm, 0mm) Diameter: 8mm }
+    MountSpec { Center: Point2(20mm, 0mm) Diameter: 8mm }
+]
+Require ValidDiameter => 8mm > 0mm
+Template MountHole(MountSpec spec) { /* Hole<Shaft> using spec.Center/spec.Diameter */ }
+Pattern MountPattern Over Mounts { MountHole(Current) }
+```
+
+The bounded route emits `Hole<Shaft>` and `Slot<Capsule>` or
+`Slot<RoundedRectangle>` from a `Pattern`. Generated feature names are stable:
+`PatternName_0`, `PatternName_1`, and so on. A template may also emit a
+`Profile`, but that form is deliberately a direct indexed invocation such as
+`PlateProfile(Specs[0])`: a generated profile needs a declared identity, so a
+profile is not admitted as Pattern output.
+
+Its normalized static AST preserves record schemas, values, template source,
+Pattern-generated IDs, and Require results; unsupported output kinds diagnose
+rather than silently falling back to a compatibility parser.
+
+Profile-guide `Point2` and `Rect2` declarations accept typed `Point2(x, y)`
+literals, including values substituted from a static record. Bracket
+coordinates remain accepted for existing fixtures during migration.
 
 ## Canonical examples
 
@@ -53,6 +144,14 @@ Concept-first authoring remains available for construction planes, profiles, com
 - `fixtures/FirmamentV2/Canonical/valid/bare-frustum.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/box-through-hole.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/box-hole-chamfer.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/profile-line-extrusion.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/profile-compose-base.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/semantic-slot-capsule.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/semantic-slot-rounded-rectangle.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/semantic-selection-chamfer.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/record-array-pattern-holes.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/record-array-pattern-slots.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/record-array-template-profile.firmament`
 
 ## Common diagnostics
 
@@ -60,5 +159,9 @@ Concept-first authoring remains available for construction planes, profiles, com
 - `firmament-v2-canonical-primitive-malformed`: a primitive is missing a required canonical field or has an invalid dimension.
 - `firmament-v2-canonical-point2-invalid`: use `Point2(xmm, ymm)`, not `[x, y]`.
 - `firmament-v2-canonical-modify-malformed`: a Hole or EdgeFinish declaration is missing a required canonical field.
+- `firmament-v2-selection-malformed`: provide `Target`, `Source`, and `Require`.
+- `firmament-v2-selection-unknown-source`: the named Profile, Hole, or Slot does not exist in the canonical document.
+- `firmament-v2-selection-result-kind-invalid`: choose an admitted semantic topology role.
 
-Legacy lowercase, phase-style, and Concept/Struct sources remain compatibility inputs during migration. New authoring should use the form above.
+Legacy lowercase and phase-style inputs remain compatibility inputs during
+migration. New authoring should use the canonical root shown above.

@@ -1,0 +1,15 @@
+Model ConceptPathLBracket {
+    Units: mm
+    Concept Path BracketOutline {
+        Start: Point2(-40mm, -40mm)
+        Heading: 0deg
+        Line South { Length: 100mm }
+        Line East { Turn: 90deg; Length: 20mm }
+        Line Inner { Turn: 90deg; Length: 80mm }
+        Line Upright { Turn: -90deg; Length: 90mm }
+        Line North { Turn: 90deg; Length: 20mm }
+        Close West
+    }
+    Profile Bracket From BracketOutline
+    Struct Body { Extrude Bracket { Profile: Bracket; From: 0mm; To: 10mm } }
+}

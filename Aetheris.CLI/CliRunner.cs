@@ -448,6 +448,7 @@ public static class CliRunner
             {
                 parsed.Profile.Name, parsed.Profile.PlaneFrame,
                 constructionPlane = DescribeConstructionPlane(parsed.Profile.EffectiveConstructionPlane),
+                conceptPaths = ProfileAuthoringParser.InspectConceptPaths(source),
                 loops = parsed.Profile.Loops.Count,
                 segments = parsed.Profile.Loops.SelectMany(x => x.Segments).Select(x =>
                 {

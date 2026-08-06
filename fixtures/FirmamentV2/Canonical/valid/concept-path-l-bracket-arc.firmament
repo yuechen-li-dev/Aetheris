@@ -1,0 +1,14 @@
+Model ConceptPathArc {
+    Units: mm
+    Concept Path RoundedCorner {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Line Base { Length: 40mm }
+        Line Rise { Turn: 90deg; Length: 20mm }
+        Arc OuterFillet { Radius: 10mm; Turn: 90deg }
+        Line Top { Length: 30mm }
+        Close Left
+    }
+    Profile Plate From RoundedCorner
+    Struct Body { Extrude Plate { Profile: Plate; From: 0mm; To: 2mm } }
+}

@@ -1,0 +1,13 @@
+Model ConceptPathRectangle {
+    Units: mm
+    Concept Path Outline {
+        Start: Point2(-10mm, -5mm)
+        Heading: 0deg
+        Line South { Length: 20mm }
+        Line East { Turn: 90deg; Length: 10mm }
+        Line North { Turn: 90deg; Length: 20mm }
+        Close West
+    }
+    Profile Plate From Outline
+    Struct Body { Extrude Plate { Profile: Plate; From: -2mm; To: 0mm } }
+}

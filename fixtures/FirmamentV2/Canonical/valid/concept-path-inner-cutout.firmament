@@ -1,0 +1,24 @@
+Model ConceptPathInnerCutout {
+    Units: mm
+    Concept Path OuterOutline {
+        Start: Point2(-10mm, -10mm)
+        Heading: 0deg
+        Line South { Length: 20mm }
+        Line East { Turn: 90deg; Length: 20mm }
+        Line North { Turn: 90deg; Length: 20mm }
+        Close West
+    }
+    Concept Path InnerCutout {
+        Start: Point2(-3mm, -3mm)
+        Heading: 90deg
+        Line West { Length: 6mm }
+        Line North { Turn: -90deg; Length: 6mm }
+        Line East { Turn: -90deg; Length: 6mm }
+        Close South
+    }
+    Profile Plate {
+        Loop Outer From OuterOutline
+        Loop Inner From InnerCutout
+    }
+    Struct Body { Extrude Plate { Profile: Plate; From: 0mm; To: 2mm } }
+}

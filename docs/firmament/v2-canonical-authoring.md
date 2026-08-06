@@ -12,6 +12,10 @@ analyze-to-replacement workflow.
 
 Firmament V2 is one language. Backend specialization is not an author-facing dialect. Parse the document first; route its semantics after parsing.
 
+### Concept Path
+
+For ordinary connected line/arc scaffolds, use `Concept Path`: its ordered entries emit named guides and endpoints and can be consumed directly with `Profile Name From PathName`, or with explicit `Loop Outer From` / `Loop Inner From` declarations. It does not replace low-level `Segment` authoring or validate a material boundary. See [Concept Path M1](v2-concept-path.md) and the [canonical fixtures](../../fixtures/FirmamentV2/Canonical/valid/concept-path-rectangle.firmament).
+
 Use this form for ordinary parts:
 
 ```firmament

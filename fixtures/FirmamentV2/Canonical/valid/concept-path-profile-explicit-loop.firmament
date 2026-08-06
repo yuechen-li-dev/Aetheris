@@ -1,0 +1,15 @@
+Model ConceptPathExplicitLoop {
+    Units: mm
+    Concept Path Outline {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Line South { Length: 20mm }
+        Line East { Turn: 90deg; Length: 10mm }
+        Line North { Turn: 90deg; Length: 20mm }
+        Close West
+    }
+    Profile Plate {
+        Loop Outer From Outline
+    }
+    Struct Body { Extrude Plate { Profile: Plate; From: 0mm; To: 2mm } }
+}

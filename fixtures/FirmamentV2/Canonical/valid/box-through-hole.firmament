@@ -1,0 +1,16 @@
+Model ThroughHole {
+    Units: mm
+
+    Box Base {
+        Size: [80mm, 50mm, 25mm]
+    }
+
+    Modify Base {
+        Hole<Shaft> Mount {
+            On: +Z
+            Center: Point2(0mm, 0mm)
+            Diameter: 8mm
+            End: ThroughAll
+        }
+    }
+}

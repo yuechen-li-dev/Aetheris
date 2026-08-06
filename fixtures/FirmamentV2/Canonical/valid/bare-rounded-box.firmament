@@ -1,0 +1,8 @@
+Model RoundedEnclosure {
+    Units: mm
+
+    RoundedBox Base {
+        Size: [80mm, 50mm, 25mm]
+        CornerRadius: 6mm
+    }
+}

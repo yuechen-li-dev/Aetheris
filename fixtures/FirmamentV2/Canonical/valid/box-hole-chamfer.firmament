@@ -1,0 +1,8 @@
+Model HoleAndChamfer {
+    Units: mm
+    Box Base { Size: [80mm, 50mm, 25mm] }
+    Modify Base {
+        Hole<Shaft> Mount { On: +Z Center: Point2(0mm, 0mm) Diameter: 8mm End: ThroughAll }
+        EdgeFinish TopBreak { Face: +Z Target: Boundary Kind: Chamfer Distance: 1.5mm }
+    }
+}

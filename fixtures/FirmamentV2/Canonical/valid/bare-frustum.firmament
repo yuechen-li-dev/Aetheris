@@ -1,0 +1,9 @@
+Model TaperedBoss {
+    Units: mm
+
+    Frustum Base {
+        BottomRadius: 20mm
+        TopRadius: 10mm
+        Height: 30mm
+    }
+}

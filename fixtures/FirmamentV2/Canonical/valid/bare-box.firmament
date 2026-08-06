@@ -1,0 +1,7 @@
+Model BareBox {
+    Units: mm
+
+    Box Base {
+        Size: [80mm, 50mm, 25mm]
+    }
+}

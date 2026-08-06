@@ -1,0 +1,8 @@
+Model BareCylinder {
+    Units: mm
+
+    Cylinder Base {
+        Radius: 12mm
+        Height: 30mm
+    }
+}

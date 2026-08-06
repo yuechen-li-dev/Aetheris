@@ -920,6 +920,32 @@ model BadPmiDiameter {
     }
 
     [Fact]
+    public void FirmamentV2Parser_RecognizesMalformedConceptStructSource_WithoutV1FallbackAdmission()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Language/invalid/concept-struct-diagnostic-routing-x1.invalid.firmfixture"));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(FirmamentV2ParseDisposition.RecognizedInvalid, result.Disposition);
+        Assert.Contains(FirmamentV2Parser.HoleConstructionPlaneCenterMissing, result.Diagnostics);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.StartsWith("firmament-concept-missing-member:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_LeavesLegacyToonAndArbitraryText_Unrecognized()
+    {
+        var legacy = FirmamentV2Parser.Parse("""
+firmament:
+  version: 1
+model:
+  name: legacy
+""");
+        var arbitrary = FirmamentV2Parser.Parse("this is not Firmament source");
+
+        Assert.Equal(FirmamentV2ParseDisposition.NotRecognized, legacy.Disposition);
+        Assert.Equal(FirmamentV2ParseDisposition.NotRecognized, arbitrary.Disposition);
+    }
+
+    [Fact]
     public void FirmamentV2P2_ExportDeferredFlatness_IsReportedAndBuildRejectedDeterministically()
     {
         var fixture = FixturePath("InlineStep/invalid/inline-step-v2-record-pmi-export-deferred-flatness.invalid.firmfixture");

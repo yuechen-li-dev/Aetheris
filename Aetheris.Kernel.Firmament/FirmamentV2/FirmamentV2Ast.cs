@@ -192,8 +192,20 @@ public sealed record FirmamentV2LatticeFillDecl(string Name, string Host, Firmam
 /// <summary>M9R's admitted standalone material body. It is intentionally distinct from the deferred host-replacement Fill.</summary>
 public sealed record FirmamentV2StandaloneLatticeFillDecl(string Name, FirmamentV2FillRegionDecl Region, string Pattern, int CellsX, int CellsY, int CellsZ, double CellSize, double StrutRadius, double NodeRadius, string Placement, FirmamentV2SourceSpan SourceSpan);
 
-public sealed record FirmamentV2ParseResult(bool IsSuccess, FirmamentV2Document? Document, IReadOnlyList<string> Diagnostics)
+/// <summary>Whether the V2 parser admitted the source into one of its dialects.</summary>
+public enum FirmamentV2ParseDisposition
 {
-    public static FirmamentV2ParseResult Success(FirmamentV2Document document, IReadOnlyList<string> diagnostics) => new(true, document, diagnostics);
-    public static FirmamentV2ParseResult Failure(IReadOnlyList<string> diagnostics) => new(false, null, diagnostics);
+    NotRecognized,
+    RecognizedInvalid,
+    RecognizedValid
+}
+
+public sealed record FirmamentV2ParseResult(
+    bool IsSuccess,
+    FirmamentV2Document? Document,
+    IReadOnlyList<string> Diagnostics,
+    FirmamentV2ParseDisposition Disposition = FirmamentV2ParseDisposition.NotRecognized)
+{
+    public static FirmamentV2ParseResult Success(FirmamentV2Document document, IReadOnlyList<string> diagnostics) => new(true, document, diagnostics, FirmamentV2ParseDisposition.RecognizedValid);
+    public static FirmamentV2ParseResult Failure(IReadOnlyList<string> diagnostics, FirmamentV2ParseDisposition disposition = FirmamentV2ParseDisposition.RecognizedInvalid) => new(false, null, diagnostics, disposition);
 }

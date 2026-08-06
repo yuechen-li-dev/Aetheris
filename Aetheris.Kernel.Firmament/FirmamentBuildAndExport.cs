@@ -7,6 +7,7 @@ using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
@@ -21,6 +22,13 @@ namespace Aetheris.Kernel.Firmament;
 
 public static class FirmamentBuildAndExport
 {
+    private enum ExportRouteDisposition { Declined, Failed, Succeeded }
+    private sealed record ExportRouteResult(string Route, ExportRouteDisposition Disposition, KernelResult<FirmamentStepExportResult>? Artifact = null)
+    {
+        public static ExportRouteResult Decline(string route) => new(route, ExportRouteDisposition.Declined);
+        public static ExportRouteResult Complete(string route, KernelResult<FirmamentStepExportResult> artifact) => new(route, artifact.IsSuccess ? ExportRouteDisposition.Succeeded : ExportRouteDisposition.Failed, artifact);
+    }
+
     public static KernelResult<FirmamentBuildAndExportResult> Run(string sourcePath, string? outputPath = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
@@ -122,29 +130,16 @@ public static class FirmamentBuildAndExport
                     "FirmamentV2.LatticeFill")]);
             }
 
-            if (TryExportV2AirChamferBody(v2Parse.Document) is { } airChamferExport)
+            var routed = DispatchV2Routes(v2Parse.Document,
+                ("CombinedHoleEdgeFinish", TryExportV2CombinedHoleEdgeFinishBody),
+                ("AirChamfer", TryExportV2AirChamferBody),
+                ("SemanticHole", TryExportV2SemanticHoleBody),
+                ("ControlledSideHole", TryExportV2ControlledSideHoleBody),
+                ("InlineStepReplacement", TryExportV2InlineStepReplacementBody),
+                ("InlineStep", TryExportV2InlineStepBody));
+            if (routed is not null)
             {
-                return airChamferExport;
-            }
-
-            if (TryExportV2SemanticHoleBody(v2Parse.Document) is { } semanticHoleExport)
-            {
-                return semanticHoleExport;
-            }
-
-            if (TryExportV2ControlledSideHoleBody(v2Parse.Document) is { } sideHoleExport)
-            {
-                return sideHoleExport;
-            }
-
-            if (TryExportV2InlineStepReplacementBody(v2Parse.Document) is { } replacementExport)
-            {
-                return replacementExport;
-            }
-
-            if (TryExportV2InlineStepBody(v2Parse.Document) is { } inlineStepExport)
-            {
-                return inlineStepExport;
+                return routed;
             }
 
             var lowering = FirmamentV2BuildLowering.LowerPrimitiveBridge(v2Parse.Document);
@@ -202,14 +197,7 @@ public static class FirmamentBuildAndExport
         }
 
         var fatalV2Diagnostics = v2Parse.Diagnostics.Where(FirmamentV2Parser.IsFatalDiagnosticCode).Distinct(StringComparer.Ordinal).ToArray();
-        var trimmedSource = sourceText.TrimStart();
-        var isV2ModelSource = trimmedSource.StartsWith("model ", StringComparison.Ordinal)
-            || trimmedSource.StartsWith("Model ", StringComparison.Ordinal)
-            || (trimmedSource.StartsWith("Struct ", StringComparison.Ordinal) && sourceText.Contains("<Hollow>", StringComparison.Ordinal))
-            || sourceText.Contains("\nmodel ", StringComparison.Ordinal)
-            || sourceText.Contains("\nModel ", StringComparison.Ordinal)
-            || (sourceText.Contains("\nStruct ", StringComparison.Ordinal) && sourceText.Contains("<Hollow>", StringComparison.Ordinal));
-        if (isV2ModelSource && fatalV2Diagnostics.Length > 0)
+        if (v2Parse.Disposition == FirmamentV2ParseDisposition.RecognizedInvalid && fatalV2Diagnostics.Length > 0)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(fatalV2Diagnostics.Select(code => new Kernel.Core.Diagnostics.KernelDiagnostic(
                 Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
@@ -341,10 +329,174 @@ public static class FirmamentBuildAndExport
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, fill.Name, 0, "standalone-lattice", "cubic-truss", Lattice: report));
     }
 
+    /// <summary>
+    /// Converts the historical nullable TryExport routes into one explicit dispatcher
+    /// contract.  A null is only a Declined route; a non-null failed result has claimed
+    /// the document and is terminal.  This keeps route order from deciding feature
+    /// composition policy.
+    /// </summary>
+    private static KernelResult<FirmamentStepExportResult>? DispatchV2Routes(
+        FirmamentV2Document document,
+        params (string Name, Func<FirmamentV2Document, KernelResult<FirmamentStepExportResult>?> Execute)[] routes)
+    {
+        foreach (var route in routes)
+        {
+            var raw = route.Execute(document);
+            var result = raw is null ? ExportRouteResult.Decline(route.Name) : ExportRouteResult.Complete(route.Name, raw);
+            if (result.Disposition == ExportRouteDisposition.Declined)
+            {
+                continue;
+            }
+
+            return result.Artifact!;
+        }
+
+        return null;
+    }
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2CombinedHoleEdgeFinishBody(FirmamentV2Document document)
+    {
+        var modifies = document.ModifyBlocks ?? [];
+        var holesDeclared = modifies.SelectMany(m => m.SemanticHoles).ToArray();
+        var finishes = modifies.SelectMany(m => (m.EdgeFinishes ?? [])).ToArray();
+        if (holesDeclared.Length == 0 || finishes.Length == 0)
+        {
+            return null;
+        }
+
+        if (document.Solids.Count != 1 || modifies.Count != 1 || modifies[0].Regions.Count != 0 || modifies[0].TargetSolid != document.Solids[0].Name)
+        {
+            return CombinedFailure("CombinedFeatureHostUnsupported: CombinedHoleEdgeFinish requires one Box host and one empty-of-Regions Modify context.");
+        }
+
+        var modify = modifies[0];
+        var solid = document.Solids[0];
+        if (solid.Primitive is not FirmamentV2BoxRecord box || box.Size.Count != 3)
+        {
+            return CombinedFailure($"CombinedFeatureHostUnsupported: host '{solid.Name}' is not an admitted Box.");
+        }
+
+        if (finishes.Length != 1)
+        {
+            return CombinedFailure($"CombinedFeatureThirdFamilyUnsupported: CombinedHoleEdgeFinish X1 admits exactly one EdgeFinish (actual={finishes.Length}).");
+        }
+
+        var finish = finishes[0];
+        if (!string.Equals(finish.FaceAxis, "+Z", StringComparison.Ordinal) || !string.Equals(finish.Target, "Boundary", StringComparison.Ordinal) || !string.Equals(finish.Kind, "Chamfer", StringComparison.Ordinal))
+        {
+            return CombinedFailure($"CombinedFeatureSelectionLost: EdgeFinish '{finish.Name}' must select the +Z outer Boundary with Kind Chamfer.");
+        }
+
+        var holes = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(document);
+        if (holes.Count != holesDeclared.Length || holes.Count == 0)
+        {
+            return CombinedFailure("CombinedFeaturePlanChainInvalid: semantic Hole lowering did not preserve the admitted source hole set.");
+        }
+
+        // Hole is intentionally the first construction stage.  Existing materialization
+        // is used as the semantic/host proof; the bounded final plan below then consumes
+        // its same source intent alongside the admitted outer-boundary finish.
+        var host = document.ConceptIr is null
+            ? new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], -box.Size[2] / 2d, box.Size[2] / 2d)
+            : new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], 0d, box.Size[2]);
+        var holeStages = holes.Select(h => AirHoleSimpleShaftMaterializer.Execute(h, host)).ToArray();
+        if (holeStages.Any(stage => !stage.Succeeded || stage.Plan is null || stage.Correspondence is null))
+        {
+            return CombinedFailure("CombinedFeatureMaterializerDiverged: admitted semantic Hole stage did not materialize its authoritative plan.", holeStages.SelectMany(stage => stage.Diagnostics));
+        }
+
+        var combinedHoles = new List<CombinedTopBoundaryChamferThroughHole>(holes.Count);
+        foreach (var (hole, stage) in holes.Zip(holeStages))
+        {
+            if (hole.EndCondition is not AirHoleEndCondition.ThroughAll || hole.Stack.Kind != AirHoleStackKind.SimpleShaft || hole.Placement is not AirFaceLocalHolePlacement placement || hole.Axis.Direction.Z < 1d - 1e-9)
+            {
+                return CombinedFailure($"CombinedFeaturePlanChainInvalid: Hole '{hole.FeatureId}' is outside X1; only top/+Z simple-shaft ThroughAll holes are admitted.");
+            }
+            combinedHoles.Add(new CombinedTopBoundaryChamferThroughHole(hole.FeatureId, placement.U, placement.V, hole.Shaft.Radius));
+        }
+
+        // Resolve and admit the exact EdgeFinish family after the Hole stage.  X1's
+        // interaction classification is geometric-plan evidence, not a raw BRep ID or
+        // coordinate search: the selected descendant is the known outer boundary role.
+        var compiledFinish = AirTopFaceBoundaryChamferCompiler.Compile(new(
+            solid.Name, $"{solid.Name}.{finish.Name}", finish.Name,
+            box.Size[0], box.Size[1], box.Size[2], finish.FaceAxis, finish.Target, finish.Kind, finish.Distance,
+            new AirSourceSpan(finish.SourceSpan.Start, finish.SourceSpan.Length, document.ModelName)));
+        if (!compiledFinish.Succeeded || compiledFinish.BRepPlan?.RealizationPlan is null)
+        {
+            return CombinedFailure("CombinedFeatureSelectionLost: post-Hole outer boundary selection did not admit the exact chamfer planner.", compiledFinish.Diagnostics);
+        }
+
+        var parentHolePlan = string.Join(",", holeStages.Select(s => s.Plan!.HoleBRepPlan?.StableId ?? s.Plan!.SemanticFeatureId));
+        var finalPlan = new CombinedTopBoundaryChamferThroughHolePlan(
+            $"brep-plan:combined-hole-edgefinish:{solid.Name}:{finish.Name}",
+            $"brep-plan:host:{solid.Name}->[{parentHolePlan}]",
+            ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan"],
+            box.Size[0], box.Size[1], host.ZMin, host.ZMax, finish.Distance, combinedHoles);
+        var materialized = CombinedTopBoundaryChamferThroughHoleBuilder.Build(finalPlan);
+        if (!materialized.IsSuccess || materialized.Value is null)
+        {
+            return CombinedFailure("CombinedFeatureInteractionUnsupported: Hole descendants and EdgeFinish target are not Disjoint in X1.", materialized.Diagnostics.Select(d => d.Message));
+        }
+
+        var body = materialized.Value;
+        if (!FirmamentManifoldChecker.IsManifold(body))
+        {
+            return CombinedFailure("CombinedFeaturePlanChainInvalid: final combined plan did not produce one enclosed manifold body.");
+        }
+        var step = Step242Exporter.ExportBody(body);
+        if (!step.IsSuccess || step.Value is null)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        }
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value))
+        {
+            return CombinedFailure("CombinedFeatureMaterializerDiverged: final STEP reimport did not preserve one enclosed manifold body.", reimport.Diagnostics.Select(d => d.Message));
+        }
+
+        var descendants = new List<SemanticTopologyDescendant>();
+        var finalTop = body.Topology.Faces.Single(f => f.Id.Value == 2);
+        var finalBottom = body.Topology.Faces.Single(f => f.Id.Value == 1);
+        for (var i = 0; i < holes.Count; i++)
+        {
+            var source = $"hole:{holes[i].FeatureId}";
+            descendants.Add(new($"combined:{source}:mouth-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, source, Loop: finalTop.LoopIds[i + 1], ParentStableId: holes[i].FeatureId));
+            descendants.Add(new($"combined:{source}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, source, Loop: finalBottom.LoopIds[i + 1], ParentStableId: holes[i].FeatureId));
+            descendants.Add(new($"combined:{source}:wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(11 + i), ParentStableId: holes[i].FeatureId));
+        }
+        descendants.Add(new($"combined:edgefinish:{finish.Name}:replacement", "Face", SemanticTopologyRole.EdgeFinishReplacementFace, $"edgefinish:{finish.Name}", Face: new FaceId(7), ParentStableId: finish.Name));
+        var correspondence = new SemanticTopologyCorrespondence(solid.Name, descendants, ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan", "AuthoritativeBRepPlan"]);
+        if (correspondence.Descendants.Count(d => d.Role == SemanticTopologyRole.HoleEntryLoop) != holes.Count || correspondence.Descendants.Count(d => d.Role == SemanticTopologyRole.HoleExitLoop) != holes.Count)
+        {
+            return CombinedFailure("CombinedFeaturePlanChainInvalid: final plan lost Hole mouth or exit correspondence.");
+        }
+
+        var holeRemoved = combinedHoles.Sum(h => System.Math.PI * h.Radius * h.Radius * (host.ZMax - host.ZMin));
+        var report = new FirmamentCombinedFeaturePlanReport(
+            "CombinedHoleEdgeFinish", "Succeeded", finalPlan.ParentHostPlanId!, finalPlan.AppliedFeatureIds, finalPlan.PlanId, "Disjoint",
+            descendants.Count(d => d.SourceStableId.StartsWith("hole:", StringComparison.Ordinal)), 1,
+            box.Size[0] * box.Size[1] * (host.ZMax - host.ZMin), holeRemoved, finalPlan.AnalyticVolume,
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(),
+            body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Plane), body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder), true, true);
+        var featureReports = holes.Select(h => new FirmamentHoleFeatureReport(h.Name, "Hole", h.FeatureId, h.Shaft.Diameter, h.Placement.U, h.Placement.V, null, null, null, null, "top", null, nameof(AirHoleSimpleShaftMaterializer), "HoleChangedBRepPlan", h.Stack.Kind.ToString(), "CombinedHoleEdgeFinish", 1, 0, 0, report.StepSha256, true)).ToArray();
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, finish.Name, 0, "combined-hole-edgefinish", "CombinedHoleEdgeFinish", ConceptIr: document.ConceptIr, Features: featureReports, Combined: report));
+    }
+
+    private static KernelResult<FirmamentStepExportResult> CombinedFailure(string message, IEnumerable<string>? details = null) =>
+        KernelResult<FirmamentStepExportResult>.Failure((new[] { message }).Concat(details ?? []).Distinct().Select(detail => new Kernel.Core.Diagnostics.KernelDiagnostic(
+            Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+            Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+            detail,
+            "FirmamentV2.CombinedHoleEdgeFinish")).ToArray());
+
     private static KernelResult<FirmamentStepExportResult>? TryExportV2AirChamferBody(FirmamentV2Document document)
     {
         var finishes = (document.ModifyBlocks ?? []).SelectMany(m => (m.EdgeFinishes ?? []).Select(f => (Modify: m, Finish: f))).ToArray();
         if (finishes.Length == 0) return null;
+        // A narrow finish-only route never owns a document that also has semantic holes.
+        // CombinedHoleEdgeFinish is the only X1 route permitted to claim that shape.
+        if ((document.ModifyBlocks ?? []).Any(m => m.SemanticHoles.Count > 0)) return null;
         if (finishes.Length == 2 && finishes.All(x => string.Equals(x.Finish.Kind, "Chamfer", StringComparison.Ordinal)))
         {
             if (document.Solids.Count != 1 || document.ModifyBlocks!.Count != 1 || document.ModifyBlocks[0].Regions.Count != 0 || document.ModifyBlocks[0].SemanticHoles.Count != 0)
@@ -1031,6 +1183,7 @@ public static class FirmamentBuildAndExport
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2ControlledSideHoleBody(FirmamentV2Document document)
     {
+        if ((document.ModifyBlocks ?? []).Any(m => (m.EdgeFinishes?.Count ?? 0) > 0)) return null;
         var intent = document.SideHoleIntent;
         if (intent is null)
         {
@@ -1148,6 +1301,7 @@ public static class FirmamentBuildAndExport
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2SemanticHoleBody(FirmamentV2Document document)
     {
+        if ((document.ModifyBlocks ?? []).Any(m => (m.EdgeFinishes?.Count ?? 0) > 0)) return null;
         if (document.ModifyBlocks is not { Count: > 0 })
         {
             return null;

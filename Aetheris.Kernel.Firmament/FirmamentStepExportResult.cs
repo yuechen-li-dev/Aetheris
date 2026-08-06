@@ -17,7 +17,30 @@ public sealed record FirmamentStepExportResult(
     IReadOnlyList<FirmamentHoleFeatureReport>? Features = null,
     FirmamentRoundedBoxReport? RoundedBox = null,
     FirmamentHollowBodyReport? Hollow = null,
-    FirmamentStandaloneLatticeReport? Lattice = null);
+    FirmamentStandaloneLatticeReport? Lattice = null,
+    FirmamentCombinedFeaturePlanReport? Combined = null);
+
+/// <summary>Compact inspection evidence for the bounded X1 composed feature route.</summary>
+public sealed record FirmamentCombinedFeaturePlanReport(
+    string Route,
+    string Disposition,
+    string HostPlanId,
+    IReadOnlyList<string> OrderedStages,
+    string FinalPlanId,
+    string Interaction,
+    int HoleDescendantCount,
+    int EdgeFinishDescendantCount,
+    double HostVolume,
+    double HoleRemovedVolume,
+    double FinalAnalyticVolume,
+    string StepSha256,
+    int Vertices,
+    int Edges,
+    int Faces,
+    int Planes,
+    int Cylinders,
+    bool ReimportSucceeded,
+    bool ReimportedManifold);
 
 public sealed record FirmamentStandaloneLatticeReport(
     string Template,

@@ -74,7 +74,7 @@ public sealed class FirmamentV2ConceptPoint3HoleStepPipelineTests
     }
 
     [Fact]
-    public void ConceptHolesCombinedWithProductionChamfer_FailsExplicitly()
+    public void ConceptHolesCombinedWithProductionChamfer_ExportsOneAuthoritativeBody()
     {
         var combined = Source.Replace("        }\r\n    }\r\n    Expose {", "        }\r\n        EdgeFinish TopBreak {\r\n            Face: BracketConcept.TopPlane\r\n            Target: Boundary\r\n            Kind: Chamfer\r\n            Distance: 1.5mm\r\n        }\r\n    }\r\n    Expose {", StringComparison.Ordinal)
             .Replace("        }\n    }\n    Expose {", "        }\n        EdgeFinish TopBreak {\n            Face: BracketConcept.TopPlane\n            Target: Boundary\n            Kind: Chamfer\n            Distance: 1.5mm\n        }\n    }\n    Expose {", StringComparison.Ordinal);
@@ -85,8 +85,33 @@ public sealed class FirmamentV2ConceptPoint3HoleStepPipelineTests
 
         var exit = CliRunner.Run(["build", sourcePath, "--out", Path.Combine(dir, "combined.step"), "--json"], stdout, new StringWriter());
 
+        Assert.Equal(0, exit);
+        using var report = JsonDocument.Parse(stdout.ToString());
+        var combinedReport = report.RootElement.GetProperty("combined");
+        Assert.Equal("CombinedHoleEdgeFinish", combinedReport.GetProperty("route").GetString());
+        Assert.Equal("Disjoint", combinedReport.GetProperty("interaction").GetString());
+        Assert.Equal(2, report.RootElement.GetProperty("features").GetArrayLength());
+        Assert.Equal(12, combinedReport.GetProperty("faces").GetInt32());
+
+        var imported = Step242Importer.ImportBody(File.ReadAllText(Path.Combine(dir, "combined.step")));
+        Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(2, imported.Value!.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder));
+    }
+
+    [Fact]
+    public void ConceptHolesThatSplitTheRequestedChamferChain_AreRejectedByCombinedRoute()
+    {
+        var combined = Source.Replace("        }\n    }\n    Expose {", "        }\n        EdgeFinish TopBreak {\n            Face: BracketConcept.TopPlane\n            Target: Boundary\n            Kind: Chamfer\n            Distance: 6mm\n        }\n    }\n    Expose {", StringComparison.Ordinal)
+            .Replace("        }\r\n    }\r\n    Expose {", "        }\r\n        EdgeFinish TopBreak {\r\n            Face: BracketConcept.TopPlane\r\n            Target: Boundary\r\n            Kind: Chamfer\r\n            Distance: 6mm\r\n        }\r\n    }\r\n    Expose {", StringComparison.Ordinal);
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-concept-materialization-m2-combined-invalid", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var sourcePath = Path.Combine(dir, "combined-invalid.firmament"); File.WriteAllText(sourcePath, combined);
+        var stdout = new StringWriter();
+
+        var exit = CliRunner.Run(["build", sourcePath, "--out", Path.Combine(dir, "combined-invalid.step"), "--json"], stdout, new StringWriter());
+
         Assert.Equal(1, exit);
-        Assert.Contains("air-chamfer-production-route-requires-one-box-and-one-edge-finish", stdout.ToString(), StringComparison.Ordinal);
+        Assert.Contains("CombinedFeatureInteractionUnsupported", stdout.ToString(), StringComparison.Ordinal);
     }
 
     private static string Source => File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../demos/concept-materialization-m2.firmament")));

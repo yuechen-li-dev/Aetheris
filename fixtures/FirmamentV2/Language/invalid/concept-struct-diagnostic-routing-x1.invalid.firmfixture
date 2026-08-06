@@ -1,0 +1,33 @@
+// fixture-id: concept-struct-diagnostic-routing-x1
+// category: Language
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: parser-backed
+// expected: invalid
+// expected-stage: parser
+// expected-diagnostic: HoleLocalCenterInvalid
+// notes: V2-recognized Concept/Struct source with a malformed construction-plane hole and omitted Concept members.
+Concept BracketFrame {
+    Bounds: Box3
+    TopPlane: Plane
+    RequiredExpose: Plane
+}
+
+Concept Struct BracketConcept: BracketFrame {
+    Bounds: Box3 { Size: [80mm, 50mm, 25mm] }
+    TopPlane: Bounds.Face(+Z)
+}
+
+Construction Plane DrillPlane { Trace: BracketConcept.TopPlane }
+
+Struct Bracket: BracketFrame {
+    Box Base { Bounds: BracketConcept.Bounds }
+    Modify Base {
+        Hole<Shaft> Mount {
+            From: DrillPlane
+            Center: Point2(10mm)
+            Diameter: 8mm
+            End: ThroughAll
+        }
+    }
+}

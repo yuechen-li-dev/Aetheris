@@ -1,0 +1,51 @@
+Concept MountingFrame {
+    Bounds: Box3
+    TopPlane: Plane
+    CenterAxis: Axis
+    MountPoints: Point3[]
+}
+
+Concept Struct BracketConcept: MountingFrame {
+    Bounds: Box3 {
+        Size: [80mm, 50mm, 25mm]
+    }
+    TopPlane: Bounds.Face(+Z)
+    CenterAxis: Bounds.Center.Axis(+Z)
+    MountPoints: Grid {
+        Within: Bounds.Face(+Z).Inset(10mm)
+        Columns: 2
+        Rows: 1
+    }
+}
+
+Struct Bracket: MountingFrame {
+    Box Base {
+        Bounds: BracketConcept.Bounds
+    }
+    Modify Base {
+        hole<shaft> LeftMount {
+            on: Base.Top
+            center: BracketConcept.MountPoints[0]
+            diameter: 8.5mm
+            end: throughAll
+        }
+        hole<shaft> RightMount {
+            on: Base.Top
+            center: BracketConcept.MountPoints[1]
+            diameter: 8.5mm
+            end: throughAll
+        }
+        EdgeFinish TopBreak {
+            Face: BracketConcept.TopPlane
+            Target: Boundary
+            Kind: Chamfer
+            Distance: 1.5mm
+        }
+    }
+    Expose {
+        Bounds: BracketConcept.Bounds
+        TopPlane: Base.Top
+        CenterAxis: BracketConcept.CenterAxis
+        MountPoints: BracketConcept.MountPoints
+    }
+}

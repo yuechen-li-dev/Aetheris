@@ -260,28 +260,32 @@ public static class FirmamentV2Parser
         ArgumentNullException.ThrowIfNull(sourceText);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };
         var source = StripLineComments(sourceText);
+        var v2AdmissionCandidate = IsV2AdmissionCandidate(source);
         conceptCatalog ??= FirmamentV2ForgeConceptRegistry.Catalog;
 
         var templateExpansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
         if (templateExpansion is null)
         {
             diagnostics.Add("firmament-v2-parse-failed");
-            return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
+            return FirmamentV2ParseResult.Failure(
+                diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(),
+                v2AdmissionCandidate ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.NotRecognized);
         }
         source = templateExpansion.Source;
+        v2AdmissionCandidate |= IsV2AdmissionCandidate(source);
 
         if (Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant))
-            return ParsePrimitiveConstructionPolicyDocument(source, diagnostics);
+            return Recognized(ParsePrimitiveConstructionPolicyDocument(source, diagnostics));
 
         if (Regex.IsMatch(source, @"\bRoundedBox\s+[A-Za-z_]", RegexOptions.CultureInvariant))
-            return ParseRoundedBoxModelingDocument(source, diagnostics);
+            return Recognized(ParseRoundedBoxModelingDocument(source, diagnostics));
 
         if (Regex.IsMatch(source, @"\bConcept\s+(?:Struct\s+)?[A-Za-z_]", RegexOptions.CultureInvariant)
             || Regex.IsMatch(source, @"\b(?:Struct|Model)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant))
-            return ParseConceptModelingDocument(source, diagnostics, templateExpansion.Instantiations);
+            return Recognized(ParseConceptModelingDocument(source, diagnostics, templateExpansion.Instantiations));
 
         if (Regex.IsMatch(source, @"^\s*Model\b", RegexOptions.CultureInvariant))
-            return ParsePhase3ModelingDocument(source, diagnostics);
+            return Recognized(ParsePhase3ModelingDocument(source, diagnostics));
 
         if (ContainsRawBackendId(source)) diagnostics.Add(RawBackendIdReferenceForbidden);
         if (ContainsUnsupportedConstruct(source)) diagnostics.Add(UnsupportedConstruct);
@@ -342,8 +346,35 @@ public static class FirmamentV2Parser
         var hasFatalDiagnostics = diagnostics.Any(IsFatalDiagnosticCode);
         diagnostics.Add(document is null || hasFatalDiagnostics ? "firmament-v2-parse-failed" : "firmament-v2-parse-succeeded");
         diagnostics.Sort(StringComparer.Ordinal);
-        return document is null ? FirmamentV2ParseResult.Failure(diagnostics) : new FirmamentV2ParseResult(!hasFatalDiagnostics, document, diagnostics);
+        if (!v2AdmissionCandidate)
+            return FirmamentV2ParseResult.Failure(diagnostics, FirmamentV2ParseDisposition.NotRecognized);
+
+        return document is null
+            ? FirmamentV2ParseResult.Failure(diagnostics)
+            : new FirmamentV2ParseResult(
+                !hasFatalDiagnostics,
+                document,
+                diagnostics,
+                hasFatalDiagnostics ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.RecognizedValid);
     }
+
+    private static FirmamentV2ParseResult Recognized(FirmamentV2ParseResult result) =>
+        result with
+        {
+            Disposition = result.IsSuccess
+                ? FirmamentV2ParseDisposition.RecognizedValid
+                : FirmamentV2ParseDisposition.RecognizedInvalid
+        };
+
+    private static bool IsV2AdmissionCandidate(string source) =>
+        ModelRegex.IsMatch(source)
+        || Regex.IsMatch(source, @"^\s*model\s+[A-Za-z_][A-Za-z0-9_]*\b", RegexOptions.CultureInvariant)
+        || TemplateHeaderRegex.IsMatch(source)
+        || Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant)
+        || Regex.IsMatch(source, @"\bRoundedBox\s+[A-Za-z_]", RegexOptions.CultureInvariant)
+        || Regex.IsMatch(source, @"\bConcept\s+(?:Struct\s+)?[A-Za-z_]", RegexOptions.CultureInvariant)
+        || Regex.IsMatch(source, @"\b(?:Struct|Model)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant)
+        || Regex.IsMatch(source, @"^\s*Model\b", RegexOptions.CultureInvariant);
 
     private static IReadOnlyList<FirmamentV2LetRecordDeclaration> ParseLetRecords(string source, IEnumerable<string> topLevelNames, List<string> diagnostics)
     {

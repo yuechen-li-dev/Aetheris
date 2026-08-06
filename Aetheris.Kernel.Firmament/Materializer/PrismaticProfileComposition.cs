@@ -70,7 +70,8 @@ public sealed record PrismaticSectionTransition(
     double Level, IReadOnlyList<PrismaticSectionRegion> UpwardRegions, IReadOnlyList<PrismaticSectionRegion> DownwardRegions);
 public sealed record PrismaticSectionStackConstruction(
     PrismaticProfileCompositionFeature Feature, IReadOnlyList<PrismaticSectionSlab> Slabs,
-    IReadOnlyList<PrismaticSectionTransition> Transitions, double AnalyticVolume, IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<PrismaticSectionTransition> Transitions, double AnalyticVolume, IReadOnlyList<string> Diagnostics,
+    IReadOnlyList<VariableOuterSectionInterval>? VariableOuterIntervals = null);
 public sealed record PrismaticProfileCompositionParseResult(
     PrismaticProfileCompositionFeature? Feature, IReadOnlyDictionary<string, ResolvedProfile2D> Profiles, IReadOnlyList<string> Diagnostics,
     StaticGeometryExpansionEvidence? Expansion = null);

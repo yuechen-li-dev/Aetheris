@@ -430,6 +430,7 @@ public static class CliRunner
                     lineSegments = profile.Loops.SelectMany(x => x.Segments).Count(x => x.Geometry is LineArcLineSegment2D),
                     arcSegments = profile.Loops.SelectMany(x => x.Segments).Count(x => x.Geometry is LineArcCircularArc2D),
                     validation.IsValid, validation.SignedArea, validation.Diagnostics,
+                    junctions = DescribeProfileJunctions(profile, source, profile.Name),
                     provenance = profile.Loops.SelectMany(x => x.Segments).Select(x => new { x.Name, x.Provenance.StableId, x.Provenance.ConceptStableId, x.Provenance.Derivation })
                 };
             }).ToArray();
@@ -456,6 +457,7 @@ public static class CliRunner
                     return new { x.Name, guide = guide.Name, guideKind = guide.Kind, parentGuide = guide.Parent, stableId = x.Provenance.StableId, derivation = x.Provenance.Derivation, geometry = x.Geometry.GetType().Name };
                 }),
                 validation.IsValid, validation.SignedArea, validation.Diagnostics,
+                junctions = DescribeProfileJunctions(parsed.Profile, source, parsed.Profile.Name),
                 extrusionHeight = parsed.Height,
                 brepPlan = plan.Plan is null ? null : new
                 {
@@ -3216,6 +3218,33 @@ public static class CliRunner
         vector is null ? "n/a" : $"({vector.Value.X:F6},{vector.Value.Y:F6},{vector.Value.Z:F6})";
 
     private static string FormatDouble(double? value) => value?.ToString("G17") ?? "n/a";
+
+    private sealed record ProfileJunctionInspection(
+        string ProfileId, string LoopId, string PredecessorSegment, string SuccessorSegment,
+        string VertexId, double SignedTurnDegrees, double MaterialInteriorAngleDegrees,
+        string Classification, bool SelectedByEdgeFinish, IReadOnlyList<string> GeneratedDescendants);
+
+    private static IReadOnlyList<ProfileJunctionInspection> DescribeProfileJunctions(ResolvedProfile2D profile, string source, string hostBodyId)
+    {
+        ProfileBoundaryChamferTarget? target = null;
+        SemanticTopologyCorrespondence? correspondence = null;
+        if (ProfileBoundaryChamferSourceBinder.TryBind(source, profile, hostBodyId, out var bound, out var distance, out _))
+        {
+            target = bound;
+            var plan = ProfileBoundaryChamferPlanner.TryPlan(profile, bound!, distance);
+            correspondence = plan.Correspondence;
+        }
+        var selected = target?.SegmentIds.ToHashSet(StringComparer.Ordinal) ?? [];
+        return ProfileJunctionClassifier.Classify(profile).Select(junction =>
+        {
+            var selectedByFinish = selected.Contains(junction.PredecessorSegmentId) && selected.Contains(junction.SuccessorSegmentId);
+            var descendantPrefix = target is null ? string.Empty : $"{target.StableId}:{junction.Classification}({junction.VertexId})";
+            var descendants = correspondence?.Descendants.Where(descendant => descendant.StableId == descendantPrefix).Select(descendant => descendant.StableId).ToArray() ?? [];
+            return new ProfileJunctionInspection(junction.ProfileId, junction.LoopId, junction.PredecessorSegmentId, junction.SuccessorSegmentId,
+                junction.VertexId, junction.SignedTurnRadians * 180d / Math.PI, junction.MaterialInteriorAngleRadians * 180d / Math.PI,
+                junction.Classification.ToString(), selectedByFinish, descendants);
+        }).ToArray();
+    }
 
     private static string ProfileSignature(ResolvedProfile2D profile) => Hash(string.Join(";", profile.Loops.SelectMany(l => l.Segments).Select(s => s.Geometry switch
     {

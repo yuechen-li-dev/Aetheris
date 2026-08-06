@@ -182,11 +182,26 @@ guide's original endpoints. Close the loop and use counter-clockwise winding.
 
 The multi-guide L example is
 `fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket.firmament`.
-It uses two overlapping `Rect2` guides plus a named notch point. The valid
-fixture intentionally has no EdgeFinish: arbitrary Profile/Compose polygon
-boundary chamfer and fillet materialization is not yet admitted. Such a finish
-reports `EdgeFinishProfileComposeBoundaryUnsupported`, rather than a missing
-semantic source; see the paired invalid fixture.
+It uses two overlapping `Rect2` guides plus a named notch point. A bounded,
+source-bound outer-line-loop chamfer is now admitted on `Top` or `Bottom`:
+
+```firmament
+Selection ReflexNotch { Source: Bracket.Outer.[Inner, Upright] Require: ConnectedChain }
+Modify BracketBody {
+    EdgeFinish NotchBreak { Target: ReflexNotch On: Top Kind: Chamfer Distance: 1mm }
+}
+```
+
+The `Inner -> Upright` L-notch junction is a `ReflexProfileJunction` (270°
+material-side interior angle); this is not a 2D arc or a BRep-edge guess.
+`profile-chamfer-convex-junction-top.firmament` shows the corresponding convex
+chain and `profile-chamfer-mixed-convex-reflex-loop-top.firmament` applies the
+same exact planar section transition around the whole outer loop.
+
+`Kind: Fillet` is parsed as an EdgeFinish declaration, but no Profile-boundary
+rolling-surface planner exists. A source-bound Profile fillet is deliberately
+rejected as `ProfileBoundaryFilletNotMaterialized`; a Concept Path `Arc` only
+changes the 2D outline and is not a substitute for that 3D fillet.
 
 ## Canonical examples
 

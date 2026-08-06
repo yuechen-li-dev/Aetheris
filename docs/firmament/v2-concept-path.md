@@ -38,3 +38,5 @@ Profile Plate {
 Use explicit `Segment { Trace; From; To }` when selecting part of a guide or when the desired boundary is not simply the complete Path. There is no `MoveTo`, branching, subpath, automatic reversal, `Arc To`, spline, or path-level geometry validation in M1.
 
 Canonical examples are maintained under `fixtures/FirmamentV2/Canonical/valid/concept-path-*.firmament`.
+
+Path steps become stable resolved Profile segment identities. For example, a `South` step in a Path consumed by `Profile Bracket From Outline` can be targeted later as `Bracket.Outer.South` in an M1 Profile-boundary chamfer; this remains source binding, not BRep-edge lookup.

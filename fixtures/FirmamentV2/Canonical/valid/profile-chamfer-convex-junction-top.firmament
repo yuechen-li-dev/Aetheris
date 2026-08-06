@@ -1,0 +1,15 @@
+Model ProfileChamferConvexJunctionTop {
+    Units: mm
+    Concept Path Outline {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Line South { Length: 40mm }
+        Line East { Turn: 90deg; Length: 20mm }
+        Line North { Turn: 90deg; Length: 40mm }
+        Close West
+    }
+    Profile Bracket From Outline
+    Struct Body { Extrude Bracket { Profile: Bracket; From: 0mm; To: 8mm } }
+    Selection ConvexCorner { Source: Bracket.Outer.[South, East] Require: ConnectedChain }
+    Modify Body { EdgeFinish ConvexTopBreak { Target: ConvexCorner On: Top Kind: Chamfer Distance: 1mm } }
+}

@@ -45,6 +45,15 @@ Model ProfileComposeLBracketCounterborePmi {
         }
     }
 
+    Modify BracketBody {
+        EdgeFinish TopPerimeter {
+            Target: Bracket.Outer
+            On: Top
+            Kind: Chamfer
+            Distance: 1mm
+        }
+    }
+
     Pmi {
         Datum A { Target: face(+Z) }
         HoleDiameter CounterboredMountDiameter {

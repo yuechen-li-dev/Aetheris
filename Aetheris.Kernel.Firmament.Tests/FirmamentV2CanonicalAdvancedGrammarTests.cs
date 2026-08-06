@@ -333,7 +333,10 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
             Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
             var mass = BrepMassProperties.Evaluate(imported.Value);
             Assert.True(mass.IsEnclosed); Assert.True(mass.IsOrientationConsistent);
-            Assert.InRange(Math.Abs(mass.AbsoluteVolume - (28800d - 540d * Math.PI)), 0d, 0.01d);
+            // The source now carries its authored 1 mm Profile-boundary chamfer.
+            // This is the deterministic composed section-stack result after the
+            // unchanged Shaft/Counterbore cavities are carried through that interval.
+            Assert.InRange(Math.Abs(mass.AbsoluteVolume - 26966.084223687798d), 0d, 0.01d);
         }
         finally
         {

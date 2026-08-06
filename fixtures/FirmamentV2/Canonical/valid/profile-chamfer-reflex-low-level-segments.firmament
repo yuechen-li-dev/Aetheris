@@ -1,0 +1,24 @@
+Model ProfileChamferReflexLowLevelSegments {
+    Units: mm
+    Concept Path Outline {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Line South { Length: 40mm }
+        Line East { Turn: 90deg; Length: 10mm }
+        Line Inner { Turn: 90deg; Length: 30mm }
+        Line Upright { Turn: -90deg; Length: 30mm }
+        Line North { Turn: 90deg; Length: 10mm }
+        Close West
+    }
+    Profile Bracket { Loop Outer {
+        Segment South { Trace: Outline.South; From: Outline.Start; To: Outline.South.End }
+        Segment East { Trace: Outline.East; From: Outline.South.End; To: Outline.East.End }
+        Segment Inner { Trace: Outline.Inner; From: Outline.East.End; To: Outline.Inner.End }
+        Segment Upright { Trace: Outline.Upright; From: Outline.Inner.End; To: Outline.Upright.End }
+        Segment North { Trace: Outline.North; From: Outline.Upright.End; To: Outline.North.End }
+        Segment West { Trace: Outline.West; From: Outline.North.End; To: Outline.West.End }
+    } }
+    Struct Body { Extrude Bracket { Profile: Bracket; From: 0mm; To: 8mm } }
+    Selection ReflexNotch { Source: Bracket.Outer.[Inner, Upright] Require: ConnectedChain }
+    Modify Body { EdgeFinish ReflexTopBreak { Target: ReflexNotch On: Top Kind: Chamfer Distance: 1mm } }
+}

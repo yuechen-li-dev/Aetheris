@@ -963,6 +963,7 @@ public static class FirmamentV2Parser
             var (compositionPmi, compositionPmiBlock, compositionBoundPmi) = ParsePmi(
                 source, compositionSolids, [], [], [], [], diagnostics, (feature.ShaftHoles ?? []).Select(hole => hole.Name).Concat((feature.CounterboreHoles ?? []).Select(hole => hole.Name)));
             if (Regex.IsMatch(body, @"\bEdgeFinish\b", RegexOptions.CultureInvariant)
+                && !ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(body)
                 && composition.Profiles.Values.Any(profile => profile.Loops.Single().Segments.Count != 4))
             {
                 diagnostics.Add($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={feature.Name}:construction=Compose:face=+Z:target=Boundary:supported=primitive-box-or-explicit-semantic-chain:Profile/Compose polygon-boundary materialization is not implemented.");
@@ -1009,6 +1010,7 @@ public static class FirmamentV2Parser
             };
             var (profilePmi, profilePmiBlock, profileBoundPmi) = ParsePmi(source, profileSolids, [], [], [], [], diagnostics);
             if (Regex.IsMatch(body, @"\bEdgeFinish\b", RegexOptions.CultureInvariant)
+                && !ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(body)
                 && resolved.Loops.Single().Segments.Count != 4)
             {
                 diagnostics.Add($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={resolved.Name}:construction=Profile:face=+Z:target=Boundary:supported=primitive-box-or-explicit-semantic-chain:Profile/Compose polygon-boundary materialization is not implemented.");

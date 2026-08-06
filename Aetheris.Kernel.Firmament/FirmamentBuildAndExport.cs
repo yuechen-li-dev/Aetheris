@@ -106,7 +106,7 @@ public static class FirmamentBuildAndExport
                 emitted = new PrismaticSectionStackEmissionResult(materialized.Body, finalPlan, emitted.Diagnostics.Concat(bridgeDiagnostics).ToArray(), finalPlan.Correspondence);
             }
             if (materializerSource.Contains("EdgeFinish", StringComparison.Ordinal))
-                return ExportComposedSemanticTopBoundaryChamfer(materializerSource, parsed, stack, emitted);
+                return ExportComposedSemanticTopBoundaryChamfer(materializerSource, parsed, stack, emitted, v2Parse.Document);
             // The composition route either retained the checked body above or
             // replaced it with a checked blind-drill materialization.
             var completedBody = emitted.Body;
@@ -253,10 +253,43 @@ public static class FirmamentBuildAndExport
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportComposedSemanticTopBoundaryChamfer(
-        string source, PrismaticProfileCompositionParseResult parsed, PrismaticSectionStackConstruction stack, PrismaticSectionStackEmissionResult emitted)
+        string source, PrismaticProfileCompositionParseResult parsed, PrismaticSectionStackConstruction stack, PrismaticSectionStackEmissionResult emitted,
+        FirmamentV2Document? canonicalDocument)
     {
         KernelResult<FirmamentStepExportResult> Fail(string code) => KernelResult<FirmamentStepExportResult>.Failure([
             new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.ComposeSemanticSelection")]);
+        if (ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(source))
+        {
+            ProfileBoundaryChamferTarget? target = null; double distance = 0d; string? bindingDiagnostic = null; ResolvedProfile2D? profile = null;
+            foreach (var candidate in parsed.Profiles.Values.OrderBy(x => x.Name, StringComparer.Ordinal))
+            {
+                if (ProfileBoundaryChamferSourceBinder.TryBind(source, candidate, stack.Feature.Name, out target, out distance, out bindingDiagnostic)) { profile = candidate; break; }
+            }
+            if (profile is null || target is null) return Fail(bindingDiagnostic ?? "ProfileBoundaryChamferProfileUnknown");
+            var admission = ComposedProfileBoundaryChamferAdmissionChecker.Check(stack, profile, target, distance);
+            if (!admission.Admitted) return Fail(admission.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryChamferCavityInteractionUnsupported");
+            var adjusted = ComposedProfileBoundaryChamferStackPlanner.TryApply(stack, profile, target, distance, out var planDiagnostics);
+            if (adjusted is null) return Fail(planDiagnostics.FirstOrDefault() ?? "ProfileBoundaryChamferComposeTopologyPlanNotMaterialized");
+            var plannedEmission = PrismaticSectionStackEmitter.Emit(adjusted);
+            if (plannedEmission.Body is null) return Fail(plannedEmission.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryChamferComposeMaterializationFailed");
+            if (!FirmamentManifoldChecker.IsManifold(plannedEmission.Body)) return Fail("ProfileBoundaryChamferNonManifold");
+            var semanticPmi = Array.Empty<Step242SemanticPmi>();
+            if (canonicalDocument is not null)
+            {
+                var support = ValidateV2PmiExportSupport(canonicalDocument);
+                if (!support.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(support.Diagnostics);
+                var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
+                foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
+                semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features).ToArray();
+            }
+            var plannedStep = Step242Exporter.ExportBody(plannedEmission.Body, semanticPmi, new Step242ExportOptions { ProductName = target.StableId, ApplicationName = "Aetheris.Firmament.ComposedProfileBoundaryChamfer.M3", BrepExportPreflightMode = BrepExportPreflightMode.Enforce, BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute });
+            if (!plannedStep.IsSuccess || plannedStep.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(plannedStep.Diagnostics);
+            var plannedReimport = Step242Importer.ImportBody(plannedStep.Value);
+            if (!plannedReimport.IsSuccess || plannedReimport.Value is null || !FirmamentManifoldChecker.IsManifold(plannedReimport.Value)) return Fail("ProfileBoundaryChamferStepReimportFailed");
+            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(plannedStep.Value, target.StableId, 0, "composed-profile-boundary-chamfer-section-stack", "source-grounded-composed-profile-boundary-chamfer",
+                DatumInspection: canonicalDocument?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
+                DimensionInspection: canonicalDocument?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? []));
+        }
         if (emitted.Body is null || emitted.Correspondence is null) return Fail("MissingCorrespondenceEvidence");
         var composedCurves = stack.Slabs.MaxBy(s => s.To)!.Region.Outer.Loops.Single().Segments.Select(segment => segment.Geometry).ToArray();
         if (!IsAdmittedPrimitiveBoundary(composedCurves))
@@ -290,6 +323,26 @@ public static class FirmamentBuildAndExport
     {
         KernelResult<FirmamentStepExportResult> Fail(string code) => KernelResult<FirmamentStepExportResult>.Failure([
             new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.SemanticSelection")]);
+        if (ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(source))
+        {
+            if (!ProfileBoundaryChamferSourceBinder.TryBind(source, profile, profile.Name, out var target, out var distance, out var bindingDiagnostic))
+                return Fail(bindingDiagnostic ?? "ProfileBoundaryChamferBindingFailed");
+            var planned = ProfileBoundaryChamferPlanner.TryPlan(profile, target!, distance);
+            if (!planned.Succeeded || planned.Body is null || planned.Correspondence is null)
+                return Fail(planned.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryChamferPlanningFailed");
+            if (!FirmamentManifoldChecker.IsManifold(planned.Body)) return Fail("ProfileBoundaryChamferNonManifold");
+            var plannedStep = Step242Exporter.ExportBody(planned.Body, new Step242ExportOptions
+            {
+                ProductName = target!.StableId,
+                ApplicationName = "Aetheris.Firmament.ProfileBoundaryChamfer.M1",
+                BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+                BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute
+            });
+            if (!plannedStep.IsSuccess || plannedStep.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(plannedStep.Diagnostics);
+            var plannedReimport = Step242Importer.ImportBody(plannedStep.Value);
+            if (!plannedReimport.IsSuccess || plannedReimport.Value is null || !FirmamentManifoldChecker.IsManifold(plannedReimport.Value)) return Fail("ProfileBoundaryChamferStepReimportFailed");
+            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(plannedStep.Value, target.StableId, 0, "profile-boundary-chamfer-section-stack", "source-grounded-profile-boundary-chamfer"));
+        }
         if (emitted.Body is null || emitted.Correspondence is null) return Fail("NoMaterializedDescendants");
         if (!IsAdmittedPrimitiveBoundary(profile.Loops.Single().Segments.Select(segment => segment.Geometry).ToArray()))
             return Fail($"{EdgeFinishProfileComposeBoundaryUnsupported}:host={profile.Name}:construction=Profile:face=+Z:target=Boundary:supported=primitive-box-or-explicit-semantic-chain:Profile/Compose polygon-boundary materialization is not implemented.");

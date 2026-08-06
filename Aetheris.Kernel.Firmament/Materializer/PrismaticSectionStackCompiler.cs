@@ -161,9 +161,15 @@ public static class PrismaticSectionStackEmitter
         var builder = new TopologyBuilder(); var points = new Dictionary<VertexId, Point3D>(); var curves = new Dictionary<EdgeId, CurveGeometry>(); var profileCurves = new Dictionary<EdgeId, LineArcProfileCurve2D>();
         var vertices = new Dictionary<(long X, long Y, long Z), VertexId>(); var edges = new Dictionary<string, EdgeId>();
         var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface, bool SameSense, string Source, string Construction, double From, double To)>(); var capFaces = new List<(FaceId Face, double Z, bool Up)>();
+        var variableIntervals = stack.VariableOuterIntervals ?? [];
+        foreach (var interval in variableIntervals)
+            d.AddRange(VariableOuterSectionIntervalValidator.Validate(interval).Diagnostics);
+        if (d.Any(x => x.StartsWith("VariableOuterSectionInterval", StringComparison.Ordinal)))
+            return new(null, d.Distinct().ToArray());
         var splitPoints = stack.Slabs.SelectMany(s => Loops(s.Region)).Concat(stack.Transitions.SelectMany(t =>
                 t.UpwardRegions.Concat(t.DownwardRegions).SelectMany(Loops)))
-            .SelectMany(x => x.Profile.Loops[0].Segments).SelectMany(x => Ends(x.Geometry)).DistinctBy(p => $"{Math.Round(p.X / Tol):F0},{Math.Round(p.Y / Tol):F0}").ToArray();
+            .SelectMany(x => x.Profile.Loops[0].Segments).Concat(variableIntervals.SelectMany(v => v.LowerOuter.Loops.Concat(v.UpperOuter.Loops).Concat(v.InnerLoops.SelectMany(i => i.LowerLoop.Loops))).SelectMany(x => x.Segments))
+            .SelectMany(x => Ends(x.Geometry)).DistinctBy(p => $"{Math.Round(p.X / Tol):F0},{Math.Round(p.Y / Tol):F0}").ToArray();
         (long X, long Y, long Z) Key((double X, double Y) p, double z) => ((long)Math.Round(p.X / Tol), (long)Math.Round(p.Y / Tol), (long)Math.Round(z / Tol));
         VertexId Vertex((double X, double Y) p, double z) { var key = Key(p, z); if (vertices.TryGetValue(key, out var id)) return id; id = builder.AddVertex(); vertices[key] = id; points[id] = new(p.X, p.Y, z); return id; }
         (EdgeId Edge, bool Reverse) Edge(LineArcProfileCurve2D curve, double z)
@@ -179,6 +185,13 @@ public static class PrismaticSectionStackEmitter
             if (edges.TryGetValue(key, out var e)) return (e, false); if (edges.TryGetValue(reverse, out e)) return (e, true);
             var created = builder.AddEdge(Vertex(p, from), Vertex(p, to)); edges[key] = created; curves[created] = CurveGeometry.FromLine(new Line3Curve(points[Vertex(p, from)], Direction3D.Create(points[Vertex(p, to)] - points[Vertex(p, from)]))); return (created, false);
         }
+        (EdgeId Edge, bool Reverse) Transition((double X, double Y) from, (double X, double Y) to, double lower, double upper)
+        {
+            var key = $"T:{Key(from, lower)}:{Key(to, upper)}"; var reverse = $"T:{Key(to, upper)}:{Key(from, lower)}";
+            if (edges.TryGetValue(key, out var e)) return (e, false); if (edges.TryGetValue(reverse, out e)) return (e, true);
+            var created = builder.AddEdge(Vertex(from, lower), Vertex(to, upper)); edges[key] = created;
+            curves[created] = CurveGeometry.FromLine(new Line3Curve(points[Vertex(from, lower)], Direction3D.Create(points[Vertex(to, upper)] - points[Vertex(from, lower)]))); return (created, false);
+        }
         foreach (var slab in stack.Slabs)
             foreach (var item in Loops(slab.Region))
                 foreach (var segment in item.Profile.Loops[0].Segments)
@@ -189,6 +202,26 @@ public static class PrismaticSectionStackEmitter
                     var source = SourceId(segment.Provenance.StableId);
                     sideFaces.Add((loop, SideSurface(curve, slab.From, item.IsHole), !(item.IsHole && curve is LineArcCircularArc2D), source, $"slab:{slab.From:R}..{slab.To:R}:{segment.Provenance.Derivation}", slab.From, slab.To));
                 }
+        foreach (var interval in variableIntervals)
+        {
+            var lower = interval.LowerOuter.Loops.Single(x => x.IsOuter); var upper = interval.UpperOuter.Loops.Single(x => x.IsOuter);
+            for (var i = 0; i < lower.Segments.Count; i++)
+            {
+                var l = (LineArcLineSegment2D)lower.Segments[i].Geometry; var u = (LineArcLineSegment2D)upper.Segments[i].Geometry;
+                var bottom = Edge(l, interval.LowerStation); var top = Edge(u, interval.UpperStation); var end = Transition(l.End, u.End, interval.LowerStation, interval.UpperStation); var start = Transition(l.Start, u.Start, interval.LowerStation, interval.UpperStation);
+                var loop = AddLoop(builder, [new(bottom.Edge, bottom.Reverse), new(end.Edge, end.Reverse), new(top.Edge, !top.Reverse), new(start.Edge, !start.Reverse)]);
+                var origin = points[Vertex(l.Start, interval.LowerStation)]; var normal = (points[Vertex(l.End, interval.LowerStation)] - origin).Cross(points[Vertex(u.Start, interval.UpperStation)] - origin);
+                sideFaces.Add((loop, SurfaceGeometry.FromPlane(new PlaneSurface(origin, Direction3D.Create(normal), Direction3D.Create(points[Vertex(l.End, interval.LowerStation)] - origin))), true, SourceId(lower.Segments[i].Provenance.StableId), $"variable:{interval.StableId}:{i}", interval.LowerStation, interval.UpperStation));
+            }
+            foreach (var inner in interval.InnerLoops)
+                foreach (var segment in inner.LowerLoop.Loops[0].Segments)
+                foreach (var curve in Split(segment.Geometry, splitPoints))
+                {
+                    var ends = Ends(curve); var bottom = Edge(curve, interval.LowerStation); var top = Edge(curve, interval.UpperStation); var v0 = Vertical(ends[0], interval.LowerStation, interval.UpperStation); var v1 = Vertical(ends[1], interval.LowerStation, interval.UpperStation);
+                    var loop = AddLoop(builder, [new(bottom.Edge, !bottom.Reverse), new(v0.Edge, v0.Reverse), new(top.Edge, top.Reverse), new(v1.Edge, !v1.Reverse)]);
+                    sideFaces.Add((loop, SideSurface(curve, interval.LowerStation, true), false, inner.FeatureId, $"variable:{interval.StableId}:inner:{inner.FeatureId}", interval.LowerStation, interval.UpperStation));
+                }
+        }
         foreach (var transition in stack.Transitions)
         {
             foreach (var region in transition.UpwardRegions) capFaces.Add((AddCap(builder, region, transition.Level, Edge, splitPoints), transition.Level, true));

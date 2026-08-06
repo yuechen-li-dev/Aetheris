@@ -80,6 +80,10 @@ public static class FirmamentBuildAndExport
                 .ToArray());
         }
         var materializerInput = staticExpansion.Source;
+        // Parse the canonical document before selecting the materializer.  Advanced
+        // Profile/Compose hosts still use their bounded section-stack materializer,
+        // but their normalized PMI records must follow the same AP242 route.
+        var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory);
         var canonicalAdvanced = FirmamentV2Parser.TryGetCanonicalAdvancedBody(materializerInput, out var canonicalBody);
         var materializerSource = canonicalAdvanced ? canonicalBody : materializerInput;
         if (PrismaticProfileCompositionParser.IsCompositionSource(materializerSource))
@@ -108,9 +112,20 @@ public static class FirmamentBuildAndExport
             var completedBody = emitted.Body;
             if (completedBody is null)
                 return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, "profile-composition-materialization-missing-body", "FirmamentV2.ProfileComposition")]);
-            var step = Step242Exporter.ExportBody(completedBody);
+            var semanticPmi = Array.Empty<Step242SemanticPmi>();
+            if (v2Parse.IsSuccess && v2Parse.Document is not null)
+            {
+                var support = ValidateV2PmiExportSupport(v2Parse.Document);
+                if (!support.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(support.Diagnostics);
+                var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
+                foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
+                semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features).ToArray();
+            }
+            var step = Step242Exporter.ExportBody(completedBody, semanticPmi);
             if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
-            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, stack.Feature.Name, 0, "prismatic-section-stack", "line-arc-profile-composition"));
+            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, stack.Feature.Name, 0, "prismatic-section-stack", "line-arc-profile-composition",
+                DatumInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
+                DimensionInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? []));
         }
         if (ProfileAuthoringParser.IsProfileSource(materializerSource))
         {
@@ -123,7 +138,6 @@ public static class FirmamentBuildAndExport
             var step = Step242Exporter.ExportBody(emitted.Body); if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, parsed.Profile.Name, 0, "profile-extrude", "line-arc-profile"));
         }
-        var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory);
         if (v2Parse.IsSuccess && v2Parse.Document is not null)
         {
             var dfm = FirmamentV2DfmEnforcement.Validate(v2Parse.Document);
@@ -1469,7 +1483,7 @@ public static class FirmamentBuildAndExport
             "FirmamentV2.PmiExport")).ToArray());
     }
 
-    private static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(FirmamentV2Document document, IReadOnlyList<Core.Air.AirHoleFeature> semanticHoles, string targetSolid)
+    private static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(FirmamentV2Document document, IReadOnlyList<Core.Air.AirHoleFeature> semanticHoles, string targetSolid, IReadOnlyDictionary<string, string>? explicitFeatureIds = null)
     {
         if (document.Pmi is null || document.Pmi.Count == 0)
         {
@@ -1490,6 +1504,10 @@ public static class FirmamentBuildAndExport
                 if (holeByName.TryGetValue(pmi.Target, out var pmiHole))
                 {
                     result.Add(new Step242SemanticPmiHole(pmiHole.FeatureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", tolerancePlus, toleranceMinus));
+                }
+                else if (explicitFeatureIds is not null && explicitFeatureIds.TryGetValue(pmi.Target, out var featureId))
+                {
+                    result.Add(new Step242SemanticPmiHole(featureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", tolerancePlus, toleranceMinus));
                 }
                 else if (TryResolveV2RecognizedRegionTarget(document, targetBinding, pmi.Target, out var importedTarget) || TryResolveV2ImportedFaceTarget(targetBinding, pmi.Target, out importedTarget))
                 {

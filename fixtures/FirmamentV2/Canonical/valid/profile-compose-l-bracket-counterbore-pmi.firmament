@@ -1,0 +1,57 @@
+Model ProfileComposeLBracketCounterborePmi {
+    Units: mm
+
+    Record MountSpec { Center: Point2 Diameter: Length }
+    Static Mounts: MountSpec[] = [
+        MountSpec { Center: Point2(20mm, -10mm) Diameter: 6mm }
+        MountSpec { Center: Point2(-30mm, 20mm) Diameter: 6mm }
+    ]
+    Template ShaftHole(MountSpec spec) {
+        Hole<Shaft> Mount {
+            On: +Z
+            Center: spec.Center
+            Diameter: spec.Diameter
+            End: ThroughAll
+        }
+    }
+
+    Concept Struct Layout On XY {
+        Rect2 Horizontal { Center: [0mm, -10mm]; Size: [80mm, 20mm] }
+        Rect2 Vertical { Center: [-30mm, 10mm]; Size: [20mm, 60mm] }
+        Point2 Notch { Position: [-20mm, 0mm] }
+    }
+
+    Profile Bracket Using Layout { Loop Outer {
+        Segment South { Trace: Horizontal.Bottom; From: Horizontal.BottomLeft; To: Horizontal.BottomRight }
+        Segment East { Trace: Horizontal.Right; From: Horizontal.BottomRight; To: Horizontal.TopRight }
+        Segment Inner { Trace: Horizontal.Top; From: Horizontal.TopRight; To: Notch }
+        Segment Upright { Trace: Vertical.Right; From: Notch; To: Vertical.TopRight }
+        Segment North { Trace: Vertical.Top; From: Vertical.TopRight; To: Vertical.TopLeft }
+        Segment West { Trace: Vertical.Left; From: Vertical.TopLeft; To: Horizontal.BottomLeft }
+    } }
+
+    Struct BracketBody {
+        Compose BracketBody {
+            Base Stock { Profile: Bracket; From: 0mm; To: 12mm; Role: Stock }
+            Pattern MountPattern Over Mounts { ShaftHole(Current) }
+            Hole<Counterbore> CounterboredMount {
+                On: +Z
+                Center: Point2(-30mm, -10mm)
+                Diameter: 8mm
+                CounterboreDiameter: 14mm
+                CounterboreDepth: 4mm
+                End: ThroughAll
+            }
+        }
+    }
+
+    Pmi {
+        Datum A { Target: face(+Z) }
+        HoleDiameter CounterboredMountDiameter {
+            Target: CounterboredMount
+            Value: 8mm
+            Tolerance: PlusMinus(0.05mm, 0.02mm)
+            DatumRefs: [A]
+        }
+    }
+}

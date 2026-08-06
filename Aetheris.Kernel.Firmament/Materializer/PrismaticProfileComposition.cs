@@ -17,6 +17,14 @@ public sealed record PrismaticProfileOperation(
 public sealed record PrismaticShaftHoleFeature(
     string Name, string StableId, string ProfileReference, double CenterX, double CenterY, double Diameter,
     double From, double To, string SemanticRole, string SourceSpan);
+/// <summary>
+/// A bounded stepped through cavity in an admitted +Z prismatic compose host.
+/// The two profile references are planner-owned section cuts, not Boolean tools.
+/// </summary>
+public sealed record PrismaticCounterboreHoleFeature(
+    string Name, string StableId, string ShaftProfileReference, string CounterboreProfileReference,
+    double CenterX, double CenterY, double Diameter, double CounterboreDiameter, double CounterboreDepth,
+    double From, double To, string SemanticRole, string SourceSpan);
 /// <summary>Source-owned transverse blind drill; its cavity is planned after host construction.</summary>
 public sealed record PrismaticConstructionPlaneBlindDrillFeature(
     string Name, string StableId, string ConstructionPlaneId, string SourceConceptPlaneId,
@@ -46,7 +54,8 @@ public sealed record PrismaticProfileCompositionFeature(
     IReadOnlyList<double> CriticalLevels, string Provenance, IReadOnlyList<PrismaticShaftHoleFeature>? ShaftHoles = null,
     IReadOnlyList<PrismaticCapsuleSlotFeature>? CapsuleSlots = null,
     IReadOnlyList<PrismaticRoundedRectangleSlotFeature>? RoundedRectangleSlots = null,
-    IReadOnlyList<PrismaticConstructionPlaneBlindDrillFeature>? ConstructionPlaneBlindDrills = null)
+    IReadOnlyList<PrismaticConstructionPlaneBlindDrillFeature>? ConstructionPlaneBlindDrills = null,
+    IReadOnlyList<PrismaticCounterboreHoleFeature>? CounterboreHoles = null)
 {
     public IEnumerable<(string Name, string StableId, string ProfileReference)> AllSlotProfiles =>
         (CapsuleSlots ?? []).Select(x => (x.Name, x.StableId, x.ProfileReference))
@@ -86,6 +95,9 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex HoleCenter = new(@"\bCenter\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HolePoint2Center = new(@"\bCenter\s*:\s*Point2\s*\(\s*(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleDiameter = new(@"\bDiameter\s*:\s*(?<d>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleCounterboreDiameter = new(@"\bCounterboreDiameter\s*:\s*(?<d>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleCounterboreDepth = new(@"\bCounterboreDepth\s*:\s*(?<d>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleOn = new(@"\bOn\s*:\s*(?<face>[+-][XYZ])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleEnd = new(@"\bEnd\s*:\s*(?<end>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleDepthEnd = new(@"\bEnd\s*:\s*(?<kind>ShaftDepth|TotalDepth)\s*\(\s*(?<depth>[-+.\d]+)mm\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleFrom = new(@"\bFrom\s*:\s*(?<plane>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -194,6 +206,7 @@ public static class PrismaticProfileCompositionParser
         }
         if (operations.Count(o => o.Intent == PrismaticProfileIntent.Base) != 1) diagnostics.Add("compose-requires-exactly-one-base-operation");
         var shaftHoles = new List<PrismaticShaftHoleFeature>();
+        var counterboreHoles = new List<PrismaticCounterboreHoleFeature>();
         var constructionPlaneBlindDrills = new List<PrismaticConstructionPlaneBlindDrillFeature>();
         var capsuleSlots = new List<PrismaticCapsuleSlotFeature>();
         var roundedRectangleSlots = new List<PrismaticRoundedRectangleSlotFeature>();
@@ -206,6 +219,7 @@ public static class PrismaticProfileCompositionParser
             if (body is null) { diagnostics.Add($"compose-hole-unclosed:{name}"); continue; }
             var center = HoleCenter.Match(body); if (!center.Success) center = HolePoint2Center.Match(body);
             var diameter = HoleDiameter.Match(body); var end = HoleEnd.Match(body); var role = HoleRole.Match(body);
+            var counterboreDiameter = HoleCounterboreDiameter.Match(body); var counterboreDepth = HoleCounterboreDepth.Match(body); var on = HoleOn.Match(body);
             var from = HoleFrom.Match(body); var depthEnd = HoleDepthEnd.Match(body); var termination = HoleTermination.Match(body);
             if (from.Success)
             {
@@ -230,7 +244,38 @@ public static class PrismaticProfileCompositionParser
                     role.Success ? role.Groups["role"].Value : "BlindDrillPoint", $"offset:{header.Index}", plane.Provenance));
                 continue;
             }
-            if (!string.Equals(header.Groups["variant"].Value, "Shaft", StringComparison.OrdinalIgnoreCase)
+            var variant = header.Groups["variant"].Value;
+            if (string.Equals(variant, "Counterbore", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!end.Success || !string.Equals(end.Groups["end"].Value, "ThroughAll", StringComparison.OrdinalIgnoreCase))
+                { diagnostics.Add($"ComposeCounterboreEndUnsupported:{name}:supported=ThroughAll"); continue; }
+                if (!on.Success || !string.Equals(on.Groups["face"].Value, "+Z", StringComparison.OrdinalIgnoreCase))
+                { diagnostics.Add($"ComposeCounterboreAxisUnsupported:{name}:supported=+Z"); continue; }
+                if (!center.Success || !diameter.Success || !counterboreDiameter.Success || !counterboreDepth.Success)
+                { diagnostics.Add($"ComposeCounterboreMissingRequiredField:{name}"); continue; }
+                var counterboreX = N(center, "x"); var counterboreY = N(center, "y"); var shaftDiameter = N(diameter, "d"); var boreDiameter = N(counterboreDiameter, "d"); var boreDepth = N(counterboreDepth, "d");
+                if (!double.IsFinite(counterboreX) || !double.IsFinite(counterboreY) || !double.IsFinite(shaftDiameter) || shaftDiameter <= 0d || !double.IsFinite(boreDiameter) || boreDiameter <= shaftDiameter || !double.IsFinite(boreDepth) || boreDepth <= 0d)
+                { diagnostics.Add($"ComposeCounterboreInvalidGeometry:{name}"); continue; }
+                var hostDepth = materialTo - materialFrom;
+                if (boreDepth > hostDepth + 1e-8d)
+                { diagnostics.Add($"ComposeCounterboreDepthExceedsHost:{name}:depth={boreDepth:R}:hostDepth={hostDepth:R}"); continue; }
+                if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
+                var counterboreStableId = $"hole:{compose.Groups["n"].Value}.{name}";
+                if (!CircleContainedInBaseProfile(operations, profiles, counterboreX, counterboreY, boreDiameter / 2d))
+                { diagnostics.Add($"ComposeCounterboreFootprintLeavesProfileMaterial:{name}:radius={boreDiameter / 2d:R}"); continue; }
+                if (IntersectsExistingCircularCavity(shaftHoles, counterboreHoles, counterboreX, counterboreY, boreDiameter / 2d))
+                { diagnostics.Add($"ComposeCounterboreIntersectsExistingCavity:{name}"); continue; }
+                var shaftProfile = $"{name}ShaftProfile"; var boreProfile = $"{name}CounterboreProfile";
+                if (profiles.ContainsKey(shaftProfile) || profiles.ContainsKey(boreProfile)) { diagnostics.Add($"compose-hole-profile-name-collision:{name}"); continue; }
+                profiles.Add(shaftProfile, CircleProfile(shaftProfile, counterboreX, counterboreY, shaftDiameter / 2d, counterboreStableId, $"offset:{header.Index}"));
+                profiles.Add(boreProfile, CircleProfile(boreProfile, counterboreX, counterboreY, boreDiameter / 2d, counterboreStableId, $"offset:{header.Index}"));
+                var counterboreSourceSpan = $"offset:{header.Index}"; var counterboreSemanticRole = role.Success ? role.Groups["role"].Value : "CounterboreHole";
+                counterboreHoles.Add(new(name, counterboreStableId, shaftProfile, boreProfile, counterboreX, counterboreY, shaftDiameter, boreDiameter, boreDepth, materialFrom, materialTo, counterboreSemanticRole, counterboreSourceSpan));
+                operations.Add(new($"{name}Shaft", PrismaticProfileIntent.Remove, shaftProfile, materialFrom, materialTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", shaftDiameter));
+                operations.Add(new($"{name}Counterbore", PrismaticProfileIntent.Remove, boreProfile, materialTo - boreDepth, materialTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", boreDiameter));
+                continue;
+            }
+            if (!string.Equals(variant, "Shaft", StringComparison.OrdinalIgnoreCase)
                 || !end.Success || !string.Equals(end.Groups["end"].Value, "ThroughAll", StringComparison.OrdinalIgnoreCase))
             { diagnostics.Add($"compose-hole-unsupported-variant-or-end:{name}"); continue; }
             if (!center.Success || !diameter.Success) { diagnostics.Add($"compose-hole-missing-center-or-diameter:{name}"); continue; }
@@ -250,6 +295,14 @@ public static class PrismaticProfileCompositionParser
             shaftHoles.Add(new(name, stableId, profileName, x, y, d, materialFrom, materialTo, semanticRole, sourceSpan));
             operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, materialFrom, materialTo, semanticRole, sourceSpan, stableId, "Hole<Shaft>", d));
         }
+        // Source order must not decide whether an intersecting shaft/counterbore
+        // pair is accepted.  Counterbores normally reject immediately against
+        // preceding shafts; this final symmetric check covers a shaft authored
+        // after a counterbore without changing the established shaft-only route.
+        foreach (var shaft in shaftHoles)
+        foreach (var counterbore in counterboreHoles)
+            if (CirclesTouchOrOverlap(shaft.CenterX, shaft.CenterY, shaft.Diameter / 2d, counterbore.CenterX, counterbore.CenterY, counterbore.CounterboreDiameter / 2d))
+                diagnostics.Add($"ComposeCounterboreIntersectsExistingCavity:{counterbore.Name}:shaft={shaft.Name}");
         foreach (Match header in SlotHeader.Matches(composeBody))
         {
             var name = header.Groups["n"].Value; var body = Block(composeBody, header.Index + header.Length - 1);
@@ -282,7 +335,7 @@ public static class PrismaticProfileCompositionParser
             }
         }
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills) : null;
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
     }
 
@@ -293,6 +346,37 @@ public static class PrismaticProfileCompositionParser
             names[i], new LineArcCircularArc2D((x, y), radius, i * Math.PI / 2d, Math.PI / 2d),
             new($"profile:{profileName}.Outer.{names[i]}", $"{holeStableId}.axis", sourceSpan, $"Hole<Shaft>({holeStableId})", "XY"))).ToArray();
         return new(profileName, "XY", [new ResolvedProfileLoop2D("Outer", true, segments)]);
+    }
+    private static bool CircleContainedInBaseProfile(IReadOnlyList<PrismaticProfileOperation> operations, IReadOnlyDictionary<string, ResolvedProfile2D> profiles, double x, double y, double radius)
+    {
+        var baseOperation = operations.SingleOrDefault(operation => operation.Intent == PrismaticProfileIntent.Base);
+        if (baseOperation is null || !profiles.TryGetValue(baseOperation.ProfileReference, out var profile) || ProfileArrangementBuilder.PointInProfile(profile, (x, y)) != ArrangementPointLocation.Inside) return false;
+        return profile.Loops.Single().Segments.All(segment => DistanceToCurve((x, y), segment.Geometry) > radius + 1e-8d);
+    }
+    private static bool IntersectsExistingCircularCavity(IReadOnlyList<PrismaticShaftHoleFeature> shafts, IReadOnlyList<PrismaticCounterboreHoleFeature> counterbores, double x, double y, double radius) =>
+        shafts.Any(hole => CirclesTouchOrOverlap(x, y, radius, hole.CenterX, hole.CenterY, hole.Diameter / 2d)) ||
+        counterbores.Any(hole => CirclesTouchOrOverlap(x, y, radius, hole.CenterX, hole.CenterY, hole.CounterboreDiameter / 2d));
+    private static bool CirclesTouchOrOverlap(double ax, double ay, double ar, double bx, double by, double br) => Math.Sqrt((ax - bx) * (ax - bx) + (ay - by) * (ay - by)) <= ar + br + 1e-8d;
+    private static double DistanceToCurve((double X, double Y) point, LineArcProfileCurve2D curve) => curve switch
+    {
+        LineArcLineSegment2D line => DistanceToSegment(point, line.Start, line.End),
+        LineArcCircularArc2D arc => DistanceToArc(point, arc),
+        _ => double.NaN
+    };
+    private static double DistanceToSegment((double X, double Y) point, (double X, double Y) start, (double X, double Y) end)
+    {
+        var dx = end.X - start.X; var dy = end.Y - start.Y; var lengthSquared = dx * dx + dy * dy;
+        var t = Math.Clamp(((point.X - start.X) * dx + (point.Y - start.Y) * dy) / lengthSquared, 0d, 1d);
+        return Math.Sqrt(Math.Pow(point.X - (start.X + t * dx), 2d) + Math.Pow(point.Y - (start.Y + t * dy), 2d));
+    }
+    private static double DistanceToArc((double X, double Y) point, LineArcCircularArc2D arc)
+    {
+        var dx = point.X - arc.Center.X; var dy = point.Y - arc.Center.Y; var radial = Math.Sqrt(dx * dx + dy * dy); var angle = Math.Atan2(dy, dx);
+        var delta = angle - arc.StartAngleRadians;
+        if (arc.SweepAngleRadians >= 0d) while (delta < 0d) delta += 2d * Math.PI; else while (delta > 0d) delta -= 2d * Math.PI;
+        if (delta / arc.SweepAngleRadians is >= -1e-8d and <= 1d + 1e-8d) return Math.Abs(radial - arc.Radius);
+        var a = (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians)); var b = (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians + arc.SweepAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians + arc.SweepAngleRadians));
+        return Math.Min(Math.Sqrt(Math.Pow(point.X - a.Item1, 2d) + Math.Pow(point.Y - a.Item2, 2d)), Math.Sqrt(Math.Pow(point.X - b.Item1, 2d) + Math.Pow(point.Y - b.Item2, 2d)));
     }
     private static ResolvedProfile2D CapsuleProfile(string profileName, double x, double y, double dx, double dy, double length, double width, string slotId, string sourceSpan)
     {

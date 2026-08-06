@@ -961,7 +961,7 @@ public static class FirmamentV2Parser
                 [feature.Name] = new FirmamentV2SolidBinding(feature.Name, "Compose", new FirmamentV2AdvancedMaterialRecord("Compose"))
             };
             var (compositionPmi, compositionPmiBlock, compositionBoundPmi) = ParsePmi(
-                source, compositionSolids, [], [], [], [], diagnostics, (feature.ShaftHoles ?? []).Select(hole => hole.Name));
+                source, compositionSolids, [], [], [], [], diagnostics, (feature.ShaftHoles ?? []).Select(hole => hole.Name).Concat((feature.CounterboreHoles ?? []).Select(hole => hole.Name)));
             if (Regex.IsMatch(body, @"\bEdgeFinish\b", RegexOptions.CultureInvariant)
                 && composition.Profiles.Values.Any(profile => profile.Loops.Single().Segments.Count != 4))
             {
@@ -2703,6 +2703,17 @@ public static class FirmamentV2Parser
             else if (source[i] == '}' && --depth == 0) return i;
         }
         return -1;
+    }
+
+    /// <summary>Exposes the canonical static-erasure boundary to inspection clients.
+    /// Materialization and inspection therefore observe identical generated feature identities.</summary>
+    public static bool TryExpandCanonicalStaticAuthoring(string source, out string expandedSource, out IReadOnlyList<string> diagnostics)
+    {
+        var collected = new List<string>();
+        var expanded = CanonicalStaticAuthoring.Expand(source, collected);
+        expandedSource = expanded?.Source ?? source;
+        diagnostics = collected.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        return expanded is not null;
     }
 
     private static string StripLineComments(string sourceText) => string.Join('\n', sourceText.Split('\n').Select(line =>

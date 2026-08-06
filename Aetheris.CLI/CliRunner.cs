@@ -687,7 +687,13 @@ public static class CliRunner
         if (!File.Exists(args[0])) { stderr.WriteLine($"Composition source was not found: {args[0]}"); return 1; }
         var total = Stopwatch.StartNew();
         var parseClock = Stopwatch.StartNew();
-        var parsed = PrismaticProfileCompositionParser.Parse(File.ReadAllText(args[0]));
+        var source = File.ReadAllText(args[0]);
+        if (!FirmamentV2Parser.TryExpandCanonicalStaticAuthoring(source, out var materializerSource, out var staticDiagnostics))
+        {
+            stderr.WriteLine(string.Join(Environment.NewLine, staticDiagnostics));
+            return 1;
+        }
+        var parsed = PrismaticProfileCompositionParser.Parse(materializerSource);
         parseClock.Stop(); var normalizeClock = Stopwatch.StartNew();
         var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
         normalizeClock.Stop();
@@ -705,6 +711,7 @@ public static class CliRunner
                 signatures = new { composition = CompositionSignature(stack), profiles = parsed.Profiles.OrderBy(x => x.Key, StringComparer.Ordinal).ToDictionary(x => x.Key, x => ProfileSignature(x.Value), StringComparer.Ordinal) },
                 operations = stack.Feature.Operations.Select(x => new { x.Name, intent = x.Intent.ToString(), profile = x.ProfileReference, x.From, x.To, x.SemanticRole, x.SourceSpan, x.SemanticFeatureId, x.SemanticFeatureKind, x.Diameter, signature = Hash($"{x.Intent}|{x.ProfileReference}|{x.From:R}|{x.To:R}|{x.SemanticRole}|{x.SemanticFeatureId}|{x.Diameter:R}") }),
                 shaftHoles = (stack.Feature.ShaftHoles ?? []).Select(x => new { x.Name, x.StableId, profile = x.ProfileReference, center = new[] { x.CenterX, x.CenterY }, x.Diameter, x.From, x.To, endCondition = "ThroughAll", x.SemanticRole, x.SourceSpan }),
+                counterboreHoles = (stack.Feature.CounterboreHoles ?? []).Select(x => new { x.Name, x.StableId, shaftProfile = x.ShaftProfileReference, counterboreProfile = x.CounterboreProfileReference, center = new[] { x.CenterX, x.CenterY }, x.Diameter, x.CounterboreDiameter, x.CounterboreDepth, x.From, x.To, endCondition = "ThroughAll", x.SemanticRole, x.SourceSpan }),
                 capsuleSlots = (stack.Feature.CapsuleSlots ?? []).Select(x => new { x.Name, x.StableId, kind = "Slot<Capsule>", profile = x.ProfileReference, center = new[] { x.CenterX, x.CenterY }, direction = new[] { x.DirectionX, x.DirectionY }, x.Length, x.Width, radius = x.Radius, straightSpan = x.StraightSpan, endCenters = new[] { new[] { x.CenterX - x.DirectionX * x.StraightSpan / 2d, x.CenterY - x.DirectionY * x.StraightSpan / 2d }, new[] { x.CenterX + x.DirectionX * x.StraightSpan / 2d, x.CenterY + x.DirectionY * x.StraightSpan / 2d } }, x.From, x.To, x.Extent, x.SemanticRole, x.SourceSpan, segments = parsed.Profiles[x.ProfileReference].Loops.Single().Segments.Select(s => s.Name) }),
                 roundedRectangleSlots = (stack.Feature.RoundedRectangleSlots ?? []).Select(x => new { x.Name, x.StableId, kind = "Slot<RoundedRectangle>", profile = x.ProfileReference, center = new[] { x.CenterX, x.CenterY }, direction = new[] { x.DirectionX, x.DirectionY }, x.Length, x.Width, x.CornerRadius, x.From, x.To, x.Extent, x.SemanticRole, x.SourceSpan, segments = parsed.Profiles[x.ProfileReference].Loops.Single().Segments.Select(s => s.Name) }),
                 criticalLevels = stack.Feature.CriticalLevels,
@@ -768,7 +775,7 @@ public static class CliRunner
                 expansion = parsed.Expansion,
                 timingsMilliseconds = new { parse = parseClock.Elapsed.TotalMilliseconds, normalize = normalizeClock.Elapsed.TotalMilliseconds, materialize = materializeClock.TotalMilliseconds, total = total.Elapsed.TotalMilliseconds },
                 executionBoundary = new { inspectionOnly = !materialize, bRepMaterialized = materialize, stepExported = false, m8Executed = false, cirExecuted = false },
-                diagnostics = emitted?.Diagnostics ?? stack.Diagnostics
+                diagnostics = staticDiagnostics.Concat(emitted?.Diagnostics ?? stack.Diagnostics).Distinct()
             }
         };
         stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));

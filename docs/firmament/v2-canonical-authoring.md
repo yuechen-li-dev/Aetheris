@@ -60,6 +60,21 @@ it binds to semantic features rather than raw topology IDs. See
 
 The currently proven low-ceremony production shape is one Box, one top-face ThroughAll shaft Hole, and one disjoint `+Z Boundary Chamfer`. It routes to `CombinedHoleEdgeFinish`, then authoritative STEP export and STEP reimport verification.
 
+### Profile/Compose holes
+
+An admitted prismatic `Profile`/`Compose` body supports deterministic
+Pattern-generated `Hole<Shaft>` features and a direct `Hole<Counterbore>` on
+its `+Z` entry face. The counterbore is currently `ThroughAll`, must have its
+full circular footprint inside the profile material, and must be disjoint from
+all other cavities. Profile/Compose bodies also use the normal `Pmi` export
+route. A complete L-bracket with Pattern shafts, Counterbore, Datum, and a
+toleranced diameter callout is maintained at
+`fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament`.
+
+Other Counterbore orientations/end conditions, touching or overlapping
+cavities, non-prismatic composition, and polygon-boundary EdgeFinish remain
+unsupported and diagnose explicitly.
+
 ## Advanced declarations in the same document
 
 Advanced source uses the same `Model { Units: mm }` root. Declarations may be

@@ -9,6 +9,63 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class PrismaticProfileCompositionRoundTripTests
 {
     [Fact]
+    public void LProfileCounterbore_UsesSteppedSectionPlanAndPublishesSemanticDescendants()
+    {
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket.firmament")))
+            .Replace("Base Stock { Profile: Bracket; From: 0mm; To: 12mm; Role: Stock }", """
+                Base Stock { Profile: Bracket; From: 0mm; To: 12mm; Role: Stock }
+                Hole<Counterbore> CounterboredMount {
+                    On: +Z
+                    Center: Point2(-30mm, -10mm)
+                    Diameter: 8mm
+                    CounterboreDiameter: 14mm
+                    CounterboreDepth: 4mm
+                    End: ThroughAll
+                }
+                """, StringComparison.Ordinal);
+        var parsed = PrismaticProfileCompositionParser.Parse(source);
+        Assert.Empty(parsed.Diagnostics);
+        var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
+        Assert.Empty(diagnostics);
+        var counterbore = Assert.Single(stack.Feature.CounterboreHoles!);
+        Assert.Equal(8d, counterbore.Diameter); Assert.Equal(14d, counterbore.CounterboreDiameter); Assert.Equal(4d, counterbore.CounterboreDepth);
+        Assert.Equal(27782.12398023691d, stack.AnalyticVolume, 8);
+        var emitted = PrismaticSectionStackEmitter.Emit(stack);
+        Assert.NotNull(emitted.Body); Assert.NotNull(emitted.Correspondence);
+        Assert.Contains(emitted.Correspondence!.Descendants, item => item.SourceStableId == counterbore.StableId && item.Role == SemanticTopologyRole.HoleCounterboreMouthLoop);
+        Assert.Contains(emitted.Correspondence.Descendants, item => item.SourceStableId == counterbore.StableId && item.Role == SemanticTopologyRole.HoleCounterboreWallFace);
+        Assert.Contains(emitted.Correspondence.Descendants, item => item.SourceStableId == counterbore.StableId && item.Role == SemanticTopologyRole.HoleCounterboreShoulderLoop);
+        Assert.Contains(emitted.Correspondence.Descendants, item => item.SourceStableId == counterbore.StableId && item.Role == SemanticTopologyRole.HoleCounterboreShaftWallFace);
+        Assert.Contains(emitted.Correspondence.Descendants, item => item.SourceStableId == counterbore.StableId && item.Role == SemanticTopologyRole.HoleExitLoop);
+    }
+
+    [Theory]
+    [InlineData("Point2(-20mm, 5mm) Diameter: 8mm CounterboreDiameter: 14mm CounterboreDepth: 4mm", "ComposeCounterboreFootprintLeavesProfileMaterial")]
+    [InlineData("Point2(-30mm, -10mm) Diameter: 8mm CounterboreDiameter: 14mm CounterboreDepth: 13mm", "ComposeCounterboreDepthExceedsHost")]
+    public void LProfileCounterbore_InvalidAdmission_IsTyped(string centerAndDimensions, string expected)
+    {
+        var source = """
+            Model InvalidCounterbore {
+                Units: mm
+                Concept Struct Layout On XY { Rect2 Stock { Center: [0mm, 0mm]; Size: [40mm, 20mm] } }
+                Profile Plate Using Layout { Loop Outer {
+                    Segment South { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
+                    Segment East { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+                    Segment North { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+                    Segment West { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+                } }
+                Struct Body { Compose Body {
+                    Base Stock { Profile: Plate; From: 0mm; To: 12mm; Role: Stock }
+                    Hole<Counterbore> Bad { On: +Z Center: CENTER Diameter: 8mm CounterboreDiameter: 14mm CounterboreDepth: 4mm End: ThroughAll }
+                } }
+            }
+            """.Replace("CENTER Diameter: 8mm CounterboreDiameter: 14mm CounterboreDepth: 4mm", centerAndDimensions, StringComparison.Ordinal);
+        var parsed = PrismaticProfileCompositionParser.Parse(source);
+        Assert.Null(parsed.Feature);
+        Assert.Contains(parsed.Diagnostics, diagnostic => diagnostic.StartsWith(expected, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void SemanticCapsuleSlot_LowersToExactProfileAndPublishesStableDescendants()
     {
         var source = File.ReadAllText(CompositionFixture(Path.Combine("valid", "semantic-capsule-slot-through.firmament")));

@@ -1,4 +1,6 @@
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Core.Brep.Verification;
+using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -302,6 +304,41 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
         finally
         {
             if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void CanonicalLProfilePatternCounterborePmi_ExportsDeterministicAp242AndReimports()
+    {
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament"));
+        var firstOutput = Path.Combine(Path.GetTempPath(), "aetheris-l-profile-counterbore-" + Guid.NewGuid().ToString("N") + ".step");
+        var secondOutput = Path.Combine(Path.GetTempPath(), "aetheris-l-profile-counterbore-" + Guid.NewGuid().ToString("N") + ".step");
+        try
+        {
+            var parse = FirmamentV2Parser.Parse(File.ReadAllText(path));
+            Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+            Assert.Equal(2, parse.Document!.Pmi!.Count);
+            var first = FirmamentBuildAndExport.Run(path, firstOutput);
+            var second = FirmamentBuildAndExport.Run(path, secondOutput);
+            Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(diagnostic => diagnostic.Message)));
+            Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(diagnostic => diagnostic.Message)));
+            Assert.Contains(first.Value.Export.DatumInspection!, datum => datum.Label == "A" && datum.Target == "face(+Z)");
+            Assert.Contains(first.Value.Export.DimensionInspection!, dimension => dimension.Target == "CounterboredMount" && dimension.Value == 8d);
+            var firstStep = File.ReadAllText(firstOutput); var secondStep = File.ReadAllText(secondOutput);
+            Assert.Equal(firstStep, secondStep);
+            Assert.Contains("firmament-datum:A", firstStep, StringComparison.Ordinal);
+            Assert.Contains("diameter:hole:BracketBody.CounterboredMount", firstStep, StringComparison.Ordinal);
+            Assert.Contains("diameter_tolerance:hole:BracketBody.CounterboredMount", firstStep, StringComparison.Ordinal);
+            var imported = Step242Importer.ImportBody(firstStep);
+            Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
+            var mass = BrepMassProperties.Evaluate(imported.Value);
+            Assert.True(mass.IsEnclosed); Assert.True(mass.IsOrientationConsistent);
+            Assert.InRange(Math.Abs(mass.AbsoluteVolume - (28800d - 540d * Math.PI)), 0d, 0.01d);
+        }
+        finally
+        {
+            if (File.Exists(firstOutput)) File.Delete(firstOutput);
+            if (File.Exists(secondOutput)) File.Delete(secondOutput);
         }
     }
 

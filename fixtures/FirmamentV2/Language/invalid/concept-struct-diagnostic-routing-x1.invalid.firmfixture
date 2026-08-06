@@ -1,10 +1,11 @@
 // fixture-id: concept-struct-diagnostic-routing-x1
+// case: concept-struct-diagnostic-routing-x1
 // category: Language
 // syntax-version: FirmamentV2
 // validity: invalid
 // implementation: parser-backed
 // expected: invalid
-// expected-stage: parser
+// expected-stage: parsed
 // expected-diagnostic: HoleLocalCenterInvalid
 // notes: V2-recognized Concept/Struct source with a malformed construction-plane hole and omitted Concept members.
 Concept BracketFrame {

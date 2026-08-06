@@ -96,7 +96,7 @@ public sealed class RestrictedContourSnapSelectionTests
 
     private static SurfaceTrimContourStitchResult BuildStitched(CirSubtractNode root, int resolution)
     {
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
         var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(resolution, resolution));
         var extraction = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);

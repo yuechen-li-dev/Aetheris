@@ -82,7 +82,7 @@ DATA;
 #75=LINE($,#72,#74);
 #76=EDGE_CURVE($,#65,#47,#75,.T.);
 #77=ORIENTED_EDGE($,$,$,#76,.F.);
-#78=EDGE_LOOP($,(#55,#63,#71,#77));
+#78=EDGE_LOOP($,(#77,#71,#63,#55));
 #79=FACE_OUTER_BOUND('',#78,.T.);
 #80=ADVANCED_FACE('',(#79),#45,.T.);
 #81=CARTESIAN_POINT($,(-20,-15,0));

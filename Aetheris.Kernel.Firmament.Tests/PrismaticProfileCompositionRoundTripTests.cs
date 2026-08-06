@@ -176,7 +176,7 @@ public sealed class PrismaticProfileCompositionRoundTripTests
         Assert.Empty(parsed.Diagnostics);
         var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
         Assert.Empty(diagnostics);
-        var top = Assert.Single(stack.Slabs.Where(x => x.From == 10d && x.To == 15d));
+        var top = Assert.Single(stack.Slabs, x => x.From == 10d && x.To == 15d);
         Assert.Equal(458.72298071147134d, PrismaticSectionStackCompiler.Area(top.Region), 8);
         Assert.NotNull(top.Arrangement);
         Assert.Equal(4, top.Region.Outer.Loops[0].Segments.Count(x => x.Geometry is LineArcCircularArc2D));
@@ -209,7 +209,7 @@ public sealed class PrismaticProfileCompositionRoundTripTests
         Assert.Empty(parsed.Diagnostics);
         var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
         Assert.Empty(diagnostics);
-        var top = Assert.Single(stack.Slabs.Where(x => x.From == 10d && x.To == 15d));
+        var top = Assert.Single(stack.Slabs, x => x.From == 10d && x.To == 15d);
         Assert.Equal(expectedTopArea, PrismaticSectionStackCompiler.Area(top.Region), 6);
         Assert.Equal(expectedHoles, top.Region.Holes.Count);
         Assert.NotNull(top.Arrangement);

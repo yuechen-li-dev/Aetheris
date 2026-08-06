@@ -7,10 +7,10 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
     [Theory]
     [InlineData(
         "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
-        "",
+        "importer-topology",
         "Topology.GraphValidator",
-        "Audit.None",
-        "No diagnostics.")]
+        "Importer.LoopRole.DisconnectedCoedges",
+        "Planar loop contains disconnected consecutive coedges")]
     [InlineData(
         "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
         null,

@@ -62,9 +62,10 @@ public static class ProfileStackExtrudeLab
             var cyl = new RecognizedCylinder(new Point3D(0,0,0), zAxis, l.InnerCircleRadius.Value, l.ZMin, l.ZMax);
             holes.Add(new SupportedBooleanHole(l.RoleName, new AnalyticSurface(AnalyticSurfaceKind.Cylinder, Cylinder: cyl), 0, 0, start, end, zAxis, xAxis, l.InnerCircleRadius.Value, l.InnerCircleRadius.Value, span, l.ZMin, l.ZMax));
             roles.Add($"InnerWall_Radius{l.InnerCircleRadius.Value:0.###}");
-            if (i > 0 && layers[i-1].InnerCircleRadius.HasValue && Math.Abs(layers[i-1].InnerCircleRadius.Value - l.InnerCircleRadius.Value) > 1e-9)
-                roles.Add($"Shoulder_R{layers[i-1].InnerCircleRadius.Value:0.###}_To_R{l.InnerCircleRadius.Value:0.###}");
-            if (i > 0 && !layers[i-1].InnerCircleRadius.HasValue) roles.Add("BlindBottomCap");
+            var previousRadius = i > 0 ? layers[i - 1].InnerCircleRadius : null;
+            if (previousRadius is { } previous && Math.Abs(previous - l.InnerCircleRadius.Value) > 1e-9)
+                roles.Add($"Shoulder_R{previous:0.###}_To_R{l.InnerCircleRadius.Value:0.###}");
+            if (i > 0 && previousRadius is null) roles.Add("BlindBottomCap");
         }
 
         composition = new SafeBooleanComposition(new AxisAlignedBoxExtents(-spec.Width/2, spec.Width/2, -spec.Depth/2, spec.Depth/2, spec.ZMin, spec.ZMax), holes, SafeBooleanRootDescriptor.FromBox(new AxisAlignedBoxExtents(-spec.Width/2, spec.Width/2, -spec.Depth/2, spec.Depth/2, spec.ZMin, spec.ZMax)));

@@ -54,17 +54,25 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
     }
 
     [Theory]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp")]
-    [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp")]
-    [InlineData("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp")]
-    public void Step242_CylinderLoopRole_ProjectionDiagnostics_AreDeterministic_AndExplicit(string relativePath)
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp", false)]
+    [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp", true)]
+    [InlineData("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", true)]
+    public void Step242_CylinderLoopRole_ProjectionDiagnostics_AreDeterministic_AndExplicit(string relativePath, bool expectDiagnostics)
     {
         var first = CaptureCylinderProjectionDiagnostics(relativePath);
         var second = CaptureCylinderProjectionDiagnostics(relativePath);
 
-        Assert.NotEmpty(first);
         Assert.Equal(first, second);
-        Assert.Contains(first, d => !string.Equals(d.Degeneracy, "None", StringComparison.Ordinal));
+        if (expectDiagnostics)
+        {
+            Assert.NotEmpty(first);
+            Assert.Contains(first, d => !string.Equals(d.Degeneracy, "None", StringComparison.Ordinal));
+        }
+        else
+        {
+            // This file is rejected by an earlier planar-bound safety check.
+            Assert.Empty(first);
+        }
     }
 
     [Theory]

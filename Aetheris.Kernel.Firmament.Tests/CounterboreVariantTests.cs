@@ -36,7 +36,7 @@ public sealed class CounterboreVariantTests
             new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)),
             new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(1, 0, -3))));
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
-        Assert.False(eval.Evidence.Contains("selected-variant:CounterboreVariant"));
+        Assert.DoesNotContain("selected-variant:CounterboreVariant", eval.Evidence);
         Assert.Contains("coaxial", string.Join("|", eval.EvaluationsFor(nameof(CounterboreVariant))).ToLowerInvariant());
     }
 

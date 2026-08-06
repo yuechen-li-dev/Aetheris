@@ -439,6 +439,17 @@ public static class Step242Importer
                 return KernelResult<BrepBody>.Failure(classifyResult.Diagnostics);
             }
 
+            // A face bound is authored topology.  Normalization may adjust
+            // winding/order, but it must never silently remove a declared loop
+            // (for example a closed single-edge circular bound whose sampling
+            // is currently outside the admitted normalization subset).
+            if (classifyResult.Value.Count != loopData.Count)
+            {
+                return Failure(
+                    $"FACE #{faceEntity.Id} normalization would discard {loopData.Count - classifyResult.Value.Count} declared bound(s); import is deferred until every bound can be represented.",
+                    "Importer.LoopRole.NormalizationDiscardedBound");
+            }
+
             foreach (var loop in classifyResult.Value)
             {
                 builder.AddLoop(new Loop(loop.LoopId, loop.Coedges.Select(c => c.Id).ToList()));

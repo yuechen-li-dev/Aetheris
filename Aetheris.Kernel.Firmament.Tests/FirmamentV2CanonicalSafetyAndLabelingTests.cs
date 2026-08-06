@@ -40,6 +40,29 @@ public sealed class FirmamentV2CanonicalSafetyAndLabelingTests
     }
 
     [Fact]
+    public void CanonicalHole_UnknownField_IsNeverDiscarded()
+    {
+        var parse = FirmamentV2Parser.Parse("""
+            Model Bad {
+              Units: mm
+              Box Base { Size: [10mm, 10mm, 10mm] }
+              Modify Base {
+                Hole<Shaft> Pilot {
+                  On: +Z
+                  Center: Point2(0mm, 0mm)
+                  Diameter: 5mm
+                  Unexpected: 1mm
+                  End: ThroughAll
+                }
+              }
+            }
+            """);
+
+        Assert.False(parse.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.CanonicalFieldUnknown, parse.Diagnostics);
+    }
+
+    [Fact]
     public void CanonicalInlineStepRecognitionAndReplacement_UseAnalysisFaceIds()
     {
         var fixture = Canonical("inline-step-recognize-replace.firmament");

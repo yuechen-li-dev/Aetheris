@@ -509,7 +509,11 @@ public static class CliRunner
             var parsedCompose = PrismaticProfileCompositionParser.Parse(source);
             var stack = PrismaticSectionStackCompiler.Normalize(parsedCompose, out var composeDiagnostics);
             var emittedCompose = stack is null ? null : PrismaticSectionStackEmitter.Emit(stack);
-            if (stack is null || emittedCompose?.Body is null || emittedCompose.Correspondence is null) { stderr.WriteLine(string.Join(Environment.NewLine, composeDiagnostics)); return 1; }
+            if (stack is null || emittedCompose is null || emittedCompose.Body is null || emittedCompose.Correspondence is null)
+            {
+                stderr.WriteLine(string.Join(Environment.NewLine, composeDiagnostics));
+                return 1;
+            }
             BlindDrillToolCorridorEvidence? corridor = null;
             var bridgeDiagnostics = Array.Empty<string>();
             if ((stack.Feature.ConstructionPlaneBlindDrills?.Count ?? 0) > 0)
@@ -532,24 +536,29 @@ public static class CliRunner
                     new("inspect:tip-vertex", "TipVertex", stack.Feature.Name, [corridor.HoleId], SemanticTopologyRole.HoleTipVertex, SemanticSelectionRequirement.ExactlyOne, "inspect-selections")
                 ]);
             }
-            var composeResults = composeRequests.Select(request => SemanticTopologySelectionResolver.Resolve(emittedCompose.Body, emittedCompose.Correspondence, request)).ToArray();
-            var mouthEdges = corridor is null ? [] : emittedCompose.Correspondence.Descendants
+            if (emittedCompose.Body is not { } composeBody || emittedCompose.Correspondence is not { } composeCorrespondence)
+            {
+                stderr.WriteLine("Composition materialization did not provide body/correspondence evidence.");
+                return 1;
+            }
+            var composeResults = composeRequests.Select(request => SemanticTopologySelectionResolver.Resolve(composeBody, composeCorrespondence, request)).ToArray();
+            var mouthEdges = corridor is null ? [] : composeCorrespondence.Descendants
                 .Where(x => x.SourceStableId == corridor.HoleId && x.Role == SemanticTopologyRole.TopBoundary && x.Edge is not null)
                 .Select(x => x.Edge!.Value).OrderBy(x => x.Value).ToArray();
             var mouthTopology = corridor is null ? null : new
             {
-                MouthOwnership = emittedCompose.Correspondence.ProvenanceChain.Contains("MultiFaceCoplanarMouth", StringComparer.Ordinal) ? "MultiFaceCoplanar" : "SingleFace",
+                MouthOwnership = composeCorrespondence.ProvenanceChain.Contains("MultiFaceCoplanarMouth", StringComparer.Ordinal) ? "MultiFaceCoplanar" : "SingleFace",
                 affectedHostFaceIds = emittedCompose.Plan?.TopologyPlan?.FaceMappings.Where(x => x.Kind == "HostFaceReplacement").Select(x => x.FaceId.Value).OrderBy(x => x).ToArray(),
-                planningSeam = emittedCompose.Correspondence.ProvenanceChain.Contains("ExactLineCircleSplit", StringComparer.Ordinal) ? "section-stack-internal" : null,
+                planningSeam = composeCorrespondence.ProvenanceChain.Contains("ExactLineCircleSplit", StringComparer.Ordinal) ? "section-stack-internal" : null,
                 mouthArcDescendants = mouthEdges.Select(x => x.Value),
                 intersectionVertices = emittedCompose.Plan?.TopologyPlan?.Topology.Edges.Where(x => mouthEdges.Contains(x.Id)).SelectMany(x => new[] { x.StartVertexId.Value, x.EndVertexId.Value }).Distinct().OrderBy(x => x).ToArray(),
                 semanticMouthLoopOrder = composeResults.Where(x => x.Request.Role == SemanticTopologyRole.HoleEntryLoop).SelectMany(x => x.OrderedChain).Select(x => x.StableId),
-                noCap = emittedCompose.Correspondence.ProvenanceChain.Contains("NoInternalCaps", StringComparer.Ordinal)
+                noCap = composeCorrespondence.ProvenanceChain.Contains("NoInternalCaps", StringComparer.Ordinal)
             };
             stdout.WriteLine(JsonSerializer.Serialize(new
             {
-                body = emittedCompose.Correspondence.BodyStableId,
-                selections = composeResults.Select(result => new { name = result.Request.Label, stableId = result.Request.StableId, sourceIdentities = result.Request.SourceStableIds, body = result.Request.BodyStableId, expectedShape = result.Request.Require.ToString(), topologyRole = result.Request.Role?.ToString(), succeeded = result.Succeeded, failure = result.Failure.ToString(), connectivity = new { result.IsConnected, result.IsClosed }, traversalOrder = result.OrderedChain.Select(x => x.StableId), materializedDescendants = result.Descendants.Select(x => new { x.StableId, x.Kind, role = x.Role.ToString(), x.SourceStableId, x.ParentStableId }), provenance = emittedCompose.Correspondence.ProvenanceChain, consumer = result.Request.Consumer, diagnostics = result.Diagnostics }),
+                body = composeCorrespondence.BodyStableId,
+                selections = composeResults.Select(result => new { name = result.Request.Label, stableId = result.Request.StableId, sourceIdentities = result.Request.SourceStableIds, body = result.Request.BodyStableId, expectedShape = result.Request.Require.ToString(), topologyRole = result.Request.Role?.ToString(), succeeded = result.Succeeded, failure = result.Failure.ToString(), connectivity = new { result.IsConnected, result.IsClosed }, traversalOrder = result.OrderedChain.Select(x => x.StableId), materializedDescendants = result.Descendants.Select(x => new { x.StableId, x.Kind, role = x.Role.ToString(), x.SourceStableId, x.ParentStableId }), provenance = composeCorrespondence.ProvenanceChain, consumer = result.Request.Consumer, diagnostics = result.Diagnostics }),
                 holeContract = corridor is null ? null : new
                 {
                     ValidationPolicy = corridor.ValidationPolicy.ToString(), corridor.HoleId, corridor.HostId, corridor.ConstructionPlaneId,
@@ -729,7 +738,33 @@ public static class CliRunner
                 }),
                 transitions = stack.Transitions.Select(x => new { x.Level, upwardRegionCount = x.UpwardRegions.Count, downwardRegionCount = x.DownwardRegions.Count, upwardArea = x.UpwardRegions.Sum(PrismaticSectionStackCompiler.Area), downwardArea = x.DownwardRegions.Sum(PrismaticSectionStackCompiler.Area) }),
                 analyticVolume = stack.AnalyticVolume,
-                materialization = materialize ? new { bRepStatus = mass?.Status.ToString(), bRepVolume = mass?.AbsoluteVolume, volumeDelta = mass is null ? (double?)null : mass.AbsoluteVolume - stack.AnalyticVolume, bRepErrorBound = mass?.ErrorBound, bRepEnclosed = mass?.IsEnclosed, bRepDiagnostics = mass?.Diagnostics, bRepPlan = emitted?.Plan } : null,
+                materialization = materialize ? new
+                {
+                    bRepStatus = mass?.Status.ToString(),
+                    bRepVolume = mass?.AbsoluteVolume,
+                    volumeDelta = mass is null ? (double?)null : mass.AbsoluteVolume - stack.AnalyticVolume,
+                    bRepErrorBound = mass?.ErrorBound,
+                    bRepEnclosed = mass?.IsEnclosed,
+                    bRepDiagnostics = mass?.Diagnostics,
+                    // The construction topology plan contains dictionaries keyed by
+                    // internal ID value objects.  Expose its public contract rather
+                    // than leaking an unserializable implementation graph.
+                    bRepPlan = emitted?.Plan is { } plan ? new
+                    {
+                        plan.Signature,
+                        plan.Vertices,
+                        plan.Edges,
+                        plan.Faces,
+                        plan.Policy,
+                        plan.Authoritative,
+                        correspondence = plan.Correspondence is { } correspondence ? new
+                        {
+                            correspondence.BodyStableId,
+                            descendantCount = correspondence.Descendants.Count,
+                            correspondence.ProvenanceChain
+                        } : null
+                    } : null
+                } : null,
                 expansion = parsed.Expansion,
                 timingsMilliseconds = new { parse = parseClock.Elapsed.TotalMilliseconds, normalize = normalizeClock.Elapsed.TotalMilliseconds, materialize = materializeClock.TotalMilliseconds, total = total.Elapsed.TotalMilliseconds },
                 executionBoundary = new { inspectionOnly = !materialize, bRepMaterialized = materialize, stepExported = false, m8Executed = false, cirExecuted = false },

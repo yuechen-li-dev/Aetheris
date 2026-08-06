@@ -21,7 +21,9 @@ public sealed class InspectComposeArrangementPolicyTests
         Assert.Equal("XY", placement.GetProperty("profilePlane").GetString());
         Assert.Equal("+Z", placement.GetProperty("axis").GetString());
         Assert.Equal("+X", placement.GetProperty("referenceDirection").GetString());
-        Assert.Equal("NumericalWithBound", composition.GetProperty("materialization").GetProperty("bRepStatus").GetString());
+        // The deterministic materializer now converges for this admitted CTC
+        // reconstruction; the bounded status was a conservative predecessor.
+        Assert.Equal("NumericalConverged", composition.GetProperty("materialization").GetProperty("bRepStatus").GetString());
         Assert.True(composition.GetProperty("materialization").GetProperty("bRepEnclosed").GetBoolean());
         var shoulder = Assert.Single(composition.GetProperty("transitions").EnumerateArray(), item => item.GetProperty("level").GetDouble() == -60d);
         Assert.Equal(2, shoulder.GetProperty("downwardRegionCount").GetInt32());

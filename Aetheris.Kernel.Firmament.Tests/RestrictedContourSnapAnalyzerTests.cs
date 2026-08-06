@@ -12,7 +12,7 @@ public sealed class RestrictedContourSnapAnalyzerTests
     {
         var stitched = BuildStitched(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 20)), 65);
         var result = RestrictedContourSnapAnalyzer.Analyze(stitched, new RestrictedContourSnapOptions(0.06d, 0.02d, 8));
-        var candidate = Assert.Single(result.Candidates.Where(c => c.Kind == RestrictedContourSnapKind.Circle && c.Status == RestrictedContourSnapStatus.Candidate));
+        var candidate = Assert.Single(result.Candidates, c => c.Kind == RestrictedContourSnapKind.Circle && c.Status == RestrictedContourSnapStatus.Candidate);
         var p = Assert.IsType<CircleSnapParameters2D>(candidate.Parameters);
         Assert.True(double.IsFinite(p.CenterU) && double.IsFinite(p.CenterV) && double.IsFinite(p.Radius));
         Assert.True(candidate.MaxError <= 0.06d);
@@ -72,7 +72,7 @@ public sealed class RestrictedContourSnapAnalyzerTests
 
     private static SurfaceTrimContourStitchResult BuildStitched(CirSubtractNode root, int resolution)
     {
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
         var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(resolution, resolution));
         var extraction = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);

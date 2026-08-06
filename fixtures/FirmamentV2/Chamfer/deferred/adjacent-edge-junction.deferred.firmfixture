@@ -1,4 +1,15 @@
 // fixture-id: chamfer-m6-adjacent-edge-junction
+// case: chamfer-m6-adjacent-edge-junction
+// category: Chamfer
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: not-implemented
+// expected-stage: deferred
+// expected-route: bounded-planar-replacement
+// expected-diagnostic: air-firmament-a1-feature-not-implemented
+// verification: deferred-no-geometry
+// source-provenance: FirmamentV2/Chamfer/deferred
 // semantic-target: two adjacent convex box edges meeting at one vertex
 // attempted-witness: two bounded planar replacement strips sharing a corner
 // expected-error-kind: CornerPolicyRequired

@@ -83,7 +83,7 @@ public sealed class TieredTrimRepresentationBuilderTests
 
     private static (SurfaceRestrictedField field, SurfaceTrimContourStitchResult stitched, RestrictedContourSnapSelectionResult selection) BuildSelection(CirSubtractNode root, int resolution, RestrictedContourSnapOptions options)
     {
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
         var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(resolution, resolution));
         var extraction = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);

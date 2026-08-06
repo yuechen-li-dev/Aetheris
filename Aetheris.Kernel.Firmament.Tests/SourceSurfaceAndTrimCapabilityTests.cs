@@ -22,7 +22,7 @@ public sealed class SourceSurfaceAndTrimCapabilityTests
     public void SourceSurfaceExtractor_Cylinder_ProducesSideAndCaps()
     {
         var result = SourceSurfaceExtractor.Extract(new CirCylinderNode(5, 20));
-        Assert.Single(result.Descriptors.Where(d => d.Family == SurfacePatchFamily.Cylindrical));
+        Assert.Single(result.Descriptors, d => d.Family == SurfacePatchFamily.Cylindrical);
         Assert.Equal(2, result.Descriptors.Count(d => d.Family == SurfacePatchFamily.Planar));
     }
 

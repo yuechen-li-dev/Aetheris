@@ -14,7 +14,7 @@ public sealed class SurfaceTrimContourStitcherTests
         var (field, grid) = CreateGrid(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 20)), 65);
         var extraction = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);
         var stitched = SurfaceTrimContourStitcher.Stitch(extraction);
-        Assert.True(stitched.Chains.Any(c => c.Status == SurfaceTrimContourChainStatus.ClosedLoop || c.Status == SurfaceTrimContourChainStatus.BoundaryTouching));
+        Assert.Contains(stitched.Chains, c => c.Status == SurfaceTrimContourChainStatus.ClosedLoop || c.Status == SurfaceTrimContourChainStatus.BoundaryTouching);
         Assert.False(stitched.AnalyticSnapImplemented);
         Assert.False(stitched.BRepTopologyImplemented);
         Assert.False(stitched.ExactExportAvailable);
@@ -77,7 +77,7 @@ public sealed class SurfaceTrimContourStitcherTests
 
     private static (SurfaceRestrictedField field, RestrictedFieldSampleGrid grid) CreateGrid(CirSubtractNode root, int resolution)
     {
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
         var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(resolution, resolution));
         return (field, grid);

@@ -102,7 +102,7 @@ public static class ProfileHoleExtrudeLab
         for(var i=0;i<holeCount;i++) faces.Add(b.AddFace([AddLoop(b,[Use.F(hbe[i]),Use.F(hse[i]),Use.R(hte[i]),Use.R(hse[i])])]));
         var shell=b.AddShell(faces); b.AddBody([shell]);
 
-        var g=new BrepGeometryStore(); var bind=new BrepBindingModel(); var vid=1;
+        var g=new BrepGeometryStore(); var bind=new BrepBindingModel();
         var map = new Dictionary<VertexId, Point3D>{ [ob[0]]=new(minX,minY,z0),[ob[1]]=new(maxX,minY,z0),[ob[2]]=new(maxX,maxY,z0),[ob[3]]=new(minX,maxY,z0),[ot[0]]=new(minX,minY,z1),[ot[1]]=new(maxX,minY,z1),[ot[2]]=new(maxX,maxY,z1),[ot[3]]=new(minX,maxY,z1)};
         for(var i=0;i<holeCount;i++) { var c=((LabAirFullCircle2D)profile.Loops[i+1].Curves[0]).Center; map[hb[i]]=new(c.X,c.Y,z0); map[ht[i]]=new(c.X,c.Y,z1);}        
         var cid=1;

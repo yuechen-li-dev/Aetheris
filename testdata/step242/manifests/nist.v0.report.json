@@ -17,7 +17,7 @@
       "edges": 318,
       "faces": 117
     },
-    "canonicalSha256": "c56643ed08ee10f315867cf7756b46f86b744c145396155dda8191f2f97ad40f"
+    "canonicalSha256": "70b81f913fbfcd2470f03fadaab75c7e1385cb145b300bb45ed7e0502d7cc6ea"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_02_asme1_ap242-e2",
@@ -37,7 +37,7 @@
       "edges": 1416,
       "faces": 637
     },
-    "canonicalSha256": "c00d653ea38f446a5119719214afad81cfc27742e4d80c56dc27d5e3a8551588"
+    "canonicalSha256": "12b8cc5499e28094507bd90012605c9a0b7677cd66960d0046cd204d9aca0343"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_03_asme1_ap242-e2",
@@ -57,7 +57,7 @@
       "edges": 354,
       "faces": 120
     },
-    "canonicalSha256": "336dadb01f46d843071ed78dae3d2bbbbba9cafa510c10390099a2f8d1e713d7"
+    "canonicalSha256": "e39cb5e626eb572f551ab801ecc089be5cc25640e244b21d7c58360de046e170"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_04_asme1_ap242-e1",
@@ -77,7 +77,7 @@
       "edges": 1110,
       "faces": 484
     },
-    "canonicalSha256": "2ccc48233a8de45b8154bf7c35754e803020cc6e575fe64c7bd77513d125dd45"
+    "canonicalSha256": "250007e628d5742616e77db2c8495c21e8c1eca35577413034fcf0a458487912"
   },
   {
     "fileId": "testdata_step242_nist_CTC_nist_ctc_05_asme1_ap242-e1",
@@ -97,7 +97,7 @@
       "edges": 331,
       "faces": 156
     },
-    "canonicalSha256": "394c7d0434c30bc3986fa70a26d6b912940131aba1f5ddeb6308898b8519de2f"
+    "canonicalSha256": "c30eb8028d00055309288a26473ddc889d367054f2c04aa21e9f8d1d2e445482"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_06_asme1_ap242-e2",
@@ -117,7 +117,7 @@
       "edges": 476,
       "faces": 187
     },
-    "canonicalSha256": "39168a6fcd993c3ef79803dba48047e9211eba0bd0cc13f9f948557f9af730b9"
+    "canonicalSha256": "249d33700e6147c9ef46982586f2e73c4efead2fd198c97491576d1ca1b4d1ce"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_07_asme1_ap242-e2",
@@ -137,7 +137,7 @@
       "edges": 871,
       "faces": 306
     },
-    "canonicalSha256": "0599b5266b4a1523701b34eb7977be9a3ba144e1d2599c13f2cd5170b2e2a88f"
+    "canonicalSha256": "691cdee6d02b3a0a29a6b614f951f39b013b9936faccb19a3c2c5a4984ed0106"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e1-tg",
@@ -163,21 +163,21 @@
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
     "sizeBytes": 4658022,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "ValidationFailed",
+      "source": "Importer.LoopRole.DisconnectedCoedges",
+      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=1, outerLoopId=2, out"
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 396,
-      "edges": 616,
-      "faces": 247
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
     },
-    "canonicalSha256": "b0f4a56ee2ea8d2a5e9d3b32fa3041e01d2825e7bc36af8e22b7edb0502ec938"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_09_asme1_ap242-e1",
@@ -197,7 +197,7 @@
       "edges": 458,
       "faces": 159
     },
-    "canonicalSha256": "f4dc90d4a849bf7778ab6d9fd2d45f50c55f9d4d50ddfe4556a454cbe012f23f"
+    "canonicalSha256": "80941aab7258adfbfb94cd517c4ad867de7ff9d98c8aca7870d06018c2c514e5"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_10_asme1_ap242-e2",
@@ -217,7 +217,7 @@
       "edges": 813,
       "faces": 268
     },
-    "canonicalSha256": "7d3eda9550f27b2c9d5229d435200b9c552384ccd2b2c8d6be87d0a5655b78fb"
+    "canonicalSha256": "4e62d75d9664ecb1e18b35ad568bccb796722b2a0a1fde177b287315b0fe8557"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_11_asme1_ap242-e2",
@@ -237,7 +237,7 @@
       "edges": 104,
       "faces": 42
     },
-    "canonicalSha256": "05b618f7b192f9f6f166e17459acb939198393d20575c6086041126fc03ef514"
+    "canonicalSha256": "c46e656c14c16d654de70466d8d46e74ad2fbed7a2656d8bcc9b5a481f657057"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_06_asme1_ap242-e3",
@@ -257,27 +257,27 @@
       "edges": 310,
       "faces": 144
     },
-    "canonicalSha256": "9c917fed9e48e56f140f40b801fc03f422310c42554d0f76a025f8ac12bc991a"
+    "canonicalSha256": "8e0daeafe397071cee6cdf66a2bac31540ee7f2f2b5b6d12a7c17fa745ce4607"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_07_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_07_asme1_ap242-e3.stp",
     "sizeBytes": 1927905,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "ValidationFailed",
+      "source": "Importer.LoopRole.DisconnectedCoedges",
+      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=328, outerLoopId=326,"
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 588,
-      "edges": 871,
-      "faces": 306
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
     },
-    "canonicalSha256": "f8f34487da856af92a04ff8ba6668b52385b775146925545a736a36daea04d95"
+    "canonicalSha256": null
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_08_asme1_ap242-e3",
@@ -297,7 +297,7 @@
       "edges": 709,
       "faces": 271
     },
-    "canonicalSha256": "099a817faed86c6fceda4dfbe2651c0933cbb9108013c5259be180c6f5d330e7"
+    "canonicalSha256": "a25bbc064988e1571361429d902381bb558ea7d41c2b81f49fdf045d62439c48"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_09_asme1_ap242-e3",
@@ -317,26 +317,26 @@
       "edges": 392,
       "faces": 125
     },
-    "canonicalSha256": "45cb9001870381ee9857f6d246f072f50f7e34388e890581da0554a6d7d77aa9"
+    "canonicalSha256": "15cf7899a516c678e2beba1c3eebc03cc5a083e8e09ec121a8dc1b8ffebd8902"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_10_asme1_ap242-e2",
     "path": "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
     "sizeBytes": 4807322,
-    "status": "success",
-    "firstFailureLayer": "",
+    "status": "importFail",
+    "firstFailureLayer": "importer-topology",
     "firstDiagnostic": {
-      "code": "Unknown",
-      "source": "Audit.None",
-      "messagePrefix": "No diagnostics."
+      "code": "ValidationFailed",
+      "source": "Importer.LoopRole.DisconnectedCoedges",
+      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=4, outerLoopId=2, out"
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 368,
-      "edges": 551,
-      "faces": 256
+      "vertices": 0,
+      "edges": 0,
+      "faces": 0
     },
-    "canonicalSha256": "785d546333d36481638b69be9c210d00295cc5207499ef9d654ef0ad81058683"
+    "canonicalSha256": null
   }
 ]

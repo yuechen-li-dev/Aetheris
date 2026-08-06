@@ -17,7 +17,7 @@ public sealed class FirmamentV2ParserTests
         Assert.Equal("mm", document.Units);
         Assert.Equal("base", document.Solid.Name);
         Assert.Equal("Box", document.Solid.RecordType);
-        Assert.Equal([10, 8, 6], document.Solid.Box.Size);
+        Assert.Equal([10, 8, 6], Box(document.Solid).Size);
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public sealed class FirmamentV2ParserTests
         Assert.Equal(2, document.Solids.Count);
         Assert.Equal("base", document.Solids[0].Name);
         Assert.Equal("Box", document.Solids[0].RecordType);
-        Assert.Equal([10, 8, 6], document.Solids[0].Box.Size);
+        Assert.Equal([10, 8, 6], Box(document.Solids[0]).Size);
         Assert.Equal("tall", document.Solids[1].Name);
         Assert.Equal("base", document.Solids[1].DerivedFrom);
         Assert.Equal([10, 8, 12], document.Solids[1].Overrides!["size"]);
@@ -100,8 +100,9 @@ public sealed class FirmamentV2ParserTests
     {
         var result = FirmamentV2Parser.Parse(Source("RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture"));
         Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
-        Assert.Equal([10, 8, 6], result.Document!.Solids.Single(s => s.Name == "base").Box.Size);
-        Assert.Equal([10, 8, 12], result.Document.Solids.Single(s => s.Name == "tall").Box.Size);
+        var document = Assert.IsType<FirmamentV2Document>(result.Document);
+        Assert.Equal([10, 8, 6], Box(document.Solids.Single(s => s.Name == "base")).Size);
+        Assert.Equal([10, 8, 12], Box(document.Solids.Single(s => s.Name == "tall")).Size);
     }
 
 
@@ -246,7 +247,7 @@ model AliasFailure {
     {
         var result = FirmamentV2Parser.Parse(Source("SemanticRefs/valid/named-box-faces-v2.valid.firmfixture"));
         Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
-        var exposures = result.Document!.Solid.Box.Exposures;
+        var exposures = Box(Assert.IsType<FirmamentV2Document>(result.Document).Solid).Exposures;
         Assert.Equal(4, exposures.Count);
         Assert.Equal(["top", "bottom", "right", "topRim"], exposures.Select(e => e.Alias).ToArray());
         Assert.Equal("FaceRef", exposures.Single(e => e.Alias == "top").RefType);
@@ -292,7 +293,7 @@ model AliasFailure {
         Assert.Equal("SideHoleV2", document.ModelName);
         Assert.Equal("mm", document.Units);
         Assert.Equal("base", document.Solid.Name);
-        Assert.Equal([10, 8, 6], document.Solid.Box.Size);
+        Assert.Equal([10, 8, 6], Box(document.Solid).Size);
         var modify = Assert.Single(document.ModifyBlocks!);
         Assert.Equal("base", modify.TargetSolid);
         var region = Assert.Single(modify.Regions);
@@ -478,8 +479,8 @@ model AliasFailure {
     public void FirmamentV2SideHoleReverseX_ParsesAliasReverseRoute()
     {
         var doc = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-aliases-reverse-x-v2.valid.firmfixture")).Document!;
-        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "left" && e.Selector == "face(-X)");
-        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "right" && e.Selector == "face(+X)");
+        Assert.Contains(Box(doc.Solid).Exposures, e => e.Alias == "left" && e.Selector == "face(-X)");
+        Assert.Contains(Box(doc.Solid).Exposures, e => e.Alias == "right" && e.Selector == "face(+X)");
         var region = Assert.Single(Assert.Single(doc.ModifyBlocks!).Regions);
         Assert.Equal("left", region.Attachment.Source);
         Assert.Equal("face(-X)", region.Attachment.ResolvedSelector);
@@ -514,8 +515,8 @@ model AliasFailure {
     public void FirmamentV2SideHoleAliases_ParsesExposeAndAliasTargets()
     {
         var doc = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-aliases-v2.valid.firmfixture")).Document!;
-        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "right" && e.Selector == "face(+X)");
-        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "left" && e.Selector == "face(-X)");
+        Assert.Contains(Box(doc.Solid).Exposures, e => e.Alias == "right" && e.Selector == "face(+X)");
+        Assert.Contains(Box(doc.Solid).Exposures, e => e.Alias == "left" && e.Selector == "face(-X)");
         var region = Assert.Single(Assert.Single(doc.ModifyBlocks!).Regions);
         Assert.Equal("right", region.Attachment.Source);
         Assert.Equal("Alias", region.Attachment.Kind);
@@ -609,8 +610,8 @@ model AliasFailure {
     public void FirmamentV2SideHoleYAxis_ParsesAliasYRoute()
     {
         var doc = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-aliases-y-axis-v2.valid.firmfixture")).Document!;
-        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "front" && e.Selector == "face(+Y)");
-        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "back" && e.Selector == "face(-Y)");
+        Assert.Contains(Box(doc.Solid).Exposures, e => e.Alias == "front" && e.Selector == "face(+Y)");
+        Assert.Contains(Box(doc.Solid).Exposures, e => e.Alias == "back" && e.Selector == "face(-Y)");
         var intent = doc.SideHoleIntent!;
         Assert.Equal("front", intent.AttachTargetSource);
         Assert.Equal("back", intent.ThroughTargetSource);
@@ -676,8 +677,8 @@ model AliasFailure {
     public void FirmamentV2SideHoleZAxis_ParsesAliasZRoute()
     {
         var doc = FirmamentV2Parser.Parse(Source("Region/valid/side-hole-aliases-z-axis-v2.valid.firmfixture")).Document!;
-        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "top" && e.Selector == "face(+Z)");
-        Assert.Contains(doc.Solid.Box.Exposures, e => e.Alias == "bottom" && e.Selector == "face(-Z)");
+        Assert.Contains(Box(doc.Solid).Exposures, e => e.Alias == "top" && e.Selector == "face(+Z)");
+        Assert.Contains(Box(doc.Solid).Exposures, e => e.Alias == "bottom" && e.Selector == "face(-Z)");
         var region = Assert.Single(Assert.Single(doc.ModifyBlocks!).Regions);
         Assert.Equal("top", region.Attachment.Source);
         Assert.Equal("face(+Z)", region.Attachment.ResolvedSelector);
@@ -1316,7 +1317,7 @@ model:
         var bound = result.Document!.BoundPmi!;
         Assert.Single(bound.Datums);
         Assert.Equal("A", bound.Datums[0].Name);
-        var diameter = Assert.Single(bound.Dimensions.Where(d => d.Kind == FirmamentV2PmiKind.HoleDiameter));
+        var diameter = Assert.Single(bound.Dimensions, d => d.Kind == FirmamentV2PmiKind.HoleDiameter);
         Assert.Equal(6.0d, diameter.DimensionValue!.NumericValue);
         AssertTolerance(diameter.DimensionTolerance, FirmamentV2ToleranceKind.Bilateral, 0.05d, 0.05d, "mm");
         Assert.Contains(bound.Controls, c => c.Kind == FirmamentV2PmiKind.Flatness && c.ControlTolerance!.NumericValue!.Value == 0.03d);
@@ -1389,6 +1390,8 @@ model:
         Assert.Contains(FirmamentV2Parser.PmiDuplicateRecord, duplicate.Diagnostics);
         Assert.Contains(FirmamentV2Parser.PmiDuplicateDatum, duplicate.Diagnostics);
     }
+
+    private static FirmamentV2BoxRecord Box(FirmamentV2SolidBinding solid) => Assert.IsType<FirmamentV2BoxRecord>(solid.Box);
 
     private static void AssertLet(FirmamentV2BoundLet actual, string name, FirmamentV2PrimitiveType type, object value, string? unit)
     {

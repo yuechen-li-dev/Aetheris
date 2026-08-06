@@ -1,0 +1,66 @@
+{
+  "milestone": "PREVIEW1-BASELINE-STABILIZATION-X1",
+  "status": "meaningful-progression",
+  "generatedFrom": "local validation on 2026-08-06",
+  "testMatrix": {
+    "core": { "passed": 994, "failed": 0, "skipped": 0 },
+    "firmament": { "passed": 916, "failed": 0, "skipped": 0 },
+    "cli": { "passed": 336, "failed": 0, "skipped": 0 },
+    "server": { "passed": 41, "failed": 0, "skipped": 0 }
+  },
+  "build": {
+    "restore": "passed",
+    "net10Build": "passed",
+    "aetherisOwnedTouchedWarnings": 0,
+    "cleanRebuildWarnings": 0,
+    "externalDependencyAdvisories": 0,
+    "frictionLabWarnings": 0,
+    "firmamentTestWarnings": 0
+  },
+  "admittedCanonicalCoverage": [
+    "bare primitives", "Hole", "Counterbore", "Countersink", "blind DrillPoint",
+    "Slot", "EdgeFinish", "Hole plus EdgeFinish", "Construction Plane", "Profile",
+    "Compose", "composed-host blind Hole", "Selection", "Template", "Pattern",
+    "Match", "Require", "InlineStep", "Recognize", "Replace"
+  ],
+  "unsupportedImportCases": [
+    {
+      "fixtures": ["FTC08", "STC07", "STC10"],
+      "diagnostic": "Importer.LoopRole.DisconnectedCoedges",
+      "policy": "typed-rejection-no-partial-topology"
+    }
+  ],
+  "deferredFixtures": [
+    {
+      "id": "adjacent-edge-junction",
+      "route": "bounded-planar-replacement",
+      "diagnostic": "air-firmament-a1-feature-not-implemented"
+    },
+    {
+      "id": "rectangular-pocket-inner-rim",
+      "route": "section-transition-with-holes",
+      "diagnostic": "air-firmament-a1-feature-not-implemented"
+    },
+    {
+      "id": "single-straight-convex-edge",
+      "route": "localized-planar-replacement",
+      "diagnostic": "air-firmament-a1-feature-not-implemented"
+    }
+  ],
+  "determinism": {
+    "nistAuditSnapshot": "byte-stable consecutive run verified",
+    "declaredFaceBounds": "four circular bounds retained in source order",
+    "analysisFaceIds": "sequential IDs retain raw STEP correspondence"
+  },
+  "remainingReleaseGates": [
+    "Complete table-driven declaration-loss and unknown-field coverage for all canonical families.",
+    "Maintain the zero-warning and zero-advisory baseline through dependency updates."
+  ],
+  "dependencyAdvisories": {
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "allHaveNpmAuditFix": true
+  }
+}

@@ -150,9 +150,9 @@ public sealed class Step242ConicalSurfaceRegressionTests
         "No diagnostics.")]
     [InlineData(
         "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
-        "",
-        "Audit.None",
-        "No diagnostics.")]
+        "importer-topology",
+        "Importer.LoopRole.DisconnectedCoedges",
+        "Planar loop contains disconnected consecutive coedges")]
     public void Step242_NistTargets_AdvancePastCircleTrim_AndKeepDeterministicNextBlocker(
         string relativePath,
         string expectedLayer,

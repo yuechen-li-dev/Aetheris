@@ -481,7 +481,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
         var extraction = SourceSurfaceExtractor.Extract(new CirBoxNode(10, 6, 4));
         var planar = extraction.Descriptors.Where(d => d.Family == SurfacePatchFamily.Planar && d.OwningCirNodeKind == nameof(CirBoxNode)).ToArray();
         Assert.Equal(6, planar.Length);
-        Assert.Equal(["top", "bottom", "left", "right", "front", "back"], planar.Select(d => d.ParameterPayloadReference).ToArray());
+        Assert.Equal(["top", "bottom", "left", "right", "front", "back"], planar.Select(d => Assert.IsType<string>(d.ParameterPayloadReference)).ToArray());
         Assert.All(planar, d => Assert.NotNull(d.BoundedPlanarGeometry));
         Assert.All(planar, d =>
         {
@@ -497,12 +497,12 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     public void SourceSurfaceExtractor_CylinderCaps_HaveCircularBoundedGeometry()
     {
         var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(5, 20));
-        Assert.Single(extraction.Descriptors.Where(d => d.Family == SurfacePatchFamily.Cylindrical));
+        Assert.Single(extraction.Descriptors, d => d.Family == SurfacePatchFamily.Cylindrical);
         var caps = extraction.Descriptors.Where(d => d.Family == SurfacePatchFamily.Planar && d.ParameterPayloadReference is "cap-top" or "cap-bottom").ToArray();
         Assert.Equal(2, caps.Length);
 
-        var top = Assert.Single(caps.Where(c => c.ParameterPayloadReference == "cap-top"));
-        var bottom = Assert.Single(caps.Where(c => c.ParameterPayloadReference == "cap-bottom"));
+        var top = Assert.Single(caps, c => c.ParameterPayloadReference == "cap-top");
+        var bottom = Assert.Single(caps, c => c.ParameterPayloadReference == "cap-bottom");
         Assert.Equal(BoundedPlanarPatchGeometryKind.Circle, top.BoundedPlanarGeometry!.Value.Kind);
         Assert.Equal(BoundedPlanarPatchGeometryKind.Circle, bottom.BoundedPlanarGeometry!.Value.Kind);
         Assert.Equal(new Point3D(0, 0, 10), top.BoundedPlanarGeometry!.Value.Center);
@@ -518,8 +518,8 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     {
         var node = new CirTransformNode(new CirCylinderNode(5, 20), Transform3D.CreateTranslation(new Vector3D(2, -3, 7)));
         var extraction = SourceSurfaceExtractor.Extract(node);
-        var top = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-top"));
-        var bottom = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-bottom"));
+        var top = Assert.Single(extraction.Descriptors, c => c.ParameterPayloadReference == "cap-top");
+        var bottom = Assert.Single(extraction.Descriptors, c => c.ParameterPayloadReference == "cap-bottom");
         Assert.Equal(new Point3D(2, -3, 17), top.BoundedPlanarGeometry!.Value.Center);
         Assert.Equal(new Point3D(2, -3, -3), bottom.BoundedPlanarGeometry!.Value.Center);
         Assert.Equal(5d, top.BoundedPlanarGeometry!.Value.Radius, 8);
@@ -530,7 +530,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     public void SourceSurfaceExtractor_CylinderSide_HasCylindricalEvidence()
     {
         var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(5, 20));
-        var side = Assert.Single(extraction.Descriptors.Where(d => d.Family == SurfacePatchFamily.Cylindrical));
+        var side = Assert.Single(extraction.Descriptors, d => d.Family == SurfacePatchFamily.Cylindrical);
         var evidence = Assert.IsType<CylindricalSurfaceGeometryEvidence>(side.CylindricalGeometryEvidence!.Value);
         Assert.Equal(new Point3D(0, 0, -10), evidence.AxisOrigin);
         Assert.Equal(5d, evidence.Radius, 8);
@@ -543,7 +543,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     public void SourceSurfaceExtractor_CylinderSide_TranslationTransform_PreservesEvidence()
     {
         var extraction = SourceSurfaceExtractor.Extract(new CirTransformNode(new CirCylinderNode(5, 20), Transform3D.CreateTranslation(new Vector3D(2, -3, 7))));
-        var side = Assert.Single(extraction.Descriptors.Where(d => d.Family == SurfacePatchFamily.Cylindrical));
+        var side = Assert.Single(extraction.Descriptors, d => d.Family == SurfacePatchFamily.Cylindrical);
         var evidence = Assert.IsType<CylindricalSurfaceGeometryEvidence>(side.CylindricalGeometryEvidence!.Value);
         Assert.Equal(new Point3D(2, -3, -3), evidence.AxisOrigin);
         Assert.Equal(new Point3D(2, -3, -3), evidence.BottomCenter);
@@ -555,7 +555,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     public void PlanarPayloadBuilder_RejectsCircularCapGeometry()
     {
         var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(3, 8));
-        var top = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-top"));
+        var top = Assert.Single(extraction.Descriptors, c => c.ParameterPayloadReference == "cap-top");
         var success = PlanarPatchPayloadBuilder.TryBuildRectanglePayload(top, out _, out var diagnostic);
         Assert.False(success);
         Assert.Contains("circular planar cap emission is deferred", diagnostic, StringComparison.OrdinalIgnoreCase);
@@ -565,7 +565,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     public void PlanarSurfaceMaterializer_CylinderTopCap_FromSourceSurface_EmitsCircularTopology()
     {
         var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(3, 8));
-        var top = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-top"));
+        var top = Assert.Single(extraction.Descriptors, c => c.ParameterPayloadReference == "cap-top");
 
         var patch = new FacePatchDescriptor(top, [], [], FacePatchOrientationRole.Forward, "outer", []);
         var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
@@ -591,7 +591,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     public void PlanarSurfaceMaterializer_CylinderBottomCap_FromSourceSurface_EmitsCircularTopology()
     {
         var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(3, 8));
-        var bottom = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-bottom"));
+        var bottom = Assert.Single(extraction.Descriptors, c => c.ParameterPayloadReference == "cap-bottom");
 
         var patch = new FacePatchDescriptor(bottom, [], [], FacePatchOrientationRole.Reversed, "outer", []);
         var readiness = new MaterializationReadinessReport(true, EmissionReadiness.EvidenceReadyForEmission, [], [], 1, 1, 1, 0, 0, 0, 0, [], false);
@@ -609,7 +609,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     public void PlanarSurfaceMaterializer_RejectsCircularCap_WhenReadinessDeferred()
     {
         var extraction = SourceSurfaceExtractor.Extract(new CirCylinderNode(3, 8));
-        var top = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-top"));
+        var top = Assert.Single(extraction.Descriptors, c => c.ParameterPayloadReference == "cap-top");
 
         var patch = new FacePatchDescriptor(top, [], [], FacePatchOrientationRole.Forward, "outer", []);
         var readiness = new MaterializationReadinessReport(true, EmissionReadiness.Deferred, [EmissionBlockingReason.TopologyPlanning], [], 1, 1, 1, 0, 0, 0, 0, [], false);
@@ -626,7 +626,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     {
         var nonUniformScale = Transform3D.CreateScale(new Vector3D(2d, 1d, 1d));
         var extraction = SourceSurfaceExtractor.Extract(new CirTransformNode(new CirCylinderNode(3, 8), nonUniformScale));
-        var top = Assert.Single(extraction.Descriptors.Where(c => c.ParameterPayloadReference == "cap-top"));
+        var top = Assert.Single(extraction.Descriptors, c => c.ParameterPayloadReference == "cap-top");
 
         Assert.Null(top.BoundedPlanarGeometry);
         Assert.Contains(extraction.Diagnostics, d => d.Code == "cylinder-cap-circular-geometry-deferred");
@@ -642,7 +642,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     public void PlanarPayloadBuilder_BoxTopFace_DerivesRect3d()
     {
         var extraction = SourceSurfaceExtractor.Extract(new CirBoxNode(10, 6, 4));
-        var top = Assert.Single(extraction.Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var top = Assert.Single(extraction.Descriptors, d => d.ParameterPayloadReference == "top");
         var success = PlanarPatchPayloadBuilder.TryBuildRectanglePayload(top, out _, out var diagnostic);
         Assert.True(success);
         Assert.Contains("derived rect3d payload from bounded planar source geometry", diagnostic, StringComparison.OrdinalIgnoreCase);
@@ -652,7 +652,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
     public void PlanarSurfaceMaterializer_BoxTopFace_FromSourceSurface_EmitsTopology()
     {
         var extraction = SourceSurfaceExtractor.Extract(new CirBoxNode(10, 6, 4));
-        var top = Assert.Single(extraction.Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var top = Assert.Single(extraction.Descriptors, d => d.ParameterPayloadReference == "top");
         var ready = PlanarPatchPayloadBuilder.TryBuildRectanglePayload(top, out var payload, out var payloadDiagnostic);
         Assert.True(ready);
         Assert.StartsWith("rect3d:", payload);
@@ -728,7 +728,7 @@ public sealed class SurfacePatchDescriptorScaffoldTests
             .Candidates
             .First(c => c.RetentionRole == FacePatchRetentionRole.BaseBoundaryRetainedOutsideTool && c.SourceSurface.Family == SurfacePatchFamily.Planar);
 
-        var circle = Assert.Single(candidate.RetainedRegionLoops.Where(l => l.OppositeSurfaceFamily == SurfacePatchFamily.Cylindrical && l.CircularGeometry is not null));
+        var circle = Assert.Single(candidate.RetainedRegionLoops, l => l.OppositeSurfaceFamily == SurfacePatchFamily.Cylindrical && l.CircularGeometry is not null);
         Assert.Equal(2d, circle.CircularGeometry!.Value.Radius, 8);
         Assert.Contains(candidate.Diagnostics, d => d.Contains("loop-geometry-bind-success", StringComparison.OrdinalIgnoreCase));
     }

@@ -1,4 +1,15 @@
 // fixture-id: chamfer-m6-single-straight-convex-edge
+// case: chamfer-m6-single-straight-convex-edge
+// category: Chamfer
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: not-implemented
+// expected-stage: deferred
+// expected-route: localized-planar-replacement
+// expected-diagnostic: air-firmament-a1-feature-not-implemented
+// verification: deferred-no-geometry
+// source-provenance: FirmamentV2/Chamfer/deferred
 // semantic-target: shared edge between history-known +X and +Z box faces
 // attempted-witness: retained face regions + bounded diagonal support plane + two trim boundaries
 // expected-error-kind: MissingConstructionWitness

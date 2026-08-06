@@ -65,7 +65,7 @@ public sealed class LocalFrameHoleBRepPlanTests
         Assert.Contains(plan.Topology.Surfaces, s => s.Geometry.Cylinder is { } c && Math.Abs(c.Axis.ToVector().X - 1d) < 1e-12 && Math.Abs(c.Radius - 4d) < 1e-12);
         Assert.Contains(plan.Correspondence.Descendants, d => d.Role == SemanticTopologyRole.HoleEntryLoop);
         Assert.Contains(plan.Correspondence.Descendants, d => d.Role == SemanticTopologyRole.HoleExitLoop);
-        Assert.NotEmpty(plan.Correspondence.Descendants.Where(d => d.Role == SemanticTopologyRole.HoleWallFace));
+        Assert.Contains(plan.Correspondence.Descendants, d => d.Role == SemanticTopologyRole.HoleWallFace);
 
         var mass = BrepMassProperties.Evaluate(result.Body!);
         Assert.True(mass.IsEnclosed);

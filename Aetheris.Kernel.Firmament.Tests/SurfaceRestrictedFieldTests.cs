@@ -12,7 +12,7 @@ public sealed class SurfaceRestrictedFieldTests
     public void RestrictedFieldGrid_BoxFaceVsCylinder_HasMixedCells()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 20));
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
 
         var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(17, 17));
@@ -28,7 +28,7 @@ public sealed class SurfaceRestrictedFieldTests
     public void RestrictedFieldGrid_BoxFaceVsSphere_HasMixedCells()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6));
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
 
         var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(17, 17));
@@ -39,7 +39,7 @@ public sealed class SurfaceRestrictedFieldTests
     public void RestrictedFieldGrid_BoxFaceVsTorus_SamplesAndReportsMixedOrDeferred()
     {
         var root = new CirSubtractNode(new CirBoxNode(12, 12, 12), new CirTorusNode(4, 1));
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
 
         var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(17, 17));
@@ -52,7 +52,7 @@ public sealed class SurfaceRestrictedFieldTests
     public void RestrictedFieldGrid_DeterministicOrdering()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6));
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
 
         var a = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(17, 17));
@@ -68,7 +68,7 @@ public sealed class SurfaceRestrictedFieldTests
     public void RestrictedFieldGrid_InvalidResolution_Rejected(int u, int v)
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6));
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
 
         Assert.Throws<ArgumentOutOfRangeException>(() => RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(u, v)));
@@ -95,7 +95,7 @@ public sealed class SurfaceRestrictedFieldTests
     public void RestrictedField_BoxFaceVsCylinder_EvaluatesDeterministically()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 20));
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
 
         Assert.Equal(SurfaceRestrictedFieldStatus.Ready, field.Status);
@@ -114,7 +114,7 @@ public sealed class SurfaceRestrictedFieldTests
     public void RestrictedField_BoxFaceVsSphere_EvaluatesDeterministically()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6));
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
 
         var a = field.Evaluate(0.5d, 0.5d);
@@ -127,7 +127,7 @@ public sealed class SurfaceRestrictedFieldTests
     public void RestrictedField_BoxFaceVsTorus_EvaluatesDespiteMaterializationDeferred()
     {
         var root = new CirSubtractNode(new CirBoxNode(12, 12, 12), new CirTorusNode(4, 1));
-        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors.Where(d => d.ParameterPayloadReference == "top"));
+        var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
 
         Assert.Equal(SurfaceRestrictedFieldStatus.Ready, field.Status);
@@ -141,7 +141,7 @@ public sealed class SurfaceRestrictedFieldTests
     public void RestrictedField_RejectsNonRectanglePlanarSource()
     {
         var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
-        var circlePlanar = Assert.Single(SourceSurfaceExtractor.Extract(root.Right).Descriptors.Where(d => d.ParameterPayloadReference == "cap-top"));
+        var circlePlanar = Assert.Single(SourceSurfaceExtractor.Extract(root.Right).Descriptors, d => d.ParameterPayloadReference == "cap-top");
 
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, circlePlanar, SubtractOperandSide.Right);
         Assert.Equal(SurfaceRestrictedFieldStatus.Unsupported, field.Status);

@@ -85,7 +85,7 @@ public sealed class SectionStackBlindDrillCavityPlanTests
             .GroupBy(id => id).Single(group => group.Count() == 2).Key;
         var mouthEdges = plan.Correspondence.Descendants.Where(x => x.SourceStableId == feature.FeatureId && x.Role == SemanticTopologyRole.TopBoundary).Select(x => x.Edge!.Value).ToArray();
         Assert.Equal(2, mouthEdges.Distinct().Count());
-        Assert.Single(plan.Correspondence.Descendants.Where(x => x.SourceStableId == feature.FeatureId && x.Role == SemanticTopologyRole.HoleEntryLoop));
+        Assert.Single(plan.Correspondence.Descendants, x => x.SourceStableId == feature.FeatureId && x.Role == SemanticTopologyRole.HoleEntryLoop);
         var intersectionVertices = plan.Topology.Edges.Where(edge => mouthEdges.Contains(edge.Id)).SelectMany(edge => new[] { edge.StartVertexId, edge.EndVertexId }).Distinct().ToArray();
         Assert.Equal(2, intersectionVertices.Length);
         Assert.All(cavity.FaceReplacements, replacement =>
@@ -150,9 +150,9 @@ public sealed class SectionStackBlindDrillCavityPlanTests
         var expectedVolume = stack.AnalyticVolume - (Math.PI * feature.Shaft.Radius * feature.Shaft.Radius * corridor.ShaftDepth)
             - ((Math.PI * feature.Shaft.Radius * feature.Shaft.Radius * corridor.TipLength) / 3d);
         Assert.InRange(Math.Abs(mass.AbsoluteVolume - expectedVolume), 0d, mass.ErrorBound ?? 0d);
-        Assert.Single(finalPlan.Correspondence.Descendants.Where(x => x.Role == SemanticTopologyRole.HoleEntryLoop));
-        Assert.Single(finalPlan.Correspondence.Descendants.Where(x => x.Role == SemanticTopologyRole.HoleTipVertex));
-        Assert.Empty(finalPlan.Correspondence.Descendants.Where(x => x.Role == SemanticTopologyRole.HoleExitLoop));
+        Assert.Single(finalPlan.Correspondence.Descendants, x => x.Role == SemanticTopologyRole.HoleEntryLoop);
+        Assert.Single(finalPlan.Correspondence.Descendants, x => x.Role == SemanticTopologyRole.HoleTipVertex);
+        Assert.DoesNotContain(finalPlan.Correspondence.Descendants, x => x.Role == SemanticTopologyRole.HoleExitLoop);
         Assert.Contains("SectionStackBlindDrillNoInternalCaps", cavity.Diagnostics);
         var step = Step242Exporter.ExportBody(body, new Step242ExportOptions { BrepExportPreflightMode = BrepExportPreflightMode.Enforce });
         Assert.True(step.IsSuccess, string.Join(" | ", step.Diagnostics.Select(x => x.Message)));

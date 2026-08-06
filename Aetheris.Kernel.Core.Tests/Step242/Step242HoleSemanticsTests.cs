@@ -53,6 +53,18 @@ public sealed class Step242HoleSemanticsTests
     [Fact]
     public void ImportBody_ManyPlanarSingleEdgeCircularHoles_ClassifiesDeterministically()
     {
+        var parsed = Step242SubsetParser.Parse(Step242FixtureCorpus.PlanarFaceManyCircularSingleEdgeHolesScrambledBounds);
+        Assert.True(parsed.IsSuccess);
+        var advancedFace = parsed.Value.TryGetEntity(3, "ADVANCED_FACE");
+        Assert.True(advancedFace.IsSuccess);
+        var declaredBounds = Step242SubsetDecoder.ReadAdvancedFaceBounds(advancedFace.Value, 0, "test bounds");
+        Assert.True(declaredBounds.IsSuccess);
+        Assert.Equal(4, declaredBounds.Value.Count);
+
+        var direct = Step242Importer.ImportExactBrepCore(parsed.Value);
+        Assert.True(direct.IsSuccess);
+        Assert.Equal(4, Assert.Single(direct.Value.Topology.Faces).LoopIds.Count);
+
         var first = Step242Importer.ImportBody(Step242FixtureCorpus.PlanarFaceManyCircularSingleEdgeHolesScrambledBounds);
         var second = Step242Importer.ImportBody(Step242FixtureCorpus.PlanarFaceManyCircularSingleEdgeHolesScrambledBounds);
 
@@ -65,8 +77,9 @@ public sealed class Step242HoleSemanticsTests
         Assert.Equal(4, firstFace.LoopIds.Count);
         Assert.Equal(firstFace.LoopIds.Select(l => l.Value), secondFace.LoopIds.Select(l => l.Value));
 
-        Assert.Equal(4, firstFace.LoopIds[0].Value);
-        Assert.All(firstFace.LoopIds.Skip(1), loopId => Assert.True(loopId.Value is >= 1 and <= 3));
+        // Declared STEP traversal is authoritative. The importer validates
+        // geometry without rewriting a source face's bound ordering.
+        Assert.Equal([1, 2, 3, 4], firstFace.LoopIds.Select(loopId => loopId.Value));
     }
 
     [Fact]

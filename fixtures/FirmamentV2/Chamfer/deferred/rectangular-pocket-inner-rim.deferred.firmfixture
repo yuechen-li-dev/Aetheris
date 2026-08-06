@@ -1,4 +1,15 @@
 // fixture-id: chamfer-m6-rectangular-pocket-inner-rim
+// case: chamfer-m6-rectangular-pocket-inner-rim
+// category: Chamfer
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: not-implemented
+// expected-stage: deferred
+// expected-route: section-transition-with-holes
+// expected-diagnostic: air-firmament-a1-feature-not-implemented
+// verification: deferred-no-geometry
+// source-provenance: FirmamentV2/Chamfer/deferred
 // semantic-target: complete concave inner loop at a rectangular pocket entry
 // attempted-witness: host outer section + pocket opening inner loop + inset/lowered inner transition loop
 // expected-error-kind: MissingConstructionWitness

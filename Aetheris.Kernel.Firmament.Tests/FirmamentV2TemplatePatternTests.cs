@@ -42,9 +42,11 @@ public sealed class FirmamentV2TemplatePatternTests
             }
             """);
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
-        Assert.Equal(2, parse.Document!.ModifyBlocks!.Single().SemanticHoles.Count);
-        Assert.Equal(["MountHoles[0]", "MountHoles[1]"], parse.Document.ModifyBlocks.Single().SemanticHoles.Select(x => x.Name));
-        var expansion = Assert.Single(parse.Document.ConceptIr!.PatternExpansions!);
+        var document = Assert.IsType<FirmamentV2Document>(parse.Document);
+        var modifies = Assert.IsAssignableFrom<IReadOnlyList<FirmamentV2ModifyBlock>>(document.ModifyBlocks);
+        Assert.Equal(2, modifies.Single().SemanticHoles.Count);
+        Assert.Equal(["MountHoles[0]", "MountHoles[1]"], modifies.Single().SemanticHoles.Select(x => x.Name));
+        var expansion = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<ConceptIrPatternExpansion>>(document.ConceptIr?.PatternExpansions));
         Assert.Equal(2, expansion.Count);
         Assert.Equal("Point3", expansion.ElementType);
     }

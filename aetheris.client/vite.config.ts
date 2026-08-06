@@ -53,6 +53,21 @@ export default defineConfig(({ command }) => ({
             '@': fileURLToPath(new URL('./src', import.meta.url)),
         },
     },
+    build: {
+        // The rendering core is intentionally a single cached vendor chunk. Its
+        // measured production size is 724 KB; retain a small budget above that
+        // rather than accepting Vite's generic 500 KB advisory.
+        chunkSizeWarningLimit: 750,
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    three: ['three'],
+                    'react-three-fiber': ['@react-three/fiber'],
+                    'react-three-drei': ['@react-three/drei'],
+                },
+            },
+        },
+    },
     server: command === 'serve' && env.npm_lifecycle_event === 'dev' ? {
         proxy: {
             '^/api': {

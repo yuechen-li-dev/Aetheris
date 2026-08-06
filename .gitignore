@@ -63,6 +63,15 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 
+# Source-controlled Preview 1 baseline records (not build output).
+!artifacts/
+artifacts/*
+!artifacts/release/
+artifacts/release/*
+!artifacts/release/preview1-baseline.json
+!docs/release/
+!docs/release/preview1-baseline-stabilization-x1.md
+
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 

@@ -133,10 +133,42 @@ public sealed class ProfileBoundaryChamferFixtureTests
     }
 
     [Theory]
+    [InlineData("profile-fillet-reflex-two-segment-top.firmament")]
+    [InlineData("profile-fillet-reflex-two-segment-bottom.firmament")]
+    public void ReflexTwoSegmentFilletFixture_ExportsDeterministicTwoCylindersAndHornTorus(string fixtureName)
+    {
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/valid/{fixtureName}");
+        var first = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
+        var second = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
+        Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(item => item.Message)));
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(item => item.Message)));
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+        var imported = Step242Importer.ImportBody(first.Value.Export.StepText);
+        Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(item => item.Message)));
+        Assert.Equal(2, imported.Value!.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Cylinder));
+        Assert.Equal(1, imported.Value.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Torus));
+        var mass = BrepMassProperties.Evaluate(imported.Value);
+        Assert.True(mass.IsEnclosed);
+        Assert.True(mass.IsOrientationConsistent);
+    }
+
+    [Fact]
+    public void ReflexTwoSegmentFillet_ConceptPathAndExplicitSegmentsAreStepEquivalent()
+    {
+        var concept = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/FirmamentV2/Canonical/valid/profile-fillet-reflex-two-segment-concept-path.firmament");
+        var lowLevel = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/FirmamentV2/Canonical/valid/profile-fillet-reflex-two-segment-low-level.firmament");
+        var conceptResult = FirmamentBuildAndExport.Run(concept, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
+        var lowLevelResult = FirmamentBuildAndExport.Run(lowLevel, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
+        Assert.True(conceptResult.IsSuccess, string.Join(Environment.NewLine, conceptResult.Diagnostics.Select(item => item.Message)));
+        Assert.True(lowLevelResult.IsSuccess, string.Join(Environment.NewLine, lowLevelResult.Diagnostics.Select(item => item.Message)));
+        Assert.Equal(conceptResult.Value.Export.StepText, lowLevelResult.Value.Export.StepText);
+    }
+
+    [Theory]
     [InlineData("profile-compose-reflex-chamfer-shaft-collision.firmament", "ProfileBoundaryChamferIntersectsShaft")]
     [InlineData("profile-compose-reflex-chamfer-counterbore-collision.firmament", "ProfileBoundaryChamferIntersectsCounterbore")]
     [InlineData("profile-chamfer-reflex-inset-collapse.firmament", "ProfileBoundaryChamferInsetCollapse")]
-    [InlineData("profile-fillet-reflex-junction-not-materialized.firmament", "ProfileBoundaryFilletReflexJunctionUnsupported")]
+    [InlineData("profile-fillet-reflex-junction-not-materialized.firmament", "ProfileBoundaryFilletReflexRadiusTooLarge")]
     [InlineData("profile-straight-edge-fillet-shaft-collision.firmament", "ProfileBoundaryFilletIntersectsShaft")]
     public void InvalidFixture_ProducesTypedProfileBoundaryDiagnostic(string fixtureName, string diagnostic)
     {

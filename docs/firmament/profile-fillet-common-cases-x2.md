@@ -59,3 +59,11 @@ The next bounded implementation must create one authoritative
 reflex-junction, and endpoint-termination subplans, then emit the complete
 shell from that plan. It cannot be obtained safely by stitching M1 endpoint
 faces or by generic B-rep edge editing.
+# Profile fillet common cases
+
+Two adjacent outer straight segments at a supported 90-degree reflex vertex
+have an experimental M3 horn-torus materialization. Select the pair as one
+`ConnectedChain` and use the ordinary Profile `EdgeFinish` syntax; authors do
+not provide torus parameters or trimming information. This path is not yet a
+portable external-kernel interchange guarantee because its torus trim ends at
+the horn pole.

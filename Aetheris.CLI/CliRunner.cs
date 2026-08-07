@@ -3238,7 +3238,8 @@ public static class CliRunner
     private sealed record ProfileConvexFilletJunctionInspection(
         string VertexId, string Classification, double InteriorAngleDegrees, double Radius,
         double[] SphereCenter, IReadOnlyList<double[]> RollAxes, IReadOnlyList<double[]> RollExternalCenters,
-        IReadOnlyList<double[]> RollJunctionCenters);
+        IReadOnlyList<double[]> RollJunctionCenters, string SurfaceFamily, double? MajorRadius,
+        double? MinorRadius, double[]? ParametricBounds);
 
     private static ProfileStraightEdgeFilletInspection? DescribeProfileStraightEdgeFillet(ResolvedProfile2D profile, string source, string hostBodyId)
     {
@@ -3253,7 +3254,8 @@ public static class CliRunner
         if (result.Plan is not null)
         {
             var plan = result.Plan;
-            var junction = new ProfileConvexFilletJunctionInspection(plan.Junction.VertexId, plan.Junction.Classification.Classification.ToString(), plan.Junction.Classification.MaterialInteriorAngleRadians * 180d / Math.PI, plan.Junction.Radius, P(plan.Junction.Center), plan.Rolls.Select(roll => V(roll.Tangent)).ToArray(), plan.Rolls.Select(roll => P(roll.ExternalCenter)).ToArray(), plan.Rolls.Select(roll => P(roll.JunctionCenter)).ToArray());
+            var reflex = plan.Junction as ProfileReflexFilletJunctionPlan;
+            var junction = new ProfileConvexFilletJunctionInspection(plan.Junction.VertexId, plan.Junction.Classification.Classification.ToString(), plan.Junction.Classification.MaterialInteriorAngleRadians * 180d / Math.PI, plan.Junction.Radius, P(plan.Junction.Center), plan.Rolls.Select(roll => V(roll.Tangent)).ToArray(), plan.Rolls.Select(roll => P(roll.ExternalCenter)).ToArray(), plan.Rolls.Select(roll => P(roll.JunctionCenter)).ToArray(), reflex is null ? "Sphere" : "HornTorus", reflex?.Torus.MajorRadius, reflex?.Torus.MinorRadius, reflex is null ? null : [reflex.MajorStartRadians, reflex.MajorEndRadians, reflex.MinorStartRadians, reflex.MinorEndRadians]);
             return new(true, null, target!.StableId, target.ProfileId, target.LoopId, target.ChainKind.ToString(), target.SegmentIds, target.Side.ToString(), radius, clearance, plan.EndpointPolicy,
                 null, null, null, null, null, null, null, "DisjointNoCavitiesInBareProfileM2", result.Correspondence?.Descendants.Select(x => x.StableId).OrderBy(x => x, StringComparer.Ordinal).ToArray() ?? [], result.Correspondence?.ProvenanceChain ?? [], junction);
         }

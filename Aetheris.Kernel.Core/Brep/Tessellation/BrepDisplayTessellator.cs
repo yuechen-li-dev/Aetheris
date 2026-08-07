@@ -1298,8 +1298,22 @@ public static class BrepDisplayTessellator
         var axial = offset.Dot(axis);
         var planar = offset - (axis * axial);
         var planarLength = planar.Length;
-        if (!double.IsFinite(planarLength) || planarLength <= 1e-9d)
+        if (!double.IsFinite(planarLength))
         {
+            return null;
+        }
+
+        // A bounded horn-torus patch may legitimately end at its single
+        // collapsed inner-circle point.  That point has no unique major angle,
+        // but (u=0,v=pi) evaluates exactly to it and permits deterministic
+        // trimmed-face tessellation; it does not relax projection for ordinary
+        // torus points away from the horn singularity.
+        if (planarLength <= 1e-9d)
+        {
+            if (double.Abs(torus.MajorRadius - torus.MinorRadius) <= 1e-9d && double.Abs(axial) <= 1e-9d)
+            {
+                return (0d, double.Pi);
+            }
             return null;
         }
 

@@ -1,4 +1,4 @@
-Model ProfileFilletReflexJunctionNotMaterialized {
+Model ProfileFilletReflexTwoSegmentConceptPath {
     Units: mm
     Concept Path Outline {
         Start: Point2(0mm, 0mm)
@@ -13,5 +13,5 @@ Model ProfileFilletReflexJunctionNotMaterialized {
     Profile Bracket From Outline
     Struct Body { Extrude Bracket { Profile: Bracket; From: 0mm; To: 8mm } }
     Selection ReflexNotch { Source: Bracket.Outer.[Inner, Upright] Require: ConnectedChain }
-    Modify Body { EdgeFinish ReflexRound { Target: ReflexNotch On: Top Kind: Fillet Radius: 50mm } }
+    Modify Body { EdgeFinish ReflexRound { Target: ReflexNotch On: Top Kind: Fillet Radius: 2mm EndClearance: 3mm } }
 }

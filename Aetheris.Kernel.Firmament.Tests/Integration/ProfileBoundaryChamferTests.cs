@@ -177,11 +177,21 @@ public sealed class ProfileBoundaryChamferTests
     }
 
     [Fact]
-    public void RejectsReflexAndThreeSegmentFilletChainsBeforeTopology()
+    public void PlansOrthogonalReflexAsTwoRollsAndOneHornTorusAndRejectsThreeSegmentChains()
     {
         const string reflex = "Selection Notch { Source: Bracket.Outer.[Inner, Upright] Require: ConnectedChain } Modify Body { EdgeFinish Round { Target: Notch On: Top Kind: Fillet Radius: 2mm } }";
         Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(reflex, LProfile(), "Bracket", out var reflexTarget, out var reflexRadius, out var reflexClearance, out var diagnostic), diagnostic);
-        Assert.Contains("ProfileBoundaryFilletReflexJunctionUnsupported", ProfileFilletShellPlanner.TryPlan(LProfile(), reflexTarget!, reflexRadius, reflexClearance).Diagnostics);
+        var reflexPlan = ProfileFilletShellPlanner.TryPlan(LProfile(), reflexTarget!, reflexRadius, reflexClearance);
+        Assert.True(reflexPlan.Succeeded, string.Join("; ", reflexPlan.Diagnostics));
+        var junction = Assert.IsType<ProfileReflexFilletJunctionPlan>(reflexPlan.Plan!.Junction);
+        Assert.Equal(ProfileJunctionKind.ReflexProfileJunction, junction.Classification.Classification);
+        Assert.Equal(3d * Math.PI / 2d, junction.Classification.MaterialInteriorAngleRadians, 8);
+        Assert.Equal(junction.Radius, junction.Torus.MajorRadius, 8);
+        Assert.Equal(junction.Radius, junction.Torus.MinorRadius, 8);
+        Assert.Equal(2, reflexPlan.Body!.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Cylinder));
+        Assert.Equal(1, reflexPlan.Body.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Torus));
+        Assert.Contains(reflexPlan.Correspondence!.Descendants, item => item.Role == SemanticTopologyRole.ReflexJunctionPatch);
+        Assert.Equal(2, reflexPlan.Correspondence.Descendants.Count(item => item.Role is SemanticTopologyRole.StartTerminationFace or SemanticTopologyRole.EndTerminationFace));
 
         const string three = "Selection Three { Source: Bracket.Outer.[South, East, North] Require: ConnectedChain } Modify Body { EdgeFinish Round { Target: Three On: Top Kind: Fillet Radius: 2mm } }";
         Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(three, Profile(), "Bracket", out var threeTarget, out var threeRadius, out var threeClearance, out diagnostic), diagnostic);

@@ -5,7 +5,8 @@ remains eight rows in `ProfileEdgeFinishAnalyticPolicy`, but `ConvexSmall` is
 not present in the release Profile: with `Rs = 2 mm` and `F = 4 mm`, it is
 invalid for both analytic routes. The release card therefore contains
 ConvexSharp, ConvexMedium, ConvexLarge, ReflexSharp, ReflexSmall, ReflexMedium,
-and ReflexLarge only. Its outer source loop has 18 segments and independent
+and ReflexLarge only. Its outer source loop has 17 segments (12 lines and five
+arcs) and independent
 area/volume evidence `(38240 + 4 - π) mm² × 24 mm = 917780.601776314 mm³`.
 
 The two discoverable canonical invalid cases are:
@@ -39,13 +40,24 @@ Sharp convex remains the sphere-junction route. Sharp reflex remains exact
 horn-torus rolling by default, with `SphereSeamCompatibility` as an intentional
 opt-in plan. No NURBS policy exists.
 
-## Remaining closure boundary
+## X4 planning follow-up
 
-The release card is a valid base artifact, but the authoritative mixed
-line/arc Plane/Cone and Cylinder/Torus-or-Sphere composer is not yet emitted.
-Whole-loop Chamfer/Fillet intentionally stop before topology with a policy-rich
-`ProfileBoundary*ArcMaterializationNotImplemented` diagnostic. Therefore this
-document does not claim completed finish STEP artifacts, external-kernel smoke,
-or Preview-1 readiness. The next implementation must create direct analytic
-seams and finite apex/sphere/horn topology; it may not replace that work with a
-spline or Boolean fallback.
+X4 now supplies a typed, source-order pre-emission mixed-shell plan with
+Plane/Cone and Cylinder/Torus-or-Sphere patch variants, explicit source-bound
+seams, and Cone-apex/Sphere-limit degeneracy records. It is deliberately not a
+patch-stitching route. The source card was also audited: its retained Profile
+has 17 segments (12 lines and five arcs), not the stale 18-segment count stated
+by earlier notes.
+
+## Remaining materialization boundary
+
+The release card is a valid base artifact. Whole-loop Chamfer now emits through
+the authoritative Plane/Cone source-order shell and has a persistent STEP
+artifact. Fillet still intentionally stops before topology on the first arc
+with its policy-rich `ProfileBoundaryFilletArcMaterializationNotImplemented`
+diagnostic because sharp junction patches have not yet been extracted from the
+existing finite two-line-body planners. Therefore this document does not claim
+completed Fillet/compatibility artifacts, external-kernel smoke, or Preview-1
+readiness. The next implementation must create reusable sharp junction topology
+and compose it with the existing cylinder/torus/sphere seam plan; it may not
+replace that work with a spline or Boolean fallback.

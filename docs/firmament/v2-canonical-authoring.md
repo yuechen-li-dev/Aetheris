@@ -276,6 +276,13 @@ Fillet routes cover line-only source loops; circular source segments bind and
 report a station-specific missing exact planner rather than falling back to
 anonymous BRep edge inference. See `profile-edgefinish-chimera-x1.md`.
 
+For the seven-station mixed line/arc release card, EdgeFinish policy is
+source-bound: lines select Plane Chamfer/Cylinder Fillet patches; admitted arcs
+select Cone Chamfer and Torus or Sphere-limit Fillet patches. The canonical
+planner records the complete loop in source order with explicit Plane/Cone and
+Cylinder/Torus-or-Sphere seams before emission. This is not anonymous edge
+inference and has no NURBS fallback; see `mixed-analytic-edgefinish-shell-x4.md`.
+
 Rounded-source EdgeFinish policy is explicitly classified before BRep emission:
 chamfers use only Plane/Cone and fillets only Cylinder/Sphere/Torus. See
 `profile-edgefinish-chimera-closure-x2.md` for the current bounded support card

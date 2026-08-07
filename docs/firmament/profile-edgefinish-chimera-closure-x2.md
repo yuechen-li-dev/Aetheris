@@ -6,6 +6,11 @@ source card is now superseded by X3's release card; see
 source-bound: no anonymous
 BRep-edge selection, Boolean repair, NURBS, or sampled finish is admissible.
 
+Historical status update: X4 adds the pre-emission, typed source-order shell
+plan for the X3 seven-station release card. This X2 policy matrix remains
+unchanged; the production mixed-shell B-rep emitter is still the next boundary.
+See `mixed-analytic-edgefinish-shell-x4.md`.
+
 `ProfileEdgeFinishAnalyticPolicy` is the code-level conformance table. It uses
 the JudgmentEngine to choose one bounded candidate deterministically and retains
 the rejected candidate reasons. The policy is evaluated before BRep emission.

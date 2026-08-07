@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Geometry;
 
 namespace Aetheris.Kernel.Firmament.Tests.Integration;
@@ -199,13 +200,15 @@ public sealed class ProfileBoundaryChamferTests
     }
 
     [Fact]
-    public void CurvedWholeLoopFinishesNameTheFirstArcStationAndRequiredExactPlanner()
+    public void CurvedWholeLoopChamferMaterializesThroughTheMixedPlaneConeShell()
     {
         const string chamfer = "Modify Body { EdgeFinish TopBreak { Target: Bracket.Outer On: Top Kind: Chamfer Distance: 4mm } }";
         Assert.True(ProfileBoundaryChamferSourceBinder.TryBind(chamfer, CurvedProfile(), "Bracket", out var chamferTarget, out var distance, out var chamferDiagnostic), chamferDiagnostic);
         var chamferPlan = ProfileBoundaryChamferPlanner.TryPlan(CurvedProfile(), chamferTarget!, distance);
-        Assert.False(chamferPlan.Succeeded);
-        Assert.StartsWith("ProfileBoundaryChamferArcMaterializationNotImplemented:station=ReflexSmall:scope=Target:segment=ReflexSmallArc:sourceFamily=Arc:material=Reflex:sourceRadius=2:finishDistance=4:radiusRelation=LessThan:planner=ArcChamferConePlan:surfaceFamily=Cone:regularity=Regular:admission=Supported", Assert.Single(chamferPlan.Diagnostics));
+        Assert.True(chamferPlan.Succeeded, string.Join(Environment.NewLine, chamferPlan.Diagnostics));
+        Assert.NotNull(chamferPlan.Body);
+        Assert.Equal(1, chamferPlan.Body!.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Cone));
+        Assert.True(BrepMassProperties.Evaluate(chamferPlan.Body).IsEnclosed);
 
         const string fillet = "Modify Body { EdgeFinish TopRound { Target: Bracket.Outer On: Top Kind: Fillet Radius: 4mm } }";
         Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(fillet, CurvedProfile(), "Bracket", out var filletTarget, out var radius, out var clearance, out var filletDiagnostic), filletDiagnostic);

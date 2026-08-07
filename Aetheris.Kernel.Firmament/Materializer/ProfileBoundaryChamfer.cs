@@ -235,7 +235,14 @@ public static class ProfileBoundaryChamferPlanner
         if (!loop.IsOuter) return Fail("ProfileBoundaryChamferInnerLoopUnsupported");
         if (profile.Loops.Count != 1) return Fail("ProfileBoundaryChamferInnerLoopUnsupported");
         if (loop.Segments.Any(x => x.Geometry is not LineArcLineSegment2D))
-            return Fail(ProfileBoundaryCurvedFinishDiagnostic.ForFirstSelectedArc(profile, loop, target, distance, "Chamfer") ?? "ProfileBoundaryChamferSegmentKindUnsupported");
+        {
+            var mixed = ProfileEdgeFinishMixedShellPlanner.TryPlan(profile, target, ProfileEdgeFinishKind.Chamfer, distance);
+            if (!mixed.Succeeded || mixed.Plan is null)
+                return Fail(ProfileBoundaryCurvedFinishDiagnostic.ForFirstSelectedArc(profile, loop, target, distance, "Chamfer")
+                    ?? mixed.Diagnostics.FirstOrDefault()
+                    ?? "ProfileBoundaryChamferSegmentKindUnsupported");
+            return ProfileEdgeFinishMixedShellMaterializer.TryMaterializeChamfer(profile, target, mixed.Plan);
+        }
         var lines = loop.Segments.Select(x => (LineArcLineSegment2D)x.Geometry).ToArray();
         var selected = target.SegmentIds.Select(id => Array.FindIndex(loop.Segments.ToArray(), x => x.Name == id)).ToHashSet();
         if (selected.Count != target.SegmentIds.Count || selected.Any(x => x < 0)) return Fail("ProfileBoundaryChamferSegmentUnknown");

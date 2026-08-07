@@ -392,6 +392,7 @@ public static class CliRunner
                 hollow = build.Value.Export.Hollow,
                 lattice = build.Value.Export.Lattice,
                 combined = build.Value.Export.Combined,
+                assertions = build.Value.Export.Assertions,
                 features = build.Value.Export.Features,
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,

@@ -52,6 +52,10 @@ For span `S` and radius `r`, the exact removed volume is
 at the span ends; they add no further removed volume. The cylindrical area is
 `S * pi * r / 2`.
 
+The canonical top fixture now declares that analytic oracle directly with
+`Assert Volume Body`; M1 compares it after normal materialization and never
+uses the assertion to change the fillet route.
+
 Current limitations: no adjacent-junction continuation, convex/reflex patch,
 whole-loop or chain finish, inner loop, curve source, variable radius, imported
 edge, cavity interaction, or composed Profile host is supported.

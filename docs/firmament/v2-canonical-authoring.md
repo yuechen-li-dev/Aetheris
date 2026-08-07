@@ -26,6 +26,12 @@ Model Bracket {
         Size: [80mm, 50mm, 25mm]
     }
 
+    Assert Volume Base {
+        Expected: 100000mm^3
+        Tolerance: 0mm^3
+        Note: "Rectangular stock"
+    }
+
     Modify Base {
         Hole<Shaft> Mount {
             On: +Z

@@ -18,7 +18,8 @@ public sealed record FirmamentStepExportResult(
     FirmamentRoundedBoxReport? RoundedBox = null,
     FirmamentHollowBodyReport? Hollow = null,
     FirmamentStandaloneLatticeReport? Lattice = null,
-    FirmamentCombinedFeaturePlanReport? Combined = null);
+    FirmamentCombinedFeaturePlanReport? Combined = null,
+    IReadOnlyList<Aetheris.Kernel.Firmament.FirmamentV2.FirmamentV2VolumeAssertionResult>? Assertions = null);
 
 /// <summary>Compact inspection evidence for the bounded X1 composed feature route.</summary>
 public sealed record FirmamentCombinedFeaturePlanReport(

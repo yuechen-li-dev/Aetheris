@@ -16,7 +16,8 @@ public enum FirmamentV2CanonicalSymbolKind
     Compose,
     Hole,
     Slot,
-    Selection
+    Selection,
+    Body
 }
 
 public sealed record FirmamentV2CanonicalSymbol(
@@ -60,6 +61,9 @@ internal static class FirmamentV2CanonicalSymbolBinder
         {
             if (byName.TryGetValue(name, out var previous))
             {
+                if (kind == FirmamentV2CanonicalSymbolKind.Body
+                    && previous.Kind is FirmamentV2CanonicalSymbolKind.Profile or FirmamentV2CanonicalSymbolKind.Compose)
+                    return;
                 diagnostics.Add($"{Duplicate}:{name}:{previous.Kind}:{kind}");
                 return;
             }
@@ -79,6 +83,9 @@ internal static class FirmamentV2CanonicalSymbolBinder
 
         foreach (var profile in document.Profiles ?? []) Add(profile.Name, FirmamentV2CanonicalSymbolKind.Profile, profile.SourceSpan);
         foreach (var compose in document.Composes ?? []) Add(compose.Name, FirmamentV2CanonicalSymbolKind.Compose, compose.SourceSpan);
+        var profileOrComposeNames = (document.Profiles ?? []).Select(profile => profile.Name).Concat((document.Composes ?? []).Select(compose => compose.Name)).ToHashSet(StringComparer.Ordinal);
+        foreach (var solid in document.Solids.Where(solid => !profileOrComposeNames.Contains(solid.Name))) Add(solid.Name, FirmamentV2CanonicalSymbolKind.Body, new(0, 0));
+        foreach (Match body in Regex.Matches(source, @"(?<!Concept\s)\bStruct\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant)) Add(body.Groups["name"].Value, FirmamentV2CanonicalSymbolKind.Body, new(body.Index, body.Length));
         foreach (Match feature in Regex.Matches(source, @"\b(?<kind>Hole|Slot)\s*<[^>]+>\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
         {
             Add(feature.Groups["name"].Value,
@@ -101,6 +108,12 @@ internal static class FirmamentV2CanonicalSymbolBinder
                 continue;
             }
             bindings.Add(new($"{FirmamentV2CanonicalSymbolKind.Selection}:{selection.Name}", "Source", target.CanonicalId, selection.SourceSpan));
+        }
+        foreach (var assertion in document.VolumeAssertions ?? [])
+        {
+            if (!byName.TryGetValue(assertion.TargetBodyId, out var target)) diagnostics.Add($"firmament-v2-assert-volume-target-unknown:{assertion.TargetBodyId}");
+            else if (target.Kind is not (FirmamentV2CanonicalSymbolKind.Body or FirmamentV2CanonicalSymbolKind.Compose)) diagnostics.Add($"firmament-v2-assert-volume-target-not-material-body:{assertion.TargetBodyId}:{target.Kind}");
+            else bindings.Add(new($"AssertVolume:{assertion.Id}", "Target", target.CanonicalId, assertion.SourceSpan));
         }
 
         return new(new(symbols, bindings), diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());

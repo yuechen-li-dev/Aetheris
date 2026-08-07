@@ -1,3 +1,5 @@
+Model ProfileStraightEdgeFilletTop {
+Units: mm
 Concept Struct RectangleLayout On XY {
     Point2 A { Position: [0mm, 0mm] } Point2 B { Position: [20mm, 0mm] }
     Point2 C { Position: [20mm, 10mm] } Point2 D { Position: [0mm, 10mm] }
@@ -10,3 +12,9 @@ Profile Bracket Using RectangleLayout { Loop Outer {
 } }
 Struct Body { Extrude Bracket { Profile: Bracket; From: 0mm; To: 8mm } }
 Modify Body { EdgeFinish SouthTopRound { Target: Bracket.Outer.South On: Top Kind: Fillet Radius: 2mm EndClearance: 3mm } }
+Assert Volume Body {
+    Expected: 1587.982297150257mm^3
+    Tolerance: 5mm^3
+    Note: "Finite-span quarter-cylinder straight Profile edge fillet"
+}
+}

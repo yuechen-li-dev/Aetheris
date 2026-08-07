@@ -42,18 +42,45 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentBuildAndExportResult>.Failure(exportResult.Diagnostics);
         }
 
+        var assertions = EvaluateVolumeAssertions(sourceText, Path.GetDirectoryName(fullSourcePath), exportResult.Value);
+        if (!assertions.IsSuccess)
+        {
+            return KernelResult<FirmamentBuildAndExportResult>.Failure(assertions.Diagnostics);
+        }
+        var export = exportResult.Value with { Assertions = assertions.Value };
         var resolvedOutputPath = string.IsNullOrWhiteSpace(outputPath)
             ? ResolveDefaultOutputPath(fullSourcePath)
             : Path.GetFullPath(outputPath);
 
         Directory.CreateDirectory(Path.GetDirectoryName(resolvedOutputPath)!);
-        File.WriteAllText(resolvedOutputPath, exportResult.Value.StepText, new UTF8Encoding(false));
+        File.WriteAllText(resolvedOutputPath, export.StepText, new UTF8Encoding(false));
 
         return KernelResult<FirmamentBuildAndExportResult>.Success(
             new FirmamentBuildAndExportResult(
                 fullSourcePath,
                 resolvedOutputPath,
-                exportResult.Value));
+                export));
+    }
+
+    private static KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>> EvaluateVolumeAssertions(string source, string? sourceDirectory, FirmamentStepExportResult export)
+    {
+        var parsed = FirmamentV2Parser.Parse(source, sourceDirectory);
+        if (!parsed.IsSuccess || parsed.Document?.VolumeAssertions is not { Count: > 0 } assertions) return KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>>.Success([]);
+        var imported = Step242Importer.ImportBody(export.StepText);
+        if (!imported.IsSuccess || imported.Value is null)
+        {
+            return KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                "firmament-v2-assert-volume-measurement-unavailable: STEP reimport failed", "FirmamentV2.AssertVolume")]);
+        }
+        var mass = BrepMassProperties.Evaluate(imported.Value);
+        var results = assertions.Select(assertion => FirmamentV2VolumeAssertionComparer.Compare(assertion, mass)).ToArray();
+        var failures = results.Where(result => !result.Passed).Select(result => new Kernel.Core.Diagnostics.KernelDiagnostic(
+            Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+            result.Diagnostic ?? "firmament-v2-assert-volume-failed", "FirmamentV2.AssertVolume")).ToArray();
+        return failures.Length == 0
+            ? KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>>.Success(results)
+            : KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>>.Failure(failures);
     }
 
 

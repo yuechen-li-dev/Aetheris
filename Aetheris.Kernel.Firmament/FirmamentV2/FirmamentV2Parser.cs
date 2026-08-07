@@ -69,6 +69,11 @@ public static class FirmamentV2Parser
     public const string CanonicalModifyMalformed = "firmament-v2-canonical-modify-malformed";
     public const string CanonicalDeclarationUnrecognized = "firmament-v2-canonical-declaration-unrecognized";
     public const string CanonicalDeclarationUnknown = "firmament-v2-canonical-declaration-unknown";
+    public const string AssertVolumeMalformed = "firmament-v2-assert-volume-malformed";
+    public const string AssertVolumeKindUnsupported = "firmament-v2-assert-kind-unsupported";
+    public const string AssertVolumeExpectedDimensionMismatch = "firmament-v2-assert-volume-expected-dimension-mismatch";
+    public const string AssertVolumeToleranceDimensionMismatch = "firmament-v2-assert-volume-tolerance-dimension-mismatch";
+    public const string AssertVolumeToleranceNegative = "firmament-v2-assert-volume-tolerance-negative";
     public const string CanonicalConstructNotYetSupported = "firmament-v2-canonical-construct-not-yet-supported";
     public const string EdgeFinishProfileComposeBoundaryUnsupported = "EdgeFinishProfileComposeBoundaryUnsupported";
     public const string CanonicalFieldUnknown = "firmament-v2-canonical-field-unknown";
@@ -329,20 +334,7 @@ public static class FirmamentV2Parser
                 : ParseCanonicalDocument(source, diagnostics, sourceDirectory));
             if (parsed.Document is null) return parsed;
 
-            var normalized = parsed.Document with { StaticAuthoring = canonicalStaticExpansion.Document };
-            var symbolBinding = FirmamentV2CanonicalSymbolBinder.Bind(normalized, source);
-            if (symbolBinding.Diagnostics.Count > 0)
-            {
-                return FirmamentV2ParseResult.Failure(
-                    parsed.Diagnostics.Concat(symbolBinding.Diagnostics).Distinct(StringComparer.Ordinal).Order().ToArray(),
-                    FirmamentV2ParseDisposition.RecognizedInvalid);
-            }
-
-            return parsed with
-            {
-                Document = normalized with { SymbolTable = symbolBinding.Table },
-                Diagnostics = parsed.Diagnostics.Append("firmament-v2-unified-canonical-symbols-bound").Distinct(StringComparer.Ordinal).Order().ToArray()
-            };
+            return AttachVolumeAssertionsAndSymbols(parsed, source, canonicalStaticExpansion.Document, diagnostics);
         }
 
         if (Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant))
@@ -353,7 +345,7 @@ public static class FirmamentV2Parser
 
         if (Regex.IsMatch(source, @"\bConcept\s+(?:Struct\s+)?[A-Za-z_]", RegexOptions.CultureInvariant)
             || Regex.IsMatch(source, @"\b(?:Struct|Model)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant))
-            return Recognized(ParseConceptModelingDocument(source, diagnostics, templateExpansion.Instantiations));
+            return Recognized(AttachVolumeAssertionsAndSymbols(ParseConceptModelingDocument(RemoveCanonicalVolumeAssertions(source), diagnostics, templateExpansion.Instantiations), source, canonicalStaticExpansion.Document, diagnostics));
 
         if (Regex.IsMatch(source, @"^\s*Model\b", RegexOptions.CultureInvariant))
             return Recognized(ParsePhase3ModelingDocument(source, diagnostics));
@@ -885,7 +877,7 @@ public static class FirmamentV2Parser
         var known = new HashSet<string>(StringComparer.Ordinal)
         {
             "Box", "Cylinder", "RoundedBox", "Frustum", "Concept", "Struct", "Construction", "Profile", "Compose", "EdgeFinish",
-            "Record", "Static", "Template", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require"
+            "Record", "Static", "Template", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert"
         };
         var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)
         {
@@ -1089,6 +1081,97 @@ public static class FirmamentV2Parser
         }
 
         return selections;
+    }
+
+    private static IReadOnlyList<FirmamentV2VolumeAssertion> ParseCanonicalVolumeAssertions(string source, List<string> diagnostics)
+    {
+        var assertions = new List<FirmamentV2VolumeAssertion>();
+        foreach (Match header in Regex.Matches(source, @"\bAssert\s+(?<kind>[A-Za-z_]\w*)\s+(?<target>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        {
+            var kind = header.Groups["kind"].Value;
+            var target = header.Groups["target"].Value;
+            var open = source.IndexOf('{', header.Index);
+            var close = FindMatchingBrace(source, open);
+            if (close < 0) { diagnostics.Add($"{AssertVolumeMalformed}:{target}"); continue; }
+            if (!string.Equals(kind, "Volume", StringComparison.Ordinal)) { diagnostics.Add($"{AssertVolumeKindUnsupported}:{kind}:{target}"); continue; }
+
+            var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (Match field in Regex.Matches(source[(open + 1)..close], @"(?m)^\s*(?<name>[A-Za-z_]\w*)\s*:\s*(?<value>[^\r\n]+?)\s*$", RegexOptions.CultureInvariant))
+            {
+                var name = field.Groups["name"].Value;
+                if (!fields.TryAdd(name, field.Groups["value"].Value.Trim())) diagnostics.Add($"{AssertVolumeMalformed}:{target}:duplicate-{name}");
+            }
+            if (fields.Keys.Any(name => name is not "Expected" and not "Tolerance" and not "Note") || !fields.TryGetValue("Expected", out var expectedRaw) || !fields.TryGetValue("Tolerance", out var toleranceRaw))
+            {
+                diagnostics.Add($"{AssertVolumeMalformed}:{target}");
+                continue;
+            }
+            if (!TryParseCubicMillimeters(expectedRaw, out var expected))
+            {
+                diagnostics.Add($"{AssertVolumeExpectedDimensionMismatch}:{target}:Volume:{DimensionName(expectedRaw)}");
+                continue;
+            }
+            if (!TryParseCubicMillimeters(toleranceRaw, out var tolerance))
+            {
+                diagnostics.Add($"{AssertVolumeToleranceDimensionMismatch}:{target}:Volume:{DimensionName(toleranceRaw)}");
+                continue;
+            }
+            if (tolerance < 0d) { diagnostics.Add($"{AssertVolumeToleranceNegative}:{target}"); continue; }
+            if (!double.IsFinite(expected) || !double.IsFinite(tolerance)) { diagnostics.Add($"{AssertVolumeMalformed}:{target}:non-finite"); continue; }
+            string? note = null;
+            if (fields.TryGetValue("Note", out var noteRaw))
+            {
+                if (noteRaw.Length < 2 || noteRaw[0] != '"' || noteRaw[^1] != '"') { diagnostics.Add($"{AssertVolumeMalformed}:{target}:Note"); continue; }
+                note = noteRaw[1..^1];
+            }
+            var span = new FirmamentV2SourceSpan(header.Index, close - header.Index + 1);
+            assertions.Add(new($"volume:{target}:{header.Index}", target, expected, tolerance, note, span));
+        }
+        return assertions;
+    }
+
+    private static string RemoveCanonicalVolumeAssertions(string source)
+    {
+        var removals = Regex.Matches(source, @"\bAssert\s+[A-Za-z_]\w*\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant)
+            .Cast<Match>()
+            .Select(header => new { header.Index, Close = FindMatchingBrace(source, source.IndexOf('{', header.Index)) })
+            .Where(match => match.Close >= 0)
+            .OrderByDescending(match => match.Index)
+            .ToArray();
+        foreach (var removal in removals) source = source.Remove(removal.Index, removal.Close - removal.Index + 1);
+        return source;
+    }
+
+    private static FirmamentV2ParseResult AttachVolumeAssertionsAndSymbols(FirmamentV2ParseResult parsed, string source, FirmamentV2StaticAuthoringDocument? staticAuthoring, List<string> diagnostics)
+    {
+        if (parsed.Document is null) return parsed;
+        var normalized = parsed.Document with { StaticAuthoring = staticAuthoring, VolumeAssertions = ParseCanonicalVolumeAssertions(source, diagnostics) };
+        if (diagnostics.Any(IsFatalDiagnosticCode))
+            return FirmamentV2ParseResult.Failure(parsed.Diagnostics.Concat(diagnostics).Distinct(StringComparer.Ordinal).Order().ToArray(), FirmamentV2ParseDisposition.RecognizedInvalid);
+        var symbolBinding = FirmamentV2CanonicalSymbolBinder.Bind(normalized, source);
+        if (symbolBinding.Diagnostics.Count > 0)
+            return FirmamentV2ParseResult.Failure(parsed.Diagnostics.Concat(symbolBinding.Diagnostics).Distinct(StringComparer.Ordinal).Order().ToArray(), FirmamentV2ParseDisposition.RecognizedInvalid);
+        return parsed with
+        {
+            Document = normalized with { SymbolTable = symbolBinding.Table },
+            Diagnostics = parsed.Diagnostics.Append("firmament-v2-unified-canonical-symbols-bound").Distinct(StringComparer.Ordinal).Order().ToArray()
+        };
+    }
+
+    private static bool TryParseCubicMillimeters(string raw, out double value)
+    {
+        value = double.NaN;
+        var match = Regex.Match(raw, @"^(?<value>[-+0-9.eE]+)mm\^3$", RegexOptions.CultureInvariant);
+        return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+    }
+
+    private static string DimensionName(string raw)
+    {
+        if (raw.EndsWith("mm^3", StringComparison.Ordinal)) return "InvalidVolume";
+        if (raw.EndsWith("mm^2", StringComparison.Ordinal)) return "Area";
+        if (raw.EndsWith("mm", StringComparison.Ordinal)) return "Length";
+        if (raw.EndsWith("deg", StringComparison.Ordinal)) return "Angle";
+        return "ScalarOrUnsupported";
     }
 
     private static void ValidateCanonicalSelectionSources(
@@ -1727,7 +1810,7 @@ public static class FirmamentV2Parser
         || code.StartsWith(ConceptIrResolver.PointProjectionUnsupported, StringComparison.Ordinal)
         || code.StartsWith("firmament-static-", StringComparison.Ordinal);
 
-    public static bool IsFatalDiagnosticCode(string code) => code.StartsWith(CanonicalDeclarationUnknown + ":", StringComparison.Ordinal) || code.StartsWith(CanonicalConstructNotYetSupported + ":", StringComparison.Ordinal) || code.StartsWith(EdgeFinishProfileComposeBoundaryUnsupported, StringComparison.Ordinal) || IsConceptFatalDiagnostic(code) || code is UnknownConstructionPolicy or PrimitiveDoesNotSatisfyHollowConstructible or WallThicknessRequired or WallThicknessMustBePositive or UnsupportedOpening or MultipleOpeningsNotSupported or Phase3EdgeFinishSyntaxInvalid or PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch or StandaloneFillRegionRequired or UnsupportedStandaloneFillPattern or InvalidCellCount or CellSizeMustBePositive or StrutRadiusMustBePositive or NodeRadiusMustBePositive or MaterialBoundsMismatch or StandaloneFillMultipleUnsupported;
+public static bool IsFatalDiagnosticCode(string code) => code.StartsWith("firmament-v2-assert-volume-", StringComparison.Ordinal) || code.StartsWith(AssertVolumeKindUnsupported, StringComparison.Ordinal) || code.StartsWith(CanonicalDeclarationUnknown + ":", StringComparison.Ordinal) || code.StartsWith(CanonicalConstructNotYetSupported + ":", StringComparison.Ordinal) || code.StartsWith(EdgeFinishProfileComposeBoundaryUnsupported, StringComparison.Ordinal) || IsConceptFatalDiagnostic(code) || code is UnknownConstructionPolicy or PrimitiveDoesNotSatisfyHollowConstructible or WallThicknessRequired or WallThicknessMustBePositive or UnsupportedOpening or MultipleOpeningsNotSupported or Phase3EdgeFinishSyntaxInvalid or PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch or StandaloneFillRegionRequired or UnsupportedStandaloneFillPattern or InvalidCellCount or CellSizeMustBePositive or StrutRadiusMustBePositive or NodeRadiusMustBePositive or MaterialBoundsMismatch or StandaloneFillMultipleUnsupported;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {

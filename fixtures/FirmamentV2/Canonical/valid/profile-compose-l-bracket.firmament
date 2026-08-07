@@ -23,4 +23,9 @@ Model ProfileComposeLBracket {
             Base Stock { Profile: Bracket; From: 0mm; To: 12mm; Role: Stock }
         }
     }
+    Assert Volume BracketBody {
+        Expected: 28800mm^3
+        Tolerance: 0mm^3
+        Note: "Union of 80x20 and 20x60 rectangles, extruded 12mm"
+    }
 }

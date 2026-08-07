@@ -3232,22 +3232,35 @@ public static class CliRunner
         string? Side, double? Radius, double? EndClearance, string? EndpointPolicy,
         double[]? CylinderAxis, double[]? CylinderCenterlineStart, double[]? CylinderCenterlineEnd,
         double[]? CapContactStart, double[]? CapContactEnd, double[]? SideContactStart, double[]? SideContactEnd,
-        string CorridorClassification, IReadOnlyList<string> GeneratedDescendants, IReadOnlyList<string> Provenance);
+        string CorridorClassification, IReadOnlyList<string> GeneratedDescendants, IReadOnlyList<string> Provenance,
+        ProfileConvexFilletJunctionInspection? ConvexJunction);
+
+    private sealed record ProfileConvexFilletJunctionInspection(
+        string VertexId, string Classification, double InteriorAngleDegrees, double Radius,
+        double[] SphereCenter, IReadOnlyList<double[]> RollAxes, IReadOnlyList<double[]> RollExternalCenters,
+        IReadOnlyList<double[]> RollJunctionCenters);
 
     private static ProfileStraightEdgeFilletInspection? DescribeProfileStraightEdgeFillet(ResolvedProfile2D profile, string source, string hostBodyId)
     {
         if (!ProfileBoundaryChamferSourceBinder.HasProfileBoundaryFillet(source)) return null;
         if (!ProfileBoundaryChamferSourceBinder.TryBindFillet(source, profile, hostBodyId, out var target, out var radius, out var clearance, out var diagnostic))
-            return new(false, diagnostic, null, null, null, null, [], null, null, null, null, null, null, null, null, null, null, null, "RejectedBeforePlan", [], []);
-        var result = ProfileStraightEdgeFilletPlanner.TryPlan(profile, target!, radius, clearance);
-        if (!result.Succeeded || result.Plan is null)
-            return new(false, result.Diagnostics.FirstOrDefault(), target!.StableId, target.ProfileId, target.LoopId, target.ChainKind.ToString(), target.SegmentIds, target.Side.ToString(), radius, clearance, null, null, null, null, null, null, null, null, "RejectedBeforeTopology", [], []);
-        var plan = result.Plan;
+            return new(false, diagnostic, null, null, null, null, [], null, null, null, null, null, null, null, null, null, null, null, "RejectedBeforePlan", [], [], null);
+        var result = ProfileFilletShellPlanner.TryPlan(profile, target!, radius, clearance);
+        if (!result.Succeeded)
+            return new(false, result.Diagnostics.FirstOrDefault(), target!.StableId, target.ProfileId, target.LoopId, target.ChainKind.ToString(), target.SegmentIds, target.Side.ToString(), radius, clearance, null, null, null, null, null, null, null, null, "RejectedBeforeTopology", [], [], null);
         static double[] V(Direction3D value) => [value.ToVector().X, value.ToVector().Y, value.ToVector().Z];
         static double[] P(Point3D value) => [value.X, value.Y, value.Z];
-        return new(true, null, target!.StableId, target.ProfileId, target.LoopId, target.ChainKind.ToString(), target.SegmentIds, target.Side.ToString(), radius, clearance, plan.EndpointPolicy,
-            V(plan.Tangent), P(plan.CylinderCenterlineStart), P(plan.CylinderCenterlineEnd), P(plan.CapContactStart), P(plan.CapContactEnd), P(plan.SideContactStart), P(plan.SideContactEnd),
-            "DisjointNoCavitiesInBareProfileM1", result.Correspondence?.Descendants.Select(x => x.StableId).OrderBy(x => x, StringComparer.Ordinal).ToArray() ?? [], result.Correspondence?.ProvenanceChain ?? []);
+        if (result.Plan is not null)
+        {
+            var plan = result.Plan;
+            var junction = new ProfileConvexFilletJunctionInspection(plan.Junction.VertexId, plan.Junction.Classification.Classification.ToString(), plan.Junction.Classification.MaterialInteriorAngleRadians * 180d / Math.PI, plan.Junction.Radius, P(plan.Junction.Center), plan.Rolls.Select(roll => V(roll.Tangent)).ToArray(), plan.Rolls.Select(roll => P(roll.ExternalCenter)).ToArray(), plan.Rolls.Select(roll => P(roll.JunctionCenter)).ToArray());
+            return new(true, null, target!.StableId, target.ProfileId, target.LoopId, target.ChainKind.ToString(), target.SegmentIds, target.Side.ToString(), radius, clearance, plan.EndpointPolicy,
+                null, null, null, null, null, null, null, "DisjointNoCavitiesInBareProfileM2", result.Correspondence?.Descendants.Select(x => x.StableId).OrderBy(x => x, StringComparer.Ordinal).ToArray() ?? [], result.Correspondence?.ProvenanceChain ?? [], junction);
+        }
+        var single = result.SingleSegmentPlan!;
+        return new(true, null, target!.StableId, target.ProfileId, target.LoopId, target.ChainKind.ToString(), target.SegmentIds, target.Side.ToString(), radius, clearance, single.EndpointPolicy,
+            V(single.Tangent), P(single.CylinderCenterlineStart), P(single.CylinderCenterlineEnd), P(single.CapContactStart), P(single.CapContactEnd), P(single.SideContactStart), P(single.SideContactEnd),
+            "DisjointNoCavitiesInBareProfileM1", result.Correspondence?.Descendants.Select(x => x.StableId).OrderBy(x => x, StringComparer.Ordinal).ToArray() ?? [], result.Correspondence?.ProvenanceChain ?? [], null);
     }
 
     private static IReadOnlyList<ProfileJunctionInspection> DescribeProfileJunctions(ResolvedProfile2D profile, string source, string hostBodyId)

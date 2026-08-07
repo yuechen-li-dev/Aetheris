@@ -67,3 +67,8 @@ uses the assertion to change the fillet route.
 Current limitations: no adjacent-junction continuation, convex/reflex patch,
 whole-loop or chain finish, inner loop, curve source, variable radius, imported
 edge, cavity interaction, or composed Profile host is supported.
+
+M2 supersedes that limitation only for one adjacent 90-degree convex two-line
+pair. It leaves M1's single-segment topology and endpoint policy unchanged; see
+`profile-convex-fillet-junction-m2.md`. Reflex, longer chains, and loops remain
+outside both materializers.

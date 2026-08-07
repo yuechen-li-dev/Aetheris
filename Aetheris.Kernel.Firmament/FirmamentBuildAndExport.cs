@@ -366,21 +366,21 @@ public static class FirmamentBuildAndExport
             {
                 if (!ProfileBoundaryChamferSourceBinder.TryBindFillet(source, profile, profile.Name, out var filletTarget, out var radius, out var clearance, out var filletDiagnostic))
                     return Fail(filletDiagnostic ?? "ProfileBoundaryFilletBindingFailed");
-                var fillet = ProfileStraightEdgeFilletPlanner.TryPlan(profile, filletTarget!, radius, clearance);
+                var fillet = ProfileFilletShellPlanner.TryPlan(profile, filletTarget!, radius, clearance);
                 if (!fillet.Succeeded || fillet.Body is null || fillet.Correspondence is null)
                     return Fail(fillet.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryFilletPlanningFailed");
                 if (!FirmamentManifoldChecker.IsManifold(fillet.Body)) return Fail("ProfileBoundaryFilletNonManifold");
                 var filletStep = Step242Exporter.ExportBody(fillet.Body, new Step242ExportOptions
                 {
                     ProductName = filletTarget!.StableId,
-                    ApplicationName = "Aetheris.Firmament.ProfileStraightEdgeFillet.M1",
+                    ApplicationName = fillet.Plan is null ? "Aetheris.Firmament.ProfileStraightEdgeFillet.M1" : "Aetheris.Firmament.ProfileConvexFilletJunction.M2",
                     BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
                     BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute
                 });
                 if (!filletStep.IsSuccess || filletStep.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(filletStep.Diagnostics);
                 var filletReimport = Step242Importer.ImportBody(filletStep.Value);
                 if (!filletReimport.IsSuccess || filletReimport.Value is null || !FirmamentManifoldChecker.IsManifold(filletReimport.Value)) return Fail("ProfileBoundaryFilletStepReimportFailed");
-                return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(filletStep.Value, filletTarget.StableId, fillet.Correspondence.Descendants.Count, "profile-straight-edge-fillet", "source-grounded-profile-straight-edge-fillet"));
+                return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(filletStep.Value, filletTarget.StableId, fillet.Correspondence.Descendants.Count, fillet.Plan is null ? "profile-straight-edge-fillet" : "profile-convex-fillet-junction", "source-grounded-profile-fillet"));
             }
             if (!ProfileBoundaryChamferSourceBinder.TryBind(source, profile, profile.Name, out var target, out var distance, out var bindingDiagnostic))
                 return Fail(bindingDiagnostic ?? "ProfileBoundaryChamferBindingFailed");

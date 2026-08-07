@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Core.Geometry;
 
 namespace Aetheris.Kernel.Firmament.Tests.Integration;
 
@@ -144,6 +145,47 @@ public sealed class ProfileBoundaryChamferTests
         var build = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         Assert.False(build.IsSuccess);
         Assert.Contains(build.Diagnostics, x => x.Message.StartsWith("ProfileBoundaryFilletIntersectsShaft", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("Top", 6d)]
+    [InlineData("Bottom", 2d)]
+    public void PlansTwoAdjacentConvexSegmentsAsTwoRollsAndOneSphere(string side, double expectedCenterZ)
+    {
+        var source = $"Selection Corner {{ Source: Bracket.Outer.[South, East] Require: ConnectedChain }} Modify Body {{ EdgeFinish Round {{ Target: Corner On: {side} Kind: Fillet Radius: 2mm EndClearance: 3mm }} }}";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(source, Profile(), "Bracket", out var target, out var radius, out var clearance, out var diagnostic), diagnostic);
+
+        var result = ProfileFilletShellPlanner.TryPlan(Profile(), target!, radius, clearance);
+
+        Assert.True(result.Succeeded, string.Join("; ", result.Diagnostics));
+        Assert.NotNull(result.Plan);
+        Assert.Equal(2, result.Plan!.Rolls.Count);
+        Assert.Equal(ProfileJunctionKind.ConvexProfileJunction, result.Plan.Junction.Classification.Classification);
+        Assert.Equal(18d, result.Plan.Junction.Center.X, 8);
+        Assert.Equal(2d, result.Plan.Junction.Center.Y, 8);
+        Assert.Equal(expectedCenterZ, result.Plan.Junction.Center.Z, 8);
+        Assert.Equal(2d, result.Plan.Junction.Radius, 8);
+        var sphereToRollA = (result.Plan.Junction.SideAContact - result.Plan.Junction.Center) / result.Plan.Junction.Radius;
+        var sphereToRollB = (result.Plan.Junction.SideBContact - result.Plan.Junction.Center) / result.Plan.Junction.Radius;
+        Assert.InRange((sphereToRollA + result.Plan.Rolls[0].InwardNormal.ToVector()).Length, 0d, 1e-12d);
+        Assert.InRange((sphereToRollB + result.Plan.Rolls[1].InwardNormal.ToVector()).Length, 0d, 1e-12d);
+        Assert.Equal(2, result.Body!.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Cylinder));
+        Assert.Equal(1, result.Body.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Sphere));
+        Assert.Equal(2, result.Correspondence!.Descendants.Count(item => item.Role is SemanticTopologyRole.StartTerminationFace or SemanticTopologyRole.EndTerminationFace));
+        Assert.Contains(result.Correspondence.Descendants, item => item.Role == SemanticTopologyRole.ConvexJunctionPatch);
+        Assert.DoesNotContain(result.Correspondence.Descendants, item => item.StableId.Contains("InternalTermination", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RejectsReflexAndThreeSegmentFilletChainsBeforeTopology()
+    {
+        const string reflex = "Selection Notch { Source: Bracket.Outer.[Inner, Upright] Require: ConnectedChain } Modify Body { EdgeFinish Round { Target: Notch On: Top Kind: Fillet Radius: 2mm } }";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(reflex, LProfile(), "Bracket", out var reflexTarget, out var reflexRadius, out var reflexClearance, out var diagnostic), diagnostic);
+        Assert.Contains("ProfileBoundaryFilletReflexJunctionUnsupported", ProfileFilletShellPlanner.TryPlan(LProfile(), reflexTarget!, reflexRadius, reflexClearance).Diagnostics);
+
+        const string three = "Selection Three { Source: Bracket.Outer.[South, East, North] Require: ConnectedChain } Modify Body { EdgeFinish Round { Target: Three On: Top Kind: Fillet Radius: 2mm } }";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(three, Profile(), "Bracket", out var threeTarget, out var threeRadius, out var threeClearance, out diagnostic), diagnostic);
+        Assert.Contains("ProfileBoundaryFilletJunctionTopologyNotMaterialized", ProfileFilletShellPlanner.TryPlan(Profile(), threeTarget!, threeRadius, threeClearance).Diagnostics);
     }
 
     private static ResolvedProfile2D Profile()

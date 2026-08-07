@@ -614,6 +614,111 @@ public static class ProfileStraightEdgeFilletPlanner
 }
 
 /// <summary>
+/// The authoritative Profile-fillet dispatch.  M1 remains a self-contained
+/// finite-span construction; M2 owns the first connected topology instead of
+/// trying to join two already-emitted M1 bodies.
+/// </summary>
+public enum ProfileFilletRollEndKind { EndpointTermination, ConvexJunction }
+public sealed record ProfileFilletStraightRollPlan(string SegmentId, Direction3D Tangent, Direction3D InwardNormal, Point3D ExternalCenter, Point3D JunctionCenter, ProfileFilletRollEndKind ExternalEnd, ProfileFilletRollEndKind JunctionEnd);
+public sealed record ProfileConvexSphericalJunctionPlan(string VertexId, ProfileJunctionClassification Classification, Point3D Center, double Radius, Point3D CapContact, Point3D SideAContact, Point3D SideBContact);
+public sealed record ProfileFilletShellPlan(ProfileBoundaryChamferTarget Target, double Radius, double EndClearance, IReadOnlyList<ProfileFilletStraightRollPlan> Rolls, ProfileConvexSphericalJunctionPlan Junction, string EndpointPolicy = "ExternalEndpointsOnly");
+public sealed record ProfileFilletShellPlanResult(bool Succeeded, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence, ProfileFilletShellPlan? Plan, ProfileStraightEdgeFilletPlan? SingleSegmentPlan, IReadOnlyList<string> Diagnostics);
+
+public static class ProfileFilletShellPlanner
+{
+    private const double Tol = 1e-8;
+
+    public static ProfileFilletShellPlanResult TryPlan(ResolvedProfile2D profile, ProfileBoundaryChamferTarget target, double radius, double clearance)
+    {
+        ProfileFilletShellPlanResult Fail(string code) => new(false, null, null, null, null, [code]);
+        if (target.ChainKind == ProfileBoundaryChamferChainKind.SingleSegment)
+        {
+            var m1 = ProfileStraightEdgeFilletPlanner.TryPlan(profile, target, radius, clearance);
+            return new(m1.Succeeded, m1.Body, m1.Correspondence, null, m1.Plan, m1.Diagnostics);
+        }
+        if (target.ChainKind == ProfileBoundaryChamferChainKind.ClosedLoop) return Fail("ProfileBoundaryFilletLoopTopologyNotMaterialized");
+        if (target.SegmentIds.Count != 2) return Fail("ProfileBoundaryFilletJunctionTopologyNotMaterialized");
+        var loop = profile.Loops.SingleOrDefault(x => x.Name == target.LoopId);
+        if (loop is null) return Fail("ProfileBoundaryFilletLoopUnknown");
+        if (!loop.IsOuter || profile.Loops.Count != 1) return Fail("ProfileBoundaryFilletInnerLoopUnsupported");
+        if (loop.Segments.Any(segment => segment.Geometry is not LineArcLineSegment2D)) return Fail("ProfileBoundaryFilletSegmentKindUnsupported");
+        if (!double.IsFinite(radius) || radius <= Tol) return Fail("ProfileBoundaryFilletRadiusMustBePositive");
+        if (!double.IsFinite(clearance) || clearance <= Tol) return Fail("ProfileBoundaryFilletEndClearanceMustBePositive");
+        var a = IndexOf(loop, target.SegmentIds[0]); var b = IndexOf(loop, target.SegmentIds[1]); var count = loop.Segments.Count;
+        if (a < 0 || b < 0) return Fail("ProfileBoundaryFilletSegmentUnknown");
+        if ((a + 1) % count != b) return Fail("ProfileBoundaryFilletDisconnectedChain");
+        var classification = ProfileJunctionClassifier.Classify(profile, loop).Single(x => x.PredecessorSegmentId == target.SegmentIds[0] && x.SuccessorSegmentId == target.SegmentIds[1]);
+        if (classification.Classification == ProfileJunctionKind.ReflexProfileJunction) return Fail("ProfileBoundaryFilletReflexJunctionUnsupported");
+        if (classification.Classification == ProfileJunctionKind.Collinear) return Fail("ProfileBoundaryFilletConvexJunctionCollinear");
+        if (classification.Classification != ProfileJunctionKind.ConvexProfileJunction) return Fail("ProfileBoundaryFilletConvexJunctionDegenerate");
+        if (Math.Abs(classification.MaterialInteriorAngleRadians - Math.PI / 2d) > Tol) return Fail("ProfileBoundaryFilletConvexAngleUnsupported");
+        var lineA = (LineArcLineSegment2D)loop.Segments[a].Geometry; var lineB = (LineArcLineSegment2D)loop.Segments[b].Geometry;
+        var lengthA = Length(lineA); var lengthB = Length(lineB);
+        if (lengthA <= clearance + radius + Tol || lengthB <= clearance + radius + Tol) return Fail("ProfileBoundaryFilletConvexRadiusTooLarge");
+        var start = profile.LocalStartDepth ?? -1d; var end = profile.LocalEndDepth ?? 1d;
+        if (radius >= end - start - Tol) return Fail("ProfileBoundaryFilletRadiusExceedsHost");
+        return Build(profile, loop, target, radius, clearance, a, b, lineA, lineB, classification, start, end);
+    }
+
+    private static ProfileFilletShellPlanResult Build(ResolvedProfile2D profile, ResolvedProfileLoop2D loop, ProfileBoundaryChamferTarget target, double radius, double clearance, int a, int b, LineArcLineSegment2D lineA, LineArcLineSegment2D lineB, ProfileJunctionClassification classification, double start, double end)
+    {
+        ProfileFilletShellPlanResult Fail(string code) => new(false, null, null, null, null, [code]);
+        var frame = profile.EffectiveConstructionPlane; var isTop = target.Side == ProfileBoundaryChamferSide.Top;
+        var capOut = isTop ? frame.AxisZ : Direction3D.Create(-frame.AxisZ.ToVector()); var axialInto = -capOut.ToVector(); var station = isTop ? end : start;
+        var ta = Direction(lineA, frame); var tb = Direction(lineB, frame); var signedArea = SignedArea(loop);
+        if (Math.Abs(signedArea) <= Tol) return Fail("ProfileBoundaryFilletConvexJunctionDegenerate");
+        var na = Inward(lineA, signedArea, frame); var nb = Inward(lineB, signedArea, frame);
+        if (Math.Abs(ta.ToVector().Dot(tb.ToVector())) > Tol || Math.Abs(na.ToVector().Dot(tb.ToVector()) - 1d) > Tol || Math.Abs(nb.ToVector().Dot(-ta.ToVector()) - 1d) > Tol)
+            return Fail("ProfileBoundaryFilletConvexAngleUnsupported");
+        var sourceAStart = frame.ToWorld(lineA.Start, station); var sourceBEnd = frame.ToWorld(lineB.End, station); var vertex = frame.ToWorld(lineA.End, station);
+        var sharpA = sourceAStart + ta.ToVector() * clearance; var sharpB = sourceBEnd - tb.ToVector() * clearance;
+        var capA = sharpA + na.ToVector() * radius; var sideAExternal = sharpA + axialInto * radius; var centerA = sharpA + na.ToVector() * radius + axialInto * radius;
+        var capB = sharpB + nb.ToVector() * radius; var sideBExternal = sharpB + axialInto * radius; var centerB = sharpB + nb.ToVector() * radius + axialInto * radius;
+        var center = vertex + na.ToVector() * radius + nb.ToVector() * radius + axialInto * radius;
+        var capJunction = center + capOut.ToVector() * radius; var sideA = center - na.ToVector() * radius; var sideB = center - nb.ToVector() * radius; var verticalDepth = vertex + axialInto * radius;
+        var rolls = new[] { new ProfileFilletStraightRollPlan(loop.Segments[a].Name, ta, na, centerA, center, ProfileFilletRollEndKind.EndpointTermination, ProfileFilletRollEndKind.ConvexJunction), new ProfileFilletStraightRollPlan(loop.Segments[b].Name, tb, nb, centerB, center, ProfileFilletRollEndKind.EndpointTermination, ProfileFilletRollEndKind.ConvexJunction) };
+        var junction = new ProfileConvexSphericalJunctionPlan(classification.VertexId, classification, center, radius, capJunction, sideA, sideB);
+        var plan = new ProfileFilletShellPlan(target, radius, clearance, rolls, junction);
+
+        var builder = new TopologyBuilder(); var geometry = new BrepGeometryStore(); var bindings = new BrepBindingModel(); var points = new Dictionary<VertexId, Point3D>();
+        var vertices = new Dictionary<string, VertexId>(StringComparer.Ordinal); var edges = new Dictionary<(VertexId, VertexId), EdgeId>(); var descendants = new List<SemanticTopologyDescendant>(); var curveId = 1; var surfaceId = 1;
+        VertexId Vertex(string key, Point3D point) { if (vertices.TryGetValue(key, out var id)) return id; id = builder.AddVertex(); vertices[key] = id; points[id] = point; return id; }
+        EdgeId LineEdge(VertexId x, VertexId y) { var key = x.Value < y.Value ? (x, y) : (y, x); if (edges.TryGetValue(key, out var id)) return id; id = builder.AddEdge(x, y); edges[key] = id; var curve = new CurveGeometryId(curveId++); geometry.AddCurve(curve, CurveGeometry.FromLine(new Line3Curve(points[x], Direction3D.Create(points[y] - points[x])))); bindings.AddEdgeBinding(new EdgeGeometryBinding(id, curve, new ParameterInterval(0d, (points[y] - points[x]).Length), true)); return id; }
+        EdgeId ArcEdge(VertexId x, VertexId y, Point3D c) { var key = x.Value < y.Value ? (x, y) : (y, x); if (edges.TryGetValue(key, out var id)) return id; var ux = points[x] - c; var uy = points[y] - c; var normal = ux.Cross(uy); if (normal.Length <= Tol) throw new InvalidOperationException($"ProfileBoundaryFilletConvexTrimDegenerate:{x.Value}->{y.Value}"); id = builder.AddEdge(x, y); edges[key] = id; var curve = new CurveGeometryId(curveId++); geometry.AddCurve(curve, CurveGeometry.FromCircle(new Circle3Curve(c, Direction3D.Create(normal), radius, Direction3D.Create(ux)))); bindings.AddEdgeBinding(new EdgeGeometryBinding(id, curve, new ParameterInterval(0d, Math.PI / 2d), true)); return id; }
+        FaceId Face(string stable, IReadOnlyList<(VertexId Vertex, bool Arc, Point3D? Center)> boundary, SurfaceGeometry surface, SemanticTopologyRole role, string source, string? parent = null) { var loopId = builder.AllocateLoopId(); var coedges = Enumerable.Range(0, boundary.Count).Select(_ => builder.AllocateCoedgeId()).ToArray(); for (var i = 0; i < boundary.Count; i++) { var current = boundary[i]; var next = boundary[(i + 1) % boundary.Count]; var edge = current.Arc ? ArcEdge(current.Vertex, next.Vertex, current.Center!.Value) : LineEdge(current.Vertex, next.Vertex); var modelEdge = builder.Model.Edges.Single(item => item.Id == edge); builder.AddCoedge(new Coedge(coedges[i], edge, loopId, coedges[(i + 1) % boundary.Count], coedges[(i + boundary.Count - 1) % boundary.Count], modelEdge.StartVertexId != current.Vertex)); } builder.AddLoop(new Loop(loopId, coedges)); var face = builder.AddFace([loopId]); var surfaceIdValue = new SurfaceGeometryId(surfaceId++); geometry.AddSurface(surfaceIdValue, surface); bindings.AddFaceBinding(new FaceGeometryBinding(face, surfaceIdValue, true)); descendants.Add(new(stable, "Face", role, source, Face: face, ParentStableId: parent)); return face; }
+        static (VertexId Vertex, bool Arc, Point3D? Center) L(VertexId x) => (x, false, null); static (VertexId Vertex, bool Arc, Point3D? Center) A(VertexId x, Point3D c) => (x, true, c);
+
+        var n = loop.Segments.Count; var lower = new VertexId[n]; var upper = new VertexId[n];
+        for (var i = 0; i < n; i++) { var line = (LineArcLineSegment2D)loop.Segments[i].Geometry; lower[i] = Vertex($"lower:{i}", frame.ToWorld(line.Start, start)); upper[i] = Vertex($"upper:{i}", frame.ToWorld(line.Start, end)); }
+        var cap = isTop ? upper : lower; var opposite = isTop ? lower : upper; var sharpAV = Vertex("sharp-a", sharpA); var sharpBV = Vertex("sharp-b", sharpB); var capAV = Vertex("cap-a", capA); var capBV = Vertex("cap-b", capB); var sideAEV = Vertex("side-a-external", sideAExternal); var sideBEV = Vertex("side-b-external", sideBExternal); var capJV = Vertex("junction-cap", capJunction); var sideAV = Vertex("junction-side-a", sideA); var sideBV = Vertex("junction-side-b", sideB); var depthV = Vertex("junction-vertical-depth", verticalDepth);
+        var capBoundary = new List<(VertexId Vertex, bool Arc, Point3D? Center)>();
+        for (var i = 0; i < n; i++) { if (i == a) { capBoundary.AddRange([L(cap[i]), L(sharpAV), L(capAV), L(capJV), L(capBV), L(sharpBV)]); continue; } if (i == b) continue; capBoundary.Add(L(cap[i])); }
+        var capPlane = SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), station), capOut, ta)); var oppositePlane = SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), isTop ? start : end), Direction3D.Create(-capOut.ToVector()), ta));
+        Face($"{target.StableId}:{(isTop ? "top" : "bottom")}-cap", isTop ? capBoundary : capBoundary.AsEnumerable().Reverse().ToArray(), capPlane, isTop ? SemanticTopologyRole.TopFaceBoundaryLoop : SemanticTopologyRole.BottomFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}", target.StableId);
+        Face($"{target.StableId}:{(isTop ? "bottom" : "top")}-cap", (isTop ? lower.Reverse() : upper).Select(L).ToArray(), oppositePlane, isTop ? SemanticTopologyRole.BottomFaceBoundaryLoop : SemanticTopologyRole.TopFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}", target.StableId);
+        for (var i = 0; i < n; i++) { var next = (i + 1) % n; var line = (LineArcLineSegment2D)loop.Segments[i].Geometry; var tangent = Direction(line, frame); var inward = Inward(line, signedArea, frame); var sideSurface = SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld(line.Start, start), Direction3D.Create(-inward.ToVector()), tangent)); if (i == a) Face($"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}:trimmed-side", [L(opposite[i]), L(opposite[next]), L(depthV), L(sideAV), L(sideAEV), L(sharpAV), L(cap[i])], sideSurface, SemanticTopologyRole.ExtrusionSideFace, $"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}", target.StableId); else if (i == b) Face($"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}:trimmed-side", [L(opposite[i]), L(opposite[next]), L(cap[next]), L(sharpBV), L(sideBEV), L(sideBV), L(depthV)], sideSurface, SemanticTopologyRole.ExtrusionSideFace, $"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}", target.StableId); else Face($"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}:side", [L(lower[i]), L(lower[next]), L(upper[next]), L(upper[i])], sideSurface, SemanticTopologyRole.ExtrusionSideFace, $"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}"); }
+        var cylinderA = SurfaceGeometry.FromCylinder(new CylinderSurface(centerA, ta, radius, capOut)); var cylinderB = SurfaceGeometry.FromCylinder(new CylinderSurface(center, tb, radius, capOut)); var sphere = SurfaceGeometry.FromSphere(new SphereSurface(center, capOut, radius, Direction3D.Create(-na.ToVector())));
+        Face($"{target.StableId}:FilletSurface({loop.Segments[a].Name})", [L(capAV), A(capJV, center), L(sideAV), A(sideAEV, centerA)], cylinderA, SemanticTopologyRole.FilletSurface, $"profile:{profile.Name}.{loop.Name}.{loop.Segments[a].Name}", target.StableId);
+        Face($"{target.StableId}:FilletSurface({loop.Segments[b].Name})", [L(capJV), A(capBV, centerB), L(sideBEV), A(sideBV, center)], cylinderB, SemanticTopologyRole.FilletSurface, $"profile:{profile.Name}.{loop.Name}.{loop.Segments[b].Name}", target.StableId);
+        Face($"{target.StableId}:ConvexJunctionPatch({loop.Segments[a].Name},{loop.Segments[b].Name})", [A(capJV, center), A(sideBV, center), A(sideAV, center)], sphere, SemanticTopologyRole.ConvexJunctionPatch, classification.VertexId, target.StableId);
+        Face($"{target.StableId}:ConvexJunctionSupport", [L(depthV), A(sideBV, center), L(sideAV)], SurfaceGeometry.FromPlane(new PlaneSurface(verticalDepth, capOut, ta)), SemanticTopologyRole.EdgeFinishReplacementFace, classification.VertexId, target.StableId);
+        Face($"{target.StableId}:StartTerminationFace", [L(sharpAV), A(capAV, centerA), L(sideAEV)], SurfaceGeometry.FromPlane(new PlaneSurface(sharpA, Direction3D.Create(-ta.ToVector()), capOut)), SemanticTopologyRole.StartTerminationFace, target.StableId, target.StableId);
+        Face($"{target.StableId}:EndTerminationFace", [L(sharpBV), A(sideBEV, centerB), L(capBV)], SurfaceGeometry.FromPlane(new PlaneSurface(sharpB, tb, capOut)), SemanticTopologyRole.EndTerminationFace, target.StableId, target.StableId);
+        var shell = builder.AddShell(builder.Model.Faces.Select(face => face.Id).ToArray()); builder.AddBody([shell]); var body = new BrepBody(builder.Model, geometry, bindings, points); var validation = BrepBindingValidator.Validate(body, true); if (!validation.IsSuccess) return Fail("ProfileBoundaryFilletConvexTopologyPlanInvalid");
+        void AddEdge(string name, EdgeId edge, SemanticTopologyRole role, string source) => descendants.Add(new($"{target.StableId}:{name}", "Edge", role, source, Edge: edge, ParentStableId: target.StableId));
+        AddEdge($"CapContactEdge({loop.Segments[a].Name})", LineEdge(capAV, capJV), SemanticTopologyRole.CapContactEdge, loop.Segments[a].Provenance.StableId); AddEdge($"CapContactEdge({loop.Segments[b].Name})", LineEdge(capJV, capBV), SemanticTopologyRole.CapContactEdge, loop.Segments[b].Provenance.StableId); AddEdge($"SideContactEdge({loop.Segments[a].Name})", LineEdge(sideAV, sideAEV), SemanticTopologyRole.SideContactEdge, loop.Segments[a].Provenance.StableId); AddEdge($"SideContactEdge({loop.Segments[b].Name})", LineEdge(sideBEV, sideBV), SemanticTopologyRole.SideContactEdge, loop.Segments[b].Provenance.StableId); AddEdge("JunctionToRollA", ArcEdge(capJV, sideAV, center), SemanticTopologyRole.JunctionToRollA, classification.VertexId); AddEdge("JunctionToRollB", ArcEdge(sideBV, capJV, center), SemanticTopologyRole.JunctionToRollB, classification.VertexId);
+        var correspondence = new SemanticTopologyCorrespondence(target.HostBodyId, descendants, ["ResolvedProfile2D", "ProfileFilletShellPlan", "StraightRoll", "ConvexSphericalJunction", "AuthoritativeBRepPlan"]);
+        return new(true, body, correspondence, plan, null, ["ProfileFilletShellPlan", "ProfileBoundaryFilletExactQuarterCylinders", "ProfileBoundaryFilletConvexSphericalJunction"]);
+    }
+
+    private static int IndexOf(ResolvedProfileLoop2D loop, string segmentId) => loop.Segments.Select((segment, index) => (segment, index)).Where(item => item.segment.Name == segmentId).Select(item => item.index).DefaultIfEmpty(-1).Single();
+    private static double Length(LineArcLineSegment2D line) => Math.Sqrt(Math.Pow(line.End.X - line.Start.X, 2d) + Math.Pow(line.End.Y - line.Start.Y, 2d));
+    private static Direction3D Direction(LineArcLineSegment2D line, ConstructionPlane frame) { var length = Length(line); return Direction3D.Create(frame.ToWorldDirection(new Vector3D((line.End.X - line.Start.X) / length, (line.End.Y - line.Start.Y) / length, 0d))); }
+    private static Direction3D Inward(LineArcLineSegment2D line, double signedArea, ConstructionPlane frame) { var length = Length(line); var normal = signedArea > 0d ? new Vector3D(-(line.End.Y - line.Start.Y) / length, (line.End.X - line.Start.X) / length, 0d) : new Vector3D((line.End.Y - line.Start.Y) / length, -(line.End.X - line.Start.X) / length, 0d); return Direction3D.Create(frame.ToWorldDirection(normal)); }
+    private static double SignedArea(ResolvedProfileLoop2D loop) => loop.Segments.Cast<ResolvedProfileSegment2D>().Select(segment => (LineArcLineSegment2D)segment.Geometry).Select((line, index) => line.Start.X * ((LineArcLineSegment2D)loop.Segments[(index + 1) % loop.Segments.Count].Geometry).Start.Y - ((LineArcLineSegment2D)loop.Segments[(index + 1) % loop.Segments.Count].Geometry).Start.X * line.Start.Y).Sum() * .5d;
+}
+
+/// <summary>
 /// Conservative source-space corridor check used before a composed host can ever
 /// attempt a future M2 materialization. M1 still rejects composed hosts after a
 /// disjoint proof; a collision receives the more useful feature-specific code.

@@ -46,12 +46,13 @@ notch-width and local-medial-space admission. Reusing convex face orientation
 for a reflex vertex would invert material side, so neither patch is emitted by
 M1.
 
-Accordingly, an admitted chain currently reports
-`ProfileBoundaryFilletJunctionTopologyNotMaterialized`; a complete loop reports
-`ProfileBoundaryFilletLoopTopologyNotMaterialized`. This is an intentional
-honest stop, not a geometry fallback. Composed hosts keep M1's conservative
-single-roll Shaft/Counterbore corridor check and report the feature-specific
-collision diagnostics before the separate compose-materialization boundary.
+M2 now materializes the first admitted chain: two adjacent 90-degree convex
+line segments use two cylinders, one exact sphere, and only their two external
+terminations. Reflex pairs and chains longer than two still report their typed
+topology boundary; a complete loop reports
+`ProfileBoundaryFilletLoopTopologyNotMaterialized`. Composed hosts keep M1's
+conservative single-roll Shaft/Counterbore corridor check and report the
+feature-specific collision diagnostics before the separate compose boundary.
 
 The next bounded implementation must create one authoritative
 `ProfileBoundaryFilletPlan` with typed straight-roll, convex-junction,

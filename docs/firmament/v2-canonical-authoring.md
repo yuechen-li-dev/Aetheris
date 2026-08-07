@@ -223,6 +223,18 @@ selection failure. Continuous multi-segment convex/reflex junction fillets,
 chains, and whole loops remain unmaterialized; a Concept Path `Arc` only changes
 a 2D outline and is not a substitute for this 3D edge finish.
 
+One practical continuation is now available: select two adjacent outside lines
+with `Require: ConnectedChain` and use one constant `Radius`. The compiler
+recognizes the convex 90-degree corner and chooses its junction topology:
+
+```firmament
+Selection OutsideCorner { Source: Bracket.Outer.[South, East] Require: ConnectedChain }
+Modify Body { EdgeFinish CornerRound { Target: OutsideCorner On: Top Kind: Fillet Radius: 2mm EndClearance: 3mm } }
+```
+
+The same form works on `Bottom`; reflex corners and chains longer than two have
+specific unsupported diagnostics.
+
 ## Canonical examples
 
 - `fixtures/FirmamentV2/Canonical/valid/bare-box.firmament`

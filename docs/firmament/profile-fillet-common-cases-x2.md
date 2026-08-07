@@ -46,28 +46,28 @@ notch-width and local-medial-space admission. Reusing convex face orientation
 for a reflex vertex would invert material side, so neither patch is emitted by
 M1.
 
-M2 now materializes the first admitted chain: two adjacent 90-degree convex
-line segments use two cylinders, one exact sphere, and only their two external
-terminations.  X5 exposes those cylinders and the sharp sphere as reusable
+The legacy finite M2 fixture uses two adjacent 90-degree convex line segments,
+two cylinders, one exact sphere, and two external terminations. The production
+whole-loop policy now uses the direct cylinder/cylinder miter ellipse and no
+convex junction patch. X5 exposes the legacy cylinders and sharp sphere as reusable
 components, and does the equivalent for M3's horn torus and the opt-in
 SphereSeamCompatibility sphere.  The finite fixtures retain their external
-terminations; reusable components do not own them.  Chains longer than two and
-a complete loop still report `ProfileBoundaryFilletLoopTopologyNotMaterialized`
-until the parent-owned mixed cap/side composer is emitted. Composed hosts keep M1's
+terminations; reusable components do not own them.  The admitted complete
+outer loop now uses X8's parent-owned mixed cap/side/contact-shell emitter and
+has zero endpoint terminations. Unsupported open chains remain typed. Composed hosts keep M1's
 conservative single-roll Shaft/Counterbore corridor check and report the
 feature-specific collision diagnostics before the separate compose boundary.
 
-The next bounded implementation composes the extracted components with the X4
-rounded-source components into one authoritative closed-loop plan. It cannot
-be obtained safely by stitching M1 endpoint faces or by generic B-rep edge
-editing. See `fillet-patch-extraction-x5.md`.
+X8 composes the extracted components with the X4 rounded-source components in
+one authoritative closed-loop plan. It does not stitch M1 endpoint faces or
+perform generic B-rep edge editing. See `fillet-contact-shell-emitter-x8.md`.
 
 ## Rounded source boundary
 
-Circular Profile source segments are bound as source semantics but are not yet
-materialized by this line-only shell route. X2 classifies them before topology
+Circular Profile source segments in an admitted complete outer loop are now
+materialized by the contact-shell route. X2 classifies them before topology
 emission and reports the selected exact planner, family, regularity, and typed
-invalid reason through `ProfileBoundaryFilletArcMaterializationNotImplemented`.
+invalid reason for unsupported rows.
 Convex rolling has signed major locus `Rs - F` (spindle / sphere-limit / horn
 boundaries); reflex rolling has `Rs + F` (regular ring torus for positive
 `Rs`). The full code-backed table is in `profile-edgefinish-chimera-closure-x2.md`.

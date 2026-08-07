@@ -28,6 +28,9 @@ an ordered `ProfileFilletSideContactChain`, explicit two-face edge-incidence
 contracts, point-only contacts, and side-fragment plan records.  The graph is
 validated before B-rep allocation; see `fillet-side-contact-chain-x7.md`.
 
-No whole-loop Fillet artifact is claimed yet.  Existing M1/M2/M3 materializers
-remain the geometry ground truth while their extracted components are promoted
-to exact contact contracts.
+X8 completes this boundary for the admitted whole-loop route.  Production now
+constructs the X6/X7 plan, allocates the parent cap, source-side fragments, and
+shared analytic edges from it, and emits deterministic non-NURBS Fillet and
+SphereSeamCompatibility artifacts.  Existing M1/M2/M3 materializers remain
+the ground truth for open-chain endpoint policy.  See
+`fillet-contact-shell-emitter-x8.md`.

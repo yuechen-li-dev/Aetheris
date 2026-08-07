@@ -18,7 +18,7 @@ public sealed class ProfileEdgeFinishAnalyticPolicyTests
 
     public static IEnumerable<object[]> FilletRows()
     {
-        yield return Row("ConvexSharp", ProfileEdgeFinishSourceFamily.SharpLineLine, ProfileEdgeFinishMaterialSide.Convex, 0d, "ConvexSharpSphereJunctionPlan", ProfileEdgeFinishSurfaceFamily.Sphere, ProfileEdgeFinishRegularity.Regular, ProfileEdgeFinishAdmission.Supported);
+        yield return Row("ConvexSharp", ProfileEdgeFinishSourceFamily.SharpLineLine, ProfileEdgeFinishMaterialSide.Convex, 0d, "ConvexSharpCylinderMiterPlan", ProfileEdgeFinishSurfaceFamily.Cylinder, ProfileEdgeFinishRegularity.Regular, ProfileEdgeFinishAdmission.Supported);
         yield return Row("ConvexSmall", ProfileEdgeFinishSourceFamily.ArcDerived, ProfileEdgeFinishMaterialSide.Convex, 2d, "ArcFilletSpindleRejected", ProfileEdgeFinishSurfaceFamily.Torus, ProfileEdgeFinishRegularity.Invalid, ProfileEdgeFinishAdmission.UnsupportedWithTypedDiagnostic);
         yield return Row("ConvexMedium", ProfileEdgeFinishSourceFamily.ArcDerived, ProfileEdgeFinishMaterialSide.Convex, 4d, "ArcFilletSphereLimitPlan", ProfileEdgeFinishSurfaceFamily.Sphere, ProfileEdgeFinishRegularity.BoundedDegenerate, ProfileEdgeFinishAdmission.SupportedWithExplicitPolicy);
         yield return Row("ConvexLarge", ProfileEdgeFinishSourceFamily.ArcDerived, ProfileEdgeFinishMaterialSide.Convex, 8d, "ArcFilletTorusPlan", ProfileEdgeFinishSurfaceFamily.Torus, ProfileEdgeFinishRegularity.InteropSensitive, ProfileEdgeFinishAdmission.SupportedWithExplicitPolicy);

@@ -440,16 +440,6 @@ public static class ProfileFilletContactShellPlanner
         var area = SignedArea(loop);
         if (Math.Abs(area) <= Tolerance) return Fail("ProfileFilletContactShellProfileDegenerate");
 
-        // The extracted M2/M3 components own displaced contacts at sharp
-        // line/line vertices.  Do not let a rounded-source planner invent them.
-        for (var i = 0; i < loop.Segments.Count; i++)
-        {
-            var previous = loop.Segments[(i + loop.Segments.Count - 1) % loop.Segments.Count].Geometry;
-            var current = loop.Segments[i].Geometry;
-            if (previous is LineArcLineSegment2D && current is LineArcLineSegment2D)
-                return Fail($"ProfileFilletContactSharpJunctionComponentRequired:vertex={loop.Name}.{loop.Segments[i].Name}.Start");
-        }
-
         var frame = profile.EffectiveConstructionPlane;
         var cap = profile.LocalEndDepth ?? 1d;
         var transition = cap - mixed.FinishSize;
@@ -534,6 +524,11 @@ public static class ProfileFilletContactShellPlanner
             LineArcCircularArc2D arc => OffsetArc(arc, area, distance),
             _ => throw new NotSupportedException()
         };
+        if (inset is null && curve is LineArcCircularArc2D sphereLimit)
+        {
+            start = end = frame.ToWorld(sphereLimit.Center, depth);
+            return CurveGeometry.FromCircle(new Circle3Curve(start, frame.AxisZ, distance, frame.AxisX));
+        }
         if (inset is null) throw new InvalidOperationException("ProfileFilletContactSphereLimitRequiresExplicitApexComponent");
         var ends = Ends(inset); start = frame.ToWorld(ends.Start, depth); end = frame.ToWorld(ends.End, depth);
         return Curve(inset, depth, frame, start, end);

@@ -61,14 +61,12 @@ It validates chain order/continuity, a single planned contract per contact
 edge, distinct/opposite face uses, duplicate support identities, explicit
 vertex references, and the absence of zero-length edge contacts.
 
-## Current state
+## X8 completion
 
-M1 now has a reusable extracted line contact and a preallocated
-side/cylinder incidence contract.  Focused tests also model the M2
-roll-plus-support chain and M3 point-not-edge contact.  The full parent-shell
-emitter has not yet been rebuilt to consume these contracts, so no whole-loop
-Fillet artifact, volume assertion, inspection JSON, external-kernel result,
-or Preview 1 readiness claim is made by X7 at this point.  In particular,
-rounded arc components and SphereSeamCompatibility still need to publish
-their concrete side-chain extraction before the seven-station shell can be
-emitted safely.
+M1 has a reusable extracted line contact and a preallocated side/cylinder
+incidence contract; focused tests cover the M2 roll-plus-support chain and M3
+point-not-edge contact.  X8 now consumes this ownership model in the production
+closed-loop materializer.  Rounded arc components publish exact contacts, and
+SphereSeamCompatibility uses its distinct roll/support/sphere neighborhood.
+Both seven-station artifacts pass planned incidence, manifold, STEP reimport,
+and external FreeCAD validation.  See `fillet-contact-shell-emitter-x8.md`.

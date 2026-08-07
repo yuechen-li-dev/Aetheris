@@ -45,7 +45,7 @@ of a useful manifold split topology.
 
 | Station | Source | Side | Rs | Relation | Planner | Family | R/r regime | Regularity | Admission |
 | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- |
-| ConvexSharp | SharpLineLine | Convex | 0 | Zero | ConvexSharpSphereJunctionPlan | Sphere | — | Regular | Supported |
+| ConvexSharp | SharpLineLine | Convex | 0 | Zero | ConvexSharpCylinderMiterPlan | Cylinder pair / ellipse seam | — | Regular | Supported |
 | ConvexSmall | ArcDerived | Convex | 2 | LessThan | ArcFilletSpindleRejected | Torus | R=2,r=4 Spindle | Invalid | UnsupportedWithTypedDiagnostic |
 | ConvexMedium | ArcDerived | Convex | 4 | Equal | ArcFilletSphereLimitPlan | Sphere | R=0,r=4 limit | BoundedDegenerate | SupportedWithExplicitPolicy |
 | ConvexLarge | ArcDerived | Convex | 8 | GreaterThan | ArcFilletTorusPlan | Torus | R=4,r=4 Horn | InteropSensitive | SupportedWithExplicitPolicy |

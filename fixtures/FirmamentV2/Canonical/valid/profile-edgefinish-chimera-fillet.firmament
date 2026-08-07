@@ -32,4 +32,9 @@ Model ProfileEdgeFinishChimeraFillet {
     Selection ReflexMediumStation { Target: TopBoundary Source: Chimera.ProfileSegments([MediumDrop, ReflexMediumArc, BetweenMediumLarge]) Require: ConnectedChain }
     Selection ReflexLargeStation { Target: TopBoundary Source: Chimera.ProfileSegments([BetweenMediumLarge, ReflexLargeArc, LargeRise]) Require: ConnectedChain }
     Modify Body { EdgeFinish ChimeraTopFillet { Target: Chimera.Outer On: Top Kind: Fillet Radius: 4mm } }
+    Assert Volume Body {
+        Expected: 913725.7396023329mm^3
+        Tolerance: 41239mm^3
+        Note: "Independent adaptive source-section integration; tolerance is the current curved-trim verifier's certified conservative error envelope."
+    }
 }

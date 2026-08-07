@@ -845,9 +845,18 @@ public static class ProfileFilletShellPlanner
         var loop = profile.Loops.SingleOrDefault(x => x.Name == target.LoopId);
         if (loop is null) return Fail("ProfileBoundaryFilletLoopUnknown");
         if (!loop.IsOuter || profile.Loops.Count != 1) return Fail("ProfileBoundaryFilletInnerLoopUnsupported");
+        if (target.ChainKind == ProfileBoundaryChamferChainKind.ClosedLoop)
+        {
+            var mixed = ProfileEdgeFinishMixedShellPlanner.TryPlan(profile, target, ProfileEdgeFinishKind.Fillet, radius);
+            if (!mixed.Succeeded || mixed.Plan is null)
+                return Fail(mixed.Diagnostics.FirstOrDefault() ?? "ProfileFilletContactShellPlanningFailed");
+            var contacts = ProfileFilletContactShellPlanner.TryPlan(profile, target, mixed.Plan);
+            if (!contacts.Succeeded || contacts.Plan is null)
+                return Fail(contacts.Diagnostics.FirstOrDefault() ?? "ProfileFilletContactShellPlanningFailed");
+            return ProfileFilletContactShellMaterializer.TryMaterialize(profile, target, mixed.Plan, contacts.Plan);
+        }
         if (loop.Segments.Any(segment => segment.Geometry is not LineArcLineSegment2D))
             return Fail(ProfileBoundaryCurvedFinishDiagnostic.ForFirstSelectedArc(profile, loop, target, radius, "Fillet") ?? "ProfileBoundaryFilletSegmentKindUnsupported");
-        if (target.ChainKind == ProfileBoundaryChamferChainKind.ClosedLoop) return Fail("ProfileBoundaryFilletLoopTopologyNotMaterialized");
         if (target.SegmentIds.Count != 2) return Fail("ProfileBoundaryFilletJunctionTopologyNotMaterialized");
         if (!double.IsFinite(radius) || radius <= Tol) return Fail("ProfileBoundaryFilletRadiusMustBePositive");
         if (!double.IsFinite(clearance) || clearance <= Tol) return Fail("ProfileBoundaryFilletEndClearanceMustBePositive");

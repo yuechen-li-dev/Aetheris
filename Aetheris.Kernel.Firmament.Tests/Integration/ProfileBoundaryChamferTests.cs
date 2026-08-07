@@ -308,8 +308,11 @@ public sealed class ProfileBoundaryChamferTests
         const string fillet = "Modify Body { EdgeFinish TopRound { Target: Bracket.Outer On: Top Kind: Fillet Radius: 4mm } }";
         Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(fillet, CurvedProfile(), "Bracket", out var filletTarget, out var radius, out var clearance, out var filletDiagnostic), filletDiagnostic);
         var filletPlan = ProfileFilletShellPlanner.TryPlan(CurvedProfile(), filletTarget!, radius, clearance);
-        Assert.False(filletPlan.Succeeded);
-        Assert.StartsWith("ProfileBoundaryFilletArcMaterializationNotImplemented:station=ReflexSmall:scope=Target:segment=ReflexSmallArc:sourceFamily=Arc:material=Reflex:sourceRadius=2:finishRadius=4:radiusRelation=LessThan:planner=ArcFilletTorusPlan:surfaceFamily=Torus:regularity=Regular:admission=Supported", Assert.Single(filletPlan.Diagnostics));
+        Assert.True(filletPlan.Succeeded, string.Join(Environment.NewLine, filletPlan.Diagnostics));
+        Assert.NotNull(filletPlan.Body);
+        Assert.Equal(1, filletPlan.Body!.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Torus));
+        Assert.Equal(0, filletPlan.Body.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots));
+        Assert.True(BrepMassProperties.Evaluate(filletPlan.Body).IsEnclosed);
     }
 
     [Fact]

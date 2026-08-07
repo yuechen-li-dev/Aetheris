@@ -77,7 +77,7 @@ an arc-derived cylinder is a right circular cone.  Convex material offsets to
 | Reflex Large | 2 | regular conical frustum | ring torus (`R=12, r=4`), regular |
 
 The sharp rows are line-line junctions, not arc offsets: convex selects the
-existing sphere junction; reflex selects the existing horn torus by default.
+direct cylinder/cylinder miter junction; reflex selects the existing horn torus by default.
 
 ## Required next bounded work
 

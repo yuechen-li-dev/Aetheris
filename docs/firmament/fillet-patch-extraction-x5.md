@@ -55,13 +55,11 @@ components before allocating one parent top-cap boundary and parent-owned side
 trims. A closed loop has zero endpoint termination faces; open M1/M2/M3
 fixtures retain their explicit external terminations.
 
-## Status
+## X8 status
 
 X7 supplies the typed side-chain and pre-emission incidence layer needed by
-that composer.  It establishes that M2 requires an explicit roll-plus-support
-chain and that M3 ExactRolling uses a point contact at its retained notch,
-not a zero-length support edge.  The seven-station closed-loop Fillet
-materializer, its volume assertion, persistent Fillet STEP artifacts,
-compatibility comparison, inspection JSON, and external-kernel smoke remain
-blocked until all component extractors and the parent emitter consume those
-contracts.  No Fillet artifact is claimed by this document.
+that composer.  X8 now consumes it for the admitted seven-station closed loop,
+including direct convex cylinder/cylinder miter ellipses, the M3 ExactRolling point contact, rounded
+Sphere/Torus patches, and the distinct SphereSeamCompatibility neighborhood.
+Persistent deterministic artifacts and external-kernel evidence are recorded
+in `fillet-contact-shell-emitter-x8.md`.

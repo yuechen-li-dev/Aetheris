@@ -109,7 +109,7 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
     }
 
     [Fact]
-    public void SevenStationFillet_RejectsNaiveContactCompositionBeforeTopologyAtTheFirstSharpStation()
+    public void SevenStationFillet_ConsumesContactPlanAndEmitsOneManifoldAnalyticShell()
     {
         var (profile, target) = ReleaseCard("profile-edgefinish-chimera-fillet.firmament", ProfileEdgeFinishKind.Fillet);
         var mixed = ProfileEdgeFinishMixedShellPlanner.TryPlan(profile, target, ProfileEdgeFinishKind.Fillet, 4d);
@@ -117,8 +117,56 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
         Assert.True(mixed.Succeeded, string.Join(Environment.NewLine, mixed.Diagnostics));
         var contacts = ProfileFilletContactShellPlanner.TryPlan(profile, target, Assert.IsType<ProfileEdgeFinishMixedShellPlan>(mixed.Plan));
 
-        Assert.False(contacts.Succeeded);
-        Assert.Equal("ProfileFilletContactSharpJunctionComponentRequired:vertex=Outer.Bottom.Start", Assert.Single(contacts.Diagnostics));
+        Assert.True(contacts.Succeeded, string.Join(Environment.NewLine, contacts.Diagnostics));
+        var contactPlan = Assert.IsType<ProfileFilletContactShellPlan>(contacts.Plan);
+        Assert.Equal(17, contactPlan.SideContactChains.Count);
+        Assert.Equal(17, contactPlan.SourceSideTrims.Count);
+        Assert.True(ProfileFilletContactGraphValidator.Validate(contactPlan).Succeeded);
+
+        var emitted = ProfileFilletContactShellMaterializer.TryMaterialize(profile, target,
+            Assert.IsType<ProfileEdgeFinishMixedShellPlan>(mixed.Plan), contactPlan);
+
+        Assert.True(emitted.Succeeded, string.Join(Environment.NewLine, emitted.Diagnostics));
+        var body = Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(emitted.Body);
+        AssertClosedManifold(body);
+        Assert.Equal(0, body.Geometry.Surfaces.Count(surface => surface.Value.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots));
+        Assert.Equal(6, body.Geometry.Curves.Count(curve => curve.Value.Kind == CurveGeometryKind.Ellipse3));
+        var ellipseEdges = body.Bindings.EdgeBindings
+            .Where(binding => body.Geometry.GetCurve(binding.CurveGeometryId).Kind == CurveGeometryKind.Ellipse3)
+            .ToArray();
+        Assert.Equal(6, ellipseEdges.Length);
+        foreach (var ellipseEdge in ellipseEdges)
+        {
+            var adjacentLoops = body.Topology.Coedges.Where(coedge => coedge.EdgeId == ellipseEdge.EdgeId).Select(coedge => coedge.LoopId).ToHashSet();
+            var adjacentFaces = body.Topology.Faces.Where(face => face.LoopIds.Any(adjacentLoops.Contains)).ToArray();
+            Assert.Equal(2, adjacentFaces.Length);
+            Assert.All(adjacentFaces, face => Assert.Equal(SurfaceGeometryKind.Cylinder,
+                body.Geometry.GetSurface(body.Bindings.GetFaceBinding(face.Id).SurfaceGeometryId).Kind));
+        }
+        Assert.Equal(0, Assert.IsType<SemanticTopologyCorrespondence>(emitted.Correspondence).Descendants.Count(descendant =>
+            descendant.Role is SemanticTopologyRole.StartTerminationFace or SemanticTopologyRole.EndTerminationFace));
+    }
+
+    [Theory]
+    [InlineData("profile-edgefinish-chimera-fillet.firmament", 1, 5)]
+    [InlineData("profile-edgefinish-chimera-reflex-sphere-compat.firmament", 2, 4)]
+    public void SevenStationFillet_ExportsDeterministicallyWithExpectedSphereTorusDelta(string fixture, int spheres, int tori)
+    {
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/valid/{fixture}");
+        var first = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
+        var second = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
+
+        Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+        var imported = Step242Importer.ImportBody(first.Value.Export.StepText);
+        Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        var body = Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(imported.Value);
+        AssertClosedManifold(body);
+        Assert.Equal(spheres, body.Geometry.Surfaces.Count(surface => surface.Value.Kind == SurfaceGeometryKind.Sphere));
+        Assert.Equal(tori, body.Geometry.Surfaces.Count(surface => surface.Value.Kind == SurfaceGeometryKind.Torus));
+        Assert.Equal(6, body.Geometry.Curves.Count(curve => curve.Value.Kind == CurveGeometryKind.Ellipse3));
+        Assert.Equal(0, body.Geometry.Surfaces.Count(surface => surface.Value.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots));
     }
 
     private static (ResolvedProfile2D Profile, ProfileBoundaryChamferTarget Target) ReleaseCard(string fixture, ProfileEdgeFinishKind kind)
@@ -131,5 +179,17 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
             : ProfileBoundaryChamferSourceBinder.TryBindFillet(source, profile, profile.Name, out target, out _, out _, out diagnostic);
         Assert.True(bound, diagnostic);
         return (profile, Assert.IsType<ProfileBoundaryChamferTarget>(target));
+    }
+
+    private static void AssertClosedManifold(Aetheris.Kernel.Core.Brep.BrepBody body)
+    {
+        Assert.Single(body.Topology.Bodies);
+        Assert.Single(body.Topology.Shells);
+        foreach (var edge in body.Topology.Edges)
+        {
+            var uses = body.Topology.Coedges.Where(coedge => coedge.EdgeId == edge.Id).ToArray();
+            Assert.Equal(2, uses.Length);
+            Assert.NotEqual(uses[0].IsReversed, uses[1].IsReversed);
+        }
     }
 }

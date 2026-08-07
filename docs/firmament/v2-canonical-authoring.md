@@ -275,3 +275,13 @@ segment, or a named source-chain selection). Current materialized Chamfer and
 Fillet routes cover line-only source loops; circular source segments bind and
 report a station-specific missing exact planner rather than falling back to
 anonymous BRep edge inference. See `profile-edgefinish-chimera-x1.md`.
+
+Rounded-source EdgeFinish policy is explicitly classified before BRep emission:
+chamfers use only Plane/Cone and fillets only Cylinder/Sphere/Torus. See
+`profile-edgefinish-chimera-closure-x2.md` for the current bounded support card
+and typed unsupported spindle/collapsed-offset regimes.
+
+For a convex rounded source corner, the current exact Profile EdgeFinish policy
+rejects `source radius < finish size`. Reduce the requested Chamfer/Fillet,
+increase the authored corner radius, or leave that corner sharp; no spline
+compatibility blend is substituted.

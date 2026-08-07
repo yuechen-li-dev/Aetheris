@@ -14,7 +14,7 @@ Struct Body { Extrude Bracket { Profile: Bracket; From: 0mm; To: 8mm } }
 Modify Body { EdgeFinish SouthTopRound { Target: Bracket.Outer.South On: Top Kind: Fillet Radius: 2mm EndClearance: 3mm } }
 Assert Volume Body {
     Expected: 1587.982297150257mm^3
-    Tolerance: 5mm^3
-    Note: "Finite-span quarter-cylinder straight Profile edge fillet"
+    Tolerance: 0.01mm^3
+    Note: "Independent box-minus-finite-quarter-cylinder analytic volume."
 }
 }

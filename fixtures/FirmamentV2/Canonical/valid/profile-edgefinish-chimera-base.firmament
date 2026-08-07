@@ -10,9 +10,10 @@ Model ProfileEdgeFinishChimeraBase {
         Line ConvexSharpDrop { Turn: 90deg; Length: 40mm }
         Line ReflexSharpRun { Turn: -90deg; Length: 40mm }
         Arc ReflexSmallArc { Turn: -90deg; Radius: 2mm }
-        Line ReflexSmallRise { Length: 36mm }
-        Arc ConvexSmallArc { Turn: 90deg; Radius: 2mm }
-        Line BetweenSmallMedium { Length: 40mm }
+        Line ReflexSmallRise { Length: 38mm }
+        // ConvexSmall (Rs < F) is intentionally a canonical-invalid policy case.
+        // This release card keeps only admitted stations.
+        Line BetweenSmallMedium { Turn: 90deg; Length: 42mm }
         Arc ConvexMediumArc { Turn: 90deg; Radius: 4mm }
         Line MediumDrop { Length: 32mm }
         Arc ReflexMediumArc { Turn: -90deg; Radius: 4mm }
@@ -28,7 +29,6 @@ Model ProfileEdgeFinishChimeraBase {
 
     // A station is a source-bound chain; no BRep edge discovery is involved.
     Selection ConvexSharpStation { Target: TopBoundary Source: Chimera.ProfileSegments([TopLead, ConvexSharpDrop]) Require: ConnectedChain }
-    Selection ConvexSmallStation { Target: TopBoundary Source: Chimera.ProfileSegments([ReflexSmallRise, ConvexSmallArc, BetweenSmallMedium]) Require: ConnectedChain }
     Selection ConvexMediumStation { Target: TopBoundary Source: Chimera.ProfileSegments([BetweenSmallMedium, ConvexMediumArc, MediumDrop]) Require: ConnectedChain }
     Selection ConvexLargeStation { Target: TopBoundary Source: Chimera.ProfileSegments([LargeRise, ConvexLargeArc, TopReturn]) Require: ConnectedChain }
     Selection ReflexSharpStation { Target: TopBoundary Source: Chimera.ProfileSegments([ConvexSharpDrop, ReflexSharpRun]) Require: ConnectedChain }
@@ -37,8 +37,8 @@ Model ProfileEdgeFinishChimeraBase {
     Selection ReflexLargeStation { Target: TopBoundary Source: Chimera.ProfileSegments([BetweenMediumLarge, ReflexLargeArc, LargeRise]) Require: ConnectedChain }
 
     Assert Volume Body {
-        Expected: 917760mm^3
+        Expected: 917780.601776314mm^3
         Tolerance: 0.01mm^3
-        Note: "Independent Green-theorem area 38240 mm^2 times 24 mm extrusion."
+        Note: "Independent Green-theorem area (38240 + 4 - π) mm^2 times 24 mm extrusion."
     }
 }

@@ -24,6 +24,11 @@ Modify Body { EdgeFinish Break { Target: BreakChain On: Top Kind: Chamfer Distan
 
 The current materialized contract is one outer line-only Profile loop, a positive equal distance below the extrusion thickness, and one segment/connected chain/whole loop. Curves are source-bound but not silently coerced: a selected circular arc now reports `ProfileBoundaryChamferArcSegmentPlannerRequired` with station/segment, convex-or-reflex material side, source radius, finish distance, radius relation, and the exact missing `ChamferArcDerivedExtrusionEdge` planner.  The X1 chimera card documents the required conical section-transition routes. Inner loops, disconnected or duplicate chains, and legacy `Face: +Z / Target: Boundary` requests receive typed rejection diagnostics.
 
+X2 replaces the generic arc-planner boundary with an explicit pre-emission
+policy result (`ArcChamferConePlan`, `ArcChamferApexPlan`, or the typed collapsed
+offset rejection). The mixed line/arc cone emitter remains pending; see
+`profile-edgefinish-chimera-closure-x2.md`.
+
 Junction polarity is classified from resolved Profile semantics, never BRep edge direction: predecessor/successor tangents give the signed turn; loop winding and outer/inner role determine the material side. A positive material-side turn is a `ConvexProfileJunction`; a negative one is a `ReflexProfileJunction`. Thus an orthogonal outer CCW L notch has a `-90°` signed turn and a `270°` material interior angle. The planar inset construction intersects the two inward line supports at either class; it does not use a distinct rolling-surface patch. `profile-chamfer-reflex-junction-top.firmament`, the Bottom counterpart, and the mixed L-loop fixture make those guarantees explicit.
 
 Compose now admits a Top whole-outer-loop chamfer with disjoint Shaft or Counterbore cavities. Admission conservatively rejects touching/intersecting circular cavity footprints in the transition corridor with `ProfileBoundaryChamferIntersectsShaft` or `ProfileBoundaryChamferIntersectsCounterbore`. Bottom Compose, open-chain Compose, inner-loop chamfers, and non-line source segments remain outside this bounded route.

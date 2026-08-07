@@ -512,12 +512,31 @@ public static class ProfileBoundaryCurvedFinishDiagnostic
         var winding = SignedArea(loop);
         var materialSide = loop.IsOuter ? Math.Sign(winding) : -Math.Sign(winding);
         var material = Math.Sign(arc.SweepAngleRadians) * materialSide >= 0d ? "Convex" : "Reflex";
-        var relation = arc.Radius < finishSize - Tolerance ? "LessThan"
-            : arc.Radius > finishSize + Tolerance ? "GreaterThan"
-            : "Equal";
         var station = sourceScope == "Target" ? StationName(pair.segment.Name) : TargetStationName(target) ?? StationName(pair.segment.Name);
         var amount = finishKind == "Chamfer" ? "finishDistance" : "finishRadius";
-        return $"ProfileBoundary{finishKind}ArcSegmentPlannerRequired:station={station}:scope={sourceScope}:segment={pair.segment.Name}:sourceFamily=Arc:material={material}:sourceRadius={arc.Radius.ToString("R", CultureInfo.InvariantCulture)}:{amount}={finishSize.ToString("R", CultureInfo.InvariantCulture)}:radiusRelation={relation}:missingPlanner={finishKind}ArcDerivedExtrusionEdge";
+        var policy = ProfileEdgeFinishAnalyticPolicy.Classify(new(
+            station,
+            Enum.Parse<ProfileEdgeFinishKind>(finishKind),
+            ProfileEdgeFinishSourceFamily.ArcDerived,
+            Enum.Parse<ProfileEdgeFinishMaterialSide>(material),
+            arc.Radius,
+            finishSize,
+            target.ReflexJunctionStyle));
+        if (policy.Admission == ProfileEdgeFinishAdmission.UnsupportedWithTypedDiagnostic)
+        {
+            if (finishKind == "Chamfer")
+            {
+                var offset = arc.Radius - finishSize;
+                return $"ProfileBoundaryChamferConvexArcRadiusTooSmall:station={station}:segment={pair.segment.Name}:sourceFamily=Arc:material=Convex:sourceRadius={arc.Radius.ToString("R", CultureInfo.InvariantCulture)}:chamferDistance={finishSize.ToString("R", CultureInfo.InvariantCulture)}:radiusRelation=LessThan:derivedOffsetRadius={offset.ToString("R", CultureInfo.InvariantCulture)}:regularity=Invalid:reason=inward-offset-crosses-source-arc-axis;no-admitted-source-preserving-manifold-chamfer-exists-under-Preview-1-policy:guidance=reduce-Chamfer-Distance-below-source-radius|increase-source-corner-radius|leave-corner-unfinished";
+            }
+
+            var majorLocus = finishSize - arc.Radius;
+            return $"ProfileBoundaryFilletConvexArcSpindleUnsupported:station={station}:segment={pair.segment.Name}:sourceFamily=Arc:material=Convex:sourceRadius={arc.Radius.ToString("R", CultureInfo.InvariantCulture)}:filletRadius={finishSize.ToString("R", CultureInfo.InvariantCulture)}:radiusRelation=LessThan:rollingMajorLocusMagnitude={majorLocus.ToString("R", CultureInfo.InvariantCulture)}:torusRegime=Spindle:regularity=Invalid:reason=exact-constant-radius-rolling-construction-self-intersects-and-is-not-admitted:guidance=reduce-Fillet-Radius-below-source-radius|increase-source-corner-radius|leave-corner-sharp-unmodified";
+        }
+        // This is deliberately emitted before the materializer touches topology.  The
+        // selected exact family is therefore inspectable even while X2's composed
+        // line/arc shell emitter is being completed.
+        return $"ProfileBoundary{finishKind}ArcMaterializationNotImplemented:station={station}:scope={sourceScope}:segment={pair.segment.Name}:sourceFamily=Arc:material={material}:sourceRadius={arc.Radius.ToString("R", CultureInfo.InvariantCulture)}:{amount}={finishSize.ToString("R", CultureInfo.InvariantCulture)}:radiusRelation={policy.RadiusRelation}:planner={policy.PlannerKind}:surfaceFamily={policy.SurfaceFamily}:regularity={policy.Regularity}:admission={policy.Admission}:diagnostic={policy.ExpectedDiagnostic ?? "ArcDerivedCompositionPending"}";
     }
 
     private static string StationName(string segmentName)

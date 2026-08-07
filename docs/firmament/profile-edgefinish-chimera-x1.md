@@ -1,4 +1,8 @@
-# Profile EdgeFinish chimera X1 — source-card and planner boundary
+# Profile EdgeFinish chimera X1 — source-card and planner boundary (superseded by X2 policy card)
+
+> This is historical X1 evidence. The current valid source card is the X3
+> seven-station release card; ConvexSmall moved to canonical-invalid fixtures.
+> Its policy matrix is superseded by [the X2 policy card](profile-edgefinish-chimera-closure-x2.md) and [the X3 release note](profile-edgefinish-chimera-release-closure-x3.md).
 
 X1 introduces the permanent *source* conformance card for Profile edge finishes:
 `fixtures/FirmamentV2/Canonical/valid/profile-edgefinish-chimera-base.firmament`.

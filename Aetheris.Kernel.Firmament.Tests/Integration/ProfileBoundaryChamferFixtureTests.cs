@@ -24,6 +24,14 @@ public sealed class ProfileBoundaryChamferFixtureTests
 
             Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(x => x.Message)));
             Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(x => x.Message)));
+            if (string.Equals(fixtureName, "profile-straight-edge-fillet-top.firmament", StringComparison.Ordinal))
+            {
+                var assertion = Assert.Single(first.Value.Export.Assertions!);
+                Assert.True(assertion.Passed);
+                Assert.Equal("ExactAxisAlignedBoxQuarterCylinderFillet", assertion.MeasurementMethod);
+                Assert.NotNull(assertion.AbsoluteDeltaMm3);
+                Assert.InRange(assertion.AbsoluteDeltaMm3!.Value, 0d, 1e-9d);
+            }
             Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
             var imported = Step242Importer.ImportBody(first.Value.Export.StepText);
             Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(x => x.Message)));
@@ -191,6 +199,8 @@ public sealed class ProfileBoundaryChamferFixtureTests
     [InlineData("profile-chamfer-reflex-inset-collapse.firmament", "ProfileBoundaryChamferInsetCollapse")]
     [InlineData("profile-fillet-reflex-junction-not-materialized.firmament", "ProfileBoundaryFilletReflexRadiusTooLarge")]
     [InlineData("profile-straight-edge-fillet-shaft-collision.firmament", "ProfileBoundaryFilletIntersectsShaft")]
+    [InlineData("profile-edgefinish-convex-small-chamfer-invalid.firmament", "ProfileBoundaryChamferConvexArcRadiusTooSmall")]
+    [InlineData("profile-edgefinish-convex-small-fillet-invalid.firmament", "ProfileBoundaryFilletConvexArcSpindleUnsupported")]
     public void InvalidFixture_ProducesTypedProfileBoundaryDiagnostic(string fixtureName, string diagnostic)
     {
         var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/invalid/{fixtureName}");

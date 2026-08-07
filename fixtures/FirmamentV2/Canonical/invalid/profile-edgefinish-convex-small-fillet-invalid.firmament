@@ -1,0 +1,17 @@
+Model ProfileEdgeFinishConvexSmallFilletInvalid {
+    Units: mm
+    Concept Path Outline {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Line Bottom { Length: 60mm }
+        Line Right { Turn: 90deg; Length: 40mm }
+        Line TopLead { Turn: 90deg; Length: 30mm }
+        Arc ConvexSmallArc { Turn: 90deg; Radius: 2mm }
+        Line Return { Length: 38mm }
+        Close Left
+    }
+    Profile Bracket From Outline
+    Struct Body { Extrude Bracket { Profile: Bracket; From: 0mm; To: 12mm } }
+    Selection ConvexSmallStation { Target: TopBoundary Source: Bracket.ProfileSegments([TopLead, ConvexSmallArc, Return]) Require: ConnectedChain }
+    Modify Body { EdgeFinish RejectSmall { Target: ConvexSmallStation On: Top Kind: Fillet Radius: 4mm } }
+}

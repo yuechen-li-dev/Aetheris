@@ -102,6 +102,17 @@ public static class BrepMassProperties
             return CompleteExactPrismResult(body, effective, exact);
         }
 
+        // A finite straight Profile fillet on an otherwise axis-aligned box is
+        // a second exact bounded family.  The materializer emits the retained
+        // box corners, one exact quarter-cylinder, and two circular end trims.
+        // Generic display triangulation is deliberately too coarse to verify a
+        // tight analytic Assert Volume here, so recognize this topology from
+        // the emitted B-rep (never from Firmament construction metadata).
+        if (TryEvaluateExactAxisAlignedBoxQuarterCylinderFillet(body, effective, topology, out exact))
+        {
+            return exact;
+        }
+
         var coarse = EvaluateAtResolution(body, effective, refinement: 1);
         if (coarse.Error is not null)
         {
@@ -414,6 +425,112 @@ public static class BrepMassProperties
             default:
                 return false;
         }
+    }
+
+    private static bool TryEvaluateExactAxisAlignedBoxQuarterCylinderFillet(
+        BrepBody body,
+        BrepMassPropertiesOptions options,
+        BrepMassPropertiesTopologyDiagnostics topology,
+        out BrepMassPropertiesResult result)
+    {
+        result = default!;
+        var faces = body.Topology.Faces.ToArray();
+        if (faces.Length != 9)
+        {
+            return false;
+        }
+
+        var cylinders = faces
+            .Select(face => body.TryGetFaceSurfaceGeometry(face.Id, out var surface) ? surface : null)
+            .Where(surface => surface?.Kind == SurfaceGeometryKind.Cylinder && surface.Cylinder.HasValue)
+            .Select(surface => surface!.Cylinder!.Value)
+            .ToArray();
+        if (cylinders.Length != 1 || faces.Any(face => !body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null || surface.Kind is not (SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder)))
+        {
+            return false;
+        }
+
+        var vertices = body.Topology.Vertices
+            .Select(vertex => body.TryGetVertexPoint(vertex.Id, out var point) ? (Point3D?)point : (Point3D?)null)
+            .ToArray();
+        if (vertices.Any(point => point is null))
+        {
+            return false;
+        }
+
+        var points = vertices.Select(point => point!.Value).ToArray();
+        var minX = points.Min(point => point.X); var maxX = points.Max(point => point.X);
+        var minY = points.Min(point => point.Y); var maxY = points.Max(point => point.Y);
+        var minZ = points.Min(point => point.Z); var maxZ = points.Max(point => point.Z);
+        var tolerance = options.LinearTolerance;
+        var sizeX = maxX - minX; var sizeY = maxY - minY; var sizeZ = maxZ - minZ;
+        if (sizeX <= tolerance || sizeY <= tolerance || sizeZ <= tolerance || !HasAllBoxCorners(points, minX, maxX, minY, maxY, minZ, maxZ, tolerance))
+        {
+            return false;
+        }
+
+        var cylinder = cylinders[0];
+        var axis = cylinder.Axis.ToVector();
+        var axisIsX = System.Math.Abs(System.Math.Abs(axis.X) - 1d) <= 1e-8 && System.Math.Abs(axis.Y) <= 1e-8 && System.Math.Abs(axis.Z) <= 1e-8;
+        var axisIsY = System.Math.Abs(System.Math.Abs(axis.Y) - 1d) <= 1e-8 && System.Math.Abs(axis.X) <= 1e-8 && System.Math.Abs(axis.Z) <= 1e-8;
+        if (!axisIsX && !axisIsY)
+        {
+            return false;
+        }
+
+        var endpointCircles = body.Bindings.EdgeBindings
+            .Select(binding => body.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve) ? curve : null)
+            .Where(curve => curve?.Kind == CurveGeometryKind.Circle3 && curve.Circle3.HasValue)
+            .Select(curve => curve!.Circle3!.Value)
+            .Distinct()
+            .ToArray();
+        if (endpointCircles.Length != 2 || endpointCircles.Any(circle => System.Math.Abs(circle.Radius - cylinder.Radius) > tolerance))
+        {
+            return false;
+        }
+
+        var span = (endpointCircles[1].Center - endpointCircles[0].Center).Length;
+        if (span <= tolerance)
+        {
+            return false;
+        }
+
+        var boxVolume = sizeX * sizeY * sizeZ;
+        var removedVolume = span * cylinder.Radius * cylinder.Radius * (1d - (System.Math.PI / 4d));
+        var exactVolume = boxVolume - removedVolume;
+        if (exactVolume <= 0d)
+        {
+            return false;
+        }
+
+        var boundary = EvaluateAtResolution(body, options, refinement: 2);
+        if (boundary.Error is not null)
+        {
+            return false;
+        }
+
+        var sign = boundary.SignedVolume < 0d ? -1d : 1d;
+        Point3D? centroid = System.Math.Abs(boundary.SignedVolume) > 1e-18d
+            ? new Point3D(boundary.CentroidNumerator.X / boundary.SignedVolume, boundary.CentroidNumerator.Y / boundary.SignedVolume, boundary.CentroidNumerator.Z / boundary.SignedVolume)
+            : null;
+        result = new BrepMassPropertiesResult(
+            BrepMassPropertiesStatus.NumericalConverged,
+            sign * exactVolume,
+            exactVolume,
+            boundary.SurfaceArea,
+            centroid,
+            topology.IsEnclosed,
+            topology.IsOrientationConsistent,
+            boundary.Contributions,
+            "ExactAxisAlignedBoxQuarterCylinderFillet",
+            0d,
+            options,
+            topology,
+            ["Exact axis-aligned box volume minus finite quarter-cylinder removal was recovered from emitted B-rep topology, analytic cylinder radius, and exact circular end trims."]);
+        return true;
+
+        static bool HasAllBoxCorners(IReadOnlyList<Point3D> points, double minX, double maxX, double minY, double maxY, double minZ, double maxZ, double tolerance)
+            => new[] { minX, maxX }.All(x => new[] { minY, maxY }.All(y => new[] { minZ, maxZ }.All(z => points.Any(point => System.Math.Abs(point.X - x) <= tolerance && System.Math.Abs(point.Y - y) <= tolerance && System.Math.Abs(point.Z - z) <= tolerance))));
     }
 
     private static bool TryEvaluateExactSphereCylinderSeamBody(

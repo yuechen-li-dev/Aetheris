@@ -6,7 +6,7 @@ a calculator language.
 ```firmament
 Assert Volume Body {
     Expected: 1587.982297150257mm^3
-    Tolerance: 5mm^3
+    Tolerance: 0.01mm^3
     Note: "Finite-span quarter-cylinder straight Profile edge fillet"
 }
 ```

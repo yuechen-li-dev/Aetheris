@@ -63,13 +63,12 @@ faces or by generic B-rep edge editing.
 ## Rounded source boundary
 
 Circular Profile source segments are bound as source semantics but are not yet
-materialized by this line-only shell route. Their rejection is intentionally
-specific: `ProfileBoundaryFilletArcSegmentPlannerRequired` identifies the
-station, source arc, material side, source radius, requested radius, relation,
-and missing `FilletArcDerivedExtrusionEdge` planner. The X1 chimera card
-derives the required toroidal family: convex rolling has signed major locus
-`Rs - F` (spindle / sphere-limit / horn boundaries); reflex rolling has
-`Rs + F` (regular ring torus for positive `Rs`).
+materialized by this line-only shell route. X2 classifies them before topology
+emission and reports the selected exact planner, family, regularity, and typed
+invalid reason through `ProfileBoundaryFilletArcMaterializationNotImplemented`.
+Convex rolling has signed major locus `Rs - F` (spindle / sphere-limit / horn
+boundaries); reflex rolling has `Rs + F` (regular ring torus for positive
+`Rs`). The full code-backed table is in `profile-edgefinish-chimera-closure-x2.md`.
 # Profile fillet common cases
 
 Two adjacent outer straight segments at a supported 90-degree reflex vertex

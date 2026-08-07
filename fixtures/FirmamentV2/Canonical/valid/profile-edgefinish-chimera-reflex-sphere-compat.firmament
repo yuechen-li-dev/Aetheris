@@ -10,9 +10,8 @@ Model ProfileEdgeFinishChimeraReflexSphereCompatibility {
         Line ConvexSharpDrop { Turn: 90deg; Length: 40mm }
         Line ReflexSharpRun { Turn: -90deg; Length: 40mm }
         Arc ReflexSmallArc { Turn: -90deg; Radius: 2mm }
-        Line ReflexSmallRise { Length: 36mm }
-        Arc ConvexSmallArc { Turn: 90deg; Radius: 2mm }
-        Line BetweenSmallMedium { Length: 40mm }
+        Line ReflexSmallRise { Length: 38mm }
+        Line BetweenSmallMedium { Turn: 90deg; Length: 42mm }
         Arc ConvexMediumArc { Turn: 90deg; Radius: 4mm }
         Line MediumDrop { Length: 32mm }
         Arc ReflexMediumArc { Turn: -90deg; Radius: 4mm }
@@ -26,7 +25,6 @@ Model ProfileEdgeFinishChimeraReflexSphereCompatibility {
     Profile Chimera From ChimeraOutline
     Struct Body { Extrude Chimera { Profile: Chimera; From: 0mm; To: 24mm } }
     Selection ConvexSharpStation { Target: TopBoundary Source: Chimera.ProfileSegments([TopLead, ConvexSharpDrop]) Require: ConnectedChain }
-    Selection ConvexSmallStation { Target: TopBoundary Source: Chimera.ProfileSegments([ReflexSmallRise, ConvexSmallArc, BetweenSmallMedium]) Require: ConnectedChain }
     Selection ConvexMediumStation { Target: TopBoundary Source: Chimera.ProfileSegments([BetweenSmallMedium, ConvexMediumArc, MediumDrop]) Require: ConnectedChain }
     Selection ConvexLargeStation { Target: TopBoundary Source: Chimera.ProfileSegments([LargeRise, ConvexLargeArc, TopReturn]) Require: ConnectedChain }
     Selection ReflexSharpStation { Target: TopBoundary Source: Chimera.ProfileSegments([ConvexSharpDrop, ReflexSharpRun]) Require: ConnectedChain }

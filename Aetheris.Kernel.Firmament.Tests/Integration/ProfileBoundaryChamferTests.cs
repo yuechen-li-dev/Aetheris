@@ -205,13 +205,13 @@ public sealed class ProfileBoundaryChamferTests
         Assert.True(ProfileBoundaryChamferSourceBinder.TryBind(chamfer, CurvedProfile(), "Bracket", out var chamferTarget, out var distance, out var chamferDiagnostic), chamferDiagnostic);
         var chamferPlan = ProfileBoundaryChamferPlanner.TryPlan(CurvedProfile(), chamferTarget!, distance);
         Assert.False(chamferPlan.Succeeded);
-        Assert.StartsWith("ProfileBoundaryChamferArcSegmentPlannerRequired:station=ReflexSmall:scope=Target:segment=ReflexSmallArc:sourceFamily=Arc:material=Reflex:sourceRadius=2:finishDistance=4:radiusRelation=LessThan:missingPlanner=ChamferArcDerivedExtrusionEdge", Assert.Single(chamferPlan.Diagnostics));
+        Assert.StartsWith("ProfileBoundaryChamferArcMaterializationNotImplemented:station=ReflexSmall:scope=Target:segment=ReflexSmallArc:sourceFamily=Arc:material=Reflex:sourceRadius=2:finishDistance=4:radiusRelation=LessThan:planner=ArcChamferConePlan:surfaceFamily=Cone:regularity=Regular:admission=Supported", Assert.Single(chamferPlan.Diagnostics));
 
         const string fillet = "Modify Body { EdgeFinish TopRound { Target: Bracket.Outer On: Top Kind: Fillet Radius: 4mm } }";
         Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(fillet, CurvedProfile(), "Bracket", out var filletTarget, out var radius, out var clearance, out var filletDiagnostic), filletDiagnostic);
         var filletPlan = ProfileFilletShellPlanner.TryPlan(CurvedProfile(), filletTarget!, radius, clearance);
         Assert.False(filletPlan.Succeeded);
-        Assert.StartsWith("ProfileBoundaryFilletArcSegmentPlannerRequired:station=ReflexSmall:scope=Target:segment=ReflexSmallArc:sourceFamily=Arc:material=Reflex:sourceRadius=2:finishRadius=4:radiusRelation=LessThan:missingPlanner=FilletArcDerivedExtrusionEdge", Assert.Single(filletPlan.Diagnostics));
+        Assert.StartsWith("ProfileBoundaryFilletArcMaterializationNotImplemented:station=ReflexSmall:scope=Target:segment=ReflexSmallArc:sourceFamily=Arc:material=Reflex:sourceRadius=2:finishRadius=4:radiusRelation=LessThan:planner=ArcFilletTorusPlan:surfaceFamily=Torus:regularity=Regular:admission=Supported", Assert.Single(filletPlan.Diagnostics));
     }
 
     [Fact]

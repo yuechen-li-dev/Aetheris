@@ -1,0 +1,1 @@
+Model WrongKind { Units: mm Box Base { Size: [80mm, 50mm, 12mm] } Modify Base { Hole<Shaft> Mount { On: +Z Center: Point2(20mm, 20mm) Diameter: 8mm End: ThroughAll } } Require MountDiameter { Actual: Mount.Diameter Expected: 8mm } Pmi { HoleDiameter Callout { From: MountDiameter As: Distance } } }

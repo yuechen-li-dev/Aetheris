@@ -295,3 +295,9 @@ For a convex rounded source corner, the current exact Profile EdgeFinish policy
 rejects `source radius < finish size`. Reduce the requested Chamfer/Fillet,
 increase the authored corner radius, or leave that corner sharp; no spline
 compatibility blend is substituted.
+# Projected HoleDiameter example
+
+```firmament
+Require MountDiameter { Actual: Mount.Diameter Expected: 8mm Tolerance: PlusMinus(0.05mm, 0.02mm) }
+Pmi { HoleDiameter MountCallout { From: MountDiameter As: HoleDiameter } }
+```

@@ -1,0 +1,26 @@
+Model ProjectedPmiMountSpec {
+    Units: mm
+
+    Record MountSpec { Diameter: Length DiameterTolerance: Length }
+    Static MountSpecs: MountSpec[] = [ MountSpec { Diameter: 8mm DiameterTolerance: PlusMinus(0.05mm, 0.02mm) } ]
+    Box Base { Size: [80mm, 50mm, 12mm] }
+    Modify Base {
+        Hole<Shaft> Mount {
+            On: +Z
+            Center: Point2(20mm, 20mm)
+            Diameter: MountSpecs[0].Diameter
+            End: ThroughAll
+        }
+    }
+    Require MountDiameterConstraint {
+        Actual: Mount.Diameter
+        Expected: MountSpecs[0].Diameter
+        Tolerance: MountSpecs[0].DiameterTolerance
+    }
+    Pmi {
+        HoleDiameter MountDiameterCallout {
+            From: MountDiameterConstraint
+            As: HoleDiameter
+        }
+    }
+}

@@ -1,0 +1,26 @@
+Model ProjectedPmiMount {
+    Units: mm
+
+    Box Base { Size: [80mm, 50mm, 12mm] }
+    Modify Base {
+        Hole<Shaft> Mount {
+            On: +Z
+            Center: Point2(20mm, 20mm)
+            Diameter: 8mm
+            End: ThroughAll
+        }
+    }
+    Require MountDiameterConstraint {
+        Actual: Mount.Diameter
+        Expected: 8mm
+        Tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+    Pmi {
+        Datum A { Target: face(+Z) }
+        HoleDiameter MountDiameterCallout {
+            From: MountDiameterConstraint
+            As: HoleDiameter
+            DatumRefs: [A]
+        }
+    }
+}

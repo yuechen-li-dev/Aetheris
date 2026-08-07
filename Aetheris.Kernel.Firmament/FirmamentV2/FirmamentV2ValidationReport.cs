@@ -23,7 +23,7 @@ public sealed record FirmamentV2ValidationTolerance(string Kind, string Plus, st
 public sealed record FirmamentV2ValidationConceptRuntimeValidation(string Provider, string Status, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
 public sealed record FirmamentV2ValidationConcept(string Kind, string? Name, string Family, string Concept, string Status, string DfmStatus, IReadOnlyList<FirmamentV2ValidationConceptField> Fields, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics, FirmamentV2ValidationConceptRuntimeValidation? RuntimeValidation = null);
 public sealed record FirmamentV2ValidationConceptField(string Name, string Type, bool HasTolerance, string Source);
-public sealed record FirmamentV2ValidationPmiRecord(string Kind, string Name, string Status, string ExportSupport, string? Target, IReadOnlyList<string> Targets, IReadOnlyList<string> DatumRefs, FirmamentV2ValidationDimension? Dimension, string? Reason, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
+public sealed record FirmamentV2ValidationPmiRecord(string Kind, string Name, string Status, string ExportSupport, string? Target, IReadOnlyList<string> Targets, IReadOnlyList<string> DatumRefs, FirmamentV2ValidationDimension? Dimension, string? Reason, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics, string? ProjectionSource = null, string? SourceConstraintKind = null, string? SourceSubject = null, string? ValidationStatus = null, string? Provenance = null);
 public sealed record FirmamentV2ValidationDimension(string Nominal, FirmamentV2ValidationTolerance? Tolerance);
 public sealed record FirmamentV2ValidationConceptPmiObligation(string Kind, string SourceConcept, string? SourceName, string? Target, string? ExpectedDimensionField, string Status, string Severity, string? MatchedPmi = null, string? DiagnosticCode = null);
 
@@ -205,6 +205,7 @@ public static class FirmamentV2ValidationReportBuilder
                     ? "export-deferred"
                     : "valid";
 
+            var constraint = record.Projection is null ? null : (document.StaticAuthoring?.SemanticConstraints ?? []).SingleOrDefault(item => item.Id == record.Projection.SourceRequireId);
             return new FirmamentV2ValidationPmiRecord(
                 KindName(record.Kind),
                 record.Name,
@@ -215,7 +216,12 @@ public static class FirmamentV2ValidationReportBuilder
                 boundRecord?.DatumRefs ?? [],
                 Dimension(boundRecord),
                 exportSupport == "deferred" ? DeferredReason(record.Kind) : null,
-                itemDiagnostics);
+                itemDiagnostics,
+                record.Projection?.SourceRequireId,
+                constraint is null ? null : "dimensional-equality",
+                constraint is null ? null : constraint.Subject + "." + constraint.Property,
+                constraint is null ? null : constraint.ValidationSucceeded ? "succeeded" : "failed",
+                constraint?.ExpectedProvenance);
         }).ToArray();
     }
 

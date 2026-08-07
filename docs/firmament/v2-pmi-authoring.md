@@ -36,3 +36,6 @@ counterbore-diameter PMI kind. See
 `fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament`
 for the complete accepted example. Datum and HoleDiameter are the currently
 supported composed-host PMI kinds.
+# Projected PMI
+
+For a checked model fact, prefer a named `Require` and an explicit `From`/`As` projection. The PMI block supplies only PMI metadata (kind and datum references); it never repeats the target, nominal, or tolerance. See [PMI constraint projection X1](pmi-constraint-projection-x1.md).

@@ -200,10 +200,14 @@ public sealed record FirmamentV2SemanticHoleDecl(
 public enum FirmamentV2PmiKind { HoleDiameter, DatumPlane, Distance, Flatness, Parallel, Perpendicular, Coplanar }
 public sealed record FirmamentV2PmiDecl(string Name, FirmamentV2PmiKind Kind, string Target, double? Value = null);
 public sealed record FirmamentV2PmiBlock(IReadOnlyList<FirmamentV2PmiRecord> Records, FirmamentV2SourceSpan SourceSpan);
-public sealed record FirmamentV2PmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyDictionary<string, FirmamentV2PmiField> Fields, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundPmiRecord? Bound = null);
+public sealed record FirmamentV2PmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyDictionary<string, FirmamentV2PmiField> Fields, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundPmiRecord? Bound = null, FirmamentV2PmiProjection? Projection = null);
 public sealed record FirmamentV2PmiField(string Name, string Source, FirmamentV2SourceSpan SourceSpan, FirmamentV2ValueExpression? ValueExpression = null);
 public sealed record FirmamentV2BoundPmiBlock(IReadOnlyList<FirmamentV2BoundPmiRecord> Datums, IReadOnlyList<FirmamentV2BoundPmiRecord> Dimensions, IReadOnlyList<FirmamentV2BoundPmiRecord> Controls, IReadOnlyList<string> Diagnostics);
-public sealed record FirmamentV2BoundPmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyList<string> Targets, FirmamentV2LiteralValue? DimensionValue, FirmamentV2Tolerance? DimensionTolerance, FirmamentV2LiteralValue? ControlTolerance, IReadOnlyList<string> DatumRefs, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2BoundPmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyList<string> Targets, FirmamentV2LiteralValue? DimensionValue, FirmamentV2Tolerance? DimensionTolerance, FirmamentV2LiteralValue? ControlTolerance, IReadOnlyList<string> DatumRefs, FirmamentV2SourceSpan SourceSpan, string? ProjectionSource = null);
+/// <summary>Reusable, validated dimensional intent. Only equality of a semantic feature property
+/// to a length expectation is admitted in Preview 1.</summary>
+public sealed record FirmamentV2SemanticConstraint(string Id, string Subject, string Property, FirmamentV2LiteralValue NominalValue, FirmamentV2Tolerance? Tolerance, bool ValidationSucceeded, FirmamentV2SourceSpan SourceSpan, string ExpectedProvenance);
+public sealed record FirmamentV2PmiProjection(string SourceRequireId, FirmamentV2PmiKind AsKind, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2ConceptDecl(string Name, string RawValue, double NumericValue, string? Unit);
 public sealed record FirmamentV2TemplateDecl(string Process, string Name, IReadOnlyList<FirmamentV2ConceptDecl> Concepts);
 public sealed record FirmamentV2FillRegionDecl(string Name, IReadOnlyList<double> Size, IReadOnlyList<double> Center, FirmamentV2SourceSpan SourceSpan);
@@ -213,12 +217,12 @@ public sealed record FirmamentV2ProfileDecl(string Name, string Frame, double Fr
 public sealed record FirmamentV2ComposeDecl(string Name, IReadOnlyList<string> Operations, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2SelectionDecl(string Name, string Target, string Source, string Requirement, FirmamentV2SourceSpan SourceSpan);
 /// <summary>Normalized, erased-before-materialization evidence for canonical static authoring.</summary>
-public sealed record FirmamentV2StaticAuthoringDocument(IReadOnlyList<FirmamentV2RecordTypeDecl> RecordTypes, IReadOnlyList<FirmamentV2StaticArrayDecl> Arrays, IReadOnlyList<FirmamentV2CanonicalTemplateDecl> Templates, IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<FirmamentV2RequireDecl> Requires);
+public sealed record FirmamentV2StaticAuthoringDocument(IReadOnlyList<FirmamentV2RecordTypeDecl> RecordTypes, IReadOnlyList<FirmamentV2StaticArrayDecl> Arrays, IReadOnlyList<FirmamentV2CanonicalTemplateDecl> Templates, IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<FirmamentV2RequireDecl> Requires, IReadOnlyList<FirmamentV2SemanticConstraint>? SemanticConstraints = null, IReadOnlyDictionary<string, FirmamentV2PmiProjection>? PmiProjections = null);
 public sealed record FirmamentV2RecordTypeDecl(string Name, IReadOnlyDictionary<string, string> Fields, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2StaticArrayDecl(string Name, string ElementType, IReadOnlyList<IReadOnlyDictionary<string, string>> Elements, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2CanonicalTemplateDecl(string Name, string ParameterType, string ParameterName, string Body, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2CanonicalPatternDecl(string Name, string Source, string Template, int GeneratedCount, IReadOnlyList<string> GeneratedIds, FirmamentV2SourceSpan SourceSpan);
-public sealed record FirmamentV2RequireDecl(string Name, string Expression, bool Value, FirmamentV2SourceSpan SourceSpan, string? Provenance = null);
+public sealed record FirmamentV2RequireDecl(string Name, string Expression, bool Value, FirmamentV2SourceSpan SourceSpan, string? Provenance = null, string? Subject = null, string? Expected = null, string? ToleranceSource = null);
 public sealed record FirmamentV2LatticeFillDecl(string Name, string Host, FirmamentV2FillRegionDecl Region, string Pattern, double CellSize, double StrutRadius, string BoundaryPolicy, FirmamentV2SourceSpan SourceSpan);
 /// <summary>M9R's admitted standalone material body. It is intentionally distinct from the deferred host-replacement Fill.</summary>
 public sealed record FirmamentV2StandaloneLatticeFillDecl(string Name, FirmamentV2FillRegionDecl Region, string Pattern, int CellsX, int CellsY, int CellsZ, double CellSize, double StrutRadius, double NodeRadius, string Placement, FirmamentV2SourceSpan SourceSpan);

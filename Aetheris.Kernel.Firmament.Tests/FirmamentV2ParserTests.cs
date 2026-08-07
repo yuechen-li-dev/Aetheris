@@ -963,6 +963,36 @@ model:
         Assert.Contains(build.Diagnostics, d => d.Message.Contains("firmament-v2-pmi-export-deferred", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void FirmamentV2Parser_StaticFactFlowsThroughHoleRequireAndProjectedPmi()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Canonical/valid/pmi-projected-hole-diameter-asymmetric-tolerance.firmament"));
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var document = Assert.IsType<FirmamentV2Document>(result.Document);
+        var constraint = Assert.Single(document.StaticAuthoring!.SemanticConstraints!);
+        Assert.True(constraint.ValidationSucceeded);
+        Assert.Equal("Mount", constraint.Subject);
+        Assert.Equal("MountSpecs[0].Diameter", constraint.ExpectedProvenance);
+        var pmi = Assert.Single(document.PmiBlock!.Records);
+        Assert.Equal("MountDiameterConstraint", pmi.Projection!.SourceRequireId);
+        Assert.Equal(8d, Assert.Single(document.BoundPmi!.Dimensions).DimensionValue!.NumericValue);
+    }
+
+    [Fact]
+    public void FirmamentV2Parser_ManualAndProjectedHoleDiameterHaveEquivalentPmiSemantics()
+    {
+        var result = FirmamentV2Parser.Parse(Source("Canonical/valid/pmi-manual-vs-projected-equivalence.firmament"));
+        Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
+        var dimensions = result.Document!.BoundPmi!.Dimensions.OrderBy(record => record.Name, StringComparer.Ordinal).ToArray();
+        var manual = Assert.Single(dimensions, record => record.Name == "ManualCallout");
+        var projected = Assert.Single(dimensions, record => record.Name == "ProjectedCallout");
+        Assert.Equal(manual.Kind, projected.Kind);
+        Assert.Equal(manual.DimensionValue!.NumericValue, projected.DimensionValue!.NumericValue);
+        Assert.Equal(manual.DimensionTolerance, projected.DimensionTolerance);
+        Assert.Equal(manual.DatumRefs, projected.DatumRefs);
+        Assert.Equal("ProjectedDiameter", projected.ProjectionSource);
+    }
+
     private static string Source(string relative)
     {
         var path = FixturePath(relative);

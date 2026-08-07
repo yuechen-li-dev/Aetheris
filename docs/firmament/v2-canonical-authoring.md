@@ -1,5 +1,14 @@
 # Firmament V2 canonical authoring
 
+> **Public manual:** the Preview 1 user guide is maintained in the sibling
+> `yuechen-li-dev.github.io` repository under `src/aetheris` and is published
+> at `/aetheris/`. This page remains implementation-facing authoring evidence.
+> Where historical text here differs from the frozen support boundary,
+> [`preview1-feature-freeze.md`](../release/preview1-feature-freeze.md) and its
+> machine-readable manifest are authoritative. In particular, mixed line/arc
+> whole-loop Fillet is **Experimental**, not Supported, until curved-trim mass
+> verification is release-tight.
+
 `Hole<Shaft>`, `Hole<Counterbore>`, and `Hole<Countersink>` are canonical
 families. Counterbore requires `CounterboreDiameter` and `CounterboreDepth`;
 Countersink requires `CountersinkDiameter` and `CountersinkAngle` in `deg`.

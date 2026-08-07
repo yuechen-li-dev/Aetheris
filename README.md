@@ -1,5 +1,11 @@
 # Aetheris + Firmament v1
 
+> The public Preview 1 language-manual source is maintained in the sibling
+> `yuechen-li-dev.github.io` repository at `src/aetheris` and published under
+> `/aetheris/`. Documentation here includes architecture, implementation
+> evidence, and historical milestone records; the authoritative frozen support
+> contract is `docs/release/preview1-feature-freeze.md`.
+
 Firmament is a deterministic DSL for generating CAD geometry (STEP AP242) via Aetheris.
 
 ## What works today

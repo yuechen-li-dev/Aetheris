@@ -49,15 +49,15 @@ patch-stitching route. The source card was also audited: its retained Profile
 has 17 segments (12 lines and five arcs), not the stale 18-segment count stated
 by earlier notes.
 
-## Remaining materialization boundary
+## Freeze-era materialization status
 
-The release card is a valid base artifact. Whole-loop Chamfer now emits through
-the authoritative Plane/Cone source-order shell and has a persistent STEP
-artifact. Fillet still intentionally stops before topology on the first arc
-with its policy-rich `ProfileBoundaryFilletArcMaterializationNotImplemented`
-diagnostic because sharp junction patches have not yet been extracted from the
-existing finite two-line-body planners. Therefore this document does not claim
-completed Fillet/compatibility artifacts, external-kernel smoke, or Preview-1
-readiness. The next implementation must create reusable sharp junction topology
-and compose it with the existing cylinder/torus/sphere seam plan; it may not
-replace that work with a spline or Boolean fallback.
+The release card is a valid base artifact. Whole-loop Chamfer emits through the
+authoritative Plane/Cone source-order shell and has a persistent STEP artifact.
+The seven-station Fillet and SphereSeamCompatibility cards now also build and
+reimport through the analytic mixed-shell route. They are nevertheless not
+frozen Preview 1 Supported: their current Assert Volume evidence carries a
+certified curved-trim error envelope of roughly 41,000 mm³.  The authoritative
+freeze classification is therefore **Experimental** until tighter deterministic
+mass evidence and external-kernel smoke exist.  This is a verification/promotion
+boundary, never permission for a spline or Boolean fallback; see
+[`preview1-feature-freeze.md`](../release/preview1-feature-freeze.md).

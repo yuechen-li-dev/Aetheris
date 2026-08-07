@@ -23,6 +23,11 @@ parent-owned cap, the trimmed source sides, and the shared analytic edges.  It
 must not replace those contacts with offset-profile intersections, suppress
 STEP preflight, introduce NURBS, or add Boolean/post-B-rep repair.
 
+X7 adds the missing parent-side ownership layer above these component contacts:
+an ordered `ProfileFilletSideContactChain`, explicit two-face edge-incidence
+contracts, point-only contacts, and side-fragment plan records.  The graph is
+validated before B-rep allocation; see `fillet-side-contact-chain-x7.md`.
+
 No whole-loop Fillet artifact is claimed yet.  Existing M1/M2/M3 materializers
 remain the geometry ground truth while their extracted components are promoted
 to exact contact contracts.

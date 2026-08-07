@@ -209,6 +209,92 @@ public sealed class ProfileBoundaryChamferTests
     }
 
     [Fact]
+    public void StraightRoll_ExposesOnePreallocatedSideContactWithOppositeFaceUses()
+    {
+        const string source = "Modify Body { EdgeFinish Round { Target: Bracket.Outer.South On: Top Kind: Fillet Radius: 2mm EndClearance: 3mm } }";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(source, Profile(), "Bracket", out var target, out var radius, out var clearance, out var diagnostic), diagnostic);
+        var m1 = ProfileStraightEdgeFilletPlanner.TryPlan(Profile(), target!, radius, clearance);
+        var roll = Assert.IsType<StraightFilletRollComponent>(m1.Plan!.RollComponent);
+        var extracted = ProfileFilletSideContactExtractor.ExtractStraightRoll(roll);
+        var plan = new ProfileFilletContactShellPlan(target!, [], [], [], new Dictionary<string, IReadOnlyList<ProfileFilletContactBoundary>>(), ["test"])
+        {
+            SideContactChains = [extracted.Chain],
+            ContactEdgeIncidence = [extracted.Incidence],
+            ContactVertexIncidence = extracted.Vertices
+        };
+
+        var validation = ProfileFilletContactGraphValidator.Validate(plan);
+
+        Assert.True(validation.Succeeded, string.Join(Environment.NewLine, validation.Diagnostics));
+        Assert.Equal(ProfileFilletSideContactRole.RollSideContact, Assert.IsType<ProfileFilletSideContactEdge>(Assert.Single(extracted.Chain.OrderedContacts)).Role);
+        Assert.NotEqual(extracted.Incidence.FaceUseA.TraversesWithCurveParameter, extracted.Incidence.FaceUseB.TraversesWithCurveParameter);
+    }
+
+    [Fact]
+    public void ContactGraph_ReportsThePlannedIncidenceFailureInsteadOfDeferringToTheManifoldGate()
+    {
+        const string source = "Modify Body { EdgeFinish Round { Target: Bracket.Outer.South On: Top Kind: Fillet Radius: 2mm EndClearance: 3mm } }";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(source, Profile(), "Bracket", out var target, out var radius, out var clearance, out var diagnostic), diagnostic);
+        var roll = Assert.IsType<StraightFilletRollComponent>(ProfileStraightEdgeFilletPlanner.TryPlan(Profile(), target!, radius, clearance).Plan!.RollComponent);
+        var extracted = ProfileFilletSideContactExtractor.ExtractStraightRoll(roll);
+        var invalidIncidence = extracted.Incidence with { FaceUseB = extracted.Incidence.FaceUseB with { TraversesWithCurveParameter = true } };
+        var plan = new ProfileFilletContactShellPlan(target!, [], [], [], new Dictionary<string, IReadOnlyList<ProfileFilletContactBoundary>>(), ["test"])
+        {
+            SideContactChains = [extracted.Chain],
+            ContactEdgeIncidence = [invalidIncidence],
+            ContactVertexIncidence = extracted.Vertices
+        };
+
+        var validation = ProfileFilletContactGraphValidator.Validate(plan);
+
+        Assert.False(validation.Succeeded);
+        Assert.Contains($"ProfileFilletContactOrientationConflict:edge={invalidIncidence.EdgeId}", validation.Diagnostics);
+    }
+
+    [Fact]
+    public void ConvexSharpSide_RequiresAnOrderedRollAndSupportChainWithSharedIncidence()
+    {
+        const string source = "Selection Corner { Source: Bracket.Outer.[South, East] Require: ConnectedChain } Modify Body { EdgeFinish Round { Target: Corner On: Top Kind: Fillet Radius: 2mm EndClearance: 3mm } }";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(source, Profile(), "Bracket", out var target, out var radius, out var clearance, out var diagnostic), diagnostic);
+        var m2 = ProfileFilletShellPlanner.TryPlan(Profile(), target!, radius, clearance);
+        var extracted = ProfileFilletSideContactExtractor.ExtractConvexSharp(m2.Plan!);
+        var chain = extracted.Chains[0];
+        var plan = new ProfileFilletContactShellPlan(target!, [], [], [], new Dictionary<string, IReadOnlyList<ProfileFilletContactBoundary>>(), ["test"])
+        {
+            SideContactChains = extracted.Chains,
+            ContactEdgeIncidence = extracted.EdgeIncidence,
+            ContactVertexIncidence = extracted.VertexIncidence
+        };
+
+        var validation = ProfileFilletContactGraphValidator.Validate(plan);
+
+        Assert.True(validation.Succeeded, string.Join(Environment.NewLine, validation.Diagnostics));
+        Assert.Equal([ProfileFilletSideContactRole.RollSideContact, ProfileFilletSideContactRole.JunctionSupportContact], chain.OrderedContacts.Select(contact => contact.Role));
+    }
+
+    [Fact]
+    public void ReflexNotch_UsesAPointContactInsteadOfAZeroLengthSupportEdge()
+    {
+        const string source = "Selection Notch { Source: Bracket.Outer.[Inner, Upright] Require: ConnectedChain } Modify Body { EdgeFinish Round { Target: Notch On: Top Kind: Fillet Radius: 2mm } }";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(source, LProfile(), "Bracket", out var target, out var radius, out var clearance, out var diagnostic), diagnostic);
+        var m3 = ProfileFilletShellPlanner.TryPlan(LProfile(), target!, radius, clearance);
+        var extracted = ProfileFilletSideContactExtractor.ExtractExactRollingReflex(m3.Plan!);
+        var chain = extracted.Chains[0];
+        var plan = new ProfileFilletContactShellPlan(target!, [], [], [], new Dictionary<string, IReadOnlyList<ProfileFilletContactBoundary>>(), ["test"])
+        {
+            SideContactChains = extracted.Chains,
+            ContactEdgeIncidence = extracted.EdgeIncidence,
+            ContactVertexIncidence = extracted.VertexIncidence
+        };
+
+        var validation = ProfileFilletContactGraphValidator.Validate(plan);
+
+        Assert.True(validation.Succeeded, string.Join(Environment.NewLine, validation.Diagnostics));
+        Assert.Single(chain.OrderedContacts.OfType<ProfileFilletSideContactVertex>());
+        Assert.DoesNotContain(plan.ContactEdgeIncidence, contract => contract.StartVertexId == contract.EndVertexId);
+    }
+
+    [Fact]
     public void CurvedWholeLoopChamferMaterializesThroughTheMixedPlaneConeShell()
     {
         const string chamfer = "Modify Body { EdgeFinish TopBreak { Target: Bracket.Outer On: Top Kind: Chamfer Distance: 4mm } }";

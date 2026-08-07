@@ -57,8 +57,11 @@ fixtures retain their explicit external terminations.
 
 ## Status
 
-The reusable sharp component contract and regression coverage are in place.
-The seven-station closed-loop Fillet materializer, its volume assertion,
-persistent Fillet STEP artifacts, compatibility comparison, inspection JSON,
-and external-kernel smoke remain blocked on that exact global contact-boundary
-composer.  No Fillet artifact is claimed by this document.
+X7 supplies the typed side-chain and pre-emission incidence layer needed by
+that composer.  It establishes that M2 requires an explicit roll-plus-support
+chain and that M3 ExactRolling uses a point contact at its retained notch,
+not a zero-length support edge.  The seven-station closed-loop Fillet
+materializer, its volume assertion, persistent Fillet STEP artifacts,
+compatibility comparison, inspection JSON, and external-kernel smoke remain
+blocked until all component extractors and the parent emitter consume those
+contracts.  No Fillet artifact is claimed by this document.

@@ -3233,7 +3233,7 @@ public static class CliRunner
         double[]? CylinderAxis, double[]? CylinderCenterlineStart, double[]? CylinderCenterlineEnd,
         double[]? CapContactStart, double[]? CapContactEnd, double[]? SideContactStart, double[]? SideContactEnd,
         string CorridorClassification, IReadOnlyList<string> GeneratedDescendants, IReadOnlyList<string> Provenance,
-        ProfileConvexFilletJunctionInspection? ConvexJunction);
+        ProfileConvexFilletJunctionInspection? ConvexJunction, string? ReflexJunctionStyle = null);
 
     private sealed record ProfileConvexFilletJunctionInspection(
         string VertexId, string Classification, double InteriorAngleDegrees, double Radius,
@@ -3255,9 +3255,10 @@ public static class CliRunner
         {
             var plan = result.Plan;
             var reflex = plan.Junction as ProfileReflexFilletJunctionPlan;
-            var junction = new ProfileConvexFilletJunctionInspection(plan.Junction.VertexId, plan.Junction.Classification.Classification.ToString(), plan.Junction.Classification.MaterialInteriorAngleRadians * 180d / Math.PI, plan.Junction.Radius, P(plan.Junction.Center), plan.Rolls.Select(roll => V(roll.Tangent)).ToArray(), plan.Rolls.Select(roll => P(roll.ExternalCenter)).ToArray(), plan.Rolls.Select(roll => P(roll.JunctionCenter)).ToArray(), reflex is null ? "Sphere" : "HornTorus", reflex?.Torus.MajorRadius, reflex?.Torus.MinorRadius, reflex is null ? null : [reflex.MajorStartRadians, reflex.MajorEndRadians, reflex.MinorStartRadians, reflex.MinorEndRadians]);
+            var sphereSeam = plan.Junction is ProfileReflexSphereSeamCompatibilityJunctionPlan;
+            var junction = new ProfileConvexFilletJunctionInspection(plan.Junction.VertexId, plan.Junction.Classification.Classification.ToString(), plan.Junction.Classification.MaterialInteriorAngleRadians * 180d / Math.PI, plan.Junction.Radius, P(plan.Junction.Center), plan.Rolls.Select(roll => V(roll.Tangent)).ToArray(), plan.Rolls.Select(roll => P(roll.ExternalCenter)).ToArray(), plan.Rolls.Select(roll => P(roll.JunctionCenter)).ToArray(), reflex is null ? sphereSeam ? "SphereSeamCompatibility" : "Sphere" : "HornTorus", reflex?.Torus.MajorRadius, reflex?.Torus.MinorRadius, reflex is null ? null : [reflex.MajorStartRadians, reflex.MajorEndRadians, reflex.MinorStartRadians, reflex.MinorEndRadians]);
             return new(true, null, target!.StableId, target.ProfileId, target.LoopId, target.ChainKind.ToString(), target.SegmentIds, target.Side.ToString(), radius, clearance, plan.EndpointPolicy,
-                null, null, null, null, null, null, null, "DisjointNoCavitiesInBareProfileM2", result.Correspondence?.Descendants.Select(x => x.StableId).OrderBy(x => x, StringComparer.Ordinal).ToArray() ?? [], result.Correspondence?.ProvenanceChain ?? [], junction);
+                null, null, null, null, null, null, null, "DisjointNoCavitiesInBareProfileM2", result.Correspondence?.Descendants.Select(x => x.StableId).OrderBy(x => x, StringComparer.Ordinal).ToArray() ?? [], result.Correspondence?.ProvenanceChain ?? [], junction, target.ReflexJunctionStyle.ToString());
         }
         var single = result.SingleSegmentPlan!;
         return new(true, null, target!.StableId, target.ProfileId, target.LoopId, target.ChainKind.ToString(), target.SegmentIds, target.Side.ToString(), radius, clearance, single.EndpointPolicy,

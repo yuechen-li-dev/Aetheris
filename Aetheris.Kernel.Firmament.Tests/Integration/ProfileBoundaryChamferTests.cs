@@ -198,6 +198,27 @@ public sealed class ProfileBoundaryChamferTests
         Assert.Contains("ProfileBoundaryFilletJunctionTopologyNotMaterialized", ProfileFilletShellPlanner.TryPlan(Profile(), threeTarget!, threeRadius, threeClearance).Diagnostics);
     }
 
+    [Fact]
+    public void ReflexSphereSeamCompatibilityIsExplicitAndNeverReplacesTheToroidalDefault()
+    {
+        const string compatibility = "Selection Notch { Source: Bracket.Outer.[Inner, Upright] Require: ConnectedChain } Modify Body { EdgeFinish Round { Target: Notch On: Top Kind: Fillet Radius: 2mm ReflexJunction: SphereSeamCompatibility } }";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(compatibility, LProfile(), "Bracket", out var target, out var radius, out var clearance, out var diagnostic), diagnostic);
+        Assert.Equal(ProfileReflexJunctionStyle.SphereSeamCompatibility, target!.ReflexJunctionStyle);
+
+        var result = ProfileFilletShellPlanner.TryPlan(LProfile(), target, radius, clearance);
+
+        Assert.True(result.Succeeded, string.Join("; ", result.Diagnostics));
+        Assert.IsType<ProfileReflexSphereSeamCompatibilityJunctionPlan>(result.Plan!.Junction);
+        Assert.Equal(2, result.Body!.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Cylinder));
+        Assert.Equal(1, result.Body.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Sphere));
+        Assert.Equal(0, result.Body.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Torus));
+        Assert.Contains(result.Correspondence!.ProvenanceChain, item => item == "ReflexSphereSeamCompatibility");
+
+        const string unsupported = "Selection Notch { Source: Bracket.Outer.[Inner, Upright] Require: ConnectedChain } Modify Body { EdgeFinish Round { Target: Notch On: Top Kind: Fillet Radius: 2mm ReflexJunction: Legacy } }";
+        Assert.False(ProfileBoundaryChamferSourceBinder.TryBindFillet(unsupported, LProfile(), "Bracket", out _, out _, out _, out diagnostic));
+        Assert.Equal("ProfileBoundaryFilletReflexJunctionStyleUnsupported", diagnostic);
+    }
+
     private static ResolvedProfile2D Profile()
     {
         var points = new[] { (0d, 0d), (20d, 0d), (20d, 10d), (0d, 10d) };

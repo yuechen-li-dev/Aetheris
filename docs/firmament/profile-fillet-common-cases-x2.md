@@ -62,8 +62,10 @@ faces or by generic B-rep edge editing.
 # Profile fillet common cases
 
 Two adjacent outer straight segments at a supported 90-degree reflex vertex
-have an experimental M3 horn-torus materialization. Select the pair as one
+use M3's horn-torus rolling materialization by default. Select the pair as one
 `ConnectedChain` and use the ordinary Profile `EdgeFinish` syntax; authors do
-not provide torus parameters or trimming information. This path is not yet a
-portable external-kernel interchange guarantee because its torus trim ends at
-the horn pole.
+not provide torus parameters or trimming information. OpenCascade-family
+inspection retains this exact controlled horn endpoint. For a downstream
+consumer that cannot retain that endpoint, the explicit
+`ReflexJunction: SphereSeamCompatibility` override chooses a deterministic
+sphere-seam presentation instead; it never changes the default.

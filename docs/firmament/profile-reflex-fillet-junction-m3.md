@@ -35,8 +35,30 @@ to exceed `EndClearance + Radius`; non-orthogonal reflex pairs fail with
 local-frame mirror.  Their assertion literal is `5595.374298764066 mm^3` with
 `0.5 mm^3` tolerance.  An independent symbolic/numerical volume derivation is
 still required before this value can be promoted beyond its deterministic
-regression role.  STEP exports one `TOROIDAL_SURFACE` and Aetheris/OCCT-style
-import paths can retain the topology, but this horn-pole trim is currently
-**not an external-kernel interchange guarantee**. A regular replacement patch
-or a different bounded construction is required before claiming portable M3
-support; viewers may fan tessellation or heal/split the pole differently.
+regression role. STEP exports one `TOROIDAL_SURFACE`. Manual OpenCascade-family
+smoke inspection in FreeCAD and CAD Assistant retains the intended rounded
+corner, including the controlled horn endpoint.
+
+## Compatibility override
+
+The source-bound rolling construction remains the default. A consumer that
+cannot preserve the controlled horn endpoint may opt into the conventional
+sphere-seam presentation explicitly:
+
+```firmament
+EdgeFinish ReflexRound {
+    Target: ReflexNotch
+    On: Top
+    Kind: Fillet
+    Radius: 2mm
+    ReflexJunction: SphereSeamCompatibility
+}
+```
+
+This emits a `SPHERICAL_SURFACE` junction presentation while preserving the
+same two source-bound rolls and external termination policy. It is a
+compatibility choice, not an alternative rolling derivation, and is never
+selected implicitly. `profile-fillet-reflex-two-segment-sphere-seam-compatibility.firmament`
+is the canonical comparison fixture. A kernel vendor may heal the horn pole
+into another topology; that behavior is an importer compatibility limitation,
+not a reason to silently replace Aetheris's toroidal default.

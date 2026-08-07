@@ -130,7 +130,6 @@ public static class ProfileBoundaryChamferSourceBinder
         if (closed) chainKind = ProfileBoundaryChamferChainKind.ClosedLoop;
         else if (ordered.Count == 1) chainKind = ProfileBoundaryChamferChainKind.SingleSegment;
         var orderedSegments = ordered.Select(index => loop.Segments[index]).ToArray();
-        if (orderedSegments.Any(segment => segment.Geometry is not LineArcLineSegment2D)) { diagnostic = "ProfileBoundaryFilletSegmentKindUnsupported"; return false; }
 
         endClearance = clearanceMatch.Success && double.TryParse(clearanceMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var explicitClearance) ? explicitClearance : radius;
         if (!double.IsFinite(endClearance) || endClearance <= 0d) { diagnostic = "ProfileBoundaryFilletEndClearanceMustBePositive"; return false; }
@@ -235,7 +234,8 @@ public static class ProfileBoundaryChamferPlanner
         if (loop is null) return Fail("ProfileBoundaryChamferLoopUnknown");
         if (!loop.IsOuter) return Fail("ProfileBoundaryChamferInnerLoopUnsupported");
         if (profile.Loops.Count != 1) return Fail("ProfileBoundaryChamferInnerLoopUnsupported");
-        if (loop.Segments.Any(x => x.Geometry is not LineArcLineSegment2D)) return Fail("ProfileBoundaryChamferSegmentKindUnsupported");
+        if (loop.Segments.Any(x => x.Geometry is not LineArcLineSegment2D))
+            return Fail(ProfileBoundaryCurvedFinishDiagnostic.ForFirstSelectedArc(profile, loop, target, distance, "Chamfer") ?? "ProfileBoundaryChamferSegmentKindUnsupported");
         var lines = loop.Segments.Select(x => (LineArcLineSegment2D)x.Geometry).ToArray();
         var selected = target.SegmentIds.Select(id => Array.FindIndex(loop.Segments.ToArray(), x => x.Name == id)).ToHashSet();
         if (selected.Count != target.SegmentIds.Count || selected.Any(x => x < 0)) return Fail("ProfileBoundaryChamferSegmentUnknown");
@@ -479,6 +479,74 @@ public static class ProfileBoundaryChamferPlanner
 }
 
 /// <summary>
+/// Keeps the line/arc boundary explicit when a source-bound finish cannot yet be
+/// materialized.  This is intentionally a planner diagnostic, not an attempt to
+/// infer an anonymous BRep edge or to approximate an offset surface.
+/// </summary>
+public static class ProfileBoundaryCurvedFinishDiagnostic
+{
+    private const double Tolerance = 1e-8;
+
+    public static string? ForFirstSelectedArc(
+        ResolvedProfile2D profile,
+        ResolvedProfileLoop2D loop,
+        ProfileBoundaryChamferTarget target,
+        double finishSize,
+        string finishKind)
+    {
+        var selected = target.SegmentIds.ToHashSet(StringComparer.Ordinal);
+        var pair = loop.Segments
+            .Select((segment, index) => (segment, index))
+            .FirstOrDefault(item => selected.Contains(item.segment.Name) && item.segment.Geometry is LineArcCircularArc2D);
+        var sourceScope = "Target";
+        if (pair.segment is null)
+        {
+            pair = loop.Segments
+                .Select((segment, index) => (segment, index))
+                .FirstOrDefault(item => item.segment.Geometry is LineArcCircularArc2D);
+            sourceScope = "Host";
+        }
+        if (pair.segment?.Geometry is not LineArcCircularArc2D arc)
+            return null;
+
+        var winding = SignedArea(loop);
+        var materialSide = loop.IsOuter ? Math.Sign(winding) : -Math.Sign(winding);
+        var material = Math.Sign(arc.SweepAngleRadians) * materialSide >= 0d ? "Convex" : "Reflex";
+        var relation = arc.Radius < finishSize - Tolerance ? "LessThan"
+            : arc.Radius > finishSize + Tolerance ? "GreaterThan"
+            : "Equal";
+        var station = sourceScope == "Target" ? StationName(pair.segment.Name) : TargetStationName(target) ?? StationName(pair.segment.Name);
+        var amount = finishKind == "Chamfer" ? "finishDistance" : "finishRadius";
+        return $"ProfileBoundary{finishKind}ArcSegmentPlannerRequired:station={station}:scope={sourceScope}:segment={pair.segment.Name}:sourceFamily=Arc:material={material}:sourceRadius={arc.Radius.ToString("R", CultureInfo.InvariantCulture)}:{amount}={finishSize.ToString("R", CultureInfo.InvariantCulture)}:radiusRelation={relation}:missingPlanner={finishKind}ArcDerivedExtrusionEdge";
+    }
+
+    private static string StationName(string segmentName)
+    {
+        var match = Regex.Match(segmentName, @"^(?<material>Convex|Reflex)(?<size>Sharp|Small|Medium|Large)Arc$", RegexOptions.CultureInvariant);
+        return match.Success ? match.Groups["material"].Value + match.Groups["size"].Value : segmentName;
+    }
+
+    private static string? TargetStationName(ProfileBoundaryChamferTarget target) =>
+        target.SelectionProvenance.StartsWith("Selection:", StringComparison.Ordinal)
+            ? target.SelectionProvenance["Selection:".Length..].Replace("Station", string.Empty, StringComparison.Ordinal)
+            : null;
+
+    private static double SignedArea(ResolvedProfileLoop2D loop)
+    {
+        var points = loop.Segments.Select(segment => Start(segment.Geometry)).ToArray();
+        if (points.Any(point => point is null)) return 0d;
+        return points.Select((point, index) => point!.Value.X * points[(index + 1) % points.Length]!.Value.Y - points[(index + 1) % points.Length]!.Value.X * point.Value.Y).Sum() * .5d;
+    }
+
+    private static (double X, double Y)? Start(LineArcProfileCurve2D geometry) => geometry switch
+    {
+        LineArcLineSegment2D line => line.Start,
+        LineArcCircularArc2D arc => (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians)),
+        _ => null
+    };
+}
+
+/// <summary>
 /// Authoritative M1 materializer for a finite straight Profile-boundary round.  The
 /// end faces are quarter-discs in planes normal to the selected segment; this keeps
 /// the adjacent Profile junctions sharp and outside the solved topology.
@@ -668,12 +736,13 @@ public static class ProfileFilletShellPlanner
             var m1 = ProfileStraightEdgeFilletPlanner.TryPlan(profile, target, radius, clearance);
             return new(m1.Succeeded, m1.Body, m1.Correspondence, null, m1.Plan, m1.Diagnostics);
         }
-        if (target.ChainKind == ProfileBoundaryChamferChainKind.ClosedLoop) return Fail("ProfileBoundaryFilletLoopTopologyNotMaterialized");
-        if (target.SegmentIds.Count != 2) return Fail("ProfileBoundaryFilletJunctionTopologyNotMaterialized");
         var loop = profile.Loops.SingleOrDefault(x => x.Name == target.LoopId);
         if (loop is null) return Fail("ProfileBoundaryFilletLoopUnknown");
         if (!loop.IsOuter || profile.Loops.Count != 1) return Fail("ProfileBoundaryFilletInnerLoopUnsupported");
-        if (loop.Segments.Any(segment => segment.Geometry is not LineArcLineSegment2D)) return Fail("ProfileBoundaryFilletSegmentKindUnsupported");
+        if (loop.Segments.Any(segment => segment.Geometry is not LineArcLineSegment2D))
+            return Fail(ProfileBoundaryCurvedFinishDiagnostic.ForFirstSelectedArc(profile, loop, target, radius, "Fillet") ?? "ProfileBoundaryFilletSegmentKindUnsupported");
+        if (target.ChainKind == ProfileBoundaryChamferChainKind.ClosedLoop) return Fail("ProfileBoundaryFilletLoopTopologyNotMaterialized");
+        if (target.SegmentIds.Count != 2) return Fail("ProfileBoundaryFilletJunctionTopologyNotMaterialized");
         if (!double.IsFinite(radius) || radius <= Tol) return Fail("ProfileBoundaryFilletRadiusMustBePositive");
         if (!double.IsFinite(clearance) || clearance <= Tol) return Fail("ProfileBoundaryFilletEndClearanceMustBePositive");
         var a = IndexOf(loop, target.SegmentIds[0]); var b = IndexOf(loop, target.SegmentIds[1]); var count = loop.Segments.Count;

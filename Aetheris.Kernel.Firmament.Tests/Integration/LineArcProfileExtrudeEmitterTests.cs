@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Kernel.Firmament.Tests.Integration;
@@ -44,6 +45,26 @@ public class LineArcProfileExtrudeEmitterTests
         // The former emitter allocated an independent vertex pair for each segment.
         Assert.Equal(8, body.Topology.Vertices.Count());
         Assert.Equal(12, body.Topology.Edges.Count());
+    }
+
+    [Fact]
+    public void ExportsClockwiseArcEdgesWithFalseSameSenseSoTheirCylindricalFacesKeepTheMinorTrim()
+    {
+        var result = LineArcProfileExtrudeEmitter.TryEmit(new LineArcProfileExtrudeRequest([RectOuter(30, 20), HorizontalSlot(0, 0, 12, 2)], 8));
+        var body = Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(result.Body);
+        Assert.Contains(body.Bindings.EdgeBindings, binding => !binding.OrientedEdgeSense);
+
+        var exported = Step242Exporter.ExportBody(body);
+        Assert.True(exported.IsSuccess);
+        Assert.Matches(@"(?s)EDGE_CURVE\(\$,#[0-9]+,#[0-9]+,#[0-9]+,\.F\.\)", exported.Value!);
+
+        var reimported = Step242Importer.ImportBody(exported.Value!);
+        Assert.True(reimported.IsSuccess);
+        Assert.Equal(body.Topology.Faces.Count(), reimported.Value.Topology.Faces.Count());
+        Assert.Contains(reimported.Value.Bindings.EdgeBindings, binding => !binding.OrientedEdgeSense);
+        var mass = BrepMassProperties.Evaluate(reimported.Value);
+        var expectedVolume = 8d * (600d - 32d - (4d * Math.PI));
+        Assert.InRange(mass.AbsoluteVolume, expectedVolume - .5d, expectedVolume + .5d);
     }
 
     public static IEnumerable<object[]> ValidCases()

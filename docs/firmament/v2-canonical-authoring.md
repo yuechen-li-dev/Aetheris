@@ -248,6 +248,7 @@ specific unsupported diagnostics.
 - `fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/profile-straight-edge-fillet-top.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/profile-straight-edge-fillet-bottom.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/profile-edgefinish-chimera-base.firmament` (curved-source baseline card)
 - `fixtures/FirmamentV2/Canonical/valid/box-hole-pmi.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/semantic-slot-capsule.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/semantic-slot-rounded-rectangle.firmament`
@@ -268,3 +269,9 @@ specific unsupported diagnostics.
 
 Legacy lowercase and phase-style inputs remain compatibility inputs during
 migration. New authoring should use the canonical root shown above.
+
+Profile EdgeFinish targets are always source-bound (`Profile.Outer`, a source
+segment, or a named source-chain selection). Current materialized Chamfer and
+Fillet routes cover line-only source loops; circular source segments bind and
+report a station-specific missing exact planner rather than falling back to
+anonymous BRep edge inference. See `profile-edgefinish-chimera-x1.md`.

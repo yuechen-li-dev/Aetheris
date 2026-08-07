@@ -1,0 +1,37 @@
+Model ProfileEdgeFinishChimeraChamfer {
+    Units: mm
+    // This source is deliberately byte-for-byte geometry-equivalent to the base card.
+    Concept Path ChimeraOutline {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Line Bottom { Length: 420mm }
+        Line RightSide { Turn: 90deg; Length: 100mm }
+        Line TopLead { Turn: 90deg; Length: 20mm }
+        Line ConvexSharpDrop { Turn: 90deg; Length: 40mm }
+        Line ReflexSharpRun { Turn: -90deg; Length: 40mm }
+        Arc ReflexSmallArc { Turn: -90deg; Radius: 2mm }
+        Line ReflexSmallRise { Length: 36mm }
+        Arc ConvexSmallArc { Turn: 90deg; Radius: 2mm }
+        Line BetweenSmallMedium { Length: 40mm }
+        Arc ConvexMediumArc { Turn: 90deg; Radius: 4mm }
+        Line MediumDrop { Length: 32mm }
+        Arc ReflexMediumArc { Turn: -90deg; Radius: 4mm }
+        Line BetweenMediumLarge { Length: 40mm }
+        Arc ReflexLargeArc { Turn: -90deg; Radius: 8mm }
+        Line LargeRise { Length: 24mm }
+        Arc ConvexLargeArc { Turn: 90deg; Radius: 8mm }
+        Line TopReturn { Length: 252mm }
+        Close LeftSide
+    }
+    Profile Chimera From ChimeraOutline
+    Struct Body { Extrude Chimera { Profile: Chimera; From: 0mm; To: 24mm } }
+    Selection ConvexSharpStation { Target: TopBoundary Source: Chimera.ProfileSegments([TopLead, ConvexSharpDrop]) Require: ConnectedChain }
+    Selection ConvexSmallStation { Target: TopBoundary Source: Chimera.ProfileSegments([ReflexSmallRise, ConvexSmallArc, BetweenSmallMedium]) Require: ConnectedChain }
+    Selection ConvexMediumStation { Target: TopBoundary Source: Chimera.ProfileSegments([BetweenSmallMedium, ConvexMediumArc, MediumDrop]) Require: ConnectedChain }
+    Selection ConvexLargeStation { Target: TopBoundary Source: Chimera.ProfileSegments([LargeRise, ConvexLargeArc, TopReturn]) Require: ConnectedChain }
+    Selection ReflexSharpStation { Target: TopBoundary Source: Chimera.ProfileSegments([ConvexSharpDrop, ReflexSharpRun]) Require: ConnectedChain }
+    Selection ReflexSmallStation { Target: TopBoundary Source: Chimera.ProfileSegments([ReflexSharpRun, ReflexSmallArc, ReflexSmallRise]) Require: ConnectedChain }
+    Selection ReflexMediumStation { Target: TopBoundary Source: Chimera.ProfileSegments([MediumDrop, ReflexMediumArc, BetweenMediumLarge]) Require: ConnectedChain }
+    Selection ReflexLargeStation { Target: TopBoundary Source: Chimera.ProfileSegments([BetweenMediumLarge, ReflexLargeArc, LargeRise]) Require: ConnectedChain }
+    Modify Body { EdgeFinish ChimeraTopChamfer { Target: Chimera.Outer On: Top Kind: Chamfer Distance: 4mm } }
+}

@@ -793,7 +793,13 @@ public static class Step242Exporter
             return Failure($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}");
         }
 
-        var edgeCurveId = writer.AddEntity("EDGE_CURVE", "$", Step242TextWriter.Ref(startVertexId), Step242TextWriter.Ref(endVertexId), Step242TextWriter.Ref(geometryCurveId), Step242TextWriter.BooleanLogical(true));
+        // EDGE_CURVE.same_sense is the binding between the parametric curve and
+        // the topology edge, not a blanket export constant. In particular, a
+        // clockwise Profile arc has an increasing trim interval whose geometric
+        // direction is opposite the edge's authored start/end vertices. Writing
+        // .T. here inverted that relation for downstream CAD, so cylindrical
+        // faces at reflex arcs were trimmed through the complementary sweep.
+        var edgeCurveId = writer.AddEntity("EDGE_CURVE", "$", Step242TextWriter.Ref(startVertexId), Step242TextWriter.Ref(endVertexId), Step242TextWriter.Ref(geometryCurveId), Step242TextWriter.BooleanLogical(edgeBinding.OrientedEdgeSense));
         return KernelResult<string>.Success(edgeCurveId);
     }
 

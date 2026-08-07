@@ -59,6 +59,17 @@ The next bounded implementation must create one authoritative
 reflex-junction, and endpoint-termination subplans, then emit the complete
 shell from that plan. It cannot be obtained safely by stitching M1 endpoint
 faces or by generic B-rep edge editing.
+
+## Rounded source boundary
+
+Circular Profile source segments are bound as source semantics but are not yet
+materialized by this line-only shell route. Their rejection is intentionally
+specific: `ProfileBoundaryFilletArcSegmentPlannerRequired` identifies the
+station, source arc, material side, source radius, requested radius, relation,
+and missing `FilletArcDerivedExtrusionEdge` planner. The X1 chimera card
+derives the required toroidal family: convex rolling has signed major locus
+`Rs - F` (spindle / sphere-limit / horn boundaries); reflex rolling has
+`Rs + F` (regular ring torus for positive `Rs`).
 # Profile fillet common cases
 
 Two adjacent outer straight segments at a supported 90-degree reflex vertex

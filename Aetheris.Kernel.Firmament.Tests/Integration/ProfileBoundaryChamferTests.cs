@@ -199,6 +199,22 @@ public sealed class ProfileBoundaryChamferTests
     }
 
     [Fact]
+    public void CurvedWholeLoopFinishesNameTheFirstArcStationAndRequiredExactPlanner()
+    {
+        const string chamfer = "Modify Body { EdgeFinish TopBreak { Target: Bracket.Outer On: Top Kind: Chamfer Distance: 4mm } }";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBind(chamfer, CurvedProfile(), "Bracket", out var chamferTarget, out var distance, out var chamferDiagnostic), chamferDiagnostic);
+        var chamferPlan = ProfileBoundaryChamferPlanner.TryPlan(CurvedProfile(), chamferTarget!, distance);
+        Assert.False(chamferPlan.Succeeded);
+        Assert.StartsWith("ProfileBoundaryChamferArcSegmentPlannerRequired:station=ReflexSmall:scope=Target:segment=ReflexSmallArc:sourceFamily=Arc:material=Reflex:sourceRadius=2:finishDistance=4:radiusRelation=LessThan:missingPlanner=ChamferArcDerivedExtrusionEdge", Assert.Single(chamferPlan.Diagnostics));
+
+        const string fillet = "Modify Body { EdgeFinish TopRound { Target: Bracket.Outer On: Top Kind: Fillet Radius: 4mm } }";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(fillet, CurvedProfile(), "Bracket", out var filletTarget, out var radius, out var clearance, out var filletDiagnostic), filletDiagnostic);
+        var filletPlan = ProfileFilletShellPlanner.TryPlan(CurvedProfile(), filletTarget!, radius, clearance);
+        Assert.False(filletPlan.Succeeded);
+        Assert.StartsWith("ProfileBoundaryFilletArcSegmentPlannerRequired:station=ReflexSmall:scope=Target:segment=ReflexSmallArc:sourceFamily=Arc:material=Reflex:sourceRadius=2:finishRadius=4:radiusRelation=LessThan:missingPlanner=FilletArcDerivedExtrusionEdge", Assert.Single(filletPlan.Diagnostics));
+    }
+
+    [Fact]
     public void ReflexSphereSeamCompatibilityIsExplicitAndNeverReplacesTheToroidalDefault()
     {
         const string compatibility = "Selection Notch { Source: Bracket.Outer.[Inner, Upright] Require: ConnectedChain } Modify Body { EdgeFinish Round { Target: Notch On: Top Kind: Fillet Radius: 2mm ReflexJunction: SphereSeamCompatibility } }";
@@ -233,5 +249,21 @@ public sealed class ProfileBoundaryChamferTests
         var names = new[] { "South", "East", "Inner", "Upright", "North", "West" };
         var segments = points.Select((point, index) => new ResolvedProfileSegment2D(names[index], new LineArcLineSegment2D(point, points[(index + 1) % points.Length]), new ProfileSegmentProvenance($"profile:Bracket.Outer.{names[index]}", "test", "test", "test", "XY"))).ToArray();
         return new ResolvedProfile2D("Bracket", "XY", [new ResolvedProfileLoop2D("Outer", true, segments)], LocalStartDepth: 0d, LocalEndDepth: 8d);
+    }
+
+    private static ResolvedProfile2D CurvedProfile()
+    {
+        var segments = new ResolvedProfileSegment2D[]
+        {
+            Segment("Bottom", new LineArcLineSegment2D((0d, 0d), (20d, 0d))),
+            Segment("Right", new LineArcLineSegment2D((20d, 0d), (20d, 10d))),
+            Segment("TopLead", new LineArcLineSegment2D((20d, 10d), (10d, 10d))),
+            Segment("ReflexSmallArc", new LineArcCircularArc2D((10d, 8d), 2d, Math.PI / 2d, -Math.PI / 2d)),
+            Segment("Return", new LineArcLineSegment2D((12d, 8d), (0d, 0d)))
+        };
+        return new ResolvedProfile2D("Bracket", "XY", [new ResolvedProfileLoop2D("Outer", true, segments)], LocalStartDepth: 0d, LocalEndDepth: 8d);
+
+        static ResolvedProfileSegment2D Segment(string name, LineArcProfileCurve2D geometry) =>
+            new(name, geometry, new ProfileSegmentProvenance($"profile:Bracket.Outer.{name}", "test", "test", "test", "XY"));
     }
 }

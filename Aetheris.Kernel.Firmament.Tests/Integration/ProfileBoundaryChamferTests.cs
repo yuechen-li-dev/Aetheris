@@ -82,6 +82,54 @@ public sealed class ProfileBoundaryChamferTests
         Assert.Equal("ProfileBoundaryFilletNotMaterialized", diagnostic);
     }
 
+    [Theory]
+    [InlineData("Top")]
+    [InlineData("Bottom")]
+    public void PlansFiniteStraightProfileFilletWithExactCylindricalFace(string side)
+    {
+        var source = $"Modify Body {{ EdgeFinish Round {{ Target: Bracket.Outer.South On: {side} Kind: Fillet Radius: 2mm EndClearance: 3mm }} }}";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(source, Profile(), "Bracket", out var target, out var radius, out var clearance, out var diagnostic), diagnostic);
+        var result = ProfileStraightEdgeFilletPlanner.TryPlan(Profile(), target!, radius, clearance);
+        Assert.True(result.Succeeded, string.Join("; ", result.Diagnostics));
+        var counts = result.Body!.Topology.Faces.SelectMany(face => face.LoopIds).SelectMany(id => result.Body.Topology.Loops.Single(loop => loop.Id == id).CoedgeIds).Select(id => result.Body.Topology.Coedges.Single(coedge => coedge.Id == id).EdgeId).GroupBy(id => id).ToDictionary(x => x.Key, x => x.Count());
+        Assert.Equal(result.Body.Topology.Edges.Count(), counts.Count);
+        Assert.All(counts, item => Assert.True(item.Value == 2, $"edge {item.Key.Value}: {item.Value}"));
+        Assert.Contains(result.Correspondence!.Descendants, x => x.Role == SemanticTopologyRole.FilletSurface);
+    }
+
+    [Fact]
+    public void FilletPlanUsesDocumentedInsetCenterlineAndTypedRejections()
+    {
+        const string source = "Modify Body { EdgeFinish Round { Target: Bracket.Outer.South On: Top Kind: Fillet Radius: 2mm EndClearance: 3mm } }";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(source, Profile(), "Bracket", out var target, out var radius, out var clearance, out var diagnostic), diagnostic);
+        var result = ProfileStraightEdgeFilletPlanner.TryPlan(Profile(), target!, radius, clearance);
+        Assert.True(result.Succeeded);
+        Assert.Equal(3d, result.Plan!.SpanStart.X, 8);
+        Assert.Equal(17d, result.Plan.SpanEnd.X, 8);
+        Assert.Equal(2d, result.Plan.CylinderCenterlineStart.Y, 8);
+        Assert.Equal(6d, result.Plan.CylinderCenterlineStart.Z, 8);
+
+        Assert.False(ProfileBoundaryChamferSourceBinder.TryBindFillet("Modify Body { EdgeFinish Bad { Target: Bracket.Outer.South On: Top Kind: Fillet Radius: 0mm } }", Profile(), "Bracket", out _, out _, out _, out diagnostic));
+        Assert.Equal("ProfileBoundaryFilletRadiusMustBePositive", diagnostic);
+        Assert.False(ProfileBoundaryChamferSourceBinder.TryBindFillet("Modify Body { EdgeFinish Bad { Target: Bracket.Outer On: Top Kind: Fillet Radius: 2mm } }", Profile(), "Bracket", out _, out _, out _, out diagnostic));
+        Assert.Equal("ProfileBoundaryFilletWholeLoopUnsupported", diagnostic);
+        var tooShort = ProfileStraightEdgeFilletPlanner.TryPlan(Profile(), target!, 2d, 10d);
+        Assert.False(tooShort.Succeeded);
+        Assert.Contains("ProfileBoundaryFilletSegmentTooShort", tooShort.Diagnostics);
+        var tooLarge = ProfileStraightEdgeFilletPlanner.TryPlan(Profile(), target!, 8d, 3d);
+        Assert.False(tooLarge.Succeeded);
+        Assert.Contains("ProfileBoundaryFilletRadiusExceedsHost", tooLarge.Diagnostics);
+    }
+
+    [Fact]
+    public void FilletComposeCorridorRejectsShaftBeforeComposeMaterialization()
+    {
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/FirmamentV2/Canonical/invalid/profile-straight-edge-fillet-shaft-collision.firmament");
+        var build = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
+        Assert.False(build.IsSuccess);
+        Assert.Contains(build.Diagnostics, x => x.Message.StartsWith("ProfileBoundaryFilletIntersectsShaft", StringComparison.Ordinal));
+    }
+
     private static ResolvedProfile2D Profile()
     {
         var points = new[] { (0d, 0d), (20d, 0d), (20d, 10d), (0d, 10d) };

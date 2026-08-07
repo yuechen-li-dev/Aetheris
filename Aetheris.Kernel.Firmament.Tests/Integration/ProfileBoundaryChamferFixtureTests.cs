@@ -64,10 +64,38 @@ public sealed class ProfileBoundaryChamferFixtureTests
     }
 
     [Theory]
+    [InlineData("profile-straight-edge-fillet-top.firmament")]
+    [InlineData("profile-straight-edge-fillet-bottom.firmament")]
+    public void StraightFilletFixture_ExportsDeterministicExactCylinderAndEndpointArcs(string fixtureName)
+    {
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/valid/{fixtureName}");
+        var firstOutput = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step");
+        var secondOutput = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step");
+        try
+        {
+            var first = FirmamentBuildAndExport.Run(source, firstOutput); var second = FirmamentBuildAndExport.Run(source, secondOutput);
+            Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(x => x.Message)));
+            Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(x => x.Message)));
+            Assert.Equal(first.Value.Export.StepText, second.Value.Export.StepText);
+            var imported = Step242Importer.ImportBody(first.Value.Export.StepText);
+            Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(x => x.Message)));
+            Assert.Equal(1, imported.Value!.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder));
+            Assert.Equal(2, imported.Value.Geometry.Curves.Count(c => c.Value.Kind == CurveGeometryKind.Circle3));
+            Assert.True(BrepMassProperties.Evaluate(imported.Value).IsEnclosed);
+        }
+        finally
+        {
+            if (File.Exists(firstOutput)) File.Delete(firstOutput);
+            if (File.Exists(secondOutput)) File.Delete(secondOutput);
+        }
+    }
+
+    [Theory]
     [InlineData("profile-compose-reflex-chamfer-shaft-collision.firmament", "ProfileBoundaryChamferIntersectsShaft")]
     [InlineData("profile-compose-reflex-chamfer-counterbore-collision.firmament", "ProfileBoundaryChamferIntersectsCounterbore")]
     [InlineData("profile-chamfer-reflex-inset-collapse.firmament", "ProfileBoundaryChamferInsetCollapse")]
     [InlineData("profile-fillet-reflex-junction-not-materialized.firmament", "ProfileBoundaryFilletNotMaterialized")]
+    [InlineData("profile-straight-edge-fillet-shaft-collision.firmament", "ProfileBoundaryFilletIntersectsShaft")]
     public void InvalidFixture_ProducesTypedProfileBoundaryDiagnostic(string fixtureName, string diagnostic)
     {
         var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/invalid/{fixtureName}");

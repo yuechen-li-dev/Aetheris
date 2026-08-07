@@ -260,6 +260,16 @@ public static class FirmamentBuildAndExport
             new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.ComposeSemanticSelection")]);
         if (ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(source))
         {
+            if (ProfileBoundaryChamferSourceBinder.HasProfileBoundaryFillet(source))
+            {
+                ProfileBoundaryChamferTarget? filletTarget = null; ResolvedProfile2D? filletProfile = null; double radius = 0d; double clearance = 0d; string? filletDiagnostic = null;
+                foreach (var candidate in parsed.Profiles.Values.OrderBy(x => x.Name, StringComparer.Ordinal))
+                    if (ProfileBoundaryChamferSourceBinder.TryBindFillet(source, candidate, stack.Feature.Name, out filletTarget, out radius, out clearance, out filletDiagnostic)) { filletProfile = candidate; break; }
+                if (filletProfile is null || filletTarget is null) return Fail(filletDiagnostic ?? "ProfileBoundaryFilletProfileUnknown");
+                var filletAdmission = ProfileStraightEdgeFilletAdmissionChecker.Check(stack, filletProfile, filletTarget, radius, clearance);
+                if (!filletAdmission.Disjoint) return Fail(filletAdmission.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryFilletCavityInteractionUnsupported");
+                return Fail("ProfileBoundaryFilletComposeUnsupported");
+            }
             ProfileBoundaryChamferTarget? target = null; double distance = 0d; string? bindingDiagnostic = null; ResolvedProfile2D? profile = null;
             foreach (var candidate in parsed.Profiles.Values.OrderBy(x => x.Name, StringComparer.Ordinal))
             {
@@ -325,6 +335,26 @@ public static class FirmamentBuildAndExport
             new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, code, "FirmamentV2.SemanticSelection")]);
         if (ProfileBoundaryChamferSourceBinder.HasSemanticProfileBoundaryFinish(source))
         {
+            if (ProfileBoundaryChamferSourceBinder.HasProfileBoundaryFillet(source))
+            {
+                if (!ProfileBoundaryChamferSourceBinder.TryBindFillet(source, profile, profile.Name, out var filletTarget, out var radius, out var clearance, out var filletDiagnostic))
+                    return Fail(filletDiagnostic ?? "ProfileBoundaryFilletBindingFailed");
+                var fillet = ProfileStraightEdgeFilletPlanner.TryPlan(profile, filletTarget!, radius, clearance);
+                if (!fillet.Succeeded || fillet.Body is null || fillet.Correspondence is null)
+                    return Fail(fillet.Diagnostics.FirstOrDefault() ?? "ProfileBoundaryFilletPlanningFailed");
+                if (!FirmamentManifoldChecker.IsManifold(fillet.Body)) return Fail("ProfileBoundaryFilletNonManifold");
+                var filletStep = Step242Exporter.ExportBody(fillet.Body, new Step242ExportOptions
+                {
+                    ProductName = filletTarget!.StableId,
+                    ApplicationName = "Aetheris.Firmament.ProfileStraightEdgeFillet.M1",
+                    BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+                    BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute
+                });
+                if (!filletStep.IsSuccess || filletStep.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(filletStep.Diagnostics);
+                var filletReimport = Step242Importer.ImportBody(filletStep.Value);
+                if (!filletReimport.IsSuccess || filletReimport.Value is null || !FirmamentManifoldChecker.IsManifold(filletReimport.Value)) return Fail("ProfileBoundaryFilletStepReimportFailed");
+                return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(filletStep.Value, filletTarget.StableId, fillet.Correspondence.Descendants.Count, "profile-straight-edge-fillet", "source-grounded-profile-straight-edge-fillet"));
+            }
             if (!ProfileBoundaryChamferSourceBinder.TryBind(source, profile, profile.Name, out var target, out var distance, out var bindingDiagnostic))
                 return Fail(bindingDiagnostic ?? "ProfileBoundaryChamferBindingFailed");
             var planned = ProfileBoundaryChamferPlanner.TryPlan(profile, target!, distance);

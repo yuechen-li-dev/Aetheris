@@ -3,11 +3,10 @@
 ## Result
 
 Profile-boundary chamfers are explicit source-bound constructions for both
-`ConvexProfileJunction` and `ReflexProfileJunction`. Profile-boundary fillets
-do **not** currently exist: canonical `EdgeFinish ... Kind: Fillet Radius: ...`
-is parsed, reaches the resolved-Profile finish binder, and stops at the typed
-`ProfileBoundaryFilletNotMaterialized` boundary. No 2D Profile arc is counted
-as a 3D fillet.
+`ConvexProfileJunction` and `ReflexProfileJunction`. The isolated M1
+Profile-boundary fillet now exists for one named straight outer segment on Top
+or Bottom. It remains deliberately unavailable for chains, loops, and convex or
+reflex junctions; no 2D Profile arc is counted as a 3D fillet.
 
 ## Junction model
 
@@ -83,22 +82,21 @@ larger entry radius is checked and reports
 | Frustum routes | bounded primitive rim routes | analytic primitive support | supported where admitted |
 | Profile chamfer | source Profile outer line loop/chain, Top/Bottom | planar section transition | supported |
 | Compose Profile chamfer | Top whole outer line loop, disjoint cavities | planar variable-outer transition | supported |
-| Profile fillet segment / convex junction / reflex junction | source Profile boundary | no rolling-surface plan | unsupported: `ProfileBoundaryFilletNotMaterialized` |
+| Profile fillet, one straight outer segment | authored `Profile.Outer.Segment`, Top/Bottom | quarter cylinder + planar end faces | supported (M1) |
+| Profile fillet chain / loop / convex junction / reflex junction | source Profile boundary | no junction rolling-surface plan | unsupported: `ProfileBoundaryFilletNotMaterialized` |
 
 Primitive internal/reflex fillet support is not evidence of a Profile fillet:
-the former is a bounded primitive/cell planner and emits cylinders. The missing
-Profile primitive is the first authoritative constant-radius straight
-Profile-boundary rolling-surface plan, including cap/side contact curves and
-semantic descendants. Until that exists, convex/reflex junction patches,
-trim/intersection topology, cavity corridors, and whole-loop fillets must not
-be claimed.
+the former is a bounded primitive/cell planner. M1 instead has an authoritative
+constant-radius straight Profile-boundary rolling-surface plan, including
+cap/side contact curves and semantic descendants. Convex/reflex junction
+patches, trim/intersection topology, cavity corridors, and whole-loop fillets
+remain outside that plan.
 
-Recommended bounded follow-up: **PROFILE-STRAIGHT-EDGE-FILLET-M1** — one
+Implemented bounded follow-up: **PROFILE-STRAIGHT-EDGE-FILLET-M1** — one
 source-selected straight outer Profile segment on Top, with a constant-radius
 cylinder, explicit endpoint termination policy, `FilletSurface`,
-`TopContactEdge`, and `SideContactEdge` descendants. Only after that evidence
-should a convex two-line junction be considered; reflex junctions are a later,
-separate milestone.
+`CapContactEdge`, and `SideContactEdge` descendants. The next bounded work can
+therefore be a convex two-line junction; reflex junctions remain later work.
 
 ## Authoring and performance notes
 

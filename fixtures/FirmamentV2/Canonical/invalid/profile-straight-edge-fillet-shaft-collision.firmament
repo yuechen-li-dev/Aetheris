@@ -1,0 +1,17 @@
+Model ProfileStraightEdgeFilletShaftCollision {
+    Units: mm
+    Concept Struct Layout On XY {
+        Rect2 Stock { Center: [0mm, 0mm]; Size: [20mm, 10mm] }
+    }
+    Profile Plate Using Layout { Loop Outer {
+        Segment South { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
+        Segment East { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+        Segment North { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+        Segment West { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+    } }
+    Struct PlateBody { Compose Body {
+        Base Stock { Profile: Plate; From: 0mm; To: 8mm; Role: Stock }
+        Hole<Shaft> NearSouth { On: +Z; Center: Point2(0mm, -3mm); Diameter: 2mm; End: ThroughAll }
+    } }
+    Modify PlateBody { EdgeFinish SouthTopRound { Target: Plate.Outer.South On: Top Kind: Fillet Radius: 2mm EndClearance: 3mm } }
+}

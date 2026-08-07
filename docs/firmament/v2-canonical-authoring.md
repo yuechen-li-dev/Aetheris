@@ -198,10 +198,21 @@ material-side interior angle); this is not a 2D arc or a BRep-edge guess.
 chain and `profile-chamfer-mixed-convex-reflex-loop-top.firmament` applies the
 same exact planar section transition around the whole outer loop.
 
-`Kind: Fillet` is parsed as an EdgeFinish declaration, but no Profile-boundary
-rolling-surface planner exists. A source-bound Profile fillet is deliberately
-rejected as `ProfileBoundaryFilletNotMaterialized`; a Concept Path `Arc` only
-changes the 2D outline and is not a substitute for that 3D fillet.
+One finite source-bound Profile fillet is available on a straight outer segment:
+
+```firmament
+Modify Body { EdgeFinish SouthTopRound {
+    Target: Bracket.Outer.South On: Top Kind: Fillet Radius: 2mm EndClearance: 3mm
+} }
+Modify Body { EdgeFinish SouthBottomRound {
+    Target: Bracket.Outer.South On: Bottom Kind: Fillet Radius: 2mm EndClearance: 3mm
+} }
+```
+
+It emits one exact quarter-cylinder with planar endpoint termination faces.
+`EndClearance` defaults to `Radius`. Multi-segment convex/reflex junction
+fillets, chains, and whole loops remain unsupported; a Concept Path `Arc` only
+changes a 2D outline and is not a substitute for this 3D edge finish.
 
 ## Canonical examples
 
@@ -214,6 +225,8 @@ changes the 2D outline and is not a substitute for that 3D fillet.
 - `fixtures/FirmamentV2/Canonical/valid/profile-line-extrusion.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/profile-compose-base.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/profile-straight-edge-fillet-top.firmament`
+- `fixtures/FirmamentV2/Canonical/valid/profile-straight-edge-fillet-bottom.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/box-hole-pmi.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/semantic-slot-capsule.firmament`
 - `fixtures/FirmamentV2/Canonical/valid/semantic-slot-rounded-rectangle.firmament`

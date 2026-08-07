@@ -23,6 +23,21 @@ public sealed record ProfileBoundaryChamferPlanResult(
     bool Succeeded, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence,
     ProfileBoundaryChamferTarget? Target, IReadOnlyList<string> Diagnostics);
 
+/// <summary>
+/// M1's source-selected round.  It is deliberately a separate, non-generic plan: it
+/// owns one Line2 descendant and never searches a materialized B-rep for an edge.
+/// </summary>
+public sealed record ProfileStraightEdgeFilletPlan(
+    ProfileBoundaryChamferTarget Target, double Radius, double EndClearance,
+    Point3D SourceStart, Point3D SourceEnd, Point3D SpanStart, Point3D SpanEnd,
+    Direction3D Tangent, Direction3D InwardNormal, Direction3D ExtrusionAxis,
+    Point3D CylinderCenterlineStart, Point3D CylinderCenterlineEnd,
+    Point3D CapContactStart, Point3D CapContactEnd, Point3D SideContactStart, Point3D SideContactEnd,
+    string EndpointPolicy = "FilletSpanInset");
+public sealed record ProfileStraightEdgeFilletPlanResult(
+    bool Succeeded, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence,
+    ProfileStraightEdgeFilletPlan? Plan, IReadOnlyList<string> Diagnostics);
+
 public static class ProfileBoundaryChamferSourceBinder
 {
     private static readonly Regex EdgeFinishHeader = new(@"\bEdgeFinish\s+(?<name>\w+)\s*\{", RegexOptions.CultureInvariant);
@@ -31,6 +46,7 @@ public static class ProfileBoundaryChamferSourceBinder
     private static readonly Regex Kind = new(@"\bKind\s*:\s*(?<value>\w+)\b", RegexOptions.CultureInvariant);
     private static readonly Regex Distance = new(@"\bDistance\s*:\s*(?<value>[-+.\deE]+)mm\b", RegexOptions.CultureInvariant);
     private static readonly Regex Radius = new(@"\bRadius\s*:\s*(?<value>[-+.\deE]+)mm\b", RegexOptions.CultureInvariant);
+    private static readonly Regex EndClearance = new(@"\bEndClearance\s*:\s*(?<value>[-+.\deE]+)mm\b", RegexOptions.CultureInvariant);
     private static readonly Regex SelectionHeader = new(@"\bSelection\s+(?<name>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalSelection = new(@"\bSource\s*:\s*(?<profile>\w+)\.(?<loop>\w+)\.\[\s*(?<segments>[\w\s,]+)\s*\]", RegexOptions.CultureInvariant);
     private static readonly Regex HistoricalSelection = new(@"\bSource\s*:\s*(?<profile>\w+)\.ProfileSegments\s*\(\s*\[(?<segments>[\w\s,]+)\]\s*\)", RegexOptions.CultureInvariant);
@@ -42,6 +58,42 @@ public static class ProfileBoundaryChamferSourceBinder
             var body = Block(source, header.Index + header.Length - 1);
             return body is not null && On.IsMatch(body);
         });
+
+    public static bool HasProfileBoundaryFillet(string source) => EdgeFinishHeader.Matches(source).Cast<Match>().Any(header =>
+    {
+        var body = Block(source, header.Index + header.Length - 1);
+        return body is not null && On.IsMatch(body) && string.Equals(Kind.Match(body).Groups["value"].Value, "Fillet", StringComparison.Ordinal);
+    });
+
+    /// <summary>Parses M1's explicit source form.  EndClearance defaults to Radius;
+    /// the default is visible in inspection and therefore never silently changes span.</summary>
+    public static bool TryBindFillet(string source, ResolvedProfile2D profile, string hostBodyId, out ProfileBoundaryChamferTarget? target, out double radius, out double endClearance, out string? diagnostic)
+    {
+        target = null; radius = 0d; endClearance = 0d; diagnostic = null;
+        var finish = EdgeFinishHeader.Matches(source).Cast<Match>().Select(match => (Match: match, Body: Block(source, match.Index + match.Length - 1))).FirstOrDefault(x => x.Body is not null && On.IsMatch(x.Body) && string.Equals(Kind.Match(x.Body).Groups["value"].Value, "Fillet", StringComparison.Ordinal));
+        if (finish.Body is null) { diagnostic = "ProfileBoundaryFilletBoundaryRequired"; return false; }
+        var radiusMatch = Radius.Match(finish.Body); var clearanceMatch = EndClearance.Match(finish.Body);
+        if (!radiusMatch.Success || !double.TryParse(radiusMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out radius) || !double.IsFinite(radius) || radius <= 0d) { diagnostic = "ProfileBoundaryFilletRadiusMustBePositive"; return false; }
+        endClearance = clearanceMatch.Success && double.TryParse(clearanceMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var explicitClearance) ? explicitClearance : radius;
+        if (!double.IsFinite(endClearance) || endClearance <= 0d) { diagnostic = "ProfileBoundaryFilletEndClearanceMustBePositive"; return false; }
+
+        var targetMatch = Target.Match(finish.Body); var on = On.Match(finish.Body);
+        if (!targetMatch.Success || !on.Success) { diagnostic = "ProfileBoundaryFilletDeclarationInvalid"; return false; }
+        var rawTarget = targetMatch.Groups["value"].Value; var parts = rawTarget.Split('.');
+        // A named Selection can denote a connected chain.  M1 intentionally keeps
+        // that historical materialization boundary rather than pretending it is a
+        // single segment; direct Profile.Loop remains a precise whole-loop error.
+        if (parts.Length != 3) { diagnostic = parts.Length == 2 ? "ProfileBoundaryFilletWholeLoopUnsupported" : "ProfileBoundaryFilletNotMaterialized"; return false; }
+        if (!string.Equals(parts[0], profile.Name, StringComparison.Ordinal)) { diagnostic = "ProfileBoundaryFilletProfileUnknown"; return false; }
+        var loop = profile.Loops.SingleOrDefault(x => string.Equals(x.Name, parts[1], StringComparison.Ordinal));
+        if (loop is null) { diagnostic = "ProfileBoundaryFilletLoopUnknown"; return false; }
+        if (!loop.IsOuter) { diagnostic = "ProfileBoundaryFilletInnerLoopUnsupported"; return false; }
+        var segment = loop.Segments.SingleOrDefault(x => string.Equals(x.Name, parts[2], StringComparison.Ordinal));
+        if (segment is null) { diagnostic = "ProfileBoundaryFilletSegmentUnknown"; return false; }
+        if (segment.Geometry is not LineArcLineSegment2D) { diagnostic = "ProfileBoundaryFilletSegmentKindUnsupported"; return false; }
+        target = new($"edgefinish:{finish.Match.Groups["name"].Value}", hostBodyId, profile.Name, loop.Name, [segment.Name], Enum.Parse<ProfileBoundaryChamferSide>(on.Groups["value"].Value), ProfileBoundaryChamferChainKind.SingleSegment, $"offset:{finish.Match.Index}", "DirectProfileBoundaryTarget");
+        return true;
+    }
 
     public static bool TryBind(string source, ResolvedProfile2D profile, string hostBodyId, out ProfileBoundaryChamferTarget? target, out double distance, out string? diagnostic)
     {
@@ -372,4 +424,209 @@ public static class ProfileBoundaryChamferPlanner
     private static double SignedArea(IReadOnlyList<(double X, double Y)> points) => points.Select((p, i) => p.X * points[(i + 1) % points.Count].Y - points[(i + 1) % points.Count].X * p.Y).Sum() * .5d;
     private static double Distance((double X, double Y) a, (double X, double Y) b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
     private static int IndexOf(ResolvedProfileLoop2D loop, string segmentId) => loop.Segments.Select((segment, index) => (segment, index)).Single(x => x.segment.Name == segmentId).index;
+}
+
+/// <summary>
+/// Authoritative M1 materializer for a finite straight Profile-boundary round.  The
+/// end faces are quarter-discs in planes normal to the selected segment; this keeps
+/// the adjacent Profile junctions sharp and outside the solved topology.
+/// </summary>
+public static class ProfileStraightEdgeFilletPlanner
+{
+    private const double Tol = 1e-8;
+
+    public static ProfileStraightEdgeFilletPlanResult TryPlan(ResolvedProfile2D profile, ProfileBoundaryChamferTarget target, double radius, double clearance)
+    {
+        ProfileStraightEdgeFilletPlanResult Fail(string code) => new(false, null, null, null, [code]);
+        var loop = profile.Loops.SingleOrDefault(x => x.Name == target.LoopId);
+        if (loop is null) return Fail("ProfileBoundaryFilletLoopUnknown");
+        if (!loop.IsOuter || profile.Loops.Count != 1) return Fail("ProfileBoundaryFilletInnerLoopUnsupported");
+        if (target.ChainKind != ProfileBoundaryChamferChainKind.SingleSegment || target.SegmentIds.Count != 1) return Fail("ProfileBoundaryFilletConnectedChainUnsupported");
+        if (loop.Segments.Any(x => x.Geometry is not LineArcLineSegment2D)) return Fail("ProfileBoundaryFilletEndpointTerminationUnsupported");
+        var index = loop.Segments.Select((x, i) => (x, i)).Where(x => x.x.Name == target.SegmentIds[0]).Select(x => x.i).DefaultIfEmpty(-1).Single();
+        if (index < 0) return Fail("ProfileBoundaryFilletSegmentUnknown");
+        var line = (LineArcLineSegment2D)loop.Segments[index].Geometry;
+        var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y; var length = Math.Sqrt(dx * dx + dy * dy);
+        if (length <= 2d * clearance + Tol) return Fail("ProfileBoundaryFilletSegmentTooShort");
+        var start = profile.LocalStartDepth ?? -1d; var end = profile.LocalEndDepth ?? 1d; var thickness = end - start;
+        if (radius >= thickness - Tol) return Fail("ProfileBoundaryFilletRadiusExceedsHost");
+        var signedArea = loop.Segments.Cast<ResolvedProfileSegment2D>().Select(x => (LineArcLineSegment2D)x.Geometry).Select((x, i) => x.Start.X * ((LineArcLineSegment2D)loop.Segments[(i + 1) % loop.Segments.Count].Geometry).Start.Y - ((LineArcLineSegment2D)loop.Segments[(i + 1) % loop.Segments.Count].Geometry).Start.X * x.Start.Y).Sum() * .5d;
+        if (Math.Abs(signedArea) <= Tol) return Fail("ProfileBoundaryFilletEndpointTerminationUnsupported");
+        var frame = profile.EffectiveConstructionPlane;
+        var tangent = Direction3D.Create(frame.ToWorldDirection(new Vector3D(dx / length, dy / length, 0d)));
+        var inward2 = signedArea > 0d ? (-dy / length, dx / length) : (dy / length, -dx / length);
+        var inward = Direction3D.Create(frame.ToWorldDirection(new Vector3D(inward2.Item1, inward2.Item2, 0d)));
+        var axis = frame.AxisZ;
+        var station = target.Side == ProfileBoundaryChamferSide.Top ? end : start;
+        var axialIntoBody = target.Side == ProfileBoundaryChamferSide.Top ? -axis.ToVector() : axis.ToVector();
+        var sourceStart = frame.ToWorld(line.Start, station); var sourceEnd = frame.ToWorld(line.End, station);
+        var spanStart = sourceStart + tangent.ToVector() * clearance; var spanEnd = sourceEnd - tangent.ToVector() * clearance;
+        var centerStart = spanStart + inward.ToVector() * radius + axialIntoBody * radius;
+        var centerEnd = spanEnd + inward.ToVector() * radius + axialIntoBody * radius;
+        var capStart = spanStart + inward.ToVector() * radius; var capEnd = spanEnd + inward.ToVector() * radius;
+        var sideStart = spanStart + axialIntoBody * radius; var sideEnd = spanEnd + axialIntoBody * radius;
+        var plan = new ProfileStraightEdgeFilletPlan(target, radius, clearance, sourceStart, sourceEnd, spanStart, spanEnd, tangent, inward, axis, centerStart, centerEnd, capStart, capEnd, sideStart, sideEnd);
+        return BuildBody(profile, loop, index, plan, start, end);
+    }
+
+    private static ProfileStraightEdgeFilletPlanResult BuildBody(ResolvedProfile2D profile, ResolvedProfileLoop2D loop, int selected, ProfileStraightEdgeFilletPlan plan, double start, double end)
+    {
+        ProfileStraightEdgeFilletPlanResult Fail(string code) => new(false, null, null, plan, [code]);
+        var builder = new TopologyBuilder(); var geometry = new BrepGeometryStore(); var bindings = new BrepBindingModel(); var points = new Dictionary<VertexId, Point3D>();
+        var vertices = new Dictionary<string, VertexId>(StringComparer.Ordinal); var edges = new Dictionary<(VertexId, VertexId), EdgeId>(); var descendants = new List<SemanticTopologyDescendant>();
+        VertexId Vertex(string key, Point3D point) { if (vertices.TryGetValue(key, out var id)) return id; id = builder.AddVertex(); vertices[key] = id; points[id] = point; return id; }
+        var curveId = 1; var surfaceId = 1;
+        EdgeId LineEdge(VertexId a, VertexId b)
+        {
+            var key = a.Value < b.Value ? (a, b) : (b, a); if (edges.TryGetValue(key, out var id)) return id;
+            id = builder.AddEdge(a, b); edges[key] = id; var from = points[a]; var to = points[b];
+            var curve = new CurveGeometryId(curveId++); geometry.AddCurve(curve, CurveGeometry.FromLine(new Line3Curve(from, Direction3D.Create(to - from))));
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(id, curve, new ParameterInterval(0d, (to - from).Length), true)); return id;
+        }
+        EdgeId ArcEdge(VertexId a, VertexId b, Point3D center)
+        {
+            var key = a.Value < b.Value ? (a, b) : (b, a); if (edges.TryGetValue(key, out var id)) return id;
+            id = builder.AddEdge(a, b); edges[key] = id;
+            // X is from centre to the cap contact.  With tangent x cap-normal, +pi/2 reaches the side contact.
+            var capNormal = plan.Target.Side == ProfileBoundaryChamferSide.Top ? plan.ExtrusionAxis : Direction3D.Create(-plan.ExtrusionAxis.ToVector());
+            var curve = new CurveGeometryId(curveId++); geometry.AddCurve(curve, CurveGeometry.FromCircle(new Circle3Curve(center, plan.Tangent, plan.Radius, capNormal)));
+            var capPoint = center + capNormal.ToVector() * plan.Radius;
+            var capIsStart = (points[a] - capPoint).Length <= Tol;
+            var top = plan.Target.Side == ProfileBoundaryChamferSide.Top;
+            var trim = top ? new ParameterInterval(0d, Math.PI / 2d) : new ParameterInterval(-Math.PI / 2d, 0d);
+            // The binding trim is monotone; coedge orientation carries the opposite endpoint order.
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(id, curve, trim, top ? capIsStart : !capIsStart)); return id;
+        }
+        FaceId Face(string stable, IReadOnlyList<(VertexId Vertex, bool Arc, Point3D? Center)> boundary, SurfaceGeometry surface, SemanticTopologyRole role, string source, string? parent = null)
+        {
+            var loopId = builder.AllocateLoopId(); var coedges = Enumerable.Range(0, boundary.Count).Select(_ => new CoedgeId(builder.Model.Coedges.Count() + 1 + _)).ToArray();
+            for (var i = 0; i < boundary.Count; i++)
+            {
+                var current = boundary[i]; var next = boundary[(i + 1) % boundary.Count];
+                var edge = current.Arc ? ArcEdge(current.Vertex, next.Vertex, current.Center!.Value) : LineEdge(current.Vertex, next.Vertex);
+                var modelEdge = builder.Model.Edges.Single(x => x.Id == edge);
+                builder.AddCoedge(new Coedge(coedges[i], edge, loopId, coedges[(i + 1) % boundary.Count], coedges[(i + boundary.Count - 1) % boundary.Count], modelEdge.StartVertexId != current.Vertex));
+            }
+            builder.AddLoop(new Loop(loopId, coedges)); var face = builder.AddFace([loopId]); var sid = new SurfaceGeometryId(surfaceId++); geometry.AddSurface(sid, surface); bindings.AddFaceBinding(new FaceGeometryBinding(face, sid, true));
+            descendants.Add(new(stable, "Face", role, source, Face: face, ParentStableId: parent)); return face;
+        }
+        static (VertexId Vertex, bool Arc, Point3D? Center) L(VertexId v) => (v, false, null);
+        static (VertexId Vertex, bool Arc, Point3D? Center) A(VertexId v, Point3D c) => (v, true, c);
+
+        var frame = profile.EffectiveConstructionPlane; var n = loop.Segments.Count; var lower = new VertexId[n]; var upper = new VertexId[n];
+        for (var i = 0; i < n; i++)
+        {
+            var line = (LineArcLineSegment2D)loop.Segments[i].Geometry;
+            lower[i] = Vertex($"lower:{i}", frame.ToWorld(line.Start, start)); upper[i] = Vertex($"upper:{i}", frame.ToWorld(line.Start, end));
+        }
+        var sharpStart = Vertex("sharp-start", plan.SpanStart); var sharpEnd = Vertex("sharp-end", plan.SpanEnd);
+        var capStart = Vertex("cap-start", plan.CapContactStart); var capEnd = Vertex("cap-end", plan.CapContactEnd);
+        var sideStart = Vertex("side-start", plan.SideContactStart); var sideEnd = Vertex("side-end", plan.SideContactEnd);
+        var isTop = plan.Target.Side == ProfileBoundaryChamferSide.Top;
+        var sourceStart = isTop ? upper[selected] : lower[selected]; var sourceEnd = isTop ? upper[(selected + 1) % n] : lower[(selected + 1) % n];
+        var capPlane = SurfaceGeometry.FromPlane(new PlaneSurface(isTop ? plan.SourceStart : frame.ToWorld((0d, 0d), start), isTop ? plan.ExtrusionAxis : Direction3D.Create(-plan.ExtrusionAxis.ToVector()), plan.Tangent));
+        var otherCapPlane = SurfaceGeometry.FromPlane(new PlaneSurface(isTop ? frame.ToWorld((0d, 0d), start) : frame.ToWorld((0d, 0d), end), isTop ? Direction3D.Create(-plan.ExtrusionAxis.ToVector()) : plan.ExtrusionAxis, plan.Tangent));
+        var capBoundary = new List<(VertexId Vertex, bool Arc, Point3D? Center)>();
+        for (var i = 0; i < n; i++)
+        {
+            capBoundary.Add(L(isTop ? upper[i] : lower[i]));
+            if (i == selected) capBoundary.AddRange([L(sharpStart), L(capStart), L(capEnd), L(sharpEnd)]);
+        }
+        Face(isTop ? $"{plan.Target.StableId}:top-cap" : $"{plan.Target.StableId}:bottom-cap", (isTop ? capBoundary : capBoundary.AsEnumerable().Reverse()).ToArray(), capPlane, isTop ? SemanticTopologyRole.TopFaceBoundaryLoop : SemanticTopologyRole.BottomFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}", plan.Target.StableId);
+        Face(isTop ? $"{plan.Target.StableId}:bottom-cap" : $"{plan.Target.StableId}:top-cap", (isTop ? lower.Reverse() : upper).Select(L).ToArray(), otherCapPlane, isTop ? SemanticTopologyRole.BottomFaceBoundaryLoop : SemanticTopologyRole.TopFaceBoundaryLoop, $"profile:{profile.Name}.{loop.Name}", plan.Target.StableId);
+
+        for (var i = 0; i < n; i++)
+        {
+            var next = (i + 1) % n; var line = (LineArcLineSegment2D)loop.Segments[i].Geometry;
+            var localDx = line.End.X - line.Start.X; var localDy = line.End.Y - line.Start.Y; var localLength = Math.Sqrt(localDx * localDx + localDy * localDy);
+            var outNormal = Direction3D.Create(frame.ToWorldDirection(new Vector3D(localDy / localLength, -localDx / localLength, 0d)));
+            var localTangent = Direction3D.Create(frame.ToWorldDirection(new Vector3D(localDx / localLength, localDy / localLength, 0d)));
+            var surface = SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld(line.Start, start), outNormal, localTangent));
+            if (i != selected)
+                Face($"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}:side", [L(lower[i]), L(lower[next]), L(upper[next]), L(upper[i])], surface, SemanticTopologyRole.ExtrusionSideFace, $"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}");
+            else
+            {
+                var a = isTop ? new[] { L(lower[i]), L(lower[next]), L(upper[next]), L(sharpEnd), L(sideEnd), L(sideStart), L(sharpStart), L(upper[i]) }
+                    : new[] { L(lower[i]), L(sharpStart), L(sideStart), L(sideEnd), L(sharpEnd), L(lower[next]), L(upper[next]), L(upper[i]) };
+                Face($"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}:trimmed-side", a, surface, SemanticTopologyRole.ExtrusionSideFace, $"profile:{profile.Name}.{loop.Name}.{loop.Segments[i].Name}", plan.Target.StableId);
+            }
+        }
+        var cylinder = SurfaceGeometry.FromCylinder(new CylinderSurface(plan.CylinderCenterlineStart, plan.Tangent, plan.Radius, isTop ? plan.ExtrusionAxis : Direction3D.Create(-plan.ExtrusionAxis.ToVector())));
+        Face($"{plan.Target.StableId}:FilletSurface", [L(capStart), A(capEnd, plan.CylinderCenterlineEnd), L(sideEnd), A(sideStart, plan.CylinderCenterlineStart)], cylinder, SemanticTopologyRole.FilletSurface, plan.Target.StableId, plan.Target.StableId);
+        var startTerm = SurfaceGeometry.FromPlane(new PlaneSurface(plan.SpanStart, Direction3D.Create(-plan.Tangent.ToVector()), isTop ? plan.ExtrusionAxis : Direction3D.Create(-plan.ExtrusionAxis.ToVector())));
+        var endTerm = SurfaceGeometry.FromPlane(new PlaneSurface(plan.SpanEnd, plan.Tangent, isTop ? plan.ExtrusionAxis : Direction3D.Create(-plan.ExtrusionAxis.ToVector())));
+        Face($"{plan.Target.StableId}:StartTerminationFace", [L(sharpStart), A(capStart, plan.CylinderCenterlineStart), L(sideStart)], startTerm, SemanticTopologyRole.StartTerminationFace, plan.Target.StableId, plan.Target.StableId);
+        Face($"{plan.Target.StableId}:EndTerminationFace", [L(sharpEnd), A(sideEnd, plan.CylinderCenterlineEnd), L(capEnd)], endTerm, SemanticTopologyRole.EndTerminationFace, plan.Target.StableId, plan.Target.StableId);
+
+        var shell = builder.AddShell(builder.Model.Faces.Select(x => x.Id).ToArray()); builder.AddBody([shell]);
+        var body = new BrepBody(builder.Model, geometry, bindings, points);
+        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        if (!validation.IsSuccess) return Fail("ProfileBoundaryFilletTopologyPlanInvalid");
+        AddEdgeDescendant("CapContactEdge", LineEdge(capStart, capEnd), SemanticTopologyRole.CapContactEdge);
+        AddEdgeDescendant("SideContactEdge", LineEdge(sideStart, sideEnd), SemanticTopologyRole.SideContactEdge);
+        AddEdgeDescendant("StartEndpointArc", ArcEdge(capStart, sideStart, plan.CylinderCenterlineStart), SemanticTopologyRole.StartEndpointArc);
+        AddEdgeDescendant("EndEndpointArc", ArcEdge(capEnd, sideEnd, plan.CylinderCenterlineEnd), SemanticTopologyRole.EndEndpointArc);
+        AddEdgeDescendant("RetainedStartSharpEdge", LineEdge(sourceStart, sharpStart), SemanticTopologyRole.RetainedStartSharpEdge);
+        AddEdgeDescendant("RetainedEndSharpEdge", LineEdge(sharpEnd, sourceEnd), SemanticTopologyRole.RetainedEndSharpEdge);
+        var correspondence = new SemanticTopologyCorrespondence(plan.Target.HostBodyId, descendants, ["ResolvedProfile2D", "ProfileStraightEdgeFilletPlan", "FilletSpanInset", "AuthoritativeBRepPlan"]);
+        return new(true, body, correspondence, plan, ["ProfileStraightEdgeFilletPlan", "ProfileBoundaryFilletExactQuarterCylinder", "ProfileBoundaryFilletEndpointTerminationFaces"]);
+
+        void AddEdgeDescendant(string name, EdgeId edge, SemanticTopologyRole role) => descendants.Add(new($"{plan.Target.StableId}:{name}", "Edge", role, plan.Target.StableId, Edge: edge, ParentStableId: plan.Target.StableId));
+    }
+}
+
+/// <summary>
+/// Conservative source-space corridor check used before a composed host can ever
+/// attempt a future M2 materialization. M1 still rejects composed hosts after a
+/// disjoint proof; a collision receives the more useful feature-specific code.
+/// </summary>
+public sealed record ProfileStraightEdgeFilletCorridor(
+    string EdgeFinishId, string ProfileId, string LoopId, string SegmentId,
+    double Radius, double EndClearance, double From, double To,
+    (double X, double Y) SpanStart, (double X, double Y) SpanEnd);
+public sealed record ProfileStraightEdgeFilletAdmission(
+    bool Disjoint, ProfileStraightEdgeFilletCorridor? Corridor, IReadOnlyList<string> Diagnostics);
+
+public static class ProfileStraightEdgeFilletAdmissionChecker
+{
+    private const double Tol = 1e-8;
+
+    public static ProfileStraightEdgeFilletAdmission Check(PrismaticSectionStackConstruction stack, ResolvedProfile2D profile, ProfileBoundaryChamferTarget target, double radius, double clearance)
+    {
+        var loop = profile.Loops.SingleOrDefault(x => x.Name == target.LoopId);
+        if (loop is null || target.SegmentIds.Count != 1 || loop.Segments.SingleOrDefault(x => x.Name == target.SegmentIds[0])?.Geometry is not LineArcLineSegment2D line)
+            return new(false, null, ["ProfileBoundaryFilletEndpointTerminationUnsupported"]);
+        var length = Math.Sqrt(Math.Pow(line.End.X - line.Start.X, 2d) + Math.Pow(line.End.Y - line.Start.Y, 2d));
+        if (length <= 2d * clearance + Tol) return new(false, null, ["ProfileBoundaryFilletSegmentTooShort"]);
+        var dx = (line.End.X - line.Start.X) / length; var dy = (line.End.Y - line.Start.Y) / length;
+        var station = target.Side == ProfileBoundaryChamferSide.Top ? stack.Feature.CriticalLevels.Max() : stack.Feature.CriticalLevels.Min();
+        var from = target.Side == ProfileBoundaryChamferSide.Top ? station - radius : station;
+        var to = target.Side == ProfileBoundaryChamferSide.Top ? station : station + radius;
+        var corridor = new ProfileStraightEdgeFilletCorridor(target.StableId, profile.Name, loop.Name, target.SegmentIds[0], radius, clearance, from, to,
+            (line.Start.X + dx * clearance, line.Start.Y + dy * clearance), (line.End.X - dx * clearance, line.End.Y - dy * clearance));
+        var diagnostics = new List<string>();
+        foreach (var hole in stack.Feature.ShaftHoles ?? []) AddIfCollision(hole.StableId, "Shaft", hole.CenterX, hole.CenterY, hole.Diameter / 2d, hole.From, hole.To, "ProfileBoundaryFilletIntersectsShaft");
+        foreach (var hole in stack.Feature.CounterboreHoles ?? [])
+        {
+            AddIfCollision(hole.StableId, "Counterbore", hole.CenterX, hole.CenterY, hole.CounterboreDiameter / 2d, Math.Max(hole.From, hole.To - hole.CounterboreDepth), hole.To, "ProfileBoundaryFilletIntersectsCounterbore");
+            AddIfCollision(hole.StableId, "CounterboreShaft", hole.CenterX, hole.CenterY, hole.Diameter / 2d, hole.From, Math.Max(hole.From, hole.To - hole.CounterboreDepth), "ProfileBoundaryFilletIntersectsCounterbore");
+        }
+        return new(diagnostics.Count == 0, corridor, diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+
+        void AddIfCollision(string feature, string kind, double x, double y, double cavityRadius, double cavityFrom, double cavityTo, string code)
+        {
+            // Touching is rejected too. The radial test is the Minkowski sum of the
+            // finite span and the radius-r fillet strip; it is conservative by design.
+            var overlapsAxially = cavityFrom <= corridor.To + Tol && cavityTo >= corridor.From - Tol;
+            if (!overlapsAxially || PointSegmentDistance((x, y), corridor.SpanStart, corridor.SpanEnd) > cavityRadius + radius + Tol) return;
+            diagnostics.Add($"{code}:edgeFinish={corridor.EdgeFinishId}:cavity={feature}:kind={kind}:profile={corridor.ProfileId}.{corridor.LoopId}.{corridor.SegmentId}:span=({corridor.SpanStart.X:R},{corridor.SpanStart.Y:R})->({corridor.SpanEnd.X:R},{corridor.SpanEnd.Y:R}):radius={radius:R}");
+        }
+    }
+
+    private static double PointSegmentDistance((double X, double Y) p, (double X, double Y) a, (double X, double Y) b)
+    {
+        var dx = b.X - a.X; var dy = b.Y - a.Y; var lengthSquared = dx * dx + dy * dy;
+        var t = Math.Clamp(((p.X - a.X) * dx + (p.Y - a.Y) * dy) / lengthSquared, 0d, 1d);
+        var ox = p.X - (a.X + t * dx); var oy = p.Y - (a.Y + t * dy); return Math.Sqrt(ox * ox + oy * oy);
+    }
 }

@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aetheris.Forge.Abstractions.FirmamentInterop;
 using Aetheris.Kernel.Core.Brep.Verification;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
@@ -458,6 +459,7 @@ public static class CliRunner
                 }),
                 validation.IsValid, validation.SignedArea, validation.Diagnostics,
                 junctions = DescribeProfileJunctions(parsed.Profile, source, parsed.Profile.Name),
+                straightEdgeFillet = DescribeProfileStraightEdgeFillet(parsed.Profile, source, parsed.Profile.Name),
                 extrusionHeight = parsed.Height,
                 brepPlan = plan.Plan is null ? null : new
                 {
@@ -3223,6 +3225,29 @@ public static class CliRunner
         string ProfileId, string LoopId, string PredecessorSegment, string SuccessorSegment,
         string VertexId, double SignedTurnDegrees, double MaterialInteriorAngleDegrees,
         string Classification, bool SelectedByEdgeFinish, IReadOnlyList<string> GeneratedDescendants);
+
+    private sealed record ProfileStraightEdgeFilletInspection(
+        bool Succeeded, string? Diagnostic, string? EdgeFinishId, string? ProfileId, string? LoopId, string? SegmentId,
+        string? Side, double? Radius, double? EndClearance, string? EndpointPolicy,
+        double[]? CylinderAxis, double[]? CylinderCenterlineStart, double[]? CylinderCenterlineEnd,
+        double[]? CapContactStart, double[]? CapContactEnd, double[]? SideContactStart, double[]? SideContactEnd,
+        string CorridorClassification, IReadOnlyList<string> GeneratedDescendants, IReadOnlyList<string> Provenance);
+
+    private static ProfileStraightEdgeFilletInspection? DescribeProfileStraightEdgeFillet(ResolvedProfile2D profile, string source, string hostBodyId)
+    {
+        if (!ProfileBoundaryChamferSourceBinder.HasProfileBoundaryFillet(source)) return null;
+        if (!ProfileBoundaryChamferSourceBinder.TryBindFillet(source, profile, hostBodyId, out var target, out var radius, out var clearance, out var diagnostic))
+            return new(false, diagnostic, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "RejectedBeforePlan", [], []);
+        var result = ProfileStraightEdgeFilletPlanner.TryPlan(profile, target!, radius, clearance);
+        if (!result.Succeeded || result.Plan is null)
+            return new(false, result.Diagnostics.FirstOrDefault(), target!.StableId, target.ProfileId, target.LoopId, target.SegmentIds.Single(), target.Side.ToString(), radius, clearance, null, null, null, null, null, null, null, null, "RejectedBeforeTopology", [], []);
+        var plan = result.Plan;
+        static double[] V(Direction3D value) => [value.ToVector().X, value.ToVector().Y, value.ToVector().Z];
+        static double[] P(Point3D value) => [value.X, value.Y, value.Z];
+        return new(true, null, target!.StableId, target.ProfileId, target.LoopId, target.SegmentIds.Single(), target.Side.ToString(), radius, clearance, plan.EndpointPolicy,
+            V(plan.Tangent), P(plan.CylinderCenterlineStart), P(plan.CylinderCenterlineEnd), P(plan.CapContactStart), P(plan.CapContactEnd), P(plan.SideContactStart), P(plan.SideContactEnd),
+            "DisjointNoCavitiesInBareProfileM1", result.Correspondence?.Descendants.Select(x => x.StableId).OrderBy(x => x, StringComparer.Ordinal).ToArray() ?? [], result.Correspondence?.ProvenanceChain ?? []);
+    }
 
     private static IReadOnlyList<ProfileJunctionInspection> DescribeProfileJunctions(ResolvedProfile2D profile, string source, string hostBodyId)
     {

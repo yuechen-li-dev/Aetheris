@@ -1,0 +1,28 @@
+# Fillet contact-shell composer X6
+
+X6 introduces the contact-boundary IR used to keep Profile Fillet shell
+composition honest.  A `ProfileFilletContactBoundary` records a component and
+source owner, exact curve and trim, parameter traversal, endpoints, regularity
+evidence, and provenance.  `ProfileFilletComponentContactContract` groups the
+cap contact, source-side contacts, and predecessor/successor interfaces for a
+single analytic component.  `ProfileFilletContactShellPlan` is immutable and
+source ordered; it is intentionally free of B-rep faces, shell ids, and
+endpoint-termination topology.
+
+The contact planner now validates the composition boundary before allocating a
+face.  Rounded source-tangent components can describe their source and cap
+contacts, while a sharp line/line vertex is rejected with
+`ProfileFilletContactSharpJunctionComponentRequired`.  The release card proves
+the first unresolved contact is the wraparound `Outer.Bottom.Start` junction.
+This is materially earlier and more specific than the former
+`ArcDerivedCompositionPending` route failure.
+
+The remaining implementation is narrowly defined: resolve each sharp M2/M3
+component's displaced cap/side contacts into the graph, then emit one
+parent-owned cap, the trimmed source sides, and the shared analytic edges.  It
+must not replace those contacts with offset-profile intersections, suppress
+STEP preflight, introduce NURBS, or add Boolean/post-B-rep repair.
+
+No whole-loop Fillet artifact is claimed yet.  Existing M1/M2/M3 materializers
+remain the geometry ground truth while their extracted components are promoted
+to exact contact contracts.

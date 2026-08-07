@@ -271,10 +271,12 @@ Legacy lowercase and phase-style inputs remain compatibility inputs during
 migration. New authoring should use the canonical root shown above.
 
 Profile EdgeFinish targets are always source-bound (`Profile.Outer`, a source
-segment, or a named source-chain selection). Current materialized Chamfer and
-Fillet routes cover line-only source loops; circular source segments bind and
-report a station-specific missing exact planner rather than falling back to
-anonymous BRep edge inference. See `profile-edgefinish-chimera-x1.md`.
+segment, or a named source-chain selection). Chamfer materializes admitted
+mixed line/arc loops. Fillet exposes exact line-roll, sharp sphere/horn-torus,
+compatibility-sphere, and rounded Cylinder/Sphere/Torus component plans; its
+mixed closed-loop B-rep composer is not yet released, so it continues to
+report a typed materialization boundary rather than falling back to anonymous
+BRep edge inference. See `fillet-patch-extraction-x5.md`.
 
 For the seven-station mixed line/arc release card, EdgeFinish policy is
 source-bound: lines select Plane Chamfer/Cylinder Fillet patches; admitted arcs

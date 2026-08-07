@@ -61,6 +61,21 @@ public sealed record ConicalChamferPatch(
         "line-seam:start", "line-seam:end", SemanticDescendants);
 
 /// <summary>
+/// Exact zero-source-radius limit at a sharp reflex line/line Profile vertex.
+/// The source boundary is one real apex vertex; the cap boundary is a circular
+/// arc of radius <see cref="FinishSize"/>.  It is deliberately not represented
+/// as two mitered planar Chamfer patches.
+/// </summary>
+public sealed record SharpReflexChamferApexPatch(
+    string StableId, string SourceVertexId, ConeSurface Surface, double FinishSize,
+    double StartAngleRadians, double SweepAngleRadians, string LocalFrame,
+    IReadOnlyList<string> SemanticDescendants)
+    : AnalyticEdgeFinishPatch(StableId, SourceVertexId, ProfileEdgeFinishSurfaceFamily.Cone,
+        ProfileEdgeFinishRegularity.BoundedDegenerate, "SharpReflexChamferConeApexPlan", LocalFrame,
+        "sharp-reflex-apex@transition", "cap-contact-arc@cap",
+        "plane-cone-generator:start", "plane-cone-generator:end", SemanticDescendants);
+
+/// <summary>
 /// The regular rounded-source Chamfer is one conical-frustum sector.  Its two
 /// circular boundaries belong to the source and inset sections respectively;
 /// its two generators are the explicit source-order Plane/Cone seams.  It is
@@ -478,6 +493,7 @@ public static class ProfileEdgeFinishMixedShellMaterializer
             {
                 PlanarChamferPatch plane => SurfaceGeometry.FromPlane(plane.Surface),
                 ConicalChamferPatch cone => SurfaceGeometry.FromCone(cone.Surface),
+                SharpReflexChamferApexPatch apex => SurfaceGeometry.FromCone(apex.Surface),
                 _ => throw new InvalidOperationException("Mixed Chamfer plan contains non-Chamfer patch.")
             };
             Face($"{target.StableId}:chamfer:{loop.Segments[i].Name}", transitionUses, surface, SemanticTopologyRole.EdgeFinishReplacementFace, loop.Segments[i].Provenance.StableId);

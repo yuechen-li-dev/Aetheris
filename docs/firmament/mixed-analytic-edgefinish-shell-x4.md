@@ -79,12 +79,10 @@ reimport as one enclosed manifold shell with 26 Plane, 5 Cylinder, and 5 Cone
 faces and zero NURBS. The finite ConvexMedium apex is a topological vertex,
 not a zero-radius edge.
 
-The Fillet emitter remains blocked. Existing sharp sphere/horn-torus planners
-materialize complete two-line bodies with cap, side, and endpoint-termination
-faces; they do not expose reusable junction patches for insertion into the
-closed source-order shell. That component extraction is now the concrete next
-blocker. No Fillet or compatibility STEP, finished-volume assertion, or
-external-kernel smoke is claimed. The next implementation must extract those
-sharp patches and compose them with the already-planned cylinder/torus/sphere
-patches as one shell; it must not substitute NURBS, Booleans, or post-Brep
-surgery.
+X5 has extracted the M1/M2/M3 sharp analytic components and records them in
+the finite-plan output without granting them ownership of endpoint policy.
+See [fillet-patch-extraction-x5.md](fillet-patch-extraction-x5.md).  The
+closed-loop emitter remains intentionally unclaimed: preflight demonstrates
+that sharp contacts cannot be represented as ordinary source-offset seams.
+The next step is the exact parent-owned cap/side composer, without NURBS,
+Booleans, post-Brep surgery, or preflight bypass.

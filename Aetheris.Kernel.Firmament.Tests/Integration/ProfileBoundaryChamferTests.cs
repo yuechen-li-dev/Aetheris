@@ -126,6 +126,10 @@ public sealed class ProfileBoundaryChamferTests
         Assert.Equal(17d, result.Plan.SpanEnd.X, 8);
         Assert.Equal(2d, result.Plan.CylinderCenterlineStart.Y, 8);
         Assert.Equal(6d, result.Plan.CylinderCenterlineStart.Z, 8);
+        var roll = Assert.IsType<StraightFilletRollComponent>(result.Plan.RollComponent);
+        Assert.Equal(ProfileEdgeFinishSurfaceFamily.Cylinder, roll.SurfaceFamily);
+        Assert.Equal("open-start", roll.PredecessorInterface);
+        Assert.DoesNotContain("TerminationFace", roll.SemanticDescendants);
 
         Assert.False(ProfileBoundaryChamferSourceBinder.TryBindFillet("Modify Body { EdgeFinish Bad { Target: Bracket.Outer.South On: Top Kind: Fillet Radius: 0mm } }", Profile(), "Bracket", out _, out _, out _, out diagnostic));
         Assert.Equal("ProfileBoundaryFilletRadiusMustBePositive", diagnostic);
@@ -175,6 +179,10 @@ public sealed class ProfileBoundaryChamferTests
         Assert.Equal(2, result.Correspondence!.Descendants.Count(item => item.Role is SemanticTopologyRole.StartTerminationFace or SemanticTopologyRole.EndTerminationFace));
         Assert.Contains(result.Correspondence.Descendants, item => item.Role == SemanticTopologyRole.ConvexJunctionPatch);
         Assert.DoesNotContain(result.Correspondence.Descendants, item => item.StableId.Contains("InternalTermination", StringComparison.Ordinal));
+        Assert.Collection(result.Plan.Components!,
+            component => Assert.IsType<StraightFilletRollComponent>(component),
+            component => Assert.IsType<ConvexSharpFilletJunctionComponent>(component),
+            component => Assert.IsType<StraightFilletRollComponent>(component));
     }
 
     [Fact]
@@ -193,6 +201,7 @@ public sealed class ProfileBoundaryChamferTests
         Assert.Equal(1, reflexPlan.Body.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Torus));
         Assert.Contains(reflexPlan.Correspondence!.Descendants, item => item.Role == SemanticTopologyRole.ReflexJunctionPatch);
         Assert.Equal(2, reflexPlan.Correspondence.Descendants.Count(item => item.Role is SemanticTopologyRole.StartTerminationFace or SemanticTopologyRole.EndTerminationFace));
+        Assert.IsType<ReflexSharpExactRollingJunctionComponent>(reflexPlan.Plan.Components![1]);
 
         const string three = "Selection Three { Source: Bracket.Outer.[South, East, North] Require: ConnectedChain } Modify Body { EdgeFinish Round { Target: Three On: Top Kind: Fillet Radius: 2mm } }";
         Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(three, Profile(), "Bracket", out var threeTarget, out var threeRadius, out var threeClearance, out diagnostic), diagnostic);
@@ -232,6 +241,7 @@ public sealed class ProfileBoundaryChamferTests
         Assert.Equal(1, result.Body.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Sphere));
         Assert.Equal(0, result.Body.Geometry.Surfaces.Count(item => item.Value.Kind == SurfaceGeometryKind.Torus));
         Assert.Contains(result.Correspondence!.ProvenanceChain, item => item == "ReflexSphereSeamCompatibility");
+        Assert.IsType<ReflexSharpSphereCompatibilityComponent>(result.Plan.Components![1]);
 
         const string unsupported = "Selection Notch { Source: Bracket.Outer.[Inner, Upright] Require: ConnectedChain } Modify Body { EdgeFinish Round { Target: Notch On: Top Kind: Fillet Radius: 2mm ReflexJunction: Legacy } }";
         Assert.False(ProfileBoundaryChamferSourceBinder.TryBindFillet(unsupported, LProfile(), "Bracket", out _, out _, out _, out diagnostic));

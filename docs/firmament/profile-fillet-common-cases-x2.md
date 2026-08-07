@@ -48,17 +48,19 @@ M1.
 
 M2 now materializes the first admitted chain: two adjacent 90-degree convex
 line segments use two cylinders, one exact sphere, and only their two external
-terminations. Reflex pairs and chains longer than two still report their typed
-topology boundary; a complete loop reports
-`ProfileBoundaryFilletLoopTopologyNotMaterialized`. Composed hosts keep M1's
+terminations.  X5 exposes those cylinders and the sharp sphere as reusable
+components, and does the equivalent for M3's horn torus and the opt-in
+SphereSeamCompatibility sphere.  The finite fixtures retain their external
+terminations; reusable components do not own them.  Chains longer than two and
+a complete loop still report `ProfileBoundaryFilletLoopTopologyNotMaterialized`
+until the parent-owned mixed cap/side composer is emitted. Composed hosts keep M1's
 conservative single-roll Shaft/Counterbore corridor check and report the
 feature-specific collision diagnostics before the separate compose boundary.
 
-The next bounded implementation must create one authoritative
-`ProfileBoundaryFilletPlan` with typed straight-roll, convex-junction,
-reflex-junction, and endpoint-termination subplans, then emit the complete
-shell from that plan. It cannot be obtained safely by stitching M1 endpoint
-faces or by generic B-rep edge editing.
+The next bounded implementation composes the extracted components with the X4
+rounded-source components into one authoritative closed-loop plan. It cannot
+be obtained safely by stitching M1 endpoint faces or by generic B-rep edge
+editing. See `fillet-patch-extraction-x5.md`.
 
 ## Rounded source boundary
 

@@ -108,6 +108,19 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
         Assert.DoesNotContain(plan.OrderedPatches.SelectMany(x => x.SemanticDescendants), x => x.Contains("Termination", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void SevenStationFillet_RejectsNaiveContactCompositionBeforeTopologyAtTheFirstSharpStation()
+    {
+        var (profile, target) = ReleaseCard("profile-edgefinish-chimera-fillet.firmament", ProfileEdgeFinishKind.Fillet);
+        var mixed = ProfileEdgeFinishMixedShellPlanner.TryPlan(profile, target, ProfileEdgeFinishKind.Fillet, 4d);
+
+        Assert.True(mixed.Succeeded, string.Join(Environment.NewLine, mixed.Diagnostics));
+        var contacts = ProfileFilletContactShellPlanner.TryPlan(profile, target, Assert.IsType<ProfileEdgeFinishMixedShellPlan>(mixed.Plan));
+
+        Assert.False(contacts.Succeeded);
+        Assert.Equal("ProfileFilletContactSharpJunctionComponentRequired:vertex=Outer.Bottom.Start", Assert.Single(contacts.Diagnostics));
+    }
+
     private static (ResolvedProfile2D Profile, ProfileBoundaryChamferTarget Target) ReleaseCard(string fixture, ProfileEdgeFinishKind kind)
     {
         var source = File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/valid/{fixture}"));

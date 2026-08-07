@@ -40,7 +40,8 @@ public sealed record ProfileStraightEdgeFilletPlan(
     Direction3D Tangent, Direction3D InwardNormal, Direction3D ExtrusionAxis,
     Point3D CylinderCenterlineStart, Point3D CylinderCenterlineEnd,
     Point3D CapContactStart, Point3D CapContactEnd, Point3D SideContactStart, Point3D SideContactEnd,
-    string EndpointPolicy = "FilletSpanInset");
+    string EndpointPolicy = "FilletSpanInset",
+    StraightFilletRollComponent? RollComponent = null);
 public sealed record ProfileStraightEdgeFilletPlanResult(
     bool Succeeded, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence,
     ProfileStraightEdgeFilletPlan? Plan, IReadOnlyList<string> Diagnostics);
@@ -612,7 +613,12 @@ public static class ProfileStraightEdgeFilletPlanner
         var centerEnd = spanEnd + inward.ToVector() * radius + axialIntoBody * radius;
         var capStart = spanStart + inward.ToVector() * radius; var capEnd = spanEnd + inward.ToVector() * radius;
         var sideStart = spanStart + axialIntoBody * radius; var sideEnd = spanEnd + axialIntoBody * radius;
-        var plan = new ProfileStraightEdgeFilletPlan(target, radius, clearance, sourceStart, sourceEnd, spanStart, spanEnd, tangent, inward, axis, centerStart, centerEnd, capStart, capEnd, sideStart, sideEnd);
+        var capOut = target.Side == ProfileBoundaryChamferSide.Top ? axis : Direction3D.Create(-axis.ToVector());
+        var component = new StraightFilletRollComponent($"{target.StableId}:roll:{loop.Segments[index].Name}", loop.Segments[index].Provenance.StableId,
+            new CylinderSurface(centerStart, tangent, radius, capOut), centerStart, centerEnd, capStart, capEnd, sideStart, sideEnd,
+            $"axis={tangent};inward={inward};cap={capOut}", "open-start", "open-end",
+            [$"FilletSurface({loop.Segments[index].Name})"], ["M1", "ResolvedProfileSegment", "ReusableStraightRoll"]);
+        var plan = new ProfileStraightEdgeFilletPlan(target, radius, clearance, sourceStart, sourceEnd, spanStart, spanEnd, tangent, inward, axis, centerStart, centerEnd, capStart, capEnd, sideStart, sideEnd, RollComponent: component);
         return BuildBody(profile, loop, index, plan, start, end);
     }
 
@@ -728,6 +734,80 @@ public static class ProfileStraightEdgeFilletPlanner
 /// trying to join two already-emitted M1 bodies.
 /// </summary>
 public enum ProfileFilletRollEndKind { EndpointTermination, ConvexJunction, ReflexJunction }
+
+/// <summary>
+/// Reusable analytic constituents of a Profile fillet.  Components carry only
+/// their own exact surface and local interfaces; a parent shell decides whether
+/// an interface is joined to another component or an open-chain termination.
+/// </summary>
+public abstract record ProfileFilletComponent(
+    string StableId,
+    string SourceStableId,
+    ProfileEdgeFinishSurfaceFamily SurfaceFamily,
+    string LocalFrame,
+    string PredecessorInterface,
+    string SuccessorInterface,
+    string CapContactBoundary,
+    string SideContactBoundary,
+    IReadOnlyList<string> SemanticDescendants,
+    IReadOnlyList<string> Provenance);
+
+public sealed record StraightFilletRollComponent(
+    string StableId,
+    string SourceStableId,
+    CylinderSurface Surface,
+    Point3D CenterlineStart,
+    Point3D CenterlineEnd,
+    Point3D CapContactStart,
+    Point3D CapContactEnd,
+    Point3D SideContactStart,
+    Point3D SideContactEnd,
+    string LocalFrame,
+    string PredecessorInterface,
+    string SuccessorInterface,
+    IReadOnlyList<string> SemanticDescendants,
+    IReadOnlyList<string> Provenance)
+    : ProfileFilletComponent(StableId, SourceStableId, ProfileEdgeFinishSurfaceFamily.Cylinder, LocalFrame,
+        PredecessorInterface, SuccessorInterface, "cap-contact-line", "side-contact-line", SemanticDescendants, Provenance);
+
+public sealed record ConvexSharpFilletJunctionComponent(
+    string StableId,
+    string SourceStableId,
+    SphereSurface Surface,
+    string LocalFrame,
+    IReadOnlyList<string> SemanticDescendants,
+    IReadOnlyList<string> Provenance)
+    : ProfileFilletComponent(StableId, SourceStableId, ProfileEdgeFinishSurfaceFamily.Sphere, LocalFrame,
+        "roll-a-sphere-seam", "roll-b-sphere-seam", "cap-contact-point", "side-a/side-b-contact", SemanticDescendants, Provenance);
+
+public sealed record ReflexSharpExactRollingJunctionComponent(
+    string StableId,
+    string SourceStableId,
+    TorusSurface Surface,
+    string LocalFrame,
+    IReadOnlyList<string> SemanticDescendants,
+    IReadOnlyList<string> Provenance)
+    : ProfileFilletComponent(StableId, SourceStableId, ProfileEdgeFinishSurfaceFamily.Torus, LocalFrame,
+        "roll-a-torus-seam", "roll-b-torus-seam", "torus-cap-contact", "notch-side-contact", SemanticDescendants, Provenance);
+
+public sealed record ReflexSharpSphereCompatibilityComponent(
+    string StableId,
+    string SourceStableId,
+    SphereSurface Surface,
+    string LocalFrame,
+    IReadOnlyList<string> SemanticDescendants,
+    IReadOnlyList<string> Provenance)
+    : ProfileFilletComponent(StableId, SourceStableId, ProfileEdgeFinishSurfaceFamily.Sphere, LocalFrame,
+        "roll-a-sphere-seam", "roll-b-sphere-seam", "cap-contact-point", "notch-side-contact", SemanticDescendants, Provenance);
+
+public sealed record FilletSeamComponent(
+    string StableId,
+    string PredecessorComponentId,
+    string SuccessorComponentId,
+    string CurveFamily,
+    bool TraversesWithCurveParameter,
+    IReadOnlyList<string> Provenance);
+
 public sealed record ProfileFilletStraightRollPlan(string SegmentId, Direction3D Tangent, Direction3D InwardNormal, Point3D ExternalCenter, Point3D JunctionCenter, ProfileFilletRollEndKind ExternalEnd, ProfileFilletRollEndKind JunctionEnd);
 public abstract record ProfileFilletJunctionPlan(string VertexId, ProfileJunctionClassification Classification, Point3D Center, double Radius)
 {
@@ -746,7 +826,7 @@ public sealed record ProfileReflexFilletJunctionPlan(string VertexId, ProfileJun
     public override Point3D SideAContact { get => VerticalNotchContact; init { } }
     public override Point3D SideBContact { get => VerticalNotchContact; init { } }
 }
-public sealed record ProfileFilletShellPlan(ProfileBoundaryChamferTarget Target, double Radius, double EndClearance, IReadOnlyList<ProfileFilletStraightRollPlan> Rolls, ProfileFilletJunctionPlan Junction, string EndpointPolicy = "ExternalEndpointsOnly");
+public sealed record ProfileFilletShellPlan(ProfileBoundaryChamferTarget Target, double Radius, double EndClearance, IReadOnlyList<ProfileFilletStraightRollPlan> Rolls, ProfileFilletJunctionPlan Junction, string EndpointPolicy = "ExternalEndpointsOnly", IReadOnlyList<ProfileFilletComponent>? Components = null);
 public sealed record ProfileFilletShellPlanResult(bool Succeeded, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence, ProfileFilletShellPlan? Plan, ProfileStraightEdgeFilletPlan? SingleSegmentPlan, IReadOnlyList<string> Diagnostics);
 
 public static class ProfileFilletShellPlanner
@@ -821,7 +901,22 @@ public static class ProfileFilletShellPlanner
         ProfileFilletJunctionPlan junction = reflexCompatibility
             ? new ProfileReflexSphereSeamCompatibilityJunctionPlan(classification.VertexId, classification, center, radius, capJunction, sideA, sideB)
             : new ProfileConvexSphericalJunctionPlan(classification.VertexId, classification, center, radius, capJunction, sideA, sideB);
-        var plan = new ProfileFilletShellPlan(target, radius, clearance, rolls, junction);
+        var rollAComponent = new StraightFilletRollComponent($"{target.StableId}:roll:{loop.Segments[a].Name}", loop.Segments[a].Provenance.StableId,
+            new CylinderSurface(centerA, ta, radius, capOut), centerA, center, capA, capJunction, sideAExternal, sideA,
+            $"axis={ta};inward={na};cap={capOut}", "external-or-parent", "junction-a",
+            [$"FilletSurface({loop.Segments[a].Name})"], ["M2/M3", "ReusableStraightRoll"]);
+        var rollBComponent = new StraightFilletRollComponent($"{target.StableId}:roll:{loop.Segments[b].Name}", loop.Segments[b].Provenance.StableId,
+            new CylinderSurface(center, tb, radius, capOut), centerB, center, capJunction, capB, sideB, sideBExternal,
+            $"axis={tb};inward={nb};cap={capOut}", "junction-b", "external-or-parent",
+            [$"FilletSurface({loop.Segments[b].Name})"], ["M2/M3", "ReusableStraightRoll"]);
+        ProfileFilletComponent junctionComponent = reflexCompatibility
+            ? new ReflexSharpSphereCompatibilityComponent($"{target.StableId}:junction:{classification.VertexId}", classification.VertexId,
+                new SphereSurface(center, capOut, radius, Direction3D.Create(-na.ToVector())), $"cap={capOut}",
+                ["ReflexJunctionPatch", "policy=SphereSeamCompatibility"], ["M3R", "SphereSeamCompatibility"])
+            : new ConvexSharpFilletJunctionComponent($"{target.StableId}:junction:{classification.VertexId}", classification.VertexId,
+                new SphereSurface(center, capOut, radius, Direction3D.Create(-na.ToVector())), $"cap={capOut}",
+                ["ConvexJunctionPatch"], ["M2", "ConvexSphere"]);
+        var plan = new ProfileFilletShellPlan(target, radius, clearance, rolls, junction, Components: [rollAComponent, junctionComponent, rollBComponent]);
 
         var builder = new TopologyBuilder(); var geometry = new BrepGeometryStore(); var bindings = new BrepBindingModel(); var points = new Dictionary<VertexId, Point3D>();
         var vertices = new Dictionary<string, VertexId>(StringComparer.Ordinal); var edges = new Dictionary<(VertexId, VertexId), EdgeId>(); var descendants = new List<SemanticTopologyDescendant>(); var curveId = 1; var surfaceId = 1;
@@ -883,7 +978,18 @@ public static class ProfileFilletShellPlanner
         var torus = new TorusSurface(torusCenter, capOut, radius, radius, na);
         var rolls = new[] { new ProfileFilletStraightRollPlan(loop.Segments[a].Name, ta, na, centerA, centerAJunction, ProfileFilletRollEndKind.EndpointTermination, ProfileFilletRollEndKind.ReflexJunction), new ProfileFilletStraightRollPlan(loop.Segments[b].Name, tb, nb, centerB, centerBJunction, ProfileFilletRollEndKind.EndpointTermination, ProfileFilletRollEndKind.ReflexJunction) };
         var junction = new ProfileReflexFilletJunctionPlan(classification.VertexId, classification, torusCenter, radius, torus, capJA, capJB, depth, 0d, majorEnd, Math.PI / 2d, Math.PI);
-        var plan = new ProfileFilletShellPlan(target, radius, clearance, rolls, junction);
+        var rollAComponent = new StraightFilletRollComponent($"{target.StableId}:roll:{loop.Segments[a].Name}", loop.Segments[a].Provenance.StableId,
+            new CylinderSurface(centerA, ta, radius, capOut), centerA, centerAJunction, capAE, capJA, sideAE, depth,
+            $"axis={ta};inward={na};cap={capOut}", "external-or-parent", "junction-a",
+            [$"FilletSurface({loop.Segments[a].Name})"], ["M3", "ReusableStraightRoll"]);
+        var rollBComponent = new StraightFilletRollComponent($"{target.StableId}:roll:{loop.Segments[b].Name}", loop.Segments[b].Provenance.StableId,
+            new CylinderSurface(centerBJunction, tb, radius, capOut), centerBJunction, centerB, capJB, capBE, depth, sideBE,
+            $"axis={tb};inward={nb};cap={capOut}", "junction-b", "external-or-parent",
+            [$"FilletSurface({loop.Segments[b].Name})"], ["M3", "ReusableStraightRoll"]);
+        var junctionComponent = new ReflexSharpExactRollingJunctionComponent($"{target.StableId}:junction:{classification.VertexId}", classification.VertexId,
+            torus, $"axis={capOut};major={radius:R};minor={radius:R}",
+            ["ReflexJunctionPatch", "policy=ExactRolling"], ["M3", "ExactRolling", "HornToroidalPatch"]);
+        var plan = new ProfileFilletShellPlan(target, radius, clearance, rolls, junction, Components: [rollAComponent, junctionComponent, rollBComponent]);
 
         var builder = new TopologyBuilder(); var geometry = new BrepGeometryStore(); var bindings = new BrepBindingModel(); var points = new Dictionary<VertexId, Point3D>();
         var vertices = new Dictionary<string, VertexId>(StringComparer.Ordinal); var edges = new Dictionary<(VertexId, VertexId), EdgeId>(); var descendants = new List<SemanticTopologyDescendant>(); var curveId = 1; var surfaceId = 1;

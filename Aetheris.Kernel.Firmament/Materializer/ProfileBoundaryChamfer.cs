@@ -65,8 +65,12 @@ public static class ProfileBoundaryChamferSourceBinder
         return body is not null && On.IsMatch(body) && string.Equals(Kind.Match(body).Groups["value"].Value, "Fillet", StringComparison.Ordinal);
     });
 
-    /// <summary>Parses M1's explicit source form.  EndClearance defaults to Radius;
-    /// the default is visible in inspection and therefore never silently changes span.</summary>
+    /// <summary>
+    /// Resolves the source-bound fillet target into Profile order.  This is shared
+    /// target semantics with chamfer, not B-rep edge discovery: a direct segment,
+    /// named connected-chain selection, and an outer loop all produce one ordered
+    /// target.  M1 materialization still only consumes the single-segment shape.
+    /// </summary>
     public static bool TryBindFillet(string source, ResolvedProfile2D profile, string hostBodyId, out ProfileBoundaryChamferTarget? target, out double radius, out double endClearance, out string? diagnostic)
     {
         target = null; radius = 0d; endClearance = 0d; diagnostic = null;
@@ -74,24 +78,57 @@ public static class ProfileBoundaryChamferSourceBinder
         if (finish.Body is null) { diagnostic = "ProfileBoundaryFilletBoundaryRequired"; return false; }
         var radiusMatch = Radius.Match(finish.Body); var clearanceMatch = EndClearance.Match(finish.Body);
         if (!radiusMatch.Success || !double.TryParse(radiusMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out radius) || !double.IsFinite(radius) || radius <= 0d) { diagnostic = "ProfileBoundaryFilletRadiusMustBePositive"; return false; }
-        endClearance = clearanceMatch.Success && double.TryParse(clearanceMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var explicitClearance) ? explicitClearance : radius;
-        if (!double.IsFinite(endClearance) || endClearance <= 0d) { diagnostic = "ProfileBoundaryFilletEndClearanceMustBePositive"; return false; }
-
         var targetMatch = Target.Match(finish.Body); var on = On.Match(finish.Body);
         if (!targetMatch.Success || !on.Success) { diagnostic = "ProfileBoundaryFilletDeclarationInvalid"; return false; }
-        var rawTarget = targetMatch.Groups["value"].Value; var parts = rawTarget.Split('.');
-        // A named Selection can denote a connected chain.  M1 intentionally keeps
-        // that historical materialization boundary rather than pretending it is a
-        // single segment; direct Profile.Loop remains a precise whole-loop error.
-        if (parts.Length != 3) { diagnostic = parts.Length == 2 ? "ProfileBoundaryFilletWholeLoopUnsupported" : "ProfileBoundaryFilletNotMaterialized"; return false; }
-        if (!string.Equals(parts[0], profile.Name, StringComparison.Ordinal)) { diagnostic = "ProfileBoundaryFilletProfileUnknown"; return false; }
-        var loop = profile.Loops.SingleOrDefault(x => string.Equals(x.Name, parts[1], StringComparison.Ordinal));
+        var rawTarget = targetMatch.Groups["value"].Value;
+        string requestedProfile; string requestedLoop; IReadOnlyList<string> requestedSegments;
+        ProfileBoundaryChamferChainKind chainKind; string provenance;
+        var parts = rawTarget.Split('.');
+        if (parts.Length is 2 or 3)
+        {
+            requestedProfile = parts[0]; requestedLoop = parts[1];
+            requestedSegments = parts.Length == 3 ? [parts[2]] : [];
+            chainKind = parts.Length == 3 ? ProfileBoundaryChamferChainKind.SingleSegment : ProfileBoundaryChamferChainKind.ClosedLoop;
+            provenance = "DirectProfileBoundaryTarget";
+        }
+        else
+        {
+            var selection = SelectionHeader.Matches(source).Cast<Match>()
+                .Select(match => (Match: match, Body: Block(source, match.Index + match.Length - 1)))
+                .FirstOrDefault(x => string.Equals(x.Match.Groups["name"].Value, rawTarget, StringComparison.Ordinal));
+            if (selection.Body is null) { diagnostic = "ProfileBoundaryFilletTargetUnknown"; return false; }
+            var canonical = CanonicalSelection.Match(selection.Body); var historical = HistoricalSelection.Match(selection.Body);
+            var selectionSource = canonical.Success ? canonical : historical; var requirement = Require.Match(selection.Body);
+            if (!selectionSource.Success || !requirement.Success) { diagnostic = "ProfileBoundaryFilletSelectionKindUnsupported"; return false; }
+            requestedProfile = selectionSource.Groups["profile"].Value;
+            requestedLoop = canonical.Success ? canonical.Groups["loop"].Value : "Outer";
+            requestedSegments = selectionSource.Groups["segments"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            chainKind = string.Equals(requirement.Groups["value"].Value, "ClosedLoop", StringComparison.Ordinal)
+                ? ProfileBoundaryChamferChainKind.ClosedLoop : ProfileBoundaryChamferChainKind.OpenConnectedChain;
+            provenance = $"Selection:{rawTarget}";
+        }
+        if (!string.Equals(requestedProfile, profile.Name, StringComparison.Ordinal)) { diagnostic = "ProfileBoundaryFilletProfileUnknown"; return false; }
+        var loop = profile.Loops.SingleOrDefault(x => string.Equals(x.Name, requestedLoop, StringComparison.Ordinal));
         if (loop is null) { diagnostic = "ProfileBoundaryFilletLoopUnknown"; return false; }
         if (!loop.IsOuter) { diagnostic = "ProfileBoundaryFilletInnerLoopUnsupported"; return false; }
-        var segment = loop.Segments.SingleOrDefault(x => string.Equals(x.Name, parts[2], StringComparison.Ordinal));
-        if (segment is null) { diagnostic = "ProfileBoundaryFilletSegmentUnknown"; return false; }
-        if (segment.Geometry is not LineArcLineSegment2D) { diagnostic = "ProfileBoundaryFilletSegmentKindUnsupported"; return false; }
-        target = new($"edgefinish:{finish.Match.Groups["name"].Value}", hostBodyId, profile.Name, loop.Name, [segment.Name], Enum.Parse<ProfileBoundaryChamferSide>(on.Groups["value"].Value), ProfileBoundaryChamferChainKind.SingleSegment, $"offset:{finish.Match.Index}", "DirectProfileBoundaryTarget");
+        if (requestedSegments.Count == 0) requestedSegments = loop.Segments.Select(segment => segment.Name).ToArray();
+        if (requestedSegments.Distinct(StringComparer.Ordinal).Count() != requestedSegments.Count) { diagnostic = "ProfileBoundaryFilletDuplicateSegment"; return false; }
+        var indices = requestedSegments.Select(id => IndexOf(loop, id)).ToArray();
+        if (indices.Any(index => index < 0)) { diagnostic = "ProfileBoundaryFilletSegmentUnknown"; return false; }
+        var ordered = NormalizeConnectedOrder(loop, indices, out var closed);
+        if (ordered is null) { diagnostic = "ProfileBoundaryFilletDisconnectedChain"; return false; }
+        if (chainKind == ProfileBoundaryChamferChainKind.ClosedLoop && !closed) { diagnostic = "ProfileBoundaryFilletSelectionMustClose"; return false; }
+        if (chainKind == ProfileBoundaryChamferChainKind.OpenConnectedChain && closed) { diagnostic = "ProfileBoundaryFilletSelectionMustBeOpen"; return false; }
+        if (closed) chainKind = ProfileBoundaryChamferChainKind.ClosedLoop;
+        else if (ordered.Count == 1) chainKind = ProfileBoundaryChamferChainKind.SingleSegment;
+        var orderedSegments = ordered.Select(index => loop.Segments[index]).ToArray();
+        if (orderedSegments.Any(segment => segment.Geometry is not LineArcLineSegment2D)) { diagnostic = "ProfileBoundaryFilletSegmentKindUnsupported"; return false; }
+
+        endClearance = clearanceMatch.Success && double.TryParse(clearanceMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var explicitClearance) ? explicitClearance : radius;
+        if (!double.IsFinite(endClearance) || endClearance <= 0d) { diagnostic = "ProfileBoundaryFilletEndClearanceMustBePositive"; return false; }
+        target = new($"edgefinish:{finish.Match.Groups["name"].Value}", hostBodyId, profile.Name, loop.Name,
+            orderedSegments.Select(segment => segment.Name).ToArray(), Enum.Parse<ProfileBoundaryChamferSide>(on.Groups["value"].Value),
+            chainKind, $"offset:{finish.Match.Index}", provenance);
         return true;
     }
 
@@ -441,7 +478,8 @@ public static class ProfileStraightEdgeFilletPlanner
         var loop = profile.Loops.SingleOrDefault(x => x.Name == target.LoopId);
         if (loop is null) return Fail("ProfileBoundaryFilletLoopUnknown");
         if (!loop.IsOuter || profile.Loops.Count != 1) return Fail("ProfileBoundaryFilletInnerLoopUnsupported");
-        if (target.ChainKind != ProfileBoundaryChamferChainKind.SingleSegment || target.SegmentIds.Count != 1) return Fail("ProfileBoundaryFilletConnectedChainUnsupported");
+        if (target.ChainKind == ProfileBoundaryChamferChainKind.ClosedLoop) return Fail("ProfileBoundaryFilletLoopTopologyNotMaterialized");
+        if (target.ChainKind == ProfileBoundaryChamferChainKind.OpenConnectedChain || target.SegmentIds.Count != 1) return Fail("ProfileBoundaryFilletJunctionTopologyNotMaterialized");
         if (loop.Segments.Any(x => x.Geometry is not LineArcLineSegment2D)) return Fail("ProfileBoundaryFilletEndpointTerminationUnsupported");
         var index = loop.Segments.Select((x, i) => (x, i)).Where(x => x.x.Name == target.SegmentIds[0]).Select(x => x.i).DefaultIfEmpty(-1).Single();
         if (index < 0) return Fail("ProfileBoundaryFilletSegmentUnknown");

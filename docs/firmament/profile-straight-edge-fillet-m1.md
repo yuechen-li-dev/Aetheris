@@ -2,7 +2,11 @@
 
 M1 materializes one authored `Line2` segment on the outer loop of a prismatic
 Profile extrusion. It is a source-bound operation: `Target` names
-`Profile.Loop.Segment`; no B-rep edge lookup is performed.
+`Profile.Loop.Segment`; no B-rep edge lookup is performed. The X2 target
+resolver also accepts an outer loop and the existing typed `ConnectedChain`
+Selection syntax, normalizing all source segments to Profile order before a
+planner sees them. This removes target-binding archaeology, but it does not
+claim that M1 has continuous junction topology.
 
 ```firmament
 Modify Body {
@@ -34,8 +38,12 @@ untouched. Typed descendants include `FilletSurface`, both contact edges, both
 endpoint arcs, both termination faces, and both retained sharp edges.
 
 The implementation rejects non-positive radii/clearances, a radius at or above
-host thickness, non-Line2 sources, inner loops, loop/chain targets, and spans
-that cannot retain both endpoint clearances. For a Compose source, M1 first
+host thickness, non-Line2 sources, inner loops, duplicate/disconnected chain
+selections, and spans that cannot retain both endpoint clearances. Loop and
+connected-chain targets bind successfully but stop at the explicit M1 topology
+boundary with `ProfileBoundaryFilletLoopTopologyNotMaterialized` or
+`ProfileBoundaryFilletJunctionTopologyNotMaterialized`; this is deliberately
+more specific than a generic materialization error. For a Compose source, M1 first
 tests an exact finite-span/axial corridor conservatively against Shaft and
 Counterbore circles. Touching or overlap reports
 `ProfileBoundaryFilletIntersectsShaft` or

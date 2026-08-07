@@ -83,7 +83,7 @@ larger entry radius is checked and reports
 | Profile chamfer | source Profile outer line loop/chain, Top/Bottom | planar section transition | supported |
 | Compose Profile chamfer | Top whole outer line loop, disjoint cavities | planar variable-outer transition | supported |
 | Profile fillet, one straight outer segment | authored `Profile.Outer.Segment`, Top/Bottom | quarter cylinder + planar end faces | supported (M1) |
-| Profile fillet chain / loop / convex junction / reflex junction | source Profile boundary | no junction rolling-surface plan | unsupported: `ProfileBoundaryFilletNotMaterialized` |
+| Profile fillet chain / loop / convex junction / reflex junction | ordered source Profile boundary | no junction rolling-surface plan | binding is supported; materialization reports `ProfileBoundaryFilletJunctionTopologyNotMaterialized` or `ProfileBoundaryFilletLoopTopologyNotMaterialized` |
 
 Primitive internal/reflex fillet support is not evidence of a Profile fillet:
 the former is a bounded primitive/cell planner. M1 instead has an authoritative

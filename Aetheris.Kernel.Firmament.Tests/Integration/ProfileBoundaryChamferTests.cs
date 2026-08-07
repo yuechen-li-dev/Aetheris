@@ -73,13 +73,29 @@ public sealed class ProfileBoundaryChamferTests
     }
 
     [Fact]
-    public void RejectsProfileFilletAtMaterializationBoundary()
+    public void BindsWholeLoopProfileFilletBeforeReportingTheSpecificMaterializationBoundary()
     {
         const string source = "Modify Body { EdgeFinish TopRound { Target: Bracket.Outer On: Top Kind: Fillet Radius: 2mm } }";
 
-        Assert.False(ProfileBoundaryChamferSourceBinder.TryBind(source, Profile(), "Bracket", out _, out _, out var diagnostic));
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(source, Profile(), "Bracket", out var target, out var radius, out var clearance, out var diagnostic), diagnostic);
+        Assert.Equal(ProfileBoundaryChamferChainKind.ClosedLoop, target!.ChainKind);
+        var plan = ProfileStraightEdgeFilletPlanner.TryPlan(Profile(), target, radius, clearance);
 
-        Assert.Equal("ProfileBoundaryFilletNotMaterialized", diagnostic);
+        Assert.False(plan.Succeeded);
+        Assert.Contains("ProfileBoundaryFilletLoopTopologyNotMaterialized", plan.Diagnostics);
+    }
+
+    [Fact]
+    public void BindsConnectedFilletSelectionInProfileOrderAndRejectsDisconnectedSelection()
+    {
+        const string chain = "Selection Corner { Source: Bracket.Outer.[East, South] Require: ConnectedChain } Modify Body { EdgeFinish CornerRound { Target: Corner On: Top Kind: Fillet Radius: 2mm } }";
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet(chain, Profile(), "Bracket", out var target, out _, out _, out var diagnostic), diagnostic);
+        Assert.Equal(ProfileBoundaryChamferChainKind.OpenConnectedChain, target!.ChainKind);
+        Assert.Equal(["South", "East"], target.SegmentIds);
+
+        const string disconnected = "Selection Bad { Source: Bracket.Outer.[South, North] Require: ConnectedChain } Modify Body { EdgeFinish BadRound { Target: Bad On: Top Kind: Fillet Radius: 2mm } }";
+        Assert.False(ProfileBoundaryChamferSourceBinder.TryBindFillet(disconnected, Profile(), "Bracket", out _, out _, out _, out diagnostic));
+        Assert.Equal("ProfileBoundaryFilletDisconnectedChain", diagnostic);
     }
 
     [Theory]
@@ -111,8 +127,8 @@ public sealed class ProfileBoundaryChamferTests
 
         Assert.False(ProfileBoundaryChamferSourceBinder.TryBindFillet("Modify Body { EdgeFinish Bad { Target: Bracket.Outer.South On: Top Kind: Fillet Radius: 0mm } }", Profile(), "Bracket", out _, out _, out _, out diagnostic));
         Assert.Equal("ProfileBoundaryFilletRadiusMustBePositive", diagnostic);
-        Assert.False(ProfileBoundaryChamferSourceBinder.TryBindFillet("Modify Body { EdgeFinish Bad { Target: Bracket.Outer On: Top Kind: Fillet Radius: 2mm } }", Profile(), "Bracket", out _, out _, out _, out diagnostic));
-        Assert.Equal("ProfileBoundaryFilletWholeLoopUnsupported", diagnostic);
+        Assert.True(ProfileBoundaryChamferSourceBinder.TryBindFillet("Modify Body { EdgeFinish Bad { Target: Bracket.Outer On: Top Kind: Fillet Radius: 2mm } }", Profile(), "Bracket", out var loopTarget, out var loopRadius, out var loopClearance, out diagnostic), diagnostic);
+        Assert.Contains("ProfileBoundaryFilletLoopTopologyNotMaterialized", ProfileStraightEdgeFilletPlanner.TryPlan(Profile(), loopTarget!, loopRadius, loopClearance).Diagnostics);
         var tooShort = ProfileStraightEdgeFilletPlanner.TryPlan(Profile(), target!, 2d, 10d);
         Assert.False(tooShort.Succeeded);
         Assert.Contains("ProfileBoundaryFilletSegmentTooShort", tooShort.Diagnostics);

@@ -94,7 +94,7 @@ public sealed class ProfileBoundaryChamferFixtureTests
     [InlineData("profile-compose-reflex-chamfer-shaft-collision.firmament", "ProfileBoundaryChamferIntersectsShaft")]
     [InlineData("profile-compose-reflex-chamfer-counterbore-collision.firmament", "ProfileBoundaryChamferIntersectsCounterbore")]
     [InlineData("profile-chamfer-reflex-inset-collapse.firmament", "ProfileBoundaryChamferInsetCollapse")]
-    [InlineData("profile-fillet-reflex-junction-not-materialized.firmament", "ProfileBoundaryFilletNotMaterialized")]
+    [InlineData("profile-fillet-reflex-junction-not-materialized.firmament", "ProfileBoundaryFilletJunctionTopologyNotMaterialized")]
     [InlineData("profile-straight-edge-fillet-shaft-collision.firmament", "ProfileBoundaryFilletIntersectsShaft")]
     public void InvalidFixture_ProducesTypedProfileBoundaryDiagnostic(string fixtureName, string diagnostic)
     {

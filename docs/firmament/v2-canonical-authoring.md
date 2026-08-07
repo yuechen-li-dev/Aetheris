@@ -216,9 +216,12 @@ Modify Body { EdgeFinish SouthBottomRound {
 ```
 
 It emits one exact quarter-cylinder with planar endpoint termination faces.
-`EndClearance` defaults to `Radius`. Multi-segment convex/reflex junction
-fillets, chains, and whole loops remain unsupported; a Concept Path `Arc` only
-changes a 2D outline and is not a substitute for this 3D edge finish.
+`EndClearance` defaults to `Radius`. The target grammar now also accepts the
+same connected-chain Selection syntax used by chamfers and a direct outer-loop
+target, so authors receive a source-specific topology diagnostic instead of a
+selection failure. Continuous multi-segment convex/reflex junction fillets,
+chains, and whole loops remain unmaterialized; a Concept Path `Arc` only changes
+a 2D outline and is not a substitute for this 3D edge finish.
 
 ## Canonical examples
 

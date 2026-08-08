@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
 
@@ -26,17 +29,89 @@ public sealed record ExactCoaxialPartRecipe(
     string SemanticDesignation,
     string Grade);
 
+public sealed record ExactCoaxialPartDefinition(
+    ExactCoaxialPartRecipe Recipe,
+    BrepBody Body,
+    ExactConstructionSemanticModel Semantics,
+    string DeterministicSignature,
+    ExactCoaxialConstructionPlan ConstructionPlan);
+
 public static class ExactCoaxialPartBuilder
 {
-    public static KernelResult<HexBoltDefinition> Create(ExactCoaxialPartRecipe recipe)
+    public static KernelResult<ExactCoaxialPartDefinition> Create(ExactCoaxialPartRecipe recipe)
     {
-        if (recipe.PolygonSides != 6)
-            return KernelResult<HexBoltDefinition>.Failure([new KernelDiagnostic(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error,
-                "ExactCoaxialPart currently admits six-sided regular prisms; the construction node remains polygon-generic and diagnoses the bounded backend limit.", "ExactCoaxialPart.RegularPolygonPrism.Sides")]);
-        var spec = new HexBoltSpec(recipe.ShaftDiameter, recipe.AxialLength, recipe.AcrossFlats, recipe.PrismAxialHeight,
-            recipe.TopFlatDiameter, recipe.TopConeAngleDegrees, recipe.EndChamferLength, recipe.EndDiameter,
-            recipe.SemanticAxialRegionLength, recipe.SemanticDesignation, recipe.Grade, recipe.BlendRadius);
-        return HexBoltBuilder.Create(spec, recipe.StableId);
+        var plan = Plan(recipe);
+        if (!plan.IsSuccess) return KernelResult<ExactCoaxialPartDefinition>.Failure(plan.Diagnostics);
+        var emitted = ExactConstructionMaterializer.Materialize(plan.Value);
+        return emitted.IsSuccess
+            ? KernelResult<ExactCoaxialPartDefinition>.Success(new(recipe, emitted.Value.Body,
+                new(plan.Value.StableId, emitted.Value.Semantics, emitted.Value.Metadata), emitted.Value.DeterministicSignature, plan.Value))
+            : KernelResult<ExactCoaxialPartDefinition>.Failure(emitted.Diagnostics);
+    }
+
+    public static KernelResult<ExactCoaxialConstructionPlan> Plan(ExactCoaxialPartRecipe recipe)
+    {
+        if (recipe.PolygonSides < 3 || recipe.AcrossFlats <= 0d || recipe.PrismAxialHeight <= 0d
+            || recipe.TopFlatDiameter <= 0d || recipe.TopConeAngleDegrees <= 0d || recipe.TopConeAngleDegrees >= 90d
+            || recipe.BlendRadius < 0d || recipe.ShaftDiameter <= 0d || recipe.AxialLength <= 0d
+            || recipe.EndChamferLength <= 0d || recipe.EndChamferLength >= recipe.AxialLength || recipe.EndDiameter <= 0d
+            || recipe.EndDiameter >= recipe.ShaftDiameter)
+            return KernelResult<ExactCoaxialConstructionPlan>.Failure([new KernelDiagnostic(KernelDiagnosticCode.InvalidArgument,
+                KernelDiagnosticSeverity.Error, "Exact coaxial construction dimensions are outside the admitted bounded family.", "ExactCoaxialPart.Admission")]);
+        var apothem = recipe.AcrossFlats / 2d;
+        var circumradius = apothem / Math.Cos(Math.PI / recipe.PolygonSides);
+        var capRadius = recipe.TopFlatDiameter / 2d;
+        if (capRadius >= apothem)
+            return KernelResult<ExactCoaxialConstructionPlan>.Failure([new KernelDiagnostic(KernelDiagnosticCode.InvalidArgument,
+                KernelDiagnosticSeverity.Error, "Top cap must lie inside the regular prism apothem.", "ExactCoaxialPart.ConePlanarTrim")]);
+        var semiAngle = 90d - recipe.TopConeAngleDegrees;
+        var slope = Math.Tan(semiAngle * Math.PI / 180d);
+        var apex = -recipe.PrismAxialHeight - capRadius / slope;
+        var prismEnd = apex + circumradius / slope;
+        var prism = new RegularPrismConstruction("regular-prism", recipe.PolygonSides, recipe.AcrossFlats, 0d, prismEnd,
+            180d / recipe.PolygonSides);
+        var trim = new ConePlanarTrimConstruction("cone-planar-trim", apex, semiAngle, -recipe.PrismAxialHeight, capRadius);
+        var blend = new ConcaveFilletConstruction("root-fillet", recipe.BlendRadius,
+            recipe.ShaftDiameter / 2d + recipe.BlendRadius, 0d, recipe.BlendRadius);
+        var cylinder = new AxialCylinderConstruction("cylinder", recipe.ShaftDiameter / 2d, recipe.BlendRadius,
+            recipe.AxialLength - recipe.EndChamferLength);
+        var frustum = new AxialFrustumConstruction("end-frustum", recipe.ShaftDiameter / 2d, recipe.EndDiameter / 2d,
+            recipe.AxialLength - recipe.EndChamferLength, recipe.AxialLength);
+        var top = new PlanarCapConstruction("top-cap", -recipe.PrismAxialHeight, capRadius, false);
+        var end = new PlanarCapConstruction("end-cap", recipe.AxialLength, recipe.EndDiameter / 2d, true);
+        ExactConstructionNode[] sections = [prism, trim, top, blend, cylinder, frustum, end];
+        var id = recipe.StableId;
+        ConstructionSemanticClaim[] claims =
+        [
+            new(id, ConstructionSemanticKind.Part), new(id + ".Head", ConstructionSemanticKind.Region, ParentStableId: id),
+            new(id + ".Head.TopChamfer", ConstructionSemanticKind.Region, ParentStableId: id + ".Head"),
+            new(id + ".Head.TopFlat", ConstructionSemanticKind.Face, "TopCap", id + ".Head"),
+            new(id + ".Head.UnderHead", ConstructionSemanticKind.Face, "Shoulder", id + ".Head"),
+            new(id + ".Shank", ConstructionSemanticKind.Region, ParentStableId: id),
+            new(id + ".ThreadRegion", ConstructionSemanticKind.Region, ParentStableId: id,
+                Metadata: $"{recipe.SemanticDesignation};length={recipe.SemanticAxialRegionLength:R}mm;material-geometry=Cylinder"),
+            new(id + ".TipChamfer", ConstructionSemanticKind.Region, ParentStableId: id),
+            new(id + ".TipFace", ConstructionSemanticKind.Face, "EndCap", id),
+            new(id + ".Head.Side[{i}]", ConstructionSemanticKind.Face, "PrismSides", id + ".Head"),
+            new(id + ".Head.TopChamfer.Face[{i}]", ConstructionSemanticKind.Face, "ConePlanarTrim", id + ".Head.TopChamfer"),
+            new(id + ".Shank.Face[{i}]", ConstructionSemanticKind.Face, "Cylinder", id + ".Shank"),
+            new(id + ".ThreadRegion.Face[{i}]", ConstructionSemanticKind.Face, "Cylinder", id + ".ThreadRegion"),
+            new(id + ".TipChamfer.Face[{i}]", ConstructionSemanticKind.Face, "EndFrustum", id + ".TipChamfer"),
+            new(id + ".Head.UnderHeadBlend.Face[{i}]", ConstructionSemanticKind.Face, "RootBlend", id + ".Head")
+        ];
+        var metadata = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["NominalDiameter"] = $"{recipe.ShaftDiameter:R}mm", ["ThreadLength"] = $"{recipe.SemanticAxialRegionLength:R}mm",
+            ["ThreadDesignation"] = recipe.SemanticDesignation, ["PropertyClass"] = recipe.Grade,
+            ["ThreadGeometry"] = "deferred-semantic-cylinder"
+        };
+        var signatureSource = string.Join("|", new[] { recipe.ShaftDiameter, recipe.AxialLength, recipe.AcrossFlats,
+            recipe.PrismAxialHeight, recipe.TopFlatDiameter, recipe.TopConeAngleDegrees, recipe.EndChamferLength,
+            recipe.EndDiameter, recipe.SemanticAxialRegionLength, recipe.BlendRadius }.Select(x => x.ToString("R", CultureInfo.InvariantCulture)))
+            + $"|{recipe.SemanticDesignation}|{recipe.Grade}";
+        var signature = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(signatureSource))).ToLowerInvariant();
+        return KernelResult<ExactCoaxialConstructionPlan>.Success(new(id, prism, trim, blend, cylinder, frustum, top, end,
+            new AxialSectionStackConstruction("coaxial-stack", sections), claims, metadata, signature));
     }
 
     public static KernelResult<ExactCoaxialPartRecipe> Bind(IReadOnlyDictionary<string, string> fields)

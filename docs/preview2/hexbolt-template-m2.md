@@ -37,12 +37,13 @@ operations:
 - `CoaxialConeFrustum` for the end treatment;
 - `SemanticAxialRegion` and metadata publication.
 
-The current backend admits six polygon sides for this bounded recipe and reports
-other counts as unsupported. `ExactCoaxialPartBuilder` maps the generic recipe to
-the proven M1 analytic topology engine. Thus M1 remains both oracle and internal
-geometry implementation during M2, while the Firmament route no longer selects
-a HexBolt family hook. A later backend refactor can move the topology engine out
-of the M1-named facade without changing Firmament source.
+The connected recipe uses a polygon-generic regular-prism emitter (the HexBolt
+Template authors six sides). `ExactCoaxialPartBuilder` lowers the recipe to `ExactCoaxialConstructionPlan` and
+uses `ExactConstructionMaterializer`, rather than calling `HexBoltBuilder`.
+M1 remains the comparison facade over the same planner/materializer; the Firmament
+route has no bespoke bolt-builder dependency. See
+[construction-ir-m1.md](construction-ir-m1.md) for the bounded IR and support-sharing
+contract.
 
 ## Admission rules
 

@@ -2,7 +2,10 @@ name: dotnet
 
 on:
   push:
+    branches: [master]
+    tags: ["v*"]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build-test:
@@ -31,3 +34,86 @@ jobs:
 
       - name: Test kernel
         run: dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --configuration Release --no-build
+
+  release-build:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: aetheris.client/package-lock.json
+      - name: Restore and build frozen baseline
+        run: |
+          dotnet restore Aetheris.slnx
+          dotnet build Aetheris.slnx -f net10.0 --no-restore /m:1 -c Release
+      - name: Test frozen baseline
+        run: |
+          dotnet test Aetheris.Kernel.Core.Tests -f net10.0 -c Release --no-build
+          dotnet test Aetheris.Kernel.Firmament.Tests -f net10.0 -c Release --no-build
+          dotnet test Aetheris.CLI.Tests -f net10.0 -c Release --no-build
+          dotnet test Aetheris.Server.Tests -f net10.0 -c Release --no-build
+      - name: Package exact release bytes
+        shell: pwsh
+        run: ./scripts/package-release.ps1 -Version ($env:GITHUB_REF_NAME.TrimStart('v')) -OutputDirectory artifacts/release/published
+      - uses: actions/upload-artifact@v4
+        with:
+          name: preview1-release
+          path: artifacts/release/published
+          if-no-files-found: error
+
+  release-smoke:
+    needs: release-build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: preview1-release
+          path: release
+      - name: Clean-directory CLI and package smoke
+        shell: pwsh
+        run: |
+          Expand-Archive release/Aetheris-${{ github.ref_name }}-win-x64.zip extracted
+          $cli = (Resolve-Path extracted/Aetheris-win-x64/aetheris.exe)
+          & $cli --version
+          & $cli --help
+          Copy-Item '${{ github.workspace }}/fixtures/FirmamentV2/Canonical/valid/box-through-hole.firmament' smoke.firmament
+          & $cli validate smoke.firmament
+          & $cli build smoke.firmament
+          & $cli inspect smoke.firmament
+          & $cli verify smoke.firmament
+          $package = Get-ChildItem release/packages/*.nupkg | Select-Object -First 1
+          Expand-Archive $package.FullName local-feed/Aetheris.CLI
+          if (-not (Test-Path local-feed/Aetheris.CLI/tools/net10.0/any/aetheris.dll)) { throw 'Tool payload missing.' }
+
+  publish:
+    needs: release-smoke
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: preview1-release
+          path: release
+      - name: Authenticate to NuGet with trusted publishing
+        id: nuget-login
+        uses: NuGet/login@v1
+      - name: Publish the tested NuGet package
+        run: dotnet nuget push 'release/packages/*.nupkg' --source https://api.nuget.org/v3/index.json --api-key '${{ steps.nuget-login.outputs.NUGET_API_KEY }}' --skip-duplicate
+      - name: Create prerelease and upload the tested assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --title "Aetheris ${GITHUB_REF_NAME#v}" --prerelease --notes-file docs/release/2.0.0-preview.1-notes.md release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/packages/*.nupkg || \
+          gh release upload "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --clobber release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/packages/*.nupkg

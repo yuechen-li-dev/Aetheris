@@ -73,6 +73,9 @@ artifacts/release/*
 !artifacts/release/interop/
 !artifacts/release/interop/**
 !docs/release/
+!docs/release/Aetheris.CLI.README.md
+!docs/release/2.0.0-preview.1-notes.md
+!docs/release/2.0.0-preview.1-release.md
 !docs/release/preview1-baseline-stabilization-x1.md
 
 # ASP.NET Scaffolding

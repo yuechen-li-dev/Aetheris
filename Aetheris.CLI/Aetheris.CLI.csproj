@@ -5,11 +5,28 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>aetheris</AssemblyName>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>aetheris</ToolCommandName>
+    <PackageId>Aetheris.CLI</PackageId>
+    <Authors>Yuechen Li</Authors>
+    <Description>The Aetheris command-line compiler for bounded exact Firmament CAD and STEP AP242 workflows.</Description>
+    <PackageTags>cad;firmament;step;ap242;geometry</PackageTags>
+    <RepositoryUrl>https://github.com/yuechen-li-dev/Aetheris</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <ProjectUrl>https://yuechen-li-dev.github.io/aetheris/</ProjectUrl>
+    <PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
+    <PackageReadmeFile>Aetheris.CLI.README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Preview 1: first public Aetheris CLI release.</PackageReleaseNotes>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>.dll;.exe;.json</AllowedOutputExtensionsInPackageBuildOutputFolder>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />
     <ProjectReference Include="..\Aetheris.Firmament.FrictionLab\Aetheris.Firmament.FrictionLab.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\docs\release\Aetheris.CLI.README.md" Pack="true" PackagePath="\" Link="Aetheris.CLI.README.md" />
   </ItemGroup>
 </Project>

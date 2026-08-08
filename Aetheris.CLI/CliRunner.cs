@@ -2965,8 +2965,13 @@ public static class CliRunner
 
     private static string GetDisplayVersion()
     {
-        var version = typeof(CliRunner).Assembly.GetName().Version;
-        return version is null ? "unknown" : version.ToString();
+        var assembly = typeof(CliRunner).Assembly;
+        var informational = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), inherit: false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+            .SingleOrDefault()?.InformationalVersion;
+        return string.IsNullOrWhiteSpace(informational)
+            ? assembly.GetName().Version?.ToString() ?? "unknown"
+            : informational.Split('+', 2)[0];
     }
 
     private static void WriteTopLevelHelp(TextWriter stdout)

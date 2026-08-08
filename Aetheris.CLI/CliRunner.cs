@@ -483,6 +483,22 @@ public static class CliRunner
             model = document?.ModelName,
             units = document?.Units,
             bodies = document?.Solids.Select(solid => new { name = solid.Name, kind = solid.RecordType }).ToArray() ?? [],
+            tables = document?.StaticAuthoring?.Tables?.Select(table => new
+            {
+                table.Name,
+                rowType = table.RowType,
+                keyField = table.KeyField,
+                rowCount = table.RowCount,
+                columns = table.Columns,
+                table.SourceSpan
+            }).ToArray() ?? [],
+            templateInstances = document?.ConceptIr?.TemplateInstantiations?.Select(instance => new
+            {
+                instance.Template,
+                instance.Instance,
+                instance.SpecializationIdentity,
+                records = instance.RecordArguments?.ToDictionary(pair => pair.Key, pair => new { pair.Value.RecordType, pair.Value.StaticValue, pair.Value.Provenance, members = pair.Value.Members })
+            }).ToArray() ?? [],
             features,
             pmi = document?.Pmi?.Select(item => new { item.Kind, item.Name, item.Target }).ToArray() ?? [],
             assertions = document?.VolumeAssertions?.Select(assertion => new { assertion.Id, assertion.TargetBodyId, assertion.ExpectedMm3, assertion.ToleranceMm3 }).ToArray() ?? [],

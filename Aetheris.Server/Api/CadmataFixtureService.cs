@@ -124,6 +124,7 @@ internal static class CadmataFixtureService
                 metadata["recordParameter"] = recordArgument?.Key ?? string.Empty;
                 metadata["recordType"] = recordArgument?.Value.RecordType ?? string.Empty;
                 metadata["recordSource"] = recordArgument?.Value.StaticValue ?? string.Empty;
+                metadata["recordProvenance"] = recordArgument?.Value.Provenance ?? string.Empty;
                 foreach (var require in instantiation.RequireResults ?? new Dictionary<string, string>()) metadata["require." + require.Key] = require.Value;
             }
             if (semantic.Metadata is not null) metadata["engineeringMetadata"] = semantic.Metadata;

@@ -9,10 +9,16 @@ Model HexBoltTemplateM2 {
         Axis: Axis
     }
 
-    Record HexBoltSpec {
-        StableId: String
+    Enum MetricBoltSize {
+        M8
+        M10
+    }
+
+    // McMaster 91180A151 is the audited M8 source. The M10 values below are
+    // existing fixture/test data, retained as a provisional authoring example.
+    Record HexBoltStandardRow {
+        Size: MetricBoltSize
         NominalDiameter: Length
-        Length: Length
         HeadAcrossFlats: Length
         HeadHeight: Length
         TopFlatDiameter: Length
@@ -20,47 +26,52 @@ Model HexBoltTemplateM2 {
         UnderHeadRadius: Length
         TipChamferLength: Length
         TipDiameter: Length
+    }
+
+    Record HexBoltSpec {
+        StableId: String
+        Standard: HexBoltStandardRow
+        Length: Length
         ThreadLength: Length
         ThreadDesignation: String
         PropertyClass: String
     }
 
+    Static Table McMasterThreadlessHexBoltGeometry: HexBoltStandardRow Key: Size {
+        Size: [M8, M10]
+        NominalDiameter: [8mm, 10mm]
+        HeadAcrossFlats: [13mm, 17mm]
+        HeadHeight: [5.3mm, 6.4mm]
+        TopFlatDiameter: [12.35mm, 16mm]
+        TopChamferAngle: [25deg, 25deg]
+        UnderHeadRadius: [0.2mm, 0.2mm]
+        TipChamferLength: [0.9375mm, 0.9375mm]
+        TipDiameter: [6.125mm, 8mm]
+    }
+
+    Static M8Standard = McMasterThreadlessHexBoltGeometry[M8]
+    Static M10Standard = McMasterThreadlessHexBoltGeometry[M10]
+
     Static McMaster91180A151: HexBoltSpec = HexBoltSpec {
         StableId: "McMaster91180A151"
-        NominalDiameter: 8mm
+        Standard: M8Standard
         Length: 35mm
-        HeadAcrossFlats: 13mm
-        HeadHeight: 5.3mm
-        TopFlatDiameter: 12.35mm
-        TopChamferAngle: 25deg
-        UnderHeadRadius: 0.2mm
-        TipChamferLength: 0.9375mm
-        TipDiameter: 6.125mm
         ThreadLength: 22mm
         ThreadDesignation: "M8 x 1.25"
         PropertyClass: "8.8"
     }
 
-    Static M10x50: HexBoltSpec = HexBoltSpec {
+    Static M10x50 = McMaster91180A151 with {
         StableId: "M10x50"
-        NominalDiameter: 10mm
+        Standard: M10Standard
         Length: 50mm
-        HeadAcrossFlats: 17mm
-        HeadHeight: 6.4mm
-        TopFlatDiameter: 16mm
-        TopChamferAngle: 25deg
-        UnderHeadRadius: 0.2mm
-        TipChamferLength: 0.9375mm
-        TipDiameter: 8mm
         ThreadLength: 26mm
         ThreadDesignation: "M10 x 1.5"
-        PropertyClass: "8.8"
     }
 
-    Static Nonstandard825x375: HexBoltSpec = HexBoltSpec {
-        StableId: "Nonstandard825x375"
+    Static NonstandardGeometry: HexBoltStandardRow = HexBoltStandardRow {
+        Size: M8
         NominalDiameter: 8.25mm
-        Length: 37.5mm
         HeadAcrossFlats: 13.4mm
         HeadHeight: 5.5mm
         TopFlatDiameter: 12.7mm
@@ -68,6 +79,12 @@ Model HexBoltTemplateM2 {
         UnderHeadRadius: 0.22mm
         TipChamferLength: 1mm
         TipDiameter: 6.3mm
+    }
+
+    Static Nonstandard825x375: HexBoltSpec = HexBoltSpec {
+        StableId: "Nonstandard825x375"
+        Standard: NonstandardGeometry
+        Length: 37.5mm
         ThreadLength: 23mm
         ThreadDesignation: "M8.25 experimental"
         PropertyClass: "8.8"
@@ -75,39 +92,39 @@ Model HexBoltTemplateM2 {
 
     Template < Spec: HexBoltSpec >
     Struct HexBolt: BoltConcept {
-        Require PositiveNominal => Spec.NominalDiameter > 0mm
-        Require HeadWiderThanShank => Spec.HeadAcrossFlats > Spec.NominalDiameter
-        Require TopFlatInsideHex => Spec.TopFlatDiameter < Spec.HeadAcrossFlats
-        Require PositiveHead => Spec.HeadHeight > 0mm
-        Require ConeAngleValid => Spec.TopChamferAngle > 0deg && Spec.TopChamferAngle < 90deg
-        Require BlendNonnegative => Spec.UnderHeadRadius >= 0mm
-        Require TipReducesDiameter => Spec.TipDiameter < Spec.NominalDiameter
-        Require TipFitsLength => Spec.TipChamferLength > 0mm && Spec.TipChamferLength < Spec.Length
+        Require PositiveNominal => Spec.Standard.NominalDiameter > 0mm
+        Require HeadWiderThanShank => Spec.Standard.HeadAcrossFlats > Spec.Standard.NominalDiameter
+        Require TopFlatInsideHex => Spec.Standard.TopFlatDiameter < Spec.Standard.HeadAcrossFlats
+        Require PositiveHead => Spec.Standard.HeadHeight > 0mm
+        Require ConeAngleValid => Spec.Standard.TopChamferAngle > 0deg && Spec.Standard.TopChamferAngle < 90deg
+        Require BlendNonnegative => Spec.Standard.UnderHeadRadius >= 0mm
+        Require TipReducesDiameter => Spec.Standard.TipDiameter < Spec.Standard.NominalDiameter
+        Require TipFitsLength => Spec.Standard.TipChamferLength > 0mm && Spec.Standard.TipChamferLength < Spec.Length
         Require ThreadFits => Spec.ThreadLength >= 0mm && Spec.ThreadLength <= Spec.Length
 
         ExactCoaxialPart Body {
             Axis: +X
             RegularPolygonPrism Head {
                 Sides: 6
-                AcrossFlats: Spec.HeadAcrossFlats
-                AxialHeight: Spec.HeadHeight
+                AcrossFlats: Spec.Standard.HeadAcrossFlats
+                AxialHeight: Spec.Standard.HeadHeight
             }
             CoaxialConeTrim TopTreatment {
-                FlatDiameter: Spec.TopFlatDiameter
-                ConeAngle: Spec.TopChamferAngle
+                FlatDiameter: Spec.Standard.TopFlatDiameter
+                ConeAngle: Spec.Standard.TopChamferAngle
                 IntersectionCurve: ExactConic
             }
             BoundedTorusBlend HeadToShaft {
-                BlendRadius: Spec.UnderHeadRadius
+                BlendRadius: Spec.Standard.UnderHeadRadius
                 SplitPolicy: PeriodicHalfSupports
             }
             Cylinder Shaft {
-                ShaftDiameter: Spec.NominalDiameter
+                ShaftDiameter: Spec.Standard.NominalDiameter
                 AxialLength: Spec.Length
             }
             CoaxialConeFrustum EndTreatment {
-                EndChamferLength: Spec.TipChamferLength
-                EndDiameter: Spec.TipDiameter
+                EndChamferLength: Spec.Standard.TipChamferLength
+                EndDiameter: Spec.Standard.TipDiameter
             }
             SemanticAxialRegion ThreadRegion {
                 SemanticAxialRegionLength: Spec.ThreadLength
@@ -121,7 +138,7 @@ Model HexBoltTemplateM2 {
         }
 
         Expose {
-            NominalDiameter: Spec.NominalDiameter
+            NominalDiameter: Spec.Standard.NominalDiameter
             Length: Spec.Length
             ThreadLength: Spec.ThreadLength
             ThreadDesignation: Spec.ThreadDesignation

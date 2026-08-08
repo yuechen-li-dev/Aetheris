@@ -21,9 +21,18 @@ internal static class CanonicalStaticAuthoring
         var recordTypes = new List<FirmamentV2RecordTypeDecl>();
         var arrays = new List<FirmamentV2StaticArrayDecl>();
         var staticRecords = new List<FirmamentV2StaticRecordDecl>();
+        var tables = new List<FirmamentV2StaticTableDecl>();
         var templates = new List<Template>();
         var patterns = new List<FirmamentV2CanonicalPatternDecl>();
         var requires = new List<FirmamentV2RequireDecl>();
+
+        // Enums are static type declarations. Modern template binding has consumed their
+        // variants already, so keep them out of the material grammar just like Records.
+        foreach (Match header in Regex.Matches(source, @"\bEnum\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant))
+        {
+            var close = MatchPair(source, source.IndexOf('{', header.Index), '{', '}');
+            if (close >= 0) changes.Add((header.Index, close - header.Index + 1, string.Empty));
+        }
 
         foreach (Match header in Regex.Matches(source, @"\bRecord\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
         {
@@ -37,6 +46,19 @@ internal static class CanonicalStaticAuthoring
             changes.Add((header.Index, close - header.Index + 1, string.Empty));
         }
         var recordByName = recordTypes.ToDictionary(x => x.Name, StringComparer.Ordinal);
+
+        // Tables share Record typing with Static values, but intentionally preserve their
+        // columnar spelling for source inspection. The template binder has already checked
+        // cells and lookups before this phase erases the compile-time declaration.
+        foreach (Match header in Regex.Matches(source, @"\bStatic\s+Table\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)(?:\s+Key\s*:\s*(?<key>[A-Za-z_]\w*))?\s*\{", RegexOptions.CultureInvariant))
+        {
+            var open = source.IndexOf('{', header.Index); var close = MatchPair(source, open, '{', '}');
+            if (close < 0) { diagnostics.Add(Prefix + "table-malformed:" + header.Groups["name"].Value); continue; }
+            var columns = TableColumns(source, open + 1, close);
+            var rowCount = columns.Count == 0 ? 0 : columns.First().Value.Count;
+            tables.Add(new(header.Groups["name"].Value, header.Groups["type"].Value, header.Groups["key"].Success ? header.Groups["key"].Value : null, columns, rowCount, new(header.Index, close - header.Index + 1)));
+            changes.Add((header.Index, close - header.Index + 1, string.Empty));
+        }
 
         foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*=\s*(?<literal>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
         {
@@ -53,6 +75,17 @@ internal static class CanonicalStaticAuthoring
             staticRecords.Add(new(name, type, values, new(header.Index, close - header.Index + 1)));
             changes.Add((header.Index, close - header.Index + 1, string.Empty));
         }
+
+        // `with` and Table row selection are compile-time Record expressions. Their actual
+        // member maps are owned by the common template binder; this phase retains no runtime
+        // representation and simply ensures source is erased before material parsing.
+        foreach (Match declaration in Regex.Matches(source, @"\bStatic\s+[A-Za-z_]\w*\s*(?::\s*[A-Za-z_]\w*)?\s*=\s*[A-Za-z_]\w*\s+with\s*\{", RegexOptions.CultureInvariant))
+        {
+            var open = source.IndexOf('{', declaration.Index); var close = MatchPair(source, open, '{', '}');
+            if (close >= 0) changes.Add((declaration.Index, close - declaration.Index + 1, string.Empty));
+        }
+        foreach (Match declaration in Regex.Matches(source, @"\bStatic\s+[A-Za-z_]\w*\s*(?::\s*[A-Za-z_]\w*)?\s*=\s*[A-Za-z_]\w*\s*\[[^\]]+\]", RegexOptions.CultureInvariant))
+            changes.Add((declaration.Index, declaration.Length, string.Empty));
 
         foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\[\]\s*=\s*\[", RegexOptions.CultureInvariant))
         {
@@ -172,7 +205,7 @@ internal static class CanonicalStaticAuthoring
             .Where(change => !erasures.Any(erase => erase.Start < change.Start && change.Start < erase.Start + erase.Length))
             .OrderByDescending(change => change.Start))
             source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
-        return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections, staticRecords));
+        return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections, staticRecords, tables));
     }
 
     private static string? Instantiate(Template template, IReadOnlyDictionary<string, string> values, string id, bool patterned, List<string> diagnostics)
@@ -196,6 +229,17 @@ internal static class CanonicalStaticAuthoring
     }
     private static Dictionary<string, string> Fields(string body) => Regex.Matches(body, "\\b(?<name>[A-Za-z_]\\w*)\\s*:\\s*(?<value>\"[^\"]*\"|(?:Point2|Vector2|PlusMinus)\\s*\\([^)]*\\)|[A-Za-z_]\\w*|[-+]?\\d+(?:\\.\\d+)?(?:mm|deg)?)", RegexOptions.CultureInvariant)
         .Cast<Match>().ToDictionary(m => m.Groups["name"].Value, m => m.Groups["value"].Value, StringComparer.Ordinal);
+    private static IReadOnlyDictionary<string, IReadOnlyList<string>> TableColumns(string source, int start, int end)
+    {
+        var columns = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        foreach (Match column in Regex.Matches(source[start..end], @"\b(?<name>[A-Za-z_]\w*)\s*:\s*\[", RegexOptions.CultureInvariant))
+        {
+            var open = start + column.Index + column.Value.LastIndexOf('['); var close = MatchPair(source, open, '[', ']');
+            if (close < 0 || close > end) continue;
+            columns[column.Groups["name"].Value] = Regex.Matches(source[(open + 1)..close], "\"[^\"]*\"|[-+]?\\d+(?:\\.\\d+)?(?:mm|deg)?|[A-Za-z_]\\w*", RegexOptions.CultureInvariant).Cast<Match>().Select(match => match.Value).ToArray();
+        }
+        return columns;
+    }
     private static Dictionary<string, string> RequireFields(string body) => Regex.Matches(body, @"(?<name>[A-Za-z_]\w*)\s*:\s*(?<value>.*?)(?=\s+[A-Za-z_]\w*\s*:|$)", RegexOptions.CultureInvariant | RegexOptions.Singleline)
         .Cast<Match>().ToDictionary(m => m.Groups["name"].Value, m => m.Groups["value"].Value.Trim(), StringComparer.Ordinal);
     private static bool TrySubject(string text, out string subject, out string property)

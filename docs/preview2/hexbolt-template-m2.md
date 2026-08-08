@@ -9,7 +9,8 @@ under-head blend, cylindrical shank, and conical tip. M2 preserves that path.
 
 M2 moves family authoring to
 `testdata/firmament/examples/hexbolt_template_m2.firmament`. The canonical source
-declares `BoltConcept`, the family-specific `HexBoltSpec`, scalar Static records,
+declares `BoltConcept`, `HexBoltStandardRow`, the instance-specific `HexBoltSpec`,
+a keyed columnar Static Table, and immutable derived Static records,
 and `Template < Spec: HexBoltSpec > Struct HexBolt: BoltConcept`. It contains no
 `StandardPart Family: HexBolt` dispatch.
 
@@ -58,8 +59,10 @@ constraint solver.
 ## Dogfood and comparison
 
 The same Template source contains data for the McMaster 91180A151 M8 × 35
-reference, M10 × 50, and a deliberately nonstandard 8.25 × 37.5 mm bolt. Tests
-bind each Static record without changing geometry source.
+reference, M10 × 50 derived with `with`, and a deliberately nonstandard 8.25 ×
+37.5 mm bolt. Tests bind each Static record without changing geometry source.
+See [hexbolt-standards-data-m1.md](hexbolt-standards-data-m1.md) for data
+provenance and the standards/instance boundary.
 
 Their deterministic construction signatures are respectively
 `b2e86e279016f55625e074153f76561144dc7c3c85cbc943c3e3492a7e19acda`,

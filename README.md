@@ -8,6 +8,26 @@
 
 Firmament is a deterministic DSL for generating CAD geometry (STEP AP242) via Aetheris.
 
+## Static engineering data
+
+Firmament `Record` values are immutable typed specifications. A finite standards
+catalog can be authored directly as a columnar static Table, selected as a
+Record, and derived without copying it:
+
+```firmament
+Static Table Sizes: BoltRow Key: Size {
+    Size: [M8, M10]
+    Diameter: [8mm, 10mm]
+}
+Static M8 = Sizes[M8]
+Static M8Long = M8 with { Length: 80mm }
+```
+
+Tables and `with` values are compile-time-only: they feed typed Template Record
+parameters and are erased before geometry AIR. A Table is not a runtime
+dataframe, SQL surface, or spreadsheet import format. See
+[the M1 language note](docs/preview2/firmament-tables-with-m1.md).
+
 ## Preview 1 release
 
 Aetheris 2.0.0-preview.1 is available as a complete Windows x64 bundle and as

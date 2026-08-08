@@ -349,7 +349,11 @@ public static class FirmamentBuildAndExport
         if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
         var instantiation = document.ConceptIr?.TemplateInstantiations?.SingleOrDefault();
         var record = instantiation?.RecordArguments?.SingleOrDefault().Value;
-        var parameters = record?.Members ?? authored.Parameters;
+        // A nested standards Record is still ordinary static data. Publish its leaf fields
+        // alongside instance fields so existing construction reports remain ergonomic.
+        var parameters = record is null ? authored.Parameters : record.Members
+            .Where(pair => !pair.Key.Contains('.', StringComparison.Ordinal) || pair.Key.StartsWith("Standard.", StringComparison.Ordinal))
+            .ToDictionary(pair => pair.Key.StartsWith("Standard.", StringComparison.Ordinal) ? pair.Key["Standard.".Length..] : pair.Key, pair => pair.Value, StringComparer.Ordinal);
         var semantics = built.Value.Semantics.Descendants.Select(descendant => new FirmamentStandardPartSemanticReport(
             descendant.StableId, descendant.Kind.ToString(), descendant.ParentStableId, descendant.Face?.Value, descendant.Metadata)).ToArray();
         var report = new FirmamentStandardPartReport("ExactCoaxialPart", instantiation?.Template, built.Value.DeterministicSignature, parameters, semantics);

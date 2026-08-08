@@ -81,7 +81,8 @@ jobs:
       - name: Clean-directory CLI and package smoke
         shell: pwsh
         run: |
-          Expand-Archive release/Aetheris-${{ github.ref_name }}-win-x64.zip extracted
+          $zip = Get-ChildItem release/Aetheris-*-win-x64.zip | Select-Object -First 1
+          Expand-Archive $zip.FullName extracted
           $cli = (Resolve-Path extracted/Aetheris-win-x64/aetheris.exe)
           & $cli --version
           & $cli --help

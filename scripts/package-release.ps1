@@ -26,9 +26,16 @@ dotnet publish (Join-Path $repoRoot 'Aetheris.Server/Aetheris.Server.csproj') -c
 dotnet pack (Join-Path $repoRoot 'Aetheris.CLI/Aetheris.CLI.csproj') -c Release --no-build -p:Version=$Version -o (Join-Path $output 'packages')
 Get-ChildItem -LiteralPath $stage -Recurse -Filter '*.pdb' -File | Remove-Item -Force
 
-$vsix = Join-Path $repoRoot 'artifacts/vscode/aetheris-firmament-0.1.0-preview.1.vsix'
-if (-not (Test-Path -LiteralPath $vsix)) { throw "Validated VSIX not found: $vsix" }
-Copy-Item -LiteralPath $vsix -Destination $output
+$extensionRoot = Join-Path $repoRoot 'tools/vscode-firmament'
+Push-Location $extensionRoot
+try {
+    npm install --no-save typescript esbuild @vscode/vsce @types/vscode @types/node vscode-textmate vscode-oniguruma
+    npx tsc --noEmit
+    node --test tests/*.test.ts
+    npx esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.cjs
+    npx vsce package --no-dependencies --out (Join-Path $output 'aetheris-firmament-0.1.0-preview.1.vsix')
+}
+finally { Pop-Location }
 
 $zip = Join-Path $output "Aetheris-$Version-win-x64.zip"
 Compress-Archive -Path (Join-Path $stage 'Aetheris-win-x64') -DestinationPath $zip -CompressionLevel Optimal

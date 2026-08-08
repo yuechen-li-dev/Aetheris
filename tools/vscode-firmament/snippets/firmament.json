@@ -1,0 +1,150 @@
+{
+  "Model": {
+    "prefix": "model",
+    "body": ["Model ${1:Part} {", "    Units: mm", "", "    $0", "}"],
+    "description": "Canonical Firmament model"
+  },
+  "Box": {
+    "prefix": "box",
+    "body": ["Box ${1:Base} {", "    Size: [${2:80mm}, ${3:50mm}, ${4:25mm}]", "}"],
+    "description": "Box primitive"
+  },
+  "Cylinder": {
+    "prefix": "cylinder",
+    "body": ["Cylinder ${1:Body} {", "    Radius: ${2:20mm}", "    Height: ${3:40mm}", "}"],
+    "description": "Cylinder primitive"
+  },
+  "Concept Path": {
+    "prefix": "concept-path",
+    "body": [
+      "Concept Path ${1:Outline} {",
+      "    Start: Point2(${2:0mm}, ${3:0mm})",
+      "    Heading: ${4:0deg}",
+      "    Line ${5:South} { Length: ${6:40mm} }",
+      "    Close ${7:West}",
+      "}"
+    ],
+    "description": "Concept Path declaration"
+  },
+  "Profile from Path": {
+    "prefix": "profile-from-path",
+    "body": ["Profile ${1:Section} From ${2:Outline}"],
+    "description": "Profile derived from a Concept Path"
+  },
+  "Hole Shaft": {
+    "prefix": "hole-shaft",
+    "body": [
+      "Hole<Shaft> ${1:HoleName} {",
+      "    On: ${2:+Z}",
+      "    Center: Point2(${3:20mm}, ${4:20mm})",
+      "    Diameter: ${5:8mm}",
+      "    End: ThroughAll",
+      "}"
+    ],
+    "description": "Through shaft hole"
+  },
+  "Hole Counterbore": {
+    "prefix": "hole-counterbore",
+    "body": [
+      "Hole<Counterbore> ${1:HoleName} {",
+      "    On: ${2:+Z}",
+      "    Center: Point2(${3:0mm}, ${4:0mm})",
+      "    Diameter: ${5:6mm}",
+      "    CounterboreDiameter: ${6:11mm}",
+      "    CounterboreDepth: ${7:4mm}",
+      "    End: ThroughAll",
+      "}"
+    ],
+    "description": "Counterbored through hole"
+  },
+  "Hole Countersink": {
+    "prefix": "hole-countersink",
+    "body": [
+      "Hole<Countersink> ${1:HoleName} {",
+      "    On: ${2:+Z}",
+      "    Center: Point2(${3:0mm}, ${4:0mm})",
+      "    Diameter: ${5:6mm}",
+      "    CountersinkDiameter: ${6:12mm}",
+      "    CountersinkAngle: ${7:90deg}",
+      "    End: ThroughAll",
+      "}"
+    ],
+    "description": "Countersunk through hole"
+  },
+  "Slot Capsule": {
+    "prefix": "slot-capsule",
+    "body": [
+      "Slot<Capsule> ${1:SlotName} {",
+      "    Center: Point2(${2:0mm}, ${3:0mm})",
+      "    Direction: Vector2(${4:1}, ${5:0})",
+      "    Length: ${6:30mm}",
+      "    Width: ${7:8mm}",
+      "    Extent: ThroughAll",
+      "    Role: ${8:ThroughSlot}",
+      "}"
+    ],
+    "description": "Capsule slot"
+  },
+  "EdgeFinish Chamfer": {
+    "prefix": "edgefinish-chamfer",
+    "body": [
+      "EdgeFinish ${1:FinishName} {",
+      "    Target: ${2:Body.Outer}",
+      "    On: ${3:Top}",
+      "    Kind: Chamfer",
+      "    Distance: ${4:1mm}",
+      "}"
+    ],
+    "description": "Chamfer edge finish"
+  },
+  "EdgeFinish Fillet": {
+    "prefix": "edgefinish-fillet",
+    "body": [
+      "EdgeFinish ${1:FinishName} {",
+      "    Target: ${2:Body.Outer}",
+      "    On: ${3:Top}",
+      "    Kind: Fillet",
+      "    Radius: ${4:1mm}",
+      "}"
+    ],
+    "description": "Fillet edge finish"
+  },
+  "Require": {
+    "prefix": "require",
+    "body": [
+      "Require ${1:Constraint} {",
+      "    Actual: ${2:Mount.Diameter}",
+      "    Expected: ${3:8mm}",
+      "    Tolerance: PlusMinus(${4:0.05mm}, ${5:0.05mm})",
+      "}"
+    ],
+    "description": "Semantic requirement"
+  },
+  "PMI Projection": {
+    "prefix": "pmi-projection",
+    "body": [
+      "${1:HoleDiameter} ${2:DimensionName} {",
+      "    From: ${3:Constraint}",
+      "    As: ${1:HoleDiameter}",
+      "    DatumRefs: [${4:A}]",
+      "}"
+    ],
+    "description": "Project a validated requirement into PMI"
+  },
+  "Assert Volume": {
+    "prefix": "assert-volume",
+    "body": [
+      "Assert Volume ${1:Base} {",
+      "    Expected: ${2:100000mm^3}",
+      "    Tolerance: ${3:1mm^3}",
+      "    Note: \"${4:Expected material volume}\"",
+      "}"
+    ],
+    "description": "Build-time volume assertion"
+  },
+  "Inline STEP": {
+    "prefix": "inline-step",
+    "body": ["InlineStep ${1:Source} {", "    Path: \"${2:part.step}\"", "}"],
+    "description": "Inline a STEP source for recognition and replacement"
+  }
+}

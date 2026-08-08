@@ -1,0 +1,106 @@
+{
+  "name": "aetheris-firmament",
+  "displayName": "Aetheris Firmament",
+  "description": "Firmament language support and CLI-backed workflows for Aetheris.",
+  "version": "0.1.0-preview.1",
+  "publisher": "aetheris",
+  "license": "MIT",
+  "preview": true,
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yuechen-li/Aetheris.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Programming Languages", "Other"],
+  "keywords": ["aetheris", "firmament", "cad", "step", "mechanical-design"],
+  "main": "./dist/extension.cjs",
+  "activationEvents": [
+    "onLanguage:firmament",
+    "onCommand:aetheris.validate",
+    "onCommand:aetheris.build",
+    "onCommand:aetheris.view",
+    "onCommand:aetheris.verify"
+  ],
+  "files": [
+    "dist/**",
+    "syntaxes/**",
+    "snippets/**",
+    "language-configuration.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "firmament",
+        "aliases": ["Firmament", "firmament"],
+        "extensions": [".firmament"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "firmament",
+        "scopeName": "source.firmament",
+        "path": "./syntaxes/firmament.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "firmament",
+        "path": "./snippets/firmament.json"
+      }
+    ],
+    "commands": [
+      { "command": "aetheris.validate", "title": "Aetheris: Validate Firmament", "enablement": "isWorkspaceTrusted" },
+      { "command": "aetheris.build", "title": "Aetheris: Build STEP", "enablement": "isWorkspaceTrusted" },
+      { "command": "aetheris.view", "title": "Aetheris: View in Cadmata", "enablement": "isWorkspaceTrusted" },
+      { "command": "aetheris.verify", "title": "Aetheris: Verify Model", "enablement": "isWorkspaceTrusted" }
+    ],
+    "menus": {
+      "editor/title/context": [
+        {
+          "command": "aetheris.validate",
+          "when": "resourceExtname == .firmament && isWorkspaceTrusted",
+          "group": "navigation@10"
+        },
+        {
+          "command": "aetheris.build",
+          "when": "resourceExtname == .firmament && isWorkspaceTrusted",
+          "group": "navigation@11"
+        },
+        {
+          "command": "aetheris.view",
+          "when": "resourceExtname == .firmament && isWorkspaceTrusted",
+          "group": "navigation@12"
+        },
+        {
+          "command": "aetheris.verify",
+          "when": "resourceExtname == .firmament && isWorkspaceTrusted",
+          "group": "navigation@13"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Aetheris",
+      "properties": {
+        "aetheris.executablePath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Path to the Aetheris CLI executable. When empty, 'aetheris' is resolved from PATH."
+        },
+        "aetheris.validateOnSave": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Validate saved Firmament files with the Aetheris CLI and update Problems."
+        }
+      }
+    }
+  }
+}

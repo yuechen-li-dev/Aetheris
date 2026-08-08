@@ -1,0 +1,8090 @@
+[lock]
+format = 1
+
+[[package]]
+ID = 'npm:@azu/format-text@1.0.2'
+Name = '@azu/format-text'
+Version = '1.0.2'
+Source = 'npm'
+Integrity = 'sha512-Swi4N7Edy1Eqq82GxgEECXSSLyn6GOb5htRFPzBDdUkECGXtlf12ynO5oJSpWKPwCaUssOu7NfhDcCWpIC6Ywg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3be7c0d7cb3f130c9803a570d73637454b122e0ce329d7fbb35adbb9aea13ee9'
+
+[[package]]
+ID = 'npm:@azu/style-format@1.0.1'
+Name = '@azu/style-format'
+Version = '1.0.1'
+Source = 'npm'
+Integrity = 'sha512-AHcTojlNBdD/3/KxIKlg8sxIWHfOtQszLvOpagLTO+bjC3u7SAszu1lf//u7JJC50aUSH+BVWDD/KvaA6Gfn5g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d255f70d480a9efd7d6a1d393bb56fd66147007626ec1136c2126c604dbfee25'
+
+[[package]]
+ID = 'npm:@azure/abort-controller@2.2.0'
+Name = '@azure/abort-controller'
+Version = '2.2.0'
+Source = 'npm'
+Integrity = 'sha512-fNAjWnA/nZ2jz31kxR/AqRaUT8ewHBw/WuBIosK0moMy1C9e5ValbDfFdIxJzVOOYaYkV/b2F1S4H/aHiqfVQg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:9d6a926982795204bed8fb5d02537a08b74d0b8f85ec715808fe713e48d14a79'
+
+[[package]]
+ID = 'npm:@azure/core-auth@1.11.0'
+Name = '@azure/core-auth'
+Version = '1.11.0'
+Source = 'npm'
+Integrity = 'sha512-IUZydyTUkDnYdstOW9pFOOUQlBjAepK5teihDE3x6yxsPJs/hsAaaYpeGxdxrgtOiJbBKSjKW7MDk7AEhb4LRg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:bf85fa99c2ee437ddeb8170239831ad3ed0a5e3ce4373cecbb75d0968ea94b46'
+
+[[package]]
+ID = 'npm:@azure/core-client@1.11.0'
+Name = '@azure/core-client'
+Version = '1.11.0'
+Source = 'npm'
+Integrity = 'sha512-JjQWO6akOck45PH/XBrxzsQGAiKrfFl4m5iggJ0ItMIz5omRufOXWpqCPpdjKN3vKDzlSUvFjaMb7Zwf0gvAdA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:576de19dd22e47abed3e7ae1bbafae91e4e76d9b9b3832395ff31e097d42753a'
+
+[[package]]
+ID = 'npm:@azure/core-rest-pipeline@1.25.0'
+Name = '@azure/core-rest-pipeline'
+Version = '1.25.0'
+Source = 'npm'
+Integrity = 'sha512-bMs8ekJLjX8wPV+9IPBges1SLPyuDtE9g5gLDWOpxzKcoOFQnpLGkbcT1tdw3FaAmDS1gnPmMmJ6y/T5B96kIA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a30ebbee6ac861222deec7398ea217a53e40e39f765c4ce07ff262328b79e318'
+
+[[package]]
+ID = 'npm:@azure/core-tracing@1.4.0'
+Name = '@azure/core-tracing'
+Version = '1.4.0'
+Source = 'npm'
+Integrity = 'sha512-eGwxD0AtncrxeBM4tG8R55Pc3rdX1hNW2WibJAgYpCVA6E93mvvVH+LcssoVjOBrSKWS55yEIHsk0X8ctHmfOQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:714a6d1ece81b22c3091d0637a884179eabd4c890699b0ab5fe9b94b42aeca3e'
+
+[[package]]
+ID = 'npm:@azure/core-util@1.14.0'
+Name = '@azure/core-util'
+Version = '1.14.0'
+Source = 'npm'
+Integrity = 'sha512-9n2pWK61veAuN0V20t9lOuoV4CFMdyAZ1ygZzvBGk/pBBJRib/PjL9PLXa/aI2CcPpyHfqVsxxqLCYl6uZlfDw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:4ddc509f4a86499a5455e73eeed2101a56d3e3261ae22950d5829644904f20eb'
+
+[[package]]
+ID = 'npm:@azure/identity@4.13.1'
+Name = '@azure/identity'
+Version = '4.13.1'
+Source = 'npm'
+Integrity = 'sha512-5C/2WD5Vb1lHnZS16dNQRPMjN6oV/Upba+C9nBIs15PmOi6A3ZGs4Lr2u60zw4S04gi+u3cEXiqTVP7M4Pz3kw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0022f11f6dcaf3cc662b2122c23e5da284a241939d5bffd8ca243b026398e9b6'
+
+[[package]]
+ID = 'npm:@azure/logger@1.4.0'
+Name = '@azure/logger'
+Version = '1.4.0'
+Source = 'npm'
+Integrity = 'sha512-rbAE25KUfjU/s3XHUdJgceoCP5dEOpMx85J04kF+QMdta73XkuG9JGHHinch+XIoKpBdqljin+KqURpJriSzLA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:68cfebebfd98437a99350b8fd527fe3f420daae392d21184e985c09f0b20a449'
+
+[[package]]
+ID = 'npm:@azure/msal-browser@5.18.0'
+Name = '@azure/msal-browser'
+Version = '5.18.0'
+Source = 'npm'
+Integrity = 'sha512-SPTeHYZghdEdRddJzNjhH+CI5MSQtquNYwGJnYXfOHIBRXCmrWimBS85OhwXpXFIlrCtNTbBPm5mPAWRNEoktA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a596c26b0dd0dffa118dfd1fb494bea3204fb0017efe53d6c055eaaae96d1d83'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm run build:all'
+
+[[package]]
+ID = 'npm:@azure/msal-common@16.12.0'
+Name = '@azure/msal-common'
+Version = '16.12.0'
+Source = 'npm'
+Integrity = 'sha512-hgLgfRdbG2AmhXPygebf1KYJEvse86+ZZLWufdiTKaGRYEUqOzHdlf6AS1IiuUCHWbynkgbHc451jSNkbfhWlg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d5970eda340baf50398c039c2cdd232156e2799347de6519ebbf7adaf3104387'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:@azure/msal-node@5.5.0'
+Name = '@azure/msal-node'
+Version = '5.5.0'
+Source = 'npm'
+Integrity = 'sha512-A/2WIsuH0vsC6JVkkafjS4kHpi2LDR4AzDT0kJ+oIRtXYeYtvGQ2pwN2X88thQPhSek+82ela3MprsKXWQRrhQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0985b00b60fdc9e9fa2f333f4e6126b25fb2e892743afe36a26d8d188eec2b67'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm run build:all'
+
+[[package]]
+ID = 'npm:@babel/code-frame@7.29.7'
+Name = '@babel/code-frame'
+Version = '7.29.7'
+Source = 'npm'
+Integrity = 'sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:fa8b176fa0b5d1d72b41ad33443f1f4f75933157a45010dffb51719f40c19c67'
+
+[[package]]
+ID = 'npm:@babel/helper-validator-identifier@7.29.7'
+Name = '@babel/helper-validator-identifier'
+Version = '7.29.7'
+Source = 'npm'
+Integrity = 'sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:7a31904bc45f1bb232d5e5dd797d12296f4a27fb4bf0f6d517827700f997dc1f'
+
+[[package]]
+ID = 'npm:@biomejs/biome@1.9.4'
+Name = '@biomejs/biome'
+Version = '1.9.4'
+Source = 'npm'
+Integrity = 'sha512-1rkd7G70+o9KkTn5KLmDYXihGoTaIGO9PIIN2ZB7UJxFrWw04CZHPYiMRjYsaDvVV7hP1dYNRLxSANLaBFGpog=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f997e954675c5c2c10906bbbcfb383b1a1267c6e07d601ebb29003a45dad1ff5'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'postinstall'
+command = 'node scripts/postinstall.js'
+
+[[package]]
+ID = 'npm:@biomejs/cli-darwin-arm64@1.9.4'
+Name = '@biomejs/cli-darwin-arm64'
+Version = '1.9.4'
+Source = 'npm'
+Integrity = 'sha512-bFBsPWrNvkdKrNCYeAp+xo2HecOGPAy9WyNyB/jKnnedgzl4W4Hb9ZMzYNbf8dMCGmUdSavlYHiR01QaYR58cw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f58bbdde0472bf8c359ce91d6b71762fb47e7bcd7d3bb971fe1408bce79e8560'
+
+[[package]]
+ID = 'npm:@biomejs/cli-darwin-x64@1.9.4'
+Name = '@biomejs/cli-darwin-x64'
+Version = '1.9.4'
+Source = 'npm'
+Integrity = 'sha512-ngYBh/+bEedqkSevPVhLP4QfVPCpb+4BBe2p7Xs32dBgs7rh9nY2AIYUL6BgLw1JVXV8GlpKmb/hNiuIxfPfZg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ce3f938536bc570a3e73a2ab38521f74a304989cf3c3c0c2540aeddc9b45ed5e'
+
+[[package]]
+ID = 'npm:@biomejs/cli-linux-arm64-musl@1.9.4'
+Name = '@biomejs/cli-linux-arm64-musl'
+Version = '1.9.4'
+Source = 'npm'
+Integrity = 'sha512-v665Ct9WCRjGa8+kTr0CzApU0+XXtRgwmzIf1SeKSGAv+2scAlW6JR5PMFo6FzqqZ64Po79cKODKf3/AAmECqA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:46ae58bc0a4a0d4172735f4ca56d73d18b8dab9674734554d30e35d4ab28fa22'
+
+[[package]]
+ID = 'npm:@biomejs/cli-linux-arm64@1.9.4'
+Name = '@biomejs/cli-linux-arm64'
+Version = '1.9.4'
+Source = 'npm'
+Integrity = 'sha512-fJIW0+LYujdjUgJJuwesP4EjIBl/N/TcOX3IvIHJQNsAqvV2CHIogsmA94BPG6jZATS4Hi+xv4SkBBQSt1N4/g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:054c04c5b4546dde76c922e9ebee7c2396756864ddac892117c58f369d20db9f'
+
+[[package]]
+ID = 'npm:@biomejs/cli-linux-x64-musl@1.9.4'
+Name = '@biomejs/cli-linux-x64-musl'
+Version = '1.9.4'
+Source = 'npm'
+Integrity = 'sha512-gEhi/jSBhZ2m6wjV530Yy8+fNqG8PAinM3oV7CyO+6c3CEh16Eizm21uHVsyVBEB6RIM8JHIl6AGYCv6Q6Q9Tg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8d70ff088a51b3c401fa3a3be6512e0f394174b9da6ce7f8cd5e44d6a741b305'
+
+[[package]]
+ID = 'npm:@biomejs/cli-linux-x64@1.9.4'
+Name = '@biomejs/cli-linux-x64'
+Version = '1.9.4'
+Source = 'npm'
+Integrity = 'sha512-lRCJv/Vi3Vlwmbd6K+oQ0KhLHMAysN8lXoCI7XeHlxaajk06u7G+UsFSO01NAs5iYuWKmVZjmiOzJ0OJmGsMwg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3e38f0368640ac9d25cca30199a4070ee6179f330d9f0f432aac6e21020269d7'
+
+[[package]]
+ID = 'npm:@biomejs/cli-win32-arm64@1.9.4'
+Name = '@biomejs/cli-win32-arm64'
+Version = '1.9.4'
+Source = 'npm'
+Integrity = 'sha512-tlbhLk+WXZmgwoIKwHIHEBZUwxml7bRJgk0X2sPyNR3S93cdRq6XulAZRQJ17FYGGzWne0fgrXBKpl7l4M87Hg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8cf5cb22900ac506c44bf3e56730f280f51a1499dee201c620533129d1112490'
+
+[[package]]
+ID = 'npm:@biomejs/cli-win32-x64@1.9.4'
+Name = '@biomejs/cli-win32-x64'
+Version = '1.9.4'
+Source = 'npm'
+Integrity = 'sha512-8Y5wMhVIPaWe6jw2H+KlEm4wP/f7EW3810ZLmDlrEEy5KvBsb9ECEfu/kMWD484ijfQ8+nIi0giMgu9g1UAuuA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:aef4bbe9cf857f33e94d8c1dde91f5cd3395fd3c2042734756dc31277f2254e9'
+
+[[package]]
+ID = 'npm:@esbuild/aix-ppc64@0.25.12'
+Name = '@esbuild/aix-ppc64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6f36448f31d26425773b80985184f3bfb5661acede70c503b201c823836a10e8'
+
+[[package]]
+ID = 'npm:@esbuild/android-arm64@0.25.12'
+Name = '@esbuild/android-arm64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-6AAmLG7zwD1Z159jCKPvAxZd4y/VTO0VkprYy+3N2FtJ8+BQWFXU+OxARIwA46c5tdD9SsKGZ/1ocqBS/gAKHg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:9cb49d434b501e232ec60de75d2bc7e0206477cdc7f38f5f1a8b531ab77e6921'
+
+[[package]]
+ID = 'npm:@esbuild/android-arm@0.25.12'
+Name = '@esbuild/android-arm'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-VJ+sKvNA/GE7Ccacc9Cha7bpS8nyzVv0jdVgwNDaR4gDMC/2TTRc33Ip8qrNYUcpkOHUT5OZ0bUcNNVZQ9RLlg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:5aea75886f091b07287ac357a492bcbbf633532381b31ba71611955faada3c7e'
+
+[[package]]
+ID = 'npm:@esbuild/android-x64@0.25.12'
+Name = '@esbuild/android-x64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-5jbb+2hhDHx5phYR2By8GTWEzn6I9UqR11Kwf22iKbNpYrsmRB18aX/9ivc5cabcUiAT/wM+YIZ6SG9QO6a8kg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:1b1fb12cc646f4b641503116c52d9503ba479f00f8eeba3553e5045fd5b3e808'
+
+[[package]]
+ID = 'npm:@esbuild/darwin-arm64@0.25.12'
+Name = '@esbuild/darwin-arm64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-N3zl+lxHCifgIlcMUP5016ESkeQjLj/959RxxNYIthIg+CQHInujFuXeWbWMgnTo4cp5XVHqFPmpyu9J65C1Yg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:2e0d011f852e45046ca5c107db54cfc56338f77aca49d227a063696d958451d7'
+
+[[package]]
+ID = 'npm:@esbuild/darwin-x64@0.25.12'
+Name = '@esbuild/darwin-x64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-HQ9ka4Kx21qHXwtlTUVbKJOAnmG1ipXhdWTmNXiPzPfWKpXqASVcWdnf2bnL73wgjNrFXAa3yYvBSd9pzfEIpA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:bf56cdf7b330a8605395ee13de805c784c7346d0802c7cced8490b4bfac2291a'
+
+[[package]]
+ID = 'npm:@esbuild/freebsd-arm64@0.25.12'
+Name = '@esbuild/freebsd-arm64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-gA0Bx759+7Jve03K1S0vkOu5Lg/85dou3EseOGUes8flVOGxbhDDh/iZaoek11Y8mtyKPGF3vP8XhnkDEAmzeg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3d140ffd2d7e3d8f747a9dcb8abdbec9505ab795ba6e55a8a9dd4f23378c5d31'
+
+[[package]]
+ID = 'npm:@esbuild/freebsd-x64@0.25.12'
+Name = '@esbuild/freebsd-x64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-TGbO26Yw2xsHzxtbVFGEXBFH0FRAP7gtcPE7P5yP7wGy7cXK2oO7RyOhL5NLiqTlBh47XhmIUXuGciXEqYFfBQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8bf2618e0ff33e342c68f5c9f56dde969551daaea3c89dd30d5859abe066b2a2'
+
+[[package]]
+ID = 'npm:@esbuild/linux-arm64@0.25.12'
+Name = '@esbuild/linux-arm64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-8bwX7a8FghIgrupcxb4aUmYDLp8pX06rGh5HqDT7bB+8Rdells6mHvrFHHW2JAOPZUbnjUpKTLg6ECyzvas2AQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d5e01d210e026823d559e2b82554cdcdab6fd87c4a57b519b392ef183c1f87fd'
+
+[[package]]
+ID = 'npm:@esbuild/linux-arm@0.25.12'
+Name = '@esbuild/linux-arm'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-lPDGyC1JPDou8kGcywY0YILzWlhhnRjdof3UlcoqYmS9El818LLfJJc3PXXgZHrHCAKs/Z2SeZtDJr5MrkxtOw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:318df2dc59ce5d2f0768fb0721fdcf20e639e2cd9d47765c6ddf4ae36f4a1142'
+
+[[package]]
+ID = 'npm:@esbuild/linux-ia32@0.25.12'
+Name = '@esbuild/linux-ia32'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-0y9KrdVnbMM2/vG8KfU0byhUN+EFCny9+8g202gYqSSVMonbsCfLjUO+rCci7pM0WBEtz+oK/PIwHkzxkyharA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d9a45a87621f08f3be3017c95283fb5e4f48bdb3808daedd7c57c755a9c9f83b'
+
+[[package]]
+ID = 'npm:@esbuild/linux-loong64@0.25.12'
+Name = '@esbuild/linux-loong64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-h///Lr5a9rib/v1GGqXVGzjL4TMvVTv+s1DPoxQdz7l/AYv6LDSxdIwzxkrPW438oUXiDtwM10o9PmwS/6Z0Ng=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:45bee0343b63121ca9ff6e424bada69711bf959bcb649a81c2c0ac9c22ad91fb'
+
+[[package]]
+ID = 'npm:@esbuild/linux-mips64el@0.25.12'
+Name = '@esbuild/linux-mips64el'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-iyRrM1Pzy9GFMDLsXn1iHUm18nhKnNMWscjmp4+hpafcZjrr2WbT//d20xaGljXDBYHqRcl8HnxbX6uaA/eGVw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0840450dc4fe6b79cf2390c627f111c61b04266d9b5f0f7b0f291071a70a4825'
+
+[[package]]
+ID = 'npm:@esbuild/linux-ppc64@0.25.12'
+Name = '@esbuild/linux-ppc64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-9meM/lRXxMi5PSUqEXRCtVjEZBGwB7P/D4yT8UG/mwIdze2aV4Vo6U5gD3+RsoHXKkHCfSxZKzmDssVlRj1QQA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:1cd2f06d19e650b31d01474f82d72ff0a2cd4b15e901a83c22e9678c7958a10a'
+
+[[package]]
+ID = 'npm:@esbuild/linux-riscv64@0.25.12'
+Name = '@esbuild/linux-riscv64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-Zr7KR4hgKUpWAwb1f3o5ygT04MzqVrGEGXGLnj15YQDJErYu/BGg+wmFlIDOdJp0PmB0lLvxFIOXZgFRrdjR0w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:64738a7389ebf341216c634916d8eef90f0cf57636f8de2c117f7ee89fdefa91'
+
+[[package]]
+ID = 'npm:@esbuild/linux-s390x@0.25.12'
+Name = '@esbuild/linux-s390x'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-MsKncOcgTNvdtiISc/jZs/Zf8d0cl/t3gYWX8J9ubBnVOwlk65UIEEvgBORTiljloIWnBzLs4qhzPkJcitIzIg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:35818fadf6809a5617d8533c2f91d2e321daeaf445729274d22213e831895bc7'
+
+[[package]]
+ID = 'npm:@esbuild/linux-x64@0.25.12'
+Name = '@esbuild/linux-x64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-uqZMTLr/zR/ed4jIGnwSLkaHmPjOjJvnm6TVVitAa08SLS9Z0VM8wIRx7gWbJB5/J54YuIMInDquWyYvQLZkgw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f7efc127658a108dcda9d4210b01804ee8f5d6b3acbd6d63f20aa51d3b50bd5f'
+
+[[package]]
+ID = 'npm:@esbuild/netbsd-arm64@0.25.12'
+Name = '@esbuild/netbsd-arm64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-xXwcTq4GhRM7J9A8Gv5boanHhRa/Q9KLVmcyXHCTaM4wKfIpWkdXiMog/KsnxzJ0A1+nD+zoecuzqPmCRyBGjg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f746c1aa0f4dc86c6484dae61114ecc9155327cd4a1b0e9d234e32bc7a018858'
+
+[[package]]
+ID = 'npm:@esbuild/netbsd-x64@0.25.12'
+Name = '@esbuild/netbsd-x64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-Ld5pTlzPy3YwGec4OuHh1aCVCRvOXdH8DgRjfDy/oumVovmuSzWfnSJg+VtakB9Cm0gxNO9BzWkj6mtO1FMXkQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d706a08a052577e74474036f51604b9c19dff434c1e14b8465ccd452fb225f95'
+
+[[package]]
+ID = 'npm:@esbuild/openbsd-arm64@0.25.12'
+Name = '@esbuild/openbsd-arm64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-fF96T6KsBo/pkQI950FARU9apGNTSlZGsv1jZBAlcLL1MLjLNIWPBkj5NlSz8aAzYKg+eNqknrUJ24QBybeR5A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ad09e31e1a86a5a12fd57304acc7472e59a55ae05385b1770e24b3a3670f7f99'
+
+[[package]]
+ID = 'npm:@esbuild/openbsd-x64@0.25.12'
+Name = '@esbuild/openbsd-x64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-MZyXUkZHjQxUvzK7rN8DJ3SRmrVrke8ZyRusHlP+kuwqTcfWLyqMOE3sScPPyeIXN/mDJIfGXvcMqCgYKekoQw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0ce2f4f74522d3b09e249a1ee240179bde15766660a43b772a60cba4781e300b'
+
+[[package]]
+ID = 'npm:@esbuild/openharmony-arm64@0.25.12'
+Name = '@esbuild/openharmony-arm64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-rm0YWsqUSRrjncSXGA7Zv78Nbnw4XL6/dzr20cyrQf7ZmRcsovpcRBdhD43Nuk3y7XIoW2OxMVvwuRvk9XdASg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:79828e6d55f5155ca81e55e04717aecb9125fd8b5202ba8b6e9e78cc8943a62d'
+
+[[package]]
+ID = 'npm:@esbuild/sunos-x64@0.25.12'
+Name = '@esbuild/sunos-x64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-3wGSCDyuTHQUzt0nV7bocDy72r2lI33QL3gkDNGkod22EsYl04sMf0qLb8luNKTOmgF/eDEDP5BFNwoBKH441w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6b2185ee71e7102c4ab07247769afb6ab84c8e550a51c65324f1455844183e3f'
+
+[[package]]
+ID = 'npm:@esbuild/win32-arm64@0.25.12'
+Name = '@esbuild/win32-arm64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-rMmLrur64A7+DKlnSuwqUdRKyd3UE7oPJZmnljqEptesKM8wx9J8gx5u0+9Pq0fQQW8vqeKebwNXdfOyP+8Bsg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:01979ffafb4bb6a63d824cd57ed76bd257d1e3eed804c3e47fdfd80005dcfa66'
+
+[[package]]
+ID = 'npm:@esbuild/win32-ia32@0.25.12'
+Name = '@esbuild/win32-ia32'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-HkqnmmBoCbCwxUKKNPBixiWDGCpQGVsrQfJoVGYLPT41XWF8lHuE5N6WhVia2n4o5QK5M4tYr21827fNhi4byQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a0b88687c8262d88922c08f9aa70f5a8d2d5bf38309046a1b718fc8eb7ad4872'
+
+[[package]]
+ID = 'npm:@esbuild/win32-x64@0.25.12'
+Name = '@esbuild/win32-x64'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c77076b48f96323cae6257bd515e5ea96ecf38ab8f7fa34364d4fc4ae5905b74'
+
+[[package]]
+ID = 'npm:@nodelib/fs.scandir@2.1.5'
+Name = '@nodelib/fs.scandir'
+Version = '2.1.5'
+Source = 'npm'
+Integrity = 'sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a924bfa317c78e8bdbb0bd361522aba431fffe0878bf3699a8cb35a6e50cf94c'
+
+[[package]]
+ID = 'npm:@nodelib/fs.stat@2.0.5'
+Name = '@nodelib/fs.stat'
+Version = '2.0.5'
+Source = 'npm'
+Integrity = 'sha512-RkhPPp2zrqDAQA/2jNhnztcPAlv64XdhIp7a7454A5ovI7Bukxgt7MX7udwAu3zg1DcpPU0rz3VV1SeaqvY4+A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d8f8533551f21aca87b3fc2d4bc2e2cc7ab221104902c07da3df20baaf52136b'
+
+[[package]]
+ID = 'npm:@nodelib/fs.walk@1.2.8'
+Name = '@nodelib/fs.walk'
+Version = '1.2.8'
+Source = 'npm'
+Integrity = 'sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:cbf9621f69b822ce97f71e842fea8e7bf9c7e986f01285689ede282092727d3d'
+
+[[package]]
+ID = 'npm:@secretlint/config-creator@10.2.2'
+Name = '@secretlint/config-creator'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-BynOBe7Hn3LJjb3CqCHZjeNB09s/vgf0baBaHVw67w7gHF0d25c3ZsZ5+vv8TgwSchRdUCRrbbcq5i2B1fJ2QQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ca712afa4840a5f180e5bba1e7ea2f16ef66c53ad572a3a2de22707bafdb4a19'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@secretlint/config-loader@10.2.2'
+Name = '@secretlint/config-loader'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-ndjjQNgLg4DIcMJp4iaRD6xb9ijWQZVbd9694Ol2IszBIbGPPkwZHzJYKICbTBmh6AH/pLr0CiCaWdGJU7RbpQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:08844279d3640ff148412bb5f8881b6a5c98ec2843f6b5fc5274f0d359968057'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@secretlint/core@10.2.2'
+Name = '@secretlint/core'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-6rdwBwLP9+TO3rRjMVW1tX+lQeo5gBbxl1I5F8nh8bgGtKwdlCMhMKsBWzWg1ostxx/tIG7OjZI0/BxsP8bUgw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b6941b8d94d436bdbb8ea60787442d51e8d8a2b081866a27fdb451d0507ec207'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@secretlint/formatter@10.2.2'
+Name = '@secretlint/formatter'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-10f/eKV+8YdGKNQmoDUD1QnYL7TzhI2kzyx95vsJKbEa8akzLAR5ZrWIZ3LbcMmBLzxlSQMMccRmi05yDQ5YDA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:cdd3a69282b8b0c531a2070a9e653012219c5d8ae6661ac8f0a17cf795e9ae89'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@secretlint/node@10.2.2'
+Name = '@secretlint/node'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-eZGJQgcg/3WRBwX1bRnss7RmHHK/YlP/l7zOQsrjexYt6l+JJa5YhUmHbuGXS94yW0++3YkEJp0kQGYhiw1DMQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:50d2d0eb7a95ae6775104cfe445d201e409d537a5568f575af0520a9bffb430a'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@secretlint/profiler@10.2.2'
+Name = '@secretlint/profiler'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-qm9rWfkh/o8OvzMIfY8a5bCmgIniSpltbVlUVl983zDG1bUuQNd1/5lUEeWx5o/WJ99bXxS7yNI4/KIXfHexig=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d8a74ee9f49e24e646577691eab60780fd4763d5681930bd46c6588b8c8b1160'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@secretlint/resolver@10.2.2'
+Name = '@secretlint/resolver'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-3md0cp12e+Ae5V+crPQYGd6aaO7ahw95s28OlULGyclyyUtf861UoRGS2prnUrKh7MZb23kdDOyGCYb9br5e4w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:771efb86f34c1c0647932a8da665eb70b4e7cc6698b68e6fafa3499184d7a462'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@secretlint/secretlint-formatter-sarif@10.2.2'
+Name = '@secretlint/secretlint-formatter-sarif'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-ojiF9TGRKJJw308DnYBucHxkpNovDNu1XvPh7IfUp0A12gzTtxuWDqdpuVezL7/IP8Ua7mp5/VkDMN9OLp1doQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:231dec0fd24d399931eb6193f1b0802b9e420b732440bb2c221bc1fe30c910dd'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@secretlint/secretlint-rule-no-dotenv@10.2.2'
+Name = '@secretlint/secretlint-rule-no-dotenv'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-KJRbIShA9DVc5Va3yArtJ6QDzGjg3PRa1uYp9As4RsyKtKSSZjI64jVca57FZ8gbuk4em0/0Jq+uy6485wxIdg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b9458fc3165afbc4e4d01d2e1f8f092a1bcc6e31b5adf49d6e8f9594e07e41b7'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@secretlint/secretlint-rule-preset-recommend@10.2.2'
+Name = '@secretlint/secretlint-rule-preset-recommend'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-K3jPqjva8bQndDKJqctnGfwuAxU2n9XNCPtbXVI5JvC7FnQiNg/yWlQPbMUlBXtBoBGFYp08A94m6fvtc9v+zA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8be74f99fd0f78b4b9c3061bfc1080a1cb62306b584338a9b386a6189cbec38a'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@secretlint/source-creator@10.2.2'
+Name = '@secretlint/source-creator'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-h6I87xJfwfUTgQ7irWq7UTdq/Bm1RuQ/fYhA3dtTIAop5BwSFmZyrchph4WcoEvbN460BWKmk4RYSvPElIIvxw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ad4fce193885c2d279e225a49c1d1e40c6b5265d395b278f6086dccbc01f53f1'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@secretlint/types@10.2.2'
+Name = '@secretlint/types'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-Nqc90v4lWCXyakD6xNyNACBJNJ0tNCwj2WNk/7ivyacYHxiITVgmLUFXTBOeCdy79iz6HtN9Y31uw/jbLrdOAg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e10288a8eed25814c408110dfec251d550a820bbde1d4d1feacb951b5607a889'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@sindresorhus/merge-streams@2.3.0'
+Name = '@sindresorhus/merge-streams'
+Version = '2.3.0'
+Source = 'npm'
+Integrity = 'sha512-LtoMMhxAlorcGhmFYI+LhPgbPZCkgP6ra1YL604EeF6U98pLlQ3iWIGMdWSC+vWmPBWBNgmDBAhnAobLROJmwg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:1b4bd51a38239a4ed1960c4bf0e4d9bbc5c9ffd47d4337287409feca59a642bc'
+
+[[package]]
+ID = 'npm:@textlint/ast-node-types@15.8.0'
+Name = '@textlint/ast-node-types'
+Version = '15.8.0'
+Source = 'npm'
+Integrity = 'sha512-5CiH9COYmovWmExQgs7763DzX6Gy9zjkjJ7JxCC95wyTcjwQn/8poNF6fv3qzRlmx8CRRde8DHr9FcgAAiPzgw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6d870b0c8bd28dd6f353ba8684f9b52bfbf136b42b38b1bb68708dc885377ab1'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:@textlint/linter-formatter@15.8.0'
+Name = '@textlint/linter-formatter'
+Version = '15.8.0'
+Source = 'npm'
+Integrity = 'sha512-+oU3A235NATv6Lzi4xa4kJ65PuNJlIxesaO4AvDhDWA9FWm7y4XKWaoQCW1esgaQQ6dwnUiFKArQ8TcJ86mC4w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:eb42defe914d04f1391782e10362fff2256eb21db82b44ae88ba8bcd51f644ca'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:@textlint/module-interop@15.8.0'
+Name = '@textlint/module-interop'
+Version = '15.8.0'
+Source = 'npm'
+Integrity = 'sha512-rt+OR1WYGoLOY8HkA/aBPrqufF6yUUEsKEAh7XohTsT3lp9IyZFT6zOIbjul9P4FAzsmSPkcrYjVx3Bz/IUfkg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d37fe3c90ae2e776a81c0a084360de2da90a973bfa4946fb6baebd6f0f199135'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm run --if-present build'
+
+[[package]]
+ID = 'npm:@textlint/resolver@15.8.0'
+Name = '@textlint/resolver'
+Version = '15.8.0'
+Source = 'npm'
+Integrity = 'sha512-E88tzfX3K8Jykk+38aJ9cy8RquD8ABVOPTO2rFEESq0wcg8x6/ypdAS8ZgR7OKiGqlRF0hkO/m5PbQwVfKM3VA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3009d43037844fbdffc8c6a8c72f80b781a0027c5ec61544bc455756ced169a7'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:@textlint/types@15.8.0'
+Name = '@textlint/types'
+Version = '15.8.0'
+Source = 'npm'
+Integrity = 'sha512-Anhc6y5736YIsvqae0U6k0YmB2M/QVHkEeOv2aydAn/WIkdI69dCOiDbe3/+RagS3qstFTSFWJzNRA2lUjv19w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8f44dffd0cc16ad07a3c297d27b317e17c03cb01fa9c7c9f7f4057de32532655'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm run --if-present build'
+
+[[package]]
+ID = 'npm:@types/node@22.20.1'
+Name = '@types/node'
+Version = '22.20.1'
+Source = 'npm'
+Integrity = 'sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6f99aae8d4a2bdecdce5a41a922b10943316edd4e6e6d4350f442d6c1688485f'
+
+[[package]]
+ID = 'npm:@types/normalize-package-data@2.4.4'
+Name = '@types/normalize-package-data'
+Version = '2.4.4'
+Source = 'npm'
+Integrity = 'sha512-37i+OaWTh9qeK4LSHPsyRC7NahnGotNuZvjLSgcPzblpHB3rrCJxAOgI5gCdKm7coonsaX1Of0ILiTcnZjbfxA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e72ed722679b1f0fe70a1d9ca8f5cae39cd2a5f2185e4c6d3042e5ae609fdf2b'
+
+[[package]]
+ID = 'npm:@types/sarif@2.1.7'
+Name = '@types/sarif'
+Version = '2.1.7'
+Source = 'npm'
+Integrity = 'sha512-kRz0VEkJqWLf1LLVN4pT1cg1Z9wAuvI6L97V3m2f5B76Tg8d413ddvLBPTEHAZJlnn4XSvu0FkZtViCQGVyrXQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8f7e5e541047329cba1a37abefe1616896f105c213f4e69b2003f82f4779cd93'
+
+[[package]]
+ID = 'npm:@types/vscode@1.125.0'
+Name = '@types/vscode'
+Version = '1.125.0'
+Source = 'npm'
+Integrity = 'sha512-0icm/ZQAaism87P0ekHqi4/Ju9du+Tm0RUW+y7vqRsxY2cY0FNRX1nAnaW7nT6npPt2tfHiheZ55Zm9UhqonFA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ebbd799a819ece6f80369d83ac21fec36c04effbfd51cc472cc76f124d0c5d6a'
+
+[[package]]
+ID = 'npm:@typespec/ts-http-runtime@0.3.8'
+Name = '@typespec/ts-http-runtime'
+Version = '0.3.8'
+Source = 'npm'
+Integrity = 'sha512-bLMpVcWZNzq6lYOybwFwOAR1IXKcHnhUNqYeHjl1bET/qE3jFPFH+p8Wrh3rU4xwdnifPxmKNESBYnvnmc75aA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c7040ca9390976d49c885342e92f80cd03a0bec844da67a1067b28ef326f1cd9'
+
+[[package]]
+ID = 'npm:@vscode/vsce-sign-alpine-arm64@2.0.6'
+Name = '@vscode/vsce-sign-alpine-arm64'
+Version = '2.0.6'
+Source = 'npm'
+Integrity = 'sha512-wKkJBsvKF+f0GfsUuGT0tSW0kZL87QggEiqNqK6/8hvqsXvpx8OsTEc3mnE1kejkh5r+qUyQ7PtF8jZYN0mo8Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b6777091cccc6fb2fe8952ee7e3d9d0a5153a51dd986eccb3331fabc740ee76f'
+
+[[package]]
+ID = 'npm:@vscode/vsce-sign-alpine-x64@2.0.6'
+Name = '@vscode/vsce-sign-alpine-x64'
+Version = '2.0.6'
+Source = 'npm'
+Integrity = 'sha512-YoAGlmdK39vKi9jA18i4ufBbd95OqGJxRvF3n6ZbCyziwy3O+JgOpIUPxv5tjeO6gQfx29qBivQ8ZZTUF2Ba0w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:049e0c79782958cf1b21fc5a46c278c52719db7002cdd20b18a822ee02dc9869'
+
+[[package]]
+ID = 'npm:@vscode/vsce-sign-darwin-arm64@2.0.6'
+Name = '@vscode/vsce-sign-darwin-arm64'
+Version = '2.0.6'
+Source = 'npm'
+Integrity = 'sha512-5HMHaJRIQuozm/XQIiJiA0W9uhdblwwl2ZNDSSAeXGO9YhB9MH5C4KIHOmvyjUnKy4UCuiP43VKpIxW1VWP4tQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c3d409607558415ca7acfdba4acc1f2a5afa609545f7f4beb689ed7ae1fc9bb7'
+
+[[package]]
+ID = 'npm:@vscode/vsce-sign-darwin-x64@2.0.6'
+Name = '@vscode/vsce-sign-darwin-x64'
+Version = '2.0.6'
+Source = 'npm'
+Integrity = 'sha512-25GsUbTAiNfHSuRItoQafXOIpxlYj+IXb4/qarrXu7kmbH94jlm5sdWSCKrrREs8+GsXF1b+l3OB7VJy5jsykw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:cf51e9c41767fea254cf2815238e082865bbcec42df3e5033347e675e5fbe388'
+
+[[package]]
+ID = 'npm:@vscode/vsce-sign-linux-arm64@2.0.6'
+Name = '@vscode/vsce-sign-linux-arm64'
+Version = '2.0.6'
+Source = 'npm'
+Integrity = 'sha512-cfb1qK7lygtMa4NUl2582nP7aliLYuDEVpAbXJMkDq1qE+olIw/es+C8j1LJwvcRq1I2yWGtSn3EkDp9Dq5FdA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:eadb8584cdcb835827811fa2f8c89ca8e2b6c64789b0929c90841c29be3d4210'
+
+[[package]]
+ID = 'npm:@vscode/vsce-sign-linux-arm@2.0.6'
+Name = '@vscode/vsce-sign-linux-arm'
+Version = '2.0.6'
+Source = 'npm'
+Integrity = 'sha512-UndEc2Xlq4HsuMPnwu7420uqceXjs4yb5W8E2/UkaHBB9OWCwMd3/bRe/1eLe3D8kPpxzcaeTyXiK3RdzS/1CA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8010fb8f75f4f7eddcba19ad25c8af10b3e90aed759e816fbdcfa2c6f23634d6'
+
+[[package]]
+ID = 'npm:@vscode/vsce-sign-linux-x64@2.0.6'
+Name = '@vscode/vsce-sign-linux-x64'
+Version = '2.0.6'
+Source = 'npm'
+Integrity = 'sha512-/olerl1A4sOqdP+hjvJ1sbQjKN07Y3DVnxO4gnbn/ahtQvFrdhUi0G1VsZXDNjfqmXw57DmPi5ASnj/8PGZhAA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b9e4de12857922e6a00648a9a3e09185f557f4bc29a10312547d8af4b3c2feff'
+
+[[package]]
+ID = 'npm:@vscode/vsce-sign-win32-arm64@2.0.6'
+Name = '@vscode/vsce-sign-win32-arm64'
+Version = '2.0.6'
+Source = 'npm'
+Integrity = 'sha512-ivM/MiGIY0PJNZBoGtlRBM/xDpwbdlCWomUWuLmIxbi1Cxe/1nooYrEQoaHD8ojVRgzdQEUzMsRbyF5cJJgYOg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ff6711a33d5b373ac2d32672a0e8c3fa6d69144ddcc7f5cfa97b487f1d099235'
+
+[[package]]
+ID = 'npm:@vscode/vsce-sign-win32-x64@2.0.6'
+Name = '@vscode/vsce-sign-win32-x64'
+Version = '2.0.6'
+Source = 'npm'
+Integrity = 'sha512-mgth9Kvze+u8CruYMmhHw6Zgy3GRX2S+Ed5oSokDEK5vPEwGGKnmuXua9tmFhomeAnhgJnL4DCna3TiNuGrBTQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:40b37323721d26b8de449f4283fab8056b3d669f15d3b4b0ab7b65d26e802484'
+
+[[package]]
+ID = 'npm:@vscode/vsce-sign@2.0.9'
+Name = '@vscode/vsce-sign'
+Version = '2.0.9'
+Source = 'npm'
+Integrity = 'sha512-8IvaRvtFyzUnGGl3f5+1Cnor3LqaUWvhaUjAYO8Y39OUYlOf3cRd+dowuQYLpZcP3uwSG+mURwjEBOSq4SOJ0g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:aa11dc4dd7255416be4cd6ac3cb1351ceda3e31bc71d567dba2d64b80c42d8d8'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'postinstall'
+command = 'node ./src/postinstall.js'
+
+[[package]]
+ID = 'npm:@vscode/vsce@3.9.2'
+Name = '@vscode/vsce'
+Version = '3.9.2'
+Source = 'npm'
+Integrity = 'sha512-XSxMosEEDO6vLxELAHVkwmhC0qe0ijZni2jB9Rcs8kQsW4lhTDQ/wMzmwFs/buotAWSnpmUp/dRWD2ufG3UYKA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:4bea17e6d22d7470d024e07f8ff5611da04d9448be250db77c5bddb473a6ef36'
+
+[[package]]
+ID = 'npm:agent-base@7.1.4'
+Name = 'agent-base'
+Version = '7.1.4'
+Source = 'npm'
+Integrity = 'sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:7dd4a61668a9a4e8d4e903f1a254f94d53dafd3f316f2b9b597c5ad8c79cb57e'
+
+[[package]]
+ID = 'npm:ajv@8.20.0'
+Name = 'ajv'
+Version = '8.20.0'
+Source = 'npm'
+Integrity = 'sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b2f0b3a893bbb8cc5efb6814f08b1499e19e31d5dd73683f5893382f48f6e7b3'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:ansi-escapes@7.3.0'
+Name = 'ansi-escapes'
+Version = '7.3.0'
+Source = 'npm'
+Integrity = 'sha512-BvU8nYgGQBxcmMuEeUEmNTvrMVjJNSH7RgW24vXexN4Ven6qCvy4TntnvlnwnMLTVlcRQQdbRY8NKnaIoeWDNg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:2ad74507b957f699c8f9717115104b294d9d6d9544c23aeda2d94977c0c61ce5'
+
+[[package]]
+ID = 'npm:ansi-regex@5.0.1'
+Name = 'ansi-regex'
+Version = '5.0.1'
+Source = 'npm'
+Integrity = 'sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0e0eadcdaada805db5d85b53ad5cdca0760b996ee199ec9658e7b34aa6c8e0d9'
+
+[[package]]
+ID = 'npm:ansi-regex@6.2.2'
+Name = 'ansi-regex'
+Version = '6.2.2'
+Source = 'npm'
+Integrity = 'sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e746bb8f5dd8805dc40c399b91a4a232db7d9f93fe2d83b771a9cace7b5231d7'
+
+[[package]]
+ID = 'npm:ansi-styles@4.3.0'
+Name = 'ansi-styles'
+Version = '4.3.0'
+Source = 'npm'
+Integrity = 'sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:2c539a46d85ab6033183997434d2d9a5ca2ceefc12b4db9022f564784cd7987f'
+
+[[package]]
+ID = 'npm:argparse@2.0.1'
+Name = 'argparse'
+Version = '2.0.1'
+Source = 'npm'
+Integrity = 'sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:27903847fc8215e6fc5a33e81490f7baba66403f8aade33771b988cca097728c'
+
+[[package]]
+ID = 'npm:astral-regex@2.0.0'
+Name = 'astral-regex'
+Version = '2.0.0'
+Source = 'npm'
+Integrity = 'sha512-Z7tMw1ytTXt5jqMcOP+OQteU1VuNK9Y02uuJtKQ1Sv69jXQKKg5cibLwGJow8yzZP+eAc18EmLGPal0bp36rvQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0be9fee4792e2d5795f982a76e3e98f8caf03fc1bc572924b60d463386dbe1e7'
+
+[[package]]
+ID = 'npm:async-function@1.0.0'
+Name = 'async-function'
+Version = '1.0.0'
+Source = 'npm'
+Integrity = 'sha512-hsU18Ae8CDTR6Kgu9DYf0EbCr/a5iGL0rytQDobUcdpYOKokk8LEjVphnXkDkgpi0wYVsqrXuP0bZxJaTqdgoA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c196bf959c5478704aa39c11d2d87ce5e05d9cc6d20c3f04fccef74102cc6fdc'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:async-generator-function@1.0.0'
+Name = 'async-generator-function'
+Version = '1.0.0'
+Source = 'npm'
+Integrity = 'sha512-+NAXNqgCrB95ya4Sr66i1CL2hqLVckAk7xwRYWdcm39/ELQ6YNn1aw5r0bdQtqNZgQpEWzc5yc/igXc7aL5SLA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:bd973652f0df84d3d956b8c18a6ad3a88c2796b4e35aa86d0814ce88cf593a45'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:asynckit@0.4.0'
+Name = 'asynckit'
+Version = '0.4.0'
+Source = 'npm'
+Integrity = 'sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8c254f30f70792645042e4d71f590ec49f8e386a475772f7430c73b964b57dcf'
+
+[[package]]
+ID = 'npm:azure-devops-node-api@12.5.0'
+Name = 'azure-devops-node-api'
+Version = '12.5.0'
+Source = 'npm'
+Integrity = 'sha512-R5eFskGvOm3U/GzeAuxRkUsAl0hrAwGgWn6zAd2KrZmrEhWZVqLew4OOupbQlXUuojUzpGtq62SmdhJ06N88og=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:1c15b75924d7f99f839603e215ac1fc61faab1f17c17a9e387e4f7e14a69a1c7'
+
+[[package]]
+ID = 'npm:balanced-match@4.0.4'
+Name = 'balanced-match'
+Version = '4.0.4'
+Source = 'npm'
+Integrity = 'sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:9025508d9125eee531bbc49ce3ae560183975ad595f058c378bd56af4152fb16'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'tshy'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:base64-js@1.5.1'
+Name = 'base64-js'
+Version = '1.5.1'
+Source = 'npm'
+Integrity = 'sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b1b7a945b52685269083425216d6597e33d97bf21699d656e92fdb3eb5210a85'
+
+[[package]]
+ID = 'npm:binaryextensions@6.11.0'
+Name = 'binaryextensions'
+Version = '6.11.0'
+Source = 'npm'
+Integrity = 'sha512-sXnYK/Ij80TO3lcqZVV2YgfKN5QjUWIRk/XSm2J/4bd/lPko3lvk0O4ZppH6m+6hB2/GTu+ptNwVFe1xh+QLQw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:52904eaa521067a062c75c601b47eb055474298ade50d6509458cd3157eb01bd'
+
+[[package]]
+ID = 'npm:bl@4.1.0'
+Name = 'bl'
+Version = '4.1.0'
+Source = 'npm'
+Integrity = 'sha512-1W07cM9gS6DcLperZfFSj+bWLtaPGSOHWhPiGzXmvVJbRLdG82sH/Kn8EtW1VqWVA54AKf2h5k5BbnIbwF3h6w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:83deb909ad1829ca990e5b0852810dd1f4402fa5e3a00978fb16a05c49a5a7cb'
+
+[[package]]
+ID = 'npm:boolbase@1.0.0'
+Name = 'boolbase'
+Version = '1.0.0'
+Source = 'npm'
+Integrity = 'sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:69628ff8092c5ff940ea4a0f29da98d520615bae138755c9e059033606c6caa8'
+
+[[package]]
+ID = 'npm:boundary@2.0.0'
+Name = 'boundary'
+Version = '2.0.0'
+Source = 'npm'
+Integrity = 'sha512-rJKn5ooC9u8q13IMCrW0RSp31pxBCHE3y9V/tp3TdWSLf8Em3p6Di4NBpfzbJge9YjjFEsD0RtFEjtvHL5VyEA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0c5aeb26cfe29edf49052a11ecef1ce7fcb255c0903410c700bcd2eaeb02306f'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:brace-expansion@5.0.9'
+Name = 'brace-expansion'
+Version = '5.0.9'
+Source = 'npm'
+Integrity = 'sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:5d06001fddd25cbee90c96db4dc5b7b57711b984c3141e28d10f143deb52dbaf'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'tshy'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:braces@3.0.3'
+Name = 'braces'
+Version = '3.0.3'
+Source = 'npm'
+Integrity = 'sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:1cd18e862c8640b4568b1425a7df4ee030ff201d45b2da8f9f222d2987494ffc'
+
+[[package]]
+ID = 'npm:buffer-crc32@0.2.13'
+Name = 'buffer-crc32'
+Version = '0.2.13'
+Source = 'npm'
+Integrity = 'sha512-VO9Ht/+p3SN7SKWqcrgEzjGbRSJYTx+Q1pTQC0wrWqHx0vpJraQ6GtHx8tvcg1rlK1byhU5gccxgOgj7B0TDkQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:27d1154427f0131259994c6849888411be7d43723589e383487fd5886f53c66d'
+
+[[package]]
+ID = 'npm:buffer-equal-constant-time@1.0.1'
+Name = 'buffer-equal-constant-time'
+Version = '1.0.1'
+Source = 'npm'
+Integrity = 'sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8f455159e342103e7854ed6a4cc73edbab144d857917c88edefea862f09fe75a'
+
+[[package]]
+ID = 'npm:buffer@5.7.1'
+Name = 'buffer'
+Version = '5.7.1'
+Source = 'npm'
+Integrity = 'sha512-EHcyIPBQ4BSGlvjB16k5KgAJ27CIsHY/2JBmCRReo48y9rQ3MaUzWX3KVlBa4U7MyX02HdVj0K7C3WaB3ju7FQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:98bfac55b7a37ade644f5eccbcf94a59269afd13e1f9af597e61fd06c057c0bc'
+
+[[package]]
+ID = 'npm:bundle-name@4.1.0'
+Name = 'bundle-name'
+Version = '4.1.0'
+Source = 'npm'
+Integrity = 'sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:35e49d4240c91cbe4ca29926139feea848302e9eea317f31d9e81b972ce90911'
+
+[[package]]
+ID = 'npm:call-bind-apply-helpers@1.0.2'
+Name = 'call-bind-apply-helpers'
+Version = '1.0.2'
+Source = 'npm'
+Integrity = 'sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:073e9ff9dbabedf5c128020a677381e9f92c90188d118830b30a7656a7c37d2c'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=auto'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:call-bound@1.0.4'
+Name = 'call-bound'
+Version = '1.0.4'
+Source = 'npm'
+Integrity = 'sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:32086f492fedf1b9b34811f2ee50ca2cca53da5c783f7cd5f939d3f1e86bbd32'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=auto'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:chalk@4.1.2'
+Name = 'chalk'
+Version = '4.1.2'
+Source = 'npm'
+Integrity = 'sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e84c643aa53e87ace6c3d368b3cddda24a2d1434a06b6dfbdb628ad2107df90a'
+
+[[package]]
+ID = 'npm:chalk@5.6.2'
+Name = 'chalk'
+Version = '5.6.2'
+Source = 'npm'
+Integrity = 'sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:94957715a483aa3b9db60c8f22d5498227d8025c407f982eef81e34f37574ffd'
+
+[[package]]
+ID = 'npm:cheerio-select@2.1.0'
+Name = 'cheerio-select'
+Version = '2.1.0'
+Source = 'npm'
+Integrity = 'sha512-9v9kG0LvzrlcungtnJtpGNxY+fzECQKhK4EGJX2vByejiMX84MFNQw4UxPJl3bFbTMw+Dfs37XaIkCwTZfLh4g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:1c5698cb10db7ca73253a401309d0e758ec379caa088613836bebdb950d6c4cf'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:cheerio@1.2.0'
+Name = 'cheerio'
+Version = '1.2.0'
+Source = 'npm'
+Integrity = 'sha512-WDrybc/gKFpTYQutKIK6UvfcuxijIZfMfXaYm8NMsPQxSYvf+13fXUJ4rztGGbJcBQ/GF55gvrZ0Bc0bj/mqvg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:56024eb0f315c373a4be57b26f3d956e9618cd2778ad283960c09cc1d4e820ab'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'husky'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:chownr@1.1.4'
+Name = 'chownr'
+Version = '1.1.4'
+Source = 'npm'
+Integrity = 'sha512-jJ0bqzaylmJtVnNgzTeSOs8DPavpbYgEr/b0YL8/2GO3xJEhInFmhKMUnEJQjZumK7KXGFhUy89PrsJWlakBVg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:72863e05d34d031def689cbc3609aff0443fab0c64e0e6e81bf86d885d59833e'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:cockatiel@3.2.1'
+Name = 'cockatiel'
+Version = '3.2.1'
+Source = 'npm'
+Integrity = 'sha512-gfrHV6ZPkquExvMh9IOkKsBzNDk6sDuZ6DdBGUBkvFnTCqCxzpuq48RySgP0AnaqQkw2zynOFj9yly6T1Q2G5Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:1423949514e126317ce4cca60d1e9de2a17f2b9596966a88b0666af1c34fed5a'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run compile'
+
+[[package]]
+ID = 'npm:color-convert@2.0.1'
+Name = 'color-convert'
+Version = '2.0.1'
+Source = 'npm'
+Integrity = 'sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:920fa43538c019a085dbbf04cb6f72cc337624e5f5217519f0e7b2ef784e7ce1'
+
+[[package]]
+ID = 'npm:color-name@1.1.4'
+Name = 'color-name'
+Version = '1.1.4'
+Source = 'npm'
+Integrity = 'sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:507b7c4461e8eb941355af9a59e9a7e02cd0e7c6176b48d1809766344f3f1708'
+
+[[package]]
+ID = 'npm:combined-stream@1.0.8'
+Name = 'combined-stream'
+Version = '1.0.8'
+Source = 'npm'
+Integrity = 'sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b6be5aabe53e90635beb77cd0e0ba7ae6a25c8cf903b15fcc342353e732e1512'
+
+[[package]]
+ID = 'npm:commander@12.1.0'
+Name = 'commander'
+Version = '12.1.0'
+Source = 'npm'
+Integrity = 'sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:56affc6ddafe486f94b428ae2823d059cf60d4dae2f33eaaf1b1ec4306f73173'
+
+[[package]]
+ID = 'npm:css-select@5.2.2'
+Name = 'css-select'
+Version = '5.2.2'
+Source = 'npm'
+Integrity = 'sha512-TizTzUddG/xYLA3NXodFM0fSbNizXjOKhqiQQwvhlspadZokn1KDy0NZFS0wuEubIYAV5/c1/lAr0TaaFXEXzw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ab3c2a9c47abc354e4bb539f66746da87c80ed9e9623f4b0940147d0a1b2ae75'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:css-what@6.2.2'
+Name = 'css-what'
+Version = '6.2.2'
+Source = 'npm'
+Integrity = 'sha512-u/O3vwbptzhMs3L1fQE82ZSLHQQfto5gyZzwteVIEyeaY5Fc7R4dapF/BvRoSYFeqfBk4m0V1Vafq5Pjv25wvA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:275ef51d6c04b5f6e2441d73fa3503c5ac525cd82ef4ca55f022eeacaf227ab0'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:debug@4.4.3'
+Name = 'debug'
+Version = '4.4.3'
+Source = 'npm'
+Integrity = 'sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:89c1ac9c946ee8905a875837114528e97eeae35e03be3190584b2216af43e4a7'
+
+[[package]]
+ID = 'npm:decompress-response@6.0.0'
+Name = 'decompress-response'
+Version = '6.0.0'
+Source = 'npm'
+Integrity = 'sha512-aW35yZM6Bb/4oJlZncMH2LCoZtJXTRxES17vE3hoRiowU2kWHaJKFkSBDnDR+cm9J+9QhXmREyIfv0pji9ejCQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d57e4c5b047bcea4c47cb4cabc14f360d3399389a14ef5a7ce524d181d2a3b4f'
+
+[[package]]
+ID = 'npm:deep-extend@0.6.0'
+Name = 'deep-extend'
+Version = '0.6.0'
+Source = 'npm'
+Integrity = 'sha512-LOHxIOaPYdHlJRtCQfDIVZtfw/ufM8+rVj649RIHzcm/vGwQRXFt6OPqIFWsm2XEMrNIEtWR64sY1LEKD2vAOA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0dcc5f34920c23f5da2916d1d42e53ae5574913dfb78c406902b7189cf0b1386'
+
+[[package]]
+ID = 'npm:default-browser-id@5.0.1'
+Name = 'default-browser-id'
+Version = '5.0.1'
+Source = 'npm'
+Integrity = 'sha512-x1VCxdX4t+8wVfd1so/9w+vQ4vx7lKd2Qp5tDRutErwmR85OgmfX7RlLRMWafRMY7hbEiXIbudNrjOAPa/hL8Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3c94fbe0d90b610de6dc068180c780cbb7ef0ade6d2f3a7b5401f99f215d7429'
+
+[[package]]
+ID = 'npm:default-browser@5.5.0'
+Name = 'default-browser'
+Version = '5.5.0'
+Source = 'npm'
+Integrity = 'sha512-H9LMLr5zwIbSxrmvikGuI/5KGhZ8E2zH3stkMgM5LpOWDutGM2JZaj460Udnf1a+946zc7YBgrqEWwbk7zHvGw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:efe35ce84f4b4aad7d7125435562f3207a429353423c4643b4c982f5ea8612b7'
+
+[[package]]
+ID = 'npm:define-lazy-prop@3.0.0'
+Name = 'define-lazy-prop'
+Version = '3.0.0'
+Source = 'npm'
+Integrity = 'sha512-N+MeXYoqr3pOgn8xfyRPREN7gHakLYjhsHhWGT3fWAiL4IkAt0iDw14QiiEm2bE30c5XX5q0FtAA3CK5f9/BUg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:bbe9fe67a229c64ff9b8c77ace12278e2d44048a2a5af96e5fc95abbc94c49b5'
+
+[[package]]
+ID = 'npm:delayed-stream@1.0.0'
+Name = 'delayed-stream'
+Version = '1.0.0'
+Source = 'npm'
+Integrity = 'sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ac38fce4217dfb1d772427c7d8d0d073e35ecd832915e97a61d9ab5c504129d3'
+
+[[package]]
+ID = 'npm:detect-libc@2.1.2'
+Name = 'detect-libc'
+Version = '2.1.2'
+Source = 'npm'
+Integrity = 'sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:270dec0fc06cff86481da8af2dd8f18dee6b602790b14ef0e1c2c18d7da39427'
+
+[[package]]
+ID = 'npm:dom-serializer@2.0.0'
+Name = 'dom-serializer'
+Version = '2.0.0'
+Source = 'npm'
+Integrity = 'sha512-wIkAryiqt/nV5EQKqQpo3SToSOV9J0DnbJqwK7Wv/Trc92zIAYZ4FlMu+JPFW1DfGFt81ZTCGgDEabffXeLyJg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e34511f144fc6b34ce536bd60fb1ed27dd965f07a7c317407e79dd6be9e8f399'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:domelementtype@2.3.0'
+Name = 'domelementtype'
+Version = '2.3.0'
+Source = 'npm'
+Integrity = 'sha512-OLETBj6w0OsagBwdXnPdN0cnMfF9opN69co+7ZrbfPGrdpPVNBUj02spi6B1N7wChLQiPn4CSH/zJvXw56gmHw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c67164b4a994eaeaecbd968c2e5e5415407ae6fb4486bbb470594154e25feb45'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:domhandler@5.0.3'
+Name = 'domhandler'
+Version = '5.0.3'
+Source = 'npm'
+Integrity = 'sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f3952abb7e2635d8e942822d68cfb1fdaba61148d17a1a5692bdd163d6ca4784'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:domutils@3.2.2'
+Name = 'domutils'
+Version = '3.2.2'
+Source = 'npm'
+Integrity = 'sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:272918a13e7e093ddc983666954164e098fb2443f06f476f34bf47005e12c140'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:dunder-proto@1.0.1'
+Name = 'dunder-proto'
+Version = '1.0.1'
+Source = 'npm'
+Integrity = 'sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ed1342228c82c10df9921c59d684df516a0cd6ed25b61e5f9d6330895326cfdb'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:ecdsa-sig-formatter@1.0.11'
+Name = 'ecdsa-sig-formatter'
+Version = '1.0.11'
+Source = 'npm'
+Integrity = 'sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:487cb94dff2414772c3bb648a5e4e41c03cbbcc64263d08a56e36d735fc848fe'
+
+[[package]]
+ID = 'npm:editions@6.22.0'
+Name = 'editions'
+Version = '6.22.0'
+Source = 'npm'
+Integrity = 'sha512-UgGlf8IW75je7HZjNDpJdCv4cGJWIi6yumFdZ0R7A8/CIhQiWUjyGLCxdHpd8bmyD1gnkfUNK0oeOXqUS2cpfQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ad07726331c2c4ffe29ff4d6744dcbae664ec4693a1b73c54be1b6835a79272e'
+
+[[package]]
+ID = 'npm:emoji-regex@8.0.0'
+Name = 'emoji-regex'
+Version = '8.0.0'
+Source = 'npm'
+Integrity = 'sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b5ccd9fbfb08098eefbeb6b6b4b40db6db3acf9243e327e039925aa8661cb107'
+
+[[package]]
+ID = 'npm:encoding-sniffer@0.2.1'
+Name = 'encoding-sniffer'
+Version = '0.2.1'
+Source = 'npm'
+Integrity = 'sha512-5gvq20T6vfpekVtqrYQsSCFZ1wEg5+wW0/QaZMWkFr6BqD3NfKs0rLCx4rrVlSWJeZb5NBJgVLswK/w2MWU+Gw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d580036bfae2f47c1acb11c49f69d93bbed690e1b899219cb63998f516cd7176'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:end-of-stream@1.4.5'
+Name = 'end-of-stream'
+Version = '1.4.5'
+Source = 'npm'
+Integrity = 'sha512-ooEGc6HP26xXq/N+GCGOT0JKCLDGrq2bQUZrQ7gyrJiZANJ/8YDTxTpQBXGMn+WbIQXNVpyWymm7KYVICQnyOg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6d9c2a6030dc642b77b3a4979dfa82138cdb426d2c0e5b09626ad063e384a309'
+
+[[package]]
+ID = 'npm:entities@4.5.0'
+Name = 'entities'
+Version = '4.5.0'
+Source = 'npm'
+Integrity = 'sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6b0c60f7351a0b65bb1fc8dbb9299f09e7ecf6d89103d0651bf369e6f463a632'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:entities@6.0.1'
+Name = 'entities'
+Version = '6.0.1'
+Source = 'npm'
+Integrity = 'sha512-aN97NXWF6AWBTahfVOIrB/NShkzi5H7F9r1s9mD3cDj4Ko5f2qhhVoYMibXF7GlLveb/D2ioWay8lxI97Ven3g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a4de957ab0852f6c91eae59a6000ced5a25a04f0b6e1c3062fbad732a6b5479d'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'tshy'
+
+[[package]]
+ID = 'npm:entities@7.0.1'
+Name = 'entities'
+Version = '7.0.1'
+Source = 'npm'
+Integrity = 'sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:554b7e2a79fa9eda0439714011fa42d77c6829842faa91e022070015bfd483a0'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'tshy'
+
+[[package]]
+ID = 'npm:environment@1.1.0'
+Name = 'environment'
+Version = '1.1.0'
+Source = 'npm'
+Integrity = 'sha512-xUtoPkMggbz0MPyPiIWr1Kp4aeWJjDZ6SMvURhimjdZgsRuDplF5/s9hcgGhyXMhs+6vpnuoiZ2kFiu3FMnS8Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b2cb0fde86f80d7d75f2435456505fd68b7912aa6918a2a9643b9b829576817f'
+
+[[package]]
+ID = 'npm:es-define-property@1.0.1'
+Name = 'es-define-property'
+Version = '1.0.1'
+Source = 'npm'
+Integrity = 'sha512-e3nRfgfUZ4rNGL232gUgX06QNyyez04KdjFrF+LTRoOXmrOgFKDg4BCdsjW8EnT69eqdYGmRpJwiPVYNrCaW3g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:5986b8b13121340a8b0d5c7d8f0f961aa80ef3a74515ca9cb7a78d86ed0385f7'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:es-errors@1.3.0'
+Name = 'es-errors'
+Version = '1.3.0'
+Source = 'npm'
+Integrity = 'sha512-Zf5H2Kxt2xjTvbJvP2ZWLEICxA6j+hAmMzIlypy4xcBg1vKVnx89Wy0GbS+kf5cwCVFFzdCFh2XSCFNULS6csw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d14dd1c35b4bd3b8aca3219fd3627eb7f3eb49cf6b4c8a7ca58b91fd7a190993'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:es-object-atoms@1.1.2'
+Name = 'es-object-atoms'
+Version = '1.1.2'
+Source = 'npm'
+Integrity = 'sha512-HWcBoN6NileqtSydK2FqHbS/LoDd2pqrnQHLyJzBj4kOp/ky2MWMN694xOfkK8/SnUsW2DH7EfyVlydKCsm1Zw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f295c5df6751c65b4b9492b03c88fab5e13419de28a51ecdf17e693b4a421af0'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:es-set-tostringtag@2.1.0'
+Name = 'es-set-tostringtag'
+Version = '2.1.0'
+Source = 'npm'
+Integrity = 'sha512-j6vWzfrGVfyXxge+O0x5sh6cvxAog0a/4Rdd2K36zCMV5eJ+/+tOAngRO8cODMNWbVRdVlmGZQL2YS3yR8bIUA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:5675f51a5c33ee402bff8a2a341a0390f85e82d3c199859244d2f67091b0b93d'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:esbuild@0.25.12'
+Name = 'esbuild'
+Version = '0.25.12'
+Source = 'npm'
+Integrity = 'sha512-bbPBYYrtZbkt6Os6FiTLCTFxvq4tt3JKall1vRwshA3fdVztsLAatFaZobhkBC8/BrPetoa0oksYoKXoG4ryJg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:227584145829e5c4782734b3fb7b91b49c6aa12876d6cf070e6a3d9d4de543f9'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'postinstall'
+command = 'node install.js'
+
+[[package]]
+ID = 'npm:expand-template@2.0.3'
+Name = 'expand-template'
+Version = '2.0.3'
+Source = 'npm'
+Integrity = 'sha512-XYfuKMvj4O35f/pOXLObndIRvyQ+/+6AhODh+OKWj9S9498pHHn/IMszH+gt0fBCRWMNfk1ZSp5x3AifmnI2vg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:135592c19c447b6f2c14d6c1d958538a0f4f44d35f87263d8ba2c40d1bc0e0df'
+
+[[package]]
+ID = 'npm:fast-deep-equal@3.1.3'
+Name = 'fast-deep-equal'
+Version = '3.1.3'
+Source = 'npm'
+Integrity = 'sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b019a0980f27638dc3f85836b0e478f188e00d7a6e5852c0819fa86f56e47b8f'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:fast-glob@3.3.3'
+Name = 'fast-glob'
+Version = '3.3.3'
+Source = 'npm'
+Integrity = 'sha512-7MptL8U0cqcFdzIzwOTHoilX9x5BrNqye7Z/LuC7kCMRio1EMSyqRK3BEAUD7sXRq4iT4AzTVuZdhgQ2TCvYLg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:5571ed1750bd1e77a0e4b5fea6e9afb3f2eb390a9576358c9aaacd04d3f60de8'
+
+[[package]]
+ID = 'npm:fast-uri@3.1.5'
+Name = 'fast-uri'
+Version = '3.1.5'
+Source = 'npm'
+Integrity = 'sha512-gHwA1O9LDIcKunMKhObS/HimwtehO1nPUECKAu5TpKgaO19fcWEl4bliWe1jWxVFvIXztJjjQ4L8XQ1EU9f7Jw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:82a71e7e3716dc8c392cac0762bce80614cf539ef22000415e26eaf5c453ce2f'
+
+[[package]]
+ID = 'npm:fastq@1.20.1'
+Name = 'fastq'
+Version = '1.20.1'
+Source = 'npm'
+Integrity = 'sha512-GGToxJ/w1x32s/D2EKND7kTil4n8OVk/9mycTc4VDza13lOvpUZTGX3mFSCtV9ksdGBVzvsyAVLM6mHFThxXxw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6603b1b41a0dedbb3dd2e13fbb885a6df366ef83d26f5bf0f781fd9358d5a19f'
+
+[[package]]
+ID = 'npm:fill-range@7.1.1'
+Name = 'fill-range'
+Version = '7.1.1'
+Source = 'npm'
+Integrity = 'sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:1a6c3a3446cb1d693cf6b62785e2f6d8f9596305aff474dd2b31b2d8d427593c'
+
+[[package]]
+ID = 'npm:form-data@4.0.6'
+Name = 'form-data'
+Version = '4.0.6'
+Source = 'npm'
+Integrity = 'sha512-vKatAh4SlVfgbv+YtmhiRjhEMJsYpsG1Y2rMQtR+SVSbytsSD1YGzDIcrAJmdFec88u/+VoGmxnl+80gL1tRCQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:fc4d94e9b629f5378367ba46da7d96115696c01e25c99cd57c2c9a3d098bb557'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'postpack'
+command = 'npm run restore-readme'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm run update-readme'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package]]
+ID = 'npm:fs-constants@1.0.0'
+Name = 'fs-constants'
+Version = '1.0.0'
+Source = 'npm'
+Integrity = 'sha512-y6OAwoSIf7FyjMIv94u+b5rdheZEjzR63GTyZJm5qh4Bi+2YgwLCcI/fPFZkL5PSixOt6ZNKm+w+Hfp/Bciwow=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e7936d7e1b24475bd59312c4005f30d42539627dfc1c4f5dfe2326d7b7c7c5fa'
+
+[[package]]
+ID = 'npm:fs-extra@11.4.0'
+Name = 'fs-extra'
+Version = '11.4.0'
+Source = 'npm'
+Integrity = 'sha512-EQsFzMUJkCKGr1ePqlYADkIUmHW1s3ZXr5Yqy6wbGrfUCphpl2maM/kyOIRA2HpP3AaFQTZXD4ldjek+nccddA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:32c69bdf89b1506e6126db763289b0beee59a25341f7731c2624481b8227ec53'
+
+[[package]]
+ID = 'npm:function-bind@1.1.2'
+Name = 'function-bind'
+Version = '1.1.2'
+Source = 'npm'
+Integrity = 'sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:704402651b02a1454f17d445fc7dd716efc282d059407126d58ef30a47e807aa'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:generator-function@2.0.1'
+Name = 'generator-function'
+Version = '2.0.1'
+Source = 'npm'
+Integrity = 'sha512-SFdFmIJi+ybC0vjlHN0ZGVGHc3lgE0DxPAT0djjVg+kjOnSqclqmj0KQ7ykTOLP6YxoqOvuAODGdcHJn+43q3g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:817d539f17b5c53295c82f50380c4c79608a15d70f753d26496cdf1a194acb66'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:get-intrinsic@1.3.1'
+Name = 'get-intrinsic'
+Version = '1.3.1'
+Source = 'npm'
+Integrity = 'sha512-fk1ZVEeOX9hVZ6QzoBNEC55+Ucqg4sTVwrVuigZhuRPESVFpMyXnd3sbXvPOwp7Y9riVyANiqhEuRF0G1aVSeQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d39386313a24e73214aad6709450d292551f6763ff3c512db7f8aedf6c2755af'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:get-proto@1.0.1'
+Name = 'get-proto'
+Version = '1.0.1'
+Source = 'npm'
+Integrity = 'sha512-sTSfBjoXBp89JvIKIefqw7U2CCebsc74kiY6awiGogKtoSGbgjYE/G/+l9sF3MWFPNc9IcoOC4ODfKHfxFmp0g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:eb2cc52afb1f1fd82c5fc2a58c2380f0f16fdcdb5631538f3c66887435d70681'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:github-from-package@0.0.0'
+Name = 'github-from-package'
+Version = '0.0.0'
+Source = 'npm'
+Integrity = 'sha512-SyHy3T1v2NUXn29OsWdxmK6RwHD+vkj3v8en8AOBZ1wBQ/hCAQ5bAQTD02kW4W9tUp/3Qh6J8r9EvntiyCmOOw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3e46f185e0772ae9b83a3383a2bc7182b9facaef63c247a76b0ffc91114443fa'
+
+[[package]]
+ID = 'npm:glob-parent@5.1.2'
+Name = 'glob-parent'
+Version = '5.1.2'
+Source = 'npm'
+Integrity = 'sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:9616afebd18b93592a79d48cce6a841604593ae90563f0ec5554a07b6952d6d5'
+
+[[package]]
+ID = 'npm:glob@13.0.6'
+Name = 'glob'
+Version = '13.0.6'
+Source = 'npm'
+Integrity = 'sha512-Wjlyrolmm8uDpm/ogGyXZXb1Z+Ca2B8NbJwqBVg0axK9GbBeoS7yGV6vjXnYdGm6X53iehEuxxbyiKp8QmN4Vw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:020f184fa9c4e2905cf33c3d1dbba4b25a58e05f6f785f81cc931394e07b8970'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'tshy && bash scripts/build.sh'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run benchclean; git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:globby@14.1.0'
+Name = 'globby'
+Version = '14.1.0'
+Source = 'npm'
+Integrity = 'sha512-0Ia46fDOaT7k4og1PDW4YbodWWr3scS2vAr2lTbsplOt2WkKp0vQbkI9wKis/T5LV/dqPjO3bpS/z6GTJB82LA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:575de5d5bf25be5f68cc717995f2754984a2e940f8e0610761ae705a1ed17532'
+
+[[package]]
+ID = 'npm:gopd@1.2.0'
+Name = 'gopd'
+Version = '1.2.0'
+Source = 'npm'
+Integrity = 'sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d536d0de4dd285dc1468fbb7f39334a47ee0eec9c27f9b626a6e71466c9fda82'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:graceful-fs@4.2.11'
+Name = 'graceful-fs'
+Version = '4.2.11'
+Source = 'npm'
+Integrity = 'sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3961374aa161e6fed80d6f4b6aaf2fb7eafd2c9e5be34e865b375f0114dd099c'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'postpublish'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:has-flag@4.0.0'
+Name = 'has-flag'
+Version = '4.0.0'
+Source = 'npm'
+Integrity = 'sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:77a7eb1411d927bb8a5ca7069dbe168886d63c88f446f0b81500a2cf23ddb5b1'
+
+[[package]]
+ID = 'npm:has-symbols@1.1.0'
+Name = 'has-symbols'
+Version = '1.1.0'
+Source = 'npm'
+Integrity = 'sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:4460c7532f28b8df2ddc9a1ec17816d43c24d4b9591dc6c5936b82f7f86ae7c5'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:has-tostringtag@1.0.2'
+Name = 'has-tostringtag'
+Version = '1.0.2'
+Source = 'npm'
+Integrity = 'sha512-NqADB8VjPFLM2V0VvHUewwwsw0ZWBaIdgo+ieHtK3hasLz4qeCRjYcqfB6AQrBggRKppKF8L52/VqdVsO47Dlw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:dc1c74e3f1179a6271f84747d72c89f258aa46ad3e6464fae0e41737a7f0ef7b'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:hasown@2.0.4'
+Name = 'hasown'
+Version = '2.0.4'
+Source = 'npm'
+Integrity = 'sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e9d2b03f95573600e1c13124ce618e3142ed2c538d164595bedcd4408b8a4e4c'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:hosted-git-info@4.1.0'
+Name = 'hosted-git-info'
+Version = '4.1.0'
+Source = 'npm'
+Integrity = 'sha512-kyCuEOWjJqZuDbRHzL8V93NzQhwIB71oFWSyzVo+KPZI+pnQPPxucdkrOZvkLRnrf5URsQM+IJ09Dw29cRALIA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b8fff4cbcf8a1f9abecbe1ccf717e6018cdd4123e2d5a1705db77c9b14ae5fde'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:hosted-git-info@7.0.2'
+Name = 'hosted-git-info'
+Version = '7.0.2'
+Source = 'npm'
+Integrity = 'sha512-puUZAUKT5m8Zzvs72XWy3HtvVbTWljRE66cP60bxJzAqf2DgICo7lYTY2IHUmLnNpjYvw5bvmoHvPc0QO2a62w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:67733a371fcdcaeb55286e78ea485bd8779af5bb4866a984a0d0cd435732da2a'
+
+[[package]]
+ID = 'npm:htmlparser2@10.1.0'
+Name = 'htmlparser2'
+Version = '10.1.0'
+Source = 'npm'
+Integrity = 'sha512-VTZkM9GWRAtEpveh7MSF6SjjrpNVNNVJfFup7xTY3UpFtm67foy9HDVXneLtFVt4pMz5kZtgNcvCniNFb1hlEQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0651eb776dbf530c8c77fb4ca6ad39fc14863a44eac2486981e78d004fad877d'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:http-proxy-agent@7.0.2'
+Name = 'http-proxy-agent'
+Version = '7.0.2'
+Source = 'npm'
+Integrity = 'sha512-T1gkAiYYDWYx3V5Bmyu7HcfcvL7mUrTWiM6yOfa3PIphViJ/gFPbvidQ+veqSOHci/PxBcDabeUNCzpOODJZig=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:785f73faa92bfba8d61da20bf59325ab2b3dca1bbc0bbac523406f404d8a6f02'
+
+[[package]]
+ID = 'npm:https-proxy-agent@7.0.6'
+Name = 'https-proxy-agent'
+Version = '7.0.6'
+Source = 'npm'
+Integrity = 'sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:960f89e8e5240882f64249d04a538421dd39d62ffacc138544647cc3251bc0e0'
+
+[[package]]
+ID = 'npm:iconv-lite@0.6.3'
+Name = 'iconv-lite'
+Version = '0.6.3'
+Source = 'npm'
+Integrity = 'sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:7127ec148f994f031eff658a50dc0629f6010775a8202213b0526ec5e30fc8f4'
+
+[[package]]
+ID = 'npm:ieee754@1.2.1'
+Name = 'ieee754'
+Version = '1.2.1'
+Source = 'npm'
+Integrity = 'sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8ef14b9b397e339db89db97881fb714f49319d8f0eb1275901f45567b28f9dac'
+
+[[package]]
+ID = 'npm:ignore@7.0.6'
+Name = 'ignore'
+Version = '7.0.6'
+Source = 'npm'
+Integrity = 'sha512-BAg6QkE8W+TuQLrrw0Ugr7HegXduRuuj8/ti2kSOc+jz1dmx8/WNcjr6XGnq5YpDWxFwwaavqD0+jIUOKelTsw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c47facddf618449cb90e606bbdd927120bf9613bc1579c168120de9b58c67d68'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:index-to-position@1.2.0'
+Name = 'index-to-position'
+Version = '1.2.0'
+Source = 'npm'
+Integrity = 'sha512-Yg7+ztRkqslMAS2iFaU+Oa4KTSidr63OsFGlOrJoW981kIYO3CGCS3wA95P1mUi/IVSJkn0D479KTJpVpvFNuw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c901418ea21085a92727630720b986cbfc05cb05134eebdc1bea31ca13ad0b2c'
+
+[[package]]
+ID = 'npm:inherits@2.0.4'
+Name = 'inherits'
+Version = '2.0.4'
+Source = 'npm'
+Integrity = 'sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d94dbc6c1bb3c5ac0fb12a73ade187108fc60de273a1b754f55044eb5e24afaf'
+
+[[package]]
+ID = 'npm:ini@1.3.8'
+Name = 'ini'
+Version = '1.3.8'
+Source = 'npm'
+Integrity = 'sha512-JV/yugV2uzW5iMRSiZAyDtQd+nxtUnjeLt0acNdw98kKLrvuRVyB80tsREOE7yvGVgalhZ6RNXCmEHkUKBKxew=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:fd9e1145104d8594ba4ee70596feecb2fe2957f998dc18a2a643e858ee12695a'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:is-docker@3.0.0'
+Name = 'is-docker'
+Version = '3.0.0'
+Source = 'npm'
+Integrity = 'sha512-eljcgEDlEns/7AXFosB5K/2nCM4P7FQPkGc/DWLy5rmFEWvZayGrik1d9/QIY5nJ4f9YsVvBkA6kJpHn9rISdQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:1a230b0b25c81eff06bdee3856a742fd17260169b0bf958de9368c4b3ce2ddee'
+
+[[package]]
+ID = 'npm:is-extglob@2.1.1'
+Name = 'is-extglob'
+Version = '2.1.1'
+Source = 'npm'
+Integrity = 'sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8c5d4286146ad62fc1096981700ce1c22a167708926fca01f9ca74f9bb50bc19'
+
+[[package]]
+ID = 'npm:is-fullwidth-code-point@3.0.0'
+Name = 'is-fullwidth-code-point'
+Version = '3.0.0'
+Source = 'npm'
+Integrity = 'sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6f415dae5dc6070f1b42daee6165eab941a97101982305facc8bafdaf300bc4a'
+
+[[package]]
+ID = 'npm:is-glob@4.0.3'
+Name = 'is-glob'
+Version = '4.0.3'
+Source = 'npm'
+Integrity = 'sha512-xelSayHH36ZgE7ZWhli7pW34hNbNl8Ojv5KVmkJD4hBdD3th8Tfk9vYasLM+mXWOZhFkgZfxhLSnrwRr4elSSg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3fe453fb193bb58f6f0505dfb1151230935380b5b55e1f9864261c2aafc1bec6'
+
+[[package]]
+ID = 'npm:is-inside-container@1.0.0'
+Name = 'is-inside-container'
+Version = '1.0.0'
+Source = 'npm'
+Integrity = 'sha512-KIYLCCJghfHZxqjYBE7rEy0OBuTd5xCHS7tHVgvCLkx7StIoaxwNW3hCALgEUjFfeRk+MG/Qxmp/vtETEF3tRA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:dbde95b8434fc4757624974d4139c4f32391d08c4153565ae91a5f3fd772e07b'
+
+[[package]]
+ID = 'npm:is-number@7.0.0'
+Name = 'is-number'
+Version = '7.0.0'
+Source = 'npm'
+Integrity = 'sha512-41Cifkg6e8TylSpdtTpeLVMqvSBEVzTttHvERD741+pnZ8ANv0004MRL43QKPDlK9cGvNp6NZWZUBlbGXYxxng=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:7b75c1057198cf97696909a9bee176c9c5e9bcb5b03bf3ecef2f484defadd51e'
+
+[[package]]
+ID = 'npm:is-wsl@3.1.1'
+Name = 'is-wsl'
+Version = '3.1.1'
+Source = 'npm'
+Integrity = 'sha512-e6rvdUCiQCAuumZslxRJWR/Doq4VpPR82kqclvcS0efgt430SlGIk05vdCN58+VrzgtIcfNODjozVielycD4Sw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f0f93f9796c2e768a487a35bbe8f96c0b703edeb01add088686ba91a72b92eb2'
+
+[[package]]
+ID = 'npm:istextorbinary@9.5.0'
+Name = 'istextorbinary'
+Version = '9.5.0'
+Source = 'npm'
+Integrity = 'sha512-5mbUj3SiZXCuRf9fT3ibzbSSEWiy63gFfksmGfdOzujPjW3k+z8WvIBxcJHBoQNlaZaiyB25deviif2+osLmLw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:9a37f144a9742a1d2bac9fb5abff38009406b3e0d4abf6ab5a8369b09c44ef1a'
+
+[[package]]
+ID = 'npm:js-tokens@4.0.0'
+Name = 'js-tokens'
+Version = '4.0.0'
+Source = 'npm'
+Integrity = 'sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d884c7a2d8adb5568c1272d92b4f9c62707f4226cf9e7b22e7b957c7361e3c53'
+
+[[package]]
+ID = 'npm:js-yaml@4.3.1'
+Name = 'js-yaml'
+Version = '4.3.1'
+Source = 'npm'
+Integrity = 'sha512-CY6crGq313MX8GkwvB7tzgp99vjQxY1++5y10/BKN/GUfHqWaOGQMNZkBvqSzsZKWk/ijwHlWzzkLulsGHhjWQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:08d6282b77a3e7242061f6dd5516c019b25c53041ad267bca3b790d79ddd5f34'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm test && npm run build'
+
+[[package]]
+ID = 'npm:json-schema-traverse@1.0.0'
+Name = 'json-schema-traverse'
+Version = '1.0.0'
+Source = 'npm'
+Integrity = 'sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:023222622df29fc274bde5d3590e47aa1d4a8e3c1d6e2aba029948ed79799b21'
+
+[[package]]
+ID = 'npm:json5@2.2.3'
+Name = 'json5'
+Version = '2.2.3'
+Source = 'npm'
+Integrity = 'sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:08afb33db600d11fc89b98fac4054f19d5d3e0fe527063116150e1ecc2d2377b'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run production'
+
+[[package]]
+ID = 'npm:jsonc-parser@3.3.1'
+Name = 'jsonc-parser'
+Version = '3.3.1'
+Source = 'npm'
+Integrity = 'sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:4a0315b8671e7463bae7af7c142cdf19e9aa7ba39eb36dc2df383b8648e3cbc9'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm run clean && npm run compile-esm && npm run test && npm run remove-sourcemap-refs'
+
+[[package]]
+ID = 'npm:jsonfile@6.2.1'
+Name = 'jsonfile'
+Version = '6.2.1'
+Source = 'npm'
+Integrity = 'sha512-zwOTdL3rFQ/lRdBnntKVOX6k5cKJwEc1HdilT71BWEu7J41gXIB2MRp+vxduPSwZJPWBxEzv4yH1wYLJGUHX4Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6c1ae1dbfc6c518b10858d2e37c31d31e1fb39eaf32d77c10f1d84c573540d36'
+
+[[package]]
+ID = 'npm:jsonwebtoken@9.0.3'
+Name = 'jsonwebtoken'
+Version = '9.0.3'
+Source = 'npm'
+Integrity = 'sha512-MT/xP0CrubFRNLNKvxJ2BYfy53Zkm++5bX9dtuPbqAeQpTVe0MQTFhao8+Cp//EmJp244xt6Drw/GVEGCUj40g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d9af2628a7a4dda25acf1e19c7ecc2468e1e9e8d4619fe2cae829e89d96f6b82'
+
+[[package]]
+ID = 'npm:jwa@2.0.1'
+Name = 'jwa'
+Version = '2.0.1'
+Source = 'npm'
+Integrity = 'sha512-hRF04fqJIP8Abbkq5NKGN0Bbr3JxlQ+qhZufXVr0DvujKy93ZCbXZMHDL4EOtodSbCWxOqR8MS1tXA5hwqCXDg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c8bc0cf9fbbdc9d2f1b6f3f97ab9c1f70130eec6b153f29fd69baa5a6aa8341d'
+
+[[package]]
+ID = 'npm:jws@4.0.1'
+Name = 'jws'
+Version = '4.0.1'
+Source = 'npm'
+Integrity = 'sha512-EKI/M/yqPncGUUh44xz0PxSidXFr/+r0pA70+gIYhjv+et7yxM+s29Y+VGDkovRofQem0fs7Uvf4+YmAdyRduA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ed3a5fb027f8ce1006c8e30a37e88e7cd49824d4873efca8765304b20fe92e12'
+
+[[package]]
+ID = 'npm:keytar@7.9.0'
+Name = 'keytar'
+Version = '7.9.0'
+Source = 'npm'
+Integrity = 'sha512-VPD8mtVtm5JNtA2AErl6Chp06JBfy7diFQ7TQQhdpWOl6MrCRB+eRbvAZUsbGQS9kiMq0coJsy0W0vHpDCkWsQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3b0faf5e59063f0cfc90d2ca3122568966cd9404fc5f761c7b2b2b2addea1973'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'install'
+command = 'prebuild-install || npm run build'
+
+[[package]]
+ID = 'npm:leven@3.1.0'
+Name = 'leven'
+Version = '3.1.0'
+Source = 'npm'
+Integrity = 'sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:7883560bc4f2c96d054ab98603a0b56ddee55f99b9945569e27919b7013f6ecd'
+
+[[package]]
+ID = 'npm:linkify-it@5.0.2'
+Name = 'linkify-it'
+Version = '5.0.2'
+Source = 'npm'
+Integrity = 'sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f5169c5e5d837b5229180cb7214102d42f5c963f6932f284b608ef9549e927b4'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'postpublish'
+command = 'npm run gh-pages'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm test && npm run build && npm run demo && npm run doc'
+
+[[package]]
+ID = 'npm:lodash.includes@4.3.0'
+Name = 'lodash.includes'
+Version = '4.3.0'
+Source = 'npm'
+Integrity = 'sha512-W3Bx6mdkRTGtlJISOvVD/lbqjTlPPUDTMnlXZFnVwi9NKJ6tiAk6LVdlhZMm17VZisqhKcgzpO5Wz91PCt5b0w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ad1fb3f7aa3c53d2aa7b5fd006507404d71fcccb341162b6423645d997c808d7'
+
+[[package]]
+ID = 'npm:lodash.isboolean@3.0.3'
+Name = 'lodash.isboolean'
+Version = '3.0.3'
+Source = 'npm'
+Integrity = 'sha512-Bz5mupy2SVbPHURB98VAcw+aHh4vRV5IPNhILUCsOzRmsTmSQ17jIuqopAentWoehktxGd9e/hbIXq980/1QJg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:11a52014f5d33bdc0b58a79fd10355b8209aeb1b2c57f2c13b7395ca57dcee9d'
+
+[[package]]
+ID = 'npm:lodash.isinteger@4.0.4'
+Name = 'lodash.isinteger'
+Version = '4.0.4'
+Source = 'npm'
+Integrity = 'sha512-DBwtEWN2caHQ9/imiNeEA5ys1JoRtRfY3d7V9wkqtbycnAmTvRRmbHKDV4a0EYc678/dia0jrte4tjYwVBaZUA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:7885443a78d4400274bf42a5929f6aaab23ca5d7e303deee76fe702ffe873b7d'
+
+[[package]]
+ID = 'npm:lodash.isnumber@3.0.3'
+Name = 'lodash.isnumber'
+Version = '3.0.3'
+Source = 'npm'
+Integrity = 'sha512-QYqzpfwO3/CWf3XP+Z+tkQsfaLL/EnUlXWVkIk5FUPc4sBdTehEqZONuyRt2P67PXAk+NXmTBcc97zw9t1FQrw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:73e5167e1e06f496cbad0f96afda0590302c0867f9840730e2600edf03c29b63'
+
+[[package]]
+ID = 'npm:lodash.isplainobject@4.0.6'
+Name = 'lodash.isplainobject'
+Version = '4.0.6'
+Source = 'npm'
+Integrity = 'sha512-oSXzaWypCMHkPC3NvBEaPHf0KsA5mvPrOPgQWDsbg8n7orZ290M0BmC/jgRZ4vcJ6DTAhjrsSYgdsW/F+MFOBA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:986420e1ce139727af84069d7b88912facac64e5ca1281efd9f55b228fad72d0'
+
+[[package]]
+ID = 'npm:lodash.isstring@4.0.1'
+Name = 'lodash.isstring'
+Version = '4.0.1'
+Source = 'npm'
+Integrity = 'sha512-0wJxfxH1wgO3GrbuP+dTTk7op+6L41QCXbGINEmD+ny/G/eCqGzxyCsh7159S+mgDDcoarnBw6PC1PS5+wUGgw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:45fd48aeca41f05f44fd413471f254c472e1e7a811ab84ea41448d2e7155cd5f'
+
+[[package]]
+ID = 'npm:lodash.once@4.1.1'
+Name = 'lodash.once'
+Version = '4.1.1'
+Source = 'npm'
+Integrity = 'sha512-Sb487aTOCr9drQVL8pIxOzVhafOjZN9UU54hiN8PU3uAiSV7lx1yYNpbNmex2PK6dSJoNTSJUUswT651yww3Mg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0d67808f6f1d4c35c65e0e34c19e0a2de02727616cc8e276535f3eae98ce23b5'
+
+[[package]]
+ID = 'npm:lodash.truncate@4.4.2'
+Name = 'lodash.truncate'
+Version = '4.4.2'
+Source = 'npm'
+Integrity = 'sha512-jttmRe7bRse52OsWIMDLaXxWqRAmtIUccAQ3garviCqJjafXOfNMO0yMfNpdD6zbGaTU0P5Nz7e7gAT6cKmJRw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:2fb9e132f972a4ce231b60d116d3d750e5acc16b0cdfd479faecdc525b6dcd23'
+
+[[package]]
+ID = 'npm:lodash@4.18.1'
+Name = 'lodash'
+Version = '4.18.1'
+Source = 'npm'
+Integrity = 'sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:696942c2a488c9d7428e9ca5f12ccf03b52de01dcdbfe4d4751d392f0491ae16'
+
+[[package]]
+ID = 'npm:lru-cache@10.4.3'
+Name = 'lru-cache'
+Version = '10.4.3'
+Source = 'npm'
+Integrity = 'sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0ea17b527beaaaac504ea7a7aaab90db0581dc9a2e117bfbdba44789f15496ed'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'tshy && bash fixup.sh'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:lru-cache@11.5.2'
+Name = 'lru-cache'
+Version = '11.5.2'
+Source = 'npm'
+Integrity = 'sha512-4pfM1Ff0x50o0tQwb5ucw/RzNyD0/YJME6IVcStalZuMWxdt3sR3huStTtxz4PUmvZfRguvDejasvQ2kifR11g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e46c8eaafc64f168603aebd39cfd0e987bec39a93ade280653e2331fd2516a22'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'tshy && bash scripts/build.sh'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:lru-cache@6.0.0'
+Name = 'lru-cache'
+Version = '6.0.0'
+Source = 'npm'
+Integrity = 'sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:5ce40deb031cf6968f3832502a68f8d26be09764dc4f8fc07957a2fd7e8cdf5e'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:markdown-it@14.3.0'
+Name = 'markdown-it'
+Version = '14.3.0'
+Source = 'npm'
+Integrity = 'sha512-RCEsPjR+sr0x+AuYp601tKTkgFG4YEPLCzHST3cQ/fhlJkqAkz1L2/Qbp1j9qw5SBwQHFBoW8+hoN5xssOF0Tw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c68c4479fee440ed43f82f9807f1777afc1595fc5c9adec4317da230e12643e6'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'postpublish'
+command = 'npm run gh-demo && npm run gh-doc'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm test && npm run build && npm run demo && npm run doc'
+
+[[package]]
+ID = 'npm:math-intrinsics@1.1.0'
+Name = 'math-intrinsics'
+Version = '1.1.0'
+Source = 'npm'
+Integrity = 'sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b8c2c35575493dc086df88cfc468a9e2651b6617336480ab3f00fcf853f443a7'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:mdurl@2.1.0'
+Name = 'mdurl'
+Version = '2.1.0'
+Source = 'npm'
+Integrity = 'sha512-1+HBaOx0zi/dQWht8rNv9MYf9qqpqL/kxI0hXImU6Y547zM6Sni8BQibt7ifgMcYtQg41ao3Ivd6cnSM86inpg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:23fc27c3d70e776c3aa40ec019c2be21ef43ed33b73f8476ada8715c5aabd11d'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:merge2@1.4.1'
+Name = 'merge2'
+Version = '1.4.1'
+Source = 'npm'
+Integrity = 'sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b8381291c9b3c859c5b58e75da8bdde64b424344054893c774c68c3c443d7881'
+
+[[package]]
+ID = 'npm:micromatch@4.0.8'
+Name = 'micromatch'
+Version = '4.0.8'
+Source = 'npm'
+Integrity = 'sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c78d05f20aff3bc95f024b19e53f72998cfc5f69c42b126c49dff8b1b271bc46'
+
+[[package]]
+ID = 'npm:mime-db@1.52.0'
+Name = 'mime-db'
+Version = '1.52.0'
+Source = 'npm'
+Integrity = 'sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b8e70bb4d52acd5d0d1ed848c0e6e3c903a533aa500acffbe003f011b18f9e3b'
+
+[[package]]
+ID = 'npm:mime-types@2.1.35'
+Name = 'mime-types'
+Version = '2.1.35'
+Source = 'npm'
+Integrity = 'sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:49734fc98906e9baaacf8034923470a4c84de72943a7c005face63360701d1c3'
+
+[[package]]
+ID = 'npm:mime@1.6.0'
+Name = 'mime'
+Version = '1.6.0'
+Source = 'npm'
+Integrity = 'sha512-x0Vn8spI+wuJ1O6S7gnbaQg8Pxh4NNHb7KSINmEWKiPE4RKOplvijn+NkmYmmRgP68mc70j2EbeTFRsrswaQeg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:215210390e617ac355b422692c7096476e3fe648176cb72b40075a03c9cc379a'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'node src/build.js'
+
+[[package]]
+ID = 'npm:mimic-response@3.1.0'
+Name = 'mimic-response'
+Version = '3.1.0'
+Source = 'npm'
+Integrity = 'sha512-z0yWI+4FDrrweS8Zmt4Ej5HdJmky15+L2e6Wgn3+iK5fWzb6T3fhNFq2+MeTRb064c6Wr4N/wv0DzQTjNzHNGQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:321e9b7c155cd47183de9d9cdbd6c37bca8187e15b11a42443883330c063dd54'
+
+[[package]]
+ID = 'npm:minimatch@10.2.6'
+Name = 'minimatch'
+Version = '10.2.6'
+Source = 'npm'
+Integrity = 'sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:5a3d2c8074a28229665727e47b8a1090941856a7962905efe05d20d3760355f8'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'tshy'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:minimist@1.2.8'
+Name = 'minimist'
+Version = '1.2.8'
+Source = 'npm'
+Integrity = 'sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:350a76c115b393c19d24654834261e5dc9f0e8cc5e08f3937fa80140f3e4ce83'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=auto'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:minipass@7.1.3'
+Name = 'minipass'
+Version = '7.1.3'
+Source = 'npm'
+Integrity = 'sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:52ac61be743755e3fdc98e560086d0d4a1e2c7fd3643387792db38e322d27d12'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'tshy'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:mkdirp-classic@0.5.3'
+Name = 'mkdirp-classic'
+Version = '0.5.3'
+Source = 'npm'
+Integrity = 'sha512-gKLcREMhtuZRwRAfqP3RFW+TK4JqApVBtOIftVgjuABpAtpxhPGaDcfvbhNvD0B8iD1oUr/txX35NjcaY6Ns/A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:29bcb44df9b5cc4a5b4c3f44f16ec48c53389d2f3892c95c779e31a980075246'
+
+[[package]]
+ID = 'npm:ms@2.1.3'
+Name = 'ms'
+Version = '2.1.3'
+Source = 'npm'
+Integrity = 'sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f6616e15e530ed552f9daa2d3ce71963947c6bc7c98c9b64fd3e673fd02622c6'
+
+[[package]]
+ID = 'npm:mute-stream@0.0.8'
+Name = 'mute-stream'
+Version = '0.0.8'
+Source = 'npm'
+Integrity = 'sha512-nnbWWOkoWyUsTjKrhgD0dcz22mdkSnpYqbEjIm2nhwhuxlSkpywJmBo8h0ZqJdkp73mb90SssHkN4rsRaBAfAA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3e55c89913e37f0e1dcb85af13e052644663daebfceae8ae376fcd8cefe96c16'
+
+[[package]]
+ID = 'npm:napi-build-utils@2.0.0'
+Name = 'napi-build-utils'
+Version = '2.0.0'
+Source = 'npm'
+Integrity = 'sha512-GEbrYkbfF7MoNaoh2iGG84Mnf/WZfB0GdGEsM8wz7Expx/LlWf5U8t9nvJKXSp3qr5IsEbK04cBGhol/KwOsWA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a597633b66d0406c4ddfcdcd4eb3fa33aa89cb97f9c46fb52aa13ae889046a9e'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run test'
+
+[[package]]
+ID = 'npm:node-abi@3.94.0'
+Name = 'node-abi'
+Version = '3.94.0'
+Source = 'npm'
+Integrity = 'sha512-W5ZNO5KRPB5TkYmGVD9F6YqhsglXJzE6etpbmT+f6EQElhiX/UTG551cnsRGvLG3fyZEg9HwaDmNmj5nwJ4z9g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f0f1f5312ccf8c55f979c1ae65d499e309749b363a90ad23d62e38fc17f3c479'
+
+[[package]]
+ID = 'npm:node-addon-api@4.3.0'
+Name = 'node-addon-api'
+Version = '4.3.0'
+Source = 'npm'
+Integrity = 'sha512-73sE9+3UaLYYFmDsFZnqCInzPyh3MqIwZO9cw58yIqAZhONrrabrYyYe3TuIqtIiOuTXVhsGau8hcrhhwSsDIQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3760f2d172ef44b950ae8d3e2f932ca97f28ea8d5cc5f717451ebffd771f5cd1'
+
+[[package]]
+ID = 'npm:node-sarif-builder@3.4.0'
+Name = 'node-sarif-builder'
+Version = '3.4.0'
+Source = 'npm'
+Integrity = 'sha512-tGnJW6OKRii9u/b2WiUViTJS+h7Apxx17qsMUjsUeNDiMMX5ZFf8F8Fcz7PAQ6omvOxHZtvDTmOYKJQwmfpjeg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:be9641444bbaeee20361c24b7d1dbe4da44d824c99701e0d7d552dcc4e4e91b9'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'tsc'
+
+[[package]]
+ID = 'npm:normalize-package-data@6.0.2'
+Name = 'normalize-package-data'
+Version = '6.0.2'
+Source = 'npm'
+Integrity = 'sha512-V6gygoYb/5EmNI+MEGrWkC+e6+Rr7mTmfHrxDbLzxQogBkgzo76rkok0Am6thgSF7Mv2nLOajAJj5vDJZEFn7g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8c4c2c45eeac8feb72d994fc52e3aedec326faae477369892432d57796982523'
+
+[[package]]
+ID = 'npm:nth-check@2.1.1'
+Name = 'nth-check'
+Version = '2.1.1'
+Source = 'npm'
+Integrity = 'sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:45dc0a2bc34205656c0fbe8374c725c04b71b40e739b74c9fc763480c8063642'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:object-inspect@1.13.4'
+Name = 'object-inspect'
+Version = '1.13.4'
+Source = 'npm'
+Integrity = 'sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8324967a3afd8a45b0401e3554aebc1843f493bec46a89a7ce8cf072e62e90bf'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:once@1.4.0'
+Name = 'once'
+Version = '1.4.0'
+Source = 'npm'
+Integrity = 'sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:cf51460ba370c698f68b976e514d113497339ba018b6003e8e8eb569c6fccfcf'
+
+[[package]]
+ID = 'npm:open@10.2.0'
+Name = 'open'
+Version = '10.2.0'
+Source = 'npm'
+Integrity = 'sha512-YgBpdJHPyQ2UE5x+hlSXcnejzAvD0b22U2OuAP+8OnlJT+PjWPxtgmGqKKc+RgTM63U9gN0YzrYc71R2WT/hTA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b5b60d1271802682a5c8e0ed1cc8e825d3be7fd610afaaf3d4d8ce799e825be9'
+
+[[package]]
+ID = 'npm:p-map@7.0.6'
+Name = 'p-map'
+Version = '7.0.6'
+Source = 'npm'
+Integrity = 'sha512-I4Prw6ivkd6p8PiYR1tXASOAOBzIJwu0TB7fqaX0c/8c3QAehNYmX57EijyGGGBt3c/BIowGwV03RVBtXvHEVg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b52ce5684950a7e5792d67c2bec28125695c55c1d689a778ee6c64efdb15b5f0'
+
+[[package]]
+ID = 'npm:parse-json@8.3.0'
+Name = 'parse-json'
+Version = '8.3.0'
+Source = 'npm'
+Integrity = 'sha512-ybiGyvspI+fAoRQbIPRddCcSTV9/LsJbf0e/S85VLowVGzRmokfneg2kwVW/KU5rOXrPSbF1qAKPMgNTqqROQQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:417c68fbbfb5a7ebb279f1972de2c1253e7de2979b1a7ded32e1063d3b47d148'
+
+[[package]]
+ID = 'npm:parse-semver@1.1.1'
+Name = 'parse-semver'
+Version = '1.1.1'
+Source = 'npm'
+Integrity = 'sha512-Eg1OuNntBMH0ojvEKSrvDSnwLmvVuUOSdylH/pSCPNMIspLlweJyIWXCE+k/5hm3cj/EBUYwmWkjhBALNP4LXQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:192e419c4e19aee2fb8feaf14a7b21757f05ac0e59c4ecf1b8fcc8ee1d098a27'
+
+[[package]]
+ID = 'npm:parse5-htmlparser2-tree-adapter@7.1.0'
+Name = 'parse5-htmlparser2-tree-adapter'
+Version = '7.1.0'
+Source = 'npm'
+Integrity = 'sha512-ruw5xyKs6lrpo9x9rCZqZZnIUntICjQAd0Wsmp396Ul9lN/h+ifgVV1x1gZHi8euej6wTfpqX8j+BFQxF0NS/g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6655e09d2e9afce36a2a41c01c4114f836032f5b6cf1cac137cd8ae5a6ca96fb'
+
+[[package]]
+ID = 'npm:parse5-parser-stream@7.1.2'
+Name = 'parse5-parser-stream'
+Version = '7.1.2'
+Source = 'npm'
+Integrity = 'sha512-JyeQc9iwFLn5TbvvqACIF/VXG6abODeB3Fwmv/TGdLk2LfbWkaySGY72at4+Ty7EkPZj854u4CrICqNk2qIbow=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:703cb6bc8ac15575f5c485077fc05f68853ad723a42613737818d5496aeaa7de'
+
+[[package]]
+ID = 'npm:parse5@7.3.0'
+Name = 'parse5'
+Version = '7.3.0'
+Source = 'npm'
+Integrity = 'sha512-IInvU7fabl34qmi9gY8XOVxhYyMyuH2xUNpb2q8/Y+7552KlejkRvqvD19nMoUW/uQGGbqNpA6Tufu5FL5BZgw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:9316ca7af41da9e85071b62b9605aa0a6aaeb0463f833c29e7a331e7898f0420'
+
+[[package]]
+ID = 'npm:path-scurry@2.0.2'
+Name = 'path-scurry'
+Version = '2.0.2'
+Source = 'npm'
+Integrity = 'sha512-3O/iVVsJAPsOnpwWIeD+d6z/7PmqApyQePUtCndjatj/9I5LylHvt5qluFaBT3I5h3r1ejfR056c+FCv+NnNXg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:dea3e3dab1c00c28fcb5871b1133b02050c7e110dde2dbe31e14067922c23ec1'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'tshy'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'git push origin --follow-tags'
+
+[[package]]
+ID = 'npm:path-type@6.0.0'
+Name = 'path-type'
+Version = '6.0.0'
+Source = 'npm'
+Integrity = 'sha512-Vj7sf++t5pBD637NSfkxpHSMfWaeig5+DKWLhcqIYx6mWQz5hdJTGDVMQiJcw1ZYkhs7AazKDGpRVji1LJCZUQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c22896136652e68b5e10de5cf197d5038885e0a92f0d0df62174ae36f27f2276'
+
+[[package]]
+ID = 'npm:pend@1.2.0'
+Name = 'pend'
+Version = '1.2.0'
+Source = 'npm'
+Integrity = 'sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a12f279b25a9df710b52a9892bad00bdeeb862a9b5d1e4f4db77131129436d7f'
+
+[[package]]
+ID = 'npm:picocolors@1.1.1'
+Name = 'picocolors'
+Version = '1.1.1'
+Source = 'npm'
+Integrity = 'sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d3aedb2807967b7eb37fd11b03b7e3701e725af79c650d0812ff7213f8f882d9'
+
+[[package]]
+ID = 'npm:picomatch@2.3.2'
+Name = 'picomatch'
+Version = '2.3.2'
+Source = 'npm'
+Integrity = 'sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:4c843ba015bec815ac52116162559ab7b4b4efbd3b86f7fcf38f3d770decace6'
+
+[[package]]
+ID = 'npm:pluralize@2.0.0'
+Name = 'pluralize'
+Version = '2.0.0'
+Source = 'npm'
+Integrity = 'sha512-TqNZzQCD4S42De9IfnnBvILN7HAW7riLqsCyp8lgjXeysyPlX5HhqKAcJHHHb9XskE4/a+7VGC9zzx8Ls0jOAw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:79b899c5f4a3568098833a657fdbf1cf2edd171bbd3d586c7484ea42a4a84a20'
+
+[[package]]
+ID = 'npm:pluralize@8.0.0'
+Name = 'pluralize'
+Version = '8.0.0'
+Source = 'npm'
+Integrity = 'sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:984464a74e8a33c18d2760e162533a68eb772574b0816918f738e2b27ef5b695'
+
+[[package]]
+ID = 'npm:prebuild-install@7.1.3'
+Name = 'prebuild-install'
+Version = '7.1.3'
+Source = 'npm'
+Integrity = 'sha512-8Mf2cbV7x1cXPUILADGI3wuhfqWvtiLA1iclTDbFRZkgRQS0NqsPZphna9V+HyTEadheuPmjaJMsbzKQFOzLug=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6741b8ecf3c24c0a652748ca362560405b38797c760ccff531ab61f14930f9ab'
+
+[[package]]
+ID = 'npm:pump@3.0.4'
+Name = 'pump'
+Version = '3.0.4'
+Source = 'npm'
+Integrity = 'sha512-VS7sjc6KR7e1ukRFhQSY5LM2uBWAUPiOPa/A3mkKmiMwSmRFUITt0xuj+/lesgnCv+dPIEYlkzrcyXgquIHMcA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3c58c7fc4c30035cdabb0b33e81d8e048935e134469491767cbaf89bd64c9b36'
+
+[[package]]
+ID = 'npm:punycode.js@2.3.1'
+Name = 'punycode.js'
+Version = '2.3.1'
+Source = 'npm'
+Integrity = 'sha512-uxFIHU0YlHYhDQtV4R9J6a52SLx28BCjT+4ieh7IGbgwVJWO+km431c4yRlREUAsAmt/uMjQUyQHNEPf0M39CA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8768d89aa6359164220014ba575e1464e3ddff11bedff1cc268e39a21f7324a8'
+
+[[package]]
+ID = 'npm:qs@6.15.3'
+Name = 'qs'
+Version = '6.15.3'
+Source = 'npm'
+Integrity = 'sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c0278b636e7a016d6e835cd8f194a63c276dff430620e4a04344a4ba8892c0f9'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated && npm run dist'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:queue-microtask@1.2.3'
+Name = 'queue-microtask'
+Version = '1.2.3'
+Source = 'npm'
+Integrity = 'sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ffaf0a20a201865e143aa27e57a83bf69a75547729a65cd3180bcba4f0f29ecd'
+
+[[package]]
+ID = 'npm:rc-config-loader@4.1.4'
+Name = 'rc-config-loader'
+Version = '4.1.4'
+Source = 'npm'
+Integrity = 'sha512-3GiwEzklkbXTDp52UR5nT8iXgYAx1V9ZG/kDZT7p60u2GCv2XTwQq4NzinMoMpNtXhmt3WkhYXcj6HH8HdwCEQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:b8e2cec8fd69b5a91532e691f28137730d063f471f3af8cad1670d1312c97517'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'git config --local core.hooksPath .githooks'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package]]
+ID = 'npm:rc@1.2.8'
+Name = 'rc'
+Version = '1.2.8'
+Source = 'npm'
+Integrity = 'sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:03a5fae485203eb424dd3e9b1c4cf9ce3d04c03b154cb4fb6604497815cae93b'
+
+[[package]]
+ID = 'npm:read-pkg@9.0.1'
+Name = 'read-pkg'
+Version = '9.0.1'
+Source = 'npm'
+Integrity = 'sha512-9viLL4/n1BJUCT1NXVTdS1jtm80yDEgR5T4yCelII49Mbj0v1rZdKqj7zCiYdbB0CuCgdrvHcNogAKTFPBocFA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:5744566d6695e7c4aea9fc6c8c17fb3bafeaa7116ddab46b9fa1ab2251e13add'
+
+[[package]]
+ID = 'npm:read@1.0.7'
+Name = 'read'
+Version = '1.0.7'
+Source = 'npm'
+Integrity = 'sha512-rSOKNYUmaxy0om1BNjMN4ezNT6VKK+2xF4GBhc81mkH7L60i6dp8qPYrkndNLT3QPphoII3maL9PVC9XmhHwVQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:2d1692ddbc6e263a94c215c52e665230598f714dd7cd2ef93c162d4832560c11'
+
+[[package]]
+ID = 'npm:readable-stream@3.6.2'
+Name = 'readable-stream'
+Version = '3.6.2'
+Source = 'npm'
+Integrity = 'sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:edd866c05e318aa9c091763eebdd4207409b7a7648be19c5317a96047305ab5d'
+
+[[package]]
+ID = 'npm:require-from-string@2.0.2'
+Name = 'require-from-string'
+Version = '2.0.2'
+Source = 'npm'
+Integrity = 'sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:cb694a4965908f7775a0c757f00cf4e624d193cd71d77988fbcca0f597b88d82'
+
+[[package]]
+ID = 'npm:reusify@1.1.0'
+Name = 'reusify'
+Version = '1.1.0'
+Source = 'npm'
+Integrity = 'sha512-g6QUff04oZpHs0eG5p83rFLhHeV00ug/Yf9nZM6fLeUrPguBTkTQOdpAWWspMh55TZfVQDPaN3NQJfbVRAxdIw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:2460004412100eea8e96b98f14d3dfb4e22a6628654e5431d14f974c6201ca18'
+
+[[package]]
+ID = 'npm:run-applescript@7.1.0'
+Name = 'run-applescript'
+Version = '7.1.0'
+Source = 'npm'
+Integrity = 'sha512-DPe5pVFaAsinSaV6QjQ6gdiedWDcRCbUuiQfQa2wmWV7+xC9bGulGI8+TdRmoFkAPaBXk8CrAbnlY2ISniJ47Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d29ace7117aaa0d6b119027e9a157c238e6899bbb35d03f508ae8d4fa9ca8c9d'
+
+[[package]]
+ID = 'npm:run-parallel@1.2.0'
+Name = 'run-parallel'
+Version = '1.2.0'
+Source = 'npm'
+Integrity = 'sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6ba231f5377e0b18ef7ab0c65ca895708e21f1abff5999b24629436b0ff77ac8'
+
+[[package]]
+ID = 'npm:safe-buffer@5.2.1'
+Name = 'safe-buffer'
+Version = '5.2.1'
+Source = 'npm'
+Integrity = 'sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:5d181804516c4a693a384272a7bd0e42d17e0d4b301ccfbe408669ccafdcb3e8'
+
+[[package]]
+ID = 'npm:safer-buffer@2.1.2'
+Name = 'safer-buffer'
+Version = '2.1.2'
+Source = 'npm'
+Integrity = 'sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:78812f65ae3b98071ce1c9bacbe0666f4220d0b2753c2a11530eb27df440a3b3'
+
+[[package]]
+ID = 'npm:sax@1.6.1'
+Name = 'sax'
+Version = '1.6.1'
+Source = 'npm'
+Integrity = 'sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6e9abf03478608b80894bb8b6421271a0e583504f785f749a700d6bb35be85bd'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'postpublish'
+command = 'git push origin --all; git push origin --tags'
+
+[[package]]
+ID = 'npm:secretlint@10.2.2'
+Name = 'secretlint'
+Version = '10.2.2'
+Source = 'npm'
+Integrity = 'sha512-xVpkeHV/aoWe4vP4TansF622nBEImzCY73y/0042DuJ29iKIaqgoJ8fGxre3rVSHHbxar4FdJobmTnLp9AU0eg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ca32517edf390fe5cfc096bc33fde916f6d4cae7d46253604b3b3bac15ce7a65'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'npm run --if-present build'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run clean && npm run build'
+
+[[package]]
+ID = 'npm:semver@5.7.2'
+Name = 'semver'
+Version = '5.7.2'
+Source = 'npm'
+Integrity = 'sha512-cBznnQ9KjJqU67B52RMC65CMarK2600WFnbkcaiwWq3xy/5haFJlshgnpjovMVJ+Hff49d8GEn0b87C5pDQ10g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e548374dbc4898ddcf349bde966885ac87949be21fd04cd096f53fef0ce655f9'
+
+[[package]]
+ID = 'npm:semver@7.8.5'
+Name = 'semver'
+Version = '7.8.5'
+Source = 'npm'
+Integrity = 'sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d85045d4300d7d57c891336b95df532e73f34c22ffcd222452b6d08b9d127d5d'
+
+[[package]]
+ID = 'npm:side-channel-list@1.0.1'
+Name = 'side-channel-list'
+Version = '1.0.1'
+Source = 'npm'
+Integrity = 'sha512-mjn/0bi/oUURjc5Xl7IaWi/OJJJumuoJFQJfDDyO46+hBWsfaVM65TBHq2eoZBhzl9EchxOijpkbRC8SVBQU0w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:793c94ac215be772757045f8804406578b8cbc1bda7e1cde23011f9145af74f7'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:side-channel-map@1.0.1'
+Name = 'side-channel-map'
+Version = '1.0.1'
+Source = 'npm'
+Integrity = 'sha512-VCjCNfgMsby3tTdo02nbjtM/ewra6jPHmpThenkTYh8pG9ucZ/1P8So4u4FGBek/BjpOVsDCMoLA/iuBKIFXRA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3b256b6421300bcc962d891b1588fd4b64e84e339b9c29f78c61b72f2a7116d6'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:side-channel-weakmap@1.0.2'
+Name = 'side-channel-weakmap'
+Version = '1.0.2'
+Source = 'npm'
+Integrity = 'sha512-WPS/HvHQTYnHisLo9McqBHOJk2FkHO/tlpvldyrnem4aeQp4hai3gythswg6p01oSoTl58rcpiFAjF2br2Ak2A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3b2a54f0c5e7ad898c8f0ffda2a6805fb2cc5d68f53addf0b4a9ec0db9d0d06e'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:side-channel@1.1.1'
+Name = 'side-channel'
+Version = '1.1.1'
+Source = 'npm'
+Integrity = 'sha512-6x6dK6zJdpTzF4sQeNYxwtvBzf6Eg4GtlesS94HOvTudUeyK2WXAaIfmDgsyslYrRBeFIlsi54AYsFGUuhmvrQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e6edbc8f203901612a3cd938f940ed520333923986d5427b95c87aa1882e7bd5'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepack'
+command = 'npmignore --auto --commentLines=autogenerated'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublish'
+command = 'not-in-publish || npm run prepublishOnly'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'safe-publish-latest'
+
+[[package]]
+ID = 'npm:simple-concat@1.0.1'
+Name = 'simple-concat'
+Version = '1.0.1'
+Source = 'npm'
+Integrity = 'sha512-cSFtAPtRhljv69IK0hTVZQ+OfE9nePi/rtJmw5UjHeVyVroEqJXP1sFztKUy1qU+xvz3u/sfYJLa947b7nAN2Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6afccb749cab9f33158ad30a51797a8e7e7b4cc7e09151d5537c6dcd8882763e'
+
+[[package]]
+ID = 'npm:simple-get@4.0.1'
+Name = 'simple-get'
+Version = '4.0.1'
+Source = 'npm'
+Integrity = 'sha512-brv7p5WgH0jmQJr1ZDDfKDOSeWWg+OVypG99A/5vYGPqJ6pxiaHLy8nxtFjBA7oMa01ebA9gfh1uMCFqOuXxvA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f902a1ee61bb7c404b631914833ddcd480dfc20350b275a7e72d45c589459754'
+
+[[package]]
+ID = 'npm:slash@5.1.0'
+Name = 'slash'
+Version = '5.1.0'
+Source = 'npm'
+Integrity = 'sha512-ZA6oR3T/pEyuqwMgAKT0/hAv8oAXckzbkmR0UkUosQ+Mc4RxGoJkRmwHgHufaenlyAgE1Mxgpdcrf75y6XcnDg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8e273f3a6d17b22da8ab2bbab64db1190c272cd1588092881d124e18099deb7a'
+
+[[package]]
+ID = 'npm:slice-ansi@4.0.0'
+Name = 'slice-ansi'
+Version = '4.0.0'
+Source = 'npm'
+Integrity = 'sha512-qMCMfhY040cVHT43K9BFygqYbUPFZKHOg7K73mtTWJRb8pyP3fzf4Ixd5SzdEJQ6MRUg/WBnOLxghZtKKurENQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:348316572da167e4ad69da480f801116515f9a7cdc8c9ca79a164ff6e6b4f184'
+
+[[package]]
+ID = 'npm:spdx-correct@3.2.0'
+Name = 'spdx-correct'
+Version = '3.2.0'
+Source = 'npm'
+Integrity = 'sha512-kN9dJbvnySHULIluDHy32WHRUu3Og7B9sbY7tsFLctQkIqnMh3hErYgdMjTYuqmcXX+lK5T1lnUt3G7zNswmZA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f106c7a567d9bcaee76f55353be4ceec5909df30134d25864b71324fe4e46278'
+
+[[package]]
+ID = 'npm:spdx-exceptions@2.5.0'
+Name = 'spdx-exceptions'
+Version = '2.5.0'
+Source = 'npm'
+Integrity = 'sha512-PiU42r+xO4UbUS1buo3LPJkjlO7430Xn5SVAhdpzzsPHsjbYVflnnFdATgabnLude+Cqu25p6N+g2lw/PFsa4w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:c5295dd22415e8b60a5af2560e7461954f660bcb591be7c5622e463956d33256'
+
+[[package]]
+ID = 'npm:spdx-expression-parse@3.0.1'
+Name = 'spdx-expression-parse'
+Version = '3.0.1'
+Source = 'npm'
+Integrity = 'sha512-cbqHunsQWnJNE6KhVSMsMeH5H/L9EpymbzqTQ3uLwNCLZ1Q481oWaofqH7nO6V07xlXwY6PhQdQ2IedWx/ZK4Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:01a89e6a60412e344e74ed81f370fd7d33bbb658773f0cee6e2f15ea15449d1f'
+
+[[package]]
+ID = 'npm:spdx-license-ids@3.0.23'
+Name = 'spdx-license-ids'
+Version = '3.0.23'
+Source = 'npm'
+Integrity = 'sha512-CWLcCCH7VLu13TgOH+r8p1O/Znwhqv/dbb6lqWy67G+pT1kHmeD/+V36AVb/vq8QMIQwVShJ6Ssl5FPh0fuSdw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:fea7d95340e83a403c73463ea683cdde960029d956a86a023af6e283fd1e82fe'
+
+[[package]]
+ID = 'npm:string-width@4.2.3'
+Name = 'string-width'
+Version = '4.2.3'
+Source = 'npm'
+Integrity = 'sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:adbb4fb1b26e8069af99adff0079369c93f17cf887b91086691d671ddbd52934'
+
+[[package]]
+ID = 'npm:string_decoder@1.3.0'
+Name = 'string_decoder'
+Version = '1.3.0'
+Source = 'npm'
+Integrity = 'sha512-hkRX8U1WjJFd8LsDJ2yQ/wWWxaopEsABU1XfkM8A+j0+85JAGppt16cr1Whg6KIbb4okU6Mql6BOj+uup/wKeA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:7d036900940345e423538371ae45b23bfaf4b454bc398c6ba604063b0597b3ad'
+
+[[package]]
+ID = 'npm:strip-ansi@6.0.1'
+Name = 'strip-ansi'
+Version = '6.0.1'
+Source = 'npm'
+Integrity = 'sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:9bdb75d0bff49f156dd8c3bcb0e06b3fa96c3d88ddd4c342a4345866a40c08ca'
+
+[[package]]
+ID = 'npm:strip-ansi@7.2.0'
+Name = 'strip-ansi'
+Version = '7.2.0'
+Source = 'npm'
+Integrity = 'sha512-yDPMNjp4WyfYBkHnjIRLfca1i6KMyGCtsVgoKe/z1+6vukgaENdgGBZt+ZmKPc4gavvEZ5OgHfHdrazhgNyG7w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:2fa01de86a5022ef32773abbc4e84a53a1c5d31f5a5cbf03ed2575f10408543f'
+
+[[package]]
+ID = 'npm:strip-json-comments@2.0.1'
+Name = 'strip-json-comments'
+Version = '2.0.1'
+Source = 'npm'
+Integrity = 'sha512-4gB8na07fecVVkOI6Rs4e7T6NOTki5EmL7TUduTs6bu3EdnSycntVJ4re8kgZA+wx9IueI2Y11bfbgwtzuE0KQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:dbe45febaf1bf7265c25733242bc0e7ac38b632db6a8e19f0341af4770425899'
+
+[[package]]
+ID = 'npm:structured-source@4.0.0'
+Name = 'structured-source'
+Version = '4.0.0'
+Source = 'npm'
+Integrity = 'sha512-qGzRFNJDjFieQkl/sVOI2dUjHKRyL9dAJi2gCPGJLbJHBIkyOHxjuocpIEfbLioX+qSJpvbYdT49/YCdMznKxA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0c6ec5e53657726e2b151a9ecd4e1eecd9c66f59337b684f3dd4aa886dfe7a9d'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:supports-color@7.2.0'
+Name = 'supports-color'
+Version = '7.2.0'
+Source = 'npm'
+Integrity = 'sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f16acafd1634624e60c24a5538004c4e168c82607f10dbe28395e9df3e7d5e4a'
+
+[[package]]
+ID = 'npm:supports-hyperlinks@3.2.0'
+Name = 'supports-hyperlinks'
+Version = '3.2.0'
+Source = 'npm'
+Integrity = 'sha512-zFObLMyZeEwzAoKCyu1B91U79K2t7ApXuQfo8OuxwXLDgcKxuwM+YvcbIhm6QWqz7mHUH1TVytR1PwVVjEuMig=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e5676227d3ecddf46090dbe9cbd01e71e1237c3e81f70a7f4d05137ee2871edb'
+
+[[package]]
+ID = 'npm:table@6.9.0'
+Name = 'table'
+Version = '6.9.0'
+Source = 'npm'
+Integrity = 'sha512-9kY+CygyYM6j02t5YFHbNz2FN5QmYGv9zAjVp4lCDjlCw7amdckXlEt/bjMhUIfj4ThGRE4gCUH5+yGnNuPo5A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:baa786d50fb8679bfc84308cd1d41462a8aadfbbba5f9694c8dcae0865b9a70f'
+
+[[package]]
+ID = 'npm:tar-fs@2.1.5'
+Name = 'tar-fs'
+Version = '2.1.5'
+Source = 'npm'
+Integrity = 'sha512-OboTd8mmMhZDNPV+UjQcK9yKAatXu2aJ+r1w4im1Otd4M4fl2hwvdoXUxIYHFTHWK/3y3FarBP70v3vwmGlOxw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ad3283c3f1f444bbe1b8d807373b682bebf0e145893cca164bb3b6a27135e5e0'
+
+[[package]]
+ID = 'npm:tar-stream@2.2.0'
+Name = 'tar-stream'
+Version = '2.2.0'
+Source = 'npm'
+Integrity = 'sha512-ujeqbceABgwMZxEJnk2HDY2DlnUZ+9oEcb1KzTVfYHio0UE6dG71n60d8D2I4qNvleWrrXpmjpt7vZeF1LnMZQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3a8f83dfd74e9b401ba679e18d7917830c04deed3e2346e9fbca17fab4a1395b'
+
+[[package]]
+ID = 'npm:terminal-link@4.0.0'
+Name = 'terminal-link'
+Version = '4.0.0'
+Source = 'npm'
+Integrity = 'sha512-lk+vH+MccxNqgVqSnkMVKx4VLJfnLjDBGzH16JVZjKE2DoxP57s6/vt6JmXV5I3jBcfGrxNrYtC+mPtU7WJztA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a00fe00bf190d52e41a3c3101ba112d0c6f2f7ad04dfb8fb85827ffb1eb93de6'
+
+[[package]]
+ID = 'npm:text-table@0.2.0'
+Name = 'text-table'
+Version = '0.2.0'
+Source = 'npm'
+Integrity = 'sha512-N+8UisAXDGk8PFXP4HAzVR9nbfmVJ3zYLAWiTIoqC5v5isinhr+r5uaO8+7r3BMfuNIufIsA7RdpVgacC2cSpw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d883f6704c060373991701894931dd859f73938dd159c66092247a403f88c772'
+
+[[package]]
+ID = 'npm:textextensions@6.11.0'
+Name = 'textextensions'
+Version = '6.11.0'
+Source = 'npm'
+Integrity = 'sha512-tXJwSr9355kFJI3lbCkPpUH5cP8/M0GGy2xLO34aZCjMXBaK3SoPnZwr/oWmo1FdCnELcs4npdCIOFtq9W3ruQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:76194efbd484b3ac3be4cdc0d649ba8b9c0e154a53062ac067348e469cc66c09'
+
+[[package]]
+ID = 'npm:tmp@0.2.7'
+Name = 'tmp'
+Version = '0.2.7'
+Source = 'npm'
+Integrity = 'sha512-e0votIpp4Uo2AJYSzVHV6xCcawuiez3DzqDAbrTc3YxBkplN6e+dM13ZeIcZnDg/QpSuU2zfZ3rzwY8ukEnaXw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e51210588ae5056744ebb9706de5424b98b8f992597af1b35a9a8d9405e4f67f'
+
+[[package]]
+ID = 'npm:to-regex-range@5.0.1'
+Name = 'to-regex-range'
+Version = '5.0.1'
+Source = 'npm'
+Integrity = 'sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a63a255ec20a935c3a3334a6645f9245db36e2319ddf1eb6bc0eab2bfe5b42d7'
+
+[[package]]
+ID = 'npm:tslib@2.8.1'
+Name = 'tslib'
+Version = '2.8.1'
+Source = 'npm'
+Integrity = 'sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:66f635d5eeabae44807534976913a102cf615b9a045368359c9f79ae6ee2119e'
+
+[[package]]
+ID = 'npm:tunnel-agent@0.6.0'
+Name = 'tunnel-agent'
+Version = '0.6.0'
+Source = 'npm'
+Integrity = 'sha512-McnNiV1l8RYeY8tBgEpuodCC1mLUdbSN+CYBL7kJsJNInOP8UjDDEwdk6Mw60vdLLrr5NHKZhMAOSrR2NZuQ+w=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d3e3c04a50d6d2fa40654bf764fa1792f797bd5a62c69d03dceaa7d4a85c5012'
+
+[[package]]
+ID = 'npm:tunnel@0.0.6'
+Name = 'tunnel'
+Version = '0.0.6'
+Source = 'npm'
+Integrity = 'sha512-1h/Lnq9yajKY2PEbBadPXj3VxsDDu844OnaAo52UVmIzIvwwtBPIuNvkjuzBlTWpfJyUbG3ez0KSBibQkj4ojg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:24f765728141836f8c34f32997f0b3cf3cbab6cf382bb46501adc68355ba7d4d'
+
+[[package]]
+ID = 'npm:type-fest@4.41.0'
+Name = 'type-fest'
+Version = '4.41.0'
+Source = 'npm'
+Integrity = 'sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:7de169e0a6ddc9193052f165cc7e75848eb739c97e358578e93bf7f7fc478932'
+
+[[package]]
+ID = 'npm:typed-rest-client@1.8.11'
+Name = 'typed-rest-client'
+Version = '1.8.11'
+Source = 'npm'
+Integrity = 'sha512-5UvfMpd1oelmUPRbbaVnq+rHP7ng2cE4qoQkQeAqxRL6PklkxsM0g32/HL0yfvruK6ojQ5x8EE+HF4YV6DtuCA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:92916625854ef797ecef53f4ed714d0f521a7fa4e2ddafcbf5b74690f7294d56'
+
+[[package]]
+ID = 'npm:typescript@5.9.3'
+Name = 'typescript'
+Version = '5.9.3'
+Source = 'npm'
+Integrity = 'sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:10e108c9cf7d5f2879053dff18515fb405abf2ccef63eaaf017d9c571687a1d3'
+
+[[package]]
+ID = 'npm:uc.micro@2.1.0'
+Name = 'uc.micro'
+Version = '2.1.0'
+Source = 'npm'
+Integrity = 'sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a31660c690ddac370fe4b17fe6a3a73b8df094f99194ac90d0668d797dabf69b'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run build'
+
+[[package]]
+ID = 'npm:underscore@1.13.8'
+Name = 'underscore'
+Version = '1.13.8'
+Source = 'npm'
+Integrity = 'sha512-DXtD3ZtEQzc7M8m4cXotyHR+FAS18C64asBYY5vqZexfYryNNnDc02W4hKg3rdQuqOYas1jkseX0+nZXjTXnvQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:6547214df2878ae60cc552422ef14af38b8d4e3aa613be5bfe9c52b775d96f7a'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run build && npm run doc'
+
+[[package]]
+ID = 'npm:undici-types@6.21.0'
+Name = 'undici-types'
+Version = '6.21.0'
+Source = 'npm'
+Integrity = 'sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:cfa1a9a5e18988850e548f4f6b629c58da32dc32bebb116e58ea301e516fd16d'
+
+[[package]]
+ID = 'npm:undici@7.29.0'
+Name = 'undici'
+Version = '7.29.0'
+Source = 'npm'
+Integrity = 'sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ec2005d822734765fc08c3ee5d50b1f720bf1c3fc6235ab028e5cc61c85a3a70'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'husky && node ./scripts/platform-shell.js'
+
+[[package]]
+ID = 'npm:unicorn-magic@0.1.0'
+Name = 'unicorn-magic'
+Version = '0.1.0'
+Source = 'npm'
+Integrity = 'sha512-lRfVq8fE8gz6QMBuDM6a+LO3IAzTi05H6gCVaUpir2E1Rwpo4ZUog45KpNXKC/Mn3Yb9UDuHumeFTo9iV/D9FQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e02e51110f1201eab0da84f90a4e538c5c17a98d4e0eb5163ee8870a6f4f1fb4'
+
+[[package]]
+ID = 'npm:unicorn-magic@0.3.0'
+Name = 'unicorn-magic'
+Version = '0.3.0'
+Source = 'npm'
+Integrity = 'sha512-+QBBXBCvifc56fsbuxZQ6Sic3wqqc3WWaqxs58gvJrcOuN83HGTCwz3oS5phzU9LthRNE9VrJCFCLUgHeeFnfA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e4bfbbe867144ff24f73198367479378c8b6cffc798a2ec0756a81097606908e'
+
+[[package]]
+ID = 'npm:universalify@2.0.1'
+Name = 'universalify'
+Version = '2.0.1'
+Source = 'npm'
+Integrity = 'sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:7d07313bb61836a12f0ba5485e67673334a3ee955e7aefb3c4b3fc5a1b7b7865'
+
+[[package]]
+ID = 'npm:url-join@4.0.1'
+Name = 'url-join'
+Version = '4.0.1'
+Source = 'npm'
+Integrity = 'sha512-jk1+QP6ZJqyOiuEI9AEWQfju/nB2Pw466kbA0LEZljHwKeMgd9WrAEgEGxjPDD2+TNbbb37rTyhEfrCXfuKXnA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:e2453174df4af3f616ed65361154f019a33a351e52f15e2058f8ca4fdd3a24c9'
+
+[[package]]
+ID = 'npm:util-deprecate@1.0.2'
+Name = 'util-deprecate'
+Version = '1.0.2'
+Source = 'npm'
+Integrity = 'sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:79a1de983c1b393180c47456d6b73caab278a00ea6e37d5c6675f2dcdec2a3e5'
+
+[[package]]
+ID = 'npm:validate-npm-package-license@3.0.4'
+Name = 'validate-npm-package-license'
+Version = '3.0.4'
+Source = 'npm'
+Integrity = 'sha512-DpKm2Ui/xN7/HQKCtpZxoRWBhZ9Z0kqtygG8XCgNQ8ZlDnxuQmWhj566j8fN4Cu3/JmbhsDo7fcAJq4s9h27Ew=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:0166efb34d41a131d4df2a75f8ff84314be35c0dacf6fec265602de66777fd8c'
+
+[[package]]
+ID = 'npm:version-range@4.15.0'
+Name = 'version-range'
+Version = '4.15.0'
+Source = 'npm'
+Integrity = 'sha512-Ck0EJbAGxHwprkzFO966t4/5QkRuzh+/I1RxhLgUKKwEn+Cd8NwM60mE3AqBZg5gYODoXW0EFsQvbZjRlvdqbg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:fe26fd34a2432f197b89833c8e1e2807b1a7bec17cd8a7fb27956bab251a6d1a'
+
+[[package]]
+ID = 'npm:vscode-oniguruma@2.0.1'
+Name = 'vscode-oniguruma'
+Version = '2.0.1'
+Source = 'npm'
+Integrity = 'sha512-poJU8iHIWnC3vgphJnrLZyI3YdqRlR27xzqDmpPXYzA93R4Gk8z7T6oqDzDoHjoikA2aS82crdXFkjELCdJsjQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3b42911fd9609f2cc3b9c6dd52236b3da73780e633aa7dc381267006b7e7da21'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'npm run package'
+
+[[package]]
+ID = 'npm:vscode-textmate@9.3.2'
+Name = 'vscode-textmate'
+Version = '9.3.2'
+Source = 'npm'
+Integrity = 'sha512-n2uGbUcrjhUEBH16uGA0TvUfhWwliFZ1e3+pTjrkim1Mt7ydB41lV08aUvsi70OlzDWp6X7Bx3w/x3fAXIsN0Q=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:f7c742b16d59600d77529b7a904af09b59dfddb0f046fc045340004ae2fc50e7'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'tsc && webpack --progress && npm run api-extractor'
+
+[[package]]
+ID = 'npm:whatwg-encoding@3.1.1'
+Name = 'whatwg-encoding'
+Version = '3.1.1'
+Source = 'npm'
+Integrity = 'sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:86295e4f0565d4d0de730180dcc32ccf8c4a001831d361a1493b4e9a25e5c8d3'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepare'
+command = 'node scripts/update.js'
+
+[[package]]
+ID = 'npm:whatwg-mimetype@4.0.0'
+Name = 'whatwg-mimetype'
+Version = '4.0.0'
+Source = 'npm'
+Integrity = 'sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d1618a0f551c0b9d770f9ae15b54313956713d1430298e59dfc4f5d4b4bb5183'
+
+[[package]]
+ID = 'npm:wrappy@1.0.2'
+Name = 'wrappy'
+Version = '1.0.2'
+Source = 'npm'
+Integrity = 'sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:aff3730d91b7b1e143822956d14608f563163cf11b9d0ae602df1fe1e430fdfb'
+
+[[package]]
+ID = 'npm:wsl-utils@0.1.0'
+Name = 'wsl-utils'
+Version = '0.1.0'
+Source = 'npm'
+Integrity = 'sha512-h3Fbisa2nKGPxCpm89Hk33lBLsnaGBvctQopaBSOW/uIs6FTe1ATyAnKFJrzVs9vpGdsTe73WF3V4lIsk4Gacw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:d2cbb69eb9d502a5248d79232b18d7fcbf23c9d33b8045f9bc01250650d98dd4'
+
+[[package]]
+ID = 'npm:xml2js@0.5.0'
+Name = 'xml2js'
+Version = '0.5.0'
+Source = 'npm'
+Integrity = 'sha512-drPFnkQJik/O+uPKpqSgr22mpuFHqKdbS835iAQrUC73L2F5WkboIRd63ai/2Yg6I1jzifPFKH2NTK+cfglkIA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a4271e30f64b25b9dd10d8493ca200db842cb63325756cbb6ca4e94f9996d431'
+
+[[package]]
+ID = 'npm:xmlbuilder@11.0.1'
+Name = 'xmlbuilder'
+Version = '11.0.1'
+Source = 'npm'
+Integrity = 'sha512-fDlsI/kFEx7gLvbecc0/ohLG50fugQp8ryHzMTuW9vSa1GJ0XYWKnhsUx7oie3G98+r56aTQIUB4kht42R3JvA=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:8af7744b545bc3c8883589dafd5536b06194edb6ea667d5fd7f2cfee4c121c94'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'postpublish'
+command = 'rm -rf lib'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'prepublishOnly'
+command = 'coffee -co lib src'
+
+[[package]]
+ID = 'npm:yallist@4.0.0'
+Name = 'yallist'
+Version = '4.0.0'
+Source = 'npm'
+Integrity = 'sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:a80c78aa276536615891ef66efbc17d3bd07c8cb14e3bd5298eed3006bfa4d49'
+
+[[package.capability]]
+kind = 'lifecycleScript'
+script = 'postpublish'
+command = 'git push origin --all; git push origin --tags'
+
+[[package]]
+ID = 'npm:yauzl@3.4.0'
+Name = 'yauzl'
+Version = '3.4.0'
+Source = 'npm'
+Integrity = 'sha512-jIH9yLR9wqr0wOS0TpBvo/g/2UgZH5qePVbjgRliiF0BYvOZyaBknKsF+x9Iht0O6sqgnB93rCICdOZFecJuDw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:ec962fa3205d4be5849f0fc3bebd0492b0abe8acf402656fd80490531fa8ba88'
+
+[[package]]
+ID = 'npm:yazl@2.5.1'
+Name = 'yazl'
+Version = '2.5.1'
+Source = 'npm'
+Integrity = 'sha512-phENi2PLiHnHb6QBVot+dJnaAZ0xosj7p3fWl+znIjBDlnMI2PsZCJZ306BPTFOaHf5qdDEI8x5qFrSOBN5vrw=='
+Repo = ''
+Rev = ''
+TreeHash = ''
+Path = ''
+Workspace = ''
+Hash = 'sha256:3fedb3370c3c33c064616afcf6560f8a0a235cb325ed433a7eb3b4b33f062758'
+
+[[edge]]
+From = 'aetheris-firmament:tool'
+To = 'npm:@biomejs/biome@1.9.4'
+Kind = 'tool'
+Optional = false
+
+[[edge]]
+From = 'aetheris-firmament:tool'
+To = 'npm:@types/node@22.20.1'
+Kind = 'tool'
+Optional = false
+
+[[edge]]
+From = 'aetheris-firmament:tool'
+To = 'npm:@types/vscode@1.125.0'
+Kind = 'tool'
+Optional = false
+
+[[edge]]
+From = 'aetheris-firmament:tool'
+To = 'npm:@vscode/vsce@3.9.2'
+Kind = 'tool'
+Optional = false
+
+[[edge]]
+From = 'aetheris-firmament:tool'
+To = 'npm:esbuild@0.25.12'
+Kind = 'tool'
+Optional = false
+
+[[edge]]
+From = 'aetheris-firmament:tool'
+To = 'npm:typescript@5.9.3'
+Kind = 'tool'
+Optional = false
+
+[[edge]]
+From = 'aetheris-firmament:tool'
+To = 'npm:vscode-oniguruma@2.0.1'
+Kind = 'tool'
+Optional = false
+
+[[edge]]
+From = 'aetheris-firmament:tool'
+To = 'npm:vscode-textmate@9.3.2'
+Kind = 'tool'
+Optional = false
+
+[[edge]]
+From = 'npm:@azu/style-format@1.0.1'
+To = 'npm:@azu/format-text@1.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/abort-controller@2.2.0'
+To = 'npm:tslib@2.8.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-auth@1.11.0'
+To = 'npm:@azure/abort-controller@2.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-auth@1.11.0'
+To = 'npm:@azure/core-util@1.14.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-auth@1.11.0'
+To = 'npm:tslib@2.8.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-client@1.11.0'
+To = 'npm:@azure/abort-controller@2.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-client@1.11.0'
+To = 'npm:@azure/core-auth@1.11.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-client@1.11.0'
+To = 'npm:@azure/core-rest-pipeline@1.25.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-client@1.11.0'
+To = 'npm:@azure/core-tracing@1.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-client@1.11.0'
+To = 'npm:@azure/core-util@1.14.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-client@1.11.0'
+To = 'npm:@azure/logger@1.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-client@1.11.0'
+To = 'npm:tslib@2.8.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-rest-pipeline@1.25.0'
+To = 'npm:@azure/abort-controller@2.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-rest-pipeline@1.25.0'
+To = 'npm:@azure/core-auth@1.11.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-rest-pipeline@1.25.0'
+To = 'npm:@azure/core-tracing@1.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-rest-pipeline@1.25.0'
+To = 'npm:@azure/core-util@1.14.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-rest-pipeline@1.25.0'
+To = 'npm:@azure/logger@1.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-rest-pipeline@1.25.0'
+To = 'npm:@typespec/ts-http-runtime@0.3.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-rest-pipeline@1.25.0'
+To = 'npm:tslib@2.8.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-tracing@1.4.0'
+To = 'npm:tslib@2.8.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-util@1.14.0'
+To = 'npm:@azure/abort-controller@2.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-util@1.14.0'
+To = 'npm:@typespec/ts-http-runtime@0.3.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/core-util@1.14.0'
+To = 'npm:tslib@2.8.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/identity@4.13.1'
+To = 'npm:@azure/abort-controller@2.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/identity@4.13.1'
+To = 'npm:@azure/core-auth@1.11.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/identity@4.13.1'
+To = 'npm:@azure/core-client@1.11.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/identity@4.13.1'
+To = 'npm:@azure/core-rest-pipeline@1.25.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/identity@4.13.1'
+To = 'npm:@azure/core-tracing@1.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/identity@4.13.1'
+To = 'npm:@azure/core-util@1.14.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/identity@4.13.1'
+To = 'npm:@azure/logger@1.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/identity@4.13.1'
+To = 'npm:@azure/msal-browser@5.18.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/identity@4.13.1'
+To = 'npm:@azure/msal-node@5.5.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/identity@4.13.1'
+To = 'npm:open@10.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/identity@4.13.1'
+To = 'npm:tslib@2.8.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/logger@1.4.0'
+To = 'npm:@typespec/ts-http-runtime@0.3.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/logger@1.4.0'
+To = 'npm:tslib@2.8.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/msal-browser@5.18.0'
+To = 'npm:@azure/msal-common@16.12.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/msal-node@5.5.0'
+To = 'npm:@azure/msal-common@16.12.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@azure/msal-node@5.5.0'
+To = 'npm:jsonwebtoken@9.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@babel/code-frame@7.29.7'
+To = 'npm:@babel/helper-validator-identifier@7.29.7'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@babel/code-frame@7.29.7'
+To = 'npm:js-tokens@4.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@babel/code-frame@7.29.7'
+To = 'npm:picocolors@1.1.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@biomejs/biome@1.9.4'
+To = 'npm:@biomejs/cli-darwin-arm64@1.9.4'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@biomejs/biome@1.9.4'
+To = 'npm:@biomejs/cli-darwin-x64@1.9.4'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@biomejs/biome@1.9.4'
+To = 'npm:@biomejs/cli-linux-arm64-musl@1.9.4'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@biomejs/biome@1.9.4'
+To = 'npm:@biomejs/cli-linux-arm64@1.9.4'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@biomejs/biome@1.9.4'
+To = 'npm:@biomejs/cli-linux-x64-musl@1.9.4'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@biomejs/biome@1.9.4'
+To = 'npm:@biomejs/cli-linux-x64@1.9.4'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@biomejs/biome@1.9.4'
+To = 'npm:@biomejs/cli-win32-arm64@1.9.4'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@biomejs/biome@1.9.4'
+To = 'npm:@biomejs/cli-win32-x64@1.9.4'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@nodelib/fs.scandir@2.1.5'
+To = 'npm:@nodelib/fs.stat@2.0.5'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@nodelib/fs.scandir@2.1.5'
+To = 'npm:run-parallel@1.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@nodelib/fs.walk@1.2.8'
+To = 'npm:@nodelib/fs.scandir@2.1.5'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@nodelib/fs.walk@1.2.8'
+To = 'npm:fastq@1.20.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/config-creator@10.2.2'
+To = 'npm:@secretlint/types@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/config-loader@10.2.2'
+To = 'npm:@secretlint/profiler@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/config-loader@10.2.2'
+To = 'npm:@secretlint/resolver@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/config-loader@10.2.2'
+To = 'npm:@secretlint/types@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/config-loader@10.2.2'
+To = 'npm:ajv@8.20.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/config-loader@10.2.2'
+To = 'npm:debug@4.4.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/config-loader@10.2.2'
+To = 'npm:rc-config-loader@4.1.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/core@10.2.2'
+To = 'npm:@secretlint/profiler@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/core@10.2.2'
+To = 'npm:@secretlint/types@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/core@10.2.2'
+To = 'npm:debug@4.4.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/core@10.2.2'
+To = 'npm:structured-source@4.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/formatter@10.2.2'
+To = 'npm:@secretlint/resolver@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/formatter@10.2.2'
+To = 'npm:@secretlint/types@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/formatter@10.2.2'
+To = 'npm:@textlint/linter-formatter@15.8.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/formatter@10.2.2'
+To = 'npm:@textlint/module-interop@15.8.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/formatter@10.2.2'
+To = 'npm:@textlint/types@15.8.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/formatter@10.2.2'
+To = 'npm:chalk@5.6.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/formatter@10.2.2'
+To = 'npm:debug@4.4.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/formatter@10.2.2'
+To = 'npm:pluralize@8.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/formatter@10.2.2'
+To = 'npm:strip-ansi@7.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/formatter@10.2.2'
+To = 'npm:table@6.9.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/formatter@10.2.2'
+To = 'npm:terminal-link@4.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/node@10.2.2'
+To = 'npm:@secretlint/config-loader@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/node@10.2.2'
+To = 'npm:@secretlint/core@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/node@10.2.2'
+To = 'npm:@secretlint/formatter@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/node@10.2.2'
+To = 'npm:@secretlint/profiler@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/node@10.2.2'
+To = 'npm:@secretlint/source-creator@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/node@10.2.2'
+To = 'npm:@secretlint/types@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/node@10.2.2'
+To = 'npm:debug@4.4.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/node@10.2.2'
+To = 'npm:p-map@7.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/secretlint-formatter-sarif@10.2.2'
+To = 'npm:node-sarif-builder@3.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/secretlint-rule-no-dotenv@10.2.2'
+To = 'npm:@secretlint/types@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/source-creator@10.2.2'
+To = 'npm:@secretlint/types@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@secretlint/source-creator@10.2.2'
+To = 'npm:istextorbinary@9.5.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:@azu/format-text@1.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:@azu/style-format@1.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:@textlint/module-interop@15.8.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:@textlint/resolver@15.8.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:@textlint/types@15.8.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:debug@4.4.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:js-yaml@4.3.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:lodash@4.18.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:pluralize@2.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:string-width@4.2.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:strip-ansi@6.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:table@6.9.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/linter-formatter@15.8.0'
+To = 'npm:text-table@0.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@textlint/types@15.8.0'
+To = 'npm:@textlint/ast-node-types@15.8.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@types/node@22.20.1'
+To = 'npm:undici-types@6.21.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@typespec/ts-http-runtime@0.3.8'
+To = 'npm:http-proxy-agent@7.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@typespec/ts-http-runtime@0.3.8'
+To = 'npm:https-proxy-agent@7.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@typespec/ts-http-runtime@0.3.8'
+To = 'npm:tslib@2.8.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-alpine-arm64@2.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-alpine-arm64@2.0.6'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-alpine-x64@2.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-alpine-x64@2.0.6'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-darwin-arm64@2.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-darwin-arm64@2.0.6'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-darwin-x64@2.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-darwin-x64@2.0.6'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-linux-arm64@2.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-linux-arm64@2.0.6'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-linux-arm@2.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-linux-arm@2.0.6'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-linux-x64@2.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-linux-x64@2.0.6'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-win32-arm64@2.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-win32-arm64@2.0.6'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-win32-x64@2.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce-sign@2.0.9'
+To = 'npm:@vscode/vsce-sign-win32-x64@2.0.6'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:@azure/identity@4.13.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:@secretlint/node@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:@secretlint/secretlint-formatter-sarif@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:@secretlint/secretlint-rule-no-dotenv@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:@secretlint/secretlint-rule-preset-recommend@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:@vscode/vsce-sign@2.0.9'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:azure-devops-node-api@12.5.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:chalk@4.1.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:cheerio@1.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:cockatiel@3.2.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:commander@12.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:form-data@4.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:glob@13.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:hosted-git-info@4.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:jsonc-parser@3.3.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:keytar@7.9.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:keytar@7.9.0'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:leven@3.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:markdown-it@14.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:mime@1.6.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:minimatch@10.2.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:parse-semver@1.1.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:read@1.0.7'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:secretlint@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:semver@7.8.5'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:tmp@0.2.7'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:typed-rest-client@1.8.11'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:url-join@4.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:xml2js@0.5.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:yauzl@3.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:@vscode/vsce@3.9.2'
+To = 'npm:yazl@2.5.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:ajv@8.20.0'
+To = 'npm:fast-deep-equal@3.1.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:ajv@8.20.0'
+To = 'npm:fast-uri@3.1.5'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:ajv@8.20.0'
+To = 'npm:json-schema-traverse@1.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:ajv@8.20.0'
+To = 'npm:require-from-string@2.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:ansi-escapes@7.3.0'
+To = 'npm:environment@1.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:ansi-styles@4.3.0'
+To = 'npm:color-convert@2.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:azure-devops-node-api@12.5.0'
+To = 'npm:tunnel@0.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:azure-devops-node-api@12.5.0'
+To = 'npm:typed-rest-client@1.8.11'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:binaryextensions@6.11.0'
+To = 'npm:editions@6.22.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:bl@4.1.0'
+To = 'npm:buffer@5.7.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:bl@4.1.0'
+To = 'npm:inherits@2.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:bl@4.1.0'
+To = 'npm:readable-stream@3.6.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:brace-expansion@5.0.9'
+To = 'npm:balanced-match@4.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:braces@3.0.3'
+To = 'npm:fill-range@7.1.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:buffer@5.7.1'
+To = 'npm:base64-js@1.5.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:buffer@5.7.1'
+To = 'npm:ieee754@1.2.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:bundle-name@4.1.0'
+To = 'npm:run-applescript@7.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:call-bind-apply-helpers@1.0.2'
+To = 'npm:es-errors@1.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:call-bind-apply-helpers@1.0.2'
+To = 'npm:function-bind@1.1.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:call-bound@1.0.4'
+To = 'npm:call-bind-apply-helpers@1.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:call-bound@1.0.4'
+To = 'npm:get-intrinsic@1.3.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:chalk@4.1.2'
+To = 'npm:ansi-styles@4.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:chalk@4.1.2'
+To = 'npm:supports-color@7.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio-select@2.1.0'
+To = 'npm:boolbase@1.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio-select@2.1.0'
+To = 'npm:css-select@5.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio-select@2.1.0'
+To = 'npm:css-what@6.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio-select@2.1.0'
+To = 'npm:domelementtype@2.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio-select@2.1.0'
+To = 'npm:domhandler@5.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio-select@2.1.0'
+To = 'npm:domutils@3.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio@1.2.0'
+To = 'npm:cheerio-select@2.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio@1.2.0'
+To = 'npm:dom-serializer@2.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio@1.2.0'
+To = 'npm:domhandler@5.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio@1.2.0'
+To = 'npm:domutils@3.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio@1.2.0'
+To = 'npm:encoding-sniffer@0.2.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio@1.2.0'
+To = 'npm:htmlparser2@10.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio@1.2.0'
+To = 'npm:parse5-htmlparser2-tree-adapter@7.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio@1.2.0'
+To = 'npm:parse5-parser-stream@7.1.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio@1.2.0'
+To = 'npm:parse5@7.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio@1.2.0'
+To = 'npm:undici@7.29.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:cheerio@1.2.0'
+To = 'npm:whatwg-mimetype@4.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:color-convert@2.0.1'
+To = 'npm:color-name@1.1.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:combined-stream@1.0.8'
+To = 'npm:delayed-stream@1.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:css-select@5.2.2'
+To = 'npm:boolbase@1.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:css-select@5.2.2'
+To = 'npm:css-what@6.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:css-select@5.2.2'
+To = 'npm:domhandler@5.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:css-select@5.2.2'
+To = 'npm:domutils@3.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:css-select@5.2.2'
+To = 'npm:nth-check@2.1.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:debug@4.4.3'
+To = 'npm:ms@2.1.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:decompress-response@6.0.0'
+To = 'npm:mimic-response@3.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:default-browser@5.5.0'
+To = 'npm:bundle-name@4.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:default-browser@5.5.0'
+To = 'npm:default-browser-id@5.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:dom-serializer@2.0.0'
+To = 'npm:domelementtype@2.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:dom-serializer@2.0.0'
+To = 'npm:domhandler@5.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:dom-serializer@2.0.0'
+To = 'npm:entities@4.5.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:domhandler@5.0.3'
+To = 'npm:domelementtype@2.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:domutils@3.2.2'
+To = 'npm:dom-serializer@2.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:domutils@3.2.2'
+To = 'npm:domelementtype@2.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:domutils@3.2.2'
+To = 'npm:domhandler@5.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:dunder-proto@1.0.1'
+To = 'npm:call-bind-apply-helpers@1.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:dunder-proto@1.0.1'
+To = 'npm:es-errors@1.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:dunder-proto@1.0.1'
+To = 'npm:gopd@1.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:ecdsa-sig-formatter@1.0.11'
+To = 'npm:safe-buffer@5.2.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:editions@6.22.0'
+To = 'npm:version-range@4.15.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:encoding-sniffer@0.2.1'
+To = 'npm:iconv-lite@0.6.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:encoding-sniffer@0.2.1'
+To = 'npm:whatwg-encoding@3.1.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:end-of-stream@1.4.5'
+To = 'npm:once@1.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:es-object-atoms@1.1.2'
+To = 'npm:es-errors@1.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:es-set-tostringtag@2.1.0'
+To = 'npm:es-errors@1.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:es-set-tostringtag@2.1.0'
+To = 'npm:get-intrinsic@1.3.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:es-set-tostringtag@2.1.0'
+To = 'npm:has-tostringtag@1.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:es-set-tostringtag@2.1.0'
+To = 'npm:hasown@2.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/aix-ppc64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/android-arm64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/android-arm@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/android-x64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/darwin-arm64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/darwin-x64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/freebsd-arm64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/freebsd-x64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/linux-arm64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/linux-arm@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/linux-ia32@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/linux-loong64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/linux-mips64el@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/linux-ppc64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/linux-riscv64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/linux-s390x@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/linux-x64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/netbsd-arm64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/netbsd-x64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/openbsd-arm64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/openbsd-x64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/openharmony-arm64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/sunos-x64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/win32-arm64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/win32-ia32@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:esbuild@0.25.12'
+To = 'npm:@esbuild/win32-x64@0.25.12'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:fast-glob@3.3.3'
+To = 'npm:@nodelib/fs.stat@2.0.5'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:fast-glob@3.3.3'
+To = 'npm:@nodelib/fs.walk@1.2.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:fast-glob@3.3.3'
+To = 'npm:glob-parent@5.1.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:fast-glob@3.3.3'
+To = 'npm:merge2@1.4.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:fast-glob@3.3.3'
+To = 'npm:micromatch@4.0.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:fastq@1.20.1'
+To = 'npm:reusify@1.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:fill-range@7.1.1'
+To = 'npm:to-regex-range@5.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:form-data@4.0.6'
+To = 'npm:asynckit@0.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:form-data@4.0.6'
+To = 'npm:combined-stream@1.0.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:form-data@4.0.6'
+To = 'npm:es-set-tostringtag@2.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:form-data@4.0.6'
+To = 'npm:hasown@2.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:form-data@4.0.6'
+To = 'npm:mime-types@2.1.35'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:fs-extra@11.4.0'
+To = 'npm:graceful-fs@4.2.11'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:fs-extra@11.4.0'
+To = 'npm:jsonfile@6.2.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:fs-extra@11.4.0'
+To = 'npm:universalify@2.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:async-function@1.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:async-generator-function@1.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:call-bind-apply-helpers@1.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:es-define-property@1.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:es-errors@1.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:es-object-atoms@1.1.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:function-bind@1.1.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:generator-function@2.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:get-proto@1.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:gopd@1.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:has-symbols@1.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:hasown@2.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-intrinsic@1.3.1'
+To = 'npm:math-intrinsics@1.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-proto@1.0.1'
+To = 'npm:dunder-proto@1.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:get-proto@1.0.1'
+To = 'npm:es-object-atoms@1.1.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:glob-parent@5.1.2'
+To = 'npm:is-glob@4.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:glob@13.0.6'
+To = 'npm:minimatch@10.2.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:glob@13.0.6'
+To = 'npm:minipass@7.1.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:glob@13.0.6'
+To = 'npm:path-scurry@2.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:globby@14.1.0'
+To = 'npm:@sindresorhus/merge-streams@2.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:globby@14.1.0'
+To = 'npm:fast-glob@3.3.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:globby@14.1.0'
+To = 'npm:ignore@7.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:globby@14.1.0'
+To = 'npm:path-type@6.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:globby@14.1.0'
+To = 'npm:slash@5.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:globby@14.1.0'
+To = 'npm:unicorn-magic@0.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:has-tostringtag@1.0.2'
+To = 'npm:has-symbols@1.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:hasown@2.0.4'
+To = 'npm:function-bind@1.1.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:hosted-git-info@4.1.0'
+To = 'npm:lru-cache@6.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:hosted-git-info@7.0.2'
+To = 'npm:lru-cache@10.4.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:htmlparser2@10.1.0'
+To = 'npm:domelementtype@2.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:htmlparser2@10.1.0'
+To = 'npm:domhandler@5.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:htmlparser2@10.1.0'
+To = 'npm:domutils@3.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:htmlparser2@10.1.0'
+To = 'npm:entities@7.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:http-proxy-agent@7.0.2'
+To = 'npm:agent-base@7.1.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:http-proxy-agent@7.0.2'
+To = 'npm:debug@4.4.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:https-proxy-agent@7.0.6'
+To = 'npm:agent-base@7.1.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:https-proxy-agent@7.0.6'
+To = 'npm:debug@4.4.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:iconv-lite@0.6.3'
+To = 'npm:safer-buffer@2.1.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:is-glob@4.0.3'
+To = 'npm:is-extglob@2.1.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:is-inside-container@1.0.0'
+To = 'npm:is-docker@3.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:is-wsl@3.1.1'
+To = 'npm:is-inside-container@1.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:istextorbinary@9.5.0'
+To = 'npm:binaryextensions@6.11.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:istextorbinary@9.5.0'
+To = 'npm:editions@6.22.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:istextorbinary@9.5.0'
+To = 'npm:textextensions@6.11.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:js-yaml@4.3.1'
+To = 'npm:argparse@2.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jsonfile@6.2.1'
+To = 'npm:graceful-fs@4.2.11'
+Kind = 'runtime'
+Optional = true
+
+[[edge]]
+From = 'npm:jsonfile@6.2.1'
+To = 'npm:universalify@2.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jsonwebtoken@9.0.3'
+To = 'npm:jws@4.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jsonwebtoken@9.0.3'
+To = 'npm:lodash.includes@4.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jsonwebtoken@9.0.3'
+To = 'npm:lodash.isboolean@3.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jsonwebtoken@9.0.3'
+To = 'npm:lodash.isinteger@4.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jsonwebtoken@9.0.3'
+To = 'npm:lodash.isnumber@3.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jsonwebtoken@9.0.3'
+To = 'npm:lodash.isplainobject@4.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jsonwebtoken@9.0.3'
+To = 'npm:lodash.isstring@4.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jsonwebtoken@9.0.3'
+To = 'npm:lodash.once@4.1.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jsonwebtoken@9.0.3'
+To = 'npm:ms@2.1.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jsonwebtoken@9.0.3'
+To = 'npm:semver@7.8.5'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jwa@2.0.1'
+To = 'npm:buffer-equal-constant-time@1.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jwa@2.0.1'
+To = 'npm:ecdsa-sig-formatter@1.0.11'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jwa@2.0.1'
+To = 'npm:safe-buffer@5.2.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jws@4.0.1'
+To = 'npm:jwa@2.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:jws@4.0.1'
+To = 'npm:safe-buffer@5.2.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:keytar@7.9.0'
+To = 'npm:node-addon-api@4.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:keytar@7.9.0'
+To = 'npm:prebuild-install@7.1.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:linkify-it@5.0.2'
+To = 'npm:uc.micro@2.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:lru-cache@6.0.0'
+To = 'npm:yallist@4.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:markdown-it@14.3.0'
+To = 'npm:argparse@2.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:markdown-it@14.3.0'
+To = 'npm:entities@4.5.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:markdown-it@14.3.0'
+To = 'npm:linkify-it@5.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:markdown-it@14.3.0'
+To = 'npm:mdurl@2.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:markdown-it@14.3.0'
+To = 'npm:punycode.js@2.3.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:markdown-it@14.3.0'
+To = 'npm:uc.micro@2.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:micromatch@4.0.8'
+To = 'npm:braces@3.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:micromatch@4.0.8'
+To = 'npm:picomatch@2.3.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:mime-types@2.1.35'
+To = 'npm:mime-db@1.52.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:minimatch@10.2.6'
+To = 'npm:brace-expansion@5.0.9'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:node-abi@3.94.0'
+To = 'npm:semver@7.8.5'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:node-sarif-builder@3.4.0'
+To = 'npm:@types/sarif@2.1.7'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:node-sarif-builder@3.4.0'
+To = 'npm:fs-extra@11.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:normalize-package-data@6.0.2'
+To = 'npm:hosted-git-info@7.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:normalize-package-data@6.0.2'
+To = 'npm:semver@7.8.5'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:normalize-package-data@6.0.2'
+To = 'npm:validate-npm-package-license@3.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:nth-check@2.1.1'
+To = 'npm:boolbase@1.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:once@1.4.0'
+To = 'npm:wrappy@1.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:open@10.2.0'
+To = 'npm:default-browser@5.5.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:open@10.2.0'
+To = 'npm:define-lazy-prop@3.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:open@10.2.0'
+To = 'npm:is-inside-container@1.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:open@10.2.0'
+To = 'npm:wsl-utils@0.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:parse-json@8.3.0'
+To = 'npm:@babel/code-frame@7.29.7'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:parse-json@8.3.0'
+To = 'npm:index-to-position@1.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:parse-json@8.3.0'
+To = 'npm:type-fest@4.41.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:parse-semver@1.1.1'
+To = 'npm:semver@5.7.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:parse5-htmlparser2-tree-adapter@7.1.0'
+To = 'npm:domhandler@5.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:parse5-htmlparser2-tree-adapter@7.1.0'
+To = 'npm:parse5@7.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:parse5-parser-stream@7.1.2'
+To = 'npm:parse5@7.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:parse5@7.3.0'
+To = 'npm:entities@6.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:path-scurry@2.0.2'
+To = 'npm:lru-cache@11.5.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:path-scurry@2.0.2'
+To = 'npm:minipass@7.1.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:detect-libc@2.1.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:expand-template@2.0.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:github-from-package@0.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:minimist@1.2.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:mkdirp-classic@0.5.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:napi-build-utils@2.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:node-abi@3.94.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:pump@3.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:rc@1.2.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:simple-get@4.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:tar-fs@2.1.5'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:prebuild-install@7.1.3'
+To = 'npm:tunnel-agent@0.6.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:pump@3.0.4'
+To = 'npm:end-of-stream@1.4.5'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:pump@3.0.4'
+To = 'npm:once@1.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:qs@6.15.3'
+To = 'npm:es-define-property@1.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:qs@6.15.3'
+To = 'npm:side-channel@1.1.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:rc-config-loader@4.1.4'
+To = 'npm:debug@4.4.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:rc-config-loader@4.1.4'
+To = 'npm:js-yaml@4.3.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:rc-config-loader@4.1.4'
+To = 'npm:json5@2.2.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:rc-config-loader@4.1.4'
+To = 'npm:require-from-string@2.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:rc@1.2.8'
+To = 'npm:deep-extend@0.6.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:rc@1.2.8'
+To = 'npm:ini@1.3.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:rc@1.2.8'
+To = 'npm:minimist@1.2.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:rc@1.2.8'
+To = 'npm:strip-json-comments@2.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:read-pkg@9.0.1'
+To = 'npm:@types/normalize-package-data@2.4.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:read-pkg@9.0.1'
+To = 'npm:normalize-package-data@6.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:read-pkg@9.0.1'
+To = 'npm:parse-json@8.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:read-pkg@9.0.1'
+To = 'npm:type-fest@4.41.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:read-pkg@9.0.1'
+To = 'npm:unicorn-magic@0.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:read@1.0.7'
+To = 'npm:mute-stream@0.0.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:readable-stream@3.6.2'
+To = 'npm:inherits@2.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:readable-stream@3.6.2'
+To = 'npm:string_decoder@1.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:readable-stream@3.6.2'
+To = 'npm:util-deprecate@1.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:run-parallel@1.2.0'
+To = 'npm:queue-microtask@1.2.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:secretlint@10.2.2'
+To = 'npm:@secretlint/config-creator@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:secretlint@10.2.2'
+To = 'npm:@secretlint/formatter@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:secretlint@10.2.2'
+To = 'npm:@secretlint/node@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:secretlint@10.2.2'
+To = 'npm:@secretlint/profiler@10.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:secretlint@10.2.2'
+To = 'npm:debug@4.4.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:secretlint@10.2.2'
+To = 'npm:globby@14.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:secretlint@10.2.2'
+To = 'npm:read-pkg@9.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel-list@1.0.1'
+To = 'npm:es-errors@1.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel-list@1.0.1'
+To = 'npm:object-inspect@1.13.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel-map@1.0.1'
+To = 'npm:call-bound@1.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel-map@1.0.1'
+To = 'npm:es-errors@1.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel-map@1.0.1'
+To = 'npm:get-intrinsic@1.3.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel-map@1.0.1'
+To = 'npm:object-inspect@1.13.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel-weakmap@1.0.2'
+To = 'npm:call-bound@1.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel-weakmap@1.0.2'
+To = 'npm:es-errors@1.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel-weakmap@1.0.2'
+To = 'npm:get-intrinsic@1.3.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel-weakmap@1.0.2'
+To = 'npm:object-inspect@1.13.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel-weakmap@1.0.2'
+To = 'npm:side-channel-map@1.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel@1.1.1'
+To = 'npm:es-errors@1.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel@1.1.1'
+To = 'npm:object-inspect@1.13.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel@1.1.1'
+To = 'npm:side-channel-list@1.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel@1.1.1'
+To = 'npm:side-channel-map@1.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:side-channel@1.1.1'
+To = 'npm:side-channel-weakmap@1.0.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:simple-get@4.0.1'
+To = 'npm:decompress-response@6.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:simple-get@4.0.1'
+To = 'npm:once@1.4.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:simple-get@4.0.1'
+To = 'npm:simple-concat@1.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:slice-ansi@4.0.0'
+To = 'npm:ansi-styles@4.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:slice-ansi@4.0.0'
+To = 'npm:astral-regex@2.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:slice-ansi@4.0.0'
+To = 'npm:is-fullwidth-code-point@3.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:spdx-correct@3.2.0'
+To = 'npm:spdx-expression-parse@3.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:spdx-correct@3.2.0'
+To = 'npm:spdx-license-ids@3.0.23'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:spdx-expression-parse@3.0.1'
+To = 'npm:spdx-exceptions@2.5.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:spdx-expression-parse@3.0.1'
+To = 'npm:spdx-license-ids@3.0.23'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:string-width@4.2.3'
+To = 'npm:emoji-regex@8.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:string-width@4.2.3'
+To = 'npm:is-fullwidth-code-point@3.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:string-width@4.2.3'
+To = 'npm:strip-ansi@6.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:string_decoder@1.3.0'
+To = 'npm:safe-buffer@5.2.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:strip-ansi@6.0.1'
+To = 'npm:ansi-regex@5.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:strip-ansi@7.2.0'
+To = 'npm:ansi-regex@6.2.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:structured-source@4.0.0'
+To = 'npm:boundary@2.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:supports-color@7.2.0'
+To = 'npm:has-flag@4.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:supports-hyperlinks@3.2.0'
+To = 'npm:has-flag@4.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:supports-hyperlinks@3.2.0'
+To = 'npm:supports-color@7.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:table@6.9.0'
+To = 'npm:ajv@8.20.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:table@6.9.0'
+To = 'npm:lodash.truncate@4.4.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:table@6.9.0'
+To = 'npm:slice-ansi@4.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:table@6.9.0'
+To = 'npm:string-width@4.2.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:table@6.9.0'
+To = 'npm:strip-ansi@6.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:tar-fs@2.1.5'
+To = 'npm:chownr@1.1.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:tar-fs@2.1.5'
+To = 'npm:mkdirp-classic@0.5.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:tar-fs@2.1.5'
+To = 'npm:pump@3.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:tar-fs@2.1.5'
+To = 'npm:tar-stream@2.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:tar-stream@2.2.0'
+To = 'npm:bl@4.1.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:tar-stream@2.2.0'
+To = 'npm:end-of-stream@1.4.5'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:tar-stream@2.2.0'
+To = 'npm:fs-constants@1.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:tar-stream@2.2.0'
+To = 'npm:inherits@2.0.4'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:tar-stream@2.2.0'
+To = 'npm:readable-stream@3.6.2'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:terminal-link@4.0.0'
+To = 'npm:ansi-escapes@7.3.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:terminal-link@4.0.0'
+To = 'npm:supports-hyperlinks@3.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:textextensions@6.11.0'
+To = 'npm:editions@6.22.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:to-regex-range@5.0.1'
+To = 'npm:is-number@7.0.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:tunnel-agent@0.6.0'
+To = 'npm:safe-buffer@5.2.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:typed-rest-client@1.8.11'
+To = 'npm:qs@6.15.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:typed-rest-client@1.8.11'
+To = 'npm:tunnel@0.0.6'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:typed-rest-client@1.8.11'
+To = 'npm:underscore@1.13.8'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:validate-npm-package-license@3.0.4'
+To = 'npm:spdx-correct@3.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:validate-npm-package-license@3.0.4'
+To = 'npm:spdx-expression-parse@3.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:whatwg-encoding@3.1.1'
+To = 'npm:iconv-lite@0.6.3'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:wsl-utils@0.1.0'
+To = 'npm:is-wsl@3.1.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:xml2js@0.5.0'
+To = 'npm:sax@1.6.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:xml2js@0.5.0'
+To = 'npm:xmlbuilder@11.0.1'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:yauzl@3.4.0'
+To = 'npm:pend@1.2.0'
+Kind = 'runtime'
+Optional = false
+
+[[edge]]
+From = 'npm:yazl@2.5.1'
+To = 'npm:buffer-crc32@0.2.13'
+Kind = 'runtime'
+Optional = false

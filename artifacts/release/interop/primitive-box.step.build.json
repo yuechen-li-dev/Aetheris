@@ -1,0 +1,42 @@
+{
+  "command": "build",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\bare-box.firmament",
+  "output": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\primitive-box.step",
+  "sourcePath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\bare-box.firmament",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\primitive-box.step",
+  "conceptIr": null,
+  "air": null,
+  "roundedBox": null,
+  "hollow": null,
+  "lattice": null,
+  "combined": null,
+  "assertions": [
+    {
+      "assertionId": "volume:Base:89",
+      "targetBodyId": "Base",
+      "expectedMm3": 100000,
+      "measuredMm3": 100000,
+      "deltaMm3": 0,
+      "absoluteDeltaMm3": 0,
+      "toleranceMm3": 0,
+      "passed": true,
+      "note": "Rectangular stock",
+      "measurementMethod": "ExactVerticalLineArcPrismSectionIntegration\u002BDeterministicTrimmedFaceTriangulationBoundaryIntegral",
+      "measurementErrorBoundMm3": 5800,
+      "diagnostic": null,
+      "sourceSpan": {
+        "start": 89,
+        "length": 114
+      },
+      "provenance": "FirmamentSource"
+    }
+  ],
+  "features": null,
+  "inlineStepMigration": null,
+  "inlineStepReplacementAssist": null,
+  "pmiExportEvidence": {
+    "datum": [],
+    "diameter": []
+  }
+}

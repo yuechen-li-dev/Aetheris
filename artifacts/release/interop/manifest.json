@@ -1,0 +1,1199 @@
+{
+  "generatedAt": "2026-08-08T05:08:36Z",
+  "generator": "Aetheris.CLI build / analyze",
+  "healingPolicy": "No explicit FreeCAD healing/repair invoked.",
+  "artifacts": [
+    {
+      "artifact": "edgefinish-chamfer.step",
+      "bytes": 37356,
+      "rawSha256": "b2cd232bb48589da6812b005d25b71ecabba53e0397ec38653596e0ef7966c6c",
+      "canonicalSha256": "b2cd232bb48589da6812b005d25b71ecabba53e0397ec38653596e0ef7966c6c",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\edgefinish-chamfer.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 36,
+          "edgeCount": 84,
+          "vertexCount": 50,
+          "boundingBox": {
+            "min": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "max": {
+              "x": 420,
+              "y": 100,
+              "z": 24
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 26,
+            "cylinder": 5,
+            "cone": 5,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 36,
+            "count": 36,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 84,
+            "count": 84,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 50,
+            "count": 50,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "edgefinish-chamfer.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cone:5,Cylinder:5,Plane:26"
+      }
+    },
+    {
+      "artifact": "edgefinish-fillet-bounded.step",
+      "bytes": 13861,
+      "rawSha256": "d8e300f33c3731ea7e04dd59fea17cadac12c4c57d92782f190750d91e6196ba",
+      "canonicalSha256": "d8e300f33c3731ea7e04dd59fea17cadac12c4c57d92782f190750d91e6196ba",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\edgefinish-fillet-bounded.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 13,
+          "edgeCount": 31,
+          "vertexCount": 20,
+          "boundingBox": {
+            "min": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "max": {
+              "x": 40,
+              "y": 40,
+              "z": 8
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 10,
+            "cylinder": 2,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 1,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 13,
+            "count": 13,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 31,
+            "count": 31,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 20,
+            "count": 20,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "edgefinish-fillet-bounded.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:2,Plane:10,Toroid:1"
+      }
+    },
+    {
+      "artifact": "experimental-edgefinish-fillet-chimera.step",
+      "bytes": 42369,
+      "rawSha256": "0dadf30e5f9bc00a690c9e039bdf736b37f10c665078f85f1b0a023b1b053833",
+      "canonicalSha256": "0dadf30e5f9bc00a690c9e039bdf736b37f10c665078f85f1b0a023b1b053833",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\experimental-edgefinish-fillet-chimera.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 37,
+          "edgeCount": 86,
+          "vertexCount": 84,
+          "boundingBox": {
+            "min": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "max": {
+              "x": 420,
+              "y": 100,
+              "z": 24
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 14,
+            "cylinder": 17,
+            "cone": 0,
+            "sphere": 1,
+            "torus": 5,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 37,
+            "count": 37,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 86,
+            "count": 86,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 84,
+            "count": 84,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "experimental-edgefinish-fillet-chimera.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:17,Plane:14,Sphere:1,Toroid:5"
+      }
+    },
+    {
+      "artifact": "experimental-edgefinish-fillet-sphere-compat.step",
+      "bytes": 43405,
+      "rawSha256": "1cc6bda2af0b8dc4dd7f82b382bda30c4e62258c57d49f8faba1e15f00415641",
+      "canonicalSha256": "1cc6bda2af0b8dc4dd7f82b382bda30c4e62258c57d49f8faba1e15f00415641",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\experimental-edgefinish-fillet-sphere-compat.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 38,
+          "edgeCount": 88,
+          "vertexCount": 87,
+          "boundingBox": {
+            "min": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "max": {
+              "x": 420,
+              "y": 100,
+              "z": 24
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 15,
+            "cylinder": 17,
+            "cone": 0,
+            "sphere": 2,
+            "torus": 4,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 38,
+            "count": 38,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 88,
+            "count": 88,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 87,
+            "count": 87,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "experimental-edgefinish-fillet-sphere-compat.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:17,Plane:15,Sphere:2,Toroid:4"
+      }
+    },
+    {
+      "artifact": "hole-counterbore.step",
+      "bytes": 9066,
+      "rawSha256": "9e9b6d4652c364e59e2b8846979d907395ce1ad1ae1cf19eab9079e5c2c57502",
+      "canonicalSha256": "9e9b6d4652c364e59e2b8846979d907395ce1ad1ae1cf19eab9079e5c2c57502",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\hole-counterbore.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 9,
+          "edgeCount": 18,
+          "vertexCount": 16,
+          "boundingBox": {
+            "min": {
+              "x": -40,
+              "y": -25,
+              "z": -12.5
+            },
+            "max": {
+              "x": 40,
+              "y": 25,
+              "z": 12.5
+            }
+          },
+          "structuralAssessment": "invalid-face-loops",
+          "surfaceFamilies": {
+            "plane": 7,
+            "cylinder": 2,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 9,
+            "count": 9,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 18,
+            "count": 18,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 16,
+            "count": 16,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": [
+          "Face loop 9 is not connected in declared coedge order; edge-use manifold incidence is insufficient for enclosed-manifold."
+        ]
+      },
+      "freecad": {
+        "artifact": "hole-counterbore.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:2,Plane:7"
+      }
+    },
+    {
+      "artifact": "hole-countersink.step",
+      "bytes": 8167,
+      "rawSha256": "6bd19429b102ab8c78d92f760a39bfc739387790abcb8b625437811174542419",
+      "canonicalSha256": "6bd19429b102ab8c78d92f760a39bfc739387790abcb8b625437811174542419",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\hole-countersink.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 8,
+          "edgeCount": 17,
+          "vertexCount": 11,
+          "boundingBox": {
+            "min": {
+              "x": -40,
+              "y": -25,
+              "z": -12.5
+            },
+            "max": {
+              "x": 40,
+              "y": 25,
+              "z": 12.5
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 6,
+            "cylinder": 1,
+            "cone": 1,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 8,
+            "count": 8,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 17,
+            "count": 17,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 11,
+            "count": 11,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "hole-countersink.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cone:1,Cylinder:1,Plane:6"
+      }
+    },
+    {
+      "artifact": "hole-shaft-throughall.step",
+      "bytes": 7389,
+      "rawSha256": "ee665bd001df97d210e4fbb5d535ff2e26fc58601aa369b204089b7378799450",
+      "canonicalSha256": "ee665bd001df97d210e4fbb5d535ff2e26fc58601aa369b204089b7378799450",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\hole-shaft-throughall.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 7,
+          "edgeCount": 15,
+          "vertexCount": 12,
+          "boundingBox": {
+            "min": {
+              "x": -40,
+              "y": -25,
+              "z": -12.5
+            },
+            "max": {
+              "x": 40,
+              "y": 25,
+              "z": 12.5
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 6,
+            "cylinder": 1,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 7,
+            "count": 7,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 15,
+            "count": 15,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 12,
+            "count": 12,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "hole-shaft-throughall.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:1,Plane:6"
+      }
+    },
+    {
+      "artifact": "inline-step-replace.step",
+      "bytes": 7246,
+      "rawSha256": "b65176a15169b92825ed933ff5eb26b8bdefda34a0492f558b81427e27e70890",
+      "canonicalSha256": "b65176a15169b92825ed933ff5eb26b8bdefda34a0492f558b81427e27e70890",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\inline-step-replace.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 7,
+          "edgeCount": 15,
+          "vertexCount": 12,
+          "boundingBox": {
+            "min": {
+              "x": -5,
+              "y": -4,
+              "z": -3
+            },
+            "max": {
+              "x": 5,
+              "y": 4,
+              "z": 3
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 6,
+            "cylinder": 1,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 7,
+            "count": 7,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 15,
+            "count": 15,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 12,
+            "count": 12,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "inline-step-replace.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:1,Plane:6"
+      }
+    },
+    {
+      "artifact": "pattern-four-hole.step",
+      "bytes": 11730,
+      "rawSha256": "4292eb347041bd7848f79cf29a85ae91d29ee7656a794d7176c1404caa9549cd",
+      "canonicalSha256": "4292eb347041bd7848f79cf29a85ae91d29ee7656a794d7176c1404caa9549cd",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\pattern-four-hole.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 10,
+          "edgeCount": 24,
+          "vertexCount": 24,
+          "boundingBox": {
+            "min": {
+              "x": -40,
+              "y": -25,
+              "z": -4
+            },
+            "max": {
+              "x": 40,
+              "y": 25,
+              "z": 4
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 6,
+            "cylinder": 4,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 10,
+            "count": 10,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 24,
+            "count": 24,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 24,
+            "count": 24,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "pattern-four-hole.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:4,Plane:6"
+      }
+    },
+    {
+      "artifact": "pmi-projected-hole.step",
+      "bytes": 8240,
+      "rawSha256": "fcd20ee4c913100438b18f9c0502731184083e3f72f52f2439be180c8e890982",
+      "canonicalSha256": "fcd20ee4c913100438b18f9c0502731184083e3f72f52f2439be180c8e890982",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\pmi-projected-hole.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 7,
+          "edgeCount": 15,
+          "vertexCount": 12,
+          "boundingBox": {
+            "min": {
+              "x": -40,
+              "y": -25,
+              "z": -6
+            },
+            "max": {
+              "x": 40,
+              "y": 25,
+              "z": 6
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 6,
+            "cylinder": 1,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 7,
+            "count": 7,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 15,
+            "count": 15,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 12,
+            "count": 12,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "pmi-projected-hole.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:1,Plane:6"
+      }
+    },
+    {
+      "artifact": "primitive-box.step",
+      "bytes": 5870,
+      "rawSha256": "f21c447de26dd088c45ce896a0fffebab10df8e53b663fa37d21143f5d2d5ed2",
+      "canonicalSha256": "f21c447de26dd088c45ce896a0fffebab10df8e53b663fa37d21143f5d2d5ed2",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\primitive-box.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 6,
+          "edgeCount": 12,
+          "vertexCount": 8,
+          "boundingBox": {
+            "min": {
+              "x": -40,
+              "y": -25,
+              "z": 0
+            },
+            "max": {
+              "x": 40,
+              "y": 25,
+              "z": 25
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 6,
+            "cylinder": 0,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 6,
+            "count": 6,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 12,
+            "count": 12,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 8,
+            "count": 8,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "primitive-box.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Plane:6"
+      }
+    },
+    {
+      "artifact": "primitive-cylinder.step",
+      "bytes": 2834,
+      "rawSha256": "117ce3d281d041beaf018616370cb6c2aa13dc5f12be0b54b00440839f4568f5",
+      "canonicalSha256": "117ce3d281d041beaf018616370cb6c2aa13dc5f12be0b54b00440839f4568f5",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\primitive-cylinder.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 3,
+          "edgeCount": 3,
+          "vertexCount": 4,
+          "boundingBox": {
+            "min": {
+              "x": -12,
+              "y": -12,
+              "z": 0
+            },
+            "max": {
+              "x": 12,
+              "y": 12,
+              "z": 30
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 2,
+            "cylinder": 1,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 3,
+            "count": 3,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 3,
+            "count": 3,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 4,
+            "count": 4,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "primitive-cylinder.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:1,Plane:2"
+      }
+    },
+    {
+      "artifact": "primitive-frustum.step",
+      "bytes": 2884,
+      "rawSha256": "6ed1df0134e52dbdbe176582ece8c6a0462940530a2024a295baead8320ef326",
+      "canonicalSha256": "6ed1df0134e52dbdbe176582ece8c6a0462940530a2024a295baead8320ef326",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\primitive-frustum.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 3,
+          "edgeCount": 3,
+          "vertexCount": 4,
+          "boundingBox": {
+            "min": {
+              "x": -20,
+              "y": -20,
+              "z": 0
+            },
+            "max": {
+              "x": 20,
+              "y": 20,
+              "z": 30
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 2,
+            "cylinder": 0,
+            "cone": 1,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 3,
+            "count": 3,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 3,
+            "count": 3,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 4,
+            "count": 4,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "primitive-frustum.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cone:1,Plane:2"
+      }
+    },
+    {
+      "artifact": "primitive-rounded-box.step",
+      "bytes": 11692,
+      "rawSha256": "19369e8f388f29cfaf5902593664b04f23ea8e8d32d95fe1d710584b6ac31598",
+      "canonicalSha256": "19369e8f388f29cfaf5902593664b04f23ea8e8d32d95fe1d710584b6ac31598",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\primitive-rounded-box.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 10,
+          "edgeCount": 24,
+          "vertexCount": 16,
+          "boundingBox": {
+            "min": {
+              "x": -40,
+              "y": -25,
+              "z": -12.5
+            },
+            "max": {
+              "x": 40,
+              "y": 25,
+              "z": 12.5
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 6,
+            "cylinder": 4,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 10,
+            "count": 10,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 24,
+            "count": 24,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 16,
+            "count": 16,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "primitive-rounded-box.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:4,Plane:6"
+      }
+    },
+    {
+      "artifact": "profile-l-bracket.step",
+      "bytes": 8075,
+      "rawSha256": "02e68f9944462a21d1f46c4dfca30055145569b959a63ce1a059914b2285b062",
+      "canonicalSha256": "02e68f9944462a21d1f46c4dfca30055145569b959a63ce1a059914b2285b062",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\profile-l-bracket.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 8,
+          "edgeCount": 18,
+          "vertexCount": 12,
+          "boundingBox": {
+            "min": {
+              "x": -40,
+              "y": -20,
+              "z": 0
+            },
+            "max": {
+              "x": 40,
+              "y": 40,
+              "z": 12
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 8,
+            "cylinder": 0,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 8,
+            "count": 8,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 18,
+            "count": 18,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 12,
+            "count": 12,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "profile-l-bracket.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Plane:8"
+      }
+    },
+    {
+      "artifact": "slot-capsule.step",
+      "bytes": 11179,
+      "rawSha256": "27a5dcd6b1db3348c7a52d62e954becfb80309c448552fa3ff1c942d6695ed9d",
+      "canonicalSha256": "27a5dcd6b1db3348c7a52d62e954becfb80309c448552fa3ff1c942d6695ed9d",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\slot-capsule.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 10,
+          "edgeCount": 24,
+          "vertexCount": 16,
+          "boundingBox": {
+            "min": {
+              "x": -100,
+              "y": -50,
+              "z": -10
+            },
+            "max": {
+              "x": 100,
+              "y": 50,
+              "z": 10
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 8,
+            "cylinder": 2,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 10,
+            "count": 10,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 24,
+            "count": 24,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 16,
+            "count": 16,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "slot-capsule.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:2,Plane:8"
+      }
+    },
+    {
+      "artifact": "slot-rounded-rectangle.step",
+      "bytes": 16280,
+      "rawSha256": "19d1646b29c4a23d48bda14bbbb33919a17dab03ddca495ea1f7614964a956a9",
+      "canonicalSha256": "19d1646b29c4a23d48bda14bbbb33919a17dab03ddca495ea1f7614964a956a9",
+      "aetheris": {
+        "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\slot-rounded-rectangle.step",
+        "summary": {
+          "bodyCount": 1,
+          "shellCount": 1,
+          "faceCount": 14,
+          "edgeCount": 36,
+          "vertexCount": 24,
+          "boundingBox": {
+            "min": {
+              "x": -100,
+              "y": -50,
+              "z": -10
+            },
+            "max": {
+              "x": 100,
+              "y": 50,
+              "z": 10
+            }
+          },
+          "structuralAssessment": "enclosed-manifold",
+          "surfaceFamilies": {
+            "plane": 10,
+            "cylinder": 4,
+            "cone": 0,
+            "sphere": 0,
+            "torus": 0,
+            "bspline": 0,
+            "linear-extrusion": 0,
+            "surface-of-revolution": 0,
+            "other": 0
+          },
+          "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+          "lengthUnit": "mm",
+          "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+          "faceIds": {
+            "min": 1,
+            "max": 14,
+            "count": 14,
+            "contiguous": true
+          },
+          "edgeIds": {
+            "min": 1,
+            "max": 36,
+            "count": 36,
+            "contiguous": true
+          },
+          "vertexIds": {
+            "min": 1,
+            "max": 24,
+            "count": 24,
+            "contiguous": true
+          }
+        },
+        "face": null,
+        "edge": null,
+        "vertex": null,
+        "notes": []
+      },
+      "freecad": {
+        "artifact": "slot-rounded-rectangle.step",
+        "exitCode": 0,
+        "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:4,Plane:10"
+      }
+    }
+  ]
+}

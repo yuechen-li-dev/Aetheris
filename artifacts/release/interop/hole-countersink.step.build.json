@@ -1,0 +1,46 @@
+{
+  "command": "build",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\countersink-hole.firmament",
+  "output": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\hole-countersink.step",
+  "sourcePath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\countersink-hole.firmament",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\hole-countersink.step",
+  "conceptIr": null,
+  "air": null,
+  "roundedBox": null,
+  "hollow": null,
+  "lattice": null,
+  "combined": null,
+  "assertions": [],
+  "features": [
+    {
+      "name": "Mount",
+      "kind": "Hole",
+      "featureId": "Base.Mount",
+      "diameter": 6,
+      "localU": 0,
+      "localV": 0,
+      "resolvedPoint3": null,
+      "centerSource": null,
+      "centerStableId": null,
+      "pointOrdinal": null,
+      "placementFace": "top",
+      "sourceSpan": null,
+      "materializationRoute": "AirHoleSimpleShaftMaterializer",
+      "constructionKind": "HoleProfileStack",
+      "stackKind": "Countersink",
+      "witnessSummary": "conical-entry(entryRadius=6,angle=90) -\u003E cylindrical-shaft(radius=3,ThroughAll)",
+      "cylindricalFaces": 1,
+      "conicalFaces": 1,
+      "planarFaces": 6,
+      "stepSha256": "6BD19429B102AB8C78D92F760A39BFC739387790ABCB8B625437811174542419",
+      "stepReimportSucceeded": true
+    }
+  ],
+  "inlineStepMigration": null,
+  "inlineStepReplacementAssist": null,
+  "pmiExportEvidence": {
+    "datum": [],
+    "diameter": []
+  }
+}

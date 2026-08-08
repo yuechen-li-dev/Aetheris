@@ -36,6 +36,7 @@ internal static class FirmamentV2BuildLowering
         {
             FirmamentV2BoxRecord box when box.Size.Count == 3 => (FirmamentLoweredPrimitiveKind.Box, (FirmamentLoweredPrimitiveParameters)new FirmamentLoweredBoxParameters(box.Size[0], box.Size[1], box.Size[2])),
             FirmamentV2CylinderRecord cylinder => (FirmamentLoweredPrimitiveKind.Cylinder, new FirmamentLoweredCylinderParameters(cylinder.Radius, cylinder.Height)),
+            FirmamentV2FrustumRecord frustum => (FirmamentLoweredPrimitiveKind.Cone, new FirmamentLoweredConeParameters(frustum.BottomRadius, frustum.TopRadius, frustum.Height)),
             FirmamentV2ConeRecord cone => (FirmamentLoweredPrimitiveKind.Cone, new FirmamentLoweredConeParameters(cone.BottomRadius, cone.TopRadius, cone.Height)),
             FirmamentV2SphereRecord sphere => (FirmamentLoweredPrimitiveKind.Sphere, new FirmamentLoweredSphereParameters(sphere.Radius)),
             FirmamentV2TorusRecord torus => (FirmamentLoweredPrimitiveKind.Torus, new FirmamentLoweredTorusParameters(torus.MajorRadius, torus.MinorRadius)),

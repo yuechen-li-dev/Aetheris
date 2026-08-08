@@ -1,0 +1,22 @@
+{
+  "command": "build",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\bare-cylinder.firmament",
+  "output": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\primitive-cylinder.step",
+  "sourcePath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\bare-cylinder.firmament",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\primitive-cylinder.step",
+  "conceptIr": null,
+  "air": null,
+  "roundedBox": null,
+  "hollow": null,
+  "lattice": null,
+  "combined": null,
+  "assertions": [],
+  "features": null,
+  "inlineStepMigration": null,
+  "inlineStepReplacementAssist": null,
+  "pmiExportEvidence": {
+    "datum": [],
+    "diameter": []
+  }
+}

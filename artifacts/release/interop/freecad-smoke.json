@@ -1,0 +1,87 @@
+[
+  {
+    "artifact": "edgefinish-chamfer.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cone:5,Cylinder:5,Plane:26"
+  },
+  {
+    "artifact": "edgefinish-fillet-bounded.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:2,Plane:10,Toroid:1"
+  },
+  {
+    "artifact": "experimental-edgefinish-fillet-chimera.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:17,Plane:14,Sphere:1,Toroid:5"
+  },
+  {
+    "artifact": "experimental-edgefinish-fillet-sphere-compat.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:17,Plane:15,Sphere:2,Toroid:4"
+  },
+  {
+    "artifact": "hole-counterbore.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:2,Plane:7"
+  },
+  {
+    "artifact": "hole-countersink.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cone:1,Cylinder:1,Plane:6"
+  },
+  {
+    "artifact": "hole-shaft-throughall.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:1,Plane:6"
+  },
+  {
+    "artifact": "inline-step-replace.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:1,Plane:6"
+  },
+  {
+    "artifact": "pattern-four-hole.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:4,Plane:6"
+  },
+  {
+    "artifact": "pmi-projected-hole.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:1,Plane:6"
+  },
+  {
+    "artifact": "primitive-box.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Plane:6"
+  },
+  {
+    "artifact": "primitive-cylinder.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:1,Plane:2"
+  },
+  {
+    "artifact": "primitive-frustum.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cone:1,Plane:2"
+  },
+  {
+    "artifact": "primitive-rounded-box.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:4,Plane:6"
+  },
+  {
+    "artifact": "profile-l-bracket.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Plane:8"
+  },
+  {
+    "artifact": "slot-capsule.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:2,Plane:8"
+  },
+  {
+    "artifact": "slot-rounded-rectangle.step",
+    "exitCode": 0,
+    "output": "FreeCAD STEP import succeeded\nobject_count=1\nsolid_count=1\nshell_count=1\nclosed=true\nshape_valid=true\nhealing_invoked=false\nsurface_types=Cylinder:4,Plane:10"
+  }
+]

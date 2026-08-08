@@ -18,6 +18,24 @@ public sealed class FirmamentV2CanonicalGrammarTests
     }
 
     [Fact]
+    public void CanonicalFrustum_ExportsThroughTheProductionConeRoute()
+    {
+        var output = Path.Combine(Path.GetTempPath(), $"aetheris-canonical-frustum-{Guid.NewGuid():N}.step");
+        try
+        {
+            var build = FirmamentBuildAndExport.Run(Fixture("bare-frustum.firmament"), output);
+
+            Assert.True(build.IsSuccess, string.Join(Environment.NewLine, build.Diagnostics.Select(d => d.Message)));
+            Assert.True(File.Exists(output));
+            Assert.Contains("CONICAL_SURFACE", File.ReadAllText(output), StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
     public void CanonicalModify_AdmitsHoleAndEdgeFinishInTheSameBlock()
     {
         var parsed = FirmamentV2Parser.Parse(File.ReadAllText(Fixture("box-hole-chamfer.firmament")));

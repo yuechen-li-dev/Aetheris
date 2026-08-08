@@ -1,0 +1,75 @@
+{
+  "command": "build",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\inline-step-recognize-replace.firmament",
+  "output": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\inline-step-replace.step",
+  "sourcePath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\inline-step-recognize-replace.firmament",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\inline-step-replace.step",
+  "conceptIr": null,
+  "air": null,
+  "roundedBox": null,
+  "hollow": null,
+  "lattice": null,
+  "combined": null,
+  "assertions": [],
+  "features": null,
+  "inlineStepMigration": {
+    "importedBodyName": "Source",
+    "sourcePath": "../../InlineStep/testdata/canonical-through-hole.step",
+    "sourceHash": "d165ebf5f25490b31b9c8fcdc59a4f49c6e78c4a9bf6ba9584ef35666bb42aaf",
+    "originalTopology": {
+      "faceCount": 7,
+      "edgeCount": 0,
+      "vertexCount": 0
+    },
+    "recognized": {
+      "regionCount": 1,
+      "referencedFaceCount": 1,
+      "duplicateReferencedFaceCount": 0,
+      "unresolvedReferenceCount": 0,
+      "evidenceCount": 0,
+      "proposalCount": 0,
+      "proposalVerifiedCount": 0,
+      "proposalUnverifiedCount": 0,
+      "proposalAssistReadyCount": 0,
+      "proposalAssistBlockedCount": 0
+    },
+    "replacements": {
+      "plannedCount": 1,
+      "verifiedCount": 1,
+      "emittedCount": 1,
+      "failedCount": 0,
+      "replacedFaceCount": 1
+    },
+    "residual": {
+      "residualFaceCount": 6,
+      "unclaimedFaceCount": 6
+    },
+    "coverage": {
+      "recognizedFaceRatio": 0.14285714285714285,
+      "replacedFaceRatio": 0.14285714285714285
+    },
+    "emissionStrategy": "holeShaft-bounded-rebuild",
+    "residualSurgery": false,
+    "replacementStates": [
+      "recognized",
+      "replacement-planned",
+      "replacement-verified",
+      "residual-emitted",
+      "hybrid-step-verified"
+    ],
+    "diagnostics": [
+      "inline-step-migration-residual-surgery-not-performed",
+      "inline-step-migration-emission-bounded-rebuild"
+    ]
+  },
+  "inlineStepReplacementAssist": {
+    "assists": [],
+    "readyCount": 0,
+    "blockedCount": 0
+  },
+  "pmiExportEvidence": {
+    "datum": [],
+    "diameter": []
+  }
+}

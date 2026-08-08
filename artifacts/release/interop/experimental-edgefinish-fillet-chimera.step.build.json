@@ -1,0 +1,42 @@
+{
+  "command": "build",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\profile-edgefinish-chimera-fillet.firmament",
+  "output": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\experimental-edgefinish-fillet-chimera.step",
+  "sourcePath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\profile-edgefinish-chimera-fillet.firmament",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\experimental-edgefinish-fillet-chimera.step",
+  "conceptIr": null,
+  "air": null,
+  "roundedBox": null,
+  "hollow": null,
+  "lattice": null,
+  "combined": null,
+  "assertions": [
+    {
+      "assertionId": "volume:Body:2327",
+      "targetBodyId": "Body",
+      "expectedMm3": 913725.7396023329,
+      "measuredMm3": 881896.878553219,
+      "deltaMm3": -31828.86104911391,
+      "absoluteDeltaMm3": 31828.86104911391,
+      "toleranceMm3": 41239,
+      "passed": true,
+      "note": "Independent adaptive source-section integration; tolerance is the current curved-trim verifier\u0027s certified conservative error envelope.",
+      "measurementMethod": "DeterministicTrimmedFaceTriangulationBoundaryIntegral",
+      "measurementErrorBoundMm3": 41238.37828986433,
+      "diagnostic": null,
+      "sourceSpan": {
+        "start": 2327,
+        "length": 247
+      },
+      "provenance": "FirmamentSource"
+    }
+  ],
+  "features": null,
+  "inlineStepMigration": null,
+  "inlineStepReplacementAssist": null,
+  "pmiExportEvidence": {
+    "datum": [],
+    "diameter": []
+  }
+}

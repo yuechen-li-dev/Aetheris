@@ -70,6 +70,8 @@ artifacts/*
 artifacts/release/*
 !artifacts/release/preview1-baseline.json
 !artifacts/release/preview1-capabilities.json
+!artifacts/release/interop/
+!artifacts/release/interop/**
 !docs/release/
 !docs/release/preview1-baseline-stabilization-x1.md
 

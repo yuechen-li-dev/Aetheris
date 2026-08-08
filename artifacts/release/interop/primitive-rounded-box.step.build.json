@@ -1,0 +1,72 @@
+{
+  "command": "build",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\bare-rounded-box.firmament",
+  "output": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\primitive-rounded-box.step",
+  "sourcePath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\bare-rounded-box.firmament",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\primitive-rounded-box.step",
+  "conceptIr": null,
+  "air": null,
+  "roundedBox": {
+    "primitive": {
+      "featureAir": "RoundedBoxFeature",
+      "constructionAir": "RoundedRectangleProfile -\u003E LinearSweep",
+      "width": 80,
+      "depth": 50,
+      "height": 25,
+      "cornerRadius": 6,
+      "planarSideFaces": 4,
+      "cylindricalCornerWallFaces": 4,
+      "legacyFallback": false
+    },
+    "edgeFinish": null,
+    "bRepPlan": {
+      "authoritative": true,
+      "signature": "9e344c17e11f4a0cff324684b2362b43d78649bf9f207b77b4c6a8d0a5a243ea",
+      "vertices": 16,
+      "edges": 32,
+      "faces": 10,
+      "loops": 10,
+      "coedges": 48,
+      "roles": [
+        "RoundedBoxBottom",
+        "RoundedBoxTop",
+        "PlanarSide(\u002BX)",
+        "PlanarSide(-Y)",
+        "PlanarSide(-X)",
+        "PlanarSide(\u002BY)",
+        "RoundedCornerWall(PX_NY)",
+        "RoundedCornerWall(PX_PY)",
+        "RoundedCornerWall(NX_PY)",
+        "RoundedCornerWall(NX_NY)"
+      ]
+    },
+    "geometry": {
+      "bounds": "[-40,-25,-12.5]..[40,25,12.5]",
+      "enclosedManifold": true,
+      "planes": 6,
+      "cylinders": 4,
+      "tori": 0,
+      "analyticVolume": 99227.43338823081,
+      "preflight": "valid"
+    },
+    "step": {
+      "sha256": "19369E8F388F29CFAF5902593664B04F23EA8E8D32D95FE1D710584B6AC31598",
+      "reimportSucceeded": true,
+      "reimportedManifold": true,
+      "reimportedFaces": 10,
+      "reimportedBounds": "[-40,-25,-12.5]..[40,25,12.5]"
+    }
+  },
+  "hollow": null,
+  "lattice": null,
+  "combined": null,
+  "assertions": [],
+  "features": null,
+  "inlineStepMigration": null,
+  "inlineStepReplacementAssist": null,
+  "pmiExportEvidence": {
+    "datum": [],
+    "diameter": []
+  }
+}

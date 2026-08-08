@@ -1,0 +1,42 @@
+{
+  "command": "build",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\profile-compose-l-bracket.firmament",
+  "output": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\profile-l-bracket.step",
+  "sourcePath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\profile-compose-l-bracket.firmament",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\profile-l-bracket.step",
+  "conceptIr": null,
+  "air": null,
+  "roundedBox": null,
+  "hollow": null,
+  "lattice": null,
+  "combined": null,
+  "assertions": [
+    {
+      "assertionId": "volume:BracketBody:1068",
+      "targetBodyId": "BracketBody",
+      "expectedMm3": 28800,
+      "measuredMm3": 28800,
+      "deltaMm3": 0,
+      "absoluteDeltaMm3": 0,
+      "toleranceMm3": 0,
+      "passed": true,
+      "note": "Union of 80x20 and 20x60 rectangles, extruded 12mm",
+      "measurementMethod": "ExactVerticalLineArcPrismSectionIntegration\u002BDeterministicTrimmedFaceTriangulationBoundaryIntegral",
+      "measurementErrorBoundMm3": 3264,
+      "diagnostic": null,
+      "sourceSpan": {
+        "start": 1068,
+        "length": 153
+      },
+      "provenance": "FirmamentSource"
+    }
+  ],
+  "features": null,
+  "inlineStepMigration": null,
+  "inlineStepReplacementAssist": null,
+  "pmiExportEvidence": {
+    "datum": [],
+    "diameter": []
+  }
+}

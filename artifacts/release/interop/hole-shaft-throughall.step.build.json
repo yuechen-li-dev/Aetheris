@@ -1,0 +1,46 @@
+{
+  "command": "build",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\box-through-hole.firmament",
+  "output": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\hole-shaft-throughall.step",
+  "sourcePath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\box-through-hole.firmament",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\hole-shaft-throughall.step",
+  "conceptIr": null,
+  "air": null,
+  "roundedBox": null,
+  "hollow": null,
+  "lattice": null,
+  "combined": null,
+  "assertions": [],
+  "features": [
+    {
+      "name": "Mount",
+      "kind": "Hole",
+      "featureId": "Base.Mount",
+      "diameter": 8,
+      "localU": 0,
+      "localV": 0,
+      "resolvedPoint3": null,
+      "centerSource": null,
+      "centerStableId": null,
+      "pointOrdinal": null,
+      "placementFace": "top",
+      "sourceSpan": null,
+      "materializationRoute": "AirHoleSimpleShaftMaterializer",
+      "constructionKind": "HoleProfileStack",
+      "stackKind": "SimpleShaft",
+      "witnessSummary": "cylindrical-shaft(radius=4,ThroughAll)",
+      "cylindricalFaces": 1,
+      "conicalFaces": 0,
+      "planarFaces": 6,
+      "stepSha256": "EE665BD001DF97D210E4FBB5D535FF2E26FC58601AA369B204089B7378799450",
+      "stepReimportSucceeded": true
+    }
+  ],
+  "inlineStepMigration": null,
+  "inlineStepReplacementAssist": null,
+  "pmiExportEvidence": {
+    "datum": [],
+    "diameter": []
+  }
+}

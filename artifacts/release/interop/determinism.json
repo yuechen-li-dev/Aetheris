@@ -1,0 +1,104 @@
+[
+  {
+    "artifact": "primitive-box.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/bare-box.firmament",
+    "stable": true,
+    "sha256": "f21c447de26dd088c45ce896a0fffebab10df8e53b663fa37d21143f5d2d5ed2"
+  },
+  {
+    "artifact": "primitive-cylinder.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/bare-cylinder.firmament",
+    "stable": true,
+    "sha256": "117ce3d281d041beaf018616370cb6c2aa13dc5f12be0b54b00440839f4568f5"
+  },
+  {
+    "artifact": "primitive-rounded-box.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/bare-rounded-box.firmament",
+    "stable": true,
+    "sha256": "19369e8f388f29cfaf5902593664b04f23ea8e8d32d95fe1d710584b6ac31598"
+  },
+  {
+    "artifact": "primitive-frustum.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/bare-frustum.firmament",
+    "stable": true,
+    "sha256": "6ed1df0134e52dbdbe176582ece8c6a0462940530a2024a295baead8320ef326"
+  },
+  {
+    "artifact": "hole-shaft-throughall.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/box-through-hole.firmament",
+    "stable": true,
+    "sha256": "ee665bd001df97d210e4fbb5d535ff2e26fc58601aa369b204089b7378799450"
+  },
+  {
+    "artifact": "hole-counterbore.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/counterbore-hole.firmament",
+    "stable": true,
+    "sha256": "9e9b6d4652c364e59e2b8846979d907395ce1ad1ae1cf19eab9079e5c2c57502"
+  },
+  {
+    "artifact": "hole-countersink.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/countersink-hole.firmament",
+    "stable": true,
+    "sha256": "6bd19429b102ab8c78d92f760a39bfc739387790abcb8b625437811174542419"
+  },
+  {
+    "artifact": "slot-capsule.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/semantic-slot-capsule.firmament",
+    "stable": true,
+    "sha256": "27a5dcd6b1db3348c7a52d62e954becfb80309c448552fa3ff1c942d6695ed9d"
+  },
+  {
+    "artifact": "slot-rounded-rectangle.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/semantic-slot-rounded-rectangle.firmament",
+    "stable": true,
+    "sha256": "19d1646b29c4a23d48bda14bbbb33919a17dab03ddca495ea1f7614964a956a9"
+  },
+  {
+    "artifact": "profile-l-bracket.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket.firmament",
+    "stable": true,
+    "sha256": "02e68f9944462a21d1f46c4dfca30055145569b959a63ce1a059914b2285b062"
+  },
+  {
+    "artifact": "pattern-four-hole.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/docs-four-hole-pattern.firmament",
+    "stable": true,
+    "sha256": "4292eb347041bd7848f79cf29a85ae91d29ee7656a794d7176c1404caa9549cd"
+  },
+  {
+    "artifact": "edgefinish-chamfer.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/profile-edgefinish-chimera-chamfer.firmament",
+    "stable": true,
+    "sha256": "b2cd232bb48589da6812b005d25b71ecabba53e0397ec38653596e0ef7966c6c"
+  },
+  {
+    "artifact": "edgefinish-fillet-bounded.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/profile-fillet-reflex-two-segment-top.firmament",
+    "stable": true,
+    "sha256": "d8e300f33c3731ea7e04dd59fea17cadac12c4c57d92782f190750d91e6196ba"
+  },
+  {
+    "artifact": "pmi-projected-hole.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/pmi-projected-hole-diameter.firmament",
+    "stable": true,
+    "sha256": "fcd20ee4c913100438b18f9c0502731184083e3f72f52f2439be180c8e890982"
+  },
+  {
+    "artifact": "inline-step-replace.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/inline-step-recognize-replace.firmament",
+    "stable": true,
+    "sha256": "b65176a15169b92825ed933ff5eb26b8bdefda34a0492f558b81427e27e70890"
+  },
+  {
+    "artifact": "experimental-edgefinish-fillet-chimera.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/profile-edgefinish-chimera-fillet.firmament",
+    "stable": true,
+    "sha256": "0dadf30e5f9bc00a690c9e039bdf736b37f10c665078f85f1b0a023b1b053833"
+  },
+  {
+    "artifact": "experimental-edgefinish-fillet-sphere-compat.step",
+    "source": "fixtures/FirmamentV2/Canonical/valid/profile-edgefinish-chimera-reflex-sphere-compat.firmament",
+    "stable": true,
+    "sha256": "1cc6bda2af0b8dc4dd7f82b382bda30c4e62258c57d49f8faba1e15f00415641"
+  }
+]

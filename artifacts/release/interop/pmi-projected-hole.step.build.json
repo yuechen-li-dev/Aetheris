@@ -1,0 +1,63 @@
+{
+  "command": "build",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\pmi-projected-hole-diameter.firmament",
+  "output": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\pmi-projected-hole.step",
+  "sourcePath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\pmi-projected-hole-diameter.firmament",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\pmi-projected-hole.step",
+  "conceptIr": null,
+  "air": null,
+  "roundedBox": null,
+  "hollow": null,
+  "lattice": null,
+  "combined": null,
+  "assertions": [],
+  "features": [
+    {
+      "name": "Mount",
+      "kind": "Hole",
+      "featureId": "Base.Mount",
+      "diameter": 8,
+      "localU": 20,
+      "localV": 20,
+      "resolvedPoint3": null,
+      "centerSource": null,
+      "centerStableId": null,
+      "pointOrdinal": null,
+      "placementFace": "top",
+      "sourceSpan": null,
+      "materializationRoute": "AirHoleSimpleShaftMaterializer",
+      "constructionKind": "HoleProfileStack",
+      "stackKind": "SimpleShaft",
+      "witnessSummary": "cylindrical-shaft(radius=4,ThroughAll)",
+      "cylindricalFaces": 1,
+      "conicalFaces": 0,
+      "planarFaces": 6,
+      "stepSha256": "FCD20EE4C913100438B18F9C0502731184083E3F72F52F2439BE180C8E890982",
+      "stepReimportSucceeded": true
+    }
+  ],
+  "inlineStepMigration": null,
+  "inlineStepReplacementAssist": null,
+  "pmiExportEvidence": {
+    "datum": [
+      {
+        "kind": "datum",
+        "name": "A",
+        "exportSupport": "supported",
+        "exportEvidence": "found",
+        "target": "face(\u002BZ)"
+      }
+    ],
+    "diameter": [
+      {
+        "kind": "diameter",
+        "name": "Mount",
+        "exportSupport": "supported",
+        "exportEvidence": "found",
+        "target": "Mount",
+        "nominal": 8
+      }
+    ]
+  }
+}

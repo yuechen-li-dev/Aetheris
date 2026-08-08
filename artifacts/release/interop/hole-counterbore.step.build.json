@@ -1,0 +1,46 @@
+{
+  "command": "build",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\counterbore-hole.firmament",
+  "output": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\hole-counterbore.step",
+  "sourcePath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\FirmamentV2\\Canonical\\valid\\counterbore-hole.firmament",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\artifacts\\release\\interop\\hole-counterbore.step",
+  "conceptIr": null,
+  "air": null,
+  "roundedBox": null,
+  "hollow": null,
+  "lattice": null,
+  "combined": null,
+  "assertions": [],
+  "features": [
+    {
+      "name": "Mount",
+      "kind": "Hole",
+      "featureId": "Base.Mount",
+      "diameter": 6,
+      "localU": 0,
+      "localV": 0,
+      "resolvedPoint3": null,
+      "centerSource": null,
+      "centerStableId": null,
+      "pointOrdinal": null,
+      "placementFace": "top",
+      "sourceSpan": null,
+      "materializationRoute": "AirHoleSimpleShaftMaterializer",
+      "constructionKind": "HoleProfileStack",
+      "stackKind": "Counterbore",
+      "witnessSummary": "counterbore(radius=5.5,depth=4) -\u003E cylindrical-shaft(radius=3,ThroughAll)",
+      "cylindricalFaces": 2,
+      "conicalFaces": 0,
+      "planarFaces": 7,
+      "stepSha256": "9E9B6D4652C364E59E2B8846979D907395CE1AD1AE1CF19EAB9079E5C2C57502",
+      "stepReimportSucceeded": true
+    }
+  ],
+  "inlineStepMigration": null,
+  "inlineStepReplacementAssist": null,
+  "pmiExportEvidence": {
+    "datum": [],
+    "diameter": []
+  }
+}

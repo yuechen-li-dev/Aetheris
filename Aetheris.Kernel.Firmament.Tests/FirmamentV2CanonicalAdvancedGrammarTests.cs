@@ -346,6 +346,44 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
     }
 
     [Fact]
+    public void CanonicalExternalModifyFeatures_AreMaterializedIntoStep()
+    {
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-external-modify-counterbore.firmament"));
+        var output = Path.Combine(Path.GetTempPath(), "aetheris-external-modify-" + Guid.NewGuid().ToString("N") + ".step");
+        try
+        {
+            var build = FirmamentBuildAndExport.Run(path, output);
+            Assert.True(build.IsSuccess, string.Join(Environment.NewLine, build.Diagnostics.Select(diagnostic => diagnostic.Message)));
+
+            var imported = Step242Importer.ImportBody(File.ReadAllText(output));
+            Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
+            var cylinders = imported.Value.Geometry.Surfaces
+                .Select(entry => entry.Value)
+                .Where(surface => surface.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder)
+                .Select(surface => surface.Cylinder!.Value.Radius)
+                .Order()
+                .ToArray();
+            Assert.Contains(cylinders, radius => Math.Abs(radius - 3d) < 1e-9);
+            Assert.Contains(cylinders, radius => Math.Abs(radius - 4d) < 1e-9);
+            Assert.Contains(cylinders, radius => Math.Abs(radius - 7d) < 1e-9);
+        }
+        finally
+        {
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void CanonicalExternalModifyFeatures_WithUnboundTarget_AreFatal()
+    {
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-external-modify-counterbore.firmament"));
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(path).Replace("Modify BracketBody", "Modify OtherBody", StringComparison.Ordinal));
+
+        Assert.False(parse.IsSuccess);
+        Assert.Contains(parse.Diagnostics, diagnostic => diagnostic.StartsWith(FirmamentV2Parser.ModifyTargetNotBoundToActiveCompose, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ProfileComposePolygonEdgeFinish_ReportsHostAdmissionInsteadOfMissingSemanticSource()
     {
         var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Canonical/invalid/profile-compose-l-bracket-edgefinish-unsupported.firmament"));

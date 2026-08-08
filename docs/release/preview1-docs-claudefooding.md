@@ -11,7 +11,7 @@ sources so the review remains tied to executable release truth.
 | --- | --- | --- | ---: | --- | --- |
 | Rectangular plate | `fixtures/FirmamentV2/Canonical/valid/bare-box.firmament` | Success | 0 | Getting started; Language tour | None |
 | Four patterned shaft holes | `fixtures/FirmamentV2/Canonical/valid/docs-four-hole-pattern.firmament` | Success | 0 | Static authoring; Slots and patterns; Holes | None |
-| Concept Path L-bracket | `fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket.firmament` | Success | 0 | Concept Path; Profiles/Compose | None |
+| Low-level Profile/Compose L-bracket | `fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket.firmament` | Success | 0 | Low-level Profiles/Compose | `Concept Path`-derived Profiles are Extrude-only in Preview 1. |
 | Counterbored plate | `fixtures/FirmamentV2/Canonical/valid/counterbore-hole.firmament` | Success | 0 | Holes; Language reference | None |
 | Supported Profile chamfer | `fixtures/FirmamentV2/Canonical/valid/profile-chamfer-mixed-convex-reflex-loop-top.firmament` | Success | 0 | Edge finishes | None |
 | Supported bounded fillet | `fixtures/FirmamentV2/Canonical/valid/profile-fillet-reflex-two-segment-top.firmament` | Success | 0 | Edge finishes | None |

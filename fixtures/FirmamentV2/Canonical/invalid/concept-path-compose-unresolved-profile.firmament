@@ -1,0 +1,19 @@
+Model ConceptPathComposeUnresolvedProfile {
+    Units: mm
+
+    Concept Path PlateOutline {
+        Start: Point2(-20mm, -10mm)
+        Heading: 0deg
+        Line South { Length: 40mm }
+        Line East { Turn: 90deg; Length: 20mm }
+        Line North { Turn: 90deg; Length: 40mm }
+        Close West
+    }
+    Profile PlateProfile From PlateOutline
+
+    Struct PlateBody {
+        Compose PlateBody {
+            Base Stock { Profile: PlateProfile; From: 0mm; To: 10mm; Role: Stock }
+        }
+    }
+}

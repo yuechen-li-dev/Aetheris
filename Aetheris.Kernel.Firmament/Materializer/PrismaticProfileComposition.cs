@@ -90,6 +90,7 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex ProfileHead = new(@"\bProfile\s+(?<n>\w+)\s+Using\s+(?<layout>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex ComposeHead = new(@"\bCompose\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex ModifyHead = new(@"\bModify\s+(?<target>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex Placement = new(@"\bPlacement\s+(?<n>\w+)\s*\{\s*Anchor\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\s*,\s*(?<z>[-+.\d]+)mm\]\s*;?\s*ProfilePlane\s*:\s*(?<plane>\w+)\s*;?\s*Axis\s*:\s*(?<axis>[+-][XYZ])\s*;?\s*ReferenceDirection\s*:\s*(?<reference>[+-][XYZ])", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Operation = new(@"\b(?<intent>Base|Add|Remove)\s+(?<n>\w+)\s*\{\s*Profile\s*:\s*(?<profile>\w+)\s*;?\s*From\s*:\s*(?<from>[-+.\d]+)mm\s*;?\s*To\s*:\s*(?<to>[-+.\d]+)mm(?:\s*;?\s*Role\s*:\s*(?<role>\w+))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex HoleHeader = new(@"\bHole\s*<\s*(?<variant>\w+)\s*>\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -183,6 +184,7 @@ public static class PrismaticProfileCompositionParser
         if (!compose.Success) return new(null, profiles, diagnostics.Append("compose-source-missing-compose").ToArray());
         var composeBody = Block(source, compose.Index + compose.Length - 1);
         if (composeBody is null) return new(null, profiles, diagnostics.Append("compose-source-unclosed-compose").ToArray());
+        composeBody = BindExternalModifyFeatures(source, compose.Groups["n"].Value, composeBody, diagnostics);
         var placementMatch = Placement.Match(composeBody);
         var placement = new PrismaticProfilePlacement("LegacyImplicitWorldXY", 0d, 0d, 0d, "XY", "+Z", "+X", false);
         if (placementMatch.Success)
@@ -338,6 +340,26 @@ public static class PrismaticProfileCompositionParser
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
         var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
+    }
+
+    // The canonical Modify form is body-level syntax. Bind feature declarations
+    // targeting this Compose body into the existing section-stack feature path so
+    // they cannot be admitted and then silently omitted from exported geometry.
+    private static string BindExternalModifyFeatures(string source, string composeName, string composeBody, List<string> diagnostics)
+    {
+        var boundFeatures = new List<string>();
+        foreach (Match modify in ModifyHead.Matches(source))
+        {
+            var body = Block(source, source.IndexOf('{', modify.Index));
+            if (body is null || !Regex.IsMatch(body, @"\b(?:Hole\s*<|Slot\s*<|Pattern\s+)", RegexOptions.CultureInvariant)) continue;
+            if (!string.Equals(modify.Groups["target"].Value, composeName, StringComparison.Ordinal))
+            {
+                diagnostics.Add($"{FirmamentV2Parser.ModifyTargetNotBoundToActiveCompose}:target={modify.Groups["target"].Value}:compose={composeName}:features must target the active Compose body.");
+                continue;
+            }
+            boundFeatures.Add(body);
+        }
+        return boundFeatures.Count == 0 ? composeBody : composeBody + Environment.NewLine + string.Join(Environment.NewLine, boundFeatures);
     }
 
     private static ResolvedProfile2D CircleProfile(string profileName, double x, double y, double radius, string holeStableId, string sourceSpan)

@@ -35,7 +35,7 @@ in the manifest.
 | Box / Cylinder / RoundedBox / Frustum | Supported | Exact primitive declarations and their documented fields. |
 | Concept, `Concept Struct`, Struct | SupportedBounded | Typed semantic scaffolds and material bodies; no general runtime language. |
 | Construction Plane | SupportedBounded | Immutable traced frame; source hole route is Box + signed-permutation frame + shaft ThroughAll. |
-| Concept Path / Profile / Compose | SupportedBounded | Ordered line/arc paths and source-bound profile extrusion/composition. |
+| Concept Path / Profile / Compose | SupportedBounded | Concept Path-derived Profiles are admitted by Extrude; Compose currently requires low-level `Profile ... Using ... { Loop ... Segment ... }` source. |
 | Modify / Selection | SupportedBounded | Modify admitted bodies; Selection is source-grounded, never anonymous B-rep inference. |
 | Hole<Shaft>, Hole<Counterbore>, Hole<Countersink> | SupportedBounded | Exact combinations below. |
 | Slot<Capsule>, Slot<RoundedRectangle> | SupportedBounded | Through-all semantic removals in admitted Compose bodies. |
@@ -68,7 +68,7 @@ means executable evidence exists but it is not promoted to the frozen matrix.
 | --- | --- |
 | Root and primitives | `Model N { Units: mm }`; `Box N { Size: [...] }`; `Cylinder N { Radius; Height }`; `RoundedBox N { Size; CornerRadius }`; `Frustum N { BottomRadius; TopRadius; Height }` |
 | Semantic construction | `Concept`, `Concept Struct`, `Struct`; `Construction Plane N { Trace: ConceptPlane }`; use PascalCase field names. |
-| Paths and bodies | `Concept Path N { Start; Heading; Line/Arc; Close }`; `Profile N From Path`; `Profile N { Loop Outer { Segment ... } }`; `Compose N { Base ... }`; `Modify Body { ... }`. |
+| Paths and bodies | `Concept Path N { Start; Heading; Line/Arc; Close }`; `Profile N From Path` + `Extrude`; `Compose` requires `Profile N Using Layout { Loop Outer { Segment ... } }`; `Modify Body { ... }`. |
 | Holes and slots | `Hole<Variant> N { On|From; Center; Diameter; End }`; Counterbore adds `CounterboreDiameter`, `CounterboreDepth`; Countersink adds `CountersinkDiameter`, `CountersinkAngle`; slots use `Center`, `Direction`, `Length`, `Width`, `Extent` and RoundedRectangle adds `CornerRadius`. |
 | Edge finish and selection | `EdgeFinish N { Target; On; Kind; Distance|Radius }`; `Selection N { Target; Source; Require }`. |
 | Static | `Record T { Field: Type }`; `Static N: T[] = [...]`; `Template N(T x) { ... }`; `Pattern N Over Values { Template(Current) }`; `Require N => comparison`. |

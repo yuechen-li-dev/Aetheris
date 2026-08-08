@@ -23,7 +23,7 @@ Firmament V2 is one language. Backend specialization is not an author-facing dia
 
 ### Concept Path
 
-For ordinary connected line/arc scaffolds, use `Concept Path`: its ordered entries emit named guides and endpoints and can be consumed directly with `Profile Name From PathName`, or with explicit `Loop Outer From` / `Loop Inner From` declarations. It does not replace low-level `Segment` authoring or validate a material boundary. See [Concept Path M1](v2-concept-path.md) and the [canonical fixtures](../../fixtures/FirmamentV2/Canonical/valid/concept-path-rectangle.firmament).
+For ordinary connected line/arc scaffolds, use `Concept Path`: its ordered entries emit named guides and endpoints and can be consumed directly with `Profile Name From PathName`, or with explicit `Loop Outer From` / `Loop Inner From` declarations. In Preview 1 those Profile forms are admitted by `Extrude`; `Compose` currently requires the low-level `Profile ... Using ... { Loop ... Segment ... }` form. It does not replace low-level `Segment` authoring or validate a material boundary. See [Concept Path M1](v2-concept-path.md) and the [canonical fixtures](../../fixtures/FirmamentV2/Canonical/valid/concept-path-rectangle.firmament).
 
 Use this form for ordinary parts:
 
